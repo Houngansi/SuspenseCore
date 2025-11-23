@@ -1,0 +1,50 @@
+# EditorConfig for SuspenseCore
+# Unreal Engine C++ Coding Standard
+# https://dev.epicgames.com/documentation/en-us/unreal-engine/epic-cplusplus-coding-standard-for-unreal-engine
+
+root = true
+
+# All files
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C++ files
+[*.{cpp,h,hpp,c}]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# C# files (Build.cs, Target.cs)
+[*.cs]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# JSON files (.uplugin, .uproject)
+[*.{json,uplugin,uproject}]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# INI files (Config files)
+[*.ini]
+indent_style = space
+indent_size = 4
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# XML files
+[*.xml]
+indent_style = space
+indent_size = 2

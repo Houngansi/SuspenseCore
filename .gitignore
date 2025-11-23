@@ -1,0 +1,20 @@
+# Игнорируем скомпилированные бинарники и временные файлы Unreal Engine
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Build/
+
+# Игнорируем файлы IDE (Rider, VS)
+.idea/
+.vscode/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.vc.db
+*.vc.opendb
+
+# Системные файлы
+.DS_Store
+Thumbs.db

@@ -1,4 +1,6 @@
-﻿using UnrealBuildTool;
+﻿// Copyright Houngansi. All Rights Reserved.
+
+using UnrealBuildTool;
 
 public class GAS : ModuleRules
 {
@@ -10,6 +12,12 @@ public class GAS : ModuleRules
             new string[]
             {
                 "Core",
+                "SuspenseCore",
+
+                // Gameplay Ability System dependencies
+                "GameplayAbilities",
+                "GameplayTags",
+                "GameplayTasks"
             }
         );
 
@@ -18,6 +26,7 @@ public class GAS : ModuleRules
             {
                 "CoreUObject",
                 "Engine",
+                "NetCore",           // For replication
                 "Slate",
                 "SlateCore"
             }

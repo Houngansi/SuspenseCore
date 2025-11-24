@@ -9,8 +9,15 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- ✅ Руководство по добавлению legacy кода (AddingLegacyCode.md)
+- ✅ GAS модуль обновлен с правильными зависимостями
+
 ### Планируется
 
+- Анализ legacy кода (MedComShared, MedComGAS, MedComCore)
+- Создание плана рефакторинга
 - Интеграция Replication Graph для MMO масштабируемости
 - Comprehensive unit testing framework
 - Performance profiling tools

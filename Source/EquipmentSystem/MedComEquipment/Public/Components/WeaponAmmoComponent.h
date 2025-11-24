@@ -1,0 +1,318 @@
+// Copyright MedCom Team. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/EquipmentComponentBase.h"
+#include "GameplayTagContainer.h"
+#include "Types/Weapon/FInventoryAmmoState.h"
+#include "WeaponAmmoComponent.generated.h"
+
+// Forward declarations
+class UGameplayEffect;
+class IMedComWeaponInterface;
+class UAttributeSet;
+class UMedComWeaponAttributeSet;
+class UMedComAmmoAttributeSet;
+struct FMedComUnifiedItemData;
+
+/**
+ * Component that manages weapon ammunition state
+ * 
+ * VERSION 5.0 - FULL GAS INTEGRATION:
+ * - All weapon characteristics retrieved through AttributeSets
+ * - Magazine size and reload time from WeaponAttributeSet
+ * - Ammo properties from AmmoAttributeSet
+ * - Seamless integration with EquipmentAttributeComponent
+ * - No direct DataTable field access for runtime values
+ */
+UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
+class MEDCOMEQUIPMENT_API UWeaponAmmoComponent : public UEquipmentComponentBase
+{
+    GENERATED_BODY()
+
+public:
+    UWeaponAmmoComponent();
+    virtual void BeginPlay() override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void Cleanup() override;
+
+    //================================================
+    // Initialization
+    //================================================
+    
+    /**
+     * Initialize from weapon interface
+     * Gets all configuration from DataTable via weapon
+     * @param WeaponInterface Weapon that owns this component
+     * @return Success of initialization
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool InitializeFromWeapon(TScriptInterface<IMedComWeaponInterface> WeaponInterface);
+
+    //================================================
+    // Core Ammo Operations
+    //================================================
+
+    /**
+     * Consume ammo from magazine
+     * @param Amount Amount to consume
+     * @return True if successfully consumed
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool ConsumeAmmo(float Amount = 1.0f);
+
+    /**
+     * Add ammo to reserve
+     * @param Amount Amount to add
+     * @return Actual amount added (may be less due to limits)
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float AddAmmo(float Amount);
+
+    /**
+     * Start reload process
+     * @param bForce Force reload even if magazine not empty
+     * @return True if reload started
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool StartReload(bool bForce = false);
+
+    /**
+     * Complete reload process
+     * Called by ability system when reload finishes
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    void CompleteReload();
+
+    /**
+     * Cancel reload in progress
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    void CancelReload();
+
+    //================================================
+    // State Queries
+    //================================================
+
+    /**
+     * Get current ammo state
+     * @return Complete ammo state for saving/loading
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    FInventoryAmmoState GetAmmoState() const { return AmmoState; }
+
+    /**
+     * Set ammo state (for loading)
+     * @param NewState State to apply
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    void SetAmmoState(const FInventoryAmmoState& NewState);
+
+    /**
+     * Check if can reload
+     * @return True if reload possible
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool CanReload() const;
+
+    /**
+     * Check if has ammo in magazine
+     * @return True if has ammo to fire
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool HasAmmo() const;
+
+    /**
+     * Check if magazine is full
+     * @return True if at capacity
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool IsMagazineFull() const;
+
+    /**
+     * Check if currently reloading
+     * @return True if reload in progress
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool IsReloading() const { return bIsReloading; }
+
+    /**
+     * Get magazine size from weapon AttributeSet
+     * @return Magazine capacity
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float GetMagazineSize() const;
+
+    /**
+     * Get reload time from weapon AttributeSet
+     * @param bTactical True for tactical reload, false for full reload
+     * @return Reload duration in seconds
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float GetReloadTime(bool bTactical = true) const;
+
+    /**
+     * Get ammo type from weapon data
+     * @return Ammo type tag
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    FGameplayTag GetAmmoType() const;
+
+    //================================================
+    // Convenience Accessors
+    //================================================
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float GetCurrentAmmo() const { return AmmoState.CurrentAmmo; }
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float GetRemainingAmmo() const { return AmmoState.RemainingAmmo; }
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    float GetTotalAmmo() const { return AmmoState.GetTotalAmmo(); }
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
+    bool IsAmmoEmpty() const { return AmmoState.IsEmpty(); }
+
+    //================================================
+    // AttributeSet Integration
+    //================================================
+
+    /**
+     * Link to attribute component for GAS integration
+     * @param AttributeComponent Equipment attribute component
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
+    void LinkAttributeComponent(class UEquipmentAttributeComponent* AttributeComponent);
+
+    /**
+     * Get linked weapon AttributeSet
+     * @return Weapon AttributeSet or null
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
+    UMedComWeaponAttributeSet* GetWeaponAttributeSet() const;
+
+    /**
+     * Get linked ammo AttributeSet
+     * @return Ammo AttributeSet or null
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
+    UMedComAmmoAttributeSet* GetAmmoAttributeSet() const;
+
+protected:
+    /**
+     * Get weapon interface from owner
+     * @return Weapon interface or null
+     */
+    IMedComWeaponInterface* GetWeaponInterface() const;
+
+    /**
+     * Get weapon data from DataTable
+     * @param OutData Output weapon data
+     * @return True if data retrieved
+     */
+    bool GetWeaponData(FMedComUnifiedItemData& OutData) const;
+
+    /**
+     * Broadcast ammo change event
+     */
+    void BroadcastAmmoChanged();
+
+    /**
+     * Apply reload effect if configured
+     */
+    void ApplyReloadEffect();
+
+    /**
+     * Update magazine size from attributes
+     */
+    void UpdateMagazineSizeFromAttributes();
+
+    /**
+     * Handle weapon durability impact on ammo operations
+     */
+    void ApplyDurabilityModifiers();
+
+    /**
+     * Server RPC for reload
+     */
+    UFUNCTION(Server, Reliable, WithValidation)
+    void ServerStartReload(bool bForce);
+
+    /**
+     * Server RPC for completing reload
+     */
+    UFUNCTION(Server, Reliable, WithValidation)
+    void ServerCompleteReload();
+
+    //================================================
+    // Replication Callbacks
+    //================================================
+
+    UFUNCTION()
+    void OnRep_AmmoState();
+
+    UFUNCTION()
+    void OnRep_ReloadState();
+
+    // Internal method to update ammo state without triggering callbacks
+    void UpdateInternalAmmoState(const FInventoryAmmoState& NewState);
+ 
+private:
+    //================================================
+    // Runtime State (Replicated)
+    //================================================
+
+    /** Current ammunition state */
+    UPROPERTY(ReplicatedUsing = OnRep_AmmoState)
+    FInventoryAmmoState AmmoState;
+
+    /** Reload in progress */
+    UPROPERTY(ReplicatedUsing = OnRep_ReloadState)
+    bool bIsReloading;
+
+    /** Time when reload started */
+    UPROPERTY(Replicated)
+    float ReloadStartTime;
+
+    /** Is tactical reload (magazine not empty) */
+    UPROPERTY(Replicated)
+    bool bIsTacticalReload;
+
+    //================================================
+    // Cached References (Not Replicated)
+    //================================================
+
+    /** Cached weapon interface */
+    UPROPERTY()
+    TScriptInterface<IMedComWeaponInterface> CachedWeaponInterface;
+
+    /** Cached reload effect handle */
+    FActiveGameplayEffectHandle ReloadEffectHandle;
+
+    /** Linked attribute component for GAS integration */
+    UPROPERTY()
+    class UEquipmentAttributeComponent* LinkedAttributeComponent;
+
+    /** Cached weapon AttributeSet for performance */
+    UPROPERTY()
+    UMedComWeaponAttributeSet* CachedWeaponAttributeSet;
+
+    /** Cached ammo AttributeSet for performance */
+    UPROPERTY()
+    UMedComAmmoAttributeSet* CachedAmmoAttributeSet;
+
+    /** Cached magazine size for performance */
+    mutable float CachedMagazineSize;
+    
+    /** Cache validity flag */
+    mutable bool bMagazineSizeCached;
+
+ /**
+     * Сохраняет текущее состояние патронов в ItemInstance через интерфейс оружия.
+     * Это односторонняя операция - только для персистентности данных.
+     * НЕ вызывает обратно SetAmmoState на компоненте, предотвращая рекурсию.
+     */
+ void SaveAmmoStateToWeapon();
+};

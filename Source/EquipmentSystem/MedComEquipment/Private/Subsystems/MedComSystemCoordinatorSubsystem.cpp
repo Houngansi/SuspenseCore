@@ -1,0 +1,416 @@
+// MedComSystemCoordinatorSubsystem.cpp
+// Copyright MedCom Team. All Rights Reserved.
+
+#include "Subsystems/MedComSystemCoordinatorSubsystem.h"
+#include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
+#include "Engine/EngineTypes.h"
+#include "Misc/ScopeExit.h"
+#include "HAL/IConsoleManager.h"
+
+// Core interfaces
+#include "Interfaces/Core/MedComWorldBindable.h"
+
+// Equipment infrastructure
+#include "Components/Core/MedComSystemCoordinator.h"
+#include "Core/Services/EquipmentServiceLocator.h"
+#include "Interfaces/Equipment/IEquipmentService.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMedComCoordinatorSubsystem, Log, All);
+
+//========================================
+// Helper Functions
+//========================================
+
+namespace
+{
+    // Helper function to convert ENetMode to string without StaticEnum issues
+    FString GetNetModeString(ENetMode NetMode)
+    {
+        switch (NetMode)
+        {
+            case NM_Standalone: return TEXT("Standalone");
+            case NM_DedicatedServer: return TEXT("DedicatedServer");
+            case NM_ListenServer: return TEXT("ListenServer");
+            case NM_Client: return TEXT("Client");
+            default: return TEXT("Unknown");
+        }
+    }
+}
+static const TCHAR* NetModeToString(const ENetMode InMode)
+{
+    switch (InMode)
+    {
+    case NM_Standalone: return TEXT("Standalone");
+    case NM_DedicatedServer: return TEXT("DedicatedServer");
+    case NM_ListenServer: return TEXT("ListenServer");
+    case NM_Client: return TEXT("Client");
+    default: return TEXT("Unknown");
+    }
+}
+//========================================
+// Construction
+//========================================
+
+UMedComSystemCoordinatorSubsystem::UMedComSystemCoordinatorSubsystem()
+{
+    // Subsystem created by UE automatically
+}
+
+//========================================
+// USubsystem Interface
+//========================================
+
+bool UMedComSystemCoordinatorSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+    // Гарантируем порядок: сперва создаётся ServiceLocator (GI Subsystem), затем — координатор.
+    if (UGameInstance* GI = Cast<UGameInstance>(Outer))
+    {
+        (void)GI->GetSubsystem<UEquipmentServiceLocator>(); // намеренно ради side-effect, чтобы не плодить warning
+    }
+    return Super::ShouldCreateSubsystem(Outer);
+}
+
+void UMedComSystemCoordinatorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+    Super::Initialize(Collection);
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Initialize subsystem"));
+    check(IsInGameThread());
+
+    // 1) Получаем локатор (через мир, затем fallback на GI)
+    if (UWorld* InitialWorld = TryGetCurrentWorldSafe())
+    {
+        ServiceLocator = UEquipmentServiceLocator::Get(InitialWorld);
+    }
+    if (!ServiceLocator)
+    {
+        UObject* Outer = GetGameInstance();
+        ServiceLocator = NewObject<UEquipmentServiceLocator>(Outer);
+        check(ServiceLocator);
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ServiceLocator created with GI outer"));
+    }
+
+    // 2) Создаём долговечный координатор (Outer = эта подсистема)
+    if (!Coordinator)
+    {
+        Coordinator = NewObject<UMedComSystemCoordinator>(this);
+        check(Coordinator);
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator created and owned"));
+    }
+
+    // 3) Регистрация/прогрев/валидация
+    EnsureServicesRegistered(TryGetCurrentWorldSafe());
+    ValidateAndLog();
+
+    // 4) Подписки на жизненный цикл мира
+    PostWorldInitHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
+        this, &UMedComSystemCoordinatorSubsystem::OnPostWorldInitialization);
+
+    PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
+        this, &UMedComSystemCoordinatorSubsystem::OnPostLoadMapWithWorld);
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Subsystem Initialize() complete. ServicesReady=%s"),
+        bServicesReady ? TEXT("YES") : TEXT("NO"));
+}
+
+void UMedComSystemCoordinatorSubsystem::Deinitialize()
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Deinitialize subsystem"));
+    check(IsInGameThread());
+
+    if (PostWorldInitHandle.IsValid())
+    {
+        FWorldDelegates::OnPostWorldInitialization.Remove(PostWorldInitHandle);
+        PostWorldInitHandle.Reset();
+    }
+    if (PostLoadMapHandle.IsValid())
+    {
+        FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
+        PostLoadMapHandle.Reset();
+    }
+
+    if (Coordinator)
+    {
+        Coordinator->Shutdown(); // явная очистка подписок/таймеров
+        Coordinator = nullptr;
+    }
+
+    ServiceLocator = nullptr;
+    bServicesRegistered = false;
+    bServicesReady = false;
+
+    Super::Deinitialize();
+}
+
+
+//========================================
+// World Lifecycle Handlers
+//========================================
+
+void UMedComSystemCoordinatorSubsystem::OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
+{
+    check(IsInGameThread());
+    if (!World || World->IsPreviewWorld() || World->IsEditorWorld())
+    {
+        return;
+    }
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("OnPostWorldInitialization: %s (NetMode=%s, Ptr=%p)"),
+        *World->GetName(), NetModeToString(World->GetNetMode()), World);
+
+    EnsureServicesRegistered(World);
+}
+
+void UMedComSystemCoordinatorSubsystem::OnPostLoadMapWithWorld(UWorld* LoadedWorld)
+{
+    check(IsInGameThread());
+    if (!LoadedWorld || LoadedWorld->IsPreviewWorld() || LoadedWorld->IsEditorWorld())
+    {
+        return;
+    }
+
+    RebindAllWorldBindableServices(LoadedWorld);
+    ValidateAndLog();
+}
+
+//========================================
+// Internal Operations
+//========================================
+
+void UMedComSystemCoordinatorSubsystem::EnsureServicesRegistered(UWorld* ForWorld)
+{
+    check(IsInGameThread());
+
+    if (!ServiceLocator || !Coordinator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("EnsureServicesRegistered: missing dependencies"));
+        return;
+    }
+
+    if (!bServicesRegistered)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("=== RegisterCoreServices BEGIN ==="));
+        Coordinator->RegisterCoreServices();   // строгие теги, без CDO
+        Coordinator->WarmUpServices();         // прогрев кешей/подписок
+        bServicesRegistered = true;
+    }
+
+    // Инициализация ленивых сервисов (если требуется)
+    const int32 Inited = ServiceLocator->InitializeAllServices();
+    if (Inited > 0)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Services warmed up (%d initialized)"), Inited);
+    }
+
+    // Первая привязка к миру
+    RebindAllWorldBindableServices(ForWorld ? ForWorld : TryGetCurrentWorldSafe());
+}
+
+void UMedComSystemCoordinatorSubsystem::RebindAllWorldBindableServices(UWorld* ForWorld)
+{
+    check(IsInGameThread());
+
+    if (!ForWorld)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("RebindAllWorldBindableServices: ForWorld is nullptr"));
+        return;
+    }
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("RebindAllWorldBindableServices: ServiceLocator is nullptr"));
+        return;
+    }
+    if (bRebindInProgress)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Verbose, TEXT("RebindAllWorldBindableServices: skip (in progress)"));
+        return;
+    }
+
+    bRebindInProgress = true;
+    ON_SCOPE_EXIT { bRebindInProgress = false; };
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("RebindAllWorldBindableServices: %s (NetMode=%s, Ptr=%p)"),
+        *ForWorld->GetName(), NetModeToString(ForWorld->GetNetMode()), ForWorld);
+
+    const TArray<FGameplayTag> AllTags = ServiceLocator->GetAllRegisteredServiceTags();
+
+    int32 Rebound = 0;
+    int32 Skipped = 0;
+
+    for (const FGameplayTag& Tag : AllTags)
+    {
+        UObject* SvcObj = ServiceLocator->TryGetService(Tag);
+        if (!SvcObj) { ++Skipped; continue; }
+
+        if (SvcObj->GetClass()->ImplementsInterface(UMedComWorldBindable::StaticClass()))
+        {
+            // Чистый C++ вызов (без UFUNCTION-Execute — нам не нужна BP-рефлексия здесь)
+            if (IMedComWorldBindable* Iface = Cast<IMedComWorldBindable>(SvcObj))
+            {
+                Iface->RebindWorld(ForWorld);
+            }
+            ++Rebound;
+        }
+        else
+        {
+            ++Skipped;
+        }
+    }
+
+    ++RebindCount;
+    LastBoundWorld = ForWorld;
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("RebindAllWorldBindableServices: complete (Rebound=%d, Skipped=%d, Total=%d)"),
+        Rebound, Skipped, AllTags.Num());
+}
+
+void UMedComSystemCoordinatorSubsystem::ValidateAndLog()
+{
+    check(IsInGameThread());
+    bServicesReady = false;
+
+    if (!ServiceLocator || !Coordinator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: Locator or Coordinator is null"));
+        return;
+    }
+
+    TArray<FText> Errors;
+    const bool bOk = Coordinator->ValidateServices(Errors);
+
+    if (bOk && Errors.Num() == 0)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ValidateServices: OK"));
+        bServicesReady = true;
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: %d issues detected"), Errors.Num());
+        for (const FText& E : Errors)
+        {
+            UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("  - %s"), *E.ToString());
+        }
+    }
+}
+
+
+UWorld* UMedComSystemCoordinatorSubsystem::TryGetCurrentWorldSafe() const
+{
+    if (const UGameInstance* GI = GetGameInstance())
+    {
+        return GI->GetWorld();
+    }
+    return nullptr;
+}
+
+
+//========================================
+// Public API
+//========================================
+
+void UMedComSystemCoordinatorSubsystem::ForceRebindWorld(UWorld* World)
+{
+    if (!World)
+    {
+        World = TryGetCurrentWorldSafe();
+    }
+    
+    if (!World)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ForceRebindWorld: no valid world"));
+        return;
+    }
+    
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ForceRebindWorld: manually triggered for %s"), *World->GetName());
+    
+    RebindAllWorldBindableServices(World);
+}
+
+//========================================
+// Debug Commands
+//========================================
+
+void UMedComSystemCoordinatorSubsystem::DebugDumpServicesState()
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("=== EQUIPMENT SERVICES STATE ==="));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+    
+    // Subsystem status
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Subsystem Status:"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Services Registered: %s"), bServicesRegistered ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Services Ready:      %s"), bServicesReady ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Rebind In Progress:  %s"), bRebindInProgress ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Total Rebinds:       %d"), RebindCount);
+    
+    // World status
+    UWorld* CurrentWorld = TryGetCurrentWorldSafe();
+    if (CurrentWorld)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Current World:"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Name:     %s"), *CurrentWorld->GetName());
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  NetMode:  %s"), *GetNetModeString(CurrentWorld->GetNetMode()));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Ptr:      %p"), CurrentWorld);
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Current World: NONE"));
+    }
+    
+    // Last bound world
+    if (UWorld* LastWorld = LastBoundWorld.Get())
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Last Bound World:"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Name: %s (Ptr=%p)"), *LastWorld->GetName(), LastWorld);
+    }
+    
+    // Registered services
+    if (ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        
+        const TArray<FGameplayTag> AllServiceTags = ServiceLocator->GetAllRegisteredServiceTags();
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Registered Services: %d"), AllServiceTags.Num());
+        
+        for (const FGameplayTag& Tag : AllServiceTags)
+        {
+            UObject* ServiceObj = ServiceLocator->GetService(Tag);
+            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(UMedComWorldBindable::StaticClass());
+            const bool bIsReady = ServiceLocator->IsServiceReady(Tag);
+            
+            UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  - %s (Ready=%s, WorldBindable=%s)"),
+                *Tag.ToString(),
+                bIsReady ? TEXT("YES") : TEXT("NO"),
+                bIsWorldBindable ? TEXT("YES") : TEXT("NO"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("ServiceLocator: NONE"));
+    }
+    
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("=== END ==="));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+}
+
+void UMedComSystemCoordinatorSubsystem::DebugForceRebind()
+{
+    UWorld* World = TryGetCurrentWorldSafe();
+    if (!World)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("DebugForceRebind: no current world"));
+        return;
+    }
+    
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("DebugForceRebind: forcing rebind to %s"), *World->GetName());
+    ForceRebindWorld(World);
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("DebugForceRebind: complete"));
+}

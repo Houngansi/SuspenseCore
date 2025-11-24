@@ -1,0 +1,63 @@
+// Copyright MedCom Team. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "Types/Inventory/InventoryTypes.h"          // FInventoryItemInstance
+#include "Types/Equipment/EquipmentTypes.h"          // FEquipmentSlotConfig and tags
+#include "FMCEquipmentSlot.generated.h"
+
+/**
+ * Lightweight data-only description of a single equipment slot that can host
+ * a small grid (e.g., weapon with attachments area). This file intentionally
+ * contains no business logic and is safe for use in UPROPERTY/replication.
+ */
+USTRUCT(BlueprintType)
+struct MEDCOMSHARED_API FMCEquipmentSlot
+{
+    GENERATED_BODY()
+
+    /** Slot type (e.g., Equipment.Slot.Weapon.Primary) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    FGameplayTag SlotType;
+
+    /** Allowed item types for this slot */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    FGameplayTagContainer AllowedItemTypes;
+
+    /** Logical grid width in cells (>=1) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    int32 Width = 1;
+
+    /** Logical grid height in cells (>=1) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    int32 Height = 1;
+
+    /** Optional configuration snapshot for this slot (from loadout) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    FEquipmentSlotConfig Configuration;
+
+    /**
+     * Cells of the slot grid. Each element corresponds to a cell and may hold
+     * either a default/invalid instance (free cell) or a valid item instance.
+     * For multi-cell items, the anchor is stored at the top-left cell and the
+     * remaining covered cells hold default instances.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Equipment")
+    TArray<FInventoryItemInstance> GridItems;
+
+    /** Returns linear index from (X,Y) coordinates in [0..Width-1],[0..Height-1] */
+    int32 ToIndex(int32 X, int32 Y) const
+    {
+        return (X >= 0 && X < Width && Y >= 0 && Y < Height) ? (Y * Width + X) : INDEX_NONE;
+    }
+
+    /** Initialize or reinitialize the slot grid to empty state */
+    void InitializeSlot()
+    {
+        const int32 TotalCells = FMath::Max(1, Width) * FMath::Max(1, Height);
+        GridItems.Empty(TotalCells);
+        GridItems.AddDefaulted(TotalCells);
+    }
+};

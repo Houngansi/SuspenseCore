@@ -43,6 +43,7 @@
 SuspenseCore/
 ├── Source/
 │   ├── SuspenseCore/          # Core module - базовый функционал
+│   │   └── Documentation/     # Вся документация проекта
 │   ├── PlayerCore/            # Player systems - персонаж, контроллер
 │   ├── GAS/                   # Gameplay Ability System integration
 │   ├── EquipmentSystem/       # Equipment and weapon management
@@ -51,7 +52,6 @@ SuspenseCore/
 │   ├── BridgeSystem/          # Inter-module communication
 │   └── UISystem/              # User Interface framework
 ├── Resources/                 # Plugin resources and assets
-├── Docs/                      # Documentation (auto-generated)
 └── SuspenseCore.uplugin       # Plugin descriptor
 ```
 
@@ -257,10 +257,7 @@ public class ModuleName : ModuleRules
 - Config management
 - Core interfaces
 - Common utilities
-
-**Файлы:**
-- `Source/SuspenseCore/Public/SuspenseCore.h`
-- `Source/SuspenseCore/Private/SuspenseCore.cpp`
+- **Documentation** (все руководства и API reference)
 
 ---
 
@@ -272,13 +269,6 @@ public class ModuleName : ModuleRules
 - SuspenseCore
 - GAS
 - GameplayAbilities
-
-**Основные компоненты:**
-- Player character class
-- Player controller
-- Camera management
-- Input handling
-- Movement replication
 
 **Планируемые классы:**
 - `APlayerCharacterBase` — базовый класс персонажа
@@ -297,19 +287,10 @@ public class ModuleName : ModuleRules
 - GameplayTags
 - GameplayTasks
 
-**Основные компоненты:**
-- Custom Ability System Component
-- Custom Gameplay Abilities
-- Gameplay Effects
-- Attribute Sets
-- Gameplay Tags structure
-
 **Планируемые классы:**
 - `USuspenseAbilitySystemComponent`
 - `USuspenseGameplayAbility`
 - `USuspenseAttributeSet`
-
-**Важно:** Этот модуль требует обновления Build.cs для добавления GameplayAbilities зависимости.
 
 ---
 
@@ -322,13 +303,6 @@ public class ModuleName : ModuleRules
 - PlayerCore
 - GAS
 - InventorySystem
-
-**Основные компоненты:**
-- Equipment manager
-- Weapon base classes
-- Attachment system
-- Equip/Unequip logic
-- Equipment slots
 
 **Планируемые классы:**
 - `UEquipmentManagerComponent`
@@ -345,13 +319,6 @@ public class ModuleName : ModuleRules
 - SuspenseCore
 - GAS
 
-**Основные компоненты:**
-- Inventory component
-- Item definitions
-- Stack management
-- Item instances
-- Replication
-
 **Планируемые классы:**
 - `UInventoryComponent`
 - `UItemDefinition`
@@ -367,12 +334,6 @@ public class ModuleName : ModuleRules
 - SuspenseCore
 - PlayerCore
 
-**Основные компоненты:**
-- Interaction interface
-- Interaction component
-- Trace/Overlap detection
-- Interaction prompts
-
 **Планируемые классы:**
 - `IInteractable` (interface)
 - `UInteractionComponent`
@@ -386,12 +347,6 @@ public class ModuleName : ModuleRules
 
 **Зависимости:**
 - SuspenseCore
-
-**Основные компоненты:**
-- Module registry
-- Service locator
-- Event bus
-- Loose coupling mechanisms
 
 **Планируемые классы:**
 - `UModuleBridge`
@@ -410,13 +365,6 @@ public class ModuleName : ModuleRules
 - Slate
 - SlateCore
 
-**Основные компоненты:**
-- UI widgets base classes
-- HUD management
-- Menu system
-- Inventory UI
-- Equipment UI
-
 **Планируемые классы:**
 - `USuspenseHUD`
 - `UInventoryWidget`
@@ -429,20 +377,20 @@ public class ModuleName : ModuleRules
 ### Структура документации
 
 ```
-Docs/
-├── Architecture/          # Архитектурные решения
-│   ├── ModuleDesign.md   # Дизайн модулей
-│   ├── Replication.md    # Стратегия репликации
-│   └── GASIntegration.md # Интеграция GAS
-├── API/                   # API Reference
-│   ├── SuspenseCore.md
-│   ├── PlayerCore.md
-│   └── ...
-├── Guides/                # Руководства
-│   ├── QuickStart.md     # Быстрый старт
-│   ├── Migration.md      # Руководство по миграции
-│   └── BestPractices.md  # Лучшие практики
-└── Changelog.md           # История изменений
+Source/SuspenseCore/Documentation/
+├── README.md                  ← Этот файл (главный)
+├── Changelog.md               ← История изменений
+├── Architecture/
+│   ├── ModuleDesign.md       ← Дизайн модулей
+│   ├── Replication.md        ← Стратегия репликации (TODO)
+│   └── GASIntegration.md     ← Интеграция GAS (TODO)
+├── API/
+│   ├── README.md             ← API Reference индекс
+│   └── [Module].md           ← API для каждого модуля (TODO)
+└── Guides/
+    ├── QuickStart.md         ← Быстрый старт
+    ├── Migration.md          ← Руководство по миграции
+    └── BestPractices.md      ← Лучшие практики
 ```
 
 ### Правила документации
@@ -468,7 +416,7 @@ Docs/
 3. **Обновление namespace** — привести к новым стандартам
 4. **Рефакторинг** — адаптировать под новую архитектуру
 5. **Тестирование** — убедиться в работоспособности
-6. **Документация** — обновить README и документацию
+6. **Документация** — обновить Changelog.md
 
 #### Чеклист миграции файла
 
@@ -483,22 +431,7 @@ Docs/
 - [ ] Файл скомпилирован без ошибок
 - [ ] Документация обновлена
 
-#### Правила неймспейсов
-
-```cpp
-// OLD (пример из старого проекта)
-namespace MyGame
-{
-    class PlayerCharacter { };
-}
-
-// NEW (новый стандарт)
-// В UE редко используются namespaces, вместо этого префиксы классов
-class PLAYERCORE_API APlayerCharacterBase : public ACharacter
-{
-    // Module-specific prefix in macro: PLAYERCORE_API
-};
-```
+**Подробнее:** См. [Guides/Migration.md](Guides/Migration.md)
 
 ---
 
@@ -527,13 +460,13 @@ class PLAYERCORE_API APlayerCharacterBase : public ACharacter
 
 **Текущая версия:** 1.0 Beta
 **Статус:** ✅ Готов к разработке
-**Последнее обновление:** 2025-11-23
+**Последнее обновление:** 2025-11-24
 
 ### Готовность модулей
 
 | Модуль | Структура | Build.cs | API | Документация | Статус |
 |--------|-----------|----------|-----|--------------|--------|
-| SuspenseCore | ✅ | ✅ | 🔄 | 🔄 | Базовая структура |
+| SuspenseCore | ✅ | ✅ | 🔄 | ✅ | Документация готова |
 | PlayerCore | ✅ | ✅ | ⏳ | ⏳ | Ожидает миграции |
 | GAS | ✅ | ⚠️ | ⏳ | ⏳ | Требует обновления Build.cs |
 | EquipmentSystem | ✅ | ✅ | ⏳ | ⏳ | Ожидает миграции |
@@ -555,7 +488,7 @@ class PLAYERCORE_API APlayerCharacterBase : public ACharacter
 ### Немедленные действия
 
 1. ✅ Структура проекта создана
-2. ✅ Документация инициализирована
+2. ✅ Документация создана и размещена в модуле SuspenseCore
 3. ⏳ Обновить Build.cs модуля GAS (добавить GameplayAbilities)
 4. ⏳ Создать базовые классы для PlayerCore
 5. ⏳ Начать миграцию файлов из старого проекта
@@ -591,8 +524,8 @@ Proprietary - All rights reserved
 
 ---
 
-**Последнее обновление:** 2025-11-23
-**Версия документа:** 1.0
+**Последнее обновление:** 2025-11-24
+**Версия документа:** 1.1
+**Расположение:** Source/SuspenseCore/Documentation/
 
 ---
-

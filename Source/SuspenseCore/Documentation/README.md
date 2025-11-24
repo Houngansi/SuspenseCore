@@ -393,6 +393,13 @@ Source/SuspenseCore/Documentation/
     └── BestPractices.md      ← Лучшие практики
 ```
 
+### Доступные руководства
+
+- **[QuickStart.md](Guides/QuickStart.md)** — Быстрый старт и интеграция плагина
+- **[Migration.md](Guides/Migration.md)** — Руководство по миграции кода
+- **[BestPractices.md](Guides/BestPractices.md)** — Best practices UE5/GAS
+- **[AddingLegacyCode.md](Guides/AddingLegacyCode.md)** — Как добавить старый код для рефакторинга
+
 ### Правила документации
 
 1. **Актуальность** — обновлять при каждом значимом изменении

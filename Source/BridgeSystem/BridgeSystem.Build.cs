@@ -1,4 +1,6 @@
-﻿using UnrealBuildTool;
+﻿// Copyright Suspense Team. All Rights Reserved.
+
+using UnrealBuildTool;
 
 public class BridgeSystem : ModuleRules
 {
@@ -10,16 +12,24 @@ public class BridgeSystem : ModuleRules
             new string[]
             {
                 "Core",
+                "CoreUObject",
+                "Engine",
+                "GameplayAbilities",  // For GAS integration
+                "GameplayTags",       // Tag system
+                "GameplayTasks",      // Task system
+                "UMG",                // UI widgets
+                "Niagara",            // VFX system
+                "PhysicsCore"         // Physics types
             }
         );
 
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "CoreUObject",
-                "Engine",
                 "Slate",
-                "SlateCore"
+                "SlateCore",
+                "Json",               // JSON serialization
+                "JsonUtilities"       // JSON utilities
             }
         );
     }

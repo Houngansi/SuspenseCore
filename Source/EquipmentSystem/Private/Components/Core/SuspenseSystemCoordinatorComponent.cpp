@@ -13,9 +13,9 @@
 #include "Services/EquipmentAbilityServiceImpl.h"
 
 // Presentation layer components (registered as services)
-#include "Components/Presentation/MedComEquipmentActorFactory.h"
-#include "Components/Presentation/MedComEquipmentAttachmentSystem.h"
-#include "Components/Presentation/MedComEquipmentVisualController.h"
+#include "Components/.*/SuspenseEquipmentActorFactory.h"
+#include "Components/.*/SuspenseEquipmentAttachmentSystem.h"
+#include "Components/.*/SuspenseEquipmentVisualController.h"
 
 // Additional interfaces
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
@@ -351,7 +351,7 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
         if (!Locator->IsServiceRegistered(FactoryTag))
         {
             // Ищем ActorFactory компонент на PlayerState
-            UMedComEquipmentActorFactory* Factory = Owner->FindComponentByClass<UMedComEquipmentActorFactory>();
+            USuspenseEquipmentActorFactory* Factory = Owner->FindComponentByClass<USuspenseEquipmentActorFactory>();
             
             if (!Factory)
             {
@@ -384,8 +384,8 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
         
         if (!Locator->IsServiceRegistered(AttachmentTag))
         {
-            UMedComEquipmentAttachmentSystem* AttachmentSystem = 
-                Owner->FindComponentByClass<UMedComEquipmentAttachmentSystem>();
+            USuspenseEquipmentAttachmentSystem* AttachmentSystem = 
+                Owner->FindComponentByClass<USuspenseEquipmentAttachmentSystem>();
             
             if (!AttachmentSystem)
             {
@@ -415,8 +415,8 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
         
         if (!Locator->IsServiceRegistered(VisualControllerTag))
         {
-            UMedComEquipmentVisualController* VisualController = 
-                Owner->FindComponentByClass<UMedComEquipmentVisualController>();
+            USuspenseEquipmentVisualController* VisualController = 
+                Owner->FindComponentByClass<USuspenseEquipmentVisualController>();
             
             if (!VisualController)
             {

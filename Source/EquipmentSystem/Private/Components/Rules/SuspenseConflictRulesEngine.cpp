@@ -61,19 +61,19 @@ void USuspenseConflictRulesEngine::InitializeDefaultRules()
     UE_LOG(LogConflictRules, Log, TEXT("Conflict Rules Engine initialized with default rules"));
 }
 
-FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
+FSuspenseRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
     const FSuspenseInventoryItemInstance& NewItem,
     const TArray<FSuspenseInventoryItemInstance>& ExistingItems) const
 {
-    FMedComRuleCheckResult Result = FMedComRuleCheckResult::Success();
+    FSuspenseRuleCheckResult Result = FSuspenseRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.ItemCheck"));
-    Result.RuleType = EMedComRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
     
     // Проверка инициализации движка
     if (!bIsInitialized || !DataProvider.GetInterface())
     {
         Result.bPassed = false;
-        Result.Severity = EMedComRuleSeverity::Critical;
+        Result.Severity = ESuspenseRuleSeverity::Critical;
         Result.Message = NSLOCTEXT("ConflictRules", "NotInitialized", "Conflict engine not properly initialized");
         Result.ConfidenceScore = 0.0f;
         return Result;
@@ -106,7 +106,7 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
             if (GetItemData(ExistingItem.ItemID, ExistingData))
             {
                 Result.bPassed = false;
-                Result.Severity = EMedComRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = FText::Format(
                     NSLOCTEXT("ConflictRules", "MutuallyExclusive", "{0} cannot be equipped with {1}"),
                     FText::FromString(NewItemType.ToString()),
@@ -124,14 +124,14 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
         }
         
         // Проверка несовместимости типов
-        EMedComConflictType ConflictType = GetConflictType(NewItem, ExistingItem);
-        if (ConflictType != EMedComConflictType::None && ConflictType != EMedComConflictType::SetInterference)
+        ESuspenseConflictType ConflictType = GetConflictType(NewItem, ExistingItem);
+        if (ConflictType != ESuspenseConflictType::None && ConflictType != ESuspenseConflictType::SetInterference)
         {
             FSuspenseUnifiedItemData NewData, ExistingData;
             if (GetItemData(NewItem.ItemID, NewData) && GetItemData(ExistingItem.ItemID, ExistingData))
             {
                 Result.bPassed = false;
-                Result.Severity = EMedComRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = FText::Format(
                     NSLOCTEXT("ConflictRules", "ItemsIncompatible", "{0} is incompatible with {1}"),
                     NewData.DisplayName,
@@ -151,7 +151,7 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
     if (!CheckRequiredCompanions(NewItem, ExistingItems))
     {
         Result.bPassed = false;
-        Result.Severity = EMedComRuleSeverity::Warning;
+        Result.Severity = ESuspenseRuleSeverity::Warning;
         Result.Message = NSLOCTEXT("ConflictRules", "MissingCompanion", "This item requires companion items to function properly");
         Result.ConfidenceScore = 0.5f;
         Result.bCanOverride = true;
@@ -164,7 +164,7 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
     {
         if (Result.bPassed) // Добавлять предупреждение только если нет других ошибок
         {
-            Result.Severity = EMedComRuleSeverity::Warning;
+            Result.Severity = ESuspenseRuleSeverity::Warning;
             Result.Message = NSLOCTEXT("ConflictRules", "BreaksSetBonus", "Equipping this item will break an active set bonus");
             Result.ConfidenceScore = 0.7f;
             Result.bCanOverride = true;
@@ -182,14 +182,14 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckItemConflicts(
     return Result;
 }
 
-FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckSlotConflicts(
+FSuspenseRuleCheckResult USuspenseConflictRulesEngine::CheckSlotConflicts(
     const FSuspenseInventoryItemInstance& NewItem,
     int32 TargetSlot,
     const TArray<FEquipmentSlotSnapshot>& Slots) const
 {
-    FMedComRuleCheckResult Result = FMedComRuleCheckResult::Success();
+    FSuspenseRuleCheckResult Result = FSuspenseRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.SlotCheck"));
-    Result.RuleType = EMedComRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
 
     // Критическая разница: теперь работаем с реальными снапшотами слотов из координатора,
     // а не с самодельной картой TMap<int32, FSuspenseInventoryItemInstance>, которая давала ложные индексы
@@ -211,7 +211,7 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckSlotConflicts(
             ExistingType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))))
         {
             Result.bPassed = false;
-            Result.Severity = EMedComRuleSeverity::Error;
+            Result.Severity = ESuspenseRuleSeverity::Error;
             Result.Message = NSLOCTEXT("ConflictRules", "SlotOccupied", "Cannot equip multiple primary weapons in the same slot");
             Result.ConfidenceScore = 0.0f;
             Result.bCanOverride = false;
@@ -252,7 +252,7 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckSlotConflicts(
             if (bBlocksOtherHand)
             {
                 Result.bPassed = false;
-                Result.Severity = EMedComRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = NSLOCTEXT("ConflictRules", "RequiresBothHands", "Two-handed items require both hand slots to be free");
                 Result.ConfidenceScore = 0.0f;
                 Result.Context.Add(TEXT("RequiredSlots"), TEXT("BothHands"));
@@ -270,13 +270,13 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckSlotConflicts(
     return Result;
 }
 
-FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRules(
-    const FMedComRuleContext& Context) const
+FSuspenseAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRules(
+    const FSuspenseRuleContext& Context) const
 {
-    FMedComAggregatedRuleResult AggregatedResult;
+    FSuspenseAggregatedRuleResult AggregatedResult;
     
     // Основная проверка конфликтов предметов остается без изменений
-    FMedComRuleCheckResult ItemConflictResult = CheckItemConflicts(
+    FSuspenseRuleCheckResult ItemConflictResult = CheckItemConflicts(
         Context.ItemInstance,
         Context.CurrentItems
     );
@@ -292,13 +292,13 @@ FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRules(
     
     if (CompatibilityScore < 0.3f)
     {
-        FMedComRuleCheckResult CompatResult;
+        FSuspenseRuleCheckResult CompatResult;
         CompatResult.bPassed = false;
-        CompatResult.Severity = EMedComRuleSeverity::Warning;
+        CompatResult.Severity = ESuspenseRuleSeverity::Warning;
         CompatResult.Message = NSLOCTEXT("ConflictRules", "PoorCompatibility", "Item has poor compatibility with current equipment");
         CompatResult.ConfidenceScore = CompatibilityScore;
         CompatResult.bCanOverride = true;
-        CompatResult.RuleType = EMedComRuleType::Conflict;
+        CompatResult.RuleType = ESuspenseRuleType::Conflict;
         
         AggregatedResult.AddResult(CompatResult);
     }
@@ -309,11 +309,11 @@ FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRules(
     return AggregatedResult;
 }
 
-TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::FindAllConflicts(
+TArray<FSuspenseConflictResolution> USuspenseConflictRulesEngine::FindAllConflicts(
     const FSuspenseInventoryItemInstance& Item,
     const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const
 {
-    TArray<FMedComConflictResolution> Conflicts;
+    TArray<FSuspenseConflictResolution> Conflicts;
     
     FGameplayTag ItemType = GetItemType(Item);
     
@@ -324,43 +324,43 @@ TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::FindAllConflicts
             continue;
         }
         
-        EMedComConflictType ConflictType = GetConflictType(Item, CurrentItem);
+        ESuspenseConflictType ConflictType = GetConflictType(Item, CurrentItem);
         
-        if (ConflictType != EMedComConflictType::None)
+        if (ConflictType != ESuspenseConflictType::None)
         {
-            FMedComConflictResolution Conflict;
+            FSuspenseConflictResolution Conflict;
             Conflict.ConflictType = ConflictType;
             Conflict.ConflictingItems.Add(CurrentItem);
             
             // Определение стратегии разрешения
             switch (ConflictType)
             {
-                case EMedComConflictType::MutualExclusion:
-                    Conflict.Strategy = EMedComConflictResolution::Replace;
+                case ESuspenseConflictType::MutualExclusion:
+                    Conflict.Strategy = ESuspenseConflictResolution::Replace;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "MustReplace", "Must replace existing item");
                     Conflict.bCanAutoResolve = true;
                     break;
                     
-                case EMedComConflictType::SlotConflict:
-                    Conflict.Strategy = EMedComConflictResolution::Replace;
+                case ESuspenseConflictType::SlotConflict:
+                    Conflict.Strategy = ESuspenseConflictResolution::Replace;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "SlotConflictReplace", "Replace item in slot");
                     Conflict.bCanAutoResolve = true;
                     break;
                     
-                case EMedComConflictType::TypeIncompatibility:
-                    Conflict.Strategy = EMedComConflictResolution::Reject;
+                case ESuspenseConflictType::TypeIncompatibility:
+                    Conflict.Strategy = ESuspenseConflictResolution::Reject;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "CannotEquipTogether", "Items cannot be equipped together");
                     Conflict.bCanAutoResolve = false;
                     break;
                     
-                case EMedComConflictType::SetInterference:
-                    Conflict.Strategy = EMedComConflictResolution::Prompt;
+                case ESuspenseConflictType::SetInterference:
+                    Conflict.Strategy = ESuspenseConflictResolution::Prompt;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "WouldBreakSet", "Would break equipment set bonus");
                     Conflict.bCanAutoResolve = false;
                     break;
                     
                 default:
-                    Conflict.Strategy = EMedComConflictResolution::Prompt;
+                    Conflict.Strategy = ESuspenseConflictResolution::Prompt;
                     Conflict.bCanAutoResolve = false;
                     break;
             }
@@ -372,10 +372,10 @@ TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::FindAllConflicts
     return Conflicts;
 }
 
-TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::PredictConflicts(
+TArray<FSuspenseConflictResolution> USuspenseConflictRulesEngine::PredictConflicts(
     const TArray<FSuspenseInventoryItemInstance>& PlannedItems) const
 {
-    TArray<FMedComConflictResolution> AllConflicts;
+    TArray<FSuspenseConflictResolution> AllConflicts;
     
     // Проверяем каждую пару предметов на потенциальные конфликты
     // Это алгоритм O(n²), но для типичных размеров экипировки (10-20 слотов) это приемлемо
@@ -394,11 +394,11 @@ TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::PredictConflicts
             }
             
             // Определяем тип конфликта между двумя предметами
-            EMedComConflictType ConflictType = GetConflictType(PlannedItems[i], PlannedItems[j]);
+            ESuspenseConflictType ConflictType = GetConflictType(PlannedItems[i], PlannedItems[j]);
             
-            if (ConflictType != EMedComConflictType::None)
+            if (ConflictType != ESuspenseConflictType::None)
             {
-                FMedComConflictResolution Conflict;
+                FSuspenseConflictResolution Conflict;
                 Conflict.ConflictType = ConflictType;
                 Conflict.ConflictingItems.Add(PlannedItems[i]);
                 Conflict.ConflictingItems.Add(PlannedItems[j]);
@@ -407,7 +407,7 @@ TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::PredictConflicts
                 // Старый код: Conflict.Strategy = SuggestResolutionStrategy({ Conflict });
                 // Новый код: создаем временный массив для совместимости с UE4/5
                 {
-                    TArray<FMedComConflictResolution> TemporaryConflictArray;
+                    TArray<FSuspenseConflictResolution> TemporaryConflictArray;
                     TemporaryConflictArray.Add(Conflict);
                     Conflict.Strategy = SuggestResolutionStrategy(TemporaryConflictArray);
                 }
@@ -432,7 +432,7 @@ TArray<FMedComConflictResolution> USuspenseConflictRulesEngine::PredictConflicts
     return AllConflicts;
 }
 
-EMedComConflictType USuspenseConflictRulesEngine::GetConflictType(
+ESuspenseConflictType USuspenseConflictRulesEngine::GetConflictType(
     const FSuspenseInventoryItemInstance& Item1,
     const FSuspenseInventoryItemInstance& Item2) const
 {
@@ -442,7 +442,7 @@ EMedComConflictType USuspenseConflictRulesEngine::GetConflictType(
     // Проверка взаимного исключения
     if (CheckMutualExclusion(Type1, Type2))
     {
-        return EMedComConflictType::MutualExclusion;
+        return ESuspenseConflictType::MutualExclusion;
     }
     
     // Проверка несовместимости типов
@@ -455,25 +455,25 @@ EMedComConflictType USuspenseConflictRulesEngine::GetConflictType(
             (Data2.ItemTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("Item.RequiresBothHands"))) &&
              Data1.ItemTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Shield")))))
         {
-            return EMedComConflictType::TypeIncompatibility;
+            return ESuspenseConflictType::TypeIncompatibility;
         }
         
         // Несколько предметов в одном уникальном слоте
         if (Data1.EquipmentSlot == Data2.EquipmentSlot &&
             Data1.EquipmentSlot.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Unique"))))
         {
-            return EMedComConflictType::SlotConflict;
+            return ESuspenseConflictType::SlotConflict;
         }
     }
     
-    return EMedComConflictType::None;
+    return ESuspenseConflictType::None;
 }
 
 bool USuspenseConflictRulesEngine::AreItemsCompatible(
     const FSuspenseInventoryItemInstance& Item1,
     const FSuspenseInventoryItemInstance& Item2) const
 {
-    return GetConflictType(Item1, Item2) == EMedComConflictType::None;
+    return GetConflictType(Item1, Item2) == ESuspenseConflictType::None;
 }
 
 float USuspenseConflictRulesEngine::CalculateCompatibilityScore(
@@ -510,8 +510,8 @@ float USuspenseConflictRulesEngine::CalculateCompatibilityScore(
         float PairScore = 1.0f;
         
         // Проверка конфликтов
-        EMedComConflictType ConflictType = GetConflictType(Item, ExistingItem);
-        if (ConflictType != EMedComConflictType::None)
+        ESuspenseConflictType ConflictType = GetConflictType(Item, ExistingItem);
+        if (ConflictType != ESuspenseConflictType::None)
         {
             PairScore = 0.0f;
         }
@@ -559,20 +559,20 @@ float USuspenseConflictRulesEngine::CalculateCompatibilityScore(
     return ValidComparisons > 0 ? FMath::Clamp(TotalScore / ValidComparisons, 0.0f, 1.0f) : 1.0f;
 }
 
-FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckTypeExclusivity(
+FSuspenseRuleCheckResult USuspenseConflictRulesEngine::CheckTypeExclusivity(
     const FGameplayTag& NewItemType,
     const TArray<FGameplayTag>& ExistingTypes) const
 {
-    FMedComRuleCheckResult Result = FMedComRuleCheckResult::Success();
+    FSuspenseRuleCheckResult Result = FSuspenseRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.TypeExclusivity"));
-    Result.RuleType = EMedComRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
     
     for (const FGameplayTag& ExistingType : ExistingTypes)
     {
         if (CheckMutualExclusion(NewItemType, ExistingType))
         {
             Result.bPassed = false;
-            Result.Severity = EMedComRuleSeverity::Error;
+            Result.Severity = ESuspenseRuleSeverity::Error;
             Result.Message = FText::Format(
                 NSLOCTEXT("ConflictRules", "TypesExclusive", "Item type {0} cannot be equipped with {1}"),
                 FText::FromString(NewItemType.ToString()),
@@ -594,17 +594,17 @@ FMedComRuleCheckResult USuspenseConflictRulesEngine::CheckTypeExclusivity(
     return Result;
 }
 
-TArray<FMedComSetBonusInfo> USuspenseConflictRulesEngine::DetectSetBonuses(
+TArray<FSuspenseSetBonusInfo> USuspenseConflictRulesEngine::DetectSetBonuses(
     const TArray<FSuspenseInventoryItemInstance>& Items) const
 {
-    TArray<FMedComSetBonusInfo> ActiveSets;
+    TArray<FSuspenseSetBonusInfo> ActiveSets;
     
     FScopeLock Lock(&RulesLock);
     
     // Проверка каждого зарегистрированного набора
     for (const auto& SetPair : ItemSets)
     {
-        FMedComSetBonusInfo SetInfo;
+        FSuspenseSetBonusInfo SetInfo;
         SetInfo.SetTag = SetPair.Key;
         SetInfo.SetItems = SetPair.Value;
         
@@ -658,10 +658,10 @@ bool USuspenseConflictRulesEngine::WouldBreakSetBonus(
     const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const
 {
     // Получение текущих активных наборов
-    TArray<FMedComSetBonusInfo> CurrentSets = DetectSetBonuses(CurrentItems);
+    TArray<FSuspenseSetBonusInfo> CurrentSets = DetectSetBonuses(CurrentItems);
     
     // Проверка каждого активного набора
-    for (const FMedComSetBonusInfo& SetInfo : CurrentSets)
+    for (const FSuspenseSetBonusInfo& SetInfo : CurrentSets)
     {
         if (SetInfo.bBonusActive && SetInfo.EquippedItems.Contains(ItemToRemove.ItemID))
         {
@@ -714,28 +714,28 @@ TArray<FName> USuspenseConflictRulesEngine::GetMissingSetItems(
 }
 
 bool USuspenseConflictRulesEngine::SuggestResolutions(
-    const TArray<FMedComConflictResolution>& Conflicts,
-    EMedComConflictResolution Strategy,
-    TArray<FMedComResolutionAction>& OutActions) const
+    const TArray<FSuspenseConflictResolution>& Conflicts,
+    ESuspenseConflictResolution Strategy,
+    TArray<FSuspenseResolutionAction>& OutActions) const
 {
     OutActions.Reset();
 
-    if (Strategy == EMedComConflictResolution::Auto)
+    if (Strategy == ESuspenseConflictResolution::Auto)
     {
         Strategy = SuggestResolutionStrategy(Conflicts);
-        if (Strategy == EMedComConflictResolution::Auto)
+        if (Strategy == ESuspenseConflictResolution::Auto)
         {
-            Strategy = EMedComConflictResolution::Prompt;
+            Strategy = ESuspenseConflictResolution::Prompt;
         }
     }
 
-    for (const FMedComConflictResolution& C : Conflicts)
+    for (const FSuspenseConflictResolution& C : Conflicts)
     {
         switch (Strategy)
         {
-            case EMedComConflictResolution::Reject:
+            case ESuspenseConflictResolution::Reject:
             {
-                FMedComResolutionAction A;
+                FSuspenseResolutionAction A;
                 A.ActionTag = FGameplayTag::RequestGameplayTag(TEXT("Resolution.Action.Reject"));
                 A.bBlocking = true;
                 A.Reason    = NSLOCTEXT("ConflictRules", "RejectReason", "Operation rejected due to conflicts");
@@ -743,11 +743,11 @@ bool USuspenseConflictRulesEngine::SuggestResolutions(
                 return false; // немедленный отказ
             }
 
-            case EMedComConflictResolution::Replace:
+            case ESuspenseConflictResolution::Replace:
             {
                 for (const FSuspenseInventoryItemInstance& It : C.ConflictingItems)
                 {
-                    FMedComResolutionAction A;
+                    FSuspenseResolutionAction A;
                     A.ActionTag    = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
                     A.ItemInstance = It;
                     A.bBlocking    = false;
@@ -756,11 +756,11 @@ bool USuspenseConflictRulesEngine::SuggestResolutions(
                 break;
             }
 
-            case EMedComConflictResolution::Stack:
+            case ESuspenseConflictResolution::Stack:
             {
                 if (C.ConflictingItems.Num() > 0)
                 {
-                    FMedComResolutionAction A;
+                    FSuspenseResolutionAction A;
                     A.ActionTag    = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set")); // «свести»
                     A.ItemInstance = C.ConflictingItems[0];
                     A.bBlocking    = false;
@@ -769,9 +769,9 @@ bool USuspenseConflictRulesEngine::SuggestResolutions(
                 break;
             }
 
-            case EMedComConflictResolution::Prompt:
+            case ESuspenseConflictResolution::Prompt:
             {
-                FMedComResolutionAction A;
+                FSuspenseResolutionAction A;
                 A.ActionTag = FGameplayTag::RequestGameplayTag(TEXT("Resolution.Action.Prompt"));
                 A.bBlocking = true;
                 A.Reason    = NSLOCTEXT("ConflictRules", "PromptRequired", "User input required to resolve conflict");
@@ -787,17 +787,17 @@ bool USuspenseConflictRulesEngine::SuggestResolutions(
     return true;
 }
 
-EMedComConflictResolution USuspenseConflictRulesEngine::SuggestResolutionStrategy(
-    const TArray<FMedComConflictResolution>& Conflicts) const
+ESuspenseConflictResolution USuspenseConflictRulesEngine::SuggestResolutionStrategy(
+    const TArray<FSuspenseConflictResolution>& Conflicts) const
 {
     if (Conflicts.Num() == 0)
     {
-        return EMedComConflictResolution::Auto;
+        return ESuspenseConflictResolution::Auto;
     }
     
     // Проверка возможности автоматического разрешения всех конфликтов
     bool bAllAutoResolvable = true;
-    for (const FMedComConflictResolution& Conflict : Conflicts)
+    for (const FSuspenseConflictResolution& Conflict : Conflicts)
     {
         if (!Conflict.bCanAutoResolve)
         {
@@ -810,10 +810,10 @@ EMedComConflictResolution USuspenseConflictRulesEngine::SuggestResolutionStrateg
     {
         // Если все взаимоисключения или конфликты слотов, предложить замену
         bool bAllReplaceable = true;
-        for (const FMedComConflictResolution& Conflict : Conflicts)
+        for (const FSuspenseConflictResolution& Conflict : Conflicts)
         {
-            if (Conflict.ConflictType != EMedComConflictType::MutualExclusion &&
-                Conflict.ConflictType != EMedComConflictType::SlotConflict)
+            if (Conflict.ConflictType != ESuspenseConflictType::MutualExclusion &&
+                Conflict.ConflictType != ESuspenseConflictType::SlotConflict)
             {
                 bAllReplaceable = false;
                 break;
@@ -822,32 +822,32 @@ EMedComConflictResolution USuspenseConflictRulesEngine::SuggestResolutionStrateg
         
         if (bAllReplaceable)
         {
-            return EMedComConflictResolution::Replace;
+            return ESuspenseConflictResolution::Replace;
         }
     }
     
     // По умолчанию запросить решение пользователя
-    return EMedComConflictResolution::Prompt;
+    return ESuspenseConflictResolution::Prompt;
 }
 
-FText USuspenseConflictRulesEngine::GetConflictDescription(const FMedComConflictResolution& Conflict) const
+FText USuspenseConflictRulesEngine::GetConflictDescription(const FSuspenseConflictResolution& Conflict) const
 {
     // Предоставляем пользователю понятные описания различных типов конфликтов
     switch (Conflict.ConflictType)
     {
-    case EMedComConflictType::MutualExclusion:
+    case ESuspenseConflictType::MutualExclusion:
         return NSLOCTEXT("ConflictRules", "MutualExclusionDesc", 
             "These items cannot be equipped together due to mutual exclusivity");
             
-    case EMedComConflictType::SlotConflict:
+    case ESuspenseConflictType::SlotConflict:
         return NSLOCTEXT("ConflictRules", "SlotConflictDesc", 
             "Multiple items are competing for the same equipment slot");
             
-    case EMedComConflictType::TypeIncompatibility:
+    case ESuspenseConflictType::TypeIncompatibility:
         return NSLOCTEXT("ConflictRules", "TypeIncompatibilityDesc", 
             "These item types are incompatible with each other");
             
-    case EMedComConflictType::SetInterference:
+    case ESuspenseConflictType::SetInterference:
         return NSLOCTEXT("ConflictRules", "SetInterferenceDesc", 
             "Equipping this item will interfere with an equipment set bonus");
             
@@ -1006,21 +1006,21 @@ FGameplayTag USuspenseConflictRulesEngine::GetArmorClass(const FSuspenseUnifiedI
     return FGameplayTag::EmptyTag;
 }
 
-FString USuspenseConflictRulesEngine::GetConflictTypeString(EMedComConflictType ConflictType) const
+FString USuspenseConflictRulesEngine::GetConflictTypeString(ESuspenseConflictType ConflictType) const
 {
     switch (ConflictType)
     {
-        case EMedComConflictType::None:
+        case ESuspenseConflictType::None:
             return TEXT("None");
-        case EMedComConflictType::MutualExclusion:
+        case ESuspenseConflictType::MutualExclusion:
             return TEXT("MutualExclusion");
-        case EMedComConflictType::SlotConflict:
+        case ESuspenseConflictType::SlotConflict:
             return TEXT("SlotConflict");
-        case EMedComConflictType::TypeIncompatibility:
+        case ESuspenseConflictType::TypeIncompatibility:
             return TEXT("TypeIncompatibility");
-        case EMedComConflictType::SetInterference:
+        case ESuspenseConflictType::SetInterference:
             return TEXT("SetInterference");
-        case EMedComConflictType::Custom:
+        case ESuspenseConflictType::Custom:
             return TEXT("Custom");
         default:
             return TEXT("Unknown");
@@ -1058,15 +1058,15 @@ bool USuspenseConflictRulesEngine::GetItemData(FName ItemID, FSuspenseUnifiedIte
     return false;
 }
 
-FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRulesWithSlots(
-    const FMedComRuleContext& Context,
+FSuspenseAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRulesWithSlots(
+    const FSuspenseRuleContext& Context,
     const TArray<FEquipmentSlotSnapshot>& Slots) const
 {
-    FMedComAggregatedRuleResult AggregatedResult;
+    FSuspenseAggregatedRuleResult AggregatedResult;
 
     // Этап 1: Проверка конфликтов предметов между собой
     // Это включает взаимные исключения, несовместимые типы, нарушения сетов
-    FMedComRuleCheckResult ItemConflictResult = CheckItemConflicts(
+    FSuspenseRuleCheckResult ItemConflictResult = CheckItemConflicts(
         Context.ItemInstance,
         Context.CurrentItems
     );
@@ -1077,7 +1077,7 @@ FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRulesW
     // а не самодельную карту, которая приводила к ложным срабатываниям
     if (Context.TargetSlotIndex != INDEX_NONE)
     {
-        FMedComRuleCheckResult SlotConflictResult = CheckSlotConflicts(
+        FSuspenseRuleCheckResult SlotConflictResult = CheckSlotConflicts(
             Context.ItemInstance,
             Context.TargetSlotIndex,
             Slots  // Передаем реальные слоты!
@@ -1090,13 +1090,13 @@ FMedComAggregatedRuleResult USuspenseConflictRulesEngine::EvaluateConflictRulesW
     const float CompatibilityScore = CalculateCompatibilityScore(Context.ItemInstance, Context.CurrentItems);
     if (CompatibilityScore < 0.3f)
     {
-        FMedComRuleCheckResult CompatResult;
+        FSuspenseRuleCheckResult CompatResult;
         CompatResult.bPassed = false;  // Технически провал, но с возможностью переопределения
-        CompatResult.Severity = EMedComRuleSeverity::Warning;  // Предупреждение, не критическая ошибка
+        CompatResult.Severity = ESuspenseRuleSeverity::Warning;  // Предупреждение, не критическая ошибка
         CompatResult.Message = NSLOCTEXT("ConflictRules", "PoorCompatibility", "Item has poor compatibility with current equipment");
         CompatResult.ConfidenceScore = CompatibilityScore;  // Передаем реальный скор
         CompatResult.bCanOverride = true;  // Пользователь может проигнорировать
-        CompatResult.RuleType = EMedComRuleType::Conflict;
+        CompatResult.RuleType = ESuspenseRuleType::Conflict;
         
         AggregatedResult.AddResult(CompatResult);
     }

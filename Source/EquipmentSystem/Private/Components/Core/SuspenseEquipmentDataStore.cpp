@@ -114,7 +114,7 @@ FEquipmentSlotConfig USuspenseEquipmentDataStore::GetFreshSlotConfiguration(int3
         return FEquipmentSlotConfig();
     }
     
-    UMedComLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<UMedComLoadoutManager>();
+    USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>();
     if (!LoadoutManager)
     {
         return FEquipmentSlotConfig();
@@ -191,7 +191,7 @@ void USuspenseEquipmentDataStore::RefreshSlotConfigurations()
         return;
     }
     
-    UMedComLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<UMedComLoadoutManager>();
+    USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>();
     if (!LoadoutManager)
     {
         return;
@@ -261,7 +261,7 @@ TArray<FEquipmentSlotConfig> USuspenseEquipmentDataStore::GetAllSlotConfiguratio
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            if (UMedComLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<UMedComLoadoutManager>())
+            if (USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>())
             {
                 FName LoadoutToUse = CurrentLoadoutID.IsNone() ? 
                     FName(TEXT("Default_Soldier")) : CurrentLoadoutID;

@@ -7,7 +7,7 @@
 #include "SuspenseWeaponStanceComponent.generated.h"
 
 // ✅ Используем существующий у тебя интерфейс (НЕ объявляем свой)
-class UMedComWeaponAnimationInterface;
+class USuspenseWeaponAnimationInterface;
 class ISuspenseWeaponAnimation;
 
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent), BlueprintType, Blueprintable)

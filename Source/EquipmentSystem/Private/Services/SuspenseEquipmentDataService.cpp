@@ -3,9 +3,9 @@
 
 #include "Services/SuspenseEquipmentDataService.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "Components/Core/MedComEquipmentDataStore.h"
-#include "Components/Transaction/MedComEquipmentTransactionProcessor.h"
-#include "Components/Validation/MedComEquipmentSlotValidator.h"
+#include "Components/.*/SuspenseEquipmentDataStore.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "Types/Loadout/LoadoutSettings.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"

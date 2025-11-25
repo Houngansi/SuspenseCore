@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentRules.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "SuspenseRulesCoordinator.generated.h"
 
 class USuspenseWeightRulesEngine;
@@ -61,7 +61,7 @@ struct FRuleEngineRegistration
  * 
  * АРХИТЕКТУРНЫЙ ПРИНЦИП:
  * Coordinator не хранит состояние игрока - он работает как чистая функция.
- * Все данные игрока передаются через FMedComRuleContext.
+ * Все данные игрока передаются через FSuspenseRuleContext.
  * DataProvider опционален и используется только для вспомогательных операций.
  * 
  * Philosophy: Orchestrates specialized rule engines in priority order.
@@ -92,7 +92,7 @@ public:
     virtual FSuspenseRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FSuspenseRuleEvaluationResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FMedComRuleContext& Context) const override;
+        const FSuspenseRuleContext& Context) const override;
     virtual FSuspenseRuleEvaluationResult CheckItemCompatibility(
         const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
@@ -187,7 +187,7 @@ protected:
      * @param Context Rule evaluation context с CurrentItems
      * @return Equipment state snapshot
      */
-    FEquipmentStateSnapshot BuildShadowSnapshotFromContext(const FMedComRuleContext& Context) const;
+    FEquipmentStateSnapshot BuildShadowSnapshotFromContext(const FSuspenseRuleContext& Context) const;
 
     /**
      * Record engine execution metrics
@@ -200,9 +200,9 @@ protected:
     // Result Conversion (Legacy Compatibility)
     //========================================
     
-    FSuspenseRuleEvaluationResult ConvertToLegacyResult(const TArray<FMedComRuleCheckResult>& NewResults) const;
-    FSuspenseRuleEvaluationResult ConvertSingleResult(const FMedComRuleCheckResult& NewResult) const;
-    FSuspenseRuleEvaluationResult ConvertAggregatedResult(const FMedComAggregatedRuleResult& AggResult) const;
+    FSuspenseRuleEvaluationResult ConvertToLegacyResult(const TArray<FSuspenseRuleCheckResult>& NewResults) const;
+    FSuspenseRuleEvaluationResult ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const;
+    FSuspenseRuleEvaluationResult ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggResult) const;
     TArray<FRuleEngineRegistration> GetSortedEngines() const;
 
 private:

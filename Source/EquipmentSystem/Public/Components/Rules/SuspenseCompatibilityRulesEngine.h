@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "Types/Equipment/EquipmentTypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
@@ -32,18 +32,18 @@ public:
 
 	//------------- Public API -------------
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FMedComRuleCheckResult CheckItemCompatibility(
+	FSuspenseRuleCheckResult CheckItemCompatibility(
 		const FSuspenseInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FMedComRuleCheckResult CheckTypeCompatibility(
+	FSuspenseRuleCheckResult CheckTypeCompatibility(
 		const FGameplayTag& ItemType,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FMedComAggregatedRuleResult EvaluateCompatibilityRules(
-		const FMedComRuleContext& Context) const;
+	FSuspenseAggregatedRuleResult EvaluateCompatibilityRules(
+		const FSuspenseRuleContext& Context) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	TArray<int32> FindCompatibleSlots(
@@ -76,7 +76,7 @@ protected:
 	bool GetItemData(FName ItemID, struct FSuspenseUnifiedItemData& OutData) const;
 
 	/** Convert SlotValidator result to rules-format (severity mapping). */
-	static FMedComRuleCheckResult Convert(const FSuspenseSlotValidationResult& R);
+	static FSuspenseRuleCheckResult Convert(const FSuspenseSlotValidationResult& R);
 
 private:
 	UPROPERTY(Transient)

@@ -3,7 +3,7 @@
 
 #include "Components/Core/SuspenseEquipmentOperationExecutor.h"
 #include "Components/Core/SuspenseEquipmentDataStore.h"
-#include "Components/Validation/MedComEquipmentSlotValidator.h"
+#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "Services/EquipmentServiceMacros.h"
 #include "Types/Loadout/LoadoutSettings.h"  // Для ESuspenseEquipmentSlotType
 

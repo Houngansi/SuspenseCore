@@ -13,7 +13,7 @@
 
 #include "Interfaces/Equipment/ISuspenseSlotValidator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Components/Transaction/MedComEquipmentTransactionProcessor.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "Types/Equipment/EquipmentTypes.h"
 

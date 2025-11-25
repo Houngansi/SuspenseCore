@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Components/Validation/MedComEquipmentSlotValidator.h"
+#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "SuspenseSystemCoordinatorComponent.generated.h"
 
 class USuspenseEquipmentServiceLocator;

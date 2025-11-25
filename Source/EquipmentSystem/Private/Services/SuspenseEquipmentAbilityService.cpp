@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentAbilityService.h"
-#include "Components/Integration/MedComEquipmentAbilityConnector.h"
+#include "Components/.*/SuspenseEquipmentAbilityConnector.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Misc/App.h"

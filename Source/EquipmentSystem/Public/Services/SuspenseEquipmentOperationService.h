@@ -4,8 +4,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/Transaction/MedComEquipmentTransactionProcessor.h"
-#include "Components/Core/MedComEquipmentDataStore.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "Components/.*/SuspenseEquipmentDataStore.h"
 #include "Interfaces/Equipment/IEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"

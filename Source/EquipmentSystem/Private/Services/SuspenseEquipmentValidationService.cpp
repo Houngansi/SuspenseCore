@@ -5,9 +5,9 @@
 #include "Core/Services/EquipmentServiceLocator.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Core/Utils/FGlobalCacheRegistry.h"
-#include "Components/Rules/MedComRulesCoordinator.h"
+#include "Components/.*/SuspenseRulesCoordinator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Types/Rules/MedComRulesTypes.h" 
+#include "Types/Rules/SuspenseRulesTypes.h" 
 #include "Runtime/Launch/Resources/Version.h"
 #include "Engine/World.h"
 #include "Engine/NetConnection.h"
@@ -198,9 +198,9 @@ bool USuspenseEquipmentValidationService::InitializeService(const FServiceInitPa
     }
 
     // ✅ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: RulesCoordinator работает БЕЗ обязательного DataProvider
-    UMedComRulesCoordinator* Coordinator = NewObject<UMedComRulesCoordinator>(
+    USuspenseRulesCoordinator* Coordinator = NewObject<USuspenseRulesCoordinator>(
         this,
-        UMedComRulesCoordinator::StaticClass(),
+        USuspenseRulesCoordinator::StaticClass(),
         TEXT("RulesCoordinator"),
         RF_Transient
     );
@@ -1281,7 +1281,7 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateAgainstShadow
     }
 
     // Build explicit rule context from snapshot
-    FMedComRuleContext Ctx;
+    FSuspenseRuleContext Ctx;
     Ctx.Character        = Request.Instigator.Get();
     Ctx.ItemInstance     = Request.ItemInstance;
     Ctx.TargetSlotIndex  = Request.TargetSlotIndex;

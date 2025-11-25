@@ -2,9 +2,9 @@
 
 #include "Services/SuspenseEquipmentNetworkService.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "Components/Network/MedComEquipmentNetworkDispatcher.h"
-#include "Components/Network/MedComEquipmentPredictionSystem.h"
-#include "Components/Network/MedComEquipmentReplicationManager.h"
+#include "Components/.*/SuspenseEquipmentNetworkDispatcher.h"
+#include "Components/.*/SuspenseEquipmentPredictionSystem.h"
+#include "Components/.*/SuspenseEquipmentReplicationManager.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 #include "HAL/PlatformProcess.h"

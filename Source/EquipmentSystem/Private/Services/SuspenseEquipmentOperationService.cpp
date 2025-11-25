@@ -3,13 +3,13 @@
 
 #include "Services/SuspenseEquipmentOperationService.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "Components/Transaction/MedComEquipmentTransactionProcessor.h"
-#include "Components/Core/MedComEquipmentDataStore.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "Components/.*/SuspenseEquipmentDataStore.h"
 #include "Interfaces/Equipment/IEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
-#include "Components/Core/MedComEquipmentOperationExecutor.h"
+#include "Components/.*/SuspenseEquipmentOperationExecutor.h"
 #include "Services/SuspenseEquipmentValidationService.h"
-#include "Types/Network/MedComNetworkTypes.h"
+#include "Types/Network/SuspenseNetworkTypes.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"
@@ -1224,7 +1224,7 @@ bool USuspenseEquipmentOperationService::BatchValidatePlan(const FTransactionPla
             return false;
         }
 
-        if (const UMedComEquipmentOperationExecutor* Exec = Cast<UMedComEquipmentOperationExecutor>(OperationsExecutor.GetObject()))
+        if (const USuspenseEquipmentOperationExecutor* Exec = Cast<USuspenseEquipmentOperationExecutor>(OperationsExecutor.GetObject()))
         {
             FText ExecError;
             if (!Exec->ValidatePlan(Plan, ExecError))
@@ -1622,7 +1622,7 @@ bool USuspenseEquipmentOperationService::ProcessBatchUsingPlans(
         return false;
     }
     
-    UMedComEquipmentOperationExecutor* Executor = Cast<UMedComEquipmentOperationExecutor>(OperationsExecutor.GetObject());
+    USuspenseEquipmentOperationExecutor* Executor = Cast<USuspenseEquipmentOperationExecutor>(OperationsExecutor.GetObject());
     if (!Executor)
     {
         if (OutResults) OutResults->Empty();
@@ -1880,7 +1880,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
     bool bResolvedProvider = false;
 
     // Вариант A: сам сервис реализует ISuspenseEquipmentDataProvider
-    if (DataSvcObj->GetClass()->ImplementsInterface(UMedComEquipmentDataProvider::StaticClass()))
+    if (DataSvcObj->GetClass()->ImplementsInterface(USuspenseEquipmentDataProviderInterface::StaticClass()))
     {
         DataProvider.SetObject(DataSvcObj);
         DataProvider.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataSvcObj));
@@ -1925,7 +1925,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
     {
         const FGameplayTag TxnTag = FGameplayTag::RequestGameplayTag(FName("Service.Equipment.Transaction"));
         UObject* TxnObj = Locator->TryGetService(TxnTag);
-        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(UMedComTransactionManager::StaticClass()))
+        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(USuspenseTransactionManagerInterface::StaticClass()))
         {
             TransactionManager.SetObject(TxnObj);
             TransactionManager.SetInterface(Cast<ISuspenseTransactionManager>(TxnObj));
@@ -1953,7 +1953,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
         bool bBoundRules = false;
 
         // Путь A: сам сервис реализует ISuspenseEquipmentRules
-        if (ValidationObj->GetClass()->ImplementsInterface(UMedComEquipmentRules::StaticClass()))
+        if (ValidationObj->GetClass()->ImplementsInterface(USuspenseEquipmentRulesInterface::StaticClass()))
         {
             RulesEngine.SetObject(ValidationObj);
             RulesEngine.SetInterface(Cast<ISuspenseEquipmentRules>(ValidationObj));
@@ -2012,7 +2012,7 @@ void USuspenseEquipmentOperationService::SetOperationsExecutor(TScriptInterface<
         return;
     }
 
-    if (!InExecutor.GetObject()->GetClass()->ImplementsInterface(UMedComEquipmentOperations::StaticClass()))
+    if (!InExecutor.GetObject()->GetClass()->ImplementsInterface(USuspenseEquipmentOperationsInterface::StaticClass()))
     {
         UE_LOG(LogSuspenseEquipmentOperations, Error, 
             TEXT("SetOperationsExecutor: Provided object doesn't implement ISuspenseEquipmentOperations"));
@@ -2370,7 +2370,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::ProcessSingleOpera
         return Fail;
     }
     
-    UMedComEquipmentOperationExecutor* Executor = Cast<UMedComEquipmentOperationExecutor>(OperationsExecutor.GetObject());
+    USuspenseEquipmentOperationExecutor* Executor = Cast<USuspenseEquipmentOperationExecutor>(OperationsExecutor.GetObject());
     if (!Executor)
     {
         FEquipmentOperationResult Fail = FEquipmentOperationResult::CreateFailure(

@@ -18,18 +18,18 @@ USuspenseRequirementRulesEngine::USuspenseRequirementRulesEngine()
 
 //==================== public: aggregate ====================
 
-FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirements(
+FSuspenseAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirements(
     const AActor* Character,
     const FMedComItemRequirements& Requirements) const
 {
-    FMedComAggregatedRuleResult Agg;
+    FSuspenseAggregatedRuleResult Agg;
 
     if (!IsValid(Character))
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoCharacter", "No character supplied"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Character.Invalid"));
         Agg.AddResult(R);
         return Agg;
@@ -38,9 +38,9 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     // Level - strict reading from ASC only
     if (Requirements.RequiredLevel > 0)
     {
-        const FMedComRuleCheckResult R = CheckCharacterLevel(Character, Requirements.RequiredLevel);
+        const FSuspenseRuleCheckResult R = CheckCharacterLevel(Character, Requirements.RequiredLevel);
         Agg.AddResult(R);
-        if (!R.bPassed && (R.Severity == EMedComRuleSeverity::Error || R.Severity == EMedComRuleSeverity::Critical))
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             return Agg; // short-circuit on hard fail
         }
@@ -52,11 +52,11 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
         const FGameplayTagContainer Owned = GetCharacterTags(Character);
         if (!Owned.HasTag(Requirements.RequiredClass))
         {
-            FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+            FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
                 FText::Format(NSLOCTEXT("RequirementRules", "WrongClass", "Requires class: {0}"),
                     FText::FromString(Requirements.RequiredClass.ToString())),
-                EMedComRuleSeverity::Error);
-            R.RuleType = EMedComRuleType::Requirement;
+                ESuspenseRuleSeverity::Error);
+            R.RuleType = ESuspenseRuleType::Requirement;
             R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Class.Mismatch"));
             Agg.AddResult(R);
             return Agg;
@@ -66,9 +66,9 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     // Required tags
     if (!Requirements.RequiredTags.IsEmpty())
     {
-        const FMedComRuleCheckResult R = CheckCharacterTags(Character, Requirements.RequiredTags);
+        const FSuspenseRuleCheckResult R = CheckCharacterTags(Character, Requirements.RequiredTags);
         Agg.AddResult(R);
-        if (!R.bPassed && (R.Severity == EMedComRuleSeverity::Error || R.Severity == EMedComRuleSeverity::Critical))
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             return Agg;
         }
@@ -77,9 +77,9 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     // Attribute gates - strict ASC reading
     if (Requirements.AttributeRequirements.Num() > 0)
     {
-        const FMedComRuleCheckResult R = CheckAttributeRequirements(Character, Requirements.AttributeRequirements);
+        const FSuspenseRuleCheckResult R = CheckAttributeRequirements(Character, Requirements.AttributeRequirements);
         Agg.AddResult(R);
-        if (!R.bPassed && (R.Severity == EMedComRuleSeverity::Error || R.Severity == EMedComRuleSeverity::Critical))
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             return Agg;
         }
@@ -88,9 +88,9 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     // Abilities (strict ASC check)
     if (Requirements.RequiredAbilities.Num() > 0)
     {
-        const FMedComRuleCheckResult R = CheckRequiredAbilities(Character, Requirements.RequiredAbilities);
+        const FSuspenseRuleCheckResult R = CheckRequiredAbilities(Character, Requirements.RequiredAbilities);
         Agg.AddResult(R);
-        if (!R.bPassed && (R.Severity == EMedComRuleSeverity::Error || R.Severity == EMedComRuleSeverity::Critical))
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             return Agg;
         }
@@ -99,22 +99,22 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     // External requirements: quests/certifications (informational only)
     if (Requirements.RequiredQuests.Num() > 0)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "QuestsUnverified", "Quest completion data source is not linked"),
-            EMedComRuleSeverity::Info);
+            ESuspenseRuleSeverity::Info);
         R.bCanOverride = true;
-        R.RuleType = EMedComRuleType::Requirement;
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Quests.Unverified"));
         Agg.AddResult(R);
     }
 
     if (Requirements.RequiredCertifications.Num() > 0)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "CertsUnverified", "Certification data source is not linked"),
-            EMedComRuleSeverity::Info);
+            ESuspenseRuleSeverity::Info);
         R.bCanOverride = true;
-        R.RuleType = EMedComRuleType::Requirement;
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Certifications.Unverified"));
         Agg.AddResult(R);
     }
@@ -122,17 +122,17 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::CheckAllRequirement
     return Agg;
 }
 
-FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::EvaluateRequirementRules(
-    const FMedComRuleContext& Context) const
+FSuspenseAggregatedRuleResult USuspenseRequirementRulesEngine::EvaluateRequirementRules(
+    const FSuspenseRuleContext& Context) const
 {
-    FMedComAggregatedRuleResult Agg;
+    FSuspenseAggregatedRuleResult Agg;
 
     if (!IsValid(Context.Character))
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoCharacterInContext", "Rule context has no character"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Context.Invalid"));
         Agg.AddResult(R);
         return Agg;
@@ -140,9 +140,9 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::EvaluateRequirement
 
     // For context-based evaluation, we assume requirements are embedded in item data
     // This is a pass-through that indicates no implicit context-level requirements
-    FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+    FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
         NSLOCTEXT("RequirementRules", "NoImplicitRequirements", "No implicit requirements in context"));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Context.None"));
     Agg.AddResult(OK);
     return Agg;
@@ -150,16 +150,16 @@ FMedComAggregatedRuleResult USuspenseRequirementRulesEngine::EvaluateRequirement
 
 //==================== primitives ====================
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterLevel(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterLevel(
     const AActor* Character,
     int32 RequiredLevel) const
 {
     if (!IsValid(Character))
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoCharacter", "No character supplied"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Level.InvalidCharacter"));
         return R;
     }
@@ -169,43 +169,43 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterLevel(
     // Strict validation: if level source is missing and requirement > 0, it's a critical error
     if (Level <= 0 && RequiredLevel > 0)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "LevelSourceMissing", "Cannot resolve character level from ASC"),
-            EMedComRuleSeverity::Critical);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Critical);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Level.SourceMissing"));
         return R;
     }
 
     if (Level < RequiredLevel)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "LevelTooLow", "Requires level {0} (current {1})"),
                 FText::AsNumber(RequiredLevel), FText::AsNumber(Level)),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Level.TooLow"));
         return R;
     }
 
-    FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+    FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
         NSLOCTEXT("RequirementRules", "LevelOK", "Level requirement met"));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Level.OK"));
     return OK;
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckSkillLevel(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckSkillLevel(
     const AActor* Character,
     const FGameplayTag& SkillTag,
     int32 RequiredLevel) const
 {
     if (!IsValid(Character) || !SkillTag.IsValid())
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "InvalidSkillInput", "Invalid skill requirement input"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Skill.InvalidInput"));
         return R;
     }
@@ -224,35 +224,35 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckSkillLevel(
     // Strict validation: if skill source is missing and requirement > 0, it's critical
     if (SkillValue <= 0.f && RequiredLevel > 0)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "SkillSourceMissing",
                 "Cannot resolve skill level for {0} from ASC"), FText::FromString(SkillTag.ToString())),
-            EMedComRuleSeverity::Critical);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Critical);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Skill.SourceMissing"));
         return R;
     }
 
     if ((int32)FMath::FloorToInt(SkillValue) < RequiredLevel)
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "SkillTooLow",
                 "Requires {0} level {1}"), FText::FromString(SkillTag.ToString()),
                 FText::AsNumber(RequiredLevel)),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Skill.TooLow"));
         return R;
     }
 
-    FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+    FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
         NSLOCTEXT("RequirementRules", "SkillOK", "Skill requirement met"));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Skill.OK"));
     return OK;
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckAttributeRequirements(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckAttributeRequirements(
     const AActor* Character,
     const TArray<FMedComAttributeRequirement>& Requirements) const
 {
@@ -261,8 +261,8 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckAttributeRequiremen
     
     for (const FMedComAttributeRequirement& Rq : Requirements)
     {
-        const FMedComRuleCheckResult R = CheckSingleAttribute(Character, Rq.AttributeName, Rq.RequiredValue, Rq.ComparisonOp);
-        if (!R.bPassed && (R.Severity == EMedComRuleSeverity::Error || R.Severity == EMedComRuleSeverity::Critical))
+        const FSuspenseRuleCheckResult R = CheckSingleAttribute(Character, Rq.AttributeName, Rq.RequiredValue, Rq.ComparisonOp);
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             bAllOk = false;
             if (!FailureDetails.IsEmpty()) FailureDetails += TEXT("; ");
@@ -272,33 +272,33 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckAttributeRequiremen
 
     if (bAllOk)
     {
-        FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+        FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
             NSLOCTEXT("RequirementRules", "AttributesOK", "All attribute requirements met"));
-        OK.RuleType = EMedComRuleType::Requirement;
+        OK.RuleType = ESuspenseRuleType::Requirement;
         OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Attributes.OK"));
         return OK;
     }
 
-    FMedComRuleCheckResult F = FMedComRuleCheckResult::Failure(
+    FSuspenseRuleCheckResult F = FSuspenseRuleCheckResult::Failure(
         FText::FromString(FailureDetails.IsEmpty() ? TEXT("Attribute requirements not met") : FailureDetails),
-        EMedComRuleSeverity::Error);
-    F.RuleType = EMedComRuleType::Requirement;
+        ESuspenseRuleSeverity::Error);
+    F.RuleType = ESuspenseRuleType::Requirement;
     F.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Attributes.Failed"));
     return F;
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckSingleAttribute(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckSingleAttribute(
     const AActor* Character,
     const FName& AttributeName,
     float RequiredValue,
-    EMedComComparisonOp Op) const
+    ESuspenseComparisonOp Op) const
 {
     if (!IsValid(Character) || AttributeName.IsNone())
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "InvalidAttrInput", "Invalid attribute requirement input"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Attribute.InvalidInput"));
         return R;
     }
@@ -311,47 +311,47 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckSingleAttribute(
         FText OpStr;
         switch (Op)
         {
-        case EMedComComparisonOp::Equal:           OpStr = FText::FromString(TEXT("==")); break;
-        case EMedComComparisonOp::NotEqual:        OpStr = FText::FromString(TEXT("!=")); break;
-        case EMedComComparisonOp::Greater:         OpStr = FText::FromString(TEXT(">")); break;
-        case EMedComComparisonOp::GreaterOrEqual:  OpStr = FText::FromString(TEXT(">=")); break;
-        case EMedComComparisonOp::Less:            OpStr = FText::FromString(TEXT("<")); break;
-        case EMedComComparisonOp::LessOrEqual:     OpStr = FText::FromString(TEXT("<=")); break;
+        case ESuspenseComparisonOp::Equal:           OpStr = FText::FromString(TEXT("==")); break;
+        case ESuspenseComparisonOp::NotEqual:        OpStr = FText::FromString(TEXT("!=")); break;
+        case ESuspenseComparisonOp::Greater:         OpStr = FText::FromString(TEXT(">")); break;
+        case ESuspenseComparisonOp::GreaterOrEqual:  OpStr = FText::FromString(TEXT(">=")); break;
+        case ESuspenseComparisonOp::Less:            OpStr = FText::FromString(TEXT("<")); break;
+        case ESuspenseComparisonOp::LessOrEqual:     OpStr = FText::FromString(TEXT("<=")); break;
         default:                                   OpStr = FText::FromString(TEXT("?")); break;
         }
 
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "AttributeMismatch", "Attribute {0}: {1} (required {2} {3})"),
                 FText::FromName(AttributeName), 
                 FText::AsNumber(Actual),
                 OpStr, 
                 FText::AsNumber(RequiredValue)),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Attribute.Mismatch"));
         R.Context.Add(TEXT("Actual"), FString::SanitizeFloat(Actual));
         R.Context.Add(TEXT("Required"), FString::SanitizeFloat(RequiredValue));
         return R;
     }
 
-    FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+    FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
         FText::Format(NSLOCTEXT("RequirementRules", "AttributeOK", "{0} requirement met"),
             FText::FromName(AttributeName)));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Attribute.OK"));
     return OK;
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterTags(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterTags(
     const AActor* Character,
     const FGameplayTagContainer& RequiredTags) const
 {
     if (!IsValid(Character))
     {
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoCharacter", "No character supplied"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Tags.InvalidCharacter"));
         return R;
     }
@@ -369,34 +369,34 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCharacterTags(
             }
         }
 
-        FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+        FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "TagsMissing", "Missing required tags: {0}"),
                 FText::FromString(Missing.ToStringSimple())),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Tags.Missing"));
         R.Context.Add(TEXT("Missing"), Missing.ToStringSimple());
         R.Context.Add(TEXT("Required"), RequiredTags.ToStringSimple());
         return R;
     }
 
-    FMedComRuleCheckResult OK = FMedComRuleCheckResult::Success(
+    FSuspenseRuleCheckResult OK = FSuspenseRuleCheckResult::Success(
         NSLOCTEXT("RequirementRules", "TagsOK", "All required tags present"));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Tags.OK"));
     return OK;
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckRequiredAbilities(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckRequiredAbilities(
     const AActor* Character,
     const TArray<TSubclassOf<UGameplayAbility>>& RequiredAbilities) const
 {
     if (!IsValid(Character))
     {
-        auto R = FMedComRuleCheckResult::Failure(
+        auto R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoCharacter", "No character supplied"),
-            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Ability.InvalidCharacter"));
         return R;
     }
@@ -404,10 +404,10 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckRequiredAbilities(
     const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Character);
     if (!ASI)
     {
-        auto R = FMedComRuleCheckResult::Failure(
+        auto R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoASC", "Character does not implement IAbilitySystemInterface"),
-            EMedComRuleSeverity::Critical);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Critical);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Ability.NoASC"));
         return R;
     }
@@ -415,10 +415,10 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckRequiredAbilities(
     UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
     if (!ASC)
     {
-        auto R = FMedComRuleCheckResult::Failure(
+        auto R = FSuspenseRuleCheckResult::Failure(
             NSLOCTEXT("RequirementRules", "NoASCComponent", "AbilitySystemComponent not found on character"),
-            EMedComRuleSeverity::Critical);
-        R.RuleType = EMedComRuleType::Requirement;
+            ESuspenseRuleSeverity::Critical);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Ability.NoASC"));
         return R;
     }
@@ -462,19 +462,19 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckRequiredAbilities(
 
     if (Missing.Num() > 0)
     {
-        auto R = FMedComRuleCheckResult::Failure(
+        auto R = FSuspenseRuleCheckResult::Failure(
             FText::Format(NSLOCTEXT("RequirementRules", "AbilitiesMissing", "Missing required abilities: {0}"),
                           FText::FromString(FString::Join(Missing, TEXT(", "))))
-            , EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+            , ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Ability.Missing"));
         R.Context.Add(TEXT("MissingAbilities"), FString::Join(Missing, TEXT(", ")));
         return R;
     }
 
-    auto OK = FMedComRuleCheckResult::Success(
+    auto OK = FSuspenseRuleCheckResult::Success(
         NSLOCTEXT("RequirementRules", "AbilitiesOK", "All required abilities present"));
-    OK.RuleType = EMedComRuleType::Requirement;
+    OK.RuleType = ESuspenseRuleType::Requirement;
     OK.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Requirement.Ability.OK"));
     return OK;
 }
@@ -551,7 +551,7 @@ void USuspenseRequirementRulesEngine::UnregisterCustomRequirement(const FGamepla
     CustomValidators.Remove(RequirementTag);
 }
 
-FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCustomRequirement(
+FSuspenseRuleCheckResult USuspenseRequirementRulesEngine::CheckCustomRequirement(
     const AActor* Character,
     const FGameplayTag& RequirementTag,
     const FString& Parameters) const
@@ -560,21 +560,21 @@ FMedComRuleCheckResult USuspenseRequirementRulesEngine::CheckCustomRequirement(
     if (const FCustomRequirementValidator* Found = CustomValidators.Find(RequirementTag))
     {
         const bool bOk = Found->Execute(Character, Parameters);
-        FMedComRuleCheckResult R = bOk ? FMedComRuleCheckResult::Success(
+        FSuspenseRuleCheckResult R = bOk ? FSuspenseRuleCheckResult::Success(
                                             NSLOCTEXT("RequirementRules", "CustomOK", "Custom requirement satisfied"))
-                                       : FMedComRuleCheckResult::Failure(
+                                       : FSuspenseRuleCheckResult::Failure(
                                             NSLOCTEXT("RequirementRules", "CustomFailed", "Custom requirement failed"),
-                                            EMedComRuleSeverity::Error);
-        R.RuleType = EMedComRuleType::Requirement;
+                                            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Requirement;
         R.RuleTag = RequirementTag;
         return R;
     }
 
-    FMedComRuleCheckResult F = FMedComRuleCheckResult::Failure(
+    FSuspenseRuleCheckResult F = FSuspenseRuleCheckResult::Failure(
         NSLOCTEXT("RequirementRules", "NoCustomValidator", "No validator registered for custom requirement"),
-        EMedComRuleSeverity::Info);
+        ESuspenseRuleSeverity::Info);
     F.bCanOverride = true;
-    F.RuleType = EMedComRuleType::Requirement;
+    F.RuleType = ESuspenseRuleType::Requirement;
     F.RuleTag = RequirementTag.IsValid() ? RequirementTag
                                          : FGameplayTag::RequestGameplayTag(TEXT("Requirement.Custom.Unknown"));
     return F;
@@ -684,16 +684,16 @@ FGameplayTagContainer USuspenseRequirementRulesEngine::GetCharacterTags(const AA
     return Out;
 }
 
-bool USuspenseRequirementRulesEngine::CompareValues(float Value1, float Value2, EMedComComparisonOp Op) const
+bool USuspenseRequirementRulesEngine::CompareValues(float Value1, float Value2, ESuspenseComparisonOp Op) const
 {
     switch (Op)
     {
-    case EMedComComparisonOp::Equal:           return FMath::IsNearlyEqual(Value1, Value2);
-    case EMedComComparisonOp::NotEqual:        return !FMath::IsNearlyEqual(Value1, Value2);
-    case EMedComComparisonOp::Greater:         return Value1 > Value2;
-    case EMedComComparisonOp::GreaterOrEqual:  return Value1 >= Value2;
-    case EMedComComparisonOp::Less:            return Value1 < Value2;
-    case EMedComComparisonOp::LessOrEqual:     return Value1 <= Value2;
+    case ESuspenseComparisonOp::Equal:           return FMath::IsNearlyEqual(Value1, Value2);
+    case ESuspenseComparisonOp::NotEqual:        return !FMath::IsNearlyEqual(Value1, Value2);
+    case ESuspenseComparisonOp::Greater:         return Value1 > Value2;
+    case ESuspenseComparisonOp::GreaterOrEqual:  return Value1 >= Value2;
+    case ESuspenseComparisonOp::Less:            return Value1 < Value2;
+    case ESuspenseComparisonOp::LessOrEqual:     return Value1 <= Value2;
     default:                                   return false;
     }
 }

@@ -13,7 +13,7 @@
 #include "Core/Utils/FEquipmentEventBus.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Types/Inventory/InventoryTypes.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Equipment/EquipmentTypes.h"
 #include "HAL/CriticalSection.h"
 #include <atomic>

@@ -195,7 +195,7 @@ public:
     virtual FSuspenseRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FSuspenseRuleEvaluationResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FMedComRuleContext& Context) const override;
+        const FSuspenseRuleContext& Context) const override;
     virtual FSuspenseRuleEvaluationResult CheckItemCompatibility(
         const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;

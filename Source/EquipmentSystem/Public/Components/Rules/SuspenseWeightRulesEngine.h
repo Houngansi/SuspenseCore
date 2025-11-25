@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "SuspenseWeightRulesEngine.generated.h"
 
@@ -67,15 +67,15 @@ public:
 
     /** Evaluate incoming item vs capacity; returns aggregated rule result (strict on hard limit). */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FMedComAggregatedRuleResult EvaluateWeightRules(const FMedComRuleContext& Context) const;
+    FSuspenseAggregatedRuleResult EvaluateWeightRules(const FSuspenseRuleContext& Context) const;
 
     /** Check simple capacity gate. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FMedComRuleCheckResult CheckWeightLimit(float CurrentWeight, float AdditionalWeight, float MaxCapacity) const;
+    FSuspenseRuleCheckResult CheckWeightLimit(float CurrentWeight, float AdditionalWeight, float MaxCapacity) const;
 
     /** Encumbrance evaluation for UX (ratio/tag). */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FMedComRuleCheckResult CheckEncumbrance(const AActor* Character, float TotalWeight) const;
+    FSuspenseRuleCheckResult CheckEncumbrance(const AActor* Character, float TotalWeight) const;
 
     //==================== Capacity / weights ====================
 

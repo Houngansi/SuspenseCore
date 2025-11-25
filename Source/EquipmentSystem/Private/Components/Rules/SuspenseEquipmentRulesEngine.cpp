@@ -201,7 +201,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const
 
 FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
-    const FMedComRuleContext& Context) const
+    const FSuspenseRuleContext& Context) const
 {
     if (!ShouldUseDevFallback())
     {

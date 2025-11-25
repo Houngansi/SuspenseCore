@@ -13,7 +13,7 @@
 #include "Interfaces/Core/MedComWorldBindable.h"
 
 // Equipment infrastructure
-#include "Components/Core/MedComSystemCoordinator.h"
+#include "Components/.*/SuspenseSystemCoordinator.h"
 #include "Core/Services/EquipmentServiceLocator.h"
 #include "Interfaces/Equipment/IEquipmentService.h"
 

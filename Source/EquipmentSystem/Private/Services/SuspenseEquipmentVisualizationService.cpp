@@ -714,13 +714,13 @@ AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Chara
 			*FactoryObj->GetClass()->GetName());
 		
 		// PREFERRED: via C++ interface ISuspenseActorFactory
-		if (FactoryObj->GetClass()->ImplementsInterface(UMedComActorFactory::StaticClass()))
+		if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactoryInterface::StaticClass()))
 		{
 			UE_LOG(LogSuspenseEquipmentVisualization, Log, 
 				TEXT("  Using C++ interface ISuspenseActorFactory"));
 			
 			if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-				FactoryObj->GetInterfaceAddress(UMedComActorFactory::StaticClass())))
+				FactoryObj->GetInterfaceAddress(USuspenseActorFactoryInterface::StaticClass())))
 			{
 				FEquipmentActorSpawnParams Params;
 				Params.ItemInstance.ItemID = ItemID;
@@ -841,10 +841,10 @@ void USuspenseEquipmentVisualizationService::ReleaseVisualActor(AActor* Characte
 		if (UObject* FactoryObj = CachedServiceLocator->TryGetService(Tag_ActorFactory))
 		{
 			// Via interface
-			if (FactoryObj->GetClass()->ImplementsInterface(UMedComActorFactory::StaticClass()))
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactoryInterface::StaticClass()))
 			{
 				if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-					FactoryObj->GetInterfaceAddress(UMedComActorFactory::StaticClass())))
+					FactoryObj->GetInterfaceAddress(USuspenseActorFactoryInterface::StaticClass())))
 				{
 					if (Factory->DestroyEquipmentActor(Visual, bInstant))
 					{

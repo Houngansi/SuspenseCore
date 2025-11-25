@@ -25,38 +25,38 @@ void USuspenseCompatibilityRulesEngine::SetDefaultEquipmentDataProvider(TScriptI
 	DefaultEquipProvider = InProvider;
 }
 
-FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::Convert(const FSuspenseSlotValidationResult& R)
+FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::Convert(const FSuspenseSlotValidationResult& R)
 {
 	if (R.bIsValid)
 	{
-		FMedComRuleCheckResult Ok = FMedComRuleCheckResult::Success();
-		Ok.RuleType = EMedComRuleType::Compatibility;
+		FSuspenseRuleCheckResult Ok = FSuspenseRuleCheckResult::Success();
+		Ok.RuleType = ESuspenseRuleType::Compatibility;
 		Ok.RuleTag = R.ErrorTag.IsValid() ? R.ErrorTag : FGameplayTag::RequestGameplayTag(TEXT("Rule.Compatibility.OK"));
 		Ok.Message = NSLOCTEXT("CompatibilityRules", "CompatPass", "Compatible");
-		Ok.Severity = EMedComRuleSeverity::Info;
+		Ok.Severity = ESuspenseRuleSeverity::Info;
 		Ok.ConfidenceScore = 1.0f;
 		return Ok;
 	}
 
-	EMedComRuleSeverity Sev = EMedComRuleSeverity::Error;
+	ESuspenseRuleSeverity Sev = ESuspenseRuleSeverity::Error;
 	switch (R.FailureType)
 	{
 	case EEquipmentValidationFailure::InvalidSlot:
 	case EEquipmentValidationFailure::UniqueConstraint:
 	case EEquipmentValidationFailure::IncompatibleType:
-		Sev = EMedComRuleSeverity::Critical; break;
+		Sev = ESuspenseRuleSeverity::Critical; break;
 	case EEquipmentValidationFailure::RequirementsNotMet:
 	case EEquipmentValidationFailure::WeightLimit:
 	case EEquipmentValidationFailure::LevelRequirement:
-		Sev = EMedComRuleSeverity::Error; break;
+		Sev = ESuspenseRuleSeverity::Error; break;
 	default:
-		Sev = EMedComRuleSeverity::Error; break;
+		Sev = ESuspenseRuleSeverity::Error; break;
 	}
 
-	FMedComRuleCheckResult Fail = FMedComRuleCheckResult::Failure(
+	FSuspenseRuleCheckResult Fail = FSuspenseRuleCheckResult::Failure(
 		R.ErrorMessage.IsEmpty() ? NSLOCTEXT("CompatibilityRules", "CompatFail", "Incompatible") : R.ErrorMessage,
 		Sev);
-	Fail.RuleType = EMedComRuleType::Compatibility;
+	Fail.RuleType = ESuspenseRuleType::Compatibility;
 	Fail.RuleTag = R.ErrorTag.IsValid() ? R.ErrorTag : FGameplayTag::RequestGameplayTag(TEXT("Rule.Compatibility.Fail"));
 
 	// Copy context
@@ -72,7 +72,7 @@ bool USuspenseCompatibilityRulesEngine::GetItemData(FName ItemID, FSuspenseUnifi
 	return ItemProvider.IsValid() ? ItemProvider->GetUnifiedItemData(ItemID, OutData) : false;
 }
 
-FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility(
+FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility(
 	const FSuspenseInventoryItemInstance& ItemInstance,
 	const FEquipmentSlotConfig& SlotConfig) const
 {
@@ -80,7 +80,7 @@ FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility
 	if (IsValid(SlotValidator))
 	{
 		const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
-		FMedComRuleCheckResult R = Convert(VR);
+		FSuspenseRuleCheckResult R = Convert(VR);
 		if (!R.bPassed) { return R; } // short-circuit on hard fail
 	}
 
@@ -88,20 +88,20 @@ FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility
 	FSuspenseUnifiedItemData ItemData;
 	if (!GetItemData(ItemInstance.ItemID, ItemData))
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			NSLOCTEXT("CompatibilityRules", "ItemDataNotFound", "Item data not found"),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		return R;
 	}
 
 	// Slot type filter using current config API (Allowed / Disallowed)
 	if (!SlotConfig.CanEquipItemType(ItemData.ItemType))
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			NSLOCTEXT("CompatibilityRules", "TypeMismatch", "Item type is not allowed in this slot"),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		return R;
 	}
 
@@ -109,19 +109,19 @@ FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility
 	const float Durability = ItemInstance.GetDurabilityPercent();
 	if (Durability <= 0.0f)
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			NSLOCTEXT("CompatibilityRules", "ItemBroken", "Cannot equip broken items"),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		R.bCanOverride = false;
 		R.Context.Add(TEXT("Durability"), FString::Printf(TEXT("%.1f%%"), Durability * 100.0f));
 		return R;
 	}
 	else if (Durability < 0.2f)
 	{
-		FMedComRuleCheckResult W = FMedComRuleCheckResult::Success();
-		W.RuleType = EMedComRuleType::Compatibility;
-		W.Severity = EMedComRuleSeverity::Warning;
+		FSuspenseRuleCheckResult W = FSuspenseRuleCheckResult::Success();
+		W.RuleType = ESuspenseRuleType::Compatibility;
+		W.Severity = ESuspenseRuleSeverity::Warning;
 		W.Message = FText::Format(NSLOCTEXT("CompatibilityRules", "LowDurability", "Warning: low durability ({0}%)"),
 			FMath::RoundToInt(Durability * 100.0f));
 		W.ConfidenceScore = 0.7f;
@@ -129,14 +129,14 @@ FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibility
 		return W;
 	}
 
-	FMedComRuleCheckResult Ok = FMedComRuleCheckResult::Success();
-	Ok.RuleType = EMedComRuleType::Compatibility;
+	FSuspenseRuleCheckResult Ok = FSuspenseRuleCheckResult::Success();
+	Ok.RuleType = ESuspenseRuleType::Compatibility;
 	Ok.Message = NSLOCTEXT("CompatibilityRules", "Compatible", "Compatible");
 	Ok.ConfidenceScore = 1.0f;
 	return Ok;
 }
 
-FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckTypeCompatibility(
+FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::CheckTypeCompatibility(
 	const FGameplayTag& ItemType,
 	const FEquipmentSlotConfig& SlotConfig) const
 {
@@ -144,45 +144,45 @@ FMedComRuleCheckResult USuspenseCompatibilityRulesEngine::CheckTypeCompatibility
 	const bool bTypeAllowed = SlotConfig.AllowedItemTypes.IsEmpty() || SlotConfig.AllowedItemTypes.HasTag(ItemType);
 	if (!bTypeAllowed)
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			FText::Format(NSLOCTEXT("CompatibilityRules", "TypeNotAllowed", "Item type {0} is not allowed"),
 				FText::FromString(ItemType.ToString())),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		return R;
 	}
 
 	// Disallowed types (exact match)
 	if (!SlotConfig.DisallowedItemTypes.IsEmpty() && SlotConfig.DisallowedItemTypes.HasTagExact(ItemType))
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			FText::Format(NSLOCTEXT("CompatibilityRules", "TypeBlocked", "Item type {0} is disallowed"),
 				FText::FromString(ItemType.ToString())),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		return R;
 	}
 
-	FMedComRuleCheckResult Ok = FMedComRuleCheckResult::Success();
-	Ok.RuleType = EMedComRuleType::Compatibility;
+	FSuspenseRuleCheckResult Ok = FSuspenseRuleCheckResult::Success();
+	Ok.RuleType = ESuspenseRuleType::Compatibility;
 	Ok.Message = NSLOCTEXT("CompatibilityRules", "TypeCompatible", "Item type is compatible with slot");
 	Ok.ConfidenceScore = 1.0f;
 	return Ok;
 }
 
-FMedComAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompatibilityRules(
-	const FMedComRuleContext& Context) const
+FSuspenseAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompatibilityRules(
+	const FSuspenseRuleContext& Context) const
 {
-	FMedComAggregatedRuleResult Agg;
+	FSuspenseAggregatedRuleResult Agg;
 
 	// Resolve equipment data provider ONLY from default DI
 	TScriptInterface<ISuspenseEquipmentDataProvider> EquipProvider = DefaultEquipProvider;
 	if (!EquipProvider.GetInterface())
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			NSLOCTEXT("CompatibilityRules", "NoDataProvider", "No equipment data provider"),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		Agg.AddResult(R);
 		return Agg;
 	}
@@ -190,10 +190,10 @@ FMedComAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompatibi
 	// Resolve SlotConfig by index
 	if (Context.TargetSlotIndex == INDEX_NONE)
 	{
-		FMedComRuleCheckResult R = FMedComRuleCheckResult::Failure(
+		FSuspenseRuleCheckResult R = FSuspenseRuleCheckResult::Failure(
 			NSLOCTEXT("CompatibilityRules", "NoTargetSlot", "No target slot specified"),
-			EMedComRuleSeverity::Error);
-		R.RuleType = EMedComRuleType::Compatibility;
+			ESuspenseRuleSeverity::Error);
+		R.RuleType = ESuspenseRuleType::Compatibility;
 		Agg.AddResult(R);
 		return Agg;
 	}
@@ -203,7 +203,7 @@ FMedComAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompatibi
 	if (IsValid(SlotValidator))
 	{
 		const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotCfg, Context.ItemInstance);
-		FMedComRuleCheckResult R = Convert(VR);
+		FSuspenseRuleCheckResult R = Convert(VR);
 		Agg.AddResult(R);
 		if (!R.bPassed)
 		{
@@ -216,9 +216,9 @@ FMedComAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompatibi
 		const float Durability = Context.ItemInstance.GetDurabilityPercent();
 		if (Durability < 0.2f && Durability > 0.0f)
 		{
-			FMedComRuleCheckResult W = FMedComRuleCheckResult::Success();
-			W.RuleType = EMedComRuleType::Compatibility;
-			W.Severity = EMedComRuleSeverity::Warning;
+			FSuspenseRuleCheckResult W = FSuspenseRuleCheckResult::Success();
+			W.RuleType = ESuspenseRuleType::Compatibility;
+			W.Severity = ESuspenseRuleSeverity::Warning;
 			W.Message = FText::Format(NSLOCTEXT("CompatibilityRules", "LowDurability", "Warning: low durability ({0}%)"),
 				FMath::RoundToInt(Durability * 100.0f));
 			W.ConfidenceScore = 0.7f;

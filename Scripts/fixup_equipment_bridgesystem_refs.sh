@@ -39,6 +39,10 @@ fixup() {
     sed -i 's/\bIMedComEventDispatcher\b/ISuspenseEventDispatcher/g' "$file"
     sed -i 's/\bIMedComSlotValidator\b/ISuspenseSlotValidator/g' "$file"
     sed -i 's/\bIMedComItemDataProvider\b/ISuspenseItemDataProvider/g' "$file"
+    sed -i 's/\bIMedComLoadoutAdapter\b/ISuspenseLoadoutAdapter/g' "$file"
+    sed -i 's/\bIMedComAbilityConnector\b/ISuspenseAbilityConnector/g' "$file"
+    sed -i 's/\bIMedComVisualProvider\b/ISuspenseVisualProvider/g' "$file"
+    sed -i 's/\bIMedComAttachmentProvider\b/ISuspenseAttachmentProvider/g' "$file"
 
     # UINTERFACE wrappers (keep "Interface" suffix)
     sed -i 's/\bUMedComEquipmentInterface\b/USuspenseEquipmentInterface/g' "$file"
@@ -56,6 +60,14 @@ fixup() {
     sed -i 's/\bUMedComEquipmentPredictionSystem\b/USuspenseEquipmentPredictionSystem/g' "$file"
     sed -i 's/\bUMedComEquipmentReplicationManager\b/USuspenseEquipmentReplicationManager/g' "$file"
     sed -i 's/\bUMedComReplicationProvider\b/USuspenseReplicationProviderInterface/g' "$file"
+    sed -i 's/\bUMedComLoadoutManager\b/USuspenseLoadoutManager/g' "$file"
+
+    # GAS module attribute sets (used by equipment components)
+    sed -i 's/\bUMedComWeaponAttributeSet\b/UWeaponAttributeSet/g' "$file"
+    sed -i 's/\bUMedComAmmoAttributeSet\b/UAmmoAttributeSet/g' "$file"
+
+    # BridgeSystem UINTERFACE wrappers (animation subsystem integration)
+    sed -i 's/\bUMedComWeaponAnimationInterface\b/USuspenseWeaponAnimationInterface/g' "$file"
 
     # Equipment module component classes (forward declarations for classes migrated in later stages)
     sed -i 's/\bUMedComEquipmentAbilityConnector\b/USuspenseEquipmentAbilityConnector/g' "$file"
@@ -63,6 +75,11 @@ fixup() {
     sed -i 's/\bUMedComEquipmentTransactionProcessor\b/USuspenseEquipmentTransactionProcessor/g' "$file"
     sed -i 's/\bUMedComEquipmentSlotValidator\b/USuspenseEquipmentSlotValidator/g' "$file"
     sed -i 's/\bUMedComSystemCoordinator\b/USuspenseSystemCoordinatorComponent/g' "$file"
+    sed -i 's/\bUMedComRulesCoordinator\b/USuspenseRulesCoordinator/g' "$file"
+    sed -i 's/\bUMedComEquipmentOperationExecutor\b/USuspenseEquipmentOperationExecutor/g' "$file"
+    sed -i 's/\bUMedComEquipmentActorFactory\b/USuspenseEquipmentActorFactory/g' "$file"
+    sed -i 's/\bUMedComEquipmentAttachmentSystem\b/USuspenseEquipmentAttachmentSystem/g' "$file"
+    sed -i 's/\bUMedComEquipmentVisualController\b/USuspenseEquipmentVisualController/g' "$file"
 
     # BridgeSystem structs
     sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseUnifiedItemData/g' "$file"
@@ -102,6 +119,52 @@ fixup() {
     sed -i 's|Types/Inventory/FInventoryItemInstance\.h|Types/Inventory/FSuspenseInventoryItemInstance.h|g' "$file"
     sed -i 's|Types/Inventory/FInventoryOperationResult\.h|Types/Inventory/FSuspenseInventoryOperationResult.h|g' "$file"
     sed -i 's|Types/Loadout/MedComItemDataTable\.h|Types/Loadout/SuspenseItemDataTable.h|g' "$file"
+    sed -i 's|Types/Network/MedComNetworkTypes\.h|Types/Network/SuspenseNetworkTypes.h|g' "$file"
+    sed -i 's|Types/Rules/MedComRulesTypes\.h|Types/Rules/SuspenseRulesTypes.h|g' "$file"
+
+    # Equipment module component includes (internal cross-references) - general pattern for all components
+    sed -i 's|Components/.*/MedComEquipment\([A-Za-z]*\)\.h|Components/.*/SuspenseEquipment\1.h|g' "$file"
+    sed -i 's|Components/.*/MedCom\([A-Za-z]*\)\.h|Components/.*/Suspense\1.h|g' "$file"
+
+    # Equipment module component includes (specific patterns for certainty)
+    sed -i 's|Components/Validation/MedComEquipmentSlotValidator\.h|Components/Validation/SuspenseEquipmentSlotValidator.h|g' "$file"
+    sed -i 's|Components/Transaction/MedComEquipmentTransactionProcessor\.h|Components/Transaction/SuspenseEquipmentTransactionProcessor.h|g' "$file"
+    sed -i 's|Components/Core/MedComEquipmentDataStore\.h|Components/Core/SuspenseEquipmentDataStore.h|g' "$file"
+    sed -i 's|Components/Core/MedComEquipmentOperationExecutor\.h|Components/Core/SuspenseEquipmentOperationExecutor.h|g' "$file"
+    sed -i 's|Components/Rules/MedComRulesCoordinator\.h|Components/Rules/SuspenseRulesCoordinator.h|g' "$file"
+    sed -i 's|Components/Integration/MedComEquipmentAbilityConnector\.h|Components/Integration/SuspenseEquipmentAbilityConnector.h|g' "$file"
+    sed -i 's|Components/Network/MedComEquipmentNetworkDispatcher\.h|Components/Network/SuspenseEquipmentNetworkDispatcher.h|g' "$file"
+    sed -i 's|Components/Network/MedComEquipmentPredictionSystem\.h|Components/Network/SuspenseEquipmentPredictionSystem.h|g' "$file"
+    sed -i 's|Components/Network/MedComEquipmentReplicationManager\.h|Components/Network/SuspenseEquipmentReplicationManager.h|g' "$file"
+
+    # Equipment module local enum types (defined within Equipment components)
+    sed -i 's/\bEMedComConflictType\b/ESuspenseConflictType/g' "$file"
+    sed -i 's/\bEMedComComparisonOp\b/ESuspenseComparisonOp/g' "$file"
+
+    # Equipment module local struct/enum types (Rules Engine)
+    sed -i 's/\bFMedComRuleContext\b/FSuspenseRuleContext/g' "$file"
+    sed -i 's/\bFMedComRuleEvaluationResult\b/FSuspenseRuleEvaluationResult/g' "$file"
+    sed -i 's/\bFMedComRuleCheckResult\b/FSuspenseRuleCheckResult/g' "$file"
+    sed -i 's/\bFMedComAggregatedRuleResult\b/FSuspenseAggregatedRuleResult/g' "$file"
+    sed -i 's/\bFMedComWeightCalculation\b/FSuspenseWeightCalculation/g' "$file"
+    sed -i 's/\bFMedComRequirementCheck\b/FSuspenseRequirementCheck/g' "$file"
+    sed -i 's/\bFMedComConflictResolution\b/FSuspenseConflictResolution/g' "$file"
+    sed -i 's/\bFMedComSetBonusInfo\b/FSuspenseSetBonusInfo/g' "$file"
+    sed -i 's/\bFMedComResolutionAction\b/FSuspenseResolutionAction/g' "$file"
+    sed -i 's/\bEMedComRuleType\b/ESuspenseRuleType/g' "$file"
+    sed -i 's/\bEMedComRuleSeverity\b/ESuspenseRuleSeverity/g' "$file"
+
+    # GAS module subsystems (used by Equipment components)
+    sed -i 's/\bUMedComWeaponAnimationSubsystem\b/UWeaponAnimationSubsystem/g' "$file"
+
+    # UINTERFACE StaticClass() references for interface checks
+    sed -i 's/\bUMedComEquipmentDataProvider::StaticClass()/USuspenseEquipmentDataProviderInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComTransactionManager::StaticClass()/USuspenseTransactionManagerInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComEquipmentRules::StaticClass()/USuspenseEquipmentRulesInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComEquipmentOperations::StaticClass()/USuspenseEquipmentOperationsInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComActorFactory::StaticClass()/USuspenseActorFactoryInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComAttachmentProvider::StaticClass()/USuspenseAttachmentProviderInterface::StaticClass()/g' "$file"
+    sed -i 's/\bUMedComVisualProvider::StaticClass()/USuspenseVisualProviderInterface::StaticClass()/g' "$file"
 }
 
 # Fix all Equipment files (Stage 1 + Stage 2)

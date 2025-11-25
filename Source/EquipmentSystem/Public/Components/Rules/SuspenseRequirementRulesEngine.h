@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "SuspenseRequirementRulesEngine.generated.h"
 
@@ -14,7 +14,7 @@
  * Comparison operators for requirement checks.
  */
 UENUM(BlueprintType)
-enum class EMedComComparisonOp : uint8
+enum class ESuspenseComparisonOp : uint8
 {
     Equal           UMETA(DisplayName="=="),
     NotEqual        UMETA(DisplayName="!="),
@@ -42,7 +42,7 @@ struct FMedComAttributeRequirement
 
     /** Comparison operator */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Requirement")
-    EMedComComparisonOp ComparisonOp = EMedComComparisonOp::GreaterOrEqual;
+    ESuspenseComparisonOp ComparisonOp = ESuspenseComparisonOp::GreaterOrEqual;
 
     /** Optional display name for UI */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Requirement")
@@ -105,47 +105,47 @@ public:
 
     /** Check all requirements; short-circuits on Error/Critical failure of a rule. */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComAggregatedRuleResult CheckAllRequirements(
+    FSuspenseAggregatedRuleResult CheckAllRequirements(
         const AActor* Character,
         const FMedComItemRequirements& Requirements) const;
 
     /** Evaluate requirements using rule context (best-effort; read-only). */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComAggregatedRuleResult EvaluateRequirementRules(
-        const FMedComRuleContext& Context) const;
+    FSuspenseAggregatedRuleResult EvaluateRequirementRules(
+        const FSuspenseRuleContext& Context) const;
 
     //==================== Primitive checks ====================
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckCharacterLevel(
+    FSuspenseRuleCheckResult CheckCharacterLevel(
         const AActor* Character,
         int32 RequiredLevel) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckSkillLevel(
+    FSuspenseRuleCheckResult CheckSkillLevel(
         const AActor* Character,
         const FGameplayTag& SkillTag,
         int32 RequiredLevel) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckAttributeRequirements(
+    FSuspenseRuleCheckResult CheckAttributeRequirements(
         const AActor* Character,
         const TArray<FMedComAttributeRequirement>& Requirements) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckSingleAttribute(
+    FSuspenseRuleCheckResult CheckSingleAttribute(
         const AActor* Character,
         const FName& AttributeName,
         float RequiredValue,
-        EMedComComparisonOp Op) const;
+        ESuspenseComparisonOp Op) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckCharacterTags(
+    FSuspenseRuleCheckResult CheckCharacterTags(
         const AActor* Character,
         const FGameplayTagContainer& RequiredTags) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckRequiredAbilities(
+    FSuspenseRuleCheckResult CheckRequiredAbilities(
         const AActor* Character,
         const TArray<TSubclassOf<class UGameplayAbility>>& RequiredAbilities) const;
 
@@ -169,7 +169,7 @@ public:
     void UnregisterCustomRequirement(const FGameplayTag& RuleTag);
     
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FMedComRuleCheckResult CheckCustomRequirement(
+    FSuspenseRuleCheckResult CheckCustomRequirement(
         const AActor* Character,
         const FGameplayTag& RequirementTag,
         const FString& Parameters) const;
@@ -197,7 +197,7 @@ protected:
     FGameplayTagContainer GetCharacterTags(const AActor* Character) const;
 
     /** Numeric comparer. */
-    bool CompareValues(float Value1, float Value2, EMedComComparisonOp Op) const;
+    bool CompareValues(float Value1, float Value2, ESuspenseComparisonOp Op) const;
 
 private:
     /** Custom requirement validators (thread-safe map). */

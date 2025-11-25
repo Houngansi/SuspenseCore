@@ -121,8 +121,8 @@ void USuspenseWeaponAmmoComponent::LinkAttributeComponent(USuspenseEquipmentAttr
     if (LinkedAttributeComponent)
     {
         // Cache AttributeSets for performance
-        CachedWeaponAttributeSet = Cast<UMedComWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
-        CachedAmmoAttributeSet = Cast<UMedComAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
+        CachedWeaponAttributeSet = Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
+        CachedAmmoAttributeSet = Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
         
         // Invalidate cache to force update
         bMagazineSizeCached = false;
@@ -133,7 +133,7 @@ void USuspenseWeaponAmmoComponent::LinkAttributeComponent(USuspenseEquipmentAttr
     }
 }
 
-UMedComWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet() const
+UWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet() const
 {
     // Return cached if available
     if (CachedWeaponAttributeSet)
@@ -144,7 +144,7 @@ UMedComWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet()
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
-        return Cast<UMedComWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
+        return Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
     }
     
     // Try to find from ASC on owner
@@ -154,7 +154,7 @@ UMedComWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet()
         {
             for (UAttributeSet* Set : ASC->GetSpawnedAttributes())
             {
-                if (UMedComWeaponAttributeSet* WeaponSet = Cast<UMedComWeaponAttributeSet>(Set))
+                if (UWeaponAttributeSet* WeaponSet = Cast<UWeaponAttributeSet>(Set))
                 {
                     return WeaponSet;
                 }
@@ -165,7 +165,7 @@ UMedComWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet()
     return nullptr;
 }
 
-UMedComAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() const
+UAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() const
 {
     // Return cached if available
     if (CachedAmmoAttributeSet)
@@ -176,7 +176,7 @@ UMedComAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() con
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
-        return Cast<UMedComAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
+        return Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
     }
     
     // Try to find from ASC on owner
@@ -186,7 +186,7 @@ UMedComAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() con
         {
             for (UAttributeSet* Set : ASC->GetSpawnedAttributes())
             {
-                if (UMedComAmmoAttributeSet* AmmoSet = Cast<UMedComAmmoAttributeSet>(Set))
+                if (UAmmoAttributeSet* AmmoSet = Cast<UAmmoAttributeSet>(Set))
                 {
                     return AmmoSet;
                 }
@@ -473,7 +473,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
     }
     
     // First priority: Get from WeaponAttributeSet
-    if (UMedComWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         CachedMagazineSize = WeaponAS->GetMagazineSize();
         bMagazineSizeCached = true;
@@ -481,7 +481,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
     }
     
     // Second priority: Get from AmmoAttributeSet (for special ammo types that modify magazine)
-    if (UMedComAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
+    if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
         float AmmoMagazineSize = AmmoAS->GetMagazineSize();
         if (AmmoMagazineSize > 0.0f)
@@ -538,7 +538,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
 float USuspenseWeaponAmmoComponent::GetReloadTime(bool bTactical) const
 {
     // First priority: Get from WeaponAttributeSet
-    if (UMedComWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         if (bTactical)
         {
@@ -551,7 +551,7 @@ float USuspenseWeaponAmmoComponent::GetReloadTime(bool bTactical) const
     }
     
     // Second priority: Get from AmmoAttributeSet (special ammo might affect reload)
-    if (UMedComAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
+    if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
         float ReloadTimeModifier = AmmoAS->GetReloadTime();
         if (ReloadTimeModifier > 0.0f)
@@ -626,7 +626,7 @@ void USuspenseWeaponAmmoComponent::UpdateMagazineSizeFromAttributes()
 void USuspenseWeaponAmmoComponent::ApplyDurabilityModifiers()
 {
     // Check weapon durability and apply malfunction chances
-    if (UMedComWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         float Durability = WeaponAS->GetDurability();
         float MaxDurability = WeaponAS->GetMaxDurability();

@@ -707,7 +707,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseEquipmentAttachmentComponent
     // Get from subsystem
     if (UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
     {
-        if (UMedComWeaponAnimationSubsystem* AnimSubsystem = GameInstance->GetSubsystem<UMedComWeaponAnimationSubsystem>())
+        if (UWeaponAnimationSubsystem* AnimSubsystem = GameInstance->GetSubsystem<UWeaponAnimationSubsystem>())
         {
             CachedAnimationInterface.SetObject(AnimSubsystem);
             CachedAnimationInterface.SetInterface(AnimSubsystem);

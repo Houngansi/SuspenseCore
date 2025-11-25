@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Types/Rules/MedComRulesTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseConflictRulesEngine.generated.h"
@@ -19,7 +19,7 @@ struct FEquipmentSlotSnapshot;  // ДОБАВЛЕНО: для новых мет�
  * Conflict type enumeration
  */
 UENUM(BlueprintType)
-enum class EMedComConflictType : uint8
+enum class ESuspenseConflictType : uint8
 {
     None                UMETA(DisplayName = "No Conflict"),
     MutualExclusion     UMETA(DisplayName = "Mutually Exclusive"),
@@ -33,13 +33,13 @@ enum class EMedComConflictType : uint8
  * Conflict resolution action
  */
 USTRUCT(BlueprintType)
-struct FMedComConflictResolution
+struct FSuspenseConflictResolution
 {
     GENERATED_BODY()
     
     /** Type of conflict */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
-    EMedComConflictType ConflictType = EMedComConflictType::None;
+    ESuspenseConflictType ConflictType = ESuspenseConflictType::None;
     
     /** Items involved in conflict */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
@@ -47,7 +47,7 @@ struct FMedComConflictResolution
     
     /** Suggested resolution strategy */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
-    EMedComConflictResolution Strategy = EMedComConflictResolution::Reject;
+    ESuspenseConflictResolution Strategy = ESuspenseConflictResolution::Reject;
     
     /** Resolution description */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
@@ -62,7 +62,7 @@ struct FMedComConflictResolution
  * Set bonus information
  */
 USTRUCT(BlueprintType)
-struct FMedComSetBonusInfo
+struct FSuspenseSetBonusInfo
 {
     GENERATED_BODY()
     
@@ -92,7 +92,7 @@ struct FMedComSetBonusInfo
 };
 
 USTRUCT(BlueprintType)
-struct FMedComResolutionAction
+struct FSuspenseResolutionAction
 {
 	GENERATED_BODY()
 
@@ -164,7 +164,7 @@ public:
      * @return Rule check result with conflict details
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FMedComRuleCheckResult CheckItemConflicts(
+    FSuspenseRuleCheckResult CheckItemConflicts(
         const FSuspenseInventoryItemInstance& NewItem,
         const TArray<FSuspenseInventoryItemInstance>& ExistingItems) const;
     
@@ -186,7 +186,7 @@ public:
      * @return Rule check result
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FMedComRuleCheckResult CheckSlotConflicts(
+    FSuspenseRuleCheckResult CheckSlotConflicts(
         const FSuspenseInventoryItemInstance& NewItem,
         int32 TargetSlot,
         const TArray<FEquipmentSlotSnapshot>& Slots) const;  // ИЗМЕНЕНО: новый тип параметра
@@ -202,8 +202,8 @@ public:
      * @return Aggregated conflict results (БЕЗ слотных проверок)
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FMedComAggregatedRuleResult EvaluateConflictRules(
-        const FMedComRuleContext& Context) const;
+    FSuspenseAggregatedRuleResult EvaluateConflictRules(
+        const FSuspenseRuleContext& Context) const;
 
     /**
      * Comprehensive conflict evaluation - НОВАЯ ВЕРСИЯ с корректными слотами
@@ -222,8 +222,8 @@ public:
      * @return Aggregated conflict results (включая корректные слотные проверки)
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FMedComAggregatedRuleResult EvaluateConflictRulesWithSlots(
-        const FMedComRuleContext& Context,
+    FSuspenseAggregatedRuleResult EvaluateConflictRulesWithSlots(
+        const FSuspenseRuleContext& Context,
         const TArray<FEquipmentSlotSnapshot>& Slots) const;  // НОВЫЙ МЕТОД
 
     //========================================
@@ -237,7 +237,7 @@ public:
      * @return List of all conflicts
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    TArray<FMedComConflictResolution> FindAllConflicts(
+    TArray<FSuspenseConflictResolution> FindAllConflicts(
         const FSuspenseInventoryItemInstance& Item,
         const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
     
@@ -247,7 +247,7 @@ public:
      * @return Potential conflicts
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    TArray<FMedComConflictResolution> PredictConflicts(
+    TArray<FSuspenseConflictResolution> PredictConflicts(
         const TArray<FSuspenseInventoryItemInstance>& PlannedItems) const;
     
     /**
@@ -257,7 +257,7 @@ public:
      * @return Type of conflict
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    EMedComConflictType GetConflictType(
+    ESuspenseConflictType GetConflictType(
         const FSuspenseInventoryItemInstance& Item1,
         const FSuspenseInventoryItemInstance& Item2) const;
 
@@ -294,7 +294,7 @@ public:
      * @return Rule check result
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FMedComRuleCheckResult CheckTypeExclusivity(
+    FSuspenseRuleCheckResult CheckTypeExclusivity(
         const FGameplayTag& NewItemType,
         const TArray<FGameplayTag>& ExistingTypes) const;
 
@@ -308,7 +308,7 @@ public:
      * @return Active set bonuses
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    TArray<FMedComSetBonusInfo> DetectSetBonuses(
+    TArray<FSuspenseSetBonusInfo> DetectSetBonuses(
         const TArray<FSuspenseInventoryItemInstance>& Items) const;
     
     /**
@@ -346,9 +346,9 @@ public:
      */
 	UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
 	bool SuggestResolutions(
-		const TArray<FMedComConflictResolution>& Conflicts,
-		EMedComConflictResolution Strategy,
-		TArray<FMedComResolutionAction>& OutActions) const;
+		const TArray<FSuspenseConflictResolution>& Conflicts,
+		ESuspenseConflictResolution Strategy,
+		TArray<FSuspenseResolutionAction>& OutActions) const;
     
     /**
      * Suggest best resolution strategy
@@ -356,8 +356,8 @@ public:
      * @return Recommended strategy
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    EMedComConflictResolution SuggestResolutionStrategy(
-        const TArray<FMedComConflictResolution>& Conflicts) const;
+    ESuspenseConflictResolution SuggestResolutionStrategy(
+        const TArray<FSuspenseConflictResolution>& Conflicts) const;
     
     /**
      * Get user-friendly conflict description
@@ -365,7 +365,7 @@ public:
      * @return Human-readable description
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FText GetConflictDescription(const FMedComConflictResolution& Conflict) const;
+    FText GetConflictDescription(const FSuspenseConflictResolution& Conflict) const;
 
     //========================================
     // Configuration
@@ -465,7 +465,7 @@ protected:
      * @param ConflictType Type to convert
      * @return String representation
      */
-    FString GetConflictTypeString(EMedComConflictType ConflictType) const;
+    FString GetConflictTypeString(ESuspenseConflictType ConflictType) const;
     
     /**
      * Get item data from provider (replaces world access)

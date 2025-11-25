@@ -35,7 +35,7 @@ bool USuspenseRulesCoordinator::Initialize(TScriptInterface<ISuspenseEquipmentDa
         UE_LOG(LogRulesCoordinator, Warning, 
             TEXT("Initialize: DataProvider is null - coordinator will work in STATELESS mode"));
         UE_LOG(LogRulesCoordinator, Warning,
-            TEXT("  All equipment data must be provided through FMedComRuleContext"));
+            TEXT("  All equipment data must be provided through FSuspenseRuleContext"));
     }
 
     // Создаем движки независимо от наличия DataProvider
@@ -181,7 +181,7 @@ void USuspenseRulesCoordinator::CreateSpecializedEngines()
 }
 
 FEquipmentStateSnapshot USuspenseRulesCoordinator::BuildShadowSnapshotFromContext(
-    const FMedComRuleContext& Context) const
+    const FSuspenseRuleContext& Context) const
 {
     FEquipmentStateSnapshot Snapshot;
 
@@ -343,7 +343,7 @@ static void SnapshotToItemsFiltered(const FEquipmentStateSnapshot& Snapshot,
 FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRules(const FEquipmentOperationRequest& Operation) const
 {
     // Строим минимальный контекст
-    FMedComRuleContext Context;
+    FSuspenseRuleContext Context;
     Context.Character       = Operation.Instigator.Get();
     Context.ItemInstance    = Operation.ItemInstance;
     Context.TargetSlotIndex = Operation.TargetSlotIndex;
@@ -377,9 +377,9 @@ void USuspenseRulesCoordinator::RecordEngineMetrics(const FGameplayTag& EngineTy
 // ============================================================================
 FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
-    const FMedComRuleContext& Context) const
+    const FSuspenseRuleContext& Context) const
 {
-    TArray<FMedComRuleCheckResult> AllResults;
+    TArray<FSuspenseRuleCheckResult> AllResults;
 
     const double EvaluationStartTime = FPlatformTime::Seconds();
     
@@ -395,7 +395,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
     ApplyOperationToSnapshot(Operation, ShadowSnapshot);
 
     // Подготавливаем локальный контекст с отфильтрованными данными
-    FMedComRuleContext LocalContext = Context;
+    FSuspenseRuleContext LocalContext = Context;
     SnapshotToItemsFiltered(ShadowSnapshot, ExcludedSlotsCache, LocalContext.CurrentItems);
 
     // Определяем pipeline в фиксированном порядке: Critical -> High -> Normal -> Low
@@ -429,7 +429,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
     // Выполняем pipeline с возможностью досрочного завершения
     for (const FPipelineEntry& Entry : Pipeline)
     {
-        FMedComAggregatedRuleResult EngineResult;
+        FSuspenseAggregatedRuleResult EngineResult;
         
         const double EngineStartTime = FPlatformTime::Seconds();
         
@@ -444,7 +444,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
         else if (Entry.Engine == WeightEngine)
         {
             // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Предотвращаем двойной подсчет веса
-            FMedComRuleContext WeightContext = LocalContext;
+            FSuspenseRuleContext WeightContext = LocalContext;
             WeightContext.ItemInstance = FSuspenseInventoryItemInstance();
             EngineResult = WeightEngine->EvaluateWeightRules(WeightContext);
         }
@@ -531,7 +531,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckCharacterRequireme
             FMedComAttributeRequirement StrengthReq;
             StrengthReq.AttributeName = TEXT("Strength");
             StrengthReq.RequiredValue = 12.0f + (ItemWeight - 8.0f) * 0.5f;
-            StrengthReq.ComparisonOp = EMedComComparisonOp::GreaterOrEqual;
+            StrengthReq.ComparisonOp = ESuspenseComparisonOp::GreaterOrEqual;
             StrengthReq.DisplayName = FText::FromString(TEXT("Strength requirement"));
             Requirements.AttributeRequirements.Add(StrengthReq);
         }
@@ -943,24 +943,24 @@ FString USuspenseRulesCoordinator::GetPipelineHealth() const
 }
 
 FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
-    const TArray<FMedComRuleCheckResult>& NewResults) const
+    const TArray<FSuspenseRuleCheckResult>& NewResults) const
 {
     FSuspenseRuleEvaluationResult LegacyResult;
     LegacyResult.bPassed = true;
     LegacyResult.ConfidenceScore = 1.0f;
 
-    for (const FMedComRuleCheckResult& Result : NewResults)
+    for (const FSuspenseRuleCheckResult& Result : NewResults)
     {
         if (!Result.bPassed)
         {
             LegacyResult.bPassed = false;
             
-            if (Result.Severity == EMedComRuleSeverity::Critical && LegacyResult.FailureReason.IsEmpty())
+            if (Result.Severity == ESuspenseRuleSeverity::Critical && LegacyResult.FailureReason.IsEmpty())
             {
                 LegacyResult.FailureReason = Result.Message;
                 LegacyResult.RuleType = Result.RuleTag;
             }
-            else if (Result.Severity == EMedComRuleSeverity::Error && LegacyResult.FailureReason.IsEmpty())
+            else if (Result.Severity == ESuspenseRuleSeverity::Error && LegacyResult.FailureReason.IsEmpty())
             {
                 LegacyResult.FailureReason = Result.Message;
                 LegacyResult.RuleType = Result.RuleTag;
@@ -988,7 +988,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
     return LegacyResult;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertSingleResult(const FMedComRuleCheckResult& NewResult) const
+FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const
 {
     FSuspenseRuleEvaluationResult LegacyResult;
     LegacyResult.bPassed = NewResult.bPassed;
@@ -1004,7 +1004,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertSingleResult(con
     return LegacyResult;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertAggregatedResult(const FMedComAggregatedRuleResult& AggregatedResult) const
+FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggregatedResult) const
 {
     return ConvertToLegacyResult(AggregatedResult.Results);
 }

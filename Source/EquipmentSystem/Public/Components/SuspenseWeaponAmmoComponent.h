@@ -12,8 +12,8 @@
 class UGameplayEffect;
 class ISuspenseWeapon;
 class UAttributeSet;
-class UMedComWeaponAttributeSet;
-class UMedComAmmoAttributeSet;
+class UWeaponAttributeSet;
+class UAmmoAttributeSet;
 struct FSuspenseUnifiedItemData;
 
 /**
@@ -191,14 +191,14 @@ public:
      * @return Weapon AttributeSet or null
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
-    UMedComWeaponAttributeSet* GetWeaponAttributeSet() const;
+    UWeaponAttributeSet* GetWeaponAttributeSet() const;
 
     /**
      * Get linked ammo AttributeSet
      * @return Ammo AttributeSet or null
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
-    UMedComAmmoAttributeSet* GetAmmoAttributeSet() const;
+    UAmmoAttributeSet* GetAmmoAttributeSet() const;
 
 protected:
     /**
@@ -297,11 +297,11 @@ private:
 
     /** Cached weapon AttributeSet for performance */
     UPROPERTY()
-    UMedComWeaponAttributeSet* CachedWeaponAttributeSet;
+    UWeaponAttributeSet* CachedWeaponAttributeSet;
 
     /** Cached ammo AttributeSet for performance */
     UPROPERTY()
-    UMedComAmmoAttributeSet* CachedAmmoAttributeSet;
+    UAmmoAttributeSet* CachedAmmoAttributeSet;
 
     /** Cached magazine size for performance */
     mutable float CachedMagazineSize;

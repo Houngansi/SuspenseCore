@@ -6,33 +6,33 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemInterface.h"
-#include "Interfaces/Core/IMedComCharacterInterface.h"
-#include "Interfaces/Core/IMedComAttributeProviderInterface.h"
-#include "Interfaces/Core/IMedComLoadoutInterface.h"
+#include "Interfaces/Core/ISuspenseCharacter.h"
+#include "Interfaces/Core/ISuspenseAttributeProvider.h"
+#include "Interfaces/Core/ISuspenseLoadout.h"
 #include "Input/MCAbilityInputID.h"
 #include "GameplayEffectTypes.h"
-#include "Components/Validation/MedComEquipmentSlotValidator.h"
+#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "SuspensePlayerState.generated.h"
 
-class UMedComAbilitySystemComponent;
-class UMedComBaseAttributeSet;
+class USuspenseAbilitySystemComponent;
+class USuspenseBaseAttributeSet;
 class UGameplayAbility;
 class UGameplayEffect;
-class UMedComInventoryComponent;
-class UEventDelegateManager;
-class UMedComLoadoutManager;
+class USuspenseInventoryComponent;
+class USuspenseEventManager;
+class USuspenseLoadoutManager;
 
 // Equipment module forward declarations
-class UMedComEquipmentDataStore;
-class UMedComEquipmentTransactionProcessor;
-class UMedComEquipmentReplicationManager;
-class UMedComEquipmentPredictionSystem;
-class UMedComWeaponStateManager;
-class UMedComEquipmentNetworkDispatcher;
-class UMedComEquipmentInventoryBridge;
-class UMedComEquipmentEventDispatcher;
-class UMedComEquipmentOperationExecutor;
-class UMedComSystemCoordinator;
+class USuspenseEquipmentDataStore;
+class USuspenseEquipmentTransactionProcessor;
+class USuspenseEquipmentReplicationManager;
+class USuspenseEquipmentPredictionSystem;
+class USuspenseWeaponStateManager;
+class USuspenseEquipmentNetworkDispatcher;
+class USuspenseEquipmentInventoryBridge;
+class USuspenseEquipmentEventDispatcher;
+class USuspenseEquipmentOperationExecutor;
+class USuspenseSystemCoordinator;
 
 USTRUCT(BlueprintType)
 struct FAbilityInfo
@@ -50,7 +50,7 @@ struct FAbilityInfo
  * Player state with integrated GAS, inventory and equipment systems.
  * 
  * ARCHITECTURE:
- * - Global services managed by UMedComSystemCoordinatorSubsystem (GameInstance-level)
+ * - Global services managed by USuspenseSystemCoordinatorSubsystem (GameInstance-level)
  * - Per-player components owned by this PlayerState (DataStore, TransactionProcessor, etc.)
  * - Components communicate with global services through ServiceLocator
  * 
@@ -68,9 +68,9 @@ UCLASS()
 class SUSPENSECORE_API ASuspensePlayerState
     : public APlayerState
     , public IAbilitySystemInterface
-    , public IMedComCharacterInterface
-    , public IMedComAttributeProviderInterface
-    , public IMedComLoadoutInterface
+    , public ISuspenseCharacter
+    , public ISuspenseAttributeProvider
+    , public ISuspenseLoadout
 {
     GENERATED_BODY()
 
@@ -93,7 +93,7 @@ public:
     virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
     //========================================
-    // IMedComCharacterInterface
+    // ISuspenseCharacter
     //========================================
     
     virtual UAbilitySystemComponent* GetASC_Implementation() const override;
@@ -104,10 +104,10 @@ public:
     virtual float GetCharacterLevel_Implementation() const override;
     virtual bool IsAlive_Implementation() const override;
     virtual int32 GetTeamId_Implementation() const override;
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
     
     //========================================
-    // IMedComAttributeProviderInterface
+    // ISuspenseAttributeProvider
     //========================================
     
     virtual UAttributeSet* GetAttributeSet_Implementation() const override;
@@ -117,26 +117,26 @@ public:
     virtual void ApplyEffects_Implementation(UAbilitySystemComponent* ASC) const override;
     virtual bool HasAttributes_Implementation() const override;
     virtual void SetAttributeSetClass_Implementation(TSubclassOf<UAttributeSet> NewClass) override;
-    virtual FMedComAttributeData GetAttributeData_Implementation(const FGameplayTag& AttributeTag) const override;
-    virtual FMedComAttributeData GetHealthData_Implementation() const override;
-    virtual FMedComAttributeData GetStaminaData_Implementation() const override;
-    virtual FMedComAttributeData GetArmorData_Implementation() const override;
-    virtual TArray<FMedComAttributeData> GetAllAttributeData_Implementation() const override;
+    virtual FSuspenseAttributeData GetAttributeData_Implementation(const FGameplayTag& AttributeTag) const override;
+    virtual FSuspenseAttributeData GetHealthData_Implementation() const override;
+    virtual FSuspenseAttributeData GetStaminaData_Implementation() const override;
+    virtual FSuspenseAttributeData GetArmorData_Implementation() const override;
+    virtual TArray<FSuspenseAttributeData> GetAllAttributeData_Implementation() const override;
     virtual bool GetAttributeValue_Implementation(const FGameplayTag& AttributeTag, float& OutCurrentValue, float& OutMaxValue) const override;
     virtual void NotifyAttributeChanged_Implementation(const FGameplayTag& AttributeTag, float NewValue, float OldValue) override;
     
     //========================================
-    // IMedComLoadoutInterface
+    // ISuspenseLoadout
     //========================================
     
     virtual FLoadoutApplicationResult ApplyLoadoutConfiguration_Implementation(
         const FName& LoadoutID, 
-        UMedComLoadoutManager* LoadoutManager,
+        USuspenseLoadoutManager* LoadoutManager,
         bool bForceApply = false) override;
     virtual FName GetCurrentLoadoutID_Implementation() const override;
     virtual bool CanAcceptLoadout_Implementation(
         const FName& LoadoutID,
-        const UMedComLoadoutManager* LoadoutManager,
+        const USuspenseLoadoutManager* LoadoutManager,
         FString& OutReason) const override;
     virtual FGameplayTag GetLoadoutComponentType_Implementation() const override;
     virtual void ResetForLoadout_Implementation(bool bPreserveRuntimeData = false) override;
@@ -151,39 +151,39 @@ public:
     // Public API
     //========================================
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Attributes")
-    const UMedComBaseAttributeSet* GetBaseAttributeSet() const { return Attributes; }
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Attributes")
+    const USuspenseBaseAttributeSet* GetBaseAttributeSet() const { return Attributes; }
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Loadout", meta = (CallInEditor = "true"))
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout", meta = (CallInEditor = "true"))
     bool ApplyLoadout(const FName& LoadoutID, bool bForceReapply = false);
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Loadout")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     bool SwitchLoadout(const FName& NewLoadoutID, bool bPreserveRuntimeData = false);
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Loadout")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     FName GetCurrentLoadout() const { return CurrentLoadoutID; }
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Loadout")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     bool HasLoadout() const { return !CurrentLoadoutID.IsNone(); }
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Loadout")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     void LogLoadoutStatus();
     
     //========================================
     // Component Access
     //========================================
     
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Inventory")
-    UMedComInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Inventory")
+    USuspenseInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
-    UFUNCTION(BlueprintCallable, Category="MedCom|Equipment")
-    UMedComEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
+    UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
+    USuspenseEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
     
-    UFUNCTION(BlueprintCallable, Category="MedCom|Equipment")
-    UMedComEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
+    UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
+    USuspenseEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
     
-    UFUNCTION(BlueprintCallable, Category="MedCom|Equipment")
-    UMedComEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
+    UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
+    USuspenseEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
 
     //========================================
     // Debug
@@ -197,49 +197,49 @@ protected:
     //========================================
     
     /** Ability System Component */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Core")
-    UMedComAbilitySystemComponent* ASC = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Core")
+    USuspenseAbilitySystemComponent* ASC = nullptr;
     
     /** Inventory component for item management */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Inventory")
-    UMedComInventoryComponent* InventoryComponent = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Inventory")
+    USuspenseInventoryComponent* InventoryComponent = nullptr;
 
     /** Attribute set (spawned by ASC) */
     UPROPERTY()
-    UMedComBaseAttributeSet* Attributes = nullptr;
+    USuspenseBaseAttributeSet* Attributes = nullptr;
 
     //========================================
     // GAS Configuration
     //========================================
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Attributes")
-    TSubclassOf<UMedComBaseAttributeSet> InitialAttributeSetClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
+    TSubclassOf<USuspenseBaseAttributeSet> InitialAttributeSetClass;
 
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Attributes")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
     TSubclassOf<UGameplayEffect> InitialAttributesEffect;
 
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TArray<FAbilityInfo> AbilityPool;
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TSubclassOf<UGameplayAbility> InteractAbility;
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TSubclassOf<UGameplayAbility> SprintAbility;
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TSubclassOf<UGameplayAbility> CrouchAbility;
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TSubclassOf<UGameplayAbility> JumpAbility;
 
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
     TSubclassOf<UGameplayAbility> WeaponSwitchAbility;
  
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Passive Effects")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Passive Effects")
     TSubclassOf<UGameplayEffect> PassiveHealthRegenEffect;
     
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Passive Effects")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Passive Effects")
     TSubclassOf<UGameplayEffect> PassiveStaminaRegenEffect;
     
     //========================================
@@ -257,19 +257,19 @@ protected:
     //========================================
     
     /** Currently applied loadout ID (replicated for UI) */
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "MedCom|Loadout")
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Suspense|Loadout")
     FName CurrentLoadoutID = NAME_None;
     
     /** Default loadout to apply on spawn */
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Loadout")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     FName DefaultLoadoutID = TEXT("Default_Soldier");
     
     /** Whether to automatically apply default loadout on begin play */
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Loadout")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     bool bAutoApplyDefaultLoadout = true;
     
     /** Whether to log loadout operations */
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Loadout")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     bool bLogLoadoutOperations = true;
 
     /** Flag to track if component listeners have been set up */
@@ -281,47 +281,47 @@ protected:
     //========================================
     
     /** Core data store for equipment state (Server authoritative, replicated) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Core")
-    UMedComEquipmentDataStore* EquipmentDataStore = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Core")
+    USuspenseEquipmentDataStore* EquipmentDataStore = nullptr;
 
     /** Transaction processor for atomic equipment changes */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Core")
-    UMedComEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Core")
+    USuspenseEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
 
     /** Operation executor (deterministic, validated) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Core")
-    UMedComEquipmentOperationExecutor* EquipmentOps = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Core")
+    USuspenseEquipmentOperationExecutor* EquipmentOps = nullptr;
 
     /** Prediction system (client owning) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Networking")
-    UMedComEquipmentPredictionSystem* EquipmentPrediction = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Networking")
+    USuspenseEquipmentPredictionSystem* EquipmentPrediction = nullptr;
 
     /** Replication manager (delta-based replication) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Networking")
-    UMedComEquipmentReplicationManager* EquipmentReplication = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Networking")
+    USuspenseEquipmentReplicationManager* EquipmentReplication = nullptr;
 
     /** Network dispatcher (RPC/request queue) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Networking")
-    UMedComEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Networking")
+    USuspenseEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
 
     /** Event dispatcher / equipment event bus (local) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Events")
-    UMedComEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Events")
+    USuspenseEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
 
     /** Weapon state manager (FSM) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Weapon")
-    UMedComWeaponStateManager* WeaponStateManager = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Weapon")
+    USuspenseWeaponStateManager* WeaponStateManager = nullptr;
 
     /** Inventory bridge (connects equipment to existing inventory) */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|Inventory")
-    UMedComEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Inventory")
+    USuspenseEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
 
     /**
      * DEPRECATED: System coordinator - kept for backward compatibility only
-     * Global services are now managed by UMedComSystemCoordinatorSubsystem
+     * Global services are now managed by USuspenseSystemCoordinatorSubsystem
      */
-    UPROPERTY(VisibleAnywhere, Replicated, Category = "MedCom|Equipment|DEPRECATED")
-    UMedComSystemCoordinator* EquipmentSystemCoordinator = nullptr;
+    UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|DEPRECATED")
+    USuspenseSystemCoordinator* EquipmentSystemCoordinator = nullptr;
 
     /**
      * Slot validator (UObject, not component)
@@ -329,7 +329,7 @@ protected:
      * Validates equipment slot operations
      */
     UPROPERTY()
-    UMedComEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
+    USuspenseEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
     //========================================
     // Equipment Wiring Retry (Server-side)
     //========================================
@@ -361,8 +361,8 @@ protected:
     void ApplyPassiveStartupEffects();
     bool CheckAuthority(const TCHAR* Fn) const;
     
-    UMedComLoadoutManager* GetLoadoutManager() const;
-    FLoadoutApplicationResult ApplyLoadoutToComponents(const FName& LoadoutID, UMedComLoadoutManager* LoadoutManager);
+    USuspenseLoadoutManager* GetLoadoutManager() const;
+    FLoadoutApplicationResult ApplyLoadoutToComponents(const FName& LoadoutID, USuspenseLoadoutManager* LoadoutManager);
     void ResetComponentsForLoadout(bool bPreserveRuntimeData);
     
     UFUNCTION() 
@@ -382,7 +382,7 @@ protected:
      * @param AppliedLoadoutID - ID of loadout that was just applied
      * @return true if wiring succeeded, false otherwise
      */
-    bool WireEquipmentModule(UMedComLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID);
+    bool WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID);
 
     //========================================
     // Attribute Change Callbacks

@@ -6,13 +6,13 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "MedComRulesTypes.generated.h"
+#include "SuspenseRulesTypes.generated.h"
 
 /**
  * Rule type enumeration for categorization
  */
 UENUM(BlueprintType)
-enum class EMedComRuleType : uint8
+enum class ESuspenseRuleType : uint8
 {
     Weight          UMETA(DisplayName = "Weight Rules"),
     Requirement     UMETA(DisplayName = "Requirement Rules"),
@@ -27,7 +27,7 @@ enum class EMedComRuleType : uint8
  * Severity level for rule violations
  */
 UENUM(BlueprintType)
-enum class EMedComRuleSeverity : uint8
+enum class ESuspenseRuleSeverity : uint8
 {
     Info        UMETA(DisplayName = "Information"),
     Warning     UMETA(DisplayName = "Warning"),
@@ -39,7 +39,7 @@ enum class EMedComRuleSeverity : uint8
  * Conflict resolution strategies
  */
 UENUM(BlueprintType)
-enum class EMedComConflictResolution : uint8
+enum class ESuspenseConflictResolution : uint8
 {
     Reject      UMETA(DisplayName = "Reject Operation"),
     Replace     UMETA(DisplayName = "Replace Existing"),
@@ -52,56 +52,56 @@ enum class EMedComConflictResolution : uint8
  * Extended rule check result with detailed information
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FMedComRuleCheckResult
+struct BRIDGESYSTEM_API FSuspenseRuleCheckResult
 {
     GENERATED_BODY()
-    
+
     /** Whether the rule passed */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     bool bPassed = true;
-    
+
     /** Severity if rule failed */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    EMedComRuleSeverity Severity = EMedComRuleSeverity::Info;
-    
+    ESuspenseRuleSeverity Severity = ESuspenseRuleSeverity::Info;
+
     /** Human-readable message */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     FText Message;
-    
+
     /** Rule identifier */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     FGameplayTag RuleTag;
-    
+
     /** Rule type for categorization */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    EMedComRuleType RuleType = EMedComRuleType::Custom;
-    
+    ESuspenseRuleType RuleType = ESuspenseRuleType::Custom;
+
     /** Additional context data */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     TMap<FString, FString> Context;
-    
+
     /** Confidence score (0.0 - 1.0) */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     float ConfidenceScore = 1.0f;
-    
+
     /** Can this rule be overridden? */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     bool bCanOverride = false;
-    
+
     /** Helper to create success result */
-    static FMedComRuleCheckResult Success(const FText& InMessage = FText::GetEmpty())
+    static FSuspenseRuleCheckResult Success(const FText& InMessage = FText::GetEmpty())
     {
-        FMedComRuleCheckResult Result;
+        FSuspenseRuleCheckResult Result;
         Result.bPassed = true;
         Result.Message = InMessage;
         Result.ConfidenceScore = 1.0f;
         return Result;
     }
-    
+
     /** Helper to create failure result */
-    static FMedComRuleCheckResult Failure(const FText& InMessage, EMedComRuleSeverity InSeverity = EMedComRuleSeverity::Error)
+    static FSuspenseRuleCheckResult Failure(const FText& InMessage, ESuspenseRuleSeverity InSeverity = ESuspenseRuleSeverity::Error)
     {
-        FMedComRuleCheckResult Result;
+        FSuspenseRuleCheckResult Result;
         Result.bPassed = false;
         Result.Message = InMessage;
         Result.Severity = InSeverity;
@@ -114,44 +114,44 @@ struct BRIDGESYSTEM_API FMedComRuleCheckResult
  * Aggregated rule evaluation result
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FMedComAggregatedRuleResult
+struct BRIDGESYSTEM_API FSuspenseAggregatedRuleResult
 {
     GENERATED_BODY()
-    
+
     /** Overall pass/fail */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     bool bAllPassed = true;
-    
+
     /** Individual rule results */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FMedComRuleCheckResult> Results;
-    
+    TArray<FSuspenseRuleCheckResult> Results;
+
     /** Critical failures that must be addressed */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FMedComRuleCheckResult> CriticalFailures;
-    
+    TArray<FSuspenseRuleCheckResult> CriticalFailures;
+
     /** Warnings that don't block operation */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FMedComRuleCheckResult> Warnings;
-    
+    TArray<FSuspenseRuleCheckResult> Warnings;
+
     /** Combined confidence score */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     float CombinedConfidence = 1.0f;
-    
+
     /** Primary failure reason for UI */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
     FText PrimaryFailureReason;
-    
+
     /** Add a rule result to aggregation */
-    void AddResult(const FMedComRuleCheckResult& Result)
+    void AddResult(const FSuspenseRuleCheckResult& Result)
     {
         Results.Add(Result);
-        
+
         if (!Result.bPassed)
         {
             bAllPassed = false;
-            
-            if (Result.Severity == EMedComRuleSeverity::Critical)
+
+            if (Result.Severity == ESuspenseRuleSeverity::Critical)
             {
                 CriticalFailures.Add(Result);
                 if (PrimaryFailureReason.IsEmpty())
@@ -159,27 +159,27 @@ struct BRIDGESYSTEM_API FMedComAggregatedRuleResult
                     PrimaryFailureReason = Result.Message;
                 }
             }
-            else if (Result.Severity == EMedComRuleSeverity::Warning)
+            else if (Result.Severity == ESuspenseRuleSeverity::Warning)
             {
                 Warnings.Add(Result);
             }
         }
-        
+
         // Update combined confidence
         CombinedConfidence *= Result.ConfidenceScore;
     }
-    
+
     /** Check if there are any critical issues */
     bool HasCriticalIssues() const
     {
         return CriticalFailures.Num() > 0;
     }
-    
+
     /** Get detailed report string */
     FString GetDetailedReport() const
     {
         FString Report;
-        
+
         if (bAllPassed)
         {
             Report = TEXT("All rules passed successfully");
@@ -188,18 +188,18 @@ struct BRIDGESYSTEM_API FMedComAggregatedRuleResult
         {
             Report = FString::Printf(TEXT("Rules check failed: %d critical, %d warnings\n"),
                 CriticalFailures.Num(), Warnings.Num());
-            
+
             for (const auto& Critical : CriticalFailures)
             {
                 Report += FString::Printf(TEXT("  [CRITICAL] %s\n"), *Critical.Message.ToString());
             }
-            
+
             for (const auto& Warning : Warnings)
             {
                 Report += FString::Printf(TEXT("  [WARNING] %s\n"), *Warning.Message.ToString());
             }
         }
-        
+
         return Report;
     }
 };
@@ -208,30 +208,30 @@ struct BRIDGESYSTEM_API FMedComAggregatedRuleResult
  * Rule evaluation context with all necessary data
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FMedComRuleContext
+struct BRIDGESYSTEM_API FSuspenseRuleContext
 {
     GENERATED_BODY()
-    
+
     /** Character being evaluated */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     AActor* Character = nullptr;
-    
+
     /** Item being evaluated */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     FSuspenseInventoryItemInstance ItemInstance;
-    
+
     /** Target slot index */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     int32 TargetSlotIndex = INDEX_NONE;
-    
+
     /** Current equipped items */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     TArray<FSuspenseInventoryItemInstance> CurrentItems;
-    
+
     /** Force operation even with warnings */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     bool bForceOperation = false;
-    
+
     /** Additional metadata */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     TMap<FString, FString> Metadata;

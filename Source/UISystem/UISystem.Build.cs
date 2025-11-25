@@ -20,7 +20,7 @@ public class UISystem : ModuleRules
                 "Core",
                 "GameplayTags",
                 "GameplayAbilities",
-                "BridgeSystem",      // Migrated from MedComShared
+                "BridgeSystem",
                 "InputCore",
                 "UMG",
                 "EquipmentSystem",   // For Equipment UI Bridge

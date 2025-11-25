@@ -4,37 +4,37 @@
 #include "Net/UnrealNetwork.h"
 
 ASuspenseGameState::ASuspenseGameState()
-	: MedComMatchState(EMedComMatchState::WaitingToStart)
+	: MatchState(ESuspenseMatchState::WaitingToStart)
 {
 }
 
 void ASuspenseGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
-	DOREPLIFETIME(ASuspenseGameState, MedComMatchState);
+
+	DOREPLIFETIME(ASuspenseGameState, MatchState);
 }
 
-void ASuspenseGameState::SetMedComMatchState(EMedComMatchState NewState)
+void ASuspenseGameState::SetMatchState(ESuspenseMatchState NewState)
 {
-	if (HasAuthority() && MedComMatchState != NewState)
+	if (HasAuthority() && MatchState != NewState)
 	{
-		EMedComMatchState OldState = MedComMatchState;
-		MedComMatchState = NewState;
-        
-		// Вызов события для подклассов Blueprint
-		OnMedComMatchStateChanged(OldState, MedComMatchState);
-        
-		// Отправка делегата для слушателей C++
-		OnMatchStateChanged.Broadcast(OldState, MedComMatchState);
+		ESuspenseMatchState OldState = MatchState;
+		MatchState = NewState;
+
+		// Call event for Blueprint subclasses
+		OnMatchStateChanged(OldState, MatchState);
+
+		// Broadcast delegate for C++ listeners
+		OnMatchStateChangedDelegate.Broadcast(OldState, MatchState);
 	}
 }
 
-void ASuspenseGameState::OnRep_MedComMatchState(EMedComMatchState OldState)
+void ASuspenseGameState::OnRep_MatchState(ESuspenseMatchState OldState)
 {
-	// При репликации клиентам, вызываем событие
-	OnMedComMatchStateChanged(OldState, MedComMatchState);
-    
-	// Отправка делегата для слушателей C++
-	OnMatchStateChanged.Broadcast(OldState, MedComMatchState);
+	// When replicated to clients, call event
+	OnMatchStateChanged(OldState, MatchState);
+
+	// Broadcast delegate for C++ listeners
+	OnMatchStateChangedDelegate.Broadcast(OldState, MatchState);
 }

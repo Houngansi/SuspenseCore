@@ -8,7 +8,7 @@
 #include "SuspenseCharacterMovementComponent.generated.h"
 
 UENUM(BlueprintType)
-enum class EMedComMovementMode : uint8
+enum class ESuspenseMovementMode : uint8
 {
     None        UMETA(DisplayName = "None"),
     Walking     UMETA(DisplayName = "Walking"),
@@ -22,9 +22,9 @@ enum class EMedComMovementMode : uint8
 };
 
 /**
- * Кастомный компонент движения для персонажей MedCom
- * Синхронизирует скорость движения с GAS AttributeSet
- * Управляет состояниями движения через теги GameplayAbility System
+ * Custom movement component for Suspense characters
+ * Synchronizes movement speed with GAS AttributeSet
+ * Manages movement states through GameplayAbility System tags
  */
 UCLASS()
 class SUSPENSECORE_API USuspenseCharacterMovementComponent : public UCharacterMovementComponent
@@ -46,38 +46,38 @@ public:
     virtual void UnCrouch(bool bClientSimulation = false) override;
     // END UCharacterMovementComponent Interface
 
-    /** КРИТИЧНО: Синхронизирует скорость движения с AttributeSet - единственный способ обновления скорости */
-    UFUNCTION(BlueprintCallable, Category = "MedCom|Movement")
+    /** CRITICAL: Synchronizes movement speed with AttributeSet - the only way to update speed */
+    UFUNCTION(BlueprintCallable, Category = "Suspense|Movement")
     void SyncMovementSpeedFromAttributes();
 
-    /** Получить текущий режим движения */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement")
-    EMedComMovementMode GetCurrentMovementMode() const;
+    /** Get current movement mode */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement")
+    ESuspenseMovementMode GetCurrentMovementMode() const;
 
-    // Состояния движения - только для чтения, управляются через теги GAS
-    // Используем уникальные имена чтобы избежать конфликтов с родительским классом
-    
-    /** Проверить, находится ли персонаж в состоянии спринта (синхронизировано с GAS) */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement", DisplayName = "Is Sprinting (GAS)")
+    // Movement states - read only, managed through GAS tags
+    // Using unique names to avoid conflicts with parent class
+
+    /** Check if character is in sprint state (synchronized with GAS) */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement", DisplayName = "Is Sprinting (GAS)")
     bool IsSprintingFromGAS() const { return bIsSprintingGAS; }
-    
-    /** Проверить, находится ли персонаж в состоянии приседания (синхронизировано с GAS) */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement", DisplayName = "Is Crouching (GAS)")
+
+    /** Check if character is in crouch state (synchronized with GAS) */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement", DisplayName = "Is Crouching (GAS)")
     bool IsCrouchingFromGAS() const { return bIsCrouchingGAS; }
-    
-    /** Проверить, находится ли персонаж в прыжке */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement")
+
+    /** Check if character is jumping */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement")
     bool IsJumping() const { return bIsJumping; }
-    
-    /** Проверить, находится ли персонаж в воздухе */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement")
+
+    /** Check if character is in air */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement")
     bool IsInAir() const { return IsFalling(); }
-    
-    /** Проверить, находится ли персонаж в слайдинге */
-    UFUNCTION(BlueprintPure, Category = "MedCom|Movement")
+
+    /** Check if character is sliding */
+    UFUNCTION(BlueprintPure, Category = "Suspense|Movement")
     bool IsSliding() const { return bIsSliding; }
 
-    // Методы для обратной совместимости - используют GAS-синхронизированные значения
+    // Backward compatibility methods - use GAS-synchronized values
     bool IsSprinting() const { return bIsSprintingGAS; }
     bool IsCrouching() const override { return bIsCrouchingGAS; }
 
@@ -87,47 +87,47 @@ public:
     bool CanSlide() const;
 
 protected:
-    /** Обновляет внутренние флаги состояния на основе тегов GAS */
+    /** Updates internal state flags based on GAS tags */
     void UpdateMovementStateFromTags();
-    
-    /** Получить ASC владельца (поддерживает ASC на Character или PlayerState) */
-    class UAbilitySystemComponent* GetOwnerASC() const;
-    
-    /** Получить AttributeSet владельца */
-    const class UMedComBaseAttributeSet* GetOwnerAttributeSet() const;
 
-    // Внутренние флаги состояния - синхронизируются с тегами GAS
-    // Переименованы для ясности что это GAS-синхронизированные значения
+    /** Get owner's ASC (supports ASC on Character or PlayerState) */
+    class UAbilitySystemComponent* GetOwnerASC() const;
+
+    /** Get owner's AttributeSet */
+    const class USuspenseBaseAttributeSet* GetOwnerAttributeSet() const;
+
+    // Internal state flags - synchronized with GAS tags
+    // Renamed for clarity that these are GAS-synchronized values
     bool bIsSprintingGAS;
     bool bIsCrouchingGAS;
     bool bIsJumping;
     bool bIsSliding;
 
-    // Параметры слайдинга
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Movement|Sliding")
+    // Sliding parameters
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Movement|Sliding")
     float MinSlideSpeed = 400.0f;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Movement|Sliding")
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Movement|Sliding")
     float SlideSpeed = 600.0f;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Movement|Sliding")
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Movement|Sliding")
     float SlideFriction = 0.1f;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Movement|Sliding")
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Movement|Sliding")
     float SlideDuration = 1.5f;
 
 private:
-    /** Кэшированные теги для оптимизации */
+    /** Cached tags for optimization */
     FGameplayTag SprintingTag;
     FGameplayTag CrouchingTag;
-    
-    /** Переменные для слайдинга */
+
+    /** Sliding variables */
     float SlideTimer;
     FVector SlideStartVelocity;
-    
-    /** Обновление логики слайдинга */
+
+    /** Sliding logic update */
     void UpdateSliding(float DeltaTime);
 
-    /** Счетчик для ограничения частоты логов */
+    /** Counter for log rate limiting */
     int32 SyncLogCounter;
 };

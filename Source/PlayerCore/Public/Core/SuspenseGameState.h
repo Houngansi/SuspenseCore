@@ -6,9 +6,9 @@
 #include "GameFramework/GameStateBase.h"
 #include "SuspenseGameState.generated.h"
 
-// Перечисление состояний матча для Suspense
+// Match state enumeration for Suspense
 UENUM(BlueprintType)
-enum class EMedComMatchState : uint8
+enum class ESuspenseMatchState : uint8
 {
 	WaitingToStart,
 	InProgress,
@@ -19,8 +19,8 @@ enum class EMedComMatchState : uint8
 };
 
 /**
- * Класс GameState для Suspense
- * Управляет состоянием матча и публичными игровыми данными
+ * GameState class for Suspense
+ * Manages match state and public game data
  */
 UCLASS()
 class SUSPENSECORE_API ASuspenseGameState : public AGameStateBase
@@ -30,31 +30,31 @@ class SUSPENSECORE_API ASuspenseGameState : public AGameStateBase
 public:
 	ASuspenseGameState();
 
-	// Получить текущее состояние матча
-	UFUNCTION(BlueprintCallable, Category = "MedCom|Game")
-	EMedComMatchState GetMedComMatchState() const { return MedComMatchState; }
+	// Get current match state
+	UFUNCTION(BlueprintCallable, Category = "Suspense|Game")
+	ESuspenseMatchState GetMatchState() const { return MatchState; }
 
-	// Установить текущее состояние матча - только для сервера
-	void SetMedComMatchState(EMedComMatchState NewState);
+	// Set current match state - server only
+	void SetMatchState(ESuspenseMatchState NewState);
 
-	// Событие при изменении состояния матча
-	UFUNCTION(BlueprintImplementableEvent, Category = "MedCom|Game")
-	void OnMedComMatchStateChanged(EMedComMatchState PreviousState, EMedComMatchState NewState);
+	// Event when match state changes
+	UFUNCTION(BlueprintImplementableEvent, Category = "Suspense|Game")
+	void OnMatchStateChanged(ESuspenseMatchState PreviousState, ESuspenseMatchState NewState);
 
-	// Делегат для привязки кода C++ к изменениям состояния матча
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMatchStateChangedDelegate, EMedComMatchState /*PreviousState*/, EMedComMatchState /*NewState*/);
-	FOnMatchStateChangedDelegate OnMatchStateChanged;
+	// Delegate for binding C++ code to match state changes
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMatchStateChangedDelegate, ESuspenseMatchState /*PreviousState*/, ESuspenseMatchState /*NewState*/);
+	FOnMatchStateChangedDelegate OnMatchStateChangedDelegate;
 
 protected:
-	// Текущее состояние матча
-	UPROPERTY(ReplicatedUsing = OnRep_MedComMatchState, BlueprintReadOnly, Category = "MedCom|Game")
-	EMedComMatchState MedComMatchState;
+	// Current match state
+	UPROPERTY(ReplicatedUsing = OnRep_MatchState, BlueprintReadOnly, Category = "Suspense|Game")
+	ESuspenseMatchState MatchState;
 
-	// Обратный вызов при репликации состояния матча
+	// Callback when match state replicates
 	UFUNCTION()
-	void OnRep_MedComMatchState(EMedComMatchState OldState);
+	void OnRep_MatchState(ESuspenseMatchState OldState);
 
 public:
-	// Настройка репликации
+	// Setup replication
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

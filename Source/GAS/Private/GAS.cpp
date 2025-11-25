@@ -14,4 +14,4 @@ void FGASModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
     
-IMPLEMENT_MODULE(FGASModule, GAS)
+IMPLEMENT_MODULE(FGASModule, MedComGAS)

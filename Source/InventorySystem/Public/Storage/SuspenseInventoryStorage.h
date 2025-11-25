@@ -1,53 +1,53 @@
-// MedComInventory/Storage/SuspenseInventoryStorage.h
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseInventory/Storage/SuspenseInventoryStorage.h
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Types/Inventory/InventoryTypes.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Base/InventoryLogs.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryStorage.generated.h"
 
-// Forward declarations для новой архитектуры
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+// Forward declarations for clean architecture
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 struct FInventoryItemInstance;
 class UEventDelegateManager;
 
 /**
- * Структура для описания транзакции изменения инвентаря
- * Обеспечивает atomic операции и возможность rollback при ошибках
+ * Structure describing inventory change transaction
+ * Provides atomic operations and rollback capability on errors
  */
 USTRUCT()
-struct FInventoryTransaction
+struct FSuspenseInventoryTransaction
 {
     GENERATED_BODY()
-    
-    /** Снимок состояния ячеек до изменения */
+
+    /** Snapshot of cells state before change */
     UPROPERTY()
     TArray<FInventoryCell> CellsSnapshot;
-    
-    /** Снимок runtime экземпляров до изменения */
+
+    /** Snapshot of runtime instances before change */
     UPROPERTY()
     TArray<FInventoryItemInstance> InstancesSnapshot;
-    
-    /** Активна ли транзакция */
+
+    /** Is transaction active */
     UPROPERTY()
     bool bIsActive = false;
-    
-    /** Время начала транзакции для timeout защиты */
+
+    /** Transaction start time for timeout protection */
     UPROPERTY()
     float StartTime = 0.0f;
-    
-    FInventoryTransaction()
+
+    FSuspenseInventoryTransaction()
     {
         bIsActive = false;
         StartTime = 0.0f;
     }
-    
-    /** Проверка валидности транзакции */
+
+    /** Check transaction validity */
     bool IsValid(float CurrentTime, float TimeoutSeconds = 30.0f) const
     {
         return bIsActive && (CurrentTime - StartTime) < TimeoutSeconds;
@@ -55,16 +55,16 @@ struct FInventoryTransaction
 };
 
 /**
- * Компонент отвечающий за хранение предметов инвентаря в grid-based структуре
- * 
- * НОВАЯ АРХИТЕКТУРА:
- * - Полностью интегрирован с ItemManager и DataTable
- * - Работает исключительно с FGuid и FMedComUnifiedItemData
- * - Поддерживает FInventoryItemInstance для runtime данных
- * - Обеспечивает atomic операции через transaction system
- * - Интегрирован с системой событий для UI updates
+ * Component responsible for storing inventory items in a grid-based structure
+ *
+ * NEW ARCHITECTURE:
+ * - Fully integrated with ItemManager and DataTable
+ * - Works exclusively with FGuid and FSuspenseUnifiedItemData
+ * - Supports FInventoryItemInstance for runtime data
+ * - Provides atomic operations through transaction system
+ * - Integrated with event system for UI updates
  */
-UCLASS(ClassGroup=(MedCom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Suspense), meta=(BlueprintSpawnableComponent))
 class INVENTORYSYSTEM_API USuspenseInventoryStorage : public UActorComponent
 {
     GENERATED_BODY()
@@ -73,55 +73,55 @@ public:
     //==================================================================
     // Constructor and Lifecycle
     //==================================================================
-    
+
     USuspenseInventoryStorage();
-    
+
     /** Component initialization */
     virtual void BeginPlay() override;
-    
+
     /** Component cleanup */
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     //==================================================================
     // Core Storage Management
     //==================================================================
-    
-    /** 
-     * Инициализирует storage сетку с указанными размерами
-     * Очищает все существующие данные и создает чистую сетку
-     * 
-     * @param Width Ширина сетки в ячейках
-     * @param Height Высота сетки в ячейках
-     * @param MaxWeight Максимальный вес для storage (0 = без ограничений)
-     * @return true если инициализация прошла успешно
+
+    /**
+     * Initializes storage grid with specified dimensions
+     * Clears all existing data and creates clean grid
+     *
+     * @param Width Grid width in cells
+     * @param Height Grid height in cells
+     * @param MaxWeight Maximum weight for storage (0 = no limit)
+     * @return true if initialization was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Storage")
     bool InitializeGrid(int32 Width, int32 Height, float MaxWeight = 0.0f);
 
     /**
-     * Проверяет инициализирован ли storage
-     * @return true если storage готов к использованию
+     * Checks if storage is initialized
+     * @return true if storage is ready for use
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Storage")
     bool IsInitialized() const { return bInitialized; }
 
     /**
-     * Получает размеры сетки инвентаря
-     * @return 2D вектор содержащий ширину и высоту
+     * Gets inventory grid dimensions
+     * @return 2D vector containing width and height
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Storage")
     FVector2D GetGridSize() const { return FVector2D(GridWidth, GridHeight); }
-    
+
     /**
-     * Получает общее количество ячеек в сетке
-     * @return Общее количество ячеек
+     * Gets total number of cells in grid
+     * @return Total cell count
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Storage")
     int32 GetTotalCells() const { return GridWidth * GridHeight; }
-    
+
     /**
-     * Получает количество свободных ячеек
-     * @return Количество незанятых ячеек
+     * Gets number of free cells
+     * @return Number of unoccupied cells
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Storage")
     int32 GetFreeCellCount() const;
@@ -129,50 +129,50 @@ public:
     //==================================================================
     // Item Instance Management
     //==================================================================
-    
+
     /**
-     * Добавляет runtime экземпляр предмета в storage
-     * Автоматически находит подходящее место и размещает предмет
-     * 
-     * @param ItemInstance Runtime экземпляр для размещения
-     * @param bAllowRotation Разрешить поворот для оптимального размещения
-     * @return true если предмет успешно размещен
+     * Adds runtime item instance to storage
+     * Automatically finds suitable location and places item
+     *
+     * @param ItemInstance Runtime instance to place
+     * @param bAllowRotation Allow rotation for optimal placement
+     * @return true if item was successfully placed
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool AddItemInstance(const FInventoryItemInstance& ItemInstance, bool bAllowRotation = true);
-    
+
     /**
-     * Удаляет runtime экземпляр предмета из storage
-     * 
-     * @param InstanceID Уникальный ID экземпляра для удаления
-     * @return true если предмет найден и удален
+     * Removes runtime item instance from storage
+     *
+     * @param InstanceID Unique ID of instance to remove
+     * @return true if item was found and removed
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool RemoveItemInstance(const FGuid& InstanceID);
-    
+
     /**
-     * Получает runtime экземпляр предмета по его ID
-     * 
-     * @param InstanceID Уникальный ID экземпляра
-     * @param OutInstance Выходной runtime экземпляр
-     * @return true если экземпляр найден
+     * Gets runtime item instance by its ID
+     *
+     * @param InstanceID Unique instance ID
+     * @param OutInstance Output runtime instance
+     * @return true if instance was found
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool GetItemInstance(const FGuid& InstanceID, FInventoryItemInstance& OutInstance) const;
-    
+
     /**
-     * Получает все runtime экземпляры в storage
-     * @return Массив всех runtime экземпляров
+     * Gets all runtime instances in storage
+     * @return Array of all runtime instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     TArray<FInventoryItemInstance> GetAllItemInstances() const;
-    
+
     /**
-     * Обновляет runtime экземпляр предмета
-     * Полезно для изменения количества, runtime свойств и т.д.
-     * 
-     * @param UpdatedInstance Обновленный runtime экземпляр
-     * @return true если обновление прошло успешно
+     * Updates runtime item instance
+     * Useful for changing quantity, runtime properties, etc.
+     *
+     * @param UpdatedInstance Updated runtime instance
+     * @return true if update was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool UpdateItemInstance(const FInventoryItemInstance& UpdatedInstance);
@@ -180,48 +180,48 @@ public:
     //==================================================================
     // Space Management and Placement
     //==================================================================
-    
+
     /**
-     * Находит свободное место для предмета указанного размера
-     * Использует intelligent algorithms для оптимального размещения
-     * 
-     * @param ItemID ID предмета из DataTable (для получения размера)
-     * @param bAllowRotation Разрешить поворот для лучшего размещения
-     * @param bOptimizeFragmentation Минимизировать фрагментацию
-     * @return Индекс якорной ячейки или INDEX_NONE если места нет
+     * Finds free space for item of specified size
+     * Uses intelligent algorithms for optimal placement
+     *
+     * @param ItemID Item ID from DataTable (for getting size)
+     * @param bAllowRotation Allow rotation for better placement
+     * @param bOptimizeFragmentation Minimize fragmentation
+     * @return Anchor cell index or INDEX_NONE if no space
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Placement")
     int32 FindFreeSpace(const FName& ItemID, bool bAllowRotation = true, bool bOptimizeFragmentation = true) const;
 
     /**
-     * Проверяет свободны ли ячейки для размещения предмета
-     * 
-     * @param StartIndex Начальный индекс якорной ячейки
-     * @param ItemID ID предмета для получения размера из DataTable
-     * @param bIsRotated Повернут ли предмет
-     * @return true если все необходимые ячейки свободны
+     * Checks if cells are free for item placement
+     *
+     * @param StartIndex Starting anchor cell index
+     * @param ItemID Item ID for getting size from DataTable
+     * @param bIsRotated Is item rotated
+     * @return true if all required cells are free
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Placement")
     bool AreCellsFreeForItem(int32 StartIndex, const FName& ItemID, bool bIsRotated = false) const;
 
     /**
-     * Размещает runtime экземпляр в указанной позиции
-     * 
-     * @param ItemInstance Runtime экземпляр для размещения
-     * @param AnchorIndex Индекс якорной ячейки
-     * @return true если размещение прошло успешно
+     * Places runtime instance at specified position
+     *
+     * @param ItemInstance Runtime instance to place
+     * @param AnchorIndex Anchor cell index
+     * @return true if placement was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Placement")
     bool PlaceItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
-    
+
     /**
-     * Перемещает предмет из одной позиции в другую
-     * Поддерживает atomic операцию с rollback при неудаче
-     * 
-     * @param InstanceID ID экземпляра для перемещения
-     * @param NewAnchorIndex Новая позиция якорной ячейки
-     * @param bAllowRotation Разрешить изменение поворота
-     * @return true если перемещение прошло успешно
+     * Moves item from one position to another
+     * Supports atomic operation with rollback on failure
+     *
+     * @param InstanceID ID of instance to move
+     * @param NewAnchorIndex New anchor cell position
+     * @param bAllowRotation Allow rotation change
+     * @return true if move was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Placement")
     bool MoveItem(const FGuid& InstanceID, int32 NewAnchorIndex, bool bAllowRotation = false);
@@ -229,28 +229,28 @@ public:
     //==================================================================
     // Item Queries and Access
     //==================================================================
-    
+
     /**
-     * Получает runtime экземпляр в указанной ячейке
-     * @param Index Индекс ячейки
-     * @param OutInstance Выходной runtime экземпляр
-     * @return true если в ячейке есть предмет
+     * Gets runtime instance at specified cell
+     * @param Index Cell index
+     * @param OutInstance Output runtime instance
+     * @return true if cell contains an item
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Query")
     bool GetItemInstanceAt(int32 Index, FInventoryItemInstance& OutInstance) const;
-    
+
     /**
-     * Подсчитывает общее количество предметов по ID
-     * @param ItemID ID предмета для подсчета
-     * @return Общее количество предметов данного типа
+     * Counts total items by ID
+     * @param ItemID Item ID to count
+     * @return Total quantity of items of this type
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Query")
     int32 GetItemCountByID(const FName& ItemID) const;
-    
+
     /**
-     * Находит предметы по типу из DataTable
-     * @param ItemType Тип предмета для поиска
-     * @return Массив найденных runtime экземпляров
+     * Finds items by type from DataTable
+     * @param ItemType Item type to search for
+     * @return Array of found runtime instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Query")
     TArray<FInventoryItemInstance> FindItemsByType(const FGameplayTag& ItemType) const;
@@ -258,31 +258,31 @@ public:
     //==================================================================
     // Grid Coordinate Utilities
     //==================================================================
-    
+
     /**
-     * Конвертирует линейный индекс в координаты сетки
-     * @param Index Линейный индекс
-     * @param OutX Выходная X координата
-     * @param OutY Выходная Y координата
-     * @return true если конвертация прошла успешно
+     * Converts linear index to grid coordinates
+     * @param Index Linear index
+     * @param OutX Output X coordinate
+     * @param OutY Output Y coordinate
+     * @return true if conversion was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Utilities")
     bool GetGridCoordinates(int32 Index, int32& OutX, int32& OutY) const;
 
     /**
-     * Конвертирует координаты сетки в линейный индекс
-     * @param X X координата
-     * @param Y Y координата
-     * @param OutIndex Выходной линейный индекс
-     * @return true если координаты валидны
+     * Converts grid coordinates to linear index
+     * @param X X coordinate
+     * @param Y Y coordinate
+     * @param OutIndex Output linear index
+     * @return true if coordinates are valid
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Utilities")
     bool GetLinearIndex(int32 X, int32 Y, int32& OutIndex) const;
-    
+
     /**
-     * Получает все занятые ячейки для предмета
-     * @param InstanceID ID экземпляра предмета
-     * @return Массив индексов занятых ячеек
+     * Gets all occupied cells for an item
+     * @param InstanceID Item instance ID
+     * @return Array of occupied cell indices
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Utilities")
     TArray<int32> GetOccupiedCells(const FGuid& InstanceID) const;
@@ -290,34 +290,34 @@ public:
     //==================================================================
     // Weight Management
     //==================================================================
-    
+
     /**
-     * Получает текущий общий вес в storage
-     * Вычисляется на основе предметов и их данных из DataTable
-     * @return Текущий вес в игровых единицах
+     * Gets current total weight in storage
+     * Calculated based on items and their DataTable data
+     * @return Current weight in game units
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weight")
     float GetCurrentWeight() const;
-    
+
     /**
-     * Получает максимально допустимый вес
-     * @return Максимальный вес или 0 если ограничения нет
+     * Gets maximum allowed weight
+     * @return Maximum weight or 0 if no limit
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weight")
     float GetMaxWeight() const { return MaxWeight; }
-    
+
     /**
-     * Устанавливает максимальный вес
-     * @param NewMaxWeight Новое ограничение по весу
+     * Sets maximum weight
+     * @param NewMaxWeight New weight limit
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weight")
     void SetMaxWeight(float NewMaxWeight);
-    
+
     /**
-     * Проверяет достаточно ли места по весу для предмета
-     * @param ItemID ID предмета для проверки
-     * @param Quantity Количество предметов
-     * @return true если есть достаточно места по весу
+     * Checks if there's enough weight capacity for an item
+     * @param ItemID Item ID to check
+     * @param Quantity Item quantity
+     * @return true if there's enough weight capacity
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weight")
     bool HasWeightCapacity(const FName& ItemID, int32 Quantity = 1) const;
@@ -325,65 +325,65 @@ public:
     //==================================================================
     // Transaction Support
     //==================================================================
-    
+
     /**
-     * Начинает atomic транзакцию для multiple операций
-     * Создает snapshot текущего состояния для возможного rollback
+     * Begins atomic transaction for multiple operations
+     * Creates snapshot of current state for possible rollback
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Transactions")
     void BeginTransaction();
-    
+
     /**
-     * Подтверждает все изменения в текущей транзакции
+     * Commits all changes in current transaction
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Transactions")
     void CommitTransaction();
-    
+
     /**
-     * Отменяет все изменения в текущей транзакции
-     * Восстанавливает состояние на момент начала транзакции
+     * Rolls back all changes in current transaction
+     * Restores state from transaction start
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Transactions")
     void RollbackTransaction();
-    
+
     /**
-     * Проверяет активна ли транзакция
-     * @return true если транзакция активна
+     * Checks if transaction is active
+     * @return true if transaction is active
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Transactions")
     bool IsTransactionActive() const;
- 
+
     //==================================================================
     // Maintenance and Utilities
     //==================================================================
-    
+
     /**
-     * Очищает все предметы из storage
+     * Clears all items from storage
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Maintenance")
     void ClearAllItems();
-    
+
     /**
-     * Валидирует целостность storage
-     * Проверяет consistency между ячейками и runtime экземплярами
-     * @param OutErrors Массив найденных ошибок
-     * @param bAutoFix Автоматически исправить найденные проблемы
-     * @return true если storage в валидном состоянии
+     * Validates storage integrity
+     * Checks consistency between cells and runtime instances
+     * @param OutErrors Array of found errors
+     * @param bAutoFix Automatically fix found issues
+     * @return true if storage is in valid state
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Debug")
     bool ValidateStorageIntegrity(TArray<FString>& OutErrors, bool bAutoFix = false);
-    
+
     /**
-     * Получает детальную debug информацию о storage
-     * @return Подробная строка с состоянием storage
+     * Gets detailed debug information about storage
+     * @return Detailed string with storage state
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Debug")
     FString GetStorageDebugInfo() const;
-    
+
     /**
-     * Дефрагментирует storage для оптимизации использования места
-     * Перемещает предметы для уменьшения фрагментации
-     * @return Количество перемещенных предметов
+     * Defragments storage for optimal space usage
+     * Moves items to reduce fragmentation
+     * @return Number of moved items
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Optimization")
     int32 DefragmentStorage();
@@ -392,118 +392,118 @@ protected:
     //==================================================================
     // Storage State
     //==================================================================
-    
-    /** Ширина сетки в ячейках */
+
+    /** Grid width in cells */
     UPROPERTY(VisibleAnywhere, Category = "Inventory|State")
     int32 GridWidth = 0;
 
-    /** Высота сетки в ячейках */
+    /** Grid height in cells */
     UPROPERTY(VisibleAnywhere, Category = "Inventory|State")
     int32 GridHeight = 0;
-    
-    /** Максимальный вес для storage (0 = без ограничений) */
+
+    /** Maximum weight for storage (0 = no limit) */
     UPROPERTY(EditAnywhere, Category = "Inventory|Configuration")
     float MaxWeight = 0.0f;
 
-    /** Состояние инициализации */
+    /** Initialization state */
     UPROPERTY(VisibleAnywhere, Category = "Inventory|State")
     bool bInitialized = false;
 
-    /** Ячейки сетки с информацией о размещении */
+    /** Grid cells with placement information */
     UPROPERTY()
     TArray<FInventoryCell> Cells;
 
-    /** Runtime экземпляры предметов в storage */
+    /** Runtime item instances in storage */
     UPROPERTY()
     TArray<FInventoryItemInstance> StoredInstances;
 
-    /** Битовая карта для быстрого поиска свободных ячеек */
+    /** Bitmap for fast free cell lookup */
     TBitArray<> FreeCellsBitmap;
-    
-    /** Текущая транзакция для atomic операций */
+
+    /** Current transaction for atomic operations */
     UPROPERTY()
-    FInventoryTransaction ActiveTransaction;
+    FSuspenseInventoryTransaction ActiveTransaction;
 
     //==================================================================
     // Internal Helper Methods
     //==================================================================
-    
+
     /**
-     * Валидирует индекс на принадлежность к сетке
-     * @param Index Индекс для проверки
-     * @return true если индекс валиден
+     * Validates index against grid bounds
+     * @param Index Index to check
+     * @return true if index is valid
      */
     bool IsValidIndex(int32 Index) const;
-    
+
     /**
-     * Пересчитывает битовую карту свободных ячеек
+     * Recalculates free cells bitmap
      */
     void UpdateFreeCellsBitmap();
-    
+
     /**
-     * Получает ItemManager для доступа к DataTable
-     * @return ItemManager или nullptr если недоступен
+     * Gets ItemManager for DataTable access
+     * @return ItemManager or nullptr if unavailable
      */
-    UMedComItemManager* GetItemManager() const;
-    
+    USuspenseItemManager* GetItemManager() const;
+
     /**
-     * Получает unified данные предмета из DataTable
-     * @param ItemID ID предмета
-     * @param OutData Выходные данные
-     * @return true если данные получены
+     * Gets unified item data from DataTable
+     * @param ItemID Item ID
+     * @param OutData Output data
+     * @return true if data was retrieved
      */
-    bool GetItemData(const FName& ItemID, FMedComUnifiedItemData& OutData) const;
-    
+    bool GetItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData) const;
+
     /**
-     * Размещает runtime экземпляр в ячейках сетки
-     * @param ItemInstance Экземпляр для размещения
-     * @param AnchorIndex Якорная ячейка
-     * @return true если размещение прошло успешно
+     * Places runtime instance in grid cells
+     * @param ItemInstance Instance to place
+     * @param AnchorIndex Anchor cell
+     * @return true if placement was successful
      */
     bool PlaceInstanceInCells(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
-    
+
     /**
-     * Удаляет runtime экземпляр из ячеек сетки
-     * @param InstanceID ID экземпляра для удаления
-     * @return true если удаление прошло успешно
+     * Removes runtime instance from grid cells
+     * @param InstanceID ID of instance to remove
+     * @return true if removal was successful
      */
     bool RemoveInstanceFromCells(const FGuid& InstanceID);
-    
+
     /**
-     * Находит runtime экземпляр по ID
-     * @param InstanceID ID для поиска
-     * @return Указатель на экземпляр или nullptr
+     * Finds runtime instance by ID
+     * @param InstanceID ID to search for
+     * @return Pointer to instance or nullptr
      */
     FInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID);
-    
+
     /**
-     * Находит runtime экземпляр по ID (const версия)
+     * Finds runtime instance by ID (const version)
      */
     const FInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID) const;
-    
+
     /**
-     * Создает snapshot текущего состояния для транзакции
+     * Creates snapshot of current state for transaction
      */
     void CreateTransactionSnapshot();
-    
+
     /**
-     * Восстанавливает состояние из snapshot транзакции
+     * Restores state from transaction snapshot
      */
     void RestoreFromTransactionSnapshot();
-    
+
     /**
-     * Вычисляет оптимальные координаты для размещения предмета
-     * @param ItemSize Размер предмета
-     * @param bOptimizeFragmentation Минимизировать фрагментацию
-     * @return Индекс оптимальной позиции или INDEX_NONE
+     * Calculates optimal placement coordinates for item
+     * @param ItemSize Item size
+     * @param bOptimizeFragmentation Minimize fragmentation
+     * @return Optimal position index or INDEX_NONE
      */
     int32 FindOptimalPlacement(const FVector2D& ItemSize, bool bOptimizeFragmentation = true) const;
-    
+
     /**
-     * Проверяет свободны ли ячейки для указанного размера
-     * @param StartIndex Начальный индекс  
-     * @param Size Размер области для проверки
-     * @return true если все ячейки в области свободны
+     * Checks if cells are free for specified size
+     * @param StartIndex Starting index
+     * @param Size Size of area to check
+     * @return true if all cells in area are free
      */
     bool AreCellsFree(int32 StartIndex, const FVector2D& Size) const;
 };

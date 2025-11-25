@@ -16,7 +16,7 @@ struct FGameplayTag;
 struct FGameplayTagContainer;
 
 /**
- * Crouch Ability for MedCom characters
+ * Crouch Ability for GAS characters
  * 
  * Работает по модели "нажал-держи-отпустил" как Sprint
  * Использует CrouchDebuffEffectClass для снижения скорости и добавления тега

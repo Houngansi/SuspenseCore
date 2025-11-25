@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
+#include "Attributes/GASAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "WeaponAttributeSet.generated.h"
 
@@ -29,7 +30,7 @@
  * - Модульность (совместимость с обвесами)
  */
 UCLASS()
-class GAS_API UWeaponAttributeSet : public UAttributeSet
+class GAS_API UWeaponAttributeSet : public UGASAttributeSet
 {
     GENERATED_BODY()
 

@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
+#include "Attributes/GASAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "ArmorAttributeSet.generated.h"
 
@@ -29,7 +30,7 @@
  * - Специальные свойства (термозащита, радиация и т.д.)
  */
 UCLASS()
-class GAS_API UArmorAttributeSet : public UAttributeSet
+class GAS_API UArmorAttributeSet : public UGASAttributeSet
 {
     GENERATED_BODY()
 

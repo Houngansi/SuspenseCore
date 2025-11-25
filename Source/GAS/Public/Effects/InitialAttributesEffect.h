@@ -11,7 +11,7 @@
  * Используется для установки начальных значений атрибутов
  */
 UCLASS()
-class GAS_API UInitialAttributesEffect : public UMedComGameplayEffect
+class GAS_API UInitialAttributesEffect : public UGASEffect
 {
 	GENERATED_BODY()
     

@@ -13,7 +13,7 @@
  * Дополнительная настройка может происходить в Blueprint редакторе
  */
 UCLASS(BlueprintType)
-class GAS_API UGameplayEffect_CrouchDebuff : public UGameplayEffect
+class GAS_API UGameplayEffect_CrouchDebuff : public UGASEffect
 {
 	GENERATED_BODY()
     

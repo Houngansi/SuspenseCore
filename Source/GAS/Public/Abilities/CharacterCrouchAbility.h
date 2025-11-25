@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "Abilities/GASAbility.h"
 #include "GameplayEffectTypes.h"
 #include "CharacterCrouchAbility.generated.h"
 
@@ -16,13 +16,13 @@ struct FGameplayTag;
 struct FGameplayTagContainer;
 
 /**
- * Crouch Ability for MedCom characters
+ * Crouch Ability for GAS characters
  * 
  * Работает по модели "нажал-держи-отпустил" как Sprint
  * Использует CrouchDebuffEffectClass для снижения скорости и добавления тега
  */
 UCLASS()
-class GAS_API UCharacterCrouchAbility : public UGameplayAbility
+class GAS_API UCharacterCrouchAbility : public UGASAbility
 {
     GENERATED_BODY()
 

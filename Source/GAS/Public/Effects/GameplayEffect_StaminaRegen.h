@@ -6,7 +6,7 @@
 
 /** Периодическая регенерация стамины (+10 STA/с) */
 UCLASS()
-class GAS_API UGameplayEffect_StaminaRegen : public UMedComGameplayEffect
+class GAS_API UGameplayEffect_StaminaRegen : public UGASEffect
 {
 	GENERATED_BODY()
 

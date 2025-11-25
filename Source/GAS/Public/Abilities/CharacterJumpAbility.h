@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "Abilities/GASAbility.h"
 #include "GameplayEffectTypes.h"
 #include "CharacterJumpAbility.generated.h"
 
@@ -23,7 +23,7 @@ struct FGameplayTagContainer;
  * - Автоматически завершается при приземлении или по таймауту
  */
 UCLASS()
-class GAS_API UCharacterJumpAbility : public UGameplayAbility
+class GAS_API UCharacterJumpAbility : public UGASAbility
 {
     GENERATED_BODY()
 

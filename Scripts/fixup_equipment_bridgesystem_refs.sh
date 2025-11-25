@@ -32,6 +32,12 @@ fixup() {
     sed -i 's/\bIMedComTransactionManager\b/ISuspenseTransactionManager/g' "$file"
     sed -i 's/\bIMedComEquipmentRules\b/ISuspenseEquipmentRules/g' "$file"
     sed -i 's/\bIMedComActorFactory\b/ISuspenseActorFactory/g' "$file"
+    sed -i 's/\bIMedComAbilityProvider\b/ISuspenseAbilityProvider/g' "$file"
+    sed -i 's/\bIMedComWeaponAnimationInterface\b/ISuspenseWeaponAnimation/g' "$file"
+    sed -i 's/\bIMedComInventoryBridge\b/ISuspenseInventoryBridge/g' "$file"
+    sed -i 's/\bIMedComWeaponStateProvider\b/ISuspenseWeaponStateProvider/g' "$file"
+    sed -i 's/\bIMedComEventDispatcher\b/ISuspenseEventDispatcher/g' "$file"
+    sed -i 's/\bIMedComSlotValidator\b/ISuspenseSlotValidator/g' "$file"
 
     # UINTERFACE wrappers (keep "Interface" suffix)
     sed -i 's/\bUMedComEquipmentInterface\b/USuspenseEquipmentInterface/g' "$file"
@@ -75,8 +81,14 @@ fixup() {
     sed -i 's|Interfaces/Equipment/IMedComTransactionManager\.h|Interfaces/Equipment/ISuspenseTransactionManager.h|g' "$file"
     sed -i 's|Interfaces/Equipment/IMedComEquipmentRules\.h|Interfaces/Equipment/ISuspenseEquipmentRules.h|g' "$file"
     sed -i 's|Interfaces/Equipment/IMedComActorFactory\.h|Interfaces/Equipment/ISuspenseActorFactory.h|g' "$file"
+    sed -i 's|Interfaces/Equipment/IMedComInventoryBridge\.h|Interfaces/Equipment/ISuspenseInventoryBridge.h|g' "$file"
+    sed -i 's|Interfaces/Equipment/IMedComWeaponStateProvider\.h|Interfaces/Equipment/ISuspenseWeaponStateProvider.h|g' "$file"
+    sed -i 's|Interfaces/Equipment/IMedComSlotValidator\.h|Interfaces/Equipment/ISuspenseSlotValidator.h|g' "$file"
     sed -i 's|Interfaces/Weapon/IMedComWeaponInterface\.h|Interfaces/Weapon/ISuspenseWeapon.h|g' "$file"
     sed -i 's|Interfaces/Weapon/IMedComFireModeProviderInterface\.h|Interfaces/Weapon/ISuspenseFireModeProvider.h|g' "$file"
+    sed -i 's|Interfaces/Weapon/IMedComWeaponAnimationInterface\.h|Interfaces/Weapon/ISuspenseWeaponAnimation.h|g' "$file"
+    sed -i 's|Interfaces/Abilities/IMedComAbilityProvider\.h|Interfaces/Abilities/ISuspenseAbilityProvider.h|g' "$file"
+    sed -i 's|Interfaces/Core/IMedComEventDispatcher\.h|Interfaces/Core/ISuspenseEventDispatcher.h|g' "$file"
     sed -i 's|Interfaces/Inventory/IMedComInventoryInterface\.h|Interfaces/Inventory/ISuspenseInventory.h|g' "$file"
     sed -i 's|Interfaces/Loadout/IMedComLoadoutInterface\.h|Interfaces/Loadout/ISuspenseLoadout.h|g' "$file"
     sed -i 's|Interfaces/Storage/IMedComStorageInterface\.h|Interfaces/Storage/ISuspenseStorage.h|g' "$file"
@@ -91,10 +103,10 @@ fixup() {
     sed -i 's|Types/Loadout/MedComItemDataTable\.h|Types/Loadout/SuspenseItemDataTable.h|g' "$file"
 }
 
-# Fix all Stage 1 files
-for file in $(find "$DST_DIR/Public/Base" "$DST_DIR/Private/Base" "$DST_DIR/Public/Services" "$DST_DIR/Private/Services" "$DST_DIR/Public/Subsystems" "$DST_DIR/Private/Subsystems" -name "*.h" -o -name "*.cpp" 2>/dev/null); do
+# Fix all Equipment files (Stage 1 + Stage 2)
+for file in $(find "$DST_DIR/Public/Base" "$DST_DIR/Private/Base" "$DST_DIR/Public/Services" "$DST_DIR/Private/Services" "$DST_DIR/Public/Subsystems" "$DST_DIR/Private/Subsystems" "$DST_DIR/Public/Components" "$DST_DIR/Private/Components" -name "*.h" -o -name "*.cpp" 2>/dev/null); do
     fixup "$file"
 done
 
 echo ""
-echo "✅ BridgeSystem references fixed in Stage 1 files!"
+echo "✅ BridgeSystem references fixed in Equipment files!"

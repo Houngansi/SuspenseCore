@@ -35,7 +35,7 @@ enum class ESuspenseInventoryOperationType : uint8
  * Used for implementing undo and redo operations, as well as logging.
  */
 USTRUCT()
-struct SUSPENSEINVENTORY_API FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -122,7 +122,7 @@ struct SUSPENSEINVENTORY_API FSuspenseInventoryOperation
  * Move operation for tracking item movement
  */
 USTRUCT()
-struct SUSPENSEINVENTORY_API FSuspenseMoveOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -165,7 +165,7 @@ struct SUSPENSEINVENTORY_API FSuspenseMoveOperation : public FSuspenseInventoryO
  * Rotate operation for tracking item rotation
  */
 USTRUCT()
-struct SUSPENSEINVENTORY_API FSuspenseRotateOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseRotateOperation : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -201,7 +201,7 @@ struct SUSPENSEINVENTORY_API FSuspenseRotateOperation : public FSuspenseInventor
  * Stack operation for tracking item stacking
  */
 USTRUCT()
-struct SUSPENSEINVENTORY_API FSuspenseStackOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -246,7 +246,7 @@ struct SUSPENSEINVENTORY_API FSuspenseStackOperation : public FSuspenseInventory
  * Split operation for tracking stack splitting
  */
 USTRUCT()
-struct SUSPENSEINVENTORY_API FSuspenseSplitOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseSplitOperation : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 

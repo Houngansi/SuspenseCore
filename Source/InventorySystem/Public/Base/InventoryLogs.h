@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 // Log category declaration for inventory system
-SUSPENSEINVENTORY_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseInventory, Log, All);
+INVENTORYSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseInventory, Log, All);
 
 // Convenience macros for inventory logging
 #define SUSPENSE_INVENTORY_LOG(Verbosity, Format, ...) \

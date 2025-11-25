@@ -1,11 +1,9 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FSuspenseInventoryModule : public IModuleInterface
+class FInventorySystemModule : public IModuleInterface
 {
 public:
     virtual void StartupModule() override;

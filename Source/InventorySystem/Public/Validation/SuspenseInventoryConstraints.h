@@ -28,7 +28,7 @@ struct FSuspenseUnifiedItemData;
  * - Thread-safe operations for multiplayer environment
  */
 UCLASS(BlueprintType)
-class SUSPENSEINVENTORY_API USuspenseInventoryConstraints : public UObject
+class INVENTORYSYSTEM_API USuspenseInventoryConstraints : public UObject
 {
     GENERATED_BODY()
 

@@ -30,7 +30,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FSuspenseItemRotatedEvent, FGuid,
  * Fully migrated to instance-based system - no more UObject* references!
  */
 UCLASS(ClassGroup=(Suspense), meta=(BlueprintSpawnableComponent))
-class SUSPENSEINVENTORY_API USuspenseInventoryEvents : public UActorComponent
+class INVENTORYSYSTEM_API USuspenseInventoryEvents : public UActorComponent
 {
     GENERATED_BODY()
 

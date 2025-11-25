@@ -65,7 +65,7 @@ struct FSuspenseInventoryTransaction
  * - Integrated with event system for UI updates
  */
 UCLASS(ClassGroup=(Suspense), meta=(BlueprintSpawnableComponent))
-class SUSPENSEINVENTORY_API USuspenseInventoryStorage : public UActorComponent
+class INVENTORYSYSTEM_API USuspenseInventoryStorage : public UActorComponent
 {
     GENERATED_BODY()
 

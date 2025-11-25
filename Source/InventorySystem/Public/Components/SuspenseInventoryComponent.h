@@ -37,7 +37,7 @@ struct FSuspenseLoadoutConfiguration;
  * - Thread-safe operations with transaction support
  */
 UCLASS(ClassGroup=(Suspense), meta=(BlueprintSpawnableComponent))
-class SUSPENSEINVENTORY_API USuspenseInventoryComponent : public UActorComponent, public ISuspenseInventoryInterface
+class INVENTORYSYSTEM_API USuspenseInventoryComponent : public UActorComponent, public ISuspenseInventoryInterface
 {
     GENERATED_BODY()
 

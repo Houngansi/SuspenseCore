@@ -1,17 +1,17 @@
 ﻿#include "UISystem.h"
 
-#define LOCTEXT_NAMESPACE "FUISystemModule"
+#define LOCTEXT_NAMESPACE "FSuspenseUIModule"
 
-void FUISystemModule::StartupModule()
+void FSuspenseUIModule::StartupModule()
 {
     
 }
 
-void FUISystemModule::ShutdownModule()
+void FSuspenseUIModule::ShutdownModule()
 {
     
 }
 
 #undef LOCTEXT_NAMESPACE
     
-IMPLEMENT_MODULE(FUISystemModule, UISystem)
+IMPLEMENT_MODULE(FSuspenseUIModule, MedComUI)

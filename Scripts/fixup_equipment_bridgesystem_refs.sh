@@ -38,6 +38,7 @@ fixup() {
     sed -i 's/\bIMedComWeaponStateProvider\b/ISuspenseWeaponStateProvider/g' "$file"
     sed -i 's/\bIMedComEventDispatcher\b/ISuspenseEventDispatcher/g' "$file"
     sed -i 's/\bIMedComSlotValidator\b/ISuspenseSlotValidator/g' "$file"
+    sed -i 's/\bIMedComItemDataProvider\b/ISuspenseItemDataProvider/g' "$file"
 
     # UINTERFACE wrappers (keep "Interface" suffix)
     sed -i 's/\bUMedComEquipmentInterface\b/USuspenseEquipmentInterface/g' "$file"

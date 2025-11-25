@@ -40,10 +40,10 @@ void ASuspenseGameMode::InitGame(const FString& MapName, const FString& Options,
     OnGameSettingsInitialized();
     
     // Подписываемся на изменения состояния матча
-    ASuspenseGameState* MedComGS = GetGameState<ASuspenseGameState>();
-    if (MedComGS)
+    ASuspenseGameState* SuspenseGS = GetGameState<ASuspenseGameState>();
+    if (SuspenseGS)
     {
-        MedComGS->OnMatchStateChanged.AddUObject(this, &ASuspenseGameMode::OnMatchStateChanged);
+        SuspenseGS->OnMatchStateChangedDelegate.AddUObject(this, &ASuspenseGameMode::OnMatchStateChanged);
     }
 }
 
@@ -64,7 +64,7 @@ void ASuspenseGameMode::StartPlay()
     UE_LOG(LogTemp, Log, TEXT("SuspenseGameMode StartPlay called"));
     
     // Устанавливаем состояние матча в "Ожидание старта"
-    SetGameMatchState(EMedComMatchState::WaitingToStart);
+    SetGameMatchState(ESuspenseMatchState::WaitingToStart);
     
     // Запуск игры, если все необходимые условия выполнены
     if (CanGameStart())
@@ -85,7 +85,7 @@ void ASuspenseGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
     StopGameTimer();
     
     // Установка состояния матча "Покидаем карту"
-    SetGameMatchState(EMedComMatchState::LeavingMap);
+    SetGameMatchState(ESuspenseMatchState::LeavingMap);
     
     Super::EndPlay(EndPlayReason);
 }
@@ -135,7 +135,7 @@ void ASuspenseGameMode::FinishGame(AActor* Winner, const FString& EndGameReason)
         UE_LOG(LogTemp, Log, TEXT("Game winner: %s"), *WinnerName);
         
         // Установка состояния матча в "Завершение игры"
-        SetGameMatchState(EMedComMatchState::WaitingPostMatch);
+        SetGameMatchState(ESuspenseMatchState::WaitingPostMatch);
         
         // Отправка события всем игрокам
         for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -149,27 +149,27 @@ void ASuspenseGameMode::FinishGame(AActor* Winner, const FString& EndGameReason)
     }
 }
 
-void ASuspenseGameMode::SetGameMatchState(EMedComMatchState NewState)
+void ASuspenseGameMode::SetGameMatchState(ESuspenseMatchState NewState)
 {
     if (HasAuthority())
     {
-        ASuspenseGameState* MedComGS = GetGameState<ASuspenseGameState>();
-        if (MedComGS)
+        ASuspenseGameState* SuspenseGS = GetGameState<ASuspenseGameState>();
+        if (SuspenseGS)
         {
-            MedComGS->SetMedComMatchState(NewState);
+            SuspenseGS->SetMatchState(NewState);
         }
     }
 }
 
-EMedComMatchState ASuspenseGameMode::GetGameMatchState() const
+ESuspenseMatchState ASuspenseGameMode::GetGameMatchState() const
 {
-    ASuspenseGameState* MedComGS = GetGameState<ASuspenseGameState>();
-    if (MedComGS)
+    ASuspenseGameState* SuspenseGS = GetGameState<ASuspenseGameState>();
+    if (SuspenseGS)
     {
-        return MedComGS->GetMedComMatchState();
+        return SuspenseGS->GetMatchState();
     }
     
-    return EMedComMatchState::WaitingToStart; // Состояние по умолчанию
+    return ESuspenseMatchState::WaitingToStart; // Состояние по умолчанию
 }
 
 AActor* ASuspenseGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -271,7 +271,7 @@ void ASuspenseGameMode::OnAllPlayersReady()
     // Установка состояния игры в прогресс
     if (HasAuthority())
     {
-        SetGameMatchState(EMedComMatchState::InProgress);
+        SetGameMatchState(ESuspenseMatchState::InProgress);
     }
 }
 
@@ -348,7 +348,7 @@ void ASuspenseGameMode::CheckWinConditions()
     // Дочерние классы должны определить собственные условия победы
 }
 
-void ASuspenseGameMode::OnMatchStateChanged(EMedComMatchState OldState, EMedComMatchState NewState)
+void ASuspenseGameMode::OnMatchStateChanged(ESuspenseMatchState OldState, ESuspenseMatchState NewState)
 {
     UE_LOG(LogTemp, Log, TEXT("Match state changed from %s to %s"), 
            *UEnum::GetValueAsString(OldState), 
@@ -357,15 +357,15 @@ void ASuspenseGameMode::OnMatchStateChanged(EMedComMatchState OldState, EMedComM
     // Дополнительная логика в зависимости от нового состояния
     switch (NewState)
     {
-    case EMedComMatchState::InProgress:
+    case ESuspenseMatchState::InProgress:
         UE_LOG(LogTemp, Log, TEXT("Game started!"));
         break;
         
-    case EMedComMatchState::WaitingPostMatch:
+    case ESuspenseMatchState::WaitingPostMatch:
         UE_LOG(LogTemp, Log, TEXT("Game ended, waiting for post-match"));
         break;
         
-    case EMedComMatchState::GameOver:
+    case ESuspenseMatchState::GameOver:
         UE_LOG(LogTemp, Log, TEXT("Game is officially over"));
         break;
         

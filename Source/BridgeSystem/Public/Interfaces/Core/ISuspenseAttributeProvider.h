@@ -18,7 +18,7 @@ class USuspenseEventManager;
  * Provides attribute information without GAS dependency
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FMedComAttributeData
+struct BRIDGESYSTEM_API FSuspenseAttributeData
 {
     GENERATED_BODY()
 
@@ -47,9 +47,9 @@ struct BRIDGESYSTEM_API FMedComAttributeData
     bool bIsValid = false;
 
     /** Helper to create attribute data */
-    static FMedComAttributeData CreateAttributeData(float Current, float Max, const FGameplayTag& Tag, const FText& Name = FText::GetEmpty())
+    static FSuspenseAttributeData CreateAttributeData(float Current, float Max, const FGameplayTag& Tag, const FText& Name = FText::GetEmpty())
     {
-        FMedComAttributeData Data;
+        FSuspenseAttributeData Data;
         Data.CurrentValue = Current;
         Data.MaxValue = Max;
         Data.Percentage = (Max > 0.0f) ? (Current / Max) : 0.0f;
@@ -143,35 +143,35 @@ public:
      * @return Attribute data structure
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Attributes|Data")
-    FMedComAttributeData GetAttributeData(const FGameplayTag& AttributeTag) const;
+    FSuspenseAttributeData GetAttributeData(const FGameplayTag& AttributeTag) const;
     
     /**
      * Get health attribute data
      * @return Health data structure
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Attributes|Data")
-    FMedComAttributeData GetHealthData() const;
+    FSuspenseAttributeData GetHealthData() const;
     
     /**
      * Get stamina attribute data
      * @return Stamina data structure
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Attributes|Data")
-    FMedComAttributeData GetStaminaData() const;
+    FSuspenseAttributeData GetStaminaData() const;
     
     /**
      * Get armor attribute data
      * @return Armor data structure
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Attributes|Data")
-    FMedComAttributeData GetArmorData() const;
+    FSuspenseAttributeData GetArmorData() const;
     
     /**
      * Get all available attribute data
      * @return Array of all attribute data
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Attributes|Data")
-    TArray<FMedComAttributeData> GetAllAttributeData() const;
+    TArray<FSuspenseAttributeData> GetAllAttributeData() const;
     
     /**
      * Get specific attribute value by tag

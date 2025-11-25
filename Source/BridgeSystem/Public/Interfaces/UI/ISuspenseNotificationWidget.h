@@ -13,7 +13,7 @@ class USuspenseEventManager;
  * Notification priority levels
  */
 UENUM(BlueprintType)
-enum class EMedComNotificationPriority : uint8
+enum class ESuspenseNotificationPriority : uint8
 {
     Low         UMETA(DisplayName = "Low"),
     Normal      UMETA(DisplayName = "Normal"),
@@ -25,7 +25,7 @@ enum class EMedComNotificationPriority : uint8
  * Notification type for styling
  */
 UENUM(BlueprintType)
-enum class EMedComNotificationType : uint8
+enum class ESuspenseNotificationType : uint8
 {
     Info        UMETA(DisplayName = "Information"),
     Success     UMETA(DisplayName = "Success"),
@@ -60,7 +60,7 @@ public:
      * @param Priority Notification priority
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UI|Notification")
-    void ShowNotification(const FText& Message, float Duration, EMedComNotificationType Type, EMedComNotificationPriority Priority);
+    void ShowNotification(const FText& Message, float Duration, ESuspenseNotificationType Type, ESuspenseNotificationPriority Priority);
 
     /**
      * Hides the current notification
@@ -88,7 +88,7 @@ public:
      * @param Priority Notification priority
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UI|Notification")
-    void QueueNotification(const FText& Message, float Duration, EMedComNotificationType Type, EMedComNotificationPriority Priority);
+    void QueueNotification(const FText& Message, float Duration, ESuspenseNotificationType Type, ESuspenseNotificationPriority Priority);
 
     /**
      * Clears notification queue

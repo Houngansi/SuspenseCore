@@ -16,7 +16,7 @@ struct FGameplayTag;
 struct FGameplayTagContainer;
 
 /**
- * Sprint Ability for MedCom characters
+ * Sprint Ability for GAS characters
  * 
  * Uses two separate GameplayEffects:
  * - SprintBuffEffectClass for speed increase

@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
+#include "Attributes/GASAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "AmmoAttributeSet.generated.h"
 
@@ -28,7 +29,7 @@
  * - Специальные эффекты (трассеры, зажигательные и т.д.)
  */
 UCLASS()
-class GAS_API UAmmoAttributeSet : public UAttributeSet
+class GAS_API UAmmoAttributeSet : public UGASAttributeSet
 {
     GENERATED_BODY()
 

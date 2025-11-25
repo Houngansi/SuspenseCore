@@ -13,7 +13,7 @@
  * что позволяет разным способностям или модификаторам влиять на стоимость прыжка.
  */
 UCLASS()
-class GAS_API UGameplayEffect_JumpCost final : public UMedComGameplayEffect
+class GAS_API UGameplayEffect_JumpCost final : public UGASEffect
 {
 	GENERATED_BODY()
 

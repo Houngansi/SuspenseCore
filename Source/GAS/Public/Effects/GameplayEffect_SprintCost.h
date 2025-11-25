@@ -5,7 +5,7 @@
 #include "GameplayEffect_SprintCost.generated.h"
 
 UCLASS()
-class GAS_API UGameplayEffect_SprintCost final : public UMedComGameplayEffect
+class GAS_API UGameplayEffect_SprintCost final : public UGASEffect
 {
 	GENERATED_BODY()
 

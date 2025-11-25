@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
+#include "Abilities/GASAbility.h"
 #include "GameplayEffectTypes.h"
 #include "CharacterSprintAbility.generated.h"
 
@@ -16,14 +16,14 @@ struct FGameplayTag;
 struct FGameplayTagContainer;
 
 /**
- * Sprint Ability for MedCom characters
+ * Sprint Ability for GAS characters
  * 
  * Uses two separate GameplayEffects:
  * - SprintBuffEffectClass for speed increase
  * - SprintCostEffectClass for stamina drain
  */
 UCLASS()
-class GAS_API UCharacterSprintAbility : public UGameplayAbility
+class GAS_API UCharacterSprintAbility : public UGASAbility
 {
     GENERATED_BODY()
 

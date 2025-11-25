@@ -6,7 +6,7 @@
 
 /** Периодическая регенерация здоровья (+5 HP/с) */
 UCLASS()
-class GAS_API UGameplayEffect_HealthRegen : public UMedComGameplayEffect
+class GAS_API UGameplayEffect_HealthRegen : public UGASEffect
 {
 	GENERATED_BODY()
 

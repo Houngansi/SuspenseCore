@@ -1,0 +1,291 @@
+// SuspenseRulesCoordinator.h
+// Copyright Suspense Team. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentRules.h"
+#include "GameplayTagContainer.h"
+#include "Types/Rules/MedComRulesTypes.h"
+#include "SuspenseRulesCoordinator.generated.h"
+
+class USuspenseWeightRulesEngine;
+class USuspenseRequirementRulesEngine;
+class USuspenseConflictRulesEngine;
+class USuspenseCompatibilityRulesEngine;
+class ISuspenseEquipmentDataProvider;
+
+// Forward declarations
+struct FEquipmentStateSnapshot;
+
+/**
+ * Rule execution priority levels
+ */
+UENUM()
+enum class ERuleExecutionPriority : uint8
+{
+    Critical = 0,    // Must pass for operation to proceed (compatibility, safety)
+    High     = 1,    // Important validations (requirements, prerequisites)  
+    Normal   = 2,    // Standard checks (weight, capacity)
+    Low      = 3     // Advisory checks (conflicts, set bonuses)
+};
+
+/**
+ * Rule engine registration data
+ */
+USTRUCT()
+struct FRuleEngineRegistration
+{
+    GENERATED_BODY()
+
+    /** Engine type identifier */
+    UPROPERTY()
+    FGameplayTag EngineType;
+
+    /** Engine instance */
+    UPROPERTY()
+    UObject* Engine = nullptr;
+
+    /** Execution priority */
+    UPROPERTY()
+    ERuleExecutionPriority Priority = ERuleExecutionPriority::Normal;
+
+    /** Is engine enabled */
+    UPROPERTY()
+    bool bEnabled = true;
+};
+
+/**
+ * Production Rules Coordinator - STATELESS для глобального использования
+ * 
+ * АРХИТЕКТУРНЫЙ ПРИНЦИП:
+ * Coordinator не хранит состояние игрока - он работает как чистая функция.
+ * Все данные игрока передаются через FMedComRuleContext.
+ * DataProvider опционален и используется только для вспомогательных операций.
+ * 
+ * Philosophy: Orchestrates specialized rule engines in priority order.
+ * Single point of truth for equipment validation with optimized pipeline.
+ * 
+ * Key Principles:
+ * - Pipeline execution: Compatibility → Requirements → Weight → Conflict  
+ * - Stateless operation: все данные в контексте
+ * - DataProvider опционален (для fallback-операций)
+ * - Early termination on critical failures
+ * - Performance metrics and reporting
+ * - Thread-safe for concurrent rule evaluation
+ * 
+ * Thread Safety: Safe for concurrent rule evaluations after initialization
+ */
+UCLASS(BlueprintType)
+class EQUIPMENTSYSTEM_API USuspenseRulesCoordinator : public UObject, public ISuspenseEquipmentRules
+{
+    GENERATED_BODY()
+
+public:
+    USuspenseRulesCoordinator();
+
+    //========================================
+    // ISuspenseEquipmentRules Implementation
+    //========================================
+    
+    virtual FSuspenseRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
+    virtual FSuspenseRuleEvaluationResult EvaluateRulesWithContext(
+        const FEquipmentOperationRequest& Operation,
+        const FMedComRuleContext& Context) const override;
+    virtual FSuspenseRuleEvaluationResult CheckItemCompatibility(
+        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FEquipmentSlotConfig& SlotConfig) const override;
+    virtual FSuspenseRuleEvaluationResult CheckCharacterRequirements(
+        const AActor* Character,
+        const FSuspenseInventoryItemInstance& ItemInstance) const override;
+    virtual FSuspenseRuleEvaluationResult CheckWeightLimit(
+        float CurrentWeight,
+        float AdditionalWeight) const override;
+    virtual FSuspenseRuleEvaluationResult CheckConflictingEquipment(
+        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
+        const FSuspenseInventoryItemInstance& NewItem) const override;
+    virtual TArray<FSuspenseEquipmentRule> GetActiveRules() const override;
+    virtual bool RegisterRule(const FSuspenseEquipmentRule& Rule) override;
+    virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
+    virtual bool SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
+    virtual FString GenerateComplianceReport(const FEquipmentStateSnapshot& CurrentState) const override;
+    virtual void ClearRuleCache() override;
+    
+    /**
+     * Initialize coordinator - DataProvider теперь ОПЦИОНАЛЕН
+     * @param InDataProvider Optional data provider (может быть nullptr для stateless режима)
+     * @return true если инициализация успешна
+     */
+    virtual bool Initialize(TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider) override;
+    virtual void ResetStatistics() override;
+
+    //========================================
+    // Engine Management
+    //========================================
+    
+    /**
+     * Register external rule engine
+     * @param EngineType Engine type identifier
+     * @param Engine Engine instance
+     * @param Priority Execution priority
+     * @return True if registered successfully
+     */
+    UFUNCTION(BlueprintCallable, Category="Rules")
+    bool RegisterRuleEngine(const FGameplayTag& EngineType, UObject* Engine, ERuleExecutionPriority Priority);
+
+    /**
+     * Unregister rule engine
+     * @param EngineType Engine type to remove
+     * @return True if unregistered successfully
+     */
+    UFUNCTION(BlueprintCallable, Category="Rules")
+    bool UnregisterRuleEngine(const FGameplayTag& EngineType);
+
+    /**
+     * Get all registered engines
+     * @return Array of registered engines sorted by priority
+     */
+    TArray<FRuleEngineRegistration> GetRegisteredEngines() const;
+
+    /**
+     * Enable/disable specific engine
+     * @param EngineType Engine type to modify
+     * @param bEnabled Enable state
+     * @return True if modified successfully
+     */
+    UFUNCTION(BlueprintCallable, Category="Rules")
+    bool SetEngineEnabled(const FGameplayTag& EngineType, bool bEnabled);
+
+    //========================================
+    // Performance and Diagnostics
+    //========================================
+    
+    /**
+     * Get execution statistics
+     * @return Performance metrics map
+     */
+    UFUNCTION(BlueprintCallable, Category="Rules")
+    TMap<FString, FString> GetExecutionStatistics() const;
+    
+    /**
+     * Get pipeline health status
+     * @return Health check results
+     */
+    UFUNCTION(BlueprintCallable, Category="Rules")
+    FString GetPipelineHealth() const;
+
+protected:
+    /**
+     * Create and initialize specialized engines
+     */
+    void CreateSpecializedEngines();
+
+    /**
+     * Build shadow snapshot from context or DataProvider (fallback)
+     * КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: работает БЕЗ обязательного DataProvider
+     * @param Context Rule evaluation context с CurrentItems
+     * @return Equipment state snapshot
+     */
+    FEquipmentStateSnapshot BuildShadowSnapshotFromContext(const FMedComRuleContext& Context) const;
+
+    /**
+     * Record engine execution metrics
+     * @param EngineType Engine that was executed
+     * @param DurationMs Execution time in milliseconds
+     */
+    void RecordEngineMetrics(const FGameplayTag& EngineType, double DurationMs) const;
+
+    //========================================
+    // Result Conversion (Legacy Compatibility)
+    //========================================
+    
+    FSuspenseRuleEvaluationResult ConvertToLegacyResult(const TArray<FMedComRuleCheckResult>& NewResults) const;
+    FSuspenseRuleEvaluationResult ConvertSingleResult(const FMedComRuleCheckResult& NewResult) const;
+    FSuspenseRuleEvaluationResult ConvertAggregatedResult(const FMedComAggregatedRuleResult& AggResult) const;
+    TArray<FRuleEngineRegistration> GetSortedEngines() const;
+
+private:
+    //========================================
+    // Core Components
+    //========================================
+    
+    /** 
+     * Data provider interface - ОПЦИОНАЛЕН
+     * Используется только для fallback-операций, когда контекст не полон
+     */
+    UPROPERTY()
+    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+
+    /** Specialized rule engines */
+    UPROPERTY()
+    USuspenseWeightRulesEngine* WeightEngine = nullptr;
+
+    UPROPERTY()
+    USuspenseRequirementRulesEngine* RequirementEngine = nullptr;
+
+    UPROPERTY()
+    USuspenseConflictRulesEngine* ConflictEngine = nullptr;
+
+    UPROPERTY()
+    USuspenseCompatibilityRulesEngine* CompatibilityEngine = nullptr;
+
+    /** Registry of all engines */
+    UPROPERTY()
+    TMap<FGameplayTag, FRuleEngineRegistration> RegisteredEngines;
+
+    //========================================
+    // Global Rule System (Legacy Support)
+    //========================================
+    
+    /** Global rules (for coordinator-level logic) */
+    UPROPERTY()
+    TArray<FSuspenseEquipmentRule> GlobalRules;
+
+    /** Disabled global rules */
+    UPROPERTY()
+    TSet<FGameplayTag> DisabledRules;
+
+    //========================================
+    // Performance Optimization
+    //========================================
+    
+    /** Cached weight engine configuration for slot filtering */
+    UPROPERTY(Transient)
+    FGameplayTagContainer ExcludedSlotsCache;
+
+    //========================================
+    // Metrics (Thread-Safe)
+    //========================================
+    
+    /** Engine execution counts */
+    UPROPERTY(Transient)
+    mutable TMap<FGameplayTag, int64> EngineExecCount;
+
+    /** Engine execution times (milliseconds) */
+    UPROPERTY(Transient)
+    mutable TMap<FGameplayTag, double> EngineExecTimeMs;
+
+    /** Total coordinator evaluations */
+    UPROPERTY(Transient)
+    mutable int64 TotalEvaluations = 0;
+
+    /** Accumulated evaluation time */
+    UPROPERTY(Transient)
+    mutable double AccumulatedEvalMs = 0.0;
+
+    /** Critical section for thread safety */
+    mutable FCriticalSection RulesLock;
+
+    //========================================
+    // State Tracking
+    //========================================
+    
+    /** Initialization timestamp */
+    UPROPERTY(Transient)
+    FDateTime InitializationTime;
+
+    /** Last pipeline execution timestamp (optional) */
+    UPROPERTY(Transient)
+    mutable TOptional<FDateTime> LastExecutionTime;
+};

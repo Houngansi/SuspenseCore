@@ -5,7 +5,7 @@
 #include "Core/Services/EquipmentServiceLocator.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Core/Utils/FGlobalCacheRegistry.h"
-#include "Components/.*/SuspenseRulesCoordinator.h"
+#include "Components/Rules/SuspenseRulesCoordinator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Types/Rules/SuspenseRulesTypes.h" 
 #include "Runtime/Launch/Resources/Version.h"

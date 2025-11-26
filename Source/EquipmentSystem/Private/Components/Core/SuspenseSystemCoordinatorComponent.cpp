@@ -3,7 +3,7 @@
 
 #include "Components/Core/SuspenseSystemCoordinatorComponent.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 
 // Concrete service implementations
 #include "Services/EquipmentDataServiceImpl.h"
@@ -13,9 +13,9 @@
 #include "Services/EquipmentAbilityServiceImpl.h"
 
 // Presentation layer components (registered as services)
-#include "Components/.*/SuspenseEquipmentActorFactory.h"
-#include "Components/.*/SuspenseEquipmentAttachmentSystem.h"
-#include "Components/.*/SuspenseEquipmentVisualController.h"
+#include "Components/Presentation/SuspenseEquipmentActorFactory.h"
+#include "Components/Presentation/SuspenseEquipmentAttachmentSystem.h"
+#include "Components/Presentation/SuspenseEquipmentVisualController.h"
 
 // Additional interfaces
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
@@ -125,7 +125,7 @@ FGameplayTag USuspenseSystemCoordinatorComponent::GetServiceTagFromClass(UClass*
         return FGameplayTag();
     }
 
-    IEquipmentService* Iface = Cast<IEquipmentService>(CDO);
+    ISuspenseEquipmentService* Iface = Cast<ISuspenseEquipmentService>(CDO);
     if (!Iface)
     {
         UE_LOG(LogMedComCoordinator, Error, TEXT("GetServiceTagFromClass: Interface cast failed on CDO: %s"),

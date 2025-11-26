@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
 #include "Interfaces/Equipment/ISuspensePredictionManager.h"
 #include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
-#include "Components/.*/SuspenseEquipmentReplicationManager.h"
+#include "Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"

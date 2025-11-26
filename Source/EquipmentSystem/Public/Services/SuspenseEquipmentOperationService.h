@@ -5,8 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/.*/SuspenseEquipmentDataStore.h"
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Components/Core/SuspenseEquipmentDataStore.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseTransactionManager.h"

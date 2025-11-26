@@ -148,7 +148,7 @@ public:
      */
     virtual FRuleEvaluationResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FMedComRuleContext& Context) const = 0;
+        const FSuspenseRuleContext& Context) const = 0;
 
     //========================================
     // Specialized Checkers (Direct Usage)

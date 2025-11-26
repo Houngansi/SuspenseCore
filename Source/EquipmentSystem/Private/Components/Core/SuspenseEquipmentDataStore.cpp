@@ -4,9 +4,9 @@
 #include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "GameFramework/PlayerState.h"
-#include "Types/Loadout/MedComLoadoutManager.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
 
 // Define logging category
 DEFINE_LOG_CATEGORY(LogEquipmentDataStore);
@@ -1278,16 +1278,16 @@ TArray<int32> USuspenseEquipmentDataStore::FindCompatibleSlots(const FGameplayTa
     if (!ItemSlotTag.IsValid()) { return Result; }
 
     // Try map tag name to slot type enum
-    ESuspenseEquipmentSlotType MappedType = ESuspenseEquipmentSlotType::None;
-    if (const UEnum* Enum = StaticEnum<ESuspenseEquipmentSlotType>())
+    EEquipmentSlotType MappedType = EEquipmentSlotType::None;
+    if (const UEnum* Enum = StaticEnum<EEquipmentSlotType>())
     {
         const int64 Val = Enum->GetValueByName(ItemSlotTag.GetTagName());
         if (Val != INDEX_NONE)
         {
-            MappedType = static_cast<ESuspenseEquipmentSlotType>(Val);
+            MappedType = static_cast<EEquipmentSlotType>(Val);
         }
     }
-    if (MappedType != ESuspenseEquipmentSlotType::None)
+    if (MappedType != EEquipmentSlotType::None)
     {
         return GetSlotsByType(MappedType);
     }
@@ -1299,7 +1299,7 @@ TArray<int32> USuspenseEquipmentDataStore::FindCompatibleSlots(const FGameplayTa
     return Result;
 }
 
-TArray<int32> USuspenseEquipmentDataStore::GetSlotsByType(ESuspenseEquipmentSlotType SlotType) const
+TArray<int32> USuspenseEquipmentDataStore::GetSlotsByType(EEquipmentSlotType SlotType) const
 {
     TArray<int32> Out;
     const int32 Num = GetSlotCount();
@@ -1316,7 +1316,7 @@ TArray<int32> USuspenseEquipmentDataStore::GetSlotsByType(ESuspenseEquipmentSlot
     return Out;
 }
 
-int32 USuspenseEquipmentDataStore::GetFirstEmptySlotOfType(ESuspenseEquipmentSlotType SlotType) const
+int32 USuspenseEquipmentDataStore::GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const
 {
     const TArray<int32> Slots = GetSlotsByType(SlotType);
     for (int32 Index : Slots)

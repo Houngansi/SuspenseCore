@@ -119,10 +119,11 @@ struct INVENTORYSYSTEM_API FSuspenseInventoryOperation
 };
 
 /**
- * Move operation for tracking item movement
+ * Move operation record for tracking item movement history
+ * NOTE: Named FSuspenseMoveRecord to avoid conflict with FSuspenseMoveOperation in SuspenseMoveOperation.h
  */
 USTRUCT()
-struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseMoveRecord : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -141,7 +142,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     /** New rotation state */
     bool bIsRotated = false;
 
-    FSuspenseMoveOperation()
+    FSuspenseMoveRecord()
     {
         OperationType = ESuspenseInventoryOperationType::Move;
     }
@@ -153,7 +154,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
 
     virtual FString ToString() const override
     {
-        return FString::Printf(TEXT("MoveOperation[Instance=%s, From=%d, To=%d, Rotated=%s]"),
+        return FString::Printf(TEXT("MoveRecord[Instance=%s, From=%d, To=%d, Rotated=%s]"),
             *InstanceID.ToString().Left(8),
             SourceIndex,
             TargetIndex,
@@ -198,10 +199,11 @@ struct INVENTORYSYSTEM_API FSuspenseRotateOperation : public FSuspenseInventoryO
 };
 
 /**
- * Stack operation for tracking item stacking
+ * Stack operation record for tracking item stacking history
+ * NOTE: Named FSuspenseStackRecord to avoid conflict with FSuspenseStackOperation in SuspenseStackOperation.h
  */
 USTRUCT()
-struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOperation
+struct INVENTORYSYSTEM_API FSuspenseStackRecord : public FSuspenseInventoryOperation
 {
     GENERATED_BODY()
 
@@ -220,7 +222,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     /** Target quantity before operation */
     int32 PreviousTargetQuantity = 0;
 
-    FSuspenseStackOperation()
+    FSuspenseStackRecord()
     {
         OperationType = ESuspenseInventoryOperationType::Stack;
     }
@@ -235,7 +237,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
 
     virtual FString ToString() const override
     {
-        return FString::Printf(TEXT("StackOperation[Source=%s, Target=%s, Amount=%d]"),
+        return FString::Printf(TEXT("StackRecord[Source=%s, Target=%s, Amount=%d]"),
             *SourceInstanceID.ToString().Left(8),
             *TargetInstanceID.ToString().Left(8),
             TransferredAmount);

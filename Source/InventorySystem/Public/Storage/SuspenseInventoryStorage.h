@@ -17,11 +17,12 @@ struct FInventoryItemInstance;
 class UEventDelegateManager;
 
 /**
- * Structure describing inventory change transaction
+ * Structure describing storage state transaction
  * Provides atomic operations and rollback capability on errors
+ * NOTE: Named FSuspenseStorageTransaction to avoid conflict with USuspenseInventoryTransaction class
  */
 USTRUCT()
-struct FSuspenseInventoryTransaction
+struct FSuspenseStorageTransaction
 {
     GENERATED_BODY()
 
@@ -41,7 +42,7 @@ struct FSuspenseInventoryTransaction
     UPROPERTY()
     float StartTime = 0.0f;
 
-    FSuspenseInventoryTransaction()
+    FSuspenseStorageTransaction()
     {
         bIsActive = false;
         StartTime = 0.0f;
@@ -422,7 +423,7 @@ protected:
 
     /** Current transaction for atomic operations */
     UPROPERTY()
-    FSuspenseInventoryTransaction ActiveTransaction;
+    FSuspenseStorageTransaction ActiveTransaction;
 
     //==================================================================
     // Internal Helper Methods

@@ -6,7 +6,7 @@
 #include "Operations/SuspenseInventoryOperation.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "Types/Loadout/MedComItemDataTable.h"
-#include "StackOperation.generated.h"
+#include "SuspenseStackOperation.generated.h"
 
 // Forward declarations
 class AMedComInventoryItem;

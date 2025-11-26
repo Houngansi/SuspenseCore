@@ -473,7 +473,7 @@ private:
     
     /** Обработчик ошибок инвентаря */
     UFUNCTION()
-    void OnInventoryError(EInventoryErrorCode ErrorCode, const FString& Context);
+    void OnInventoryError(ESuspenseInventoryErrorCode ErrorCode, const FString& Context);
     
     /** Обработчик операций stacking */
     UFUNCTION()

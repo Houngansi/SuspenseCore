@@ -490,7 +490,7 @@ public:
      * @return Локализованное сообщение об ошибке
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Operations")
-    static FText GetErrorMessage(EInventoryErrorCode ErrorCode, const FString& Context = TEXT(""));
+    static FText GetErrorMessage(ESuspenseInventoryErrorCode ErrorCode, const FString& Context = TEXT(""));
     
     /**
      * Создает успешный результат операции с enhanced данными
@@ -515,7 +515,7 @@ public:
      * @return Структура результата ошибки
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Operations")
-    static FSuspenseInventoryOperationResult CreateFailureResult(EInventoryErrorCode ErrorCode,
+    static FSuspenseInventoryOperationResult CreateFailureResult(ESuspenseInventoryErrorCode ErrorCode,
                                                         const FText& ErrorMessage,
                                                         const FName& Context,
                                                         UObject* ResultObject = nullptr);

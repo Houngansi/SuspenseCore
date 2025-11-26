@@ -189,7 +189,7 @@ public:
      * @return True if configuration found
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Configuration", DisplayName = "Get Inventory Config From Loadout")
-    bool GetInventoryConfigFromLoadout_BP(const FName& LoadoutID, const FName& InventoryName, FInventoryConfig& OutInventoryConfig) const;
+    bool GetInventoryConfigFromLoadout_BP(const FName& LoadoutID, const FName& InventoryName, FSuspenseInventoryConfig& OutInventoryConfig) const;
     
     //==================================================================
     // Debug and statistics

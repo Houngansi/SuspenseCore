@@ -276,7 +276,7 @@ protected:
 
     /** Base inventory update delegate */
     UPROPERTY(BlueprintAssignable)
-    FOnSuspenseInventoryUpdated OnInventoryUpdated;
+    FSuspenseOnInventoryUpdated OnInventoryUpdated;
 
     /** Timer handle for client initialization check */
     FTimerHandle ClientInitCheckTimer;

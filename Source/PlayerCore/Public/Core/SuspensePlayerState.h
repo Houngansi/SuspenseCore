@@ -14,8 +14,8 @@
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "SuspensePlayerState.generated.h"
 
-class USuspenseAbilitySystemComponent;
-class USuspenseBaseAttributeSet;
+class UGASAbilitySystemComponent;
+class UGASAttributeSet;
 class UGameplayAbility;
 class UGameplayEffect;
 class USuspenseInventoryComponent;
@@ -152,7 +152,7 @@ public:
     //========================================
     
     UFUNCTION(BlueprintCallable, Category = "Suspense|Attributes")
-    const USuspenseBaseAttributeSet* GetBaseAttributeSet() const { return Attributes; }
+    const UGASAttributeSet* GetBaseAttributeSet() const { return Attributes; }
     
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout", meta = (CallInEditor = "true"))
     bool ApplyLoadout(const FName& LoadoutID, bool bForceReapply = false);
@@ -198,7 +198,7 @@ protected:
     
     /** Ability System Component */
     UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Core")
-    USuspenseAbilitySystemComponent* ASC = nullptr;
+    UGASAbilitySystemComponent* ASC = nullptr;
     
     /** Inventory component for item management */
     UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Inventory")
@@ -206,14 +206,14 @@ protected:
 
     /** Attribute set (spawned by ASC) */
     UPROPERTY()
-    USuspenseBaseAttributeSet* Attributes = nullptr;
+    UGASAttributeSet* Attributes = nullptr;
 
     //========================================
     // GAS Configuration
     //========================================
     
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
-    TSubclassOf<USuspenseBaseAttributeSet> InitialAttributeSetClass;
+    TSubclassOf<UGASAttributeSet> InitialAttributeSetClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
     TSubclassOf<UGameplayEffect> InitialAttributesEffect;

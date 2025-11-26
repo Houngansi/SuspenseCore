@@ -18,7 +18,7 @@
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Types/Events/EquipmentEventData.h"
 #include "Types/Inventory/InventoryTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 
 #include "Services/EquipmentOperationServiceImpl.h"
 #include "Core/Services/EquipmentServiceLocator.h"

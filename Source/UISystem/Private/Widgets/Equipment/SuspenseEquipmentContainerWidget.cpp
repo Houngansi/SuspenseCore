@@ -18,7 +18,7 @@
 
 #include "Delegates/EventDelegateManager.h"
 #include "Types/Loadout/MedComLoadoutManager.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"

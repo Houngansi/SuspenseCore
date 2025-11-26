@@ -7,7 +7,7 @@
 #include "Components/Rules/SuspenseConflictRulesEngine.h"
 #include "Components/Rules/SuspenseCompatibilityRulesEngine.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/PlatformTime.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRulesCoordinator, Log, All);

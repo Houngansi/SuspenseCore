@@ -76,7 +76,7 @@ protected:
 	bool GetItemData(FName ItemID, struct FSuspenseUnifiedItemData& OutData) const;
 
 	/** Convert SlotValidator result to rules-format (severity mapping). */
-	static FSuspenseRuleCheckResult Convert(const FSuspenseSlotValidationResult& R);
+	static FSuspenseRuleCheckResult Convert(const FSlotValidationResult& R);
 
 private:
 	UPROPERTY(Transient)

@@ -80,7 +80,7 @@ private:
 	TArray<FEventSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UEquipmentServiceLocator> CachedServiceLocator;
+	TObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
 
 	// Lightweight state
 	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FVisCharState> Characters;

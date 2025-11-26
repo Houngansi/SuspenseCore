@@ -8,7 +8,7 @@
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "GameplayTagContainer.h"
-#include "Operations/InventoryResult.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "SuspenseInventoryLibrary.generated.h"
 
 // Forward declarations для чистого разделения модулей
@@ -58,14 +58,14 @@ public:
     /**
      * Создает множественные экземпляры предметов из spawn data
      * Эффективный batch creation для loadouts и loot generation
-     * 
+     *
      * @param SpawnDataArray Массив конфигураций для создания
      * @param WorldContext Контекст для получения ItemManager
      * @param OutInstances Выходной массив созданных экземпляров
      * @return Количество успешно созданных экземпляров
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Item Creation")
-    static int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray,
+    static int32 CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray,
                                                   const UObject* WorldContext,
                                                   TArray<FSuspenseInventoryItemInstance>& OutInstances);
     

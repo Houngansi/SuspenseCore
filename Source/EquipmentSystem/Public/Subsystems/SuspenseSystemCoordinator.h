@@ -9,7 +9,7 @@
 #include "SuspenseSystemCoordinator.generated.h"
 
 class USuspenseSystemCoordinatorComponent;
-class UEquipmentServiceLocator;
+class USuspenseEquipmentServiceLocator;
 
 /**
  * GameInstance-level subsystem that owns and manages global equipment services.
@@ -73,7 +73,7 @@ public:
      * @return ServiceLocator or nullptr if not initialized
      */
     UFUNCTION(BlueprintPure, Category="MedCom|Services")
-    UEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
+    USuspenseEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
     
     /**
      * Get Coordinator instance (read-only)
@@ -173,7 +173,7 @@ private:
      * Either retrieved from world or created with GI outer
      */
     UPROPERTY(Transient)
-    TObjectPtr<UEquipmentServiceLocator> ServiceLocator = nullptr;
+    TObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator = nullptr;
 
     //========================================
     // State Flags

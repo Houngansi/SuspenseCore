@@ -46,10 +46,10 @@ struct INVENTORYSYSTEM_API FInventoryTemplateConfig
     /** Disallowed item types (takes priority) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Filters", meta = (Categories = "Item.Type"))
     FGameplayTagContainer DisallowedItemTypes;
-    
+
     /** Starting items for this inventory */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Items")
-    TArray<FPickupSpawnData> StartingItems;
+    TArray<FSuspensePickupSpawnData> StartingItems;
     
     /** Auto-place starting items optimally */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Behavior")
@@ -368,7 +368,7 @@ protected:
     /**
      * Validate starting items
      */
-    bool ValidateStartingItems(const TArray<FPickupSpawnData>& StartingItems,
+    bool ValidateStartingItems(const TArray<FSuspensePickupSpawnData>& StartingItems,
                              TArray<FName>& OutMissingItems,
                              TArray<FString>& OutErrors) const;
     

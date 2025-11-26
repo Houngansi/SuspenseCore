@@ -281,7 +281,7 @@ private:
     FDateTime InitializationTime;
 
     UPROPERTY(Transient)
-    TWeakObjectPtr<UEquipmentServiceLocator> ServiceLocatorRef;
+    TWeakObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocatorRef;
     //========================================
     // Core Dependencies
     //========================================

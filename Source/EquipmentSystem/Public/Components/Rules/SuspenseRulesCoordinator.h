@@ -88,25 +88,25 @@ public:
     //========================================
     // ISuspenseEquipmentRules Implementation
     //========================================
-    
-    virtual FSuspenseRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
-    virtual FSuspenseRuleEvaluationResult EvaluateRulesWithContext(
+
+    virtual FRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
+    virtual FRuleEvaluationResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
         const FSuspenseRuleContext& Context) const override;
-    virtual FSuspenseRuleEvaluationResult CheckItemCompatibility(
+    virtual FRuleEvaluationResult CheckItemCompatibility(
         const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
-    virtual FSuspenseRuleEvaluationResult CheckCharacterRequirements(
+    virtual FRuleEvaluationResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseInventoryItemInstance& ItemInstance) const override;
-    virtual FSuspenseRuleEvaluationResult CheckWeightLimit(
+    virtual FRuleEvaluationResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
-    virtual FSuspenseRuleEvaluationResult CheckConflictingEquipment(
+    virtual FRuleEvaluationResult CheckConflictingEquipment(
         const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
         const FSuspenseInventoryItemInstance& NewItem) const override;
-    virtual TArray<FSuspenseEquipmentRule> GetActiveRules() const override;
-    virtual bool RegisterRule(const FSuspenseEquipmentRule& Rule) override;
+    virtual TArray<FEquipmentRule> GetActiveRules() const override;
+    virtual bool RegisterRule(const FEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
     virtual bool SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
     virtual FString GenerateComplianceReport(const FEquipmentStateSnapshot& CurrentState) const override;
@@ -199,10 +199,10 @@ protected:
     //========================================
     // Result Conversion (Legacy Compatibility)
     //========================================
-    
-    FSuspenseRuleEvaluationResult ConvertToLegacyResult(const TArray<FSuspenseRuleCheckResult>& NewResults) const;
-    FSuspenseRuleEvaluationResult ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const;
-    FSuspenseRuleEvaluationResult ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggResult) const;
+
+    FRuleEvaluationResult ConvertToLegacyResult(const TArray<FSuspenseRuleCheckResult>& NewResults) const;
+    FRuleEvaluationResult ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const;
+    FRuleEvaluationResult ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggResult) const;
     TArray<FRuleEngineRegistration> GetSortedEngines() const;
 
 private:
@@ -240,7 +240,7 @@ private:
     
     /** Global rules (for coordinator-level logic) */
     UPROPERTY()
-    TArray<FSuspenseEquipmentRule> GlobalRules;
+    TArray<FEquipmentRule> GlobalRules;
 
     /** Disabled global rules */
     UPROPERTY()

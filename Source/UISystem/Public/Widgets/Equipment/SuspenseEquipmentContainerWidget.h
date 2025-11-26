@@ -19,7 +19,7 @@ class USuspenseEquipmentSlotWidget;
 class USuspenseEquipmentUIBridge;
 class USuspenseDragDropOperation;
 class USuspenseLoadoutManager;
-class ISuspenseEquipmentUIBridgeWidget;
+class ISuspenseEquipmentUIBridgeInterfaceWidget;
 
 /**
  * Equipment slot container info
@@ -352,7 +352,7 @@ private:
     bool CalculateOccupiedSlotsInContainer(const FGameplayTag& SlotType, int32 LocalIndex, FIntPoint ItemSize, TArray<int32>& OutGlobalIndices) const;
     bool IsItemTypeAllowedInSlot(const FGameplayTag& ItemType, const FGameplayTag& SlotType) const;
 
-    ISuspenseEquipmentUIBridgeWidget* GetOrCreateEquipmentBridge();
+    ISuspenseEquipmentUIBridgeInterfaceWidget* GetOrCreateEquipmentBridge();
     bool ProcessEquipmentOperationThroughBridge(const FDragDropUIData& DragData, int32 TargetSlotIndex);
 
     /** Event handlers for legacy compatibility */

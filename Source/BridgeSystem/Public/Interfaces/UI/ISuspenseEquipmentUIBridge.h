@@ -10,7 +10,7 @@
 #include "ISuspenseEquipmentUIBridge.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseEquipmentUIBridge : public UInterface
+class USuspenseEquipmentUIBridgeInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -18,14 +18,14 @@ class USuspenseEquipmentUIBridge : public UInterface
 /**
  * Interface for equipment UI bridge widget
  * Provides unified communication between equipment system and UI
- * 
+ *
  * UPDATED VERSION 3.0:
  * - Full FSuspenseInventoryItemInstance integration
  * - Uses FEquipmentSlotUIData for all slot operations
  * - Removed all legacy dependencies
  * - Unified DataTable architecture support
  */
-class BRIDGESYSTEM_API ISuspenseEquipmentUIBridge
+class BRIDGESYSTEM_API ISuspenseEquipmentUIBridgeInterface
 {
     GENERATED_BODY()
 
@@ -127,13 +127,13 @@ public:
      * @param WorldContext Any object with valid world context
      * @return Bridge instance or nullptr
      */
-    static ISuspenseEquipmentUIBridge* GetEquipmentUIBridge(const UObject* WorldContext);
+    static ISuspenseEquipmentUIBridgeInterface* GetEquipmentUIBridge(const UObject* WorldContext);
 
     /**
      * Set global bridge instance
      * @param Bridge Bridge to set
      */
-    static void SetGlobalEquipmentBridge(ISuspenseEquipmentUIBridge* Bridge);
+    static void SetGlobalEquipmentBridge(ISuspenseEquipmentUIBridgeInterface* Bridge);
 
     /**
      * Clear global bridge instance

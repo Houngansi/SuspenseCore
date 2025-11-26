@@ -264,16 +264,16 @@ void ASuspenseCharacter::Tick(float DeltaTime)
 }
 
 // ========================================
-// ISuspenseCharacter Implementation
+// ISuspenseCharacterInterface Implementation
 // ========================================
 
 UAbilitySystemComponent* ASuspenseCharacter::GetASC_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (PS->GetClass()->ImplementsInterface(USuspenseCharacter::StaticClass()))
+        if (PS->GetClass()->ImplementsInterface(USuspenseCharacterInterface::StaticClass()))
         {
-            return ISuspenseCharacter::Execute_GetASC(PS);
+            return ISuspenseCharacterInterface::Execute_GetASC(PS);
         }
     }
     return nullptr;
@@ -285,7 +285,7 @@ void ASuspenseCharacter::SetHasWeapon_Implementation(bool bInHasWeapon)
 
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
-        ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+        ISuspenseCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
     }
 }
 
@@ -298,7 +298,7 @@ void ASuspenseCharacter::SetCurrentWeaponActor_Implementation(AActor* WeaponActo
     {
         if (USuspenseEventManager* Manager = GetDelegateManager())
         {
-            ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+            ISuspenseCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
         }
     }
 }
@@ -317,7 +317,7 @@ float ASuspenseCharacter::GetCharacterLevel_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
+        if (const ISuspenseCharacterInterface* CharInterface = Cast<ISuspenseCharacterInterface>(PS))
         {
             return CharInterface->Execute_GetCharacterLevel(PS);
         }
@@ -329,7 +329,7 @@ bool ASuspenseCharacter::IsAlive_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
+        if (const ISuspenseCharacterInterface* CharInterface = Cast<ISuspenseCharacterInterface>(PS))
         {
             return CharInterface->Execute_IsAlive(PS);
         }
@@ -341,7 +341,7 @@ int32 ASuspenseCharacter::GetTeamId_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
+        if (const ISuspenseCharacterInterface* CharInterface = Cast<ISuspenseCharacterInterface>(PS))
         {
             return CharInterface->Execute_GetTeamId(PS);
         }
@@ -351,7 +351,7 @@ int32 ASuspenseCharacter::GetTeamId_Implementation() const
 
 USuspenseEventManager* ASuspenseCharacter::GetDelegateManager() const
 {
-    return ISuspenseCharacter::GetDelegateManagerStatic(this);
+    return ISuspenseCharacterInterface::GetDelegateManagerStatic(this);
 }
 
 // ========================================

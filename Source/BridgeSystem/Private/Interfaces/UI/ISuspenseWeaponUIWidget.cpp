@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseEventManager* ISuspenseWeaponUIWidget::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseEventManager* ISuspenseWeaponUIWidgetInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{

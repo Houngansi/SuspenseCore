@@ -8,14 +8,14 @@
 namespace
 {
     // Using TWeakInterfacePtr for safe weak reference
-    TWeakInterfacePtr<ISuspenseInventoryUIBridge> GInventoryUIBridge;
+    TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface> GInventoryUIBridge;
 }
 
 // =====================================================
 // Static Method Implementations
 // =====================================================
 
-ISuspenseInventoryUIBridge* ISuspenseInventoryUIBridge::GetInventoryUIBridge(const UObject* WorldContext)
+ISuspenseInventoryUIBridgeInterface* ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(const UObject* WorldContext)
 {
     // First try global bridge
     if (GInventoryUIBridge.IsValid())
@@ -38,15 +38,15 @@ ISuspenseInventoryUIBridge* ISuspenseInventoryUIBridge::GetInventoryUIBridge(con
     return nullptr;
 }
 
-TScriptInterface<ISuspenseInventoryUIBridge> ISuspenseInventoryUIBridge::GetGlobalBridge(const UObject* WorldContext)
+TScriptInterface<ISuspenseInventoryUIBridgeInterface> ISuspenseInventoryUIBridgeInterface::GetGlobalBridge(const UObject* WorldContext)
 {
-    TScriptInterface<ISuspenseInventoryUIBridge> Result;
-    
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> Result;
+
     // First check global static
     if (GInventoryUIBridge.IsValid())
     {
         UObject* BridgeObject = GInventoryUIBridge.GetObject();
-        ISuspenseInventoryUIBridge* BridgeInterface = GInventoryUIBridge.Get();
+        ISuspenseInventoryUIBridgeInterface* BridgeInterface = GInventoryUIBridge.Get();
         
         if (BridgeObject && BridgeInterface)
         {
@@ -57,7 +57,7 @@ TScriptInterface<ISuspenseInventoryUIBridge> ISuspenseInventoryUIBridge::GetGlob
     }
     
     // Fallback to raw pointer search and convert
-    ISuspenseInventoryUIBridge* RawBridge = GetInventoryUIBridge(WorldContext);
+    ISuspenseInventoryUIBridgeInterface* RawBridge = GetInventoryUIBridge(WorldContext);
     if (RawBridge)
     {
         return MakeScriptInterface(RawBridge);
@@ -66,31 +66,31 @@ TScriptInterface<ISuspenseInventoryUIBridge> ISuspenseInventoryUIBridge::GetGlob
     return Result; // Returns empty/invalid TScriptInterface
 }
 
-void ISuspenseInventoryUIBridge::SetGlobalBridge(ISuspenseInventoryUIBridge* Bridge)
+void ISuspenseInventoryUIBridgeInterface::SetGlobalBridge(ISuspenseInventoryUIBridgeInterface* Bridge)
 {
     if (Bridge)
     {
         // TWeakInterfacePtr can be constructed from raw interface pointer
-        GInventoryUIBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridge>(Bridge);
-        
-        UE_LOG(LogTemp, Log, TEXT("[ISuspenseInventoryUIBridge] Global bridge set successfully"));
+        GInventoryUIBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface>(Bridge);
+
+        UE_LOG(LogTemp, Log, TEXT("[ISuspenseInventoryUIBridgeInterface] Global bridge set successfully"));
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ISuspenseInventoryUIBridge] Attempted to set null bridge"));
+        UE_LOG(LogTemp, Warning, TEXT("[ISuspenseInventoryUIBridgeInterface] Attempted to set null bridge"));
     }
 }
 
-void ISuspenseInventoryUIBridge::ClearGlobalBridge()
+void ISuspenseInventoryUIBridgeInterface::ClearGlobalBridge()
 {
     GInventoryUIBridge.Reset();
-    UE_LOG(LogTemp, Log, TEXT("[ISuspenseInventoryUIBridge] Global bridge cleared"));
+    UE_LOG(LogTemp, Log, TEXT("[ISuspenseInventoryUIBridgeInterface] Global bridge cleared"));
 }
 
-TScriptInterface<ISuspenseInventoryUIBridge> ISuspenseInventoryUIBridge::MakeScriptInterface(ISuspenseInventoryUIBridge* RawInterface)
+TScriptInterface<ISuspenseInventoryUIBridgeInterface> ISuspenseInventoryUIBridgeInterface::MakeScriptInterface(ISuspenseInventoryUIBridgeInterface* RawInterface)
 {
-    TScriptInterface<ISuspenseInventoryUIBridge> Result;
-    
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> Result;
+
     if (RawInterface)
     {
         // Get the UObject that implements this interface
@@ -104,9 +104,9 @@ TScriptInterface<ISuspenseInventoryUIBridge> ISuspenseInventoryUIBridge::MakeScr
         {
             // This shouldn't happen in normal circumstances
             // but we handle it for safety
-            UE_LOG(LogTemp, Error, TEXT("[ISuspenseInventoryUIBridge] Failed to cast interface to UObject"));
+            UE_LOG(LogTemp, Error, TEXT("[ISuspenseInventoryUIBridgeInterface] Failed to cast interface to UObject"));
         }
     }
-    
+
     return Result;
 }

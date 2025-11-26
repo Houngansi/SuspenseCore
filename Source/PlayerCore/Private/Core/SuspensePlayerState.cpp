@@ -385,7 +385,7 @@ void ASuspensePlayerState::SetHasWeapon_Implementation(bool bNewHasWeapon)
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         AActor* WeaponActor = bHasWeapon ? CurrentWeaponActor : nullptr;
-        ISuspenseCharacter::BroadcastWeaponChanged(this, WeaponActor, bHasWeapon);
+        ISuspenseCharacterInterface::BroadcastWeaponChanged(this, WeaponActor, bHasWeapon);
     }
 }
 
@@ -397,7 +397,7 @@ void ASuspensePlayerState::SetCurrentWeaponActor_Implementation(AActor* WeaponAc
     {
         if (USuspenseEventManager* Manager = GetDelegateManager())
         {
-            ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+            ISuspenseCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
         }
     }
 }

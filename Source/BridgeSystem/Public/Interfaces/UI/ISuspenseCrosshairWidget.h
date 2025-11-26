@@ -10,7 +10,7 @@
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCrosshairWidget : public UInterface
+class USuspenseCrosshairWidgetInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -19,7 +19,7 @@ class USuspenseCrosshairWidget : public UInterface
  * Interface for crosshair widgets
  * Provides standardized methods for dynamic crosshair updates
  */
-class BRIDGESYSTEM_API ISuspenseCrosshairWidget
+class BRIDGESYSTEM_API ISuspenseCrosshairWidgetInterface
 {
     GENERATED_BODY()
 

@@ -68,7 +68,7 @@ UCLASS()
 class SUSPENSECORE_API ASuspensePlayerState
     : public APlayerState
     , public IAbilitySystemInterface
-    , public ISuspenseCharacter
+    , public ISuspenseCharacterInterface
     , public ISuspenseAttributeProvider
     , public ISuspenseLoadout
 {
@@ -93,9 +93,9 @@ public:
     virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
     //========================================
-    // ISuspenseCharacter
+    // ISuspenseCharacterInterface
     //========================================
-    
+
     virtual UAbilitySystemComponent* GetASC_Implementation() const override;
     virtual void SetHasWeapon_Implementation(bool bHasWeapon) override;
     virtual void SetCurrentWeaponActor_Implementation(AActor* WeaponActor) override;

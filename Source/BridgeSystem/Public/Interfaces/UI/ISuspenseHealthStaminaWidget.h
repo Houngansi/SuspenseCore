@@ -11,7 +11,7 @@ class UAbilitySystemComponent;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseHealthStaminaWidget : public UInterface
+class USuspenseHealthStaminaWidgetInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -20,7 +20,7 @@ class USuspenseHealthStaminaWidget : public UInterface
  * Interface for health and stamina display widgets
  * Provides standardized methods for updating character vitals
  */
-class BRIDGESYSTEM_API ISuspenseHealthStaminaWidget
+class BRIDGESYSTEM_API ISuspenseHealthStaminaWidgetInterface
 {
     GENERATED_BODY()
 

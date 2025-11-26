@@ -10,6 +10,8 @@ public class InteractionSystem : ModuleRules
             new string[]
             {
                 "Core",
+                "Niagara",
+                "GameplayAbilities"
             }
         );
 

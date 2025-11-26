@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SuspenseEquipmentComponentBase.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseEquipmentAttachmentComponent.generated.h"
@@ -24,23 +24,23 @@ USTRUCT()
 struct FAttachmentAnimationState
 {
     GENERATED_BODY()
-    
+
     /** Current animation montage being played */
     UPROPERTY()
     UAnimMontage* CurrentMontage = nullptr;
-    
+
     /** Animation play rate */
     UPROPERTY()
     float PlayRate = 1.0f;
-    
+
     /** Is animation playing */
     UPROPERTY()
     bool bIsPlaying = false;
-    
+
     /** Animation start time */
     UPROPERTY()
     float StartTime = 0.0f;
-    
+
     FAttachmentAnimationState() = default;
 };
 
@@ -51,39 +51,39 @@ USTRUCT()
 struct FAttachmentPredictionData
 {
     GENERATED_BODY()
-    
+
     /** Unique prediction key */
     UPROPERTY()
     int32 PredictionKey = 0;
-    
+
     /** Predicted attachment state */
     UPROPERTY()
     bool bPredictedAttached = false;
-    
+
     /** Predicted socket name */
     UPROPERTY()
     FName PredictedSocketName = NAME_None;
-    
+
     /** Predicted transform offset */
     UPROPERTY()
     FTransform PredictedOffset = FTransform::Identity;
-    
+
     /** Target character for attachment */
     UPROPERTY()
     TWeakObjectPtr<AActor> PredictedCharacter;
-    
+
     /** Whether attachment is in active state */
     UPROPERTY()
     bool bPredictedActive = false;
-    
+
     /** Weapon type for animation lookup */
     UPROPERTY()
     FGameplayTag WeaponTypeTag;
-    
+
     /** Time when prediction was made */
     UPROPERTY()
     float PredictionTime = 0.0f;
-    
+
     FAttachmentPredictionData() = default;
 };
 
@@ -94,28 +94,28 @@ USTRUCT()
 struct FSocketSearchResult
 {
     GENERATED_BODY()
-    
+
     /** Socket name found */
     UPROPERTY()
     FName SocketName = NAME_None;
-    
+
     /** Quality score (higher is better) */
     UPROPERTY()
     int32 QualityScore = 0;
-    
+
     /** Whether socket exists on mesh */
     UPROPERTY()
     bool bSocketExists = false;
-    
+
     FSocketSearchResult() = default;
-    
+
     FSocketSearchResult(const FName& InSocketName, int32 InScore, bool bExists)
         : SocketName(InSocketName), QualityScore(InScore), bSocketExists(bExists) {}
 };
 
 /**
  * Component that handles equipment attachment to characters with animation support
- * 
+ *
  * ARCHITECTURE:
  * - Integrates with StanceComponent for weapon pose management
  * - Uses AnimationInterface for accessing animation data
@@ -155,7 +155,7 @@ public:
     //==================================================================
     // Core Attachment Methods
     //==================================================================
-    
+
     /**
      * Attach equipment to character using item data
      * CRITICAL: bUseActiveSocket parameter determines which socket to use (active vs unequipped)
@@ -186,7 +186,7 @@ public:
     //==================================================================
     // Animation Integration
     //==================================================================
-    
+
     /**
      * Play attachment transition animation
      * @param bToActive Transitioning to active state
@@ -194,14 +194,14 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Animation")
     void PlayAttachmentAnimation(bool bToActive, float Duration = 0.0f);
-    
+
     /**
      * Get animation interface for current weapon
      * @return Animation interface or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Animation")
     TScriptInterface<ISuspenseWeaponAnimation> GetAnimationInterface() const;
-    
+
     /**
      * Handle animation completion
      */
@@ -211,21 +211,21 @@ public:
     //==================================================================
     // Stance Integration
     //==================================================================
-    
+
     /**
      * Link to stance component for coordinated updates
      * @param StanceComponent Stance component to link
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Stance")
     void LinkStanceComponent(USuspenseWeaponStanceComponent* StanceComponent);
-    
+
     /**
      * Notify stance component of attachment state change
      * @param bAttached New attachment state
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Stance")
     void NotifyStanceOfAttachment(bool bAttached);
-    
+
     /**
      * Get current weapon type tag
      * @return Weapon type gameplay tag
@@ -236,7 +236,7 @@ public:
     //==================================================================
     // State Queries
     //==================================================================
-    
+
     /**
      * Get attachment socket name from item data
      * @param bActive Whether to get active or inactive socket
@@ -266,7 +266,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment")
     bool IsAttachedActive() const { return bIsAttached && bIsInActiveState; }
-    
+
     /**
      * Check if currently transitioning between states
      * @return True if animation is playing
@@ -291,7 +291,7 @@ public:
     //==================================================================
     // Client Prediction Methods
     //==================================================================
-    
+
     /**
      * Start client prediction for attachment
      * @param Character Character to attach to
@@ -302,7 +302,7 @@ public:
      * @return Prediction key
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment|Prediction")
-    int32 PredictAttachment(AActor* Character, bool bUseActiveSocket, const FName& SocketName, 
+    int32 PredictAttachment(AActor* Character, bool bUseActiveSocket, const FName& SocketName,
                            const FTransform& Offset, const FGameplayTag& WeaponType);
 
     /**
@@ -311,7 +311,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment|Prediction")
     int32 PredictDetachment();
-    
+
     /**
      * Confirm attachment prediction
      * @param PredictionKey Key from prediction
@@ -323,7 +323,7 @@ public:
     //==================================================================
     // Socket Management
     //==================================================================
-    
+
     /**
      * Get all valid sockets for item type
      * @param ItemData Item data for socket preferences
@@ -331,7 +331,7 @@ public:
      * @return Array of valid sockets with scores
      */
     TArray<FSocketSearchResult> GetValidSocketsForItem(const FSuspenseUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const;
-    
+
     /**
      * Validate socket exists and is appropriate
      * @param SocketName Socket to validate
@@ -388,7 +388,7 @@ protected:
      * @param SocketName Socket to attach to
      * @param AttachmentOffset Additional offset
      */
-    void ApplyAttachment(USceneComponent* ComponentToAttach, USceneComponent* TargetComponent, 
+    void ApplyAttachment(USceneComponent* ComponentToAttach, USceneComponent* TargetComponent,
                         const FName& SocketName, const FTransform& AttachmentOffset);
 
     /**
@@ -410,30 +410,30 @@ protected:
      * Update attachment state for replication
      */
     void UpdateReplicatedAttachmentState();
-    
+
     /**
      * Apply predicted attachment locally
      * @param Prediction Prediction data to apply
      */
     void ApplyPredictedAttachment(const FAttachmentPredictionData& Prediction);
-    
+
     /**
      * Revert predicted attachment
      * @param Prediction Prediction data to revert
      */
     void RevertPredictedAttachment(const FAttachmentPredictionData& Prediction);
-    
+
     /**
      * Clean up expired predictions
      */
     void CleanupExpiredPredictions();
-    
+
     /**
      * Update animation state
      * @param DeltaTime Frame time
      */
     void UpdateAnimationState(float DeltaTime);
-    
+
     /**
      * Get weapon type from item data
      * @return Weapon archetype tag
@@ -443,20 +443,20 @@ protected:
     //==================================================================
     // Replication Callbacks
     //==================================================================
-    
+
     UFUNCTION()
     void OnRep_AttachmentState();
-    
+
     UFUNCTION()
     void OnRep_SpawnedEquipmentActor();
-    
+
     UFUNCTION()
     void OnRep_AnimationState();
 
     //==================================================================
     // Network RPCs
     //==================================================================
-    
+
     /**
      * Server RPC for attachment request with animation support
      * @param Character Character to attach to
@@ -467,9 +467,9 @@ protected:
      * @param PredictionKey Client prediction key
      */
     UFUNCTION(Server, Reliable, WithValidation)
-    void ServerRequestAttachment(AActor* Character, bool bUseActiveSocket, FName RequestedSocket, 
+    void ServerRequestAttachment(AActor* Character, bool bUseActiveSocket, FName RequestedSocket,
                                 FTransform RequestedOffset, FGameplayTag WeaponType, int32 PredictionKey);
-    
+
     /**
      * Server RPC for detachment request
      * @param bMaintainTransform Whether to maintain world transform
@@ -477,7 +477,7 @@ protected:
      */
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerRequestDetachment(bool bMaintainTransform, int32 PredictionKey);
-    
+
     /**
      * Client RPC for attachment confirmation
      * @param PredictionKey Prediction to confirm
@@ -498,7 +498,7 @@ protected:
      * @param bAnimated Play animation
      */
     UFUNCTION(NetMulticast, Reliable)
-    void MulticastAttachment(AActor* Actor, USceneComponent* Parent, FName Socket, 
+    void MulticastAttachment(AActor* Actor, USceneComponent* Parent, FName Socket,
                            FTransform Offset, FGameplayTag WeaponType, bool bAnimated);
 
     /**
@@ -537,7 +537,7 @@ private:
     /** Current attachment offset */
     UPROPERTY(ReplicatedUsing=OnRep_AttachmentState)
     FTransform CurrentAttachmentOffset;
-    
+
     /** Current weapon type for animations */
     UPROPERTY(ReplicatedUsing=OnRep_AttachmentState)
     FGameplayTag CurrentWeaponType;
@@ -557,28 +557,28 @@ private:
     //==================================================================
     // Animation State
     //==================================================================
-    
+
     /** Current animation state */
     UPROPERTY(ReplicatedUsing=OnRep_AnimationState)
     FAttachmentAnimationState AnimationState;
-    
+
     /** Timer handle for animation completion */
     FTimerHandle AnimationCompletionTimer;
-    
+
     /** Cached animation interface */
     mutable TScriptInterface<ISuspenseWeaponAnimation> CachedAnimationInterface;
-    
+
     /** Last animation interface cache time */
     mutable float LastAnimationInterfaceCacheTime;
 
     //==================================================================
     // Stance Integration
     //==================================================================
-    
+
     /** Linked stance component */
     UPROPERTY()
     TWeakObjectPtr<USuspenseWeaponStanceComponent> LinkedStanceComponent;
-    
+
     /** Auto-find stance component on begin play */
     UPROPERTY(EditDefaultsOnly, Category = "Equipment|Stance")
     bool bAutoLinkStanceComponent = true;
@@ -586,7 +586,7 @@ private:
     //==================================================================
     // Client Prediction State
     //==================================================================
-    
+
     /** Active attachment predictions specific to this component */
     UPROPERTY()
     TArray<FAttachmentPredictionData> AttachmentPredictions;
@@ -594,7 +594,7 @@ private:
     /** Next prediction key for attachments */
     UPROPERTY()
     int32 NextAttachmentPredictionKey;
- 
+
     /** Last confirmed attachment state */
     UPROPERTY()
     FAttachmentPredictionData LastConfirmedState;
@@ -602,19 +602,19 @@ private:
     //==================================================================
     // Performance Optimization
     //==================================================================
-    
+
     /** Socket cache for performance */
     mutable TMap<FString, FSocketSearchResult> SocketCache;
-    
+
     /** Last socket cache update time */
     mutable float LastSocketCacheTime;
-    
+
     /** Socket cache lifetime */
     static constexpr float SocketCacheLifetime = 5.0f;
-    
+
     /** Animation interface cache lifetime */
     static constexpr float AnimationInterfaceCacheLifetime = 1.0f;
-    
+
     /** Critical section for thread-safe socket operations */
     mutable FCriticalSection SocketCacheCriticalSection;
 

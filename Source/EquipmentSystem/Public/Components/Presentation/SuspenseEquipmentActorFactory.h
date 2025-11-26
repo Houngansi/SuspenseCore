@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"
-#include "Core/Utils/FEquipmentCacheManager.h"
-#include "Core/Utils/FEquipmentThreadGuard.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/StreamableManager.h"
 #include "SuspenseEquipmentActorFactory.generated.h"
@@ -19,19 +19,19 @@ USTRUCT()
 struct FActorPoolEntry
 {
     GENERATED_BODY()
-    
+
     UPROPERTY()
     AActor* Actor = nullptr;
-    
+
     UPROPERTY()
     TSubclassOf<AActor> ActorClass;
-    
+
     UPROPERTY()
     bool bInUse = false;
-    
+
     UPROPERTY()
     float LastUsedTime = 0.0f;
-    
+
     UPROPERTY()
     FName ItemId;
 };
@@ -43,23 +43,23 @@ USTRUCT(BlueprintType)
 struct FActorFactoryConfig
 {
     GENERATED_BODY()
-    
+
     /** Maximum actors in pool per class */
     UPROPERTY(EditAnywhere, Category = "Pool")
     int32 MaxPoolSizePerClass = 5;
-    
+
     /** Pool cleanup interval in seconds */
     UPROPERTY(EditAnywhere, Category = "Pool")
     float PoolCleanupInterval = 30.0f;
-    
+
     /** Actor idle time before cleanup */
     UPROPERTY(EditAnywhere, Category = "Pool")
     float ActorIdleTimeout = 60.0f;
-    
+
     /** Enable async loading of actor classes */
     UPROPERTY(EditAnywhere, Category = "Loading")
     bool bEnableAsyncLoading = true;
-    
+
     /** Preload priority classes */
     UPROPERTY(EditAnywhere, Category = "Loading")
     TArray<FName> PriorityPreloadItems;
@@ -67,11 +67,11 @@ struct FActorFactoryConfig
 
 /**
  * Equipment Actor Factory Component
- * 
+ *
  * Pure factory pattern implementation for equipment actors.
  * Responsible ONLY for creation, configuration, and lifecycle management.
  * Uses object pooling and caching for performance optimization.
- * 
+ *
  * Key principles:
  * - Single Responsibility: Only handles actor creation and pooling
  * - No attachment logic, no visual effects, no slot management

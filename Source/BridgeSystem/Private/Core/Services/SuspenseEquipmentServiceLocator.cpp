@@ -75,7 +75,7 @@ bool USuspenseEquipmentServiceLocator::RegisterServiceClassWithInjection(const F
     }
 
     // Class must implement UEquipmentService interface
-    if (!ServiceClass->ImplementsInterface(UEquipmentService::StaticClass()))
+    if (!ServiceClass->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
         UE_LOG(LogServiceLocator, Error, TEXT("RegisterServiceClass: %s does not implement UEquipmentService"),
             *ServiceClass->GetName());
@@ -118,7 +118,7 @@ bool USuspenseEquipmentServiceLocator::RegisterServiceInstance(const FGameplayTa
         return false;
     }
 
-    if (!ServiceInstance->GetClass()->ImplementsInterface(UEquipmentService::StaticClass()))
+    if (!ServiceInstance->GetClass()->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
         UE_LOG(LogServiceLocator, Error, TEXT("RegisterServiceInstance: %s does not implement UEquipmentService"),
             *ServiceInstance->GetName());
@@ -467,9 +467,9 @@ bool USuspenseEquipmentServiceLocator::InitializeService(FServiceRegistration& R
         }
         ++TotalCreated;
     }
-    
+
     Reg.InitParams.ServiceLocator = this;
-    
+
     // 3) Dependency Injection strictly via callback (no cross-module symbols here)
     if (!InjectServiceDependencies(Reg))
     {
@@ -483,7 +483,7 @@ bool USuspenseEquipmentServiceLocator::InitializeService(FServiceRegistration& R
 
     // 4) Call service initialization
     if (ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(
-               Reg.ServiceInstance->GetInterfaceAddress(UEquipmentService::StaticClass())))
+               Reg.ServiceInstance->GetInterfaceAddress(USuspenseEquipmentService::StaticClass())))
     {
         Reg.State = EServiceLifecycleState::Initializing;
 
@@ -531,9 +531,9 @@ bool USuspenseEquipmentServiceLocator::InjectServiceDependencies(FServiceRegistr
     }
 
     UE_LOG(LogServiceLocator, Verbose, TEXT("InjectServiceDependencies: %s"), *Reg.ServiceTag.ToString());
-    
+
     Reg.InjectionCallback.Execute(Reg.ServiceInstance, this);
-    
+
     return true;
 }
 
@@ -554,9 +554,9 @@ bool USuspenseEquipmentServiceLocator::ShutdownService(FServiceRegistration& Reg
     Reg.State = EServiceLifecycleState::Shutting;
 
     if (Reg.ServiceInstance &&
-        Reg.ServiceInstance->GetClass()->ImplementsInterface(UEquipmentService::StaticClass()))
+        Reg.ServiceInstance->GetClass()->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
-        ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(Reg.ServiceInstance->GetInterfaceAddress(UEquipmentService::StaticClass()));
+        ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(Reg.ServiceInstance->GetInterfaceAddress(USuspenseEquipmentService::StaticClass()));
         Svc->ShutdownService(bForce);
     }
 
@@ -603,14 +603,14 @@ FGameplayTagContainer USuspenseEquipmentServiceLocator::GetRequiredDeps_NoLock(c
     // Base: take deps from registration params
     FGameplayTagContainer Deps = Reg.InitParams.RequiredServices;
 
-    if (Reg.ServiceClass && Reg.ServiceClass->ImplementsInterface(UEquipmentService::StaticClass()))
+    if (Reg.ServiceClass && Reg.ServiceClass->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
         // IMPORTANT: GetDefaultObject() as UObject* (non-const) to call GetInterfaceAddress(...)
         UObject* CDO = Reg.ServiceClass->GetDefaultObject();
         if (CDO)
         {
             ISuspenseEquipmentService* Iface =
-                static_cast<ISuspenseEquipmentService*>(CDO->GetInterfaceAddress(UEquipmentService::StaticClass()));
+                static_cast<ISuspenseEquipmentService*>(CDO->GetInterfaceAddress(USuspenseEquipmentService::StaticClass()));
             if (Iface)
             {
                 const FGameplayTagContainer Declared = Iface->GetRequiredDependencies();
@@ -739,7 +739,7 @@ bool USuspenseEquipmentServiceLocator::ValidateServiceInstance(const UObject* Se
     }
 
     const UClass* Cls = ServiceInstance->GetClass();
-    if (!Cls || !Cls->ImplementsInterface(UEquipmentService::StaticClass()))
+    if (!Cls || !Cls->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
         return false;
     }

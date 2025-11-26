@@ -8,7 +8,7 @@
 
 #include "Interfaces/Equipment/ISuspenseLoadoutAdapter.h"
 #include "Interfaces/Core/ISuspenseLoadout.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 
 class ISuspenseEquipmentDataProvider;
 class ISuspenseEquipmentOperations;

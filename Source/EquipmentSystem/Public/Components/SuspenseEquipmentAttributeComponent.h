@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SuspenseEquipmentComponentBase.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "AttributeSet.h"
 #include "SuspenseEquipmentAttributeComponent.generated.h"
@@ -23,19 +23,19 @@ USTRUCT()
 struct FReplicatedAttributeData
 {
     GENERATED_BODY()
-    
+
     /** Attribute name for identification */
     UPROPERTY()
     FString AttributeName;
-    
+
     /** Base value of the attribute */
     UPROPERTY()
     float BaseValue;
-    
+
     /** Current value of the attribute */
     UPROPERTY()
     float CurrentValue;
-    
+
     FReplicatedAttributeData()
     {
         AttributeName = "";
@@ -51,27 +51,27 @@ USTRUCT()
 struct FAttributePredictionData
 {
     GENERATED_BODY()
-    
+
     /** Unique prediction key */
     UPROPERTY()
     int32 PredictionKey;
-    
+
     /** Attribute being predicted */
     UPROPERTY()
     FString AttributeName;
-    
+
     /** Predicted value */
     UPROPERTY()
     float PredictedValue;
-    
+
     /** Original value before prediction */
     UPROPERTY()
     float OriginalValue;
-    
+
     /** Time when prediction was made */
     UPROPERTY()
     float PredictionTime;
-    
+
     FAttributePredictionData()
     {
         PredictionKey = 0;
@@ -84,7 +84,7 @@ struct FAttributePredictionData
 
 /**
  * Component that manages equipment attributes through GAS
- * 
+ *
  * VERSION 6.0 - FULL DATATABLE INTEGRATION:
  * - Creates AttributeSets from DataTable configuration
  * - Applies initialization GameplayEffects automatically
@@ -166,7 +166,7 @@ public:
     //================================================
     // Client Prediction Methods
     //================================================
-    
+
     /**
      * Predict attribute change on client
      * @param AttributeName Name of attribute to change
@@ -175,7 +175,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes|Prediction")
     int32 PredictAttributeChange(const FString& AttributeName, float NewValue);
-    
+
     /**
      * Confirm or reject attribute prediction
      * @param PredictionKey Key from PredictAttributeChange
@@ -184,7 +184,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes|Prediction")
     void ConfirmAttributePrediction(int32 PredictionKey, bool bSuccess, float ActualValue);
-    
+
     /**
      * Get current attribute value (with prediction)
      * @param AttributeName Name of attribute
@@ -193,7 +193,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes")
     bool GetAttributeValue(const FString& AttributeName, float& OutValue) const;
-    
+
     /**
      * Set attribute value (with replication)
      * @param AttributeName Name of attribute
@@ -206,14 +206,14 @@ public:
     //================================================
     // Attribute Query Methods
     //================================================
-    
+
     /**
      * Get all current attribute values
      * @return Map of attribute names to current values
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes")
     TMap<FString, float> GetAllAttributeValues() const;
-    
+
     /**
      * Check if attribute exists
      * @param AttributeName Name of attribute to check
@@ -221,7 +221,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes")
     bool HasAttribute(const FString& AttributeName) const;
-    
+
     /**
      * Get attribute by gameplay tag
      * @param AttributeTag Tag identifying the attribute
@@ -284,12 +284,12 @@ protected:
      * Collect all attributes for replication
      */
     void CollectReplicatedAttributes();
-    
+
     /**
      * Apply replicated attributes to local attribute sets
      */
     void ApplyReplicatedAttributes();
-    
+
     /**
      * Find attribute property by name
      * @param AttributeSet Set to search in
@@ -297,7 +297,7 @@ protected:
      * @return Property or nullptr
      */
     FProperty* FindAttributeProperty(UAttributeSet* AttributeSet, const FString& AttributeName) const;
-    
+
     /**
      * Get attribute value from property via reflection
      * @param AttributeSet Set containing the attribute
@@ -305,7 +305,7 @@ protected:
      * @return Current value
      */
     float GetAttributeValueFromProperty(UAttributeSet* AttributeSet, FProperty* Property) const;
-    
+
     /**
      * Set attribute value to property via reflection
      * @param AttributeSet Set containing the attribute
@@ -325,23 +325,23 @@ protected:
     //================================================
     // Replication Callbacks
     //================================================
-    
+
     UFUNCTION()
     void OnRep_ReplicatedAttributes();
-    
+
     UFUNCTION()
     void OnRep_AttributeSetClasses();
 
     //================================================
     // Server RPCs
     //================================================
-    
+
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerSetAttributeValue(const FString& AttributeName, float NewValue);
-    
+
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerApplyItemEffects(const FName& ItemID);
-    
+
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerRemoveItemEffects();
 
@@ -381,15 +381,15 @@ private:
     //================================================
     // Replication State
     //================================================
-    
+
     /** Replicated attribute values for client synchronization */
     UPROPERTY(ReplicatedUsing=OnRep_ReplicatedAttributes)
     TArray<FReplicatedAttributeData> ReplicatedAttributes;
-    
+
     /** Classes of attribute sets for client spawning */
     UPROPERTY(ReplicatedUsing=OnRep_AttributeSetClasses)
     TArray<TSubclassOf<UAttributeSet>> ReplicatedAttributeSetClasses;
-    
+
     /** Version counter for forcing updates */
     UPROPERTY(Replicated)
     uint8 AttributeReplicationVersion;
@@ -397,18 +397,18 @@ private:
     //================================================
     // Client Prediction State
     //================================================
-    
+
     /** Active attribute predictions */
     UPROPERTY()
     TArray<FAttributePredictionData> ActiveAttributePredictions;
-    
+
     /** Counter for prediction keys */
     UPROPERTY()
     int32 NextAttributePredictionKey;
-    
+
     /** Map for quick attribute lookup */
     mutable TMap<FString, TPair<UAttributeSet*, FProperty*>> AttributePropertyCache;
-    
+
     /** Critical section for thread safety */
     mutable FCriticalSection AttributeCacheCriticalSection;
 };

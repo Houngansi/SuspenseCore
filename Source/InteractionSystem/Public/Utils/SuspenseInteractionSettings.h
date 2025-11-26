@@ -11,7 +11,7 @@
  * Позволяет задать параметры трассировки и другие опции
  */
 UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Suspense Interaction Settings"))
-class SUSPENSEINTERACTION_API USuspenseInteractionSettings : public UDeveloperSettings
+class INTERACTIONSYSTEM_API USuspenseInteractionSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

@@ -9,10 +9,10 @@
 
 // Fundamental: service interface + base utilities
 #include "Interfaces/Equipment/IEquipmentService.h"
-#include "Core/Utils/FEquipmentEventBus.h"
-#include "Core/Utils/FSuspenseEquipmentThreadGuard.h"
-#include "Core/Utils/FEquipmentCacheManager.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 
 // Presentation layer interfaces
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"
@@ -21,9 +21,9 @@
 #include "Services/SuspenseEquipmentServiceMacros.h"
 
 // Item / visualization types (lightweight dependencies)
-#include "Types/Equipment/EquipmentTypes.h"
-#include "Types/Equipment/EquipmentVisualizationTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentVisualizationTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 
 #include "SuspenseEquipmentVisualizationService.generated.h"
 
@@ -81,7 +81,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UEquipmentServiceLocator> CachedServiceLocator;
-	
+
 	// Lightweight state
 	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FVisCharState> Characters;
 	mutable FCriticalSection VisualLock;
@@ -111,10 +111,10 @@ private:
 	void TeardownEventHandlers();
 
 	// Event handlers
-	void OnEquipped(const FEquipmentEventData& E);
-	void OnUnequipped(const FEquipmentEventData& E);
-	void OnSlotSwitched(const FEquipmentEventData& E);
-	void OnRefreshAll(const FEquipmentEventData& E);
+	void OnEquipped(const FSuspenseEquipmentEventData& E);
+	void OnUnequipped(const FSuspenseEquipmentEventData& E);
+	void OnSlotSwitched(const FSuspenseEquipmentEventData& E);
+	void OnRefreshAll(const FSuspenseEquipmentEventData& E);
 
 	// High-level operations
 	void UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant);
@@ -137,6 +137,6 @@ private:
 	FTransform          ResolveAttachOffset(AActor* Character, const FName ItemID, int32 SlotIndex) const;
 
 	// Event metadata parsing
-	static bool  TryParseInt(const FEquipmentEventData& E, const TCHAR* Key, int32& OutValue);
-	static FName ParseName(const FEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue = NAME_None);
+	static bool  TryParseInt(const FSuspenseEquipmentEventData& E, const TCHAR* Key, int32& OutValue);
+	static FName ParseName(const FSuspenseEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue = NAME_None);
 };

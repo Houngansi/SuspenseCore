@@ -8,9 +8,9 @@
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseSlotValidator.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
-#include "Types/Loadout/LoadoutSettings.h" // For updated ESuspenseEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
 #include "GameplayTagContainer.h"
 #include <atomic>
 #include "SuspenseEquipmentOperationExecutor.generated.h"
@@ -287,21 +287,21 @@ public:
 	// =====================================================
 	// Pre-Validation API (для Bridge и внешних систем)
 	// =====================================================
-	
+
 	/**
 	 * Check if item can be equipped to specific slot WITHOUT executing operation.
 	 * Used by Bridge for pre-validation before removing item from inventory.
-	 * 
+	 *
 	 * This is a pure validation method with NO side effects - safe to call
 	 * multiple times and from any context.
-	 * 
+	 *
 	 * @param ItemInstance The item to validate
 	 * @param TargetSlotIndex The slot to validate against
 	 * @return Validation result with detailed error info if incompatible
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Validation")
 	FSlotValidationResult CanEquipItemToSlot(
-		const FSuspenseInventoryItemInstance& ItemInstance, 
+		const FSuspenseInventoryItemInstance& ItemInstance,
 		int32 TargetSlotIndex) const;
 
 protected:

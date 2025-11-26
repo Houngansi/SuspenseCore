@@ -27,7 +27,7 @@ class UEventDelegateManager;
  * - Supports focus tracking for enhanced UI feedback
  */
 UCLASS(ClassGroup = (Suspense), meta = (BlueprintSpawnableComponent))
-class SUSPENSEINTERACTION_API USuspenseInteractionComponent : public UActorComponent
+class INTERACTIONSYSTEM_API USuspenseInteractionComponent : public UActorComponent
 {
     GENERATED_BODY()
 

@@ -7,7 +7,7 @@
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseEquipmentAbilityConnector.generated.h"
 
 class UAbilitySystemComponent;

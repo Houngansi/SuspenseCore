@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Interfaces/Weapon/ISuspenseFireModeProvider.h"
-#include "Types/Weapon/FInventoryAmmoState.h"
+#include "Types/Weapon/SuspenseInventoryAmmoState.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseWeaponActor.generated.h"
 
@@ -90,8 +90,8 @@ public:
     virtual float GetCurrentAmmo_Implementation() const override;
     virtual float GetRemainingAmmo_Implementation() const override;
     virtual float GetMagazineSize_Implementation() const override;
-    virtual FInventoryAmmoState GetAmmoState_Implementation() const override;
-    virtual void SetAmmoState_Implementation(const FInventoryAmmoState& NewState) override;
+    virtual FSuspenseInventoryAmmoState GetAmmoState_Implementation() const override;
+    virtual void SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState) override;
     virtual bool CanReload_Implementation() const override;
     virtual bool IsMagazineFull_Implementation() const override;
 

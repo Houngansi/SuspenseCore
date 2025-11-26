@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseEquipmentMeshComponent.generated.h"
@@ -23,37 +23,37 @@ USTRUCT()
 struct FEquipmentVisualState
 {
     GENERATED_BODY()
-    
+
     /** Current condition visual (0-1) */
     UPROPERTY()
     float ConditionPercent = 1.0f;
-    
+
     /** Current rarity glow intensity */
     UPROPERTY()
     float RarityGlowIntensity = 0.0f;
-    
+
     /** Rarity color */
     UPROPERTY()
     FLinearColor RarityColor = FLinearColor::White;
-    
+
     /** Active visual effects tags */
     UPROPERTY()
     FGameplayTagContainer ActiveEffects;
-    
+
     /** Custom material parameters */
     UPROPERTY()
     TMap<FName, float> MaterialScalarParams;
-    
+
     /** Custom material colors */
     UPROPERTY()
     TMap<FName, FLinearColor> MaterialVectorParams;
-    
+
     /** State version for change detection */
     UPROPERTY()
     uint8 StateVersion = 0;
-    
+
     FEquipmentVisualState() = default;
-    
+
     bool operator==(const FEquipmentVisualState& Other) const
     {
         return ConditionPercent == Other.ConditionPercent &&
@@ -61,7 +61,7 @@ struct FEquipmentVisualState
                RarityColor == Other.RarityColor &&
                ActiveEffects == Other.ActiveEffects;
     }
-    
+
     bool operator!=(const FEquipmentVisualState& Other) const
     {
         return !(*this == Other);
@@ -75,33 +75,33 @@ USTRUCT()
 struct FVisualEffectPrediction
 {
     GENERATED_BODY()
-    
+
     /** Unique prediction key */
     UPROPERTY()
     int32 PredictionKey = 0;
-    
+
     /** Effect type being predicted */
     UPROPERTY()
     FGameplayTag EffectType;
-    
+
     /** Time when effect started */
     UPROPERTY()
     float StartTime = 0.0f;
-    
+
     /** Expected duration */
     UPROPERTY()
     float Duration = 0.0f;
-    
+
     /** Component playing the effect */
     UPROPERTY()
     TWeakObjectPtr<USceneComponent> EffectComponent;
-    
+
     FVisualEffectPrediction() = default;
 };
 
 /**
  * Specialized mesh component for equipment visualization
- * 
+ *
  * ENHANCED VERSION:
  * - Visual state synchronization through parent component
  * - Client prediction for effects and material changes
@@ -145,7 +145,7 @@ public:
     //================================================
     // Visual State Synchronization
     //================================================
-    
+
  /**
   * Get current visual state for synchronization
   * NOTE: Not Blueprint-callable due to TMap in FEquipmentVisualState
@@ -338,13 +338,13 @@ public:
     //================================================
     // State Notification
     //================================================
-    
+
     /**
      * Notify parent component of visual state change
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Visual")
     void NotifyVisualStateChanged();
-    
+
     /**
      * Request visual state synchronization
      */
@@ -408,13 +408,13 @@ protected:
      * Clean up expired effect predictions
      */
     void CleanupExpiredPredictions();
-    
+
     /**
      * Apply predicted effect locally
      * @param Prediction Effect prediction data
      */
     void ApplyPredictedEffect(const FVisualEffectPrediction& Prediction);
-    
+
     /**
      * Stop predicted effect
      * @param Prediction Effect prediction data
@@ -480,18 +480,18 @@ private:
     //================================================
     // Effect Prediction
     //================================================
-    
+
     /** Active effect predictions */
     UPROPERTY()
     TArray<FVisualEffectPrediction> ActivePredictions;
-    
+
     /** Next prediction key */
     UPROPERTY()
     int32 NextPredictionKey;
-    
+
     /** Maximum effect components to pool */
     static constexpr int32 MaxPooledEffects = 10;
-    
+
     /** Pooled effect components for reuse */
     UPROPERTY()
     TArray<UNiagaraComponent*> PooledEffectComponents;

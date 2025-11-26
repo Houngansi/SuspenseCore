@@ -10,6 +10,7 @@ public class PlayerCore : ModuleRules
             new string[]
             {
                 "Core",
+                "CinematicCamera"
             }
         );
 

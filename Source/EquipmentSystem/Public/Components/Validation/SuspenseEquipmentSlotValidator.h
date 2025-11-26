@@ -9,13 +9,13 @@
 #include "Templates/SharedPointer.h"
 
 // Единый источник макросов и лог-категорий проекта
-#include "Services/EquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 
 #include "Interfaces/Equipment/ISuspenseSlotValidator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 
 #include "SuspenseEquipmentSlotValidator.generated.h"
 

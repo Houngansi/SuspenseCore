@@ -6,7 +6,7 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseWeightRulesEngine.generated.h"
 
 /**
@@ -117,9 +117,9 @@ public:
     void ClearCache();
 
     /** Reset internal statistics (stateless engine - no-op) */
-    UFUNCTION(BlueprintCallable, Category="Weight Rules")  
+    UFUNCTION(BlueprintCallable, Category="Weight Rules")
     void ResetStatistics();
-    
+
 protected:
     float GetCharacterStrength(const AActor* Character) const;
     float GetItemRuntimeWeight(const FSuspenseInventoryItemInstance& Item) const;

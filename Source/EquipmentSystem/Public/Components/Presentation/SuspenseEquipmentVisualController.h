@@ -7,11 +7,11 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
-#include "Core/Utils/FEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Interfaces/Equipment/ISuspenseVisualProvider.h"
-#include "Core/Utils/FEquipmentCacheManager.h"
-#include "Services/EquipmentServiceMacros.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "SuspenseEquipmentVisualController.generated.h"
 
 class UNiagaraComponent;

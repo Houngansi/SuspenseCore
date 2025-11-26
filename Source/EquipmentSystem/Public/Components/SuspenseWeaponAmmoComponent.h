@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SuspenseEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
-#include "Types/Weapon/FInventoryAmmoState.h"
+#include "Types/Weapon/SuspenseInventoryAmmoState.h"
 #include "SuspenseWeaponAmmoComponent.generated.h"
 
 // Forward declarations
@@ -18,7 +18,7 @@ struct FSuspenseUnifiedItemData;
 
 /**
  * Component that manages weapon ammunition state
- * 
+ *
  * VERSION 5.0 - FULL GAS INTEGRATION:
  * - All weapon characteristics retrieved through AttributeSets
  * - Magazine size and reload time from WeaponAttributeSet
@@ -40,7 +40,7 @@ public:
     //================================================
     // Initialization
     //================================================
-    
+
     /**
      * Initialize from weapon interface
      * Gets all configuration from DataTable via weapon
@@ -100,14 +100,14 @@ public:
      * @return Complete ammo state for saving/loading
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    FInventoryAmmoState GetAmmoState() const { return AmmoState; }
+    FSuspenseInventoryAmmoState GetAmmoState() const { return AmmoState; }
 
     /**
      * Set ammo state (for loading)
      * @param NewState State to apply
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    void SetAmmoState(const FInventoryAmmoState& NewState);
+    void SetAmmoState(const FSuspenseInventoryAmmoState& NewState);
 
     /**
      * Check if can reload
@@ -257,8 +257,8 @@ protected:
     void OnRep_ReloadState();
 
     // Internal method to update ammo state without triggering callbacks
-    void UpdateInternalAmmoState(const FInventoryAmmoState& NewState);
- 
+    void UpdateInternalAmmoState(const FSuspenseInventoryAmmoState& NewState);
+
 private:
     //================================================
     // Runtime State (Replicated)
@@ -266,7 +266,7 @@ private:
 
     /** Current ammunition state */
     UPROPERTY(ReplicatedUsing = OnRep_AmmoState)
-    FInventoryAmmoState AmmoState;
+    FSuspenseInventoryAmmoState AmmoState;
 
     /** Reload in progress */
     UPROPERTY(ReplicatedUsing = OnRep_ReloadState)
@@ -305,7 +305,7 @@ private:
 
     /** Cached magazine size for performance */
     mutable float CachedMagazineSize;
-    
+
     /** Cache validity flag */
     mutable bool bMagazineSizeCached;
 

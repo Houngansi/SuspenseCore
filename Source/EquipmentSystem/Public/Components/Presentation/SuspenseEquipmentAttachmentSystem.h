@@ -7,9 +7,9 @@
 #include "Interfaces/Equipment/ISuspenseAttachmentProvider.h"
 
 // фундаментальные утилиты
-#include "Core/Utils/FEquipmentCacheManager.h"
-#include "Core/Utils/FEquipmentEventBus.h"
-#include "Services/EquipmentServiceMacros.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 
 #include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"

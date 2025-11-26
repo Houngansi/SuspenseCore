@@ -18,15 +18,15 @@ struct FMedComUnifiedItemData;
  * Works with unified DataTable system
  */
 UCLASS()
-class SUSPENSEINTERACTION_API USuspenseItemFactory : public UGameInstanceSubsystem, public ISuspenseItemFactoryInterface
+class INTERACTIONSYSTEM_API USuspenseItemFactory : public UGameInstanceSubsystem, public ISuspenseItemFactoryInterface
 {
     GENERATED_BODY()
-    
+
 public:
     // Subsystem lifecycle
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
-    
+
     /**
      * Create pickup from item ID
      * @param ItemID Item identifier from DataTable
@@ -41,7 +41,7 @@ public:
         const FTransform& Transform,
         int32 Quantity
     ) override;
-    
+
     /**
      * Create pickup with custom properties
      * @param ItemID Item identifier
@@ -63,46 +63,46 @@ public:
         float CurrentAmmo,
         float RemainingAmmo
     );
-    
+
     /**
      * Get default pickup class
      * @return Default pickup actor class
      */
     UFUNCTION(BlueprintCallable, Category = "Item Factory")
 	TSubclassOf<AActor> GetDefaultPickupClass_Implementation() const override;
-    
+
     /**
      * Set default pickup class
      * @param NewDefaultClass New default class
      */
     UFUNCTION(BlueprintCallable, Category = "Item Factory")
     void SetDefaultPickupClass(TSubclassOf<AActor> NewDefaultClass);
-    
+
 protected:
     // Default pickup actor class
     UPROPERTY(EditDefaultsOnly, Category = "Factory Settings")
     TSubclassOf<AActor> DefaultPickupClass;
-    
+
     // Cached references
     UPROPERTY(Transient)
     TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
-    
+
     UPROPERTY(Transient)
     TWeakObjectPtr<UMedComItemManager> CachedItemManager;
-    
+
     // Get delegate manager
     UEventDelegateManager* GetDelegateManager() const;
-    
+
     // Get item manager
     UMedComItemManager* GetItemManager() const;
-    
+
     // Configure spawned pickup
     void ConfigurePickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData, int32 Quantity);
-    
+
     // Configure weapon pickup
-    void ConfigureWeaponPickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData, 
+    void ConfigureWeaponPickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData,
         bool bWithAmmoState, float CurrentAmmo, float RemainingAmmo);
-    
+
     // Broadcast item creation event
     void BroadcastItemCreated(AActor* CreatedActor, FName ItemID, int32 Quantity);
 };

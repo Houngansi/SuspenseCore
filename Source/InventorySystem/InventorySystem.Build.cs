@@ -18,7 +18,7 @@ public class InventorySystem : ModuleRules
 
 				// Suspense modules
 				"BridgeSystem",
-				"SuspenseInteraction"
+				"InteractionSystem"    // Migrated from MedComInteraction
 			}
 		);
 

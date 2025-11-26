@@ -21,7 +21,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseInventoryStatistics, Log, All);
 /**
  * Static helper library for MedCom interaction and inventory systems
  * Provides utility functions for item management in new DataTable architecture
- * 
+ *
  * Key principles:
  * - Works exclusively with ItemID references to DataTable
  * - No data duplication or legacy structures
@@ -29,15 +29,15 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseInventoryStatistics, Log, All);
  * - Centralized access to subsystems
  */
 UCLASS()
-class SUSPENSEINTERACTION_API USuspenseHelpers : public UBlueprintFunctionLibrary
+class INTERACTIONSYSTEM_API USuspenseHelpers : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
-    
+
 public:
     //==================================================================
     // Component Discovery
     //==================================================================
-    
+
     /**
      * Find inventory component on specified actor
      * Searches in PlayerState first, then Actor, then Controller
@@ -46,7 +46,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static UObject* FindInventoryComponent(AActor* Actor);
-    
+
     /**
      * Find PlayerState for specified actor
      * Handles Pawn, Controller, and direct PlayerState cases
@@ -55,7 +55,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static APlayerState* FindPlayerState(AActor* Actor);
-    
+
     /**
      * Check if object implements inventory interface
      * @param Object Object to check
@@ -63,11 +63,11 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "Suspense|Interaction")
     static bool ImplementsInventoryInterface(UObject* Object);
-    
+
     //==================================================================
     // Item Operations (DataTable-based)
     //==================================================================
-    
+
     /**
      * Add item to inventory by ItemID
      * Primary method for adding items in new architecture
@@ -78,7 +78,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static bool AddItemToInventoryByID(UObject* InventoryComponent, FName ItemID, int32 Quantity);
-    
+
     /**
      * Add runtime item instance to inventory
      * Used for transferring items with preserved state
@@ -88,7 +88,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static bool AddItemInstanceToInventory(UObject* InventoryComponent, const FInventoryItemInstance& ItemInstance);
-    
+
     /**
      * Check if actor can pickup item
      * Validates weight, type restrictions, and space
@@ -99,7 +99,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static bool CanActorPickupItem(AActor* Actor, FName ItemID, int32 Quantity = 1);
-    
+
     /**
      * Create item instance from ItemID
      * Convenience method for creating properly initialized instances
@@ -110,11 +110,11 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
     static bool CreateItemInstance(FName ItemID, int32 Quantity, FInventoryItemInstance& OutInstance);
-    
+
     //==================================================================
     // Item Information
     //==================================================================
-    
+
     /**
      * Get unified item data from DataTable
      * @param ItemID Item identifier
@@ -123,7 +123,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Items")
     static bool GetUnifiedItemData(FName ItemID, FMedComUnifiedItemData& OutItemData);
-    
+
     /**
      * Get item display name
      * @param ItemID Item identifier
@@ -131,7 +131,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Items")
     static FText GetItemDisplayName(FName ItemID);
-    
+
     /**
      * Get item weight
      * @param ItemID Item identifier
@@ -139,7 +139,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Items")
     static float GetItemWeight(FName ItemID);
-    
+
     /**
      * Check if item is stackable
      * @param ItemID Item identifier
@@ -147,11 +147,11 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Items")
     static bool IsItemStackable(FName ItemID);
-    
+
     //==================================================================
     // Subsystem Access
     //==================================================================
-    
+
     /**
      * Get ItemManager subsystem
      * @param WorldContextObject Any object with world context
@@ -159,7 +159,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Subsystems", meta = (WorldContext = "WorldContextObject"))
     static UMedComItemManager* GetItemManager(const UObject* WorldContextObject);
-    
+
     /**
      * Get EventDelegateManager subsystem
      * @param WorldContextObject Any object with world context
@@ -167,11 +167,11 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Subsystems", meta = (WorldContext = "WorldContextObject"))
     static UEventDelegateManager* GetEventDelegateManager(const UObject* WorldContextObject);
-    
+
     //==================================================================
     // Inventory Validation
     //==================================================================
-    
+
     /**
      * Validate inventory space for item
      * Checks if inventory has room for specified item
@@ -183,7 +183,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Validation")
     static bool ValidateInventorySpace(UObject* InventoryComponent, FName ItemID, int32 Quantity, FString& OutErrorMessage);
-    
+
     /**
      * Validate weight capacity for item
      * @param InventoryComponent Target inventory
@@ -194,11 +194,11 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Validation")
     static bool ValidateWeightCapacity(UObject* InventoryComponent, FName ItemID, int32 Quantity, float& OutRemainingCapacity);
-    
+
     //==================================================================
     // Utility Functions
     //==================================================================
-    
+
     /**
      * Get inventory statistics
      * @param InventoryComponent Target inventory
@@ -208,7 +208,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Statistics")
     static void GetInventoryStatistics(UObject* InventoryComponent, int32& OutTotalItems, float& OutTotalWeight, int32& OutUsedSlots);
-    
+
     /**
      * Log inventory contents for debugging
      * @param InventoryComponent Target inventory

@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Abilities/ISuspenseAbilityProvider.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseEquipmentComponentBase.generated.h"
 
@@ -29,25 +29,25 @@ USTRUCT()
 struct FEquipmentComponentPredictionData
 {
     GENERATED_BODY()
-    
+
     /** Unique prediction key */
     UPROPERTY()
     int32 PredictionKey = 0;
-    
+
     /** Predicted item instance */
     UPROPERTY()
     FSuspenseInventoryItemInstance PredictedItem;
-    
+
     /** Time when prediction was made */
     UPROPERTY()
     float PredictionTime = 0.0f;
-    
+
     /** Whether prediction was confirmed */
     UPROPERTY()
     bool bConfirmed = false;
-    
+
     FEquipmentComponentPredictionData() = default;
-    
+
     bool IsExpired(float CurrentTime, float TimeoutSeconds = 2.0f) const
     {
         return (CurrentTime - PredictionTime) > TimeoutSeconds;
@@ -56,7 +56,7 @@ struct FEquipmentComponentPredictionData
 
 /**
  * Base class for all equipment-related components
- * 
+ *
  * ENHANCED VERSION:
  * - Full replication support for all critical states
  * - Client prediction infrastructure
@@ -108,7 +108,7 @@ public:
     //================================================
     // Client Prediction Support
     //================================================
-    
+
     /**
      * Start client prediction for equipment change
      * @param PredictedInstance Item instance being predicted
@@ -116,7 +116,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Prediction")
     int32 StartClientPrediction(const FSuspenseInventoryItemInstance& PredictedInstance);
-    
+
     /**
      * Confirm or reject client prediction
      * @param PredictionKey Key from StartClientPrediction
@@ -125,13 +125,13 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Prediction")
     void ConfirmClientPrediction(int32 PredictionKey, bool bSuccess, const FSuspenseInventoryItemInstance& ActualInstance);
-    
+
     /**
      * Clean up expired predictions
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Prediction")
     void CleanupExpiredPredictions();
-    
+
     /**
      * Check if we're in prediction mode
      * @return True if any predictions are active
@@ -224,7 +224,7 @@ public:
     //================================================
     // Enhanced Broadcast Methods
     //================================================
-    
+
     /** All broadcast methods remain unchanged but now with improved validation */
     void BroadcastItemEquipped(const FSuspenseInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
     void BroadcastItemUnequipped(const FSuspenseInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
@@ -232,11 +232,11 @@ public:
     void BroadcastEquipmentStateChanged(const FGameplayTag& OldState, const FGameplayTag& NewState, bool bInterrupted = false);
     void BroadcastEquipmentEvent(const FGameplayTag& EventTag, const FString& EventData);
     void BroadcastEquipmentUpdated();
-    
+
     //================================================
     // Weapon-Specific Broadcasts
     //================================================
-    
+
     void BroadcastAmmoChanged(float CurrentAmmo, float RemainingAmmo, float MagazineSize);
     void BroadcastWeaponFired(const FVector& Origin, const FVector& Impact, bool bSuccess, const FGameplayTag& FireMode);
     void BroadcastFireModeChanged(const FGameplayTag& NewFireMode, const FText& FireModeDisplayName);
@@ -246,31 +246,31 @@ public:
     //================================================
     // ISuspenseAbilityProvider Implementation
     //================================================
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     UAbilitySystemComponent* GetAbilitySystemComponent() const;
     virtual UAbilitySystemComponent* GetAbilitySystemComponent_Implementation() const override { return CachedASC; }
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     void InitializeAbilityProvider(UAbilitySystemComponent* InASC);
     virtual void InitializeAbilityProvider_Implementation(UAbilitySystemComponent* InASC) override;
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     FGameplayAbilitySpecHandle GrantAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level, int32 InputID);
     virtual FGameplayAbilitySpecHandle GrantAbility_Implementation(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level, int32 InputID) override;
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     void RemoveAbility(FGameplayAbilitySpecHandle AbilityHandle);
     virtual void RemoveAbility_Implementation(FGameplayAbilitySpecHandle AbilityHandle) override;
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     FActiveGameplayEffectHandle ApplyEffectToSelf(TSubclassOf<UGameplayEffect> EffectClass, float Level);
     virtual FActiveGameplayEffectHandle ApplyEffectToSelf_Implementation(TSubclassOf<UGameplayEffect> EffectClass, float Level) override;
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
     void RemoveEffect(FActiveGameplayEffectHandle EffectHandle);
     virtual void RemoveEffect_Implementation(FActiveGameplayEffectHandle EffectHandle) override;
-    
+
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment")
     bool IsInitialized() const;
     virtual bool IsInitialized_Implementation() const override { return bIsInitialized; }
@@ -280,7 +280,7 @@ protected:
      * Called when equipment is initialized
      */
     virtual void OnEquipmentInitialized();
-    
+
     /**
      * Called when equipped item changes
      */
@@ -310,7 +310,7 @@ protected:
      * @return True if all required systems are available
      */
     bool ValidateSystemReferences() const;
-    
+
     /**
      * Log event broadcast with context
      * @param EventName Name of the event being broadcast
@@ -321,10 +321,10 @@ protected:
     //================================================
     // Replication Callbacks
     //================================================
-    
+
     UFUNCTION()
     void OnRep_EquippedItemInstance(const FSuspenseInventoryItemInstance& OldInstance);
-    
+
     UFUNCTION()
     void OnRep_ComponentState();
 
@@ -351,7 +351,7 @@ protected:
     /** Debug counter for tracking component lifecycle events */
     UPROPERTY(Replicated)
     int32 EquipmentCycleCounter;
-    
+
     /** Counter for broadcast events (debug) */
     UPROPERTY()
     mutable int32 BroadcastEventCounter;
@@ -359,34 +359,34 @@ protected:
     //================================================
     // Thread-Safe Cache References
     //================================================
-    
+
     /** Critical section for thread-safe cache access */
     mutable FCriticalSection CacheCriticalSection;
-    
+
     /** Cached reference to item manager subsystem */
     mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
-    
+
     /** Cached reference to delegate manager */
     mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
-    
+
     /** Last time caches were validated */
     mutable float LastCacheValidationTime;
 
     //================================================
     // Client Prediction State
     //================================================
-    
+
     /** Active predictions waiting for server confirmation */
     UPROPERTY()
     TArray<FEquipmentComponentPredictionData> ActivePredictions;
-    
+
     /** Counter for generating unique prediction keys */
     UPROPERTY()
     int32 NextPredictionKey;
-    
+
     /** Maximum number of concurrent predictions allowed */
     static constexpr int32 MaxConcurrentPredictions = 5;
-    
+
     /** Timeout for predictions in seconds */
     static constexpr float PredictionTimeoutSeconds = 2.0f;
 };

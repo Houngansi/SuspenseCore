@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseRequirementRulesEngine.generated.h"
 
 /**
@@ -167,7 +167,7 @@ public:
 
     void RegisterCustomRequirement(const FGameplayTag& RuleTag, FCustomRequirementValidator Validator);
     void UnregisterCustomRequirement(const FGameplayTag& RuleTag);
-    
+
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     FSuspenseRuleCheckResult CheckCustomRequirement(
         const AActor* Character,
@@ -180,10 +180,10 @@ public:
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     void ClearCache();
 
-    /** Reset internal statistics (stateless engine - no-op) */  
+    /** Reset internal statistics (stateless engine - no-op) */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     void ResetStatistics();
-    
+
 protected:
     //==================== Data access helpers (read-only) ====================
 

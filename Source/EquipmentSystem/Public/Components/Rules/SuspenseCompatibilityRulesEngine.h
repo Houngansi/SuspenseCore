@@ -6,8 +6,8 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 
 class USuspenseEquipmentSlotValidator;

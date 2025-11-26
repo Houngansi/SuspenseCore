@@ -7,7 +7,7 @@
 #include "Delegates/Delegate.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "SuspenseEquipmentNetworkDispatcher.generated.h"
 

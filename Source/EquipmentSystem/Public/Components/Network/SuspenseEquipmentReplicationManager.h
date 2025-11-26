@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Serialization/FastArraySerializer.h"

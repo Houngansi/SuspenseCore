@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <InventoryTypes.generated.h>
+
 #include "CoreMinimal.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseInventoryOperation.generated.h"
 
 class USuspenseInventoryComponent;

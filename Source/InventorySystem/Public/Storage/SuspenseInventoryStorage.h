@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Types/Inventory/InventoryTypes.h"
 #include "Base/InventoryLogs.h"
 #include "GameplayTagContainer.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseInventoryStorage.generated.h"
 
 // Forward declarations for clean architecture

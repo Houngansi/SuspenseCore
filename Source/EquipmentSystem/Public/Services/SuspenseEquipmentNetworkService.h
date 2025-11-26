@@ -10,7 +10,7 @@
 #include "Components/.*/SuspenseEquipmentReplicationManager.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Queue.h"
@@ -35,59 +35,59 @@ USTRUCT()
 struct FNetworkSecurityConfig
 {
     GENERATED_BODY()
-    
+
     /** Maximum age for valid packets in seconds */
     UPROPERTY(Config)
     float PacketAgeLimit = 30.0f;
-    
+
     /** Lifetime of nonces in seconds before cleanup */
     UPROPERTY(Config)
     float NonceLifetime = 300.0f;
-    
+
     /** Maximum operations allowed per second per player */
     UPROPERTY(Config)
     int32 MaxOperationsPerSecond = 10;
-    
+
     /** Maximum operations allowed per minute per player */
     UPROPERTY(Config)
     int32 MaxOperationsPerMinute = 200;
-    
+
     /** Minimum interval between operations in seconds */
     UPROPERTY(Config)
     float MinOperationInterval = 0.05f;
-    
+
     /** Maximum suspicious activities before permanent action */
     UPROPERTY(Config)
     int32 MaxSuspiciousActivities = 10;
-    
+
     /** Duration of temporary ban in seconds */
     UPROPERTY(Config)
     float TemporaryBanDuration = 60.0f;
-    
+
     /** Maximum violations before temporary ban */
     UPROPERTY(Config)
     int32 MaxViolationsBeforeBan = 3;
-    
+
     /** Enable strict security checks */
     UPROPERTY(Config)
     bool bEnableStrictSecurity = true;
-    
+
     /** Log suspicious activities to file */
     UPROPERTY(Config)
     bool bLogSuspiciousActivity = true;
-    
+
     /** Require HMAC for critical operations */
     UPROPERTY(Config)
     bool bRequireHMACForCritical = true;
-    
+
     /** Enable IP-based rate limiting */
     UPROPERTY(Config)
     bool bEnableIPRateLimit = true;
-    
+
     /** Maximum operations per IP per minute */
     UPROPERTY(Config)
     int32 MaxOperationsPerIPPerMinute = 500;
-    
+
     /**
      * Load configuration from ini file
      * @param ConfigSection Section name in config file
@@ -96,9 +96,9 @@ struct FNetworkSecurityConfig
     static FNetworkSecurityConfig LoadFromConfig(const FString& ConfigSection = TEXT("NetworkSecurity"))
     {
         FNetworkSecurityConfig Config;
-        
+
         if (!GConfig) return Config;
-        
+
         GConfig->GetFloat(*ConfigSection, TEXT("PacketAgeLimit"), Config.PacketAgeLimit, GGameIni);
         GConfig->GetFloat(*ConfigSection, TEXT("NonceLifetime"), Config.NonceLifetime, GGameIni);
         GConfig->GetInt(*ConfigSection, TEXT("MaxOperationsPerSecond"), Config.MaxOperationsPerSecond, GGameIni);
@@ -112,7 +112,7 @@ struct FNetworkSecurityConfig
         GConfig->GetBool(*ConfigSection, TEXT("bRequireHMACForCritical"), Config.bRequireHMACForCritical, GGameIni);
         GConfig->GetBool(*ConfigSection, TEXT("bEnableIPRateLimit"), Config.bEnableIPRateLimit, GGameIni);
         GConfig->GetInt(*ConfigSection, TEXT("MaxOperationsPerIPPerMinute"), Config.MaxOperationsPerIPPerMinute, GGameIni);
-        
+
         return Config;
     }
 };
@@ -134,11 +134,11 @@ struct FNetworkSecurityMetrics
     TAtomic<uint64> PlayersTemporarilyBanned{0};
     TAtomic<uint64> IPsTemporarilyBanned{0};
     TAtomic<uint64> CriticalOperationsProcessed{0};
-    
+
     // Performance metrics
     TAtomic<uint64> AverageProcessingTimeUs{0};
     TAtomic<uint64> PeakProcessingTimeUs{0};
-    
+
     FString ToString() const
     {
         return FString::Printf(
@@ -169,7 +169,7 @@ struct FNetworkSecurityMetrics
             PeakProcessingTimeUs.Load()
         );
     }
-    
+
     FString ToCSV() const
     {
         return FString::Printf(
@@ -190,7 +190,7 @@ struct FNetworkSecurityMetrics
             PeakProcessingTimeUs.Load()
         );
     }
-    
+
     void Reset()
     {
         TotalRequestsProcessed.Store(0);
@@ -219,7 +219,7 @@ struct FRateLimitData
     FString PlayerIdentifier;
     bool bIsTemporarilyBanned = false;
     float BanExpiryTime = 0.0f;
-    
+
     bool IsOperationAllowed(float CurrentTime, int32 MaxPerSecond, int32 MaxPerMinute, float BanDuration = 60.0f)
     {
         if (bIsTemporarilyBanned && CurrentTime < BanExpiryTime)
@@ -231,12 +231,12 @@ struct FRateLimitData
             bIsTemporarilyBanned = false;
             ViolationCount = 0;
         }
-        
+
         OperationTimestamps.RemoveAll([CurrentTime](float Time)
         {
             return (CurrentTime - Time) > 60.0f;
         });
-        
+
         int32 OpsInLastSecond = 0;
         for (float Time : OperationTimestamps)
         {
@@ -245,26 +245,26 @@ struct FRateLimitData
                 OpsInLastSecond++;
             }
         }
-        
+
         if (OpsInLastSecond >= MaxPerSecond)
         {
             return false;
         }
-        
+
         if (OperationTimestamps.Num() >= MaxPerMinute)
         {
             return false;
         }
-        
+
         return true;
     }
-    
+
     void RecordOperation(float CurrentTime)
     {
         OperationTimestamps.Add(CurrentTime);
         LastOperationTime = CurrentTime;
     }
-    
+
     void RecordViolation(float CurrentTime, float BanDuration = 60.0f, int32 MaxViolations = 3)
     {
         ViolationCount++;
@@ -336,13 +336,13 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Network|Sync")
     void ForceSynchronization(APlayerController* PlayerController);
-    
+
     const FNetworkSecurityMetrics& GetSecurityMetrics() const { return SecurityMetrics; }
     bool ExportSecurityMetrics(const FString& FilePath) const;
-    
+
     UFUNCTION(BlueprintCallable, Category = "Network|Metrics")
     bool ExportMetricsToCSV(const FString& FilePath) const;
-    
+
     UFUNCTION(BlueprintCallable, Category = "Network|Security")
     void ReloadSecurityConfig();
 
@@ -360,41 +360,41 @@ private:
 
     // Security configuration loaded from INI
     FNetworkSecurityConfig SecurityConfig;
-    
+
     // Security: Rate limiting
     TMap<FGuid, FRateLimitData> RateLimitPerPlayer;
     TMap<FString, FRateLimitData> RateLimitPerIP;
-    
+
     // Security: replay protection
     TSet<uint64> ProcessedNonces;
     TMap<uint64, float> PendingNonces;
     TQueue<TPair<uint64, float>> NonceExpiryQueue;
     TMap<FString, int32> SuspiciousActivityCount;
-    
+
     // Security: HMAC secret key
     FString HMACSecretKey;
-    
+
     // Thread safety
     mutable FCriticalSection SecurityLock;
-    
+
     // Metrics
     FNetworkSecurityMetrics SecurityMetrics;
     mutable FServiceMetrics ServiceMetrics;
-    
+
     // Legacy metrics
     mutable float AverageLatency;
     mutable int32 TotalOperationsSent;
     mutable int32 TotalOperationsRejected;
     mutable int32 TotalReplayAttemptsBlocked;
     mutable int32 TotalIntegrityFailures;
-    
+
     float NetworkQualityLevel;
-    
+
     // Timers
     FTimerHandle NonceCleanupTimer;
     FTimerHandle MetricsUpdateTimer;
     FTimerHandle MetricsExportTimer;
-    
+
     // Dispatcher delegate handles
     FDelegateHandle DispatcherSuccessHandle;
     FDelegateHandle DispatcherFailureHandle;
@@ -405,7 +405,7 @@ private:
      * @param bFromDestructor True if called from destructor (minimal cleanup)
      */
     void InternalShutdown(bool bForce, bool bFromDestructor);
-    
+
     // ---- helpers ----
     bool ResolveDependencies(
         UWorld* World,
@@ -430,7 +430,7 @@ private:
         ISuspensePredictionManager* Prediction);
 
     void StartMonitoringTimers(UWorld* World);
-    
+
     FGuid CreatePlayerGuid(const FUniqueNetIdRepl& UniqueId) const;
     bool CheckRateLimit(const FGuid& PlayerGuid, APlayerController* PlayerController);
     bool CheckIPRateLimit(const FString& IPAddress);

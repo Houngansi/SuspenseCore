@@ -4,7 +4,7 @@
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Delegates/EventDelegateManager.h"
-#include "Interfaces/UI/ISuspenseDraggableInterface.h"
+#include "Interfaces/UI/ISuspenseDraggable.h"
 #include "Operations/InventoryResult.h"
 #include "Engine/World.h"
 
@@ -93,7 +93,7 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
 
     // Notify source about completion
     if (SourceWidget.IsValid() && 
-        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggableInterface::StaticClass()))
+        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
     {
         ISuspenseDraggableInterface::Execute_OnDragEnded(SourceWidget.Get(), bWasSuccessful);
     }
@@ -124,7 +124,7 @@ void USuspenseDragDropOperation::DragCancelled_Implementation(const FPointerEven
     
     // Notify source
     if (SourceWidget.IsValid() && 
-        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggableInterface::StaticClass()))
+        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
     {
         ISuspenseDraggableInterface::Execute_OnDragEnded(SourceWidget.Get(), false);
     }

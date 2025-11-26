@@ -15,7 +15,7 @@ class UAnimSequence;
 struct FSuspenseInventoryItemInstance;
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseWeaponAnimationInterface : public UInterface
+class USuspenseWeaponAnimation : public UInterface
 {
     GENERATED_BODY()
 };

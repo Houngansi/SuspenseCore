@@ -271,7 +271,7 @@ UAbilitySystemComponent* ASuspenseCharacter::GetASC_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (PS->GetClass()->ImplementsInterface(USuspenseCharacterInterface::StaticClass()))
+        if (PS->GetClass()->ImplementsInterface(USuspenseCharacter::StaticClass()))
         {
             return ISuspenseCharacter::Execute_GetASC(PS);
         }

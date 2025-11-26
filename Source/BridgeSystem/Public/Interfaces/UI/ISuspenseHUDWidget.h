@@ -13,7 +13,7 @@ class UUserWidget;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseHUDWidgetInterface : public UInterface
+class USuspenseHUDWidget : public UInterface
 {
     GENERATED_BODY()
 };

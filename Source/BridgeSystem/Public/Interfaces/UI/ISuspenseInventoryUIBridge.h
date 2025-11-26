@@ -13,7 +13,7 @@
 struct FDragDropUIData;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseInventoryUIBridgeWidget : public UInterface
+class USuspenseInventoryUIBridge : public UInterface
 {
     GENERATED_BODY()
 };

@@ -403,7 +403,7 @@ void USuspenseInventoryWidget::CreateSlotsOptimized()
             SlotData.AllowedItemTypes = CurrentContainerData.AllowedItemTypes;
             
             // Initialize through interface
-            if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 ISuspenseSlotUIInterface::Execute_InitializeSlot(NewSlot, SlotData, FItemUIData());
             }
@@ -532,7 +532,7 @@ void USuspenseInventoryWidget::ApplyDifferentialSlotUpdates(const FContainerUIDa
             const FItemUIData& ItemData = AnchorToItemMap[SlotIndex];
             
             // Update slot with item data
-            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
             }
@@ -561,7 +561,7 @@ void USuspenseInventoryWidget::ApplyDifferentialSlotUpdates(const FContainerUIDa
             SlotWidget->SetVisibility(ESlateVisibility::Visible);
             
             // Update as empty
-            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, FItemUIData());
             }
@@ -644,7 +644,7 @@ void USuspenseInventoryWidget::UpdateSlotWidget(int32 SlotIndex, const FSlotUIDa
             *GetName(), SlotIndex, *ItemData.ItemID.ToString());
         
         // Update slot data
-        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
         {
             ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
         }
@@ -669,7 +669,7 @@ void USuspenseInventoryWidget::UpdateSlotWidget(int32 SlotIndex, const FSlotUIDa
         GridSlot->SetRowSpan(1);
         
         // Clear slot data
-        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
         {
             ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, FItemUIData());
         }
@@ -683,7 +683,7 @@ void USuspenseInventoryWidget::UpdateSlotWidget(int32 SlotIndex, const FSlotUIDa
         SlotWidget->SetVisibility(ESlateVisibility::Visible);
         
         // Update as empty slot
-        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
         {
             ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, FItemUIData());
         }
@@ -718,7 +718,7 @@ void USuspenseInventoryWidget::UpdateGridSlotSpan(USuspenseInventorySlotWidget* 
     
     // Update cached data - FIXED: Use Execute_ for interface call
     int32 SlotIndex = INDEX_NONE;
-    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
     {
         SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
     }
@@ -793,7 +793,7 @@ FSlotValidationResult USuspenseInventoryWidget::CanAcceptDrop_Implementation(
             if (const USuspenseBaseSlotWidget* SlotWidget = GetSlotWidget(CheckSlotIndex))
             {
                 bool bIsOccupied = false;
-                if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+                if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                 {
                     bIsOccupied = ISuspenseSlotUIInterface::Execute_IsOccupied(SlotWidget);
                 }
@@ -801,7 +801,7 @@ FSlotValidationResult USuspenseInventoryWidget::CanAcceptDrop_Implementation(
                 if (bIsOccupied)
                 {
                     FGuid OccupyingItemID;
-                    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+                    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                     {
                         OccupyingItemID = ISuspenseSlotUIInterface::Execute_GetItemInstanceID(SlotWidget);
                     }
@@ -968,7 +968,7 @@ bool USuspenseInventoryWidget::FindItemAtScreenPosition(const FVector2D& ScreenP
         int32 SlotIndex = INDEX_NONE;
         
         // FIXED: Use Execute_ for interface call
-        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
         {
             SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
         }
@@ -988,7 +988,7 @@ bool USuspenseInventoryWidget::FindItemAtScreenPosition(const FVector2D& ScreenP
         
         // Check if slot itself is anchor with item
         bool bIsOccupied = false;
-        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
         {
             bIsOccupied = ISuspenseSlotUIInterface::Execute_IsOccupied(SlotWidget);
         }
@@ -1045,7 +1045,7 @@ bool USuspenseInventoryWidget::IsValidPlacementPosition(int32 GridX, int32 GridY
             if (const USuspenseBaseSlotWidget* SlotWidget = GetSlotWidget(SlotIndex))
             {
                 // FIXED: Use Execute_ for interface call
-                if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+                if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                 {
                     bool bIsOccupied = ISuspenseSlotUIInterface::Execute_IsOccupied(SlotWidget);
                     if (bIsOccupied)
@@ -1174,7 +1174,7 @@ void USuspenseInventoryWidget::RequestRotateSelectedItem()
         {
             // FIXED: Use Execute_ for interface call
             bool bIsOccupied = false;
-            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 bIsOccupied = ISuspenseSlotUIInterface::Execute_IsOccupied(SlotWidget);
             }

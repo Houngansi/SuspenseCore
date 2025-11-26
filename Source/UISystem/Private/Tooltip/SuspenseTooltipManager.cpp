@@ -2,8 +2,8 @@
 
 #include "Tooltip/SuspenseTooltipManager.h"
 #include "Widgets/Tooltip/SuspenseItemTooltipWidget.h"
-#include "Interfaces/UI/ISuspenseTooltipInterface.h"
-#include "Interfaces/UI/ISuspenseTooltipSourceInterface.h"
+#include "Interfaces/UI/ISuspenseTooltip.h"
+#include "Interfaces/UI/ISuspenseTooltipSource.h"
 #include "Delegates/EventDelegateManager.h"
 #include "Engine/World.h"
 #include "Components/PanelWidget.h"
@@ -195,7 +195,7 @@ void USuspenseTooltipManager::OnTooltipHideRequested()
 
 void USuspenseTooltipManager::OnTooltipUpdatePosition(const FVector2D& ScreenPosition)
 {
-    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltipInterface::StaticClass()))
+    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
     {
         ISuspenseTooltipInterface::Execute_UpdateTooltipPosition(ActiveTooltip, ScreenPosition);
     }
@@ -228,7 +228,7 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     if (SourceWidget)
     {
         bool bCanShow = true;
-        if (SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSourceInterface::StaticClass()))
+        if (SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
         {
             bCanShow = ISuspenseTooltipSourceInterface::Execute_CanShowTooltip(SourceWidget);
         }
@@ -262,7 +262,7 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     ActiveTooltipClass = TooltipClass;
     
     // Show tooltip with data
-    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltipInterface::StaticClass()))
+    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
     {
         ISuspenseTooltipInterface::Execute_ShowTooltip(ActiveTooltip, ItemData, ScreenPosition);
         
@@ -274,7 +274,7 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     }
     
     // Notify source widget if available
-    if (SourceWidget && SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSourceInterface::StaticClass()))
+    if (SourceWidget && SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
     {
         ISuspenseTooltipSourceInterface::Execute_OnTooltipShown(SourceWidget);
     }
@@ -295,7 +295,7 @@ void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
     }
     
     // Hide the tooltip
-    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltipInterface::StaticClass()))
+    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
     {
         ISuspenseTooltipInterface::Execute_HideTooltip(ActiveTooltip);
     }
@@ -305,7 +305,7 @@ void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
     {
         if (UUserWidget* Widget = CurrentSourceWidget.Get())
         {
-            if (Widget->GetClass()->ImplementsInterface(USuspenseTooltipSourceInterface::StaticClass()))
+            if (Widget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
             {
                 ISuspenseTooltipSourceInterface::Execute_OnTooltipHidden(Widget);
             }
@@ -545,7 +545,7 @@ void USuspenseTooltipManager::ForceHideTooltip()
 
 bool USuspenseTooltipManager::IsTooltipActive() const
 {
-    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltipInterface::StaticClass()))
+    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
     {
         return ISuspenseTooltipInterface::Execute_IsTooltipVisible(ActiveTooltip);
     }

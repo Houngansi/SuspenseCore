@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/UI/ISuspenseHUDWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseHUDWidget.h"
 #include "Widgets/Screens/SuspenseCharacterScreen.h"
 #include "SuspenseMainHUDWidget.generated.h"
 

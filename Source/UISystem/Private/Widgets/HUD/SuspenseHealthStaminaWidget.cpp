@@ -3,7 +3,7 @@
 #include "Widgets/HUD/SuspenseHealthStaminaWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
-#include "Interfaces/Core/ISuspenseAttributeProviderInterface.h"
+#include "Interfaces/Core/ISuspenseAttributeProvider.h"
 #include "Delegates/EventDelegateManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Materials/MaterialInterface.h"

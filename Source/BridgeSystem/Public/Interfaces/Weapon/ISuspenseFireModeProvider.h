@@ -72,7 +72,7 @@ struct BRIDGESYSTEM_API FFireModeRuntimeData
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseFireModeProviderInterface : public UInterface
+class USuspenseFireModeProvider : public UInterface
 {
     GENERATED_BODY()
 };

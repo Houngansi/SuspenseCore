@@ -403,7 +403,7 @@ bool USuspenseEquipmentActorFactory::ConfigureEquipmentActor(AActor* Actor, cons
     }
 
     // 1) Всегда сначала пробуем интерфейс экипировки
-    if (Actor->GetClass()->ImplementsInterface(USuspenseEquipmentInterface::StaticClass()))
+    if (Actor->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
     {
         ISuspenseEquipment::Execute_OnItemInstanceEquipped(Actor, ItemInstance);
     }
@@ -414,7 +414,7 @@ bool USuspenseEquipmentActorFactory::ConfigureEquipmentActor(AActor* Actor, cons
     }
 
     // 2) Если актор поддерживает оружейный интерфейс — пробрасываем стартовый AmmoState ЧЕРЕЗ ИНТЕРФЕЙС
-    if (Actor->GetClass()->ImplementsInterface(USuspenseWeaponInterface::StaticClass()))
+    if (Actor->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
     {
         FInventoryAmmoState AmmoState{};
         bool bHasAnyAmmo = false;

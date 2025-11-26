@@ -10,7 +10,7 @@
 #include "ISuspenseEquipmentUIBridge.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseEquipmentUIBridgeWidget : public UInterface
+class USuspenseEquipmentUIBridge : public UInterface
 {
     GENERATED_BODY()
 };

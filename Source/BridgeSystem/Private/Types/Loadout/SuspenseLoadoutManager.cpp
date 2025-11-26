@@ -297,7 +297,7 @@ bool USuspenseLoadoutManager::ApplyLoadoutToEquipment(
     bool bSuccess = false;
 
     // Path 1: Check if object implements ISuspenseLoadout (preferred)
-    if (EquipmentObject->GetClass()->ImplementsInterface(USuspenseLoadoutInterface::StaticClass()))
+    if (EquipmentObject->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
     {
         FLoadoutApplicationResult Result = ISuspenseLoadout::Execute_ApplyLoadoutConfiguration(
             EquipmentObject, LoadoutID, const_cast<USuspenseLoadoutManager*>(this), false);
@@ -311,7 +311,7 @@ bool USuspenseLoadoutManager::ApplyLoadoutToEquipment(
         }
     }
     // Path 2: Check if object implements ISuspenseEquipment
-    else if (EquipmentObject->GetClass()->ImplementsInterface(USuspenseEquipmentInterface::StaticClass()))
+    else if (EquipmentObject->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
     {
         UE_LOG(LogLoadoutManager, Log, TEXT("ApplyLoadoutToEquipment: Using equipment interface for %s"), 
             *LoadoutID.ToString());
@@ -403,7 +403,7 @@ bool USuspenseLoadoutManager::ApplyLoadoutToObject(
     }
 
     // Check if object implements loadout interface
-    if (!LoadoutObject->GetClass()->ImplementsInterface(USuspenseLoadoutInterface::StaticClass()))
+    if (!LoadoutObject->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
     {
         UE_LOG(LogLoadoutManager, Error, TEXT("ApplyLoadoutToObject: Object does not implement ISuspenseLoadout"));
         return false;

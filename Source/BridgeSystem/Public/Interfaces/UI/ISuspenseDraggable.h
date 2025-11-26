@@ -8,7 +8,7 @@
 #include "ISuspenseDraggable.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseDraggableInterface : public UInterface
+class USuspenseDraggable : public UInterface
 {
 	GENERATED_BODY()
 };

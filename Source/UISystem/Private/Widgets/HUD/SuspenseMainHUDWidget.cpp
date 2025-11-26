@@ -6,7 +6,7 @@
 #include "Widgets/HUD/SuspenseWeaponUIWidget.h"
 #include "Widgets/Inventory/SuspenseInventoryWidget.h"
 #include "Widgets/Tabs/SuspenseUpperTabBar.h"
-#include "Interfaces/Core/ISuspenseAttributeProviderInterface.h"
+#include "Interfaces/Core/ISuspenseAttributeProvider.h"
 #include "Interfaces/UI/ISuspenseInventoryUIBridgeWidget.h"
 #include "Components/SuspenseInventoryUIBridge.h"
 #include "Components/TextBlock.h"
@@ -95,7 +95,7 @@ void USuspenseMainHUDWidget::SetupForPlayer_Implementation(APawn* Character)
     }
     
     // If the character provides attributes, set up the provider
-    if (Character->GetClass()->ImplementsInterface(USuspenseAttributeProviderInterface::StaticClass()))
+    if (Character->GetClass()->ImplementsInterface(USuspenseAttributeProvider::StaticClass()))
     {
         TScriptInterface<ISuspenseAttributeProviderInterface> Provider;
         Provider.SetObject(Character);
@@ -442,7 +442,7 @@ void USuspenseMainHUDWidget::ShowCharacterScreenWithTab(const FGameplayTag& TabT
     CharacterScreen->SetVisibility(ESlateVisibility::Visible);
     
     // Активируем через интерфейс
-    if (CharacterScreen->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+    if (CharacterScreen->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
     {
         ISuspenseScreenInterface::Execute_OnScreenActivated(CharacterScreen);
     }
@@ -495,7 +495,7 @@ void USuspenseMainHUDWidget::HideCharacterScreen()
     }
     
     // Деактивируем экран
-    if (CharacterScreen->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+    if (CharacterScreen->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
     {
         ISuspenseScreenInterface::Execute_OnScreenDeactivated(CharacterScreen);
     }

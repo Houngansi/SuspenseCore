@@ -564,12 +564,12 @@ bool USuspenseEquipmentUIBridge::ProcessUnequipRequest_Implementation(
 }
 
 void USuspenseEquipmentUIBridge::SetEquipmentInterface_Implementation(
-    const TScriptInterface<ISuspenseEquipmentInterface>& InEquipment)
+    const TScriptInterface<ISuspenseEquipment>& InEquipment)
 {
     GameEquipment = InEquipment;
 }
 
-TScriptInterface<ISuspenseEquipmentInterface> USuspenseEquipmentUIBridge::GetEquipmentInterface_Implementation() const
+TScriptInterface<ISuspenseEquipment> USuspenseEquipmentUIBridge::GetEquipmentInterface_Implementation() const
 {
     return GameEquipment;
 }

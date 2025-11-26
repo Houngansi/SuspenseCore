@@ -11,7 +11,7 @@ class UAbilitySystemComponent;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseHealthStaminaWidgetInterface : public UInterface
+class USuspenseHealthStaminaWidget : public UInterface
 {
     GENERATED_BODY()
 };

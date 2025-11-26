@@ -8,7 +8,7 @@
 #include "ISuspenseMovement.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseMovementInterface : public UInterface
+class USuspenseMovement : public UInterface
 {
     GENERATED_BODY()
 };

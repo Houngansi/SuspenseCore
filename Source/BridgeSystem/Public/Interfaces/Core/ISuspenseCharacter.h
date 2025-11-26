@@ -12,7 +12,7 @@ class UAbilitySystemComponent;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCharacterInterface : public UInterface
+class USuspenseCharacter : public UInterface
 {
     GENERATED_BODY()
 };

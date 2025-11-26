@@ -17,7 +17,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTabBarSelectionChanged, UObject* /*Tab
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTabBarClosed, UObject* /*TabBar*/);
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseTabBarInterface : public UInterface
+class USuspenseTabBar : public UInterface
 {
     GENERATED_BODY()
 };

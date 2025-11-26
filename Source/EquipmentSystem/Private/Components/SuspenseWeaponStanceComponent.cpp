@@ -91,7 +91,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseWeaponStanceComponent::GetAn
 	// Вариант 1: владелец реализует интерфейс
 	if (AActor* OwnerActor = GetOwner())
 	{
-		if (OwnerActor->GetClass()->ImplementsInterface(USuspenseWeaponAnimationInterface::StaticClass()))
+		if (OwnerActor->GetClass()->ImplementsInterface(USuspenseWeaponAnimation::StaticClass()))
 		{
 			CachedAnimationInterface.SetObject(OwnerActor);
 			CachedAnimationInterface.SetInterface(Cast<ISuspenseWeaponAnimation>(OwnerActor));

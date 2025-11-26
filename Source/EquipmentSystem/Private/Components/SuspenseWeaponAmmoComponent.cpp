@@ -664,7 +664,7 @@ ISuspenseWeapon* USuspenseWeaponAmmoComponent::GetWeaponInterface() const
     // Try to get from owner
     if (AActor* Owner = GetOwner())
     {
-        if (Owner->GetClass()->ImplementsInterface(USuspenseWeaponInterface::StaticClass()))
+        if (Owner->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
         {
             return Cast<ISuspenseWeapon>(Owner);
         }

@@ -57,7 +57,7 @@ struct FServiceInitParams
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class UEquipmentService : public UInterface
+class USuspenseEquipmentService : public UInterface
 {
     GENERATED_BODY()
 };
@@ -132,7 +132,7 @@ public:
 
 // Data Service Interface
 UINTERFACE(MinimalAPI, NotBlueprintable)
-class UEquipmentDataService : public UEquipmentService
+class UEquipmentDataService : public USuspenseEquipmentService
 {
     GENERATED_BODY()
 };
@@ -209,7 +209,7 @@ public:
 
 // Operation Service Interface
 UINTERFACE(MinimalAPI, Blueprintable)
-class UEquipmentOperationService : public UEquipmentService
+class UEquipmentOperationService : public USuspenseEquipmentService
 {
     GENERATED_BODY()
 };
@@ -236,7 +236,7 @@ public:
 
 // Validation Service Interface
 UINTERFACE(MinimalAPI, Blueprintable)
-class UEquipmentValidationService : public UEquipmentService
+class UEquipmentValidationService : public USuspenseEquipmentService
 {
     GENERATED_BODY()
 };
@@ -257,7 +257,7 @@ public:
 
 // Visualization Service Interface
 UINTERFACE(MinimalAPI, Blueprintable)
-class UEquipmentVisualizationService : public UEquipmentService
+class UEquipmentVisualizationService : public USuspenseEquipmentService
 {
     GENERATED_BODY()
 };
@@ -278,7 +278,7 @@ public:
 
 // Network Service Interface
 UINTERFACE(MinimalAPI, Blueprintable)
-class UEquipmentNetworkService : public UEquipmentService
+class UEquipmentNetworkService : public USuspenseEquipmentService
 {
     GENERATED_BODY()
 };

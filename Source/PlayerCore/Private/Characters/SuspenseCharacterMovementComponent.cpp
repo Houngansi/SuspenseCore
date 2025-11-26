@@ -114,7 +114,7 @@ void USuspenseCharacterMovementComponent::SyncMovementSpeedFromAttributes()
             OldSpeed, CurrentAttributeSpeed);
 
         // Notify about speed change using GAS-synchronized value
-        if (CharacterOwner && CharacterOwner->GetClass()->ImplementsInterface(USuspenseMovementInterface::StaticClass()))
+        if (CharacterOwner && CharacterOwner->GetClass()->ImplementsInterface(USuspenseMovement::StaticClass()))
         {
             ISuspenseMovement::NotifyMovementSpeedChanged(
                 CharacterOwner, OldSpeed, CurrentAttributeSpeed, bIsSprintingGAS);
@@ -339,7 +339,7 @@ void USuspenseCharacterMovementComponent::ProcessLanded(const FHitResult& Hit, f
     bIsJumping = false;
 
     // Notify about landing
-    if (CharacterOwner && CharacterOwner->GetClass()->ImplementsInterface(USuspenseMovementInterface::StaticClass()))
+    if (CharacterOwner && CharacterOwner->GetClass()->ImplementsInterface(USuspenseMovement::StaticClass()))
     {
         float ImpactVelocity = Velocity.Z;
         ISuspenseMovement::NotifyLanded(CharacterOwner, ImpactVelocity);

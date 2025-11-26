@@ -8,7 +8,7 @@
 #include "ISuspenseScreen.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseScreenInterface : public UInterface
+class USuspenseScreen : public UInterface
 {
 	GENERATED_BODY()
 };

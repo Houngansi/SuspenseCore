@@ -95,8 +95,8 @@ public:
     virtual bool GetEquipmentSlotsUIData_Implementation(TArray<FEquipmentSlotUIData>& OutSlots) const override;
     virtual bool ProcessEquipmentDrop_Implementation(int32 SlotIndex, const FDragDropUIData& DragData) override;
     virtual bool ProcessUnequipRequest_Implementation(int32 SlotIndex, int32 TargetInventorySlot) override;
-    virtual void SetEquipmentInterface_Implementation(const TScriptInterface<ISuspenseEquipmentInterface>& InEquipment) override;
-    virtual TScriptInterface<ISuspenseEquipmentInterface> GetEquipmentInterface_Implementation() const override;
+    virtual void SetEquipmentInterface_Implementation(const TScriptInterface<ISuspenseEquipment>& InEquipment) override;
+    virtual TScriptInterface<ISuspenseEquipment> GetEquipmentInterface_Implementation() const override;
     virtual USuspenseItemManager* GetItemManager_Implementation() const override;
 
     // Static helpers
@@ -203,7 +203,7 @@ private:
     UPROPERTY() bool bHasSnapshot = false;
 
     // ===== Legacy Compatibility =====
-    UPROPERTY() TScriptInterface<ISuspenseEquipmentInterface> GameEquipment;
+    UPROPERTY() TScriptInterface<ISuspenseEquipment> GameEquipment;
     UPROPERTY() TScriptInterface<ISuspenseEquipmentOperations> Operations;
     UPROPERTY() bool bVisible = false;
 };

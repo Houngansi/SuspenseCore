@@ -9,9 +9,9 @@
 #include "Types/Loadout/MedComItemDataTable.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
-#include "Interfaces/UI/ISuspenseContainerUIInterface.h"
+#include "Interfaces/UI/ISuspenseContainerUI.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Interfaces/UI/ISuspenseUIWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -21,10 +21,10 @@
 #include "Components/GridPanel.h"
 #include "TimerManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 
 // Global static variable for bridge instance storage
-static TWeakInterfacePtr<ISuspenseInventoryUIBridgeWidget> GInventoryUIBridge;
+static TWeakInterfacePtr<ISuspenseInventoryUIBridge> GInventoryUIBridge;
 
 // =====================================================
 // Constructor & Core Lifecycle
@@ -178,7 +178,7 @@ void USuspenseInventoryUIBridge::Shutdown()
     if (USuspenseInventoryWidget* InventoryWidget = GetCachedInventoryWidget())
     {
         // Unsubscribe widget from events through interface
-        if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+        if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
             ISuspenseUIWidgetInterface::Execute_UninitializeWidget(InventoryWidget);
         }
@@ -734,7 +734,7 @@ void USuspenseInventoryUIBridge::InitializeInventoryWidgetWithData(USuspenseInve
             TArray<UActorComponent*> Components = OwningPlayerController->PlayerState->GetComponents().Array();
             for (UActorComponent* Component : Components)
             {
-                if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventoryInterface::StaticClass()))
+                if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
                 {
                     TScriptInterface<ISuspenseInventoryInterface> InventoryInterface;
                     InventoryInterface.SetObject(Component);
@@ -774,7 +774,7 @@ void USuspenseInventoryUIBridge::InitializeInventoryWidgetWithData(USuspenseInve
     if (ContainerData.Slots.Num() > 0)
     {
         // Initialize widget with container interface
-        if (Widget->GetClass()->ImplementsInterface(USuspenseContainerUIInterface::StaticClass()))
+        if (Widget->GetClass()->ImplementsInterface(USuspenseContainerUI::StaticClass()))
         {
             UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Initializing widget (IsFullyInitialized=%s)"), 
                 Widget->IsFullyInitialized() ? TEXT("true") : TEXT("false"));
@@ -821,7 +821,7 @@ void USuspenseInventoryUIBridge::UpdateInventoryWidgetData(USuspenseInventoryWid
         ContainerData.Items.Num());
     
     // Update widget even if conversion failed (will show empty inventory)
-    if (Widget->GetClass()->ImplementsInterface(USuspenseContainerUIInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseContainerUI::StaticClass()))
     {
         // Check if widget is already initialized
         if (!Widget->IsFullyInitialized())
@@ -1301,7 +1301,7 @@ void USuspenseInventoryUIBridge::OnUIItemDropped(UUserWidget* ContainerWidget, c
     bool bTargetIsEquipment = false;
     FGameplayTag TargetContainerType;
 
-    if (ContainerWidget && ContainerWidget->GetClass()->ImplementsInterface(USuspenseContainerUIInterface::StaticClass()))
+    if (ContainerWidget && ContainerWidget->GetClass()->ImplementsInterface(USuspenseContainerUI::StaticClass()))
     {
         TargetContainerType = ISuspenseContainerUIInterface::Execute_GetContainerType(ContainerWidget);
 
@@ -1352,9 +1352,9 @@ void USuspenseInventoryUIBridge::OnUIItemDropped(UUserWidget* ContainerWidget, c
             // Инвентарь (через интерфейс виджета)
             if (UUserWidget* InvWidget = GetCachedInventoryWidget())
             {
-                if (InvWidget->GetClass()->ImplementsInterface(USuspenseInventoryUIBridgeWidgetInterface::StaticClass()))
+                if (InvWidget->GetClass()->ImplementsInterface(USuspenseInventoryUIBridge::StaticClass()))
                 {
-                    ISuspenseInventoryUIBridgeWidget::Execute_RefreshInventoryUI(InvWidget);
+                    ISuspenseInventoryUIBridge::Execute_RefreshInventoryUI(InvWidget);
                 }
             }
 
@@ -1664,7 +1664,7 @@ void USuspenseInventoryUIBridge::ForceFullInventoryRefresh()
    }
    
    // Fully reinitialize widget
-   if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+   if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
    {
        // Uninitialize
        ISuspenseUIWidgetInterface::Execute_UninitializeWidget(InventoryWidget);

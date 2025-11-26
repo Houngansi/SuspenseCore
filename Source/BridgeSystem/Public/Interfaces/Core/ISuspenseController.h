@@ -13,7 +13,7 @@ class APawn;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseControllerInterface : public UInterface
+class USuspenseController : public UInterface
 {
     GENERATED_BODY()
 };

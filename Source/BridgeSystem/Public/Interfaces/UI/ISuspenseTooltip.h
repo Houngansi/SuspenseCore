@@ -8,7 +8,7 @@
 #include "ISuspenseTooltip.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseTooltipInterface : public UInterface
+class USuspenseTooltip : public UInterface
 {
 	GENERATED_BODY()
 };

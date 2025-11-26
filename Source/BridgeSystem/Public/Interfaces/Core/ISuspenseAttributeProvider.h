@@ -61,7 +61,7 @@ struct BRIDGESYSTEM_API FSuspenseAttributeData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseAttributeProviderInterface : public UInterface
+class USuspenseAttributeProvider : public UInterface
 {
     GENERATED_BODY()
 };

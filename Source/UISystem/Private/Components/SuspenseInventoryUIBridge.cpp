@@ -5,7 +5,7 @@
 #include "Components/SuspenseUIManager.h"
 #include "Delegates/EventDelegateManager.h"
 #include "Types/Inventory/InventoryTypes.h"
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Loadout/MedComItemDataTable.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/SuspenseEquipmentUIBridge.h"

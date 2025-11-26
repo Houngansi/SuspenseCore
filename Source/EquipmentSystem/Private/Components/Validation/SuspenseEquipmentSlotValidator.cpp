@@ -13,7 +13,7 @@
 #include "Services/EquipmentServiceMacros.h"
 
 // Типы/лоадаут
-#include "Types/Equipment/EquipmentTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Loadout/LoadoutSettings.h"
 
 // ==============================================

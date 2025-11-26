@@ -50,7 +50,7 @@ public:
 
     // Attribute provider support
     UFUNCTION(BlueprintCallable, Category = "UI|Attributes")
-    void InitializeWithProvider(TScriptInterface<ISuspenseAttributeProviderInterface> Provider);
+    void InitializeWithProvider(TScriptInterface<ISuspenseAttributeProvider> Provider);
 
     UFUNCTION(BlueprintCallable, Category = "UI|Attributes")
     void ClearProvider();
@@ -178,7 +178,7 @@ private:
     
     // Attribute provider reference
     UPROPERTY()
-    TScriptInterface<ISuspenseAttributeProviderInterface> AttributeProvider;
+    TScriptInterface<ISuspenseAttributeProvider> AttributeProvider;
     
     // Event subscription handles
     FDelegateHandle HealthUpdateHandle;

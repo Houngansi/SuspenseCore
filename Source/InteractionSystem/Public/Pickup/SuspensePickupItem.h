@@ -5,18 +5,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interfaces/Interaction/IMedComPickupInterface.h"
-#include "Interfaces/Interaction/IMedComInteractInterface.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Interfaces/Interaction/ISuspensePickup.h"
+#include "Interfaces/Interaction/ISuspenseInteract.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspensePickupItem.generated.h"
 
 // Forward declarations
 class USphereComponent;
 class UStaticMeshComponent;
-class UMedComItemManager;
+class USuspenseItemManager;
 class UDataTable;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class UNiagaraComponent;
 class UAudioComponent;
 
@@ -64,7 +64,7 @@ struct FPresetPropertyPair
  * Works exclusively with unified DataTable system
  *
  * АРХИТЕКТУРА:
- * - Единый источник истины: FMedComUnifiedItemData в DataTable
+ * - Единый источник истины: FSuspenseUnifiedItemData в DataTable
  * - ItemID - единственная ссылка на статические данные
  * - Runtime состояние хранится отдельно (количество, состояние патронов)
  * - Предустановленные свойства применяются к создаваемому экземпляру
@@ -72,8 +72,8 @@ struct FPresetPropertyPair
  */
 UCLASS(Blueprintable)
 class INTERACTIONSYSTEM_API ASuspensePickupItem : public AActor,
-    public IMedComInteractInterface,
-    public IMedComPickupInterface
+    public ISuspenseInteract,
+    public ISuspensePickup
 {
     GENERATED_BODY()
 
@@ -87,7 +87,7 @@ public:
     virtual void OnConstruction(const FTransform& Transform) override;
     //~ End AActor Interface
 
-    //~ Begin IMedComInteractInterface
+    //~ Begin ISuspenseInteract
     virtual bool CanInteract_Implementation(APlayerController* InstigatingController) const override;
     virtual bool Interact_Implementation(APlayerController* InstigatingController) override;
     virtual FGameplayTag GetInteractionType_Implementation() const override;
@@ -96,13 +96,13 @@ public:
     virtual float GetInteractionDistance_Implementation() const override;
     virtual void OnInteractionFocusGained_Implementation(APlayerController* InstigatingController) override;
     virtual void OnInteractionFocusLost_Implementation(APlayerController* InstigatingController) override;
-    virtual UEventDelegateManager* GetDelegateManager() const override;
-    //~ End IMedComInteractInterface
+    virtual USuspenseEventManager* GetDelegateManager() const override;
+    //~ End ISuspenseInteract
 
-    //~ Begin IMedComPickupInterface
+    //~ Begin ISuspensePickup
     virtual FName GetItemID_Implementation() const override;
     virtual void SetItemID_Implementation(FName NewItemID) override;
-    virtual bool GetUnifiedItemData_Implementation(FMedComUnifiedItemData& OutItemData) const override;
+    virtual bool GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutItemData) const override;
     virtual int32 GetItemAmount_Implementation() const override;
     virtual void SetAmount_Implementation(int32 NewAmount) override;
     virtual bool HasSavedAmmoState_Implementation() const override;
@@ -111,12 +111,12 @@ public:
     virtual bool HandlePickedUp_Implementation(AActor* InstigatorActor) override;
     virtual bool CanBePickedUpBy_Implementation(AActor* InstigatorActor) const override;
     virtual FGameplayTag GetItemType_Implementation() const override;
-    virtual bool CreateItemInstance_Implementation(FInventoryItemInstance& OutInstance) const override;
+    virtual bool CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const override;
     virtual FGameplayTag GetItemRarity_Implementation() const override;
     virtual FText GetDisplayName_Implementation() const override;
     virtual bool IsStackable_Implementation() const override;
     virtual float GetItemWeight_Implementation() const override;
-    //~ End IMedComPickupInterface
+    //~ End ISuspensePickup
 
     /** Get mesh component */
     UFUNCTION(BlueprintCallable, Category = "Pickup")
@@ -132,7 +132,7 @@ public:
      * @param Instance Runtime item instance with all properties
      */
     UFUNCTION(BlueprintCallable, Category = "Pickup")
-    void InitializeFromInstance(const FInventoryItemInstance& Instance);
+    void InitializeFromInstance(const FSuspenseInventoryItemInstance& Instance);
 
     /**
      * Initialize pickup from spawn data
@@ -237,7 +237,7 @@ protected:
   * NOTE: Not replicated due to TMap limitation. State is reconstructed from PresetRuntimeProperties
   */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup|Runtime")
- FInventoryItemInstance RuntimeInstance;
+ FSuspenseInventoryItemInstance RuntimeInstance;
 
     /**
      * Whether this pickup uses full runtime instance
@@ -295,14 +295,14 @@ protected:
 
     /** Cached unified item data from DataTable */
     UPROPERTY(Transient)
-    mutable FMedComUnifiedItemData CachedItemData;
+    mutable FSuspenseUnifiedItemData CachedItemData;
 
     /** Whether item data has been loaded from DataTable */
     UPROPERTY(Transient)
     mutable bool bDataCached;
 
     /** Cached delegate manager */
-    mutable TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
+    mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
 
 protected:
     //==================================================================
@@ -386,7 +386,7 @@ protected:
      * @return Item manager or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Pickup")
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
 
     /**
      * Broadcast pickup spawn event

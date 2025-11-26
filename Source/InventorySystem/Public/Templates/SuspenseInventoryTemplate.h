@@ -5,15 +5,15 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/LoadoutSettings.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryTemplate.generated.h"
 
 // Forward declarations
 class USuspenseInventoryComponent;
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 
 /**
  * Inventory template configuration focused solely on inventory setup
@@ -356,7 +356,7 @@ protected:
     /**
      * Get ItemManager for validation
      */
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
     
     /**
      * Validate single inventory configuration

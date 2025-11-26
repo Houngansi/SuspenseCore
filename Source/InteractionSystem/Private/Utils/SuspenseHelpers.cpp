@@ -6,10 +6,10 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Character.h"
 #include "Components/ActorComponent.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Interfaces/Inventory/IMedComInventoryInterface.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -139,7 +139,7 @@ bool USuspenseHelpers::ImplementsInventoryInterface(UObject* Object)
         return false;
     }
     
-    return Object->GetClass()->ImplementsInterface(UMedComInventoryInterface::StaticClass());
+    return Object->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass());
 }
 
 //==================================================================
@@ -161,7 +161,7 @@ bool USuspenseHelpers::AddItemToInventoryByID(UObject* InventoryComponent, FName
     }
     
     // Use the interface method directly
-    bool bResult = IMedComInventoryInterface::Execute_AddItemByID(InventoryComponent, ItemID, Quantity);
+    bool bResult = ISuspenseInventory::Execute_AddItemByID(InventoryComponent, ItemID, Quantity);
     
     if (bResult)
     {
@@ -177,7 +177,7 @@ bool USuspenseHelpers::AddItemToInventoryByID(UObject* InventoryComponent, FName
     return bResult;
 }
 
-bool USuspenseHelpers::AddItemInstanceToInventory(UObject* InventoryComponent, const FInventoryItemInstance& ItemInstance)
+bool USuspenseHelpers::AddItemInstanceToInventory(UObject* InventoryComponent, const FSuspenseInventoryItemInstance& ItemInstance)
 {
     if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
     {
@@ -192,15 +192,15 @@ bool USuspenseHelpers::AddItemInstanceToInventory(UObject* InventoryComponent, c
     }
     
     // Get the interface implementation
-    IMedComInventoryInterface* InventoryInterface = Cast<IMedComInventoryInterface>(InventoryComponent);
+    ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
     if (!InventoryInterface)
     {
         UE_LOG(LogSuspenseInteraction, Error, TEXT("AddItemInstanceToInventory: Failed to cast to interface"));
         return false;
     }
-    
+
     // Add the instance
-    FInventoryOperationResult Result = InventoryInterface->AddItemInstance(ItemInstance);
+    FSuspenseInventoryOperationResult Result = InventoryInterface->AddItemInstance(ItemInstance);
     
     if (Result.bSuccess)
     {
@@ -235,16 +235,16 @@ bool USuspenseHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Qua
     }
     
     // Получаем менеджер предметов
-    UMedComItemManager* ItemManager = GetItemManager(Actor);
+    USuspenseItemManager* ItemManager = GetItemManager(Actor);
     if (!ItemManager)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
+        UE_LOG(LogSuspenseInteraction, Warning,
             TEXT("CanActorPickupItem: ItemManager not found"));
         return false;
     }
-    
+
     // Получаем унифицированные данные предмета
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         UE_LOG(LogSuspenseInteraction, Warning, 
@@ -272,9 +272,9 @@ bool USuspenseHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Qua
     }
     
     // Проверяем через интерфейс с детальной диагностикой
-    bool bCanReceive = IMedComInventoryInterface::Execute_CanReceiveItem(
-        InventoryComponent, 
-        UnifiedData, 
+    bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
+        InventoryComponent,
+        UnifiedData,
         Quantity
     );
     
@@ -286,7 +286,7 @@ bool USuspenseHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Qua
             *ItemID.ToString());
         
         // Проверяем разрешенные типы
-        FGameplayTagContainer AllowedTypes = IMedComInventoryInterface::Execute_GetAllowedItemTypes(InventoryComponent);
+        FGameplayTagContainer AllowedTypes = ISuspenseInventory::Execute_GetAllowedItemTypes(InventoryComponent);
         if (!AllowedTypes.IsEmpty())
         {
             UE_LOG(LogSuspenseInteraction, Warning, 
@@ -324,8 +324,8 @@ bool USuspenseHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Qua
         }
         
         // Проверяем вес
-        float CurrentWeight = IMedComInventoryInterface::Execute_GetCurrentWeight(InventoryComponent);
-        float MaxWeight = IMedComInventoryInterface::Execute_GetMaxWeight(InventoryComponent);
+        float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
+        float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
         float RequiredWeight = UnifiedData.Weight * Quantity;
         
         UE_LOG(LogSuspenseInteraction, Warning, 
@@ -357,7 +357,7 @@ bool USuspenseHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Qua
     return bCanReceive;
 }
 
-bool USuspenseHelpers::CreateItemInstance(FName ItemID, int32 Quantity, FInventoryItemInstance& OutInstance)
+bool USuspenseHelpers::CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance)
 {
     if (ItemID.IsNone() || Quantity <= 0)
     {
@@ -373,13 +373,13 @@ bool USuspenseHelpers::CreateItemInstance(FName ItemID, int32 Quantity, FInvento
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(World);
+    USuspenseItemManager* ItemManager = GetItemManager(World);
     if (!ItemManager)
     {
         UE_LOG(LogSuspenseInteraction, Error, TEXT("CreateItemInstance: ItemManager not found"));
         return false;
     }
-    
+
     return ItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
@@ -387,7 +387,7 @@ bool USuspenseHelpers::CreateItemInstance(FName ItemID, int32 Quantity, FInvento
 // Item Information Implementation
 //==================================================================
 
-bool USuspenseHelpers::GetUnifiedItemData(FName ItemID, FMedComUnifiedItemData& OutItemData)
+bool USuspenseHelpers::GetUnifiedItemData(FName ItemID, FSuspenseUnifiedItemData& OutItemData)
 {
     if (ItemID.IsNone())
     {
@@ -401,18 +401,18 @@ bool USuspenseHelpers::GetUnifiedItemData(FName ItemID, FMedComUnifiedItemData& 
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(World);
+    USuspenseItemManager* ItemManager = GetItemManager(World);
     if (!ItemManager)
     {
         return false;
     }
-    
+
     return ItemManager->GetUnifiedItemData(ItemID, OutItemData);
 }
 
 FText USuspenseHelpers::GetItemDisplayName(FName ItemID)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, ItemData))
     {
         return ItemData.DisplayName;
@@ -423,7 +423,7 @@ FText USuspenseHelpers::GetItemDisplayName(FName ItemID)
 
 float USuspenseHelpers::GetItemWeight(FName ItemID)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, ItemData))
     {
         return ItemData.Weight;
@@ -434,7 +434,7 @@ float USuspenseHelpers::GetItemWeight(FName ItemID)
 
 bool USuspenseHelpers::IsItemStackable(FName ItemID)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, ItemData))
     {
         return ItemData.MaxStackSize > 1;
@@ -447,7 +447,7 @@ bool USuspenseHelpers::IsItemStackable(FName ItemID)
 // Subsystem Access Implementation
 //==================================================================
 
-UMedComItemManager* USuspenseHelpers::GetItemManager(const UObject* WorldContextObject)
+USuspenseItemManager* USuspenseHelpers::GetItemManager(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -466,10 +466,10 @@ UMedComItemManager* USuspenseHelpers::GetItemManager(const UObject* WorldContext
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UMedComItemManager>();
+    return GameInstance->GetSubsystem<USuspenseItemManager>();
 }
 
-UEventDelegateManager* USuspenseHelpers::GetEventDelegateManager(const UObject* WorldContextObject)
+USuspenseEventManager* USuspenseHelpers::GetEventDelegateManager(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -488,7 +488,7 @@ UEventDelegateManager* USuspenseHelpers::GetEventDelegateManager(const UObject* 
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UEventDelegateManager>();
+    return GameInstance->GetSubsystem<USuspenseEventManager>();
 }
 
 //==================================================================
@@ -498,15 +498,15 @@ UEventDelegateManager* USuspenseHelpers::GetEventDelegateManager(const UObject* 
 bool USuspenseHelpers::ValidateInventorySpace(UObject* InventoryComponent, FName ItemID, int32 Quantity, FString& OutErrorMessage)
 {
     OutErrorMessage.Empty();
-    
+
     if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
     {
         OutErrorMessage = TEXT("Invalid inventory component");
         return false;
     }
-    
+
     // Get item data
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!GetUnifiedItemData(ItemID, ItemData))
     {
         OutErrorMessage = FString::Printf(TEXT("Item %s not found"), *ItemID.ToString());
@@ -514,7 +514,7 @@ bool USuspenseHelpers::ValidateInventorySpace(UObject* InventoryComponent, FName
     }
     
     // Check if inventory can receive item
-    bool bCanReceive = IMedComInventoryInterface::Execute_CanReceiveItem(InventoryComponent, ItemData, Quantity);
+    bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(InventoryComponent, ItemData, Quantity);
     
     if (!bCanReceive)
     {
@@ -538,8 +538,8 @@ bool USuspenseHelpers::ValidateWeightCapacity(UObject* InventoryComponent, FName
     float TotalWeight = ItemWeight * Quantity;
     
     // Get inventory weight capacity
-    float CurrentWeight = IMedComInventoryInterface::Execute_GetCurrentWeight(InventoryComponent);
-    float MaxWeight = IMedComInventoryInterface::Execute_GetMaxWeight(InventoryComponent);
+    float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
+    float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
     float RemainingWeight = MaxWeight - CurrentWeight;
     
     OutRemainingCapacity = RemainingWeight;
@@ -556,30 +556,30 @@ void USuspenseHelpers::GetInventoryStatistics(UObject* InventoryComponent, int32
     OutTotalItems = 0;
     OutTotalWeight = 0.0f;
     OutUsedSlots = 0;
-    
+
     if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
     {
         return;
     }
-    
+
     // Get interface implementation
-    IMedComInventoryInterface* InventoryInterface = Cast<IMedComInventoryInterface>(InventoryComponent);
+    ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
     if (!InventoryInterface)
     {
         return;
     }
-    
+
     // Get all items
-    TArray<FInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
+    TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
     
     OutUsedSlots = AllInstances.Num();
     
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         OutTotalItems += Instance.Quantity;
-        
+
         // Get item weight from DataTable
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (GetUnifiedItemData(Instance.ItemID, ItemData))
         {
             OutTotalWeight += ItemData.Weight * Instance.Quantity;
@@ -597,21 +597,21 @@ void USuspenseHelpers::LogInventoryContents(UObject* InventoryComponent, const F
         UE_LOG(LogSuspenseInventoryStatistics, Warning, TEXT("LogInventoryContents: Invalid inventory component"));
         return;
     }
-    
+
     // Get interface implementation
-    IMedComInventoryInterface* InventoryInterface = Cast<IMedComInventoryInterface>(InventoryComponent);
+    ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
     if (!InventoryInterface)
     {
         return;
     }
-    
+
     // Get all items
-    TArray<FInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
+    TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
     
     UE_LOG(LogSuspenseInventoryStatistics, Log, TEXT("=== Inventory Contents (%s) ==="), *LogCategory);
     UE_LOG(LogSuspenseInventoryStatistics, Log, TEXT("Total slots used: %d"), AllInstances.Num());
     
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         FString ItemName = Instance.ItemID.ToString();
         FText DisplayName = GetItemDisplayName(Instance.ItemID);

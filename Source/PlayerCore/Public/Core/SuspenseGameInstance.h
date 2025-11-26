@@ -11,7 +11,7 @@
 class UDataTable;
 class UMedComLoadoutManager;
 class UMedComWeaponAnimationSubsystem;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * Base GameInstance class for MedCom
@@ -32,7 +32,7 @@ class UMedComItemManager;
  * SUBSYSTEMS:
  * - UMedComLoadoutManager: Loadout configurations
  * - UMedComWeaponAnimationSubsystem: Weapon animations
- * - UMedComItemManager: Item data management (NEW)
+ * - USuspenseItemManager: Item data management (NEW)
  * - UMedComSystemCoordinatorSubsystem: Equipment services (auto-initialized by UE)
  */
 UCLASS()
@@ -107,7 +107,7 @@ public:
 
     /** Get ItemManager subsystem */
     UFUNCTION(BlueprintPure, Category = "MedCom|Items")
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
 
 protected:
     //========================================
@@ -169,7 +169,7 @@ protected:
 
  /**
   * DataTable containing all item definitions
-  * Row Structure must be FMedComUnifiedItemData
+  * Row Structure must be FSuspenseUnifiedItemData
   * 
   * REQUIRED: Must be set in BP_SuspenseGameInstance
   * Each row defines a complete item with all properties, stats, and GAS integration
@@ -177,7 +177,7 @@ protected:
   */
  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item System",
      meta = (RequiredAssetDataTags = "RowStructure=/Script/MedComShared.MedComUnifiedItemData",
-             ToolTip = "DataTable with item definitions. Row Structure: FMedComUnifiedItemData"))
+             ToolTip = "DataTable with item definitions. Row Structure: FSuspenseUnifiedItemData"))
  TObjectPtr<UDataTable> ItemDataTable;
 
  /** Whether to validate items on startup (recommended for development) */
@@ -301,7 +301,7 @@ protected:
      */
  bool ValidateCriticalItems(
      UMedComLoadoutManager* LoadoutManager,
-     UMedComItemManager* ItemManager,
+     USuspenseItemManager* ItemManager,
      TArray<FString>& OutCriticalErrors);
     
  /**

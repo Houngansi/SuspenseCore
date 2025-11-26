@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/Texture2D.h"
 #include "SuspenseInventoryItem.generated.h"
 
 // Forward declarations для чистого разделения модулей
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 
 /**
  * Actor-based inventory item implementation for DataTable architecture
@@ -54,8 +54,8 @@ public:
 
     // Core item identification and data access
     virtual FName GetItemID() const override { return ItemInstance.ItemID; }
-    virtual bool GetItemData(FMedComUnifiedItemData& OutItemData) const override;
-    virtual UMedComItemManager* GetItemManager() const override;
+    virtual bool GetItemData(FSuspenseUnifiedItemData& OutItemData) const override;
+    virtual USuspenseItemManager* GetItemManager() const override;
     
     // Quantity management with DataTable validation
     virtual int32 GetAmount() const override { return ItemInstance.Quantity; }
@@ -91,8 +91,8 @@ public:
     virtual void ClearSavedAmmoState() override;
     
     // Complete runtime instance access
-    virtual const FInventoryItemInstance& GetItemInstance() const override { return ItemInstance; }
-    virtual bool SetItemInstance(const FInventoryItemInstance& InInstance) override;
+    virtual const FSuspenseInventoryItemInstance& GetItemInstance() const override { return ItemInstance; }
+    virtual bool SetItemInstance(const FSuspenseInventoryItemInstance& InInstance) override;
     virtual FGuid GetInstanceID() const override { return ItemInstance.InstanceID; }
     //~ End IMedComInventoryItemInterface
 
@@ -303,7 +303,7 @@ protected:
      * - Unique GUID for multiplayer tracking
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Core")
-    FInventoryItemInstance ItemInstance;
+    FSuspenseInventoryItemInstance ItemInstance;
     
     /** 
      * Whether item has been properly initialized
@@ -317,18 +317,18 @@ private:
     // Performance Optimization - Caching System
     //==================================================================
     
-    /** 
+    /**
      * Cached reference to ItemManager subsystem
      * Avoids repeated subsystem lookups for better performance
      */
     UPROPERTY()
-    mutable UMedComItemManager* CachedItemManager;
-    
-    /** 
+    mutable USuspenseItemManager* CachedItemManager;
+
+    /**
      * Cached static item data from DataTable
      * Reduces DataTable queries for frequently accessed data
      */
-    mutable TOptional<FMedComUnifiedItemData> CachedItemData;
+    mutable TOptional<FSuspenseUnifiedItemData> CachedItemData;
     
     /** 
      * Timestamp when cache was last updated
@@ -353,5 +353,5 @@ private:
     bool ValidateItemStateInternal(TArray<FString>& OutErrors) const;
     
     /** Get cached item data with automatic refresh */
-    const FMedComUnifiedItemData* GetCachedUnifiedData() const;
+    const FSuspenseUnifiedItemData* GetCachedUnifiedData() const;
 };

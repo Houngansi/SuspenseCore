@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GameFramework/PlayerState.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseHelpers.generated.h"
 
 // Forward declarations
-class UMedComItemManager;
-class UEventDelegateManager;
-struct FMedComUnifiedItemData;
-struct FInventoryItemInstance;
+class USuspenseItemManager;
+class USuspenseEventManager;
+struct FSuspenseUnifiedItemData;
+struct FSuspenseInventoryItemInstance;
 
 // Log categories definition
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseInteraction, Log, All);
@@ -87,7 +87,7 @@ public:
      * @return true if item successfully added
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
-    static bool AddItemInstanceToInventory(UObject* InventoryComponent, const FInventoryItemInstance& ItemInstance);
+    static bool AddItemInstanceToInventory(UObject* InventoryComponent, const FSuspenseInventoryItemInstance& ItemInstance);
 
     /**
      * Check if actor can pickup item
@@ -109,7 +109,7 @@ public:
      * @return true if instance created successfully
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Interaction")
-    static bool CreateItemInstance(FName ItemID, int32 Quantity, FInventoryItemInstance& OutInstance);
+    static bool CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance);
 
     //==================================================================
     // Item Information
@@ -122,7 +122,7 @@ public:
      * @return true if data found
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Items")
-    static bool GetUnifiedItemData(FName ItemID, FMedComUnifiedItemData& OutItemData);
+    static bool GetUnifiedItemData(FName ItemID, FSuspenseUnifiedItemData& OutItemData);
 
     /**
      * Get item display name
@@ -158,7 +158,7 @@ public:
      * @return ItemManager or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Subsystems", meta = (WorldContext = "WorldContextObject"))
-    static UMedComItemManager* GetItemManager(const UObject* WorldContextObject);
+    static USuspenseItemManager* GetItemManager(const UObject* WorldContextObject);
 
     /**
      * Get EventDelegateManager subsystem
@@ -166,7 +166,7 @@ public:
      * @return EventDelegateManager or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Suspense|Subsystems", meta = (WorldContext = "WorldContextObject"))
-    static UEventDelegateManager* GetEventDelegateManager(const UObject* WorldContextObject);
+    static USuspenseEventManager* GetEventDelegateManager(const UObject* WorldContextObject);
 
     //==================================================================
     // Inventory Validation

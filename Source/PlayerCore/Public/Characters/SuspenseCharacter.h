@@ -13,7 +13,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UAbilitySystemComponent;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class UCharacterMovementComponent;
 
 UCLASS()

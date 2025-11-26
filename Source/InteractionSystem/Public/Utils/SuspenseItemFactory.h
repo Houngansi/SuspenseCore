@@ -9,9 +9,9 @@
 #include "SuspenseItemFactory.generated.h"
 
 // Forward declarations
-class UEventDelegateManager;
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+class USuspenseEventManager;
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 
 /**
  * Item factory for creating pickup actors
@@ -85,22 +85,22 @@ protected:
 
     // Cached references
     UPROPERTY(Transient)
-    TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
+    TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
 
     UPROPERTY(Transient)
-    TWeakObjectPtr<UMedComItemManager> CachedItemManager;
+    TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
 
     // Get delegate manager
-    UEventDelegateManager* GetDelegateManager() const;
+    USuspenseEventManager* GetDelegateManager() const;
 
     // Get item manager
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
 
     // Configure spawned pickup
-    void ConfigurePickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData, int32 Quantity);
+    void ConfigurePickup(AActor* PickupActor, const FSuspenseUnifiedItemData& ItemData, int32 Quantity);
 
     // Configure weapon pickup
-    void ConfigureWeaponPickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData,
+    void ConfigureWeaponPickup(AActor* PickupActor, const FSuspenseUnifiedItemData& ItemData,
         bool bWithAmmoState, float CurrentAmmo, float RemainingAmmo);
 
     // Broadcast item creation event

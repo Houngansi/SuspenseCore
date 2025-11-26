@@ -14,7 +14,7 @@ class UPanelWidget;
 class USuspenseBaseSlotWidget;
 class USuspenseDragDropOperation;
 class USuspenseDragDropHandler;
-class UEventDelegateManager;
+class USuspenseEventManager;
 
 /**
  * Widget pool for slot reuse
@@ -167,7 +167,7 @@ protected:
     
     /** Cached delegate manager */
     UPROPERTY()
-    UEventDelegateManager* CachedDelegateManager;
+    USuspenseEventManager* CachedDelegateManager;
 
     //========================================
     // Native Widget Overrides
@@ -186,7 +186,7 @@ public:
     virtual void UninitializeWidget_Implementation() override;
     virtual void UpdateWidget_Implementation(float DeltaTime) override;
     virtual FGameplayTag GetWidgetTag_Implementation() const override;
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
     
     virtual bool IsFullyInitialized() const { return bIsInitialized; }
 

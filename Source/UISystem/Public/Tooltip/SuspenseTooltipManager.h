@@ -11,7 +11,7 @@
 class USuspenseItemTooltipWidget;
 class UUserWidget;
 class APlayerController;
-class UEventDelegateManager;
+class USuspenseEventManager;
 
 /**
  * Configuration structure for tooltip behavior
@@ -254,7 +254,7 @@ private:
     
     /** Cached reference to event manager */
     UPROPERTY()
-    UEventDelegateManager* CachedEventManager;
+    USuspenseEventManager* CachedEventManager;
     
     /** Event subscription handles for cleanup */
     FDelegateHandle TooltipRequestHandle;
@@ -351,7 +351,7 @@ private:
     /**
      * Get event manager subsystem
      */
-    UEventDelegateManager* GetEventManager() const;
+    USuspenseEventManager* GetEventManager() const;
     
     /**
      * Determine tooltip class from item data

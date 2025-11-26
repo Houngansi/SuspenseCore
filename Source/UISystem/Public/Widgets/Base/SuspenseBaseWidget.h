@@ -9,7 +9,7 @@
 #include "SuspenseBaseWidget.generated.h"
 
 // Forward declarations
-class UEventDelegateManager;
+class USuspenseEventManager;
 
 /**
  * Base class for all UI widgets in MedCom game
@@ -55,7 +55,7 @@ public:
     virtual void ShowWidget_Implementation(bool bAnimate) override;
     virtual void HideWidget_Implementation(bool bAnimate) override;
     virtual void OnVisibilityChanged_Implementation(bool bIsVisible) override;
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
 
     //================================================
     // Animation Support
@@ -108,7 +108,7 @@ protected:
 
     /** Cached event manager reference for performance */
     UPROPERTY()
-    mutable UEventDelegateManager* CachedEventManager = nullptr;
+    mutable USuspenseEventManager* CachedEventManager = nullptr;
 
     //================================================
     // Helper Methods

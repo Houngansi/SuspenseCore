@@ -4,15 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "GameplayTagContainer.h"
 #include "Operations/InventoryResult.h"
 #include "SuspenseInventoryLibrary.generated.h"
 
 // Forward declarations для чистого разделения модулей
-class UMedComItemManager;
+class USuspenseItemManager;
 class UTexture2D;
 class UWorld;
 class AActor;
@@ -24,14 +24,14 @@ class AActor;
  * Эта библиотека полностью интегрирована с новой DataTable архитектурой и обеспечивает:
  * 
  * - Единый источник истины через DataTable
- * - Разделение статических данных (FMedComUnifiedItemData) и runtime состояния (FInventoryItemInstance)
+ * - Разделение статических данных (FSuspenseUnifiedItemData) и runtime состояния (FSuspenseInventoryItemInstance)
  * - Thread-safe операции для multiplayer среды
  * - Производительные методы с кэшированием
  * - Comprehensive validation и error handling
  * 
  * МИГРАЦИЯ ОТ LEGACY:
- * Все методы обновлены для использования FMedComUnifiedItemData вместо устаревшей FMCInventoryItemData.
- * Runtime данные теперь управляются через FInventoryItemInstance с расширенной системой свойств.
+ * Все методы обновлены для использования FSuspenseUnifiedItemData вместо устаревшей FMCInventoryItemData.
+ * Runtime данные теперь управляются через FSuspenseInventoryItemInstance с расширенной системой свойств.
  */
 UCLASS(meta = (BlueprintThreadSafe))
 class INVENTORYSYSTEM_API USuspenseInventoryLibrary : public UBlueprintFunctionLibrary
@@ -53,7 +53,7 @@ public:
      * @return Валидный runtime экземпляр или пустой при ошибке
      */
  UFUNCTION(BlueprintCallable, Category = "Inventory|Item Creation", CallInEditor)
-    static FInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity, const UObject* WorldContext);
+    static FSuspenseInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity, const UObject* WorldContext);
     
     /**
      * Создает множественные экземпляры предметов из spawn data
@@ -65,9 +65,9 @@ public:
      * @return Количество успешно созданных экземпляров
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Item Creation")
-    static int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray, 
+    static int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray,
                                                   const UObject* WorldContext,
-                                                  TArray<FInventoryItemInstance>& OutInstances);
+                                                  TArray<FSuspenseInventoryItemInstance>& OutInstances);
     
     /**
      * Получает unified данные предмета из DataTable
@@ -79,7 +79,7 @@ public:
      * @return true если данные найдены в DataTable
      */
  UFUNCTION(BlueprintCallable, Category = "Inventory|Item Data", CallInEditor)
-    static bool GetUnifiedItemData(const FName& ItemID, const UObject* WorldContext, FMedComUnifiedItemData& OutItemData);
+    static bool GetUnifiedItemData(const FName& ItemID, const UObject* WorldContext, FSuspenseUnifiedItemData& OutItemData);
     
     /**
      * Создает предмет в мире для pickup системы
@@ -91,8 +91,8 @@ public:
      * @return Созданный актор предмета или nullptr при ошибке
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|World Interaction")
-    static AActor* SpawnItemInWorld(const FInventoryItemInstance& ItemInstance, 
-                                   UWorld* World, 
+    static AActor* SpawnItemInWorld(const FSuspenseInventoryItemInstance& ItemInstance,
+                                   UWorld* World,
                                    const FTransform& Transform);
     
     //==================================================================
@@ -109,7 +109,7 @@ public:
      * @return true если экземпляр полностью валиден
      */
  UFUNCTION(BlueprintCallable, Category = "Inventory|Validation", CallInEditor)
-    static bool ValidateItemInstance(const FInventoryItemInstance& ItemInstance, 
+    static bool ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance,
                                    const UObject* WorldContext,
                                    TArray<FString>& OutErrors);
     
@@ -248,7 +248,7 @@ public:
      * @return Общий вес всех предметов
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weight")
-    static float CalculateTotalWeightFromInstances(const TArray<FInventoryItemInstance>& ItemInstances, 
+    static float CalculateTotalWeightFromInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances,
                                                   const UObject* WorldContext);
     
     /**
@@ -263,7 +263,7 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weight")
     static bool CanAddItemsByWeight(float CurrentWeight,
-                                  const TArray<FInventoryItemInstance>& ItemInstances,
+                                  const TArray<FSuspenseInventoryItemInstance>& ItemInstances,
                                   float MaxWeight,
                                   const UObject* WorldContext);
     
@@ -343,8 +343,8 @@ public:
      * @return true если экземпляры можно объединить
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Stacking")
-    static bool CanStackInstances(const FInventoryItemInstance& Instance1,
-                                const FInventoryItemInstance& Instance2,
+    static bool CanStackInstances(const FSuspenseInventoryItemInstance& Instance1,
+                                const FSuspenseInventoryItemInstance& Instance2,
                                 const UObject* WorldContext);
     
     /**
@@ -358,10 +358,10 @@ public:
      * @return true если объединение выполнено (частично или полностью)
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Stacking")
-    static bool StackInstances(UPARAM(ref) FInventoryItemInstance& SourceInstance,
-                             const FInventoryItemInstance& TargetInstance,
+    static bool StackInstances(UPARAM(ref) FSuspenseInventoryItemInstance& SourceInstance,
+                             const FSuspenseInventoryItemInstance& TargetInstance,
                              const UObject* WorldContext,
-                             FInventoryItemInstance& OutRemainder);
+                             FSuspenseInventoryItemInstance& OutRemainder);
     
     /**
      * Разделяет runtime экземпляр на два стека
@@ -372,9 +372,9 @@ public:
      * @return true если разделение успешно
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Stacking")
-    static bool SplitInstance(UPARAM(ref) FInventoryItemInstance& SourceInstance,
+    static bool SplitInstance(UPARAM(ref) FSuspenseInventoryItemInstance& SourceInstance,
                             int32 SplitQuantity,
-                            FInventoryItemInstance& OutNewInstance);
+                            FSuspenseInventoryItemInstance& OutNewInstance);
     
     /**
      * Получает максимальный размер стека из DataTable
@@ -501,7 +501,7 @@ public:
      * @return Структура успешного результата
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Operations")
-    static FInventoryOperationResult CreateSuccessResult(const FName& Context, 
+    static FSuspenseInventoryOperationResult CreateSuccessResult(const FName& Context,
                                                         UObject* ResultObject = nullptr,
                                                         const FString& AdditionalData = TEXT(""));
     
@@ -515,7 +515,7 @@ public:
      * @return Структура результата ошибки
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Operations")
-    static FInventoryOperationResult CreateFailureResult(EInventoryErrorCode ErrorCode, 
+    static FSuspenseInventoryOperationResult CreateFailureResult(EInventoryErrorCode ErrorCode,
                                                         const FText& ErrorMessage,
                                                         const FName& Context,
                                                         UObject* ResultObject = nullptr);
@@ -533,7 +533,7 @@ public:
      * @return Значение runtime свойства
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Runtime Properties")
-    static float GetItemRuntimeProperty(const FInventoryItemInstance& ItemInstance,
+    static float GetItemRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance,
                                       const FName& PropertyName,
                                       float DefaultValue = 0.0f);
     
@@ -545,7 +545,7 @@ public:
      * @param Value Новое значение
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Runtime Properties")
-    static void SetItemRuntimeProperty(UPARAM(ref) FInventoryItemInstance& ItemInstance,
+    static void SetItemRuntimeProperty(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance,
                                      const FName& PropertyName,
                                      float Value);
     
@@ -557,7 +557,7 @@ public:
      * @return true если свойство существует
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Runtime Properties")
-    static bool HasItemRuntimeProperty(const FInventoryItemInstance& ItemInstance,
+    static bool HasItemRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance,
                                      const FName& PropertyName);
     
     //==================================================================
@@ -572,7 +572,7 @@ public:
      * @return Детальная debug строка
      */
  UFUNCTION(BlueprintCallable, Category = "Inventory|Debug", CallInEditor)
-    static FString GetItemInstanceDebugInfo(const FInventoryItemInstance& ItemInstance, 
+    static FString GetItemInstanceDebugInfo(const FSuspenseInventoryItemInstance& ItemInstance,
                                           const UObject* WorldContext);
     
     /**
@@ -591,11 +591,11 @@ public:
 private:
     /**
      * Получает ItemManager из world context с error handling
-     * 
+     *
      * @param WorldContext Объект с world context
      * @return ItemManager или nullptr при ошибке
      */
-    static UMedComItemManager* GetItemManager(const UObject* WorldContext);
+    static USuspenseItemManager* GetItemManager(const UObject* WorldContext);
     
     /**
      * Логирует ошибку с unified форматированием

@@ -9,7 +9,7 @@
 #include "Interfaces/Core/ISuspenseCharacter.h"
 #include "Interfaces/Core/ISuspenseAttributeProvider.h"
 #include "Interfaces/Core/ISuspenseLoadout.h"
-#include "Input/MCAbilityInputID.h"
+#include "Input/SuspenseAbilityInputID.h"
 #include "GameplayEffectTypes.h"
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "SuspensePlayerState.generated.h"
@@ -43,7 +43,7 @@ struct FAbilityInfo
     TSubclassOf<UGameplayAbility> Ability = nullptr;
 
     UPROPERTY(EditDefaultsOnly)
-    int32 InputID = static_cast<int32>(EMCAbilityInputID::None);
+    int32 InputID = static_cast<int32>(ESuspenseAbilityInputID::None);
 };
 
 /**

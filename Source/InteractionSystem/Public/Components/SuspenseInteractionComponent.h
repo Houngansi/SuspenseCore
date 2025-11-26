@@ -15,7 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteractionFailedDelegate, AActor*,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInteractionTypeChangedDelegate, AActor*, InteractableActor, FGameplayTag, InteractionType);
 
 // Forward declarations
-class UEventDelegateManager;
+class USuspenseEventManager;
 
 /**
  * Component for interacting with objects in the world through GAS
@@ -109,7 +109,7 @@ protected:
 
     // Cached delegate manager for performance
     UPROPERTY(Transient)
-    TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
+    TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
 
     // Timer handle for interaction cooldown
     FTimerHandle CooldownTimerHandle;
@@ -133,7 +133,7 @@ protected:
     bool HasBlockingTags() const;
     void LogInteraction(const FString& Message, bool bError = false) const;
     UAbilitySystemComponent* GetOwnerASC() const;
-    UEventDelegateManager* GetDelegateManager() const;
+    USuspenseEventManager* GetDelegateManager() const;
 
     // Set interaction cooldown
     void SetInteractionCooldown();

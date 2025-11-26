@@ -289,5 +289,5 @@ private:
     class USuspenseUIManager* GetUIManager() const;
 
     /** Get EventDelegateManager instance */
-    class UEventDelegateManager* GetEventManager() const;
+    class USuspenseEventManager* GetEventManager() const;
 };

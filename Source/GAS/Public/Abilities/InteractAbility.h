@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "InteractAbility.generated.h"
 
-class UEventDelegateManager;
+class USuspenseEventManager;
 
 /**
  * Enhanced interact ability with delegate integration
@@ -101,7 +101,7 @@ protected:
     void NotifyInteraction(bool bSuccess, AActor* TargetActor) const;
 
     /** Get delegate manager */
-    UEventDelegateManager* GetDelegateManager() const;
+    USuspenseEventManager* GetDelegateManager() const;
 
     /** Debug logging helper */
     void LogInteractionDebugInfo(const FString& Message, bool bError = false) const;

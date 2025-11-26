@@ -11,8 +11,8 @@
 class IMedComEquipmentInterface;
 class IMedComWeaponAnimationInterface;
 class UAnimMontage;
-class UEventDelegateManager;
-struct FInventoryItemInstance;
+class USuspenseEventManager;
+struct FSuspenseInventoryItemInstance;
 
 /**
  * Ability for toggling weapon state (draw/holster) in the same slot

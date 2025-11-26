@@ -6,11 +6,11 @@
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"
 #include "Components/AudioComponent.h"
-#include "Interfaces/Inventory/IMedComInventoryInterface.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Utils/SuspenseHelpers.h"
 #include "Utils/SuspenseInteractionSettings.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -138,7 +138,7 @@ void ASuspensePickupItem::OnConstruction(const FTransform& Transform)
 // New Initialization Methods
 //==================================================================
 
-void ASuspensePickupItem::InitializeFromInstance(const FInventoryItemInstance& Instance)
+void ASuspensePickupItem::InitializeFromInstance(const FSuspenseInventoryItemInstance& Instance)
 {
     if (!Instance.IsValid())
     {
@@ -272,12 +272,12 @@ bool ASuspensePickupItem::Interact_Implementation(APlayerController* Instigating
     AActor* Pawn = InstigatingController->GetPawn();
     
     // Broadcast interaction started
-    IMedComInteractInterface::BroadcastInteractionStarted(this, InstigatingController, GetInteractionType_Implementation());
-    
+    ISuspenseInteract::BroadcastInteractionStarted(this, InstigatingController, GetInteractionType_Implementation());
+
     bool bSuccess = HandlePickedUp_Implementation(Pawn);
-    
+
     // Broadcast interaction completed
-    IMedComInteractInterface::BroadcastInteractionCompleted(this, InstigatingController, bSuccess);
+    ISuspenseInteract::BroadcastInteractionCompleted(this, InstigatingController, bSuccess);
     
     return bSuccess;
 }
@@ -338,29 +338,29 @@ float ASuspensePickupItem::GetInteractionDistance_Implementation() const
 
 void ASuspensePickupItem::OnInteractionFocusGained_Implementation(APlayerController* InstigatingController)
 {
-    IMedComInteractInterface::BroadcastInteractionFocusChanged(this, InstigatingController, true);
+    ISuspenseInteract::BroadcastInteractionFocusChanged(this, InstigatingController, true);
     HandleInteractionFeedback(true);
 }
 
 void ASuspensePickupItem::OnInteractionFocusLost_Implementation(APlayerController* InstigatingController)
 {
-    IMedComInteractInterface::BroadcastInteractionFocusChanged(this, InstigatingController, false);
+    ISuspenseInteract::BroadcastInteractionFocusChanged(this, InstigatingController, false);
     HandleInteractionFeedback(false);
 }
 
-UEventDelegateManager* ASuspensePickupItem::GetDelegateManager() const
+USuspenseEventManager* ASuspensePickupItem::GetDelegateManager() const
 {
     if (CachedDelegateManager.IsValid())
     {
         return CachedDelegateManager.Get();
     }
-    
-    UEventDelegateManager* Manager = IMedComInteractInterface::GetDelegateManagerStatic(this);
+
+    USuspenseEventManager* Manager = ISuspenseInteract::GetDelegateManagerStatic(this);
     if (Manager)
     {
         CachedDelegateManager = Manager;
     }
-    
+
     return Manager;
 }
 
@@ -388,7 +388,7 @@ void ASuspensePickupItem::SetItemID_Implementation(FName NewItemID)
     }
 }
 
-bool ASuspensePickupItem::GetUnifiedItemData_Implementation(FMedComUnifiedItemData& OutItemData) const
+bool ASuspensePickupItem::GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutItemData) const
 {
     // Load data if not cached
     if (!bDataCached)
@@ -439,7 +439,7 @@ void ASuspensePickupItem::SetSavedAmmoState_Implementation(float CurrentAmmo, fl
     SavedRemainingAmmo = RemainingAmmo;
 }
 
-bool ASuspensePickupItem::CreateItemInstance_Implementation(FInventoryItemInstance& OutInstance) const
+bool ASuspensePickupItem::CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const
 {
     // Если у нас есть полный runtime instance - используем его
     if (bUseRuntimeInstance && RuntimeInstance.IsValid())
@@ -463,12 +463,12 @@ bool ASuspensePickupItem::CreateItemInstance_Implementation(FInventoryItemInstan
     }
     
     // Получаем менеджер предметов для создания экземпляра
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
-    
+
     // Создаем экземпляр через менеджер предметов
     if (!ItemManager->CreateItemInstance(ItemID, Amount, OutInstance))
     {
@@ -709,13 +709,13 @@ bool ASuspensePickupItem::LoadItemData() const
     }
     
     // Get item manager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("LoadItemData: ItemManager not found"));
         return false;
     }
-    
+
     // Get unified data from DataTable
     if (ItemManager->GetUnifiedItemData(ItemID, CachedItemData))
     {
@@ -826,13 +826,13 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
     }
     
     // Create item instance
-    FInventoryItemInstance ItemInstance;
+    FSuspenseInventoryItemInstance ItemInstance;
     if (!CreateItemInstance_Implementation(ItemInstance))
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("TryAddToInventory: Failed to create item instance"));
         return false;
     }
-    
+
     // Find inventory component
     UObject* InventoryComponent = USuspenseHelpers::FindInventoryComponent(InstigatorActor);
     if (!InventoryComponent)
@@ -840,9 +840,9 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("TryAddToInventory: No inventory component found"));
         return false;
     }
-    
+
     // Check interface implementation
-    if (!InventoryComponent->GetClass()->ImplementsInterface(UMedComInventoryInterface::StaticClass()))
+    if (!InventoryComponent->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("TryAddToInventory: Inventory doesn't implement interface"));
         return false;
@@ -851,9 +851,9 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
     // Используем ТОЛЬКО интерфейсные методы для проверок
     
     // 1. Проверяем, может ли инвентарь принять этот предмет через интерфейс
-    bool bCanReceive = IMedComInventoryInterface::Execute_CanReceiveItem(
-        InventoryComponent, 
-        CachedItemData, 
+    bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
+        InventoryComponent,
+        CachedItemData,
         Amount
     );
     
@@ -865,7 +865,7 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
         // Дополнительная диагностика через интерфейсные методы
         
         // Проверяем разрешенные типы
-        FGameplayTagContainer AllowedTypes = IMedComInventoryInterface::Execute_GetAllowedItemTypes(InventoryComponent);
+        FGameplayTagContainer AllowedTypes = ISuspenseInventory::Execute_GetAllowedItemTypes(InventoryComponent);
         if (!AllowedTypes.IsEmpty())
         {
             UE_LOG(LogSuspenseInteraction, Warning, 
@@ -880,8 +880,8 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
         }
         
         // Проверяем вес через интерфейс
-        float CurrentWeight = IMedComInventoryInterface::Execute_GetCurrentWeight(InventoryComponent);
-        float MaxWeight = IMedComInventoryInterface::Execute_GetMaxWeight(InventoryComponent);
+        float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
+        float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
         float RequiredWeight = CachedItemData.Weight * Amount;
         
         UE_LOG(LogSuspenseInteraction, Warning, 
@@ -891,19 +891,19 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
         if (CurrentWeight + RequiredWeight > MaxWeight)
         {
             UE_LOG(LogSuspenseInteraction, Warning, TEXT("  - Would exceed weight limit"));
-            
-            IMedComInventoryInterface::BroadcastInventoryError(
-                InventoryComponent, 
-                EInventoryErrorCode::WeightLimit,
+
+            ISuspenseInventory::BroadcastInventoryError(
+                InventoryComponent,
+                ESuspenseInventoryErrorCode::WeightLimit,
                 TEXT("Weight limit exceeded")
             );
         }
         else
         {
             // Если не вес, то возможно нет места или тип не разрешен
-            IMedComInventoryInterface::BroadcastInventoryError(
-                InventoryComponent, 
-                EInventoryErrorCode::NoSpace,
+            ISuspenseInventory::BroadcastInventoryError(
+                InventoryComponent,
+                ESuspenseInventoryErrorCode::NoSpace,
                 TEXT("Cannot add item to inventory")
             );
         }
@@ -913,16 +913,16 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
     
     // Try to add using the interface method
     UE_LOG(LogSuspenseInteraction, Log, TEXT("TryAddToInventory: Adding item through interface..."));
-    
-    bool bAdded = IMedComInventoryInterface::Execute_AddItemByID(InventoryComponent, ItemID, Amount);
-    
+
+    bool bAdded = ISuspenseInventory::Execute_AddItemByID(InventoryComponent, ItemID, Amount);
+
     if (bAdded)
     {
         UE_LOG(LogSuspenseInteraction, Log, TEXT("Successfully added %s to inventory"), *ItemID.ToString());
-        
+
         // Broadcast success event
-        IMedComInventoryInterface::BroadcastItemAdded(
-            InventoryComponent, 
+        ISuspenseInventory::BroadcastItemAdded(
+            InventoryComponent,
             ItemInstance,
             INDEX_NONE
         );
@@ -930,11 +930,11 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
     else
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("Failed to add %s to inventory"), *ItemID.ToString());
-        
+
         // Broadcast generic error since we don't have specific reason
-        IMedComInventoryInterface::BroadcastInventoryError(
-            InventoryComponent, 
-            EInventoryErrorCode::NoSpace,
+        ISuspenseInventory::BroadcastInventoryError(
+            InventoryComponent,
+            ESuspenseInventoryErrorCode::NoSpace,
             TEXT("Pickup failed")
         );
     }
@@ -942,20 +942,20 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
     return bAdded;
 }
 
-UMedComItemManager* ASuspensePickupItem::GetItemManager() const
+USuspenseItemManager* ASuspensePickupItem::GetItemManager() const
 {
     UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
     if (GameInstance)
     {
-        return GameInstance->GetSubsystem<UMedComItemManager>();
+        return GameInstance->GetSubsystem<USuspenseItemManager>();
     }
-    
+
     return nullptr;
 }
 
 void ASuspensePickupItem::BroadcastPickupSpawned()
 {
-    UEventDelegateManager* Manager = GetDelegateManager();
+    USuspenseEventManager* Manager = GetDelegateManager();
     if (Manager)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Pickup.Event.Spawned"));
@@ -970,7 +970,7 @@ void ASuspensePickupItem::BroadcastPickupSpawned()
 
 void ASuspensePickupItem::BroadcastPickupCollected(AActor* Collector)
 {
-    UEventDelegateManager* Manager = GetDelegateManager();
+    USuspenseEventManager* Manager = GetDelegateManager();
     if (Manager && Collector)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Pickup.Event.Collected"));

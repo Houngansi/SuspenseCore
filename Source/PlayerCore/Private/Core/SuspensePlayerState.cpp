@@ -806,7 +806,7 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
                         }
                         
                         // Create item instance
-                        FInventoryItemInstance ItemInstance;
+                        FSuspenseInventoryItemInstance ItemInstance;
                         ItemInstance.ItemID = ItemID;
                         ItemInstance.InstanceID = FGuid::NewGuid();
                         ItemInstance.Quantity = 1;
@@ -1656,7 +1656,7 @@ void ASuspensePlayerState::GrantStartupAbilities()
 
     if (InteractAbility) 
     {
-        int32 InteractInputID = static_cast<int32>(EMCAbilityInputID::Interact);
+        int32 InteractInputID = static_cast<int32>(ESuspenseAbilityInputID::Interact);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(InteractAbility, 1, InteractInputID));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - Added Interact: %s, InputID=%d, Handle Valid=%s"),
                *InteractAbility->GetName(), InteractInputID, Handle.IsValid() ? TEXT("YES") : TEXT("NO"));
@@ -1668,7 +1668,7 @@ void ASuspensePlayerState::GrantStartupAbilities()
     
     if (SprintAbility) 
     {
-        int32 SprintInputID = static_cast<int32>(EMCAbilityInputID::Sprint);
+        int32 SprintInputID = static_cast<int32>(ESuspenseAbilityInputID::Sprint);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(SprintAbility, 1, SprintInputID));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - Added Sprint: %s, InputID=%d, Handle Valid=%s"),
                *SprintAbility->GetName(), SprintInputID, Handle.IsValid() ? TEXT("YES") : TEXT("NO"));
@@ -1680,7 +1680,7 @@ void ASuspensePlayerState::GrantStartupAbilities()
     
     if (CrouchAbility) 
     {
-        int32 CrouchInputID = static_cast<int32>(EMCAbilityInputID::Crouch);
+        int32 CrouchInputID = static_cast<int32>(ESuspenseAbilityInputID::Crouch);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(CrouchAbility, 1, CrouchInputID));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - Added Crouch: %s, InputID=%d, Handle Valid=%s"),
                *CrouchAbility->GetName(), CrouchInputID, Handle.IsValid() ? TEXT("YES") : TEXT("NO"));
@@ -1701,7 +1701,7 @@ void ASuspensePlayerState::GrantStartupAbilities()
     
     if (JumpAbility) 
     {
-        int32 JumpInputID = static_cast<int32>(EMCAbilityInputID::Jump);
+        int32 JumpInputID = static_cast<int32>(ESuspenseAbilityInputID::Jump);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(JumpAbility, 1, JumpInputID));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - Added Jump: %s, InputID=%d, Handle Valid=%s"),
                *JumpAbility->GetName(), JumpInputID, Handle.IsValid() ? TEXT("YES") : TEXT("NO"));
@@ -1713,14 +1713,14 @@ void ASuspensePlayerState::GrantStartupAbilities()
 
     if (WeaponSwitchAbility) 
     {
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::NextWeapon)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::PrevWeapon)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::QuickSwitch)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::WeaponSlot1)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::WeaponSlot2)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::WeaponSlot3)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::WeaponSlot4)));
-        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(EMCAbilityInputID::WeaponSlot5)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::NextWeapon)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::PrevWeapon)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::QuickSwitch)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot1)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot2)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot3)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot4)));
+        ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot5)));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("Added WeaponSwitchAbility with 8 different InputIDs for all weapon switch methods"));
     }
     else

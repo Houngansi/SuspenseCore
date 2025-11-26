@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "WeaponSwitchAbility.generated.h"
 
-class UEventDelegateManager;
+class USuspenseEventManager;
 class IMedComEquipmentInterface;
 class IMedComWeaponInterface;
 struct FAnimationStateData;
@@ -155,7 +155,7 @@ protected:
     bool IsWeaponSlot(int32 SlotIndex) const;
     
     /** Get delegate manager */
-    UEventDelegateManager* GetDelegateManager() const;
+    USuspenseEventManager* GetDelegateManager() const;
     
     /** Send switch events */
     void SendWeaponSwitchEvent(bool bStarted, int32 FromSlot, int32 ToSlot) const;

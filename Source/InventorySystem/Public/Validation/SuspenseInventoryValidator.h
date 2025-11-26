@@ -5,24 +5,24 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Operations/InventoryResult.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryValidator.generated.h"
 
 // Forward declarations для clean separation между модулями
-class UMedComItemManager;
-struct FInventoryItemInstance;
-struct FMedComUnifiedItemData;
+class USuspenseItemManager;
+struct FSuspenseInventoryItemInstance;
+struct FSuspenseUnifiedItemData;
 
 /**
  * ПОЛНОСТЬЮ ОБНОВЛЕННЫЙ класс для валидации операций инвентаря
  * 
  * Архитектурные принципы новой версии:
  * - Интеграция с DataTable как источником истины для статических данных
- * - Поддержка FInventoryItemInstance для runtime валидации экземпляров
- * - Централизованный доступ к данным через UMedComItemManager
+ * - Поддержка FSuspenseInventoryItemInstance для runtime валидации экземпляров
+ * - Централизованный доступ к данным через USuspenseItemManager
  * - Enhanced error reporting с детальной диагностикой
  * - Backward compatibility с legacy структурами во время миграции
  * - Thread-safe операции для multiplayer среды
@@ -42,7 +42,7 @@ public:
     /**
      * Инициализирует constraints с конкретными настройками
      * Теперь может работать как с legacy параметрами, так и с LoadoutSettings
-     * 
+     *
      * @param InMaxWeight Максимальный лимит веса
      * @param InAllowedTypes Контейнер разрешенных типов предметов
      * @param InGridWidth Ширина сетки инвентаря
@@ -50,7 +50,7 @@ public:
      * @param InItemManager Опциональная ссылка на ItemManager для DataTable доступа
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Constraints")
-    void Initialize(float InMaxWeight, const FGameplayTagContainer& InAllowedTypes, int32 InGridWidth, int32 InGridHeight, UMedComItemManager* InItemManager = nullptr);
+    void Initialize(float InMaxWeight, const FGameplayTagContainer& InAllowedTypes, int32 InGridWidth, int32 InGridHeight, USuspenseItemManager* InItemManager = nullptr);
 
     /**
      * НОВЫЙ МЕТОД: Инициализация из LoadoutSettings (рекомендуемый способ)
@@ -78,26 +78,26 @@ public:
     /**
      * ОСНОВНОЙ МЕТОД: Валидация unified данных предмета из DataTable
      * Заменяет legacy ValidateItemParams для новой архитектуры
-     * 
+     *
      * @param ItemData Unified данные предмета из DataTable
      * @param Amount Количество предметов
      * @param FunctionName Контекст для логирования
      * @return Результат валидации с детальной информацией об ошибках
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateUnifiedItemData(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     /**
      * Валидация unified данных с проверкой типовых ограничений
      * Включает все базовые проверки плюс item type restrictions
-     * 
+     *
      * @param ItemData Unified данные предмета
      * @param Amount Количество предметов
      * @param FunctionName Контекст для логирования
      * @return Результат валидации
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateUnifiedItemDataWithRestrictions(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedItemDataWithRestrictions(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     //==================================================================
     // Runtime Instance Validation - ВАЛИДАЦИЯ RUNTIME ЭКЗЕМПЛЯРОВ
@@ -112,7 +112,7 @@ public:
      * @return Результат валидации экземпляра
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemInstance(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 
     /**
      * Валидация массива runtime экземпляров
@@ -124,7 +124,7 @@ public:
      * @return Количество успешно прошедших валидацию экземпляров
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    int32 ValidateItemInstances(const TArray<FInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FInventoryItemInstance>& OutFailedInstances) const;
+    int32 ValidateItemInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FSuspenseInventoryItemInstance>& OutFailedInstances) const;
 
     /**
      * Валидация runtime свойств экземпляра
@@ -135,7 +135,7 @@ public:
      * @return Результат валидации runtime свойств
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateRuntimeProperties(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateRuntimeProperties(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 
     //==================================================================
     // Enhanced Grid and Spatial Validation - ПРОСТРАНСТВЕННАЯ ВАЛИДАЦИЯ
@@ -148,7 +148,7 @@ public:
      * @return Результат валидации
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateSlotIndex(int32 SlotIndex, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateSlotIndex(int32 SlotIndex, const FName& FunctionName) const;
 
     /**
      * ОБНОВЛЕНО: Валидация границ сетки для unified данных
@@ -161,7 +161,7 @@ public:
      * @return Результат валидации границ
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateGridBoundsForUnified(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateGridBoundsForUnified(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
 
     /**
      * Валидация границ для runtime экземпляра
@@ -173,7 +173,7 @@ public:
      * @return Результат валидации границ
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateGridBoundsForInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateGridBoundsForInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const;
 
     /**
      * НОВЫЙ МЕТОД: Валидация размещения предмета с collision detection
@@ -187,7 +187,7 @@ public:
      * @return Результат валидации размещения
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemPlacement(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemPlacement(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const;
 
     //==================================================================
     // Enhanced Weight Validation - ВАЛИДАЦИЯ ВЕСА
@@ -204,7 +204,7 @@ public:
      * @return Результат валидации веса
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateWeightForUnified(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateWeightForUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
 
     /**
      * Валидация веса для runtime экземпляра
@@ -216,7 +216,7 @@ public:
      * @return Результат валидации веса
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateWeightForInstance(const FInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateWeightForInstance(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const;
 
     /**
      * Проверка превышения лимита веса для unified данных
@@ -226,7 +226,7 @@ public:
      * @return true если лимит будет превышен
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Validation")
-    bool WouldExceedWeightLimitUnified(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const;
+    bool WouldExceedWeightLimitUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const;
 
     //==================================================================
     // Item and Object Validation - ВАЛИДАЦИЯ ОБЪЕКТОВ
@@ -241,7 +241,7 @@ public:
      * @return Результат валидации объекта
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemForOperation(UObject* ItemObject, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemForOperation(UObject* ItemObject, const FName& FunctionName) const;
 
     /**
      * НОВЫЙ МЕТОД: Валидация совместимости предмета с инвентарем
@@ -254,7 +254,7 @@ public:
      * @return Результат комплексной валидации
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemCompatibility(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemCompatibility(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
 
     //==================================================================
     // Type and Restriction Checking - ПРОВЕРКА ТИПОВ И ОГРАНИЧЕНИЙ
@@ -278,7 +278,7 @@ public:
      * @return true если предмет разрешен по всем критериям
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Validation")
-    bool IsItemAllowedByAllCriteria(const FMedComUnifiedItemData& ItemData) const;
+    bool IsItemAllowedByAllCriteria(const FSuspenseUnifiedItemData& ItemData) const;
 
     /**
      * Проверка превышения лимита веса (legacy метод)
@@ -386,7 +386,7 @@ private:
 
     /** Слабая ссылка на ItemManager для доступа к DataTable */
     UPROPERTY()
-    TWeakObjectPtr<UMedComItemManager> ItemManagerRef;
+    TWeakObjectPtr<USuspenseItemManager> ItemManagerRef;
 
     //==================================================================
     // Internal Helper Methods - ВНУТРЕННИЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
@@ -398,7 +398,7 @@ private:
      * 
      * @return Валидный ItemManager или nullptr
      */
-    UMedComItemManager* GetValidatedItemManager() const;
+    USuspenseItemManager* GetValidatedItemManager() const;
 
     /**
      * Получить unified данные для runtime экземпляра
@@ -408,7 +408,7 @@ private:
      * @param OutUnifiedData Выходные unified данные
      * @return true если данные получены успешно
      */
-    bool GetUnifiedDataForInstance(const FInventoryItemInstance& ItemInstance, FMedComUnifiedItemData& OutUnifiedData) const;
+    bool GetUnifiedDataForInstance(const FSuspenseInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutUnifiedData) const;
 
     /**
      * Валидация базовых параметров unified данных
@@ -419,7 +419,7 @@ private:
      * @param FunctionName Контекст для логирования
      * @return Результат базовой валидации
      */
-    FInventoryOperationResult ValidateUnifiedDataBasics(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedDataBasics(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     /**
      * Рассчитать эффективный размер предмета с учетом поворота
@@ -442,5 +442,5 @@ private:
      * @param Result Результат валидации
      * @param Context Дополнительный контекст
      */
-    void LogValidationResult(const FInventoryOperationResult& Result, const FString& Context) const;
+    void LogValidationResult(const FSuspenseInventoryOperationResult& Result, const FString& Context) const;
 };

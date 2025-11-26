@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Interfaces/UI/IMedComInventoryUIBridgeWidget.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
 #include "SuspenseInventoryUIConnector.generated.h"
 
 // Forward declarations
 class USuspenseInventoryComponent;
-class IMedComInventoryUIBridgeWidget;
+class ISuspenseInventoryUIBridgeInterface;
 class UUserWidget;
-class UMedComItemManager;
-class UEventDelegateManager;
-struct FMedComUnifiedItemData;
-struct FInventoryItemInstance;
+class USuspenseItemManager;
+class USuspenseEventManager;
+struct FSuspenseUnifiedItemData;
+struct FSuspenseInventoryItemInstance;
 
 /**
  * UI representation of inventory cell
@@ -132,14 +132,14 @@ public:
      * @param InBridge Bridge interface
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
-    void SetUIBridge(TScriptInterface<IMedComInventoryUIBridgeWidget> InBridge);
-    
+    void SetUIBridge(TScriptInterface<ISuspenseInventoryUIBridgeInterface> InBridge);
+
     /**
      * Get current UI bridge
      * @return Bridge interface
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
-    TScriptInterface<IMedComInventoryUIBridgeWidget> GetUIBridge() const { return UIBridge; }
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> GetUIBridge() const { return UIBridge; }
 
     //==================================================================
     // UI Display Data
@@ -347,13 +347,13 @@ protected:
     
     /** UI bridge interface */
     UPROPERTY()
-    TScriptInterface<IMedComInventoryUIBridgeWidget> UIBridge;
-    
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> UIBridge;
+
     /** Cached item manager */
-    mutable TWeakObjectPtr<UMedComItemManager> CachedItemManager;
-    
+    mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+
     /** Cached event delegate manager */
-    mutable TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
+    mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
     
     /** Current drag operation data */
     struct FDragOperationData
@@ -375,18 +375,18 @@ protected:
     //==================================================================
     
     /** Get item manager */
-    UMedComItemManager* GetItemManager() const;
-    
+    USuspenseItemManager* GetItemManager() const;
+
     /** Get event delegate manager */
-    UEventDelegateManager* GetDelegateManager() const;
-    
+    USuspenseEventManager* GetDelegateManager() const;
+
     /** Convert item instance to UI cell data */
-    FInventoryCellUI ConvertItemToUICell(const FInventoryItemInstance& Instance, 
+    FInventoryCellUI ConvertItemToUICell(const FSuspenseInventoryItemInstance& Instance,
         UObject* ItemObject, int32 CellIndex) const;
-    
+
     /** Build tooltip text for item */
-    FText BuildItemTooltip(const FInventoryItemInstance& Instance, 
-        const FMedComUnifiedItemData& ItemData) const;
+    FText BuildItemTooltip(const FSuspenseInventoryItemInstance& Instance,
+        const FSuspenseUnifiedItemData& ItemData) const;
     
     /** Subscribe to inventory events */
     void SubscribeToEvents();
@@ -399,7 +399,7 @@ protected:
     void OnInventoryUpdated();
     
     /** Handle item added notification */
-    void OnItemAdded(const FInventoryItemInstance& Instance, int32 SlotIndex);
+    void OnItemAdded(const FSuspenseInventoryItemInstance& Instance, int32 SlotIndex);
     
     /** Handle item removed notification */
     void OnItemRemoved(const FName& ItemID, int32 Quantity, int32 SlotIndex);

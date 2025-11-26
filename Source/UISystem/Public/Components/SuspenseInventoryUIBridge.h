@@ -5,16 +5,16 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
-#include "Interfaces/Inventory/ISuspenseInventoryInterface.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
 #include "Types/UI/ContainerUITypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryUIBridge.generated.h"
 
 // Forward declarations
 class USuspenseUIManager;
 class USuspenseInventoryWidget;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class APlayerController;
 struct FSuspenseUnifiedItemData;
 struct FSuspenseInventoryItemInstance;
@@ -59,7 +59,7 @@ public:
      * This connects the bridge to the actual inventory data
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Bridge")
-    void SetInventoryInterface(TScriptInterface<ISuspenseInventoryInterface> InInventory);
+    void SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventory);
 
     /**
      * Clean shutdown of the bridge
@@ -159,7 +159,7 @@ public:
      * Process complete drop operation
      * Centralized method for all drop scenarios
      */
-    FInventoryOperationResult ProcessInventoryDrop(
+    FSuspenseInventoryOperationResult ProcessInventoryDrop(
         const FDragDropUIData& DragData,
         const FVector2D& ScreenPosition,
         UUserWidget* TargetWidget = nullptr);
@@ -206,10 +206,10 @@ protected:
 
     /** Event delegate manager for UI events */
     UPROPERTY()
-    UEventDelegateManager* EventManager;
+    USuspenseEventManager* EventManager;
 
     /** Game inventory interface we're displaying */
-    TScriptInterface<ISuspenseInventoryInterface> GameInventory;
+    TScriptInterface<ISuspenseInventory> GameInventory;
 
     /** Widget class to use for inventory display */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Bridge")

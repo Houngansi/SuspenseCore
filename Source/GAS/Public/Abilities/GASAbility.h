@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
-#include "Input/MCAbilityInputID.h"
+#include "Input/SuspenseAbilityInputID.h"
 #include "GASAbility.generated.h"
 
 UCLASS(Abstract, Blueprintable)
@@ -13,7 +13,7 @@ class GAS_API UGASAbility : public UGameplayAbility
 public:
 	UGASAbility();
 
-	/** Клавиша / действие, которое активирует способность (см. MCAbilityInputID) */
+	/** Клавиша / действие, которое активирует способность (см. SuspenseAbilityInputID) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GAS|Ability")
-	EMCAbilityInputID AbilityInputID = EMCAbilityInputID::None;
+	ESuspenseAbilityInputID AbilityInputID = ESuspenseAbilityInputID::None;
 };

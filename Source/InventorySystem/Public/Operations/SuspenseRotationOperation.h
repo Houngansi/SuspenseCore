@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Operations/SuspenseInventoryOperation.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "RotationOperation.generated.h"
 
 // Forward declarations
 class AMedComInventoryItem;
 class USuspenseInventoryComponent;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * ПОЛНОСТЬЮ ОБНОВЛЕННАЯ структура операции поворота предмета
@@ -37,7 +37,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
     
     /** Runtime экземпляр предмета */
     UPROPERTY()
-    FInventoryItemInstance ItemInstance;
+    FSuspenseInventoryItemInstance ItemInstance;
     
     /** Исходное состояние поворота */
     UPROPERTY()
@@ -69,7 +69,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
     
     /** Кэшированные данные из DataTable */
     UPROPERTY()
-    FMedComUnifiedItemData CachedItemData;
+    FSuspenseUnifiedItemData CachedItemData;
     
     /** Флаг наличия кэшированных данных */
     UPROPERTY()
@@ -131,7 +131,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
     static FSuspenseRotationOperation Create(
         AMedComInventoryItem* InItem, 
         bool InTargetRotation,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**
@@ -146,7 +146,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
         USuspenseInventoryComponent* InComponent, 
         AMedComInventoryItem* InItem, 
         bool InTargetRotation,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**
@@ -159,7 +159,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
     static FSuspenseRotationOperation CreateToggle(
         USuspenseInventoryComponent* InComponent,
         AMedComInventoryItem* InItem,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     //==================================================================
@@ -171,7 +171,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      * @param InItemManager ItemManager для доступа к данным
      * @return true если данные успешно получены
      */
-    bool CacheItemDataFromTable(UMedComItemManager* InItemManager);
+    bool CacheItemDataFromTable(USuspenseItemManager* InItemManager);
     
     /**
      * Вычисляет эффективные размеры для обоих состояний

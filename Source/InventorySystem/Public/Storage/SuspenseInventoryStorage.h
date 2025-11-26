@@ -13,8 +13,8 @@
 // Forward declarations for clean architecture
 class USuspenseItemManager;
 struct FSuspenseUnifiedItemData;
-struct FInventoryItemInstance;
-class UEventDelegateManager;
+struct FSuspenseInventoryItemInstance;
+class USuspenseEventManager;
 
 /**
  * Structure describing storage state transaction
@@ -32,7 +32,7 @@ struct FSuspenseStorageTransaction
 
     /** Snapshot of runtime instances before change */
     UPROPERTY()
-    TArray<FInventoryItemInstance> InstancesSnapshot;
+    TArray<FSuspenseInventoryItemInstance> InstancesSnapshot;
 
     /** Is transaction active */
     UPROPERTY()
@@ -140,7 +140,7 @@ public:
      * @return true if item was successfully placed
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool AddItemInstance(const FInventoryItemInstance& ItemInstance, bool bAllowRotation = true);
+    bool AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, bool bAllowRotation = true);
 
     /**
      * Removes runtime item instance from storage
@@ -159,14 +159,14 @@ public:
      * @return true if instance was found
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool GetItemInstance(const FGuid& InstanceID, FInventoryItemInstance& OutInstance) const;
+    bool GetItemInstance(const FGuid& InstanceID, FSuspenseInventoryItemInstance& OutInstance) const;
 
     /**
      * Gets all runtime instances in storage
      * @return Array of all runtime instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    TArray<FInventoryItemInstance> GetAllItemInstances() const;
+    TArray<FSuspenseInventoryItemInstance> GetAllItemInstances() const;
 
     /**
      * Updates runtime item instance
@@ -176,7 +176,7 @@ public:
      * @return true if update was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool UpdateItemInstance(const FInventoryItemInstance& UpdatedInstance);
+    bool UpdateItemInstance(const FSuspenseInventoryItemInstance& UpdatedInstance);
 
     //==================================================================
     // Space Management and Placement
@@ -213,7 +213,7 @@ public:
      * @return true if placement was successful
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Placement")
-    bool PlaceItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+    bool PlaceItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
 
     /**
      * Moves item from one position to another
@@ -238,7 +238,7 @@ public:
      * @return true if cell contains an item
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Query")
-    bool GetItemInstanceAt(int32 Index, FInventoryItemInstance& OutInstance) const;
+    bool GetItemInstanceAt(int32 Index, FSuspenseInventoryItemInstance& OutInstance) const;
 
     /**
      * Counts total items by ID
@@ -254,7 +254,7 @@ public:
      * @return Array of found runtime instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Query")
-    TArray<FInventoryItemInstance> FindItemsByType(const FGameplayTag& ItemType) const;
+    TArray<FSuspenseInventoryItemInstance> FindItemsByType(const FGameplayTag& ItemType) const;
 
     //==================================================================
     // Grid Coordinate Utilities
@@ -416,7 +416,7 @@ protected:
 
     /** Runtime item instances in storage */
     UPROPERTY()
-    TArray<FInventoryItemInstance> StoredInstances;
+    TArray<FSuspenseInventoryItemInstance> StoredInstances;
 
     /** Bitmap for fast free cell lookup */
     TBitArray<> FreeCellsBitmap;
@@ -461,7 +461,7 @@ protected:
      * @param AnchorIndex Anchor cell
      * @return true if placement was successful
      */
-    bool PlaceInstanceInCells(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+    bool PlaceInstanceInCells(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
 
     /**
      * Removes runtime instance from grid cells
@@ -475,12 +475,12 @@ protected:
      * @param InstanceID ID to search for
      * @return Pointer to instance or nullptr
      */
-    FInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID);
+    FSuspenseInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID);
 
     /**
      * Finds runtime instance by ID (const version)
      */
-    const FInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID) const;
+    const FSuspenseInventoryItemInstance* FindStoredInstance(const FGuid& InstanceID) const;
 
     /**
      * Creates snapshot of current state for transaction

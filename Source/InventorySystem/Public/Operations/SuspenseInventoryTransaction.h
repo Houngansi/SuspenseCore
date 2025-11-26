@@ -5,8 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Operations/InventoryResult.h"
 #include "Storage/SuspenseInventoryStorage.h"
 #include "Validation/SuspenseInventoryValidator.h"
@@ -14,7 +14,7 @@
 
 // Forward declarations
 class USuspenseInventoryEvents;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * Transaction types for inventory operations
@@ -35,11 +35,11 @@ enum class EInventoryTransactionType : uint8
 
 /**
  * ОБНОВЛЕНО: Handles atomic operations on inventory to ensure consistency and rollback capability
- * Полностью интегрирован с новой DataTable архитектурой и FInventoryItemInstance системой
+ * Полностью интегрирован с новой DataTable архитектурой и FSuspenseInventoryItemInstance системой
  * 
  * АРХИТЕКТУРНЫЕ УЛУЧШЕНИЯ:
- * - Работа с FMedComUnifiedItemData из DataTable как источника истины
- * - Использование FInventoryItemInstance для runtime данных
+ * - Работа с FSuspenseUnifiedItemData из DataTable как источника истины
+ * - Использование FSuspenseInventoryItemInstance для runtime данных
  * - Интеграция с ItemManager для централизованного управления данными
  * - Расширенная система backup с поддержкой runtime properties
  * - Улучшенная валидация и error handling
@@ -59,9 +59,9 @@ public:
      * @param InItemManager ItemManager for DataTable access
      * @param InEvents Optional events component for notifications
      */
-    void Initialize(USuspenseInventoryStorage* InStorage, 
-                   USuspenseInventoryValidator* InConstraints, 
-                   UMedComItemManager* InItemManager,
+    void Initialize(USuspenseInventoryStorage* InStorage,
+                   USuspenseInventoryValidator* InConstraints,
+                   USuspenseItemManager* InItemManager,
                    USuspenseInventoryEvents* InEvents = nullptr);
     
     /**
@@ -94,10 +94,10 @@ public:
      * ОБНОВЛЕНО: Adds an item to the inventory using DataTable ID
      * @param ItemID ID of the item in DataTable
      * @param Amount Amount to add
-     * @return Operation result with created FInventoryItemInstance
+     * @return Operation result with created FSuspenseInventoryItemInstance
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult AddItemByID(const FName& ItemID, int32 Amount);
+    FSuspenseInventoryOperationResult AddItemByID(const FName& ItemID, int32 Amount);
     
     /**
      * НОВОЕ: Adds an item using unified DataTable structure
@@ -106,7 +106,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult AddItemFromData(const FMedComUnifiedItemData& ItemData, int32 Amount);
+    FSuspenseInventoryOperationResult AddItemFromData(const FSuspenseUnifiedItemData& ItemData, int32 Amount);
     
     /**
      * НОВОЕ: Adds a fully constructed item instance
@@ -114,8 +114,8 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult AddItemInstance(const FInventoryItemInstance& ItemInstance);
-    
+    FSuspenseInventoryOperationResult AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+
     /**
      * Removes an item from the inventory
      * @param ItemID ID of the item to remove
@@ -123,16 +123,16 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult RemoveItem(const FName& ItemID, int32 Amount);
-    
+    FSuspenseInventoryOperationResult RemoveItem(const FName& ItemID, int32 Amount);
+
     /**
      * НОВОЕ: Removes a specific item instance
      * @param InstanceID Unique instance ID to remove
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult RemoveItemInstance(const FGuid& InstanceID);
-    
+    FSuspenseInventoryOperationResult RemoveItemInstance(const FGuid& InstanceID);
+
     /**
      * Moves an item to a new position
      * @param ItemObject Item to move
@@ -141,7 +141,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult MoveItem(UObject* ItemObject, int32 NewAnchorIndex, bool bShouldRotate);
+    FSuspenseInventoryOperationResult MoveItem(UObject* ItemObject, int32 NewAnchorIndex, bool bShouldRotate);
     
     /**
      * НОВОЕ: Moves an item instance by ID
@@ -151,7 +151,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult MoveItemInstance(const FGuid& InstanceID, int32 NewAnchorIndex, bool bShouldRotate);
+    FSuspenseInventoryOperationResult MoveItemInstance(const FGuid& InstanceID, int32 NewAnchorIndex, bool bShouldRotate);
     
     /**
      * Rotates an item
@@ -160,7 +160,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult RotateItem(UObject* ItemObject, bool bDesiredRotation);
+    FSuspenseInventoryOperationResult RotateItem(UObject* ItemObject, bool bDesiredRotation);
     
     /**
      * Stacks items together
@@ -170,7 +170,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult StackItems(UObject* SourceItem, UObject* TargetItem, int32 Amount);
+    FSuspenseInventoryOperationResult StackItems(UObject* SourceItem, UObject* TargetItem, int32 Amount);
     
     /**
      * НОВОЕ: Stacks item instances by ID
@@ -180,7 +180,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult StackItemInstances(const FGuid& SourceInstanceID, const FGuid& TargetInstanceID, int32 Amount);
+    FSuspenseInventoryOperationResult StackItemInstances(const FGuid& SourceInstanceID, const FGuid& TargetInstanceID, int32 Amount);
     
     /**
      * Splits a stack of items
@@ -190,7 +190,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult SplitStack(UObject* SourceItem, int32 TargetPosition, int32 Amount);
+    FSuspenseInventoryOperationResult SplitStack(UObject* SourceItem, int32 TargetPosition, int32 Amount);
     
     /**
      * Swaps two items
@@ -199,7 +199,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult SwapItems(UObject* FirstItem, UObject* SecondItem);
+    FSuspenseInventoryOperationResult SwapItems(UObject* FirstItem, UObject* SecondItem);
     
     /**
      * НОВОЕ: Updates runtime properties of an item instance
@@ -208,7 +208,7 @@ public:
      * @return Operation result
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryTransaction")
-    FInventoryOperationResult UpdateItemProperties(const FGuid& InstanceID, const TMap<FName, float>& NewProperties);
+    FSuspenseInventoryOperationResult UpdateItemProperties(const FGuid& InstanceID, const TMap<FName, float>& NewProperties);
     
     //==================================================================
     // STATUS AND UTILITY METHODS
@@ -240,7 +240,7 @@ public:
      * @return ItemManager for DataTable operations
      */
     UFUNCTION(BlueprintPure, Category = "InventoryTransaction")
-    UMedComItemManager* GetItemManager() const { return ItemManager; }
+    USuspenseItemManager* GetItemManager() const { return ItemManager; }
     
     /**
      * НОВОЕ: Gets transaction statistics
@@ -260,7 +260,7 @@ private:
     
     /** НОВОЕ: ItemManager for DataTable access */
     UPROPERTY()
-    UMedComItemManager* ItemManager;
+    USuspenseItemManager* ItemManager;
     
     /** Events component for notifications */
     UPROPERTY()
@@ -277,7 +277,7 @@ private:
     
     /** ОБНОВЛЕНО: Backup of item instances with full runtime state */
     UPROPERTY()
-    TArray<FInventoryItemInstance> BackupItemInstances;
+    TArray<FSuspenseInventoryItemInstance> BackupItemInstances;
     
     /** Backup of the item objects before transaction (legacy support) */
     UPROPERTY()
@@ -293,7 +293,7 @@ private:
     
     /** НОВОЕ: Item instances created during transaction */
     UPROPERTY()
-    TArray<FInventoryItemInstance> CreatedInstances;
+    TArray<FSuspenseInventoryItemInstance> CreatedInstances;
     
     /** НОВОЕ: Transaction start time for performance tracking */
     double TransactionStartTime;
@@ -321,22 +321,22 @@ private:
     void DestroyCreatedItems();
     
     /**
-     * НОВОЕ: Creates an FInventoryItemInstance from DataTable ID
+     * НОВОЕ: Creates an FSuspenseInventoryItemInstance from DataTable ID
      * @param ItemID ID in DataTable
      * @param Amount Quantity for the instance
      * @param Context Operation context
      * @return Operation result with created instance
      */
-    FInventoryOperationResult CreateItemInstanceFromID(const FName& ItemID, int32 Amount, const FName& Context);
+    FSuspenseInventoryOperationResult CreateItemInstanceFromID(const FName& ItemID, int32 Amount, const FName& Context);
     
     /**
-     * НОВОЕ: Creates an FInventoryItemInstance from unified data
+     * НОВОЕ: Creates an FSuspenseInventoryItemInstance from unified data
      * @param ItemData Unified item data
      * @param Amount Quantity for the instance
      * @param Context Operation context
      * @return Operation result with created instance
      */
-    FInventoryOperationResult CreateItemInstanceFromData(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& Context);
+    FSuspenseInventoryOperationResult CreateItemInstanceFromData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& Context);
     
     /**
      * УСТАРЕЛО: Creates an item object (legacy support)
@@ -345,7 +345,7 @@ private:
      * @param Context Context name for logging
      * @return Operation result
      */
-    FInventoryOperationResult CreateItemObject(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& Context);
+    FSuspenseInventoryOperationResult CreateItemObject(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& Context);
     
     /**
      * НОВОЕ: Validates item instance before operations
@@ -353,14 +353,14 @@ private:
      * @param Context Operation context
      * @return Validation result
      */
-    FInventoryOperationResult ValidateItemInstance(const FInventoryItemInstance& Instance, const FName& Context);
+    FSuspenseInventoryOperationResult ValidateItemInstance(const FSuspenseInventoryItemInstance& Instance, const FName& Context);
     
     /**
      * НОВОЕ: Finds free space for item instance
      * @param Instance Item instance to place
      * @return Anchor index or INDEX_NONE if no space
      */
-    int32 FindFreeSpaceForInstance(const FInventoryItemInstance& Instance);
+    int32 FindFreeSpaceForInstance(const FSuspenseInventoryItemInstance& Instance);
     
     /**
      * НОВОЕ: Places item instance in storage
@@ -368,14 +368,14 @@ private:
      * @param AnchorIndex Position to place at
      * @return Success result
      */
-    FInventoryOperationResult PlaceItemInstanceInStorage(const FInventoryItemInstance& Instance, int32 AnchorIndex);
+    FSuspenseInventoryOperationResult PlaceItemInstanceInStorage(const FSuspenseInventoryItemInstance& Instance, int32 AnchorIndex);
     
     /**
      * Logs a transaction operation
      * @param Action Description of the action
      * @param Result Operation result
      */
-    void LogTransactionOperation(const FString& Action, const FInventoryOperationResult& Result);
+    void LogTransactionOperation(const FString& Action, const FSuspenseInventoryOperationResult& Result);
     
     /**
      * НОВОЕ: Updates transaction statistics

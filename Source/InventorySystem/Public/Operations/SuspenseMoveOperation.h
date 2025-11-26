@@ -4,21 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "Operations/SuspenseInventoryOperation.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseMoveOperation.generated.h"
 
 // Forward declarations
 class AMedComInventoryItem;
 class USuspenseInventoryComponent;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * ОБНОВЛЕННАЯ структура для операции перемещения предмета
  * 
  * Полностью интегрирована с новой DataTable архитектурой:
  * - Размеры предметов получаются из DataTable через ItemManager
- * - Поддержка runtime свойств через FInventoryItemInstance
+ * - Поддержка runtime свойств через FSuspenseInventoryItemInstance
  * - Улучшенная валидация с учетом весовых ограничений
  * - Оптимизированное кэширование данных из DataTable
  */
@@ -37,7 +37,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     
     /** Runtime экземпляр предмета (для доступа к свойствам) */
     UPROPERTY()
-    FInventoryItemInstance ItemInstance;
+    FSuspenseInventoryItemInstance ItemInstance;
     
     /** Исходный индекс ячейки */
     UPROPERTY()
@@ -77,7 +77,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     
     /** Кэшированные данные из DataTable */
     UPROPERTY()
-    FMedComUnifiedItemData CachedItemData;
+    FSuspenseUnifiedItemData CachedItemData;
     
     /** Флаг наличия валидных данных из DataTable */
     UPROPERTY()
@@ -101,7 +101,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     
     /** Экземпляр обмененного предмета */
     UPROPERTY()
-    FInventoryItemInstance SwappedItemInstance;
+    FSuspenseInventoryItemInstance SwappedItemInstance;
     
     /** Исходная позиция обмененного предмета */
     UPROPERTY()
@@ -165,7 +165,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
         int32 InTargetIndex, 
         bool InTargetRotated, 
         USuspenseInventoryComponent* InTargetInventory,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**
@@ -180,7 +180,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
         USuspenseInventoryComponent* InComponent,
         AMedComInventoryItem* InItem,
         int32 InTargetIndex,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     //==================================================================
@@ -192,7 +192,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      * @param InItemManager ItemManager для доступа к DataTable
      * @return true если данные успешно получены
      */
-    bool CacheItemDataFromTable(UMedComItemManager* InItemManager);
+    bool CacheItemDataFromTable(USuspenseItemManager* InItemManager);
     
     /**
      * Вычисляет эффективные размеры с учетом поворота
@@ -219,7 +219,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     bool ValidateOperation(
         EInventoryErrorCode& OutErrorCode, 
         FString& OutErrorMessage,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     ) const;
     
     /**
@@ -272,7 +272,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      */
     bool ExecuteOperation(
         EInventoryErrorCode& OutErrorCode,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     //==================================================================
@@ -300,7 +300,7 @@ private:
     bool HandleSwapOperation(
         AMedComInventoryItem* BlockingItem, 
         EInventoryErrorCode& OutErrorCode,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**

@@ -14,7 +14,7 @@ class USuspenseCrosshairWidget;
 class USuspenseWeaponUIWidget;
 class USuspenseInventoryWidget;
 class UTextBlock;
-class ISuspenseAttributeProviderInterface;
+class ISuspenseAttributeProvider;
 
 /**
  * Main HUD widget that serves as a container for all UI elements
@@ -68,7 +68,7 @@ public:
      * @param Provider Interface to the object providing attribute data
      */
     UFUNCTION(BlueprintCallable, Category = "UI|HUD")
-    void SetupWithProvider(TScriptInterface<ISuspenseAttributeProviderInterface> Provider);
+    void SetupWithProvider(TScriptInterface<ISuspenseAttributeProvider> Provider);
 
     /**
      * Opens the character screen with a specific tab
@@ -265,7 +265,7 @@ private:
 
     // Internal state
     UPROPERTY()
-    TScriptInterface<ISuspenseAttributeProviderInterface> AttributeProvider;
+    TScriptInterface<ISuspenseAttributeProvider> AttributeProvider;
     
     UPROPERTY()
     APawn* OwningPawn;

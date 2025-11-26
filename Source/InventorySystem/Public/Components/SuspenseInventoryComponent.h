@@ -65,7 +65,7 @@ public:
     virtual USuspenseItemManager* GetItemManager() const override;
 
     // Advanced item management
-    virtual int32 CreateItemsFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray) override;
+    virtual int32 CreateItemsFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray) override;
     virtual int32 ConsolidateStacks(const FName& ItemID = NAME_None) override;
     virtual FSuspenseInventoryOperationResult SplitStack(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot) override;
 

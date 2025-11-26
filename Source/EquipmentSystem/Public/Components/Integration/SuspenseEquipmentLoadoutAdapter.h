@@ -17,7 +17,7 @@ class ISuspenseInventoryBridge;
 class ISuspenseEventDispatcher;
 class USuspenseLoadoutManager;
 class USuspenseItemManager;
-class UEquipmentOperationServiceImpl;
+class USuspenseEquipmentOperationService;
 
 struct FEquipmentStateSnapshot;
 struct FEquipmentOperationRequest;
@@ -130,7 +130,7 @@ protected:
 	USuspenseItemManager*    GetItemManager() const;
 
 	// Поиск централизованного OperationService (через ServiceLocator)
-	UEquipmentOperationServiceImpl* GetOperationService(); // <- больше НЕ const
+	USuspenseEquipmentOperationService* GetOperationService(); // <- больше НЕ const
 
 private:
 	// Интеграционные интерфейсы
@@ -178,5 +178,5 @@ private:
 
 	// Кэш OperationService
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UEquipmentOperationServiceImpl> CachedOpService;
+	TWeakObjectPtr<USuspenseEquipmentOperationService> CachedOpService;
 };

@@ -139,7 +139,7 @@ public:
      * @param SpawnData Spawn configuration with preset properties
      */
     UFUNCTION(BlueprintCallable, Category = "Pickup")
-    void InitializeFromSpawnData(const FPickupSpawnData& SpawnData);
+    void InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData);
 
     //==================================================================
     // Preset Property Management - для свойств, которые будут применены к предмету

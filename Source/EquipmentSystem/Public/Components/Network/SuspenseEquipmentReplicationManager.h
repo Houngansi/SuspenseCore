@@ -11,7 +11,7 @@
 #include "Engine/NetSerialization.h"
 #include "SuspenseEquipmentReplicationManager.generated.h"
 
-class UEquipmentNetworkServiceImpl;
+class USuspenseEquipmentNetworkService;
 
 USTRUCT()
 struct FReplicatedSlotItem : public FFastArraySerializerItem
@@ -131,7 +131,7 @@ public:
     UFUNCTION(BlueprintCallable,Category="SuspenseCore|Equipment|Replication")
     bool Initialize(TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider);
     UFUNCTION(BlueprintCallable,Category="SuspenseCore|Equipment|Replication")
-    void SetSecurityService(UEquipmentNetworkServiceImpl* InSecurityService);
+    void SetSecurityService(USuspenseEquipmentNetworkService* InSecurityService);
     UFUNCTION(BlueprintCallable,Category="SuspenseCore|Equipment|Replication")
     void SetRelevancyDistance(float Distance){RelevancyDistance=FMath::Max(100.0f,Distance);}
     UFUNCTION(BlueprintCallable,Category="SuspenseCore|Equipment|Replication")
@@ -192,7 +192,7 @@ private:
     UPROPERTY(EditDefaultsOnly,Category="Replication|Config") bool bUseEnhancedRelevancy=true;
 
     UPROPERTY() TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
-    UPROPERTY() UEquipmentNetworkServiceImpl* SecurityService=nullptr;
+    UPROPERTY() USuspenseEquipmentNetworkService* SecurityService=nullptr;
 
     UPROPERTY() EEquipmentReplicationPolicy CurrentPolicy=EEquipmentReplicationPolicy::OnlyToRelevant;
     UPROPERTY() TArray<FSlotReplicationState> SlotStates;

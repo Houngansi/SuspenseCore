@@ -11,7 +11,7 @@
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "SuspenseEquipmentNetworkDispatcher.generated.h"
 
-class UEquipmentNetworkServiceImpl;
+class USuspenseEquipmentNetworkService;
 
 // -----------------------------
 // Локальные net-DTO (без TMap)
@@ -138,7 +138,7 @@ public:
 
 	// Wiring / Config
 	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Network|Security")
-	void SetSecurityService(UEquipmentNetworkServiceImpl* InSecurityService);
+	void SetSecurityService(USuspenseEquipmentNetworkService* InSecurityService);
 	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Network|Security")
 	void SetSecurityEnabled(bool bEnabled){ bSecurityEnabled = bEnabled; }
 
@@ -229,7 +229,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category="Network|Config") float IdempotencyLifetime     = 60.0f;
 
 	// Wiring
-	UPROPERTY() UEquipmentNetworkServiceImpl*                 SecurityService = nullptr;
+	UPROPERTY() USuspenseEquipmentNetworkService*                 SecurityService = nullptr;
 	UPROPERTY() TScriptInterface<ISuspenseEquipmentOperations>  OperationExecutor;
 
 	// State

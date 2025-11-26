@@ -7,7 +7,7 @@
 #include "UObject/NoExportTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Operations/InventoryResult.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryConstraints.generated.h"
 
@@ -85,7 +85,7 @@ public:
      * @return Validation result with detailed error information
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     /**
      * Validation of unified data with type restriction checks
@@ -97,7 +97,7 @@ public:
      * @return Validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateUnifiedItemDataWithRestrictions(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedItemDataWithRestrictions(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     //==================================================================
     // Runtime Instance Validation
@@ -112,7 +112,7 @@ public:
      * @return Instance validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemInstance(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 
     /**
      * Validation of array of runtime instances
@@ -124,7 +124,7 @@ public:
      * @return Number of successfully validated instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    int32 ValidateItemInstances(const TArray<FInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FInventoryItemInstance>& OutFailedInstances) const;
+    int32 ValidateItemInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FSuspenseInventoryItemInstance>& OutFailedInstances) const;
 
     /**
      * Validation of instance runtime properties
@@ -135,7 +135,7 @@ public:
      * @return Runtime properties validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateRuntimeProperties(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateRuntimeProperties(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 
     //==================================================================
     // Grid and Spatial Validation
@@ -148,7 +148,7 @@ public:
      * @return Validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateSlotIndex(int32 SlotIndex, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateSlotIndex(int32 SlotIndex, const FName& FunctionName) const;
 
     /**
      * Grid bounds validation for unified data
@@ -161,7 +161,7 @@ public:
      * @return Bounds validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateGridBoundsForUnified(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateGridBoundsForUnified(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
 
     /**
      * Bounds validation for runtime instance
@@ -173,7 +173,7 @@ public:
      * @return Bounds validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateGridBoundsForInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateGridBoundsForInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const;
 
     /**
      * Item placement validation with collision detection
@@ -187,7 +187,7 @@ public:
      * @return Placement validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemPlacement(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemPlacement(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const;
 
     //==================================================================
     // Weight Validation
@@ -204,7 +204,7 @@ public:
      * @return Weight validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateWeightForUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateWeightForUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
 
     /**
      * Weight validation for runtime instance
@@ -216,7 +216,7 @@ public:
      * @return Weight validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateWeightForInstance(const FInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateWeightForInstance(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const;
 
     /**
      * Check if weight limit would be exceeded for unified data
@@ -241,7 +241,7 @@ public:
      * @return Object validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemForOperation(UObject* ItemObject, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemForOperation(UObject* ItemObject, const FName& FunctionName) const;
 
     /**
      * Item compatibility validation with inventory
@@ -254,7 +254,7 @@ public:
      * @return Comprehensive validation result
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Validation")
-    FInventoryOperationResult ValidateItemCompatibility(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateItemCompatibility(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
 
     //==================================================================
     // Type and Restriction Checking
@@ -408,7 +408,7 @@ private:
      * @param OutUnifiedData Output unified data
      * @return true if data was retrieved successfully
      */
-    bool GetUnifiedDataForInstance(const FInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutUnifiedData) const;
+    bool GetUnifiedDataForInstance(const FSuspenseInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutUnifiedData) const;
 
     /**
      * Validate basic parameters of unified data
@@ -419,7 +419,7 @@ private:
      * @param FunctionName Context for logging
      * @return Basic validation result
      */
-    FInventoryOperationResult ValidateUnifiedDataBasics(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    FSuspenseInventoryOperationResult ValidateUnifiedDataBasics(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
     /**
      * Calculate effective item size considering rotation
@@ -442,5 +442,5 @@ private:
      * @param Result Validation result
      * @param Context Additional context
      */
-    void LogValidationResult(const FInventoryOperationResult& Result, const FString& Context) const;
+    void LogValidationResult(const FSuspenseInventoryOperationResult& Result, const FString& Context) const;
 };

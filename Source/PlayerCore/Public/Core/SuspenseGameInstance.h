@@ -9,8 +9,8 @@
 
 // Forward declarations
 class UDataTable;
-class UMedComLoadoutManager;
-class UMedComWeaponAnimationSubsystem;
+class USuspenseLoadoutManager;
+class UWeaponAnimationSubsystem;
 class USuspenseItemManager;
 
 /**
@@ -30,10 +30,10 @@ class USuspenseItemManager;
  * This ensures proper lifecycle management across seamless/non-seamless travel.
  * 
  * SUBSYSTEMS:
- * - UMedComLoadoutManager: Loadout configurations
- * - UMedComWeaponAnimationSubsystem: Weapon animations
+ * - USuspenseLoadoutManager: Loadout configurations
+ * - UWeaponAnimationSubsystem: Weapon animations
  * - USuspenseItemManager: Item data management (NEW)
- * - UMedComSystemCoordinatorSubsystem: Equipment services (auto-initialized by UE)
+ * - USuspenseSystemCoordinator: Equipment services (auto-initialized by UE)
  */
 UCLASS()
 class SUSPENSECORE_API USuspenseGameInstance : public UGameInstance
@@ -99,11 +99,11 @@ public:
     
     /** Get LoadoutManager subsystem */
     UFUNCTION(BlueprintPure, Category = "MedCom|Loadout")
-    UMedComLoadoutManager* GetLoadoutManager() const;
-    
+    USuspenseLoadoutManager* GetLoadoutManager() const;
+
     /** Get WeaponAnimationSubsystem */
     UFUNCTION(BlueprintPure, Category = "MedCom|Animation")
-    UMedComWeaponAnimationSubsystem* GetWeaponAnimationSubsystem() const;
+    UWeaponAnimationSubsystem* GetWeaponAnimationSubsystem() const;
 
     /** Get ItemManager subsystem */
     UFUNCTION(BlueprintPure, Category = "MedCom|Items")
@@ -300,7 +300,7 @@ protected:
      * @return true if all critical items passed validation
      */
  bool ValidateCriticalItems(
-     UMedComLoadoutManager* LoadoutManager,
+     USuspenseLoadoutManager* LoadoutManager,
      USuspenseItemManager* ItemManager,
      TArray<FString>& OutCriticalErrors);
     
@@ -316,7 +316,7 @@ protected:
  void BuildCriticalItemErrorReport(
      const FName& ItemID,
      const TArray<FString>& ItemErrors,
-     UMedComLoadoutManager* LoadoutManager,
+     USuspenseLoadoutManager* LoadoutManager,
      FString& OutReport);
 
  

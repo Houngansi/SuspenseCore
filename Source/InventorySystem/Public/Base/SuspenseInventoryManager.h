@@ -148,7 +148,7 @@ public:
      * @return Number of successfully created instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray,
+    int32 CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray,
                                           TArray<FSuspenseInventoryItemInstance>& OutInstances) const;
     
     //==================================================================

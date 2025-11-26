@@ -22,7 +22,7 @@
 class USuspenseEquipmentNetworkDispatcher;
 class USuspenseEquipmentPredictionSystem;
 class USuspenseEquipmentReplicationManager;
-class UEquipmentServiceLocator;
+class USuspenseEquipmentServiceLocator;
 class ISuspenseEquipmentDataProvider;
 class ISuspenseEquipmentOperations;
 struct FUniqueNetIdRepl;

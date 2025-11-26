@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Operations/InventoryResult.h"
 #include "SuspenseInventoryEvents.generated.h"
 
@@ -167,5 +167,5 @@ public:
      * Logs an operation result
      * @param Result Operation result
      */
-    void LogOperationResult(const FInventoryOperationResult& Result);
+    void LogOperationResult(const FSuspenseInventoryOperationResult& Result);
 };

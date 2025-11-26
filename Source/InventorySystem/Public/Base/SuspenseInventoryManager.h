@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseInventoryManager.generated.h"
 
 // Forward declarations
-class UMedComItemManager;
+class USuspenseItemManager;
 struct FLoadoutConfiguration;
 
 /**
@@ -139,7 +139,7 @@ public:
      * @return True if instance created successfully
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool CreateItemInstance(const FName& ItemID, int32 Quantity, FInventoryItemInstance& OutInstance) const;
+    bool CreateItemInstance(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const;
     
     /**
      * Create multiple item instances from spawn data
@@ -148,8 +148,8 @@ public:
      * @return Number of successfully created instances
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray, 
-                                          TArray<FInventoryItemInstance>& OutInstances) const;
+    int32 CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray,
+                                          TArray<FSuspenseInventoryItemInstance>& OutInstances) const;
     
     //==================================================================
     // Validation and utilities
@@ -252,7 +252,7 @@ private:
     void InitializeDefaultLoadout();
     
     /** Get ItemManager subsystem reference */
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
     
     /** Helper to get loadout data with cache statistics */
     const FLoadoutConfiguration* GetCachedLoadoutData(const FName& LoadoutID) const;

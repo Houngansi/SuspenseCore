@@ -4,25 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseItemLibrary.generated.h"
 
 // Forward declarations для чистого разделения модулей
-class UMedComItemManager;
+class USuspenseItemManager;
 class UTexture2D;
 class UObject;
-struct FInventoryItemInstance;
-struct FMedComUnifiedItemData;
+struct FSuspenseInventoryItemInstance;
+struct FSuspenseUnifiedItemData;
 
 /**
  * ПОЛНОСТЬЮ ОБНОВЛЕННАЯ Blueprint библиотека для работы с inventory system
  * 
  * АРХИТЕКТУРНЫЕ ПРИНЦИПЫ НОВОЙ ВЕРСИИ:
  * - Интеграция с DataTable как единым источником истины для статических данных
- * - Поддержка FInventoryItemInstance для runtime состояния предметов
- * - Централизованный доступ через UMedComItemManager subsystem
+ * - Поддержка FSuspenseInventoryItemInstance для runtime состояния предметов
+ * - Централизованный доступ через USuspenseItemManager subsystem
  * - Backward compatibility с legacy кодом там, где это возможно
  * - Thread-safe операции для multiplayer среды
  * - Расширенная поддержка runtime свойств (прочность, патроны, модификации)
@@ -46,7 +46,7 @@ public:
      * @return true если данные найдены и загружены
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|DataTable", CallInEditor)
-    static bool GetUnifiedItemData(const UObject* WorldContext, FName ItemID, FMedComUnifiedItemData& OutItemData);
+    static bool GetUnifiedItemData(const UObject* WorldContext, FName ItemID, FSuspenseUnifiedItemData& OutItemData);
     
     /**
      * Получить ItemManager subsystem для прямого доступа к DataTable
@@ -54,7 +54,7 @@ public:
      * @return Экземпляр ItemManager или nullptr если недоступен
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|DataTable", meta = (WorldContext = "WorldContext"))
-    static UMedComItemManager* GetItemManager(const UObject* WorldContext);
+    static USuspenseItemManager* GetItemManager(const UObject* WorldContext);
     
     /**
      * Проверить существование предмета в DataTable
@@ -75,23 +75,23 @@ public:
      * @return Локализованное название предмета
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    static FText GetItemName(const FMedComUnifiedItemData& ItemData);
-    
+    static FText GetItemName(const FSuspenseUnifiedItemData& ItemData);
+
     /**
      * ОБНОВЛЕНО: Получить описание предмета из unified данных
      * @param ItemData Unified данные предмета
      * @return Локализованное описание предмета
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    static FText GetItemDescription(const FMedComUnifiedItemData& ItemData);
-    
+    static FText GetItemDescription(const FSuspenseUnifiedItemData& ItemData);
+
     /**
      * ОБНОВЛЕНО: Получить иконку предмета из unified данных
      * @param ItemData Unified данные предмета
      * @return Текстура иконки предмета
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    static UTexture2D* GetItemIcon(const FMedComUnifiedItemData& ItemData);
+    static UTexture2D* GetItemIcon(const FSuspenseUnifiedItemData& ItemData);
     
     //==================================================================
     // Enhanced Runtime Instance Methods - НОВЫЕ МЕТОДЫ ДЛЯ RUNTIME
@@ -106,7 +106,7 @@ public:
      * @return true если экземпляр успешно создан
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Runtime", meta = (WorldContext = "WorldContext"))
-    static bool CreateItemInstance(const UObject* WorldContext, FName ItemID, int32 Quantity, FInventoryItemInstance& OutInstance);
+    static bool CreateItemInstance(const UObject* WorldContext, FName ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance);
     
     /**
      * Получить unified данные из runtime экземпляра
@@ -116,7 +116,7 @@ public:
      * @return true если данные получены успешно
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Runtime", meta = (WorldContext = "WorldContext"))
-    static bool GetUnifiedDataFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance, FMedComUnifiedItemData& OutItemData);
+    static bool GetUnifiedDataFromInstance(const UObject* WorldContext, const FSuspenseInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutItemData);
     
     /**
      * Получить runtime свойство из экземпляра предмета
@@ -126,7 +126,7 @@ public:
      * @return Текущее значение свойства или значение по умолчанию
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Runtime")
-    static float GetRuntimeProperty(const FInventoryItemInstance& ItemInstance, const FString& PropertyName, float DefaultValue = 0.0f);
+    static float GetRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName, float DefaultValue = 0.0f);
     
     /**
      * Установить runtime свойство в экземпляре предмета
@@ -135,7 +135,7 @@ public:
      * @param Value Новое значение свойства
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Runtime")
-    static void SetRuntimeProperty(UPARAM(ref) FInventoryItemInstance& ItemInstance, const FString& PropertyName, float Value);
+    static void SetRuntimeProperty(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName, float Value);
     
     /**
      * Проверить наличие runtime свойства
@@ -144,7 +144,7 @@ public:
      * @return true если свойство существует
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Runtime")
-    static bool HasRuntimeProperty(const FInventoryItemInstance& ItemInstance, const FString& PropertyName);
+    static bool HasRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName);
     
     //==================================================================
     // Enhanced Display and Formatting Methods - УЛУЧШЕННЫЕ МЕТОДЫ ОТОБРАЖЕНИЯ
@@ -157,7 +157,7 @@ public:
      * @return Форматированный текст количества
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Display")
-    static FText FormatItemQuantity(const FMedComUnifiedItemData& ItemData, int32 Quantity);
+    static FText FormatItemQuantity(const FSuspenseUnifiedItemData& ItemData, int32 Quantity);
     
     /**
      * Форматировать количество из runtime экземпляра
@@ -166,7 +166,7 @@ public:
      * @return Форматированный текст количества
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Display", meta = (WorldContext = "WorldContext"))
-    static FText FormatItemQuantityFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance);
+    static FText FormatItemQuantityFromInstance(const UObject* WorldContext, const FSuspenseInventoryItemInstance& ItemInstance);
     
     /**
      * Форматировать вес предмета из unified данных
@@ -176,7 +176,7 @@ public:
      * @return Форматированный текст веса
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Display")
-    static FText FormatItemWeight(const FMedComUnifiedItemData& ItemData, int32 Quantity = 1, bool bIncludeUnit = true);
+    static FText FormatItemWeight(const FSuspenseUnifiedItemData& ItemData, int32 Quantity = 1, bool bIncludeUnit = true);
     
     /**
      * Получить цвет редкости предмета для UI
@@ -184,7 +184,7 @@ public:
      * @return Цвет для отображения редкости в UI
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Display")
-    static FLinearColor GetRarityColor(const FMedComUnifiedItemData& ItemData);
+    static FLinearColor GetRarityColor(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Форматировать прочность предмета
@@ -193,7 +193,7 @@ public:
      * @return Форматированный текст прочности
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Display")
-    static FText FormatItemDurability(const FInventoryItemInstance& ItemInstance, bool bAsPercentage = true);
+    static FText FormatItemDurability(const FSuspenseInventoryItemInstance& ItemInstance, bool bAsPercentage = true);
     
     //==================================================================
     // Enhanced Search and Filtering Methods - УЛУЧШЕННЫЕ МЕТОДЫ ПОИСКА
@@ -207,7 +207,7 @@ public:
      * @return Отфильтрованный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Filtering")
-    static TArray<FMedComUnifiedItemData> FilterItemsByType(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTag& TypeTag, bool bExactMatch = false);
+    static TArray<FSuspenseUnifiedItemData> FilterItemsByType(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTag& TypeTag, bool bExactMatch = false);
     
     /**
      * Фильтровать по редкости
@@ -216,7 +216,7 @@ public:
      * @return Предметы указанной редкости
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Filtering")
-    static TArray<FMedComUnifiedItemData> FilterItemsByRarity(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTag& RarityTag);
+    static TArray<FSuspenseUnifiedItemData> FilterItemsByRarity(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTag& RarityTag);
     
     /**
      * Фильтровать по multiple тегам с логическими операторами
@@ -226,7 +226,7 @@ public:
      * @return Отфильтрованный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Filtering")
-    static TArray<FMedComUnifiedItemData> FilterItemsByTags(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTagContainer& FilterTags, bool bRequireAll = false);
+    static TArray<FSuspenseUnifiedItemData> FilterItemsByTags(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTagContainer& FilterTags, bool bRequireAll = false);
     
     /**
      * ОБНОВЛЕНО: Расширенный поиск в unified данных
@@ -237,7 +237,7 @@ public:
      * @return Массив найденных предметов
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Search")
-    static TArray<FMedComUnifiedItemData> SearchItems(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FString& SearchText, bool bSearchDescription = true, bool bSearchTags = false);
+    static TArray<FSuspenseUnifiedItemData> SearchItems(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FString& SearchText, bool bSearchDescription = true, bool bSearchTags = false);
     
     //==================================================================
     // Enhanced Sorting Methods - УЛУЧШЕННЫЕ МЕТОДЫ СОРТИРОВКИ
@@ -250,7 +250,7 @@ public:
      * @return Отсортированный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Sorting")
-    static TArray<FMedComUnifiedItemData> SortItemsByName(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending = true);
+    static TArray<FSuspenseUnifiedItemData> SortItemsByName(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending = true);
     
     /**
      * Сортировать по весу
@@ -259,7 +259,7 @@ public:
      * @return Отсортированный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Sorting")
-    static TArray<FMedComUnifiedItemData> SortItemsByWeight(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending = true);
+    static TArray<FSuspenseUnifiedItemData> SortItemsByWeight(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending = true);
     
     /**
      * Сортировать по стоимости
@@ -268,7 +268,7 @@ public:
      * @return Отсортированный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Sorting")
-    static TArray<FMedComUnifiedItemData> SortItemsByValue(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending = true);
+    static TArray<FSuspenseUnifiedItemData> SortItemsByValue(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending = true);
     
     /**
      * Сортировать по редкости (с учетом иерархии)
@@ -277,7 +277,7 @@ public:
      * @return Отсортированный массив
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Sorting")
-    static TArray<FMedComUnifiedItemData> SortItemsByRarity(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending = true);
+    static TArray<FSuspenseUnifiedItemData> SortItemsByRarity(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending = true);
     
     //==================================================================
     // Enhanced Weight and Calculation Methods - УЛУЧШЕННЫЕ РАСЧЕТНЫЕ МЕТОДЫ
@@ -290,7 +290,7 @@ public:
      * @return Общий вес всех предметов
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Calculations")
-    static float GetTotalItemsWeight(const TArray<FMedComUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray);
+    static float GetTotalItemsWeight(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray);
     
     /**
      * Получить общий вес из runtime экземпляров
@@ -299,7 +299,7 @@ public:
      * @return Общий вес всех экземпляров
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Calculations", meta = (WorldContext = "WorldContext"))
-    static float GetTotalInstancesWeight(const TArray<FInventoryItemInstance>& ItemInstances, const UObject* WorldContext);
+    static float GetTotalInstancesWeight(const TArray<FSuspenseInventoryItemInstance>& ItemInstances, const UObject* WorldContext);
     
     /**
      * Получить общую стоимость предметов
@@ -308,7 +308,7 @@ public:
      * @return Общая стоимость всех предметов
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Calculations")
-    static int32 GetTotalItemsValue(const TArray<FMedComUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray);
+    static int32 GetTotalItemsValue(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray);
     
     //==================================================================
     // Grid and UI Helper Methods - МЕТОДЫ ДЛЯ СЕТКИ И UI
@@ -334,7 +334,7 @@ public:
      * @return UI размер для виджета
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|UI")
-    static FVector2D GetItemUISize(const FMedComUnifiedItemData& ItemData, bool bIsRotated, const FVector2D& CellSize, float CellSpacing = 2.0f);
+    static FVector2D GetItemUISize(const FSuspenseUnifiedItemData& ItemData, bool bIsRotated, const FVector2D& CellSize, float CellSpacing = 2.0f);
     
     /**
      * Получить координаты из линейного индекса
@@ -366,7 +366,7 @@ public:
      * @return Массив всех занятых индексов
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
-    static TArray<int32> GetOccupiedSlots(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, int32 GridWidth);
+    static TArray<int32> GetOccupiedSlots(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, int32 GridWidth);
     
     //==================================================================
     // Item Type and Classification Helpers - МЕТОДЫ КЛАССИФИКАЦИИ
@@ -378,7 +378,7 @@ public:
      * @return true если предмет является оружием
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsWeapon(const FMedComUnifiedItemData& ItemData);
+    static bool IsWeapon(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Проверить является ли предмет броней
@@ -386,7 +386,7 @@ public:
      * @return true если предмет является броней
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsArmor(const FMedComUnifiedItemData& ItemData);
+    static bool IsArmor(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Проверить является ли предмет боеприпасами
@@ -394,7 +394,7 @@ public:
      * @return true если предмет является боеприпасами
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsAmmo(const FMedComUnifiedItemData& ItemData);
+    static bool IsAmmo(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Проверить является ли предмет расходным материалом
@@ -402,7 +402,7 @@ public:
      * @return true если предмет является расходным
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsConsumable(const FMedComUnifiedItemData& ItemData);
+    static bool IsConsumable(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Проверить является ли предмет экипируемым
@@ -410,7 +410,7 @@ public:
      * @return true если предмет можно экипировать
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsEquippable(const FMedComUnifiedItemData& ItemData);
+    static bool IsEquippable(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Проверить может ли предмет быть сложен в стеки
@@ -418,7 +418,7 @@ public:
      * @return true если предмет стакается
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Classification")
-    static bool IsStackable(const FMedComUnifiedItemData& ItemData);
+    static bool IsStackable(const FSuspenseUnifiedItemData& ItemData);
     
     //==================================================================
     // Conversion and Compatibility Methods - МЕТОДЫ КОНВЕРСИИ
@@ -432,7 +432,7 @@ public:
      * @return true если конверсия успешна
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Conversion")
-    static bool GetUnifiedDataFromObject(UObject* ItemObject, FMedComUnifiedItemData& OutItemData);
+    static bool GetUnifiedDataFromObject(UObject* ItemObject, FSuspenseUnifiedItemData& OutItemData);
     
     /**
      * Получить runtime экземпляр из объекта предмета
@@ -441,7 +441,7 @@ public:
      * @return true если конверсия успешна
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Conversion")
-    static bool GetInstanceFromObject(UObject* ItemObject, FInventoryItemInstance& OutInstance);
+    static bool GetInstanceFromObject(UObject* ItemObject, FSuspenseInventoryItemInstance& OutInstance);
     
     /**
      * Создать pickup данные из unified данных
@@ -451,7 +451,7 @@ public:
      * @return true если данные созданы успешно
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Conversion")
-    static bool CreatePickupDataFromUnified(const FMedComUnifiedItemData& ItemData, int32 Quantity, FMCPickupData& OutPickupData);
+    static bool CreatePickupDataFromUnified(const FSuspenseUnifiedItemData& ItemData, int32 Quantity, FMCPickupData& OutPickupData);
     
     /**
      * Создать equipment данные из unified данных
@@ -460,7 +460,7 @@ public:
      * @return true если данные созданы успешно (только для экипируемых предметов)
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Conversion")
-    static bool CreateEquipmentDataFromUnified(const FMedComUnifiedItemData& ItemData, FMCEquipmentData& OutEquipmentData);
+    static bool CreateEquipmentDataFromUnified(const FSuspenseUnifiedItemData& ItemData, FMCEquipmentData& OutEquipmentData);
     
     //==================================================================
     // Debug and Validation Methods - МЕТОДЫ ОТЛАДКИ И ВАЛИДАЦИИ
@@ -473,7 +473,7 @@ public:
      * @return true если данные валидны
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
-    static bool ValidateUnifiedItemData(const FMedComUnifiedItemData& ItemData, TArray<FString>& OutErrors);
+    static bool ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, TArray<FString>& OutErrors);
     
     /**
      * Получить debug информацию о предмете
@@ -481,7 +481,7 @@ public:
      * @return Строка с детальной debug информацией
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
-    static FString GetItemDebugInfo(const FMedComUnifiedItemData& ItemData);
+    static FString GetItemDebugInfo(const FSuspenseUnifiedItemData& ItemData);
     
     /**
      * Валидировать runtime экземпляр предмета
@@ -491,7 +491,7 @@ public:
      * @return true если экземпляр валиден
      */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug", meta = (WorldContext = "WorldContext"))
-    static bool ValidateItemInstance(const FInventoryItemInstance& ItemInstance, const UObject* WorldContext, TArray<FString>& OutErrors);
+    static bool ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, const UObject* WorldContext, TArray<FString>& OutErrors);
 //==================================================================
 // Enhanced Runtime Properties Management - ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ
 //==================================================================
@@ -502,7 +502,7 @@ public:
  * @param PropertyName Название свойства для удаления
  */
 UFUNCTION(BlueprintCallable, Category = "Inventory|Runtime")
-static void ClearRuntimeProperty(UPARAM(ref) FInventoryItemInstance& ItemInstance, const FString& PropertyName);
+static void ClearRuntimeProperty(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName);
 
 /**
  * Получить все имена runtime свойств
@@ -510,7 +510,7 @@ static void ClearRuntimeProperty(UPARAM(ref) FInventoryItemInstance& ItemInstanc
  * @return Массив имен всех runtime свойств
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Runtime")
-static TArray<FString> GetAllRuntimePropertyNames(const FInventoryItemInstance& ItemInstance);
+static TArray<FString> GetAllRuntimePropertyNames(const FSuspenseInventoryItemInstance& ItemInstance);
 
 /**
  * Получить количество runtime свойств
@@ -518,14 +518,14 @@ static TArray<FString> GetAllRuntimePropertyNames(const FInventoryItemInstance& 
  * @return Количество runtime свойств
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Runtime")
-static int32 GetRuntimePropertiesCount(const FInventoryItemInstance& ItemInstance);
+static int32 GetRuntimePropertiesCount(const FSuspenseInventoryItemInstance& ItemInstance);
 
 /**
  * Очистить все runtime свойства
  * @param ItemInstance Runtime экземпляр предмета (передается по ссылке)
  */
 UFUNCTION(BlueprintCallable, Category = "Inventory|Runtime")
-static void ClearAllRuntimeProperties(UPARAM(ref) FInventoryItemInstance& ItemInstance);
+static void ClearAllRuntimeProperties(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance);
 
 //==================================================================
 // Convenience Methods for Common Properties - CONVENIENCE МЕТОДЫ
@@ -537,7 +537,7 @@ static void ClearAllRuntimeProperties(UPARAM(ref) FInventoryItemInstance& ItemIn
  * @return Текущая прочность
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Properties")
-static float GetItemDurability(const FInventoryItemInstance& ItemInstance);
+static float GetItemDurability(const FSuspenseInventoryItemInstance& ItemInstance);
 
 /**
  * Установить прочность предмета с автоматическим клампингом
@@ -545,7 +545,7 @@ static float GetItemDurability(const FInventoryItemInstance& ItemInstance);
  * @param Durability Новое значение прочности
  */
 UFUNCTION(BlueprintCallable, Category = "Inventory|Properties")
-static void SetItemDurability(UPARAM(ref) FInventoryItemInstance& ItemInstance, float Durability);
+static void SetItemDurability(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance, float Durability);
 
 /**
  * Получить прочность предмета в процентах
@@ -553,7 +553,7 @@ static void SetItemDurability(UPARAM(ref) FInventoryItemInstance& ItemInstance, 
  * @return Прочность от 0.0 до 1.0
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Properties")
-static float GetItemDurabilityPercent(const FInventoryItemInstance& ItemInstance);
+static float GetItemDurabilityPercent(const FSuspenseInventoryItemInstance& ItemInstance);
 
 /**
  * Получить количество патронов в оружии
@@ -561,7 +561,7 @@ static float GetItemDurabilityPercent(const FInventoryItemInstance& ItemInstance
  * @return Текущее количество патронов
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Properties")
-static int32 GetItemAmmo(const FInventoryItemInstance& ItemInstance);
+static int32 GetItemAmmo(const FSuspenseInventoryItemInstance& ItemInstance);
 
 /**
  * Установить количество патронов с клампингом к максимуму
@@ -569,7 +569,7 @@ static int32 GetItemAmmo(const FInventoryItemInstance& ItemInstance);
  * @param AmmoCount Новое количество патронов
  */
 UFUNCTION(BlueprintCallable, Category = "Inventory|Properties")
-static void SetItemAmmo(UPARAM(ref) FInventoryItemInstance& ItemInstance, int32 AmmoCount);
+static void SetItemAmmo(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance, int32 AmmoCount);
 
 /**
  * Проверить активен ли кулдаун предмета
@@ -578,7 +578,7 @@ static void SetItemAmmo(UPARAM(ref) FInventoryItemInstance& ItemInstance, int32 
  * @return true если кулдаун активен
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Properties")
-static bool IsItemOnCooldown(const FInventoryItemInstance& ItemInstance, float CurrentTime);
+static bool IsItemOnCooldown(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime);
 
 /**
  * Запустить кулдаун предмета
@@ -587,7 +587,7 @@ static bool IsItemOnCooldown(const FInventoryItemInstance& ItemInstance, float C
  * @param CooldownDuration Длительность кулдауна в секундах
  */
 UFUNCTION(BlueprintCallable, Category = "Inventory|Properties")
-static void StartItemCooldown(UPARAM(ref) FInventoryItemInstance& ItemInstance, float CurrentTime, float CooldownDuration);
+static void StartItemCooldown(UPARAM(ref) FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime, float CooldownDuration);
 
 /**
  * Получить оставшееся время кулдауна
@@ -596,7 +596,7 @@ static void StartItemCooldown(UPARAM(ref) FInventoryItemInstance& ItemInstance, 
  * @return Оставшееся время в секундах
  */
 UFUNCTION(BlueprintPure, Category = "Inventory|Properties")
-static float GetRemainingCooldown(const FInventoryItemInstance& ItemInstance, float CurrentTime);
+static float GetRemainingCooldown(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime);
 private:
     //==================================================================
     // Internal Helper Methods - ВНУТРЕННИЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
@@ -606,7 +606,7 @@ private:
      * Внутренний helper для безопасного получения ItemManager
      * Централизованная логика с proper error handling
      */
-    static UMedComItemManager* GetValidatedItemManager(const UObject* WorldContext);
+    static USuspenseItemManager* GetValidatedItemManager(const UObject* WorldContext);
     
     /**
      * Внутренний helper для расчета rarity priority для сортировки

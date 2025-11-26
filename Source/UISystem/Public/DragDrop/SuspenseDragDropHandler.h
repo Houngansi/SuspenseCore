@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Types/UI/ContainerUITypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Operations/InventoryResult.h"
 #include "GameplayTagContainer.h"
@@ -18,7 +18,7 @@ class USuspenseDragVisualWidget;
 class USuspenseBaseSlotWidget;
 class USuspenseBaseContainerWidget;
 class USuspenseBaseLayoutWidget;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class ISuspenseInventoryUIBridgeInterface;
 class ISuspenseEquipmentUIBridgeInterfaceWidget;
 class UWidget;
@@ -125,13 +125,13 @@ public:
         const FPointerEvent& MouseEvent);
     
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
-    FInventoryOperationResult ProcessDrop(
+    FSuspenseInventoryOperationResult ProcessDrop(
         USuspenseDragDropOperation* DragOperation,
         const FVector2D& ScreenPosition,
         UWidget* TargetWidget = nullptr);
-    
+
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
-    FInventoryOperationResult ProcessDropRequest(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult ProcessDropRequest(const FDropRequest& Request);
     
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
     FDropTargetInfo CalculateDropTarget(
@@ -198,11 +198,11 @@ protected:
         const FDragDropUIData& DragData,
         int32 TargetSlot) const;
     
-    FInventoryOperationResult ExecuteDrop(const FDropRequest& Request);
-    FInventoryOperationResult RouteDropOperation(const FDropRequest& Request);
-    FInventoryOperationResult HandleInventoryToInventory(const FDropRequest& Request);
-    FInventoryOperationResult HandleEquipmentToInventory(const FDropRequest& Request);
-    FInventoryOperationResult HandleInventoryToEquipment(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult ExecuteDrop(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult RouteDropOperation(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult HandleInventoryToInventory(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult HandleEquipmentToInventory(const FDropRequest& Request);
+    FSuspenseInventoryOperationResult HandleInventoryToEquipment(const FDropRequest& Request);
     
     FDropTargetInfo FindContainerAtPosition(const FVector2D& ScreenPosition) const;
     FDropTargetInfo FindContainerInLayout(USuspenseBaseLayoutWidget* LayoutWidget, const FVector2D& ScreenPosition) const;
@@ -262,9 +262,9 @@ private:
     TMap<FGameplayTag, TWeakObjectPtr<USuspenseBaseContainerWidget>> ContainerCache;
     TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface> InventoryBridge;
     TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterfaceWidget> EquipmentBridge;
-    
+
     UPROPERTY()
-    UEventDelegateManager* CachedEventManager;
+    USuspenseEventManager* CachedEventManager;
     
     float LastCacheValidationTime;
     static constexpr float CACHE_LIFETIME = 5.0f;

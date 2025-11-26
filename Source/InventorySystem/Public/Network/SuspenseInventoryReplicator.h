@@ -5,13 +5,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "SuspenseInventoryReplicator.generated.h"
 
 // Forward declarations для чистого разделения модулей
-class UMedComItemManager;
+class USuspenseItemManager;
 class IMedComInventoryItemInterface;
 
 // Объявляем делегат для уведомления об обновлениях репликации
@@ -407,20 +407,20 @@ struct FReplicatedItemMeta : public FFastArraySerializerItem
     // Conversion methods
     //==================================================================
     
-    // ОБНОВЛЕНО: Создание метаданных из FInventoryItemInstance (новый основной метод)
-    static FReplicatedItemMeta FromItemInstance(const FInventoryItemInstance& ItemInstance, UMedComItemManager* ItemManager = nullptr);
+    // ОБНОВЛЕНО: Создание метаданных из FSuspenseInventoryItemInstance (новый основной метод)
+    static FReplicatedItemMeta FromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, USuspenseItemManager* ItemManager = nullptr);
     
     // ОБНОВЛЕНО: Создание метаданных из интерфейса предмета
     static FReplicatedItemMeta FromItemInterface(const IMedComInventoryItemInterface* ItemInterface);
     
     // ОБНОВЛЕНО: Создание метаданных из unified DataTable структуры
-    static FReplicatedItemMeta FromUnifiedItemData(const FMedComUnifiedItemData& ItemData, int32 Amount, int32 AnchorIdx, const FGuid& InstanceID = FGuid());
-    
-    // НОВОЕ: Создание полного FInventoryItemInstance из метаданных
-    FInventoryItemInstance ToItemInstance() const;
+    static FReplicatedItemMeta FromUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, int32 AnchorIdx, const FGuid& InstanceID = FGuid());
+
+    // НОВОЕ: Создание полного FSuspenseInventoryItemInstance из метаданных
+    FSuspenseInventoryItemInstance ToItemInstance() const;
     
     // НОВОЕ: Обновление метаданных из измененного instance
-    void UpdateFromItemInstance(const FInventoryItemInstance& ItemInstance, UMedComItemManager* ItemManager = nullptr);
+    void UpdateFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, USuspenseItemManager* ItemManager = nullptr);
 };
 
 /**
@@ -527,10 +527,10 @@ struct FInventoryReplicatedState
     UPROPERTY(NotReplicated)
     class USuspenseInventoryReplicator* OwnerComponent = nullptr;
     
-    // ОБНОВЛЕНО: Теперь храним FInventoryItemInstance вместо простых UObject*
+    // ОБНОВЛЕНО: Теперь храним FSuspenseInventoryItemInstance вместо простых UObject*
     // Это обеспечивает полную поддержку runtime properties и DataTable интеграцию
     UPROPERTY(NotReplicated)
-    TArray<FInventoryItemInstance> ItemInstances;
+    TArray<FSuspenseInventoryItemInstance> ItemInstances;
     
     // Legacy object references для backward compatibility
     UPROPERTY(NotReplicated)
@@ -548,8 +548,8 @@ struct FInventoryReplicatedState
     // Reset all state
     void Reset();
     
-    // ОБНОВЛЕНО: Добавление предмета через FInventoryItemInstance (новый основной метод)
-    int32 AddItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+    // ОБНОВЛЕНО: Добавление предмета через FSuspenseInventoryItemInstance (новый основной метод)
+    int32 AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
     
     // ОБНОВЛЕНО: Legacy метод с автоматическим размером из DataTable
     int32 AddItem(UObject* ItemObject, const FReplicatedItemMeta& Meta, int32 AnchorIndex);
@@ -558,7 +558,7 @@ struct FInventoryReplicatedState
     bool RemoveItem(int32 MetaIndex);
     
     // ОБНОВЛЕНО: Обновление предмета с полной поддержкой runtime properties
-    bool UpdateItemInstance(int32 MetaIndex, const FInventoryItemInstance& NewInstance);
+    bool UpdateItemInstance(int32 MetaIndex, const FSuspenseInventoryItemInstance& NewInstance);
     
     // Update item metadata (lightweight update)
     bool UpdateItem(int32 MetaIndex, const FReplicatedItemMeta& NewMeta);
@@ -572,9 +572,9 @@ struct FInventoryReplicatedState
     // Find item metadata index by item ID
     int32 FindMetaIndexByItemID(const FName& ItemID) const;
     
-    // НОВОЕ: Получение FInventoryItemInstance по индексу
-    const FInventoryItemInstance* GetItemInstance(int32 MetaIndex) const;
-    FInventoryItemInstance* GetItemInstance(int32 MetaIndex);
+    // НОВОЕ: Получение FSuspenseInventoryItemInstance по индексу
+    const FSuspenseInventoryItemInstance* GetItemInstance(int32 MetaIndex) const;
+    FSuspenseInventoryItemInstance* GetItemInstance(int32 MetaIndex);
     
     // Check if cells are free for placement
     bool AreCellsFree(int32 StartIndex, const FVector2D& Size) const;
@@ -590,7 +590,7 @@ struct FInventoryReplicatedState
     }
     
     // НОВОЕ: Синхронизация с ItemManager для обновления DataTable данных
-    void SynchronizeWithItemManager(UMedComItemManager* ItemManager);
+    void SynchronizeWithItemManager(USuspenseItemManager* ItemManager);
     
     // НОВОЕ: Валидация целостности state для debugging
     bool ValidateIntegrity(TArray<FString>& OutErrors) const;
@@ -601,7 +601,7 @@ struct FInventoryReplicatedState
  * with full DataTable and FInventoryItemInstance integration
  * 
  * АРХИТЕКТУРНЫЕ УЛУЧШЕНИЯ:
- * - Полная интеграция с FMedComUnifiedItemData как источником истины
+ * - Полная интеграция с FSuspenseUnifiedItemData как источником истины
  * - Поддержка FInventoryItemInstance для runtime данных
  * - Автоматическое получение размеров предметов из DataTable
  * - Расширенная поддержка runtime properties репликации
@@ -625,7 +625,7 @@ public:
     /**
      * ОБНОВЛЕНО: Инициализация с поддержкой ItemManager
      */
-    bool Initialize(int32 GridWidth, int32 GridHeight, UMedComItemManager* InItemManager = nullptr);
+    bool Initialize(int32 GridWidth, int32 GridHeight, USuspenseItemManager* InItemManager = nullptr);
     
     /**
      * Получение состояния репликации для прямой манипуляции
@@ -636,12 +636,12 @@ public:
     /**
      * НОВОЕ: Получение ItemManager для DataTable операций
      */
-    UMedComItemManager* GetItemManager() const { return ItemManager; }
-    
+    USuspenseItemManager* GetItemManager() const { return ItemManager; }
+
     /**
      * НОВОЕ: Установка ItemManager для runtime изменений
      */
-    void SetItemManager(UMedComItemManager* InItemManager) { ItemManager = InItemManager; }
+    void SetItemManager(USuspenseItemManager* InItemManager) { ItemManager = InItemManager; }
     
     /**
      * Установка частоты сетевых обновлений
@@ -668,10 +668,10 @@ public:
     //==================================================================
     
     /**
-     * Добавление предмета через FInventoryItemInstance (основной метод)
+     * Добавление предмета через FSuspenseInventoryItemInstance (основной метод)
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryReplication")
-    int32 AddItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+    int32 AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
     
     /**
      * Обновление runtime свойств предмета
@@ -680,10 +680,10 @@ public:
     bool UpdateItemRuntimeProperties(int32 MetaIndex, const TMap<FName, float>& NewProperties);
     
     /**
-     * Получение предмета как FInventoryItemInstance
+     * Получение предмета как FSuspenseInventoryItemInstance
      */
     UFUNCTION(BlueprintCallable, Category = "InventoryReplication")
-    bool GetItemInstanceByIndex(int32 MetaIndex, FInventoryItemInstance& OutInstance) const;
+    bool GetItemInstanceByIndex(int32 MetaIndex, FSuspenseInventoryItemInstance& OutInstance) const;
     
     /**
      * Поиск предмета по Instance ID
@@ -740,7 +740,7 @@ protected:
     
     /** НОВОЕ: Reference на ItemManager для DataTable доступа */
     UPROPERTY()
-    UMedComItemManager* ItemManager;
+    USuspenseItemManager* ItemManager;
     
     /** How often to send network updates (in seconds) */
     UPROPERTY(EditAnywhere, Category = "Network", meta = (ClampMin = "0.01", ClampMax = "1.0"))
@@ -776,12 +776,12 @@ protected:
     /**
      * Автоматическое получение ItemManager если не установлен
      */
-    UMedComItemManager* GetOrCreateItemManager();
+    USuspenseItemManager* GetOrCreateItemManager();
     
     /**
-     * Конвертация legacy объектов в FInventoryItemInstance
+     * Конвертация legacy объектов в FSuspenseInventoryItemInstance
      */
-    bool ConvertLegacyObjectToInstance(UObject* ItemObject, FInventoryItemInstance& OutInstance) const;
+    bool ConvertLegacyObjectToInstance(UObject* ItemObject, FSuspenseInventoryItemInstance& OutInstance) const;
     
     /**
      * Синхронизация размеров предметов с DataTable

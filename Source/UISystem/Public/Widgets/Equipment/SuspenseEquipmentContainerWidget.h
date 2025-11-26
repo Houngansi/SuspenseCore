@@ -7,7 +7,7 @@
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Types/UI/EquipmentUITypes.h"
 #include "Components/CanvasPanel.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseEquipmentContainerWidget.generated.h"
 
 // Forward declarations

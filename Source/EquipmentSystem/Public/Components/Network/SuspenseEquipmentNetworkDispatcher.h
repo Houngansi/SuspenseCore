@@ -19,7 +19,7 @@ class UEquipmentNetworkServiceImpl;
 
 /** Облегчённая версия ItemInstance для RPC (без RuntimeProperties) */
 USTRUCT()
-struct FInventoryItemInstanceNet
+struct FSuspenseInventoryItemInstanceNet
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ struct FEquipmentOperationNet
 	UPROPERTY() EEquipmentOperationType OperationType = EEquipmentOperationType::None;
 	UPROPERTY() int32 SourceSlotIndex = INDEX_NONE;
 	UPROPERTY() int32 TargetSlotIndex = INDEX_NONE;
-	UPROPERTY() FInventoryItemInstanceNet ItemInstance;
+	UPROPERTY() FSuspenseInventoryItemInstanceNet ItemInstance;
 	UPROPERTY() ENetworkOperationPriority Priority = ENetworkOperationPriority::Normal;
 };
 
@@ -188,8 +188,8 @@ protected:
 
 private:
 	// Конвертация DTO <-> доменная модель
-	static FInventoryItemInstanceNet   ToNet(const FSuspenseInventoryItemInstance& In);
-	static FSuspenseInventoryItemInstance      FromNet(const FInventoryItemInstanceNet& In);
+	static FSuspenseInventoryItemInstanceNet   ToNet(const FSuspenseInventoryItemInstance& In);
+	static FSuspenseInventoryItemInstance      FromNet(const FSuspenseInventoryItemInstanceNet& In);
 	static FNetworkOperationRequestNet ToNet(const FNetworkOperationRequest& In);
 	static FNetworkOperationRequest    FromNet(const FNetworkOperationRequestNet& In);
 

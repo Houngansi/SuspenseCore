@@ -12,7 +12,7 @@
 class UUserWidget;
 class USuspenseBaseWidget;
 class USuspenseBaseLayoutWidget;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class USuspenseUpperTabBar;
 class USuspenseInventoryUIBridge;
 class USuspenseEquipmentUIBridge;
@@ -486,7 +486,7 @@ private:
 
     // Cached event manager reference
     UPROPERTY()
-    UEventDelegateManager* CachedEventManager;
+    USuspenseEventManager* CachedEventManager;
 
     // Cached inventory bridge
     UPROPERTY()
@@ -506,7 +506,7 @@ private:
     void CleanupWidget(UUserWidget* Widget);
     void NotifyWidgetCreated(UUserWidget* Widget, FGameplayTag WidgetTag);
     void NotifyWidgetDestroyed(FGameplayTag WidgetTag);
-    UEventDelegateManager* GetEventManager() const;
+    USuspenseEventManager* GetEventManager() const;
     APlayerController* GetPlayerControllerFromObject(UObject* Object) const;
     int32 GetZOrderForWidget(FGameplayTag WidgetTag) const;
     bool ShouldAutoAddToViewport(FGameplayTag WidgetTag) const;

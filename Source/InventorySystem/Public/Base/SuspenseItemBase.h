@@ -7,12 +7,12 @@
 #include "Net/UnrealNetwork.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseItemBase.generated.h"
 
 // Forward declarations
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 
 /**
  * Структура для репликации runtime свойств предмета
@@ -112,12 +112,12 @@ public:
     //==================================================================
     
 private:
-    /** 
+    /**
      * Кэшированные данные из DataTable для оптимизации
      * НЕ помечен UPROPERTY - управляется вручную
      * mutable для изменения в const методах
      */
-    mutable FMedComUnifiedItemData* CachedItemData = nullptr;
+    mutable FSuspenseUnifiedItemData* CachedItemData = nullptr;
     
     /** 
      * Локальный кэш runtime свойств для быстрого доступа
@@ -136,12 +136,12 @@ public:
     // Методы доступа к статическим данным (из DataTable)
     //==================================================================
     
-    /** 
+    /**
      * Получить статические данные предмета из DataTable (C++ версия)
      * Использует кэширование для производительности
      * @return Указатель на данные или nullptr
      */
-    const FMedComUnifiedItemData* GetItemData() const;
+    const FSuspenseUnifiedItemData* GetItemData() const;
     
     /** 
      * Получить копию статических данных предмета (Blueprint версия)
@@ -149,7 +149,7 @@ public:
      * @return True если данные найдены
      */
     UFUNCTION(BlueprintCallable, Category = "Item|Data", DisplayName = "Get Item Data")
-    bool GetItemDataCopy(FMedComUnifiedItemData& OutItemData) const;
+    bool GetItemDataCopy(FSuspenseUnifiedItemData& OutItemData) const;
     
     /** 
      * Принудительно обновить кэшированные данные из DataTable
@@ -382,14 +382,14 @@ public:
      * Для интеграции с новой системой инвентаря
      */
     UFUNCTION(BlueprintCallable, Category = "Item")
-    FInventoryItemInstance ToInventoryInstance(int32 Quantity = 1) const;
-    
-    /** 
+    FSuspenseInventoryItemInstance ToInventoryInstance(int32 Quantity = 1) const;
+
+    /**
      * Инициализировать предмет из экземпляра инвентаря
      * Для обратной конверсии из новой системы
      */
     UFUNCTION(BlueprintCallable, Category = "Item")
-    void InitFromInventoryInstance(const FInventoryItemInstance& Instance);
+    void InitFromInventoryInstance(const FSuspenseInventoryItemInstance& Instance);
 
     //==================================================================
     // Методы инициализации и настройки
@@ -426,7 +426,7 @@ protected:
     //==================================================================
     
     /** Получить ItemManager для доступа к DataTable */
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
     
     /** Внутренний метод обновления кэша */
     void UpdateCacheIfNeeded() const;

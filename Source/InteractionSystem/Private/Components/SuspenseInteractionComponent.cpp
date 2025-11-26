@@ -451,7 +451,7 @@ UAbilitySystemComponent* USuspenseInteractionComponent::GetOwnerASC() const
     return nullptr;
 }
 
-UEventDelegateManager* USuspenseInteractionComponent::GetDelegateManager() const
+USuspenseEventManager* USuspenseInteractionComponent::GetDelegateManager() const
 {
     // Check cached manager first
     if (CachedDelegateManager.IsValid())
@@ -460,7 +460,7 @@ UEventDelegateManager* USuspenseInteractionComponent::GetDelegateManager() const
     }
 
     // Get manager through static method
-    UEventDelegateManager* Manager = IMedComInteractInterface::GetDelegateManagerStatic(this);
+    USuspenseEventManager* Manager = ISuspenseInteract::GetDelegateManagerStatic(this);
     if (Manager)
     {
         const_cast<USuspenseInteractionComponent*>(this)->CachedDelegateManager = Manager;
@@ -527,7 +527,7 @@ void USuspenseInteractionComponent::UpdateInteractionFocus(AActor* NewFocusActor
 
 void USuspenseInteractionComponent::BroadcastInteractionAttempt(AActor* TargetActor)
 {
-    UEventDelegateManager* Manager = GetDelegateManager();
+    USuspenseEventManager* Manager = GetDelegateManager();
     if (Manager)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Interaction.Event.Attempt"));
@@ -541,7 +541,7 @@ void USuspenseInteractionComponent::BroadcastInteractionAttempt(AActor* TargetAc
 
 void USuspenseInteractionComponent::BroadcastInteractionResult(AActor* TargetActor, bool bSuccess)
 {
-    UEventDelegateManager* Manager = GetDelegateManager();
+    USuspenseEventManager* Manager = GetDelegateManager();
     if (Manager)
     {
         FGameplayTag EventTag = bSuccess

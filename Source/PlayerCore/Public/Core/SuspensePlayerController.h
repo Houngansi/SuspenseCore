@@ -6,8 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
 #include "GameplayTagContainer.h"
-#include "Input/MCAbilityInputID.h"
-#include "Interfaces/Core/IMedComControllerInterface.h"
+#include "Input/SuspenseAbilityInputID.h"
+#include "Interfaces/Core/ISuspenseController.h"
 #include "SuspensePlayerController.generated.h"
 
 // Forward declarations
@@ -15,23 +15,23 @@ class UInputMappingContext;
 class UInputAction;
 class ASuspenseCharacter;
 class UAbilitySystemComponent;
-class UEventDelegateManager;
-class UMedComUIManager;
+class USuspenseEventManager;
+class USuspenseUIManager;
 class UUserWidget;
-class UMedComInventoryUIBridge;
-class UMedComEquipmentUIConnector;
+class USuspenseInventoryUIBridge;
+class USuspenseEquipmentUIConnector;
 /**
  * Player controller with integrated equipment and ability system support
  * Handles movement input and routes Jump/Sprint/Crouch to GAS
  * Manages HUD creation and lifecycle through UIManager
- * Implements IMedComControllerInterface for weapon management
- * 
+ * Implements ISuspenseController for weapon management
+ *
  * ИЗМЕНЕНИЯ:
  * - Удалены методы OpenInventory/CloseInventory
  * - ToggleInventory теперь открывает Character Screen
  */
 UCLASS()
-class SUSPENSECORE_API ASuspensePlayerController : public APlayerController, public IMedComControllerInterface
+class SUSPENSECORE_API ASuspensePlayerController : public APlayerController, public ISuspenseController
 {
     GENERATED_BODY()
 
@@ -96,9 +96,9 @@ public:
     void ToggleInventory();
  
     //================================================
-    // IMedComControllerInterface Implementation
+    // ISuspenseController Implementation
     //================================================
-    
+
     virtual void NotifyWeaponChanged_Implementation(AActor* NewWeapon);
     virtual AActor* GetCurrentWeapon_Implementation() const override;
     virtual void NotifyWeaponStateChanged_Implementation(FGameplayTag WeaponState) override;
@@ -107,12 +107,12 @@ public:
     virtual bool HasValidPawn_Implementation() const override;
     virtual void UpdateInputBindings_Implementation() override;
     virtual int32 GetInputPriority_Implementation() const override;
-    
+
     /** Handle equipment state changes from delegate manager */
     void HandleEquipmentStateChange(FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted);
-    
+
     // Delegate manager access for interface
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
 
 protected:
     virtual void BeginPlay() override;
@@ -234,7 +234,7 @@ private:
      * Gets the UI Manager instance
      * @return UI Manager or nullptr
      */
-    UMedComUIManager* GetUIManager() const;
+    USuspenseUIManager* GetUIManager() const;
 
     //================================================
     // Inventory Management
@@ -250,7 +250,7 @@ private:
      * Подключить инвентарь к Bridge
      * @param Bridge Мост для подключения инвентаря
      */
-    void ConnectInventoryToBridge(UMedComInventoryUIBridge* Bridge);
+    void ConnectInventoryToBridge(USuspenseInventoryUIBridge* Bridge);
 
     /**
      * Обработчик запросов инициализации инвентаря
@@ -286,7 +286,7 @@ private:
     
     /** Cached UI Manager reference */
     UPROPERTY(Transient)
-    UMedComUIManager* CachedUIManager = nullptr;
+    USuspenseUIManager* CachedUIManager = nullptr;
 
     //================================================
     // Input Assets Configuration
@@ -387,7 +387,7 @@ private:
  void EnsureEquipmentBridgeInitialized();
     
  /** Connect equipment component to UI bridge */
- void ConnectEquipmentToBridge(class UMedComEquipmentUIBridge* Bridge);
+ void ConnectEquipmentToBridge(class USuspenseEquipmentUIBridge* Bridge);
     
  /** Handle equipment initialization request from event system */
  void HandleEquipmentInitializationRequest(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData);

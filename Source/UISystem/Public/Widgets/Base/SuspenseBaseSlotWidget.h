@@ -19,7 +19,7 @@ class UTextBlock;
 class USizeBox;
 class USuspenseBaseContainerWidget;
 class USuspenseDragDropHandler;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class UTexture2D;
 
 /**
@@ -175,7 +175,7 @@ protected:
     
     /** Cached event manager */
     UPROPERTY()
-    UEventDelegateManager* CachedEventManager;
+    USuspenseEventManager* CachedEventManager;
 
     //========================================
     // Native Widget Overrides
@@ -324,7 +324,7 @@ protected:
     USuspenseDragDropHandler* GetDragDropHandler() const;
     
     /** Get event manager */
-    UEventDelegateManager* GetEventManager() const;
+    USuspenseEventManager* GetEventManager() const;
     
     /** Validate widget bindings */
     bool ValidateWidgetBindings() const;

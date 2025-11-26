@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Inventory/ISuspenseInventoryInterface.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryComponent.generated.h"
 
@@ -20,10 +20,10 @@ class USuspenseInventoryEvents;
 class USuspenseInventorySerializer;
 class USuspenseInventoryUIConnector;
 class USuspenseInventoryGASIntegration;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class USuspenseItemManager;
 class USuspenseInventoryManager;
-struct FInventoryOperationResult;
+struct FSuspenseInventoryOperationResult;
 struct FSuspenseLoadoutConfiguration;
 
 /**
@@ -37,7 +37,7 @@ struct FSuspenseLoadoutConfiguration;
  * - Thread-safe operations with transaction support
  */
 UCLASS(ClassGroup=(Suspense), meta=(BlueprintSpawnableComponent))
-class INVENTORYSYSTEM_API USuspenseInventoryComponent : public UActorComponent, public ISuspenseInventoryInterface
+class INVENTORYSYSTEM_API USuspenseInventoryComponent : public UActorComponent, public ISuspenseInventory
 {
     GENERATED_BODY()
 
@@ -56,18 +56,18 @@ public:
 
     // Core item operations (DataTable-based)
     virtual bool AddItemByID_Implementation(FName ItemID, int32 Quantity) override;
-    virtual FInventoryOperationResult AddItemInstance(const FInventoryItemInstance& ItemInstance) override;
-    virtual FInventoryOperationResult AddItemInstanceToSlot(const FInventoryItemInstance& ItemInstance, int32 TargetSlot) override;
-    virtual FInventoryOperationResult RemoveItemByID(const FName& ItemID, int32 Amount) override;
-    virtual FInventoryOperationResult RemoveItemInstance(const FGuid& InstanceID) override;
-    virtual bool RemoveItemFromSlot(int32 SlotIndex, FInventoryItemInstance& OutRemovedInstance) override;
-    virtual TArray<FInventoryItemInstance> GetAllItemInstances() const override;
+    virtual FSuspenseInventoryOperationResult AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual FSuspenseInventoryOperationResult AddItemInstanceToSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 TargetSlot) override;
+    virtual FSuspenseInventoryOperationResult RemoveItemByID(const FName& ItemID, int32 Amount) override;
+    virtual FSuspenseInventoryOperationResult RemoveItemInstance(const FGuid& InstanceID) override;
+    virtual bool RemoveItemFromSlot(int32 SlotIndex, FSuspenseInventoryItemInstance& OutRemovedInstance) override;
+    virtual TArray<FSuspenseInventoryItemInstance> GetAllItemInstances() const override;
     virtual USuspenseItemManager* GetItemManager() const override;
 
     // Advanced item management
     virtual int32 CreateItemsFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray) override;
     virtual int32 ConsolidateStacks(const FName& ItemID = NAME_None) override;
-    virtual FInventoryOperationResult SplitStack(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot) override;
+    virtual FSuspenseInventoryOperationResult SplitStack(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot) override;
 
     //==================================================================
     // DataTable Operations
@@ -87,9 +87,9 @@ public:
     virtual void SwapItemSlots(int32 SlotIndex1, int32 SlotIndex2) override;
     virtual int32 FindFreeSpaceForItem(const FVector2D& ItemSize, bool bAllowRotation = true) const override;
     virtual bool CanPlaceItemAtSlot(const FVector2D& ItemSize, int32 SlotIndex, bool bIgnoreRotation = false) const override;
-    virtual bool CanPlaceItemInstanceAtSlot(const FInventoryItemInstance& ItemInstance, int32 SlotIndex) const override;
-    virtual bool PlaceItemInstanceAtSlot(const FInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace = false) override;
-    virtual bool TryAutoPlaceItemInstance(const FInventoryItemInstance& ItemInstance) override;
+    virtual bool CanPlaceItemInstanceAtSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex) const override;
+    virtual bool PlaceItemInstanceAtSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace = false) override;
+    virtual bool TryAutoPlaceItemInstance(const FSuspenseInventoryItemInstance& ItemInstance) override;
 
     // Movement operations
     virtual bool MoveItemBySlots_Implementation(int32 FromSlot, int32 ToSlot, bool bMaintainRotation) override;
@@ -103,9 +103,9 @@ public:
 
     // Properties and queries
     virtual FVector2D GetInventorySize() const override;
-    virtual bool GetItemInstanceAtSlot(int32 SlotIndex, FInventoryItemInstance& OutInstance) const override;
+    virtual bool GetItemInstanceAtSlot(int32 SlotIndex, FSuspenseInventoryItemInstance& OutInstance) const override;
     virtual int32 GetItemCountByID(const FName& ItemID) const override;
-    virtual TArray<FInventoryItemInstance> FindItemInstancesByType(const FGameplayTag& ItemType) const override;
+    virtual TArray<FSuspenseInventoryItemInstance> FindItemInstancesByType(const FGameplayTag& ItemType) const override;
     virtual int32 GetTotalItemCount() const override;
     virtual bool HasItem(const FName& ItemID, int32 Amount = 1) const override;
 
@@ -133,7 +133,7 @@ public:
 
     // Events & delegates
     virtual void BroadcastInventoryUpdated() override;
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
     virtual void BindToInventoryUpdates(const FOnSuspenseInventoryUpdated::FDelegate& Delegate) override;
     virtual void UnbindFromInventoryUpdates(const FOnSuspenseInventoryUpdated::FDelegate& Delegate) override;
 
@@ -153,7 +153,7 @@ public:
     bool UpdateItemAmount(const FName& ItemID, int32 NewAmount);
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    TArray<FInventoryItemInstance> GetItemInstancesByType(const FGameplayTag& ItemType) const;
+    TArray<FSuspenseInventoryItemInstance> GetItemInstancesByType(const FGameplayTag& ItemType) const;
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool MoveItemInstance(const FGuid& InstanceID, int32 NewSlot, bool bAllowRotation = false);
@@ -192,10 +192,10 @@ public:
     FName GetInventoryNameInLoadout() const { return CurrentInventoryName; }
 
     /** Notify replicator about item placement */
-    void NotifyItemPlaced(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+    void NotifyItemPlaced(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
 
     /** Notify replicator about item removal */
-    void NotifyItemRemoved(const FInventoryItemInstance& ItemInstance);
+    void NotifyItemRemoved(const FSuspenseInventoryItemInstance& ItemInstance);
 
     /** Get replicator component */
     USuspenseInventoryReplicator* GetReplicatorComponent() const { return ReplicatorComponent; }
@@ -272,7 +272,7 @@ protected:
     mutable TWeakObjectPtr<USuspenseInventoryManager> CachedInventoryManager;
 
     /** Cached delegate manager for performance */
-    mutable TWeakObjectPtr<UEventDelegateManager> CachedDelegateManager;
+    mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
 
     /** Base inventory update delegate */
     UPROPERTY(BlueprintAssignable)

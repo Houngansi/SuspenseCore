@@ -1,10 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Utils/SuspenseItemFactory.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Pickup/SuspensePickupItem.h"
-#include "Interfaces/Interaction/IMedComPickupInterface.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Interfaces/Interaction/ISuspensePickup.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Engine/World.h"
 
 void USuspenseItemFactory::Initialize(FSubsystemCollectionBase& Collection)
@@ -47,14 +47,14 @@ AActor* USuspenseItemFactory::CreatePickupFromItemID_Implementation(
     }
     
     // Get item data
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("CreatePickupFromItemID: ItemManager not found"));
         return nullptr;
     }
-    
-    FMedComUnifiedItemData ItemData;
+
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogTemp, Warning, TEXT("CreatePickupFromItemID: Item '%s' not found in DataTable"), 
@@ -114,13 +114,13 @@ AActor* USuspenseItemFactory::CreatePickupWithAmmo(
     }
     
     // Get item data to check if weapon
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return PickupActor;
     }
-    
-    FMedComUnifiedItemData ItemData;
+
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         return PickupActor;
@@ -145,7 +145,7 @@ void USuspenseItemFactory::SetDefaultPickupClass(TSubclassOf<AActor> NewDefaultC
     DefaultPickupClass = NewDefaultClass;
 }
 
-UEventDelegateManager* USuspenseItemFactory::GetDelegateManager() const
+USuspenseEventManager* USuspenseItemFactory::GetDelegateManager() const
 {
     if (CachedDelegateManager.IsValid())
     {
@@ -158,10 +158,10 @@ UEventDelegateManager* USuspenseItemFactory::GetDelegateManager() const
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UEventDelegateManager>();
+    return GameInstance->GetSubsystem<USuspenseEventManager>();
 }
 
-UMedComItemManager* USuspenseItemFactory::GetItemManager() const
+USuspenseItemManager* USuspenseItemFactory::GetItemManager() const
 {
     if (CachedItemManager.IsValid())
     {
@@ -174,10 +174,10 @@ UMedComItemManager* USuspenseItemFactory::GetItemManager() const
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UMedComItemManager>();
+    return GameInstance->GetSubsystem<USuspenseItemManager>();
 }
 
-void USuspenseItemFactory::ConfigurePickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData, int32 Quantity)
+void USuspenseItemFactory::ConfigurePickup(AActor* PickupActor, const FSuspenseUnifiedItemData& ItemData, int32 Quantity)
 {
     if (!PickupActor)
     {
@@ -185,11 +185,11 @@ void USuspenseItemFactory::ConfigurePickup(AActor* PickupActor, const FMedComUni
     }
     
     // Configure through pickup interface
-    if (PickupActor->GetClass()->ImplementsInterface(UMedComPickupInterface::StaticClass()))
+    if (PickupActor->GetClass()->ImplementsInterface(USuspensePickup::StaticClass()))
     {
         // Set item ID and quantity
-        IMedComPickupInterface::Execute_SetItemID(PickupActor, ItemData.ItemID);
-        IMedComPickupInterface::Execute_SetAmount(PickupActor, Quantity);
+        ISuspensePickup::Execute_SetItemID(PickupActor, ItemData.ItemID);
+        ISuspensePickup::Execute_SetAmount(PickupActor, Quantity);
         
         // If it's SuspensePickupItem, we can set more properties
         ASuspensePickupItem* BasePickup = Cast<ASuspensePickupItem>(PickupActor);
@@ -205,7 +205,7 @@ void USuspenseItemFactory::ConfigurePickup(AActor* PickupActor, const FMedComUni
     }
 }
 
-void USuspenseItemFactory::ConfigureWeaponPickup(AActor* PickupActor, const FMedComUnifiedItemData& ItemData, 
+void USuspenseItemFactory::ConfigureWeaponPickup(AActor* PickupActor, const FSuspenseUnifiedItemData& ItemData,
     bool bWithAmmoState, float CurrentAmmo, float RemainingAmmo)
 {
     if (!PickupActor || !ItemData.bIsWeapon)
@@ -214,11 +214,11 @@ void USuspenseItemFactory::ConfigureWeaponPickup(AActor* PickupActor, const FMed
     }
     
     // Configure ammo state through interface
-    if (PickupActor->GetClass()->ImplementsInterface(UMedComPickupInterface::StaticClass()))
+    if (PickupActor->GetClass()->ImplementsInterface(USuspensePickup::StaticClass()))
     {
         if (bWithAmmoState)
         {
-            IMedComPickupInterface::Execute_SetSavedAmmoState(PickupActor, CurrentAmmo, RemainingAmmo);
+            ISuspensePickup::Execute_SetSavedAmmoState(PickupActor, CurrentAmmo, RemainingAmmo);
         }
     }
     
@@ -236,7 +236,7 @@ void USuspenseItemFactory::ConfigureWeaponPickup(AActor* PickupActor, const FMed
 
 void USuspenseItemFactory::BroadcastItemCreated(AActor* CreatedActor, FName ItemID, int32 Quantity)
 {
-    UEventDelegateManager* Manager = GetDelegateManager();
+    USuspenseEventManager* Manager = GetDelegateManager();
     if (Manager && CreatedActor)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Factory.Event.ItemCreated"));

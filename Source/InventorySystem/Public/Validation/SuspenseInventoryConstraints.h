@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Operations/InventoryResult.h"
 #include "GameplayTagContainer.h"
@@ -13,7 +13,7 @@
 
 // Forward declarations for clean separation between modules
 class USuspenseItemManager;
-struct FInventoryItemInstance;
+struct FSuspenseInventoryItemInstance;
 struct FSuspenseUnifiedItemData;
 
 /**

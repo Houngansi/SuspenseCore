@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Operations/SuspenseInventoryOperation.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseStackOperation.generated.h"
 
 // Forward declarations
 class AMedComInventoryItem;
 class USuspenseInventoryComponent;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * ПОЛНОСТЬЮ ОБНОВЛЕННАЯ структура операции стакинга предметов
@@ -41,10 +41,10 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     
     /** Runtime экземпляры предметов */
     UPROPERTY()
-    FInventoryItemInstance SourceInstance;
-    
+    FSuspenseInventoryItemInstance SourceInstance;
+
     UPROPERTY()
-    FInventoryItemInstance TargetInstance;
+    FSuspenseInventoryItemInstance TargetInstance;
     
     /** Исходные количества */
     UPROPERTY()
@@ -78,7 +78,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     
     /** Кэшированные данные из DataTable */
     UPROPERTY()
-    FMedComUnifiedItemData CachedItemData;
+    FSuspenseUnifiedItemData CachedItemData;
     
     /** Флаг наличия кэшированных данных */
     UPROPERTY()
@@ -174,7 +174,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
         AMedComInventoryItem* InTargetItem, 
         int32 InAmountToTransfer,
         USuspenseInventoryComponent* InTargetInventory,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**
@@ -189,7 +189,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
         USuspenseInventoryComponent* InComponent,
         AMedComInventoryItem* InSourceItem,
         AMedComInventoryItem* InTargetItem,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     /**
@@ -206,7 +206,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
         AMedComInventoryItem* InSourceItem,
         int32 InSplitAmount,
         int32 InTargetIndex,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     //==================================================================
@@ -218,7 +218,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      * @param InItemManager ItemManager для доступа к данным
      * @return true если данные успешно получены
      */
-    bool CacheItemDataFromTable(UMedComItemManager* InItemManager);
+    bool CacheItemDataFromTable(USuspenseItemManager* InItemManager);
     
     /**
      * Вычисляет максимальное количество для перемещения
@@ -240,7 +240,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     bool ValidateStacking(
         EInventoryErrorCode& OutErrorCode,
         FString& OutErrorMessage,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     ) const;
     
     /**
@@ -301,7 +301,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      */
     bool ExecuteStacking(
         EInventoryErrorCode& OutErrorCode,
-        UMedComItemManager* InItemManager
+        USuspenseItemManager* InItemManager
     );
     
     //==================================================================
@@ -351,7 +351,7 @@ private:
      * @param InItemManager ItemManager для создания
      * @return true если создание успешно
      */
-    bool CreateNewStackForSplit(UMedComItemManager* InItemManager);
+    bool CreateNewStackForSplit(USuspenseItemManager* InItemManager);
     
     /**
      * Обновляет веса инвентарей после операции

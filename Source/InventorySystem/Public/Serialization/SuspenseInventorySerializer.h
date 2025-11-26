@@ -5,14 +5,14 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventorySerializer.generated.h"
 
 // Forward declarations для чистого разделения модулей
 class USuspenseInventoryComponent;
-class UMedComItemManager;
-struct FMedComUnifiedItemData;
+class USuspenseItemManager;
+struct FSuspenseUnifiedItemData;
 
 /**
  * Структура для сериализованных runtime данных инвентаря
@@ -60,7 +60,7 @@ struct INVENTORYSYSTEM_API FSerializedInventoryData
      * Каждый экземпляр содержит ItemID для связи с DataTable + runtime состояние
      */
     UPROPERTY()
-    TArray<FInventoryItemInstance> ItemInstances;
+    TArray<FSuspenseInventoryItemInstance> ItemInstances;
     
     /** Время сохранения для отслеживания версий */
     UPROPERTY()
@@ -90,7 +90,7 @@ struct INVENTORYSYSTEM_API FSerializedInventoryData
     int32 GetTotalItemCount() const
     {
         int32 TotalCount = 0;
-        for (const FInventoryItemInstance& Instance : ItemInstances)
+        for (const FSuspenseInventoryItemInstance& Instance : ItemInstances)
         {
             TotalCount += Instance.Quantity;
         }
@@ -102,7 +102,7 @@ struct INVENTORYSYSTEM_API FSerializedInventoryData
  * Сериализатор инвентаря для новой DataTable архитектуры
  * 
  * ПРИНЦИПЫ РАБОТЫ:
- * 1. Сериализует только runtime данные предметов (FInventoryItemInstance)
+ * 1. Сериализует только runtime данные предметов (FSuspenseInventoryItemInstance)
  * 2. При загрузке валидирует предметы против текущего DataTable
  * 3. Поддерживает migration от старых форматов
  * 4. Обеспечивает thread-safe операции для multiplayer
@@ -289,11 +289,11 @@ private:
     static bool JsonToStruct(const FString& JsonString, FSerializedInventoryData& OutData);
     
     /** Получает ItemManager для валидации предметов */
-    static UMedComItemManager* GetItemManager(const UObject* WorldContext);
+    static USuspenseItemManager* GetItemManager(const UObject* WorldContext);
     
     /** Валидирует отдельный runtime экземпляр против DataTable */
-    static bool ValidateItemInstance(const FInventoryItemInstance& Instance, 
-                                   UMedComItemManager* ItemManager,
+    static bool ValidateItemInstance(const FSuspenseInventoryItemInstance& Instance, 
+                                   USuspenseItemManager* ItemManager,
                                    FString& OutError);
     
     /** Создает backup файла перед перезаписью */
@@ -303,7 +303,7 @@ private:
     static bool DetectFileFormat(const FString& FilePath, bool& bOutIsJson);
     
     /** Мигрирует runtime свойства от старого формата к новому */
-    static void MigrateRuntimeProperties(FInventoryItemInstance& Instance);
+    static void MigrateRuntimeProperties(FSuspenseInventoryItemInstance& Instance);
     
     /** Константы для сериализации */
     static constexpr int32 CURRENT_VERSION = 2;

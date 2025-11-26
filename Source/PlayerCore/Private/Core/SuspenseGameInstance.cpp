@@ -210,9 +210,9 @@ UMedComWeaponAnimationSubsystem* USuspenseGameInstance::GetWeaponAnimationSubsys
     return GetSubsystem<UMedComWeaponAnimationSubsystem>();
 }
 
-UMedComItemManager* USuspenseGameInstance::GetItemManager() const
+USuspenseItemManager* USuspenseGameInstance::GetItemManager() const
 {
-    return GetSubsystem<UMedComItemManager>();
+    return GetSubsystem<USuspenseItemManager>();
 }
 
 //========================================
@@ -234,7 +234,7 @@ bool USuspenseGameInstance::InitializeItemSystem()
     //========================================
     {
         UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Step 1: Getting ItemManager subsystem..."));
-        UMedComItemManager* ItemManager = GetItemManager();
+        USuspenseItemManager* ItemManager = GetItemManager();
         if (!ItemManager)
         {
             UE_LOG(LogSuspenseGameInstance, Error, TEXT("ItemManager subsystem not found!"));
@@ -275,13 +275,13 @@ bool USuspenseGameInstance::InitializeItemSystem()
             return false;
         }
         UE_LOG(LogSuspenseGameInstance, Warning, TEXT("  - Row Structure Name: %s"), *RowStruct->GetName());
-        UE_LOG(LogSuspenseGameInstance, Warning, TEXT("  - Expected Structure: FMedComUnifiedItemData"));
+        UE_LOG(LogSuspenseGameInstance, Warning, TEXT("  - Expected Structure: FSuspenseUnifiedItemData"));
         
         // Verify correct structure
-        if (RowStruct != FMedComUnifiedItemData::StaticStruct())
+        if (RowStruct != FSuspenseUnifiedItemData::StaticStruct())
         {
             UE_LOG(LogSuspenseGameInstance, Error, 
-                TEXT("ItemDataTable has incorrect row structure! Expected: FMedComUnifiedItemData, Got: %s"), 
+                TEXT("ItemDataTable has incorrect row structure! Expected: FSuspenseUnifiedItemData, Got: %s"), 
                 *RowStruct->GetName());
             return false;
         }
@@ -314,7 +314,7 @@ bool USuspenseGameInstance::InitializeItemSystem()
     //========================================
     {
         UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Step 5: Loading item data into ItemManager..."));
-        UMedComItemManager* ItemManager = GetItemManager();
+        USuspenseItemManager* ItemManager = GetItemManager();
         
         bool bLoadSuccess = ItemManager->LoadItemDataTable(ItemDataTable);
         
@@ -375,7 +375,7 @@ bool USuspenseGameInstance::InitializeItemSystem()
     if (bLogItemOperations)
     {
         UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Step 7: Final item system summary:"));
-        UMedComItemManager* ItemManager = GetItemManager();
+        USuspenseItemManager* ItemManager = GetItemManager();
         
         TArray<FName> AllItems = ItemManager->GetAllItemIDs();
         UE_LOG(LogSuspenseGameInstance, Log, TEXT("Total items available: %d"), AllItems.Num());
@@ -388,7 +388,7 @@ bool USuspenseGameInstance::InitializeItemSystem()
         
         for (const FName& ItemID : AllItems)
         {
-            FMedComUnifiedItemData ItemData;
+            FSuspenseUnifiedItemData ItemData;
             if (ItemManager->GetUnifiedItemData(ItemID, ItemData))
             {
                 if (ItemData.bIsWeapon) WeaponCount++;
@@ -701,7 +701,7 @@ void USuspenseGameInstance::BuildCriticalItemErrorReport(
     
     // Get item data to provide context
     UMedComItemManager* ItemManager = GetItemManager();
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     bool bHasItemData = ItemManager && ItemManager->GetUnifiedItemData(ItemID, ItemData);
     
     //========================================

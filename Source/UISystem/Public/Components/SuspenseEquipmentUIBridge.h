@@ -11,13 +11,13 @@
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 
 #include "Types/UI/EquipmentUITypes.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/UI/ContainerUITypes.h"
 
 #include "SuspenseEquipmentUIBridge.generated.h"
 
 class USuspenseUIManager;
-class UEventDelegateManager;
+class USuspenseEventManager;
 class USuspenseItemManager;
 
 // NEW: Multicast delegate for direct widget notifications
@@ -160,7 +160,7 @@ private:
     // ===== Core Services =====
     UPROPERTY() APlayerController* OwningPlayerController = nullptr;
     UPROPERTY() USuspenseUIManager* UIManager = nullptr;
-    UPROPERTY() UEventDelegateManager* EventManager = nullptr;
+    UPROPERTY() USuspenseEventManager* EventManager = nullptr;
     UPROPERTY() mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
 
     // ===== NEW: Direct DataStore Subscription =====

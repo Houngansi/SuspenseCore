@@ -5,13 +5,13 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseInventoryDebugger.generated.h"
 
 // Forward declarations для чистого разделения модулей
 class USuspenseInventoryComponent;
-class UMedComItemManager;
+class USuspenseItemManager;
 
 /**
  * Enhanced performance metrics structure for modern inventory system
@@ -189,7 +189,7 @@ struct INVENTORYSYSTEM_API FInventoryPerformanceMetrics
  * - Improved memory usage tracking и resource monitoring
  * 
  * ИНТЕГРАЦИЯ С НОВОЙ СИСТЕМОЙ:
- * - Использует UMedComItemManager для доступа к DataTable
+ * - Использует USuspenseItemManager для доступа к DataTable
  * - Поддерживает runtime properties validation
  * - Monitors grid placement integrity в новой архитектуре
  * - Provides comprehensive performance analysis для optimization
@@ -457,7 +457,7 @@ private:
     
     /** Обработчик добавления runtime экземпляра */
     UFUNCTION()
-    void OnInstanceAdded(const FInventoryItemInstance& ItemInstance, int32 SlotIndex);
+    void OnInstanceAdded(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex);
     
     /** Обработчик удаления runtime экземпляра */
     UFUNCTION()
@@ -477,7 +477,7 @@ private:
     
     /** Обработчик операций stacking */
     UFUNCTION()
-    void OnStackOperation(const FInventoryItemInstance& SourceInstance, const FInventoryItemInstance& TargetInstance, bool bSuccess);
+    void OnStackOperation(const FSuspenseInventoryItemInstance& SourceInstance, const FSuspenseInventoryItemInstance& TargetInstance, bool bSuccess);
     
     //==================================================================
     // Internal Helper Methods
@@ -496,16 +496,16 @@ private:
     void UpdateMemoryMetrics() const;
     
     /** Валидирует runtime экземпляр (internal) */
-    bool ValidateInstanceInternal(const FInventoryItemInstance& Instance, TArray<FString>& OutErrors) const;
+    bool ValidateInstanceInternal(const FSuspenseInventoryItemInstance& Instance, TArray<FString>& OutErrors) const;
     
     /** Получает ItemManager для DataTable операций */
-    UMedComItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
     
     /** Очищает validation cache если он устарел */
     void ClearValidationCacheIfNeeded() const;
     
     /** Генерирует тестовый runtime экземпляр для performance testing */
-    FInventoryItemInstance CreateTestInstance(const FName& ItemID, int32 Quantity = 1) const;
+    FSuspenseInventoryItemInstance CreateTestInstance(const FName& ItemID, int32 Quantity = 1) const;
     
     /** Находит свободное место в сетке для тестирования */
     int32 FindFreeGridSlotForTesting() const;

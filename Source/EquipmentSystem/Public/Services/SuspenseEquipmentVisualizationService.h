@@ -8,7 +8,7 @@
 #include "GameplayTagContainer.h"
 
 // Fundamental: service interface + base utilities
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"

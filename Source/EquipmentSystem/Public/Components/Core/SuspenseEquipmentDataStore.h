@@ -119,8 +119,8 @@ public:
 
 	// High-level queries required by ISuspenseEquipmentDataProvider
 	virtual TArray<int32> FindCompatibleSlots(const FGameplayTag& ItemSlotTag) const override;
-	virtual TArray<int32> GetSlotsByType(ESuspenseEquipmentSlotType SlotType) const override;
-	virtual int32 GetFirstEmptySlotOfType(ESuspenseEquipmentSlotType SlotType) const override;
+	virtual TArray<int32> GetSlotsByType(EEquipmentSlotType SlotType) const override;
+	virtual int32 GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const override;
 	virtual float GetTotalEquippedWeight() const override;
 	virtual bool MeetsItemRequirements(const FSuspenseInventoryItemInstance& Item, int32 TargetSlotIndex) const override;
 	virtual FString GetDebugInfo() const override;

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseTransactionManager.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentRules.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"

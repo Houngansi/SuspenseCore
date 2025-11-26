@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/.*/SuspenseEquipmentDataStore.h"
+#include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"

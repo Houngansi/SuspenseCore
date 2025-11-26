@@ -3,7 +3,7 @@
 
 #include "Services/SuspenseEquipmentDataService.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "Components/.*/SuspenseEquipmentDataStore.h"
+#include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "Types/Loadout/LoadoutSettings.h"

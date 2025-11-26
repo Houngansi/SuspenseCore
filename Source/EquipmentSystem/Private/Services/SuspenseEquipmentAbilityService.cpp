@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentAbilityService.h"
-#include "Components/.*/SuspenseEquipmentAbilityConnector.h"
+#include "Components/Integration/SuspenseEquipmentAbilityConnector.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Misc/App.h"
@@ -980,7 +980,7 @@ void USuspenseEquipmentAbilityService::EnsureValidConfig()
         MappingCacheTTL, CleanupInterval);
 }
 
-void USuspenseEquipmentAbilityService::OnEquipmentSpawned(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData)
 {
     // Parse structured event data
     FSuspenseInventoryItemInstance ItemInstance;
@@ -999,7 +999,7 @@ void USuspenseEquipmentAbilityService::OnEquipmentSpawned(const FEquipmentEventD
     ServiceMetrics.Inc(FName("Ability.Events.Spawned"));
 }
 
-void USuspenseEquipmentAbilityService::OnEquipmentDestroyed(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData)
 {
     AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
     if (!EquipmentActor)
@@ -1014,7 +1014,7 @@ void USuspenseEquipmentAbilityService::OnEquipmentDestroyed(const FEquipmentEven
 
 // === S7 Handlers ===
 
-void USuspenseEquipmentAbilityService::OnEquipped(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnEquipped(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1029,7 +1029,7 @@ void USuspenseEquipmentAbilityService::OnEquipped(const FEquipmentEventData& Eve
     ServiceMetrics.Inc(FName("Ability.Events.Equipped"));
 }
 
-void USuspenseEquipmentAbilityService::OnUnequipped(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnUnequipped(const FSuspenseEquipmentEventData& EventData)
 {
     AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
     if (!EquipmentActor)
@@ -1048,7 +1048,7 @@ void USuspenseEquipmentAbilityService::OnUnequipped(const FEquipmentEventData& E
     ServiceMetrics.Inc(FName("Ability.Events.Unequipped"));
 }
 
-void USuspenseEquipmentAbilityService::OnAbilitiesRefresh(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1063,7 +1063,7 @@ void USuspenseEquipmentAbilityService::OnAbilitiesRefresh(const FEquipmentEventD
     ServiceMetrics.Inc(FName("Ability.Events.Refresh"));
 }
 
-void USuspenseEquipmentAbilityService::OnCommit(const FEquipmentEventData& EventData)
+void USuspenseEquipmentAbilityService::OnCommit(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1250,7 +1250,7 @@ FGameplayTagContainer USuspenseEquipmentAbilityService::GetEquipmentTags(AActor*
 }
 
 bool USuspenseEquipmentAbilityService::ParseEquipmentEventData(
-    const FEquipmentEventData& EventData,
+    const FSuspenseEquipmentEventData& EventData,
     FSuspenseInventoryItemInstance& OutItem,
     AActor*& OutEquipmentActor,
     AActor*& OutOwnerActor) const

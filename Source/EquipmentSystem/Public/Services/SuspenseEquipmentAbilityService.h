@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/IEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
@@ -85,7 +85,7 @@ struct FEquipmentAbilityMapping : public FTableRowBase
  * Thread Safety: All public methods MUST be called on GameThread (GAS requirement)
  */
 UCLASS()
-class EQUIPMENTSYSTEM_API USuspenseEquipmentAbilityService : public UObject, public IEquipmentService
+class EQUIPMENTSYSTEM_API USuspenseEquipmentAbilityService : public UObject, public ISuspenseEquipmentService
 {
     GENERATED_BODY()
 
@@ -179,16 +179,16 @@ protected:
     void EnsureValidConfig();
 
     /** Handle equipment spawned event */
-    void OnEquipmentSpawned(const FEquipmentEventData& EventData);
+    void OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData);
 
     /** Handle equipment destroyed event */
-    void OnEquipmentDestroyed(const FEquipmentEventData& EventData);
+    void OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData);
 
     /** New S7 handlers */
-    void OnEquipped(const FEquipmentEventData& EventData);
-    void OnUnequipped(const FEquipmentEventData& EventData);
-    void OnAbilitiesRefresh(const FEquipmentEventData& EventData);
-    void OnCommit(const FEquipmentEventData& EventData);
+    void OnEquipped(const FSuspenseEquipmentEventData& EventData);
+    void OnUnequipped(const FSuspenseEquipmentEventData& EventData);
+    void OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData);
+    void OnCommit(const FSuspenseEquipmentEventData& EventData);
 
     /** Handle equipment actor destroyed directly */
     UFUNCTION()
@@ -212,7 +212,7 @@ protected:
 
     /** Parse equipment event data */
     bool ParseEquipmentEventData(
-        const FEquipmentEventData& EventData,
+        const FSuspenseEquipmentEventData& EventData,
         FSuspenseInventoryItemInstance& OutItem,
         AActor*& OutEquipmentActor,
         AActor*& OutOwnerActor

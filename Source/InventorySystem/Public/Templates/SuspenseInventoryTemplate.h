@@ -221,7 +221,7 @@ public:
      * @return Map of inventory name to configuration
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Template")
-    TMap<FName, FInventoryConfig> ExportInventoryConfigurations() const;
+    TMap<FName, FSuspenseInventoryConfig> ExportInventoryConfigurations() const;
     
     /**
      * Apply template directly to inventory component

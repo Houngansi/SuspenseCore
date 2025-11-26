@@ -1,4 +1,4 @@
-// ISuspenseItemFactory.h
+// ISuspenseItemFactoryInterface.h
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -6,14 +6,14 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "ISuspenseItemFactory.generated.h"
+#include "ISuspenseItemFactoryInterface.generated.h"
 
 // Forward declarations
 struct FSuspenseInventoryItemInstance;
 struct FSuspensePickupSpawnData;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseItemFactory : public UInterface
+class USuspenseItemFactoryInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -22,7 +22,7 @@ class USuspenseItemFactory : public UInterface
  * Interface for item factory - creates pickups without circular dependencies
  * Provides multiple methods for different pickup creation scenarios
  */
-class BRIDGESYSTEM_API ISuspenseItemFactory
+class BRIDGESYSTEM_API ISuspenseItemFactoryInterface
 {
     GENERATED_BODY()
 

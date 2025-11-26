@@ -347,7 +347,7 @@ void USuspenseEquipmentUIBridge::CoalesceAndNotify()
     OnEquipmentUIDataChanged.Broadcast(CachedUIData);
 }
 
-// ===== ISuspenseEquipmentUIBridgeWidget Implementation =====
+// ===== ISuspenseEquipmentUIBridgeInterfaceWidget Implementation =====
 
 void USuspenseEquipmentUIBridge::ShowEquipmentUI_Implementation()
 {
@@ -693,7 +693,7 @@ static TWeakObjectPtr<USuspenseEquipmentUIBridge> G_BridgeInstance;
 void USuspenseEquipmentUIBridge::RegisterBridge(USuspenseEquipmentUIBridge* Bridge)
 {
     G_BridgeInstance = Bridge;
-    ISuspenseEquipmentUIBridgeWidget::SetGlobalEquipmentBridge(Bridge);
+    ISuspenseEquipmentUIBridgeInterfaceWidget::SetGlobalEquipmentBridge(Bridge);
 }
 
 void USuspenseEquipmentUIBridge::UnregisterBridge(USuspenseEquipmentUIBridge* Bridge)
@@ -701,6 +701,6 @@ void USuspenseEquipmentUIBridge::UnregisterBridge(USuspenseEquipmentUIBridge* Br
     if (G_BridgeInstance.Get() == Bridge)
     {
         G_BridgeInstance.Reset();
-        ISuspenseEquipmentUIBridgeWidget::ClearGlobalEquipmentBridge();
+        ISuspenseEquipmentUIBridgeInterfaceWidget::ClearGlobalEquipmentBridge();
     }
 }

@@ -21,7 +21,7 @@
 #include "Components/GridPanel.h"
 #include "TimerManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridgeInterface.h"
 
 // Global static variable for bridge instance storage
 static TWeakInterfacePtr<ISuspenseInventoryUIBridge> GInventoryUIBridge;
@@ -296,7 +296,7 @@ bool USuspenseInventoryUIBridge::RestoreItemToInventory(const FSuspenseInventory
 }
 
 // =====================================================
-// ISuspenseInventoryUIBridgeWidget Interface Implementation
+// ISuspenseInventoryUIBridgeInterface Interface Implementation
 // =====================================================
 
 void USuspenseInventoryUIBridge::ShowInventoryUI_Implementation()
@@ -534,8 +534,8 @@ void USuspenseInventoryUIBridge::RegisterBridge(USuspenseInventoryUIBridge* Brid
     if (Bridge)
     {
         // Set global bridge using interface method
-        GInventoryUIBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridgeWidget>(Bridge);
-        ISuspenseInventoryUIBridgeWidget::SetGlobalBridge(Bridge);
+        GInventoryUIBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface>(Bridge);
+        ISuspenseInventoryUIBridgeInterface::SetGlobalBridge(Bridge);
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Bridge registered globally"));
     }
 }
@@ -543,7 +543,7 @@ void USuspenseInventoryUIBridge::RegisterBridge(USuspenseInventoryUIBridge* Brid
 void USuspenseInventoryUIBridge::UnregisterBridge()
 {
     GInventoryUIBridge.Reset();
-    ISuspenseInventoryUIBridgeWidget::ClearGlobalBridge();
+    ISuspenseInventoryUIBridgeInterface::ClearGlobalBridge();
     UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Bridge unregistered"));
 }
 
@@ -1529,7 +1529,7 @@ void USuspenseInventoryUIBridge::OnInventoryItemMoved(const FGuid& ItemID, int32
 
 void USuspenseInventoryUIBridge::OnInventoryUIClosed()
 {
-    ISuspenseInventoryUIBridgeWidget::Execute_HideCharacterScreen(this);
+    ISuspenseInventoryUIBridgeInterface::Execute_HideCharacterScreen(this);
     
     if (EventManager)
     {

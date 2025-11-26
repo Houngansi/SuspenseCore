@@ -768,7 +768,7 @@ void USuspenseUIManager::AnalyzeLayoutAndCreateBridges(APlayerController* Player
             {
                 if (InventoryUIBridge)
                 {
-                    ISuspenseInventoryUIBridgeWidget::Execute_RefreshInventoryUI(InventoryUIBridge);
+                    ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(InventoryUIBridge);
                 }
             });
         }
@@ -787,7 +787,7 @@ void USuspenseUIManager::AnalyzeLayoutAndCreateBridges(APlayerController* Player
             {
                 if (EquipmentUIBridge)
                 {
-                    ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(EquipmentUIBridge);
+                    ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(EquipmentUIBridge);
                 }
             });
         }
@@ -872,11 +872,11 @@ void USuspenseUIManager::RefreshAllWidgetsInLayout(USuspenseBaseLayoutWidget* La
         // Обновляем через соответствующий bridge
         if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Inventory"))) && InventoryUIBridge)
         {
-            ISuspenseInventoryUIBridgeWidget::Execute_RefreshInventoryUI(InventoryUIBridge);
+            ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(InventoryUIBridge);
         }
         else if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Equipment"))) && EquipmentUIBridge)
         {
-            ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(EquipmentUIBridge);
+            ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(EquipmentUIBridge);
         }
         
         // Обновляем сам виджет если он поддерживает интерфейс
@@ -966,7 +966,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 FTimerHandle RefreshTimer;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([Bridge]()
                 {
-                    ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(Bridge);
+                    ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(Bridge);
                 });
                 
                 return;
@@ -979,7 +979,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 EquipInterface.SetObject(Component);
                 EquipInterface.SetInterface(Cast<ISuspenseEquipment>(Component));
                 
-                ISuspenseEquipmentUIBridgeWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
+                ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
                 UE_LOG(LogTemp, Log, TEXT("[UIManager] Equipment bridge connected to Pawn component (legacy interface)"));
                 
                 // Notify and refresh
@@ -992,7 +992,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 FTimerHandle RefreshTimer;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([Bridge]()
                 {
-                    ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(Bridge);
+                    ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(Bridge);
                 });
                 
                 return;
@@ -1027,7 +1027,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 FTimerHandle RefreshTimer;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([Bridge]()
                 {
-                    ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(Bridge);
+                    ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(Bridge);
                 });
                 
                 return;
@@ -1040,7 +1040,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 EquipInterface.SetObject(Component);
                 EquipInterface.SetInterface(Cast<ISuspenseEquipment>(Component));
                 
-                ISuspenseEquipmentUIBridgeWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
+                ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
                 UE_LOG(LogTemp, Log, TEXT("[UIManager] Equipment bridge connected to PlayerState component (legacy interface)"));
                 
                 // Notify and refresh
@@ -1053,7 +1053,7 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 FTimerHandle RefreshTimer;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([Bridge]()
                 {
-                    ISuspenseEquipmentUIBridgeWidget::Execute_RefreshEquipmentUI(Bridge);
+                    ISuspenseEquipmentUIBridgeInterfaceWidget::Execute_RefreshEquipmentUI(Bridge);
                 });
                 
                 return;

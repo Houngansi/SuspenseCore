@@ -7,7 +7,7 @@
 #include "Widgets/Inventory/SuspenseInventoryWidget.h"
 #include "Widgets/Tabs/SuspenseUpperTabBar.h"
 #include "Interfaces/Core/ISuspenseAttributeProvider.h"
-#include "Interfaces/UI/ISuspenseInventoryUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseInventoryUIBridgeInterface.h"
 #include "Components/SuspenseInventoryUIBridge.h"
 #include "Components/TextBlock.h"
 #include "Delegates/EventDelegateManager.h"
@@ -323,7 +323,7 @@ void USuspenseMainHUDWidget::ShowInventory_Implementation()
         EnsureInventoryBridgeInitialized();
         
         // Инициализируем виджет данными через Bridge
-        if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+        if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
         {
             UObject* BridgeObject = Cast<UObject>(Bridge);
             if (BridgeObject)
@@ -346,12 +346,12 @@ void USuspenseMainHUDWidget::ShowInventory_Implementation()
     
     // Final fallback: используем Bridge напрямую
     UE_LOG(LogTemp, Warning, TEXT("[MainHUDWidget] No UI widgets found, using Bridge fallback"));
-    if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+    if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
     {
         UObject* BridgeObject = Cast<UObject>(Bridge);
         if (BridgeObject)
         {
-            ISuspenseInventoryUIBridgeWidget::Execute_ShowInventoryUI(BridgeObject);
+            ISuspenseInventoryUIBridgeInterface::Execute_ShowInventoryUI(BridgeObject);
             OnInventoryVisibilityChanged(true);
         }
     }
@@ -378,12 +378,12 @@ void USuspenseMainHUDWidget::HideInventory_Implementation()
     }
     
     // Fallback: используем Bridge
-    if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+    if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
     {
         UObject* BridgeObject = Cast<UObject>(Bridge);
         if (BridgeObject)
         {
-            ISuspenseInventoryUIBridgeWidget::Execute_HideInventoryUI(BridgeObject);
+            ISuspenseInventoryUIBridgeInterface::Execute_HideInventoryUI(BridgeObject);
             OnInventoryVisibilityChanged(false);
         }
     }
@@ -416,12 +416,12 @@ bool USuspenseMainHUDWidget::IsInventoryVisible_Implementation() const
     }
     
     // Fallback to Bridge
-    if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+    if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
     {
         UObject* BridgeObject = Cast<UObject>(Bridge);
         if (BridgeObject)
         {
-            return ISuspenseInventoryUIBridgeWidget::Execute_IsInventoryUIVisible(BridgeObject);
+            return ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryUIVisible(BridgeObject);
         }
     }
     
@@ -462,12 +462,12 @@ void USuspenseMainHUDWidget::ShowCharacterScreenWithTab(const FGameplayTag& TabT
         OnInventoryVisibilityChanged(true);
         
         // Уведомляем через Bridge для совместимости
-        if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+        if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
         {
             UObject* BridgeObject = Cast<UObject>(Bridge);
             if (BridgeObject)
             {
-                ISuspenseInventoryUIBridgeWidget::Execute_ShowCharacterScreenWithTab(BridgeObject, TabTag);
+                ISuspenseInventoryUIBridgeInterface::Execute_ShowCharacterScreenWithTab(BridgeObject, TabTag);
             }
         }
     }
@@ -512,12 +512,12 @@ void USuspenseMainHUDWidget::HideCharacterScreen()
     }
     
     // Уведомляем через Bridge
-    if (ISuspenseInventoryUIBridgeWidget* Bridge = ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(this))
+    if (ISuspenseInventoryUIBridgeInterface* Bridge = ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(this))
     {
         UObject* BridgeObject = Cast<UObject>(Bridge);
         if (BridgeObject)
         {
-            ISuspenseInventoryUIBridgeWidget::Execute_HideCharacterScreen(BridgeObject);
+            ISuspenseInventoryUIBridgeInterface::Execute_HideCharacterScreen(BridgeObject);
         }
     }
 }

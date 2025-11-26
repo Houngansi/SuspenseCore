@@ -3,27 +3,27 @@
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 
 // Global static variable for bridge instance
-static TWeakInterfacePtr<ISuspenseEquipmentUIBridge> GEquipmentUIBridge;
+static TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterface> GEquipmentUIBridge;
 
-ISuspenseEquipmentUIBridge* ISuspenseEquipmentUIBridge::GetEquipmentUIBridge(const UObject* WorldContext)
+ISuspenseEquipmentUIBridgeInterface* ISuspenseEquipmentUIBridgeInterface::GetEquipmentUIBridge(const UObject* WorldContext)
 {
 	if (GEquipmentUIBridge.IsValid())
 	{
 		return GEquipmentUIBridge.Get();
 	}
-    
+
 	return nullptr;
 }
 
-void ISuspenseEquipmentUIBridge::SetGlobalEquipmentBridge(ISuspenseEquipmentUIBridge* Bridge)
+void ISuspenseEquipmentUIBridgeInterface::SetGlobalEquipmentBridge(ISuspenseEquipmentUIBridgeInterface* Bridge)
 {
 	if (Bridge)
 	{
-		GEquipmentUIBridge = TWeakInterfacePtr<ISuspenseEquipmentUIBridge>(Bridge);
+		GEquipmentUIBridge = TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterface>(Bridge);
 	}
 }
 
-void ISuspenseEquipmentUIBridge::ClearGlobalEquipmentBridge()
+void ISuspenseEquipmentUIBridgeInterface::ClearGlobalEquipmentBridge()
 {
 	GEquipmentUIBridge.Reset();
 }

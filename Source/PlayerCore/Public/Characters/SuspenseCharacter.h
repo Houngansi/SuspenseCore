@@ -17,14 +17,14 @@ class UEventDelegateManager;
 class UCharacterMovementComponent;
 
 UCLASS()
-class SUSPENSECORE_API ASuspenseCharacter : public ACharacter, public ISuspenseCharacter, public ISuspenseMovement
+class SUSPENSECORE_API ASuspenseCharacter : public ACharacter, public ISuspenseCharacterInterface, public ISuspenseMovement
 {
     GENERATED_BODY()
 public:
     ASuspenseCharacter(const FObjectInitializer&);
 
     // ========================================
-    // ISuspenseCharacter Implementation
+    // ISuspenseCharacterInterface Implementation
     // ========================================
     virtual UAbilitySystemComponent* GetASC_Implementation() const override;
     virtual void SetHasWeapon_Implementation(bool bHasWeapon) override;
@@ -35,7 +35,7 @@ public:
     virtual bool IsAlive_Implementation() const override;
     virtual int32 GetTeamId_Implementation() const override;
 
-    // Pure virtual method from ISuspenseCharacter
+    // Pure virtual method from ISuspenseCharacterInterface
     virtual USuspenseEventManager* GetDelegateManager() const override;
 
     // ========================================

@@ -6,7 +6,7 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 
-#include "Interfaces/UI/ISuspenseEquipmentUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 
@@ -42,7 +42,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentUIDataChanged, const TArray<FEqu
 UCLASS(BlueprintType)
 class UISYSTEM_API USuspenseEquipmentUIBridge
     : public UObject
-    , public ISuspenseEquipmentUIBridgeWidget
+    , public ISuspenseEquipmentUIBridgeInterface
 {
     GENERATED_BODY()
 
@@ -84,7 +84,7 @@ public:
      */
     FOnEquipmentUIDataChanged OnEquipmentUIDataChanged;
 
-    // ===== ISuspenseEquipmentUIBridgeWidget Implementation =====
+    // ===== ISuspenseEquipmentUIBridgeInterface Implementation =====
     virtual void ShowEquipmentUI_Implementation() override;
     virtual void HideEquipmentUI_Implementation() override;
     virtual void ToggleEquipmentUI_Implementation() override;

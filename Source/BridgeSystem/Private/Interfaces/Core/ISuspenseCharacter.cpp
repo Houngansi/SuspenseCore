@@ -6,7 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 
-USuspenseEventManager* ISuspenseCharacter::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseEventManager* ISuspenseCharacterInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -28,7 +28,7 @@ USuspenseEventManager* ISuspenseCharacter::GetDelegateManagerStatic(const UObjec
 	return GameInstance->GetSubsystem<USuspenseEventManager>();
 }
 
-void ISuspenseCharacter::BroadcastWeaponChanged(const UObject* Character, AActor* NewWeapon, bool bHasWeapon)
+void ISuspenseCharacterInterface::BroadcastWeaponChanged(const UObject* Character, AActor* NewWeapon, bool bHasWeapon)
 {
 	if (!Character)
 	{

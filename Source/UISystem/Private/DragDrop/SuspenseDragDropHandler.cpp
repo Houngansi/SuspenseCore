@@ -6,8 +6,8 @@
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Delegates/EventDelegateManager.h"
-#include "Interfaces/UI/ISuspenseInventoryUIBridgeWidget.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseInventoryUIBridgeInterface.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridgeInterfaceWidget.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Engine/World.h"
 #include "ObjectArray.h"
@@ -983,7 +983,7 @@ FInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDr
 FInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInventory(const FDropRequest& Request)
 {
     // Get inventory bridge
-    TScriptInterface<ISuspenseInventoryUIBridgeWidget> Bridge = GetBridgeForContainer(Request.TargetContainer);
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> Bridge = GetBridgeForContainer(Request.TargetContainer);
     if (!Bridge.GetInterface())
     {
         return FInventoryOperationResult::Failure(
@@ -1054,7 +1054,7 @@ bool USuspenseDragDropHandler::CalculateOccupiedSlots(
     return Container->CalculateOccupiedSlots(AnchorSlot, ItemSize, bIsRotated, OutSlots);
 }
 
-TScriptInterface<ISuspenseInventoryUIBridgeWidget> USuspenseDragDropHandler::GetBridgeForContainer(
+TScriptInterface<ISuspenseInventoryUIBridgeInterface> USuspenseDragDropHandler::GetBridgeForContainer(
     const FGameplayTag& ContainerType) const
 {
     // Check if it's inventory container
@@ -1062,14 +1062,14 @@ TScriptInterface<ISuspenseInventoryUIBridgeWidget> USuspenseDragDropHandler::Get
     {
         if (InventoryBridge.IsValid())
         {
-            return ISuspenseInventoryUIBridgeWidget::MakeScriptInterface(InventoryBridge.Get());
+            return ISuspenseInventoryUIBridgeInterface::MakeScriptInterface(InventoryBridge.Get());
         }
         
-        return ISuspenseInventoryUIBridgeWidget::GetGlobalBridge(GetWorld());
+        return ISuspenseInventoryUIBridgeInterface::GetGlobalBridge(GetWorld());
     }
     
     // Return empty TScriptInterface for unsupported container types
-    return TScriptInterface<ISuspenseInventoryUIBridgeWidget>();
+    return TScriptInterface<ISuspenseInventoryUIBridgeInterface>();
 }
 
 // =====================================================
@@ -1119,21 +1119,21 @@ void USuspenseDragDropHandler::UpdateContainerCache()
     // Update bridges
     if (!InventoryBridge.IsValid())
     {
-        ISuspenseInventoryUIBridgeWidget* GlobalInventoryBridge = 
-            ISuspenseInventoryUIBridgeWidget::GetInventoryUIBridge(GetWorld());
+        ISuspenseInventoryUIBridgeInterface* GlobalInventoryBridge = 
+            ISuspenseInventoryUIBridgeInterface::GetInventoryUIBridge(GetWorld());
         if (GlobalInventoryBridge)
         {
-            InventoryBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridgeWidget>(GlobalInventoryBridge);
+            InventoryBridge = TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface>(GlobalInventoryBridge);
         }
     }
     
     if (!EquipmentBridge.IsValid())
     {
-        ISuspenseEquipmentUIBridgeWidget* GlobalEquipmentBridge = 
-            ISuspenseEquipmentUIBridgeWidget::GetEquipmentUIBridge(GetWorld());
+        ISuspenseEquipmentUIBridgeInterfaceWidget* GlobalEquipmentBridge = 
+            ISuspenseEquipmentUIBridgeInterfaceWidget::GetEquipmentUIBridge(GetWorld());
         if (GlobalEquipmentBridge)
         {
-            EquipmentBridge = TWeakInterfacePtr<ISuspenseEquipmentUIBridgeWidget>(GlobalEquipmentBridge);
+            EquipmentBridge = TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterfaceWidget>(GlobalEquipmentBridge);
         }
     }
     

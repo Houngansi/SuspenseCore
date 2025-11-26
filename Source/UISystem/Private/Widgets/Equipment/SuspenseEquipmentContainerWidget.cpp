@@ -5,7 +5,7 @@
 #include "Widgets/Equipment/SuspenseEquipmentSlotWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridgeInterfaceWidget.h"
 #include "Interfaces/Core/ISuspenseLoadout.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
 
@@ -177,8 +177,8 @@ void USuspenseEquipmentContainerWidget::NativeConstruct()
     if (!UIBridge)
     {
         // Try to get global bridge instance
-        if (ISuspenseEquipmentUIBridgeWidget* BridgeInterface = 
-            ISuspenseEquipmentUIBridgeWidget::GetEquipmentUIBridge(this))
+        if (ISuspenseEquipmentUIBridgeInterfaceWidget* BridgeInterface = 
+            ISuspenseEquipmentUIBridgeInterfaceWidget::GetEquipmentUIBridge(this))
         {
             UIBridge = Cast<USuspenseEquipmentUIBridge>(BridgeInterface);
             
@@ -1292,7 +1292,7 @@ FName USuspenseEquipmentContainerWidget::GetCurrentLoadoutIDFromContext() const
     return NAME_None;
 }
 
-ISuspenseEquipmentUIBridgeWidget* USuspenseEquipmentContainerWidget::GetOrCreateEquipmentBridge()
+ISuspenseEquipmentUIBridgeInterfaceWidget* USuspenseEquipmentContainerWidget::GetOrCreateEquipmentBridge()
 {
     // Deprecated - use direct UIBridge reference instead
     return UIBridge;

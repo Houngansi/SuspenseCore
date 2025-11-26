@@ -19,8 +19,8 @@ class USuspenseBaseSlotWidget;
 class USuspenseBaseContainerWidget;
 class USuspenseBaseLayoutWidget;
 class UEventDelegateManager;
-class ISuspenseInventoryUIBridgeWidget;
-class ISuspenseEquipmentUIBridgeWidget;
+class ISuspenseInventoryUIBridgeInterface;
+class ISuspenseEquipmentUIBridgeInterfaceWidget;
 class UWidget;
 
 /**
@@ -217,7 +217,7 @@ protected:
         bool bIsRotated,
         TArray<int32>& OutSlots) const;
     
-    TScriptInterface<ISuspenseInventoryUIBridgeWidget> GetBridgeForContainer(const FGameplayTag& ContainerType) const;
+    TScriptInterface<ISuspenseInventoryUIBridgeInterface> GetBridgeForContainer(const FGameplayTag& ContainerType) const;
     
     // Cache management
     void CacheContainer(USuspenseBaseContainerWidget* Container);
@@ -260,8 +260,8 @@ private:
     
     // Cached references
     TMap<FGameplayTag, TWeakObjectPtr<USuspenseBaseContainerWidget>> ContainerCache;
-    TWeakInterfacePtr<ISuspenseInventoryUIBridgeWidget> InventoryBridge;
-    TWeakInterfacePtr<ISuspenseEquipmentUIBridgeWidget> EquipmentBridge;
+    TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface> InventoryBridge;
+    TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterfaceWidget> EquipmentBridge;
     
     UPROPERTY()
     UEventDelegateManager* CachedEventManager;

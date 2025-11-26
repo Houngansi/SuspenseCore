@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/UI/ISuspenseInventoryUIBridgeWidget.h"
+#include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
 #include "Interfaces/Inventory/ISuspenseInventoryInterface.h"
 #include "Types/UI/ContainerUITypes.h"
 #include "Types/Inventory/InventoryTypes.h"
@@ -36,7 +36,7 @@ struct FSuspenseInventoryItemInstance;
  * - Create EventSubscriptionManager for centralized event handling
  */
 UCLASS()
-class UISYSTEM_API USuspenseInventoryUIBridge : public UObject, public ISuspenseInventoryUIBridgeWidget
+class UISYSTEM_API USuspenseInventoryUIBridge : public UObject, public ISuspenseInventoryUIBridgeInterface
 {
     GENERATED_BODY()
 
@@ -97,7 +97,7 @@ public:
     bool RestoreItemToInventory(const FSuspenseInventoryItemInstance& ItemInstance);
 
     // =====================================================
-    // ISuspenseInventoryUIBridgeWidget Interface
+    // ISuspenseInventoryUIBridgeInterface Interface
     // =====================================================
     
     virtual void ShowInventoryUI_Implementation() override;

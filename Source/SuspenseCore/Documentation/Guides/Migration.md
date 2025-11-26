@@ -335,6 +335,55 @@ protected:
 
 ---
 
+## Неизменяемые имена модулей (ВАЖНО!)
+
+При миграции и рефакторинге **ЗАПРЕЩЕНО** изменять имена следующих модулей:
+
+| Модуль | Имя модуля (неизменяемое) | API Macro |
+|--------|---------------------------|-----------|
+| Core | **SuspenseCore** | `SUSPENSECORE_API` |
+| Player | **PlayerCore** | `PLAYERCORE_API` |
+| Abilities | **GAS** | `GAS_API` |
+| Equipment | **EquipmentSystem** | `EQUIPMENTSYSTEM_API` |
+| Inventory | **InventorySystem** | `INVENTORYSYSTEM_API` |
+| Interaction | **InteractionSystem** | `INTERACTIONSYSTEM_API` |
+| Bridge | **BridgeSystem** | `BRIDGESYSTEM_API` |
+| UI | **UISystem** | `UISYSTEM_API` |
+
+### Правила именования классов
+
+При миграции классов необходимо:
+
+1. **Избегать конфликтов имен** между struct и class:
+   - Struct `FSomeName` и Class `USomeName` имеют одинаковое engine name
+   - Используйте уникальные суффиксы: `FStorageTransaction` vs `UInventoryTransaction`
+
+2. **Избегать дублирования структур**:
+   - Простые структуры для tracking/history: добавить суффикс `Record`
+   - Детализированные структуры для операций: использовать полное имя
+
+3. **Соответствие имени файла и .generated.h**:
+   - Файл `SuspenseMoveOperation.h` → `SuspenseMoveOperation.generated.h`
+   - **НЕ** `MoveOperation.generated.h` (это приведет к ошибкам UHT)
+
+### Примеры корректного именования
+
+```cpp
+// ПРАВИЛЬНО: разные engine names
+USTRUCT() struct FSuspenseStorageTransaction { };  // Engine name: SuspenseStorageTransaction
+UCLASS() class USuspenseInventoryTransaction { };  // Engine name: SuspenseInventoryTransaction
+
+// ПРАВИЛЬНО: tracking record vs operation
+USTRUCT() struct FSuspenseMoveRecord { };          // Для истории операций
+USTRUCT() struct FSuspenseMoveOperation { };       // Для выполнения операций
+
+// НЕПРАВИЛЬНО: конфликт engine names
+USTRUCT() struct FSuspenseInventoryTransaction { };  // Конфликт!
+UCLASS() class USuspenseInventoryTransaction { };    // Конфликт!
+```
+
+---
+
 ## Обновление неймспейсов
 
 ### До (старый проект)

@@ -123,7 +123,7 @@ bool USuspenseInventoryStorage::InitializeGrid(int32 Width, int32 Height, float 
     StoredInstances.Empty();
 
     // Reset transaction if active
-    ActiveTransaction = FSuspenseInventoryTransaction();
+    ActiveTransaction = FSuspenseStorageTransaction();
 
     // Mark as initialized
     bInitialized = true;
@@ -770,7 +770,7 @@ void USuspenseInventoryStorage::CommitTransaction()
         return;
     }
 
-    ActiveTransaction = FSuspenseInventoryTransaction();
+    ActiveTransaction = FSuspenseStorageTransaction();
 
     UE_LOG(LogSuspenseInventory, VeryVerbose, TEXT("CommitTransaction: Transaction committed"));
 }
@@ -785,7 +785,7 @@ void USuspenseInventoryStorage::RollbackTransaction()
 
     RestoreFromTransactionSnapshot();
 
-    ActiveTransaction = FSuspenseInventoryTransaction();
+    ActiveTransaction = FSuspenseStorageTransaction();
 
     UE_LOG(LogSuspenseInventory, Log, TEXT("RollbackTransaction: Transaction rolled back"));
 }
@@ -823,7 +823,7 @@ void USuspenseInventoryStorage::ClearAllItems()
 
     StoredInstances.Empty();
 
-    ActiveTransaction = FSuspenseInventoryTransaction();
+    ActiveTransaction = FSuspenseStorageTransaction();
 
     UE_LOG(LogSuspenseInventory, Log, TEXT("ClearAllItems: Storage cleared"));
 }

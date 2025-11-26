@@ -25,7 +25,7 @@ void USuspenseCompatibilityRulesEngine::SetDefaultEquipmentDataProvider(TScriptI
 	DefaultEquipProvider = InProvider;
 }
 
-FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::Convert(const FSuspenseSlotValidationResult& R)
+FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::Convert(const FSlotValidationResult& R)
 {
 	if (R.bIsValid)
 	{
@@ -79,7 +79,7 @@ FSuspenseRuleCheckResult USuspenseCompatibilityRulesEngine::CheckItemCompatibili
 	// Base: delegate to SlotValidator (public API, no access to protected methods)
 	if (IsValid(SlotValidator))
 	{
-		const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
+		const FSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
 		FSuspenseRuleCheckResult R = Convert(VR);
 		if (!R.bPassed) { return R; } // short-circuit on hard fail
 	}
@@ -202,7 +202,7 @@ FSuspenseAggregatedRuleResult USuspenseCompatibilityRulesEngine::EvaluateCompati
 	// Base hard checks via SlotValidator (short-circuit on fail)
 	if (IsValid(SlotValidator))
 	{
-		const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotCfg, Context.ItemInstance);
+		const FSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotCfg, Context.ItemInstance);
 		FSuspenseRuleCheckResult R = Convert(VR);
 		Agg.AddResult(R);
 		if (!R.bPassed)
@@ -242,7 +242,7 @@ TArray<int32> USuspenseCompatibilityRulesEngine::FindCompatibleSlots(
 
 		if (IsValid(SlotValidator))
 		{
-			const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotCfg, ItemInstance);
+			const FSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotCfg, ItemInstance);
 			if (VR.bIsValid) { Out.Add(i); }
 		}
 		else
@@ -269,7 +269,7 @@ float USuspenseCompatibilityRulesEngine::GetCompatibilityScore(
 	float Score = 1.0f;
 	if (IsValid(SlotValidator))
 	{
-		const FSuspenseSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
+		const FSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
 		if (!VR.bIsValid) { return 0.0f; }
 	}
 

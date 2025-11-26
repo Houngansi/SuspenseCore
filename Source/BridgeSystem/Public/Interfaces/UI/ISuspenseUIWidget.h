@@ -11,7 +11,7 @@
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseUIWidgetInterface : public UInterface
+class USuspenseUIWidget : public UInterface
 {
     GENERATED_BODY()
 };

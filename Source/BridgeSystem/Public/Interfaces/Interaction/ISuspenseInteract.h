@@ -22,7 +22,7 @@ class USuspenseEventManager;
  * - Thread-safe event notifications
  */
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseInteractInterface : public UInterface
+class USuspenseInteract : public UInterface
 {
     GENERATED_BODY()
 };

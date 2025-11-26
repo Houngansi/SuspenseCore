@@ -3,7 +3,7 @@
 
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Components/PanelWidget.h"
-#include "Interfaces/UI/ISuspenseUIWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Interfaces/Screens/ISuspenseScreenInterface.h"
 #include "Delegates/EventDelegateManager.h"
 #include "Components/SuspenseUIManager.h"
@@ -123,7 +123,7 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
     // Initialize widget if it supports the interface and config says to
     if (Config && Config->bAutoInitialize)
     {
-        if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+        if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
             ISuspenseUIWidgetInterface::Execute_InitializeWidget(Widget);
         }
@@ -177,7 +177,7 @@ bool USuspenseBaseLayoutWidget::RemoveWidgetFromLayout_Implementation(UUserWidge
     }
 
     // Uninitialize if supported
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_UninitializeWidget(Widget);
     }
@@ -220,7 +220,7 @@ void USuspenseBaseLayoutWidget::RefreshLayout_Implementation()
     // Refresh all child widgets that support the screen interface
     for (const auto& Pair : LayoutWidgets)
     {
-        if (Pair.Value && Pair.Value->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+        if (Pair.Value && Pair.Value->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
         {
             ISuspenseScreenInterface::Execute_RefreshScreenContent(Pair.Value);
         }
@@ -354,7 +354,7 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
     }
 
     // Устанавливаем тег виджета
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_SetWidgetTag(Widget, Config.WidgetTag);
         
@@ -460,7 +460,7 @@ void USuspenseBaseLayoutWidget::ClearCreatedWidgets()
             }
             
             // Uninitialize if supported
-            if (Pair.Value->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+            if (Pair.Value->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
             {
                 ISuspenseUIWidgetInterface::Execute_UninitializeWidget(Pair.Value);
             }

@@ -11,7 +11,7 @@
 #include "ISuspensePickup.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspensePickupInterface : public UInterface
+class USuspensePickup : public UInterface
 {
     GENERATED_BODY()
 };

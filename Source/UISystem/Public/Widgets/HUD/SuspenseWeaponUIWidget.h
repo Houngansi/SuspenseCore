@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/UI/ISuspenseWeaponUIWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseWeaponUIWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseWeaponUIWidget.generated.h"
 

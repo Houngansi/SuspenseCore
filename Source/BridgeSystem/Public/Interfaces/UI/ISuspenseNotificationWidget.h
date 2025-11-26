@@ -34,7 +34,7 @@ enum class ESuspenseNotificationType : uint8
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseNotificationWidgetInterface : public UInterface
+class USuspenseNotificationWidget : public UInterface
 {
     GENERATED_BODY()
 };

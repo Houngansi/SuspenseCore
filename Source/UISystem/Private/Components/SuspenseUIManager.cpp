@@ -5,9 +5,9 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
-#include "Interfaces/UI/ISuspenseUIWidgetInterface.h"
-#include "Interfaces/UI/ISuspenseHUDWidgetInterface.h"
-#include "Interfaces/Core/ISuspenseControllerInterface.h"
+#include "Interfaces/UI/ISuspenseUIWidget.h"
+#include "Interfaces/UI/ISuspenseHUDWidget.h"
+#include "Interfaces/Core/ISuspenseController.h"
 #include "Interfaces/Screens/ISuspenseScreenInterface.h"
 #include "Delegates/EventDelegateManager.h"
 #include "Blueprint/WidgetTree.h"
@@ -242,7 +242,7 @@ UUserWidget* USuspenseUIManager::CreateWidget(
     }
     
     // Set widget tag through interface
-    if (NewWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (NewWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_SetWidgetTag(NewWidget, WidgetTag);
     }
@@ -255,12 +255,12 @@ UUserWidget* USuspenseUIManager::CreateWidget(
     ActiveWidgets.Add(WidgetTag, NewWidget);
     
     // Initialize through interface
-    if (NewWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (NewWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_InitializeWidget(NewWidget);
         
         // If HUD widget, setup with owner
-        if (NewWidget->GetClass()->ImplementsInterface(USuspenseHUDWidgetInterface::StaticClass()))
+        if (NewWidget->GetClass()->ImplementsInterface(USuspenseHUDWidget::StaticClass()))
         {
             if (APawn* Pawn = PC->GetPawn())
             {
@@ -313,7 +313,7 @@ bool USuspenseUIManager::RegisterLayoutWidget(UUserWidget* Widget, FGameplayTag 
     }
     
     // Set widget tag through interface
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_SetWidgetTag(Widget, WidgetTag);
     }
@@ -461,7 +461,7 @@ bool USuspenseUIManager::ShowWidget(FGameplayTag WidgetTag, bool bAddToViewport)
     Widget->SetVisibility(ESlateVisibility::Visible);
     
     // Notify through interface if supported
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_ShowWidget(Widget, true);
     }
@@ -495,7 +495,7 @@ bool USuspenseUIManager::HideWidget(FGameplayTag WidgetTag, bool bRemoveFromPare
     }
     
     // Notify through interface
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_HideWidget(Widget, true);
     }
@@ -882,7 +882,7 @@ void USuspenseUIManager::RefreshAllWidgetsInLayout(USuspenseBaseLayoutWidget* La
         // Обновляем сам виджет если он поддерживает интерфейс
         if (UUserWidget* Widget = LayoutWidget->GetWidgetByTag(Tag))
         {
-            if (Widget->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+            if (Widget->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
             {
                 ISuspenseScreenInterface::Execute_RefreshScreenContent(Widget);
             }
@@ -972,12 +972,12 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
                 return;
             }
             
-            // Fallback: Check for legacy ISuspenseEquipmentInterface
-            if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipmentInterface::StaticClass()))
+            // Fallback: Check for legacy ISuspenseEquipment
+            if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
             {
-                TScriptInterface<ISuspenseEquipmentInterface> EquipInterface;
+                TScriptInterface<ISuspenseEquipment> EquipInterface;
                 EquipInterface.SetObject(Component);
-                EquipInterface.SetInterface(Cast<ISuspenseEquipmentInterface>(Component));
+                EquipInterface.SetInterface(Cast<ISuspenseEquipment>(Component));
                 
                 ISuspenseEquipmentUIBridgeWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
                 UE_LOG(LogTemp, Log, TEXT("[UIManager] Equipment bridge connected to Pawn component (legacy interface)"));
@@ -1034,11 +1034,11 @@ void USuspenseUIManager::ConnectEquipmentBridgeToGameComponent(
             }
             
             // Fallback: Check for legacy interface
-            if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipmentInterface::StaticClass()))
+            if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
             {
-                TScriptInterface<ISuspenseEquipmentInterface> EquipInterface;
+                TScriptInterface<ISuspenseEquipment> EquipInterface;
                 EquipInterface.SetObject(Component);
-                EquipInterface.SetInterface(Cast<ISuspenseEquipmentInterface>(Component));
+                EquipInterface.SetInterface(Cast<ISuspenseEquipment>(Component));
                 
                 ISuspenseEquipmentUIBridgeWidget::Execute_SetEquipmentInterface(Bridge, EquipInterface);
                 UE_LOG(LogTemp, Log, TEXT("[UIManager] Equipment bridge connected to PlayerState component (legacy interface)"));
@@ -1087,7 +1087,7 @@ void USuspenseUIManager::ConnectInventoryBridgeToGameComponent(USuspenseInventor
     
     for (UActorComponent* Component : Components)
     {
-        if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventoryInterface::StaticClass()))
+        if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
         {
             TScriptInterface<ISuspenseInventoryInterface> InventoryInterface;
             InventoryInterface.SetObject(Component);
@@ -1146,7 +1146,7 @@ void USuspenseUIManager::InitializeInventoryBridgeForLayout(
         TArray<UActorComponent*> Components = PlayerState->GetComponents().Array();
         for (UActorComponent* Component : Components)
         {
-            if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventoryInterface::StaticClass()))
+            if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
             {
                 TScriptInterface<ISuspenseInventoryInterface> InventoryInterface;
                 InventoryInterface.SetObject(Component);
@@ -1312,7 +1312,7 @@ void USuspenseUIManager::RequestHUDUpdate()
     }
     
     // HUD will handle update internally by querying interfaces
-    if (HUDWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (HUDWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_UpdateWidget(HUDWidget, 0.0f);
     }
@@ -1343,7 +1343,7 @@ bool USuspenseUIManager::RegisterExternalWidget(UUserWidget* Widget, FGameplayTa
     ActiveWidgets.Add(WidgetTag, Widget);
     
     // Set tag through interface if supported
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_SetWidgetTag(Widget, WidgetTag);
     }
@@ -1403,7 +1403,7 @@ void USuspenseUIManager::CleanupWidget(UUserWidget* Widget)
     }
     
     // Call uninitialize if supported
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_UninitializeWidget(Widget);
     }
@@ -1480,9 +1480,9 @@ APlayerController* USuspenseUIManager::GetPlayerControllerFromObject(UObject* Ob
         }
         
         // Check if actor implements controller interface
-        if (Actor->GetClass()->ImplementsInterface(USuspenseControllerInterface::StaticClass()))
+        if (Actor->GetClass()->ImplementsInterface(USuspenseController::StaticClass()))
         {
-            if (APawn* ControlledPawn = ISuspenseControllerInterface::Execute_GetControlledPawn(Actor))
+            if (APawn* ControlledPawn = ISuspenseController::Execute_GetControlledPawn(Actor))
             {
                 return Cast<APlayerController>(ControlledPawn->GetController());
             }
@@ -1792,7 +1792,7 @@ void USuspenseUIManager::ShowNotification(const FText& Message, float Duration, 
                 if (NotificationWidget)
                 {
                     // Устанавливаем данные через интерфейс если поддерживается
-                    if (NotificationWidget->GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+                    if (NotificationWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
                     {
                         // Передаем текст через специальный метод интерфейса
                         // Это потребует расширения интерфейса ISuspenseUIWidgetInterface

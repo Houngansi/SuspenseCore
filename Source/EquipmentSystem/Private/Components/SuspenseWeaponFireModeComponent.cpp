@@ -66,7 +66,7 @@ bool USuspenseWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface<ISu
     bool bGotData = false;
     
     // Проверяем, что объект реализует интерфейс
-    if (WeaponInterface.GetObject() && WeaponInterface.GetObject()->GetClass()->ImplementsInterface(USuspenseWeaponInterface::StaticClass()))
+    if (WeaponInterface.GetObject() && WeaponInterface.GetObject()->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
     {
         bGotData = ISuspenseWeapon::Execute_GetWeaponItemData(WeaponInterface.GetObject(), WeaponData);
     }
@@ -414,7 +414,7 @@ ISuspenseWeapon* USuspenseWeaponFireModeComponent::GetWeaponInterface() const
     // Try to get from owner
     if (AActor* Owner = GetOwner())
     {
-        if (Owner->GetClass()->ImplementsInterface(USuspenseWeaponInterface::StaticClass()))
+        if (Owner->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
         {
             return Cast<ISuspenseWeapon>(Owner);
         }

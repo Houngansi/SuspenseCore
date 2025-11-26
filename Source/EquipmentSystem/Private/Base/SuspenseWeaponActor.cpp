@@ -326,14 +326,14 @@ void ASuspenseWeaponActor::SetWeaponState_Implementation(const FWeaponStateFlags
 //================================================
 bool ASuspenseWeaponActor::InitializeFromWeaponData_Implementation(const FSuspenseUnifiedItemData& WeaponData)
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_InitializeFromWeaponData(FireModeComponent, WeaponData)
         : false;
 }
 
 void ASuspenseWeaponActor::ClearFireModes_Implementation()
 {
-    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
         ISuspenseFireModeProvider::Execute_ClearFireModes(FireModeComponent);
     }
@@ -341,84 +341,84 @@ void ASuspenseWeaponActor::ClearFireModes_Implementation()
 
 bool ASuspenseWeaponActor::CycleToNextFireMode_Implementation()
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_CycleToNextFireMode(FireModeComponent)
         : false;
 }
 
 bool ASuspenseWeaponActor::CycleToPreviousFireMode_Implementation()
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_CycleToPreviousFireMode(FireModeComponent)
         : false;
 }
 
 bool ASuspenseWeaponActor::SetFireMode_Implementation(const FGameplayTag& FireModeTag)
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_SetFireMode(FireModeComponent, FireModeTag)
         : false;
 }
 
 bool ASuspenseWeaponActor::SetFireModeByIndex_Implementation(int32 Index)
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_SetFireModeByIndex(FireModeComponent, Index)
         : false;
 }
 
 FGameplayTag ASuspenseWeaponActor::GetCurrentFireMode_Implementation() const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetCurrentFireMode(FireModeComponent)
         : FGameplayTag::EmptyTag;
 }
 
 FFireModeRuntimeData ASuspenseWeaponActor::GetCurrentFireModeData_Implementation() const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetCurrentFireModeData(FireModeComponent)
         : FFireModeRuntimeData();
 }
 
 bool ASuspenseWeaponActor::IsFireModeAvailable_Implementation(const FGameplayTag& FireModeTag) const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_IsFireModeAvailable(FireModeComponent, FireModeTag)
         : false;
 }
 
 TArray<FFireModeRuntimeData> ASuspenseWeaponActor::GetAllFireModes_Implementation() const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetAllFireModes(FireModeComponent)
         : TArray<FFireModeRuntimeData>();
 }
 
 TArray<FGameplayTag> ASuspenseWeaponActor::GetAvailableFireModes_Implementation() const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetAvailableFireModes(FireModeComponent)
         : TArray<FGameplayTag>();
 }
 
 int32 ASuspenseWeaponActor::GetAvailableFireModeCount_Implementation() const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetAvailableFireModeCount(FireModeComponent)
         : 0;
 }
 
 bool ASuspenseWeaponActor::SetFireModeEnabled_Implementation(const FGameplayTag& FireModeTag, bool bEnabled)
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_SetFireModeEnabled(FireModeComponent, FireModeTag, bEnabled)
         : false;
 }
 
 void ASuspenseWeaponActor::SetFireModeBlocked_Implementation(const FGameplayTag& FireModeTag, bool bBlocked)
 {
-    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
         ISuspenseFireModeProvider::Execute_SetFireModeBlocked(FireModeComponent, FireModeTag, bBlocked);
     }
@@ -426,28 +426,28 @@ void ASuspenseWeaponActor::SetFireModeBlocked_Implementation(const FGameplayTag&
 
 bool ASuspenseWeaponActor::IsFireModeBlocked_Implementation(const FGameplayTag& FireModeTag) const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_IsFireModeBlocked(FireModeComponent, FireModeTag)
         : false;
 }
 
 bool ASuspenseWeaponActor::GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetFireModeData(FireModeComponent, FireModeTag, OutData)
         : false;
 }
 
 TSubclassOf<UGameplayAbility> ASuspenseWeaponActor::GetFireModeAbility_Implementation(const FGameplayTag& FireModeTag) const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetFireModeAbility(FireModeComponent, FireModeTag)
         : nullptr;
 }
 
 int32 ASuspenseWeaponActor::GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const
 {
-    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    return (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
         ? ISuspenseFireModeProvider::Execute_GetFireModeInputID(FireModeComponent, FireModeTag)
         : INDEX_NONE;
 }
@@ -512,7 +512,7 @@ void ASuspenseWeaponActor::SaveWeaponState()
     }
 
     // Persist fire mode index (for quick restore)
-    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
         const TArray<FFireModeRuntimeData> All = ISuspenseFireModeProvider::Execute_GetAllFireModes(FireModeComponent);
         const FGameplayTag Cur = ISuspenseFireModeProvider::Execute_GetCurrentFireMode(FireModeComponent);
@@ -550,7 +550,7 @@ void ASuspenseWeaponActor::RestoreWeaponState()
     }
 
     // Restore fire mode by saved index
-    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProviderInterface::StaticClass()))
+    if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
         const float SavedIndexF = EquippedItemInstance.GetRuntimeProperty(WeaponDefaults::Prop_CurrentFireMode, -1.0f);
         if (SavedIndexF >= 0.0f)

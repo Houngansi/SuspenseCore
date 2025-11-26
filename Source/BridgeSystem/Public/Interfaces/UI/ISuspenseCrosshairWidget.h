@@ -10,7 +10,7 @@
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCrosshairWidgetInterface : public UInterface
+class USuspenseCrosshairWidget : public UInterface
 {
     GENERATED_BODY()
 };

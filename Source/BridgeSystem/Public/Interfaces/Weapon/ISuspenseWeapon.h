@@ -105,7 +105,7 @@ struct BRIDGESYSTEM_API FWeaponStateFlags
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseWeaponInterface : public UInterface
+class USuspenseWeapon : public UInterface
 {
     GENERATED_BODY()
 };

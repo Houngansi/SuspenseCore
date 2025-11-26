@@ -134,7 +134,7 @@ FEquipmentSlotConfig USuspenseEquipmentDataStore::GetFreshSlotConfiguration(int3
                 if (APlayerState* PS = OwnerPawn->GetPlayerState())
                 {
                     // Check if PlayerState implements loadout interface
-                    if (PS->GetClass()->ImplementsInterface(USuspenseLoadoutInterface::StaticClass()))
+                    if (PS->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
                     {
                         LoadoutToUse = ISuspenseLoadout::Execute_GetCurrentLoadoutID(PS);
                     }
@@ -143,7 +143,7 @@ FEquipmentSlotConfig USuspenseEquipmentDataStore::GetFreshSlotConfiguration(int3
             // Or if owner is PlayerState directly
             else if (APlayerState* PS = Cast<APlayerState>(Owner))
             {
-                if (PS->GetClass()->ImplementsInterface(USuspenseLoadoutInterface::StaticClass()))
+                if (PS->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
                 {
                     LoadoutToUse = ISuspenseLoadout::Execute_GetCurrentLoadoutID(PS);
                 }

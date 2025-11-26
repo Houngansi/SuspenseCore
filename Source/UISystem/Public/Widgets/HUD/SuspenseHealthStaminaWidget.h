@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/UI/ISuspenseHealthStaminaWidgetInterface.h"
-#include "Interfaces/Core/ISuspenseAttributeProviderInterface.h"
+#include "Interfaces/UI/ISuspenseHealthStaminaWidget.h"
+#include "Interfaces/Core/ISuspenseAttributeProvider.h"
 #include "SuspenseHealthStaminaWidget.generated.h"
 
 // Forward declarations

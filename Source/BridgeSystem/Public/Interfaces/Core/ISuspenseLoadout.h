@@ -76,7 +76,7 @@ struct BRIDGESYSTEM_API FLoadoutApplicationResult
  * Interface for components that can be configured by loadout system
  */
 UINTERFACE(MinimalAPI,Blueprintable)
-class USuspenseLoadoutInterface:public UInterface
+class USuspenseLoadout:public UInterface
 {
     GENERATED_BODY()
 };

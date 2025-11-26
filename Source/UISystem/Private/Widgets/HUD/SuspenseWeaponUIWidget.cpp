@@ -454,7 +454,7 @@ void USuspenseWeaponUIWidget::UpdateFromWeaponInterfaces()
         return;
         
     // Check if weapon implements the weapon interface
-    if (CachedWeaponActor->Implements<USuspenseWeaponInterface>())
+    if (CachedWeaponActor->Implements<USuspenseWeapon>())
     {
         // Get current ammo values from weapon
         float CurrentAmmo = ISuspenseWeaponInterface::Execute_GetCurrentAmmo(CachedWeaponActor);

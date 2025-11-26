@@ -12,7 +12,7 @@ class AActor;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseWeaponUIWidgetInterface : public UInterface
+class USuspenseWeaponUIWidget : public UInterface
 {
     GENERATED_BODY()
 };

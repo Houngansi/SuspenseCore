@@ -10,7 +10,7 @@
 class ISuspenseEquipmentOrchestrator;
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseEquipmentFacade : public USuspenseEquipmentInterface
+class USuspenseEquipmentFacade : public USuspenseEquipment
 {
     GENERATED_BODY()
 };

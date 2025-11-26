@@ -10,7 +10,7 @@
 #include "HAL/IConsoleManager.h"
 
 // Core interfaces
-#include "Interfaces/Core/MedComWorldBindable.h"
+#include "Interfaces/Core/SuspenseWorldBindable.h"
 
 // Equipment infrastructure
 #include "Components/.*/SuspenseSystemCoordinator.h"
@@ -244,10 +244,10 @@ void USuspenseSystemCoordinator::RebindAllWorldBindableServices(UWorld* ForWorld
         UObject* SvcObj = ServiceLocator->TryGetService(Tag);
         if (!SvcObj) { ++Skipped; continue; }
 
-        if (SvcObj->GetClass()->ImplementsInterface(UMedComWorldBindable::StaticClass()))
+        if (SvcObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass()))
         {
-            // Чистый C++ вызов (без UFUNCTION-Execute — нам не нужна BP-рефлексия здесь)
-            if (IMedComWorldBindable* Iface = Cast<IMedComWorldBindable>(SvcObj))
+            // Pure C++ call (no UFUNCTION-Execute - we don't need BP reflection here)
+            if (ISuspenseWorldBindable* Iface = Cast<ISuspenseWorldBindable>(SvcObj))
             {
                 Iface->RebindWorld(ForWorld);
             }
@@ -381,7 +381,7 @@ void USuspenseSystemCoordinator::DebugDumpServicesState()
         for (const FGameplayTag& Tag : AllServiceTags)
         {
             UObject* ServiceObj = ServiceLocator->GetService(Tag);
-            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(UMedComWorldBindable::StaticClass());
+            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass());
             const bool bIsReady = ServiceLocator->IsServiceReady(Tag);
             
             UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  - %s (Ready=%s, WorldBindable=%s)"),

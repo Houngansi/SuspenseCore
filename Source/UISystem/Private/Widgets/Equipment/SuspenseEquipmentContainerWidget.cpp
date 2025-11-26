@@ -6,7 +6,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridgeWidget.h"
-#include "Interfaces/Core/ISuspenseLoadoutInterface.h"
+#include "Interfaces/Core/ISuspenseLoadout.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
 
 #include "Components/CanvasPanel.h"
@@ -1283,9 +1283,9 @@ FName USuspenseEquipmentContainerWidget::GetCurrentLoadoutIDFromContext() const
     {
         if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
         {
-            if (PS->GetClass()->ImplementsInterface(USuspenseLoadoutInterface::StaticClass()))
+            if (PS->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
             {
-                return ISuspenseLoadoutInterface::Execute_GetCurrentLoadoutID(PS);
+                return ISuspenseLoadout::Execute_GetCurrentLoadoutID(PS);
             }
         }
     }

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseTooltipInterface.h"
+#include "Interfaces/UI/ISuspenseTooltip.h"
 #include "Types/UI/ContainerUITypes.h"
 #include "Types/Loadout/MedComItemDataTable.h"
 #include "SuspenseItemTooltipWidget.generated.h"

@@ -13,7 +13,7 @@ struct FSuspenseInventoryItemInstance;
 struct FSuspensePickupSpawnData;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseItemFactoryInterface : public UInterface
+class USuspenseItemFactory : public UInterface
 {
     GENERATED_BODY()
 };

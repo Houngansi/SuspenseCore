@@ -11,7 +11,7 @@ class UClass;
 class UObject;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspensePropertyAccessInterface : public UInterface
+class USuspensePropertyAccess : public UInterface
 {
     GENERATED_BODY()
 };

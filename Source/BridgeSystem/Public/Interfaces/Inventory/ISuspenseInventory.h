@@ -27,7 +27,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSuspenseOnInventoryUpdated);
  * UInterface обертка для интеграции с системой рефлексии Unreal Engine
  */
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseInventoryInterface : public UInterface
+class USuspenseInventory : public UInterface
 {
     GENERATED_BODY()
 };

@@ -8,7 +8,7 @@
 #include "ISuspenseSlotUI.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseSlotUIInterface : public UInterface
+class USuspenseSlotUI : public UInterface
 {
     GENERATED_BODY()
 };

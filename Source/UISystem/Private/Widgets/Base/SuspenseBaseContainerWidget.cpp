@@ -95,7 +95,7 @@ void USuspenseBaseContainerWidget::NativeConstruct()
     SetVisibility(ESlateVisibility::Visible);
     
     // Initialize widget through interface
-    if (GetClass()->ImplementsInterface(USuspenseUIWidgetInterface::StaticClass()))
+    if (GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
         ISuspenseUIWidgetInterface::Execute_InitializeWidget(this);
     }
@@ -279,7 +279,7 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
        {
            if (USuspenseBaseSlotWidget* PrevSlot = GetSlotWidget(SelectedSlotIndex))
            {
-               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                {
                    ISuspenseSlotUIInterface::Execute_SetSelected(PrevSlot, false);
                }
@@ -290,7 +290,7 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
        SelectedSlotIndex = SlotIndex;
        if (USuspenseBaseSlotWidget* NewSlot = GetSlotWidget(SlotIndex))
        {
-           if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+           if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
            {
                ISuspenseSlotUIInterface::Execute_SetSelected(NewSlot, true);
            }
@@ -389,7 +389,7 @@ bool USuspenseBaseContainerWidget::ProcessDragOverSlot(
    
     // Get target slot
     int32 TargetSlot = INDEX_NONE;
-    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
     {
         TargetSlot = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
     }
@@ -490,7 +490,7 @@ void USuspenseBaseContainerWidget::OnSlotSelectionChanged(int32 SlotIndex, bool 
        {
            if (USuspenseBaseSlotWidget* PrevSlot = GetSlotWidget(SelectedSlotIndex))
            {
-               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                {
                    ISuspenseSlotUIInterface::Execute_SetSelected(PrevSlot, false);
                }
@@ -533,7 +533,7 @@ FSmartDropZone USuspenseBaseContainerWidget::FindBestDropZone(
    // Simple implementation - just find slot at position
    if (USuspenseBaseSlotWidget* SlotWidget = GetSlotAtScreenPosition(ScreenPosition))
    {
-       if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+       if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
        {
            Result.SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
            Result.bIsValid = true;

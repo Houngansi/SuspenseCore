@@ -14,7 +14,7 @@ class USuspenseEventManager;
 class UDragDropOperation; // Используем базовый класс вместо UMedComDragDropOperation
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseContainerUIInterface : public UInterface
+class USuspenseContainerUI : public UInterface
 {
     GENERATED_BODY()
 };

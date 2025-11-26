@@ -77,7 +77,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
                 {
                     ContentType = TEXT("EquipmentWidget");
                 }
-                else if (TabContent->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+                else if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                 {
                     FGameplayTag ContentScreenTag = ISuspenseScreenInterface::Execute_GetScreenTag(TabContent);
                     ContentType = FString::Printf(TEXT("Screen: %s"), *ContentScreenTag.ToString());
@@ -185,7 +185,7 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
                     if (UUserWidget* TabContent = UpperTabBar->GetTabContent_Implementation(CurrentIndex))
                     {
                         // Use interface to refresh content instead of direct class access
-                        if (TabContent->GetClass()->ImplementsInterface(USuspenseScreenInterface::StaticClass()))
+                        if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                         {
                             ISuspenseScreenInterface::Execute_RefreshScreenContent(TabContent);
                         }

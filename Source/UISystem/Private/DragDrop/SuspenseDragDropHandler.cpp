@@ -114,7 +114,7 @@ USuspenseDragDropOperation* USuspenseDragDropHandler::StartDragOperation(
     }
     
     // Get drag data from slot
-    if (!SourceSlot->GetClass()->ImplementsInterface(USuspenseDraggableInterface::StaticClass()))
+    if (!SourceSlot->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
     {
         return nullptr;
     }
@@ -308,7 +308,7 @@ FDropTargetInfo USuspenseDragDropHandler::CalculateDropTarget(
     }
     
     // Get slot index
-    if (Result.SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+    if (Result.SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
     {
         Result.SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(Result.SlotWidget);
         Result.ContainerType = ISuspenseContainerUIInterface::Execute_GetContainerType(Result.Container);
@@ -560,7 +560,7 @@ void USuspenseDragDropHandler::ProcessHighlightUpdate(USuspenseBaseContainerWidg
     {
         if (USuspenseBaseSlotWidget* Slot = Container->GetSlotWidget(SlotIdx))
         {
-            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 ISuspenseSlotUIInterface::Execute_SetHighlighted(Slot, false, FLinearColor::White);
             }
@@ -572,7 +572,7 @@ void USuspenseDragDropHandler::ProcessHighlightUpdate(USuspenseBaseContainerWidg
     {
         if (USuspenseBaseSlotWidget* Slot = Container->GetSlotWidget(SlotIdx))
         {
-            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUIInterface::StaticClass()))
+            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
             {
                 ISuspenseSlotUIInterface::Execute_SetHighlighted(Slot, true, HighlightColor);
                 

@@ -13,7 +13,7 @@
 class UDragDropOperation; // Используем базовый класс
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseDropTargetInterface : public UInterface
+class USuspenseDropTarget : public UInterface
 {
     GENERATED_BODY()
 };

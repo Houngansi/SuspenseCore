@@ -3,8 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseContainerUIInterface.h"
-#include "Interfaces/UI/ISuspenseUIWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseContainerUI.h"
+#include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Widgets/DragDrop/SuspenseDragVisualWidget.h"
 #include "Types/UI/ContainerUITypes.h"
 #include "SuspenseBaseContainerWidget.generated.h"

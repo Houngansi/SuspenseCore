@@ -9,7 +9,7 @@
 #include "ISuspenseLayout.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseLayoutInterface : public UInterface
+class USuspenseLayout : public UInterface
 {
 	GENERATED_BODY()
 };

@@ -22,7 +22,7 @@ struct FGameplayAttribute;
  * Он необходим для интеграции с reflection и Blueprint системами
  */
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseEquipmentInterface : public UInterface
+class USuspenseEquipment : public UInterface
 {
     GENERATED_BODY()
 };

@@ -14,7 +14,7 @@ class UGameplayEffect;
 class UAttributeSet;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseItemDefinitionInterface : public UInterface
+class USuspenseItemDefinition : public UInterface
 {
     GENERATED_BODY()
 };

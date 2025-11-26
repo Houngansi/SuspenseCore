@@ -21,7 +21,7 @@
  * 
  * Usage Example:
  * @code
- * class UMyService : public UObject, public IMedComWorldBindable
+ * class UMyService : public UObject, public ISuspenseWorldBindable
  * {
  *     virtual void RebindWorld_Implementation(UWorld* NewWorld) override
  *     {
@@ -38,7 +38,7 @@ class USuspenseWorldBindable : public UInterface
     GENERATED_BODY()
 };
 
-class BRIDGESYSTEM_API IMedComWorldBindable
+class BRIDGESYSTEM_API ISuspenseWorldBindable
 {
     GENERATED_BODY()
 
@@ -46,12 +46,12 @@ public:
     /**
      * Rebind internal world-dependent pointers/contexts to the provided World.
      * Must be idempotent and GameThread-safe.
-     * 
+     *
      * @param NewWorld - The world to rebind to. Can be nullptr during shutdown.
      */
     UFUNCTION(BlueprintNativeEvent, Category="SuspenseCore|World")
     void RebindWorld(UWorld* NewWorld);
-    virtual void RebindWorld_Implementation(UWorld* NewWorld) PURE_VIRTUAL(IMedComWorldBindable::RebindWorld_Implementation,);
+    virtual void RebindWorld_Implementation(UWorld* NewWorld) PURE_VIRTUAL(ISuspenseWorldBindable::RebindWorld_Implementation,);
 
     /**
      * Optional readiness probe after rebind.

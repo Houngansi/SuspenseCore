@@ -12,7 +12,7 @@ class AActor;
 class USuspenseEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseEnemyInterface : public UInterface
+class USuspenseEnemy : public UInterface
 {
     GENERATED_BODY()
 };

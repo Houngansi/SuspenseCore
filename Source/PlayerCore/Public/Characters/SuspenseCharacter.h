@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "Interfaces/Core/IMedComCharacterInterface.h"
-#include "Interfaces/Core/IMedComMovementInterface.h"
+#include "Interfaces/Core/ISuspenseCharacter.h"
+#include "Interfaces/Core/ISuspenseMovement.h"
 #include "CineCameraComponent.h"
 #include "Characters/SuspenseCharacterMovementComponent.h"
 #include "SuspenseCharacter.generated.h"
@@ -17,14 +17,14 @@ class UEventDelegateManager;
 class UCharacterMovementComponent;
 
 UCLASS()
-class SUSPENSECORE_API ASuspenseCharacter : public ACharacter, public IMedComCharacterInterface, public IMedComMovementInterface
+class SUSPENSECORE_API ASuspenseCharacter : public ACharacter, public ISuspenseCharacter, public ISuspenseMovement
 {
     GENERATED_BODY()
 public:
     ASuspenseCharacter(const FObjectInitializer&);
 
     // ========================================
-    // IMedComCharacterInterface Implementation
+    // ISuspenseCharacter Implementation
     // ========================================
     virtual UAbilitySystemComponent* GetASC_Implementation() const override;
     virtual void SetHasWeapon_Implementation(bool bHasWeapon) override;
@@ -34,12 +34,12 @@ public:
     virtual float GetCharacterLevel_Implementation() const override;
     virtual bool IsAlive_Implementation() const override;
     virtual int32 GetTeamId_Implementation() const override;
-    
-    // Pure virtual method from IMedComCharacterInterface
-    virtual UEventDelegateManager* GetDelegateManager() const override;
+
+    // Pure virtual method from ISuspenseCharacter
+    virtual USuspenseEventManager* GetDelegateManager() const override;
 
     // ========================================
-    // IMedComMovementInterface Implementation
+    // ISuspenseMovement Implementation
     // ========================================
     
     // Speed Management
@@ -90,7 +90,7 @@ public:
     
     /** Get custom movement component */
     UFUNCTION(BlueprintCallable, Category = "Movement")
-    class USuspenseCharacterMovementComponent* GetMedComMovementComponent() const;
+    class USuspenseCharacterMovementComponent* GetSuspenseMovementComponent() const;
 
     // ========================================
     // Movement Input Values
@@ -169,7 +169,7 @@ public:
 
     /** Get current movement mode enum for animation */
     UFUNCTION(BlueprintCallable, Category = "Animation|States")
-    EMedComMovementMode GetMovementMode() const;
+    ESuspenseMovementMode GetMovementMode() const;
 
     // ========================================
     // Movement Actions
@@ -430,7 +430,7 @@ protected:
 
     /** Cached reference to custom movement component */
     UPROPERTY()
-    class USuspenseCharacterMovementComponent* MedComMovementComponent;
+    class USuspenseCharacterMovementComponent* SuspenseMovementComponent;
 
     /** Current movement state tag */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")

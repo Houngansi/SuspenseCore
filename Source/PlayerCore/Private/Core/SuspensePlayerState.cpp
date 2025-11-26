@@ -3,12 +3,12 @@
 
 #include "Core/SuspensePlayerState.h"
 #include "Core/SuspenseGameInstance.h"
-#include "Components/MedComAbilitySystemComponent.h"
-#include "Components/MedComInventoryComponent.h"
-#include "Attributes/MedComBaseAttributeSet.h"
-#include "Attributes/MedComDefaultAttributeSet.h"
-#include "Effects/MedComInitialAttributesEffect.h"
-#include "Types/Loadout/MedComLoadoutManager.h"
+#include "Components/SuspenseAbilitySystemComponent.h"
+#include "Components/SuspenseInventoryComponent.h"
+#include "Attributes/SuspenseBaseAttributeSet.h"
+#include "Attributes/SuspenseDefaultAttributeSet.h"
+#include "Effects/SuspenseInitialAttributesEffect.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "Types/Loadout/LoadoutSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Character.h"
@@ -19,22 +19,22 @@
 #include "Engine/ActorChannel.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Interfaces/Core/IMedComCharacterInterface.h"
-#include "Interfaces/Core/IMedComAttributeProviderInterface.h"
-#include "Interfaces/Core/IMedComLoadoutInterface.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Interfaces/Core/ISuspenseCharacter.h"
+#include "Interfaces/Core/ISuspenseAttributeProvider.h"
+#include "Interfaces/Core/ISuspenseLoadout.h"
 
 // Equipment module
-#include "Components/Core/MedComEquipmentDataStore.h"
-#include "Components/Transaction/MedComEquipmentTransactionProcessor.h"
-#include "Components/Core/MedComEquipmentOperationExecutor.h"
-#include "Components/Network/MedComEquipmentReplicationManager.h"
-#include "Components/Network/MedComEquipmentPredictionSystem.h"
-#include "Components/Network/MedComEquipmentNetworkDispatcher.h"
-#include "Components/Core/MedComEquipmentInventoryBridge.h"
-#include "Components/Coordination/MedComEquipmentEventDispatcher.h"
-#include "Components/Core/MedComWeaponStateManager.h"
-#include "Components/Core/MedComSystemCoordinator.h"
+#include "Components/Core/SuspenseEquipmentDataStore.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "Components/Core/SuspenseEquipmentOperationExecutor.h"
+#include "Components/Network/SuspenseEquipmentReplicationManager.h"
+#include "Components/Network/SuspenseEquipmentPredictionSystem.h"
+#include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
+#include "Components/Core/SuspenseEquipmentInventoryBridge.h"
+#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "Components/Core/SuspenseWeaponStateManager.h"
+#include "Components/Core/SuspenseSystemCoordinator.h"
 
 // Services
 #include "Services/EquipmentNetworkServiceImpl.h"
@@ -42,26 +42,26 @@
 #include "Services/EquipmentOperationServiceImpl.h"
 #include "Services/EquipmentValidationServiceImpl.h"
 #include "Services/EquipmentAbilityServiceImpl.h"
-#include "Components/Rules/MedComRulesCoordinator.h"
+#include "Components/Rules/SuspenseRulesCoordinator.h"
 #include "Core/Services/EquipmentServiceLocator.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Subsystems/MedComSystemCoordinatorSubsystem.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Subsystems/SuspenseSystemCoordinatorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspensePlayerState, Log, All);
 
 ASuspensePlayerState::ASuspensePlayerState()
 {
     // ASC
-    ASC = CreateDefaultSubobject<UMedComAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    ASC = CreateDefaultSubobject<USuspenseAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
     ASC->SetIsReplicated(true);
     ASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
     // Inventory
-    InventoryComponent = CreateDefaultSubobject<UMedComInventoryComponent>(TEXT("InventoryComponent"));
+    InventoryComponent = CreateDefaultSubobject<USuspenseInventoryComponent>(TEXT("InventoryComponent"));
     InventoryComponent->SetIsReplicated(true);
     
     // Attribute config
-    InitialAttributeSetClass = TSubclassOf<UMedComBaseAttributeSet>(UMedComDefaultAttributeSet::StaticClass());
+    InitialAttributeSetClass = TSubclassOf<USuspenseBaseAttributeSet>(UMedComDefaultAttributeSet::StaticClass());
     InitialAttributesEffect = TSubclassOf<UGameplayEffect>(UMedComInitialAttributesEffect::StaticClass());
 
     // Weapon params
@@ -81,35 +81,35 @@ ASuspensePlayerState::ASuspensePlayerState()
     // Equipment Module Components (Per-Player)
     //========================================
     
-    EquipmentDataStore = CreateDefaultSubobject<UMedComEquipmentDataStore>(TEXT("EquipmentDataStore"));
+    EquipmentDataStore = CreateDefaultSubobject<USuspenseEquipmentDataStore>(TEXT("EquipmentDataStore"));
     EquipmentDataStore->SetIsReplicated(true);
 
-    EquipmentTxnProcessor = CreateDefaultSubobject<UMedComEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
+    EquipmentTxnProcessor = CreateDefaultSubobject<USuspenseEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
     EquipmentTxnProcessor->SetIsReplicated(true);
 
-    EquipmentOps = CreateDefaultSubobject<UMedComEquipmentOperationExecutor>(TEXT("EquipmentOperationExecutor"));
+    EquipmentOps = CreateDefaultSubobject<USuspenseEquipmentOperationExecutor>(TEXT("EquipmentOperationExecutor"));
     EquipmentOps->SetIsReplicated(true);
 
-    EquipmentReplication = CreateDefaultSubobject<UMedComEquipmentReplicationManager>(TEXT("EquipmentReplicationManager"));
+    EquipmentReplication = CreateDefaultSubobject<USuspenseEquipmentReplicationManager>(TEXT("EquipmentReplicationManager"));
     EquipmentReplication->SetIsReplicated(true);
 
-    EquipmentPrediction = CreateDefaultSubobject<UMedComEquipmentPredictionSystem>(TEXT("EquipmentPredictionSystem"));
+    EquipmentPrediction = CreateDefaultSubobject<USuspenseEquipmentPredictionSystem>(TEXT("EquipmentPredictionSystem"));
     EquipmentPrediction->SetIsReplicated(true);
 
-    EquipmentNetworkDispatcher = CreateDefaultSubobject<UMedComEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
+    EquipmentNetworkDispatcher = CreateDefaultSubobject<USuspenseEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
     EquipmentNetworkDispatcher->SetIsReplicated(true);
 
-    EquipmentEventDispatcher = CreateDefaultSubobject<UMedComEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
+    EquipmentEventDispatcher = CreateDefaultSubobject<USuspenseEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
     EquipmentEventDispatcher->SetIsReplicated(true);
 
-    WeaponStateManager = CreateDefaultSubobject<UMedComWeaponStateManager>(TEXT("WeaponStateManager"));
+    WeaponStateManager = CreateDefaultSubobject<USuspenseWeaponStateManager>(TEXT("WeaponStateManager"));
     WeaponStateManager->SetIsReplicated(true);
 
-    EquipmentInventoryBridge = CreateDefaultSubobject<UMedComEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
+    EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
     EquipmentInventoryBridge->SetIsReplicated(true);
 
     // DEPRECATED: Kept for backward compatibility
-    EquipmentSystemCoordinator = CreateDefaultSubobject<UMedComSystemCoordinator>(TEXT("SystemCoordinator"));
+    EquipmentSystemCoordinator = CreateDefaultSubobject<USuspenseSystemCoordinator>(TEXT("SystemCoordinator"));
     EquipmentSystemCoordinator->SetIsReplicated(true);
 
     // Validator created during WireEquipmentModule()
@@ -143,7 +143,7 @@ void ASuspensePlayerState::BeginPlay()
             return;
         }
         
-        UMedComLoadoutManager* LoadoutManager = GameInstance->GetLoadoutManager();
+        USuspenseLoadoutManager* LoadoutManager = GameInstance->GetLoadoutManager();
         if (!LoadoutManager)
         {
             UE_LOG(LogSuspensePlayerState, Error, TEXT("LoadoutManager not available from GameInstance"));
@@ -223,7 +223,7 @@ void ASuspensePlayerState::BeginPlay()
                     GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
 
                     // Broadcast события об успешной инициализации
-                    if (UEventDelegateManager* EventManager = GetDelegateManager())
+                    if (USuspenseEventManager* EventManager = GetDelegateManager())
                     {
                         const FGameplayTag InvInit = FGameplayTag::RequestGameplayTag(
                             TEXT("Player.Inventory.Initialized"));
@@ -263,7 +263,7 @@ void ASuspensePlayerState::BeginPlay()
                     GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
                     
                     // Broadcast события об ошибке
-                    if (UEventDelegateManager* EventManager = GetDelegateManager())
+                    if (USuspenseEventManager* EventManager = GetDelegateManager())
                     {
                         EventManager->BroadcastGenericEvent(this, 
                             FGameplayTag::RequestGameplayTag(TEXT("Player.Equipment.Failed")),
@@ -306,7 +306,7 @@ void ASuspensePlayerState::BeginPlay()
                 UE_LOG(LogSuspensePlayerState, Error, TEXT("  - %s"), *Error);
             }
             
-            if (UEventDelegateManager* EventManager = GetDelegateManager())
+            if (USuspenseEventManager* EventManager = GetDelegateManager())
             {
                 EventManager->BroadcastGenericEvent(this, 
                     FGameplayTag::RequestGameplayTag(TEXT("Player.Loadout.Failed")),
@@ -382,10 +382,10 @@ UAbilitySystemComponent* ASuspensePlayerState::GetASC_Implementation() const
 void ASuspensePlayerState::SetHasWeapon_Implementation(bool bNewHasWeapon)
 {
     bHasWeapon = bNewHasWeapon;
-    if (UEventDelegateManager* Manager = GetDelegateManager())
+    if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         AActor* WeaponActor = bHasWeapon ? CurrentWeaponActor : nullptr;
-        IMedComCharacterInterface::BroadcastWeaponChanged(this, WeaponActor, bHasWeapon);
+        ISuspenseCharacter::BroadcastWeaponChanged(this, WeaponActor, bHasWeapon);
     }
 }
 
@@ -395,9 +395,9 @@ void ASuspensePlayerState::SetCurrentWeaponActor_Implementation(AActor* WeaponAc
     CurrentWeaponActor = WeaponActor;
     if (OldWeapon != CurrentWeaponActor)
     {
-        if (UEventDelegateManager* Manager = GetDelegateManager())
+        if (USuspenseEventManager* Manager = GetDelegateManager())
         {
-            IMedComCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+            ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
         }
     }
 }
@@ -425,7 +425,7 @@ bool ASuspensePlayerState::IsAlive_Implementation() const
 {
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             return BaseAttributes->GetHealth() > 0.0f;
@@ -439,18 +439,18 @@ int32 ASuspensePlayerState::GetTeamId_Implementation() const
     return 0; // TODO: implement proper team id
 }
 
-UEventDelegateManager* ASuspensePlayerState::GetDelegateManager() const
+USuspenseEventManager* ASuspensePlayerState::GetDelegateManager() const
 {
-    return IMedComCharacterInterface::GetDelegateManagerStatic(this);
+    return ISuspenseCharacter::GetDelegateManagerStatic(this);
 }
 
 //========================================
-// IMedComLoadoutInterface Implementation
+// ISuspenseLoadout Implementation
 //========================================
 
 FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutConfiguration_Implementation(
     const FName& LoadoutID, 
-    UMedComLoadoutManager* LoadoutManager,
+    USuspenseLoadoutManager* LoadoutManager,
     bool bForceApply)
 {
     if (!bForceApply && CurrentLoadoutID == LoadoutID)
@@ -471,7 +471,7 @@ FName ASuspensePlayerState::GetCurrentLoadoutID_Implementation() const
 
 bool ASuspensePlayerState::CanAcceptLoadout_Implementation(
     const FName& LoadoutID,
-    const UMedComLoadoutManager* LoadoutManager,
+    const USuspenseLoadoutManager* LoadoutManager,
     FString& OutReason) const
 {
     if (!LoadoutManager)
@@ -531,7 +531,7 @@ void ASuspensePlayerState::OnLoadoutPostChange_Implementation(const FName& Previ
             *PreviousLoadoutID.ToString(), *NewLoadoutID.ToString(), *GetPlayerName());
     }
     CurrentLoadoutID = NewLoadoutID;
-    if (UMedComLoadoutManager* LoadoutManager = GetLoadoutManager())
+    if (USuspenseLoadoutManager* LoadoutManager = GetLoadoutManager())
     {
         LoadoutManager->BroadcastLoadoutChange(NewLoadoutID, this, true);
     }
@@ -567,7 +567,7 @@ bool ASuspensePlayerState::ApplyLoadout(const FName& LoadoutID, bool bForceReapp
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Cannot apply loadout: LoadoutID is None"));
         return false;
     }
-    UMedComLoadoutManager* LoadoutManager = GetLoadoutManager();
+    USuspenseLoadoutManager* LoadoutManager = GetLoadoutManager();
     if (!LoadoutManager)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Cannot apply loadout: LoadoutManager not found"));
@@ -632,7 +632,7 @@ void ASuspensePlayerState::LogLoadoutStatus()
     UE_LOG(LogSuspensePlayerState, Log, TEXT("Current Loadout: %s"), 
         CurrentLoadoutID.IsNone() ? TEXT("None") : *CurrentLoadoutID.ToString());
     
-    if (UMedComLoadoutManager* LoadoutManager = GetLoadoutManager())
+    if (USuspenseLoadoutManager* LoadoutManager = GetLoadoutManager())
     {
         if (!CurrentLoadoutID.IsNone())
         {
@@ -665,16 +665,16 @@ void ASuspensePlayerState::LogLoadoutStatus()
 // Protected Methods
 //========================================
 
-UMedComLoadoutManager* ASuspensePlayerState::GetLoadoutManager() const
+USuspenseLoadoutManager* ASuspensePlayerState::GetLoadoutManager() const
 {
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        return GameInstance->GetSubsystem<UMedComLoadoutManager>();
+        return GameInstance->GetSubsystem<USuspenseLoadoutManager>();
     }
     return nullptr;
 }
 
-FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const FName& LoadoutID, UMedComLoadoutManager* LoadoutManager)
+FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const FName& LoadoutID, USuspenseLoadoutManager* LoadoutManager)
 {
     UE_LOG(LogSuspensePlayerState , Warning, TEXT("=== ApplyLoadoutToComponents START ==="));
     UE_LOG(LogSuspensePlayerState , Warning, TEXT("LoadoutID: %s"), *LoadoutID.ToString());
@@ -838,7 +838,7 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
                         // Get EventDelegateManager through GameInstance subsystem
                         if (UGameInstance* GI = GetGameInstance())
                         {
-                            if (UEventDelegateManager* EventManager = GI->GetSubsystem<UEventDelegateManager>())
+                            if (USuspenseEventManager* EventManager = GI->GetSubsystem<USuspenseEventManager>())
                             {
                                 FGameplayTag EquipInitTag = FGameplayTag::RequestGameplayTag(
                                     TEXT("Player.Equipment.Initialized"));
@@ -918,7 +918,7 @@ void ASuspensePlayerState::CleanupComponentListeners()
 }
 
 // ========================================
-// IMedComAttributeProviderInterface Implementation
+// ISuspenseAttributeProvider Implementation
 // ========================================
 
 UAttributeSet* ASuspensePlayerState::GetAttributeSet_Implementation() const
@@ -966,7 +966,7 @@ void ASuspensePlayerState::SetAttributeSetClass_Implementation(TSubclassOf<UAttr
     InitialAttributeSetClass = NewClass;
 }
 
-FMedComAttributeData ASuspensePlayerState::GetAttributeData_Implementation(const FGameplayTag& AttributeTag) const
+FSuspenseAttributeData ASuspensePlayerState::GetAttributeData_Implementation(const FGameplayTag& AttributeTag) const
 {
     if (AttributeTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Health"))))
     {
@@ -980,72 +980,72 @@ FMedComAttributeData ASuspensePlayerState::GetAttributeData_Implementation(const
     {
         return GetArmorData_Implementation();
     }
-    return FMedComAttributeData();
+    return FSuspenseAttributeData();
 }
 
-FMedComAttributeData ASuspensePlayerState::GetHealthData_Implementation() const
+FSuspenseAttributeData ASuspensePlayerState::GetHealthData_Implementation() const
 {
     if (!Attributes)
     {
-        return FMedComAttributeData();
+        return FSuspenseAttributeData();
     }
-    UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float CurrentHealth = BaseAttributes->GetHealth();
         float MaxHealth = BaseAttributes->GetMaxHealth();
-        return FMedComAttributeData::CreateAttributeData(CurrentHealth, MaxHealth,
+        return FSuspenseAttributeData::CreateAttributeData(CurrentHealth, MaxHealth,
             FGameplayTag::RequestGameplayTag(TEXT("Attribute.Health")), FText::FromString(TEXT("Health")));
     }
-    return FMedComAttributeData();
+    return FSuspenseAttributeData();
 }
 
-FMedComAttributeData ASuspensePlayerState::GetStaminaData_Implementation() const
+FSuspenseAttributeData ASuspensePlayerState::GetStaminaData_Implementation() const
 {
     if (!Attributes)
     {
-        return FMedComAttributeData();
+        return FSuspenseAttributeData();
     }
-    UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float CurrentStamina = BaseAttributes->GetStamina();
         float MaxStamina = BaseAttributes->GetMaxStamina();
-        return FMedComAttributeData::CreateAttributeData(CurrentStamina, MaxStamina,
+        return FSuspenseAttributeData::CreateAttributeData(CurrentStamina, MaxStamina,
             FGameplayTag::RequestGameplayTag(TEXT("Attribute.Stamina")), FText::FromString(TEXT("Stamina")));
     }
-    return FMedComAttributeData();
+    return FSuspenseAttributeData();
 }
 
-FMedComAttributeData ASuspensePlayerState::GetArmorData_Implementation() const
+FSuspenseAttributeData ASuspensePlayerState::GetArmorData_Implementation() const
 {
     if (!Attributes)
     {
-        return FMedComAttributeData();
+        return FSuspenseAttributeData();
     }
-    UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float Armor = BaseAttributes->GetArmor();
-        return FMedComAttributeData::CreateAttributeData(Armor, Armor,
+        return FSuspenseAttributeData::CreateAttributeData(Armor, Armor,
             FGameplayTag::RequestGameplayTag(TEXT("Attribute.Armor")), FText::FromString(TEXT("Armor")));
     }
-    return FMedComAttributeData();
+    return FSuspenseAttributeData();
 }
 
-TArray<FMedComAttributeData> ASuspensePlayerState::GetAllAttributeData_Implementation() const
+TArray<FSuspenseAttributeData> ASuspensePlayerState::GetAllAttributeData_Implementation() const
 {
-    TArray<FMedComAttributeData> AllData;
+    TArray<FSuspenseAttributeData> AllData;
     AllData.Add(GetHealthData_Implementation());
     AllData.Add(GetStaminaData_Implementation());
     AllData.Add(GetArmorData_Implementation());
-    AllData.RemoveAll([](const FMedComAttributeData& Data) { return !Data.bIsValid; });
+    AllData.RemoveAll([](const FSuspenseAttributeData& Data) { return !Data.bIsValid; });
     return AllData;
 }
 
 bool ASuspensePlayerState::GetAttributeValue_Implementation(const FGameplayTag& AttributeTag, float& OutCurrentValue, float& OutMaxValue) const
 {
-    FMedComAttributeData Data = GetAttributeData_Implementation(AttributeTag);
+    FSuspenseAttributeData Data = GetAttributeData_Implementation(AttributeTag);
     if (Data.bIsValid)
     {
         OutCurrentValue = Data.CurrentValue;
@@ -1063,11 +1063,11 @@ void ASuspensePlayerState::NotifyAttributeChanged_Implementation(const FGameplay
     {
         if (Attributes)
         {
-            UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+            USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
             if (BaseAttributes)
             {
                 float MaxHealth = BaseAttributes->GetMaxHealth();
-                IMedComAttributeProviderInterface::BroadcastHealthUpdate(this, NewValue, MaxHealth);
+                ISuspenseAttributeProvider::BroadcastHealthUpdate(this, NewValue, MaxHealth);
             }
         }
     }
@@ -1075,11 +1075,11 @@ void ASuspensePlayerState::NotifyAttributeChanged_Implementation(const FGameplay
     {
         if (Attributes)
         {
-            UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+            USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
             if (BaseAttributes)
             {
                 float MaxStamina = BaseAttributes->GetMaxStamina();
-                IMedComAttributeProviderInterface::BroadcastStaminaUpdate(this, NewValue, MaxStamina);
+                ISuspenseAttributeProvider::BroadcastStaminaUpdate(this, NewValue, MaxStamina);
             }
         }
     }
@@ -1095,7 +1095,7 @@ void ASuspensePlayerState::SetupAttributeChangeCallbacks()
     {
         return;
     }
-    UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
     if (!BaseAttributes)
     {
         return;
@@ -1121,7 +1121,7 @@ void ASuspensePlayerState::CleanupAttributeChangeCallbacks()
     {
         return;
     }
-    UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
     if (!BaseAttributes)
     {
         return;
@@ -1156,11 +1156,11 @@ void ASuspensePlayerState::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float MaxHealth = BaseAttributes->GetMaxHealth();
-            IMedComAttributeProviderInterface::BroadcastHealthUpdate(this, Data.NewValue, MaxHealth);
+            ISuspenseAttributeProvider::BroadcastHealthUpdate(this, Data.NewValue, MaxHealth);
             UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Health changed: %.1f/%.1f (was %.1f)"), 
                 Data.NewValue, MaxHealth, Data.OldValue);
         }
@@ -1171,11 +1171,11 @@ void ASuspensePlayerState::OnMaxHealthChanged(const FOnAttributeChangeData& Data
 {
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float CurrentHealth = BaseAttributes->GetHealth();
-            IMedComAttributeProviderInterface::BroadcastHealthUpdate(this, CurrentHealth, Data.NewValue);
+            ISuspenseAttributeProvider::BroadcastHealthUpdate(this, CurrentHealth, Data.NewValue);
             UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max health changed: %.1f (was %.1f)"), 
                 Data.NewValue, Data.OldValue);
         }
@@ -1186,11 +1186,11 @@ void ASuspensePlayerState::OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float MaxStamina = BaseAttributes->GetMaxStamina();
-            IMedComAttributeProviderInterface::BroadcastStaminaUpdate(this, Data.NewValue, MaxStamina);
+            ISuspenseAttributeProvider::BroadcastStaminaUpdate(this, Data.NewValue, MaxStamina);
             UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Stamina changed: %.1f/%.1f (was %.1f)"), 
                 Data.NewValue, MaxStamina, Data.OldValue);
         }
@@ -1201,11 +1201,11 @@ void ASuspensePlayerState::OnMaxStaminaChanged(const FOnAttributeChangeData& Dat
 {
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float CurrentStamina = BaseAttributes->GetStamina();
-            IMedComAttributeProviderInterface::BroadcastStaminaUpdate(this, CurrentStamina, Data.NewValue);
+            ISuspenseAttributeProvider::BroadcastStaminaUpdate(this, CurrentStamina, Data.NewValue);
             UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max stamina changed: %.1f (was %.1f)"), 
                 Data.NewValue, Data.OldValue);
         }
@@ -1272,7 +1272,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // =====================================================================
     // Step 2: Get CoordinatorSubsystem
     // =====================================================================
-    UMedComSystemCoordinatorSubsystem* SysSub = GI->GetSubsystem<UMedComSystemCoordinatorSubsystem>();
+    USuspenseSystemCoordinatorSubsystem* SysSub = GI->GetSubsystem<USuspenseSystemCoordinatorSubsystem>();
     if (!SysSub)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ CoordinatorSubsystem not found in GameInstance"));
@@ -1337,7 +1337,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // =====================================================================
     UE_LOG(LogSuspensePlayerState, Log, TEXT("Wiring DataStore ↔ TransactionProcessor..."));
     EquipmentTxnProcessor->SetDeltaCallback(
-        FOnTransactionDelta::CreateUObject(EquipmentDataStore, &UMedComEquipmentDataStore::OnTransactionDelta));
+        FOnTransactionDelta::CreateUObject(EquipmentDataStore, &USuspenseEquipmentDataStore::OnTransactionDelta));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("✓ DataStore delta callback configured"));
 
     // =====================================================================
@@ -1567,7 +1567,7 @@ void ASuspensePlayerState::InitAttributes()
         AttributeSetClassToUse = UMedComDefaultAttributeSet::StaticClass();
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("Using default UMedComDefaultAttributeSet"));
     }
-    Attributes = NewObject<UMedComBaseAttributeSet>(this, AttributeSetClassToUse);
+    Attributes = NewObject<USuspenseBaseAttributeSet>(this, AttributeSetClassToUse);
     if (!Attributes)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Failed to create AttributeSet"));
@@ -1596,7 +1596,7 @@ void ASuspensePlayerState::InitAttributes()
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Failed to apply InitialAttributesEffect"));
         return;
     }
-    if (UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes))
+    if (USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes))
     {
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Final Attribute Values After Initialization ==="));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed: %.1f"), 
@@ -1810,7 +1810,7 @@ void ASuspensePlayerState::DebugActiveEffects()
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("Current Owned Tags: %s"), *OwnedTags.ToString());
     if (Attributes)
     {
-        UMedComBaseAttributeSet* BaseAttributes = Cast<UMedComBaseAttributeSet>(Attributes);
+        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed Base: %.1f, Current: %.1f"), 
@@ -1820,7 +1820,7 @@ void ASuspensePlayerState::DebugActiveEffects()
     }
 }
 
-bool ASuspensePlayerState::WireEquipmentModule(UMedComLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
+bool ASuspensePlayerState::WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
 {
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== WireEquipmentModule START ==="));
 

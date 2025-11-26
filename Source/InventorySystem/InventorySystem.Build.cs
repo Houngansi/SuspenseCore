@@ -17,8 +17,8 @@ public class InventorySystem : ModuleRules
 				"GameplayTags",
 
 				// Suspense modules
-				"MedComShared",          // TODO: Update to SuspenseShared when available
-				"SuspenseInteraction"    // Migrated from MedComInteraction
+				"BridgeSystem",
+				"SuspenseInteraction"
 			}
 		);
 

@@ -36,21 +36,21 @@ public:
      * Установка готовности игры к старту
      * @param bIsReady Флаг готовности
      */
-    UFUNCTION(BlueprintCallable, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|GameMode")
     void SetReadyToStart(bool bIsReady);
     
     /**
      * Получение статуса готовности игры
      * @return True, если игра готова к старту
      */
-    UFUNCTION(BlueprintPure, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintPure, Category = "Suspense|GameMode")
     bool IsReadyToStart() const;
     
     /**
      * Проверяет, завершена ли игра
      * @return True, если игра завершена
      */
-    UFUNCTION(BlueprintPure, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintPure, Category = "Suspense|GameMode")
     bool IsGameOver() const;
     
     /**
@@ -58,22 +58,22 @@ public:
      * @param Winner Победитель (игрок/команда)
      * @param EndGameReason Причина завершения игры
      */
-    UFUNCTION(BlueprintCallable, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|GameMode")
     virtual void FinishGame(AActor* Winner, const FString& EndGameReason);
     
     /**
      * Устанавливает состояние матча в нашем собственном GameState
      * @param NewState Новое состояние матча
      */
-    UFUNCTION(BlueprintCallable, Category = "MedCom|GameMode")
-    virtual void SetGameMatchState(EMedComMatchState NewState);
+    UFUNCTION(BlueprintCallable, Category = "Suspense|GameMode")
+    virtual void SetGameMatchState(ESuspenseMatchState NewState);
     
     /**
      * Получает текущее состояние матча из нашего GameState
      * @return Текущее состояние матча
      */
-    UFUNCTION(BlueprintPure, Category = "MedCom|GameMode")
-    EMedComMatchState GetGameMatchState() const;
+    UFUNCTION(BlueprintPure, Category = "Suspense|GameMode")
+    ESuspenseMatchState GetGameMatchState() const;
     
 protected:
     // Выбор начальной локации для игрока
@@ -92,11 +92,11 @@ protected:
     virtual void OnGameSettingsInitialized();
     
     // Запуск таймера, связанного с игровой логикой
-    UFUNCTION(BlueprintCallable, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|GameMode")
     void StartGameTimer(float InGameDuration);
     
     // Остановка таймера игры
-    UFUNCTION(BlueprintCallable, Category = "MedCom|GameMode")
+    UFUNCTION(BlueprintCallable, Category = "Suspense|GameMode")
     void StopGameTimer();
     
     // Проверяет, есть ли условия для начала игры
@@ -109,31 +109,31 @@ protected:
     virtual void CheckWinConditions();
     
     // Обработчик изменения состояния матча
-    virtual void OnMatchStateChanged(EMedComMatchState OldState, EMedComMatchState NewState);
+    virtual void OnMatchStateChanged(ESuspenseMatchState OldState, ESuspenseMatchState NewState);
     
 protected:
     // Флаг готовности к старту игры
-    UPROPERTY(VisibleAnywhere, Category = "MedCom|GameMode")
+    UPROPERTY(VisibleAnywhere, Category = "Suspense|GameMode")
     bool bReadyToStart;
     
     // Флаг завершения игры
-    UPROPERTY(VisibleAnywhere, Category = "MedCom|GameMode")
+    UPROPERTY(VisibleAnywhere, Category = "Suspense|GameMode")
     bool bGameIsOver;
     
     // Максимальное число игроков
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|GameMode")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|GameMode")
     int32 MaxPlayers;
     
     // Продолжительность игры (0 = неограниченно)
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|GameMode")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|GameMode")
     float GameDuration;
     
     // Класс PlayerState по умолчанию
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Classes")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Classes")
     TSubclassOf<class APlayerState> DefaultPlayerStateClass;
     
     // Класс HUD по умолчанию
-    UPROPERTY(EditDefaultsOnly, Category = "MedCom|Classes")
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Classes")
     TSubclassOf<class AHUD> DefaultHUDClass;
     
     // Время начала игры

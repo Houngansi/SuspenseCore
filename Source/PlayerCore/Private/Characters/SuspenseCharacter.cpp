@@ -7,16 +7,16 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Interfaces/Core/IMedComCharacterInterface.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Attributes/MedComBaseAttributeSet.h"
+#include "Interfaces/Core/ISuspenseCharacter.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Attributes/SuspenseBaseAttributeSet.h"
 #include "Characters/SuspenseCharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "AbilitySystemGlobals.h"
 
 // Console variable for debug visualization - MUST BE DECLARED BEFORE USE
 static TAutoConsoleVariable<int32> CVarShowProceduralAnimDebug(
-    TEXT("MedCom.ShowProceduralAnimDebug"),
+    TEXT("Suspense.ShowProceduralAnimDebug"),
     0,
     TEXT("Show procedural animation debug info.\n")
     TEXT("0: Disabled\n")
@@ -36,22 +36,21 @@ ASuspenseCharacter::ASuspenseCharacter(const FObjectInitializer& ObjectInitializ
     GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
     GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::None;
 
-    GetMesh()->SetCastShadow(true);// Включаем отбрасывание теней
-    GetMesh()->bCastDynamicShadow = true;// Динамические тени
-    GetMesh()->bCastStaticShadow = false;// Отключаем статические (персонаж движется)
-    GetMesh()->bCastHiddenShadow = true;// Отбрасывать тень даже когда меш скрыт для владельца
-    
+    GetMesh()->SetCastShadow(true);
+    GetMesh()->bCastDynamicShadow = true;
+    GetMesh()->bCastStaticShadow = false;
+    GetMesh()->bCastHiddenShadow = true;
+
     // Create first person mesh (arms) - directly attached to the main mesh
     Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh1P"));
-    Mesh1P->SetupAttachment(GetMesh());  // Directly attached to main mesh
-    Mesh1P->SetOnlyOwnerSee(true);  // Only owner sees this mesh
+    Mesh1P->SetupAttachment(GetMesh());
+    Mesh1P->SetOnlyOwnerSee(true);
     Mesh1P->bCastDynamicShadow = false;
     Mesh1P->CastShadow = false;
     Mesh1P->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
     Mesh1P->SetCollisionProfileName(FName("NoCollision"));
-    // Set proper relative transform for first person arms
-    Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));  // Adjust to proper eye level
-    Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));  // Face forward
+    Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));
+    Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
     // Create cinematic camera attached to first person mesh
     Camera = CreateDefaultSubobject<UCineCameraComponent>(TEXT("FirstPersonCamera"));
@@ -79,15 +78,15 @@ ASuspenseCharacter::ASuspenseCharacter(const FObjectInitializer& ObjectInitializ
     Camera->FocusSettings.FocusSmoothingInterpSpeed = 8.0f;
 
     // Filmback settings for sensor size (affects FOV and DOF)
-    Camera->Filmback.SensorWidth = 24.89f;  // Super 35mm sensor
+    Camera->Filmback.SensorWidth = 24.89f;
     Camera->Filmback.SensorHeight = 18.67f;
     Camera->Filmback.SensorAspectRatio = Camera->Filmback.SensorWidth / Camera->Filmback.SensorHeight;
 
     // Post process settings specific to FPS games
     Camera->PostProcessSettings.bOverride_MotionBlurAmount = true;
-    Camera->PostProcessSettings.MotionBlurAmount = 0.1f;  // Reduced motion blur for competitive play
+    Camera->PostProcessSettings.MotionBlurAmount = 0.1f;
     Camera->PostProcessSettings.bOverride_SceneFringeIntensity = true;
-    Camera->PostProcessSettings.SceneFringeIntensity = 0.0f;  // No chromatic aberration by default
+    Camera->PostProcessSettings.SceneFringeIntensity = 0.0f;
 
     // Additional cinematic settings
     Camera->CurrentFocusDistance = ManualFocusDistance;
@@ -111,10 +110,10 @@ ASuspenseCharacter::ASuspenseCharacter(const FObjectInitializer& ObjectInitializ
     // CRITICAL: Enable crouch support!
     GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
     GetCharacterMovement()->bCanWalkOffLedgesWhenCrouching = true;
-    GetCharacterMovement()->SetCrouchedHalfHeight(40.0f); // Use setter method instead of direct access
-    
+    GetCharacterMovement()->SetCrouchedHalfHeight(40.0f);
+
     // Additional crouch settings
-    GetCharacterMovement()->MaxWalkSpeedCrouched = 150.0f; // Base crouch speed (will be multiplied by modifier)
+    GetCharacterMovement()->MaxWalkSpeedCrouched = 150.0f;
     GetCharacterMovement()->bUseSeparateBrakingFriction = true;
 
     // Initialize weapon state
@@ -133,17 +132,17 @@ ASuspenseCharacter::ASuspenseCharacter(const FObjectInitializer& ObjectInitializ
     TargetHorizontalRecoilAmount = 0.f;
 
     // Cache movement component
-    MedComMovementComponent = Cast<USuspenseCharacterMovementComponent>(GetCharacterMovement());
-    
+    SuspenseMovementComponent = Cast<USuspenseCharacterMovementComponent>(GetCharacterMovement());
+
     // Initialize default movement state
     CurrentMovementState = FGameplayTag::RequestGameplayTag(TEXT("Movement.Walking"));
-    
+
     // Save original jump velocity
     if (GetCharacterMovement())
     {
         OriginalJumpZVelocity = GetCharacterMovement()->JumpZVelocity;
     }
-    
+
     // Initialize movement input tracking
     MoveForwardValue = 0.0f;
     MoveRightValue = 0.0f;
@@ -156,7 +155,7 @@ ASuspenseCharacter::ASuspenseCharacter(const FObjectInitializer& ObjectInitializ
 void ASuspenseCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Apply camera boom settings
     if (CameraBoom)
     {
@@ -166,7 +165,7 @@ void ASuspenseCharacter::BeginPlay()
         CameraBoom->bEnableCameraRotationLag = bEnableCameraRotationLag;
         CameraBoom->CameraRotationLagSpeed = CameraRotationLagSpeed;
     }
-    
+
     // Apply cinematic camera settings
     if (Camera)
     {
@@ -174,26 +173,26 @@ void ASuspenseCharacter::BeginPlay()
         Camera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = bEnableDepthOfField;
         Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurAmount = bEnableDepthOfField;
         Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurRadius = bEnableDepthOfField;
-        
+
         if (bEnableDepthOfField)
         {
             Camera->PostProcessSettings.DepthOfFieldFstop = CurrentAperture;
             Camera->PostProcessSettings.DepthOfFieldFocalDistance = ManualFocusDistance;
         }
     }
-    
+
     // Initialize active movement tags
     ActiveMovementTags.AddTag(CurrentMovementState);
-    
+
     // CRITICAL: MovementComponent syncs with AttributeSet itself
-    UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] BeginPlay completed. Movement speed will be set by AttributeSet."));
-    
-    if (MedComMovementComponent)
+    UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] BeginPlay completed. Movement speed will be set by AttributeSet."));
+
+    if (SuspenseMovementComponent)
     {
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] MedComMovementComponent found. Current MaxWalkSpeed: %.1f"), 
-            MedComMovementComponent->MaxWalkSpeed);
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] SuspenseMovementComponent found. Current MaxWalkSpeed: %.1f"),
+            SuspenseMovementComponent->MaxWalkSpeed);
     }
-    
+
     // Initialize camera rotation tracking
     if (Controller)
     {
@@ -206,7 +205,7 @@ void ASuspenseCharacter::BeginPlay()
 void ASuspenseCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    
+
     // Update time since last movement input
     if (!bHasActiveMovementInput)
     {
@@ -216,20 +215,17 @@ void ASuspenseCharacter::Tick(float DeltaTime)
     {
         TimeSinceLastMovementInput = 0.0f;
     }
-    
+
     // Handle movement value decay when no input
     if (!bHasActiveMovementInput)
     {
-        // Determine decay rate based on time since last input
         float DecayRate = 10.0f;
-        
-        // Faster decay after brief period without input
+
         if (TimeSinceLastMovementInput > 0.1f)
         {
             DecayRate = 20.0f;
         }
-        
-        // Instant stop after longer period to prevent drift
+
         if (TimeSinceLastMovementInput > 0.3f)
         {
             MoveForwardValue = 0.0f;
@@ -237,11 +233,9 @@ void ASuspenseCharacter::Tick(float DeltaTime)
         }
         else
         {
-            // Smooth decay towards zero
             MoveForwardValue = FMath::FInterpTo(MoveForwardValue, 0.0f, DeltaTime, DecayRate);
             MoveRightValue = FMath::FInterpTo(MoveRightValue, 0.0f, DeltaTime, DecayRate);
-            
-            // Snap to zero when very close to prevent tiny values
+
             const float SnapThreshold = 0.01f;
             if (FMath::Abs(MoveForwardValue) < SnapThreshold)
             {
@@ -255,15 +249,14 @@ void ASuspenseCharacter::Tick(float DeltaTime)
     }
     else
     {
-        // Apply input smoothing when we have active input
         const float InputSmoothingRate = 15.0f;
         MoveForwardValue = FMath::FInterpTo(MoveForwardValue, RawMoveForwardInput, DeltaTime, InputSmoothingRate);
         MoveRightValue = FMath::FInterpTo(MoveRightValue, RawMoveRightInput, DeltaTime, InputSmoothingRate);
     }
-    
+
     // Update procedural animation values
     UpdateProceduralAnimationValues(DeltaTime);
-    
+
     // Reset input tracking for next frame
     bHasActiveMovementInput = false;
     RawMoveForwardInput = 0.0f;
@@ -271,16 +264,16 @@ void ASuspenseCharacter::Tick(float DeltaTime)
 }
 
 // ========================================
-// IMedComCharacterInterface Implementation
+// ISuspenseCharacter Implementation
 // ========================================
 
 UAbilitySystemComponent* ASuspenseCharacter::GetASC_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (PS->GetClass()->ImplementsInterface(UMedComCharacterInterface::StaticClass()))
+        if (PS->GetClass()->ImplementsInterface(USuspenseCharacterInterface::StaticClass()))
         {
-            return IMedComCharacterInterface::Execute_GetASC(PS);
+            return ISuspenseCharacter::Execute_GetASC(PS);
         }
     }
     return nullptr;
@@ -289,10 +282,10 @@ UAbilitySystemComponent* ASuspenseCharacter::GetASC_Implementation() const
 void ASuspenseCharacter::SetHasWeapon_Implementation(bool bInHasWeapon)
 {
     bHasWeapon = bInHasWeapon;
-    
-    if (UEventDelegateManager* Manager = GetDelegateManager())
+
+    if (USuspenseEventManager* Manager = GetDelegateManager())
     {
-        IMedComCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+        ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
     }
 }
 
@@ -300,12 +293,12 @@ void ASuspenseCharacter::SetCurrentWeaponActor_Implementation(AActor* WeaponActo
 {
     AActor* OldWeapon = CurrentWeaponActor;
     CurrentWeaponActor = WeaponActor;
-    
+
     if (OldWeapon != CurrentWeaponActor)
     {
-        if (UEventDelegateManager* Manager = GetDelegateManager())
+        if (USuspenseEventManager* Manager = GetDelegateManager())
         {
-            IMedComCharacterInterface::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
+            ISuspenseCharacter::BroadcastWeaponChanged(this, CurrentWeaponActor, bHasWeapon);
         }
     }
 }
@@ -324,7 +317,7 @@ float ASuspenseCharacter::GetCharacterLevel_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const IMedComCharacterInterface* CharInterface = Cast<IMedComCharacterInterface>(PS))
+        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
         {
             return CharInterface->Execute_GetCharacterLevel(PS);
         }
@@ -336,7 +329,7 @@ bool ASuspenseCharacter::IsAlive_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const IMedComCharacterInterface* CharInterface = Cast<IMedComCharacterInterface>(PS))
+        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
         {
             return CharInterface->Execute_IsAlive(PS);
         }
@@ -348,7 +341,7 @@ int32 ASuspenseCharacter::GetTeamId_Implementation() const
 {
     if (const APlayerState* PS = GetPlayerState())
     {
-        if (const IMedComCharacterInterface* CharInterface = Cast<IMedComCharacterInterface>(PS))
+        if (const ISuspenseCharacter* CharInterface = Cast<ISuspenseCharacter>(PS))
         {
             return CharInterface->Execute_GetTeamId(PS);
         }
@@ -356,52 +349,50 @@ int32 ASuspenseCharacter::GetTeamId_Implementation() const
     return 0;
 }
 
-UEventDelegateManager* ASuspenseCharacter::GetDelegateManager() const
+USuspenseEventManager* ASuspenseCharacter::GetDelegateManager() const
 {
-    return IMedComCharacterInterface::GetDelegateManagerStatic(this);
+    return ISuspenseCharacter::GetDelegateManagerStatic(this);
 }
 
 // ========================================
-// IMedComMovementInterface - Speed Management
+// ISuspenseMovement - Speed Management
 // ========================================
 
 float ASuspenseCharacter::GetCurrentMovementSpeed_Implementation() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->MaxWalkSpeed;
+        return SuspenseMovementComponent->MaxWalkSpeed;
     }
-    
+
     if (GetCharacterMovement())
     {
         return GetCharacterMovement()->MaxWalkSpeed;
     }
-    
-    return 300.0f; // Default fallback
+
+    return 300.0f;
 }
 
 void ASuspenseCharacter::SetMovementSpeed_Implementation(float NewSpeed)
 {
     // CRITICAL: This method should NOT be used!
     // Speed is modified ONLY through GameplayEffects
-    UE_LOG(LogTemp, Error, TEXT("[BaseCharacter] SetMovementSpeed called - this should NOT be used! Use GameplayEffects to modify speed!"));
+    UE_LOG(LogTemp, Error, TEXT("[SuspenseCharacter] SetMovementSpeed called - this should NOT be used! Use GameplayEffects to modify speed!"));
 }
 
 float ASuspenseCharacter::GetDefaultMovementSpeed_Implementation() const
 {
-    // Get base speed from AttributeSet
     if (APlayerState* PS = GetPlayerState())
     {
         if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PS))
         {
-            if (const UMedComBaseAttributeSet* AttributeSet = ASC->GetSet<UMedComBaseAttributeSet>())
+            if (const USuspenseBaseAttributeSet* AttributeSet = ASC->GetSet<USuspenseBaseAttributeSet>())
             {
-                // Return base value without modifiers
                 return AttributeSet->GetMovementSpeed();
             }
         }
     }
-    return 300.0f; // Fallback value
+    return 300.0f;
 }
 
 float ASuspenseCharacter::GetMaxWalkSpeed_Implementation() const
@@ -414,7 +405,7 @@ float ASuspenseCharacter::GetMaxWalkSpeed_Implementation() const
 }
 
 // ========================================
-// IMedComMovementInterface - Sprint Management
+// ISuspenseMovement - Sprint Management
 // ========================================
 
 bool ASuspenseCharacter::CanSprint_Implementation() const
@@ -423,12 +414,12 @@ bool ASuspenseCharacter::CanSprint_Implementation() const
     {
         return false;
     }
-    
-    bool bCanMove = GetCharacterMovement()->IsMovingOnGround() && 
+
+    bool bCanMove = GetCharacterMovement()->IsMovingOnGround() &&
                     !GetCharacterMovement()->IsFalling() &&
                     !GetCharacterMovement()->IsSwimming() &&
                     !GetCharacterMovement()->IsFlying();
-    
+
     if (bCanMove)
     {
         if (UAbilitySystemComponent* ASC = GetASC_Implementation())
@@ -437,37 +428,35 @@ bool ASuspenseCharacter::CanSprint_Implementation() const
             BlockingTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Dead")));
             BlockingTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Stunned")));
             BlockingTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Disabled.Movement")));
-            
+
             return !ASC->HasAnyMatchingGameplayTags(BlockingTags);
         }
     }
-    
+
     return bCanMove;
 }
 
 bool ASuspenseCharacter::IsSprinting_Implementation() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsSprinting();
+        return SuspenseMovementComponent->IsSprinting();
     }
     return false;
 }
 
 void ASuspenseCharacter::StartSprinting_Implementation()
 {
-    // NOT used - sprint is controlled through GAS
-    UE_LOG(LogTemp, Warning, TEXT("[BaseCharacter] StartSprinting called - sprint should be controlled through GAS abilities!"));
+    UE_LOG(LogTemp, Warning, TEXT("[SuspenseCharacter] StartSprinting called - sprint should be controlled through GAS abilities!"));
 }
 
 void ASuspenseCharacter::StopSprinting_Implementation()
 {
-    // NOT used - sprint is controlled through GAS
-    UE_LOG(LogTemp, Warning, TEXT("[BaseCharacter] StopSprinting called - sprint should be controlled through GAS abilities!"));
+    UE_LOG(LogTemp, Warning, TEXT("[SuspenseCharacter] StopSprinting called - sprint should be controlled through GAS abilities!"));
 }
 
 // ========================================
-// IMedComMovementInterface - Jump Management
+// ISuspenseMovement - Jump Management
 // ========================================
 
 void ASuspenseCharacter::Jump()
@@ -486,14 +475,14 @@ void ASuspenseCharacter::Jump_Implementation()
     {
         Super::Jump();
         SetMovementState_Implementation(FGameplayTag::RequestGameplayTag(TEXT("Movement.Jumping")));
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Jump performed"));
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Jump performed"));
     }
 }
 
 void ASuspenseCharacter::StopJumping_Implementation()
 {
     Super::StopJumping();
-    UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Stop jumping"));
+    UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Stop jumping"));
 }
 
 bool ASuspenseCharacter::CanJump_Implementation() const
@@ -533,12 +522,12 @@ void ASuspenseCharacter::SetJumpZVelocity_Implementation(float NewJumpZVelocity)
     if (GetCharacterMovement())
     {
         GetCharacterMovement()->JumpZVelocity = NewJumpZVelocity;
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Jump Z velocity set to: %.1f"), NewJumpZVelocity);
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Jump Z velocity set to: %.1f"), NewJumpZVelocity);
     }
 }
 
 // ========================================
-// IMedComMovementInterface - Crouch Management
+// ISuspenseMovement - Crouch Management
 // ========================================
 
 void ASuspenseCharacter::Crouch_Implementation()
@@ -547,64 +536,58 @@ void ASuspenseCharacter::Crouch_Implementation()
     {
         Super::Crouch();
         SetMovementState_Implementation(FGameplayTag::RequestGameplayTag(TEXT("Movement.Crouching")));
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Crouch performed"));
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Crouch performed"));
     }
 }
 
 void ASuspenseCharacter::UnCrouch_Implementation()
 {
     Super::UnCrouch();
-    
+
     if (IsGrounded_Implementation())
     {
         SetMovementState_Implementation(FGameplayTag::RequestGameplayTag(TEXT("Movement.Walking")));
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] UnCrouch performed"));
+
+    UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] UnCrouch performed"));
 }
 
 bool ASuspenseCharacter::CanCrouch_Implementation() const
 {
-    // First check base conditions
     if (!GetCharacterMovement())
     {
         UE_LOG(LogTemp, Error, TEXT("[Character] CanCrouch: No movement component"));
         return false;
     }
-    
-    // Check movement settings
+
     bool bNavAgentCanCrouch = GetCharacterMovement()->NavAgentProps.bCanCrouch;
     if (!bNavAgentCanCrouch)
     {
         UE_LOG(LogTemp, Error, TEXT("[Character] CanCrouch: NavAgentProps.bCanCrouch is FALSE! Set it in constructor!"));
         return false;
     }
-    
-    // Check that character is on ground
+
     bool bIsOnGround = GetCharacterMovement()->IsMovingOnGround();
     if (!bIsOnGround)
     {
         UE_LOG(LogTemp, Warning, TEXT("[Character] CanCrouch: Not on ground"));
         return false;
     }
-    
-    // Check crouch height - use getter method
+
     float CrouchedHeight = GetCharacterMovement()->GetCrouchedHalfHeight();
     if (CrouchedHeight <= 0.0f)
     {
         UE_LOG(LogTemp, Error, TEXT("[Character] CanCrouch: CrouchedHalfHeight not set! Current value: %.1f"), CrouchedHeight);
         return false;
     }
-    
-    // Check parent implementation
+
     bool bParentCanCrouch = Super::CanCrouch();
     if (!bParentCanCrouch)
     {
         UE_LOG(LogTemp, Warning, TEXT("[Character] CanCrouch: Parent CanCrouch returned false"));
         return false;
     }
-    
-    // All checks passed
+
     UE_LOG(LogTemp, Verbose, TEXT("[Character] CanCrouch: All checks passed, returning true"));
     return true;
 }
@@ -624,7 +607,7 @@ float ASuspenseCharacter::GetCrouchedHalfHeight_Implementation() const
 }
 
 // ========================================
-// IMedComMovementInterface - State Management
+// ISuspenseMovement - State Management
 // ========================================
 
 FGameplayTag ASuspenseCharacter::GetMovementState_Implementation() const
@@ -633,7 +616,7 @@ FGameplayTag ASuspenseCharacter::GetMovementState_Implementation() const
     {
         return FGameplayTag::RequestGameplayTag(TEXT("Movement.Walking"));
     }
-    
+
     return CurrentMovementState;
 }
 
@@ -643,13 +626,13 @@ void ASuspenseCharacter::SetMovementState_Implementation(FGameplayTag NewState)
     {
         FGameplayTag OldState = CurrentMovementState;
         CurrentMovementState = NewState;
-        
+
         ActiveMovementTags.RemoveTag(OldState);
         ActiveMovementTags.AddTag(NewState);
-        
-        IMedComMovementInterface::NotifyMovementStateChanged(this, NewState, false);
-        
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Movement state changed: %s -> %s"), 
+
+        ISuspenseMovement::NotifyMovementStateChanged(this, NewState, false);
+
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Movement state changed: %s -> %s"),
             *OldState.ToString(), *NewState.ToString());
     }
 }
@@ -665,7 +648,7 @@ bool ASuspenseCharacter::HasMovementTag_Implementation(FGameplayTag Tag) const
 }
 
 // ========================================
-// IMedComMovementInterface - Physics & Environment
+// ISuspenseMovement - Physics & Environment
 // ========================================
 
 bool ASuspenseCharacter::IsSwimming_Implementation() const
@@ -706,56 +689,56 @@ FVector ASuspenseCharacter::GetGroundNormal_Implementation() const
 
 bool ASuspenseCharacter::GetIsJumping() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsJumping();
+        return SuspenseMovementComponent->IsJumping();
     }
     return false;
 }
 
 bool ASuspenseCharacter::GetIsInAir() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsInAir();
+        return SuspenseMovementComponent->IsInAir();
     }
     return false;
 }
 
 bool ASuspenseCharacter::GetIsCrouching() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsCrouching();
+        return SuspenseMovementComponent->IsCrouching();
     }
     return bIsCrouched;
 }
 
 bool ASuspenseCharacter::GetIsSliding() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsSliding();
+        return SuspenseMovementComponent->IsSliding();
     }
     return false;
 }
 
 bool ASuspenseCharacter::GetIsSprinting() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsSprinting();
+        return SuspenseMovementComponent->IsSprinting();
     }
     return false;
 }
 
-EMedComMovementMode ASuspenseCharacter::GetMovementMode() const
+ESuspenseMovementMode ASuspenseCharacter::GetMovementMode() const
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->GetCurrentMovementMode();
+        return SuspenseMovementComponent->GetCurrentMovementMode();
     }
-    return EMedComMovementMode::None;
+    return ESuspenseMovementMode::None;
 }
 
 // ========================================
@@ -764,20 +747,20 @@ EMedComMovementMode ASuspenseCharacter::GetMovementMode() const
 
 void ASuspenseCharacter::StartSliding()
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        MedComMovementComponent->StartSliding();
+        SuspenseMovementComponent->StartSliding();
         SetMovementState_Implementation(FGameplayTag::RequestGameplayTag(TEXT("Movement.Sliding")));
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Slide initiated"));
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Slide initiated"));
     }
 }
 
 void ASuspenseCharacter::StopSliding()
 {
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        MedComMovementComponent->StopSliding();
-        
+        SuspenseMovementComponent->StopSliding();
+
         if (IsGrounded_Implementation())
         {
             if (IsSprinting_Implementation())
@@ -793,8 +776,8 @@ void ASuspenseCharacter::StopSliding()
                 SetMovementState_Implementation(FGameplayTag::RequestGameplayTag(TEXT("Movement.Walking")));
             }
         }
-        
-        UE_LOG(LogTemp, Log, TEXT("[BaseCharacter] Slide stopped"));
+
+        UE_LOG(LogTemp, Log, TEXT("[SuspenseCharacter] Slide stopped"));
     }
 }
 
@@ -804,30 +787,26 @@ void ASuspenseCharacter::StopSliding()
 
 void ASuspenseCharacter::Move(const FVector2D& In)
 {
-    // Store raw input values for this frame
     RawMoveForwardInput = In.Y;
     RawMoveRightInput = In.X;
-    
-    // Check if we have meaningful input (considering deadzone)
+
     const float InputDeadZone = 0.1f;
     bHasActiveMovementInput = (FMath::Abs(In.Y) > InputDeadZone || FMath::Abs(In.X) > InputDeadZone);
-    
-    // Store last meaningful input for direction memory
+
     if (bHasActiveMovementInput)
     {
         LastMovementInput = In;
     }
-    
-    // Apply movement using smoothed values
+
     if (Controller && (MoveForwardValue != 0.0f || MoveRightValue != 0.0f))
     {
         const FRotator Yaw(0.f, Controller->GetControlRotation().Yaw, 0.f);
-        
+
         if (MoveForwardValue != 0.0f)
         {
             AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X), MoveForwardValue);
         }
-        
+
         if (MoveRightValue != 0.0f)
         {
             AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y), MoveRightValue);
@@ -837,22 +816,17 @@ void ASuspenseCharacter::Move(const FVector2D& In)
 
 void ASuspenseCharacter::Look(const FVector2D& In)
 {
-    // Apply rotation input
     AddControllerYawInput(In.X);
     AddControllerPitchInput(In.Y);
 }
 
 float ASuspenseCharacter::GetMovementInputSpeed() const
 {
-    // Return the magnitude of smoothed movement values
-    // This is what AnimBP should use for Movement float
     return FMath::Sqrt(MoveForwardValue * MoveForwardValue + MoveRightValue * MoveRightValue);
 }
 
 bool ASuspenseCharacter::HasMovementInput() const
 {
-    // Return whether we have active input THIS FRAME
-    // This prevents circular dependency issues
     return bHasActiveMovementInput;
 }
 
@@ -862,20 +836,18 @@ FVector ASuspenseCharacter::GetMovementInputVector() const
     {
         return FVector::ZeroVector;
     }
-    
-    // Use smoothed values for actual movement vector
+
     const FRotator Yaw(0.f, Controller->GetControlRotation().Yaw, 0.f);
     const FVector ForwardDirection = FRotationMatrix(Yaw).GetUnitAxis(EAxis::X) * MoveForwardValue;
     const FVector RightDirection = FRotationMatrix(Yaw).GetUnitAxis(EAxis::Y) * MoveRightValue;
-    
+
     FVector ResultVector = ForwardDirection + RightDirection;
-    
-    // Normalize only if we have meaningful movement
+
     if (ResultVector.SizeSquared() > 0.01f)
     {
         return ResultVector.GetSafeNormal();
     }
-    
+
     return FVector::ZeroVector;
 }
 
@@ -885,77 +857,59 @@ bool ASuspenseCharacter::IsMoving() const
     {
         return false;
     }
-    
-    // Get horizontal velocity
+
     FVector Velocity = GetCharacterMovement()->Velocity;
     Velocity.Z = 0.0f;
     float Speed = Velocity.Size();
-    
-    // Movement thresholds
+
     const float MinimumSpeed = 10.0f;
     const float MinimumInputMagnitude = 0.1f;
-    
-    // Check actual velocity
+
     bool bHasVelocity = Speed > MinimumSpeed;
-    
-    // Check input magnitude (use smoothed values for consistency)
     bool bHasInput = GetMovementInputSpeed() > MinimumInputMagnitude;
-    
-    // Character is moving if they have velocity OR meaningful input
-    // This prevents animation pops when starting/stopping
+
     return bHasVelocity || bHasInput;
 }
 
 float ASuspenseCharacter::GetAnimationForwardValue() const
 {
-    // Получаем базовое значение из внутренней переменной
     float BaseValue = MoveForwardValue;
-    
-    // Проверяем состояние спринта
+
     if (IsCharacterSprinting())
     {
-        // При спринте умножаем на 2
-        // Это позволит вашему макросу определить спринт когда значение > 1
         BaseValue *= 2.0f;
-        
         UE_LOG(LogTemp, VeryVerbose, TEXT("[Animation] Forward value for animation: %.2f (Sprint Active)"), BaseValue);
     }
-    
+
     return BaseValue;
 }
 
 float ASuspenseCharacter::GetAnimationRightValue() const
 {
-    // Получаем базовое значение из внутренней переменной
     float BaseValue = MoveRightValue;
-    
-    // Проверяем состояние спринта
+
     if (IsCharacterSprinting())
     {
-        // При спринте умножаем на 2
         BaseValue *= 2.0f;
-        
         UE_LOG(LogTemp, VeryVerbose, TEXT("[Animation] Right value for animation: %.2f (Sprint Active)"), BaseValue);
     }
-    
+
     return BaseValue;
 }
 
 bool ASuspenseCharacter::IsCharacterSprinting() const
 {
-    // Единый источник истины для состояния спринта
-    // Берём из MovementComponent, который синхронизирован с GAS
-    if (MedComMovementComponent)
+    if (SuspenseMovementComponent)
     {
-        return MedComMovementComponent->IsSprinting();
+        return SuspenseMovementComponent->IsSprinting();
     }
-    
+
     return false;
 }
 
-USuspenseCharacterMovementComponent* ASuspenseCharacter::GetMedComMovementComponent() const
+USuspenseCharacterMovementComponent* ASuspenseCharacter::GetSuspenseMovementComponent() const
 {
-    return MedComMovementComponent;
+    return SuspenseMovementComponent;
 }
 
 void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
@@ -964,60 +918,46 @@ void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
     {
         return;
     }
-    
-    // Calculate camera rotation deltas
+
     FRotator CurrentControlRotation = Controller->GetControlRotation();
-    
-    // Calculate raw deltas
+
     float YawDelta = CurrentControlRotation.Yaw - LastCameraYawValue;
     float PitchDelta = CurrentControlRotation.Pitch - LastCameraPitchValue;
-    
-    // Normalize deltas to handle wraparound
+
     if (YawDelta > 180.0f)
         YawDelta -= 360.0f;
     else if (YawDelta < -180.0f)
         YawDelta += 360.0f;
-        
+
     if (PitchDelta > 180.0f)
         PitchDelta -= 360.0f;
     else if (PitchDelta < -180.0f)
         PitchDelta += 360.0f;
-    
-    // Convert deltas to rotation rates (degrees per second)
+
     float YawRate = YawDelta / DeltaTime;
     float PitchRate = PitchDelta / DeltaTime;
-    
-    // Clamp rates to reasonable values
-    const float MaxRotationRate = 1000.0f; // Max 1000 degrees per second
+
+    const float MaxRotationRate = 1000.0f;
     YawRate = FMath::Clamp(YawRate, -MaxRotationRate, MaxRotationRate);
     PitchRate = FMath::Clamp(PitchRate, -MaxRotationRate, MaxRotationRate);
-    
-    // Normalize rates to -1 to 1 range
+
     float NormalizedYawRate = YawRate / MaxRotationRate;
     float NormalizedPitchRate = PitchRate / MaxRotationRate;
-    
-    // Calculate target lean based on camera rotation rate
-    // Negative yaw rate (turning left) = positive lean (lean right to compensate)
+
     TargetLeanSidesAmount = -NormalizedYawRate * MaxLeanAngle * LeanStrengthMultiplier;
-    
-    // Calculate target look up/down based on pitch rate
-    // Negative pitch rate (looking up) = positive look up
     TargetLookUpAmount = -NormalizedPitchRate * MaxLookUpAngle * LookUpStrengthMultiplier;
-    
-    // Apply additional weight based on whether we're moving
+
     float MovementMultiplier = 1.0f;
     if (IsMoving())
     {
-        // Less lean when moving (more stable)
         MovementMultiplier = 0.7f;
     }
-    
+
     TargetLeanSidesAmount *= MovementMultiplier;
     TargetLookUpAmount *= MovementMultiplier;
-    
-    // Calculate recoil amounts (stronger reaction to fast movements)
-    const float RecoilThreshold = 0.3f; // Only apply recoil for fast movements
-    
+
+    const float RecoilThreshold = 0.3f;
+
     if (FMath::Abs(NormalizedYawRate) > RecoilThreshold)
     {
         TargetHorizontalRecoilAmount = -NormalizedYawRate * MaxHorizontalRecoilAngle * HorizontalRecoilStrengthMultiplier;
@@ -1026,7 +966,7 @@ void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
     {
         TargetHorizontalRecoilAmount = 0.0f;
     }
-    
+
     if (FMath::Abs(NormalizedPitchRate) > RecoilThreshold)
     {
         TargetVerticalRecoilAmount = -NormalizedPitchRate * MaxVerticalRecoilAngle * VerticalRecoilStrengthMultiplier;
@@ -1035,11 +975,9 @@ void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
     {
         TargetVerticalRecoilAmount = 0.0f;
     }
-    
-    // Interpolate to target values
+
     float InterpSpeed = ProceduralAnimInterpolationSpeed;
-    
-    // Faster interpolation when returning to center
+
     if (FMath::Abs(TargetLeanSidesAmount) < 0.01f && FMath::Abs(LeanSidesAmount) > 0.01f)
     {
         InterpSpeed *= 2.0f;
@@ -1048,54 +986,48 @@ void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
     {
         InterpSpeed *= 2.0f;
     }
-    
-    // Smooth interpolation for lean and look
+
     LeanSidesAmount = FMath::FInterpTo(LeanSidesAmount, TargetLeanSidesAmount, DeltaTime, InterpSpeed);
     LookUpAmount = FMath::FInterpTo(LookUpAmount, TargetLookUpAmount, DeltaTime, InterpSpeed);
-    
-    // Faster interpolation for recoil (more responsive)
+
     float RecoilInterpSpeed = ProceduralAnimInterpolationSpeed * 2.0f;
-    
+
     VerticalRecoilAmount = FMath::FInterpTo(
-        VerticalRecoilAmount, 
-        TargetVerticalRecoilAmount, 
-        DeltaTime, 
+        VerticalRecoilAmount,
+        TargetVerticalRecoilAmount,
+        DeltaTime,
         RecoilInterpSpeed
     );
-    
+
     HorizontalRecoilAmount = FMath::FInterpTo(
-        HorizontalRecoilAmount, 
-        TargetHorizontalRecoilAmount, 
-        DeltaTime, 
+        HorizontalRecoilAmount,
+        TargetHorizontalRecoilAmount,
+        DeltaTime,
         RecoilInterpSpeed
     );
-    
-    // Update arm animation weight based on overall activity
+
     float OverallActivity = FMath::Max(
         FMath::Abs(NormalizedYawRate),
         FMath::Abs(NormalizedPitchRate)
     );
-    
+
     if (OverallActivity > 0.1f || IsMoving())
     {
         ArmGroupAnimationWeightMultiplier = 1.0f;
     }
     else
     {
-        // Reduce arm animation weight when idle
         ArmGroupAnimationWeightMultiplier = FMath::FInterpTo(
-            ArmGroupAnimationWeightMultiplier, 
-            0.7f, 
-            DeltaTime, 
+            ArmGroupAnimationWeightMultiplier,
+            0.7f,
+            DeltaTime,
             2.0f
         );
     }
-    
-    // Store current values for next frame
+
     LastCameraYawValue = CurrentControlRotation.Yaw;
     LastCameraPitchValue = CurrentControlRotation.Pitch;
-    
-    // Debug visualization (only in editor)
+
 #if WITH_EDITOR
     if (GEngine && CVarShowProceduralAnimDebug.GetValueOnGameThread())
     {
@@ -1104,13 +1036,13 @@ void ASuspenseCharacter::UpdateProceduralAnimationValues(float DeltaTime)
             YawRate, PitchRate
         );
         GEngine->AddOnScreenDebugMessage(1, 0.0f, FColor::Yellow, DebugText);
-        
+
         FString ProceduralDebugText = FString::Printf(
             TEXT("Procedural - Lean: %.2f | LookUp: %.2f | VRecoil: %.2f | HRecoil: %.2f"),
             LeanSidesAmount, LookUpAmount, VerticalRecoilAmount, HorizontalRecoilAmount
         );
         GEngine->AddOnScreenDebugMessage(2, 0.0f, FColor::Cyan, ProceduralDebugText);
-        
+
         FString WeightDebugText = FString::Printf(
             TEXT("Arm Weight: %.2f | Activity: %.2f"),
             ArmGroupAnimationWeightMultiplier, OverallActivity
@@ -1144,7 +1076,7 @@ void ASuspenseCharacter::SetCameraFocalLength(float NewFocalLength)
         float ClampedFocalLength = FMath::Clamp(NewFocalLength,
             Camera->LensSettings.MinFocalLength,
             Camera->LensSettings.MaxFocalLength);
-        
+
         Camera->SetCurrentFocalLength(ClampedFocalLength);
         CurrentFocalLength = ClampedFocalLength;
     }
@@ -1154,17 +1086,17 @@ void ASuspenseCharacter::SetCameraAperture(float NewAperture)
 {
     if (Camera)
     {
-        float ClampedAperture = FMath::Clamp(NewAperture, 
-            Camera->LensSettings.MinFStop, 
+        float ClampedAperture = FMath::Clamp(NewAperture,
+            Camera->LensSettings.MinFStop,
             Camera->LensSettings.MaxFStop);
-        
+
         Camera->SetCurrentAperture(ClampedAperture);
-        
+
         if (bEnableDepthOfField)
         {
             Camera->PostProcessSettings.DepthOfFieldFstop = ClampedAperture;
         }
-        
+
         CurrentAperture = ClampedAperture;
     }
 }
@@ -1174,7 +1106,7 @@ void ASuspenseCharacter::SetDepthOfFieldEnabled(bool bEnabled)
     if (Camera)
     {
         bEnableDepthOfField = bEnabled;
-        
+
         Camera->PostProcessSettings.bOverride_DepthOfFieldFstop = bEnabled;
         Camera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = bEnabled;
         Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurAmount = bEnabled;
@@ -1196,12 +1128,12 @@ void ASuspenseCharacter::ApplyCinematicPreset(bool bEnableDOF, float Aperture, f
     SetDepthOfFieldEnabled(bEnableDOF);
     SetCameraAperture(Aperture);
     SetCameraFocusDistance(FocusDistance);
-    
+
     if (Camera && bEnableDOF)
     {
         Camera->PostProcessSettings.bOverride_MotionBlurAmount = true;
         Camera->PostProcessSettings.MotionBlurAmount = 0.5f;
-        
+
         Camera->PostProcessSettings.bOverride_VignetteIntensity = true;
         Camera->PostProcessSettings.VignetteIntensity = 0.4f;
     }

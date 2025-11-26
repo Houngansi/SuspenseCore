@@ -19,8 +19,8 @@ public class EquipmentSystem : ModuleRules
                 "GameplayTasks",      // Task system
 
                 // Suspense modules
-                "BridgeSystem",       // Migrated from MedComShared
-                "GAS"                 // Migrated from MedComGAS
+                "BridgeSystem",
+                "GAS"
             }
         );
 

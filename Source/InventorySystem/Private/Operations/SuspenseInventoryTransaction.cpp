@@ -163,7 +163,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
         if (!BeginTransaction(EInventoryTransactionType::Add, OperationName))
         {
             return FSuspenseInventoryOperationResult::Failure(
-                EInventoryErrorCode::NotInitialized,
+                ESuspenseInventoryErrorCode::NotInitialized,
                 FText::FromString(TEXT("Failed to start transaction")),
                 OperationName
             );
@@ -179,8 +179,8 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
     }
     
     // Get the created instance
-    FInventoryItemInstance* CreatedInstance = nullptr;
-    for (FInventoryItemInstance& Instance : CreatedInstances)
+    FSuspenseInventoryItemInstance* CreatedInstance = nullptr;
+    for (FSuspenseInventoryItemInstance& Instance : CreatedInstances)
     {
         if (Instance.ItemID == ItemID)
         {
@@ -192,7 +192,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
     if (!CreatedInstance)
     {
         FSuspenseInventoryOperationResult ErrorResult = FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::UnknownError,
+            ESuspenseInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Created instance not found")),
             OperationName
         );
@@ -234,7 +234,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
     return SuccessResult;
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData(const FMedComUnifiedItemData& ItemData, int32 Amount)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData(const FSuspenseUnifiedItemData& ItemData, int32 Amount)
 {
     static const FName OperationName = TEXT("AddItemFromData");
     
@@ -244,7 +244,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
         if (!BeginTransaction(EInventoryTransactionType::Add, OperationName))
         {
             return FSuspenseInventoryOperationResult::Failure(
-                EInventoryErrorCode::NotInitialized,
+                ESuspenseInventoryErrorCode::NotInitialized,
                 FText::FromString(TEXT("Failed to start transaction")),
                 OperationName
             );
@@ -255,7 +255,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
     if (ItemData.ItemID.IsNone())
     {
         FSuspenseInventoryOperationResult ErrorResult = FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid ItemData - ItemID is None")),
             OperationName
         );
@@ -281,7 +281,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
     return SuccessResult;
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance(const FInventoryItemInstance& ItemInstance)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     static const FName OperationName = TEXT("AddItemInstance");
     
@@ -291,7 +291,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
         if (!BeginTransaction(EInventoryTransactionType::Add, OperationName))
         {
             return FSuspenseInventoryOperationResult::Failure(
-                EInventoryErrorCode::NotInitialized,
+                ESuspenseInventoryErrorCode::NotInitialized,
                 FText::FromString(TEXT("Failed to start transaction")),
                 OperationName
             );
@@ -326,7 +326,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
     if (!PlaceResult.IsSuccess())
     {
         // Remove from tracking on failure
-        CreatedInstances.RemoveAll([&ItemInstance](const FInventoryItemInstance& Instance) {
+        CreatedInstances.RemoveAll([&ItemInstance](const FSuspenseInventoryItemInstance& Instance) {
             return Instance.InstanceID == ItemInstance.InstanceID;
         });
         
@@ -382,25 +382,25 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
     if (!ItemManager)
     {
         return FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("ItemManager not available")),
             Context
         );
     }
     
     // Get unified data from DataTable
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         return FSuspenseInventoryOperationResult::ItemNotFound(Context, ItemID);
     }
     
     // Create instance using ItemManager
-    FInventoryItemInstance NewInstance;
+    FSuspenseInventoryItemInstance NewInstance;
     if (!ItemManager->CreateItemInstance(ItemID, Amount, NewInstance))
     {
         return FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::UnknownError,
+            ESuspenseInventoryErrorCode::UnknownError,
             FText::Format(FText::FromString(TEXT("Failed to create instance for item '{0}'")), FText::FromName(ItemID)),
             Context
         );
@@ -412,13 +412,13 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
     return FSuspenseInventoryOperationResult::Success(Context);
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::ValidateItemInstance(const FInventoryItemInstance& Instance, const FName& Context)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::ValidateItemInstance(const FSuspenseInventoryItemInstance& Instance, const FName& Context)
 {
     // Basic instance validation
     if (!Instance.IsValid())
     {
         return FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid item instance")),
             Context
         );
@@ -434,7 +434,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::ValidateItemIns
     return FSuspenseInventoryOperationResult::Success(Context);
 }
 
-int32 USuspenseInventoryTransaction::FindFreeSpaceForInstance(const FInventoryItemInstance& Instance)
+int32 USuspenseInventoryTransaction::FindFreeSpaceForInstance(const FSuspenseInventoryItemInstance& Instance)
 {
     if (!Storage || !ItemManager)
     {
@@ -461,14 +461,14 @@ int32 USuspenseInventoryTransaction::FindFreeSpaceForInstance(const FInventoryIt
     }
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::PlaceItemInstanceInStorage(const FInventoryItemInstance& Instance, int32 AnchorIndex)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::PlaceItemInstanceInStorage(const FSuspenseInventoryItemInstance& Instance, int32 AnchorIndex)
 {
     static const FName OperationName = TEXT("PlaceItemInstance");
     
     if (!Storage)
     {
         return FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("Storage not available")),
             OperationName
         );
@@ -654,7 +654,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::UpdateItemPrope
     return FSuspenseInventoryOperationResult::Success(OperationName);
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemObject(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& Context)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemObject(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& Context)
 {
     // Legacy method for backward compatibility
     // This would create actual UObject instances if needed
@@ -662,19 +662,19 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemObjec
     return FSuspenseInventoryOperationResult::Success(OperationName);
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInstanceFromData(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& Context)
+FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInstanceFromData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& Context)
 {
     if (!ItemManager)
     {
         return FSuspenseInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("ItemManager not available")),
             Context
         );
     }
     
     // Create instance directly from unified data using factory method
-    FInventoryItemInstance NewInstance = FInventoryItemInstance::Create(ItemData.ItemID, Amount);
+    FSuspenseInventoryItemInstance NewInstance = FSuspenseInventoryItemInstance::Create(ItemData.ItemID, Amount);
     
     // Initialize runtime properties based on item type
     if (ItemData.bIsEquippable && ItemData.bIsWeapon)

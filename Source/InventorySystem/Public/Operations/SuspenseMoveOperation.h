@@ -217,7 +217,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      * @return true если операция возможна
      */
     bool ValidateOperation(
-        EInventoryErrorCode& OutErrorCode, 
+        ESuspenseInventoryErrorCode& OutErrorCode, 
         FString& OutErrorMessage,
         USuspenseItemManager* InItemManager
     ) const;
@@ -271,7 +271,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      * @return true если операция успешна
      */
     bool ExecuteOperation(
-        EInventoryErrorCode& OutErrorCode,
+        ESuspenseInventoryErrorCode& OutErrorCode,
         USuspenseItemManager* InItemManager
     );
     
@@ -299,7 +299,7 @@ private:
      */
     bool HandleSwapOperation(
         ASuspenseInventoryItem* BlockingItem, 
-        EInventoryErrorCode& OutErrorCode,
+        ESuspenseInventoryErrorCode& OutErrorCode,
         USuspenseItemManager* InItemManager
     );
     

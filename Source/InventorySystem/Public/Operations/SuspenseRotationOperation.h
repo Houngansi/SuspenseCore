@@ -18,7 +18,7 @@ class USuspenseItemManager;
  * 
  * Интеграция с новой DataTable архитектурой:
  * - Размеры получаются из DataTable через ItemManager
- * - Поддержка runtime свойств через FInventoryItemInstance
+ * - Поддержка runtime свойств через FSuspenseInventoryItemInstance
  * - Оптимизированная проверка коллизий
  * - Кэширование данных для производительности
  */
@@ -189,7 +189,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      * @return true если поворот возможен
      */
     bool ValidateRotation(
-        EInventoryErrorCode& OutErrorCode,
+        ESuspenseInventoryErrorCode& OutErrorCode,
         FString& OutErrorMessage
     ) const;
     
@@ -241,7 +241,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      * @param OutErrorCode Код ошибки при неудаче
      * @return true если операция успешна
      */
-    bool ExecuteRotation(EInventoryErrorCode& OutErrorCode);
+    bool ExecuteRotation(ESuspenseInventoryErrorCode& OutErrorCode);
     
     //==================================================================
     // Undo/Redo System

@@ -20,7 +20,7 @@ class USuspenseItemManager;
  * - MaxStackSize получается из DataTable
  * - Валидация совместимости через ItemID и тип
  * - Поддержка runtime свойств (прочность, патроны)
- * - Оптимизированная работа с FInventoryItemInstance
+ * - Оптимизированная работа с FSuspenseInventoryItemInstance
  */
 USTRUCT()
 struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOperation
@@ -238,7 +238,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      * @return true если стакинг возможен
      */
     bool ValidateStacking(
-        EInventoryErrorCode& OutErrorCode,
+        ESuspenseInventoryErrorCode& OutErrorCode,
         FString& OutErrorMessage,
         USuspenseItemManager* InItemManager
     ) const;
@@ -300,7 +300,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      * @return true если операция успешна
      */
     bool ExecuteStacking(
-        EInventoryErrorCode& OutErrorCode,
+        ESuspenseInventoryErrorCode& OutErrorCode,
         USuspenseItemManager* InItemManager
     );
     

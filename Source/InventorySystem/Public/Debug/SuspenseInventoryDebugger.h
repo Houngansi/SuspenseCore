@@ -182,7 +182,7 @@ struct INVENTORYSYSTEM_API FInventoryPerformanceMetrics
  * АРХИТЕКТУРНЫЕ УЛУЧШЕНИЯ:
  * Этот обновленный debugger полностью интегрирован с новой DataTable архитектурой:
  * 
- * - Работа с FInventoryItemInstance вместо legacy структур
+ * - Работа с FSuspenseInventoryItemInstance вместо legacy структур
  * - Мониторинг производительности DataTable доступа и кэширования
  * - Расширенная валидация consistency между grid state и runtime instances
  * - Поддержка новых типов операций (instance creation, stacking)

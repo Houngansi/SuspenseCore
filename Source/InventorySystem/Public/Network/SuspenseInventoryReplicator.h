@@ -12,7 +12,7 @@
 
 // Forward declarations для чистого разделения модулей
 class USuspenseItemManager;
-class IMedComInventoryItemInterface;
+class ISuspenseInventoryItemInterface;
 
 // Объявляем делегат для уведомления об обновлениях репликации
 DECLARE_MULTICAST_DELEGATE(FOnReplicationUpdated);
@@ -411,7 +411,7 @@ struct FReplicatedItemMeta : public FFastArraySerializerItem
     static FReplicatedItemMeta FromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, USuspenseItemManager* ItemManager = nullptr);
     
     // ОБНОВЛЕНО: Создание метаданных из интерфейса предмета
-    static FReplicatedItemMeta FromItemInterface(const IMedComInventoryItemInterface* ItemInterface);
+    static FReplicatedItemMeta FromItemInterface(const ISuspenseInventoryItemInterface* ItemInterface);
     
     // ОБНОВЛЕНО: Создание метаданных из unified DataTable структуры
     static FReplicatedItemMeta FromUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, int32 AnchorIdx, const FGuid& InstanceID = FGuid());
@@ -598,11 +598,11 @@ struct FInventoryReplicatedState
 
 /**
  * ОБНОВЛЕНО: Component responsible for optimizing inventory data replication
- * with full DataTable and FInventoryItemInstance integration
+ * with full DataTable and FSuspenseInventoryItemInstance integration
  * 
  * АРХИТЕКТУРНЫЕ УЛУЧШЕНИЯ:
  * - Полная интеграция с FSuspenseUnifiedItemData как источником истины
- * - Поддержка FInventoryItemInstance для runtime данных
+ * - Поддержка FSuspenseInventoryItemInstance для runtime данных
  * - Автоматическое получение размеров предметов из DataTable
  * - Расширенная поддержка runtime properties репликации
  * - Интеграция с ItemManager для централизованного доступа к данным

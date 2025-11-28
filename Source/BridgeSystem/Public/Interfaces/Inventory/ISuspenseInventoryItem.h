@@ -24,12 +24,12 @@ struct FSuspenseUnifiedItemData;
  * - Отказ от legacy UObject подхода
  */
 UINTERFACE(MinimalAPI, BlueprintType, meta=(NotBlueprintable))
-class USuspenseInventoryItem : public UInterface
+class USuspenseInventoryItemInterface : public UInterface
 {
     GENERATED_BODY()
 };
 
-class BRIDGESYSTEM_API ISuspenseInventoryItem
+class BRIDGESYSTEM_API ISuspenseInventoryItemInterface
 {
     GENERATED_BODY()
 

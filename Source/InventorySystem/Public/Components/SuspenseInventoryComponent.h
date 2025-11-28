@@ -30,7 +30,7 @@ struct FSuspenseLoadoutConfiguration;
  * Primary component for inventory management with DataTable architecture
  *
  * ARCHITECTURAL IMPROVEMENTS:
- * - Fully works with FInventoryItemInstance and FGuid
+ * - Fully works with FSuspenseInventoryItemInstance and FGuid
  * - Does not create item objects (UObject/Actor)
  * - Uses DataTable as single source of truth
  * - Integrated with LoadoutSettings for configuration

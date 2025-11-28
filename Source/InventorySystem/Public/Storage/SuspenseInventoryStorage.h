@@ -61,7 +61,7 @@ struct FSuspenseStorageTransaction
  * NEW ARCHITECTURE:
  * - Fully integrated with ItemManager and DataTable
  * - Works exclusively with FGuid and FSuspenseUnifiedItemData
- * - Supports FInventoryItemInstance for runtime data
+ * - Supports FSuspenseInventoryItemInstance for runtime data
  * - Provides atomic operations through transaction system
  * - Integrated with event system for UI updates
  */

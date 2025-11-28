@@ -411,7 +411,7 @@ bool USuspenseInventoryManager::CreateItemInstance(const FName& ItemID, int32 Qu
 }
 
 int32 USuspenseInventoryManager::CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray, 
-                                                         TArray<FInventoryItemInstance>& OutInstances) const
+                                                         TArray<FSuspenseInventoryItemInstance>& OutInstances) const
 {
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)

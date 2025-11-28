@@ -18,18 +18,18 @@ static const FIntPoint DEFAULT_ITEM_SIZE = FIntPoint(1, 1);
 // Core Item Creation and Management Implementation
 //==================================================================
 
-FInventoryItemInstance USuspenseInventoryLibrary::CreateItemInstance(const FName& ItemID, int32 Quantity, const UObject* WorldContext)
+FSuspenseInventoryItemInstance USuspenseInventoryLibrary::CreateItemInstance(const FName& ItemID, int32 Quantity, const UObject* WorldContext)
 {
     // Валидация входных параметров
     if (ItemID.IsNone() || Quantity <= 0)
     {
         LogError(TEXT("CreateItemInstance"), TEXT("Invalid parameters"), ItemID);
-        return FInventoryItemInstance();
+        return FSuspenseInventoryItemInstance();
     }
     
     if (!ValidateWorldContext(WorldContext, TEXT("CreateItemInstance")))
     {
-        return FInventoryItemInstance();
+        return FSuspenseInventoryItemInstance();
     }
     
     // Получаем ItemManager для создания экземпляра
@@ -37,11 +37,11 @@ FInventoryItemInstance USuspenseInventoryLibrary::CreateItemInstance(const FName
     if (!ItemManager)
     {
         LogError(TEXT("CreateItemInstance"), TEXT("ItemManager not available"), ItemID);
-        return FInventoryItemInstance();
+        return FSuspenseInventoryItemInstance();
     }
     
     // Делегируем создание экземпляра ItemManager
-    FInventoryItemInstance NewInstance;
+    FSuspenseInventoryItemInstance NewInstance;
     if (ItemManager->CreateItemInstance(ItemID, Quantity, NewInstance))
     {
         UE_LOG(LogInventory, VeryVerbose, TEXT("CreateItemInstance: Successfully created %s (x%d) [%s]"),
@@ -50,12 +50,12 @@ FInventoryItemInstance USuspenseInventoryLibrary::CreateItemInstance(const FName
     }
     
     LogError(TEXT("CreateItemInstance"), TEXT("Failed to create instance"), ItemID);
-    return FInventoryItemInstance();
+    return FSuspenseInventoryItemInstance();
 }
 
 int32 USuspenseInventoryLibrary::CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray,
                                                                        const UObject* WorldContext,
-                                                                       TArray<FInventoryItemInstance>& OutInstances)
+                                                                       TArray<FSuspenseInventoryItemInstance>& OutInstances)
 {
     OutInstances.Empty();
     
@@ -109,7 +109,7 @@ bool USuspenseInventoryLibrary::GetUnifiedItemData(const FName& ItemID, const UO
     return bSuccess;
 }
 
-AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FInventoryItemInstance& ItemInstance,
+AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FSuspenseInventoryItemInstance& ItemInstance,
                                                          UWorld* World,
                                                          const FTransform& Transform)
 {
@@ -172,7 +172,7 @@ AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FInventoryItemInstance
 // Enhanced Item Validation and Analysis Implementation
 //==================================================================
 
-bool USuspenseInventoryLibrary::ValidateItemInstance(const FInventoryItemInstance& ItemInstance,
+bool USuspenseInventoryLibrary::ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance,
                                                           const UObject* WorldContext,
                                                           TArray<FString>& OutErrors)
 {
@@ -526,7 +526,7 @@ FIntPoint USuspenseInventoryLibrary::GetEffectiveItemSize(const FName& ItemID, b
 // Enhanced Weight and Resource Management Implementation
 //==================================================================
 
-float USuspenseInventoryLibrary::CalculateTotalWeightFromInstances(const TArray<FInventoryItemInstance>& ItemInstances,
+float USuspenseInventoryLibrary::CalculateTotalWeightFromInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances,
                                                                         const UObject* WorldContext)
 {
     if (!ValidateWorldContext(WorldContext, TEXT("CalculateTotalWeightFromInstances")))
@@ -544,7 +544,7 @@ float USuspenseInventoryLibrary::CalculateTotalWeightFromInstances(const TArray<
     }
     
     // Эффективно обрабатываем каждый экземпляр
-    for (const FInventoryItemInstance& Instance : ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : ItemInstances)
     {
         if (!Instance.IsValid())
         {
@@ -562,7 +562,7 @@ float USuspenseInventoryLibrary::CalculateTotalWeightFromInstances(const TArray<
 }
 
 bool USuspenseInventoryLibrary::CanAddItemsByWeight(float CurrentWeight,
-                                                         const TArray<FInventoryItemInstance>& ItemInstances,
+                                                         const TArray<FSuspenseInventoryItemInstance>& ItemInstances,
                                                          float MaxWeight,
                                                          const UObject* WorldContext)
 {
@@ -702,8 +702,8 @@ FGameplayTagContainer USuspenseInventoryLibrary::GetItemTags(const FName& ItemID
 // Enhanced Stacking and Quantity Management Implementation
 //==================================================================
 
-bool USuspenseInventoryLibrary::CanStackInstances(const FInventoryItemInstance& Instance1,
-                                                       const FInventoryItemInstance& Instance2,
+bool USuspenseInventoryLibrary::CanStackInstances(const FSuspenseInventoryItemInstance& Instance1,
+                                                       const FSuspenseInventoryItemInstance& Instance2,
                                                        const UObject* WorldContext)
 {
     // Основные требования для stacking
@@ -749,12 +749,12 @@ bool USuspenseInventoryLibrary::CanStackInstances(const FInventoryItemInstance& 
     return true;
 }
 
-bool USuspenseInventoryLibrary::StackInstances(FInventoryItemInstance& SourceInstance,
-                                                    const FInventoryItemInstance& TargetInstance,
+bool USuspenseInventoryLibrary::StackInstances(FSuspenseInventoryItemInstance& SourceInstance,
+                                                    const FSuspenseInventoryItemInstance& TargetInstance,
                                                     const UObject* WorldContext,
-                                                    FInventoryItemInstance& OutRemainder)
+                                                    FSuspenseInventoryItemInstance& OutRemainder)
 {
-    OutRemainder = FInventoryItemInstance(); // Clear remainder
+    OutRemainder = FSuspenseInventoryItemInstance(); // Clear remainder
     
     if (!CanStackInstances(SourceInstance, TargetInstance, WorldContext))
     {
@@ -787,11 +787,11 @@ bool USuspenseInventoryLibrary::StackInstances(FInventoryItemInstance& SourceIns
     return true;
 }
 
-bool USuspenseInventoryLibrary::SplitInstance(FInventoryItemInstance& SourceInstance,
+bool USuspenseInventoryLibrary::SplitInstance(FSuspenseInventoryItemInstance& SourceInstance,
                                                    int32 SplitQuantity,
-                                                   FInventoryItemInstance& OutNewInstance)
+                                                   FSuspenseInventoryItemInstance& OutNewInstance)
 {
-    OutNewInstance = FInventoryItemInstance(); // Clear output
+    OutNewInstance = FSuspenseInventoryItemInstance(); // Clear output
     
     if (!SourceInstance.IsValid() || SplitQuantity <= 0 || SplitQuantity >= SourceInstance.Quantity)
     {
@@ -946,43 +946,43 @@ FLinearColor USuspenseInventoryLibrary::GetItemRarityColor(const FName& ItemID, 
 // Enhanced Error Handling and Operations Implementation
 //==================================================================
 
-FText USuspenseInventoryLibrary::GetErrorMessage(EInventoryErrorCode ErrorCode, const FString& Context)
+FText USuspenseInventoryLibrary::GetErrorMessage(ESuspenseInventoryErrorCode ErrorCode, const FString& Context)
 {
     FText BaseMessage;
     
     switch (ErrorCode)
     {
-        case EInventoryErrorCode::Success:
+        case ESuspenseInventoryErrorCode::Success:
             BaseMessage = NSLOCTEXT("Inventory", "Success", "Operation completed successfully");
             break;
-        case EInventoryErrorCode::InvalidItem:
+        case ESuspenseInventoryErrorCode::InvalidItem:
             BaseMessage = NSLOCTEXT("Inventory", "InvalidItem", "Invalid item");
             break;
-        case EInventoryErrorCode::NoSpace:
+        case ESuspenseInventoryErrorCode::NoSpace:
             BaseMessage = NSLOCTEXT("Inventory", "NoSpace", "Not enough space in inventory");
             break;
-        case EInventoryErrorCode::WeightLimit:
+        case ESuspenseInventoryErrorCode::WeightLimit:
             BaseMessage = NSLOCTEXT("Inventory", "WeightLimit", "Weight limit exceeded");
             break;
-        case EInventoryErrorCode::ItemNotFound:
+        case ESuspenseInventoryErrorCode::ItemNotFound:
             BaseMessage = NSLOCTEXT("Inventory", "ItemNotFound", "Item not found");
             break;
-        case EInventoryErrorCode::InsufficientQuantity:
+        case ESuspenseInventoryErrorCode::InsufficientQuantity:
             BaseMessage = NSLOCTEXT("Inventory", "InsufficientQuantity", "Insufficient quantity");
             break;
-        case EInventoryErrorCode::InvalidSlot:
+        case ESuspenseInventoryErrorCode::InvalidSlot:
             BaseMessage = NSLOCTEXT("Inventory", "InvalidSlot", "Invalid slot");
             break;
-        case EInventoryErrorCode::SlotOccupied:
+        case ESuspenseInventoryErrorCode::SlotOccupied:
             BaseMessage = NSLOCTEXT("Inventory", "SlotOccupied", "Slot is occupied");
             break;
-        case EInventoryErrorCode::TransactionActive:
+        case ESuspenseInventoryErrorCode::TransactionActive:
             BaseMessage = NSLOCTEXT("Inventory", "TransactionActive", "Transaction in progress");
             break;
-        case EInventoryErrorCode::NotInitialized:
+        case ESuspenseInventoryErrorCode::NotInitialized:
             BaseMessage = NSLOCTEXT("Inventory", "NotInitialized", "Inventory not initialized");
             break;
-        case EInventoryErrorCode::NetworkError:
+        case ESuspenseInventoryErrorCode::NetworkError:
             BaseMessage = NSLOCTEXT("Inventory", "NetworkError", "Network error");
             break;
         default:
@@ -1016,7 +1016,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult
     return Result;
 }
 
-FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(EInventoryErrorCode ErrorCode,
+FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(ESuspenseInventoryErrorCode ErrorCode,
                                                                               const FText& ErrorMessage,
                                                                               const FName& Context,
                                                                               UObject* ResultObject)
@@ -1028,21 +1028,21 @@ FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult
 // Runtime Properties and Gameplay Integration Implementation
 //==================================================================
 
-float USuspenseInventoryLibrary::GetItemRuntimeProperty(const FInventoryItemInstance& ItemInstance,
+float USuspenseInventoryLibrary::GetItemRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance,
                                                             const FName& PropertyName,
                                                             float DefaultValue)
 {
     return ItemInstance.GetRuntimeProperty(PropertyName, DefaultValue);
 }
 
-void USuspenseInventoryLibrary::SetItemRuntimeProperty(FInventoryItemInstance& ItemInstance,
+void USuspenseInventoryLibrary::SetItemRuntimeProperty(FSuspenseInventoryItemInstance& ItemInstance,
                                                            const FName& PropertyName,
                                                            float Value)
 {
     ItemInstance.SetRuntimeProperty(PropertyName, Value);
 }
 
-bool USuspenseInventoryLibrary::HasItemRuntimeProperty(const FInventoryItemInstance& ItemInstance,
+bool USuspenseInventoryLibrary::HasItemRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance,
                                                            const FName& PropertyName)
 {
     return ItemInstance.HasRuntimeProperty(PropertyName);
@@ -1052,7 +1052,7 @@ bool USuspenseInventoryLibrary::HasItemRuntimeProperty(const FInventoryItemInsta
 // Debug and Development Utilities Implementation
 //==================================================================
 
-FString USuspenseInventoryLibrary::GetItemInstanceDebugInfo(const FInventoryItemInstance& ItemInstance,
+FString USuspenseInventoryLibrary::GetItemInstanceDebugInfo(const FSuspenseInventoryItemInstance& ItemInstance,
                                                                 const UObject* WorldContext)
 {
     FString DebugInfo = FString::Printf(

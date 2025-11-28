@@ -20,7 +20,7 @@ FSuspenseRotationOperation::FSuspenseRotationOperation(
     if (Item)
     {
         // Получаем интерфейс для доступа к свойствам предмета
-        if (const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(Item))
+        if (const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item))
         {
             // Сохраняем исходное состояние
             bInitialRotation = ItemInterface->IsRotated();
@@ -56,7 +56,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
     }
     
     // Получаем интерфейс предмета
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(InItem);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(InItem);
     if (!ItemInterface)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
@@ -128,7 +128,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
     }
     
     // Получаем интерфейс для доступа к текущему состоянию
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(InItem);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(InItem);
     if (!ItemInterface)
     {
         FSuspenseRotationOperation InvalidOp;
@@ -150,7 +150,7 @@ bool FSuspenseRotationOperation::CacheItemDataFromTable(USuspenseItemManager* In
     }
     
     // Получаем интерфейс предмета
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(Item);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Item doesn't implement required interface"));
@@ -300,7 +300,7 @@ bool FSuspenseRotationOperation::CheckCollisions() const
     // Проверяем что все целевые ячейки свободны или заняты текущим предметом
     for (int32 CellIndex : TargetOccupiedCells)
     {
-        FInventoryItemInstance InstanceAtCell;
+        FSuspenseInventoryItemInstance InstanceAtCell;
         if (InventoryComponent->GetItemInstanceAtSlot(CellIndex, InstanceAtCell))
         {
             // Ячейка занята - проверяем, не наш ли это предмет
@@ -425,7 +425,7 @@ void FSuspenseRotationOperation::ApplyRotation(bool bRotated)
     }
     
     // Получаем интерфейс предмета
-    IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(Item);
+    ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         return;

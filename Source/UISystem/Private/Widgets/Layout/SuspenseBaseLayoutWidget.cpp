@@ -46,7 +46,7 @@ void USuspenseBaseLayoutWidget::InitializeWidget_Implementation()
         if (USuspenseUIManager* UIManager = GetUIManager())
         {
             UIManager->RegisterExternalWidget(this, WidgetTag);
-            UE_LOG(LogTemp, Log, TEXT("[%s] Layout registered in UIManager with tag %s"), 
+            UE_LOG(LogTemp, Log, TEXT("[%s] Layout registered in UIManager with tag %s"),
                 *GetName(), *WidgetTag.ToString());
         }
     }
@@ -57,14 +57,14 @@ void USuspenseBaseLayoutWidget::InitializeWidget_Implementation()
         InitializeFromConfig();
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] Layout widget initialized with %d child widgets configured, %d created"), 
+    UE_LOG(LogTemp, Log, TEXT("[%s] Layout widget initialized with %d child widgets configured, %d created"),
         *GetName(), WidgetConfigurations.Num(), LayoutWidgets.Num());
 }
 
 void USuspenseBaseLayoutWidget::UninitializeWidget_Implementation()
 {
     ClearCreatedWidgets();
-    
+
     // Unregister from UIManager if registered
     if (bRegisterLayoutInUIManager && WidgetTag.IsValid())
     {
@@ -73,7 +73,7 @@ void USuspenseBaseLayoutWidget::UninitializeWidget_Implementation()
             UIManager->UnregisterWidget(WidgetTag);
         }
     }
-    
+
     Super::UninitializeWidget_Implementation();
 }
 
@@ -87,7 +87,7 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
 
     if (!SlotTag.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: SlotTag is invalid. All widgets must have explicit tags."), 
+        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: SlotTag is invalid. All widgets must have explicit tags."),
             *GetName());
         return false;
     }
@@ -95,17 +95,17 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
     // Check if widget with this tag already exists
     if (LayoutWidgets.Contains(SlotTag))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: Widget with tag %s already exists"), 
+        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: Widget with tag %s already exists"),
             *GetName(), *SlotTag.ToString());
         return false;
     }
 
     // Find configuration for this slot tag
     const FLayoutWidgetConfig* Config = FindConfigByTag(SlotTag);
-    
+
     if (!Config)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: No configuration found for tag %s"), 
+        UE_LOG(LogTemp, Warning, TEXT("[%s] AddWidgetToLayout: No configuration found for tag %s"),
             *GetName(), *SlotTag.ToString());
         // We can still add the widget without configuration, but with default settings
     }
@@ -125,7 +125,7 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
     {
         if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
-            ISuspenseUIWidgetInterface::Execute_InitializeWidget(Widget);
+            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
         }
     }
 
@@ -139,7 +139,7 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
     NotifyWidgetCreated(Widget, SlotTag);
     K2_OnWidgetAdded(Widget, SlotTag);
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] Added widget %s with tag %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[%s] Added widget %s with tag %s"),
         *GetName(), *Widget->GetName(), *SlotTag.ToString());
 
     return true;
@@ -179,7 +179,7 @@ bool USuspenseBaseLayoutWidget::RemoveWidgetFromLayout_Implementation(UUserWidge
     // Uninitialize if supported
     if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
-        ISuspenseUIWidgetInterface::Execute_UninitializeWidget(Widget);
+        ISuspenseUIWidget::Execute_UninitializeWidget(Widget);
     }
 
     // Remove from layout
@@ -190,7 +190,7 @@ bool USuspenseBaseLayoutWidget::RemoveWidgetFromLayout_Implementation(UUserWidge
     NotifyWidgetDestroyed(FoundTag);
     K2_OnWidgetRemoved(Widget, FoundTag);
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] Removed widget %s with tag %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[%s] Removed widget %s with tag %s"),
         *GetName(), *Widget->GetName(), *FoundTag.ToString());
 
     return true;
@@ -222,7 +222,7 @@ void USuspenseBaseLayoutWidget::RefreshLayout_Implementation()
     {
         if (Pair.Value && Pair.Value->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
         {
-            ISuspenseScreenInterface::Execute_RefreshScreenContent(Pair.Value);
+            ISuspenseScreen::Execute_RefreshScreenContent(Pair.Value);
         }
     }
 
@@ -259,7 +259,7 @@ UUserWidget* USuspenseBaseLayoutWidget::CreateWidgetByTag(FGameplayTag InWidgetT
     // Check if already exists
     if (LayoutWidgets.Contains(InWidgetTag))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] CreateWidgetByTag: Widget with tag %s already exists"), 
+        UE_LOG(LogTemp, Warning, TEXT("[%s] CreateWidgetByTag: Widget with tag %s already exists"),
             *GetName(), *InWidgetTag.ToString());
         return LayoutWidgets[InWidgetTag];
     }
@@ -268,7 +268,7 @@ UUserWidget* USuspenseBaseLayoutWidget::CreateWidgetByTag(FGameplayTag InWidgetT
     const FLayoutWidgetConfig* Config = FindConfigByTag(InWidgetTag);
     if (!Config)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] CreateWidgetByTag: No configuration found for tag %s"), 
+        UE_LOG(LogTemp, Warning, TEXT("[%s] CreateWidgetByTag: No configuration found for tag %s"),
             *GetName(), *InWidgetTag.ToString());
         return nullptr;
     }
@@ -301,7 +301,7 @@ UUserWidget* USuspenseBaseLayoutWidget::CreateWidgetByTag(FGameplayTag InWidgetT
     NotifyWidgetCreated(NewWidget, InWidgetTag);
     K2_OnWidgetAdded(NewWidget, InWidgetTag);
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] Created widget on demand: %s with tag %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[%s] Created widget on demand: %s with tag %s"),
         *GetName(), *Config->WidgetClass->GetName(), *InWidgetTag.ToString());
 
     return NewWidget;
@@ -356,16 +356,16 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
     // Устанавливаем тег виджета
     if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
-        ISuspenseUIWidgetInterface::Execute_SetWidgetTag(Widget, Config.WidgetTag);
-        
+        ISuspenseUIWidget::Execute_SetWidgetTag(Widget, Config.WidgetTag);
+
         if (Config.bAutoInitialize)
         {
-            ISuspenseUIWidgetInterface::Execute_InitializeWidget(Widget);
+            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
         }
     }
-    
+
     // ИСПРАВЛЕНИЕ: Отправляем событие готовности для обоих типов виджетов
-    if (UEventDelegateManager* EventManager = GetEventManager())
+    if (USuspenseEventManager* EventManager = GetEventManager())
     {
         FTimerHandle InitTimerHandle;
         GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget, Config, this]()
@@ -376,13 +376,13 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
                 FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Inventory.ReadyToDisplay"));
                 EventManager->NotifyUIEventGeneric(Widget, ReadyTag, TEXT(""));
             }
-            
+
             // НОВОЕ: Для экипировки тоже отправляем событие готовности
             if (Config.WidgetTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Equipment"))))
             {
                 FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Equipment.ReadyToDisplay"));
                 EventManager->NotifyUIEventGeneric(Widget, ReadyTag, TEXT(""));
-                
+
                 UE_LOG(LogTemp, Log, TEXT("[Layout] Equipment widget ready for display"));
             }
         });
@@ -403,7 +403,7 @@ void USuspenseBaseLayoutWidget::CreateConfiguredWidgets()
         // Skip if not marked for immediate creation
         if (!Config.bCreateImmediately)
         {
-            UE_LOG(LogTemp, Verbose, TEXT("[%s] Skipping widget %s - not marked for immediate creation"), 
+            UE_LOG(LogTemp, Verbose, TEXT("[%s] Skipping widget %s - not marked for immediate creation"),
                 *GetName(), *Config.WidgetTag.ToString());
             continue;
         }
@@ -411,7 +411,7 @@ void USuspenseBaseLayoutWidget::CreateConfiguredWidgets()
         // Skip if already exists
         if (LayoutWidgets.Contains(Config.WidgetTag))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] Widget with tag %s already exists"), 
+            UE_LOG(LogTemp, Warning, TEXT("[%s] Widget with tag %s already exists"),
                 *GetName(), *Config.WidgetTag.ToString());
             continue;
         }
@@ -422,18 +422,18 @@ void USuspenseBaseLayoutWidget::CreateConfiguredWidgets()
             if (AddWidgetToPanel(NewWidget, &Config))
             {
                 LayoutWidgets.Add(Config.WidgetTag, NewWidget);
-                
+
                 // Register in UIManager if needed
                 if (Config.bRegisterInUIManager)
                 {
                     RegisterWidgetInUIManager(NewWidget, Config.WidgetTag);
                 }
-                
+
                 // Notify about creation
                 NotifyWidgetCreated(NewWidget, Config.WidgetTag);
-                
-                UE_LOG(LogTemp, Log, TEXT("[%s] Created widget %s with tag %s"), 
-                    *GetName(), 
+
+                UE_LOG(LogTemp, Log, TEXT("[%s] Created widget %s with tag %s"),
+                    *GetName(),
                     *Config.WidgetClass->GetName(),
                     *Config.WidgetTag.ToString());
             }
@@ -458,13 +458,13 @@ void USuspenseBaseLayoutWidget::ClearCreatedWidgets()
             {
                 UnregisterWidgetFromUIManager(Pair.Key);
             }
-            
+
             // Uninitialize if supported
             if (Pair.Value->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
             {
-                ISuspenseUIWidgetInterface::Execute_UninitializeWidget(Pair.Value);
+                ISuspenseUIWidget::Execute_UninitializeWidget(Pair.Value);
             }
-            
+
             // Notify about destruction
             NotifyWidgetDestroyed(Pair.Key);
 
@@ -492,21 +492,21 @@ bool USuspenseBaseLayoutWidget::ValidateConfigurationInternal() const
         {
             // Blueprint events cannot be called from const methods
             // So just log the error
-            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: WidgetClass is null for tag %s"), 
+            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: WidgetClass is null for tag %s"),
                 *GetName(), *Config.WidgetTag.ToString());
             bIsValid = false;
         }
 
         if (!Config.WidgetTag.IsValid())
         {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: WidgetTag is invalid"), 
+            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: WidgetTag is invalid"),
                 *GetName());
             bIsValid = false;
         }
 
         if (Config.SizeWeight < 0.0f)
         {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: SizeWeight is negative for tag %s"), 
+            UE_LOG(LogTemp, Error, TEXT("[%s] Configuration validation failed: SizeWeight is negative for tag %s"),
                 *GetName(), *Config.WidgetTag.ToString());
             bIsValid = false;
         }
@@ -529,7 +529,7 @@ bool USuspenseBaseLayoutWidget::HasDuplicateTags() const
 
         if (SeenTags.Contains(Config.WidgetTag))
         {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Duplicate WidgetTag found: %s"), 
+            UE_LOG(LogTemp, Error, TEXT("[%s] Duplicate WidgetTag found: %s"),
                 *GetName(), *Config.WidgetTag.ToString());
             bHasDuplicates = true;
         }
@@ -565,7 +565,7 @@ void USuspenseBaseLayoutWidget::RegisterWidgetInUIManager(UUserWidget* Widget, c
     if (USuspenseUIManager* UIManager = GetUIManager())
     {
         UIManager->RegisterLayoutWidget(Widget, InWidgetTag, this);
-        UE_LOG(LogTemp, Log, TEXT("[%s] Registered widget %s in UIManager"), 
+        UE_LOG(LogTemp, Log, TEXT("[%s] Registered widget %s in UIManager"),
             *GetName(), *InWidgetTag.ToString());
     }
 }
@@ -580,21 +580,21 @@ void USuspenseBaseLayoutWidget::UnregisterWidgetFromUIManager(const FGameplayTag
     if (USuspenseUIManager* UIManager = GetUIManager())
     {
         UIManager->UnregisterLayoutWidget(InWidgetTag);
-        UE_LOG(LogTemp, Log, TEXT("[%s] Unregistered widget %s from UIManager"), 
+        UE_LOG(LogTemp, Log, TEXT("[%s] Unregistered widget %s from UIManager"),
             *GetName(), *InWidgetTag.ToString());
     }
 }
 
 void USuspenseBaseLayoutWidget::NotifyWidgetCreated(UUserWidget* Widget, const FGameplayTag& InWidgetTag)
 {
-    if (UEventDelegateManager* EventManager = GetEventManager())
+    if (USuspenseEventManager* EventManager = GetEventManager())
     {
         // Create event data string
-        FString EventData = FString::Printf(TEXT("Widget:%s,Tag:%s,Parent:%s"), 
-            *Widget->GetName(), 
+        FString EventData = FString::Printf(TEXT("Widget:%s,Tag:%s,Parent:%s"),
+            *Widget->GetName(),
             *InWidgetTag.ToString(),
             *GetName());
-        
+
         // Send creation event
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Layout.WidgetCreated"));
         EventManager->NotifyUIEvent(Widget, EventTag, EventData);
@@ -603,11 +603,11 @@ void USuspenseBaseLayoutWidget::NotifyWidgetCreated(UUserWidget* Widget, const F
 
 void USuspenseBaseLayoutWidget::NotifyWidgetDestroyed(const FGameplayTag& InWidgetTag)
 {
-    if (UEventDelegateManager* EventManager = GetEventManager())
+    if (USuspenseEventManager* EventManager = GetEventManager())
     {
         // Create event data string
         FString EventData = FString::Printf(TEXT("Tag:%s"), *InWidgetTag.ToString());
-        
+
         // Send destruction event
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Layout.WidgetDestroyed"));
         EventManager->NotifyUIEvent(this, EventTag, EventData);
@@ -619,21 +619,21 @@ USuspenseUIManager* USuspenseBaseLayoutWidget::GetUIManager() const
     return USuspenseUIManager::Get(this);
 }
 
-UEventDelegateManager* USuspenseBaseLayoutWidget::GetEventManager() const
+USuspenseEventManager* USuspenseBaseLayoutWidget::GetEventManager() const
 {
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         return EventManager;
     }
-    
+
     // Fallback: try to get from game instance
     if (UWorld* World = GetWorld())
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            return GameInstance->GetSubsystem<UEventDelegateManager>();
+            return GameInstance->GetSubsystem<USuspenseEventManager>();
         }
     }
-    
+
     return nullptr;
 }

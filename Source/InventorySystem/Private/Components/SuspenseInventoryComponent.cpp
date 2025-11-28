@@ -2208,7 +2208,7 @@ bool USuspenseInventoryComponent::InitializeFromLoadout(const FName& LoadoutID, 
     }
 
     // Get inventory config
-    const FInventoryConfig* InvConfig = LoadoutConfig.GetInventoryConfig(InventoryName);
+    const FSuspenseInventoryConfig* InvConfig = LoadoutConfig.GetInventoryConfig(InventoryName);
     if (!InvConfig)
     {
         INVENTORY_LOG(Error, TEXT("InitializeFromLoadout: Inventory '%s' not found in loadout"), *InventoryName.ToString());

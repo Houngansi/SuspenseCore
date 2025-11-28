@@ -1,6 +1,6 @@
 // Copyright Suspense Team Team. All Rights Reserved.
 
-#include "Widgets/Base/SuspenseBaseWidget.h" 
+#include "Widgets/Base/SuspenseBaseWidget.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Animation/WidgetAnimation.h"
@@ -18,33 +18,33 @@ USuspenseBaseWidget::USuspenseBaseWidget(const FObjectInitializer& ObjectInitial
 void USuspenseBaseWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
+
     LogLifecycleEvent(TEXT("NativeConstruct"));
-    
+
     // Initialize widget through interface
     Execute_InitializeWidget(this);
-    
+
     // Notify event system about widget creation
-    ISuspenseUIWidgetInterface::BroadcastWidgetCreated(this);
+    ISuspenseUIWidget::BroadcastWidgetCreated(this);
 }
 
 void USuspenseBaseWidget::NativeDestruct()
 {
     // Uninitialize widget through interface
     Execute_UninitializeWidget(this);
-    
+
     // Notify event system about widget destruction
-    ISuspenseUIWidgetInterface::BroadcastWidgetDestroyed(this);
-    
+    ISuspenseUIWidget::BroadcastWidgetDestroyed(this);
+
     LogLifecycleEvent(TEXT("NativeDestruct"));
-    
+
     Super::NativeDestruct();
 }
 
 void USuspenseBaseWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
-    
+
     // Only tick if enabled and initialized
     if (bEnableTick && bIsInitialized)
     {
@@ -56,33 +56,33 @@ void USuspenseBaseWidget::SetVisibility(ESlateVisibility InVisibility)
 {
     // Cache old visibility
     ESlateVisibility OldVisibility = GetVisibility();
-    
+
     // Call parent implementation
     Super::SetVisibility(InVisibility);
-    
+
     // Determine if visibility actually changed
-    bool bWasVisible = (OldVisibility == ESlateVisibility::Visible || 
-                       OldVisibility == ESlateVisibility::HitTestInvisible || 
+    bool bWasVisible = (OldVisibility == ESlateVisibility::Visible ||
+                       OldVisibility == ESlateVisibility::HitTestInvisible ||
                        OldVisibility == ESlateVisibility::SelfHitTestInvisible);
-                       
-    bool bIsNowVisible = (InVisibility == ESlateVisibility::Visible || 
-                         InVisibility == ESlateVisibility::HitTestInvisible || 
+
+    bool bIsNowVisible = (InVisibility == ESlateVisibility::Visible ||
+                         InVisibility == ESlateVisibility::HitTestInvisible ||
                          InVisibility == ESlateVisibility::SelfHitTestInvisible);
-    
+
     // If visibility changed, notify through interface
     if (bWasVisible != bIsNowVisible)
     {
         Execute_OnVisibilityChanged(this, bIsNowVisible);
-        ISuspenseUIWidgetInterface::BroadcastVisibilityChanged(this, bIsNowVisible);
+        ISuspenseUIWidget::BroadcastVisibilityChanged(this, bIsNowVisible);
     }
 }
 
 void USuspenseBaseWidget::InitializeWidget_Implementation()
 {
     LogLifecycleEvent(TEXT("InitializeWidget"));
-    
+
     bIsInitialized = true;
-    
+
     // Note: UUserWidget doesn't have SetTickableWhenPaused or SetCanTick methods
     // Ticking is controlled by the Slate system automatically
 }
@@ -90,9 +90,9 @@ void USuspenseBaseWidget::InitializeWidget_Implementation()
 void USuspenseBaseWidget::UninitializeWidget_Implementation()
 {
     LogLifecycleEvent(TEXT("UninitializeWidget"));
-    
+
     bIsInitialized = false;
-    
+
     // Clear cached event manager
     CachedEventManager = nullptr;
 }
@@ -106,7 +106,7 @@ void USuspenseBaseWidget::UpdateWidget_Implementation(float DeltaTime)
 void USuspenseBaseWidget::ShowWidget_Implementation(bool bAnimate)
 {
     LogLifecycleEvent(TEXT("ShowWidget"));
-    
+
     if (bAnimate && ShowAnimation)
     {
         PlayShowAnimation();
@@ -121,7 +121,7 @@ void USuspenseBaseWidget::ShowWidget_Implementation(bool bAnimate)
 void USuspenseBaseWidget::HideWidget_Implementation(bool bAnimate)
 {
     LogLifecycleEvent(TEXT("HideWidget"));
-    
+
     if (bAnimate && HideAnimation)
     {
         PlayHideAnimation();
@@ -135,22 +135,22 @@ void USuspenseBaseWidget::HideWidget_Implementation(bool bAnimate)
 
 void USuspenseBaseWidget::OnVisibilityChanged_Implementation(bool bIsVisible)
 {
-    LogLifecycleEvent(FString::Printf(TEXT("OnVisibilityChanged: %s"), 
+    LogLifecycleEvent(FString::Printf(TEXT("OnVisibilityChanged: %s"),
         bIsVisible ? TEXT("Visible") : TEXT("Hidden")));
 }
 
-UEventDelegateManager* USuspenseBaseWidget::GetDelegateManager() const
+USuspenseEventManager* USuspenseBaseWidget::GetDelegateManager() const
 {
     if (!CachedEventManager)
     {
         // Получаем из GameInstance - правильный способ для UGameInstanceSubsystem
         if (UGameInstance* GameInstance = GetGameInstance())
         {
-            CachedEventManager = GameInstance->GetSubsystem<UEventDelegateManager>();
+            CachedEventManager = GameInstance->GetSubsystem<USuspenseEventManager>();
         }
         if (!CachedEventManager)
         {
-            CachedEventManager = UEventDelegateManager::Get(this);
+            CachedEventManager = USuspenseEventManager::Get(this);
         }
     }
     return CachedEventManager;
@@ -163,7 +163,7 @@ void USuspenseBaseWidget::PlayShowAnimation()
         PlayAnimation(ShowAnimation);
         SetVisibility(ESlateVisibility::Visible);
         bIsShowing = true;
-        
+
         // Bind animation finished callback
         FWidgetAnimationDynamicEvent AnimationFinished;
         AnimationFinished.BindDynamic(this, &USuspenseBaseWidget::OnShowAnimationFinished);
@@ -177,7 +177,7 @@ void USuspenseBaseWidget::PlayHideAnimation()
     {
         PlayAnimation(HideAnimation);
         bIsShowing = false;
-        
+
         // Bind animation finished callback
         FWidgetAnimationDynamicEvent AnimationFinished;
         AnimationFinished.BindDynamic(this, &USuspenseBaseWidget::OnHideAnimationFinished);
@@ -199,9 +199,9 @@ void USuspenseBaseWidget::OnHideAnimationFinished()
 
 void USuspenseBaseWidget::LogLifecycleEvent(const FString& EventName) const
 {
-    UE_LOG(LogTemp, Verbose, TEXT("[%s] %s - Tag: %s"), 
-        *GetClass()->GetName(), 
-        *EventName, 
+    UE_LOG(LogTemp, Verbose, TEXT("[%s] %s - Tag: %s"),
+        *GetClass()->GetName(),
+        *EventName,
         *WidgetTag.ToString());
 }
 

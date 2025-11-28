@@ -134,7 +134,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     
     /** Конструктор по умолчанию */
     FSuspenseStackOperation()
-        : FSuspenseInventoryOperation(EInventoryOperationType::Stack, nullptr)
+        : FSuspenseInventoryOperation(ESuspenseInventoryOperationType::Stack, nullptr)
     {
     }
     

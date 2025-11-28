@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Components/SuspenseInteractionComponent.h"
-#include "Interfaces/Interaction/IMedComInteractInterface.h"  // TODO: Update when Shared migrated
+#include "Interfaces/Interaction/ISuspenseInteract.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
@@ -12,7 +12,7 @@
 #include "AbilitySystemComponent.h"
 #include "Utils/SuspenseInteractionSettings.h"
 #include "Utils/SuspenseHelpers.h"
-#include "Delegates/EventDelegateManager.h"  // TODO: Update when Shared migrated
+#include "Delegates/SuspenseEventManager.h"
 #include "AbilitySystemGlobals.h"
 #include "TimerManager.h"
 

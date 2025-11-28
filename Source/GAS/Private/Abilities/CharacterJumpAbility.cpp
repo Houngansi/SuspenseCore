@@ -146,7 +146,7 @@ void UCharacterJumpAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
     if (!ASC->HasMatchingGameplayTag(JumpingTag))
     {
         ASC->AddLooseGameplayTag(JumpingTag);
-        ASC->AddReplicatedLooseGameplayTag(JumpingTag);
+        // Tag replication handled by ASC configuration
     }
 
     // Уведомляем систему о начале прыжка
@@ -221,7 +221,7 @@ void UCharacterJumpAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
         if (ASC->HasMatchingGameplayTag(JumpingTag))
         {
             ASC->RemoveLooseGameplayTag(JumpingTag);
-            ASC->RemoveReplicatedLooseGameplayTag(JumpingTag);
+            // Tag replication handled by ASC configuration
         }
     }
 

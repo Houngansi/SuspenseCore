@@ -9,8 +9,8 @@
 #include "WeaponSwitchAbility.generated.h"
 
 class USuspenseEventManager;
-class IMedComEquipmentInterface;
-class IMedComWeaponInterface;
+class ISuspenseEquipment;
+class ISuspenseWeapon;
 struct FAnimationStateData;
 
 /**
@@ -199,7 +199,7 @@ private:
     class UAnimMontage* CurrentDrawMontage;
 
     /** Cached equipment interface */
-    TScriptInterface<IMedComEquipmentInterface> CachedEquipmentInterface;
+    TScriptInterface<ISuspenseEquipment> CachedEquipmentInterface;
 
     /** Track last active slot for quick switch */
     mutable int32 LastActiveWeaponSlot;

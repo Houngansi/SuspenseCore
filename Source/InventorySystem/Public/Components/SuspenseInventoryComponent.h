@@ -24,7 +24,7 @@ class USuspenseEventManager;
 class USuspenseItemManager;
 class USuspenseInventoryManager;
 struct FSuspenseInventoryOperationResult;
-struct FSuspenseLoadoutConfiguration;
+struct FLoadoutConfiguration;
 
 /**
  * Primary component for inventory management with DataTable architecture
@@ -285,7 +285,7 @@ protected:
     FDelegateHandle ReplicatorUpdateHandle;
 
     /** Cached loadout configuration */
-    mutable TOptional<FSuspenseLoadoutConfiguration> CachedLoadoutConfig;
+    mutable TOptional<FLoadoutConfiguration> CachedLoadoutConfig;
 
     //==================================================================
     // Replication Callbacks

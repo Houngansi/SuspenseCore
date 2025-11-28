@@ -6,7 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Engine/World.h"
 
 USuspenseWeaponFireModeComponent::USuspenseWeaponFireModeComponent()

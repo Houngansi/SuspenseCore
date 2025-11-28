@@ -268,8 +268,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
         Result.bSuccess = false;
         Result.FailureReason = FText::FromString(TEXT("Actor class not found"));
         UE_LOG(LogEquipmentOperation, Error,
-            TEXT("[SpawnEquipmentActor] No valid ActorClass for ItemID: %s"),
-            TEXT("  DataTable EquipmentActorClass is null or invalid"),
+            TEXT("[SpawnEquipmentActor] No valid ActorClass for ItemID: %s - DataTable EquipmentActorClass is null or invalid"),
             *Params.ItemInstance.ItemID.ToString());
         return Result;
     }

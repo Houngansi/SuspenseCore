@@ -1,7 +1,7 @@
 // Copyright Suspense Team Team. All Rights Reserved.
 
 #include "Widgets/Base/SuspenseBaseWidget.h" 
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Animation/WidgetAnimation.h"
 #include "Engine/World.h"

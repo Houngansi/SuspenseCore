@@ -1177,7 +1177,7 @@ void ASuspensePlayerController::ShowCharacterScreen(const FGameplayTag& DefaultT
         bInventoryReady = ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryConnected(InvBridge);
     }
 
-    if (USuspenseEquipmentUIBridgeInterface* EquipBridge = UIManager->GetEquipmentUIBridge())
+    if (USuspenseEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
     {
         bEquipmentReady = ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(EquipBridge);
     }

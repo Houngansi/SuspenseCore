@@ -719,7 +719,7 @@ void UWeaponSwitchAbility::SendWeaponSwitchEvent(bool bStarted, int32 FromSlot, 
 bool UWeaponSwitchAbility::CanSwitchWeapons() const
 {
     // Find equipment interface
-    TScriptInterface<IMedComEquipmentInterface> EquipInterface = FindEquipmentInterface();
+    TScriptInterface<ISuspenseEquipment> EquipInterface = FindEquipmentInterface();
     if (!EquipInterface.GetInterface())
     {
         LogSwitchDebug(TEXT("No equipment interface found"));

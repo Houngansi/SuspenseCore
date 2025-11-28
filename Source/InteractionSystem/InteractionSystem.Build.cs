@@ -12,6 +12,8 @@ public class InteractionSystem : ModuleRules
                 "Core",
                 "Niagara",
                 "GameplayAbilities",
+                "GameplayTags",
+                "DeveloperSettings",
                 "BridgeSystem"
             }
         );

@@ -17,7 +17,7 @@ class USuspenseEventManager;
 class UCharacterMovementComponent;
 
 UCLASS()
-class SUSPENSECORE_API ASuspenseCharacter : public ACharacter, public ISuspenseCharacterInterface, public ISuspenseMovement
+class PLAYERCORE_API ASuspenseCharacter : public ACharacter, public ISuspenseCharacterInterface, public ISuspenseMovement
 {
     GENERATED_BODY()
 public:
@@ -41,19 +41,19 @@ public:
     // ========================================
     // ISuspenseMovement Implementation
     // ========================================
-    
+
     // Speed Management
     virtual float GetCurrentMovementSpeed_Implementation() const override;
     virtual void SetMovementSpeed_Implementation(float NewSpeed) override;
     virtual float GetDefaultMovementSpeed_Implementation() const override;
     virtual float GetMaxWalkSpeed_Implementation() const override;
-    
+
     // Sprint Management
     virtual bool CanSprint_Implementation() const override;
     virtual bool IsSprinting_Implementation() const override;
     virtual void StartSprinting_Implementation() override;
     virtual void StopSprinting_Implementation() override;
-    
+
     // Jump Management
     virtual void Jump_Implementation() override;
     virtual void StopJumping_Implementation() override;
@@ -62,32 +62,32 @@ public:
     virtual bool IsFalling_Implementation() const override;
     virtual float GetJumpZVelocity_Implementation() const override;
     virtual void SetJumpZVelocity_Implementation(float NewJumpZVelocity) override;
-    
+
     // Crouch Management
     virtual void Crouch_Implementation() override;
     virtual void UnCrouch_Implementation() override;
     virtual bool CanCrouch_Implementation() const override;
     virtual bool IsCrouching_Implementation() const override;
     virtual float GetCrouchedHalfHeight_Implementation() const override;
-    
+
     // State Management
     virtual FGameplayTag GetMovementState_Implementation() const override;
     virtual void SetMovementState_Implementation(FGameplayTag NewState) override;
     virtual FGameplayTagContainer GetActiveMovementTags_Implementation() const override;
     virtual bool HasMovementTag_Implementation(FGameplayTag Tag) const override;
-    
+
     // Physics & Environment
     virtual bool IsSwimming_Implementation() const override;
     virtual bool IsFlying_Implementation() const override;
     virtual FVector GetVelocity_Implementation() const override;
     virtual FVector GetGroundNormal_Implementation() const override;
-    
+
     // ========================================
     // Movement Methods
     // ========================================
     void Move(const FVector2D& Value);
     void Look(const FVector2D& Value);
-    
+
     /** Get custom movement component */
     UFUNCTION(BlueprintCallable, Category = "Movement")
     class USuspenseCharacterMovementComponent* GetSuspenseMovementComponent() const;
@@ -107,27 +107,27 @@ public:
     // ========================================
     // Animation Input Values - ДЛЯ АНИМАЦИЙ
     // ========================================
-    
-    /** 
+
+    /**
      * Get forward value for animations (modified by sprint state)
      * Returns: -2 to 2 when sprinting, -1 to 1 when walking
      */
     UFUNCTION(BlueprintCallable, Category = "Animation|Input", meta = (DisplayName = "Get Animation Forward Value"))
     float GetAnimationForwardValue() const;
-    
-    /** 
+
+    /**
      * Get right value for animations (modified by sprint state)
      * Returns: -2 to 2 when sprinting, -1 to 1 when walking
      */
     UFUNCTION(BlueprintCallable, Category = "Animation|Input", meta = (DisplayName = "Get Animation Right Value"))
     float GetAnimationRightValue() const;
-    
+
     /**
      * Check if character is currently sprinting (source of truth)
      */
     UFUNCTION(BlueprintCallable, Category = "Movement|Sprint")
     bool IsCharacterSprinting() const;
-    
+
     /** Get combined movement speed (0 to ~1.414 for diagonal) */
     UFUNCTION(BlueprintCallable, Category = "Movement|Input")
     float GetMovementInputSpeed() const;
@@ -142,7 +142,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Animation|Movement")
     bool IsMoving() const;
-    
+
     // ========================================
     // Animation State Getters
     // ========================================
@@ -186,7 +186,7 @@ public:
     // ========================================
     // Procedural Animation
     // ========================================
-    
+
     /** Updates procedural animation values based on movement and state */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void UpdateProceduralAnimationValues(float DeltaTime);
@@ -194,23 +194,23 @@ public:
     /** Get current lean sides amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     float GetLeanSidesAmount() const { return LeanSidesAmount; }
-    
+
     /** Set lean sides amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void SetLeanSidesAmount(float NewValue) { LeanSidesAmount = NewValue; }
-    
+
     /** Get current look up/down amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     float GetLookUpAmount() const { return LookUpAmount; }
-    
+
     /** Set look up/down amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void SetLookUpAmount(float NewValue) { LookUpAmount = NewValue; }
-    
+
     /** Get current arm animation weight multiplier */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     float GetArmGroupAnimationWeightMultiplier() const { return ArmGroupAnimationWeightMultiplier; }
-    
+
     /** Set arm animation weight multiplier */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void SetArmGroupAnimationWeightMultiplier(float NewValue) { ArmGroupAnimationWeightMultiplier = NewValue; }
@@ -218,7 +218,7 @@ public:
     /** Get vertical recoil amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     float GetVerticalRecoilAmount() const { return VerticalRecoilAmount; }
-    
+
     /** Set vertical recoil amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void SetVerticalRecoilAmount(float NewValue) { VerticalRecoilAmount = NewValue; }
@@ -226,11 +226,11 @@ public:
     /** Get horizontal recoil amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     float GetHorizontalRecoilAmount() const { return HorizontalRecoilAmount; }
-    
+
     /** Set horizontal recoil amount */
     UFUNCTION(BlueprintCallable, Category = "Animation|Procedural")
     void SetHorizontalRecoilAmount(float NewValue) { HorizontalRecoilAmount = NewValue; }
-    
+
     // ========================================
     // Cinematic Camera Control
     // ========================================
@@ -258,11 +258,11 @@ public:
     /** Apply cinematic preset (for cutscenes or special moments) */
     UFUNCTION(BlueprintCallable, Category = "Camera|Cinematic")
     void ApplyCinematicPreset(bool bEnableDOF, float Aperture, float FocusDistance);
-    
+
     // ========================================
     // Public Mesh Access
     // ========================================
-    
+
     /** Get first person mesh component */
     UFUNCTION(BlueprintPure, Category = "Mesh")
     USkeletalMeshComponent* GetFirstPersonMesh() const { return Mesh1P; }
@@ -271,27 +271,27 @@ protected:
     virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
-    
+
     // Override base Jump and StopJumping to route through interface
     virtual void Jump() override;
     virtual void StopJumping() override;
 
     /** First person mesh (arms) - visible only to owner */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh") 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
     USkeletalMeshComponent* Mesh1P;
-    
+
     /** Camera boom for smooth camera movement */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera") 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     USpringArmComponent* CameraBoom;
-    
+
     /** First person cinematic camera */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera") 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
     UCineCameraComponent* Camera;
 
     // ========================================
     // Camera Settings
     // ========================================
-    
+
     /** Camera lag settings for smooth movement */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera|Lag")
     bool bEnableCameraLag = true;
@@ -307,7 +307,7 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
     float CameraLagMaxDistance = 20.f;
-    
+
     // ========================================
     // Cinematic Camera Settings
     // ========================================
@@ -355,19 +355,19 @@ protected:
     /** Sensor height in mm */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera|Cinematic|Sensor")
     float SensorHeight = 18.67f;
-    
+
     // ========================================
     // Procedural Animation Variables
     // ========================================
-    
+
     /** Lean sides amount for procedural animation */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Procedural")
     float LeanSidesAmount = 0.f;
-    
+
     /** Look up/down amount for procedural animation */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Procedural")
     float LookUpAmount = 0.f;
-    
+
     /** Arm animation weight multiplier */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Procedural")
     float ArmGroupAnimationWeightMultiplier = 1.f;
@@ -375,19 +375,19 @@ protected:
     /** Lean strength multiplier */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float LeanStrengthMultiplier = 1.0f;
-    
+
     /** Look up/down strength multiplier */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float LookUpStrengthMultiplier = 1.0f;
-    
+
     /** Maximum lean angle (degrees) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float MaxLeanAngle = 10.0f;
-    
+
     /** Maximum look up/down angle (degrees) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float MaxLookUpAngle = 15.0f;
-    
+
     /** Procedural animation interpolation speed */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float ProceduralAnimInterpolationSpeed = 5.0f;
@@ -395,7 +395,7 @@ protected:
     /** Vertical recoil strength multiplier */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float VerticalRecoilStrengthMultiplier = 0.8f;
-    
+
     /** Maximum vertical recoil angle */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float MaxVerticalRecoilAngle = 5.0f;
@@ -403,7 +403,7 @@ protected:
     /** Horizontal recoil strength multiplier */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float HorizontalRecoilStrengthMultiplier = 0.8f;
-    
+
     /** Maximum horizontal recoil angle */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Procedural")
     float MaxHorizontalRecoilAngle = 5.0f;
@@ -411,7 +411,7 @@ protected:
     /** Vertical recoil amount for animation */
     UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
     float VerticalRecoilAmount = 0.f;
-    
+
     /** Horizontal recoil amount for animation */
     UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
     float HorizontalRecoilAmount = 0.f;
@@ -419,11 +419,11 @@ protected:
     // ========================================
     // Weapon State
     // ========================================
-    
+
     /** Does this character currently have a weapon equipped */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Weapon")
     bool bHasWeapon = false;
-    
+
     /** Currently equipped weapon actor */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Weapon")
     AActor* CurrentWeaponActor = nullptr;
@@ -435,11 +435,11 @@ protected:
     /** Current movement state tag */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     FGameplayTag CurrentMovementState;
-    
+
     /** Active movement tags container */
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     FGameplayTagContainer ActiveMovementTags;
-    
+
 private:
     // Target values for smooth interpolation
     float TargetLeanSidesAmount = 0.f;
@@ -453,7 +453,7 @@ private:
 
     /** Track if we're currently sprinting for proper notifications */
     bool bIsCurrentlySprinting = false;
-    
+
     /** Saved jump Z velocity for restoration after modifications */
     float OriginalJumpZVelocity = 0.0f;
 
@@ -466,14 +466,14 @@ private:
     /** Raw input values from current frame (before smoothing) */
     float RawMoveForwardInput = 0.0f;
     float RawMoveRightInput = 0.0f;
-    
+
     /** Track if we received movement input this frame */
     bool bHasActiveMovementInput = false;
-    
+
     /** Time since last movement input was received */
     float TimeSinceLastMovementInput = 0.0f;
 
     /** Last non-zero movement input for direction memory */
     FVector2D LastMovementInput = FVector2D::ZeroVector;
-	
+
 };

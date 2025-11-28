@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <InventoryTypes.generated.h>
-
 #include "CoreMinimal.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseInventoryOperation.generated.h"
@@ -48,7 +46,7 @@ struct INVENTORYSYSTEM_API FSuspenseInventoryOperation
     bool bSuccess = false;
 
     /** Error code on failure */
-    EInventoryErrorCode ErrorCode = EInventoryErrorCode::Success;
+    ESuspenseInventoryErrorCode ErrorCode = ESuspenseInventoryErrorCode::Success;
 
     /** Pointer to inventory component */
     USuspenseInventoryComponent* InventoryComponent = nullptr;
@@ -64,7 +62,7 @@ struct INVENTORYSYSTEM_API FSuspenseInventoryOperation
     FSuspenseInventoryOperation(ESuspenseInventoryOperationType InOperationType, USuspenseInventoryComponent* InInventoryComponent)
         : OperationType(InOperationType)
         , bSuccess(false)
-        , ErrorCode(EInventoryErrorCode::Success)
+        , ErrorCode(ESuspenseInventoryErrorCode::Success)
         , InventoryComponent(InInventoryComponent)
     {
     }

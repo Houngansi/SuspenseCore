@@ -9,7 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/Core/ISuspenseCharacter.h"
 #include "Delegates/SuspenseEventManager.h"
-#include "Attributes/SuspenseBaseAttributeSet.h"
+#include "Attributes/DefaultAttributeSet.h"
 #include "Characters/SuspenseCharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "AbilitySystemGlobals.h"
@@ -386,7 +386,7 @@ float ASuspenseCharacter::GetDefaultMovementSpeed_Implementation() const
     {
         if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PS))
         {
-            if (const USuspenseBaseAttributeSet* AttributeSet = ASC->GetSet<USuspenseBaseAttributeSet>())
+            if (const UDefaultAttributeSet* AttributeSet = ASC->GetSet<UDefaultAttributeSet>())
             {
                 return AttributeSet->GetMovementSpeed();
             }

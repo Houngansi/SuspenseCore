@@ -5,7 +5,7 @@
 #include "Widgets/Equipment/SuspenseEquipmentSlotWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridgeInterfaceWidget.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "Interfaces/Core/ISuspenseLoadout.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
 
@@ -16,8 +16,8 @@
 #include "Components/Border.h"
 #include "Blueprint/WidgetTree.h"
 
-#include "Delegates/EventDelegateManager.h"
-#include "Types/Loadout/MedComLoadoutManager.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 
 #include "Engine/World.h"
@@ -76,7 +76,7 @@ void USuspenseEquipmentContainerWidget::InitializeContainer_Implementation(
 {
     Super::InitializeContainer_Implementation(ContainerData);
     RefreshFromLoadoutManager();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[%s] Equipment container initialized with type: %s"),
         *GetName(), *ContainerType.ToString());
 }
@@ -86,7 +86,7 @@ void USuspenseEquipmentContainerWidget::UpdateContainer_Implementation(
 {
     if (!bIsInitialized)
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] UpdateContainer called before initialization"), *GetName());
         return;
     }
@@ -124,7 +124,7 @@ void USuspenseEquipmentContainerWidget::UpdateContainer_Implementation(
     }
 
     UpdateEquipmentDisplay(EquipmentData);
-    
+
     UE_LOG(LogTemp, Verbose, TEXT("[%s] Equipment container updated with %d slots"),
         *GetName(), ContainerData.Slots.Num());
 }
@@ -134,7 +134,7 @@ void USuspenseEquipmentContainerWidget::UpdateContainer_Implementation(
 void USuspenseEquipmentContainerWidget::NativePreConstruct()
 {
     Super::NativePreConstruct();
-    
+
     InitializeAllSlotContainers();
     ValidateAllBorderBindings();
 
@@ -152,16 +152,16 @@ void USuspenseEquipmentContainerWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeConstruct START ==="), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeConstruct START ==="),
         *GetName());
 
     // Initialize slot container mappings
     InitializeAllSlotContainers();
-    
+
     if (!ValidateAllBorderBindings())
     {
-        UE_LOG(LogTemp, Warning, 
-            TEXT("[%s] Some slot containers not bound (OK if not used in current loadout)"), 
+        UE_LOG(LogTemp, Warning,
+            TEXT("[%s] Some slot containers not bound (OK if not used in current loadout)"),
             *GetName());
     }
 
@@ -177,92 +177,92 @@ void USuspenseEquipmentContainerWidget::NativeConstruct()
     if (!UIBridge)
     {
         // Try to get global bridge instance
-        if (ISuspenseEquipmentUIBridgeInterfaceWidget* BridgeInterface = 
-            ISuspenseEquipmentUIBridgeInterfaceWidget::GetEquipmentUIBridge(this))
+        if (ISuspenseEquipmentUIBridgeInterface* BridgeInterface =
+            ISuspenseEquipmentUIBridgeInterface::GetEquipmentUIBridge(this))
         {
             UIBridge = Cast<USuspenseEquipmentUIBridge>(BridgeInterface);
-            
+
             if (UIBridge)
             {
-                UE_LOG(LogTemp, Log, 
+                UE_LOG(LogTemp, Log,
                     TEXT("[%s] Found global UIBridge instance"), *GetName());
             }
         }
     }
-    
+
     // Subscribe to UIBridge if available
     if (UIBridge)
     {
-        UE_LOG(LogTemp, Warning, 
-            TEXT("[%s] Subscribing to UIBridge OnEquipmentUIDataChanged..."), 
+        UE_LOG(LogTemp, Warning,
+            TEXT("[%s] Subscribing to UIBridge OnEquipmentUIDataChanged..."),
             *GetName());
-        
+
         // CRITICAL: Direct subscription to Bridge delegate
         // This replaces EventDelegateManager::NotifyInventoryUIRefreshRequested
         DataChangedHandle = UIBridge->OnEquipmentUIDataChanged.AddUObject(
             this, &USuspenseEquipmentContainerWidget::HandleEquipmentDataChanged
         );
-        
+
         if (DataChangedHandle.IsValid())
         {
-            UE_LOG(LogTemp, Warning, 
+            UE_LOG(LogTemp, Warning,
                 TEXT("[%s] ✓ Subscribed to UIBridge data changes"), *GetName());
-            
+
             // Request initial data immediately
             const TArray<FEquipmentSlotUIData>& InitialData = UIBridge->GetCachedUIData();
             if (InitialData.Num() > 0)
             {
-                UE_LOG(LogTemp, Log, 
-                    TEXT("[%s] Got initial data: %d slots"), 
+                UE_LOG(LogTemp, Log,
+                    TEXT("[%s] Got initial data: %d slots"),
                     *GetName(), InitialData.Num());
-                
+
                 HandleEquipmentDataChanged(InitialData);
             }
         }
         else
         {
-            UE_LOG(LogTemp, Error, 
+            UE_LOG(LogTemp, Error,
                 TEXT("[%s] ✗ Failed to subscribe to UIBridge!"), *GetName());
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] UIBridge not available yet - will retry later"), *GetName());
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeConstruct END ==="), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeConstruct END ==="),
         *GetName());
 }
 
 void USuspenseEquipmentContainerWidget::NativeDestruct()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeDestruct START ==="), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeDestruct START ==="),
         *GetName());
 
     // CRITICAL: Unsubscribe from UIBridge FIRST
     // This must happen before any other cleanup to prevent callbacks during destruction
     if (UIBridge && DataChangedHandle.IsValid())
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] Unsubscribing from UIBridge..."), *GetName());
-        
+
         UIBridge->OnEquipmentUIDataChanged.Remove(DataChangedHandle);
         DataChangedHandle.Reset();
-        
-        UE_LOG(LogTemp, Warning, 
+
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] ✓ Unsubscribed from UIBridge"), *GetName());
     }
 
     // Unsubscribe from any legacy events
     UnsubscribeFromEvents();
-    
+
     // Clear cached references
     UIBridge = nullptr;
     CachedLoadoutManager = nullptr;
-    
+
     UE_LOG(LogTemp, Log, TEXT("[%s] Cached references cleared"), *GetName());
-    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeDestruct END ==="), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] === Equipment NativeDestruct END ==="),
         *GetName());
 
     // Call parent destructor last
@@ -274,34 +274,34 @@ void USuspenseEquipmentContainerWidget::NativeDestruct()
 void USuspenseEquipmentContainerWidget::SetUIBridge(USuspenseEquipmentUIBridge* InBridge)
 {
     UE_LOG(LogTemp, Log, TEXT("[%s] SetUIBridge called"), *GetName());
-    
+
     // Unsubscribe from old bridge if any
     if (UIBridge && DataChangedHandle.IsValid())
     {
-        UE_LOG(LogTemp, Verbose, TEXT("[%s] Unsubscribing from previous UIBridge"), 
+        UE_LOG(LogTemp, Verbose, TEXT("[%s] Unsubscribing from previous UIBridge"),
             *GetName());
-        
+
         UIBridge->OnEquipmentUIDataChanged.Remove(DataChangedHandle);
         DataChangedHandle.Reset();
     }
-    
+
     // Set new bridge
     UIBridge = InBridge;
-    
+
     // Subscribe to new bridge if valid and widget is constructed
     if (UIBridge && IsConstructed())
     {
         UE_LOG(LogTemp, Log, TEXT("[%s] Subscribing to new UIBridge..."), *GetName());
-        
+
         // Subscribe to data change delegate
         DataChangedHandle = UIBridge->OnEquipmentUIDataChanged.AddUObject(
             this, &USuspenseEquipmentContainerWidget::HandleEquipmentDataChanged
         );
-        
+
         if (DataChangedHandle.IsValid())
         {
             UE_LOG(LogTemp, Log, TEXT("[%s] ✓ Subscribed to UIBridge"), *GetName());
-            
+
             // Get initial data
             const TArray<FEquipmentSlotUIData>& CurrentData = UIBridge->GetCachedUIData();
             if (CurrentData.Num() > 0)
@@ -315,21 +315,21 @@ void USuspenseEquipmentContainerWidget::SetUIBridge(USuspenseEquipmentUIBridge* 
 void USuspenseEquipmentContainerWidget::HandleEquipmentDataChanged(
     const TArray<FEquipmentSlotUIData>& FreshData)
 {
-    UE_LOG(LogTemp, Warning, 
+    UE_LOG(LogTemp, Warning,
         TEXT("[%s] === HandleEquipmentDataChanged START ==="), *GetName());
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Received %d equipment slots"), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Received %d equipment slots"),
         *GetName(), FreshData.Num());
-    
+
     // Build container data structure
     FEquipmentContainerUIData ContainerData;
     ContainerData.ContainerType = ContainerType;
     ContainerData.DisplayName = CurrentLoadoutConfig.LoadoutName;
     ContainerData.Slots = FreshData;
-    
+
     // Calculate metrics from slot data
     ContainerData.TotalWeight = 0.0f;
     ContainerData.TotalArmor = 0.0f;
-    
+
     for (const FEquipmentSlotUIData& eQSlot : FreshData)
     {
         if (eQSlot.bIsOccupied && eQSlot.EquippedItem.IsValid())
@@ -338,31 +338,31 @@ void USuspenseEquipmentContainerWidget::HandleEquipmentDataChanged(
             // Armor calculation if needed in future
         }
     }
-    
-    UE_LOG(LogTemp, Log, 
-        TEXT("[%s] Container metrics: Weight=%.1f kg, Slots=%d"), 
+
+    UE_LOG(LogTemp, Log,
+        TEXT("[%s] Container metrics: Weight=%.1f kg, Slots=%d"),
         *GetName(), ContainerData.TotalWeight, FreshData.Num());
-    
+
     // CRITICAL: Update visual display with new data
     // This method will iterate all slot widgets and call UpdateEquipmentSlot
     UpdateEquipmentDisplay(ContainerData);
-    
+
     // Force layout update to ensure visual consistency
     ForceLayoutPrepass();
-    
-    UE_LOG(LogTemp, Warning, 
+
+    UE_LOG(LogTemp, Warning,
         TEXT("[%s] === HandleEquipmentDataChanged END ==="), *GetName());
 }
 
 void USuspenseEquipmentContainerWidget::RequestDataRefresh_Implementation()
 {
     UE_LOG(LogTemp, Verbose, TEXT("[%s] RequestDataRefresh called"), *GetName());
-    
+
     // NEW SIMPLIFIED LOGIC:
     // In new architecture, we don't need to request refresh through EventDelegateManager
     // Container is already subscribed to UIBridge and will receive updates automatically
     // This method is kept for compatibility but does minimal work
-    
+
     if (UIBridge)
     {
         // Just trigger refresh on bridge if needed
@@ -371,7 +371,7 @@ void USuspenseEquipmentContainerWidget::RequestDataRefresh_Implementation()
     }
     else
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] RequestDataRefresh: UIBridge not available"), *GetName());
     }
 }
@@ -383,33 +383,33 @@ void USuspenseEquipmentContainerWidget::UpdateEquipmentDisplay(
 {
     if (!bIsInitialized)
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] Cannot update - not initialized"), *GetName());
         return;
     }
 
     CurrentEquipmentData = EquipmentData;
     UpdateAllEquipmentSlots(EquipmentData);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[%s] Equipment display updated"), *GetName());
 }
 
 void USuspenseEquipmentContainerWidget::UpdateAllEquipmentSlots(
     const FEquipmentContainerUIData& EquipmentData)
 {
-    UE_LOG(LogTemp, Warning, 
+    UE_LOG(LogTemp, Warning,
         TEXT("[%s] === UpdateAllEquipmentSlots START ==="), *GetName());
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Updating %d slots"), 
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Updating %d slots"),
         *GetName(), EquipmentData.Slots.Num());
-    
+
     // Build quick lookup map by SlotIndex
     TMap<int32, const FEquipmentSlotUIData*> EquipmentDataMap;
     for (const FEquipmentSlotUIData& SlotData : EquipmentData.Slots)
     {
         EquipmentDataMap.Add(SlotData.SlotIndex, &SlotData);
-        
-        UE_LOG(LogTemp, VeryVerbose, 
-            TEXT("[%s]   Slot %d: Type=%s, Occupied=%s"), 
+
+        UE_LOG(LogTemp, VeryVerbose,
+            TEXT("[%s]   Slot %d: Type=%s, Occupied=%s"),
             *GetName(),
             SlotData.SlotIndex,
             *SlotData.SlotType.ToString(),
@@ -419,45 +419,45 @@ void USuspenseEquipmentContainerWidget::UpdateAllEquipmentSlots(
     // CRITICAL: Update ALL slot widgets
     // Old logic only updated changed slots, which missed item data updates
     // New logic always updates all slots to ensure consistency
-    
+
     int32 UpdatedCount = 0;
-    
+
     for (const auto& SlotPair : SlotWidgets)
     {
         const int32 GlobalSlotIndex = SlotPair.Key;
         USuspenseBaseSlotWidget* BaseSlot = SlotPair.Value;
-        
+
         if (!BaseSlot)
         {
-            UE_LOG(LogTemp, Error, 
-                TEXT("[%s]   Slot %d: Widget is NULL!"), 
+            UE_LOG(LogTemp, Error,
+                TEXT("[%s]   Slot %d: Widget is NULL!"),
                 *GetName(), GlobalSlotIndex);
             continue;
         }
-        
+
         // Find matching equipment data
-        const FEquipmentSlotUIData* const* FoundDataPtr = 
+        const FEquipmentSlotUIData* const* FoundDataPtr =
             EquipmentDataMap.Find(GlobalSlotIndex);
-        
+
         if (!FoundDataPtr || !(*FoundDataPtr))
         {
-            UE_LOG(LogTemp, VeryVerbose, 
-                TEXT("[%s]   Slot %d: No equipment data"), 
+            UE_LOG(LogTemp, VeryVerbose,
+                TEXT("[%s]   Slot %d: No equipment data"),
                 *GetName(), GlobalSlotIndex);
             continue;
         }
-        
+
         const FEquipmentSlotUIData& EquipSlotData = **FoundDataPtr;
-        
+
         // Cast to equipment slot widget
-        if (USuspenseEquipmentSlotWidget* EquipSlot = 
+        if (USuspenseEquipmentSlotWidget* EquipSlot =
             Cast<USuspenseEquipmentSlotWidget>(BaseSlot))
         {
             // CRITICAL: Call UpdateEquipmentSlot with full data
             // This will update slot state, item icon, and all visual elements
             EquipSlot->UpdateEquipmentSlot(EquipSlotData);
             ++UpdatedCount;
-            
+
             // Update cache for this slot
             FGameplayTag SlotType;
             int32 LocalIndex;
@@ -472,17 +472,17 @@ void USuspenseEquipmentContainerWidget::UpdateAllEquipmentSlots(
         }
         else
         {
-            UE_LOG(LogTemp, Error, 
-                TEXT("[%s]   Slot %d: Failed to cast to EquipmentSlotWidget!"), 
+            UE_LOG(LogTemp, Error,
+                TEXT("[%s]   Slot %d: Failed to cast to EquipmentSlotWidget!"),
                 *GetName(), GlobalSlotIndex);
         }
     }
 
     // Force layout update
     ForceLayoutPrepass();
-    
-    UE_LOG(LogTemp, Warning, 
-        TEXT("[%s] === UpdateAllEquipmentSlots END (updated %d widgets) ==="), 
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("[%s] === UpdateAllEquipmentSlots END (updated %d widgets) ==="),
         *GetName(), UpdatedCount);
 }
 
@@ -531,7 +531,7 @@ void USuspenseEquipmentContainerWidget::RefreshFromLoadoutManager()
     if (LoadoutID.IsNone())
     {
         LoadoutID = FallbackLoadoutID;
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] No loadout ID found, using fallback: %s"),
             *GetName(), *LoadoutID.ToString());
     }
@@ -539,7 +539,7 @@ void USuspenseEquipmentContainerWidget::RefreshFromLoadoutManager()
     FLoadoutConfiguration LoadoutConfig;
     if (!LoadoutManager->GetLoadoutConfigBP(LoadoutID, LoadoutConfig))
     {
-        UE_LOG(LogTemp, Error, 
+        UE_LOG(LogTemp, Error,
             TEXT("[%s] Failed to get loadout config for ID: %s"),
             *GetName(), *LoadoutID.ToString());
         UseDefaultLoadoutForTesting();
@@ -550,7 +550,7 @@ void USuspenseEquipmentContainerWidget::RefreshFromLoadoutManager()
     CurrentLoadoutID = LoadoutID;
     K2_OnLoadoutChanged(LoadoutID);
 
-    UE_LOG(LogTemp, Log, 
+    UE_LOG(LogTemp, Log,
         TEXT("[%s] Successfully refreshed from LoadoutManager with loadout: %s"),
         *GetName(), *LoadoutID.ToString());
 }
@@ -560,16 +560,16 @@ void USuspenseEquipmentContainerWidget::ApplyLoadoutConfigurationInternal(
 {
     if (!EquipmentCanvas)
     {
-        UE_LOG(LogTemp, Error, 
+        UE_LOG(LogTemp, Error,
             TEXT("[%s] Cannot initialize - EquipmentCanvas not bound"), *GetName());
         return;
     }
 
     CurrentLoadoutConfig = LoadoutConfig;
 
-    UE_LOG(LogTemp, Log, 
+    UE_LOG(LogTemp, Log,
         TEXT("[%s] Applying loadout configuration: %s with %d equipment slots"),
-        *GetName(), *LoadoutConfig.LoadoutName.ToString(), 
+        *GetName(), *LoadoutConfig.LoadoutName.ToString(),
         LoadoutConfig.EquipmentSlots.Num());
 
     if (LoadoutNameText)
@@ -637,7 +637,7 @@ void USuspenseEquipmentContainerWidget::ApplyLoadoutConfigurationInternal(
     CreateEquipmentContainers();
     UpdateAllSlotVisibility();
 
-    UE_LOG(LogTemp, Log, 
+    UE_LOG(LogTemp, Log,
         TEXT("[%s] Created %d equipment slots from loadout configuration"),
         *GetName(), TotalSlots);
 }
@@ -653,7 +653,7 @@ void USuspenseEquipmentContainerWidget::CreateEquipmentContainers()
 
     if (!ValidateSlotContainers())
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] Slot container validation incomplete"), *GetName());
     }
 
@@ -673,7 +673,7 @@ void USuspenseEquipmentContainerWidget::CreateEquipmentContainers()
 
     if (!WidgetTree || !SlotWidgetClass)
     {
-        UE_LOG(LogTemp, Error, 
+        UE_LOG(LogTemp, Error,
             TEXT("[%s] WidgetTree or SlotWidgetClass is null"), *GetName());
         return;
     }
@@ -689,7 +689,7 @@ void USuspenseEquipmentContainerWidget::CreateEquipmentContainers()
         UBorder** BorderPtr = SlotContainerMap.Find(SlotType);
         if (!BorderPtr || !(*BorderPtr))
         {
-            UE_LOG(LogTemp, Verbose, 
+            UE_LOG(LogTemp, Verbose,
                 TEXT("[%s] No Border container for slot type: %s"),
                 *GetName(), *SlotType.ToString());
             continue;
@@ -736,9 +736,9 @@ void USuspenseEquipmentContainerWidget::CreateSlotsForContainer(
     const int32 GlobalIndex = Container.BaseSlotIndex;
 
     // Create single slot widget (equipment slots are 1x1)
-    USuspenseEquipmentSlotWidget* SlotWidget = 
+    USuspenseEquipmentSlotWidget* SlotWidget =
         CreateWidget<USuspenseEquipmentSlotWidget>(this, SlotWidgetClass);
-        
+
     if (!SlotWidget)
     {
         UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create slot widget"), *GetName());
@@ -785,7 +785,7 @@ void USuspenseEquipmentContainerWidget::CreateSlots()
 {
     if (!EquipmentCanvas || EquipmentContainers.Num() == 0)
     {
-        UE_LOG(LogTemp, Warning, 
+        UE_LOG(LogTemp, Warning,
             TEXT("[%s] CreateSlots - No containers configured"), *GetName());
         return;
     }
@@ -797,7 +797,7 @@ void USuspenseEquipmentContainerWidget::CreateSlots()
         CreateSlotsForContainer(Pair.Key, Pair.Value);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] Created %d equipment slots"), 
+    UE_LOG(LogTemp, Log, TEXT("[%s] Created %d equipment slots"),
         *GetName(), SlotWidgets.Num());
 }
 
@@ -839,8 +839,8 @@ bool USuspenseEquipmentContainerWidget::ValidateAllBorderBindings() const
         {
             if (!Border)
             {
-                UE_LOG(LogTemp, Verbose, 
-                    TEXT("[%s] Optional container not bound: %s"), 
+                UE_LOG(LogTemp, Verbose,
+                    TEXT("[%s] Optional container not bound: %s"),
                     *Self->GetName(), Name);
             }
         }
@@ -876,7 +876,7 @@ bool USuspenseEquipmentContainerWidget::ValidateSlotContainers() const
         if (!SlotContainerMap.Contains(SlotTag))
         {
             bAllValid = false;
-            UE_LOG(LogTemp, Verbose, 
+            UE_LOG(LogTemp, Verbose,
                 TEXT("[%s] No container bound for %s (may be hidden)"),
                 *GetName(), *SlotTag.ToString());
         }
@@ -912,7 +912,7 @@ void USuspenseEquipmentContainerWidget::InitializeAllSlotContainers()
     {
         if (Pair.Value) { ++ValidContainers; }
     }
-    
+
     UE_LOG(LogTemp, Log, TEXT("[%s] Initialized %d/%d slot container mappings"),
         *GetName(), ValidContainers, AllSlotContainers.Num());
 }
@@ -935,8 +935,8 @@ void USuspenseEquipmentContainerWidget::InitializeSlotContainerMap()
             }
         }
     }
-    
-    UE_LOG(LogTemp, Log, 
+
+    UE_LOG(LogTemp, Log,
         TEXT("[%s] Initialized slot container map with %d active entries"),
         *GetName(), SlotContainerMap.Num());
 }
@@ -993,7 +993,7 @@ bool USuspenseEquipmentContainerWidget::GetContainerFromGlobalIndex(
 }
 
 bool USuspenseEquipmentContainerWidget::CalculateOccupiedSlots(
-    int32 TargetSlot, FIntPoint /*ItemSize*/, bool /*bIsRotated*/, 
+    int32 TargetSlot, FIntPoint /*ItemSize*/, bool /*bIsRotated*/,
     TArray<int32>& OutOccupiedSlots) const
 {
     // Equipment slots are always 1x1
@@ -1003,7 +1003,7 @@ bool USuspenseEquipmentContainerWidget::CalculateOccupiedSlots(
 }
 
 bool USuspenseEquipmentContainerWidget::CalculateOccupiedSlotsInContainer(
-    const FGameplayTag& SlotType, int32 LocalIndex, FIntPoint /*ItemSize*/, 
+    const FGameplayTag& SlotType, int32 LocalIndex, FIntPoint /*ItemSize*/,
     TArray<int32>& OutGlobalIndices) const
 {
     OutGlobalIndices.Reset();
@@ -1014,14 +1014,14 @@ bool USuspenseEquipmentContainerWidget::CalculateOccupiedSlotsInContainer(
 }
 
 FSmartDropZone USuspenseEquipmentContainerWidget::FindBestDropZone(
-    const FVector2D& ScreenPosition, const FIntPoint& /*ItemSize*/, 
+    const FVector2D& ScreenPosition, const FIntPoint& /*ItemSize*/,
     bool /*bIsRotated*/) const
 {
     FSmartDropZone Result;
 
     if (USuspenseBaseSlotWidget* SlotWidget = GetSlotAtScreenPosition(ScreenPosition))
     {
-        Result.SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
+        Result.SlotIndex = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
         Result.bIsValid = true;
         Result.FeedbackPosition = SlotWidget->GetCachedGeometry().GetAbsolutePosition() +
                                   SlotWidget->GetCachedGeometry().GetLocalSize() * 0.5f;
@@ -1036,10 +1036,10 @@ bool USuspenseEquipmentContainerWidget::IsItemTypeAllowedInSlot(
     {
         FGameplayTagContainer ItemTypeContainer;
         ItemTypeContainer.AddTag(ItemType);
-        
+
         const bool bAllowed = Container->SlotConfig.AllowedItemTypes.IsEmpty()
                             || Container->SlotConfig.AllowedItemTypes.HasAny(ItemTypeContainer);
-                            
+
         return bAllowed && !Container->SlotConfig.DisallowedItemTypes.HasTag(ItemType);
     }
     return false;
@@ -1048,17 +1048,17 @@ bool USuspenseEquipmentContainerWidget::IsItemTypeAllowedInSlot(
 FSlotValidationResult USuspenseEquipmentContainerWidget::CanAcceptDrop_Implementation(
     const UDragDropOperation* DragOperation, int32 TargetSlotIndex) const
 {
-    const FSlotValidationResult BaseResult = 
+    const FSlotValidationResult BaseResult =
         Super::CanAcceptDrop_Implementation(DragOperation, TargetSlotIndex);
-        
+
     if (!BaseResult.bIsValid)
     {
         return BaseResult;
     }
 
-    const USuspenseDragDropOperation* MedComDragOp = 
+    const USuspenseDragDropOperation* MedComDragOp =
         Cast<USuspenseDragDropOperation>(DragOperation);
-        
+
     if (!MedComDragOp || !MedComDragOp->IsValidOperation())
     {
         return FSlotValidationResult::Failure(
@@ -1143,7 +1143,7 @@ void USuspenseEquipmentContainerWidget::ShowAllSlotsForDesign()
 void USuspenseEquipmentContainerWidget::UpdateSlotWidget(
     int32 SlotIndex, const FSlotUIData& SlotData, const FItemUIData& ItemData)
 {
-    if (USuspenseEquipmentSlotWidget* EquipSlot = 
+    if (USuspenseEquipmentSlotWidget* EquipSlot =
         Cast<USuspenseEquipmentSlotWidget>(GetSlotWidget(SlotIndex)))
     {
         FEquipmentSlotUIData EquipSlotData;
@@ -1186,8 +1186,8 @@ void USuspenseEquipmentContainerWidget::InitializeWidget_Implementation()
     {
         SubscribeToEvents();
         RefreshFromLoadoutManager();
-        
-        UE_LOG(LogTemp, Log, 
+
+        UE_LOG(LogTemp, Log,
             TEXT("[%s] Equipment container widget initialized"), *GetName());
     }
 }
@@ -1198,16 +1198,16 @@ void USuspenseEquipmentContainerWidget::SubscribeToEvents()
 {
     if (bEventSubscriptionsActive) { return; }
 
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         EventManager->OnEquipmentSlotUpdated.AddDynamic(
             this, &USuspenseEquipmentContainerWidget::OnEquipmentSlotUpdated);
         EventManager->OnLoadoutChanged.AddDynamic(
             this, &USuspenseEquipmentContainerWidget::OnLoadoutChanged);
-            
+
         bEventSubscriptionsActive = true;
-        
-        UE_LOG(LogTemp, Log, TEXT("[%s] Subscribed to legacy equipment events"), 
+
+        UE_LOG(LogTemp, Log, TEXT("[%s] Subscribed to legacy equipment events"),
             *GetName());
     }
 }
@@ -1216,16 +1216,16 @@ void USuspenseEquipmentContainerWidget::UnsubscribeFromEvents()
 {
     if (!bEventSubscriptionsActive) { return; }
 
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         EventManager->OnEquipmentSlotUpdated.RemoveDynamic(
             this, &USuspenseEquipmentContainerWidget::OnEquipmentSlotUpdated);
         EventManager->OnLoadoutChanged.RemoveDynamic(
             this, &USuspenseEquipmentContainerWidget::OnLoadoutChanged);
-            
+
         bEventSubscriptionsActive = false;
-        
-        UE_LOG(LogTemp, Log, TEXT("[%s] Unsubscribed from legacy equipment events"), 
+
+        UE_LOG(LogTemp, Log, TEXT("[%s] Unsubscribed from legacy equipment events"),
             *GetName());
     }
 }
@@ -1259,7 +1259,7 @@ void USuspenseEquipmentContainerWidget::OnLoadoutChanged(
 
     if (bSuccess)
     {
-        UE_LOG(LogTemp, Log, TEXT("[%s] Loadout changed to: %s"), 
+        UE_LOG(LogTemp, Log, TEXT("[%s] Loadout changed to: %s"),
             *GetName(), *LoadoutID.ToString());
         RefreshFromLoadoutManager();
     }
@@ -1292,7 +1292,7 @@ FName USuspenseEquipmentContainerWidget::GetCurrentLoadoutIDFromContext() const
     return NAME_None;
 }
 
-ISuspenseEquipmentUIBridgeInterfaceWidget* USuspenseEquipmentContainerWidget::GetOrCreateEquipmentBridge()
+ISuspenseEquipmentUIBridgeInterface* USuspenseEquipmentContainerWidget::GetOrCreateEquipmentBridge()
 {
     // Deprecated - use direct UIBridge reference instead
     return UIBridge;
@@ -1309,7 +1309,7 @@ bool USuspenseEquipmentContainerWidget::ProcessEquipmentOperationThroughBridge(
 
     const bool bSuccess = UIBridge->ProcessEquipmentDrop_Implementation(
         TargetSlotIndex, DragData);
-        
+
     return bSuccess;
 }
 
@@ -1341,14 +1341,14 @@ void USuspenseEquipmentContainerWidget::UpdateSlotVisibilityFromConfig()
 
 void USuspenseEquipmentContainerWidget::UseDefaultLoadoutForTesting()
 {
-    UE_LOG(LogTemp, Warning, 
+    UE_LOG(LogTemp, Warning,
         TEXT("[%s] Using default loadout configuration for testing"), *GetName());
 
     // Build minimal test config
     FLoadoutConfiguration TestConfig;
     TestConfig.LoadoutName = FText::FromString(TEXT("Test PMC Loadout"));
 
-    auto AddSlot = [&](EEquipmentSlotType Type, const TCHAR* Tag, 
+    auto AddSlot = [&](EEquipmentSlotType Type, const TCHAR* Tag,
                        TArray<const TCHAR*> Allowed)
     {
         FEquipmentSlotConfig SlotConfig(Type, FGameplayTag::RequestGameplayTag(Tag));

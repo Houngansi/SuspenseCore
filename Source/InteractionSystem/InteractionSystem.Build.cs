@@ -11,7 +11,8 @@ public class InteractionSystem : ModuleRules
             {
                 "Core",
                 "Niagara",
-                "GameplayAbilities"
+                "GameplayAbilities",
+                "BridgeSystem"
             }
         );
 

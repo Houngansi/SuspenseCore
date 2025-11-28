@@ -264,12 +264,12 @@ float ASuspenseWeaponActor::GetMagazineSize_Implementation() const
     return AmmoComponent ? AmmoComponent->GetMagazineSize() : 0.0f;
 }
 
-FInventoryAmmoState ASuspenseWeaponActor::GetAmmoState_Implementation() const
+FSuspenseInventoryAmmoState ASuspenseWeaponActor::GetAmmoState_Implementation() const
 {
-    return AmmoComponent ? AmmoComponent->GetAmmoState() : FInventoryAmmoState();
+    return AmmoComponent ? AmmoComponent->GetAmmoState() : FSuspenseInventoryAmmoState();
 }
 
-void ASuspenseWeaponActor::SetAmmoState_Implementation(const FInventoryAmmoState& NewState)
+void ASuspenseWeaponActor::SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState)
 {
     // IMPORTANT: actor only persists state to ItemInstance, not pushes into component (to avoid recursion)
     if (!EquippedItemInstance.IsValid())
@@ -507,7 +507,7 @@ void ASuspenseWeaponActor::SaveWeaponState()
     // Persist ammo via interface contract (component already calls this on changes)
     if (AmmoComponent)
     {
-        const FInventoryAmmoState AS = AmmoComponent->GetAmmoState();
+        const FSuspenseInventoryAmmoState AS = AmmoComponent->GetAmmoState();
         SetAmmoState_Implementation(AS);
     }
 
@@ -540,7 +540,7 @@ void ASuspenseWeaponActor::RestoreWeaponState()
 
         if (Curr >= 0.0f && Rem >= 0.0f)
         {
-            FInventoryAmmoState S;
+            FSuspenseInventoryAmmoState S;
             S.CurrentAmmo    = Curr;
             S.RemainingAmmo  = Rem;
             S.AmmoType       = GetAmmoType_Implementation();

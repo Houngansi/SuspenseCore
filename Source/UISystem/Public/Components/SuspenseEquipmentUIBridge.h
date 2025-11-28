@@ -10,9 +10,9 @@
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 
-#include "Types/UI/EquipmentUITypes.h"
+#include "Types/UI/SuspenseEquipmentUITypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 
 #include "SuspenseEquipmentUIBridge.generated.h"
 
@@ -33,7 +33,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentUIDataChanged, const TArray<FEqu
  *  - Provides FOnEquipmentUIDataChanged delegate for direct widget subscriptions
  *  - Handles event coalescing internally via timer (no separate UIConnector needed)
  *  - Routes user commands (equip/unequip) to EventDelegateManager
- * 
+ *
  * Key difference from old architecture:
  *  - NO ISuspenseEquipmentUIPort implementation (removed middleware layer)
  *  - NO dependency on UIConnector component
@@ -76,7 +76,7 @@ public:
     const TArray<FEquipmentSlotUIData>& GetCachedUIData() const { return CachedUIData; }
 
     // ===== NEW: Direct Widget Notification Delegate =====
-    
+
     /**
      * Multicast delegate for widgets to subscribe to data changes
      * Replaces EventDelegateManager::NotifyInventoryUIRefreshRequested
@@ -109,50 +109,50 @@ public:
 
 protected:
     // ===== Internal Helpers =====
-    
+
     /**
      * Handle slot data change from DataStore (direct subscription)
      * Updates cache incrementally for the changed slot only
      * Schedules coalesced notification to widgets
      */
     void HandleDataStoreSlotChanged(int32 SlotIndex, const FSuspenseInventoryItemInstance& NewItem);
-    
+
     /**
      * Handle full reset from DataStore
      * Rebuilds entire cache from scratch
      */
     void HandleDataStoreReset();
-    
+
     /**
      * Update cached slot data incrementally
      * Called for each slot change, updates only affected slot
      */
     void UpdateCachedSlot(int32 SlotIndex, const FSuspenseInventoryItemInstance& NewItem);
-    
+
     /**
      * Rebuild entire UI cache from DataStore
      * Called on initialization and reset
      */
     void RebuildUICache();
-    
+
     /**
      * Schedule coalesced notification to widgets
      * Uses timer to batch multiple rapid changes into single update
      */
     void ScheduleCoalescedNotification();
-    
+
     /**
      * Execute coalesced notification
      * Broadcasts OnEquipmentUIDataChanged with full cached data
      */
     void CoalesceAndNotify();
-    
+
     /** Convert item instance to UI format */
     bool ConvertItemInstanceToUIData(const FSuspenseInventoryItemInstance& ItemInstance, FItemUIData& OutUIData) const;
-    
+
     /** Resolve operations interface lazily */
     ISuspenseEquipmentOperations* ResolveOperations() const;
-    
+
     /** Show user notification */
     void NotifyUser(const FString& Text, float Time = 2.0f) const;
 
@@ -164,41 +164,41 @@ private:
     UPROPERTY() mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
 
     // ===== NEW: Direct DataStore Subscription =====
-    
+
     /** Delegate handle for DataStore slot changed subscription */
     FDelegateHandle DataStoreSlotChangedHandle;
-    
+
     /** Delegate handle for DataStore reset subscription */
     FDelegateHandle DataStoreResetHandle;
 
     // ===== NEW: Internal Coalescing =====
-    
+
     /** Set of pending slot updates for coalescing */
     TSet<int32> PendingSlotUpdates;
-    
+
     /** Timer handle for coalesced notification */
     FTimerHandle CoalesceTimerHandle;
-    
+
     /** Coalescing interval in seconds (default 50ms = 20 updates/sec max) */
     float CoalescingInterval = 0.05f;
 
     // ===== Cached State =====
-    
+
     /** Cached slot configurations (from DataStore snapshot) */
     UPROPERTY() TArray<FEquipmentSlotConfig> CachedConfigs;
-    
+
     /** NEW: Pre-built UI data cache (ready for widgets, no conversion needed) */
     UPROPERTY() TArray<FEquipmentSlotUIData> CachedUIData;
-    
+
     /** Legacy: Map of slot index to equipped item (for backward compatibility) */
     UPROPERTY() TMap<int32, FSuspenseInventoryItemInstance> CachedItems;
-    
+
     /** Active weapon slot index */
     UPROPERTY() int32 CachedActiveWeaponSlot = INDEX_NONE;
-    
+
     /** Current equipment state tag */
     UPROPERTY() FGameplayTag CachedStateTag;
-    
+
     /** Whether we have received initial snapshot from DataStore */
     UPROPERTY() bool bHasSnapshot = false;
 

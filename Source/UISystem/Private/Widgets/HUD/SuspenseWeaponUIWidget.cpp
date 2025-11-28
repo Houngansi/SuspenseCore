@@ -4,8 +4,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Interfaces/Weapon/ISuspenseWeaponInterface.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -16,18 +16,18 @@ USuspenseWeaponUIWidget::USuspenseWeaponUIWidget(const FObjectInitializer& Objec
 {
     bEnableTick = true;
     WidgetTag = FGameplayTag::RequestGameplayTag(TEXT("UI.HUD.WeaponInfo"));
-    
+
     // Initialize fire mode display names
     FireModeDisplayNames.Add(TEXT("Weapon.FireMode.Single"), FText::FromString(TEXT("SINGLE")));
     FireModeDisplayNames.Add(TEXT("Weapon.FireMode.Burst"), FText::FromString(TEXT("BURST")));
     FireModeDisplayNames.Add(TEXT("Weapon.FireMode.Auto"), FText::FromString(TEXT("AUTO")));
-    
+
     // Initialize colors
     NormalAmmoColor = FLinearColor::White;
     LowAmmoColor = FLinearColor::Red;
     CriticalAmmoColor = FLinearColor(1.0f, 0.3f, 0.0f);
     ReloadIndicatorColor = FLinearColor::Yellow;
-    
+
     // Initialize thresholds
     LowAmmoThreshold = 10;
     CriticalAmmoThreshold = 3;
@@ -39,19 +39,19 @@ USuspenseWeaponUIWidget::USuspenseWeaponUIWidget(const FObjectInitializer& Objec
 void USuspenseWeaponUIWidget::InitializeWidget_Implementation()
 {
     Super::InitializeWidget_Implementation();
-    
+
     if (!ValidateWidgetBindings())
     {
         UE_LOG(LogTemp, Error, TEXT("[MedComWeaponUIWidget] Failed to validate widget bindings"));
         return;
     }
-    
+
     // Reset display to initial state
     ResetWeaponDisplay();
-    
+
     // Subscribe to weapon events
     SubscribeToEvents();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Widget initialized"));
 }
 
@@ -62,27 +62,27 @@ void USuspenseWeaponUIWidget::UninitializeWidget_Implementation()
     {
         World->GetTimerManager().ClearTimer(ReloadTimerHandle);
     }
-    
+
     // Clear weapon reference
     ClearWeapon_Implementation();
-    
+
     // Unsubscribe from events
     UnsubscribeFromEvents();
-    
+
     Super::UninitializeWidget_Implementation();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Widget uninitialized"));
 }
 
 void USuspenseWeaponUIWidget::UpdateWidget_Implementation(float DeltaTime)
 {
     Super::UpdateWidget_Implementation(DeltaTime);
-    
+
     // Update weapon data if we have a cached weapon
     if (CachedWeaponActor)
     {
         UpdateFromWeaponInterfaces();
-        
+
         // Periodically check fire mode
         TimeSinceLastFireModeCheck += DeltaTime;
         if (TimeSinceLastFireModeCheck >= FireModeCheckInterval)
@@ -91,7 +91,7 @@ void USuspenseWeaponUIWidget::UpdateWidget_Implementation(float DeltaTime)
             TimeSinceLastFireModeCheck = 0.0f;
         }
     }
-    
+
     // Update reload progress if reloading
     if (bIsReloading && ReloadProgressBar && TotalReloadTime > 0.0f)
     {
@@ -111,17 +111,17 @@ void USuspenseWeaponUIWidget::SetWeaponInternal(AActor* WeaponActor)
     // Early exit if same weapon
     if (WeaponActor == CachedWeaponActor)
         return;
-        
+
     // Clear previous weapon
     ClearWeapon_Implementation();
-    
+
     // Set new weapon
     CachedWeaponActor = WeaponActor;
-    
+
     if (CachedWeaponActor)
     {
         UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Setting weapon: %s"), *CachedWeaponActor->GetName());
-        
+
         // Show all weapon UI elements
         if (WeaponNameText) WeaponNameText->SetVisibility(ESlateVisibility::Visible);
         if (CurrentAmmoText) CurrentAmmoText->SetVisibility(ESlateVisibility::Visible);
@@ -129,10 +129,10 @@ void USuspenseWeaponUIWidget::SetWeaponInternal(AActor* WeaponActor)
         if (RemainingAmmoText) RemainingAmmoText->SetVisibility(ESlateVisibility::Visible);
         if (FireModeText) FireModeText->SetVisibility(ESlateVisibility::Visible);
         if (WeaponIcon) WeaponIcon->SetVisibility(ESlateVisibility::Visible);
-        
+
         // Refresh display with current weapon data
         RefreshWeaponDisplay();
-        
+
         // REMOVED: BroadcastAmmoUpdated call - this was causing infinite recursion
         // The widget should only display data, not broadcast events
     }
@@ -148,25 +148,25 @@ void USuspenseWeaponUIWidget::ClearWeapon_Implementation()
     {
         UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Clearing weapon: %s"), *CachedWeaponActor->GetName());
     }
-    
+
     // Clear weapon reference
     CachedWeaponActor = nullptr;
     bIsReloading = false;
-    
+
     // Reset state
     CurrentWeaponState = FGameplayTag();
     CurrentFireMode = FGameplayTag();
     AvailableFireModes.Empty();
-    
+
     // Reset cached values
     LastCurrentAmmo = 0.0f;
     LastRemainingAmmo = 0.0f;
     LastMagazineSize = 0.0f;
-    
+
     // Reset reload state
     CurrentReloadTime = 0.0f;
     TotalReloadTime = 0.0f;
-    
+
     // Clear any active timers
     if (UWorld* World = GetWorld())
     {
@@ -185,60 +185,60 @@ void USuspenseWeaponUIWidget::UpdateAmmoDisplay_Implementation(float CurrentAmmo
     LastCurrentAmmo = CurrentAmmo;
     LastRemainingAmmo = RemainingAmmo;
     LastMagazineSize = MagazineSize;
-    
+
     // Update current ammo text
     if (CurrentAmmoText)
     {
         CurrentAmmoText->SetText(FText::AsNumber(FMath::FloorToInt(CurrentAmmo)));
     }
-    
+
     // Update max ammo text
     if (MaxAmmoText)
     {
         MaxAmmoText->SetText(FText::AsNumber(FMath::FloorToInt(MagazineSize)));
     }
-    
+
     // Update remaining ammo text
     if (RemainingAmmoText)
     {
         RemainingAmmoText->SetText(FText::AsNumber(FMath::FloorToInt(RemainingAmmo)));
     }
-    
+
     // Update text style based on ammo amount
     UpdateAmmoTextStyle(CurrentAmmo, MagazineSize);
-    
+
     // CRITICAL FIX: Removed BroadcastAmmoUpdated call here
     // This was causing infinite recursion as the widget would broadcast an event
     // that it was also listening to, creating an endless loop
     // UI widgets should only display data, not generate events
-    
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[MedComWeaponUIWidget] Ammo display updated: %.0f/%.0f (%.0f remaining)"), 
+
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[MedComWeaponUIWidget] Ammo display updated: %.0f/%.0f (%.0f remaining)"),
         CurrentAmmo, MagazineSize, RemainingAmmo);
 }
 
 void USuspenseWeaponUIWidget::SetAmmoDisplayFormat_Implementation(const FString& Format)
 {
     AmmoDisplayFormat = Format;
-    
+
     // Refresh display with new format
     UpdateAmmoDisplay_Implementation(LastCurrentAmmo, LastRemainingAmmo, LastMagazineSize);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Ammo display format set to: %s"), *Format);
 }
 
 void USuspenseWeaponUIWidget::UpdateFireMode_Implementation(const FGameplayTag& FireModeTag, const FText& DisplayName)
 {
     CurrentFireMode = FireModeTag;
-    
+
     if (FireModeText)
     {
         FText ModeText = DisplayName;
-        
+
         // If no display name provided, try to determine it
         if (DisplayName.IsEmpty())
         {
             FString FireModeString = FireModeTag.ToString();
-            
+
             // Check if we have a mapped display name
             if (FText* MappedName = FireModeDisplayNames.Find(FireModeString))
             {
@@ -258,10 +258,10 @@ void USuspenseWeaponUIWidget::UpdateFireMode_Implementation(const FGameplayTag& 
                 }
             }
         }
-        
+
         FireModeText->SetText(ModeText);
     }
-    
+
     UE_LOG(LogTemp, Verbose, TEXT("[MedComWeaponUIWidget] Fire mode updated: %s"), *FireModeTag.ToString());
 }
 
@@ -276,18 +276,18 @@ void USuspenseWeaponUIWidget::ShowReloadIndicator_Implementation(float ReloadTim
     bIsReloading = true;
     TotalReloadTime = ReloadTime;
     CurrentReloadTime = ElapsedTime;
-    
+
     if (ReloadProgressBar)
     {
         ReloadProgressBar->SetVisibility(ESlateVisibility::Visible);
         ReloadProgressBar->SetFillColorAndOpacity(ReloadIndicatorColor);
-        
+
         // Calculate and set initial progress
         float Progress = (TotalReloadTime > 0.0f) ? FMath::Clamp(CurrentReloadTime / TotalReloadTime, 0.0f, 1.0f) : 0.0f;
         ReloadProgressBar->SetPercent(Progress);
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Reload indicator shown - Time: %.2f, Elapsed: %.2f"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Reload indicator shown - Time: %.2f, Elapsed: %.2f"),
         ReloadTime, ElapsedTime);
 }
 
@@ -296,18 +296,18 @@ void USuspenseWeaponUIWidget::HideReloadIndicator_Implementation()
     bIsReloading = false;
     CurrentReloadTime = 0.0f;
     TotalReloadTime = 0.0f;
-    
+
     if (ReloadProgressBar)
     {
         ReloadProgressBar->SetVisibility(ESlateVisibility::Hidden);
     }
-    
+
     // Clear any reload timers
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(ReloadTimerHandle);
     }
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Reload indicator hidden"));
 }
 
@@ -316,7 +316,7 @@ void USuspenseWeaponUIWidget::UpdateWeaponState_Implementation(const FGameplayTa
     if (bIsActive)
     {
         CurrentWeaponState = StateTag;
-        
+
         // Handle specific state transitions
         if (StateTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"))))
         {
@@ -328,8 +328,8 @@ void USuspenseWeaponUIWidget::UpdateWeaponState_Implementation(const FGameplayTa
             HideReloadIndicator_Implementation();
         }
     }
-    
-    UE_LOG(LogTemp, Verbose, TEXT("[MedComWeaponUIWidget] Weapon state updated: %s (Active: %s)"), 
+
+    UE_LOG(LogTemp, Verbose, TEXT("[MedComWeaponUIWidget] Weapon state updated: %s (Active: %s)"),
         *StateTag.ToString(), bIsActive ? TEXT("Yes") : TEXT("No"));
 }
 
@@ -340,20 +340,20 @@ void USuspenseWeaponUIWidget::RefreshWeaponDisplay()
         ResetWeaponDisplay();
         return;
     }
-    
+
     // Update weapon name
     if (WeaponNameText)
     {
         FText WeaponName = FText::FromString(CachedWeaponActor->GetName());
         WeaponNameText->SetText(WeaponName);
     }
-    
+
     // Update fire mode
     UpdateCurrentFireMode();
-    
+
     // Update ammo and other data from weapon interfaces
     UpdateFromWeaponInterfaces();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon display refreshed"));
 }
 
@@ -368,7 +368,7 @@ float USuspenseWeaponUIWidget::GetAmmoPercentage() const
 
 void USuspenseWeaponUIWidget::SubscribeToEvents()
 {
-    if (UEventDelegateManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         // Subscribe to ammo changed events
         AmmoChangedHandle = EventManager->SubscribeToAmmoChanged(
@@ -376,42 +376,42 @@ void USuspenseWeaponUIWidget::SubscribeToEvents()
             {
                 OnAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
             });
-            
+
         // Subscribe to weapon state changed events
         WeaponStateChangedHandle = EventManager->SubscribeToWeaponStateChanged(
             [this](FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted)
             {
                 OnWeaponStateChanged(OldState, NewState, bInterrupted);
             });
-            
+
         // Subscribe to reload start events
         WeaponReloadStartHandle = EventManager->SubscribeToWeaponReloadStart(
             [this]()
             {
                 OnWeaponReloadStart();
             });
-            
+
         // Subscribe to reload end events
         WeaponReloadEndHandle = EventManager->SubscribeToWeaponReloadEnd(
             [this]()
             {
                 OnWeaponReloadEnd();
             });
-            
+
         // Subscribe to active weapon changed events
         ActiveWeaponChangedHandle = EventManager->SubscribeToActiveWeaponChanged(
             [this](AActor* NewWeapon)
             {
                 OnActiveWeaponChanged(NewWeapon);
             });
-            
+
         UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Subscribed to events"));
     }
 }
 
 void USuspenseWeaponUIWidget::UnsubscribeFromEvents()
 {
-    if (UEventDelegateManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         // Unsubscribe from all events
         if (AmmoChangedHandle.IsValid())
@@ -419,31 +419,31 @@ void USuspenseWeaponUIWidget::UnsubscribeFromEvents()
             EventManager->UniversalUnsubscribe(AmmoChangedHandle);
             AmmoChangedHandle.Reset();
         }
-        
+
         if (WeaponStateChangedHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(WeaponStateChangedHandle);
             WeaponStateChangedHandle.Reset();
         }
-        
+
         if (WeaponReloadStartHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(WeaponReloadStartHandle);
             WeaponReloadStartHandle.Reset();
         }
-        
+
         if (WeaponReloadEndHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(WeaponReloadEndHandle);
             WeaponReloadEndHandle.Reset();
         }
-        
+
         if (ActiveWeaponChangedHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(ActiveWeaponChangedHandle);
             ActiveWeaponChangedHandle.Reset();
         }
-        
+
         UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Unsubscribed from events"));
     }
 }
@@ -452,18 +452,18 @@ void USuspenseWeaponUIWidget::UpdateFromWeaponInterfaces()
 {
     if (!CachedWeaponActor)
         return;
-        
+
     // Check if weapon implements the weapon interface
     if (CachedWeaponActor->Implements<USuspenseWeapon>())
     {
         // Get current ammo values from weapon
-        float CurrentAmmo = ISuspenseWeaponInterface::Execute_GetCurrentAmmo(CachedWeaponActor);
-        float RemainingAmmo = ISuspenseWeaponInterface::Execute_GetRemainingAmmo(CachedWeaponActor);
-        float MagazineSize = ISuspenseWeaponInterface::Execute_GetMagazineSize(CachedWeaponActor);
-        
+        float CurrentAmmo = ISuspenseWeapon::Execute_GetCurrentAmmo(CachedWeaponActor);
+        float RemainingAmmo = ISuspenseWeapon::Execute_GetRemainingAmmo(CachedWeaponActor);
+        float MagazineSize = ISuspenseWeapon::Execute_GetMagazineSize(CachedWeaponActor);
+
         // Only update if values have changed
-        if (LastCurrentAmmo != CurrentAmmo || 
-            LastMagazineSize != MagazineSize || 
+        if (LastCurrentAmmo != CurrentAmmo ||
+            LastMagazineSize != MagazineSize ||
             LastRemainingAmmo != RemainingAmmo)
         {
             UpdateAmmoDisplay_Implementation(CurrentAmmo, RemainingAmmo, MagazineSize);
@@ -475,17 +475,17 @@ void USuspenseWeaponUIWidget::SetWeaponIcon(UTexture2D* Icon)
 {
     if (!WeaponIcon)
         return;
-    
+
     if (Icon && CachedWeaponActor)
     {
         WeaponIcon->SetBrushFromTexture(Icon);
         WeaponIcon->SetVisibility(ESlateVisibility::Visible);
-        
+
         // Set icon size based on texture dimensions
         FVector2D IconSize(Icon->GetSizeX(), Icon->GetSizeY());
         WeaponIcon->SetDesiredSizeOverride(IconSize);
-        
-        UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon icon set: %dx%d"), 
+
+        UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon icon set: %dx%d"),
             Icon->GetSizeX(), Icon->GetSizeY());
     }
     else
@@ -498,9 +498,9 @@ void USuspenseWeaponUIWidget::UpdateAmmoTextStyle(float CurrentAmmo, float MaxAm
 {
     if (!CurrentAmmoText)
         return;
-    
+
     FLinearColor TextColor = NormalAmmoColor;
-    
+
     // Determine color based on ammo thresholds
     if (CurrentAmmo <= CriticalAmmoThreshold)
     {
@@ -510,7 +510,7 @@ void USuspenseWeaponUIWidget::UpdateAmmoTextStyle(float CurrentAmmo, float MaxAm
     {
         TextColor = LowAmmoColor;
     }
-    
+
     // Apply color to text
     CurrentAmmoText->SetColorAndOpacity(FSlateColor(TextColor));
 }
@@ -525,7 +525,7 @@ void USuspenseWeaponUIWidget::ResetWeaponDisplay()
     if (FireModeText) FireModeText->SetVisibility(ESlateVisibility::Hidden);
     if (WeaponIcon) WeaponIcon->SetVisibility(ESlateVisibility::Hidden);
     if (ReloadProgressBar) ReloadProgressBar->SetVisibility(ESlateVisibility::Hidden);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon display reset"));
 }
 
@@ -533,7 +533,7 @@ void USuspenseWeaponUIWidget::UpdateCurrentFireMode()
 {
     if (!CachedWeaponActor)
         return;
-    
+
     // Set default fire mode if none is set
     if (!CurrentFireMode.IsValid())
     {
@@ -545,26 +545,26 @@ void USuspenseWeaponUIWidget::UpdateCurrentFireMode()
 bool USuspenseWeaponUIWidget::ValidateWidgetBindings() const
 {
     bool bValid = true;
-    
+
     // Check required widget bindings
     if (!CurrentAmmoText)
     {
         UE_LOG(LogTemp, Error, TEXT("[MedComWeaponUIWidget] CurrentAmmoText not bound"));
         bValid = false;
     }
-    
+
     if (!MaxAmmoText)
     {
         UE_LOG(LogTemp, Error, TEXT("[MedComWeaponUIWidget] MaxAmmoText not bound"));
         bValid = false;
     }
-    
+
     if (!RemainingAmmoText)
     {
         UE_LOG(LogTemp, Error, TEXT("[MedComWeaponUIWidget] RemainingAmmoText not bound"));
         bValid = false;
     }
-    
+
     return bValid;
 }
 

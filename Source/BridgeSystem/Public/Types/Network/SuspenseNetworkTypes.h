@@ -10,7 +10,7 @@
 #include "Misc/Crc.h"             // FCrc::MemCrc32
 #include "Misc/SecureHash.h"      // FSHA1::HashBuffer
 #include "Misc/CString.h"         // BytesToHex overloads
-#include "MedComNetworkTypes.generated.h"
+#include "SuspenseNetworkTypes.generated.h"
 
 /**
  * Network operation priority

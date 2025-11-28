@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 #include "SuspenseDragDropOperation.generated.h"
 
 // Forward declarations
@@ -27,7 +27,7 @@ public:
     //================================================
     // Initialization
     //================================================
-    
+
     /**
      * Initialize drag operation with data
      * @param InDragData Data to be dragged
@@ -37,7 +37,7 @@ public:
      * @return true if initialization successful
      */
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
-    bool InitializeOperation(const FDragDropUIData& InDragData, 
+    bool InitializeOperation(const FDragDropUIData& InDragData,
                            USuspenseBaseSlotWidget* InSourceWidget,
                            const FVector2D& InDragOffset,
                            USuspenseDragDropHandler* InHandler);
@@ -45,46 +45,46 @@ public:
     //================================================
     // Data Access
     //================================================
-    
+
     /**
      * Get the drag data directly
      * @return Drag data stored in this operation
      */
     UFUNCTION(BlueprintPure, Category = "DragDrop")
     const FDragDropUIData& GetDragData() const { return DragData; }
-    
+
     /**
      * Check if operation is valid
      * @return true if operation has valid data
      */
     UFUNCTION(BlueprintPure, Category = "DragDrop")
     bool IsValidOperation() const;
-    
+
     /**
      * Get the size of dragged item
      * @return Item size in grid cells
      */
     UFUNCTION(BlueprintPure, Category = "DragDrop")
     FIntPoint GetDraggedItemSize() const { return DragData.GetEffectiveSize(); }
-    
+
     /**
      * Get normalized drag offset
      * @return Offset where drag started (0-1 range)
      */
     UFUNCTION(BlueprintPure, Category = "DragDrop")
     FVector2D GetDragOffset() const { return DragData.DragOffset; }
-    
+
     /**
      * Get source widget
      * @return Source widget or nullptr
      */
     UFUNCTION(BlueprintPure, Category = "DragDrop")
     USuspenseBaseSlotWidget* GetSourceWidget() const { return SourceWidget.Get(); }
- 
+
     //================================================
     // Operation State
     //================================================
-    
+
     /** Flag indicating if drop was successful */
     UPROPERTY(BlueprintReadOnly, Category = "DragDrop")
     bool bWasSuccessful;
@@ -93,22 +93,22 @@ protected:
     //================================================
     // UDragDropOperation Interface
     //================================================
-    
+
     virtual void Drop_Implementation(const FPointerEvent& PointerEvent) override;
     virtual void DragCancelled_Implementation(const FPointerEvent& PointerEvent) override;
     virtual void Dragged_Implementation(const FPointerEvent& PointerEvent) override;
 
 private:
     friend class USuspenseDragDropHandler; // Only handler can create/manage
-    
+
     /** Complete drag data stored directly */
     UPROPERTY()
     FDragDropUIData DragData;
-    
+
     /** Source widget that initiated the drag */
     UPROPERTY()
     TWeakObjectPtr<USuspenseBaseSlotWidget> SourceWidget;
-    
+
     /** Handler managing this operation */
     UPROPERTY()
     TWeakObjectPtr<USuspenseDragDropHandler> Handler;

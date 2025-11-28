@@ -358,10 +358,10 @@ protected:
 	bool IsMeleeWeaponSlot(int32 SlotIndex) const;
 
 	/** Get weapon slot type for a given slot index */
-	ESuspenseEquipmentSlotType GetWeaponSlotType(int32 SlotIndex) const;
+	EEquipmentSlotType GetWeaponSlotType(int32 SlotIndex) const;
 
 	/** Get priority for weapon slot type (lower = higher priority) */
-	int32 GetWeaponSlotPriority(ESuspenseEquipmentSlotType SlotType) const;
+	int32 GetWeaponSlotPriority(EEquipmentSlotType SlotType) const;
 
 	/** Get currently active weapon slot (read-only query) */
 	int32 GetCurrentActiveWeaponSlot() const;

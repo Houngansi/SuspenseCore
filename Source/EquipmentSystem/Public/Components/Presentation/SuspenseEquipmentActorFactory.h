@@ -132,7 +132,7 @@ protected:
     TMap<int32, AActor*> SpawnedActorRegistry;
 
     /** Cache manager for actor classes */
-    FEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
+    FSuspenseEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
 
     /** Streamable manager for async loading */
     FStreamableManager StreamableManager;

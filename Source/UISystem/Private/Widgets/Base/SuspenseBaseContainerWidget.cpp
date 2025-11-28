@@ -5,7 +5,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Components/PanelWidget.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -25,7 +25,7 @@ USuspenseBaseSlotWidget* FSlotWidgetPool::AcquireSlot(UUserWidget* Outer, TSubcl
             return PooledSlot;
         }
     }
-    
+
     // Create new slot - используем правильный тип Outer
     USuspenseBaseSlotWidget* NewSlot = CreateWidget<USuspenseBaseSlotWidget>(Outer, SlotClass);
     if (NewSlot)
@@ -41,11 +41,11 @@ void FSlotWidgetPool::ReleaseSlot(USuspenseBaseSlotWidget* Slot)
     {
         return;
     }
-    
+
     // Reset slot for reuse
     Slot->ResetForPool();
     Slot->SetPooled(true);
-    
+
     // Add to available pool
     AvailableSlots.AddUnique(Slot);
 }
@@ -60,7 +60,7 @@ void FSlotWidgetPool::Clear()
             Slot->RemoveFromParent();
         }
     }
-    
+
     AvailableSlots.Empty();
     AllSlots.Empty();
 }
@@ -76,13 +76,13 @@ USuspenseBaseContainerWidget::USuspenseBaseContainerWidget(const FObjectInitiali
     SelectedSlotIndex = INDEX_NONE;
     CachedDragDropHandler = nullptr;
     CachedDelegateManager = nullptr;
-    
+
     // Performance settings
     bEnableSlotPooling = true;
     MaxPooledSlots = 200;
     UpdateBatchDelay = 0.033f; // ~30 FPS
     LastUpdateTime = 0.0f;
-    
+
     // Disable tick by default
     bHasScriptImplementedTick = false;
 }
@@ -90,14 +90,14 @@ USuspenseBaseContainerWidget::USuspenseBaseContainerWidget(const FObjectInitiali
 void USuspenseBaseContainerWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
+
     // Ensure visibility
     SetVisibility(ESlateVisibility::Visible);
-    
+
     // Initialize widget through interface
     if (GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
     {
-        ISuspenseUIWidgetInterface::Execute_InitializeWidget(this);
+        ISuspenseUIWidget::Execute_InitializeWidget(this);
     }
 }
 
@@ -111,20 +111,20 @@ void USuspenseBaseContainerWidget::NativeDestruct()
             World->GetTimerManager().ClearTimer(UpdateBatchTimer);
         }
     }
-    
+
     // Clear slot pool
     SlotPool.Clear();
-    
+
     // Uninitialize through interface
-    ISuspenseUIWidgetInterface::Execute_UninitializeWidget(this);
-    
+    ISuspenseUIWidget::Execute_UninitializeWidget(this);
+
     Super::NativeDestruct();
 }
 
 void USuspenseBaseContainerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
-    
+
     // Process any immediate updates if needed
     if (PendingSlotUpdates.Num() > 0 && !UpdateBatchTimer.IsValid())
     {
@@ -138,24 +138,24 @@ void USuspenseBaseContainerWidget::InitializeWidget_Implementation()
     {
         return;
     }
-    
+
     if (!ValidateSlotsPanel())
     {
         return;
     }
-    
+
     if (!SlotWidgetClass)
     {
         return;
     }
-    
+
     // Cache managers
     CachedDelegateManager = GetDelegateManager();
     CachedDragDropHandler = GetDragDropHandler();
-    
+
     // Subscribe to events
     SubscribeToEvents();
-    
+
     bIsInitialized = true;
 }
 
@@ -169,13 +169,13 @@ void USuspenseBaseContainerWidget::UninitializeWidget_Implementation()
             World->GetTimerManager().ClearTimer(UpdateBatchTimer);
         }
     }
-    
+
     // Clear all slots
     ClearSlots();
-    
+
     // Unsubscribe from events
     UnsubscribeFromEvents();
-    
+
     bIsInitialized = false;
     CachedDelegateManager = nullptr;
     CachedDragDropHandler = nullptr;
@@ -191,14 +191,14 @@ FGameplayTag USuspenseBaseContainerWidget::GetWidgetTag_Implementation() const
    return ContainerType;
 }
 
-UEventDelegateManager* USuspenseBaseContainerWidget::GetDelegateManager() const
+USuspenseEventManager* USuspenseBaseContainerWidget::GetDelegateManager() const
 {
    if (CachedDelegateManager)
    {
        return CachedDelegateManager;
    }
-   
-   return ISuspenseUIWidgetInterface::GetDelegateManagerStatic(this);
+
+   return ISuspenseUIWidget::GetDelegateManagerStatic(this);
 }
 
 void USuspenseBaseContainerWidget::InitializeContainer_Implementation(const FContainerUIData& ContainerData)
@@ -207,13 +207,13 @@ void USuspenseBaseContainerWidget::InitializeContainer_Implementation(const FCon
    {
        return;
    }
-   
+
    CurrentContainerData = ContainerData;
    ContainerType = ContainerData.ContainerType;
-   
+
    // Create slots
    CreateSlots();
-   
+
    // Update all slots with data
    for (const FSlotUIData& SlotData : ContainerData.Slots)
    {
@@ -226,11 +226,11 @@ void USuspenseBaseContainerWidget::InitializeContainer_Implementation(const FCon
                break;
            }
        }
-       
+
        // Use batched update for performance
        ScheduleSlotUpdate(SlotData.SlotIndex, SlotData, ItemData);
    }
-   
+
    // Process initial batch immediately
    ProcessBatchedUpdates();
 }
@@ -241,9 +241,9 @@ void USuspenseBaseContainerWidget::UpdateContainer_Implementation(const FContain
    {
        return;
    }
-   
+
    CurrentContainerData = ContainerData;
-   
+
    // Batch updates for performance
    for (const FSlotUIData& SlotData : ContainerData.Slots)
    {
@@ -256,7 +256,7 @@ void USuspenseBaseContainerWidget::UpdateContainer_Implementation(const FContain
                break;
            }
        }
-       
+
        ScheduleSlotUpdate(SlotData.SlotIndex, SlotData, ItemData);
    }
 }
@@ -265,7 +265,7 @@ void USuspenseBaseContainerWidget::RequestDataRefresh_Implementation()
 {
    if (CachedDelegateManager)
    {
-       ISuspenseContainerUIInterface::BroadcastContainerUpdateRequest(this, ContainerType);
+       ISuspenseContainerUI::BroadcastContainerUpdateRequest(this, ContainerType);
    }
 }
 
@@ -281,24 +281,24 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
            {
                if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                {
-                   ISuspenseSlotUIInterface::Execute_SetSelected(PrevSlot, false);
+                   ISuspenseSlotUI::Execute_SetSelected(PrevSlot, false);
                }
            }
        }
-       
+
        // Select new
        SelectedSlotIndex = SlotIndex;
        if (USuspenseBaseSlotWidget* NewSlot = GetSlotWidget(SlotIndex))
        {
            if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
            {
-               ISuspenseSlotUIInterface::Execute_SetSelected(NewSlot, true);
+               ISuspenseSlotUI::Execute_SetSelected(NewSlot, true);
            }
        }
    }
-   
+
    // Notify through event system
-   if (UEventDelegateManager* Manager = GetDelegateManager())
+   if (USuspenseEventManager* Manager = GetDelegateManager())
    {
        FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.Click"));
        Manager->OnUISlotInteraction.Broadcast(this, SlotIndex, InteractionType);
@@ -308,13 +308,13 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
 void USuspenseBaseContainerWidget::OnSlotDoubleClicked_Implementation(int32 SlotIndex, const FGuid& ItemInstanceID)
 {
    FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.DoubleClick"));
-   ISuspenseContainerUIInterface::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
+   ISuspenseContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
 }
 
 void USuspenseBaseContainerWidget::OnSlotRightClicked_Implementation(int32 SlotIndex, const FGuid& ItemInstanceID)
 {
    FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.RightClick"));
-   ISuspenseContainerUIInterface::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
+   ISuspenseContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
 }
 
 FSlotValidationResult USuspenseBaseContainerWidget::CanAcceptDrop_Implementation(
@@ -345,14 +345,14 @@ FSlotValidationResult USuspenseBaseContainerWidget::CanAcceptDrop_Implementation
 
 
 void USuspenseBaseContainerWidget::HandleItemDropped_Implementation(
-   UDragDropOperation* DragOperation, 
+   UDragDropOperation* DragOperation,
    int32 TargetSlotIndex)
 {
    // This is now just a notification - actual drop handling is in handler
    if (CachedDelegateManager)
    {
        FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.Drop"));
-       ISuspenseContainerUIInterface::BroadcastSlotInteraction(this, TargetSlotIndex, InteractionType);
+       ISuspenseContainerUI::BroadcastSlotInteraction(this, TargetSlotIndex, InteractionType);
    }
 }
 
@@ -372,7 +372,7 @@ bool USuspenseBaseContainerWidget::ProcessDropOnSlot(
            ScreenPosition
        );
    }
-   
+
    return false;
 }
 
@@ -386,19 +386,19 @@ bool USuspenseBaseContainerWidget::ProcessDragOverSlot(
     {
         return false;
     }
-   
+
     // Get target slot
     int32 TargetSlot = INDEX_NONE;
     if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
     {
-        TargetSlot = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
+        TargetSlot = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
     }
-   
+
     if (TargetSlot == INDEX_NONE)
     {
         return false;
     }
-   
+
     // Let the handler handle all visual updates
     // Don't do any additional validation here
     return true;
@@ -433,7 +433,7 @@ TArray<USuspenseBaseSlotWidget*> USuspenseBaseContainerWidget::GetAllSlotWidgets
 {
    TArray<USuspenseBaseSlotWidget*> AllSlots;
    AllSlots.Reserve(SlotWidgets.Num());
-   
+
    for (const auto& Pair : SlotWidgets)
    {
        if (IsValid(Pair.Value))
@@ -441,7 +441,7 @@ TArray<USuspenseBaseSlotWidget*> USuspenseBaseContainerWidget::GetAllSlotWidgets
            AllSlots.Add(Pair.Value);
        }
    }
-   
+
    return AllSlots;
 }
 
@@ -461,23 +461,23 @@ TArray<USuspenseBaseSlotWidget*> USuspenseBaseContainerWidget::GetSlotsInRegion(
 {
    TArray<USuspenseBaseSlotWidget*> Result;
    float RadiusSq = Radius * Radius;
-   
+
    for (const auto& Pair : SlotWidgets)
    {
        if (!IsValid(Pair.Value))
        {
            continue;
        }
-       
-       FVector2D SlotCenter = Pair.Value->GetCachedGeometry().GetAbsolutePosition() + 
+
+       FVector2D SlotCenter = Pair.Value->GetCachedGeometry().GetAbsolutePosition() +
                              Pair.Value->GetCachedGeometry().GetLocalSize() * 0.5f;
-       
+
        if (FVector2D::DistSquared(Center, SlotCenter) <= RadiusSq)
        {
            Result.Add(Pair.Value);
        }
    }
-   
+
    return Result;
 }
 
@@ -492,7 +492,7 @@ void USuspenseBaseContainerWidget::OnSlotSelectionChanged(int32 SlotIndex, bool 
            {
                if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
                {
-                   ISuspenseSlotUIInterface::Execute_SetSelected(PrevSlot, false);
+                   ISuspenseSlotUI::Execute_SetSelected(PrevSlot, false);
                }
            }
        }
@@ -505,13 +505,13 @@ void USuspenseBaseContainerWidget::OnSlotSelectionChanged(int32 SlotIndex, bool 
 }
 
 bool USuspenseBaseContainerWidget::CalculateOccupiedSlots(
-    int32 TargetSlot, 
-    FIntPoint ItemSize, 
-    bool bIsRotated, 
+    int32 TargetSlot,
+    FIntPoint ItemSize,
+    bool bIsRotated,
     TArray<int32>& OutOccupiedSlots) const
 {
     OutOccupiedSlots.Empty();
-    
+
     // For grid-based containers, this should be overridden
     // Base implementation assumes single slot
     if (TargetSlot >= 0 && SlotWidgets.Contains(TargetSlot))
@@ -519,7 +519,7 @@ bool USuspenseBaseContainerWidget::CalculateOccupiedSlots(
         OutOccupiedSlots.Add(TargetSlot);
         return true;
     }
-    
+
     return false;
 }
 
@@ -529,19 +529,19 @@ FSmartDropZone USuspenseBaseContainerWidget::FindBestDropZone(
    bool bIsRotated) const
 {
    FSmartDropZone Result;
-   
+
    // Simple implementation - just find slot at position
    if (USuspenseBaseSlotWidget* SlotWidget = GetSlotAtScreenPosition(ScreenPosition))
    {
        if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
        {
-           Result.SlotIndex = ISuspenseSlotUIInterface::Execute_GetSlotIndex(SlotWidget);
+           Result.SlotIndex = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
            Result.bIsValid = true;
-           Result.FeedbackPosition = SlotWidget->GetCachedGeometry().GetAbsolutePosition() + 
+           Result.FeedbackPosition = SlotWidget->GetCachedGeometry().GetAbsolutePosition() +
                                     SlotWidget->GetCachedGeometry().GetLocalSize() * 0.5f;
        }
    }
-   
+
    return Result;
 }
 
@@ -552,13 +552,13 @@ void USuspenseBaseContainerWidget::CreateSlots()
    {
        return;
    }
-   
+
    // Clear existing
    ClearSlots();
-   
+
    // Create new slots
    SlotWidgets.Reserve(CurrentContainerData.Slots.Num());
-   
+
    for (const FSlotUIData& SlotData : CurrentContainerData.Slots)
    {
        USuspenseBaseSlotWidget* SlotWidget = CreateOrAcquireSlot();
@@ -566,17 +566,17 @@ void USuspenseBaseContainerWidget::CreateSlots()
        {
            continue;
        }
-       
+
        // Set owning container
        SlotWidget->SetOwningContainer(this);
-       
+
        // Initialize slot
        FItemUIData EmptyItem;
-       ISuspenseSlotUIInterface::Execute_InitializeSlot(SlotWidget, SlotData, EmptyItem);
-       
+       ISuspenseSlotUI::Execute_InitializeSlot(SlotWidget, SlotData, EmptyItem);
+
        // Add to panel
        Panel->AddChild(SlotWidget);
-       
+
        // Store reference
        SlotWidgets.Add(SlotData.SlotIndex, SlotWidget);
    }
@@ -588,7 +588,7 @@ void USuspenseBaseContainerWidget::ClearSlots()
     {
         Panel->ClearChildren();
     }
-    
+
     // Return slots to pool if enabled
     if (bEnableSlotPooling)
     {
@@ -600,7 +600,7 @@ void USuspenseBaseContainerWidget::ClearSlots()
             }
         }
     }
-    
+
     SlotWidgets.Empty();
     SelectedSlotIndex = INDEX_NONE;
 }
@@ -615,7 +615,7 @@ void USuspenseBaseContainerWidget::ScheduleSlotUpdate(int32 SlotIndex, const FSl
 {
    // Add to pending updates
    PendingSlotUpdates.Add(SlotIndex, TPair<FSlotUIData, FItemUIData>(SlotData, ItemData));
-   
+
    // Schedule batch processing
    if (!UpdateBatchTimer.IsValid() && UpdateBatchDelay > 0.0f)
    {
@@ -642,14 +642,14 @@ void USuspenseBaseContainerWidget::ProcessBatchedUpdates()
            World->GetTimerManager().ClearTimer(UpdateBatchTimer);
        }
    }
-   
+
    // Process all pending updates
    for (const auto& Update : PendingSlotUpdates)
    {
        int32 SlotIndex = Update.Key;
        const FSlotUIData& SlotData = Update.Value.Key;
        const FItemUIData& ItemData = Update.Value.Value;
-       
+
        if (USuspenseBaseSlotWidget* SlotWidget = GetSlotWidget(SlotIndex))
        {
            // Ensure owning container is set
@@ -657,14 +657,14 @@ void USuspenseBaseContainerWidget::ProcessBatchedUpdates()
            {
                SlotWidget->SetOwningContainer(this);
            }
-           
-           ISuspenseSlotUIInterface::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
+
+           ISuspenseSlotUI::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
        }
    }
-   
+
    // Clear pending updates
    PendingSlotUpdates.Empty();
-   
+
    // Update timestamp
    LastUpdateTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 }
@@ -688,7 +688,7 @@ void USuspenseBaseContainerWidget::ReleaseSlot(USuspenseBaseSlotWidget* SlotWidg
     {
         return;
     }
-    
+
     if (bEnableSlotPooling && SlotPool.AvailableSlots.Num() < MaxPooledSlots)
     {
         SlotPool.ReleaseSlot(SlotWidget);
@@ -745,7 +745,7 @@ USuspenseDragDropHandler* USuspenseBaseContainerWidget::GetDragDropHandler() con
    {
        return CachedDragDropHandler;
    }
-   
+
    return USuspenseDragDropHandler::Get(this);
 }
 
@@ -759,19 +759,19 @@ USuspenseDragVisualWidget* USuspenseBaseContainerWidget::CreateDragVisualWidget(
 {
     // Get the class to use
     TSubclassOf<USuspenseDragVisualWidget> VisualClass = GetDragVisualWidgetClass();
-    
+
     if (!VisualClass)
     {
         return nullptr;
     }
-    
+
     // Create the widget
     USuspenseDragVisualWidget* DragVisual = CreateWidget<USuspenseDragVisualWidget>(this, VisualClass);
     if (!DragVisual)
     {
         return nullptr;
     }
-    
+
     // Initialize with data
     float CellSizeWidget = GetDragVisualCellSize();
     if (!DragVisual->InitializeDragVisual(DragData, CellSizeWidget))
@@ -779,21 +779,21 @@ USuspenseDragVisualWidget* USuspenseBaseContainerWidget::CreateDragVisualWidget(
         DragVisual->RemoveFromParent();
         return nullptr;
     }
-    
+
     // Apply container-specific settings
     // Вместо прямого доступа к QuantityText используем метод
     if (!bShowQuantityOnDrag)
     {
         DragVisual->SetQuantityTextVisible(false);
     }
-    
+
     // Enable low performance mode if needed
     float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     if (CurrentTime - LastUpdateTime < 0.016f) // If running below 60 FPS
         {
         DragVisual->SetLowPerformanceMode(true);
         }
-    
+
     return DragVisual;
 }
 

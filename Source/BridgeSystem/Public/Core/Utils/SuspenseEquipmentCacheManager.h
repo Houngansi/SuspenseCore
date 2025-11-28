@@ -16,7 +16,7 @@
 #include <limits>
 
 // ВАЖНО: подключаем только объявление реестра (без его повторного определения здесь)
-#include "Core/Utils/FSuspenseGlobalCacheRegistry.h"
+#include "Core/Utils/SuspenseGlobalCacheRegistry.h"
 
 // Эти инклюды у вас уже были — оставляю без изменений
 #include "Abilities/GameplayAbility.h"
@@ -186,7 +186,7 @@ struct FCacheEntry
  * - Supports two initialization modes: basic (MaxEntries only) and advanced (DefaultTTL + MaxEntries)
  * - DefaultTTL applies to all entries unless overridden per-entry in Set()
  * - Thread-safe via FScopeLock on all public methods
- * 
+ *
  * Locking:
  * - All public methods acquire CacheLock (FCriticalSection) via FScopeLock.
  */
@@ -399,10 +399,10 @@ public:
 	 * Get current default TTL setting
 	 * @return Default TTL in seconds (0 = no expiration)
 	 */
-	float GetDefaultTTL() const 
-	{ 
+	float GetDefaultTTL() const
+	{
 		FScopeLock Lock(CacheLock.Get());
-		return DefaultTTL; 
+		return DefaultTTL;
 	}
 
 	/**

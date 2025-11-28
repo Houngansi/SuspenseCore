@@ -29,7 +29,7 @@ static TAutoConsoleVariable<int32> CVarMedComUseMonolith(
 USuspenseEquipmentRulesEngine::USuspenseEquipmentRulesEngine()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    
+
     // Initialize configuration
     WeightConfig.BaseWeightLimit = 100.0f;
     WeightConfig.WeightPerStrength = 5.0f;
@@ -39,13 +39,13 @@ USuspenseEquipmentRulesEngine::USuspenseEquipmentRulesEngine()
     bEnableDetailedLogging = false;
     MaxViolationHistory = 1000;
     bDevFallbackEnabled = false;  // Disabled by default for production
-    
+
     // Initialize state
     bIsInitialized = false;
     EngineVersion = 1;
     CurrentEvaluationDepth = 0;
     LastUpdateTime = FDateTime::Now();
-    
+
     // Setup default encumbrance thresholds
     WeightConfig.EncumbranceThresholds.Add(0.5f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Light")));
     WeightConfig.EncumbranceThresholds.Add(0.75f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Medium")));
@@ -61,12 +61,12 @@ USuspenseEquipmentRulesEngine::~USuspenseEquipmentRulesEngine()
 void USuspenseEquipmentRulesEngine::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Only register default rules if dev mode is enabled
     if (ShouldUseDevFallback())
     {
         RegisterDefaultRules();
-        UE_LOG(LogEquipmentRules, Log, TEXT("Equipment Rules Engine (DEV FALLBACK) initialized with %d rules"), 
+        UE_LOG(LogEquipmentRules, Log, TEXT("Equipment Rules Engine (DEV FALLBACK) initialized with %d rules"),
             RegisteredRules.Num());
     }
     else
@@ -86,7 +86,7 @@ void USuspenseEquipmentRulesEngine::EndPlay(const EEndPlayReason::Type EndPlayRe
     RuleStats.Empty();
     ResultCache.Empty();
     CacheTimestamps.Empty();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
@@ -99,18 +99,18 @@ bool USuspenseEquipmentRulesEngine::ShouldUseDevFallback() const
     return bDevFallbackEnabled && CVarMedComUseMonolith.GetValueOnGameThread() != 0;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CreateDisabledResult(const FString& MethodName) const
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CreateDisabledResult(const FString& MethodName) const
 {
-    FSuspenseRuleEvaluationResult Result;
+    FRuleEvaluationResult Result;
     Result.bPassed = true;  // Don't block operations in production
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Dev.Monolith.Disabled"));
     Result.FailureReason = FText::FromString(FString::Printf(
-        TEXT("Monolithic rules engine is disabled. Use USuspenseRulesCoordinator for production validation. (Method: %s)"), 
+        TEXT("Monolithic rules engine is disabled. Use USuspenseRulesCoordinator for production validation. (Method: %s)"),
         *MethodName));
     Result.ConfidenceScore = 1.0f;
     Result.Details.Add(TEXT("Production path: Use USuspenseRulesCoordinator"));
     Result.Details.Add(FString::Printf(TEXT("Enable with: medcom.rules.use_monolith 1 or bDevFallbackEnabled=true")));
-    
+
     return Result;
 }
 
@@ -129,7 +129,7 @@ bool USuspenseEquipmentRulesEngine::IsDevFallbackEnabled() const
 // ISuspenseEquipmentRules Implementation (DEV FALLBACK)
 //========================================
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const FEquipmentOperationRequest& Operation) const
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const FEquipmentOperationRequest& Operation) const
 {
     if (!ShouldUseDevFallback())
     {
@@ -149,7 +149,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const
         Context.CurrentState = DataProvider->CreateSnapshot();
     }
 
-    TArray<FSuspenseEquipmentRule> ApplicableRules;
+    TArray<FEquipmentRule> ApplicableRules;
     for (const auto& Pair : RegisteredRules)
     {
         if (EnabledRules.Contains(Pair.Key))
@@ -159,13 +159,13 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const
     }
     ApplicableRules = PrioritizeRules(ApplicableRules);
 
-    FSuspenseRuleEvaluationResult Overall;
+    FRuleEvaluationResult Overall;
     Overall.bPassed = true;
     Overall.ConfidenceScore = 1.0f;
 
-    for (const FSuspenseEquipmentRule& Rule : ApplicableRules)
+    for (const FEquipmentRule& Rule : ApplicableRules)
     {
-        const FSuspenseRuleEvaluationResult RuleResult = ExecuteRule(Rule, Context);
+        const FRuleEvaluationResult RuleResult = ExecuteRule(Rule, Context);
 
         if (!RuleResult.bPassed)
         {
@@ -199,7 +199,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRules(const
     return Overall;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRulesWithContext(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
     const FSuspenseRuleContext& Context) const
 {
@@ -207,13 +207,13 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateRulesWithCo
     {
         return CreateDisabledResult(TEXT("EvaluateRulesWithContext"));
     }
-    
+
     // For dev fallback, convert context and delegate to regular evaluation
     // This is simplified - in practice would use the provided context more directly
     return EvaluateRules(Operation);
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemCompatibility(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemCompatibility(
     const FSuspenseInventoryItemInstance& ItemInstance,
     const FEquipmentSlotConfig& SlotConfig) const
 {
@@ -222,7 +222,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemCompatibil
         return CreateDisabledResult(TEXT("CheckItemCompatibility"));
     }
 
-    FSuspenseRuleEvaluationResult R;
+    FRuleEvaluationResult R;
     R.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.Compatibility"));
 
     FSuspenseUnifiedItemData ItemData;
@@ -303,7 +303,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemCompatibil
     return R;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterRequirements(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterRequirements(
     const AActor* Character,
     const FSuspenseInventoryItemInstance& ItemInstance) const
 {
@@ -311,10 +311,10 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterRequi
     {
         return CreateDisabledResult(TEXT("CheckCharacterRequirements"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.CharacterRequirements"));
-    
+
     if (!Character)
     {
         Result.bPassed = false;
@@ -322,17 +322,17 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterRequi
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     // Get item requirements
     FCharacterRequirements Requirements = GetItemRequirements(ItemInstance);
-    
+
     // Check character meets requirements
     Result = CheckCharacterMeetsRequirements(Character, Requirements);
-    
+
     return Result;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckWeightLimit(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckWeightLimit(
     float CurrentWeight,
     float AdditionalWeight) const
 {
@@ -340,21 +340,21 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckWeightLimit(
     {
         return CreateDisabledResult(TEXT("CheckWeightLimit"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.WeightLimit"));
-    
+
     // Calculate weight capacity
     float WeightCapacity = WeightConfig.BaseWeightLimit;
-    
+
     if (AActor* Owner = GetOwner())
     {
         WeightCapacity = CalculateWeightCapacity(Owner);
     }
-    
+
     float TotalWeight = CurrentWeight + AdditionalWeight;
     float WeightRatio = TotalWeight / WeightCapacity;
-    
+
     if (WeightRatio > 1.25f)
     {
         Result.bPassed = false;
@@ -383,11 +383,11 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckWeightLimit(
         Result.ConfidenceScore = 1.0f;
         Result.Details.Add(FString::Printf(TEXT("Weight OK (%.0f%% capacity)"), WeightRatio * 100.0f));
     }
-    
+
     return Result;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEquipment(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEquipment(
     const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
     const FSuspenseInventoryItemInstance& NewItem) const
 {
@@ -395,12 +395,12 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEqu
     {
         return CreateDisabledResult(TEXT("CheckConflictingEquipment"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ConflictDetection"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
-    
+
     // Get new item data from provider
     FSuspenseUnifiedItemData NewItemData;
     if (!GetItemData(NewItem.ItemID, NewItemData))
@@ -410,7 +410,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEqu
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     // Check for conflicts with existing items
     for (const FSuspenseInventoryItemInstance& ExistingItem : ExistingItems)
     {
@@ -418,13 +418,13 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEqu
         {
             continue;
         }
-        
+
         FSuspenseUnifiedItemData ExistingItemData;
         if (!GetItemData(ExistingItem.ItemID, ExistingItemData))
         {
             continue;
         }
-        
+
         // Check for mutually exclusive tags
         if (NewItemData.ItemTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Exclusive"))))
         {
@@ -440,13 +440,13 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEqu
                 return Result;
             }
         }
-        
+
         // Check for specific incompatibilities
         FGameplayTagContainer IncompatibleTags;
         IncompatibleTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Incompatible.Heavy")));
         IncompatibleTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Incompatible.Light")));
-        
-        if (NewItemData.ItemTags.HasAny(IncompatibleTags) && 
+
+        if (NewItemData.ItemTags.HasAny(IncompatibleTags) &&
             ExistingItemData.ItemTags.HasAny(IncompatibleTags))
         {
             FGameplayTagContainer Intersection = NewItemData.ItemTags.Filter(ExistingItemData.ItemTags);
@@ -463,21 +463,21 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckConflictingEqu
             }
         }
     }
-    
+
     return Result;
 }
 
-TArray<FSuspenseEquipmentRule> USuspenseEquipmentRulesEngine::GetActiveRules() const
+TArray<FEquipmentRule> USuspenseEquipmentRulesEngine::GetActiveRules() const
 {
     if (!ShouldUseDevFallback())
     {
-        return TArray<FSuspenseEquipmentRule>(); // Empty array for production
+        return TArray<FEquipmentRule>(); // Empty array for production
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
-    TArray<FSuspenseEquipmentRule> ActiveRules;
-    
+
+    TArray<FEquipmentRule> ActiveRules;
+
     for (const auto& RulePair : RegisteredRules)
     {
         if (EnabledRules.Contains(RulePair.Key))
@@ -485,30 +485,30 @@ TArray<FSuspenseEquipmentRule> USuspenseEquipmentRulesEngine::GetActiveRules() c
             ActiveRules.Add(RulePair.Value);
         }
     }
-    
+
     return PrioritizeRules(ActiveRules);
 }
 
-bool USuspenseEquipmentRulesEngine::RegisterRule(const FSuspenseEquipmentRule& Rule)
+bool USuspenseEquipmentRulesEngine::RegisterRule(const FEquipmentRule& Rule)
 {
     if (!ShouldUseDevFallback())
     {
         UE_LOG(LogEquipmentRules, Warning, TEXT("RegisterRule called on disabled monolith engine"));
         return false;
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
+
     if (!Rule.RuleTag.IsValid())
     {
         UE_LOG(LogEquipmentRules, Warning, TEXT("RegisterRule: Invalid rule tag"));
         return false;
     }
-    
+
     RegisteredRules.Add(Rule.RuleTag, Rule);
     EnabledRules.Add(Rule.RuleTag);
     RulePriorities.Add(Rule.RuleTag, Rule.Priority);
-    
+
     // Initialize statistics
     if (!RuleStats.Contains(Rule.RuleTag))
     {
@@ -516,13 +516,13 @@ bool USuspenseEquipmentRulesEngine::RegisterRule(const FSuspenseEquipmentRule& R
         Stats.LastEvaluationTime = FDateTime::Now();
         RuleStats.Add(Rule.RuleTag, Stats);
     }
-    
+
     if (bEnableDetailedLogging)
     {
-        UE_LOG(LogEquipmentRules, Log, TEXT("Registered rule: %s (Priority: %d)"), 
+        UE_LOG(LogEquipmentRules, Log, TEXT("Registered rule: %s (Priority: %d)"),
             *Rule.RuleTag.ToString(), Rule.Priority);
     }
-    
+
     return true;
 }
 
@@ -532,23 +532,23 @@ bool USuspenseEquipmentRulesEngine::UnregisterRule(const FGameplayTag& RuleTag)
     {
         return false;
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
+
     if (RegisteredRules.Remove(RuleTag) > 0)
     {
         EnabledRules.Remove(RuleTag);
         RulePriorities.Remove(RuleTag);
         RuleDependencies.Remove(RuleTag);
-        
+
         if (bEnableDetailedLogging)
         {
             UE_LOG(LogEquipmentRules, Log, TEXT("Unregistered rule: %s"), *RuleTag.ToString());
         }
-        
+
         return true;
     }
-    
+
     return false;
 }
 
@@ -558,14 +558,14 @@ bool USuspenseEquipmentRulesEngine::SetRuleEnabled(const FGameplayTag& RuleTag, 
     {
         return false;
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
+
     if (!RegisteredRules.Contains(RuleTag))
     {
         return false;
     }
-    
+
     if (bEnabled)
     {
         EnabledRules.Add(RuleTag);
@@ -574,13 +574,13 @@ bool USuspenseEquipmentRulesEngine::SetRuleEnabled(const FGameplayTag& RuleTag, 
     {
         EnabledRules.Remove(RuleTag);
     }
-    
+
     if (bEnableDetailedLogging)
     {
-        UE_LOG(LogEquipmentRules, Log, TEXT("Rule %s %s"), 
+        UE_LOG(LogEquipmentRules, Log, TEXT("Rule %s %s"),
             *RuleTag.ToString(), bEnabled ? TEXT("enabled") : TEXT("disabled"));
     }
-    
+
     return true;
 }
 
@@ -588,7 +588,7 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
 {
     if (!ShouldUseDevFallback())
     {
-        return TEXT("Monolithic Rules Engine Compliance Report\n") 
+        return TEXT("Monolithic Rules Engine Compliance Report\n")
                TEXT("==========================================\n\n")
                TEXT("Status: DISABLED (Production path uses USuspenseRulesCoordinator)\n\n")
                TEXT("To enable dev fallback mode:\n")
@@ -597,19 +597,19 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
                TEXT("This is a development tool only. Production validation\n")
                TEXT("is handled by the specialized rules coordinator.\n");
     }
-    
+
     FString Report = TEXT("Equipment Compliance Report (DEV FALLBACK)\n");
     Report += TEXT("============================================\n\n");
-    
+
     // Базовая информация о состоянии системы
     Report += FString::Printf(TEXT("Timestamp: %s\n"), *FDateTime::Now().ToString());
     Report += FString::Printf(TEXT("Active Rules: %d\n"), EnabledRules.Num());
-    
+
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: переход на новую структуру снапшота
     // Старый код использовал CurrentState.SlotConfigurations и CurrentState.SlotItems
     // Новый код использует CurrentState.SlotSnapshots - единую структуру
     Report += FString::Printf(TEXT("Total Slots: %d\n"), CurrentState.SlotSnapshots.Num());
-    
+
     // Подсчет занятых слотов через новую структуру
     int32 OccupiedSlots = 0;
     for (const FEquipmentSlotSnapshot& SlotSnapshot : CurrentState.SlotSnapshots)
@@ -620,19 +620,19 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
         }
     }
     Report += FString::Printf(TEXT("Occupied Slots: %d\n\n"), OccupiedSlots);
-    
+
     // Оценка соответствия правилам
     Report += TEXT("Rule Compliance:\n");
     Report += TEXT("----------------\n");
-    
+
     FRuleExecutionContext Context;
     Context.Character = GetOwner();
     Context.CurrentState = CurrentState;
     Context.Timestamp = FPlatformTime::Seconds();
-    
+
     int32 PassedRules = 0;
     int32 FailedRules = 0;
-    
+
     // Проверяем каждое активное правило
     for (const auto& RulePair : RegisteredRules)
     {
@@ -640,9 +640,9 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
         {
             continue;  // Пропускаем отключенные правила
         }
-        
-        FSuspenseRuleEvaluationResult Result = ExecuteRule(RulePair.Value, Context);
-        
+
+        FRuleEvaluationResult Result = ExecuteRule(RulePair.Value, Context);
+
         if (Result.bPassed)
         {
             PassedRules++;
@@ -651,18 +651,18 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
         else
         {
             FailedRules++;
-            Report += FString::Printf(TEXT("[FAIL] %s - %s\n"), 
+            Report += FString::Printf(TEXT("[FAIL] %s - %s\n"),
                 *RulePair.Value.Description.ToString(),
                 *Result.FailureReason.ToString());
         }
     }
-    
+
     // Статистика соответствия
-    const float ComplianceRate = (PassedRules > 0) 
-        ? ((float)PassedRules / (PassedRules + FailedRules) * 100.0f) 
+    const float ComplianceRate = (PassedRules > 0)
+        ? ((float)PassedRules / (PassedRules + FailedRules) * 100.0f)
         : 0.0f;
     Report += FString::Printf(TEXT("\nCompliance Rate: %.1f%%\n"), ComplianceRate);
-    
+
     // Анализ веса - извлекаем предметы из новой структуры снапшота
     TArray<FSuspenseInventoryItemInstance> AllEquippedItems;
     for (const FEquipmentSlotSnapshot& SlotSnapshot : CurrentState.SlotSnapshots)
@@ -672,37 +672,37 @@ FString USuspenseEquipmentRulesEngine::GenerateComplianceReport(const FEquipment
             AllEquippedItems.Add(SlotSnapshot.ItemInstance);
         }
     }
-    
+
     float TotalWeight = CalculateTotalWeight(AllEquippedItems);
     float WeightCapacity = CalculateWeightCapacity(GetOwner());
-    
+
     Report += TEXT("\nWeight Status:\n");
     Report += FString::Printf(TEXT("  Current: %.1f kg\n"), TotalWeight);
     Report += FString::Printf(TEXT("  Capacity: %.1f kg\n"), WeightCapacity);
-    Report += FString::Printf(TEXT("  Usage: %.0f%%\n"), 
+    Report += FString::Printf(TEXT("  Usage: %.0f%%\n"),
         (WeightCapacity > 0.0f) ? (TotalWeight / WeightCapacity * 100.0f) : 0.0f);
-    
+
     // История нарушений
     if (ViolationHistory.Num() > 0)
     {
         const int32 MaxViolationsToShow = 10;
-        Report += FString::Printf(TEXT("\nRecent Violations: %d\n"), 
+        Report += FString::Printf(TEXT("\nRecent Violations: %d\n"),
             FMath::Min(MaxViolationsToShow, ViolationHistory.Num()));
-        
+
         int32 Count = 0;
         // Показываем самые свежие нарушения
         for (int32 i = ViolationHistory.Num() - 1; i >= 0 && Count < MaxViolationsToShow; i--, Count++)
         {
             const FRuleViolation& Violation = ViolationHistory[i];
-            Report += FString::Printf(TEXT("  - %s: %s\n"), 
+            Report += FString::Printf(TEXT("  - %s: %s\n"),
                 *Violation.ViolatedRule.RuleTag.ToString(),
                 *Violation.EvaluationResult.FailureReason.ToString());
         }
     }
-    
+
     // Напоминание о режиме разработки
     Report += TEXT("\n[DEV FALLBACK MODE ACTIVE - Use USuspenseRulesCoordinator for production]\n");
-    
+
     return Report;
 }
 
@@ -717,18 +717,18 @@ bool USuspenseEquipmentRulesEngine::Initialize(TScriptInterface<ISuspenseEquipme
         UE_LOG(LogEquipmentRules, Warning, TEXT("Initialize called on disabled monolith engine"));
         return false;
     }
-    
+
     if (!InDataProvider.GetInterface())
     {
         UE_LOG(LogEquipmentRules, Error, TEXT("Initialize: Invalid data provider"));
         return false;
     }
-    
+
     DataProvider = InDataProvider;
     bIsInitialized = true;
-    
+
     UE_LOG(LogEquipmentRules, Log, TEXT("Rules engine (DEV FALLBACK) initialized with data provider"));
-    
+
     return true;
 }
 
@@ -738,54 +738,54 @@ int32 USuspenseEquipmentRulesEngine::LoadRulesFromDataTable(UDataTable* RulesTab
     {
         return 0;
     }
-    
+
     int32 LoadedCount = 0;
-    
+
     // Assuming data table has FSuspenseEquipmentRule rows
     const TMap<FName, uint8*>& RowMap = RulesTable->GetRowMap();
-    
+
     for (const auto& Row : RowMap)
     {
-        const FSuspenseEquipmentRule* RuleData = reinterpret_cast<const FSuspenseEquipmentRule*>(Row.Value);
+        const FEquipmentRule* RuleData = reinterpret_cast<const FEquipmentRule*>(Row.Value);
         if (RuleData && RegisterRule(*RuleData))
         {
             LoadedCount++;
         }
     }
-    
+
     UE_LOG(LogEquipmentRules, Log, TEXT("Loaded %d rules from data table (DEV FALLBACK)"), LoadedCount);
-    
+
     return LoadedCount;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateSpecificRule(
-    const FGameplayTag& RuleTag, 
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::EvaluateSpecificRule(
+    const FGameplayTag& RuleTag,
     const FRuleExecutionContext& Context) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("EvaluateSpecificRule"));
     }
-    
-    const FSuspenseEquipmentRule* Rule = RegisteredRules.Find(RuleTag);
+
+    const FEquipmentRule* Rule = RegisteredRules.Find(RuleTag);
     if (!Rule)
     {
-        FSuspenseRuleEvaluationResult Result;
+        FRuleEvaluationResult Result;
         Result.bPassed = false;
         Result.FailureReason = FText::FromString(TEXT("Rule not found"));
         Result.RuleType = RuleTag;
         return Result;
     }
-    
+
     return ExecuteRule(*Rule, Context);
 }
 
-TArray<FSuspenseRuleEvaluationResult> USuspenseEquipmentRulesEngine::BatchEvaluateRules(
-    const TArray<FGameplayTag>& RuleTags, 
+TArray<FRuleEvaluationResult> USuspenseEquipmentRulesEngine::BatchEvaluateRules(
+    const TArray<FGameplayTag>& RuleTags,
     const FRuleExecutionContext& Context) const
 {
-    TArray<FSuspenseRuleEvaluationResult> Results;
-    
+    TArray<FRuleEvaluationResult> Results;
+
     if (!ShouldUseDevFallback())
     {
         // Return disabled results for all tags
@@ -795,12 +795,12 @@ TArray<FSuspenseRuleEvaluationResult> USuspenseEquipmentRulesEngine::BatchEvalua
         }
         return Results;
     }
-    
+
     for (const FGameplayTag& RuleTag : RuleTags)
     {
         Results.Add(EvaluateSpecificRule(RuleTag, Context));
     }
-    
+
     return Results;
 }
 
@@ -810,14 +810,14 @@ void USuspenseEquipmentRulesEngine::ClearAllRules()
     {
         return;
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
+
     RegisteredRules.Empty();
     EnabledRules.Empty();
     RulePriorities.Empty();
     RuleDependencies.Empty();
-    
+
     UE_LOG(LogEquipmentRules, Log, TEXT("All rules cleared (DEV FALLBACK)"));
 }
 
@@ -827,12 +827,12 @@ void USuspenseEquipmentRulesEngine::ResetStatistics()
     {
         return;
     }
-    
+
     FScopeLock Lock(&RuleCriticalSection);
-    
+
     RuleStats.Empty();
     ViolationHistory.Empty();
-    
+
     UE_LOG(LogEquipmentRules, Log, TEXT("Statistics reset (DEV FALLBACK)"));
 }
 
@@ -914,13 +914,13 @@ bool USuspenseEquipmentRulesEngine::EvaluateExpression(const FString& Expression
     return true;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ExecuteRule(
-    const FSuspenseEquipmentRule& Rule, 
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::ExecuteRule(
+    const FEquipmentRule& Rule,
     const FRuleExecutionContext& Context) const
 {
-    FSuspenseRuleEvaluationResult Result;
+    FRuleEvaluationResult Result;
     Result.RuleType = Rule.RuleTag;
-    
+
     if (!ShouldUseDevFallback())
     {
         Result.bPassed = true;
@@ -928,7 +928,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ExecuteRule(
         Result.FailureReason = FText::FromString(TEXT("Dev fallback disabled"));
         return Result;
     }
-    
+
     // Check cache
     if (bEnableCaching)
     {
@@ -937,7 +937,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ExecuteRule(
             return Result;
         }
     }
-    
+
     // Check preconditions
     if (!CheckPreconditions(Rule, Context))
     {
@@ -946,31 +946,31 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ExecuteRule(
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     // Evaluate expression
     bool bExpressionResult = EvaluateExpression(Rule.RuleExpression, Context);
-    
+
     Result.bPassed = bExpressionResult;
     Result.ConfidenceScore = bExpressionResult ? 1.0f : 0.0f;
-    
+
     if (!bExpressionResult)
     {
-        Result.FailureReason = Rule.Description.IsEmpty() ? 
+        Result.FailureReason = Rule.Description.IsEmpty() ?
             FText::FromString(FString::Printf(TEXT("Rule %s failed"), *Rule.RuleTag.ToString())) :
             Rule.Description;
     }
-    
+
     // Cache result
     if (bEnableCaching)
     {
         CacheRuleResult(Rule.RuleTag, Result);
     }
-    
+
     return Result;
 }
 
 bool USuspenseEquipmentRulesEngine::CheckPreconditions(
-    const FSuspenseEquipmentRule& Rule,
+    const FEquipmentRule& Rule,
     const FRuleExecutionContext& Context) const
 {
     // Check dependencies
@@ -981,7 +981,7 @@ bool USuspenseEquipmentRulesEngine::CheckPreconditions(
 
         for (const FGameplayTag& DependencyTag : DepArray)
         {
-            const FSuspenseRuleEvaluationResult DependencyResult = EvaluateSpecificRule(DependencyTag, Context);
+            const FRuleEvaluationResult DependencyResult = EvaluateSpecificRule(DependencyTag, Context);
             if (!DependencyResult.bPassed)
             {
                 return false;
@@ -992,31 +992,31 @@ bool USuspenseEquipmentRulesEngine::CheckPreconditions(
     return true;
 }
 
-TArray<FSuspenseEquipmentRule> USuspenseEquipmentRulesEngine::PrioritizeRules(const TArray<FSuspenseEquipmentRule>& Rules) const
+TArray<FEquipmentRule> USuspenseEquipmentRulesEngine::PrioritizeRules(const TArray<FEquipmentRule>& Rules) const
 {
-    TArray<FSuspenseEquipmentRule> SortedRules = Rules;
-    
-    SortedRules.Sort([](const FSuspenseEquipmentRule& A, const FSuspenseEquipmentRule& B)
+    TArray<FEquipmentRule> SortedRules = Rules;
+
+    SortedRules.Sort([](const FEquipmentRule& A, const FEquipmentRule& B)
     {
         return A.Priority > B.Priority;
     });
-    
+
     return SortedRules;
 }
 
-void USuspenseEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag, const FSuspenseRuleEvaluationResult& Result) const
+void USuspenseEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag, const FRuleEvaluationResult& Result) const
 {
     if (!bEnableCaching)
     {
         return;
     }
-    
+
     uint32 CacheKey = GetTypeHash(RuleTag);
     float CurrentTime = FPlatformTime::Seconds();
-    
+
     ResultCache.Add(CacheKey, Result);
     CacheTimestamps.Add(CacheKey, CurrentTime);
-    
+
     // Cleanup old cache entries
     if (ResultCache.Num() > 100)
     {
@@ -1028,7 +1028,7 @@ void USuspenseEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag,
                 KeysToRemove.Add(TimePair.Key);
             }
         }
-        
+
         for (uint32 Key : KeysToRemove)
         {
             ResultCache.Remove(Key);
@@ -1037,28 +1037,28 @@ void USuspenseEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag,
     }
 }
 
-bool USuspenseEquipmentRulesEngine::GetCachedResult(const FGameplayTag& RuleTag, FSuspenseRuleEvaluationResult& OutResult) const
+bool USuspenseEquipmentRulesEngine::GetCachedResult(const FGameplayTag& RuleTag, FRuleEvaluationResult& OutResult) const
 {
     if (!bEnableCaching)
     {
         return false;
     }
-    
+
     uint32 CacheKey = GetTypeHash(RuleTag);
-    const FSuspenseRuleEvaluationResult* CachedResult = ResultCache.Find(CacheKey);
-    
+    const FRuleEvaluationResult* CachedResult = ResultCache.Find(CacheKey);
+
     if (CachedResult)
     {
         float CurrentTime = FPlatformTime::Seconds();
         const float* CacheTime = CacheTimestamps.Find(CacheKey);
-        
+
         if (CacheTime && (CurrentTime - *CacheTime) < CacheDuration)
         {
             OutResult = *CachedResult;
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -1068,7 +1068,7 @@ int32 USuspenseEquipmentRulesEngine::GetCharacterLevel(const AActor* Character) 
     {
         return 1;
     }
-    
+
     // Try to get from ability system
     if (Character->Implements<UAbilitySystemInterface>())
     {
@@ -1079,19 +1079,19 @@ int32 USuspenseEquipmentRulesEngine::GetCharacterLevel(const AActor* Character) 
             return 1;
         }
     }
-    
+
     return 1;
 }
 
 TMap<FName, float> USuspenseEquipmentRulesEngine::GetCharacterAttributes(const AActor* Character) const
 {
     TMap<FName, float> Attributes;
-    
+
     if (!Character)
     {
         return Attributes;
     }
-    
+
     // Get from ability system
     if (Character->Implements<UAbilitySystemInterface>())
     {
@@ -1104,19 +1104,19 @@ TMap<FName, float> USuspenseEquipmentRulesEngine::GetCharacterAttributes(const A
             Attributes.Add(TEXT("Intelligence"), 10.0f);
         }
     }
-    
+
     return Attributes;
 }
 
 FGameplayTagContainer USuspenseEquipmentRulesEngine::GetCharacterTags(const AActor* Character) const
 {
     FGameplayTagContainer Tags;
-    
+
     if (!Character)
     {
         return Tags;
     }
-    
+
     if (Character->Implements<UAbilitySystemInterface>())
     {
         if (UAbilitySystemComponent* ASC = Cast<IAbilitySystemInterface>(Character)->GetAbilitySystemComponent())
@@ -1124,14 +1124,14 @@ FGameplayTagContainer USuspenseEquipmentRulesEngine::GetCharacterTags(const AAct
             ASC->GetOwnedGameplayTags(Tags);
         }
     }
-    
+
     return Tags;
 }
 
 float USuspenseEquipmentRulesEngine::CalculateTotalWeight(const TArray<FSuspenseInventoryItemInstance>& Items) const
 {
     float TotalWeight = 0.0f;
-    
+
     for (const FSuspenseInventoryItemInstance& Item : Items)
     {
         if (Item.IsValid())
@@ -1143,7 +1143,7 @@ float USuspenseEquipmentRulesEngine::CalculateTotalWeight(const TArray<FSuspense
             }
         }
     }
-    
+
     return TotalWeight;
 }
 
@@ -1175,9 +1175,9 @@ void USuspenseEquipmentRulesEngine::UpdateStatistics(const FGameplayTag& RuleTag
     {
         return;
     }
-    
+
     FRuleStatistics& Stats = RuleStats.FindOrAdd(RuleTag);
-    
+
     Stats.TotalEvaluations++;
     if (bPassed)
     {
@@ -1187,11 +1187,11 @@ void USuspenseEquipmentRulesEngine::UpdateStatistics(const FGameplayTag& RuleTag
     {
         Stats.FailedEvaluations++;
     }
-    
+
     // Update average evaluation time
     float TotalTime = Stats.AverageEvaluationTime * (Stats.TotalEvaluations - 1) + EvaluationTime;
     Stats.AverageEvaluationTime = TotalTime / Stats.TotalEvaluations;
-    
+
     Stats.LastEvaluationTime = FDateTime::Now();
 }
 
@@ -1201,27 +1201,27 @@ void USuspenseEquipmentRulesEngine::RegisterDefaultRules()
     {
         return;
     }
-    
+
     // Register weight limit rule
-    FSuspenseEquipmentRule WeightRule;
+    FEquipmentRule WeightRule;
     WeightRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.WeightLimit"));
     WeightRule.RuleExpression = TEXT("WEIGHT<=MAX_WEIGHT");
     WeightRule.Priority = 100;
     WeightRule.bIsStrict = true;
     WeightRule.Description = FText::FromString(TEXT("Weight must not exceed capacity"));
     RegisterRule(WeightRule);
-    
+
     // Register durability rule
-    FSuspenseEquipmentRule DurabilityRule;
+    FEquipmentRule DurabilityRule;
     DurabilityRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.Durability"));
     DurabilityRule.RuleExpression = TEXT("DURABILITY>0");
     DurabilityRule.Priority = 90;
     DurabilityRule.bIsStrict = true;
     DurabilityRule.Description = FText::FromString(TEXT("Cannot equip broken items"));
     RegisterRule(DurabilityRule);
-    
+
     // Register level requirement rule
-    FSuspenseEquipmentRule LevelRule;
+    FEquipmentRule LevelRule;
     LevelRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.LevelRequirement"));
     LevelRule.RuleExpression = TEXT("LEVEL>=REQUIRED_LEVEL");
     LevelRule.Priority = 80;
@@ -1264,20 +1264,20 @@ FCharacterRequirements USuspenseEquipmentRulesEngine::GetItemRequirements(const 
     return Req;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeetsRequirements(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeetsRequirements(
     const AActor* Character,
     const FCharacterRequirements& Requirements) const
 {
-    FSuspenseRuleEvaluationResult Result;
+    FRuleEvaluationResult Result;
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.CharacterRequirements"));
-    
+
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("CheckCharacterMeetsRequirements"));
     }
-    
+
     // Check level
     if (Requirements.RequiredLevel > 0)
     {
@@ -1286,13 +1286,13 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeets
         {
             Result.bPassed = false;
             Result.FailureReason = FText::FromString(FString::Printf(
-                TEXT("Requires level %d (current: %d)"), 
+                TEXT("Requires level %d (current: %d)"),
                 Requirements.RequiredLevel, CharLevel));
             Result.ConfidenceScore = 0.0f;
             return Result;
         }
     }
-    
+
     // Check attributes
     TMap<FName, float> CharAttributes = GetCharacterAttributes(Character);
     for (const auto& ReqAttr : Requirements.RequiredAttributes)
@@ -1302,14 +1302,14 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeets
         {
             Result.bPassed = false;
             Result.FailureReason = FText::FromString(FString::Printf(
-                TEXT("Requires %s %.0f (current: %.0f)"), 
-                *ReqAttr.Key.ToString(), ReqAttr.Value, 
+                TEXT("Requires %s %.0f (current: %.0f)"),
+                *ReqAttr.Key.ToString(), ReqAttr.Value,
                 CharValue ? *CharValue : 0.0f));
             Result.ConfidenceScore = 0.0f;
             return Result;
         }
     }
-    
+
     // Check tags
     if (Requirements.RequiredTags.Num() > 0)
     {
@@ -1319,7 +1319,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeets
             Result.bPassed = false;
             Result.FailureReason = FText::FromString(TEXT("Character lacks required abilities or traits"));
             Result.ConfidenceScore = 0.0f;
-            
+
             // Add missing tags to details
             for (const FGameplayTag& ReqTag : Requirements.RequiredTags)
             {
@@ -1331,45 +1331,45 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckCharacterMeets
             return Result;
         }
     }
-    
+
     return Result;
 }
 
 float USuspenseEquipmentRulesEngine::CalculateWeightCapacity(const AActor* Character) const
 {
     float Capacity = WeightConfig.BaseWeightLimit;
-    
+
     if (!Character)
     {
         return Capacity;
     }
-    
+
     // Get strength attribute
     TMap<FName, float> Attributes = GetCharacterAttributes(Character);
     const float* Strength = Attributes.Find(TEXT("Strength"));
-    
+
     if (Strength)
     {
         Capacity += (*Strength * WeightConfig.WeightPerStrength);
     }
-    
+
     return Capacity;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemDurability(const FSuspenseInventoryItemInstance& ItemInstance) const
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemDurability(const FSuspenseInventoryItemInstance& ItemInstance) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("CheckItemDurability"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ItemDurability"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
-    
+
     float Durability = ItemInstance.GetRuntimeProperty(TEXT("Durability"), 100.0f);
-    
+
     if (Durability <= 0.0f)
     {
         Result.bPassed = false;
@@ -1381,11 +1381,11 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckItemDurability
         Result.ConfidenceScore = 0.5f;
         Result.Details.Add(FString::Printf(TEXT("Warning: Low durability (%.1f%%)"), Durability));
     }
-    
+
     return Result;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibility(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibility(
     const FSuspenseInventoryItemInstance& WeaponInstance,
     const FSuspenseInventoryItemInstance& AmmoInstance) const
 {
@@ -1393,12 +1393,12 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibil
     {
         return CreateDisabledResult(TEXT("CheckAmmoCompatibility"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.AmmoCompatibility"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
-    
+
     FSuspenseUnifiedItemData WeaponData, AmmoData;
     if (!GetItemData(WeaponInstance.ItemID, WeaponData) || !GetItemData(AmmoInstance.ItemID, AmmoData))
     {
@@ -1407,7 +1407,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibil
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     // Check if weapon can use this ammo type
     if (!WeaponData.bIsWeapon || !AmmoData.bIsAmmo)
     {
@@ -1416,7 +1416,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibil
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     if (WeaponData.AmmoType != AmmoData.AmmoCaliber)
     {
         Result.bPassed = false;
@@ -1428,11 +1428,11 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckAmmoCompatibil
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     return Result;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckModificationCompatibility(
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckModificationCompatibility(
     const FSuspenseInventoryItemInstance& BaseItem,
     const FSuspenseInventoryItemInstance& Modification) const
 {
@@ -1440,50 +1440,50 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::CheckModificationCo
     {
         return CreateDisabledResult(TEXT("CheckModificationCompatibility"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ModificationCompatibility"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
-    
+
     // Placeholder implementation - in real game would check attachment points, compatibility tags, etc.
     Result.FailureReason = FText::FromString(TEXT("Modification compatibility check passed"));
-    
+
     return Result;
 }
 
-FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ValidateLoadout(const TArray<FSuspenseInventoryItemInstance>& LoadoutItems) const
+FRuleEvaluationResult USuspenseEquipmentRulesEngine::ValidateLoadout(const TArray<FSuspenseInventoryItemInstance>& LoadoutItems) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("ValidateLoadout"));
     }
-    
-    FSuspenseRuleEvaluationResult Result;
+
+    FRuleEvaluationResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.LoadoutValidation"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
-    
+
     // Check total weight
     float TotalWeight = CalculateTotalWeight(LoadoutItems);
     float WeightCapacity = CalculateWeightCapacity(GetOwner());
-    
+
     if (TotalWeight > WeightCapacity * 1.1f) // 10% tolerance
     {
         Result.bPassed = false;
         Result.FailureReason = FText::FromString(FString::Printf(
-            TEXT("Loadout too heavy: %.1f kg (capacity: %.1f kg)"), 
+            TEXT("Loadout too heavy: %.1f kg (capacity: %.1f kg)"),
             TotalWeight, WeightCapacity));
         Result.ConfidenceScore = 0.0f;
         return Result;
     }
-    
+
     // Check for conflicts between items
     for (int32 i = 0; i < LoadoutItems.Num(); i++)
     {
         for (int32 j = i + 1; j < LoadoutItems.Num(); j++)
         {
-            FSuspenseRuleEvaluationResult ConflictCheck = CheckConflictingEquipment({LoadoutItems[i]}, LoadoutItems[j]);
+            FRuleEvaluationResult ConflictCheck = CheckConflictingEquipment({LoadoutItems[i]}, LoadoutItems[j]);
             if (!ConflictCheck.bPassed)
             {
                 Result.bPassed = false;
@@ -1493,7 +1493,7 @@ FSuspenseRuleEvaluationResult USuspenseEquipmentRulesEngine::ValidateLoadout(con
             }
         }
     }
-    
+
     Result.FailureReason = FText::FromString(TEXT("Loadout validation passed"));
     return Result;
 }
@@ -1503,16 +1503,16 @@ TArray<FRuleViolation> USuspenseEquipmentRulesEngine::FindItemConflicts(
     const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const
 {
     TArray<FRuleViolation> Conflicts;
-    
+
     if (!ShouldUseDevFallback())
     {
         return Conflicts;
     }
-    
+
     // This would contain more sophisticated conflict detection
     // For now, return basic conflicts based on CheckConflictingEquipment
-    FSuspenseRuleEvaluationResult ConflictResult = CheckConflictingEquipment(CurrentItems, ItemInstance);
-    
+    FRuleEvaluationResult ConflictResult = CheckConflictingEquipment(CurrentItems, ItemInstance);
+
     if (!ConflictResult.bPassed)
     {
         FRuleViolation Violation;
@@ -1522,7 +1522,7 @@ TArray<FRuleViolation> USuspenseEquipmentRulesEngine::FindItemConflicts(
         Violation.Severity = 7;
         Conflicts.Add(Violation);
     }
-    
+
     return Conflicts;
 }
 
@@ -1532,7 +1532,7 @@ bool USuspenseEquipmentRulesEngine::ResolveConflicts(const TArray<FRuleViolation
     {
         return false;
     }
-    
+
     // Placeholder implementation
     // 0 = Remove conflicting, 1 = Abort, 2 = Force
     switch (ResolutionStrategy)
@@ -1557,7 +1557,7 @@ FRuleStatistics USuspenseEquipmentRulesEngine::GetRuleStatistics(const FGameplay
     {
         return FRuleStatistics();
     }
-    
+
     const FRuleStatistics* Stats = RuleStats.Find(RuleTag);
     return Stats ? *Stats : FRuleStatistics();
 }
@@ -1568,14 +1568,14 @@ TArray<FRuleViolation> USuspenseEquipmentRulesEngine::GetViolationHistory(int32 
     {
         return TArray<FRuleViolation>();
     }
-    
+
     TArray<FRuleViolation> Result = ViolationHistory;
-    
+
     if (Result.Num() > MaxCount)
     {
         Result.SetNum(MaxCount);
     }
-    
+
     return Result;
 }
 
@@ -1585,7 +1585,7 @@ FString USuspenseEquipmentRulesEngine::ExportRulesToJSON() const
     {
         return TEXT("{\"error\":\"Monolithic rules engine disabled\"}");
     }
-    
+
     // Placeholder implementation
     return TEXT("{\"rules\":[],\"status\":\"dev_fallback_active\"}");
 }
@@ -1596,7 +1596,7 @@ int32 USuspenseEquipmentRulesEngine::ImportRulesFromJSON(const FString& JSONStri
     {
         return 0;
     }
-    
+
     // Placeholder implementation
     return 0;
 }

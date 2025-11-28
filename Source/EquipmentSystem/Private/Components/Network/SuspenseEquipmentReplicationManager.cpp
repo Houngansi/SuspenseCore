@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
-#include "Services/EquipmentNetworkServiceImpl.h"
+#include "Services/SuspenseEquipmentNetworkService.h"
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "GameFramework/PlayerController.h"
@@ -10,7 +10,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "Services/EquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Misc/SecureHash.h"
 #include "DrawDebugHelpers.h"
 
@@ -432,7 +432,7 @@ bool USuspenseEquipmentReplicationManager::Initialize(TScriptInterface<ISuspense
     return true;
 }
 
-void USuspenseEquipmentReplicationManager::SetSecurityService(UEquipmentNetworkServiceImpl* InSecurityService)
+void USuspenseEquipmentReplicationManager::SetSecurityService(USuspenseEquipmentNetworkService* InSecurityService)
 {
     SecurityService=InSecurityService;
     UE_LOG(LogEquipmentReplication,Log,TEXT("SetSecurityService: integrated"));

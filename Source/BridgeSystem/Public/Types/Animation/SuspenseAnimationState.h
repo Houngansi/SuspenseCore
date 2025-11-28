@@ -7,7 +7,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "Animation/AnimComposite.h"
-#include "AnimationStateStruct.generated.h"
+#include "SuspenseAnimationState.generated.h"
 
 /**
  * Структура анимационных данных для оружия
@@ -149,7 +149,7 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 
 	// Массив трансформаций хвата левой руки - Transform Array
 	// Индекс 0: базовая позиция хвата
-	// Индекс 1: позиция при прицеливании  
+	// Индекс 1: позиция при прицеливании
 	// Индекс 2: позиция при перезарядке
 	// Дополнительные индексы для специфических состояний
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transforms")

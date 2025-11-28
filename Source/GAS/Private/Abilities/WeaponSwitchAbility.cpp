@@ -1,9 +1,9 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Abilities/WeaponSwitchAbility.h"
-#include "Interfaces/Equipment/IMedComEquipmentInterface.h"
-#include "Interfaces/Weapon/IMedComWeaponInterface.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Interfaces/Equipment/ISuspenseEquipment.h"
+#include "Interfaces/Weapon/ISuspenseWeapon.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerState.h"
@@ -19,15 +19,15 @@ UWeaponSwitchAbility::UWeaponSwitchAbility()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
     ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
-    
+
     // Initialize tags
     WeaponSwitchingTag = FGameplayTag::RequestGameplayTag(TEXT("State.WeaponSwitching"));
     WeaponSwitchBlockTag = FGameplayTag::RequestGameplayTag(TEXT("Block.WeaponSwitch"));
-    
+
     EquipmentDrawingTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Drawing"));
     EquipmentHolsteringTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Holstering"));
     EquipmentSwitchingTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Switching"));
-    
+
     // Input tags
     InputNextWeaponTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.NextWeapon"));
     InputPrevWeaponTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.PrevWeapon"));
@@ -37,21 +37,21 @@ UWeaponSwitchAbility::UWeaponSwitchAbility()
     InputSlot3Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot3"));
     InputSlot4Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot4"));
     InputSlot5Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot5"));
-    
+
     // Set ability tags using new API
     FGameplayTagContainer AssetTags;
     AssetTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Switch")));
     SetAssetTags(AssetTags);
-    
+
     // Set blocking tags
     BlockAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Fire")));
     BlockAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Reload")));
-    
+
     // Set activation blocked tags
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Dead")));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Stunned")));
     ActivationBlockedTags.AddTag(WeaponSwitchBlockTag);
-    
+
     // Default values
     CurrentSwitchMode = EWeaponSwitchMode::Invalid;
     TargetSlotIndex = INDEX_NONE;
@@ -70,13 +70,13 @@ bool UWeaponSwitchAbility::CanActivateAbility(
     {
         return false;
     }
-    
+
     // Check if we can switch
     if (!CanSwitchWeapons())
     {
         return false;
     }
-    
+
     // Check for blocking states
     if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
     {
@@ -86,14 +86,14 @@ bool UWeaponSwitchAbility::CanActivateAbility(
             LogSwitchDebug(TEXT("Already switching weapons"));
             return false;
         }
-        
+
         // Check reload state
         if (!bAllowSwitchDuringReload && ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("State.Reloading"))))
         {
             LogSwitchDebug(TEXT("Cannot switch during reload"));
             return false;
         }
-        
+
         // Check firing state
         if (!bAllowSwitchWhileFiring && ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"))))
         {
@@ -101,7 +101,7 @@ bool UWeaponSwitchAbility::CanActivateAbility(
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -112,22 +112,22 @@ void UWeaponSwitchAbility::ActivateAbility(
     const FGameplayEventData* TriggerEventData)
 {
     LogSwitchDebug(TEXT("ActivateAbility started"));
-    
+
     // Store current spec handle
     CurrentSpecHandle = Handle;
-    
+
     if (!HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     // Find equipment interface
     CachedEquipmentInterface = FindEquipmentInterface();
     if (!CachedEquipmentInterface.GetInterface())
@@ -136,7 +136,7 @@ void UWeaponSwitchAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     // Determine switch mode
     CurrentSwitchMode = DetermineSwitchMode(TriggerEventData);
     if (CurrentSwitchMode == EWeaponSwitchMode::Invalid)
@@ -145,7 +145,7 @@ void UWeaponSwitchAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     // Get input slot if switching to specific slot
     int32 InputSlot = -1;
     if (CurrentSwitchMode == EWeaponSwitchMode::ToSlotIndex && TriggerEventData)
@@ -157,7 +157,7 @@ void UWeaponSwitchAbility::ActivateAbility(
         else if (TriggerEventData->EventTag == InputSlot4Tag) InputSlot = 3;
         else if (TriggerEventData->EventTag == InputSlot5Tag) InputSlot = 4;
     }
-    
+
     // Get target slot
     TargetSlotIndex = GetTargetSlot(CurrentSwitchMode, InputSlot);
     if (TargetSlotIndex == INDEX_NONE)
@@ -166,10 +166,10 @@ void UWeaponSwitchAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
         return;
     }
-    
+
     // Store source slot
     SourceSlotIndex = GetActiveWeaponSlot();
-    
+
     // Check if we're already at target slot
     if (SourceSlotIndex == TargetSlotIndex)
     {
@@ -177,24 +177,24 @@ void UWeaponSwitchAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
         return;
     }
-    
+
     // Store last active slot for quick switch
     if (SourceSlotIndex != INDEX_NONE)
     {
         LastActiveWeaponSlot = SourceSlotIndex;
     }
-    
+
     LogSwitchDebug(FString::Printf(TEXT("Switching from slot %d to slot %d"), SourceSlotIndex, TargetSlotIndex));
-    
+
     // Apply switching tags
     ApplySwitchTags(true);
-    
+
     // Send start event
     SendWeaponSwitchEvent(true, SourceSlotIndex, TargetSlotIndex);
-    
+
     // Store prediction key
     CurrentPredictionKey = GetCurrentActivationInfo().GetActivationPredictionKey().Current;
-    
+
     // Start switch sequence
     if (bPlaySwitchAnimations && SourceSlotIndex != INDEX_NONE)
     {
@@ -216,17 +216,17 @@ void UWeaponSwitchAbility::EndAbility(
     bool bWasCancelled)
 {
     LogSwitchDebug(FString::Printf(TEXT("EndAbility called. Cancelled: %s"), bWasCancelled ? TEXT("Yes") : TEXT("No")));
-    
+
     // Clear timers
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(HolsterTimerHandle);
         GetWorld()->GetTimerManager().ClearTimer(DrawTimerHandle);
     }
-    
+
     // Remove tags
     ApplySwitchTags(false);
-    
+
     // Clear state
     CurrentSwitchMode = EWeaponSwitchMode::Invalid;
     TargetSlotIndex = INDEX_NONE;
@@ -235,7 +235,7 @@ void UWeaponSwitchAbility::EndAbility(
     CurrentHolsterMontage = nullptr;
     CurrentDrawMontage = nullptr;
     CachedEquipmentInterface = nullptr;
-    
+
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -245,32 +245,32 @@ EWeaponSwitchMode UWeaponSwitchAbility::DetermineSwitchMode(const FGameplayEvent
     if (TriggerEventData && TriggerEventData->EventTag.IsValid())
     {
         const FGameplayTag& EventTag = TriggerEventData->EventTag;
-        
+
         // Check for specific slot switches
-        if (EventTag == InputSlot1Tag || EventTag == InputSlot2Tag || 
+        if (EventTag == InputSlot1Tag || EventTag == InputSlot2Tag ||
             EventTag == InputSlot3Tag || EventTag == InputSlot4Tag || EventTag == InputSlot5Tag)
         {
             return EWeaponSwitchMode::ToSlotIndex;
         }
-        
+
         // Check for cycling
         if (EventTag == InputNextWeaponTag)
         {
             return EWeaponSwitchMode::NextWeapon;
         }
-        
+
         if (EventTag == InputPrevWeaponTag)
         {
             return EWeaponSwitchMode::PreviousWeapon;
         }
-        
+
         // Check for quick switch
         if (EventTag == InputQuickSwitchTag)
         {
             return EWeaponSwitchMode::QuickSwitch;
         }
     }
-    
+
     // Если нет event data, определяем по InputID из текущего Spec
     if (CurrentActorInfo && CurrentActorInfo->AbilitySystemComponent.IsValid())
     {
@@ -281,28 +281,28 @@ EWeaponSwitchMode UWeaponSwitchAbility::DetermineSwitchMode(const FGameplayEvent
             // Теперь можем получить InputID из spec
             switch (Spec->InputID)
             {
-                case static_cast<int32>(EMCAbilityInputID::NextWeapon):
+                case static_cast<int32>(ESuspenseAbilityInputID::NextWeapon):
                     return EWeaponSwitchMode::NextWeapon;
-                    
-                case static_cast<int32>(EMCAbilityInputID::PrevWeapon):
+
+                case static_cast<int32>(ESuspenseAbilityInputID::PrevWeapon):
                     return EWeaponSwitchMode::PreviousWeapon;
-                    
-                case static_cast<int32>(EMCAbilityInputID::QuickSwitch):
+
+                case static_cast<int32>(ESuspenseAbilityInputID::QuickSwitch):
                     return EWeaponSwitchMode::QuickSwitch;
-                    
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot1):
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot2):
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot3):
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot4):
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot5):
+
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot1):
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot2):
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot3):
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot4):
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot5):
                     return EWeaponSwitchMode::ToSlotIndex;
-                    
+
                 default:
                     break;
             }
         }
     }
-    
+
     return EWeaponSwitchMode::Invalid;
 }
 
@@ -317,7 +317,7 @@ int32 UWeaponSwitchAbility::GetTargetSlot(EWeaponSwitchMode Mode, int32 InputSlo
             {
                 return InputSlot;
             }
-            
+
             // Если InputSlot не задан, определяем по InputID
             if (InputSlot < 0 && CurrentActorInfo && CurrentActorInfo->AbilitySystemComponent.IsValid())
             {
@@ -327,49 +327,49 @@ int32 UWeaponSwitchAbility::GetTargetSlot(EWeaponSwitchMode Mode, int32 InputSlo
                     // Map InputID to slot index
                     switch (Spec->InputID)
                     {
-                        case static_cast<int32>(EMCAbilityInputID::WeaponSlot1):
+                        case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot1):
                             return IsWeaponSlot(0) ? 0 : INDEX_NONE;
-                        case static_cast<int32>(EMCAbilityInputID::WeaponSlot2):
+                        case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot2):
                             return IsWeaponSlot(1) ? 1 : INDEX_NONE;
-                        case static_cast<int32>(EMCAbilityInputID::WeaponSlot3):
+                        case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot3):
                             return IsWeaponSlot(2) ? 2 : INDEX_NONE;
-                        case static_cast<int32>(EMCAbilityInputID::WeaponSlot4):
+                        case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot4):
                             return IsWeaponSlot(3) ? 3 : INDEX_NONE;
-                        case static_cast<int32>(EMCAbilityInputID::WeaponSlot5):
+                        case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot5):
                             return IsWeaponSlot(4) ? 4 : INDEX_NONE;
                     }
                 }
             }
             return INDEX_NONE;
         }
-        
+
     case EWeaponSwitchMode::NextWeapon:
         {
             int32 CurrentSlot = GetActiveWeaponSlot();
             return GetNextWeaponSlot(CurrentSlot);
         }
-        
+
     case EWeaponSwitchMode::PreviousWeapon:
         {
             int32 CurrentSlot = GetActiveWeaponSlot();
             return GetPreviousWeaponSlot(CurrentSlot);
         }
-        
+
     case EWeaponSwitchMode::QuickSwitch:
         {
             // Используем новый метод интерфейса для получения предыдущего слота
             if (CachedEquipmentInterface.GetInterface())
             {
-                int32 PrevSlot = IMedComEquipmentInterface::Execute_GetPreviousWeaponSlot(
+                int32 PrevSlot = ISuspenseEquipment::Execute_GetPreviousWeaponSlot(
                     CachedEquipmentInterface.GetObject()
                 );
-                
+
                 if (PrevSlot != INDEX_NONE && IsWeaponSlot(PrevSlot))
                 {
                     return PrevSlot;
                 }
             }
-            
+
             // Если нет предыдущего слота, переключаемся на первое доступное оружие
             TArray<int32> WeaponSlots = GetWeaponSlotIndices();
             if (WeaponSlots.Num() > 0)
@@ -383,10 +383,10 @@ int32 UWeaponSwitchAbility::GetTargetSlot(EWeaponSwitchMode Mode, int32 InputSlo
                     }
                 }
             }
-            
+
             return INDEX_NONE;
         }
-        
+
     default:
         return INDEX_NONE;
     }
@@ -399,30 +399,30 @@ void UWeaponSwitchAbility::PerformWeaponSwitch(int32 TargetSlot)
         EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
         return;
     }
-    
+
     // Теперь используем новый метод интерфейса для переключения
-    bool bSwitchSuccess = IMedComEquipmentInterface::Execute_SwitchToSlot(
+    bool bSwitchSuccess = ISuspenseEquipment::Execute_SwitchToSlot(
         CachedEquipmentInterface.GetObject(),
         TargetSlot
     );
-    
+
     if (!bSwitchSuccess)
     {
         LogSwitchDebug(TEXT("PerformWeaponSwitch: Failed to switch to slot"), true);
         EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
         return;
     }
-    
+
     // Send RPC based on authority
     if (CurrentActivationInfo.ActivationMode == EGameplayAbilityActivationMode::Authority)
     {
         // Server: Update equipment state directly
-        IMedComEquipmentInterface::Execute_SetEquipmentState(
+        ISuspenseEquipment::Execute_SetEquipmentState(
             CachedEquipmentInterface.GetObject(),
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Ready")),
             true
         );
-        
+
         // Play draw animation
         if (bPlaySwitchAnimations)
         {
@@ -439,7 +439,7 @@ void UWeaponSwitchAbility::PerformWeaponSwitch(int32 TargetSlot)
     {
         // Client: send RPC
         ServerRequestWeaponSwitch(TargetSlot, CurrentPredictionKey);
-        
+
         // Play draw animation optimistically
         if (bPlaySwitchAnimations)
         {
@@ -455,7 +455,7 @@ void UWeaponSwitchAbility::PlayHolsterAnimation()
         OnHolsterAnimationComplete();
         return;
     }
-    
+
     // For now, skip animation and proceed
     // In production, we'd get animation data through weapon interface
     OnHolsterAnimationComplete();
@@ -468,7 +468,7 @@ void UWeaponSwitchAbility::PlayDrawAnimation()
         OnDrawAnimationComplete();
         return;
     }
-    
+
     // For now, skip animation and proceed
     // In production, we'd get animation data through weapon interface
     OnDrawAnimationComplete();
@@ -477,13 +477,13 @@ void UWeaponSwitchAbility::PlayDrawAnimation()
 void UWeaponSwitchAbility::OnHolsterAnimationComplete()
 {
     LogSwitchDebug(TEXT("Holster animation complete"));
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(HolsterTimerHandle);
     }
-    
+
     // Now perform the actual switch
     PerformWeaponSwitch(TargetSlotIndex);
 }
@@ -491,26 +491,26 @@ void UWeaponSwitchAbility::OnHolsterAnimationComplete()
 void UWeaponSwitchAbility::OnDrawAnimationComplete()
 {
     LogSwitchDebug(TEXT("Draw animation complete"));
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(DrawTimerHandle);
     }
-    
+
     // Update equipment state
     if (CachedEquipmentInterface.GetInterface())
     {
-        IMedComEquipmentInterface::Execute_SetEquipmentState(
+        ISuspenseEquipment::Execute_SetEquipmentState(
             CachedEquipmentInterface.GetObject(),
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Ready")),
             false
         );
     }
-    
+
     // Send completion event
     SendWeaponSwitchEvent(false, SourceSlotIndex, TargetSlotIndex);
-    
+
     // End ability
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
@@ -521,7 +521,7 @@ void UWeaponSwitchAbility::ServerRequestWeaponSwitch_Implementation(int32 Target
     {
         return;
     }
-    
+
     // Validate and perform switch on server
     // For now, just confirm
     ClientConfirmWeaponSwitch(TargetSlot, true, PredictionKey);
@@ -529,19 +529,19 @@ void UWeaponSwitchAbility::ServerRequestWeaponSwitch_Implementation(int32 Target
 
 void UWeaponSwitchAbility::ClientConfirmWeaponSwitch_Implementation(int32 NewActiveSlot, bool bSuccess, int32 PredictionKey)
 {
-    LogSwitchDebug(FString::Printf(TEXT("Client received switch confirmation: %s, Slot: %d"), 
+    LogSwitchDebug(FString::Printf(TEXT("Client received switch confirmation: %s, Slot: %d"),
         bSuccess ? TEXT("Success") : TEXT("Failed"), NewActiveSlot));
 }
 
 TScriptInterface<IMedComEquipmentInterface> UWeaponSwitchAbility::FindEquipmentInterface() const
 {
     TScriptInterface<IMedComEquipmentInterface> Result;
-    
+
     if (!CurrentActorInfo || !CurrentActorInfo->AvatarActor.IsValid())
     {
         return Result;
     }
-    
+
     // Check PlayerState for equipment component
     if (APawn* Pawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get()))
     {
@@ -551,16 +551,16 @@ TScriptInterface<IMedComEquipmentInterface> UWeaponSwitchAbility::FindEquipmentI
             TArray<UActorComponent*> Components = PS->GetComponents().Array();
             for (UActorComponent* Component : Components)
             {
-                if (Component && Component->GetClass()->ImplementsInterface(UMedComEquipmentInterface::StaticClass()))
+                if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
                 {
                     Result.SetObject(Component);
-                    Result.SetInterface(Cast<IMedComEquipmentInterface>(Component));
+                    Result.SetInterface(Cast<ISuspenseEquipment>(Component));
                     return Result;
                 }
             }
         }
     }
-    
+
     return Result;
 }
 
@@ -568,11 +568,11 @@ TArray<int32> UWeaponSwitchAbility::GetWeaponSlotIndices() const
 {
     if (CachedEquipmentInterface.GetInterface())
     {
-        return IMedComEquipmentInterface::Execute_GetWeaponSlotsByPriority(
+        return ISuspenseEquipment::Execute_GetWeaponSlotsByPriority(
             CachedEquipmentInterface.GetObject()
         );
     }
-    
+
     return TArray<int32>();
 }
 
@@ -580,11 +580,11 @@ int32 UWeaponSwitchAbility::GetActiveWeaponSlot() const
 {
     if (CachedEquipmentInterface.GetInterface())
     {
-        return IMedComEquipmentInterface::Execute_GetActiveWeaponSlotIndex(
+        return ISuspenseEquipment::Execute_GetActiveWeaponSlotIndex(
             CachedEquipmentInterface.GetObject()
         );
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -596,7 +596,7 @@ int32 UWeaponSwitchAbility::GetNextWeaponSlot(int32 CurrentSlot) const
     {
         return INDEX_NONE;
     }
-    
+
     // Find current slot in array
     int32 CurrentIndex = WeaponSlots.IndexOfByKey(CurrentSlot);
     if (CurrentIndex == INDEX_NONE)
@@ -604,10 +604,10 @@ int32 UWeaponSwitchAbility::GetNextWeaponSlot(int32 CurrentSlot) const
         // Start from first slot
         return WeaponSlots[0];
     }
-    
+
     // Get next slot (with wrapping)
     int32 NextIndex = (CurrentIndex + 1) % WeaponSlots.Num();
-    
+
     if (bSkipEmptySlots)
     {
         // Find next non-empty slot
@@ -615,14 +615,14 @@ int32 UWeaponSwitchAbility::GetNextWeaponSlot(int32 CurrentSlot) const
         {
             int32 CheckIndex = (NextIndex + i) % WeaponSlots.Num();
             int32 SlotIndex = WeaponSlots[CheckIndex];
-            
+
             // Check if slot has item (would need interface method)
             if (CachedEquipmentInterface.GetInterface())
             {
-                FInventoryItemInstance Item = IMedComEquipmentInterface::Execute_GetEquippedItemInstance(
+                FSuspenseInventoryItemInstance Item = ISuspenseEquipment::Execute_GetEquippedItemInstance(
                     CachedEquipmentInterface.GetObject()
                 );
-                
+
                 if (Item.IsValid())
                 {
                     return SlotIndex;
@@ -630,7 +630,7 @@ int32 UWeaponSwitchAbility::GetNextWeaponSlot(int32 CurrentSlot) const
             }
         }
     }
-    
+
     return WeaponSlots[NextIndex];
 }
 
@@ -641,7 +641,7 @@ int32 UWeaponSwitchAbility::GetPreviousWeaponSlot(int32 CurrentSlot) const
     {
         return INDEX_NONE;
     }
-    
+
     // Find current slot in array
     int32 CurrentIndex = WeaponSlots.IndexOfByKey(CurrentSlot);
     if (CurrentIndex == INDEX_NONE)
@@ -649,10 +649,10 @@ int32 UWeaponSwitchAbility::GetPreviousWeaponSlot(int32 CurrentSlot) const
         // Start from last slot
         return WeaponSlots.Last();
     }
-    
+
     // Get previous slot (with wrapping)
     int32 PrevIndex = (CurrentIndex - 1 + WeaponSlots.Num()) % WeaponSlots.Num();
-    
+
     if (bSkipEmptySlots)
     {
         // Find previous non-empty slot
@@ -660,14 +660,14 @@ int32 UWeaponSwitchAbility::GetPreviousWeaponSlot(int32 CurrentSlot) const
         {
             int32 CheckIndex = (PrevIndex - i + WeaponSlots.Num()) % WeaponSlots.Num();
             int32 SlotIndex = WeaponSlots[CheckIndex];
-            
+
             // Check if slot has item (would need interface method)
             if (CachedEquipmentInterface.GetInterface())
             {
-                FInventoryItemInstance Item = IMedComEquipmentInterface::Execute_GetEquippedItemInstance(
+                FSuspenseInventoryItemInstance Item = ISuspenseEquipment::Execute_GetEquippedItemInstance(
                     CachedEquipmentInterface.GetObject()
                 );
-                
+
                 if (Item.IsValid())
                 {
                     return SlotIndex;
@@ -675,7 +675,7 @@ int32 UWeaponSwitchAbility::GetPreviousWeaponSlot(int32 CurrentSlot) const
             }
         }
     }
-    
+
     return WeaponSlots[PrevIndex];
 }
 
@@ -683,27 +683,27 @@ bool UWeaponSwitchAbility::IsWeaponSlot(int32 SlotIndex) const
 {
     if (CachedEquipmentInterface.GetInterface())
     {
-        return IMedComEquipmentInterface::Execute_IsSlotWeapon(
+        return ISuspenseEquipment::Execute_IsSlotWeapon(
             CachedEquipmentInterface.GetObject(),
             SlotIndex
         );
     }
-    
+
     return false;
 }
 
-UEventDelegateManager* UWeaponSwitchAbility::GetDelegateManager() const
+USuspenseEventManager* UWeaponSwitchAbility::GetDelegateManager() const
 {
     if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
     {
-        return UEventDelegateManager::Get(CurrentActorInfo->AvatarActor.Get());
+        return USuspenseEventManager::Get(CurrentActorInfo->AvatarActor.Get());
     }
     return nullptr;
 }
 
 void UWeaponSwitchAbility::SendWeaponSwitchEvent(bool bStarted, int32 FromSlot, int32 ToSlot) const
 {
-    if (UEventDelegateManager* Manager = GetDelegateManager())
+    if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         if (bStarted)
         {
@@ -725,7 +725,7 @@ bool UWeaponSwitchAbility::CanSwitchWeapons() const
         LogSwitchDebug(TEXT("No equipment interface found"));
         return false;
     }
-    
+
     // Check if any weapons are available
     TArray<int32> WeaponSlots = GetWeaponSlotIndices();
     if (WeaponSlots.Num() == 0)
@@ -733,7 +733,7 @@ bool UWeaponSwitchAbility::CanSwitchWeapons() const
         LogSwitchDebug(TEXT("No weapon slots available"));
         return false;
     }
-    
+
     return true;
 }
 
@@ -743,9 +743,9 @@ void UWeaponSwitchAbility::ApplySwitchTags(bool bApply)
     {
         return;
     }
-    
+
     UAbilitySystemComponent* ASC = CurrentActorInfo->AbilitySystemComponent.Get();
-    
+
     if (bApply)
     {
         ASC->AddLooseGameplayTag(WeaponSwitchingTag);

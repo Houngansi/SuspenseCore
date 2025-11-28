@@ -10,7 +10,13 @@ public class PlayerCore : ModuleRules
             new string[]
             {
                 "Core",
-                "CinematicCamera"
+                "CinematicCamera",
+                "GameplayAbilities",
+                "BridgeSystem",
+                "InventorySystem",
+                "EquipmentSystem",
+                "UISystem",
+                "GAS"
             }
         );
 
@@ -20,7 +26,7 @@ public class PlayerCore : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "Slate",
-                "SlateCore"
+                "SlateCore", "UISystem", "EnhancedInput"
             }
         );
     }

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 #include "SuspenseUIManager.generated.h"
 
 // Forward declarations
@@ -15,7 +15,7 @@ class USuspenseBaseLayoutWidget;
 class USuspenseEventManager;
 class USuspenseUpperTabBar;
 class USuspenseInventoryUIBridge;
-class USuspenseEquipmentUIBridge;
+class USuspenseEquipmentUIBridgeInterface;
 struct FSuspenseUnifiedItemData;
 
 /**
@@ -46,7 +46,7 @@ struct FSuspenseWidgetInfo
     // Should widget persist between levels
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
     bool bPersistent = false;
-    
+
     // Should widget be added to viewport immediately when created
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
     bool bAutoAddToViewport = true;
@@ -62,20 +62,20 @@ struct FSuspenseWidgetInfo
 
 /**
  * Central UI management system for all widgets in the game
- * 
+ *
  * ARCHITECTURE:
  * - UIManager creates ONLY root widgets (HUD, CharacterScreen, Dialogs, Menus)
  * - All child widgets (Inventory, Equipment, etc.) are created through Layout system
  * - Layout widgets manage their own children and report to UIManager for registration
  * - Bridges always connect to widgets through Layout system, never directly
- * 
+ *
  * KEY FEATURES:
  * - Unified widget registry for both root and layout-created widgets
  * - Automatic registration of layout-created widgets through event system
  * - Smart widget search that looks in both direct registry and inside layouts
  * - On-demand bridge initialization when tabs are opened
  * - No widget duplication - each widget created exactly once
- * 
+ *
  * USAGE:
  * - Use CreateWidget() ONLY for root widgets
  * - Use ShowCharacterScreen() for complex UI with tabs
@@ -89,7 +89,7 @@ class UISYSTEM_API USuspenseUIManager : public UGameInstanceSubsystem
 
 public:
     USuspenseUIManager();
-    
+
     // Lifecycle
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -109,7 +109,7 @@ public:
     /**
      * Creates and registers ROOT widget only
      * DO NOT use this for child widgets - they must be created through Layout system
-     * 
+     *
      * @param WidgetClass Widget class to create
      * @param WidgetTag Unique tag for identification (must be a root widget tag)
      * @param OwningObject Object that owns the widget (usually PlayerController)
@@ -118,8 +118,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Manager")
     UUserWidget* CreateWidget(
-        TSubclassOf<UUserWidget> WidgetClass, 
-        FGameplayTag WidgetTag, 
+        TSubclassOf<UUserWidget> WidgetClass,
+        FGameplayTag WidgetTag,
         UObject* OwningObject,
         bool bForceAddToViewport = false);
 
@@ -216,7 +216,7 @@ public:
     //================================================
     // Character Screen Management
     //================================================
-    
+
     /**
      * Show character screen with specified tab
      * Handles bridge initialization for the selected tab
@@ -226,14 +226,14 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Manager")
     UUserWidget* ShowCharacterScreen(UObject* OwningObject, FGameplayTag TabTag);
-    
+
     /**
      * Hide character screen
      * @return Success of operation
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Manager")
     bool HideCharacterScreen();
-    
+
     /**
      * Check if character screen is visible
      * @return true if screen is shown
@@ -393,11 +393,11 @@ protected:
     // Tag for main HUD
     UPROPERTY(EditDefaultsOnly, Category = "UI|Configuration")
     FGameplayTag MainHUDTag = FGameplayTag::RequestGameplayTag("UI.HUD.Main");
-    
+
     // Character Screen widget class
     UPROPERTY(EditDefaultsOnly, Category = "UI|Configuration")
     TSubclassOf<UUserWidget> CharacterScreenClass;
-    
+
     // Tag for Character Screen
     UPROPERTY(EditDefaultsOnly, Category = "UI|Configuration")
     FGameplayTag CharacterScreenTag = FGameplayTag::RequestGameplayTag("UI.Screen.Character");
@@ -433,7 +433,7 @@ protected:
      * @param LayoutWidget Layout widget to analyze
      */
     void AnalyzeLayoutAndCreateBridges(APlayerController* PlayerController, USuspenseBaseLayoutWidget* LayoutWidget);
-    
+
     /**
      * Fallback method for legacy tab-based bridge initialization
      * Used when layout analysis is not possible
@@ -441,7 +441,7 @@ protected:
      * @param TabTag Opening tab tag
      */
     void InitializeBridgesByTabTag(APlayerController* PlayerController, FGameplayTag TabTag);
-    
+
     /**
      * Finds TabBar widget inside Character Screen
      * Supports both direct cast and widget tree search
@@ -449,7 +449,7 @@ protected:
      * @return Found TabBar or nullptr
      */
     USuspenseUpperTabBar* FindTabBarInCharacterScreen(UUserWidget* CharacterScreen) const;
- 
+
     /**
      * Connects Inventory Bridge to game inventory component
      * Searches for component on PlayerState and establishes connection
@@ -491,15 +491,15 @@ private:
     // Cached inventory bridge
     UPROPERTY()
     USuspenseInventoryUIBridge* InventoryUIBridge;
-    
+
     // Equipment UI Bridge
     UPROPERTY()
     USuspenseEquipmentUIBridge* EquipmentUIBridge;
-    
+
     // Layout event handles
     FDelegateHandle LayoutWidgetCreatedHandle;
     FDelegateHandle LayoutWidgetDestroyedHandle;
-    
+
     // Internal methods
     void BuildConfigurationCache();
     bool IsWidgetValid(UUserWidget* Widget) const;
@@ -511,11 +511,11 @@ private:
     int32 GetZOrderForWidget(FGameplayTag WidgetTag) const;
     bool ShouldAutoAddToViewport(FGameplayTag WidgetTag) const;
     bool IsRootWidgetTag(FGameplayTag WidgetTag) const;
-    
+
     // Initialization methods (now empty - bridges created on demand)
     void InitializeInventoryBridge();
     void InitializeEquipmentBridge();
-    
+
     // Layout event handling
     void SubscribeToLayoutEvents();
     void UnsubscribeFromLayoutEvents();

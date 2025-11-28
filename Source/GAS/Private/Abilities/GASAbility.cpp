@@ -9,5 +9,5 @@ UGASAbility::UGASAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
 	// Никакой клавише не привязано, пока дизайнер не задаст в БП-потомке
-	AbilityInputID = EMCAbilityInputID::None;
+	AbilityInputID = ESuspenseAbilityInputID::None;
 }

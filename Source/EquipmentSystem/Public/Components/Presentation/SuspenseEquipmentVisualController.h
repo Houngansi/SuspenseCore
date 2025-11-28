@@ -284,8 +284,8 @@ protected:
 	TMap<FString, FEquipmentVisualProfile> ProfileCache;
 
 	/** Кэши */
-	FEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
-	FEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
+	FSuspenseEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
+	FSuspenseEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
 
 	/** Подписки на EventBus */
 	TArray<FEventSubscriptionHandle> EventSubscriptions;
@@ -318,10 +318,10 @@ protected:
 
 private:
 	void SetupEventHandlers();
-	void OnEquipmentStateChanged(const FEquipmentEventData& EventData);
-	void OnWeaponFired(const FEquipmentEventData& EventData);
-	void OnWeaponReload(const FEquipmentEventData& EventData);
-	void OnQuickSwitch(const FEquipmentEventData& EventData);
+	void OnEquipmentStateChanged(const FSuspenseEquipmentEventData& EventData);
+	void OnWeaponFired(const FSuspenseEquipmentEventData& EventData);
+	void OnWeaponReload(const FSuspenseEquipmentEventData& EventData);
+	void OnQuickSwitch(const FSuspenseEquipmentEventData& EventData);
 
 	void ProcessBatchQueue();
 	void UpdateMaterialTransitions(float DeltaTime);

@@ -11,11 +11,11 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
-#include "Interfaces/Screens/ISuspenseScreenInterface.h"
+#include "Interfaces/Screens/ISuspenseScreen.h"
 #include "Framework/Application/SlateApplication.h"
 
 USuspenseUpperTabBar::USuspenseUpperTabBar(const FObjectInitializer& ObjectInitializer)
@@ -41,7 +41,7 @@ void USuspenseUpperTabBar::NativePreConstruct()
     if (IsDesignTime() && TabButtonContainer)
     {
         TabButtonContainer->ClearChildren();
-        
+
         for (int32 i = 0; i < TabConfigs.Num(); i++)
         {
             UButton* PreviewButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
@@ -54,9 +54,9 @@ void USuspenseUpperTabBar::NativePreConstruct()
                     ButtonText->SetColorAndOpacity(NormalTabTextColor);
                     PreviewButton->AddChild(ButtonText);
                 }
-                
+
                 PreviewButton->SetStyle(NormalTabStyle);
-                
+
                 UHorizontalBoxSlot* LocalSlot = TabButtonContainer->AddChildToHorizontalBox(PreviewButton);
                 if (LocalSlot)
                 {
@@ -92,7 +92,7 @@ void USuspenseUpperTabBar::InitializeWidget_Implementation()
 
     // Создаем виджеты контента
     ContentWidgets.SetNum(TabConfigs.Num());
-    
+
     for (int32 i = 0; i < TabConfigs.Num(); i++)
     {
         ContentWidgets[i] = CreateTabContent(i);
@@ -122,7 +122,7 @@ void USuspenseUpperTabBar::InitializeWidget_Implementation()
                 ApplyButtonStyle(TabButtons[i], false);
             }
         }
-        
+
         // Затем выбираем вкладку по умолчанию
         int32 IndexToSelect = FMath::Clamp(DefaultTabIndex, 0, TabButtons.Num() - 1);
         SelectTabByIndex_Implementation(IndexToSelect);
@@ -131,7 +131,7 @@ void USuspenseUpperTabBar::InitializeWidget_Implementation()
     // Инициализируем отображение уровня персонажа
     UpdateCharacterLevel(1, 0.0f, 100.0f);
 
-    UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Initialized with %d tab configs, selected tab: %d"), 
+    UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Initialized with %d tab configs, selected tab: %d"),
         TabConfigs.Num(), CurrentTabIndex);
 }
 
@@ -139,7 +139,7 @@ void USuspenseUpperTabBar::UninitializeWidget_Implementation()
 {
     // Отписываемся от событий
     UnsubscribeFromEvents();
-    
+
     // Очищаем делегаты кнопок
     for (int32 i = 0; i < TabButtons.Num(); i++)
     {
@@ -148,12 +148,12 @@ void USuspenseUpperTabBar::UninitializeWidget_Implementation()
             TabButtons[i]->OnClicked.RemoveAll(this);
         }
     }
-    
+
     if (CloseButton)
     {
         CloseButton->OnClicked.RemoveDynamic(this, &USuspenseUpperTabBar::OnCloseButtonClicked);
     }
-    
+
     // Деактивируем текущий экран если есть
     if (CurrentTabIndex >= 0 && ContentWidgets.IsValidIndex(CurrentTabIndex))
     {
@@ -166,15 +166,15 @@ void USuspenseUpperTabBar::UninitializeWidget_Implementation()
             }
             else if (Content->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
             {
-                ISuspenseScreenInterface::Execute_OnScreenDeactivated(Content);
+                ISuspenseScreen::Execute_OnScreenDeactivated(Content);
             }
         }
     }
-    
+
     // Очищаем массивы
     TabButtons.Empty();
     ContentWidgets.Empty();
-    
+
     // Вызываем родительский метод
     Super::UninitializeWidget_Implementation();
 }
@@ -205,7 +205,7 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
     }
 
     int32 OldIndex = CurrentTabIndex;
-    
+
     // Деактивируем старый контент (даже если это та же вкладка)
     if (OldIndex >= 0 && ContentWidgets.IsValidIndex(OldIndex))
     {
@@ -219,13 +219,13 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                 {
                     if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                     {
-                        ISuspenseScreenInterface::Execute_OnScreenDeactivated(ChildWidget);
+                        ISuspenseScreen::Execute_OnScreenDeactivated(ChildWidget);
                     }
                 }
             }
             else if (OldContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
             {
-                ISuspenseScreenInterface::Execute_OnScreenDeactivated(OldContent);
+                ISuspenseScreen::Execute_OnScreenDeactivated(OldContent);
             }
         }
     }
@@ -239,23 +239,23 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
     if (ContentWidgets.IsValidIndex(TabIndex) && ContentWidgets[TabIndex])
     {
         ContentSwitcher->SetActiveWidget(ContentWidgets[TabIndex]);
-        
+
         // Проверяем, является ли это layout виджетом
         if (USuspenseBaseLayoutWidget* LayoutWidget = Cast<USuspenseBaseLayoutWidget>(ContentWidgets[TabIndex]))
         {
             // Обновляем все дочерние виджеты в layout
             LayoutWidget->RefreshLayout_Implementation();
-            
+
             // Активируем все дочерние виджеты
             for (UUserWidget* ChildWidget : LayoutWidget->GetLayoutWidgets_Implementation())
             {
                 if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                 {
-                    ISuspenseScreenInterface::Execute_OnScreenActivated(ChildWidget);
+                    ISuspenseScreen::Execute_OnScreenActivated(ChildWidget);
                 }
             }
-            
-            UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Activated layout widget with %d children"), 
+
+            UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Activated layout widget with %d children"),
                 LayoutWidget->GetLayoutWidgets_Implementation().Num());
         }
         else
@@ -263,15 +263,15 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
             // Обычная активация для одиночных виджетов
             if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
             {
-                ISuspenseScreenInterface::Execute_OnScreenActivated(ContentWidgets[TabIndex]);
+                ISuspenseScreen::Execute_OnScreenActivated(ContentWidgets[TabIndex]);
             }
         }
-        
+
         // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Отправляем событие обновления для конкретной вкладки
         if (TabConfigs.IsValidIndex(TabIndex))
         {
             const FSuspenseTabConfig& Config = TabConfigs[TabIndex];
-            
+
             // Если это вкладка инвентаря, отправляем специальное событие
             if (Config.TabTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"))))
             {
@@ -279,19 +279,19 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                 FTimerHandle RefreshTimerHandle;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([this, TabIndex]()
                 {
-                    if (UEventDelegateManager* EventManager = GetDelegateManager())
+                    if (USuspenseEventManager* EventManager = GetDelegateManager())
                     {
                         // Отправляем событие обновления инвентаря
                         FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"));
                         EventManager->NotifyUIEventGeneric(this, UpdateTag, TEXT("TabSelected"));
-                        
+
                         // Также отправляем запрос на обновление UI контейнера
                         FGameplayTag ContainerTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Container.Inventory"));
                         EventManager->NotifyUIContainerUpdateRequested(ContentWidgets[TabIndex], ContainerTag);
-                        
+
                         UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Sent inventory update request for tab selection"));
                     }
-                    
+
                     // Принудительно обновляем контент
                     if (ContentWidgets[TabIndex])
                     {
@@ -301,7 +301,7 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                         }
                         else if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                         {
-                            ISuspenseScreenInterface::Execute_RefreshScreenContent(ContentWidgets[TabIndex]);
+                            ISuspenseScreen::Execute_RefreshScreenContent(ContentWidgets[TabIndex]);
                         }
                     }
                 });
@@ -329,7 +329,7 @@ bool USuspenseUpperTabBar::SelectTabByTag(FGameplayTag TabTag)
             return SelectTabByIndex_Implementation(i);
         }
     }
-    
+
     UE_LOG(LogTemp, Warning, TEXT("[UpperTabBar] Tab with tag %s not found"), *TabTag.ToString());
     return false;
 }
@@ -348,7 +348,7 @@ void USuspenseUpperTabBar::SetTabEnabled_Implementation(int32 TabIndex, bool bEn
     if (TabButtons.IsValidIndex(TabIndex) && TabButtons[TabIndex])
     {
         TabButtons[TabIndex]->SetIsEnabled(bEnabled);
-        
+
         // Update visual state
         if (!bEnabled && CurrentTabIndex == TabIndex)
         {
@@ -403,7 +403,7 @@ void USuspenseUpperTabBar::RefreshActiveTabContent()
             }
             else if (Content->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
             {
-                ISuspenseScreenInterface::Execute_RefreshScreenContent(Content);
+                ISuspenseScreen::Execute_RefreshScreenContent(Content);
             }
         }
     }
@@ -437,7 +437,7 @@ void USuspenseUpperTabBar::CreateTabButtons()
         if (TabButton)
         {
             TabButtons.Add(TabButton);
-            
+
             // Add to container
             UHorizontalBoxSlot* LocalSlot = TabButtonContainer->AddChildToHorizontalBox(TabButton);
             if (LocalSlot)
@@ -465,11 +465,11 @@ UUserWidget* USuspenseUpperTabBar::CreateTabContent(int32 TabIndex)
         case ETabContentLayoutType::Single:
             ContentWidget = CreateSingleWidgetContent(Config);
             break;
-            
+
         case ETabContentLayoutType::Layout:
             ContentWidget = CreateLayoutWidgetContent(Config);
             break;
-            
+
         case ETabContentLayoutType::Custom:
             // Custom тип использует ContentWidgetClass как есть
             ContentWidget = CreateSingleWidgetContent(Config);
@@ -480,16 +480,16 @@ UUserWidget* USuspenseUpperTabBar::CreateTabContent(int32 TabIndex)
     {
         // Добавляем в switcher
         ContentSwitcher->AddChild(ContentWidget);
-        
+
         // Убеждаемся, что виджет полностью сконструирован
         ContentWidget->ForceLayoutPrepass();
-        
-        UE_LOG(LogTemp, Log, TEXT("[TabBar] Created content for tab %d (%s) - Type: %s"), 
-            TabIndex, 
+
+        UE_LOG(LogTemp, Log, TEXT("[TabBar] Created content for tab %d (%s) - Type: %s"),
+            TabIndex,
             *Config.TabTag.ToString(),
             *UEnum::GetValueAsString(Config.LayoutType));
     }
-    
+
     return ContentWidget;
 }
 
@@ -503,24 +503,24 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
 
     // Создаем виджет
     UUserWidget* Widget = CreateWidget<UUserWidget>(this, Config.ContentWidgetClass);
-    
+
     if (Widget)
     {
         // Инициализируем виджет
         if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
-            ISuspenseUIWidgetInterface::Execute_InitializeWidget(Widget);
+            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
         }
-        
+
         // Специальная инициализация для Equipment Widget
         if (Config.TabTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Equipment"))))
         {
             if (USuspenseEquipmentContainerWidget* EquipWidget = Cast<USuspenseEquipmentContainerWidget>(Widget))
             {
                 UE_LOG(LogTemp, Log, TEXT("[TabBar] Equipment Widget created, will be initialized by bridge"));
-                
+
                 // Отправляем событие готовности Equipment виджета
-                if (UEventDelegateManager* EventManager = GetDelegateManager())
+                if (USuspenseEventManager* EventManager = GetDelegateManager())
                 {
                     FTimerHandle InitTimerHandle;
                     GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget]()
@@ -532,7 +532,7 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
             }
         }
     }
-    
+
     return Widget;
 }
 
@@ -546,19 +546,19 @@ UUserWidget* USuspenseUpperTabBar::CreateLayoutWidgetContent(const FSuspenseTabC
 
     // Создаем layout widget
     USuspenseBaseLayoutWidget* LayoutWidget = CreateWidget<USuspenseBaseLayoutWidget>(this, Config.LayoutWidgetClass);
-    
+
     if (LayoutWidget)
     {
         // Инициализируем layout
         if (LayoutWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
-            ISuspenseUIWidgetInterface::Execute_InitializeWidget(LayoutWidget);
+            ISuspenseUIWidget::Execute_InitializeWidget(LayoutWidget);
         }
-        
-        UE_LOG(LogTemp, Log, TEXT("[TabBar] Created layout widget with %d child widgets"), 
+
+        UE_LOG(LogTemp, Log, TEXT("[TabBar] Created layout widget with %d child widgets"),
             LayoutWidget->GetLayoutWidgets_Implementation().Num());
     }
-    
+
     return LayoutWidget;
 }
 
@@ -587,7 +587,7 @@ void USuspenseUpperTabBar::OnCloseButtonClicked()
     OnTabBarClosed.Broadcast(this);
 
     // Notify event system
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.TabBar.CloseClicked"));
         EventManager->NotifyUIEventGeneric(this, EventTag, TabBarTag.ToString());
@@ -618,7 +618,7 @@ UButton* USuspenseUpperTabBar::CreateTabButton(const FSuspenseTabConfig& Config,
         {
             IconImage->SetBrushFromTexture(Config.TabIcon);
             IconImage->SetDesiredSizeOverride(FVector2D(24.0f, 24.0f));
-            
+
             UOverlaySlot* IconSlot = Overlay->AddChildToOverlay(IconImage);
             if (IconSlot)
             {
@@ -634,17 +634,17 @@ UButton* USuspenseUpperTabBar::CreateTabButton(const FSuspenseTabConfig& Config,
     {
         TextBlock->SetText(Config.TabName);
         TextBlock->SetColorAndOpacity(NormalTabTextColor);
-        
+
         FSlateFontInfo FontInfo = TextBlock->GetFont();
         FontInfo.Size = 14;
         TextBlock->SetFont(FontInfo);
-        
+
         UOverlaySlot* TextSlot = Overlay->AddChildToOverlay(TextBlock);
         if (TextSlot)
         {
             TextSlot->SetHorizontalAlignment(HAlign_Center);
             TextSlot->SetVerticalAlignment(VAlign_Center);
-            
+
             // Если есть иконка, добавляем отступ для текста
             if (Config.TabIcon)
             {
@@ -664,7 +664,7 @@ UButton* USuspenseUpperTabBar::CreateTabButton(const FSuspenseTabConfig& Config,
 
     // КЛЮЧЕВОЕ РЕШЕНИЕ: Сохраняем соответствие кнопка->индекс в TMap
     ButtonToIndexMap.Add(Button, Index);
-    
+
     // Привязываем единый обработчик для всех кнопок
     Button->OnClicked.AddDynamic(this, &USuspenseUpperTabBar::InternalOnTabButtonClicked);
 
@@ -713,16 +713,16 @@ void USuspenseUpperTabBar::ApplyButtonStyle(UButton* Button, bool bSelected)
 
 void USuspenseUpperTabBar::SubscribeToEvents()
 {
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         // ВАЖНОЕ ИЗМЕНЕНИЕ: Подписываемся на правильные события инвентаря
-        
+
         // Подписка на обновления инвентаря
         InventoryUpdateHandle = EventManager->SubscribeToUIEvent([this, EventManager](UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
         {
             // Проверяем различные события инвентаря
             bool bShouldUpdate = false;
-            
+
             if (EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"))) ||
                 EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.ItemAdded"))) ||
                 EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.ItemRemoved"))) ||
@@ -730,7 +730,7 @@ void USuspenseUpperTabBar::SubscribeToEvents()
             {
                 bShouldUpdate = true;
             }
-            
+
             if (bShouldUpdate)
             {
                 // Обновляем вкладку инвентаря, если она активна
@@ -740,10 +740,10 @@ void USuspenseUpperTabBar::SubscribeToEvents()
                     {
                         UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Inventory event received: %s, refreshing content"),
                              *EventTag.ToString());
-                        
+
                         // Обновляем контент вкладки
                         RefreshActiveTabContent();
-                        
+
                         // Также отправляем событие обновления контейнера
                         if (ContentWidgets.IsValidIndex(CurrentTabIndex) && ContentWidgets[CurrentTabIndex])
                         {
@@ -768,7 +768,7 @@ void USuspenseUpperTabBar::SubscribeToEvents()
 
 void USuspenseUpperTabBar::UnsubscribeFromEvents()
 {
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         EventManager->UniversalUnsubscribe(CharacterLevelUpdateHandle);
         EventManager->UniversalUnsubscribe(InventoryUpdateHandle);
@@ -781,7 +781,7 @@ void USuspenseUpperTabBar::BroadcastTabSelectionChanged(int32 OldIndex, int32 Ne
     OnTabSelectionChanged.Broadcast(this, OldIndex, NewIndex);
 
     // Notify event system with detailed info
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         FGameplayTag OldTag = TabConfigs.IsValidIndex(OldIndex) ? TabConfigs[OldIndex].TabTag : FGameplayTag();
         FGameplayTag NewTag = TabConfigs.IsValidIndex(NewIndex) ? TabConfigs[NewIndex].TabTag : FGameplayTag();
@@ -810,27 +810,27 @@ void USuspenseUpperTabBar::OnScreenActivated(int32 TabIndex)
 void USuspenseUpperTabBar::InternalOnTabButtonClicked()
 {
     // ИСПРАВЛЕНИЕ: Используем более надежный способ определения нажатой кнопки
-    
+
     // Сначала пытаемся найти кнопку через FSlateApplication
     if (FSlateApplication::IsInitialized())
     {
         // Получаем виджет, который в данный момент имеет фокус мыши
         TSharedPtr<SWidget> FocusedWidget = FSlateApplication::Get().GetUserFocusedWidget(0);
-        
+
         // Проходим по всем кнопкам и проверяем их Slate-виджеты
         for (const auto& Pair : ButtonToIndexMap)
         {
             UButton* Button = Pair.Key;
             int32 TabIndex = Pair.Value;
-            
+
             if (!Button)
             {
                 continue;
             }
-            
+
             // Получаем Slate-виджет кнопки
             TSharedPtr<SWidget> ButtonSlateWidget = Button->GetCachedWidget();
-            
+
             // Проверяем, совпадает ли это с фокусированным виджетом
             if (ButtonSlateWidget.IsValid() && FocusedWidget.IsValid())
             {
@@ -849,10 +849,10 @@ void USuspenseUpperTabBar::InternalOnTabButtonClicked()
             }
         }
     }
-    
+
     // Запасной вариант: используем IsPressed() с задержкой
     UE_LOG(LogTemp, Warning, TEXT("[UpperTabBar] Could not determine clicked button via focus, using IsPressed fallback"));
-    
+
     // Даем небольшую задержку для обновления состояния кнопки
     if (UWorld* World = GetWorld())
     {
@@ -863,7 +863,7 @@ void USuspenseUpperTabBar::InternalOnTabButtonClicked()
             {
                 UButton* Button = Pair.Key;
                 int32 TabIndex = Pair.Value;
-                
+
                 if (Button && Button->IsPressed())
                 {
                     UE_LOG(LogTemp, Verbose, TEXT("[UpperTabBar] Tab button clicked - Index: %d (via IsPressed)"), TabIndex);

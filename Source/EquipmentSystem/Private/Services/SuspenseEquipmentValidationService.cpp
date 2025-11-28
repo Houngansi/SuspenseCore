@@ -1,13 +1,13 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentValidationService.h"
-#include "Core/Utils/FSuspenseEquipmentThreadGuard.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Services/SuspenseEquipmentServiceMacros.h"
-#include "Core/Utils/FGlobalCacheRegistry.h"
+#include "Core/Utils/SuspenseGlobalCacheRegistry.h"
 #include "Components/Rules/SuspenseRulesCoordinator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Types/Rules/SuspenseRulesTypes.h" 
+#include "Types/Rules/SuspenseRulesTypes.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Engine/World.h"
 #include "Engine/NetConnection.h"
@@ -34,7 +34,7 @@ bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& 
             }
             SlotItems.Add(Operation.TargetSlotIndex, Operation.ItemInstance);
             ItemQuantities.FindOrAdd(Operation.ItemInstance.ItemID) += Operation.ItemInstance.Quantity;
-            
+
             // Weight
             const float ItemWeight = Operation.ItemInstance.GetRuntimeProperty(TEXT("Weight"), 1.0f);
             TotalWeight += ItemWeight * Operation.ItemInstance.Quantity;
@@ -48,17 +48,17 @@ bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& 
             {
                 return false; // Source slot empty
             }
-            
+
             const FSuspenseInventoryItemInstance RemovedItem = SlotItems[Operation.SourceSlotIndex];
             SlotItems.Remove(Operation.SourceSlotIndex);
-            
+
             int32& Qty = ItemQuantities.FindOrAdd(RemovedItem.ItemID);
             Qty -= RemovedItem.Quantity;
-            if (Qty <= 0) 
-            { 
-                ItemQuantities.Remove(RemovedItem.ItemID); 
+            if (Qty <= 0)
+            {
+                ItemQuantities.Remove(RemovedItem.ItemID);
             }
-            
+
             const float ItemWeight = RemovedItem.GetRuntimeProperty(TEXT("Weight"), 1.0f);
             TotalWeight -= ItemWeight * RemovedItem.Quantity;
             return true;
@@ -66,15 +66,15 @@ bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& 
 
         case EEquipmentOperationType::Move:
         {
-            if (!SlotItems.Contains(Operation.SourceSlotIndex)) 
-            { 
+            if (!SlotItems.Contains(Operation.SourceSlotIndex))
+            {
                 return false; // Source empty
             }
-            if (SlotItems.Contains(Operation.TargetSlotIndex))   
-            { 
+            if (SlotItems.Contains(Operation.TargetSlotIndex))
+            {
                 return false; // Target occupied
             }
-            
+
             const FSuspenseInventoryItemInstance MovedItem = SlotItems[Operation.SourceSlotIndex];
             SlotItems.Remove(Operation.SourceSlotIndex);
             SlotItems.Add(Operation.TargetSlotIndex, MovedItem);
@@ -88,7 +88,7 @@ bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& 
             {
                 return false; // Both must be occupied
             }
-            
+
             const FSuspenseInventoryItemInstance Temp = SlotItems[Operation.SourceSlotIndex];
             SlotItems[Operation.SourceSlotIndex] = SlotItems[Operation.TargetSlotIndex];
             SlotItems[Operation.TargetSlotIndex] = Temp;
@@ -121,7 +121,7 @@ FSuspenseInventoryItemInstance FShadowEquipmentSnapshot::GetItemAtSlot(int32 Slo
 USuspenseEquipmentValidationService::USuspenseEquipmentValidationService()
 {
     // Initialize cache with appropriate size
-    ResultCache = MakeShareable(new FEquipmentCacheManager<uint32, FSlotValidationResult>(500));
+    ResultCache = MakeShareable(new FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>(500));
     InitializationTime = FDateTime::Now();
 }
 
@@ -139,16 +139,16 @@ void USuspenseEquipmentValidationService::EnsureValidConfig()
     // Sanitize CacheTTL
     const float OldCacheTTL = CacheTTL;
     CacheTTL = FMath::Clamp(CacheTTL, 0.05f, 60.0f);
-    
+
     // Sanitize ParallelBatchThreshold
     const int32 OldThreshold = ParallelBatchThreshold;
     ParallelBatchThreshold = FMath::Clamp(ParallelBatchThreshold, 1, 10000);
-    
+
     // Sanitize MaxParallelThreads based on CPU cores
     const int32 NumCores = FPlatformMisc::NumberOfCores();
     const int32 OldMaxThreads = MaxParallelThreads;
     MaxParallelThreads = FMath::Clamp(MaxParallelThreads, 2, FMath::Min(16, NumCores - 1));
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Verbose,
         TEXT("EnsureValidConfig: Final configuration - CacheTTL: %.2fs (was %.2fs), ParallelBatchThreshold: %d (was %d), MaxParallelThreads: %d (was %d, CPU cores: %d)"),
         CacheTTL, OldCacheTTL,
@@ -165,10 +165,10 @@ bool USuspenseEquipmentValidationService::InitializeService(const FServiceInitPa
     SCOPED_SERVICE_TIMER("Validation.InitializeService");
 
     ServiceLocatorRef = Params.ServiceLocator;
-    
+
     if (!ServiceLocatorRef.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Error, 
+        UE_LOG(LogSuspenseEquipmentValidation, Error,
             TEXT("InitializeService: ServiceLocator not provided in init params"));
         ServiceMetrics.RecordError();
         return false;
@@ -230,7 +230,7 @@ bool USuspenseEquipmentValidationService::InitializeService(const FServiceInitPa
 
     if (ResultCache.IsValid())
     {
-        FGlobalCacheRegistry::Get().RegisterCache<uint32, FSlotValidationResult>(
+        FSuspenseGlobalCacheRegistry::Get().RegisterCache<uint32, FSlotValidationResult>(
             TEXT("EquipmentValidation.Results"),
             ResultCache.Get());
     }
@@ -262,55 +262,55 @@ bool USuspenseEquipmentValidationService::ShutdownService(bool bForce)
 {
     SCOPED_SERVICE_TIMER("Validation.ShutdownService");
     EQUIPMENT_WRITE_LOCK(CacheLock);
-    
+
     if (ServiceState == EServiceLifecycleState::Shutdown)
     {
         return true;
     }
-    
+
     ServiceState = EServiceLifecycleState::Shutting;
-    
+
     // Clear cache
     if (ResultCache.IsValid())
     {
         ResultCache->Clear();
     }
-    
+
     // Clear custom validators
     {
         FScopeLock Lock(&ValidatorsLock);
         CustomValidators.Empty();
     }
-    
+
     // Unregister from cache registry
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentValidation.Results"));
-    
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentValidation.Results"));
+
     // Clear event subscriptions
     EventScope.UnsubscribeAll();
-    
+
     // Clean up rules interface (coordinator is UObject, not component)
     if (Rules.GetInterface())
     {
         Rules.SetObject(nullptr);
         Rules.SetInterface(nullptr);
     }
-    
+
     // Clear dependencies
     DataProvider = nullptr;
     TransactionManager = nullptr;
-    
+
     ServiceState = EServiceLifecycleState::Shutdown;
-    
+
     // Log final statistics
     const FTimespan Uptime = FDateTime::Now() - InitializationTime;
     UE_LOG(LogSuspenseEquipmentValidation, Log,
         TEXT("Service shutdown - Uptime: %.1fh, Validated: %d, Pass rate: %.1f%%, Parallel batches: %d, Shadow batches: %d"),
-        Uptime.GetTotalHours(), 
+        Uptime.GetTotalHours(),
         TotalValidations.load(),
         TotalValidations.load() > 0 ? (float)ValidationsPassed.load() / TotalValidations.load() * 100.0f : 0.0f,
         ParallelBatches.load(),
         ShadowSnapshotBatches.load());
-    
+
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("Validation.Service.Shutdown", 1);
     return true;
@@ -334,26 +334,26 @@ bool USuspenseEquipmentValidationService::ValidateService(TArray<FText>& OutErro
 {
     SCOPED_SERVICE_TIMER_CONST("Validation.ValidateService");
     EQUIPMENT_READ_LOCK(CacheLock);
-    
+
     OutErrors.Empty();
     bool bIsValid = true;
-    
+
     if (!Rules.GetInterface())
     {
         OutErrors.Add(FText::FromString(TEXT("Rules interface not initialized")));
         bIsValid = false;
     }
-    
+
     if (!DataProvider.GetInterface())
     {
         OutErrors.Add(FText::FromString(TEXT("Data provider not available")));
         bIsValid = false;
     }
-    
+
     // Check cache performance
-    const float CacheHitRate = TotalValidations.load() > 0 ? 
+    const float CacheHitRate = TotalValidations.load() > 0 ?
         (float)CacheHits.load() / TotalValidations.load() : 0.0f;
-    
+
     if (CacheHitRate < 0.3f && TotalValidations.load() > 100)
     {
         OutErrors.Add(FText::Format(
@@ -361,7 +361,7 @@ bool USuspenseEquipmentValidationService::ValidateService(TArray<FText>& OutErro
             FMath::RoundToInt(CacheHitRate * 100)
         ));
     }
-    
+
     if (bIsValid)
     {
         ServiceMetrics.RecordSuccess();
@@ -370,7 +370,7 @@ bool USuspenseEquipmentValidationService::ValidateService(TArray<FText>& OutErro
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return bIsValid;
 }
 
@@ -379,15 +379,15 @@ void USuspenseEquipmentValidationService::ResetService()
     SCOPED_SERVICE_TIMER("Validation.ResetService");
     EQUIPMENT_WRITE_LOCK(CacheLock);
     FEquipmentRWGuard StatsWriteGuard(StatsLock, ELockType::Write);
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Log, TEXT("ResetService: Beginning service reset"));
-    
+
     // Clear cache
     if (ResultCache.IsValid())
     {
         ResultCache->Clear();
     }
-    
+
     // Reset atomic statistics
     TotalValidations.store(0);
     CacheHits.store(0);
@@ -396,7 +396,7 @@ void USuspenseEquipmentValidationService::ResetService()
     ParallelBatches.store(0);
     SequentialBatches.store(0);
     ShadowSnapshotBatches.store(0);
-    
+
     // Reset timing statistics
     AverageValidationTime = 0.0f;
     PeakValidationTime = 0.0f;
@@ -404,21 +404,21 @@ void USuspenseEquipmentValidationService::ResetService()
     PeakParallelBatchTime = 0.0f;
     LastParallelBatchTimeMs = 0.0f;
     AverageShadowBatchTime = 0.0f;
-    
+
     // Reset rules epoch
     RulesEpoch.store(1);
-    
+
     // Reset rules interface statistics
     if (Rules.GetInterface())
     {
         Rules->ResetStatistics();
     }
-    
+
     // Reset service metrics
     ServiceMetrics.Reset();
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Log, TEXT("ResetService: Service reset complete"));
-    
+
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("Validation.Service.Reset", 1);
 }
@@ -427,27 +427,27 @@ FString USuspenseEquipmentValidationService::GetServiceStats() const
 {
     SCOPED_SERVICE_TIMER_CONST("Validation.GetServiceStats");
     EQUIPMENT_READ_LOCK(StatsLock);
-    
+
     FString Stats = TEXT("=== Equipment Validation Service Statistics ===\n");
     Stats += FString::Printf(TEXT("Service State: %s\n"),
         *UEnum::GetValueAsString(ServiceState));
-    
+
     const FTimespan Uptime = FDateTime::Now() - InitializationTime;
     Stats += FString::Printf(TEXT("Uptime: %d hours, %d minutes\n"),
         Uptime.GetHours(), Uptime.GetMinutes() % 60);
-    
+
     Stats += FString::Printf(TEXT("Rules Epoch: %u\n"), RulesEpoch.load());
-    Stats += FString::Printf(TEXT("Rules Implementation: %s\n"), 
+    Stats += FString::Printf(TEXT("Rules Implementation: %s\n"),
         Rules.GetInterface() ? TEXT("Coordinator") : TEXT("None"));
-    
+
     Stats += FString::Printf(TEXT("\n--- Validations ---\n"));
     Stats += FString::Printf(TEXT("Total: %d\n"), TotalValidations.load());
     Stats += FString::Printf(TEXT("Passed: %d (%.1f%%)\n"),
         ValidationsPassed.load(),
-        TotalValidations.load() > 0 ? 
+        TotalValidations.load() > 0 ?
             (float)ValidationsPassed.load() / TotalValidations.load() * 100.0f : 0.0f);
     Stats += FString::Printf(TEXT("Failed: %d\n"), ValidationsFailed.load());
-    
+
     Stats += FString::Printf(TEXT("\n--- Batch Processing ---\n"));
     Stats += FString::Printf(TEXT("Parallel Batches: %d\n"), ParallelBatches.load());
     Stats += FString::Printf(TEXT("Sequential Batches: %d\n"), SequentialBatches.load());
@@ -455,10 +455,10 @@ FString USuspenseEquipmentValidationService::GetServiceStats() const
     Stats += FString::Printf(TEXT("Parallel Threshold: %d requests\n"), ParallelBatchThreshold);
     Stats += FString::Printf(TEXT("Max Parallel Threads: %d\n"), MaxParallelThreads);
     Stats += FString::Printf(TEXT("Shadow Snapshot Enabled: %s\n"), bUseShadowSnapshot ? TEXT("Yes") : TEXT("No"));
-    
+
     Stats += FString::Printf(TEXT("\n--- Performance ---\n"));
     Stats += FString::Printf(TEXT("Cache Hit Rate: %.1f%%\n"),
-        TotalValidations.load() > 0 ? 
+        TotalValidations.load() > 0 ?
             (float)CacheHits.load() / TotalValidations.load() * 100.0f : 0.0f);
     Stats += FString::Printf(TEXT("Avg Validation Time: %.3f ms\n"), AverageValidationTime);
     Stats += FString::Printf(TEXT("Peak Validation Time: %.3f ms\n"), PeakValidationTime);
@@ -466,19 +466,19 @@ FString USuspenseEquipmentValidationService::GetServiceStats() const
     Stats += FString::Printf(TEXT("Peak Parallel Batch Time: %.3f ms\n"), PeakParallelBatchTime);
     Stats += FString::Printf(TEXT("Last Parallel Batch: %.3f ms\n"), LastParallelBatchTimeMs);
     Stats += FString::Printf(TEXT("Avg Shadow Batch Time: %.3f ms\n"), AverageShadowBatchTime);
-    
+
     if (ResultCache.IsValid())
     {
         Stats += TEXT("\n--- Cache ---\n");
         Stats += ResultCache->DumpStats();
     }
-    
+
     Stats += FString::Printf(TEXT("\n--- Custom Validators ---\n"));
     Stats += FString::Printf(TEXT("Registered: %d\n"), CustomValidators.Num());
-    
+
     // Add service metrics
     Stats += ServiceMetrics.ToString(TEXT("EquipmentValidationService"));
-    
+
     return Stats;
 }
 
@@ -495,38 +495,38 @@ ISuspenseEquipmentRules* USuspenseEquipmentValidationService::GetRulesEngine()
 bool USuspenseEquipmentValidationService::RegisterValidator(const FGameplayTag& ValidatorTag, TFunction<bool(const void*)> Validator)
 {
     SCOPED_SERVICE_TIMER("Validation.RegisterValidator");
-    
+
     if (!Rules.GetInterface() || !Validator)
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Warning, 
+        UE_LOG(LogSuspenseEquipmentValidation, Warning,
             TEXT("RegisterValidator: Rules interface not available or invalid validator"));
         ServiceMetrics.RecordError();
         return false;
     }
-    
+
     // Store custom validator
     {
         FScopeLock Lock(&ValidatorsLock);
         CustomValidators.Add(ValidatorTag, Validator);
     }
-    
+
     // Create rule that will use the custom validator
     FEquipmentRule Rule;
     Rule.RuleTag = ValidatorTag;
     Rule.RuleExpression = FString::Printf(TEXT("CustomValidator_%s"), *ValidatorTag.ToString());
-    Rule.Priority = 50; 
-    Rule.bIsStrict = true; 
+    Rule.Priority = 50;
+    Rule.bIsStrict = true;
     Rule.Description = FText::Format(
         FText::FromString(TEXT("Custom validator: {0}")),
         FText::FromString(ValidatorTag.ToString())
     );
-    
+
     // Register rule in rules interface
     const bool bSuccess = Rules->RegisterRule(Rule);
-    
+
     if (bSuccess)
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Log, 
+        UE_LOG(LogSuspenseEquipmentValidation, Log,
             TEXT("RegisterValidator: Registered custom validator for %s"),
             *ValidatorTag.ToString());
         ServiceMetrics.RecordSuccess();
@@ -536,7 +536,7 @@ bool USuspenseEquipmentValidationService::RegisterValidator(const FGameplayTag& 
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return bSuccess;
 }
 
@@ -576,10 +576,10 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
 {
     SCOPED_SERVICE_TIMER("Validation.ValidateSingleRequest");
     const float StartTime = FPlatformTime::Seconds();
-    
+
     TotalValidations.fetch_add(1);
     RECORD_SERVICE_METRIC("Validation.Requests.Total", 1);
-    
+
     // Notify validation started (only on game thread)
     if (bBroadcastEvents)
     {
@@ -597,10 +597,10 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             });
         }
     }
-    
+
     // Generate cache key
     const uint32 CacheKey = GenerateCacheKey(Request);
-    
+
     // Check cache with read lock
     FSlotValidationResult CachedResult;
     {
@@ -609,13 +609,13 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
         {
             CacheHits.fetch_add(1);
             RECORD_SERVICE_METRIC("Validation.Cache.Hits", 1);
-            
+
             // Publish event for cached result
             if (bBroadcastEvents)
             {
                 const FSlotValidationResult ResultCopy = CachedResult;
                 const FEquipmentOperationRequest RequestCopy = Request;
-                
+
                 if (IsInGameThread())
                 {
                     PublishValidationEvent(
@@ -625,9 +625,9 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                         RequestCopy,
                         ResultCopy
                     );
-                    
+
                     OnValidationCompleted.Broadcast(ResultCopy);
-                    
+
                     if (!ResultCopy.bIsValid)
                     {
                         OnValidationFailed.Broadcast(RequestCopy, ResultCopy.ErrorMessage);
@@ -644,9 +644,9 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                             RequestCopy,
                             ResultCopy
                         );
-                        
+
                         OnValidationCompleted.Broadcast(ResultCopy);
-                        
+
                         if (!ResultCopy.bIsValid)
                         {
                             OnValidationFailed.Broadcast(RequestCopy, ResultCopy.ErrorMessage);
@@ -654,16 +654,16 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                     });
                 }
             }
-            
+
             return CachedResult;
         }
     }
-    
+
     RECORD_SERVICE_METRIC("Validation.Cache.Misses", 1);
-    
+
     // Delegate validation to rules interface (coordinator)
     FSlotValidationResult Result;
-    
+
     if (!Rules.GetInterface())
     {
         Result = FSlotValidationResult::Failure(
@@ -698,18 +698,18 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                 }
             }
         }
-        
+
         // If custom validation passed, evaluate rules through coordinator
         if (bCustomValidationPassed)
         {
             const FRuleEvaluationResult RuleResult = Rules->EvaluateRules(Request);
-            
+
             // Convert FRuleEvaluationResult to FSlotValidationResult
             Result.bIsValid = RuleResult.bPassed;
             Result.ErrorMessage = RuleResult.FailureReason;
             Result.ConfidenceScore = RuleResult.ConfidenceScore;
             Result.bCanOverride = false;
-            
+
             // Fill context from details
             for (int32 i = 0; i < RuleResult.Details.Num(); i += 2)
             {
@@ -718,13 +718,13 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                     Result.Context.Add(RuleResult.Details[i], RuleResult.Details[i + 1]);
                 }
             }
-            
+
             // Add rule type to context
             if (RuleResult.RuleType.IsValid())
             {
                 Result.Context.Add(TEXT("RuleType"), RuleResult.RuleType.ToString());
             }
-            
+
             // Determine failure type
             if (!RuleResult.bPassed)
             {
@@ -733,13 +733,13 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             }
         }
     }
-    
+
     // Update statistics
     const float ValidationTime = (FPlatformTime::Seconds() - StartTime) * 1000.0f;
-    
+
     {
         EQUIPMENT_WRITE_LOCK(StatsLock);
-        
+
         if (Result.bIsValid)
         {
             ValidationsPassed.fetch_add(1);
@@ -752,12 +752,12 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             ServiceMetrics.RecordError();
             RECORD_SERVICE_METRIC("Validation.Results.Failed", 1);
         }
-        
+
         // Update average time using exponential moving average
         AverageValidationTime = AverageValidationTime * 0.9f + ValidationTime * 0.1f;
         PeakValidationTime = FMath::Max(PeakValidationTime, ValidationTime);
     }
-    
+
     // Cache result with write lock
     {
         EQUIPMENT_WRITE_LOCK(CacheLock);
@@ -766,13 +766,13 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             ResultCache->Set(CacheKey, Result, CacheTTL);
         }
     }
-    
+
     // Publish validation event
     if (bBroadcastEvents)
     {
         const FSlotValidationResult ResultCopy = Result;
         const FEquipmentOperationRequest RequestCopy = Request;
-        
+
         if (IsInGameThread())
         {
             PublishValidationEvent(
@@ -782,9 +782,9 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                 RequestCopy,
                 ResultCopy
             );
-            
+
             OnValidationCompleted.Broadcast(ResultCopy);
-            
+
             if (!ResultCopy.bIsValid)
             {
                 OnValidationFailed.Broadcast(RequestCopy, ResultCopy.ErrorMessage);
@@ -801,9 +801,9 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
                     RequestCopy,
                     ResultCopy
                 );
-                
+
                 OnValidationCompleted.Broadcast(ResultCopy);
-                
+
                 if (!ResultCopy.bIsValid)
                 {
                     OnValidationFailed.Broadcast(RequestCopy, ResultCopy.ErrorMessage);
@@ -811,7 +811,7 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             });
         }
     }
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentValidation, Verbose,
@@ -820,7 +820,7 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateSingleRequest
             Result.bIsValid ? TEXT("PASS") : TEXT("FAIL"),
             Result.ConfidenceScore);
     }
-    
+
     return Result;
 }
 
@@ -836,7 +836,7 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateInTransaction
     const FGuid& TransactionId)
 {
     SCOPED_SERVICE_TIMER("Validation.ValidateInTransaction");
-    
+
     // Validation service is read-only, no transaction management here
     // Just perform validation
     return ValidateSingleRequest(Request, true);
@@ -860,21 +860,21 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::BatchValidate
 {
     SCOPED_SERVICE_TIMER("Validation.BatchValidate");
     RECORD_SERVICE_METRIC("Validation.BatchValidate.Requests", Requests.Num());
-    
+
     if (Requests.Num() == 0)
     {
         return TArray<FSlotValidationResult>();
     }
-    
+
     const float BatchStartTime = FPlatformTime::Seconds();
     TArray<FSlotValidationResult> Results;
-    
+
     // Primary path: use shadow snapshot for sequential validation
     if (bUseShadowSnapshot && Requests.Num() > 1)
     {
         const FBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
         Results = Report.Results;
-        
+
         // Handle atomic batch result
         if (bAtomic && !Report.bAllPassed)
         {
@@ -889,38 +889,38 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::BatchValidate
                 }
             }
         }
-        
+
         const float BatchTime = (FPlatformTime::Seconds() - BatchStartTime) * 1000.0f;
         RECORD_SERVICE_METRIC("Validation.BatchShadowAppliedMs", (int64)BatchTime);
-        
+
         return Results;
     }
-    
+
     // Fallback: check if we should use parallel processing
-    const bool bUseParallel = bEnableParallelValidation && 
-                       !bAtomic && 
+    const bool bUseParallel = bEnableParallelValidation &&
+                       !bAtomic &&
                        Requests.Num() > ParallelBatchThreshold;
-    
+
     if (bUseParallel)
     {
         RECORD_SERVICE_METRIC("Validation.BatchValidate.Parallel", 1);
-        
+
         // Process batch in parallel
         ParallelBatches.fetch_add(1);
         Results = ProcessParallelBatch(Requests);
-        
+
         // Update parallel batch timing
         const float BatchTime = (FPlatformTime::Seconds() - BatchStartTime) * 1000.0f;
-        
+
         {
             EQUIPMENT_WRITE_LOCK(StatsLock);
             LastParallelBatchTimeMs = BatchTime;
             AverageParallelBatchTime = AverageParallelBatchTime * 0.9f + BatchTime * 0.1f;
             PeakParallelBatchTime = FMath::Max(PeakParallelBatchTime, BatchTime);
         }
-        
+
         RECORD_SERVICE_METRIC("Validation.BatchValidate.ParallelTimeMs", (int64)BatchTime);
-        
+
         if (bEnableDetailedLogging)
         {
             UE_LOG(LogSuspenseEquipmentValidation, Log,
@@ -931,11 +931,11 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::BatchValidate
     else
     {
         RECORD_SERVICE_METRIC("Validation.BatchValidate.Sequential", 1);
-        
+
         // Process batch sequentially
         SequentialBatches.fetch_add(1);
         Results = ProcessSequentialBatch(Requests, bAtomic);
-        
+
         // Handle atomic batch result (without transactions in validation layer)
         if (bAtomic)
         {
@@ -948,7 +948,7 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::BatchValidate
                     break;
                 }
             }
-            
+
             if (!bAllPassed)
             {
                 // Mark all results as failed due to atomic rollback
@@ -964,7 +964,7 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::BatchValidate
             }
         }
     }
-    
+
     ServiceMetrics.RecordSuccess();
     return Results;
 }
@@ -974,14 +974,14 @@ FBatchValidationReport USuspenseEquipmentValidationService::BatchValidateWithRep
     bool bAtomic)
 {
     SCOPED_SERVICE_TIMER("Validation.BatchValidateWithReport");
-    
+
     FBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
-    
+
     if (bAtomic && !Report.bAllPassed)
     {
         // Add hard error for atomic failure
         Report.HardErrors.Add(FText::FromString(TEXT("Atomic batch validation failed - all operations rolled back")));
-        
+
         // Mark all successful results as failed
         for (FSlotValidationResult& Result : Report.Results)
         {
@@ -993,7 +993,7 @@ FBatchValidationReport USuspenseEquipmentValidationService::BatchValidateWithRep
             }
         }
     }
-    
+
     return Report;
 }
 
@@ -1001,21 +1001,21 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::ProcessParall
     const TArray<FEquipmentOperationRequest>& Requests)
 {
     SCOPED_SERVICE_TIMER("Validation.ProcessParallelBatch");
-    
+
     const int32 NumRequests = Requests.Num();
     TArray<FSlotValidationResult> Results;
     Results.SetNum(NumRequests);
-    
+
     // Buffer for events to dispatch on game thread
     TArray<FBufferedValidationEvent> BufferedEvents;
     BufferedEvents.Reserve(NumRequests * 3);
     FCriticalSection EventBufferLock;
-    
+
     // Use atomic counters for progress tracking
     std::atomic<int32> ProcessedCount{0};
     std::atomic<int32> PassedCount{0};
     std::atomic<int32> FailedCount{0};
-    
+
     // Use safe overload of ParallelFor (background priority)
     ParallelFor(NumRequests, [&](int32 Index)
     {
@@ -1063,7 +1063,7 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::ProcessParall
             }
         }
     }, EParallelForFlags::BackgroundPriority);
-    
+
     // Dispatch buffered events on game thread with move semantics to avoid copy
     if (BufferedEvents.Num() > 0)
     {
@@ -1072,17 +1072,17 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::ProcessParall
             DispatchBufferedEvents(BufferedEventsToMove);
         });
     }
-    
+
     RECORD_SERVICE_METRIC("Validation.ProcessParallelBatch.Passed", PassedCount.load());
     RECORD_SERVICE_METRIC("Validation.ProcessParallelBatch.Failed", FailedCount.load());
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentValidation, Log,
             TEXT("Parallel batch complete: %d passed, %d failed"),
             PassedCount.load(), FailedCount.load());
     }
-    
+
     return Results;
 }
 
@@ -1091,22 +1091,22 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::ProcessSequen
     bool bStopOnFailure)
 {
     SCOPED_SERVICE_TIMER("Validation.ProcessSequentialBatch");
-    
+
     TArray<FSlotValidationResult> Results;
     Results.Reserve(Requests.Num());
-    
+
     for (const FEquipmentOperationRequest& Request : Requests)
     {
         const FSlotValidationResult Result = ValidateSingleRequest(Request, true);
         Results.Add(Result);
-        
+
         if (!Result.bIsValid && bStopOnFailure)
         {
             RECORD_SERVICE_METRIC("Validation.ProcessSequentialBatch.StoppedEarly", 1);
             break;
         }
     }
-    
+
     // Fill remaining results with failure if we stopped early
     if (bStopOnFailure && Results.Num() < Requests.Num())
     {
@@ -1114,16 +1114,16 @@ TArray<FSlotValidationResult> USuspenseEquipmentValidationService::ProcessSequen
             FText::FromString(TEXT("Validation skipped due to previous failure")),
             EEquipmentValidationFailure::TransactionActive
         );
-        
+
         const int32 SkippedCount = Requests.Num() - Results.Num();
         RECORD_SERVICE_METRIC("Validation.ProcessSequentialBatch.Skipped", SkippedCount);
-        
+
         while (Results.Num() < Requests.Num())
         {
             Results.Add(SkippedResult);
         }
     }
-    
+
     return Results;
 }
 
@@ -1131,21 +1131,21 @@ FBatchValidationReport USuspenseEquipmentValidationService::ProcessBatchWithShad
     const TArray<FEquipmentOperationRequest>& Requests)
 {
     SCOPED_SERVICE_TIMER("Validation.ProcessBatchWithShadowSnapshot");
-    
+
     const float StartTime = FPlatformTime::Seconds();
     ShadowSnapshotBatches.fetch_add(1);
-    
+
     FBatchValidationReport Report;
     Report.TotalOperations = Requests.Num();
     Report.Results.Reserve(Requests.Num());
-    
+
     // Initialize shadow snapshot from current equipment state
     FShadowEquipmentSnapshot ShadowSnapshot;
     if (DataProvider.GetInterface())
     {
         const TMap<int32, FSuspenseInventoryItemInstance> CurrentEquipment = DataProvider->GetAllEquippedItems();
         ShadowSnapshot.SlotItems = CurrentEquipment;
-        
+
         // Compute initial weight
         for (const auto& SlotPair : CurrentEquipment)
         {
@@ -1154,13 +1154,13 @@ FBatchValidationReport USuspenseEquipmentValidationService::ProcessBatchWithShad
             ShadowSnapshot.ItemQuantities.FindOrAdd(SlotPair.Value.ItemID) += SlotPair.Value.Quantity;
         }
     }
-    
+
     // Process each operation sequentially against shadow state
     for (const FEquipmentOperationRequest& Request : Requests)
     {
         // Validate against current shadow state
         FSlotValidationResult Result = ValidateAgainstShadowSnapshot(Request, ShadowSnapshot);
-        
+
         if (Result.bIsValid)
         {
             // Apply operation to shadow state
@@ -1176,9 +1176,9 @@ FBatchValidationReport USuspenseEquipmentValidationService::ProcessBatchWithShad
                 ));
             }
         }
-        
+
         Report.Results.Add(Result);
-        
+
         if (Result.bIsValid)
         {
             Report.PassedOperations++;
@@ -1187,7 +1187,7 @@ FBatchValidationReport USuspenseEquipmentValidationService::ProcessBatchWithShad
         {
             Report.FailedOperations++;
             Report.bAllPassed = false;
-            
+
             // Classify error
             if (Result.FailureType == EEquipmentValidationFailure::SystemError ||
                 Result.FailureType == EEquipmentValidationFailure::NetworkError)
@@ -1200,23 +1200,23 @@ FBatchValidationReport USuspenseEquipmentValidationService::ProcessBatchWithShad
             }
         }
     }
-    
+
     // Update timing stats
     const float BatchTime = (FPlatformTime::Seconds() - StartTime) * 1000.0f;
     {
         EQUIPMENT_WRITE_LOCK(StatsLock);
         AverageShadowBatchTime = AverageShadowBatchTime * 0.9f + BatchTime * 0.1f;
     }
-    
+
     RECORD_SERVICE_METRIC("Validation.BatchShadowAppliedMs", (int64)BatchTime);
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentValidation, Log,
             TEXT("Shadow snapshot batch finished: %d/%d passed in %.3f ms"),
             Report.PassedOperations, Report.TotalOperations, BatchTime);
     }
-    
+
     return Report;
 }
 
@@ -1287,7 +1287,7 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateAgainstShadow
     Ctx.TargetSlotIndex  = Request.TargetSlotIndex;
     Ctx.bForceOperation  = Request.bForceOperation;
     Ctx.CurrentItems.Reserve(Snapshot.SlotItems.Num());
-    
+
     for (const auto& KV : Snapshot.SlotItems)
     {
         Ctx.CurrentItems.Add(KV.Value);
@@ -1302,13 +1302,13 @@ FSlotValidationResult USuspenseEquipmentValidationService::ValidateAgainstShadow
         Out.bIsValid         = RuleRes.bPassed;
         Out.ErrorMessage     = RuleRes.FailureReason;
         Out.ConfidenceScore  = RuleRes.ConfidenceScore;
-        
+
         if (!RuleRes.bPassed)
         {
             Out.FailureType = DetermineFailureType(RuleRes);
             Out.ErrorTag    = RuleRes.RuleType;
         }
-        
+
         // Transfer details into context map
         for (int32 i = 0; i + 1 < RuleRes.Details.Num(); i += 2)
         {
@@ -1328,7 +1328,7 @@ void USuspenseEquipmentValidationService::DispatchBufferedEvents(const TArray<FB
         UE_LOG(LogSuspenseEquipmentValidation, Error, TEXT("DispatchBufferedEvents called from non-game thread"));
         return;
     }
-    
+
     for (const FBufferedValidationEvent& Event : Events)
     {
         switch (Event.Type)
@@ -1336,7 +1336,7 @@ void USuspenseEquipmentValidationService::DispatchBufferedEvents(const TArray<FB
             case FBufferedValidationEvent::Started:
                 OnValidationStarted.Broadcast(Event.Request);
                 break;
-                
+
             case FBufferedValidationEvent::Completed:
                 OnValidationCompleted.Broadcast(Event.Result);
                 PublishValidationEvent(
@@ -1347,11 +1347,11 @@ void USuspenseEquipmentValidationService::DispatchBufferedEvents(const TArray<FB
                     Event.Result
                 );
                 break;
-                
+
             case FBufferedValidationEvent::Failed:
                 OnValidationFailed.Broadcast(Event.Request, Event.Result.ErrorMessage);
                 break;
-                
+
             case FBufferedValidationEvent::Custom:
                 if (Event.CustomEventTag.IsValid())
                 {
@@ -1367,24 +1367,24 @@ void USuspenseEquipmentValidationService::ValidateAsync(
     TFunction<void(const FSlotValidationResult&)> Callback)
 {
     SCOPED_SERVICE_TIMER("Validation.ValidateAsync");
-    
+
     if (!Callback)
     {
         return;
     }
-    
+
     // Execute validation in thread pool
     Async(EAsyncExecution::ThreadPool, [this, Request, Callback]()
     {
         const FSlotValidationResult Result = ValidateSingleRequestParallel(Request);
-        
+
         // Call callback on game thread
         AsyncTask(ENamedThreads::GameThread, [Callback, Result]()
         {
             Callback(Result);
         });
     });
-    
+
     ServiceMetrics.RecordSuccess();
 }
 
@@ -1401,45 +1401,45 @@ bool USuspenseEquipmentValidationService::ExportMetricsToCSV(const FString& Abso
 bool USuspenseEquipmentValidationService::InitializeDependencies()
 {
     SCOPED_SERVICE_TIMER("Validation.InitializeDependencies");
-    
+
     // ✅ Используем сохранённую ссылку на ServiceLocator
-    UEquipmentServiceLocator* ServiceLocator = ServiceLocatorRef.Get();
-    
+    USuspenseEquipmentServiceLocator* ServiceLocator = ServiceLocatorRef.Get();
+
     if (!ServiceLocator)
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Error, 
+        UE_LOG(LogSuspenseEquipmentValidation, Error,
             TEXT("InitializeDependencies: ServiceLocator not available"));
         return false;
     }
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Verbose,
         TEXT("InitializeDependencies: ServiceLocator reference valid, resolving dependencies..."));
-    
+
     // Get DataService from ServiceLocator
     UObject* DataServiceObject = ServiceLocator->GetService(
         FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data"))
     );
-    
+
     if (!DataServiceObject)
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Error, 
+        UE_LOG(LogSuspenseEquipmentValidation, Error,
             TEXT("InitializeDependencies: DataService not available in ServiceLocator"));
         return false;
     }
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Verbose,
-        TEXT("InitializeDependencies: DataService retrieved: %s (class: %s)"), 
+        TEXT("InitializeDependencies: DataService retrieved: %s (class: %s)"),
         *DataServiceObject->GetName(),
         *DataServiceObject->GetClass()->GetName());
-    
+
     // Cast to IEquipmentDataService
     if (!DataServiceObject->GetClass()->ImplementsInterface(UEquipmentDataService::StaticClass()))
     {
-        UE_LOG(LogSuspenseEquipmentValidation, Error, 
+        UE_LOG(LogSuspenseEquipmentValidation, Error,
             TEXT("InitializeDependencies: DataService does not implement IEquipmentDataService"));
         return false;
     }
-    
+
     IEquipmentDataService* DataServiceInterface = Cast<IEquipmentDataService>(DataServiceObject);
     if (!DataServiceInterface)
     {
@@ -1447,14 +1447,14 @@ bool USuspenseEquipmentValidationService::InitializeDependencies()
             TEXT("InitializeDependencies: Failed to cast DataService to IEquipmentDataService"));
         return false;
     }
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Verbose,
         TEXT("InitializeDependencies: Successfully cast to IEquipmentDataService"));
-    
+
     // ✅ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: DataProvider теперь ОПЦИОНАЛЬНЫЙ
     // В stateless режиме DataService не имеет компонентов и GetDataProvider() вернёт null
     ISuspenseEquipmentDataProvider* RawDataProvider = DataServiceInterface->GetDataProvider();
-    
+
     if (RawDataProvider)
     {
         UObject* DataProviderObject = Cast<UObject>(RawDataProvider);
@@ -1462,8 +1462,8 @@ bool USuspenseEquipmentValidationService::InitializeDependencies()
         {
             DataProvider.SetObject(DataProviderObject);
             DataProvider.SetInterface(RawDataProvider);
-            
-            UE_LOG(LogSuspenseEquipmentValidation, Log, 
+
+            UE_LOG(LogSuspenseEquipmentValidation, Log,
                 TEXT("InitializeDependencies: DataProvider available (STATEFUL mode)"));
             UE_LOG(LogSuspenseEquipmentValidation, Log,
                 TEXT("  DataProvider: %s"), *DataProviderObject->GetName());
@@ -1477,14 +1477,14 @@ bool USuspenseEquipmentValidationService::InitializeDependencies()
     else
     {
         // ✅ DataProvider отсутствует - это НормАльно для stateless режима
-        UE_LOG(LogSuspenseEquipmentValidation, Warning, 
+        UE_LOG(LogSuspenseEquipmentValidation, Warning,
             TEXT("InitializeDependencies: DataProvider not available (STATELESS mode)"));
         UE_LOG(LogSuspenseEquipmentValidation, Warning,
             TEXT("  ValidationService will work in stateless mode"));
         UE_LOG(LogSuspenseEquipmentValidation, Warning,
             TEXT("  Context-based validation will be limited"));
     }
-    
+
     // Try to get TransactionManager (optional)
     ISuspenseTransactionManager* RawTransactionManager = DataServiceInterface->GetTransactionManager();
     if (RawTransactionManager)
@@ -1494,8 +1494,8 @@ bool USuspenseEquipmentValidationService::InitializeDependencies()
         {
             TransactionManager.SetObject(TransactionManagerObject);
             TransactionManager.SetInterface(RawTransactionManager);
-            
-            UE_LOG(LogSuspenseEquipmentValidation, Log, 
+
+            UE_LOG(LogSuspenseEquipmentValidation, Log,
                 TEXT("InitializeDependencies: TransactionManager available"));
         }
     }
@@ -1504,74 +1504,74 @@ bool USuspenseEquipmentValidationService::InitializeDependencies()
         UE_LOG(LogSuspenseEquipmentValidation, Verbose,
             TEXT("InitializeDependencies: TransactionManager not available (optional)"));
     }
-    
+
     // ✅ SUCCESS: ValidationService может работать БЕЗ DataProvider
     // Зависимость от DataService достаточна (для получения ItemManager и т.д.)
-    UE_LOG(LogSuspenseEquipmentValidation, Log, 
+    UE_LOG(LogSuspenseEquipmentValidation, Log,
         TEXT("InitializeDependencies: ✅ Dependencies initialized successfully"));
     UE_LOG(LogSuspenseEquipmentValidation, Log,
-        TEXT("  - Mode: %s"), 
+        TEXT("  - Mode: %s"),
         DataProvider.GetInterface() ? TEXT("STATEFUL (with DataProvider)") : TEXT("STATELESS (no DataProvider)"));
     UE_LOG(LogSuspenseEquipmentValidation, Log,
-        TEXT("  - DataProvider: %s"), 
+        TEXT("  - DataProvider: %s"),
         DataProvider.GetInterface() ? TEXT("Available") : TEXT("Not Available"));
     UE_LOG(LogSuspenseEquipmentValidation, Log,
-        TEXT("  - TransactionManager: %s"), 
+        TEXT("  - TransactionManager: %s"),
         TransactionManager.GetInterface() ? TEXT("Available") : TEXT("Not Available"));
-    
+
     return true; // ✅ SUCCESS даже без DataProvider
 }
 
 void USuspenseEquipmentValidationService::SetupEventSubscriptions()
 {
-    auto EventBus = FEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         UE_LOG(LogSuspenseEquipmentValidation, Warning, TEXT("SetupEventSubscriptions: EventBus not available"));
         return;
     }
-    
+
     // Subscribe to cache invalidation events
     EventScope.Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Cache.Invalidate.Validation")),
-        FEventHandlerDelegate::CreateLambda([this](const FEquipmentEventData& EventData)
+        FEventHandlerDelegate::CreateLambda([this](const FSuspenseEquipmentEventData& EventData)
         {
             ClearValidationCache();
         })
     );
-    
+
     // Subscribe to rules change events
     EventScope.Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Rules.Changed")),
-        FEventHandlerDelegate::CreateLambda([this](const FEquipmentEventData& EventData)
+        FEventHandlerDelegate::CreateLambda([this](const FSuspenseEquipmentEventData& EventData)
         {
             OnRulesOrConfigChanged();
         })
     );
-    
+
     // Subscribe to configuration changes
     EventScope.Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Configuration.Changed")),
-        FEventHandlerDelegate::CreateLambda([this](const FEquipmentEventData& EventData)
+        FEventHandlerDelegate::CreateLambda([this](const FSuspenseEquipmentEventData& EventData)
         {
             OnRulesOrConfigChanged();
-            
+
             if (EventData.HasMetadata(TEXT("ReloadRules")) && Rules.GetInterface())
             {
                 Rules->ClearRuleCache();
             }
         })
     );
-    
+
     // Subscribe to transaction events (for cache invalidation only)
     EventScope.Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Transaction.RolledBack")),
-        FEventHandlerDelegate::CreateLambda([this](const FEquipmentEventData& EventData)
+        FEventHandlerDelegate::CreateLambda([this](const FSuspenseEquipmentEventData& EventData)
         {
             ClearValidationCache();
         })
     );
-    
+
     UE_LOG(LogSuspenseEquipmentValidation, Log, TEXT("SetupEventSubscriptions: Event handlers registered"));
 }
 
@@ -1579,14 +1579,14 @@ void USuspenseEquipmentValidationService::OnRulesOrConfigChanged()
 {
     // Increment rules epoch
     const uint32 NewEpoch = RulesEpoch.fetch_add(1) + 1;
-    
+
     // Clear cache
     ClearValidationCache();
-    
-    UE_LOG(LogSuspenseEquipmentValidation, Log, 
+
+    UE_LOG(LogSuspenseEquipmentValidation, Log,
         TEXT("OnRulesOrConfigChanged: Rules epoch incremented to %u, cache cleared"),
         NewEpoch);
-    
+
     RECORD_SERVICE_METRIC("Validation.RulesEpoch.Incremented", 1);
 }
 
@@ -1598,22 +1598,22 @@ uint32 USuspenseEquipmentValidationService::GenerateCacheKey(const FEquipmentOpe
     Key = HashCombine(Key, static_cast<uint32>(Request.SourceSlotIndex));
     Key = HashCombine(Key, static_cast<uint32>(Request.OperationType));
     Key = HashCombine(Key, Request.bForceOperation ? 1u : 0u);
-    
+
     // Add stable actor identifier instead of pointer
     if (Request.Instigator.IsValid())
     {
         Key = HashCombine(Key, GetStableActorIdentifier(Request.Instigator.Get()));
     }
-    
+
     // Add sequence number for network operations
     Key = HashCombine(Key, Request.SequenceNumber);
-    
+
     // Add priority as it may affect validation rules
     Key = HashCombine(Key, static_cast<uint32>(Request.Priority));
-    
+
     // Add rules epoch for cache invalidation on rules change
     Key = HashCombine(Key, RulesEpoch.load());
-    
+
     return Key;
 }
 
@@ -1670,15 +1670,15 @@ void USuspenseEquipmentValidationService::PublishValidationEvent(
         UE_LOG(LogSuspenseEquipmentValidation, Error, TEXT("PublishValidationEvent called from non-game thread"));
         return;
     }
-    
-    FEquipmentEventData EventData;
+
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = EventType;
     EventData.Source = this;
     EventData.Target = Request.Instigator.Get();
     EventData.Timestamp = FPlatformTime::Seconds();
-    EventData.Priority = Result.FailureType == EEquipmentValidationFailure::SystemError ? 
+    EventData.Priority = Result.FailureType == EEquipmentValidationFailure::SystemError ?
         EEventPriority::High : EEventPriority::Normal;
-    
+
     // Add metadata
     EventData.AddMetadata(TEXT("OperationId"), Request.OperationId.ToString());
     EventData.AddMetadata(TEXT("OperationType"), UEnum::GetValueAsString(Request.OperationType));
@@ -1686,15 +1686,15 @@ void USuspenseEquipmentValidationService::PublishValidationEvent(
     EventData.AddMetadata(TEXT("ValidationPassed"), Result.bIsValid ? TEXT("true") : TEXT("false"));
     EventData.AddMetadata(TEXT("Confidence"), FString::Printf(TEXT("%.2f"), Result.ConfidenceScore));
     EventData.AddMetadata(TEXT("RulesEpoch"), FString::Printf(TEXT("%u"), RulesEpoch.load()));
-    
+
     if (!Result.bIsValid)
     {
         EventData.AddMetadata(TEXT("FailureType"), UEnum::GetValueAsString(Result.FailureType));
         EventData.AddMetadata(TEXT("ErrorMessage"), Result.ErrorMessage.ToString());
     }
-    
+
     // Publish event
-    if (auto EventBus = FEquipmentEventBus::Get())
+    if (auto EventBus = FSuspenseEquipmentEventBus::Get())
     {
         EventBus->Broadcast(EventData);
     }
@@ -1706,7 +1706,7 @@ EEquipmentValidationFailure USuspenseEquipmentValidationService::DetermineFailur
     if (RuleResult.RuleType.IsValid())
     {
         const FString RuleTypeString = RuleResult.RuleType.ToString();
-        
+
         if (RuleTypeString.Contains(TEXT("Weight")))
         {
             return EEquipmentValidationFailure::WeightLimit;
@@ -1744,10 +1744,10 @@ EEquipmentValidationFailure USuspenseEquipmentValidationService::DetermineFailur
             return EEquipmentValidationFailure::NetworkError;
         }
     }
-    
+
     // Analyze error text if tag didn't help
     const FString FailureString = RuleResult.FailureReason.ToString();
-    
+
     if (FailureString.Contains(TEXT("Weight")) || FailureString.Contains(TEXT("weight")))
     {
         return EEquipmentValidationFailure::WeightLimit;
@@ -1792,7 +1792,7 @@ EEquipmentValidationFailure USuspenseEquipmentValidationService::DetermineFailur
     {
         return EEquipmentValidationFailure::NetworkError;
     }
-    
+
     // Default fallback
     return EEquipmentValidationFailure::RequirementsNotMet;
 }

@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "InventoryResult.generated.h"
+#include "SuspenseInventoryResult.generated.h"
 
 /**
  * Структура для хранения результата операции с инвентарем
- * 
+ *
  * Используется во всех методах компонентов инвентаря для возврата детальной информации
  * о результате выполненных действий. Обеспечивает единообразную обработку ошибок
  * и упрощает отладку операций с инвентарем.
- * 
+ *
  * Архитектурные принципы:
  * - Единый способ возврата результатов операций
- * - Подробная информация об ошибках для UI и отладки  
+ * - Подробная информация об ошибках для UI и отладки
  * - Поддержка контекста операции для трассировки
  * - Возможность передачи связанных объектов
  */
@@ -27,38 +27,38 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     /** Флаг успешного выполнения операции */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     bool bSuccess = false;
-    
+
     /** Код ошибки при неудаче (соответствует ESuspenseInventoryErrorCode) */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     ESuspenseInventoryErrorCode ErrorCode = ESuspenseInventoryErrorCode::Success;
-    
+
     /** Детальное сообщение об ошибке для UI или логирования */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     FText ErrorMessage;
-    
+
     /** Контекст операции (обычно имя метода или тип операции) */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     FName Context = NAME_None;
-    
+
     /** Связанный объект результата операции (опционально) */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     UObject* ResultObject = nullptr;
-    
+
     /** Дополнительные данные результата в виде key-value пар */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     TMap<FName, FString> ResultData;
-    
+
     /** Список предметов, затронутых операцией */
     UPROPERTY(BlueprintReadOnly, Category = "Inventory|Result")
     TArray<FSuspenseInventoryItemInstance> AffectedItems;
     //==================================================================
     // Конструкторы
     //==================================================================
-    
+
     /** Конструктор по умолчанию создает неуспешный результат */
     FSuspenseInventoryOperationResult() = default;
-    
-    /** 
+
+    /**
      * Конструктор с полным набором параметров
      * @param InSuccess Успешность операции
      * @param InErrorCode Код ошибки
@@ -66,7 +66,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
      * @param InContext Контекст операции
      * @param InResultObject Связанный объект
      */
-    FSuspenseInventoryOperationResult(bool InSuccess, ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage, 
+    FSuspenseInventoryOperationResult(bool InSuccess, ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
                              const FName& InContext, UObject* InResultObject = nullptr)
         : bSuccess(InSuccess)
         , ErrorCode(InErrorCode)
@@ -75,11 +75,11 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
         , ResultObject(InResultObject)
     {
     }
-    
+
     //==================================================================
     // Методы проверки состояния
     //==================================================================
-    
+
     /**
      * Проверяет, была ли операция успешной
      * @return true если операция выполнена без ошибок
@@ -88,7 +88,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     {
         return bSuccess && ErrorCode == ESuspenseInventoryErrorCode::Success;
     }
-    
+
     /**
      * Проверяет, была ли операция неудачной
      * @return true если произошла ошибка
@@ -97,7 +97,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     {
         return !IsSuccess();
     }
-    
+
     /**
      * Проверяет, связана ли ошибка с недостатком места
      * @return true если ошибка связана с переполнением инвентаря
@@ -106,7 +106,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     {
         return ErrorCode == ESuspenseInventoryErrorCode::NoSpace;
     }
-    
+
     /**
      * Проверяет, связана ли ошибка с превышением веса
      * @return true если ошибка связана с лимитом веса
@@ -115,11 +115,11 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     {
         return ErrorCode == ESuspenseInventoryErrorCode::WeightLimit;
     }
-    
+
     //==================================================================
     // Статические методы создания результатов
     //==================================================================
-    
+
     /**
      * Создает результат успешной операции
      * @param InContext Контекст операции
@@ -136,7 +136,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
             InResultObject
         );
     }
-    
+
     /**
      * Создает результат неудачной операции
      * @param InErrorCode Код ошибки
@@ -145,7 +145,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
      * @param InResultObject Связанный объект (опционально)
      * @return Структура неудачного результата
      */
-    static FSuspenseInventoryOperationResult Failure(ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage, 
+    static FSuspenseInventoryOperationResult Failure(ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
                                            const FName& InContext, UObject* InResultObject = nullptr)
     {
         return FSuspenseInventoryOperationResult(
@@ -156,7 +156,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
             InResultObject
         );
     }
-    
+
     /**
      * Создает результат ошибки "нет места"
      * @param InContext Контекст операции
@@ -165,13 +165,13 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
      */
     static FSuspenseInventoryOperationResult NoSpace(const FName& InContext, const FText& InErrorMessage = FText())
     {
-        FText Message = InErrorMessage.IsEmpty() 
-            ? FText::FromString(TEXT("Not enough space in inventory")) 
+        FText Message = InErrorMessage.IsEmpty()
+            ? FText::FromString(TEXT("Not enough space in inventory"))
             : InErrorMessage;
-            
+
         return Failure(ESuspenseInventoryErrorCode::NoSpace, Message, InContext);
     }
-    
+
     /**
      * Создает результат ошибки превышения веса
      * @param InContext Контекст операции
@@ -180,13 +180,13 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
      */
     static FSuspenseInventoryOperationResult WeightLimit(const FName& InContext, const FText& InErrorMessage = FText())
     {
-        FText Message = InErrorMessage.IsEmpty() 
-            ? FText::FromString(TEXT("Weight limit exceeded")) 
+        FText Message = InErrorMessage.IsEmpty()
+            ? FText::FromString(TEXT("Weight limit exceeded"))
             : InErrorMessage;
-            
+
         return Failure(ESuspenseInventoryErrorCode::WeightLimit, Message, InContext);
     }
-    
+
     /**
      * Создает результат ошибки "предмет не найден"
      * @param InContext Контекст операции
@@ -195,17 +195,17 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
      */
     static FSuspenseInventoryOperationResult ItemNotFound(const FName& InContext, const FName& ItemID = NAME_None)
     {
-        FText Message = ItemID.IsNone() 
-            ? FText::FromString(TEXT("Item not found")) 
+        FText Message = ItemID.IsNone()
+            ? FText::FromString(TEXT("Item not found"))
             : FText::Format(FText::FromString(TEXT("Item '{0}' not found")), FText::FromName(ItemID));
-            
+
         return Failure(ESuspenseInventoryErrorCode::ItemNotFound, Message, InContext);
     }
-    
+
     //==================================================================
     // Вспомогательные методы
     //==================================================================
-    
+
     /**
      * Возвращает строковое представление кода ошибки
      * ИСПРАВЛЕНО: Теперь соответствует актуальному enum ESuspenseInventoryErrorCode
@@ -243,7 +243,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
                 return TEXT("UnknownError");
         }
     }
-    
+
     /**
      * Добавить дополнительные данные к результату
      * @param Key Ключ данных
@@ -253,7 +253,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
     {
         ResultData.Add(Key, Value);
     }
-    
+
     /**
      * Получить дополнительные данные результата
      * @param Key Ключ для поиска
@@ -265,7 +265,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
         const FString* Found = ResultData.Find(Key);
         return Found ? *Found : DefaultValue;
     }
-    
+
     /**
      * Получить полное описание результата для отладки
      * @return Детальная строка с информацией о результате
@@ -278,17 +278,17 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
             bSuccess ? TEXT("SUCCESS") : TEXT("FAILURE"),
             *GetErrorCodeString(ErrorCode)
         );
-        
+
         if (!ErrorMessage.IsEmpty())
         {
             Result += FString::Printf(TEXT(" - %s"), *ErrorMessage.ToString());
         }
-        
+
         if (ResultObject)
         {
             Result += FString::Printf(TEXT(" [Object: %s]"), *ResultObject->GetName());
         }
-        
+
         if (ResultData.Num() > 0)
         {
             Result += TEXT(" {");
@@ -298,7 +298,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
             }
             Result += TEXT(" }");
         }
-        
+
         return Result;
     }
 };

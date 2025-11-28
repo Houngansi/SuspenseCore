@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentNetworkService.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
 #include "Components/Network/SuspenseEquipmentPredictionSystem.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
@@ -55,7 +55,7 @@ void USuspenseEquipmentNetworkService::InternalShutdown(bool bForce, bool bFromD
     {
         // Только обнуляем состояние, никакого I/O
         ServiceState = EServiceLifecycleState::Shutdown;
-        
+
         // Очищаем только локальные контейнеры (безопасно)
         FScopeLock Lock(&SecurityLock);
         RateLimitPerPlayer.Empty();
@@ -63,15 +63,15 @@ void USuspenseEquipmentNetworkService::InternalShutdown(bool bForce, bool bFromD
         ProcessedNonces.Empty();
         PendingNonces.Empty();
         SuspiciousActivityCount.Empty();
-        
+
         while (!NonceExpiryQueue.IsEmpty())
         {
             TPair<uint64, float> Item;
             NonceExpiryQueue.Dequeue(Item);
         }
-        
+
         HMACSecretKey.Empty();
-        
+
         // Очищаем интерфейсы
         if (NetworkDispatcher.GetInterface())
         {
@@ -84,7 +84,7 @@ void USuspenseEquipmentNetworkService::InternalShutdown(bool bForce, bool bFromD
             PredictionManager.SetInterface(nullptr);
         }
         ReplicationProvider = nullptr;
-        
+
         return;
     }
 
@@ -112,7 +112,7 @@ void USuspenseEquipmentNetworkService::InternalShutdown(bool bForce, bool bFromD
     if (World && IsValid(World))
     {
         FTimerManager& TimerManager = World->GetTimerManager();
-        
+
         if (NonceCleanupTimer.IsValid())
         {
             TimerManager.ClearTimer(NonceCleanupTimer);
@@ -132,7 +132,7 @@ void USuspenseEquipmentNetworkService::InternalShutdown(bool bForce, bool bFromD
     {
         USuspenseEquipmentNetworkDispatcher* Dispatcher =
             Cast<USuspenseEquipmentNetworkDispatcher>(NetworkDispatcher.GetObject());
-        
+
         if (Dispatcher && IsValid(Dispatcher))
         {
             if (DispatcherSuccessHandle.IsValid())
@@ -187,7 +187,7 @@ bool USuspenseEquipmentNetworkService::ResolveDependencies(
         return false;
     }
 
-    UEquipmentServiceLocator* ServiceLocator = UEquipmentServiceLocator::Get(World);
+    USuspenseEquipmentServiceLocator* ServiceLocator = USuspenseEquipmentServiceLocator::Get(World);
     if (!ServiceLocator)
     {
         UE_LOG(LogSuspenseEquipmentNetwork, Error, TEXT("ResolveDependencies: ServiceLocator not available"));
@@ -1567,13 +1567,13 @@ void USuspenseEquipmentNetworkService::ShutdownSecurity()
         ProcessedNonces.Empty();
         PendingNonces.Empty();
         SuspiciousActivityCount.Empty();
-        
+
         while (!NonceExpiryQueue.IsEmpty())
         {
             TPair<uint64, float> Item;
             NonceExpiryQueue.Dequeue(Item);
         }
-        
+
         HMACSecretKey.Empty();
         return;
     }

@@ -27,7 +27,7 @@ enum class ESuspenseMovementMode : uint8
  * Manages movement states through GameplayAbility System tags
  */
 UCLASS()
-class SUSPENSECORE_API USuspenseCharacterMovementComponent : public UCharacterMovementComponent
+class PLAYERCORE_API USuspenseCharacterMovementComponent : public UCharacterMovementComponent
 {
     GENERATED_BODY()
 
@@ -94,7 +94,7 @@ protected:
     class UAbilitySystemComponent* GetOwnerASC() const;
 
     /** Get owner's AttributeSet */
-    const class USuspenseBaseAttributeSet* GetOwnerAttributeSet() const;
+    const class UDefaultAttributeSet* GetOwnerAttributeSet() const;
 
     // Internal state flags - synchronized with GAS tags
     // Renamed for clarity that these are GAS-synchronized values

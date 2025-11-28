@@ -4,7 +4,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Interfaces/Core/ISuspenseAttributeProvider.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -20,7 +20,7 @@ USuspenseHealthStaminaWidget::USuspenseHealthStaminaWidget(const FObjectInitiali
 void USuspenseHealthStaminaWidget::NativePreConstruct()
 {
     Super::NativePreConstruct();
-    
+
     // Initialize materials in designer preview
     InitializeMaterials();
 }
@@ -28,7 +28,7 @@ void USuspenseHealthStaminaWidget::NativePreConstruct()
 void USuspenseHealthStaminaWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
+
     // Initialize materials for runtime
     InitializeMaterials();
 }
@@ -36,7 +36,7 @@ void USuspenseHealthStaminaWidget::NativeConstruct()
 void USuspenseHealthStaminaWidget::InitializeWidget_Implementation()
 {
     Super::InitializeWidget_Implementation();
-    
+
     // Validate widget bindings
     if (!HealthBar || !HealthText || !StaminaBar || !StaminaText)
     {
@@ -46,20 +46,20 @@ void USuspenseHealthStaminaWidget::InitializeWidget_Implementation()
         UE_LOG(LogTemp, Error, TEXT("  - StaminaBar: %s"), StaminaBar ? TEXT("OK") : TEXT("MISSING"));
         UE_LOG(LogTemp, Error, TEXT("  - StaminaText: %s"), StaminaText ? TEXT("OK") : TEXT("MISSING"));
     }
-    
+
     // Reset time accumulator
     MaterialTimeAccumulator = 0.0f;
-    
+
     // Initialize materials
     InitializeMaterials();
-    
+
     // Subscribe to events
     SubscribeToEvents();
-    
+
     // Initial UI update
     UpdateHealthUI();
     UpdateStaminaUI();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Widget initialized successfully"));
 }
 
@@ -68,13 +68,13 @@ void USuspenseHealthStaminaWidget::UninitializeWidget_Implementation()
     // Clean up
     ClearProvider();
     UnsubscribeFromEvents();
-    
+
     // Clean up dynamic materials
     HealthBarDynamicMaterial = nullptr;
     StaminaBarDynamicMaterial = nullptr;
-    
+
     Super::UninitializeWidget_Implementation();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Widget uninitialized"));
 }
 
@@ -84,7 +84,7 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
     if (HealthBar)
     {
         FProgressBarStyle UpdatedStyle = HealthBar->GetWidgetStyle();
-        
+
         // Configure background
         if (bUseCustomBackground && HealthBarBackgroundTexture)
         {
@@ -99,7 +99,7 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
             // Dark default background
             UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.05f, BackgroundOpacity));
         }
-        
+
         // Configure fill material
         if (HealthBarMaterial)
         {
@@ -110,20 +110,20 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
                 UpdatedStyle.FillImage.DrawAs = ESlateBrushDrawType::Box;
                 UpdatedStyle.FillImage.Tiling = ESlateBrushTileType::NoTile;
                 UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White);
-                
+
                 // Set initial parameters
                 UpdateHealthMaterialParameters();
             }
         }
-        
+
         HealthBar->SetWidgetStyle(UpdatedStyle);
     }
-    
+
     // Initialize stamina bar
     if (StaminaBar)
     {
         FProgressBarStyle UpdatedStyle = StaminaBar->GetWidgetStyle();
-        
+
         // Configure background
         if (bUseCustomBackground && StaminaBarBackgroundTexture)
         {
@@ -137,7 +137,7 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
         {
             UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.05f, BackgroundOpacity));
         }
-        
+
         // Configure fill material
         if (StaminaBarMaterial)
         {
@@ -148,12 +148,12 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
                 UpdatedStyle.FillImage.DrawAs = ESlateBrushDrawType::Box;
                 UpdatedStyle.FillImage.Tiling = ESlateBrushTileType::NoTile;
                 UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White);
-                
+
                 // Set initial parameters
                 UpdateStaminaMaterialParameters();
             }
         }
-        
+
         StaminaBar->SetWidgetStyle(UpdatedStyle);
     }
 }
@@ -161,16 +161,16 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
 void USuspenseHealthStaminaWidget::UpdateWidget_Implementation(float DeltaTime)
 {
     Super::UpdateWidget_Implementation(DeltaTime);
-    
+
     // Update time for material animations
     MaterialTimeAccumulator += DeltaTime;
-    
+
     // Update from provider if available
     if (HasValidProvider())
     {
         UpdateFromProvider();
     }
-    
+
     // Health interpolation
     if (bAnimateHealth)
     {
@@ -183,7 +183,7 @@ void USuspenseHealthStaminaWidget::UpdateWidget_Implementation(float DeltaTime)
         SmoothHealthValue = TargetHealthValue;
         SmoothHealthPercent = (CachedMaxHealth > 0.0f) ? (TargetHealthValue / CachedMaxHealth) : 0.0f;
     }
-    
+
     // Stamina interpolation
     if (bAnimateStamina)
     {
@@ -196,7 +196,7 @@ void USuspenseHealthStaminaWidget::UpdateWidget_Implementation(float DeltaTime)
         SmoothStaminaValue = TargetStaminaValue;
         SmoothStaminaPercent = (CachedMaxStamina > 0.0f) ? (TargetStaminaValue / CachedMaxStamina) : 0.0f;
     }
-    
+
     // Update UI
     UpdateHealthUI();
     UpdateStaminaUI();
@@ -207,23 +207,23 @@ void USuspenseHealthStaminaWidget::InitializeWithASC_Implementation(UAbilitySyst
     UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] InitializeWithASC is deprecated - use InitializeWithProvider instead"));
 }
 
-void USuspenseHealthStaminaWidget::InitializeWithProvider(TScriptInterface<ISuspenseAttributeProviderInterface> Provider)
+void USuspenseHealthStaminaWidget::InitializeWithProvider(TScriptInterface<ISuspenseAttributeProvider> Provider)
 {
     AttributeProvider = Provider;
-    
+
     UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Initializing with attribute provider"));
-    
+
     if (HasValidProvider())
     {
-        FSuspenseAttributeData HealthData = ISuspenseAttributeProviderInterface::Execute_GetHealthData(AttributeProvider.GetObject());
-        FSuspenseAttributeData StaminaData = ISuspenseAttributeProviderInterface::Execute_GetStaminaData(AttributeProvider.GetObject());
-        
+        FSuspenseAttributeData HealthData = ISuspenseAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
+        FSuspenseAttributeData StaminaData = ISuspenseAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
+
         UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Provider data received:"));
-        UE_LOG(LogTemp, Log, TEXT("  - Health: Current=%.1f, Max=%.1f, Valid=%s"), 
+        UE_LOG(LogTemp, Log, TEXT("  - Health: Current=%.1f, Max=%.1f, Valid=%s"),
             HealthData.CurrentValue, HealthData.MaxValue, HealthData.bIsValid ? TEXT("true") : TEXT("false"));
-        UE_LOG(LogTemp, Log, TEXT("  - Stamina: Current=%.1f, Max=%.1f, Valid=%s"), 
+        UE_LOG(LogTemp, Log, TEXT("  - Stamina: Current=%.1f, Max=%.1f, Valid=%s"),
             StaminaData.CurrentValue, StaminaData.MaxValue, StaminaData.bIsValid ? TEXT("true") : TEXT("false"));
-        
+
         UpdateFromAttributeData(HealthData, StaminaData);
         ForceImmediateUpdate_Implementation();
     }
@@ -251,7 +251,7 @@ void USuspenseHealthStaminaWidget::UpdateFromAttributeData(const FSuspenseAttrib
         TargetHealthValue = HealthData.CurrentValue;
         CachedMaxHealth = HealthData.MaxValue;
     }
-    
+
     if (StaminaData.bIsValid)
     {
         TargetStaminaValue = StaminaData.CurrentValue;
@@ -263,7 +263,7 @@ void USuspenseHealthStaminaWidget::UpdateHealth_Implementation(float CurrentHeal
 {
     TargetHealthValue = CurrentHealth;
     CachedMaxHealth = MaxHealth;
-    
+
     if (!bAnimateHealth)
     {
         SmoothHealthValue = CurrentHealth;
@@ -286,7 +286,7 @@ void USuspenseHealthStaminaWidget::UpdateStamina_Implementation(float CurrentSta
 {
     TargetStaminaValue = CurrentStamina;
     CachedMaxStamina = MaxStamina;
-    
+
     if (!bAnimateStamina)
     {
         SmoothStaminaValue = CurrentStamina;
@@ -310,7 +310,7 @@ void USuspenseHealthStaminaWidget::SetInterpolationSpeeds_Implementation(float H
     HealthInterpSpeed = FMath::Max(0.1f, HealthSpeed);
     StaminaInterpSpeed = FMath::Max(0.1f, StaminaSpeed);
     BarInterpSpeed = FMath::Max(0.1f, BarSpeed);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Interpolation speeds updated - Health: %.1f, Stamina: %.1f, Bar: %.1f"),
         HealthInterpSpeed, StaminaInterpSpeed, BarInterpSpeed);
 }
@@ -323,23 +323,23 @@ void USuspenseHealthStaminaWidget::ForceImmediateUpdate_Implementation()
         CachedMaxHealth = 100.0f;
         UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] MaxHealth was 0, defaulting to 100"));
     }
-    
+
     if (CachedMaxStamina <= 0.0f)
     {
         CachedMaxStamina = 100.0f;
         UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] MaxStamina was 0, defaulting to 100"));
     }
-    
+
     // Force immediate updates
     SmoothHealthValue = TargetHealthValue;
     SmoothHealthPercent = TargetHealthValue / CachedMaxHealth;
     SmoothStaminaValue = TargetStaminaValue;
     SmoothStaminaPercent = TargetStaminaValue / CachedMaxStamina;
-    
-    UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Forced immediate update - Health: %.1f/%.1f (%.1f%%), Stamina: %.1f/%.1f (%.1f%%)"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Forced immediate update - Health: %.1f/%.1f (%.1f%%), Stamina: %.1f/%.1f (%.1f%%)"),
         SmoothHealthValue, CachedMaxHealth, SmoothHealthPercent * 100.0f,
         SmoothStaminaValue, CachedMaxStamina, SmoothStaminaPercent * 100.0f);
-    
+
     UpdateHealthUI();
     UpdateStaminaUI();
 }
@@ -351,16 +351,16 @@ void USuspenseHealthStaminaWidget::UpdateHealthUI()
         HealthBar->SetPercent(SmoothHealthPercent);
         UpdateHealthMaterialParameters();
     }
-    
+
     if (HealthText)
     {
         FFormatNamedArguments Args;
         Args.Add(TEXT("Current"), FText::AsNumber(FMath::RoundToInt(SmoothHealthValue)));
         Args.Add(TEXT("Max"), FText::AsNumber(FMath::RoundToInt(CachedMaxHealth)));
-        
+
         FText FormatPattern = FText::FromString(ValueFormat);
         FText HealthString = FText::Format(FormatPattern, Args);
-        
+
         HealthText->SetText(HealthString);
     }
 }
@@ -372,16 +372,16 @@ void USuspenseHealthStaminaWidget::UpdateStaminaUI()
         StaminaBar->SetPercent(SmoothStaminaPercent);
         UpdateStaminaMaterialParameters();
     }
-    
+
     if (StaminaText)
     {
         FFormatNamedArguments Args;
         Args.Add(TEXT("Current"), FText::AsNumber(FMath::RoundToInt(SmoothStaminaValue)));
         Args.Add(TEXT("Max"), FText::AsNumber(FMath::RoundToInt(CachedMaxStamina)));
-        
+
         FText FormatPattern = FText::FromString(ValueFormat);
         FText StaminaString = FText::Format(FormatPattern, Args);
-        
+
         StaminaText->SetText(StaminaString);
     }
 }
@@ -390,13 +390,13 @@ void USuspenseHealthStaminaWidget::UpdateHealthMaterialParameters()
 {
     if (!HealthBarDynamicMaterial)
         return;
-    
+
     // Only update essential parameters - FillAmount and Time
     // All visual customization should be done in the Material Instance
     HealthBarDynamicMaterial->SetScalarParameterValue(FillAmountParameterName, SmoothHealthPercent);
     HealthBarDynamicMaterial->SetScalarParameterValue(TimeParameterName, MaterialTimeAccumulator);
-    
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[HealthStaminaWidget] Updated health material - Fill: %.2f, Time: %.2f"), 
+
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[HealthStaminaWidget] Updated health material - Fill: %.2f, Time: %.2f"),
         SmoothHealthPercent, MaterialTimeAccumulator);
 }
 
@@ -404,13 +404,13 @@ void USuspenseHealthStaminaWidget::UpdateStaminaMaterialParameters()
 {
     if (!StaminaBarDynamicMaterial)
         return;
-    
+
     // Only update essential parameters - FillAmount and Time
     // All visual customization should be done in the Material Instance
     StaminaBarDynamicMaterial->SetScalarParameterValue(FillAmountParameterName, SmoothStaminaPercent);
     StaminaBarDynamicMaterial->SetScalarParameterValue(TimeParameterName, MaterialTimeAccumulator);
-    
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[HealthStaminaWidget] Updated stamina material - Fill: %.2f, Time: %.2f"), 
+
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[HealthStaminaWidget] Updated stamina material - Fill: %.2f, Time: %.2f"),
         SmoothStaminaPercent, MaterialTimeAccumulator);
 }
 
@@ -418,49 +418,49 @@ void USuspenseHealthStaminaWidget::UpdateFromProvider()
 {
     if (!HasValidProvider())
         return;
-    
-    FSuspenseAttributeData HealthData = ISuspenseAttributeProviderInterface::Execute_GetHealthData(AttributeProvider.GetObject());
-    FSuspenseAttributeData StaminaData = ISuspenseAttributeProviderInterface::Execute_GetStaminaData(AttributeProvider.GetObject());
-    
+
+    FSuspenseAttributeData HealthData = ISuspenseAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
+    FSuspenseAttributeData StaminaData = ISuspenseAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
+
     UpdateFromAttributeData(HealthData, StaminaData);
 }
 
 void USuspenseHealthStaminaWidget::SubscribeToEvents()
 {
-    if (UEventDelegateManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         HealthUpdateHandle = EventManager->SubscribeToHealthUpdated(
             [this](float Current, float Max, float Percent)
             {
                 OnHealthUpdated(Current, Max, Percent);
             });
-            
+
         StaminaUpdateHandle = EventManager->SubscribeToStaminaUpdated(
             [this](float Current, float Max, float Percent)
             {
                 OnStaminaUpdated(Current, Max, Percent);
             });
-            
+
         UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Subscribed to attribute update events"));
     }
 }
 
 void USuspenseHealthStaminaWidget::UnsubscribeFromEvents()
 {
-    if (UEventDelegateManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         if (HealthUpdateHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(HealthUpdateHandle);
             HealthUpdateHandle.Reset();
         }
-        
+
         if (StaminaUpdateHandle.IsValid())
         {
             EventManager->UniversalUnsubscribe(StaminaUpdateHandle);
             StaminaUpdateHandle.Reset();
         }
-        
+
         UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Unsubscribed from attribute update events"));
     }
 }
@@ -479,14 +479,14 @@ void USuspenseHealthStaminaWidget::OnStaminaUpdated(float Current, float Max, fl
 void USuspenseHealthStaminaWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
-    
+
     if (!PropertyChangedEvent.Property)
     {
         return;
     }
-    
+
     const FName PropertyName = PropertyChangedEvent.Property->GetFName();
-    
+
     // Reinitialize materials if material references changed
     if (PropertyName == GET_MEMBER_NAME_CHECKED(USuspenseHealthStaminaWidget, HealthBarMaterial) ||
         PropertyName == GET_MEMBER_NAME_CHECKED(USuspenseHealthStaminaWidget, StaminaBarMaterial) ||
@@ -494,9 +494,9 @@ void USuspenseHealthStaminaWidget::PostEditChangeProperty(FPropertyChangedEvent&
         PropertyName == GET_MEMBER_NAME_CHECKED(USuspenseHealthStaminaWidget, StaminaBarBackgroundTexture))
     {
         UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Material or background settings changed in editor"));
-        
+
         InitializeMaterials();
-        
+
         if (GetOuter())
         {
             GetOuter()->MarkPackageDirty();

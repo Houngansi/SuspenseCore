@@ -3,7 +3,7 @@
 #include "Components/SuspenseEquipmentMeshComponent.h"
 #include "Components/SuspenseEquipmentComponentBase.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -26,13 +26,13 @@ USuspenseEquipmentMeshComponent::USuspenseEquipmentMeshComponent()
     PrimaryComponentTick.TickInterval = 0.1f; // For prediction cleanup
     bWantsInitializeComponent = true;
     SetCollisionProfileName(TEXT("NoCollision"));
-    
+
     // Initialize state
     AdditionalOffset = FTransform::Identity;
     bVisualsInitialized = false;
     LastCacheValidationTime = 0.0f;
     NextPredictionKey = 1;
-    
+
     // Visual components
     ScopeCamera = nullptr;
     MuzzleFlashComponent = nullptr;
@@ -42,10 +42,10 @@ USuspenseEquipmentMeshComponent::USuspenseEquipmentMeshComponent()
 void USuspenseEquipmentMeshComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Apply any initial offset
     ApplyOffsetTransform(AdditionalOffset);
-    
+
     // Pre-allocate effect pool
     for (int32 i = 0; i < MaxPooledEffects; ++i)
     {
@@ -59,7 +59,7 @@ void USuspenseEquipmentMeshComponent::BeginPlay()
 void USuspenseEquipmentMeshComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     CleanupVisuals();
-    
+
     // Clear pooled effects
     for (UNiagaraComponent* EffectComp : PooledEffectComponents)
     {
@@ -69,21 +69,21 @@ void USuspenseEquipmentMeshComponent::EndPlay(const EEndPlayReason::Type EndPlay
         }
     }
     PooledEffectComponents.Empty();
-    
+
     // Clear cached references
     CachedItemManager.Reset();
     CachedDelegateManager.Reset();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 void USuspenseEquipmentMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-    
+
     // Clean up expired predictions
     CleanupExpiredPredictions();
-    
+
     // Check for visual state changes
     if (bVisualsInitialized && HasVisualStateChanged(PreviousVisualState))
     {
@@ -99,10 +99,10 @@ bool USuspenseEquipmentMeshComponent::InitializeFromItemInstance(const FSuspense
         UE_LOG(LogMedComEquipment, Warning, TEXT("InitializeFromItemInstance: Invalid item instance"));
         return false;
     }
-    
+
     // Store current instance
     CurrentItemInstance = ItemInstance;
-    
+
     // Get item data from DataTable
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -110,36 +110,36 @@ bool USuspenseEquipmentMeshComponent::InitializeFromItemInstance(const FSuspense
         UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
         return false;
     }
-    
+
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
     {
-        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"), 
+        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
             *ItemInstance.ItemID.ToString());
         return false;
     }
-    
+
     // Load mesh from item data
     bool bMeshLoaded = LoadMeshFromItemData(CachedItemData);
-    
+
     // Initialize visual components
     InitializeVisualComponents(CachedItemData);
-    
+
     // Create dynamic materials
     CreateDynamicMaterials();
-    
+
     // Apply initial visual state
     UpdateVisualState(ItemInstance);
-    
+
     // Mark as initialized
     bVisualsInitialized = true;
-    
+
     // Request initial state sync
     RequestStateSync();
-    
-    UE_LOG(LogMedComEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"), 
+
+    UE_LOG(LogMedComEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"),
         *CachedItemData.DisplayName.ToString(),
         bMeshLoaded ? TEXT("Yes") : TEXT("No"));
-    
+
     return bMeshLoaded;
 }
 
@@ -149,20 +149,20 @@ void USuspenseEquipmentMeshComponent::UpdateVisualState(const FSuspenseInventory
     {
         return;
     }
-    
+
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     CurrentItemInstance = ItemInstance;
-    
+
     // Update condition visual
     float Durability = ItemInstance.GetRuntimeProperty(TEXT("Durability"), 100.0f);
     float MaxDurability = ItemInstance.GetRuntimeProperty(TEXT("MaxDurability"), 100.0f);
     float ConditionPercent = MaxDurability > 0 ? Durability / MaxDurability : 1.0f;
     SetConditionVisual(ConditionPercent);
-    
+
     // Update rarity visual
     SetRarityVisual(CachedItemData.Rarity);
-    
+
     // Update weapon-specific visuals
     if (CachedItemData.bIsWeapon)
     {
@@ -170,19 +170,19 @@ void USuspenseEquipmentMeshComponent::UpdateVisualState(const FSuspenseInventory
         float CurrentAmmo = ItemInstance.GetRuntimeProperty(TEXT("CurrentAmmo"), 0.0f);
         float MaxAmmo = ItemInstance.GetRuntimeProperty(TEXT("MaxAmmo"), 30.0f);
         SetMaterialParameter(TEXT("AmmoPercent"), MaxAmmo > 0 ? CurrentAmmo / MaxAmmo : 0.0f);
-        
+
         // Update heat/overheat visual
         float HeatLevel = ItemInstance.GetRuntimeProperty(TEXT("HeatLevel"), 0.0f);
         SetMaterialParameter(TEXT("HeatLevel"), HeatLevel);
-        
+
         // ПРАВИЛЬНЫЙ СПОСОБ: Получаем режим огня как числовой индекс
         // 0 = Single, 1 = Burst, 2 = Auto
         float FireModeIndex = ItemInstance.GetRuntimeProperty(TEXT("CurrentFireModeIndex"), 0.0f);
-        
+
         // Преобразуем в значение для материала (1.0, 2.0, 3.0)
         SetMaterialParameter(TEXT("FireModeIndicator"), FireModeIndex + 1.0f);
     }
-    
+
     // Increment state version
     CurrentVisualState.StateVersion++;
 }
@@ -195,7 +195,7 @@ void USuspenseEquipmentMeshComponent::CleanupVisuals()
         StopPredictedEffect(Prediction);
     }
     ActivePredictions.Empty();
-    
+
     // Return active effects to pool
     for (UNiagaraComponent* EffectComp : ActiveEffectComponents)
     {
@@ -213,29 +213,29 @@ void USuspenseEquipmentMeshComponent::CleanupVisuals()
         }
     }
     ActiveEffectComponents.Empty();
-    
+
     // Destroy visual components
     if (ScopeCamera)
     {
         ScopeCamera->DestroyComponent();
         ScopeCamera = nullptr;
     }
-    
+
     if (MuzzleFlashComponent)
     {
         MuzzleFlashComponent->DestroyComponent();
         MuzzleFlashComponent = nullptr;
     }
-    
+
     if (AudioComponent)
     {
         AudioComponent->DestroyComponent();
         AudioComponent = nullptr;
     }
-    
+
     // Clear dynamic materials
     DynamicMaterials.Empty();
-    
+
     bVisualsInitialized = false;
 }
 
@@ -246,24 +246,24 @@ void USuspenseEquipmentMeshComponent::CleanupVisuals()
 void USuspenseEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisualState& NewState, bool bForceUpdate)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     // Check if update needed
     if (!bForceUpdate && CurrentVisualState == NewState)
     {
         return;
     }
-    
+
     // Store previous state
     PreviousVisualState = CurrentVisualState;
     CurrentVisualState = NewState;
-    
+
     // Apply condition
     if (FMath::Abs(CurrentVisualState.ConditionPercent - PreviousVisualState.ConditionPercent) > 0.01f)
     {
         SetMaterialParameter(TEXT("Condition"), CurrentVisualState.ConditionPercent);
         SetMaterialParameter(TEXT("WearAmount"), 1.0f - CurrentVisualState.ConditionPercent);
     }
-    
+
     // Apply rarity
     if (!CurrentVisualState.RarityColor.Equals(PreviousVisualState.RarityColor) ||
         FMath::Abs(CurrentVisualState.RarityGlowIntensity - PreviousVisualState.RarityGlowIntensity) > 0.01f)
@@ -271,34 +271,34 @@ void USuspenseEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisualSta
         SetMaterialColorParameter(TEXT("RarityGlow"), CurrentVisualState.RarityColor);
         SetMaterialParameter(TEXT("RarityIntensity"), CurrentVisualState.RarityGlowIntensity);
     }
-    
+
     // Apply material parameters
     for (const auto& Pair : CurrentVisualState.MaterialScalarParams)
     {
         SetMaterialParameter(Pair.Key, Pair.Value);
     }
-    
+
     for (const auto& Pair : CurrentVisualState.MaterialVectorParams)
     {
         SetMaterialColorParameter(Pair.Key, Pair.Value);
     }
-    
+
     // Apply active effects
     FGameplayTagContainer AddedEffects = CurrentVisualState.ActiveEffects;
     FGameplayTagContainer RemovedEffects = PreviousVisualState.ActiveEffects;
-    
+
     // Find effects to add
     AddedEffects.RemoveTags(PreviousVisualState.ActiveEffects);
-    
+
     // Find effects to remove
     RemovedEffects.RemoveTags(CurrentVisualState.ActiveEffects);
-    
+
     // Apply effect changes
     for (const FGameplayTag& EffectTag : AddedEffects)
     {
         PlayEquipmentEffect(EffectTag);
     }
-    
+
     for (const FGameplayTag& EffectTag : RemovedEffects)
     {
         // Stop effects with this tag
@@ -307,7 +307,7 @@ void USuspenseEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisualSta
             return Pred.EffectType == EffectTag;
         });
     }
-    
+
     UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
 }
 
@@ -325,21 +325,21 @@ void USuspenseEquipmentMeshComponent::NotifyVisualStateChanged()
     {
         return;
     }
-    
+
     // Get all equipment components directly using templated method
     TArray<USuspenseEquipmentComponentBase*> EquipmentComponents;
     Owner->GetComponents<USuspenseEquipmentComponentBase>(EquipmentComponents);
-    
+
     // If no equipment components found, nothing to notify
     if (EquipmentComponents.Num() == 0)
     {
         return;
     }
-    
+
     // Prepare event data once to avoid string construction in loop
     const FString EventData = FString::Printf(TEXT("StateVersion:%d"), CurrentVisualState.StateVersion);
     const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualStateChanged"));
-    
+
     // Notify all equipment components
     for (USuspenseEquipmentComponentBase* EquipComp : EquipmentComponents)
     {
@@ -349,7 +349,7 @@ void USuspenseEquipmentMeshComponent::NotifyVisualStateChanged()
             EquipComp->BroadcastEquipmentEvent(EventTag, EventData);
         }
     }
-    
+
     // Log for debugging if needed
     UE_LOG(LogTemp, VeryVerbose, TEXT("USuspenseEquipmentMeshComponent: Notified %d equipment components about visual state change (version: %d)"),
         EquipmentComponents.Num(), CurrentVisualState.StateVersion);
@@ -360,10 +360,10 @@ void USuspenseEquipmentMeshComponent::RequestStateSync()
     // Broadcast request for state sync
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
-        FString EventData = FString::Printf(TEXT("Component:%s,ItemID:%s"), 
-            *GetName(), 
+        FString EventData = FString::Printf(TEXT("Component:%s,ItemID:%s"),
+            *GetName(),
             *CurrentItemInstance.ItemID.ToString());
-            
+
         Manager->NotifyEquipmentEvent(
             GetOwner(),
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestVisualSync")),
@@ -386,7 +386,7 @@ void USuspenseEquipmentMeshComponent::InitializeVisualComponents(const FSuspense
         AudioComponent->SetAutoActivate(false);
         AudioComponent->RegisterComponent();
     }
-    
+
     // Setup weapon-specific components
     if (ItemData.bIsWeapon)
     {
@@ -400,27 +400,27 @@ bool USuspenseEquipmentMeshComponent::LoadMeshFromItemData(const FSuspenseUnifie
     // The WorldMesh in item data is a static mesh reference
     // In a real implementation, you'd have a separate skeletal mesh reference
     // or a conversion system
-    
+
     if (!ItemData.WorldMesh.IsNull())
     {
         // Log that we have a mesh reference but it's static mesh
-        UE_LOG(LogMedComEquipment, Warning, 
-            TEXT("Item %s has WorldMesh but it's a static mesh reference. Equipment typically uses skeletal meshes."), 
+        UE_LOG(LogMedComEquipment, Warning,
+            TEXT("Item %s has WorldMesh but it's a static mesh reference. Equipment typically uses skeletal meshes."),
             *ItemData.DisplayName.ToString());
     }
-    
+
     // For now, we'll assume the skeletal mesh is already set in the actor blueprint
     // or loaded through other means
-    
+
     return GetSkeletalMeshAsset() != nullptr;
 }
 
 void USuspenseEquipmentMeshComponent::CreateDynamicMaterials()
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     DynamicMaterials.Empty();
-    
+
     int32 NumMaterials = GetNumMaterials();
     for (int32 i = 0; i < NumMaterials; i++)
     {
@@ -439,7 +439,7 @@ void USuspenseEquipmentMeshComponent::CreateDynamicMaterials()
 void USuspenseEquipmentMeshComponent::UpdateDynamicMaterials()
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     // Apply all current state parameters to materials
     for (UMaterialInstanceDynamic* DynMat : DynamicMaterials)
     {
@@ -447,13 +447,13 @@ void USuspenseEquipmentMeshComponent::UpdateDynamicMaterials()
         {
             continue;
         }
-        
+
         // Apply scalar parameters
         for (const auto& Pair : CurrentVisualState.MaterialScalarParams)
         {
             DynMat->SetScalarParameterValue(Pair.Key, Pair.Value);
         }
-        
+
         // Apply vector parameters
         for (const auto& Pair : CurrentVisualState.MaterialVectorParams)
         {
@@ -472,7 +472,7 @@ void USuspenseEquipmentMeshComponent::SetupWeaponVisuals(const FSuspenseUnifiedI
         MuzzleFlashComponent->SetAutoActivate(false);
         MuzzleFlashComponent->RegisterComponent();
     }
-    
+
     // Setup scope if weapon has one
     bool bHasScope = WeaponData.ItemTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.Feature.Scope")));
     if (bHasScope)
@@ -491,8 +491,8 @@ FVector USuspenseEquipmentMeshComponent::GetSocketLocationSafe(const FName& Sock
     {
         return GetSocketLocation(SocketName);
     }
-    
-    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"), 
+
+    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"),
            *SocketName.ToString());
     return GetComponentLocation();
 }
@@ -503,7 +503,7 @@ FRotator USuspenseEquipmentMeshComponent::GetSocketRotationSafe(const FName& Soc
     {
         return GetSocketRotation(SocketName);
     }
-    
+
     return GetComponentRotation();
 }
 
@@ -513,7 +513,7 @@ FTransform USuspenseEquipmentMeshComponent::GetSocketTransformSafe(const FName& 
     {
         return GetSocketTransform(SocketName);
     }
-    
+
     return GetComponentTransform();
 }
 
@@ -548,17 +548,17 @@ int32 USuspenseEquipmentMeshComponent::PlayMuzzleFlash()
     Prediction.EffectType = FGameplayTag::RequestGameplayTag(TEXT("Effect.Weapon.MuzzleFlash"));
     Prediction.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     Prediction.Duration = 0.1f; // Muzzle flash duration
-    
+
     // Play effect immediately for responsiveness
     if (MuzzleFlashComponent)
     {
         MuzzleFlashComponent->Activate(true);
         Prediction.EffectComponent = MuzzleFlashComponent;
     }
-    
+
     // Store prediction
     ActivePredictions.Add(Prediction);
-    
+
     // Also play fire sound if available
     if (AudioComponent && !CachedItemData.FireSound.IsNull())
     {
@@ -568,14 +568,14 @@ int32 USuspenseEquipmentMeshComponent::PlayMuzzleFlash()
             AudioComponent->Play();
         }
     }
-    
+
     // Update visual state
     {
         FScopeLock Lock(&VisualStateCriticalSection);
         CurrentVisualState.ActiveEffects.AddTag(Prediction.EffectType);
         CurrentVisualState.StateVersion++;
     }
-    
+
     return Prediction.PredictionKey;
 }
 
@@ -604,7 +604,7 @@ void USuspenseEquipmentMeshComponent::SetScopeCameraActive(bool bActivate)
     if (ScopeCamera)
     {
         ScopeCamera->SetActive(bActivate);
-        
+
         // Update visual state
         FScopeLock Lock(&VisualStateCriticalSection);
         if (bActivate)
@@ -626,13 +626,13 @@ void USuspenseEquipmentMeshComponent::SetScopeCameraActive(bool bActivate)
 void USuspenseEquipmentMeshComponent::SetConditionVisual(float ConditionPercent)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     CurrentVisualState.ConditionPercent = FMath::Clamp(ConditionPercent, 0.0f, 1.0f);
-    
+
     // Update material parameters for wear and tear
     SetMaterialParameter(TEXT("Condition"), CurrentVisualState.ConditionPercent);
     SetMaterialParameter(TEXT("WearAmount"), 1.0f - CurrentVisualState.ConditionPercent);
-    
+
     // Add damage decals or scratches based on condition
     if (CurrentVisualState.ConditionPercent < 0.3f)
     {
@@ -643,13 +643,13 @@ void USuspenseEquipmentMeshComponent::SetConditionVisual(float ConditionPercent)
 void USuspenseEquipmentMeshComponent::SetRarityVisual(const FGameplayTag& RarityTag)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     // Get rarity color from item data helper
     FLinearColor RarityColor = CachedItemData.GetRarityColor();
-    
+
     CurrentVisualState.RarityColor = RarityColor;
     CurrentVisualState.RarityGlowIntensity = 1.0f;
-    
+
     // Apply to materials
     SetMaterialColorParameter(TEXT("RarityGlow"), RarityColor);
     SetMaterialParameter(TEXT("RarityIntensity"), 1.0f);
@@ -662,7 +662,7 @@ int32 USuspenseEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTag& E
     Prediction.PredictionKey = NextPredictionKey++;
     Prediction.EffectType = EffectType;
     Prediction.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Determine effect duration based on type
     if (EffectType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Effect.Use"))))
     {
@@ -676,30 +676,30 @@ int32 USuspenseEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTag& E
     {
         Prediction.Duration = 0.5f;
     }
-    
+
     // Play effect immediately
     ApplyPredictedEffect(Prediction);
-    
+
     // Store prediction
     ActivePredictions.Add(Prediction);
-    
+
     // Update visual state
     {
         FScopeLock Lock(&VisualStateCriticalSection);
         CurrentVisualState.ActiveEffects.AddTag(EffectType);
         CurrentVisualState.StateVersion++;
     }
-    
+
     // Broadcast effect event
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
-        FString EventData = FString::Printf(TEXT("EffectType:%s,PredictionKey:%d"), 
+        FString EventData = FString::Printf(TEXT("EffectType:%s,PredictionKey:%d"),
             *EffectType.ToString(), Prediction.PredictionKey);
-        Manager->NotifyEquipmentEvent(GetOwner(), 
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualEffect")), 
+        Manager->NotifyEquipmentEvent(GetOwner(),
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualEffect")),
             EventData);
     }
-    
+
     return Prediction.PredictionKey;
 }
 
@@ -708,34 +708,34 @@ void USuspenseEquipmentMeshComponent::ConfirmEffectPrediction(int32 PredictionKe
     int32 PredictionIndex = ActivePredictions.IndexOfByPredicate(
         [PredictionKey](const FVisualEffectPrediction& Pred) { return Pred.PredictionKey == PredictionKey; }
     );
-    
+
     if (PredictionIndex == INDEX_NONE)
     {
         return;
     }
-    
+
     FVisualEffectPrediction Prediction = ActivePredictions[PredictionIndex];
-    
+
     if (!bSuccess)
     {
         // Stop the predicted effect
         StopPredictedEffect(Prediction);
-        
+
         // Update visual state
         FScopeLock Lock(&VisualStateCriticalSection);
         CurrentVisualState.ActiveEffects.RemoveTag(Prediction.EffectType);
         CurrentVisualState.StateVersion++;
     }
-    
+
     ActivePredictions.RemoveAt(PredictionIndex);
 }
 
 void USuspenseEquipmentMeshComponent::SetMaterialParameter(const FName& ParameterName, float Value)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     CurrentVisualState.MaterialScalarParams.Add(ParameterName, Value);
-    
+
     for (UMaterialInstanceDynamic* DynMat : DynamicMaterials)
     {
         if (DynMat)
@@ -748,9 +748,9 @@ void USuspenseEquipmentMeshComponent::SetMaterialParameter(const FName& Paramete
 void USuspenseEquipmentMeshComponent::SetMaterialColorParameter(const FName& ParameterName, const FLinearColor& Color)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
-    
+
     CurrentVisualState.MaterialVectorParams.Add(ParameterName, Color);
-    
+
     for (UMaterialInstanceDynamic* DynMat : DynamicMaterials)
     {
         if (DynMat)
@@ -770,7 +770,7 @@ FName USuspenseEquipmentMeshComponent::GetAttachmentSocket(const FGameplayTag& M
     {
         return NAME_None;
     }
-    
+
     return GetWeaponSocketName(CachedItemData, ModificationType);
 }
 
@@ -803,7 +803,7 @@ FName USuspenseEquipmentMeshComponent::GetWeaponSocketName(const FSuspenseUnifie
     {
         return WeaponData.MuzzleSocket.IsNone() ? DefaultMuzzleSocket : WeaponData.MuzzleSocket;
     }
-    
+
     return NAME_None;
 }
 
@@ -826,21 +826,21 @@ UNiagaraComponent* USuspenseEquipmentMeshComponent::PlayVisualEffectAtLocation(c
         EffectComp->SetAutoActivate(false);
         EffectComp->RegisterComponent();
     }
-    
+
     if (!EffectComp)
     {
         return nullptr;
     }
-    
+
     // Setup effect based on type
     // In a real implementation, you'd load appropriate Niagara system based on effect type
     // For now, we'll just position the component
     EffectComp->SetWorldLocationAndRotation(Location, Rotation);
     EffectComp->Activate(true);
-    
+
     // Track active effect
     ActiveEffectComponents.Add(EffectComp);
-    
+
     return EffectComp;
 }
 
@@ -876,7 +876,7 @@ void USuspenseEquipmentMeshComponent::ApplyPredictedEffect(const FVisualEffectPr
         // Play weapon effect at appropriate location
         FVector EffectLocation = GetMuzzleLocation();
         FRotator EffectRotation = GetSocketRotationSafe(CachedItemData.MuzzleSocket);
-        
+
         if (UNiagaraComponent* EffectComp = PlayVisualEffectAtLocation(Prediction.EffectType, EffectLocation, EffectRotation))
         {
             const_cast<FVisualEffectPrediction&>(Prediction).EffectComponent = EffectComp;
@@ -893,7 +893,7 @@ void USuspenseEquipmentMeshComponent::StopPredictedEffect(const FVisualEffectPre
         if (UNiagaraComponent* EffectComp = Cast<UNiagaraComponent>(SceneComp))
         {
             EffectComp->Deactivate();
-            
+
             // Return to pool
             ActiveEffectComponents.Remove(EffectComp);
             if (PooledEffectComponents.Num() < MaxPooledEffects)
@@ -910,12 +910,12 @@ void USuspenseEquipmentMeshComponent::StopPredictedEffect(const FVisualEffectPre
             // Обработка случая, когда компонент не является Niagara
             // Это может быть ParticleSystemComponent или другой тип эффекта
             EQUIPMENT_LOG(Warning, TEXT("StopPredictedEffect: Component is not a NiagaraComponent"));
-            
+
             // Просто деактивируем компонент
             SceneComp->Deactivate();
         }
     }
-    
+
     // Stop any associated sounds
     if (AudioComponent && AudioComponent->IsPlaying())
     {
@@ -929,9 +929,9 @@ void USuspenseEquipmentMeshComponent::CleanupExpiredPredictions()
     {
         return;
     }
-    
+
     const float CurrentTime = GetWorld()->GetTimeSeconds();
-    
+
     // Remove expired predictions
     ActivePredictions.RemoveAll([this, CurrentTime](const FVisualEffectPrediction& Prediction)
     {
@@ -939,7 +939,7 @@ void USuspenseEquipmentMeshComponent::CleanupExpiredPredictions()
         if (bExpired)
         {
             StopPredictedEffect(Prediction);
-            
+
             // Update visual state
             FScopeLock Lock(&VisualStateCriticalSection);
             CurrentVisualState.ActiveEffects.RemoveTag(Prediction.EffectType);
@@ -955,11 +955,11 @@ void USuspenseEquipmentMeshComponent::CleanupExpiredPredictions()
 USuspenseItemManager* USuspenseEquipmentMeshComponent::GetItemManager() const
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     if (!CachedItemManager.IsValid() || (CurrentTime - LastCacheValidationTime) > CacheValidationInterval)
     {
         LastCacheValidationTime = CurrentTime;
-        
+
         if (UWorld* World = GetWorld())
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
@@ -968,18 +968,18 @@ USuspenseItemManager* USuspenseEquipmentMeshComponent::GetItemManager() const
             }
         }
     }
-    
+
     return CachedItemManager.Get();
 }
 
 USuspenseEventManager* USuspenseEquipmentMeshComponent::GetDelegateManager() const
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     if (!CachedDelegateManager.IsValid() || (CurrentTime - LastCacheValidationTime) > CacheValidationInterval)
     {
         LastCacheValidationTime = CurrentTime;
-        
+
         if (UWorld* World = GetWorld())
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
@@ -988,6 +988,6 @@ USuspenseEventManager* USuspenseEquipmentMeshComponent::GetDelegateManager() con
             }
         }
     }
-    
+
     return CachedDelegateManager.Get();
 }

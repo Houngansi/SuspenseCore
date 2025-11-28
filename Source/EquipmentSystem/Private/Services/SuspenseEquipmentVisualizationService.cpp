@@ -42,11 +42,11 @@ bool USuspenseEquipmentVisualizationService::InitializeService(const FServiceIni
 	// ServiceLocator передается через InitParams.ServiceLocator из EquipmentServiceLocator::InitializeService
 	// Это единственное надежное место для получения ServiceLocator для stateless сервиса
 	CachedServiceLocator = InitParams.ServiceLocator;
-	
+
 	if (!CachedServiceLocator)
 	{
 		LifecycleState = EServiceLifecycleState::Failed;
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("InitializeService FAILED: ServiceLocator not provided in InitParams!"));
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  This indicates a problem with service registration or initialization order."));
@@ -54,9 +54,9 @@ bool USuspenseEquipmentVisualizationService::InitializeService(const FServiceIni
 			TEXT("  Make sure this service is registered through UEquipmentServiceLocator."));
 		return false;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-		TEXT("ServiceLocator cached successfully from InitParams: %p"), 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
+		TEXT("ServiceLocator cached successfully from InitParams: %p"),
 		CachedServiceLocator.Get());
 
 	// Initialize service tag
@@ -64,17 +64,17 @@ bool USuspenseEquipmentVisualizationService::InitializeService(const FServiceIni
 	if (!VisualizationServiceTag.IsValid())
 	{
 		LifecycleState = EServiceLifecycleState::Failed;
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("InitializeService FAILED: Could not request Service.Equipment.Visualization tag"));
 		return false;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-		TEXT("Service tag initialized: %s"), 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
+		TEXT("Service tag initialized: %s"),
 		*VisualizationServiceTag.ToString());
 
 	// Initialize EventBus
-	EventBus = FEquipmentEventBus::Get();
+	EventBus = FSuspenseEquipmentEventBus::Get();
 	if (!EventBus.IsValid())
 	{
 		LifecycleState = EServiceLifecycleState::Failed;
@@ -111,8 +111,8 @@ bool USuspenseEquipmentVisualizationService::InitializeService(const FServiceIni
 
 	SetupEventHandlers();
 
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-		TEXT("Event handlers registered: %d subscriptions"), 
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
+		TEXT("Event handlers registered: %d subscriptions"),
 		Subscriptions.Num());
 
 	// Apply quality preset to visual controller (if available)
@@ -127,19 +127,19 @@ bool USuspenseEquipmentVisualizationService::InitializeService(const FServiceIni
 			{
 				struct { int32 Level; } Params{ VisualQualityLevel };
 				VisualCtl->ProcessEvent(Fn, &Params);
-				UE_LOG(LogSuspenseEquipmentVisualization, Verbose, 
+				UE_LOG(LogSuspenseEquipmentVisualization, Verbose,
 					TEXT("Applied quality preset to VisualController"));
 			}
 		}
 	}
 
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("VisService init completed: MaxRate=%.1fHz, Quality=%d"),
 		MaxUpdateRateHz, VisualQualityLevel);
 
 	LifecycleState = EServiceLifecycleState::Ready;
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("<<< VisualizationService: InitializeService SUCCESS"));
 	return true;
 }
@@ -166,7 +166,7 @@ bool USuspenseEquipmentVisualizationService::ShutdownService(bool /*bForce*/)
 	Characters.Empty();
 
 	LifecycleState = EServiceLifecycleState::Shutdown;
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("<<< VisualizationService: ShutdownService COMPLETED"));
 	return true;
 }
@@ -186,19 +186,19 @@ FGameplayTagContainer USuspenseEquipmentVisualizationService::GetRequiredDepende
 bool USuspenseEquipmentVisualizationService::ValidateService(TArray<FText>& OutErrors) const
 {
 	bool bOk = true;
-	
+
 	if (!VisualizationServiceTag.IsValid())
 	{
 		OutErrors.Add(FText::FromString(TEXT("VisualizationServiceTag is invalid")));
 		bOk = false;
 	}
-	
+
 	if (!EventBus.IsValid())
 	{
 		OutErrors.Add(FText::FromString(TEXT("EventBus missing")));
 		bOk = false;
 	}
-	
+
 	// ============================================================================
 	// ИСПРАВЛЕНИЕ: Используем CachedServiceLocator вместо Get(...)
 	// ============================================================================
@@ -213,16 +213,16 @@ bool USuspenseEquipmentVisualizationService::ValidateService(TArray<FText>& OutE
 			}
 		}
 	}
-	
+
 	return bOk;
 }
 
 void USuspenseEquipmentVisualizationService::ResetService()
 {
 	EQUIPMENT_CRITICAL_LOCK(VisualLock);
-	
+
 	TeardownEventHandlers();
-	
+
 	for (auto& Pair : Characters)
 	{
 		AActor* Character = Pair.Key.Get();
@@ -235,19 +235,19 @@ void USuspenseEquipmentVisualizationService::ResetService()
 			}
 		}
 	}
-	
+
 	Characters.Empty();
 	EventBus.Reset();
 	LastProcessTimeSec = 0.0;
 	LifecycleState = EServiceLifecycleState::Uninitialized;
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("VisService reset"));
 }
 
 FString USuspenseEquipmentVisualizationService::GetServiceStats() const
 {
 	EQUIPMENT_CRITICAL_LOCK(VisualLock);
-	
+
 	int32 CharCount = 0;
 	int32 VisualCount = 0;
 	for (const auto& Pair : Characters)
@@ -255,7 +255,7 @@ FString USuspenseEquipmentVisualizationService::GetServiceStats() const
 		++CharCount;
 		VisualCount += Pair.Value.SlotActors.Num();
 	}
-	
+
 	return FString::Printf(TEXT("VisService: Characters=%d, Visuals=%d, Quality=%d, Hz=%.1f"),
 		CharCount, VisualCount, VisualQualityLevel, MaxUpdateRateHz);
 }
@@ -311,37 +311,37 @@ void USuspenseEquipmentVisualizationService::TeardownEventHandlers()
 
 // ===== Event handlers ============================================================
 
-void USuspenseEquipmentVisualizationService::OnEquipped(const FEquipmentEventData& E)
+void USuspenseEquipmentVisualizationService::OnEquipped(const FSuspenseEquipmentEventData& E)
 {
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT(">>> OnEquipped event received"));
-	
+
 	// Step 1: Rate limiting check
 	if (RateLimit())
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("OnEquipped rate limited - skipping"));
 		return;
 	}
-	
+
 	// Step 2: Extract and validate Character
 	AActor* Character = E.GetTargetAs<AActor>();
 	if (!Character)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("OnEquipped FAILED: Target is NULL!"));
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  Event has no valid Target actor"));
 		return;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("OnEquipped: Character = %s (Class: %s)"),
-		*Character->GetName(), 
+		*Character->GetName(),
 		*Character->GetClass()->GetName());
-	
+
 	// Step 3: Parse Slot metadata
 	int32 Slot = INDEX_NONE;
 	const bool bSlotParsed = TryParseInt(E, TEXT("Slot"), Slot);
-	
+
 	if (!bSlotParsed)
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
@@ -351,19 +351,19 @@ void USuspenseEquipmentVisualizationService::OnEquipped(const FEquipmentEventDat
 			*E.GetMetadata(TEXT("Slot"), TEXT("<empty>")));
 		return;
 	}
-	
+
 	if (Slot == INDEX_NONE)
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("OnEquipped FAILED: Slot is INDEX_NONE after parsing"));
 		return;
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("OnEquipped: Slot = %d"), Slot);
-	
+
 	// Step 4: Parse ItemID metadata
 	const FName ItemID = ParseName(E, TEXT("ItemID"));
-	
+
 	if (ItemID.IsNone())
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
@@ -373,33 +373,33 @@ void USuspenseEquipmentVisualizationService::OnEquipped(const FEquipmentEventDat
 			*E.GetMetadata(TEXT("ItemID"), TEXT("<empty>")));
 		return;
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("OnEquipped: ItemID = %s"), *ItemID.ToString());
-	
+
 	// Step 5: Log all available metadata for diagnostics
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("OnEquipped: All metadata:"));
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("  Slot       = %s"), *E.GetMetadata(TEXT("Slot"), TEXT("<none>")));
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("  ItemID     = %s"), *E.GetMetadata(TEXT("ItemID"), TEXT("<none>")));
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("  InstanceID = %s"), *E.GetMetadata(TEXT("InstanceID"), TEXT("<none>")));
 	UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("  Quantity   = %s"), *E.GetMetadata(TEXT("Quantity"), TEXT("<none>")));
-	
+
 	// Step 6: Final validation before calling UpdateVisualForSlot
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("OnEquipped: All validation passed - calling UpdateVisualForSlot"));
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  Character: %s, Slot: %d, ItemID: %s"),
 		*Character->GetName(), Slot, *ItemID.ToString());
-	
+
 	// Step 7: Execute visual update
 	UpdateVisualForSlot(Character, Slot, ItemID, /*bInstant=*/false);
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("OnEquipped: UpdateVisualForSlot call completed"));
 }
 
-void USuspenseEquipmentVisualizationService::OnUnequipped(const FEquipmentEventData& E)
+void USuspenseEquipmentVisualizationService::OnUnequipped(const FSuspenseEquipmentEventData& E)
 {
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT(">>> OnUnequipped event received"));
-	
+
 	if (RateLimit())
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Verbose, TEXT("OnUnequipped rate limited - skipping"));
@@ -409,17 +409,17 @@ void USuspenseEquipmentVisualizationService::OnUnequipped(const FEquipmentEventD
 	AActor* Character = E.GetTargetAs<AActor>();
 	if (!Character)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("OnUnequipped FAILED: Target is NULL!"));
 		return;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("OnUnequipped: Character = %s"), *Character->GetName());
 
 	int32 Slot = INDEX_NONE;
 	const bool bSlotParsed = TryParseInt(E, TEXT("Slot"), Slot);
-	
+
 	if (!bSlotParsed || Slot == INDEX_NONE)
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
@@ -429,17 +429,17 @@ void USuspenseEquipmentVisualizationService::OnUnequipped(const FEquipmentEventD
 			*E.GetMetadata(TEXT("Slot"), TEXT("<empty>")));
 		return;
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("OnUnequipped: Hiding visual for slot %d on %s"),
 		Slot, *Character->GetName());
 
 	HideVisualForSlot(Character, Slot, /*bInstant=*/false);
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("OnUnequipped: HideVisualForSlot call completed"));
 }
 
-void USuspenseEquipmentVisualizationService::OnSlotSwitched(const FEquipmentEventData& E)
+void USuspenseEquipmentVisualizationService::OnSlotSwitched(const FSuspenseEquipmentEventData& E)
 {
 	if (RateLimit()) return;
 
@@ -454,7 +454,7 @@ void USuspenseEquipmentVisualizationService::OnSlotSwitched(const FEquipmentEven
 	S.ActiveSlot = ActiveSlot;
 }
 
-void USuspenseEquipmentVisualizationService::OnRefreshAll(const FEquipmentEventData& E)
+void USuspenseEquipmentVisualizationService::OnRefreshAll(const FSuspenseEquipmentEventData& E)
 {
 	AActor* Character = E.GetTargetAs<AActor>();
 	if (!Character) return;
@@ -474,7 +474,7 @@ void USuspenseEquipmentVisualizationService::RequestRefresh(AActor* Character, b
 
 void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant)
 {
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("=== UpdateVisualForSlot START ==="));
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  Character: %s"), Character ? *Character->GetName() : TEXT("NULL"));
@@ -484,7 +484,7 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 		TEXT("  ItemID: %s"), *ItemID.ToString());
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  bInstant: %s"), bInstant ? TEXT("true") : TEXT("false"));
-	
+
 	if (!Character || ItemID.IsNone())
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
@@ -495,10 +495,10 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 	EQUIPMENT_CRITICAL_LOCK(VisualLock);
 
 	// 1) Acquire/create visual actor
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("Step 1: Acquiring visual actor for ItemID=%s, Slot=%d"),
 		*ItemID.ToString(), SlotIndex);
-	
+
 	AActor* Visual = AcquireVisualActor(Character, ItemID, SlotIndex);
 	if (!Visual)
 	{
@@ -516,17 +516,17 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 			TEXT("    3. Spawn failed due to collision or other issues"));
 		return;
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("Step 1 SUCCESS: Visual actor acquired - %s (Class: %s)"),
 		*Visual->GetName(), *Visual->GetClass()->GetName());
 
 	// 2) Resolve socket/offset and attach
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("Step 2: Resolving attachment parameters"));
-	
+
 	const FName Socket      = ResolveAttachSocket(Character, ItemID, SlotIndex);
 	const FTransform Offset = ResolveAttachOffset(Character, ItemID, SlotIndex);
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("  Socket: %s, Offset: Loc(%s) Rot(%s)"),
 		*Socket.ToString(),
@@ -548,11 +548,11 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 			TEXT("    2. Socket '%s' doesn't exist on character mesh"), *Socket.ToString());
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("    3. AttachmentSystem service failed"));
-		
+
 		ReleaseVisualActor(Character, SlotIndex, /*bInstant=*/true);
 		return;
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("Step 2 SUCCESS: Actor attached to character"));
 
 	// 3) Apply quality settings
@@ -562,7 +562,7 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 	// 4) Store in state
 	FVisCharState& S = Characters.FindOrAdd(Character);
 	S.SlotActors.FindOrAdd(SlotIndex) = Visual;
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("Step 4: Stored in state map"));
 
 	// ============================================================================
@@ -570,7 +570,7 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 	// ============================================================================
 	// 5) Apply visual profile (via VisualController)
 	UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("Step 5: Applying visual profile"));
-	
+
 	if (CachedServiceLocator)
 	{
 		if (UObject* VisualCtl = CachedServiceLocator->TryGetService(Tag_VisualController))
@@ -580,7 +580,7 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 				struct { AActor* Equipment; FGameplayTag Profile; bool bSmooth; bool ReturnValue; }
 				Params{ Visual, FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Active")), !bInstant, false };
 				VisualCtl->ProcessEvent(Fn, &Params);
-				
+
 				UE_LOG(LogSuspenseEquipmentVisualization, Log,
 					TEXT("  Visual profile applied via VisualController"));
 			}
@@ -601,8 +601,8 @@ void USuspenseEquipmentVisualizationService::UpdateVisualForSlot(AActor* Charact
 		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 			TEXT("  CachedServiceLocator is NULL"));
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("=== UpdateVisualForSlot SUCCESS ==="));
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  Visual equipment %s now attached to %s at slot %d"),
@@ -651,7 +651,7 @@ void USuspenseEquipmentVisualizationService::RefreshAllVisuals(AActor* Character
 	// Request data layer to resend current state (ketchup)
 	if (auto Bus = EventBus.Pin())
 	{
-		FEquipmentEventData Req;
+		FSuspenseEquipmentEventData Req;
 		Req.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestResend"));
 		Req.Target    = Character;
 		Req.AddMetadata(TEXT("Reason"), bForce ? TEXT("ForceRefreshVisual") : TEXT("RefreshVisual"));
@@ -679,14 +679,14 @@ void USuspenseEquipmentVisualizationService::RefreshAllVisuals(AActor* Character
 AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex)
 {
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("=== AcquireVisualActor START ==="));
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  Character: %s"), Character ? *Character->GetName() : TEXT("NULL"));
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("  ItemID: %s"), *ItemID.ToString());
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("  SlotIndex: %d"), SlotIndex);
-	
+
 	if (!Character || ItemID.IsNone())
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("AcquireVisualActor: Invalid parameters!"));
 		return nullptr;
 	}
@@ -696,7 +696,7 @@ AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Chara
 	// ============================================================================
 	if (!CachedServiceLocator)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  CRITICAL: CachedServiceLocator is NULL!"));
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  Cannot proceed with actor acquisition."));
@@ -704,23 +704,23 @@ AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Chara
 	}
 
 	// Step 1: Try to get ActorFactory service via cached ServiceLocator
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("Step 1: Attempting to get ActorFactory service"));
-	
+
 	if (UObject* FactoryObj = CachedServiceLocator->TryGetService(Tag_ActorFactory))
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-			TEXT("  ActorFactory service found: %s"), 
+		UE_LOG(LogSuspenseEquipmentVisualization, Log,
+			TEXT("  ActorFactory service found: %s"),
 			*FactoryObj->GetClass()->GetName());
-		
+
 		// PREFERRED: via C++ interface ISuspenseActorFactory
-		if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactoryInterface::StaticClass()))
+		if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactory::StaticClass()))
 		{
-			UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+			UE_LOG(LogSuspenseEquipmentVisualization, Log,
 				TEXT("  Using C++ interface ISuspenseActorFactory"));
-			
+
 			if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-				FactoryObj->GetInterfaceAddress(USuspenseActorFactoryInterface::StaticClass())))
+				FactoryObj->GetInterfaceAddress(USuspenseActorFactory::StaticClass())))
 			{
 				FEquipmentActorSpawnParams Params;
 				Params.ItemInstance.ItemID = ItemID;
@@ -731,28 +731,28 @@ AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Chara
 				Params.bNoCollisionFail    = true;
 				Params.CustomParameters.Add(TEXT("SlotIndex"), LexToString(SlotIndex));
 
-				UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+				UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 					TEXT("  Calling Factory->SpawnEquipmentActor..."));
-				
+
 				const FEquipmentActorSpawnResult R = Factory->SpawnEquipmentActor(Params);
-				
+
 				if (R.bSuccess && R.SpawnedActor)
 				{
-					UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-						TEXT("✓ ActorFactory SUCCESS: Spawned %s"), 
+					UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+						TEXT("✓ ActorFactory SUCCESS: Spawned %s"),
 						*R.SpawnedActor->GetName());
 					return R.SpawnedActor;
 				}
 				else
 				{
-					UE_LOG(LogSuspenseEquipmentVisualization, Error, 
-						TEXT("✗ ActorFactory FAILED: %s"), 
+					UE_LOG(LogSuspenseEquipmentVisualization, Error,
+						TEXT("✗ ActorFactory FAILED: %s"),
 						*R.FailureReason.ToString());
 				}
 			}
 			else
 			{
-				UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+				UE_LOG(LogSuspenseEquipmentVisualization, Error,
 					TEXT("  Failed to get interface address for ISuspenseActorFactory"));
 			}
 		}
@@ -761,60 +761,60 @@ AActor* USuspenseEquipmentVisualizationService::AcquireVisualActor(AActor* Chara
 	}
 	else
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 			TEXT("  ActorFactory service not registered in ServiceLocator"));
-		UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 			TEXT("  Trying direct spawn fallback..."));
 	}
 
 	// Ultimate fallback: direct SpawnActor
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("Step 2: FALLBACK - Direct spawn without factory"));
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("  Resolving actor class for ItemID: %s"), *ItemID.ToString());
-	
+
 	TSubclassOf<AActor> Class = ResolveActorClass(ItemID);
 	if (!Class)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
-			TEXT("✗ ResolveActorClass returned NULL for ItemID: %s"), 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
+			TEXT("✗ ResolveActorClass returned NULL for ItemID: %s"),
 			*ItemID.ToString());
 		return nullptr;
 	}
-	
+
 	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: используем World от Character
 	UWorld* World = Character->GetWorld();
 	if (!World)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("✗ Character has no World!"));
 		return nullptr;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("  Actor class resolved: %s"), *Class->GetName());
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
 		TEXT("  Spawning actor directly..."));
 
 	FActorSpawnParameters SP;
 	SP.Owner = Character;
 	SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	
+
 	AActor* SpawnedActor = World->SpawnActor<AActor>(Class, Character->GetActorTransform(), SP);
-	
+
 	if (SpawnedActor)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-			TEXT("✓ Direct spawn SUCCESS: %s"), 
+		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+			TEXT("✓ Direct spawn SUCCESS: %s"),
 			*SpawnedActor->GetName());
 	}
 	else
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Error, TEXT("✗ Direct spawn FAILED!"));
 	}
-	
+
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("=== AcquireVisualActor END ==="));
-	
+
 	return SpawnedActor;
 }
 
@@ -841,10 +841,10 @@ void USuspenseEquipmentVisualizationService::ReleaseVisualActor(AActor* Characte
 		if (UObject* FactoryObj = CachedServiceLocator->TryGetService(Tag_ActorFactory))
 		{
 			// Via interface
-			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactoryInterface::StaticClass()))
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactory::StaticClass()))
 			{
 				if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-					FactoryObj->GetInterfaceAddress(USuspenseActorFactoryInterface::StaticClass())))
+					FactoryObj->GetInterfaceAddress(USuspenseActorFactory::StaticClass())))
 				{
 					if (Factory->DestroyEquipmentActor(Visual, bInstant))
 					{
@@ -946,13 +946,13 @@ TSubclassOf<AActor> USuspenseEquipmentVisualizationService::ResolveActorClass(co
 {
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("=== ResolveActorClass START ==="));
 	UE_LOG(LogSuspenseEquipmentVisualization, Warning, TEXT("  ItemID: %s"), *ItemID.ToString());
-	
+
 	// ============================================================================
 	// ИСПРАВЛЕНИЕ #3: Проверяем кэшированный ServiceLocator
 	// ============================================================================
 	if (!CachedServiceLocator)
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  CRITICAL: CachedServiceLocator is NULL!"));
 		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  This should never happen if InitializeService() succeeded."));
@@ -960,24 +960,24 @@ TSubclassOf<AActor> USuspenseEquipmentVisualizationService::ResolveActorClass(co
 			TEXT("  Service may not have been initialized properly."));
 		return nullptr;
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-		TEXT("  Using cached ServiceLocator: %p"), 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Log,
+		TEXT("  Using cached ServiceLocator: %p"),
 		CachedServiceLocator.Get());
-	
+
 	// Step 1: Try DataService via cached ServiceLocator
 	if (UObject* DataSvc = CachedServiceLocator->TryGetService(Tag_EquipmentData))
 	{
 		UE_LOG(LogSuspenseEquipmentVisualization, Log, TEXT("  DataService found"));
-		
+
 		if (UFunction* Fn = DataSvc->FindFunction(FName(TEXT("GetVisualActorClass"))))
 		{
 			struct { FName ItemID; TSubclassOf<AActor> ReturnValue; } P{ ItemID, nullptr };
 			DataSvc->ProcessEvent(Fn, &P);
 			if (P.ReturnValue)
 			{
-				UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-					TEXT("✓ DataService->GetVisualActorClass returned: %s"), 
+				UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+					TEXT("✓ DataService->GetVisualActorClass returned: %s"),
 					*P.ReturnValue->GetName());
 				return P.ReturnValue;
 			}
@@ -988,129 +988,129 @@ TSubclassOf<AActor> USuspenseEquipmentVisualizationService::ResolveActorClass(co
 			DataSvc->ProcessEvent(Fn2, &P);
 			if (P.ReturnValue)
 			{
-				UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-					TEXT("✓ DataService->GetEquipmentActorClass returned: %s"), 
+				UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+					TEXT("✓ DataService->GetEquipmentActorClass returned: %s"),
 					*P.ReturnValue->GetName());
 				return P.ReturnValue;
 			}
 		}
-		
-		UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+
+		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 			TEXT("  DataService has no GetVisualActorClass or GetEquipmentActorClass methods"));
 	}
 	else
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 			TEXT("  DataService not available in ServiceLocator"));
 	}
-	
+
 	// Step 2: Try ItemManager subsystem via cached ServiceLocator->GetGameInstance()
-	UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
+	UE_LOG(LogSuspenseEquipmentVisualization, Warning,
 		TEXT("Step 2: Trying ItemManager subsystem via ServiceLocator"));
-	
+
 	if (UGameInstance* GI = CachedServiceLocator->GetGameInstance())
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Log,
 			TEXT("  GameInstance available via ServiceLocator"));
-		
+
 		if (USuspenseItemManager* ItemMgr = GI->GetSubsystem<USuspenseItemManager>())
 		{
-			UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+			UE_LOG(LogSuspenseEquipmentVisualization, Log,
 				TEXT("  ItemManager subsystem found"));
-			
+
 			FSuspenseUnifiedItemData ItemData;
 			if (ItemMgr->GetUnifiedItemData(ItemID, ItemData))
 			{
-				UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+				UE_LOG(LogSuspenseEquipmentVisualization, Log,
 					TEXT("  GetUnifiedItemData succeeded"));
-				
+
 				if (!ItemData.EquipmentActorClass.IsNull())
 				{
-					UE_LOG(LogSuspenseEquipmentVisualization, Log, 
-						TEXT("  EquipmentActorClass is set: %s"), 
+					UE_LOG(LogSuspenseEquipmentVisualization, Log,
+						TEXT("  EquipmentActorClass is set: %s"),
 						*ItemData.EquipmentActorClass.ToString());
-					
+
 					// Check if already loaded
 					if (ItemData.EquipmentActorClass.IsValid())
 					{
 						TSubclassOf<AActor> ActorClass = ItemData.EquipmentActorClass.Get();
 						if (ActorClass)
 						{
-							UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-								TEXT("✓ ItemManager SUCCESS: Class already loaded - %s"), 
+							UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+								TEXT("✓ ItemManager SUCCESS: Class already loaded - %s"),
 								*ActorClass->GetName());
 							return ActorClass;
 						}
 					}
-					
+
 					// Synchronous load
-					UE_LOG(LogSuspenseEquipmentVisualization, Log, 
+					UE_LOG(LogSuspenseEquipmentVisualization, Log,
 						TEXT("  Class not loaded, performing LoadSynchronous..."));
 					TSubclassOf<AActor> ActorClass = ItemData.EquipmentActorClass.LoadSynchronous();
-					
+
 					if (ActorClass)
 					{
-						UE_LOG(LogSuspenseEquipmentVisualization, Warning, 
-							TEXT("✓ ItemManager SUCCESS: Class loaded synchronously - %s"), 
+						UE_LOG(LogSuspenseEquipmentVisualization, Warning,
+							TEXT("✓ ItemManager SUCCESS: Class loaded synchronously - %s"),
 							*ActorClass->GetName());
 						return ActorClass;
 					}
 					else
 					{
 						UE_LOG(LogSuspenseEquipmentVisualization, Error, TEXT("✗ LoadSynchronous FAILED!"));
-						UE_LOG(LogSuspenseEquipmentVisualization, Error, 
-							TEXT("  Path: %s"), 
+						UE_LOG(LogSuspenseEquipmentVisualization, Error,
+							TEXT("  Path: %s"),
 							*ItemData.EquipmentActorClass.ToString());
-						UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+						UE_LOG(LogSuspenseEquipmentVisualization, Error,
 							TEXT("  This asset may be missing or invalid"));
 					}
 				}
 				else
 				{
-					UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+					UE_LOG(LogSuspenseEquipmentVisualization, Error,
 						TEXT("✗ EquipmentActorClass is NULL in ItemData!"));
-					UE_LOG(LogSuspenseEquipmentVisualization, Error, 
-						TEXT("  Item '%s' has no EquipmentActorClass configured"), 
+					UE_LOG(LogSuspenseEquipmentVisualization, Error,
+						TEXT("  Item '%s' has no EquipmentActorClass configured"),
 						*ItemID.ToString());
-					UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+					UE_LOG(LogSuspenseEquipmentVisualization, Error,
 						TEXT("  Solution: Open Item Data Table and set EquipmentActorClass for this item"));
 				}
 			}
 			else
 			{
-				UE_LOG(LogSuspenseEquipmentVisualization, Error, 
-					TEXT("✗ GetUnifiedItemData FAILED for ItemID: %s"), 
+				UE_LOG(LogSuspenseEquipmentVisualization, Error,
+					TEXT("✗ GetUnifiedItemData FAILED for ItemID: %s"),
 					*ItemID.ToString());
-				UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+				UE_LOG(LogSuspenseEquipmentVisualization, Error,
 					TEXT("  Item may not exist in Item Data Table"));
 			}
 		}
 		else
 		{
-			UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+			UE_LOG(LogSuspenseEquipmentVisualization, Error,
 				TEXT("  ItemManager subsystem not found in GameInstance!"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+		UE_LOG(LogSuspenseEquipmentVisualization, Error,
 			TEXT("  GameInstance is NULL from ServiceLocator!"));
 	}
-	
-	UE_LOG(LogSuspenseEquipmentVisualization, Error, 
+
+	UE_LOG(LogSuspenseEquipmentVisualization, Error,
 		TEXT("=== ResolveActorClass FAILED - Returning nullptr ==="));
 	return nullptr;
 }
 
 FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
-    AActor* Character, 
-    const FName ItemID, 
+    AActor* Character,
+    const FName ItemID,
     int32 SlotIndex) const
 {
     // ============================================================================
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Читаем сокет из DataTable через ItemManager
     // ============================================================================
-    
+
     // Step 1: Get ItemManager to access DataTable
     if (!CachedServiceLocator)
     {
@@ -1118,7 +1118,7 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
             TEXT("[ResolveAttachSocket] CachedServiceLocator is NULL - using fallback"));
         return FName(TEXT("GripPoint"));
     }
-    
+
     UGameInstance* GI = CachedServiceLocator->GetGameInstance();
     if (!GI)
     {
@@ -1126,7 +1126,7 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
             TEXT("[ResolveAttachSocket] GameInstance not available - using fallback"));
         return FName(TEXT("GripPoint"));
     }
-    
+
     USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
@@ -1134,7 +1134,7 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
             TEXT("[ResolveAttachSocket] ItemManager not available - using fallback"));
         return FName(TEXT("GripPoint"));
     }
-    
+
     // Step 2: Load full item data from DataTable
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
@@ -1144,16 +1144,16 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
             *ItemID.ToString());
         return FName(TEXT("GripPoint"));
     }
-    
+
     // Step 3: Determine if slot is active
     // SlotIndex 0 is typically the active weapon slot
     // For now, assume slot 0 = active, others = inactive
     // TODO: Get actual active slot from equipment component
     const bool bIsActiveSlot = (SlotIndex == 0);
-    
+
     // Step 4: Get correct socket from DataTable based on state
     const FName ResolvedSocket = ItemData.GetSocketForState(bIsActiveSlot);
-    
+
     if (ResolvedSocket.IsNone())
     {
         UE_LOG(LogSuspenseEquipmentVisualization, Warning,
@@ -1162,7 +1162,7 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
             bIsActiveSlot ? TEXT("Active") : TEXT("Inactive"));
         return FName(TEXT("GripPoint"));
     }
-    
+
     UE_LOG(LogSuspenseEquipmentVisualization, Log,
         TEXT("[ResolveAttachSocket] ✓ Resolved socket from DataTable:"));
     UE_LOG(LogSuspenseEquipmentVisualization, Log,
@@ -1171,19 +1171,19 @@ FName USuspenseEquipmentVisualizationService::ResolveAttachSocket(
         TEXT("  SlotIndex: %d (Active: %s)"), SlotIndex, bIsActiveSlot ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogSuspenseEquipmentVisualization, Log,
         TEXT("  Socket: %s"), *ResolvedSocket.ToString());
-    
+
     return ResolvedSocket;
 }
 
 FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
-    AActor* Character, 
-    const FName ItemID, 
+    AActor* Character,
+    const FName ItemID,
     int32 SlotIndex) const
 {
     // ============================================================================
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Читаем оффсет из DataTable через ItemManager
     // ============================================================================
-    
+
     // Step 1: Get ItemManager to access DataTable
     if (!CachedServiceLocator)
     {
@@ -1191,7 +1191,7 @@ FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
             TEXT("[ResolveAttachOffset] CachedServiceLocator is NULL - using Identity"));
         return FTransform::Identity;
     }
-    
+
     UGameInstance* GI = CachedServiceLocator->GetGameInstance();
     if (!GI)
     {
@@ -1199,7 +1199,7 @@ FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
             TEXT("[ResolveAttachOffset] GameInstance not available - using Identity"));
         return FTransform::Identity;
     }
-    
+
     USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
@@ -1207,7 +1207,7 @@ FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
             TEXT("[ResolveAttachOffset] ItemManager not available - using Identity"));
         return FTransform::Identity;
     }
-    
+
     // Step 2: Load full item data from DataTable
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
@@ -1217,13 +1217,13 @@ FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
             *ItemID.ToString());
         return FTransform::Identity;
     }
-    
+
     // Step 3: Determine if slot is active
     const bool bIsActiveSlot = (SlotIndex == 0);
-    
+
     // Step 4: Get correct offset from DataTable based on state
     const FTransform ResolvedOffset = ItemData.GetOffsetForState(bIsActiveSlot);
-    
+
     UE_LOG(LogSuspenseEquipmentVisualization, Log,
         TEXT("[ResolveAttachOffset] ✓ Resolved offset from DataTable:"));
     UE_LOG(LogSuspenseEquipmentVisualization, Log,
@@ -1235,7 +1235,7 @@ FTransform USuspenseEquipmentVisualizationService::ResolveAttachOffset(
         *ResolvedOffset.GetLocation().ToString(),
         *ResolvedOffset.Rotator().ToString(),
         *ResolvedOffset.GetScale3D().ToString());
-    
+
     return ResolvedOffset;
 }
 
@@ -1254,7 +1254,7 @@ bool USuspenseEquipmentVisualizationService::RateLimit() const
 
 // ===== Event metadata parsing =====================================================
 
-bool USuspenseEquipmentVisualizationService::TryParseInt(const FEquipmentEventData& E, const TCHAR* Key, int32& OutValue)
+bool USuspenseEquipmentVisualizationService::TryParseInt(const FSuspenseEquipmentEventData& E, const TCHAR* Key, int32& OutValue)
 {
 	const FString S = E.GetMetadata(Key, TEXT(""));
 	if (S.IsEmpty()) { return false; }
@@ -1262,7 +1262,7 @@ bool USuspenseEquipmentVisualizationService::TryParseInt(const FEquipmentEventDa
 	return true;
 }
 
-FName USuspenseEquipmentVisualizationService::ParseName(const FEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue)
+FName USuspenseEquipmentVisualizationService::ParseName(const FSuspenseEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue)
 {
 	const FString S = E.GetMetadata(Key, TEXT(""));
 	return S.IsEmpty() ? DefaultValue : FName(*S);

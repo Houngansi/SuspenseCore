@@ -452,14 +452,14 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::EquipItemInstance_Imp
 
     if (!ItemInstance.IsValid())
     {
-        R.bSuccess = false; R.ErrorCode = EInventoryErrorCode::InvalidItem;
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         R.ErrorMessage = FText::FromString(TEXT("Invalid item instance"));
         return R;
     }
 
     if (!bForceEquip && !CanEquipItemInstance_Implementation(ItemInstance))
     {
-        R.bSuccess = false; R.ErrorCode = EInventoryErrorCode::InvalidSlot;
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
         R.ErrorMessage = FText::FromString(TEXT("Item cannot be equipped in this slot"));
         return R;
     }
@@ -473,7 +473,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::EquipItemInstance_Imp
     OnItemInstanceEquipped_Implementation(ItemInstance);
 
     R.bSuccess = true;
-    R.ErrorCode = EInventoryErrorCode::Success;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
     R.AffectedItems.Add(ItemInstance);
     return R;
 }
@@ -484,7 +484,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::UnequipItem_Implement
 
     if (!EquippedItemInstance.IsValid())
     {
-        R.bSuccess = false; R.ErrorCode = EInventoryErrorCode::ItemNotFound;
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::ItemNotFound;
         R.ErrorMessage = FText::FromString(TEXT("No item equipped"));
         return R;
     }
@@ -493,7 +493,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::UnequipItem_Implement
     OnItemInstanceUnequipped_Implementation(OutUnequippedInstance);
 
     R.bSuccess = true;
-    R.ErrorCode = EInventoryErrorCode::Success;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
     R.AffectedItems.Add(OutUnequippedInstance);
     return R;
 }
@@ -504,7 +504,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::SwapEquipmentWith_Imp
 
     if (!OtherEquipment)
     {
-        R.bSuccess = false; R.ErrorCode = EInventoryErrorCode::InvalidSlot;
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
         R.ErrorMessage = FText::FromString(TEXT("Invalid target equipment"));
         return R;
     }
@@ -517,7 +517,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::SwapEquipmentWith_Imp
 
     if (!bThisCanEquipOther || !bOtherCanEquipThis)
     {
-        R.bSuccess = false; R.ErrorCode = EInventoryErrorCode::InvalidSlot;
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
         R.ErrorMessage = FText::FromString(TEXT("Items cannot be swapped between these slots"));
         return R;
     }
@@ -541,7 +541,7 @@ FSuspenseInventoryOperationResult ASuspenseEquipmentActor::SwapEquipmentWith_Imp
     }
 
     R.bSuccess = true;
-    R.ErrorCode = EInventoryErrorCode::Success;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
     return R;
 }
 

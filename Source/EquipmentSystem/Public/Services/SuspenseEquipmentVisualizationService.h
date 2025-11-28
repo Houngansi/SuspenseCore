@@ -46,7 +46,7 @@ struct FVisCharState
  * lightweight cache state and rate limiting.
  */
 UCLASS()
-class EQUIPMENTSYSTEM_API USuspenseEquipmentVisualizationService final : public UObject, public IEquipmentService
+class EQUIPMENTSYSTEM_API USuspenseEquipmentVisualizationService final : public UObject, public ISuspenseEquipmentService
 {
 	GENERATED_BODY()
 
@@ -76,7 +76,7 @@ private:
 	UPROPERTY() bool bEnableBatching = true;               // Batch notifications
 
 	// Event bus
-	TWeakPtr<FEquipmentEventBus> EventBus;
+	TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
 	TArray<FEventSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)

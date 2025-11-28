@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentOperationService.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
 #include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
@@ -41,8 +41,8 @@ namespace EventTags
 
 USuspenseEquipmentOperationService::USuspenseEquipmentOperationService()
 {
-    ValidationCache = MakeShareable(new FEquipmentCacheManager<uint32, FSlotValidationResult>(500));
-    ResultCache = MakeShareable(new FEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
+    ValidationCache = MakeShareable(new FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>(500));
+    ResultCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
     InitializationTime = FDateTime::Now();
 }
 
@@ -63,7 +63,7 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
 {
     if (ServiceState != EServiceLifecycleState::Uninitialized)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("InitializeService: already initialized (state=%s)"),
             *UEnum::GetValueAsString(ServiceState));
         return ServiceState == EServiceLifecycleState::Ready;
@@ -73,17 +73,17 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
     InitializationTime = FDateTime::Now();
 
     // CRITICAL FIX: Store ServiceLocator reference from params
-    CachedServiceLocator = Cast<UEquipmentServiceLocator>(Params.ServiceLocator);
-    
+    CachedServiceLocator = Cast<USuspenseEquipmentServiceLocator>(Params.ServiceLocator);
+
     if (!CachedServiceLocator.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Error, 
+        UE_LOG(LogSuspenseEquipmentOperations, Error,
             TEXT("InitializeService: ServiceLocator not provided in init params"));
         ServiceState = EServiceLifecycleState::Failed;
         return false;
     }
 
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("InitializeService: ServiceLocator cached successfully"));
 
     // Validate and sanitize configuration
@@ -93,7 +93,7 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
     if (bEnableObjectPooling)
     {
         InitializeObjectPools();
-        UE_LOG(LogSuspenseEquipmentOperations, Log, 
+        UE_LOG(LogSuspenseEquipmentOperations, Log,
             TEXT("Initialized object pools: %d operations, %d results"),
             InitialPoolSize, InitialPoolSize);
     }
@@ -101,7 +101,7 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
     // Initialize dependency graph
     if (!InitializeDependencies())
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Error, 
+        UE_LOG(LogSuspenseEquipmentOperations, Error,
             TEXT("Failed to initialize dependencies"));
         ServiceState = EServiceLifecycleState::Failed;
         return false;
@@ -109,15 +109,15 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
 
     // Initialize caching systems with proper constructor signature
     // Format: FEquipmentCacheManager(float DefaultTTL, int32 MaxEntries)
-    ValidationCache = MakeShared<FEquipmentCacheManager<uint32, FSlotValidationResult>>(
+    ValidationCache = MakeShared<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>>(
         ValidationCacheTTL,  // Default TTL: 5.0s
         1000);               // Max entries: 1000
-        
-    ResultCache = MakeShared<FEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
+
+    ResultCache = MakeShared<FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
         ResultCacheTTL,      // Default TTL: 2.0s
         500);                // Max entries: 500
 
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("Initialized caches: Validation(TTL=%.1fs, Cap=%d), Result(TTL=%.1fs, Cap=%d)"),
         ValidationCacheTTL, 1000, ResultCacheTTL, 500);
 
@@ -132,30 +132,30 @@ bool USuspenseEquipmentOperationService::InitializeService(const FServiceInitPar
 
     ServiceState = EServiceLifecycleState::Ready;
 
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("EquipmentOperationService initialized successfully"));
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("  - Mode: %s"),
         bServerAuthority ? TEXT("Server Authority") : TEXT("Client Predicted"));
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("  - Queue Processing: %s (interval=%.3fs)"),
         bQueueProcessingEnabled ? TEXT("Enabled") : TEXT("Disabled"),
         QueueProcessInterval);
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("  - Object Pooling: %s"),
         bEnableObjectPooling ? TEXT("Enabled") : TEXT("Disabled"));
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("  - Transaction Plans: %s"),
         bUseTransactionPlans ? TEXT("Enabled") : TEXT("Disabled"));
 
     return true;
 }
 
-UEquipmentServiceLocator* USuspenseEquipmentOperationService::GetServiceLocator() const
+USuspenseEquipmentServiceLocator* USuspenseEquipmentOperationService::GetServiceLocator() const
 {
     if (!CachedServiceLocator.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Error, 
+        UE_LOG(LogSuspenseEquipmentOperations, Error,
             TEXT("GetServiceLocator: cached locator is invalid"));
         return nullptr;
     }
@@ -164,36 +164,36 @@ UEquipmentServiceLocator* USuspenseEquipmentOperationService::GetServiceLocator(
 bool USuspenseEquipmentOperationService::ShutdownService(bool bForce)
 {
     SCOPED_SERVICE_TIMER("ShutdownService");
-    
+
     if (ServiceState == EServiceLifecycleState::Shutdown)
     {
         return true;
     }
-    
+
     ServiceState = EServiceLifecycleState::Shutting;
     StopQueueProcessing();
-    
+
     if (!bForce && OperationQueue.Num() > 0)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("Processing %d remaining operations before shutdown"),
             OperationQueue.Num());
-        
+
         while (OperationQueue.Num() > 0 && !bForce)
         {
             ProcessOperationQueue();
         }
     }
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
-        
+
         for (FQueuedOperation* Op : OperationQueue)
         {
             ReleaseOperation(Op);
         }
         OperationQueue.Empty();
-        
+
         for (auto& BatchPair : ActiveBatches)
         {
             for (FQueuedOperation* Op : BatchPair.Value)
@@ -203,22 +203,22 @@ bool USuspenseEquipmentOperationService::ShutdownService(bool bForce)
         }
         ActiveBatches.Empty();
     }
-    
+
     {
         FRWScopeLock Lock(HistoryLock, SLT_Write);
         OperationHistory.Empty();
         RedoStack.Empty();
     }
-    
+
     ValidationCache->Clear();
     ResultCache->Clear();
-    
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
-    
+
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
+
     EventScope.UnsubscribeAll();
     EventHandles.Empty();
-    
+
     {
         FRWScopeLock Lock(ExecutorLock, SLT_Write);
         OperationsExecutor = nullptr;
@@ -228,18 +228,18 @@ bool USuspenseEquipmentOperationService::ShutdownService(bool bForce)
         NetworkServiceObject = nullptr;
         PredictionManager = nullptr;
     }
-    
+
     CleanupObjectPools();
     ServiceState = EServiceLifecycleState::Shutdown;
     ServiceMetrics.RecordSuccess();
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("Service shutdown - Total executed: %d, Success rate: %.1f%%, Pool efficiency: %.1f%%"),
         TotalOperationsExecuted.load(),
-        TotalOperationsExecuted.load() > 0 ? 
+        TotalOperationsExecuted.load() > 0 ?
             (float)SuccessfulOperations.load() / TotalOperationsExecuted.load() * 100.0f : 0.0f,
         GetPoolEfficiency());
-    
+
     return true;
 }
 
@@ -273,10 +273,10 @@ FGameplayTagContainer USuspenseEquipmentOperationService::GetRequiredDependencie
 bool USuspenseEquipmentOperationService::ValidateService(TArray<FText>& OutErrors) const
 {
     SCOPED_SERVICE_TIMER("ValidateService");
-    
+
     OutErrors.Empty();
     bool bIsValid = true;
-    
+
     if (ServiceState != EServiceLifecycleState::Ready)
     {
         OutErrors.Add(FText::Format(
@@ -285,32 +285,32 @@ bool USuspenseEquipmentOperationService::ValidateService(TArray<FText>& OutError
         ));
         bIsValid = false;
     }
-    
+
     {
         FRWScopeLock Lock(ExecutorLock, SLT_ReadOnly);
-        
+
         if (!DataProvider.GetInterface())
         {
             OutErrors.Add(NSLOCTEXT("Equipment", "NoDataProvider", "Data provider not available"));
             bIsValid = false;
         }
-        
+
         if (!TransactionManager.GetInterface())
         {
             OutErrors.Add(NSLOCTEXT("Equipment", "NoTransactionManager", "Transaction manager not available"));
             bIsValid = false;
         }
-        
+
         if (!RulesEngine.GetInterface())
         {
             OutErrors.Add(NSLOCTEXT("Equipment", "NoRulesEngine", "Rules engine not available"));
             bIsValid = false;
         }
     }
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_ReadOnly);
-        
+
         if (OperationQueue.Num() > MaxQueueSize * 0.9f)
         {
             OutErrors.Add(FText::Format(
@@ -320,11 +320,11 @@ bool USuspenseEquipmentOperationService::ValidateService(TArray<FText>& OutError
             ));
         }
     }
-    
+
     if (bEnableObjectPooling)
     {
         float PoolEfficiency = GetPoolEfficiency();
-        
+
         if (PoolEfficiency < 0.5f && TotalOperationsExecuted.load() > 100)
         {
             OutErrors.Add(FText::Format(
@@ -333,7 +333,7 @@ bool USuspenseEquipmentOperationService::ValidateService(TArray<FText>& OutError
             ));
         }
     }
-    
+
     ServiceMetrics.Inc(TEXT("ValidateServiceCalls"));
     return bIsValid;
 }
@@ -341,18 +341,18 @@ bool USuspenseEquipmentOperationService::ValidateService(TArray<FText>& OutError
 void USuspenseEquipmentOperationService::ResetService()
 {
     SCOPED_SERVICE_TIMER("ResetService");
-    
+
     // Clear operation queue and active batches
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
-        
+
         // Release all queued operations back to pool
         for (FQueuedOperation* Op : OperationQueue)
         {
             ReleaseOperation(Op);
         }
         OperationQueue.Empty();
-        
+
         // Release all active batch operations
         for (auto& BatchPair : ActiveBatches)
         {
@@ -362,19 +362,19 @@ void USuspenseEquipmentOperationService::ResetService()
             }
         }
         ActiveBatches.Empty();
-        
+
         // Reset processing flags
         bIsProcessingQueue = false;
         bClearQueueAfterProcessing = false;
     }
-    
+
     // Clear operation history and redo stack
     {
         FRWScopeLock Lock(HistoryLock, SLT_Write);
         OperationHistory.Empty();
         RedoStack.Empty();
     }
-    
+
     // Clear validation and result caches
     if (ValidationCache.IsValid())
     {
@@ -384,11 +384,11 @@ void USuspenseEquipmentOperationService::ResetService()
     {
         ResultCache->Clear();
     }
-    
+
     // Reset operation statistics
     {
         FRWScopeLock Lock(StatsLock, SLT_Write);
-        
+
         // Reset atomic counters
         TotalOperationsQueued.store(0);
         TotalOperationsExecuted.store(0);
@@ -396,73 +396,73 @@ void USuspenseEquipmentOperationService::ResetService()
         FailedOperations.store(0);
         CancelledOperations.store(0);
         TotalBatchesProcessed.store(0);
-        
+
         // Reset calculated metrics
         CacheHitRate = 0.0f;
         AverageQueueTime = 0.0f;
         AverageExecutionTime = 0.0f;
         PeakQueueSize = 0;
     }
-    
+
     // Reset pool statistics
     OperationPoolHits.store(0);
     OperationPoolMisses.store(0);
     ResultPoolHits.store(0);
     ResultPoolMisses.store(0);
     PoolOverflows.store(0);
-    
+
     // Reset service metrics to clean state
     ServiceMetrics.Reset();
-    
+
     // Now record the reset event itself as the first new metric
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("Operations.Service.Reset", 1);
-    
+
     UE_LOG(LogSuspenseEquipmentOperations, Log, TEXT("EquipmentOperationService reset complete"));
 }
 
 FString USuspenseEquipmentOperationService::GetServiceStats() const
 {
     SCOPED_SERVICE_TIMER("GetServiceStats");
-    
+
     FRWScopeLock StatsGuard(StatsLock, SLT_ReadOnly);
-    
+
     FString Stats = TEXT("=== Equipment Operation Service Statistics ===\n");
-    
+
     Stats += FString::Printf(TEXT("State: %s\n"), *UEnum::GetValueAsString(ServiceState));
     Stats += FString::Printf(TEXT("Transaction Plans: %s\n"), bUseTransactionPlans ? TEXT("Enabled") : TEXT("Disabled"));
     FTimespan Uptime = FDateTime::Now() - InitializationTime;
     Stats += FString::Printf(TEXT("Uptime: %.1f hours\n"), Uptime.GetTotalHours());
-    
+
     Stats += TEXT("\n--- Queue ---\n");
     Stats += FString::Printf(TEXT("Current: %d/%d\n"), GetQueueSize(), MaxQueueSize);
     Stats += FString::Printf(TEXT("Peak: %d\n"), PeakQueueSize);
     Stats += FString::Printf(TEXT("Total Queued: %d\n"), TotalOperationsQueued.load());
     Stats += FString::Printf(TEXT("Avg Queue Time: %.3fms\n"), AverageQueueTime * 1000.0f);
-    
+
     Stats += TEXT("\n--- Execution ---\n");
     Stats += FString::Printf(TEXT("Total Executed: %d\n"), TotalOperationsExecuted.load());
-    float SuccessRate = TotalOperationsExecuted.load() > 0 ? 
+    float SuccessRate = TotalOperationsExecuted.load() > 0 ?
         (float)SuccessfulOperations.load() / TotalOperationsExecuted.load() * 100.0f : 0.0f;
     Stats += FString::Printf(TEXT("Success Rate: %.1f%%\n"), SuccessRate);
     Stats += FString::Printf(TEXT("Failed: %d\n"), FailedOperations.load());
     Stats += FString::Printf(TEXT("Cancelled: %d\n"), CancelledOperations.load());
     Stats += FString::Printf(TEXT("Avg Execution: %.3fms\n"), AverageExecutionTime * 1000.0f);
-    
+
     Stats += TEXT("\n--- Cache ---\n");
     Stats += FString::Printf(TEXT("Hit Rate: %.1f%%\n"), CacheHitRate * 100.0f);
     Stats += ValidationCache->GetStatistics().ToString() + TEXT("\n");
     Stats += ResultCache->GetStatistics().ToString() + TEXT("\n");
-    
+
     if (bEnableObjectPooling)
     {
         Stats += TEXT("\n--- Object Pools ---\n");
         Stats += GetPoolStatistics();
     }
-    
+
     // Add unified metrics
     Stats += ServiceMetrics.ToString(TEXT("OperationService"));
-    
+
     return Stats;
 }
 
@@ -532,23 +532,23 @@ bool USuspenseEquipmentOperationService::QueueOperation(const FEquipmentOperatio
 void USuspenseEquipmentOperationService::ProcessOperationQueue()
 {
     SCOPED_SERVICE_TIMER("ProcessOperationQueue");
-    
+
     if (!bQueueProcessingEnabled)
     {
         return;
     }
-    
+
     if (bIsProcessingQueue)
     {
         return;
     }
-    
+
     bIsProcessingQueue = true;
-    
+
     TArray<FQueuedOperation*> BatchToProcess;
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
-        
+
         if (bClearQueueAfterProcessing)
         {
             for (FQueuedOperation* Op : OperationQueue)
@@ -572,7 +572,7 @@ void USuspenseEquipmentOperationService::ProcessOperationQueue()
             // более раннее время постановки — раньше
             return A.QueueTime < B.QueueTime;
         });
-        
+
         const int32 BatchCount = FMath::Min(BatchSize, OperationQueue.Num());
         for (int32 i = 0; i < BatchCount; i++)
         {
@@ -580,19 +580,19 @@ void USuspenseEquipmentOperationService::ProcessOperationQueue()
             OperationQueue.RemoveAt(0);
         }
     }
-    
+
     for (FQueuedOperation* QueuedOp : BatchToProcess)
     {
         const float QueueTimeSec = FPlatformTime::Seconds() - QueuedOp->QueueTime;
         AverageQueueTime = AverageQueueTime * 0.9f + QueueTimeSec * 0.1f;
         ServiceMetrics.AddDurationMs(TEXT("QueueLatency"), QueueTimeSec * 1000.0f);
-        
+
         const FEquipmentOperationResult Result = ProcessSingleOperation(QueuedOp);
         UpdateStatistics(Result);
-        
+
         ReleaseOperation(QueuedOp);
     }
-    
+
     bIsProcessingQueue = false;
     ServiceMetrics.Inc(TEXT("QueueProcessingCycles"));
 }
@@ -604,7 +604,7 @@ void USuspenseEquipmentOperationService::ProcessOperationQueue()
 FEquipmentOperationResult USuspenseEquipmentOperationService::ExecuteImmediate(const FEquipmentOperationRequest& Request)
 {
     SCOPED_SERVICE_TIMER("ExecuteImmediate");
-    
+
     if (!IsServiceReady())
     {
         ServiceMetrics.RecordError();
@@ -614,30 +614,30 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::ExecuteImmediate(c
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     // Ensure operation has valid ID
     FEquipmentOperationRequest LocalRequest = Request;
     if (!LocalRequest.OperationId.IsValid())
     {
         LocalRequest.OperationId = FGuid::NewGuid();
     }
-    
+
     // Check if should delegate to server
     if (ShouldDelegateToServer(LocalRequest))
     {
         ServiceMetrics.Inc(TEXT("DelegatedToServer"));
         return DelegateOperationToServer(LocalRequest);
     }
-    
+
     FQueuedOperation* QueuedOp = AcquireOperation();
     QueuedOp->Request = LocalRequest;
     QueuedOp->QueueTime = FPlatformTime::Seconds();
     QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::Critical);
-    
+
     FEquipmentOperationResult Result = ProcessSingleOperation(QueuedOp);
-    
+
     ReleaseOperation(QueuedOp);
-    
+
     if (Result.bSuccess)
     {
         ServiceMetrics.RecordSuccess();
@@ -646,44 +646,44 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::ExecuteImmediate(c
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return Result;
 }
 
 int32 USuspenseEquipmentOperationService::QueueOperationWithPriority(const FEquipmentOperationRequest& Request, int32 Priority)
 {
     SCOPED_SERVICE_TIMER("QueueOperationWithPriority");
-    
+
     if (!IsServiceReady())
     {
         ServiceMetrics.RecordError();
         return INDEX_NONE;
     }
-    
+
     // Ensure operation has valid ID
     FEquipmentOperationRequest LocalRequest = Request;
     if (!LocalRequest.OperationId.IsValid())
     {
         LocalRequest.OperationId = FGuid::NewGuid();
     }
-    
+
     FRWScopeLock Lock(QueueLock, SLT_Write);
-    
+
     if (OperationQueue.Num() >= MaxQueueSize)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("Queue full - rejecting operation %s"),
             *LocalRequest.OperationId.ToString());
         ServiceMetrics.Inc(TEXT("QueueRejections"));
         ServiceMetrics.RecordError();
         return INDEX_NONE;
     }
-    
+
     FQueuedOperation* QueuedOp = AcquireOperation();
     QueuedOp->Request = LocalRequest;
     QueuedOp->QueueTime = FPlatformTime::Seconds();
     QueuedOp->Priority = Priority;
-    
+
     // Try coalescing if enabled
     if (bEnableQueueCoalescing)
     {
@@ -695,23 +695,23 @@ int32 USuspenseEquipmentOperationService::QueueOperationWithPriority(const FEqui
             return CoalescedIndex; // Возвращаем реальный индекс объединённой операции
         }
     }
-    
+
     int32 Position = OperationQueue.Add(QueuedOp);
-    
+
     TotalOperationsQueued.fetch_add(1);
     PeakQueueSize = FMath::Max(PeakQueueSize, OperationQueue.Num());
     ServiceMetrics.Inc(TEXT("OperationsQueued"));
-    
+
     OnOperationQueued.Broadcast(LocalRequest.OperationId);
-    
+
     if (bEnableDetailedLogging)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("Queued operation %s at position %d"),
             *LocalRequest.GetDescription(),
             Position);
     }
-    
+
     ServiceMetrics.RecordSuccess();
     return Position;
 }
@@ -719,41 +719,41 @@ int32 USuspenseEquipmentOperationService::QueueOperationWithPriority(const FEqui
 FGuid USuspenseEquipmentOperationService::BatchOperations(const TArray<FEquipmentOperationRequest>& Requests, bool bAtomic)
 {
     SCOPED_SERVICE_TIMER("BatchOperations");
-    
+
     if (Requests.Num() == 0)
     {
         return FGuid();
     }
-    
+
     FGuid BatchId = FGuid::NewGuid();
     TArray<FQueuedOperation*> BatchOps;
-    
+
     for (FEquipmentOperationRequest Request : Requests)
     {
         if (!Request.OperationId.IsValid())
         {
             Request.OperationId = FGuid::NewGuid();
         }
-        
+
         FQueuedOperation* QueuedOp = AcquireOperation();
         QueuedOp->Request = Request;
         QueuedOp->QueueTime = FPlatformTime::Seconds();
         QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::High);
         QueuedOp->TransactionId = bAtomic ? BatchId : FGuid();
-        
+
         BatchOps.Add(QueuedOp);
     }
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
         ActiveBatches.Add(BatchId, BatchOps);
     }
-    
+
     bool bSuccess = ProcessBatch(BatchOps, bAtomic);
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
-        
+
         TArray<FQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
         if (StoredBatch)
         {
@@ -762,13 +762,13 @@ FGuid USuspenseEquipmentOperationService::BatchOperations(const TArray<FEquipmen
                 ReleaseOperation(Op);
             }
         }
-        
+
         ActiveBatches.Remove(BatchId);
     }
-    
+
     OnBatchCompleted.Broadcast(BatchId, bSuccess);
     ServiceMetrics.Inc(TEXT("BatchesProcessed"));
-    
+
     if (bSuccess)
     {
         ServiceMetrics.RecordSuccess();
@@ -777,52 +777,52 @@ FGuid USuspenseEquipmentOperationService::BatchOperations(const TArray<FEquipmen
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return BatchId;
 }
 
-FGuid USuspenseEquipmentOperationService::BatchOperationsEx(const TArray<FEquipmentOperationRequest>& Requests, 
-                                                         bool bAtomic, 
+FGuid USuspenseEquipmentOperationService::BatchOperationsEx(const TArray<FEquipmentOperationRequest>& Requests,
+                                                         bool bAtomic,
                                                          TArray<FEquipmentOperationResult>& OutResults)
 {
     SCOPED_SERVICE_TIMER("BatchOperationsEx");
-    
+
     OutResults.Empty();
-    
+
     if (Requests.Num() == 0)
     {
         return FGuid();
     }
-    
+
     FGuid BatchId = FGuid::NewGuid();
     TArray<FQueuedOperation*> BatchOps;
-    
+
     for (FEquipmentOperationRequest Request : Requests)
     {
         if (!Request.OperationId.IsValid())
         {
             Request.OperationId = FGuid::NewGuid();
         }
-        
+
         FQueuedOperation* QueuedOp = AcquireOperation();
         QueuedOp->Request = Request;
         QueuedOp->QueueTime = FPlatformTime::Seconds();
         QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::High);
         QueuedOp->TransactionId = bAtomic ? BatchId : FGuid();
-        
+
         BatchOps.Add(QueuedOp);
     }
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
         ActiveBatches.Add(BatchId, BatchOps);
     }
-    
+
     bool bSuccess = ProcessBatch(BatchOps, bAtomic, &OutResults);
-    
+
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
-        
+
         TArray<FQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
         if (StoredBatch)
         {
@@ -831,13 +831,13 @@ FGuid USuspenseEquipmentOperationService::BatchOperationsEx(const TArray<FEquipm
                 ReleaseOperation(Op);
             }
         }
-        
+
         ActiveBatches.Remove(BatchId);
     }
-    
+
     OnBatchCompleted.Broadcast(BatchId, bSuccess);
     ServiceMetrics.Inc(TEXT("BatchesProcessedEx"));
-    
+
     return BatchId;
 }
 
@@ -848,29 +848,29 @@ FGuid USuspenseEquipmentOperationService::BatchOperationsEx(const TArray<FEquipm
 bool USuspenseEquipmentOperationService::CancelQueuedOperation(const FGuid& OperationId)
 {
     SCOPED_SERVICE_TIMER("CancelQueuedOperation");
-    
+
     FRWScopeLock Lock(QueueLock, SLT_Write);
-    
+
     for (int32 i = 0; i < OperationQueue.Num(); i++)
     {
         if (OperationQueue[i]->Request.OperationId == OperationId)
         {
             FQueuedOperation* Op = OperationQueue[i];
             OperationQueue.RemoveAt(i);
-            
+
             ReleaseOperation(Op);
-            
+
             CancelledOperations.fetch_add(1);
             ServiceMetrics.Inc(TEXT("OperationsCancelled"));
-            
-            UE_LOG(LogSuspenseEquipmentOperations, Log, 
+
+            UE_LOG(LogSuspenseEquipmentOperations, Log,
                 TEXT("Cancelled operation %s"),
                 *OperationId.ToString());
-            
+
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -884,34 +884,34 @@ int32 USuspenseEquipmentOperationService::GetQueueSize() const
 void USuspenseEquipmentOperationService::ClearQueue(bool bForce)
 {
     SCOPED_SERVICE_TIMER("ClearQueue");
-    
+
     FRWScopeLock Lock(QueueLock, SLT_Write);
-    
+
     if (!bForce && bIsProcessingQueue)
     {
         bClearQueueAfterProcessing = true;
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("Queue will be cleared after current processing cycle"));
         return;
     }
-    
+
     int32 ClearedCount = OperationQueue.Num();
-    
+
     for (FQueuedOperation* Op : OperationQueue)
     {
         ReleaseOperation(Op);
     }
-    
+
     OperationQueue.Empty();
     bClearQueueAfterProcessing = false;
-    
+
     CancelledOperations.fetch_add(ClearedCount);
     ServiceMetrics.Inc(TEXT("QueueClears"));
-    
+
     // Усадка пулов после очистки очереди
     TrimPools(InitialPoolSize);
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("Cleared %d operations from queue and trimmed pools"),
         ClearedCount);
 }
@@ -919,9 +919,9 @@ void USuspenseEquipmentOperationService::ClearQueue(bool bForce)
 void USuspenseEquipmentOperationService::SetQueueProcessingEnabled(bool bEnabled)
 {
     SCOPED_SERVICE_TIMER("SetQueueProcessingEnabled");
-    
+
     bQueueProcessingEnabled = bEnabled;
-    
+
     if (bEnabled)
     {
         StartQueueProcessing();
@@ -939,9 +939,9 @@ void USuspenseEquipmentOperationService::SetQueueProcessingEnabled(bool bEnabled
 FEquipmentOperationResult USuspenseEquipmentOperationService::UndoLastOperation()
 {
     SCOPED_SERVICE_TIMER("UndoLastOperation");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_Write);
-    
+
     if (OperationHistory.Num() == 0)
     {
         ServiceMetrics.RecordError();
@@ -951,33 +951,33 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::UndoLastOperation(
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     for (int32 i = OperationHistory.Num() - 1; i >= 0; i--)
     {
         if (OperationHistory[i].bCanUndo)
         {
             FOperationHistoryEntry& Entry = OperationHistory[i];
-            
+
             if (DataProvider.GetInterface())
             {
                 DataProvider->RestoreSnapshot(Entry.StateBefore);
             }
-            
+
             RedoStack.Add(Entry);
             OperationHistory.RemoveAt(i);
-            
+
             FEquipmentOperationResult Result;
             Result.bSuccess = true;
             Result.OperationId = Entry.Request.OperationId;
-            
+
             OnOperationCompleted.Broadcast(Result);
             ServiceMetrics.Inc(TEXT("UndoOperations"));
             ServiceMetrics.RecordSuccess();
-            
+
             return Result;
         }
     }
-    
+
     ServiceMetrics.RecordError();
     return FEquipmentOperationResult::CreateFailure(
         FGuid::NewGuid(),
@@ -989,9 +989,9 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::UndoLastOperation(
 FEquipmentOperationResult USuspenseEquipmentOperationService::RedoLastOperation()
 {
     SCOPED_SERVICE_TIMER("RedoLastOperation");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_Write);
-    
+
     if (RedoStack.Num() == 0)
     {
         ServiceMetrics.RecordError();
@@ -1001,52 +1001,52 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::RedoLastOperation(
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     FOperationHistoryEntry Entry = RedoStack.Pop();
-    
+
     if (DataProvider.GetInterface())
     {
         DataProvider->RestoreSnapshot(Entry.StateAfter);
     }
-    
+
     OperationHistory.Add(Entry);
-    
+
     FEquipmentOperationResult Result;
     Result.bSuccess = true;
     Result.OperationId = Entry.Request.OperationId;
-    
+
     OnOperationCompleted.Broadcast(Result);
     ServiceMetrics.Inc(TEXT("RedoOperations"));
     ServiceMetrics.RecordSuccess();
-    
+
     return Result;
 }
 
 TArray<FOperationHistoryEntry> USuspenseEquipmentOperationService::GetOperationHistory(int32 MaxCount) const
 {
     SCOPED_SERVICE_TIMER("GetOperationHistory");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_ReadOnly);
-    
+
     TArray<FOperationHistoryEntry> Result;
     int32 StartIndex = FMath::Max(0, OperationHistory.Num() - MaxCount);
-    
+
     for (int32 i = StartIndex; i < OperationHistory.Num(); i++)
     {
         Result.Add(OperationHistory[i]);
     }
-    
+
     return Result;
 }
 
 void USuspenseEquipmentOperationService::ClearHistory()
 {
     SCOPED_SERVICE_TIMER("ClearHistory");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_Write);
     OperationHistory.Empty();
     RedoStack.Empty();
-    
+
     ServiceMetrics.Inc(TEXT("HistoryClears"));
     UE_LOG(LogSuspenseEquipmentOperations, Log, TEXT("Operation history cleared"));
 }
@@ -1054,9 +1054,9 @@ void USuspenseEquipmentOperationService::ClearHistory()
 bool USuspenseEquipmentOperationService::CanUndo() const
 {
     SCOPED_SERVICE_TIMER("CanUndo");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_ReadOnly);
-    
+
     for (const FOperationHistoryEntry& Entry : OperationHistory)
     {
         if (Entry.bCanUndo)
@@ -1064,14 +1064,14 @@ bool USuspenseEquipmentOperationService::CanUndo() const
             return true;
         }
     }
-    
+
     return false;
 }
 
 bool USuspenseEquipmentOperationService::CanRedo() const
 {
     SCOPED_SERVICE_TIMER("CanRedo");
-    
+
     FRWScopeLock Lock(HistoryLock, SLT_ReadOnly);
     return RedoStack.Num() > 0;
 }
@@ -1083,10 +1083,10 @@ bool USuspenseEquipmentOperationService::CanRedo() const
 bool USuspenseEquipmentOperationService::ExportMetricsToCSV(const FString& FilePath) const
 {
     SCOPED_SERVICE_TIMER("ExportMetricsToCSV");
-    
+
     FString AbsolutePath = FPaths::ProjectSavedDir() / TEXT("Metrics") / FilePath;
     bool bSuccess = ServiceMetrics.ExportToCSV(AbsolutePath, TEXT("OperationService"));
-    
+
     if (bSuccess)
     {
         UE_LOG(LogSuspenseEquipmentOperations, Log, TEXT("Metrics exported to: %s"), *AbsolutePath);
@@ -1095,16 +1095,16 @@ bool USuspenseEquipmentOperationService::ExportMetricsToCSV(const FString& FileP
     {
         UE_LOG(LogSuspenseEquipmentOperations, Error, TEXT("Failed to export metrics to: %s"), *AbsolutePath);
     }
-    
+
     return bSuccess;
 }
 
 void USuspenseEquipmentOperationService::ResetMetrics()
 {
     SCOPED_SERVICE_TIMER("ResetMetrics");
-    
+
     ServiceMetrics.Reset();
-    
+
     // Сбрасываем legacy статистику
     {
         FRWScopeLock Lock(StatsLock, SLT_Write);
@@ -1119,14 +1119,14 @@ void USuspenseEquipmentOperationService::ResetMetrics()
         AverageExecutionTime = 0.0f;
         PeakQueueSize = 0;
     }
-    
+
     // Сбрасываем статистику пулов
     OperationPoolHits.store(0);
     OperationPoolMisses.store(0);
     ResultPoolHits.store(0);
     ResultPoolMisses.store(0);
     PoolOverflows.store(0);
-    
+
     // Очищаем кэши для чистого старта
     if (ValidationCache.IsValid())
     {
@@ -1136,7 +1136,7 @@ void USuspenseEquipmentOperationService::ResetMetrics()
     {
         ResultCache->Clear();
     }
-    
+
     UE_LOG(LogSuspenseEquipmentOperations, Log, TEXT("All metrics have been reset"));
 }
 
@@ -1149,28 +1149,28 @@ FTransactionOperation USuspenseEquipmentOperationService::MakeTxnOpFromStep(cons
     FTransactionOperation Op;
     Op.OperationId = Step.Request.OperationId; // Guaranteed by plan step constructor
     Op.OperationType = MapOperationTypeToTag(Step.Request.OperationType);
-    
+
     // Choose primary slot for the operation
-    Op.SlotIndex = (Step.Request.TargetSlotIndex != INDEX_NONE) 
-        ? Step.Request.TargetSlotIndex 
+    Op.SlotIndex = (Step.Request.TargetSlotIndex != INDEX_NONE)
+        ? Step.Request.TargetSlotIndex
         : Step.Request.SourceSlotIndex;
-    
+
     // Capture current state if we have access to DataProvider
     if (DataProvider.GetInterface() && Op.SlotIndex != INDEX_NONE)
     {
         Op.ItemBefore = DataProvider->GetSlotItem(Op.SlotIndex);
         Op.ItemAfter = Step.Request.ItemInstance; // Expected after state
     }
-    
+
     Op.Timestamp = Step.Request.Timestamp;
     Op.bReversible = Step.bReversible;
-    
+
     // Transfer any metadata from request parameters if available
     for (const auto& Param : Step.Request.Parameters)
     {
         Op.Metadata.Add(Param.Key, Param.Value);
     }
-    
+
     return Op;
 }
 
@@ -1356,7 +1356,7 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
             {
                 FSuspenseInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
                 bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, Step.Request.ItemInstance, /*bNotify=*/false);
-                
+
                 if (bApplied)
                 {
                     // Создаём дельту вручную
@@ -1373,13 +1373,13 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                 }
                 break;
             }
-            
+
             case EEquipmentOperationType::Unequip:
             {
                 FSuspenseInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
                 FSuspenseInventoryItemInstance ClearedItem = DataProvider->ClearSlot(Step.Request.SourceSlotIndex, /*bNotify=*/false);
                 bApplied = ClearedItem.IsValid();
-                
+
                 if (bApplied)
                 {
                     FEquipmentDelta Delta;
@@ -1395,17 +1395,17 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                 }
                 break;
             }
-            
+
             case EEquipmentOperationType::Move:
             {
                 FSuspenseInventoryItemInstance SourceItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
                 FSuspenseInventoryItemInstance TargetItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
-                
+
                 // Clear source
                 DataProvider->ClearSlot(Step.Request.SourceSlotIndex, /*bNotify=*/false);
                 // Set target
                 bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, SourceItem, /*bNotify=*/false);
-                
+
                 if (bApplied)
                 {
                     // Создаём две дельты для move
@@ -1419,7 +1419,7 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                     Delta1.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Transaction"));
                     Delta1.Timestamp = FDateTime::Now();
                     OutDeltas.Add(Delta1);
-                    
+
                     FEquipmentDelta Delta2;
                     Delta2.ChangeType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Change.Move"));
                     Delta2.SlotIndex = Step.Request.TargetSlotIndex;
@@ -1433,16 +1433,16 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                 }
                 break;
             }
-            
+
             case EEquipmentOperationType::Swap:
             {
                 FSuspenseInventoryItemInstance ItemA = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
                 FSuspenseInventoryItemInstance ItemB = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
-                
+
                 // Perform swap
                 DataProvider->SetSlotItem(Step.Request.SourceSlotIndex, ItemB, /*bNotify=*/false);
                 bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, ItemA, /*bNotify=*/false);
-                
+
                 if (bApplied)
                 {
                     // Создаём дельты для обоих слотов
@@ -1456,7 +1456,7 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                     Delta1.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Transaction"));
                     Delta1.Timestamp = FDateTime::Now();
                     OutDeltas.Add(Delta1);
-                    
+
                     FEquipmentDelta Delta2;
                     Delta2.ChangeType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Change.Swap"));
                     Delta2.SlotIndex = Step.Request.TargetSlotIndex;
@@ -1470,7 +1470,7 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
                 }
                 break;
             }
-            
+
             default:
                 // Для других операций просто регистрируем без применения
                 // Они могут требовать специальной обработки
@@ -1521,12 +1521,12 @@ bool USuspenseEquipmentOperationService::ExecutePlanTransactional(
 bool USuspenseEquipmentOperationService::CommitTransactionWithDeltas(const FGuid& TxnId, const TArray<FEquipmentDelta>& Deltas)
 {
     FRWScopeLock Lock(ExecutorLock, SLT_ReadOnly);
-    
+
     if (!TransactionManager.GetInterface())
     {
         return false;
     }
-    
+
     // Попытка использовать новую перегрузку если доступна
     if (USuspenseEquipmentTransactionProcessor* Processor = Cast<USuspenseEquipmentTransactionProcessor>(TransactionManager.GetObject()))
     {
@@ -1536,7 +1536,7 @@ bool USuspenseEquipmentOperationService::CommitTransactionWithDeltas(const FGuid
     else
     {
         // Fallback на старый метод если новая перегрузка недоступна
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("CommitTransactionWithDeltas: Using legacy commit (deltas will not be controlled)"));
         return TransactionManager->CommitTransaction(TxnId);
     }
@@ -1552,7 +1552,7 @@ FTransactionPlanStep USuspenseEquipmentOperationService::MakePlanStepFromRequest
     FString Description = FString::Printf(TEXT("Direct operation: %s"), *Request.GetDescription());
     FTransactionPlanStep Step(Request, Description);
     Step.StepPriority = static_cast<int32>(Request.Priority);
-    
+
     // Estimate reversibility based on operation type
     switch (Request.OperationType)
     {
@@ -1585,15 +1585,15 @@ bool USuspenseEquipmentOperationService::BuildSingleStepPlanFromRequest(const FE
     OutPlan.DebugLabel = FString::Printf(TEXT("CompatPlan-%s-%s"),
         *Request.OperationId.ToString(),
         *UEnum::GetValueAsString(Request.OperationType));
-    
+
     const FTransactionPlanStep Step = MakePlanStepFromRequest(Request);
     OutPlan.Add(Step);
-    
+
     // Compatible plan is atomic with reversibility from the step
     OutPlan.bAtomic = true;
     OutPlan.bReversible = Step.bReversible;
     OutPlan.Metadata.Add(TEXT("Compat"), TEXT("true"));
-    
+
     return true;
 }
 
@@ -1621,7 +1621,7 @@ bool USuspenseEquipmentOperationService::ProcessBatchUsingPlans(
         if (OutResults) OutResults->Empty();
         return false;
     }
-    
+
     USuspenseEquipmentOperationExecutor* Executor = Cast<USuspenseEquipmentOperationExecutor>(OperationsExecutor.GetObject());
     if (!Executor)
     {
@@ -1839,7 +1839,7 @@ bool USuspenseEquipmentOperationService::ProcessBatchUsingPlans(
 
 bool USuspenseEquipmentOperationService::InitializeDependencies()
 {
-    UEquipmentServiceLocator* Locator = GetServiceLocator();
+    USuspenseEquipmentServiceLocator* Locator = GetServiceLocator();
     if (!Locator)
     {
         UE_LOG(LogSuspenseEquipmentOperations, Error,
@@ -1865,7 +1865,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
                 *OperationsExecutor.GetObject()->GetName());
         }
     }
-    
+
     // 2) DataProvider — в STATELESS-режиме может отсутствовать на старте (НЕ падать)
 {
     const FGameplayTag DataTag = FGameplayTag::RequestGameplayTag(FName("Service.Equipment.Data"));
@@ -1880,7 +1880,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
     bool bResolvedProvider = false;
 
     // Вариант A: сам сервис реализует ISuspenseEquipmentDataProvider
-    if (DataSvcObj->GetClass()->ImplementsInterface(USuspenseEquipmentDataProviderInterface::StaticClass()))
+    if (DataSvcObj->GetClass()->ImplementsInterface(USuspenseEquipmentDataProvider::StaticClass()))
     {
         DataProvider.SetObject(DataSvcObj);
         DataProvider.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataSvcObj));
@@ -1925,7 +1925,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
     {
         const FGameplayTag TxnTag = FGameplayTag::RequestGameplayTag(FName("Service.Equipment.Transaction"));
         UObject* TxnObj = Locator->TryGetService(TxnTag);
-        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(USuspenseTransactionManagerInterface::StaticClass()))
+        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(USuspenseTransactionManager::StaticClass()))
         {
             TransactionManager.SetObject(TxnObj);
             TransactionManager.SetInterface(Cast<ISuspenseTransactionManager>(TxnObj));
@@ -1953,7 +1953,7 @@ bool USuspenseEquipmentOperationService::InitializeDependencies()
         bool bBoundRules = false;
 
         // Путь A: сам сервис реализует ISuspenseEquipmentRules
-        if (ValidationObj->GetClass()->ImplementsInterface(USuspenseEquipmentRulesInterface::StaticClass()))
+        if (ValidationObj->GetClass()->ImplementsInterface(USuspenseEquipmentRules::StaticClass()))
         {
             RulesEngine.SetObject(ValidationObj);
             RulesEngine.SetInterface(Cast<ISuspenseEquipmentRules>(ValidationObj));
@@ -2012,9 +2012,9 @@ void USuspenseEquipmentOperationService::SetOperationsExecutor(TScriptInterface<
         return;
     }
 
-    if (!InExecutor.GetObject()->GetClass()->ImplementsInterface(USuspenseEquipmentOperationsInterface::StaticClass()))
+    if (!InExecutor.GetObject()->GetClass()->ImplementsInterface(USuspenseEquipmentOperations::StaticClass()))
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Error, 
+        UE_LOG(LogSuspenseEquipmentOperations, Error,
             TEXT("SetOperationsExecutor: Provided object doesn't implement ISuspenseEquipmentOperations"));
         return;
     }
@@ -2032,22 +2032,22 @@ void USuspenseEquipmentOperationService::SetOperationsExecutor(TScriptInterface<
 
 void USuspenseEquipmentOperationService::SetupEventSubscriptions()
 {
-    auto EventBus = FEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         return;
     }
-    
+
     EventHandles.Add(EventBus->Subscribe(
         EventTags::ValidationChanged,
         FEventHandlerDelegate::CreateUObject(this, &USuspenseEquipmentOperationService::OnValidationRulesChanged)
     ));
-    
+
     EventHandles.Add(EventBus->Subscribe(
         EventTags::DataChanged,
         FEventHandlerDelegate::CreateUObject(this, &USuspenseEquipmentOperationService::OnDataStateChanged)
     ));
-    
+
     EventHandles.Add(EventBus->Subscribe(
         EventTags::NetworkResult,
         FEventHandlerDelegate::CreateUObject(this, &USuspenseEquipmentOperationService::OnNetworkOperationResult)
@@ -2082,13 +2082,13 @@ void USuspenseEquipmentOperationService::StopQueueProcessing()
     {
         World->GetTimerManager().ClearTimer(QueueProcessTimer);
     }
-    
+
     if (TickerHandle.IsValid())
     {
         FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
         TickerHandle.Reset();
     }
-    
+
     // Аккуратная усадка пулов до стартового размера
     TrimPools(InitialPoolSize);
 }
@@ -2100,14 +2100,14 @@ bool USuspenseEquipmentOperationService::ShouldDelegateToServer(const FEquipment
     {
         return false;
     }
-    
+
     // Check if operation needs server authority
     bool bNeedsServer = (Request.OperationType == EEquipmentOperationType::Equip ||
                          Request.OperationType == EEquipmentOperationType::Unequip ||
                          Request.OperationType == EEquipmentOperationType::Move ||
                          Request.OperationType == EEquipmentOperationType::Swap ||
                          Request.OperationType == EEquipmentOperationType::Drop);
-    
+
     return bNeedsServer && NetworkServiceObject.IsValid();
 }
 
@@ -2124,23 +2124,23 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::DelegateOperationT
 
     // Пытаемся получить PlayerController, но не требуем его обязательно
     APlayerController* PC = nullptr;
-    
+
     // Сначала пробуем через OwnerPlayerState
     if (OwnerPlayerState.IsValid())
     {
         PC = Cast<APlayerController>(OwnerPlayerState->GetOwner());
     }
-    
+
     // Фоллбек на первый доступный PlayerController
     if (!PC && GetWorld())
     {
         PC = GetWorld()->GetFirstPlayerController();
     }
-    
+
     // Логируем отсутствие PC, но не падаем
     if (!PC)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("PlayerController not found for operation %s; proceeding without it"),
             *Request.OperationId.ToString());
     }
@@ -2158,22 +2158,22 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::DelegateOperationT
             NetRequest.Timestamp = FPlatformTime::Seconds();
             NetRequest.bRequiresConfirmation = true;
             NetRequest.RetryCount = 0;
-            
+
             // Добавляем информацию о владельце в метаданные запроса
             if (OwnerPlayerGuid.IsValid())
             {
                 NetRequest.Operation.Parameters.Add(TEXT("OwnerPlayerGuid"), OwnerPlayerGuid.ToString());
             }
-            
+
             // Добавляем PC в инстигатор если есть
             if (PC && PC->GetPawn())
             {
                 NetRequest.Operation.Instigator = PC->GetPawn();
             }
-            
+
             // Отправляем через диспетчер
             const FGuid NetworkRequestId = Dispatcher->SendOperationToServer(NetRequest);
-            
+
             if (NetworkRequestId.IsValid())
             {
                 // Запускаем предсказание если доступно
@@ -2181,38 +2181,38 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::DelegateOperationT
                 {
                     StartPrediction(Request);
                 }
-                
+
                 // Создаём pending результат
                 FEquipmentOperationResult PendingResult;
                 PendingResult.bSuccess = true;
                 PendingResult.OperationId = Request.OperationId;
-                
+
                 // Добавляем метаданные о сетевой отправке
                 PendingResult.ResultMetadata.Add(TEXT("NetworkRequestId"), NetworkRequestId.ToString());
                 PendingResult.ResultMetadata.Add(TEXT("Status"), TEXT("Pending"));
                 PendingResult.ResultMetadata.Add(TEXT("HasPlayerController"), PC ? TEXT("Yes") : TEXT("No"));
-                
+
                 // Добавляем предупреждение если PC отсутствует
                 if (!PC)
                 {
                     PendingResult.Warnings.Add(
-                        NSLOCTEXT("Equipment", "NoPlayerControllerWarning", 
+                        NSLOCTEXT("Equipment", "NoPlayerControllerWarning",
                                  "Operation sent without PlayerController context")
                     );
                 }
-                
+
                 ServiceMetrics.Inc(TEXT("OperationsDelegated"));
                 if (!PC)
                 {
                     ServiceMetrics.Inc(TEXT("OperationsDelegatedWithoutPC"));
                 }
-                
+
                 UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                     TEXT("Operation %s delegated to server with network request %s (PC: %s)"),
                     *Request.OperationId.ToString(),
                     *NetworkRequestId.ToString(),
                     PC ? TEXT("Present") : TEXT("Absent"));
-                
+
                 return PendingResult;
             }
             else
@@ -2247,10 +2247,10 @@ void USuspenseEquipmentOperationService::StartPrediction(const FEquipmentOperati
     {
         return;
     }
-    
+
     FGuid PredictionId = PredictionManager->CreatePrediction(Request);
     PredictionManager->ApplyPrediction(PredictionId);
-    
+
     OperationToPredictionMap.Add(Request.OperationId, PredictionId);
     ServiceMetrics.Inc(TEXT("PredictionsStarted"));
 }
@@ -2261,13 +2261,13 @@ void USuspenseEquipmentOperationService::ConfirmPrediction(const FGuid& Operatio
     {
         return;
     }
-    
+
     FGuid* PredictionId = OperationToPredictionMap.Find(OperationId);
     if (!PredictionId)
     {
         return;
     }
-    
+
     if (ServerResult.bSuccess)
     {
         PredictionManager->ConfirmPrediction(*PredictionId, ServerResult);
@@ -2278,7 +2278,7 @@ void USuspenseEquipmentOperationService::ConfirmPrediction(const FGuid& Operatio
         PredictionManager->RollbackPrediction(*PredictionId, ServerResult.ErrorMessage);
         ServiceMetrics.Inc(TEXT("PredictionsRolledBack"));
     }
-    
+
     OperationToPredictionMap.Remove(OperationId);
 }
 
@@ -2369,7 +2369,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationService::ProcessSingleOpera
         ResultCache->Set(QueuedOp->Request.OperationId, Fail, ResultCacheTTL);
         return Fail;
     }
-    
+
     USuspenseEquipmentOperationExecutor* Executor = Cast<USuspenseEquipmentOperationExecutor>(OperationsExecutor.GetObject());
     if (!Executor)
     {
@@ -2487,7 +2487,7 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
     // Early validation: check if ValidationService is available for batch preflight
     if (!ValidationServiceObject.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("PreflightRequests: ValidationService not available, skipping batch preflight"));
         return true; // Not an error, just skip preflight
     }
@@ -2495,7 +2495,7 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
     USuspenseEquipmentValidationService* ValidationService = ValidationServiceObject.Get();
     if (!ValidationService)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("PreflightRequests: ValidationService became invalid"));
         return true; // Degrade gracefully
     }
@@ -2503,7 +2503,7 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
     // Build request array from queued operations
     TArray<FEquipmentOperationRequest> Requests;
     Requests.Reserve(BatchOps.Num());
-    
+
     for (const FQueuedOperation* QOp : BatchOps)
     {
         if (QOp)
@@ -2514,7 +2514,7 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
 
     if (Requests.Num() == 0)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Warning, 
+        UE_LOG(LogSuspenseEquipmentOperations, Warning,
             TEXT("PreflightRequests: No valid requests in batch"));
         return false;
     }
@@ -2526,10 +2526,10 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
     // Verify we got results for all requests
     if (ValidationResults.Num() != Requests.Num())
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Error, 
+        UE_LOG(LogSuspenseEquipmentOperations, Error,
             TEXT("PreflightRequests: Batch validation returned inconsistent results (Expected=%d, Got=%d)"),
             Requests.Num(), ValidationResults.Num());
-        
+
         // Populate failure results if caller wants them
         if (OutResults)
         {
@@ -2539,13 +2539,13 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
                 FEquipmentOperationResult Result;
                 Result.bSuccess = false;
                 Result.OperationId = Requests[i].OperationId;
-                Result.ErrorMessage = NSLOCTEXT("Operations", "PreflightInconsistent", 
+                Result.ErrorMessage = NSLOCTEXT("Operations", "PreflightInconsistent",
                     "Batch validation returned inconsistent number of results");
                 Result.FailureType = EEquipmentValidationFailure::SystemError;
                 OutResults->Add(Result);
             }
         }
-        
+
         return false;
     }
 
@@ -2554,15 +2554,15 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
     for (int32 i = 0; i < ValidationResults.Num(); ++i)
     {
         const FSlotValidationResult& ValidationResult = ValidationResults[i];
-        
+
         if (!ValidationResult.bIsValid)
         {
-            UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+            UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("PreflightRequests: Request %d failed validation: %s"),
                 i, *ValidationResult.ErrorMessage.ToString());
-            
+
             bAllValid = false;
-            
+
             // Populate failure result if requested
             if (OutResults)
             {
@@ -2571,13 +2571,13 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
                 Result.OperationId = Requests[i].OperationId;
                 Result.ErrorMessage = ValidationResult.ErrorMessage;
                 Result.FailureType = ValidationResult.FailureType;
-                
+
                 // Copy warnings if any
                 for (const FText& Warning : ValidationResult.Warnings)
                 {
                     Result.Warnings.Add(Warning);
                 }
-                
+
                 OutResults->Add(Result);
             }
         }
@@ -2587,26 +2587,26 @@ bool USuspenseEquipmentOperationService::PreflightRequests(
             FEquipmentOperationResult Result;
             Result.bSuccess = true;
             Result.OperationId = Requests[i].OperationId;
-            
+
             // Include validation warnings even for successful validations
             for (const FText& Warning : ValidationResult.Warnings)
             {
                 Result.Warnings.Add(Warning);
             }
-            
+
             OutResults->Add(Result);
         }
     }
 
     if (!bAllValid)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Log, 
+        UE_LOG(LogSuspenseEquipmentOperations, Log,
             TEXT("PreflightRequests: Batch contains %d invalid requests out of %d total"),
             Requests.Num() - (bAllValid ? Requests.Num() : 0), Requests.Num());
     }
     else
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("PreflightRequests: ✅ All %d requests passed preflight validation"),
             Requests.Num());
     }
@@ -2632,20 +2632,20 @@ bool USuspenseEquipmentOperationService::ProcessBatch(
     if (bUseTransactionPlans && bAtomic)
     {
         const bool bOk = ProcessBatchUsingPlans(BatchOps, /*bAtomic=*/true, OutResults);
-        
+
         // Update metrics
         TotalBatchesProcessed.fetch_add(1);
         ServiceMetrics.Inc(TEXT("BatchesCompleted"));
-        if (bOk) 
+        if (bOk)
         {
             ServiceMetrics.Inc(TEXT("BatchesSucceeded"));
         }
-        else 
+        else
         {
             ServiceMetrics.Inc(TEXT("BatchesFailed"));
         }
         ServiceMetrics.RecordValue(TEXT("BatchSize"), BatchOps.Num());
-        
+
         return bOk;
     }
     bool bAllSuccess = true;
@@ -2657,8 +2657,8 @@ bool USuspenseEquipmentOperationService::ProcessBatch(
     if (bAtomic && TransactionManager.GetInterface())
     {
         BatchTransactionId = TransactionManager->BeginTransaction(TEXT("Batch Operation"));
-        
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("Started batch transaction %s for %d operations"),
             *BatchTransactionId.ToString(),
             BatchOps.Num());
@@ -2675,13 +2675,13 @@ bool USuspenseEquipmentOperationService::ProcessBatch(
         if (!R.bSuccess)
         {
             bAllSuccess = false;
-            
+
             UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("Batch operation %d/%d failed: %s"),
                 ProcessedCount,
                 BatchOps.Num(),
                 *R.ErrorMessage.ToString());
-            
+
             if (bAtomic)
             {
                 // Stop at first failure in atomic batch
@@ -2738,7 +2738,7 @@ bool USuspenseEquipmentOperationService::ProcessBatch(
     // Update metrics
     TotalBatchesProcessed.fetch_add(1);
     ServiceMetrics.Inc(TEXT("BatchesCompleted"));
-    
+
     if (bAllSuccess)
     {
         ServiceMetrics.Inc(TEXT("BatchesSucceeded"));
@@ -2747,7 +2747,7 @@ bool USuspenseEquipmentOperationService::ProcessBatch(
     {
         ServiceMetrics.Inc(TEXT("BatchesFailed"));
     }
-    
+
     ServiceMetrics.RecordValue(TEXT("BatchSize"), BatchOps.Num());
 
     return bAllSuccess;
@@ -2772,19 +2772,19 @@ uint32 USuspenseEquipmentOperationService::GenerateValidationCacheKey(const FEqu
     uint32 CacheKey = GetTypeHash(Request.OperationType);
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.SourceSlotIndex));
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.TargetSlotIndex));
-    
+
     // Используем существующие поля из FEquipmentOperationRequest
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.ItemInstance.ItemID));
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.ItemInstance.Quantity));
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.Priority));
     CacheKey = HashCombine(CacheKey, GetTypeHash(Request.bForceOperation));
-    
+
     // Контекст владельца для исключения пересечений между игроками
     if (OwnerPlayerGuid.IsValid())
     {
         CacheKey = HashCombine(CacheKey, GetTypeHash(OwnerPlayerGuid));
     }
-    
+
     // Хэш параметров операции если есть
     if (Request.Parameters.Num() > 0)
     {
@@ -2792,7 +2792,7 @@ uint32 USuspenseEquipmentOperationService::GenerateValidationCacheKey(const FEqu
         TArray<FString> Keys;
         Request.Parameters.GetKeys(Keys);
         Keys.Sort(); // Сортируем для стабильности хэша
-        
+
         for (const FString& Key : Keys)
         {
             CacheKey = HashCombine(CacheKey, GetTypeHash(Key));
@@ -2803,13 +2803,13 @@ uint32 USuspenseEquipmentOperationService::GenerateValidationCacheKey(const FEqu
             }
         }
     }
-    
+
     // Добавляем инстигатора если есть (важно для контекстно-зависимых проверок)
     if (Request.Instigator.IsValid())
     {
         CacheKey = HashCombine(CacheKey, GetTypeHash(Request.Instigator->GetUniqueID()));
     }
-    
+
     return CacheKey;
 }
 
@@ -2820,30 +2820,30 @@ FSlotValidationResult USuspenseEquipmentOperationService::ValidateOperationCache
     {
         return FSlotValidationResult::Success();
     }
-    
+
     uint32 CacheKey = GenerateValidationCacheKey(Request);
-    
+
     FSlotValidationResult CachedResult;
     if (ValidationCache->Get(CacheKey, CachedResult))
     {
         ServiceMetrics.Inc(TEXT("ValidationCacheHits"));
         return CachedResult;
     }
-    
+
     ServiceMetrics.Inc(TEXT("ValidationCacheMisses"));
-    
+
     FSlotValidationResult Result;
-    
+
     FRWScopeLock Lock(ExecutorLock, SLT_ReadOnly);
-    
+
     if (RulesEngine.GetInterface())
     {
         FRuleEvaluationResult RuleResult = RulesEngine->EvaluateRules(Request);
-        
+
         Result.bIsValid = RuleResult.bPassed;
         Result.ErrorMessage = RuleResult.FailureReason;
         Result.ConfidenceScore = RuleResult.ConfidenceScore;
-        
+
         if (!RuleResult.bPassed)
         {
             Result.FailureType = EEquipmentValidationFailure::RequirementsNotMet;
@@ -2853,10 +2853,10 @@ FSlotValidationResult USuspenseEquipmentOperationService::ValidateOperationCache
     {
         Result = FSlotValidationResult::Success();
     }
-    
+
     const_cast<USuspenseEquipmentOperationService*>(this)->ValidationCache->Set(
         CacheKey, Result, ValidationCacheTTL);
-    
+
     return Result;
 }
 
@@ -2888,8 +2888,8 @@ FGuid USuspenseEquipmentOperationService::BeginOperationTransaction(
 }
 
 void USuspenseEquipmentOperationService::CompleteTransaction(
-    const FGuid& TransactionId, 
-    bool bSuccess, 
+    const FGuid& TransactionId,
+    bool bSuccess,
     bool bIsOuter)
 {
     // Don't complete invalid or outer transactions
@@ -2938,37 +2938,37 @@ void USuspenseEquipmentOperationService::CompleteTransaction(
     }
 }
 
-void USuspenseEquipmentOperationService::RecordOperation(const FEquipmentOperationRequest& Request, 
+void USuspenseEquipmentOperationService::RecordOperation(const FEquipmentOperationRequest& Request,
                                                      const FEquipmentOperationResult& Result,
                                                      const FEquipmentStateSnapshot& StateBefore)
 {
     FRWScopeLock Lock(HistoryLock, SLT_Write);
-    
+
     RedoStack.Empty();
-    
+
     FOperationHistoryEntry Entry;
     Entry.Request = Request;
     Entry.Result = Result;
     Entry.ExecutionTime = FDateTime::Now();
     Entry.StateBefore = StateBefore;
-    
+
     if (DataProvider.GetInterface())
     {
         Entry.StateAfter = DataProvider->CreateSnapshot();
     }
-    
+
     Entry.bCanUndo = (Request.OperationType == EEquipmentOperationType::Equip ||
                       Request.OperationType == EEquipmentOperationType::Unequip ||
                       Request.OperationType == EEquipmentOperationType::Swap ||
                       Request.OperationType == EEquipmentOperationType::Move);
-    
+
     OperationHistory.Add(Entry);
-    
+
     if (OperationHistory.Num() > MaxHistorySize)
     {
         PruneHistory();
     }
-    
+
     ServiceMetrics.Inc(TEXT("HistoryEntries"));
 }
 
@@ -2982,48 +2982,48 @@ void USuspenseEquipmentOperationService::PruneHistory()
 
 void USuspenseEquipmentOperationService::PublishOperationEvent(const FEquipmentOperationResult& Result)
 {
-    auto EventBus = FEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         return;
     }
-    
-    FEquipmentEventData EventData;
+
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = EventTags::OperationCompleted;
     EventData.Source = this;
     EventData.Payload = Result.OperationId.ToString();
     EventData.Timestamp = FPlatformTime::Seconds();
-    
+
     if (!Result.bSuccess)
     {
         EventData.Metadata.Add(TEXT("Error"), Result.ErrorMessage.ToString());
         EventData.Metadata.Add(TEXT("FailureType"), UEnum::GetValueAsString(Result.FailureType));
     }
-    
+
     EventData.Metadata.Add(TEXT("ExecutionTime"), FString::Printf(TEXT("%.3f"), Result.ExecutionTime));
     EventData.Metadata.Add(TEXT("AffectedSlots"), FString::Printf(TEXT("%d"), Result.AffectedSlots.Num()));
-    
+
     EventBus->Broadcast(EventData);
 }
 
-void USuspenseEquipmentOperationService::OnValidationRulesChanged(const FEquipmentEventData& EventData)
+void USuspenseEquipmentOperationService::OnValidationRulesChanged(const FSuspenseEquipmentEventData& EventData)
 {
     InvalidateValidationCache();
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Verbose,
         TEXT("Validation rules changed - cache invalidated"));
 }
 
-void USuspenseEquipmentOperationService::OnDataStateChanged(const FEquipmentEventData& EventData)
+void USuspenseEquipmentOperationService::OnDataStateChanged(const FSuspenseEquipmentEventData& EventData)
 {
     ResultCache->Clear();
     ServiceMetrics.Inc(TEXT("ResultCacheInvalidations"));
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Verbose,
         TEXT("Data state changed - result cache cleared"));
 }
 
-void USuspenseEquipmentOperationService::OnNetworkOperationResult(const FEquipmentEventData& EventData)
+void USuspenseEquipmentOperationService::OnNetworkOperationResult(const FSuspenseEquipmentEventData& EventData)
 {
     // Достаём OperationId: сначала из метаданных, потом из payload
     FGuid OperationId;
@@ -3050,8 +3050,8 @@ void USuspenseEquipmentOperationService::OnNetworkOperationResult(const FEquipme
     if (!ServerResult.bSuccess)
     {
         ServerResult.ErrorMessage = FText::FromString(
-            EventData.HasMetadata(TEXT("Error")) ? 
-            EventData.GetMetadata(TEXT("Error")) : 
+            EventData.HasMetadata(TEXT("Error")) ?
+            EventData.GetMetadata(TEXT("Error")) :
             TEXT("Unknown network error")
         );
     }
@@ -3078,9 +3078,9 @@ void USuspenseEquipmentOperationService::OnNetworkOperationResult(const FEquipme
 void USuspenseEquipmentOperationService::UpdateStatistics(const FEquipmentOperationResult& Result)
 {
     FRWScopeLock Lock(StatsLock, SLT_Write);
-    
+
     TotalOperationsExecuted.fetch_add(1);
-    
+
     if (Result.bSuccess)
     {
         SuccessfulOperations.fetch_add(1);
@@ -3098,7 +3098,7 @@ void USuspenseEquipmentOperationService::LogOperation(const FEquipmentOperationR
     {
         return;
     }
-    
+
     if (Result.bSuccess)
     {
         UE_LOG(LogSuspenseEquipmentOperations, Verbose,
@@ -3131,7 +3131,7 @@ void USuspenseEquipmentOperationService::InitializeObjectPools()
             OperationPoolSize.fetch_add(1);
         }
     }
-    
+
     {
         FScopeLock Lock(&ResultPoolLock);
         for (int32 i = 0; i < InitialPoolSize; i++)
@@ -3141,10 +3141,10 @@ void USuspenseEquipmentOperationService::InitializeObjectPools()
             ResultPoolSize.fetch_add(1);
         }
     }
-    
+
     ServiceMetrics.Inc(TEXT("PoolsInitialized"), InitialPoolSize * 2);
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("Initialized object pools: %d operations, %d results"),
         InitialPoolSize, InitialPoolSize);
 }
@@ -3160,7 +3160,7 @@ void USuspenseEquipmentOperationService::CleanupObjectPools()
             OperationPoolSize.fetch_sub(1);
         }
     }
-    
+
     {
         FScopeLock Lock(&ResultPoolLock);
         FEquipmentOperationResult* Result = nullptr;
@@ -3170,10 +3170,10 @@ void USuspenseEquipmentOperationService::CleanupObjectPools()
             ResultPoolSize.fetch_sub(1);
         }
     }
-    
+
     ServiceMetrics.Inc(TEXT("PoolsCleaned"));
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Log, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Log,
         TEXT("Cleaned up object pools - Total allocations avoided: Operation=%d, Result=%d"),
         OperationPoolHits.load(), ResultPoolHits.load());
 }
@@ -3184,12 +3184,12 @@ FQueuedOperation* USuspenseEquipmentOperationService::AcquireOperation()
     {
         return new FQueuedOperation();
     }
-    
+
     FQueuedOperation* Operation = nullptr;
-    
+
     {
         FScopeLock Lock(&OperationPoolLock);
-        
+
         if (OperationPool.Dequeue(Operation))
         {
             OperationPoolHits.fetch_add(1);
@@ -3202,15 +3202,15 @@ FQueuedOperation* USuspenseEquipmentOperationService::AcquireOperation()
             ServiceMetrics.Inc(TEXT("OperationPoolMisses"));
         }
     }
-    
+
     if (!Operation)
     {
         Operation = new FQueuedOperation();
         Operation->bIsFromPool = false;
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+            UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("Operation pool miss - allocated new (Total misses: %d)"),
                 OperationPoolMisses.load());
         }
@@ -3220,7 +3220,7 @@ FQueuedOperation* USuspenseEquipmentOperationService::AcquireOperation()
         Operation->Reset();
         Operation->bIsFromPool = true;
     }
-    
+
     return Operation;
 }
 
@@ -3230,24 +3230,24 @@ void USuspenseEquipmentOperationService::ReleaseOperation(FQueuedOperation* Oper
     {
         return;
     }
-    
+
     if (!bEnableObjectPooling)
     {
         delete Operation;
         return;
     }
-    
+
     FScopeLock Lock(&OperationPoolLock);
-    
+
     if (OperationPoolSize.load() >= MaxPoolSize)
     {
         PoolOverflows.fetch_add(1);
         ServiceMetrics.Inc(TEXT("PoolOverflows"));
         delete Operation;
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+            UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("Operation pool overflow - deleting (Total overflows: %d)"),
                 PoolOverflows.load());
         }
@@ -3267,12 +3267,12 @@ FEquipmentOperationResult* USuspenseEquipmentOperationService::AcquireResult()
     {
         return new FEquipmentOperationResult();
     }
-    
+
     FEquipmentOperationResult* Result = nullptr;
-    
+
     {
         FScopeLock Lock(&ResultPoolLock);
-        
+
         if (ResultPool.Dequeue(Result))
         {
             ResultPoolHits.fetch_add(1);
@@ -3285,14 +3285,14 @@ FEquipmentOperationResult* USuspenseEquipmentOperationService::AcquireResult()
             ServiceMetrics.Inc(TEXT("ResultPoolMisses"));
         }
     }
-    
+
     if (!Result)
     {
         Result = new FEquipmentOperationResult();
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+            UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("Result pool miss - allocated new (Total misses: %d)"),
                 ResultPoolMisses.load());
         }
@@ -3301,7 +3301,7 @@ FEquipmentOperationResult* USuspenseEquipmentOperationService::AcquireResult()
     {
         *Result = FEquipmentOperationResult();
     }
-    
+
     return Result;
 }
 
@@ -3311,24 +3311,24 @@ void USuspenseEquipmentOperationService::ReleaseResult(FEquipmentOperationResult
     {
         return;
     }
-    
+
     if (!bEnableObjectPooling)
     {
         delete Result;
         return;
     }
-    
+
     FScopeLock Lock(&ResultPoolLock);
-    
+
     if (ResultPoolSize.load() >= MaxPoolSize)
     {
         PoolOverflows.fetch_add(1);
         ServiceMetrics.Inc(TEXT("ResultPoolOverflows"));
         delete Result;
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+            UE_LOG(LogSuspenseEquipmentOperations, Verbose,
                 TEXT("Result pool overflow - deleting (Total overflows: %d)"),
                 PoolOverflows.load());
         }
@@ -3347,7 +3347,7 @@ float USuspenseEquipmentOperationService::GetPoolEfficiency() const
     int32 TotalResultAccesses = ResultPoolHits.load() + ResultPoolMisses.load();
     int32 TotalAccesses = TotalOperationAccesses + TotalResultAccesses;
     int32 TotalHits = OperationPoolHits.load() + ResultPoolHits.load();
-    
+
     return TotalAccesses > 0 ? (float)TotalHits / TotalAccesses : 0.0f;
 }
 
@@ -3361,8 +3361,8 @@ void USuspenseEquipmentOperationService::EnsureValidConfig()
     ResultCacheTTL = FMath::Clamp(ResultCacheTTL, 0.05f, 30.0f);
     CoalescingLookback = FMath::Clamp(CoalescingLookback, 0, 1000);
     MaxHistorySize = FMath::Clamp(MaxHistorySize, 10, 1000);
-    
-    UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+
+    UE_LOG(LogSuspenseEquipmentOperations, Verbose,
         TEXT("Config sanitized: MaxQueue=%d, Batch=%d, Interval=%.2f, ValidationTTL=%.1f, ResultTTL=%.1f, TransactionPlans=%s"),
         MaxQueueSize, BatchSize, QueueProcessInterval, ValidationCacheTTL, ResultCacheTTL,
         bUseTransactionPlans ? TEXT("Enabled") : TEXT("Disabled"));
@@ -3374,14 +3374,14 @@ void USuspenseEquipmentOperationService::TrimPools(int32 KeepPerPool)
     int32 ResultsDropped = 0;
     int32 OriginalOperationPoolSize = 0;
     int32 OriginalResultPoolSize = 0;
-    
+
     // Обрезаем operation pool
     {
         FScopeLock Lock(&OperationPoolLock);
         OriginalOperationPoolSize = OperationPoolSize.load();
         int32 ToDrop = FMath::Max(0, OriginalOperationPoolSize - KeepPerPool);
         OperationsDropped = ToDrop;
-        
+
         FQueuedOperation* Op = nullptr;
         while (ToDrop > 0 && OperationPool.Dequeue(Op))
         {
@@ -3390,14 +3390,14 @@ void USuspenseEquipmentOperationService::TrimPools(int32 KeepPerPool)
             --ToDrop;
         }
     }
-    
+
     // Обрезаем result pool
     {
         FScopeLock Lock(&ResultPoolLock);
         OriginalResultPoolSize = ResultPoolSize.load();
         int32 ToDrop = FMath::Max(0, OriginalResultPoolSize - KeepPerPool);
         ResultsDropped = ToDrop;
-        
+
         FEquipmentOperationResult* Res = nullptr;
         while (ToDrop > 0 && ResultPool.Dequeue(Res))
         {
@@ -3406,15 +3406,15 @@ void USuspenseEquipmentOperationService::TrimPools(int32 KeepPerPool)
             --ToDrop;
         }
     }
-    
+
     ServiceMetrics.Inc(TEXT("PoolsTrimmed"));
-    
+
     if (bEnableDetailedLogging)
     {
-        UE_LOG(LogSuspenseEquipmentOperations, Verbose, 
+        UE_LOG(LogSuspenseEquipmentOperations, Verbose,
             TEXT("Pools trimmed to %d items each (was: Operations=%d, Results=%d, dropped: %d/%d)"),
-            KeepPerPool, 
-            OriginalOperationPoolSize, 
+            KeepPerPool,
+            OriginalOperationPoolSize,
             OriginalResultPoolSize,
             OperationsDropped,
             ResultsDropped);
@@ -3424,42 +3424,42 @@ void USuspenseEquipmentOperationService::TrimPools(int32 KeepPerPool)
 FString USuspenseEquipmentOperationService::GetPoolStatistics() const
 {
     FString Stats;
-    
+
     float PoolEfficiency = GetPoolEfficiency() * 100.0f;
-    
+
     Stats += FString::Printf(TEXT("Overall Pool Efficiency: %.1f%%\n"), PoolEfficiency);
-    
+
     Stats += TEXT("\n-- Operation Pool --\n");
     int32 OpAccesses = OperationPoolHits.load() + OperationPoolMisses.load();
-    float OpEfficiency = OpAccesses > 0 ? 
+    float OpEfficiency = OpAccesses > 0 ?
         (float)OperationPoolHits.load() / OpAccesses * 100.0f : 0.0f;
     Stats += FString::Printf(TEXT("Efficiency: %.1f%%\n"), OpEfficiency);
-    Stats += FString::Printf(TEXT("Hits: %d, Misses: %d\n"), 
+    Stats += FString::Printf(TEXT("Hits: %d, Misses: %d\n"),
         OperationPoolHits.load(), OperationPoolMisses.load());
-    Stats += FString::Printf(TEXT("Current Size: %d/%d\n"), 
+    Stats += FString::Printf(TEXT("Current Size: %d/%d\n"),
         OperationPoolSize.load(), MaxPoolSize);
-    
+
     Stats += TEXT("\n-- Result Pool --\n");
     int32 ResAccesses = ResultPoolHits.load() + ResultPoolMisses.load();
-    float ResEfficiency = ResAccesses > 0 ? 
+    float ResEfficiency = ResAccesses > 0 ?
         (float)ResultPoolHits.load() / ResAccesses * 100.0f : 0.0f;
     Stats += FString::Printf(TEXT("Efficiency: %.1f%%\n"), ResEfficiency);
-    Stats += FString::Printf(TEXT("Hits: %d, Misses: %d\n"), 
+    Stats += FString::Printf(TEXT("Hits: %d, Misses: %d\n"),
         ResultPoolHits.load(), ResultPoolMisses.load());
-    Stats += FString::Printf(TEXT("Current Size: %d/%d\n"), 
+    Stats += FString::Printf(TEXT("Current Size: %d/%d\n"),
         ResultPoolSize.load(), MaxPoolSize);
-    
+
     Stats += TEXT("\n-- Common --\n");
     Stats += FString::Printf(TEXT("Total Overflows: %d\n"), PoolOverflows.load());
-    
+
     int32 AllocationsSaved = OperationPoolHits.load() + ResultPoolHits.load();
     int32 OperationBytes = OperationPoolHits.load() * sizeof(FQueuedOperation);
     int32 ResultBytes = ResultPoolHits.load() * sizeof(FEquipmentOperationResult);
     int32 TotalBytesSaved = OperationBytes + ResultBytes;
-    
+
     Stats += FString::Printf(TEXT("Allocations Avoided: %d\n"), AllocationsSaved);
-    Stats += FString::Printf(TEXT("Estimated Memory Saved: %.2f KB\n"), 
+    Stats += FString::Printf(TEXT("Estimated Memory Saved: %.2f KB\n"),
         TotalBytesSaved / 1024.0f);
-    
+
     return Stats;
 }

@@ -1,8 +1,8 @@
 // Copyright MedCom
 
 #include "Components/Presentation/SuspenseEquipmentVisualController.h"
-#include "Core/Utils/FEquipmentEventBus.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -29,7 +29,7 @@ void USuspenseEquipmentVisualController::BeginPlay()
 	Super::BeginPlay();
 
 	// Регистрируемся в ServiceLocator как Service.VisualController
-	if (auto* Locator = UEquipmentServiceLocator::Get(this))
+	if (auto* Locator = USuspenseEquipmentServiceLocator::Get(this))
 	{
 		const FGameplayTag VisCtlTag = FGameplayTag::RequestGameplayTag(TEXT("Service.VisualController"));
 		if (!Locator->IsServiceRegistered(VisCtlTag))
@@ -83,7 +83,7 @@ void USuspenseEquipmentVisualController::BeginPlay()
 void USuspenseEquipmentVisualController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// Снимаемся из ServiceLocator
-	if (auto* Locator = UEquipmentServiceLocator::Get(this))
+	if (auto* Locator = USuspenseEquipmentServiceLocator::Get(this))
 	{
 		const FGameplayTag VisCtlTag = FGameplayTag::RequestGameplayTag(TEXT("Service.VisualController"));
 		if (Locator->IsServiceRegistered(VisCtlTag))
@@ -91,9 +91,9 @@ void USuspenseEquipmentVisualController::EndPlay(const EEndPlayReason::Type EndP
 			Locator->UnregisterService(VisCtlTag, /*bForceShutdown=*/false);
 		}
 	}
-	
+
 	// Отписки (без range-for)
-	if (auto Bus = FEquipmentEventBus::Get(); Bus.IsValid())
+	if (auto Bus = FSuspenseEquipmentEventBus::Get(); Bus.IsValid())
 	{
 		for (int32 i = 0; i < EventSubscriptions.Num(); ++i)
 		{
@@ -205,7 +205,7 @@ FGuid USuspenseEquipmentVisualController::ApplyVisualEffect(AActor* Equipment, c
 	Comp->SetRelativeTransform(Effect.RelativeTransform);
 	Comp->Activate(true);
 	Comp->SetVisibility(true);
-	
+
 	// Учёт
 	const FGuid Id = GenerateEffectId();
 	{
@@ -225,12 +225,12 @@ FGuid USuspenseEquipmentVisualController::ApplyVisualEffect(AActor* Equipment, c
 	MarkEffectPlayed(Equipment, Effect.EffectType);
 
 	// EventBus
-	FEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.EffectApplied"));
 	Ev.Target = Equipment;
 	Ev.AddMetadata(TEXT("EffectType"), Effect.EffectType.ToString());
 	Ev.AddMetadata(TEXT("EffectId"), Id.ToString());
-	FEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 	return Id;
 }
@@ -253,12 +253,12 @@ bool USuspenseEquipmentVisualController::RemoveVisualEffect(const FGuid& EffectI
 		ActiveEffects.Remove(EffectId);
 		TotalEffectsRemoved++;
 
-		FEquipmentEventData Ev;
+		FSuspenseEquipmentEventData Ev;
 		Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.EffectRemoved"));
 		Ev.Target = Target;
 		Ev.AddMetadata(TEXT("EffectType"), Type.ToString());
 		Ev.AddMetadata(TEXT("EffectId"), EffectId.ToString());
-		FEquipmentEventBus::Get()->Broadcast(Ev);
+		FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 		return true;
 	}
@@ -423,11 +423,11 @@ bool USuspenseEquipmentVisualController::PlayEquipmentAnimation(AActor* Equipmen
 		}
 	}
 
-	FEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.AnimationPlayed"));
 	Ev.Target = Equipment;
 	Ev.AddMetadata(TEXT("AnimationTag"), AnimationTag.ToString());
-	FEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 	return true;
 }
 
@@ -590,7 +590,7 @@ void USuspenseEquipmentVisualController::LoadVisualProfileTable(UDataTable* Prof
 
 void USuspenseEquipmentVisualController::SetupEventHandlers()
 {
-	auto Bus = FEquipmentEventBus::Get();
+	auto Bus = FSuspenseEquipmentEventBus::Get();
 	if (!Bus.IsValid()) return;
 
 	EventSubscriptions.Add(Bus->Subscribe(
@@ -614,7 +614,7 @@ void USuspenseEquipmentVisualController::SetupEventHandlers()
 		EEventPriority::High, EEventExecutionContext::GameThread, this));
 }
 
-void USuspenseEquipmentVisualController::OnEquipmentStateChanged(const FEquipmentEventData& EventData)
+void USuspenseEquipmentVisualController::OnEquipmentStateChanged(const FSuspenseEquipmentEventData& EventData)
 {
 	if (AActor* Eq = EventData.GetTargetAs<AActor>())
 	{
@@ -624,7 +624,7 @@ void USuspenseEquipmentVisualController::OnEquipmentStateChanged(const FEquipmen
 	}
 }
 
-void USuspenseEquipmentVisualController::OnWeaponFired(const FEquipmentEventData& EventData)
+void USuspenseEquipmentVisualController::OnWeaponFired(const FSuspenseEquipmentEventData& EventData)
 {
 	if (AActor* Wep = EventData.GetTargetAs<AActor>())
 	{
@@ -639,7 +639,7 @@ void USuspenseEquipmentVisualController::OnWeaponFired(const FEquipmentEventData
 	}
 }
 
-void USuspenseEquipmentVisualController::OnWeaponReload(const FEquipmentEventData& EventData)
+void USuspenseEquipmentVisualController::OnWeaponReload(const FSuspenseEquipmentEventData& EventData)
 {
 	if (AActor* Wep = EventData.GetTargetAs<AActor>())
 	{
@@ -647,7 +647,7 @@ void USuspenseEquipmentVisualController::OnWeaponReload(const FEquipmentEventDat
 	}
 }
 
-void USuspenseEquipmentVisualController::OnQuickSwitch(const FEquipmentEventData& EventData)
+void USuspenseEquipmentVisualController::OnQuickSwitch(const FSuspenseEquipmentEventData& EventData)
 {
 	if (AActor* OldW = Cast<AActor>(EventData.Source.Get())) { ClearAllEffectsForEquipment(OldW, false); }
 	if (AActor* NewW = EventData.GetTargetAs<AActor>())

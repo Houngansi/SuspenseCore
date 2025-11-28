@@ -9,16 +9,16 @@
 #include "Events/SuspenseInventoryEvents.h"
 #include "Serialization/SuspenseInventorySerializer.h"
 #include "UI/SuspenseInventoryUIConnector.h"
-#include "Abilities/Inventory/MedComInventoryGASIntegration.h"
-#include "Types/Inventory/InventoryTypes.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Loadout/LoadoutSettings.h"
-#include "Operations/InventoryResult.h"
-#include "Types/Inventory/InventoryUtils.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Abilities/Inventory/SuspenseInventoryGASIntegration.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "Operations/SuspenseInventoryResult.h"
+#include "Types/Inventory/SuspenseInventoryUtils.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "Base/SuspenseInventoryManager.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -27,26 +27,26 @@ USuspenseInventoryComponent::USuspenseInventoryComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.TickInterval = 0.1f;
-    
+
     bIsInitialized = false;
     MaxWeight = 100.0f;
     CurrentWeight = 0.0f;
     CurrentLoadoutID = NAME_None;
     CurrentInventoryName = NAME_None;
-    
+
     SetIsReplicatedByDefault(true);
 }
 
 void USuspenseInventoryComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Initialize sub-components if not already done
     if (!StorageComponent)
     {
         InitializeSubComponents();
     }
-    
+
     // Cache managers for performance
     CachedDelegateManager = GetDelegateManager();
     CachedItemManager = GetItemManager();
@@ -60,26 +60,26 @@ void USuspenseInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
     {
         GetWorld()->GetTimerManager().ClearTimer(ClientInitCheckTimer);
     }
-    
+
     // Clean up transactions
     if (TransactionComponent && TransactionComponent->IsTransactionActive())
     {
         TransactionComponent->RollbackTransaction();
     }
-    
+
     // Clear cached references
     CachedDelegateManager.Reset();
     CachedItemManager.Reset();
     CachedInventoryManager.Reset();
     CachedLoadoutConfig.Reset();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 void USuspenseInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(USuspenseInventoryComponent, bIsInitialized);
     DOREPLIFETIME(USuspenseInventoryComponent, MaxWeight);
     DOREPLIFETIME(USuspenseInventoryComponent, CurrentWeight);
@@ -93,13 +93,13 @@ void USuspenseInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 void USuspenseInventoryComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-    
+
     // Update weight periodically on server
     if (GetOwnerRole() == ROLE_Authority && bIsInitialized)
     {
         static float WeightUpdateTimer = 0.0f;
         WeightUpdateTimer += DeltaTime;
-        
+
         if (WeightUpdateTimer >= 1.0f)
         {
             UpdateCurrentWeight();
@@ -117,54 +117,54 @@ bool USuspenseInventoryComponent::AddItemByID_Implementation(FName ItemID, int32
     // Validate parameters
     if (ItemID.IsNone() || Quantity <= 0)
     {
-        INVENTORY_LOG(Warning, TEXT("AddItemByID: Invalid parameters - ID: %s, Quantity: %d"), 
+        INVENTORY_LOG(Warning, TEXT("AddItemByID: Invalid parameters - ID: %s, Quantity: %d"),
             *ItemID.ToString(), Quantity);
         return false;
     }
-    
+
     // Get unified data from ItemManager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         INVENTORY_LOG(Error, TEXT("AddItemByID: ItemManager not available"));
         return false;
     }
-    
-    FMedComUnifiedItemData UnifiedData;
+
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         INVENTORY_LOG(Warning, TEXT("AddItemByID: Item '%s' not found in DataTable"), *ItemID.ToString());
-        
+
         // Broadcast error through delegate manager
-        IMedComInventoryInterface::BroadcastInventoryError(this, EInventoryErrorCode::InvalidItem, 
+        ISuspenseInventory::BroadcastInventoryError(this, ESuspenseInventoryErrorCode::InvalidItem,
             FString::Printf(TEXT("Unknown item: %s"), *ItemID.ToString()));
         return false;
     }
-    
+
     // Add diagnostic logging for item type verification
     INVENTORY_LOG(Warning, TEXT("AddItemByID: Processing item:"));
     INVENTORY_LOG(Warning, TEXT("  - ItemID: %s"), *ItemID.ToString());
     INVENTORY_LOG(Warning, TEXT("  - ItemType: %s"), *UnifiedData.ItemType.ToString());
     INVENTORY_LOG(Warning, TEXT("  - Weight: %.2f"), UnifiedData.Weight);
     INVENTORY_LOG(Warning, TEXT("  - Grid Size: %dx%d"), UnifiedData.GridSize.X, UnifiedData.GridSize.Y);
-    
+
     // Verify item type is in Item hierarchy
     static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
     if (!UnifiedData.ItemType.MatchesTag(BaseItemTag))
     {
-        INVENTORY_LOG(Error, TEXT("AddItemByID: Item type %s is not in Item hierarchy!"), 
+        INVENTORY_LOG(Error, TEXT("AddItemByID: Item type %s is not in Item hierarchy!"),
             *UnifiedData.ItemType.ToString());
-        
-        IMedComInventoryInterface::BroadcastInventoryError(this, EInventoryErrorCode::InvalidItem, 
+
+        ISuspenseInventory::BroadcastInventoryError(this, ESuspenseInventoryErrorCode::InvalidItem,
             FString::Printf(TEXT("Invalid item type: %s"), *UnifiedData.ItemType.ToString()));
         return false;
     }
-    
+
     // Check allowed types with hierarchy support
     if (!AllowedItemTypes.IsEmpty())
     {
         bool bTypeAllowed = false;
-        
+
         // Check exact match first
         if (AllowedItemTypes.HasTag(UnifiedData.ItemType))
         {
@@ -177,111 +177,111 @@ bool USuspenseInventoryComponent::AddItemByID_Implementation(FName ItemID, int32
             {
                 if (UnifiedData.ItemType.MatchesTag(AllowedTag))
                 {
-                    INVENTORY_LOG(Log, TEXT("AddItemByID: Type %s matches allowed parent %s"), 
+                    INVENTORY_LOG(Log, TEXT("AddItemByID: Type %s matches allowed parent %s"),
                         *UnifiedData.ItemType.ToString(), *AllowedTag.ToString());
                     bTypeAllowed = true;
                     break;
                 }
             }
         }
-        
+
         if (!bTypeAllowed)
         {
-            INVENTORY_LOG(Warning, TEXT("AddItemByID: Item type %s not allowed in inventory"), 
+            INVENTORY_LOG(Warning, TEXT("AddItemByID: Item type %s not allowed in inventory"),
                 *UnifiedData.ItemType.ToString());
-            
+
             INVENTORY_LOG(Warning, TEXT("  Allowed types:"));
             for (const FGameplayTag& Tag : AllowedItemTypes)
             {
                 INVENTORY_LOG(Warning, TEXT("    - %s"), *Tag.ToString());
             }
-            
-            IMedComInventoryInterface::BroadcastInventoryError(this, EInventoryErrorCode::InvalidItem, 
+
+            ISuspenseInventory::BroadcastInventoryError(this, ESuspenseInventoryErrorCode::InvalidItem,
                 TEXT("Item type not allowed"));
             return false;
         }
     }
-    
+
     // Use the legacy AddItem method with unified data
     return AddItem(UnifiedData, Quantity);
 }
 
-FInventoryOperationResult USuspenseInventoryComponent::AddItemInstance(const FInventoryItemInstance& ItemInstance)
+FSuspenseInventoryOperationResult USuspenseInventoryComponent::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Validate instance
     if (!ItemInstance.IsValid())
     {
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid item instance")),
             TEXT("AddItemInstance"),
             nullptr
         );
     }
-    
+
     // Validate InstanceID
     if (!ItemInstance.InstanceID.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AddItemInstance: Item %s has invalid InstanceID, this may cause issues"), 
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AddItemInstance: Item %s has invalid InstanceID, this may cause issues"),
             *ItemInstance.ItemID.ToString());
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] AddItemInstance: Adding item %s with InstanceID %s"), 
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] AddItemInstance: Adding item %s with InstanceID %s"),
             *ItemInstance.ItemID.ToString(),
             *ItemInstance.InstanceID.ToString());
     }
-    
+
     // Check authority
     if (!CheckAuthority(TEXT("AddItemInstance")))
     {
         Server_AddItemByID(ItemInstance.ItemID, ItemInstance.Quantity);
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::UnknownError,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Client cannot add items directly")),
             TEXT("AddItemInstance"),
             nullptr
         );
     }
-    
+
     // Validate components
     if (!StorageComponent || !bIsInitialized)
     {
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("Inventory not initialized")),
             TEXT("AddItemInstance"),
             nullptr
         );
     }
-    
+
     // Get unified data for validation
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetItemManager() || !GetItemManager()->GetUnifiedItemData(ItemInstance.ItemID, UnifiedData))
     {
-        return FInventoryOperationResult::ItemNotFound(TEXT("AddItemInstance"), ItemInstance.ItemID);
+        return FSuspenseInventoryOperationResult::ItemNotFound(TEXT("AddItemInstance"), ItemInstance.ItemID);
     }
-    
+
     // Check constraints
     if (ConstraintsComponent)
     {
         // Check item type
         if (!AllowedItemTypes.IsEmpty() && !AllowedItemTypes.HasTag(UnifiedData.ItemType))
         {
-            return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+            return FSuspenseInventoryOperationResult::Failure(
+                ESuspenseInventoryErrorCode::InvalidItem,
                 FText::FromString(TEXT("Item type not allowed in this inventory")),
                 TEXT("AddItemInstance"),
                 nullptr
             );
         }
-        
+
         // Check weight
         float ItemWeight = UnifiedData.Weight * ItemInstance.Quantity;
         if (CurrentWeight + ItemWeight > MaxWeight)
         {
-            return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::WeightLimit,
+            return FSuspenseInventoryOperationResult::Failure(
+                ESuspenseInventoryErrorCode::WeightLimit,
                 FText::Format(FText::FromString(TEXT("Would exceed weight limit: {0} + {1} > {2}")),
                     FText::AsNumber(CurrentWeight),
                     FText::AsNumber(ItemWeight),
@@ -291,31 +291,31 @@ FInventoryOperationResult USuspenseInventoryComponent::AddItemInstance(const FIn
             );
         }
     }
-    
+
     // Create copy with valid InstanceID if needed
-    FInventoryItemInstance InstanceToAdd = ItemInstance;
+    FSuspenseInventoryItemInstance InstanceToAdd = ItemInstance;
     if (!InstanceToAdd.InstanceID.IsValid())
     {
         InstanceToAdd.InstanceID = FGuid::NewGuid();
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] Generated new InstanceID %s for item %s"), 
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] Generated new InstanceID %s for item %s"),
             *InstanceToAdd.InstanceID.ToString(),
             *InstanceToAdd.ItemID.ToString());
     }
-    
+
     // Try to add to storage
     if (!StorageComponent->AddItemInstance(InstanceToAdd, true))
     {
-        return FInventoryOperationResult::NoSpace(TEXT("AddItemInstance"));
+        return FSuspenseInventoryOperationResult::NoSpace(TEXT("AddItemInstance"));
     }
-    
+
     // Update weight
     CurrentWeight += UnifiedData.Weight * InstanceToAdd.Quantity;
-    
+
     // Get placed instance for correct anchor index
-    TArray<FInventoryItemInstance> AllInstances = StorageComponent->GetAllItemInstances();
-    const FInventoryItemInstance* PlacedInstance = nullptr;
-    
-    for (const FInventoryItemInstance& StoredInstance : AllInstances)
+    TArray<FSuspenseInventoryItemInstance> AllInstances = StorageComponent->GetAllItemInstances();
+    const FSuspenseInventoryItemInstance* PlacedInstance = nullptr;
+
+    for (const FSuspenseInventoryItemInstance& StoredInstance : AllInstances)
     {
         if (StoredInstance.InstanceID == InstanceToAdd.InstanceID)
         {
@@ -323,30 +323,30 @@ FInventoryOperationResult USuspenseInventoryComponent::AddItemInstance(const FIn
             break;
         }
     }
-    
+
     if (PlacedInstance)
     {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Item placed successfully: %s at slot %d with InstanceID %s"), 
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Item placed successfully: %s at slot %d with InstanceID %s"),
             *PlacedInstance->ItemID.ToString(),
             PlacedInstance->AnchorIndex,
             *PlacedInstance->InstanceID.ToString());
-        
+
         // Notify replicator
         NotifyItemPlaced(*PlacedInstance, PlacedInstance->AnchorIndex);
-        
+
         // Broadcast events
-        IMedComInventoryInterface::BroadcastItemAdded(this, *PlacedInstance, PlacedInstance->AnchorIndex);
-        
+        ISuspenseInventory::BroadcastItemAdded(this, *PlacedInstance, PlacedInstance->AnchorIndex);
+
         if (EventsComponent)
         {
             EventsComponent->BroadcastItemAdded(InstanceToAdd.ItemID, InstanceToAdd.Quantity);
         }
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     // Create success result
-    FInventoryOperationResult Result = FInventoryOperationResult::Success(TEXT("AddItemInstance"));
+    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(TEXT("AddItemInstance"));
     Result.AddResultData(TEXT("ItemID"), InstanceToAdd.ItemID.ToString());
     Result.AddResultData(TEXT("Quantity"), FString::FromInt(InstanceToAdd.Quantity));
     Result.AddResultData(TEXT("InstanceID"), InstanceToAdd.InstanceID.ToString());
@@ -354,72 +354,72 @@ FInventoryOperationResult USuspenseInventoryComponent::AddItemInstance(const FIn
     {
         Result.AddResultData(TEXT("PlacementIndex"), FString::FromInt(PlacedInstance->AnchorIndex));
     }
-    
+
     return Result;
 }
 
-FInventoryOperationResult USuspenseInventoryComponent::AddItemInstanceToSlot(const FInventoryItemInstance& ItemInstance, int32 TargetSlot)
+FSuspenseInventoryOperationResult USuspenseInventoryComponent::AddItemInstanceToSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 TargetSlot)
 {
     // Validate instance
     if (!ItemInstance.IsValid())
     {
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid item instance")),
             TEXT("AddItemInstanceToSlot"),
             nullptr
         );
     }
-    
+
     // Check authority
     if (!CheckAuthority(TEXT("AddItemInstanceToSlot")))
     {
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::UnknownError,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Client cannot add items directly")),
             TEXT("AddItemInstanceToSlot"),
             nullptr
         );
     }
-    
+
     // Validate components
     if (!StorageComponent || !bIsInitialized)
     {
-        return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+        return FSuspenseInventoryOperationResult::Failure(
+            ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("Inventory not initialized")),
             TEXT("AddItemInstanceToSlot"),
             nullptr
         );
     }
-    
+
     // Get unified data for validation
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetItemManager() || !GetItemManager()->GetUnifiedItemData(ItemInstance.ItemID, UnifiedData))
     {
-        return FInventoryOperationResult::ItemNotFound(TEXT("AddItemInstanceToSlot"), ItemInstance.ItemID);
+        return FSuspenseInventoryOperationResult::ItemNotFound(TEXT("AddItemInstanceToSlot"), ItemInstance.ItemID);
     }
-    
+
     // Check constraints
     if (ConstraintsComponent)
     {
         // Check item type
         if (!AllowedItemTypes.IsEmpty() && !AllowedItemTypes.HasTag(UnifiedData.ItemType))
         {
-            return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+            return FSuspenseInventoryOperationResult::Failure(
+                ESuspenseInventoryErrorCode::InvalidItem,
                 FText::FromString(TEXT("Item type not allowed in this inventory")),
                 TEXT("AddItemInstanceToSlot"),
                 nullptr
             );
         }
-        
+
         // Check weight
         float ItemWeight = UnifiedData.Weight * ItemInstance.Quantity;
         if (CurrentWeight + ItemWeight > MaxWeight)
         {
-            return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::WeightLimit,
+            return FSuspenseInventoryOperationResult::Failure(
+                ESuspenseInventoryErrorCode::WeightLimit,
                 FText::Format(FText::FromString(TEXT("Would exceed weight limit: {0} + {1} > {2}")),
                     FText::AsNumber(CurrentWeight),
                     FText::AsNumber(ItemWeight),
@@ -429,95 +429,95 @@ FInventoryOperationResult USuspenseInventoryComponent::AddItemInstanceToSlot(con
             );
         }
     }
-    
+
     // Create copy with valid InstanceID if needed
-    FInventoryItemInstance InstanceToAdd = ItemInstance;
+    FSuspenseInventoryItemInstance InstanceToAdd = ItemInstance;
     if (!InstanceToAdd.InstanceID.IsValid())
     {
         InstanceToAdd.InstanceID = FGuid::NewGuid();
     }
-    
+
     // CRITICAL: Set target slot
     InstanceToAdd.AnchorIndex = TargetSlot;
-    
+
     // Check if target slot is free
     if (!StorageComponent->AreCellsFreeForItem(TargetSlot, InstanceToAdd.ItemID, false))
     {
         // If slot occupied, try to find alternative
         UE_LOG(LogInventory, Warning, TEXT("AddItemInstanceToSlot: Target slot %d is occupied, finding alternative"), TargetSlot);
-        
+
         // Fall back to regular add
         return AddItemInstance(ItemInstance);
     }
-    
+
     // Place in specific slot
     if (!StorageComponent->PlaceItemInstance(InstanceToAdd, TargetSlot))
     {
-        return FInventoryOperationResult::NoSpace(TEXT("AddItemInstanceToSlot"));
+        return FSuspenseInventoryOperationResult::NoSpace(TEXT("AddItemInstanceToSlot"));
     }
-    
+
     // Update weight
     CurrentWeight += UnifiedData.Weight * InstanceToAdd.Quantity;
-    
-    UE_LOG(LogInventory, Log, TEXT("AddItemInstanceToSlot: Item %s placed at requested slot %d"), 
+
+    UE_LOG(LogInventory, Log, TEXT("AddItemInstanceToSlot: Item %s placed at requested slot %d"),
         *InstanceToAdd.ItemID.ToString(), TargetSlot);
-    
+
     // Notify replicator
     NotifyItemPlaced(InstanceToAdd, TargetSlot);
-    
+
     // Broadcast events
-    IMedComInventoryInterface::BroadcastItemAdded(this, InstanceToAdd, TargetSlot);
-    
+    ISuspenseInventory::BroadcastItemAdded(this, InstanceToAdd, TargetSlot);
+
     if (EventsComponent)
     {
         EventsComponent->BroadcastItemAdded(InstanceToAdd.ItemID, InstanceToAdd.Quantity);
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     // Create success result
-    FInventoryOperationResult Result = FInventoryOperationResult::Success(TEXT("AddItemInstanceToSlot"));
+    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(TEXT("AddItemInstanceToSlot"));
     Result.AddResultData(TEXT("ItemID"), InstanceToAdd.ItemID.ToString());
     Result.AddResultData(TEXT("Quantity"), FString::FromInt(InstanceToAdd.Quantity));
     Result.AddResultData(TEXT("InstanceID"), InstanceToAdd.InstanceID.ToString());
     Result.AddResultData(TEXT("PlacementIndex"), FString::FromInt(TargetSlot));
-    
+
     return Result;
 }
 
-bool USuspenseInventoryComponent::RemoveItemFromSlot(int32 SlotIndex, FInventoryItemInstance& OutRemovedInstance)
+bool USuspenseInventoryComponent::RemoveItemFromSlot(int32 SlotIndex, FSuspenseInventoryItemInstance& OutRemovedInstance)
 {
     // Check authority
     if (!CheckAuthority(TEXT("RemoveItemFromSlot")))
     {
         return false;
     }
-    
+
     // Validate components
     if (!StorageComponent || !bIsInitialized)
     {
         INVENTORY_LOG(Error, TEXT("RemoveItemFromSlot: Inventory not initialized"));
         return false;
     }
-    
+
     // Get instance from slot
-    FInventoryItemInstance InstanceToRemove;
+    FSuspenseInventoryItemInstance InstanceToRemove;
     if (!StorageComponent->GetItemInstanceAt(SlotIndex, InstanceToRemove))
     {
         INVENTORY_LOG(Warning, TEXT("RemoveItemFromSlot: No item found at slot %d"), SlotIndex);
         return false;
     }
-    
+
     // Verify slot is anchor position
     if (InstanceToRemove.AnchorIndex != SlotIndex)
     {
         INVENTORY_LOG(Warning, TEXT("RemoveItemFromSlot: Slot %d is not the anchor position for item"), SlotIndex);
         return false;
     }
-    
+
     // Begin transaction for safe removal
     BeginTransaction();
-    
+
     // Remove from storage
     if (!StorageComponent->RemoveItemInstance(InstanceToRemove.InstanceID))
     {
@@ -525,77 +525,77 @@ bool USuspenseInventoryComponent::RemoveItemFromSlot(int32 SlotIndex, FInventory
         INVENTORY_LOG(Error, TEXT("RemoveItemFromSlot: Failed to remove item from storage"));
         return false;
     }
-    
+
     // Update weight
-    if (UMedComItemManager* ItemManager = GetItemManager())
+    if (USuspenseItemManager* ItemManager = GetItemManager())
     {
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(InstanceToRemove.ItemID, ItemData))
         {
             CurrentWeight -= ItemData.Weight * InstanceToRemove.Quantity;
             CurrentWeight = FMath::Max(0.0f, CurrentWeight);
         }
     }
-    
+
     // Commit transaction
     CommitTransaction();
-    
+
     // Save removed instance for return
     OutRemovedInstance = InstanceToRemove;
-    
+
     // Notify replicator
     NotifyItemRemoved(InstanceToRemove);
-    
+
     // Broadcast events
-    IMedComInventoryInterface::BroadcastItemRemoved(this, InstanceToRemove.ItemID, InstanceToRemove.Quantity, SlotIndex);
-    
+    ISuspenseInventory::BroadcastItemRemoved(this, InstanceToRemove.ItemID, InstanceToRemove.Quantity, SlotIndex);
+
     if (EventsComponent)
     {
         EventsComponent->BroadcastItemRemoved(InstanceToRemove.ItemID, InstanceToRemove.Quantity);
     }
-    
+
     BroadcastInventoryUpdated();
-    
-    INVENTORY_LOG(Log, TEXT("RemoveItemFromSlot: Successfully removed %s (x%d) from slot %d"), 
+
+    INVENTORY_LOG(Log, TEXT("RemoveItemFromSlot: Successfully removed %s (x%d) from slot %d"),
         *InstanceToRemove.ItemID.ToString(), InstanceToRemove.Quantity, SlotIndex);
-    
+
     return true;
 }
 
-bool USuspenseInventoryComponent::CanPlaceItemInstanceAtSlot(const FInventoryItemInstance& ItemInstance, int32 SlotIndex) const
+bool USuspenseInventoryComponent::CanPlaceItemInstanceAtSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex) const
 {
     // Validate input
     if (!ItemInstance.IsValid() || SlotIndex < 0)
     {
         return false;
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         return false;
     }
-    
+
     // Get item data for size
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
-    
-    FMedComUnifiedItemData ItemData;
+
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, ItemData))
     {
         return false;
     }
-    
+
     // Check type restrictions
     if (!AllowedItemTypes.IsEmpty() && !AllowedItemTypes.HasTag(ItemData.ItemType))
     {
-        INVENTORY_LOG(Verbose, TEXT("CanPlaceItemInstanceAtSlot: Item type %s not allowed"), 
+        INVENTORY_LOG(Verbose, TEXT("CanPlaceItemInstanceAtSlot: Item type %s not allowed"),
             *ItemData.ItemType.ToString());
         return false;
     }
-    
+
     // Check weight restrictions
     float ItemWeight = ItemData.Weight * ItemInstance.Quantity;
     if (CurrentWeight + ItemWeight > MaxWeight)
@@ -603,68 +603,68 @@ bool USuspenseInventoryComponent::CanPlaceItemInstanceAtSlot(const FInventoryIte
         INVENTORY_LOG(Verbose, TEXT("CanPlaceItemInstanceAtSlot: Would exceed weight limit"));
         return false;
     }
-    
+
     // Get effective size with rotation
     FVector2D ItemSize(ItemData.GridSize.X, ItemData.GridSize.Y);
     if (ItemInstance.bIsRotated)
     {
         ItemSize = FVector2D(ItemSize.Y, ItemSize.X);
     }
-    
+
     // Check slot availability
     return CanPlaceItemAtSlot(ItemSize, SlotIndex, true);
 }
 
-bool USuspenseInventoryComponent::PlaceItemInstanceAtSlot(const FInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace)
+bool USuspenseInventoryComponent::PlaceItemInstanceAtSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace)
 {
     // Check authority
     if (!CheckAuthority(TEXT("PlaceItemInstanceAtSlot")))
     {
         return false;
     }
-    
+
     // Validate data
     if (!ItemInstance.IsValid() || SlotIndex < 0)
     {
         INVENTORY_LOG(Warning, TEXT("PlaceItemInstanceAtSlot: Invalid parameters"));
         return false;
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         INVENTORY_LOG(Error, TEXT("PlaceItemInstanceAtSlot: Inventory not initialized"));
         return false;
     }
-    
+
     // Check placement if not forced
     if (!bForcePlace && !CanPlaceItemInstanceAtSlot(ItemInstance, SlotIndex))
     {
         INVENTORY_LOG(Warning, TEXT("PlaceItemInstanceAtSlot: Cannot place item at slot %d"), SlotIndex);
         return false;
     }
-    
+
     // Begin transaction
     BeginTransaction();
-    
+
     // Create copy with correct anchor index
-    FInventoryItemInstance InstanceToPlace = ItemInstance;
+    FSuspenseInventoryItemInstance InstanceToPlace = ItemInstance;
     InstanceToPlace.AnchorIndex = SlotIndex;
-    
+
     // Ensure valid InstanceID
     if (!InstanceToPlace.InstanceID.IsValid())
     {
         InstanceToPlace.InstanceID = FGuid::NewGuid();
     }
-    
+
     // Place item
     bool bPlaced = false;
     if (bForcePlace)
     {
         // For force placement, clear target slots first
-        UMedComItemManager* ItemManager = GetItemManager();
+        USuspenseItemManager* ItemManager = GetItemManager();
         if (ItemManager)
         {
-            FMedComUnifiedItemData ItemData;
+            FSuspenseUnifiedItemData ItemData;
             if (ItemManager->GetUnifiedItemData(InstanceToPlace.ItemID, ItemData))
             {
                 FVector2D ItemSize(ItemData.GridSize.X, ItemData.GridSize.Y);
@@ -672,25 +672,25 @@ bool USuspenseInventoryComponent::PlaceItemInstanceAtSlot(const FInventoryItemIn
                 {
                     ItemSize = FVector2D(ItemSize.Y, ItemSize.X);
                 }
-                
+
                 // Get all slots this item will occupy
                 TArray<int32> OccupiedSlots = GetOccupiedSlots(SlotIndex, ItemSize, InstanceToPlace.bIsRotated);
-                
+
                 // Remove items from these slots
                 for (int32 OccupiedSlot : OccupiedSlots)
                 {
-                    FInventoryItemInstance BlockingInstance;
+                    FSuspenseInventoryItemInstance BlockingInstance;
                     if (StorageComponent->GetItemInstanceAt(OccupiedSlot, BlockingInstance))
                     {
                         StorageComponent->RemoveItemInstance(BlockingInstance.InstanceID);
-                        
+
                         // Update weight
-                        FMedComUnifiedItemData BlockingItemData;
+                        FSuspenseUnifiedItemData BlockingItemData;
                         if (ItemManager->GetUnifiedItemData(BlockingInstance.ItemID, BlockingItemData))
                         {
                             CurrentWeight -= BlockingItemData.Weight * BlockingInstance.Quantity;
                         }
-                        
+
                         // Notify removal
                         NotifyItemRemoved(BlockingInstance);
                     }
@@ -698,49 +698,49 @@ bool USuspenseInventoryComponent::PlaceItemInstanceAtSlot(const FInventoryItemIn
             }
         }
     }
-    
+
     // Place item
     bPlaced = StorageComponent->PlaceItemInstance(InstanceToPlace, SlotIndex);
-    
+
     if (bPlaced)
     {
         // Update weight
-        UMedComItemManager* ItemManager = GetItemManager();
+        USuspenseItemManager* ItemManager = GetItemManager();
         if (ItemManager)
         {
-            FMedComUnifiedItemData ItemData;
+            FSuspenseUnifiedItemData ItemData;
             if (ItemManager->GetUnifiedItemData(InstanceToPlace.ItemID, ItemData))
             {
                 CurrentWeight += ItemData.Weight * InstanceToPlace.Quantity;
             }
         }
-        
+
         // Commit transaction
         CommitTransaction();
-        
+
         // Notify replicator
         NotifyItemPlaced(InstanceToPlace, SlotIndex);
-        
+
         // Broadcast events
-        IMedComInventoryInterface::BroadcastItemAdded(this, InstanceToPlace, SlotIndex);
-        
+        ISuspenseInventory::BroadcastItemAdded(this, InstanceToPlace, SlotIndex);
+
         if (EventsComponent)
         {
             EventsComponent->BroadcastItemAdded(InstanceToPlace.ItemID, InstanceToPlace.Quantity);
         }
-        
+
         BroadcastInventoryUpdated();
-        
-        INVENTORY_LOG(Log, TEXT("PlaceItemInstanceAtSlot: Successfully placed %s at slot %d"), 
+
+        INVENTORY_LOG(Log, TEXT("PlaceItemInstanceAtSlot: Successfully placed %s at slot %d"),
             *InstanceToPlace.ItemID.ToString(), SlotIndex);
-        
+
         return true;
     }
     else
     {
         // Rollback transaction
         RollbackTransaction();
-        
+
         INVENTORY_LOG(Error, TEXT("PlaceItemInstanceAtSlot: Failed to place item at slot %d"), SlotIndex);
         return false;
     }
@@ -758,7 +758,7 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemByID(const FNam
             nullptr
         );
     }
-    
+
     // Check authority
     if (!CheckAuthority(TEXT("RemoveItemByID")))
     {
@@ -770,10 +770,10 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemByID(const FNam
             nullptr
         );
     }
-    
+
     // Use legacy RemoveItem
     bool bSuccess = RemoveItem(ItemID, Amount);
-    
+
     if (bSuccess)
     {
         FInventoryOperationResult Result = FInventoryOperationResult::Success(TEXT("RemoveItemByID"));
@@ -798,7 +798,7 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemInstance(const 
             nullptr
         );
     }
-    
+
     if (!CheckAuthority(TEXT("RemoveItemInstance")))
     {
         return FInventoryOperationResult::Failure(
@@ -808,7 +808,7 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemInstance(const 
             nullptr
         );
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         return FInventoryOperationResult::Failure(
@@ -818,14 +818,14 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemInstance(const 
             nullptr
         );
     }
-    
+
     // Get instance for information
     FInventoryItemInstance Instance;
     if (!StorageComponent->GetItemInstance(InstanceID, Instance))
     {
         return FInventoryOperationResult::ItemNotFound(TEXT("RemoveItemInstance"));
     }
-    
+
     // Remove from storage
     if (!StorageComponent->RemoveItemInstance(InstanceID))
     {
@@ -836,7 +836,7 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemInstance(const 
             nullptr
         );
     }
-    
+
     // Update weight
     if (UMedComItemManager* ItemManager = GetItemManager())
     {
@@ -846,23 +846,23 @@ FInventoryOperationResult USuspenseInventoryComponent::RemoveItemInstance(const 
             CurrentWeight -= ItemData.Weight * Instance.Quantity;
         }
     }
-    
+
     // Notify replicator
     NotifyItemRemoved(Instance);
-    
+
     // Broadcast events
     if (EventsComponent)
     {
         EventsComponent->BroadcastItemRemoved(Instance.ItemID, Instance.Quantity);
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     FInventoryOperationResult Result = FInventoryOperationResult::Success(TEXT("RemoveItemInstance"));
     Result.AddResultData(TEXT("ItemID"), Instance.ItemID.ToString());
     Result.AddResultData(TEXT("Quantity"), FString::FromInt(Instance.Quantity));
     Result.AddResultData(TEXT("InstanceID"), InstanceID.ToString());
-    
+
     return Result;
 }
 
@@ -872,7 +872,7 @@ TArray<FInventoryItemInstance> USuspenseInventoryComponent::GetAllItemInstances(
     {
         return TArray<FInventoryItemInstance>();
     }
-    
+
     return StorageComponent->GetAllItemInstances();
 }
 
@@ -883,7 +883,7 @@ UMedComItemManager* USuspenseInventoryComponent::GetItemManager() const
     {
         return CachedItemManager.Get();
     }
-    
+
     // Get from game instance through owner
     AActor* Owner = GetOwner();
     if (!Owner)
@@ -891,20 +891,20 @@ UMedComItemManager* USuspenseInventoryComponent::GetItemManager() const
         INVENTORY_LOG(Warning, TEXT("GetItemManager: No valid owner"));
         return nullptr;
     }
-    
+
     UGameInstance* GameInstance = Owner->GetGameInstance();
     if (!GameInstance)
     {
         INVENTORY_LOG(Warning, TEXT("GetItemManager: No valid game instance"));
         return nullptr;
     }
-    
+
     UMedComItemManager* Manager = GameInstance->GetSubsystem<UMedComItemManager>();
     if (Manager)
     {
         CachedItemManager = Manager;
     }
-    
+
     return Manager;
 }
 
@@ -918,19 +918,19 @@ int32 USuspenseInventoryComponent::CreateItemsFromSpawnData(const TArray<FPickup
     {
         return 0;
     }
-    
+
     int32 SuccessCount = 0;
-    
+
     for (const FPickupSpawnData& SpawnData : SpawnDataArray)
     {
         if (!SpawnData.IsValid())
         {
             continue;
         }
-        
+
         // Create inventory instance from spawn data
         FInventoryItemInstance Instance = SpawnData.CreateInventoryInstance();
-        
+
         // Add to inventory
         FInventoryOperationResult Result = AddItemInstance(Instance);
         if (Result.IsSuccess())
@@ -938,10 +938,10 @@ int32 USuspenseInventoryComponent::CreateItemsFromSpawnData(const TArray<FPickup
             SuccessCount++;
         }
     }
-    
-    INVENTORY_LOG(Log, TEXT("CreateItemsFromSpawnData: Created %d/%d items"), 
+
+    INVENTORY_LOG(Log, TEXT("CreateItemsFromSpawnData: Created %d/%d items"),
         SuccessCount, SpawnDataArray.Num());
-    
+
     return SuccessCount;
 }
 
@@ -951,18 +951,18 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
     {
         return 0;
     }
-    
+
     // Begin transaction
     BeginTransaction();
-    
+
     int32 FreedSlots = 0;
-    
+
     // Get all instances directly from storage
     TArray<FInventoryItemInstance> AllInstances = StorageComponent->GetAllItemInstances();
-    
+
     // Group instances by ID
     TMap<FName, TArray<int32>> InstanceIndicesByID;
-    
+
     for (int32 i = 0; i < AllInstances.Num(); i++)
     {
         const FInventoryItemInstance& Instance = AllInstances[i];
@@ -970,18 +970,18 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
         {
             continue;
         }
-        
+
         FName CurrentItemID = Instance.ItemID;
-        
+
         // Filter by specific ID if provided
         if (!ItemID.IsNone() && CurrentItemID != ItemID)
         {
             continue;
         }
-        
+
         InstanceIndicesByID.FindOrAdd(CurrentItemID).Add(i);
     }
-    
+
     // Get ItemManager for max stack size
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -989,7 +989,7 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
         RollbackTransaction();
         return 0;
     }
-    
+
     // Consolidate each item type
     for (auto& Pair : InstanceIndicesByID)
     {
@@ -998,37 +998,37 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
         {
             continue; // Nothing to consolidate
         }
-        
+
         // Get max stack size from DataTable
         FMedComUnifiedItemData ItemData;
         if (!ItemManager->GetUnifiedItemData(Pair.Key, ItemData))
         {
             continue;
         }
-        
+
         int32 MaxStack = ItemData.MaxStackSize;
         if (MaxStack <= 1)
         {
             continue; // Not stackable
         }
-        
+
         // Sort by quantity (descending)
         Indices.Sort([&AllInstances](const int32& A, const int32& B)
         {
             return AllInstances[A].Quantity > AllInstances[B].Quantity;
         });
-        
+
         // Consolidate stacks
         for (int32 i = 0; i < Indices.Num() - 1; i++)
         {
             FInventoryItemInstance& Target = AllInstances[Indices[i]];
             int32 TargetSpace = MaxStack - Target.Quantity;
-            
+
             if (TargetSpace <= 0)
             {
                 continue; // Target stack full
             }
-            
+
             // Try to fill from other stacks
             for (int32 j = i + 1; j < Indices.Num(); j++)
             {
@@ -1037,16 +1037,16 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
                 {
                     continue; // Already empty
                 }
-                
+
                 int32 TransferAmount = FMath::Min(Source.Quantity, TargetSpace);
-                
+
                 // Update quantities through storage
                 Target.Quantity += TransferAmount;
                 Source.Quantity -= TransferAmount;
-                
+
                 // Update instance in storage
                 StorageComponent->UpdateItemInstance(Target);
-                
+
                 // If source stack empty, remove it
                 if (Source.Quantity <= 0)
                 {
@@ -1060,9 +1060,9 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
                     // Update quantity in storage
                     StorageComponent->UpdateItemInstance(Source);
                 }
-                
+
                 TargetSpace -= TransferAmount;
-                
+
                 if (TargetSpace <= 0)
                 {
                     break; // Target stack now full
@@ -1070,16 +1070,16 @@ int32 USuspenseInventoryComponent::ConsolidateStacks(const FName& ItemID)
             }
         }
     }
-    
+
     // Commit transaction
     CommitTransaction();
-    
+
     // Update weight and broadcast
     UpdateCurrentWeight();
     BroadcastInventoryUpdated();
-    
+
     INVENTORY_LOG(Log, TEXT("ConsolidateStacks: Freed %d slots"), FreedSlots);
-    
+
     return FreedSlots;
 }
 
@@ -1094,7 +1094,7 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         return FInventoryOperationResult::Failure(
@@ -1104,14 +1104,14 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Get source instance
     FInventoryItemInstance SourceInstance;
     if (!StorageComponent->GetItemInstanceAt(SourceSlot, SourceInstance))
     {
         return FInventoryOperationResult::ItemNotFound(TEXT("SplitStack"));
     }
-    
+
     // Validate split quantity
     if (SplitQuantity <= 0 || SplitQuantity >= SourceInstance.Quantity)
     {
@@ -1123,7 +1123,7 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Check if item is stackable
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -1135,13 +1135,13 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     FMedComUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(SourceInstance.ItemID, ItemData))
     {
         return FInventoryOperationResult::ItemNotFound(TEXT("SplitStack"), SourceInstance.ItemID);
     }
-    
+
     if (ItemData.MaxStackSize <= 1)
     {
         return FInventoryOperationResult::Failure(
@@ -1151,7 +1151,7 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Check target slot is free
     if (!StorageComponent->AreCellsFreeForItem(TargetSlot, SourceInstance.ItemID, SourceInstance.bIsRotated))
     {
@@ -1162,16 +1162,16 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Begin transaction
     BeginTransaction();
-    
+
     // Create new instance for split stack
     FInventoryItemInstance SplitInstance = SourceInstance;
     SplitInstance.InstanceID = FGuid::NewGuid();
     SplitInstance.Quantity = SplitQuantity;
     SplitInstance.AnchorIndex = TargetSlot;
-    
+
     // Place new stack
     if (!StorageComponent->PlaceItemInstance(SplitInstance, TargetSlot))
     {
@@ -1183,7 +1183,7 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Update source stack
     SourceInstance.Quantity -= SplitQuantity;
     if (!StorageComponent->UpdateItemInstance(SourceInstance))
@@ -1196,23 +1196,23 @@ FInventoryOperationResult USuspenseInventoryComponent::SplitStack(int32 SourceSl
             nullptr
         );
     }
-    
+
     // Commit transaction
     CommitTransaction();
-    
+
     // Notify replicator
     NotifyItemPlaced(SplitInstance, TargetSlot);
-    
+
     // Broadcast events
     IMedComInventoryInterface::BroadcastItemAdded(this, SplitInstance, TargetSlot);
     BroadcastInventoryUpdated();
-    
+
     // Success result
     FInventoryOperationResult Result = FInventoryOperationResult::Success(TEXT("SplitStack"));
     Result.AddResultData(TEXT("SourceSlot"), FString::FromInt(SourceSlot));
     Result.AddResultData(TEXT("TargetSlot"), FString::FromInt(TargetSlot));
     Result.AddResultData(TEXT("SplitQuantity"), FString::FromInt(SplitQuantity));
-    
+
     return Result;
 }
 
@@ -1235,7 +1235,7 @@ bool USuspenseInventoryComponent::AddItemWithErrorCode(const FMedComUnifiedItemD
         OutErrorCode = EInventoryErrorCode::UnknownError;
         return false;
     }
-    
+
     // Validate components
     if (!StorageComponent || !ConstraintsComponent || !TransactionComponent)
     {
@@ -1243,7 +1243,7 @@ bool USuspenseInventoryComponent::AddItemWithErrorCode(const FMedComUnifiedItemD
         INVENTORY_LOG(Error, TEXT("Components not initialized"));
         return false;
     }
-    
+
     // Begin transaction
     if (!TransactionComponent->BeginTransaction(EInventoryTransactionType::Add, TEXT("AddItem")))
     {
@@ -1251,22 +1251,22 @@ bool USuspenseInventoryComponent::AddItemWithErrorCode(const FMedComUnifiedItemD
         INVENTORY_LOG(Error, TEXT("Failed to begin transaction"));
         return false;
     }
-    
+
     // ARCHITECTURE FIX: Pass WorldContextObject (this) as first parameter to InventoryUtils
     // This ensures ItemManager can be properly accessed for item data and initialization
     // Component inherits from UObject so 'this' is valid WorldContextObject
     FInventoryItemInstance NewInstance = InventoryUtils::CreateItemInstance(this, ItemData.ItemID, Amount);
-    
+
     // Apply any special properties from unified data
     if (ItemData.bIsWeapon && ItemData.AmmoType.IsValid())
     {
         // Weapon-specific initialization already handled by InventoryUtils
         INVENTORY_LOG(VeryVerbose, TEXT("Weapon with ammo type: %s"), *ItemData.AmmoType.ToString());
     }
-    
+
     // Add instance
     FInventoryOperationResult Result = AddItemInstance(NewInstance);
-    
+
     if (Result.IsSuccess())
     {
         TransactionComponent->CommitTransaction();
@@ -1294,25 +1294,25 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
         Server_RemoveItem(ItemID, Amount);
         return false;
     }
-    
+
     // Validate components
     if (!StorageComponent || !TransactionComponent)
     {
         INVENTORY_LOG(Error, TEXT("Components not initialized"));
         return false;
     }
-    
+
     // Begin transaction
     if (!TransactionComponent->BeginTransaction(EInventoryTransactionType::Remove, TEXT("RemoveItem")))
     {
         INVENTORY_LOG(Error, TEXT("Failed to begin transaction"));
         return false;
     }
-    
+
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
     TArray<FInventoryItemInstance> MatchingInstances;
     int32 RemainingAmount = Amount;
-    
+
     // Find matching instances
     for (const FInventoryItemInstance& Instance : AllInstances)
     {
@@ -1321,20 +1321,20 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
             MatchingInstances.Add(Instance);
         }
     }
-    
+
     if (MatchingInstances.Num() == 0)
     {
         TransactionComponent->RollbackTransaction();
         INVENTORY_LOG(Warning, TEXT("No items found with ID: %s"), *ItemID.ToString());
-        
-        IMedComInventoryInterface::BroadcastInventoryError(this, EInventoryErrorCode::ItemNotFound, 
+
+        IMedComInventoryInterface::BroadcastInventoryError(this, EInventoryErrorCode::ItemNotFound,
             FString::Printf(TEXT("Item not found: %s"), *ItemID.ToString()));
         return false;
     }
-    
+
     // Process removal
     float TotalWeightReduction = 0.0f;
-    
+
     // Get ItemManager for weight data
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -1342,21 +1342,21 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
         TransactionComponent->RollbackTransaction();
         return false;
     }
-    
+
     for (const FInventoryItemInstance& Instance : MatchingInstances)
     {
         if (RemainingAmount <= 0)
         {
             break;
         }
-        
+
         // Get item data for weight
         FMedComUnifiedItemData ItemData;
         if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
         {
             continue;
         }
-        
+
         if (Instance.Quantity <= RemainingAmount)
         {
             // Remove entire stack
@@ -1364,7 +1364,7 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
             {
                 RemainingAmount -= Instance.Quantity;
                 TotalWeightReduction += ItemData.Weight * Instance.Quantity;
-                
+
                 // Notify replicator
                 NotifyItemRemoved(Instance);
             }
@@ -1374,7 +1374,7 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
             // Remove part of stack
             FInventoryItemInstance UpdatedInstance = Instance;
             UpdatedInstance.Quantity -= RemainingAmount;
-            
+
             if (StorageComponent->UpdateItemInstance(UpdatedInstance))
             {
                 TotalWeightReduction += ItemData.Weight * RemainingAmount;
@@ -1382,25 +1382,25 @@ bool USuspenseInventoryComponent::RemoveItem(const FName& ItemID, int32 Amount)
             }
         }
     }
-    
+
     // Update weight
     CurrentWeight = FMath::Max(0.0f, CurrentWeight - TotalWeightReduction);
-    
+
     // Commit transaction
     if (!TransactionComponent->CommitTransaction())
     {
         INVENTORY_LOG(Error, TEXT("Failed to commit transaction"));
         return false;
     }
-    
+
     // Broadcast events
     if (EventsComponent)
     {
         EventsComponent->BroadcastItemRemoved(ItemID, Amount - RemainingAmount);
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     return RemainingAmount == 0;
 }
 
@@ -1420,20 +1420,20 @@ bool USuspenseInventoryComponent::CanReceiveItem_Implementation(const FMedComUni
     {
         return false;
     }
-    
+
     // Check allowed types
     if (!AllowedItemTypes.IsEmpty() && !AllowedItemTypes.HasTag(ItemData.ItemType))
     {
         return false;
     }
-    
+
     // Check weight limit
     float RequiredWeight = ItemData.Weight * Quantity;
     if (CurrentWeight + RequiredWeight > MaxWeight)
     {
         return false;
     }
-    
+
     // Check space - using proper method for finding free space
     FVector2D ItemSize(ItemData.GridSize.X, ItemData.GridSize.Y);
     int32 FreeSpace = FindFreeSpaceForItem(ItemSize, true);
@@ -1455,13 +1455,13 @@ void USuspenseInventoryComponent::SwapItemSlots(int32 SlotIndex1, int32 SlotInde
     {
         return;
     }
-    
+
     if (SlotIndex1 == SlotIndex2)
     {
         INVENTORY_LOG(Warning, TEXT("Cannot swap slot with itself"));
         return;
     }
-    
+
     EInventoryErrorCode ErrorCode;
     if (!ExecuteSlotSwap(SlotIndex1, SlotIndex2, ErrorCode))
     {
@@ -1475,12 +1475,12 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
     {
         return INDEX_NONE;
     }
-    
+
     // Since we don't have ItemID, we must manually scan the grid
     FVector2D GridSize = GetInventorySize();
     int32 GridWidth = FMath::FloorToInt(GridSize.X);
     int32 GridHeight = FMath::FloorToInt(GridSize.Y);
-    
+
     // Search for free space in normal orientation
     for (int32 Y = 0; Y <= GridHeight - FMath::CeilToInt(ItemSize.Y); Y++)
     {
@@ -1489,22 +1489,22 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
             int32 TestIndex = Y * GridWidth + X;
             // Check all cells this item would occupy
             bool bAllCellsFree = true;
-            
+
             for (int32 ItemY = 0; ItemY < FMath::CeilToInt(ItemSize.Y) && bAllCellsFree; ItemY++)
             {
                 for (int32 ItemX = 0; ItemX < FMath::CeilToInt(ItemSize.X); ItemX++)
                 {
                     int32 CellX = X + ItemX;
                     int32 CellY = Y + ItemY;
-                    
+
                     if (CellX >= GridWidth || CellY >= GridHeight)
                     {
                         bAllCellsFree = false;
                         break;
                     }
-                    
+
                     int32 CellIndex = CellY * GridWidth + CellX;
-                    
+
                     // Check if cell is occupied
                     FInventoryItemInstance TestInstance;
                     if (StorageComponent->GetItemInstanceAt(CellIndex, TestInstance))
@@ -1514,19 +1514,19 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
                     }
                 }
             }
-            
+
             if (bAllCellsFree)
             {
                 return TestIndex;
             }
         }
     }
-    
+
     // Try rotated if allowed and normal didn't work
     if (bAllowRotation && ItemSize.X != ItemSize.Y)
     {
         FVector2D RotatedSize(ItemSize.Y, ItemSize.X);
-        
+
         // Search for free space in rotated orientation
         for (int32 Y = 0; Y <= GridHeight - FMath::CeilToInt(RotatedSize.Y); Y++)
         {
@@ -1535,22 +1535,22 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
                 int32 TestIndex = Y * GridWidth + X;
                 // Check all cells for rotated item
                 bool bAllCellsFree = true;
-                
+
                 for (int32 ItemY = 0; ItemY < FMath::CeilToInt(RotatedSize.Y) && bAllCellsFree; ItemY++)
                 {
                     for (int32 ItemX = 0; ItemX < FMath::CeilToInt(RotatedSize.X); ItemX++)
                     {
                         int32 CellX = X + ItemX;
                         int32 CellY = Y + ItemY;
-                        
+
                         if (CellX >= GridWidth || CellY >= GridHeight)
                         {
                             bAllCellsFree = false;
                             break;
                         }
-                        
+
                         int32 CellIndex = CellY * GridWidth + CellX;
-                        
+
                         // Check if cell is occupied
                         FInventoryItemInstance TestInstance;
                         if (StorageComponent->GetItemInstanceAt(CellIndex, TestInstance))
@@ -1560,7 +1560,7 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
                         }
                     }
                 }
-                
+
                 if (bAllCellsFree)
                 {
                     return TestIndex;
@@ -1568,7 +1568,7 @@ int32 USuspenseInventoryComponent::FindFreeSpaceForItem(const FVector2D& ItemSiz
             }
         }
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -1578,29 +1578,29 @@ bool USuspenseInventoryComponent::CanPlaceItemAtSlot(const FVector2D& ItemSize, 
     {
         return false;
     }
-    
+
     FVector2D GridSize = GetInventorySize();
     int32 GridWidth = FMath::FloorToInt(GridSize.X);
     int32 GridHeight = FMath::FloorToInt(GridSize.Y);
-    
+
     // Get slot coordinates
     int32 SlotX = SlotIndex % GridWidth;
     int32 SlotY = SlotIndex / GridWidth;
-    
+
     // Check boundaries
-    if (SlotX + FMath::CeilToInt(ItemSize.X) > GridWidth || 
+    if (SlotX + FMath::CeilToInt(ItemSize.X) > GridWidth ||
         SlotY + FMath::CeilToInt(ItemSize.Y) > GridHeight)
     {
         return false;
     }
-    
+
     // Check all cells
     for (int32 Y = 0; Y < FMath::CeilToInt(ItemSize.Y); Y++)
     {
         for (int32 X = 0; X < FMath::CeilToInt(ItemSize.X); X++)
         {
             int32 CheckIndex = (SlotY + Y) * GridWidth + (SlotX + X);
-            
+
             FInventoryItemInstance TestInstance;
             if (StorageComponent->GetItemInstanceAt(CheckIndex, TestInstance))
             {
@@ -1608,26 +1608,26 @@ bool USuspenseInventoryComponent::CanPlaceItemAtSlot(const FVector2D& ItemSize, 
             }
         }
     }
-    
+
     // Check rotated if allowed
     if (!bIgnoreRotation && ItemSize.X != ItemSize.Y)
     {
         FVector2D RotatedSize(ItemSize.Y, ItemSize.X);
-        
+
         // Check boundaries for rotated item
-        if (SlotX + FMath::CeilToInt(RotatedSize.X) > GridWidth || 
+        if (SlotX + FMath::CeilToInt(RotatedSize.X) > GridWidth ||
             SlotY + FMath::CeilToInt(RotatedSize.Y) > GridHeight)
         {
             return false;
         }
-        
+
         // Check all cells for rotated item
         for (int32 Y = 0; Y < FMath::CeilToInt(RotatedSize.Y); Y++)
         {
             for (int32 X = 0; X < FMath::CeilToInt(RotatedSize.X); X++)
             {
                 int32 CheckIndex = (SlotY + Y) * GridWidth + (SlotX + X);
-                
+
                 FInventoryItemInstance TestInstance;
                 if (StorageComponent->GetItemInstanceAt(CheckIndex, TestInstance))
                 {
@@ -1636,7 +1636,7 @@ bool USuspenseInventoryComponent::CanPlaceItemAtSlot(const FVector2D& ItemSize, 
             }
         }
     }
-    
+
     return true;
 }
 
@@ -1646,7 +1646,7 @@ bool USuspenseInventoryComponent::TryAutoPlaceItemInstance(const FInventoryItemI
     {
         return false;
     }
-    
+
     // Try to add through storage with automatic placement
     FInventoryOperationResult Result = AddItemInstance(ItemInstance);
     return Result.IsSuccess();
@@ -1663,20 +1663,20 @@ bool USuspenseInventoryComponent::MoveItemBySlots_Implementation(int32 FromSlot,
     {
         return true;
     }
-    
+
     // Check authority
     if (!CheckAuthority(TEXT("MoveItemBySlots")))
     {
         return false;
     }
-    
+
     // Check initialization
     if (!StorageComponent || !bIsInitialized)
     {
         UE_LOG(LogInventory, Error, TEXT("MoveItemBySlots: Storage not initialized"));
         return false;
     }
-    
+
     // Get instance from source slot
     FInventoryItemInstance SourceInstance;
     if (!StorageComponent->GetItemInstanceAt(FromSlot, SourceInstance))
@@ -1684,17 +1684,17 @@ bool USuspenseInventoryComponent::MoveItemBySlots_Implementation(int32 FromSlot,
         UE_LOG(LogInventory, Warning, TEXT("MoveItemBySlots: No item at source slot %d"), FromSlot);
         return false;
     }
-    
+
     // Check if target slot has item
     FInventoryItemInstance TargetInstance;
     bool bHasTargetItem = StorageComponent->GetItemInstanceAt(ToSlot, TargetInstance);
-    
+
     if (bHasTargetItem)
     {
         // Target has item - execute swap
-        UE_LOG(LogInventory, Log, TEXT("MoveItemBySlots: Swapping items between slots %d and %d"), 
+        UE_LOG(LogInventory, Log, TEXT("MoveItemBySlots: Swapping items between slots %d and %d"),
             FromSlot, ToSlot);
-        
+
         // Use ExecuteSlotSwap for swap
         EInventoryErrorCode ErrorCode;
         return ExecuteSlotSwap(FromSlot, ToSlot, ErrorCode);
@@ -1702,43 +1702,43 @@ bool USuspenseInventoryComponent::MoveItemBySlots_Implementation(int32 FromSlot,
     else
     {
         // Target empty - simple move
-        UE_LOG(LogInventory, Log, TEXT("MoveItemBySlots: Moving item from slot %d to empty slot %d"), 
+        UE_LOG(LogInventory, Log, TEXT("MoveItemBySlots: Moving item from slot %d to empty slot %d"),
             FromSlot, ToSlot);
-        
+
         // Determine desired rotation
         bool bDesiredRotation = bMaintainRotation ? SourceInstance.bIsRotated : false;
-        
+
         // Use Storage method for move
         if (!StorageComponent->MoveItem(SourceInstance.InstanceID, ToSlot, !bMaintainRotation))
         {
             UE_LOG(LogInventory, Warning, TEXT("MoveItemBySlots: Move failed"));
             return false;
         }
-        
+
         // Get updated instance
         FInventoryItemInstance UpdatedInstance;
         if (StorageComponent->GetItemInstance(SourceInstance.InstanceID, UpdatedInstance))
         {
             // Notify replicator
             NotifyItemPlaced(UpdatedInstance, ToSlot);
-            
+
             // Broadcast event
             if (EventsComponent)
             {
                 EventsComponent->BroadcastItemMoved(SourceInstance.InstanceID, UpdatedInstance.ItemID, FromSlot, ToSlot);
             }
-            
+
             // Send event through interface
             IMedComInventoryInterface::BroadcastItemMoved(this, UpdatedInstance.InstanceID, FromSlot, ToSlot, UpdatedInstance.bIsRotated);
         }
     }
-    
+
     // Update weight (in case of modifiers)
     UpdateCurrentWeight();
-    
+
     // Update UI
     BroadcastInventoryUpdated();
-    
+
     UE_LOG(LogInventory, Log, TEXT("MoveItemBySlots: Successfully completed"));
     return true;
 }
@@ -1749,21 +1749,21 @@ bool USuspenseInventoryComponent::MoveItemInstance(const FGuid& InstanceID, int3
     {
         return false;
     }
-    
+
     if (!InstanceID.IsValid() || !StorageComponent || !bIsInitialized)
     {
         return false;
     }
-    
+
     // Get current instance
     FInventoryItemInstance CurrentInstance;
     if (!StorageComponent->GetItemInstance(InstanceID, CurrentInstance))
     {
         return false;
     }
-    
+
     int32 OldSlot = CurrentInstance.AnchorIndex;
-    
+
     // Perform move
     if (StorageComponent->MoveItem(InstanceID, NewSlot, bAllowRotation))
     {
@@ -1773,18 +1773,18 @@ bool USuspenseInventoryComponent::MoveItemInstance(const FGuid& InstanceID, int3
         {
             // Notify replicator
             NotifyItemPlaced(UpdatedInstance, NewSlot);
-            
+
             // Broadcast events
             if (EventsComponent)
             {
                 EventsComponent->BroadcastItemMoved(InstanceID, UpdatedInstance.ItemID, OldSlot, NewSlot);
             }
-            
+
             BroadcastInventoryUpdated();
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -1794,39 +1794,39 @@ bool USuspenseInventoryComponent::CanMoveItemToSlot_Implementation(int32 FromSlo
     {
         return true;
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         return false;
     }
-    
+
     // Get instance from source slot
     FInventoryItemInstance SourceInstance;
     if (!StorageComponent->GetItemInstanceAt(FromSlot, SourceInstance))
     {
         return false;
     }
-    
+
     // Get item size
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
-    
+
     FMedComUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(SourceInstance.ItemID, ItemData))
     {
         return false;
     }
-    
+
     FVector2D ItemSize(ItemData.GridSize.X, ItemData.GridSize.Y);
     if (!bMaintainRotation && SourceInstance.bIsRotated)
     {
         // Will be unrotated
         ItemSize = FVector2D(ItemSize.Y, ItemSize.X);
     }
-    
+
     return CanPlaceItemAtSlot(ItemSize, ToSlot, true);
 }
 
@@ -1865,12 +1865,12 @@ FVector2D USuspenseInventoryComponent::GetInventorySize() const
     {
         return ReplicatedGridSize;
     }
-    
+
     if (StorageComponent)
     {
         return StorageComponent->GetGridSize();
     }
-    
+
     return ReplicatedGridSize;
 }
 
@@ -1880,33 +1880,33 @@ bool USuspenseInventoryComponent::GetItemInstanceAtSlot(int32 SlotIndex, FInvent
     {
         return false;
     }
-    
+
     // Get instance from storage
     if (!StorageComponent->GetItemInstanceAt(SlotIndex, OutInstance))
     {
         return false;
     }
-    
+
     // Verify slot is anchor position
     if (OutInstance.AnchorIndex != SlotIndex)
     {
         return false;
     }
-    
+
     return true;
 }
 
 int32 USuspenseInventoryComponent::GetItemCountByID(const FName& ItemID) const
 {
     int32 TotalCount = 0;
-    
+
     if (!bIsInitialized || ItemID.IsNone())
     {
         return TotalCount;
     }
-    
+
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
+
     for (const FInventoryItemInstance& Instance : AllInstances)
     {
         if (Instance.IsValid() && Instance.ItemID == ItemID)
@@ -1914,27 +1914,27 @@ int32 USuspenseInventoryComponent::GetItemCountByID(const FName& ItemID) const
             TotalCount += Instance.Quantity;
         }
     }
-    
+
     return TotalCount;
 }
 
 TArray<FInventoryItemInstance> USuspenseInventoryComponent::FindItemInstancesByType(const FGameplayTag& ItemType) const
 {
     TArray<FInventoryItemInstance> Result;
-    
+
     if (!bIsInitialized || !ItemType.IsValid())
     {
         return Result;
     }
-    
+
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
+
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return Result;
     }
-    
+
     // For each instance check type
     for (const FInventoryItemInstance& Instance : AllInstances)
     {
@@ -1942,7 +1942,7 @@ TArray<FInventoryItemInstance> USuspenseInventoryComponent::FindItemInstancesByT
         {
             continue;
         }
-        
+
         // Get item data to check type
         FMedComUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
@@ -1953,7 +1953,7 @@ TArray<FInventoryItemInstance> USuspenseInventoryComponent::FindItemInstancesByT
             }
         }
     }
-    
+
     return Result;
 }
 
@@ -1963,7 +1963,7 @@ int32 USuspenseInventoryComponent::GetTotalItemCount() const
     {
         return 0;
     }
-    
+
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
     return AllInstances.Num();
 }
@@ -1984,13 +1984,13 @@ bool USuspenseInventoryComponent::SwapItemsInSlots(int32 Slot1, int32 Slot2, EIn
         OutErrorCode = EInventoryErrorCode::Success;
         return true;
     }
-    
+
     if (!CheckAuthority(TEXT("SwapItemsInSlots")))
     {
         OutErrorCode = EInventoryErrorCode::UnknownError;
         return false;
     }
-    
+
     return ExecuteSlotSwap(Slot1, Slot2, OutErrorCode);
 }
 
@@ -2000,31 +2000,31 @@ bool USuspenseInventoryComponent::CanSwapSlots(int32 Slot1, int32 Slot2) const
     {
         return false;
     }
-    
+
     // Get instances from slots
     FInventoryItemInstance Instance1, Instance2;
     bool bHasItem1 = StorageComponent->GetItemInstanceAt(Slot1, Instance1);
     bool bHasItem2 = StorageComponent->GetItemInstanceAt(Slot2, Instance2);
-    
+
     // If both empty
     if (!bHasItem1 && !bHasItem2)
     {
         return false;
     }
-    
+
     // If one empty - just move
     if (!bHasItem1 || !bHasItem2)
     {
         return true;
     }
-    
+
     // Both occupied - check swap possibility
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
-    
+
     // Get item sizes
     FMedComUnifiedItemData Data1, Data2;
     if (!ItemManager->GetUnifiedItemData(Instance1.ItemID, Data1) ||
@@ -2032,10 +2032,10 @@ bool USuspenseInventoryComponent::CanSwapSlots(int32 Slot1, int32 Slot2) const
     {
         return false;
     }
-    
+
     FVector2D Size1(Data1.GridSize.X, Data1.GridSize.Y);
     FVector2D Size2(Data2.GridSize.X, Data2.GridSize.Y);
-    
+
     if (Instance1.bIsRotated)
     {
         Size1 = FVector2D(Size1.Y, Size1.X);
@@ -2044,13 +2044,13 @@ bool USuspenseInventoryComponent::CanSwapSlots(int32 Slot1, int32 Slot2) const
     {
         Size2 = FVector2D(Size2.Y, Size2.X);
     }
-    
+
     // Simple check for 1x1 items
     if (Size1.X == 1 && Size1.Y == 1 && Size2.X == 1 && Size2.Y == 1)
     {
         return true;
     }
-    
+
     // More complex validation needed for larger items
     return true;
 }
@@ -2061,23 +2061,23 @@ bool USuspenseInventoryComponent::RotateItemAtSlot(int32 SlotIndex)
     {
         return false;
     }
-    
+
     // Get instance from slot
     FInventoryItemInstance Instance;
     if (!StorageComponent->GetItemInstanceAt(SlotIndex, Instance))
     {
         return false;
     }
-    
+
     // Check if rotation possible
     if (!CanRotateItemAtSlot(SlotIndex))
     {
         return false;
     }
-    
+
     // Update rotation state
     Instance.bIsRotated = !Instance.bIsRotated;
-    
+
     // Apply changes
     if (StorageComponent->UpdateItemInstance(Instance))
     {
@@ -2086,11 +2086,11 @@ bool USuspenseInventoryComponent::RotateItemAtSlot(int32 SlotIndex)
         {
             EventsComponent->BroadcastItemRotated(Instance.InstanceID, SlotIndex, Instance.bIsRotated);
         }
-        
+
         BroadcastInventoryUpdated();
         return true;
     }
-    
+
     return false;
 }
 
@@ -2100,42 +2100,42 @@ bool USuspenseInventoryComponent::CanRotateItemAtSlot(int32 SlotIndex) const
     {
         return false;
     }
-    
+
     // Get instance
     FInventoryItemInstance Instance;
     if (!StorageComponent->GetItemInstanceAt(SlotIndex, Instance))
     {
         return false;
     }
-    
+
     // Get item size
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
-    
+
     FMedComUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
     {
         return false;
     }
-    
+
     // Square items cannot rotate
     if (ItemData.GridSize.X == ItemData.GridSize.Y)
     {
         return false;
     }
-    
+
     // Check if rotated item fits
     FVector2D CurrentSize(ItemData.GridSize.X, ItemData.GridSize.Y);
     if (Instance.bIsRotated)
     {
         CurrentSize = FVector2D(CurrentSize.Y, CurrentSize.X);
     }
-    
+
     FVector2D RotatedSize(CurrentSize.Y, CurrentSize.X);
-    
+
     // Check with exclusion of same item
     return ValidateItemPlacement(RotatedSize, SlotIndex, Instance.InstanceID);
 }
@@ -2144,7 +2144,7 @@ void USuspenseInventoryComponent::RefreshItemsUI()
 {
     // Broadcast general update
     BroadcastInventoryUpdated();
-    
+
     // Notify UI connector
     if (UIAdapter)
     {
@@ -2198,7 +2198,7 @@ bool USuspenseInventoryComponent::InitializeFromLoadout(const FName& LoadoutID, 
         INVENTORY_LOG(Error, TEXT("InitializeFromLoadout: InventoryManager not available"));
         return false;
     }
-    
+
     // Get loadout configuration
     FLoadoutConfiguration LoadoutConfig;
     if (!InvManager->GetLoadoutConfiguration(LoadoutID, LoadoutConfig))
@@ -2206,7 +2206,7 @@ bool USuspenseInventoryComponent::InitializeFromLoadout(const FName& LoadoutID, 
         INVENTORY_LOG(Warning, TEXT("InitializeFromLoadout: Loadout '%s' not found"), *LoadoutID.ToString());
         return false;
     }
-    
+
     // Get inventory config
     const FInventoryConfig* InvConfig = LoadoutConfig.GetInventoryConfig(InventoryName);
     if (!InvConfig)
@@ -2214,13 +2214,13 @@ bool USuspenseInventoryComponent::InitializeFromLoadout(const FName& LoadoutID, 
         INVENTORY_LOG(Error, TEXT("InitializeFromLoadout: Inventory '%s' not found in loadout"), *InventoryName.ToString());
         return false;
     }
-    
+
     // Initialize components
     if (!StorageComponent)
     {
         InitializeSubComponents();
     }
-    
+
     // Server initialization
     if (GetOwnerRole() == ROLE_Authority)
     {
@@ -2230,53 +2230,53 @@ bool USuspenseInventoryComponent::InitializeFromLoadout(const FName& LoadoutID, 
             INVENTORY_LOG(Error, TEXT("Failed to initialize storage grid"));
             return false;
         }
-        
+
         // Set properties
         MaxWeight = InvConfig->MaxWeight;
         CurrentWeight = 0.0f;
         AllowedItemTypes = InvConfig->AllowedItemTypes;
         CurrentLoadoutID = LoadoutID;
         CurrentInventoryName = InventoryName;
-        
+
         // Store for replication
         ReplicatedGridSize = FVector2D(InvConfig->Width, InvConfig->Height);
-        
+
         // Initialize constraints
         if (ConstraintsComponent)
         {
             ConstraintsComponent->Initialize(MaxWeight, AllowedItemTypes, InvConfig->Width, InvConfig->Height);
         }
-        
+
         // Initialize replicator
         if (ReplicatorComponent)
         {
             ReplicatorComponent->Initialize(InvConfig->Width, InvConfig->Height);
         }
-        
+
         // Mark as initialized
         bIsInitialized = true;
         bIsInitializedReplicated = true;
-        
+
         // Cache loadout config
         CachedLoadoutConfig = LoadoutConfig;
-        
+
         // Create starting items
         if (InvConfig->StartingItems.Num() > 0)
         {
             CreateItemsFromSpawnData(InvConfig->StartingItems);
         }
-        
+
         // Broadcast initialization
         if (EventsComponent)
         {
             EventsComponent->BroadcastInitialized();
         }
-        
+
         BroadcastInventoryUpdated();
-        
-        INVENTORY_LOG(Log, TEXT("Initialized from loadout '%s', inventory '%s'"), 
+
+        INVENTORY_LOG(Log, TEXT("Initialized from loadout '%s', inventory '%s'"),
             *LoadoutID.ToString(), *InventoryName.ToString());
-        
+
         return true;
     }
     else
@@ -2294,67 +2294,67 @@ bool USuspenseInventoryComponent::InitializeWithSimpleSettings(int32 Width, int3
         INVENTORY_LOG(Warning, TEXT("InitializeWithSimpleSettings: Only server can initialize inventory"));
         return false;
     }
-    
+
     INVENTORY_LOG(Log, TEXT("InitializeWithSimpleSettings: Simple initialization %dx%d, weight:%.1f"), Width, Height, MaxWeightLimit);
-    
+
     // Initialize components if needed
     if (!StorageComponent)
     {
         InitializeSubComponents();
     }
-    
+
     // Validate parameters
     if (Width <= 0 || Height <= 0 || MaxWeightLimit <= 0.0f)
     {
-        INVENTORY_LOG(Error, TEXT("InitializeWithSimpleSettings: Invalid parameters - Width:%d, Height:%d, Weight:%.1f"), 
+        INVENTORY_LOG(Error, TEXT("InitializeWithSimpleSettings: Invalid parameters - Width:%d, Height:%d, Weight:%.1f"),
             Width, Height, MaxWeightLimit);
         return false;
     }
-    
+
     // Initialize storage component
     if (!StorageComponent->InitializeGrid(Width, Height, MaxWeightLimit))
     {
         INVENTORY_LOG(Error, TEXT("InitializeWithSimpleSettings: Failed to initialize storage grid"));
         return false;
     }
-    
+
     // Set basic properties
     MaxWeight = MaxWeightLimit;
     CurrentWeight = 0.0f;
     AllowedItemTypes = AllowedTypes;
-    
+
     // Store for replication
     ReplicatedGridSize = FVector2D(Width, Height);
-    
+
     // Initialize constraints using the proper method
     if (ConstraintsComponent)
     {
         ConstraintsComponent->Initialize(MaxWeight, AllowedItemTypes, Width, Height);
     }
-    
+
     // Initialize replicator if available
     if (ReplicatorComponent)
     {
         UMedComItemManager* ItemManager = GetItemManager();
         ReplicatorComponent->Initialize(Width, Height, ItemManager);
     }
-    
+
     // Mark as initialized
     bIsInitialized = true;
     bIsInitializedReplicated = true;
-    
+
     // Clear loadout info since this is simple initialization
     CurrentLoadoutID = NAME_None;
     CurrentInventoryName = NAME_None;
-    
+
     // Broadcast initialization
     if (EventsComponent)
     {
         EventsComponent->BroadcastInitialized();
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     INVENTORY_LOG(Log, TEXT("InitializeWithSimpleSettings: Successfully initialized inventory %dx%d"), Width, Height);
     return true;
 }
@@ -2365,25 +2365,25 @@ void USuspenseInventoryComponent::SetMaxWeight(float NewMaxWeight)
     {
         return;
     }
-    
+
     if (NewMaxWeight <= 0.0f)
     {
         INVENTORY_LOG(Warning, TEXT("Invalid max weight: %.1f"), NewMaxWeight);
         return;
     }
-    
+
     MaxWeight = NewMaxWeight;
-    
+
     if (ConstraintsComponent)
     {
         ConstraintsComponent->SetMaxWeight(MaxWeight);
     }
-    
+
     if (GASIntegration)
     {
         GASIntegration->UpdateWeightEffect(CurrentWeight);
     }
-    
+
     // Broadcast weight change
     UEventDelegateManager* Manager = GetDelegateManager();
     if (Manager)
@@ -2392,7 +2392,7 @@ void USuspenseInventoryComponent::SetMaxWeight(float NewMaxWeight)
         FString EventData = FString::Printf(TEXT("Current:%.1f,Max:%.1f"), CurrentWeight, MaxWeight);
         Manager->NotifyEquipmentEvent(this, EventTag, EventData);
     }
-    
+
     if (EventsComponent)
     {
         EventsComponent->BroadcastWeightChanged(CurrentWeight);
@@ -2410,9 +2410,9 @@ void USuspenseInventoryComponent::SetAllowedItemTypes(const FGameplayTagContaine
     {
         return;
     }
-    
+
     AllowedItemTypes = Types;
-    
+
     // Update constraints component using the proper Initialize method
     // This follows the same pattern as InitializeFromLoadout
     if (ConstraintsComponent && bIsInitialized)
@@ -2421,11 +2421,11 @@ void USuspenseInventoryComponent::SetAllowedItemTypes(const FGameplayTagContaine
         FVector2D CurrentGridSize = GetInventorySize();
         int32 Width = FMath::FloorToInt(CurrentGridSize.X);
         int32 Height = FMath::FloorToInt(CurrentGridSize.Y);
-        
+
         // Re-initialize constraints with new allowed types
         // This ensures all constraint rules are properly updated
         ConstraintsComponent->Initialize(MaxWeight, AllowedItemTypes, Width, Height);
-        
+
         INVENTORY_LOG(Log, TEXT("SetAllowedItemTypes: Updated constraints with new allowed types"));
     }
     else if (!bIsInitialized)
@@ -2442,100 +2442,100 @@ void USuspenseInventoryComponent::InitializeInventory(const FInventoryConfig& Co
         INVENTORY_LOG(Warning, TEXT("InitializeInventory: Only server can initialize inventory"));
         return;
     }
-    
+
     // Log initialization start
-    INVENTORY_LOG(Log, TEXT("InitializeInventory: Starting initialization - %s, Size: %dx%d, Weight: %.1f"), 
+    INVENTORY_LOG(Log, TEXT("InitializeInventory: Starting initialization - %s, Size: %dx%d, Weight: %.1f"),
         *Config.InventoryName.ToString(), Config.Width, Config.Height, Config.MaxWeight);
-    
+
     // Validate configuration
     if (!Config.IsValid())
     {
         INVENTORY_LOG(Error, TEXT("InitializeInventory: Invalid inventory configuration"));
         return;
     }
-    
+
     // Check if already initialized
     if (bIsInitialized)
     {
         INVENTORY_LOG(Warning, TEXT("InitializeInventory: Inventory already initialized. Skipping re-initialization."));
         return;
     }
-    
+
     // Initialize components if not created
     if (!StorageComponent)
     {
         InitializeSubComponents();
     }
-    
+
     // Initialize storage with sizes from configuration
     if (!StorageComponent->InitializeGrid(Config.Width, Config.Height, Config.MaxWeight))
     {
         INVENTORY_LOG(Error, TEXT("InitializeInventory: Failed to initialize storage grid"));
         return;
     }
-    
+
     // Set basic properties from configuration
     MaxWeight = Config.MaxWeight;
     CurrentWeight = 0.0f;
     AllowedItemTypes = Config.AllowedItemTypes;
-    
+
     // Save grid size for client replication
     ReplicatedGridSize = FVector2D(Config.Width, Config.Height);
-    
+
     // Initialize constraint system
     if (ConstraintsComponent)
     {
         ConstraintsComponent->Initialize(MaxWeight, AllowedItemTypes, Config.Width, Config.Height);
     }
-    
+
     // Initialize replicator for multiplayer
     if (ReplicatorComponent)
     {
         UMedComItemManager* ItemManager = GetItemManager();
         ReplicatorComponent->Initialize(Config.Width, Config.Height, ItemManager);
     }
-    
+
     // Set initialization flags
     bIsInitialized = true;
     bIsInitializedReplicated = true;
-    
+
     // Clear loadout info since using direct initialization
     CurrentLoadoutID = NAME_None;
     CurrentInventoryName = NAME_None;
-    
+
     // Create starting items if specified
     if (Config.StartingItems.Num() > 0)
     {
-        INVENTORY_LOG(Log, TEXT("InitializeInventory: Creating %d starting items"), 
+        INVENTORY_LOG(Log, TEXT("InitializeInventory: Creating %d starting items"),
             Config.StartingItems.Num());
-        
+
         int32 CreatedCount = CreateItemsFromSpawnData(Config.StartingItems);
-        
+
         if (CreatedCount != Config.StartingItems.Num())
         {
-            INVENTORY_LOG(Warning, TEXT("InitializeInventory: Created only %d of %d starting items"), 
+            INVENTORY_LOG(Warning, TEXT("InitializeInventory: Created only %d of %d starting items"),
                 CreatedCount, Config.StartingItems.Num());
         }
     }
-    
+
     // Apply additional restrictions from configuration
     if (!Config.DisallowedItemTypes.IsEmpty())
     {
-        INVENTORY_LOG(Log, TEXT("InitializeInventory: Applied DisallowedItemTypes restrictions (%d types)"), 
+        INVENTORY_LOG(Log, TEXT("InitializeInventory: Applied DisallowedItemTypes restrictions (%d types)"),
             Config.DisallowedItemTypes.Num());
     }
-    
+
     // Notify subsystems about completion
     if (EventsComponent)
     {
         EventsComponent->BroadcastInitialized();
     }
-    
+
     // Broadcast general inventory update
     BroadcastInventoryUpdated();
-    
+
     // Final message about successful initialization
-    INVENTORY_LOG(Log, TEXT("InitializeInventory: Inventory '%s' successfully initialized. Size: %dx%d, Max weight: %.1f kg"), 
+    INVENTORY_LOG(Log, TEXT("InitializeInventory: Inventory '%s' successfully initialized. Size: %dx%d, Max weight: %.1f kg"),
         *Config.InventoryName.ToString(), Config.Width, Config.Height, Config.MaxWeight);
 }
 
@@ -2550,14 +2550,14 @@ void USuspenseInventoryComponent::BroadcastInventoryUpdated()
     if (Manager)
     {
         Manager->NotifyEquipmentUpdated();
-        
+
         FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"));
         Manager->NotifyUIEvent(this, UpdateTag, TEXT(""));
     }
-    
+
     // Broadcast local delegate
     OnInventoryUpdated.Broadcast();
-    
+
     // Request replication update
     if (ReplicatorComponent)
     {
@@ -2565,28 +2565,28 @@ void USuspenseInventoryComponent::BroadcastInventoryUpdated()
     }
 }
 
-UEventDelegateManager* USuspenseInventoryComponent::GetDelegateManager() const
+USuspenseEventManager* USuspenseInventoryComponent::GetDelegateManager() const
 {
     if (CachedDelegateManager.IsValid())
     {
         return CachedDelegateManager.Get();
     }
-    
-    UEventDelegateManager* Manager = IMedComInventoryInterface::GetDelegateManagerStatic(this);
+
+    USuspenseEventManager* Manager = ISuspenseInventory::GetDelegateManagerStatic(this);
     if (Manager)
     {
         CachedDelegateManager = Manager;
     }
-    
+
     return Manager;
 }
 
-void USuspenseInventoryComponent::BindToInventoryUpdates(const FOnInventoryUpdated::FDelegate& Delegate)
+void USuspenseInventoryComponent::BindToInventoryUpdates(const FSuspenseOnInventoryUpdated::FDelegate& Delegate)
 {
     OnInventoryUpdated.Add(Delegate);
 }
 
-void USuspenseInventoryComponent::UnbindFromInventoryUpdates(const FOnInventoryUpdated::FDelegate& Delegate)
+void USuspenseInventoryComponent::UnbindFromInventoryUpdates(const FSuspenseOnInventoryUpdated::FDelegate& Delegate)
 {
     OnInventoryUpdated.Remove(Delegate);
 }
@@ -2601,7 +2601,7 @@ bool USuspenseInventoryComponent::GetInventoryCoordinates(int32 Index, int32& Ou
     {
         return StorageComponent->GetGridCoordinates(Index, OutX, OutY);
     }
-    
+
     OutX = -1;
     OutY = -1;
     return false;
@@ -2617,7 +2617,7 @@ int32 USuspenseInventoryComponent::GetIndexFromCoordinates(int32 X, int32 Y) con
             return Index;
         }
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -2631,24 +2631,24 @@ int32 USuspenseInventoryComponent::GetFlatIndexForItem(int32 AnchorIndex, const 
 TArray<int32> USuspenseInventoryComponent::GetOccupiedSlots(int32 AnchorIndex, const FVector2D& ItemSize, bool bIsRotated) const
 {
     TArray<int32> OccupiedSlots;
-    
+
     if (!StorageComponent || AnchorIndex == INDEX_NONE)
     {
         return OccupiedSlots;
     }
-    
+
     // Get grid coordinates
     int32 AnchorX, AnchorY;
     if (!StorageComponent->GetGridCoordinates(AnchorIndex, AnchorX, AnchorY))
     {
         return OccupiedSlots;
     }
-    
+
     // Calculate size
     FVector2D EffectiveSize = bIsRotated ? FVector2D(ItemSize.Y, ItemSize.X) : ItemSize;
     int32 Width = FMath::CeilToInt(EffectiveSize.X);
     int32 Height = FMath::CeilToInt(EffectiveSize.Y);
-    
+
     // Get all occupied slots
     for (int32 Y = 0; Y < Height; Y++)
     {
@@ -2661,7 +2661,7 @@ TArray<int32> USuspenseInventoryComponent::GetOccupiedSlots(int32 AnchorIndex, c
             }
         }
     }
-    
+
     return OccupiedSlots;
 }
 
@@ -2682,89 +2682,89 @@ FString USuspenseInventoryComponent::GetInventoryDebugInfo() const
         *CurrentLoadoutID.ToString(),
         *CurrentInventoryName.ToString()
     );
-    
+
     // Add item details
-    TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
+    TArray<FSuspenseInventoryItemInstance> AllInstances = GetAllItemInstances();
     if (AllInstances.Num() > 0)
     {
         DebugInfo += TEXT("\nItems:\n");
-        for (const FInventoryItemInstance& Instance : AllInstances)
+        for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
         {
             DebugInfo += FString::Printf(TEXT("  - %s\n"), *Instance.GetDebugString());
         }
     }
-    
+
     return DebugInfo;
 }
 
 bool USuspenseInventoryComponent::ValidateInventoryIntegrity(TArray<FString>& OutErrors) const
 {
     OutErrors.Empty();
-    
+
     if (!bIsInitialized)
     {
         OutErrors.Add(TEXT("Inventory not initialized"));
         return false;
     }
-    
+
     if (!StorageComponent)
     {
         OutErrors.Add(TEXT("Storage component missing"));
         return false;
     }
-    
+
     // Validate weight
     float CalculatedWeight = 0.0f;
-    
-    TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
-    UMedComItemManager* ItemManager = GetItemManager();
+
+    TArray<FSuspenseInventoryItemInstance> AllInstances = GetAllItemInstances();
+
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         OutErrors.Add(TEXT("ItemManager not available"));
         return false;
     }
-    
+
     // Check data integrity for each instance
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         if (!Instance.IsValid())
         {
             OutErrors.Add(TEXT("Invalid item instance found"));
             continue;
         }
-        
+
         // Get item data
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (!ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
-            OutErrors.Add(FString::Printf(TEXT("Item data not found for ID: %s"), 
+            OutErrors.Add(FString::Printf(TEXT("Item data not found for ID: %s"),
                 *Instance.ItemID.ToString()));
             continue;
         }
-        
+
         // Calculate weight
         CalculatedWeight += ItemData.Weight * Instance.Quantity;
-        
+
         // Verify item actually exists in slot
         if (Instance.AnchorIndex != INDEX_NONE)
         {
-            FInventoryItemInstance TestInstance;
+            FSuspenseInventoryItemInstance TestInstance;
             if (!StorageComponent->GetItemInstanceAt(Instance.AnchorIndex, TestInstance))
             {
-                OutErrors.Add(FString::Printf(TEXT("Item %s not found at expected slot %d"), 
+                OutErrors.Add(FString::Printf(TEXT("Item %s not found at expected slot %d"),
                     *Instance.ItemID.ToString(), Instance.AnchorIndex));
             }
         }
     }
-    
+
     // Check weight consistency
     if (!FMath::IsNearlyEqual(CalculatedWeight, CurrentWeight, 0.01f))
     {
-        OutErrors.Add(FString::Printf(TEXT("Weight mismatch: Calculated=%.2f, Current=%.2f"), 
+        OutErrors.Add(FString::Printf(TEXT("Weight mismatch: Calculated=%.2f, Current=%.2f"),
             CalculatedWeight, CurrentWeight));
     }
-    
+
     return OutErrors.Num() == 0;
 }
 
@@ -2779,74 +2779,74 @@ bool USuspenseInventoryComponent::UpdateItemAmount(const FName& ItemID, int32 Ne
     {
         return false;
     }
-    
+
     // Basic input validation
     if (!bIsInitialized || ItemID.IsNone() || NewAmount <= 0)
     {
         return false;
     }
-    
+
     // Get all instances from storage component
-    TArray<FInventoryItemInstance> AllInstances = StorageComponent->GetAllItemInstances();
-    
+    TArray<FSuspenseInventoryItemInstance> AllInstances = StorageComponent->GetAllItemInstances();
+
     // Find first instance with needed ItemID
-    for (FInventoryItemInstance& Instance : AllInstances)
+    for (FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         if (Instance.ItemID == ItemID)
         {
             // Update quantity in instance
             Instance.Quantity = NewAmount;
-            
+
             // Apply changes through storage
             if (StorageComponent->UpdateItemInstance(Instance))
             {
                 // Recalculate weight after quantity change
                 UpdateCurrentWeight();
-                
+
                 // Notify all subscribers about change
                 BroadcastInventoryUpdated();
-                
-                INVENTORY_LOG(Log, TEXT("UpdateItemAmount: Updated %s to quantity %d"), 
+
+                INVENTORY_LOG(Log, TEXT("UpdateItemAmount: Updated %s to quantity %d"),
                     *ItemID.ToString(), NewAmount);
-                
+
                 return true;
             }
             else
             {
                 INVENTORY_LOG(Error, TEXT("UpdateItemAmount: Failed to update instance in storage"));
             }
-            
+
             // Update only first found instance
             break;
         }
     }
-    
-    INVENTORY_LOG(Warning, TEXT("UpdateItemAmount: Item %s not found in inventory"), 
+
+    INVENTORY_LOG(Warning, TEXT("UpdateItemAmount: Item %s not found in inventory"),
         *ItemID.ToString());
-    
+
     return false;
 }
 
-TArray<FInventoryItemInstance> USuspenseInventoryComponent::GetItemInstancesByType(const FGameplayTag& ItemType) const
+TArray<FSuspenseInventoryItemInstance> USuspenseInventoryComponent::GetItemInstancesByType(const FGameplayTag& ItemType) const
 {
-    TArray<FInventoryItemInstance> Result;
-    
+    TArray<FSuspenseInventoryItemInstance> Result;
+
     if (!bIsInitialized || !ItemType.IsValid())
     {
         return Result;
     }
-    
-    UMedComItemManager* ItemManager = GetItemManager();
+
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return Result;
     }
-    
-    TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
-    for (const FInventoryItemInstance& Instance : AllInstances)
+
+    TArray<FSuspenseInventoryItemInstance> AllInstances = GetAllItemInstances();
+
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
             if (ItemData.ItemType.MatchesTag(ItemType))
@@ -2855,7 +2855,7 @@ TArray<FInventoryItemInstance> USuspenseInventoryComponent::GetItemInstancesByTy
             }
         }
     }
-    
+
     return Result;
 }
 
@@ -2865,7 +2865,7 @@ bool USuspenseInventoryComponent::SaveToFile(const FString& FilePath)
     {
         return false;
     }
-    
+
     return USuspenseInventorySerializer::SaveInventoryToFile(this, FilePath);
 }
 
@@ -2875,7 +2875,7 @@ bool USuspenseInventoryComponent::LoadFromFile(const FString& FilePath)
     {
         return false;
     }
-    
+
     return SerializerComponent->LoadInventoryFromFile(this, FilePath);
 }
 
@@ -2885,13 +2885,13 @@ const FLoadoutConfiguration* USuspenseInventoryComponent::GetCurrentLoadoutConfi
     {
         return nullptr;
     }
-    
+
     // Check cache first
     if (CachedLoadoutConfig.IsSet())
     {
         return &CachedLoadoutConfig.GetValue();
     }
-    
+
     // Get from inventory manager
     USuspenseInventoryManager* InvManager = GetInventoryManager();
     if (InvManager)
@@ -2903,7 +2903,7 @@ const FLoadoutConfiguration* USuspenseInventoryComponent::GetCurrentLoadoutConfi
             return &CachedLoadoutConfig.GetValue();
         }
     }
-    
+
     return nullptr;
 }
 
@@ -2914,16 +2914,16 @@ void USuspenseInventoryComponent::LogInventoryStatistics(const FString& Context)
         UE_LOG(LogInventory, Log, TEXT("[%s] Inventory not initialized"), *Context);
         return;
     }
-    
+
     FVector2D GridSize = GetInventorySize();
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
+
     UE_LOG(LogInventory, Log, TEXT("[%s] Inventory Statistics:"), *Context);
     UE_LOG(LogInventory, Log, TEXT("  - Grid: %.0fx%.0f"), GridSize.X, GridSize.Y);
     UE_LOG(LogInventory, Log, TEXT("  - Weight: %.1f / %.1f"), CurrentWeight, MaxWeight);
     UE_LOG(LogInventory, Log, TEXT("  - Items: %d"), AllInstances.Num());
     UE_LOG(LogInventory, Log, TEXT("  - Loadout: %s"), *CurrentLoadoutID.ToString());
-    
+
     for (const FInventoryItemInstance& Instance : AllInstances)
     {
         UE_LOG(LogInventory, Log, TEXT("    - %s"), *Instance.GetDebugString());
@@ -2941,31 +2941,31 @@ void USuspenseInventoryComponent::NotifyItemPlaced(const FInventoryItemInstance&
         INVENTORY_LOG(VeryVerbose, TEXT("NotifyItemPlaced: Skipped (no replicator or not authority)"));
         return;
     }
-    
+
     // Validate input parameters
     if (!ItemInstance.IsValid() || AnchorIndex < 0)
     {
-        INVENTORY_LOG(Warning, TEXT("NotifyItemPlaced: Invalid parameters - ItemID:%s, Anchor:%d"), 
+        INVENTORY_LOG(Warning, TEXT("NotifyItemPlaced: Invalid parameters - ItemID:%s, Anchor:%d"),
             *ItemInstance.ItemID.ToString(), AnchorIndex);
         return;
     }
-    
+
     // Use the new AddItemInstance method instead of the old AddItem
     // This method automatically handles size calculation from DataTable
     int32 MetaIndex = ReplicatorComponent->AddItemInstance(ItemInstance, AnchorIndex);
-    
+
     if (MetaIndex != INDEX_NONE)
     {
-        INVENTORY_LOG(Log, TEXT("NotifyItemPlaced: Added %s to replicator at meta index %d (instance:%s)"), 
-            *ItemInstance.ItemID.ToString(), 
+        INVENTORY_LOG(Log, TEXT("NotifyItemPlaced: Added %s to replicator at meta index %d (instance:%s)"),
+            *ItemInstance.ItemID.ToString(),
             MetaIndex,
             *ItemInstance.InstanceID.ToString().Left(8));
-        
+
         // Network update is automatically requested by AddItemInstance
     }
     else
     {
-        INVENTORY_LOG(Warning, TEXT("NotifyItemPlaced: Failed to add %s to replicator"), 
+        INVENTORY_LOG(Warning, TEXT("NotifyItemPlaced: Failed to add %s to replicator"),
             *ItemInstance.ItemID.ToString());
     }
 }
@@ -2977,38 +2977,38 @@ void USuspenseInventoryComponent::NotifyItemRemoved(const FInventoryItemInstance
         INVENTORY_LOG(VeryVerbose, TEXT("NotifyItemRemoved: Skipped (no replicator or not authority)"));
         return;
     }
-    
+
     if (!ItemInstance.IsValid())
     {
         INVENTORY_LOG(Warning, TEXT("NotifyItemRemoved: Invalid ItemInstance provided"));
         return;
     }
-    
+
     // Find the item by instance ID for accurate removal
     int32 MetaIndex = ReplicatorComponent->FindItemByInstanceID(ItemInstance.InstanceID);
-    
+
     if (MetaIndex != INDEX_NONE)
     {
         // Remove from replicator state
         if (ReplicatorComponent->GetReplicationState().RemoveItem(MetaIndex))
         {
-            INVENTORY_LOG(Log, TEXT("NotifyItemRemoved: Removed %s from replicator (meta:%d, instance:%s)"), 
-                *ItemInstance.ItemID.ToString(), 
+            INVENTORY_LOG(Log, TEXT("NotifyItemRemoved: Removed %s from replicator (meta:%d, instance:%s)"),
+                *ItemInstance.ItemID.ToString(),
                 MetaIndex,
                 *ItemInstance.InstanceID.ToString().Left(8));
-            
+
             // Request network update to propagate removal
             ReplicatorComponent->RequestNetUpdate();
         }
         else
         {
-            INVENTORY_LOG(Warning, TEXT("NotifyItemRemoved: Failed to remove %s from replicator state"), 
+            INVENTORY_LOG(Warning, TEXT("NotifyItemRemoved: Failed to remove %s from replicator state"),
                 *ItemInstance.ItemID.ToString());
         }
     }
     else
     {
-        INVENTORY_LOG(Warning, TEXT("NotifyItemRemoved: Could not find %s in replicator (instance:%s)"), 
+        INVENTORY_LOG(Warning, TEXT("NotifyItemRemoved: Could not find %s in replicator (instance:%s)"),
             *ItemInstance.ItemID.ToString(),
             *ItemInstance.InstanceID.ToString().Left(8));
     }
@@ -3056,28 +3056,28 @@ void USuspenseInventoryComponent::InitializeSubComponents()
 {
     // Create storage component
     StorageComponent = NewObject<USuspenseInventoryStorage>(this, TEXT("StorageComponent"));
-    
+
     // Create constraints component
     ConstraintsComponent = NewObject<USuspenseInventoryValidator>(this, TEXT("ConstraintsComponent"));
-    
+
     // Create transaction component
     TransactionComponent = NewObject<USuspenseInventoryTransaction>(this, TEXT("TransactionComponent"));
-    
+
     // Create replicator component
     ReplicatorComponent = NewObject<USuspenseInventoryReplicator>(this, TEXT("ReplicatorComponent"));
-    
+
     // Create events component
     EventsComponent = NewObject<USuspenseInventoryEvents>(this, TEXT("EventsComponent"));
-    
+
     // Create serializer component
     SerializerComponent = NewObject<USuspenseInventorySerializer>(this, TEXT("SerializerComponent"));
-    
+
     // Create UI adapter
     UIAdapter = NewObject<USuspenseInventoryUIConnector>(this, TEXT("UIAdapter"));
-    
+
     // Create GAS integration
     GASIntegration = NewObject<UMedComInventoryGASIntegration>(this, TEXT("GASIntegration"));
-    
+
     // Initialize transaction component with proper ItemManager
     if (TransactionComponent)
     {
@@ -3087,11 +3087,11 @@ void USuspenseInventoryComponent::InitializeSubComponents()
         {
             INVENTORY_LOG(Warning, TEXT("InitializeSubComponents: ItemManager not available during initialization"));
         }
-        
+
         // Initialize with storage, constraints, and ItemManager (not events!)
         TransactionComponent->Initialize(StorageComponent, ConstraintsComponent, ItemManager);
     }
-    
+
     // Initialize replicator component with ItemManager
     if (ReplicatorComponent)
     {
@@ -3100,13 +3100,13 @@ void USuspenseInventoryComponent::InitializeSubComponents()
         // For now we just set the ItemManager reference
         ReplicatorComponent->SetItemManager(ItemManager);
     }
-    
+
     // Initialize UI adapter
     if (UIAdapter)
     {
         UIAdapter->SetInventoryComponent(this);
     }
-    
+
     INVENTORY_LOG(Log, TEXT("Initialized sub-components"));
 }
 
@@ -3117,25 +3117,25 @@ void USuspenseInventoryComponent::InitializeClientComponents()
         INVENTORY_LOG(Warning, TEXT("InitializeClientComponents called on server"));
         return;
     }
-    
+
     // Validate replicated data
     int32 Width = FMath::FloorToInt(ReplicatedGridSize.X);
     int32 Height = FMath::FloorToInt(ReplicatedGridSize.Y);
-    
+
     if (Width <= 0 || Height <= 0)
     {
         INVENTORY_LOG(Error, TEXT("Invalid replicated grid size: %dx%d"), Width, Height);
         return;
     }
-    
+
     INVENTORY_LOG(Log, TEXT("Client: Initializing with replicated size %dx%d"), Width, Height);
-    
+
     // Create components if needed
     if (!StorageComponent)
     {
         InitializeSubComponents();
     }
-    
+
     // Initialize storage
     if (StorageComponent && !StorageComponent->IsInitialized())
     {
@@ -3145,22 +3145,22 @@ void USuspenseInventoryComponent::InitializeClientComponents()
             return;
         }
     }
-    
+
     // Initialize constraints
     if (ConstraintsComponent)
     {
         ConstraintsComponent->Initialize(MaxWeight, AllowedItemTypes, Width, Height);
     }
-    
+
     // Initialize replicator
     if (ReplicatorComponent)
     {
         ReplicatorComponent->Initialize(Width, Height);
     }
-    
+
     // Mark as initialized
     bIsInitialized = true;
-    
+
     // Subscribe to replicator updates
     if (!ReplicatorUpdateHandle.IsValid())
     {
@@ -3170,18 +3170,18 @@ void USuspenseInventoryComponent::InitializeClientComponents()
             SyncItemsFromReplicator();
         });
     }
-    
+
     // Initial sync
     SyncItemsFromReplicator();
-    
+
     // Notify about initialization
     if (EventsComponent)
     {
         EventsComponent->BroadcastInitialized();
     }
-    
+
     BroadcastInventoryUpdated();
-    
+
     INVENTORY_LOG(Log, TEXT("Client: Initialization complete"));
 }
 
@@ -3191,15 +3191,15 @@ void USuspenseInventoryComponent::SyncItemsFromReplicator()
     {
         return;
     }
-    
+
     INVENTORY_LOG(Log, TEXT("Client: Starting sync from replicator"));
-    
+
     // Get replicated state
     const FInventoryReplicatedState& RepState = ReplicatorComponent->GetReplicationState();
-    
+
     // Clear current items
     StorageComponent->ClearAllItems();
-    
+
     // Process each replicated item
     int32 SyncedItems = 0;
     for (const FReplicatedItemMeta& Meta : RepState.ItemsState.Items)
@@ -3208,16 +3208,16 @@ void USuspenseInventoryComponent::SyncItemsFromReplicator()
         {
             continue;
         }
-        
+
         // Create instance from metadata using factory method with specific InstanceID
         FInventoryItemInstance Instance = FInventoryItemInstance::CreateWithID(
-            Meta.ItemID, 
-            Meta.InstanceID, 
+            Meta.ItemID,
+            Meta.InstanceID,
             Meta.Stack
         );
         Instance.bIsRotated = Meta.IsRotated();
         Instance.AnchorIndex = Meta.AnchorIndex;
-        
+
         // Restore saved ammo state if exists
         if (Meta.HasSavedAmmoState())
         {
@@ -3225,26 +3225,26 @@ void USuspenseInventoryComponent::SyncItemsFromReplicator()
             Instance.SetRuntimeProperty(TEXT("SavedRemainingAmmo"), Meta.SavedRemainingAmmo);
             Instance.SetRuntimeProperty(TEXT("HasSavedAmmoState"), 1.0f);
         }
-        
+
         // Place in storage
         if (StorageComponent->PlaceItemInstance(Instance, Meta.AnchorIndex))
         {
             SyncedItems++;
-            INVENTORY_LOG(Verbose, TEXT("Client: Placed %s at slot %d"), 
+            INVENTORY_LOG(Verbose, TEXT("Client: Placed %s at slot %d"),
                 *Meta.ItemID.ToString(), Meta.AnchorIndex);
         }
         else
         {
-            INVENTORY_LOG(Error, TEXT("Client: Failed to place %s at slot %d"), 
+            INVENTORY_LOG(Error, TEXT("Client: Failed to place %s at slot %d"),
                 *Meta.ItemID.ToString(), Meta.AnchorIndex);
         }
     }
-    
+
     // Update weight
     CurrentWeight = StorageComponent->GetCurrentWeight();
-    
+
     INVENTORY_LOG(Log, TEXT("Client: Synced %d items"), SyncedItems);
-    
+
     // Update UI
     BroadcastInventoryUpdated();
 }
@@ -3256,7 +3256,7 @@ bool USuspenseInventoryComponent::CheckAuthority(const FString& FunctionName) co
         INVENTORY_LOG(Verbose, TEXT("%s requires server authority"), *FunctionName);
         return false;
     }
-    
+
     return true;
 }
 
@@ -3274,21 +3274,21 @@ void USuspenseInventoryComponent::UpdateCurrentWeight()
         {
             EventsComponent->BroadcastWeightChanged(CurrentWeight);
         }
-        
+
         if (UEventDelegateManager* Manager = GetDelegateManager())
         {
             const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.WeightChanged"));
             Manager->NotifyUIEvent(this, EventTag, FString::Printf(TEXT("Current:%.2f"), CurrentWeight));
         }
-        
+
         return;
     }
 
     // Server calculates weight
     float NewWeight = 0.0f;
-    
+
     TArray<FInventoryItemInstance> AllInstances = GetAllItemInstances();
-    
+
     // Get ItemManager for weight data access
     UMedComItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -3296,7 +3296,7 @@ void USuspenseInventoryComponent::UpdateCurrentWeight()
         INVENTORY_LOG(Warning, TEXT("UpdateCurrentWeight: ItemManager not available"));
         return;
     }
-    
+
     // Calculate total weight
     for (const FInventoryItemInstance& Instance : AllInstances)
     {
@@ -3304,7 +3304,7 @@ void USuspenseInventoryComponent::UpdateCurrentWeight()
         {
             continue;
         }
-        
+
         FMedComUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
@@ -3339,29 +3339,29 @@ bool USuspenseInventoryComponent::ValidateItemPlacement(const FVector2D& ItemSiz
     {
         return false;
     }
-    
+
     FVector2D GridSize = GetInventorySize();
     int32 GridWidth = FMath::FloorToInt(GridSize.X);
     int32 GridHeight = FMath::FloorToInt(GridSize.Y);
-    
+
     // Get target slot coordinates
     int32 TargetX = TargetSlot % GridWidth;
     int32 TargetY = TargetSlot / GridWidth;
-    
+
     // Check boundaries
-    if (TargetX + FMath::CeilToInt(ItemSize.X) > GridWidth || 
+    if (TargetX + FMath::CeilToInt(ItemSize.X) > GridWidth ||
         TargetY + FMath::CeilToInt(ItemSize.Y) > GridHeight)
     {
         return false;
     }
-    
+
     // Check each cell
     for (int32 Y = 0; Y < FMath::CeilToInt(ItemSize.Y); Y++)
     {
         for (int32 X = 0; X < FMath::CeilToInt(ItemSize.X); X++)
         {
             int32 CheckIndex = (TargetY + Y) * GridWidth + (TargetX + X);
-            
+
             FInventoryItemInstance TestInstance;
             if (StorageComponent->GetItemInstanceAt(CheckIndex, TestInstance))
             {
@@ -3370,12 +3370,12 @@ bool USuspenseInventoryComponent::ValidateItemPlacement(const FVector2D& ItemSiz
                 {
                     continue; // Ignore excluded item
                 }
-                
+
                 return false; // Cell occupied by other item
             }
         }
     }
-    
+
     return true;
 }
 
@@ -3388,26 +3388,26 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
         UE_LOG(LogInventory, Error, TEXT("ExecuteSlotSwap: Storage component not initialized"));
         return false;
     }
-    
+
     // Validate slot indices
     FVector2D GridSize = GetInventorySize();
     int32 TotalSlots = FMath::RoundToInt(GridSize.X * GridSize.Y);
-    
+
     if (Slot1 < 0 || Slot1 >= TotalSlots || Slot2 < 0 || Slot2 >= TotalSlots)
     {
         OutErrorCode = EInventoryErrorCode::InvalidSlot;
-        UE_LOG(LogInventory, Warning, TEXT("ExecuteSlotSwap: Invalid slot indices - Slot1:%d, Slot2:%d (Max:%d)"), 
+        UE_LOG(LogInventory, Warning, TEXT("ExecuteSlotSwap: Invalid slot indices - Slot1:%d, Slot2:%d (Max:%d)"),
             Slot1, Slot2, TotalSlots - 1);
         return false;
     }
-    
+
     UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Starting swap - Slot %d <-> Slot %d"), Slot1, Slot2);
-    
+
     // Get instances from slots
     FInventoryItemInstance Instance1, Instance2;
     bool bHasItem1 = StorageComponent->GetItemInstanceAt(Slot1, Instance1);
     bool bHasItem2 = StorageComponent->GetItemInstanceAt(Slot2, Instance2);
-    
+
     // If both slots empty, nothing to swap
     if (!bHasItem1 && !bHasItem2)
     {
@@ -3415,21 +3415,21 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
         UE_LOG(LogInventory, Warning, TEXT("ExecuteSlotSwap: Both slots are empty"));
         return false;
     }
-    
+
     // Begin transaction with more descriptive context
     FString TransactionContext = FString::Printf(TEXT("SwapSlots_%d_%d"), Slot1, Slot2);
     BeginTransaction();
-    
+
     // Case 1: Moving to empty slot
     if (!bHasItem1 || !bHasItem2)
     {
         int32 SourceSlot = bHasItem1 ? Slot1 : Slot2;
         int32 TargetSlot = bHasItem1 ? Slot2 : Slot1;
         FInventoryItemInstance& SourceInstance = bHasItem1 ? Instance1 : Instance2;
-        
-        UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Moving item from slot %d to empty slot %d"), 
+
+        UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Moving item from slot %d to empty slot %d"),
             SourceSlot, TargetSlot);
-        
+
         // Validate that item will fit at target position
         UMedComItemManager* ItemManager = GetItemManager();
         if (ItemManager)
@@ -3442,7 +3442,7 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
                 {
                     ItemSize = FVector2D(ItemSize.Y, ItemSize.X);
                 }
-                
+
                 if (!CanPlaceItemAtSlot(ItemSize, TargetSlot, false))
                 {
                     RollbackTransaction();
@@ -3452,29 +3452,29 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
                 }
             }
         }
-        
+
         // Perform move
         if (StorageComponent->MoveItem(SourceInstance.InstanceID, TargetSlot, false))
         {
             CommitTransaction();
-            
+
             // Get updated instance for notifications
             FInventoryItemInstance UpdatedInstance;
             if (StorageComponent->GetItemInstance(SourceInstance.InstanceID, UpdatedInstance))
             {
                 NotifyItemPlaced(UpdatedInstance, TargetSlot);
             }
-            
+
             // Broadcast events
             if (EventsComponent)
             {
                 EventsComponent->BroadcastItemMoved(SourceInstance.InstanceID, SourceInstance.ItemID, SourceSlot, TargetSlot);
             }
-            
+
             IMedComInventoryInterface::BroadcastItemMoved(this, SourceInstance.InstanceID, SourceSlot, TargetSlot, false);
-            
+
             BroadcastInventoryUpdated();
-            
+
             OutErrorCode = EInventoryErrorCode::Success;
             UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Successfully moved item to empty slot"));
             return true;
@@ -3487,19 +3487,19 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
             return false;
         }
     }
-    
+
     // Case 2: Swapping two items
     UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Swapping two items"));
-    
+
     // Create backup for safety
     TArray<FInventoryItemInstance> BackupInstances = StorageComponent->GetAllItemInstances();
-    
+
     // Save copies for replicator
     FInventoryItemInstance PreSwapInstance1 = Instance1;
     FInventoryItemInstance PreSwapInstance2 = Instance2;
-    
+
     // Temporarily remove both items
-    if (!StorageComponent->RemoveItemInstance(Instance1.InstanceID) || 
+    if (!StorageComponent->RemoveItemInstance(Instance1.InstanceID) ||
         !StorageComponent->RemoveItemInstance(Instance2.InstanceID))
     {
         RollbackTransaction();
@@ -3507,19 +3507,19 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
         UE_LOG(LogInventory, Error, TEXT("ExecuteSlotSwap: Failed to temporarily remove items"));
         return false;
     }
-    
+
     // Update positions
     Instance1.AnchorIndex = Slot2;
     Instance2.AnchorIndex = Slot1;
-    
+
     // Place items in new positions
     bool bPlaced1 = StorageComponent->PlaceItemInstance(Instance1, Slot2);
     bool bPlaced2 = StorageComponent->PlaceItemInstance(Instance2, Slot1);
-    
+
     if (bPlaced1 && bPlaced2)
     {
         CommitTransaction();
-        
+
         // Update replicator
         if (ReplicatorComponent)
         {
@@ -3529,18 +3529,18 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
             NotifyItemPlaced(Instance1, Slot2);
             NotifyItemPlaced(Instance2, Slot1);
         }
-        
+
         // Broadcast events
         if (EventsComponent)
         {
             EventsComponent->BroadcastItemSwapped(Instance1.InstanceID, Instance2.InstanceID, Slot1, Slot2);
         }
-        
+
         IMedComInventoryInterface::BroadcastItemMoved(this, Instance1.InstanceID, Slot1, Slot2, false);
         IMedComInventoryInterface::BroadcastItemMoved(this, Instance2.InstanceID, Slot2, Slot1, false);
-        
+
         BroadcastInventoryUpdated();
-        
+
         // Schedule additional update for UI synchronization
         if (GetWorld())
         {
@@ -3549,14 +3549,14 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
             {
                 UE_LOG(LogInventory, VeryVerbose, TEXT("ExecuteSlotSwap: Delayed UI update after swap"));
                 BroadcastInventoryUpdated();
-                
+
                 if (ReplicatorComponent)
                 {
                     ReplicatorComponent->RequestNetUpdate();
                 }
             }, 0.1f, false);
         }
-        
+
         OutErrorCode = EInventoryErrorCode::Success;
         UE_LOG(LogInventory, Log, TEXT("ExecuteSlotSwap: Successfully swapped items"));
         return true;
@@ -3565,12 +3565,12 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
     {
         // Rollback on failure
         RollbackTransaction();
-        
+
         // Double-check items are restored
         TArray<FInventoryItemInstance> CurrentInstances = StorageComponent->GetAllItemInstances();
         bool bItem1Found = false;
         bool bItem2Found = false;
-        
+
         for (const FInventoryItemInstance& Instance : CurrentInstances)
         {
             if (Instance.InstanceID == Instance1.InstanceID)
@@ -3582,12 +3582,12 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
                 bItem2Found = true;
             }
         }
-        
+
         // Emergency restore if items are missing
         if (!bItem1Found || !bItem2Found)
         {
             UE_LOG(LogInventory, Error, TEXT("ExecuteSlotSwap: CRITICAL - Items lost during swap, attempting emergency restore"));
-            
+
             // Clear and restore from backup
             StorageComponent->ClearAllItems();
             for (const FInventoryItemInstance& BackupInstance : BackupInstances)
@@ -3595,7 +3595,7 @@ bool USuspenseInventoryComponent::ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInv
                 StorageComponent->AddItemInstance(BackupInstance, false);
             }
         }
-        
+
         OutErrorCode = EInventoryErrorCode::NoSpace;
         UE_LOG(LogInventory, Error, TEXT("ExecuteSlotSwap: Failed to place items in swapped positions"));
         return false;
@@ -3609,19 +3609,19 @@ bool USuspenseInventoryComponent::TryMoveInstanceToSlot(const FGuid& InstanceID,
         OutErrorCode = EInventoryErrorCode::InvalidItem;
         return false;
     }
-    
+
     if (!CheckAuthority(TEXT("TryMoveInstanceToSlot")))
     {
         OutErrorCode = EInventoryErrorCode::UnknownError;
         return false;
     }
-    
+
     if (!StorageComponent || !bIsInitialized)
     {
         OutErrorCode = EInventoryErrorCode::NotInitialized;
         return false;
     }
-    
+
     // Получаем текущий экземпляр
     FInventoryItemInstance CurrentInstance;
     if (!StorageComponent->GetItemInstance(InstanceID, CurrentInstance))
@@ -3629,44 +3629,44 @@ bool USuspenseInventoryComponent::TryMoveInstanceToSlot(const FGuid& InstanceID,
         OutErrorCode = EInventoryErrorCode::ItemNotFound;
         return false;
     }
-    
+
     // Проверяем нужно ли что-то делать
     if (CurrentInstance.AnchorIndex == NewSlot)
     {
         OutErrorCode = EInventoryErrorCode::Success;
         return true;
     }
-    
+
     // Начинаем транзакцию
     BeginTransaction();
-    
+
     // Сохраняем старые значения
     int32 OldSlot = CurrentInstance.AnchorIndex;
-    
+
     // Пытаемся переместить
     if (StorageComponent->MoveItem(InstanceID, NewSlot, bAllowRotation))
     {
         // Коммитим транзакцию
         CommitTransaction();
-        
+
         // Получаем обновленный экземпляр
         FInventoryItemInstance UpdatedInstance;
         if (StorageComponent->GetItemInstance(InstanceID, UpdatedInstance))
         {
             // Уведомляем репликатор
             NotifyItemPlaced(UpdatedInstance, NewSlot);
-            
+
             // Broadcast событие
             if (EventsComponent)
             {
                 EventsComponent->BroadcastItemMoved(InstanceID, UpdatedInstance.ItemID, OldSlot, NewSlot);
             }
-            
+
             IMedComInventoryInterface::BroadcastItemMoved(this, UpdatedInstance.InstanceID, OldSlot, NewSlot, UpdatedInstance.bIsRotated);
         }
-        
+
         BroadcastInventoryUpdated();
-        
+
         OutErrorCode = EInventoryErrorCode::Success;
         return true;
     }
@@ -3685,25 +3685,25 @@ USuspenseInventoryManager* USuspenseInventoryComponent::GetInventoryManager() co
     {
         return CachedInventoryManager.Get();
     }
-    
+
     AActor* Owner = GetOwner();
     if (!Owner)
     {
         return nullptr;
     }
-    
+
     UGameInstance* GameInstance = Owner->GetGameInstance();
     if (!GameInstance)
     {
         return nullptr;
     }
-    
+
     USuspenseInventoryManager* Manager = GameInstance->GetSubsystem<USuspenseInventoryManager>();
     if (Manager)
     {
         CachedInventoryManager = Manager;
     }
-    
+
     return Manager;
 }
 
@@ -3715,9 +3715,9 @@ UGameInstance* USuspenseInventoryComponent::GetGameInstance() const
 
 void USuspenseInventoryComponent::OnRep_GridSize()
 {
-    INVENTORY_LOG(Log, TEXT("OnRep_GridSize: Grid size replicated as %.0fx%.0f"), 
+    INVENTORY_LOG(Log, TEXT("OnRep_GridSize: Grid size replicated as %.0fx%.0f"),
         ReplicatedGridSize.X, ReplicatedGridSize.Y);
-    
+
     // If we're a client and not initialized yet, try to initialize
     if (GetOwnerRole() != ROLE_Authority && !bIsInitialized && ReplicatedGridSize.X > 0)
     {
@@ -3742,9 +3742,9 @@ void USuspenseInventoryComponent::OnRep_GridSize()
 
 void USuspenseInventoryComponent::OnRep_InventoryState()
 {
-    INVENTORY_LOG(Log, TEXT("OnRep_InventoryState: Initialization state replicated as %s"), 
+    INVENTORY_LOG(Log, TEXT("OnRep_InventoryState: Initialization state replicated as %s"),
         bIsInitializedReplicated ? TEXT("true") : TEXT("false"));
-    
+
     // If server says we're initialized but we're not, initialize client components
     if (GetOwnerRole() != ROLE_Authority && bIsInitializedReplicated && !bIsInitialized)
     {

@@ -1,12 +1,12 @@
-// EquipmentDataServiceImpl.cpp  
+// EquipmentDataServiceImpl.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Services/SuspenseEquipmentDataService.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Async/Async.h"
@@ -15,16 +15,17 @@
 #include "HAL/FileManager.h"
 #include <atomic>
 
+#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "ItemSystem/SuspenseItemManager.h"
 
 USuspenseEquipmentDataService::USuspenseEquipmentDataService()
 {
     // Initialize caches with appropriate sizes for MMO scale
     // These sizes are tuned for ~100 concurrent players per server
-    SnapshotCache = MakeShareable(new FEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
-    ItemCache = MakeShareable(new FEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>(500));
-    ConfigCache = MakeShareable(new FEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
-    
+    SnapshotCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
+    ItemCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>(500));
+    ConfigCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
+
     InitializationTime = FDateTime::Now();
 }
 
@@ -42,15 +43,15 @@ void USuspenseEquipmentDataService::InjectComponents(UObject* InDataStore, UObje
 {
     // This method is called BEFORE InitializeService, so we don't take DataLock
     // as the service is not yet initialized and nobody can access it
-    
+
     // ✅ КРИТИЧНО: ItemManager обязателен
     if (!InItemManager)
     {
-        UE_LOG(LogSuspenseEquipmentData, Error, 
+        UE_LOG(LogSuspenseEquipmentData, Error,
             TEXT("InjectComponents: ItemManager is null (REQUIRED)"));
         return;
     }
-    
+
     // Cast ItemManager (REQUIRED)
     USuspenseItemManager* CastedItemManager = Cast<USuspenseItemManager>(InItemManager);
     if (!CastedItemManager)
@@ -60,19 +61,19 @@ void USuspenseEquipmentDataService::InjectComponents(UObject* InDataStore, UObje
             *InItemManager->GetClass()->GetName());
         return;
     }
-    
+
     // Save ItemManager reference (REQUIRED for service operation)
     ItemManager = CastedItemManager;
-    
-    UE_LOG(LogSuspenseEquipmentData, Log, 
+
+    UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("InjectComponents: ItemManager injected successfully: %s (items: %d)"),
         *ItemManager->GetName(), ItemManager->GetCachedItemCount());
-    
+
     // ✅ DataStore и TransactionProcessor ОПЦИОНАЛЬНЫ (stateless mode)
     if (InDataStore)
     {
         USuspenseEquipmentDataStore* CastedDataStore = Cast<USuspenseEquipmentDataStore>(InDataStore);
-        
+
         if (!CastedDataStore)
         {
             UE_LOG(LogSuspenseEquipmentData, Error,
@@ -80,22 +81,22 @@ void USuspenseEquipmentDataService::InjectComponents(UObject* InDataStore, UObje
                 *InDataStore->GetClass()->GetName());
             return;
         }
-        
+
         // Check that component is properly registered
         if (!CastedDataStore->IsRegistered())
         {
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("InjectComponents: DataStore is not registered as component. "
                      "This may cause lifecycle issues"));
         }
-        
+
         // Save typed pointer
         DataStore = CastedDataStore;
-        
+
         // Create interface wrapper
         DataProviderInterface.SetObject(DataStore);
         DataProviderInterface.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataStore));
-        
+
         if (!DataProviderInterface.GetInterface())
         {
             UE_LOG(LogSuspenseEquipmentData, Error,
@@ -103,7 +104,7 @@ void USuspenseEquipmentDataService::InjectComponents(UObject* InDataStore, UObje
             DataStore = nullptr;
             return;
         }
-        
+
         UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("InjectComponents: DataStore injected: %s"), *DataStore->GetName());
     }
@@ -112,11 +113,11 @@ void USuspenseEquipmentDataService::InjectComponents(UObject* InDataStore, UObje
         UE_LOG(LogSuspenseEquipmentData, Warning,
             TEXT("InjectComponents: DataStore not provided (stateless mode)"));
     }
-    
+
     // Mark injection complete (ItemManager is sufficient for basic operation)
     bComponentsInjected = true;
-    
-    UE_LOG(LogSuspenseEquipmentData, Log, 
+
+    UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("InjectComponents: Component injection completed successfully"));
     UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("  - ItemManager: %s (REQUIRED - injected)"), *ItemManager->GetName());
@@ -134,10 +135,10 @@ void USuspenseEquipmentDataService::SetValidator(UObject* InValidator)
             TEXT("SetValidator: Invalid validator provided (null)"));
         return;
     }
-    
+
     // Cast from UObject* to actual type
     USuspenseEquipmentSlotValidator* CastedValidator = Cast<USuspenseEquipmentSlotValidator>(InValidator);
-    
+
     if (!CastedValidator)
     {
         UE_LOG(LogSuspenseEquipmentData, Error,
@@ -145,9 +146,9 @@ void USuspenseEquipmentDataService::SetValidator(UObject* InValidator)
             *InValidator->GetClass()->GetName());
         return;
     }
-    
+
     SlotValidator = CastedValidator;
-    
+
     UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("SetValidator: Slot validator set successfully: %s"), *SlotValidator->GetName());
 }
@@ -161,7 +162,7 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
     SCOPED_SERVICE_TIMER("Data.InitializeService");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     // ✅ Phase 0: Critical dependency check - ItemManager is REQUIRED
     if (!ItemManager)
     {
@@ -171,23 +172,23 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
         ServiceState = EServiceLifecycleState::Failed;
         return false;
     }
-    
-    UE_LOG(LogSuspenseEquipmentData, Log, TEXT("InitializeService: ItemManager available (%s)"), 
+
+    UE_LOG(LogSuspenseEquipmentData, Log, TEXT("InitializeService: ItemManager available (%s)"),
         *ItemManager->GetName());
-    
+
     // Phase 1: Check state and validate under lock
     {
         FRWScopeLock ScopeLock(DataLock, SLT_Write);
-        
+
         if (ServiceState != EServiceLifecycleState::Uninitialized)
         {
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("InitializeService: Service already initialized (state: %s)"),
                 *UEnum::GetValueAsString(ServiceState));
             RECORD_SERVICE_METRIC("Data.Init.AlreadyInitialized", 1);
             return false;
         }
-        
+
         ServiceState = EServiceLifecycleState::Initializing;
 
         // ✅ STATELESS MODE: Per-player components are optional
@@ -205,60 +206,60 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
                         {
                             // Типобезопасная инъекция через публичный API сервиса
                             InjectComponents(AutoDS, ItemManager);
-                            
-                            UE_LOG(LogSuspenseEquipmentData, Log, 
+
+                            UE_LOG(LogSuspenseEquipmentData, Log,
                                 TEXT("InitializeService: Auto-resolved components from Owner actor"));
                         }
                     }
                 }
             }
         }
-        
+
         // ✅ STATELESS MODE: Components are optional for global service
         // Service can work in stateless mode where components are passed as method parameters
         const bool bStatelessMode = !bComponentsInjected || !DataStore || !TransactionProcessor;
-        
+
         if (bStatelessMode)
         {
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("InitializeService: Operating in STATELESS mode (no per-player components)"));
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("  DataStore: %s"), DataStore ? TEXT("Available") : TEXT("Not Set"));
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("  TransactionProcessor: %s"), TransactionProcessor ? TEXT("Available") : TEXT("Not Set"));
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("  Components will be passed as parameters to service methods"));
-            
+
             RECORD_SERVICE_METRIC("Data.Init.StatelessMode", 1);
-            
+
             // In stateless mode, skip component validation
             // Service will validate components per-call in service methods
         }
         else
         {
             // ✅ STATEFUL MODE: Validate injected components
-            UE_LOG(LogSuspenseEquipmentData, Log, 
+            UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("InitializeService: Operating in STATEFUL mode (with per-player components)"));
-            
+
             // Additional validation of components and interfaces
             if (!DataStore || !DataStore->IsValidLowLevel())
             {
                 ServiceState = EServiceLifecycleState::Failed;
-                UE_LOG(LogSuspenseEquipmentData, Error, 
+                UE_LOG(LogSuspenseEquipmentData, Error,
                     TEXT("InitializeService: DataStore is invalid or destroyed"));
                 RECORD_SERVICE_METRIC("Data.Init.InvalidDataStore", 1);
                 return false;
             }
-            
+
             if (!TransactionProcessor || !TransactionProcessor->IsValidLowLevel())
             {
                 ServiceState = EServiceLifecycleState::Failed;
-                UE_LOG(LogSuspenseEquipmentData, Error, 
+                UE_LOG(LogSuspenseEquipmentData, Error,
                     TEXT("InitializeService: TransactionProcessor is invalid or destroyed"));
                 RECORD_SERVICE_METRIC("Data.Init.InvalidTransactionProcessor", 1);
                 return false;
             }
-            
+
             if (!DataProviderInterface.GetInterface())
             {
                 ServiceState = EServiceLifecycleState::Failed;
@@ -267,7 +268,7 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
                 RECORD_SERVICE_METRIC("Data.Init.NoDataProviderInterface", 1);
                 return false;
             }
-            
+
             if (!TransactionManagerInterface.GetInterface())
             {
                 ServiceState = EServiceLifecycleState::Failed;
@@ -276,7 +277,7 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
                 RECORD_SERVICE_METRIC("Data.Init.NoTransactionManagerInterface", 1);
                 return false;
             }
-            
+
             // Validator is optional — НЕ ищем его через FindComponentByClass (он не компонент)!
             if (!SlotValidator)
             {
@@ -284,26 +285,26 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
                     TEXT("InitializeService: SlotValidator not set - validation will be skipped"));
                 RECORD_SERVICE_METRIC("Data.Init.NoValidator", 1);
             }
-            
+
             // Registration sanity
             if (!DataStore->IsRegistered())
             {
-                UE_LOG(LogSuspenseEquipmentData, Error, 
+                UE_LOG(LogSuspenseEquipmentData, Error,
                     TEXT("InitializeService: DataStore is not registered! "
                          "It won't receive BeginPlay/EndPlay events"));
             }
-            
+
             if (!TransactionProcessor->IsRegistered())
             {
-                UE_LOG(LogSuspenseEquipmentData, Error, 
+                UE_LOG(LogSuspenseEquipmentData, Error,
                     TEXT("InitializeService: TransactionProcessor is not registered! "
                          "It won't receive BeginPlay/EndPlay events"));
             }
-            
+
             RECORD_SERVICE_METRIC("Data.Init.ComponentsValidated", 1);
         }
     }
-    
+
     // Phase 2: External initialization WITHOUT lock to prevent deadlocks
     // ✅ Only in STATEFUL mode (when components are available)
     if (TransactionProcessor)
@@ -311,19 +312,19 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
         // Ensure TransactionProcessor is initialized with DataProvider
         if (!TransactionProcessor->GetDataProvider())
         {
-            UE_LOG(LogSuspenseEquipmentData, Log, 
+            UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("InitializeService: Initializing TransactionProcessor with DataProvider"));
-            
+
             if (!TransactionProcessor->Initialize(DataProviderInterface))
             {
                 FRWScopeLock ScopeLock(DataLock, SLT_Write);
                 ServiceState = EServiceLifecycleState::Failed;
-                UE_LOG(LogSuspenseEquipmentData, Error, 
+                UE_LOG(LogSuspenseEquipmentData, Error,
                     TEXT("InitializeService: Failed to initialize TransactionProcessor with DataProvider"));
                 RECORD_SERVICE_METRIC("Data.Init.TransactionProcessorInitFailed", 1);
                 return false;
             }
-            
+
             RECORD_SERVICE_METRIC("Data.Init.TransactionProcessorInitialized", 1);
         }
         else
@@ -331,7 +332,7 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
             UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("InitializeService: TransactionProcessor already initialized with DataProvider"));
         }
-        
+
         // Setup delta callback for transaction processor
         TransactionProcessor->SetDeltaCallback(
             FOnTransactionDelta::CreateUObject(this, &USuspenseEquipmentDataService::OnTransactionDeltas)
@@ -342,11 +343,11 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
         UE_LOG(LogSuspenseEquipmentData, Warning,
             TEXT("InitializeService: TransactionProcessor not available (stateless mode)"));
     }
-    
+
     // Phase 3: Complete initialization under lock
     {
         FRWScopeLock ScopeLock(DataLock, SLT_Write);
-        
+
         // Setup event subscriptions including delta events (only in stateful mode)
         if (DataStore && TransactionProcessor)
         {
@@ -358,38 +359,38 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
             UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("InitializeService: Skipping event subscriptions (stateless mode)"));
         }
-        
+
         // Register caches in the global registry (pass raw pointers, not lambdas)
         if (SnapshotCache.IsValid())
         {
-            FGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Snapshots"), SnapshotCache.Get());
+            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Snapshots"), SnapshotCache.Get());
         }
         if (ItemCache.IsValid())
         {
-            FGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Items"), ItemCache.Get());
+            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Items"), ItemCache.Get());
         }
         if (ConfigCache.IsValid())
         {
-            FGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Configs"), ConfigCache.Get());
+            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Configs"), ConfigCache.Get());
         }
         RECORD_SERVICE_METRIC("Data.Init.CachesRegistered", 3);
-        
+
         // Initialize delta metrics
         DeltaMetrics.Reset();
-        
+
         // Warm up caches if enabled
         if (bEnableCacheWarming)
         {
             WarmupCachesSafe();
             RECORD_SERVICE_METRIC("Data.Init.CacheWarmed", 1);
         }
-        
+
         // Finalize initialization
         ServiceState = EServiceLifecycleState::Ready;
         RECORD_SERVICE_METRIC("Data.Init.Success", 1);
-        
+
         // ✅ Enhanced logging with mode indication
-        UE_LOG(LogSuspenseEquipmentData, Log, 
+        UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("EquipmentDataService initialized successfully:"));
         UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("  - Mode: %s"),
@@ -397,15 +398,15 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
         UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("  - ItemManager: %s (items: %d)"),
             *ItemManager->GetName(), ItemManager->GetCachedItemCount());
-        
+
         if (DataStore && TransactionProcessor)
         {
-            UE_LOG(LogSuspenseEquipmentData, Log, 
+            UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("  - DataStore: %s (slots: %d)"),
                 *DataStore->GetName(), DataStore->GetSlotCount());
-            UE_LOG(LogSuspenseEquipmentData, Log, 
+            UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("  - TransactionProcessor: %s (timeout: %.1fs, max depth: %d)"),
-                *TransactionProcessor->GetName(), 
+                *TransactionProcessor->GetName(),
                 TransactionProcessor->GetTransactionTimeout(),
                 TransactionProcessor->GetMaxNestedDepth());
             UE_LOG(LogSuspenseEquipmentData, Log,
@@ -421,17 +422,17 @@ bool USuspenseEquipmentDataService::InitializeService(const FServiceInitParams& 
             UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("  - Components will be validated per method call"));
         }
-        
-        UE_LOG(LogSuspenseEquipmentData, Log, 
+
+        UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("  - Cache TTL: %.1fs, Warming: %s"),
             DefaultCacheTTL, bEnableCacheWarming ? TEXT("Enabled") : TEXT("Disabled"));
-        UE_LOG(LogSuspenseEquipmentData, Log, 
+        UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("  - Delta Tracking: %s"),
             bEnableDeltaTracking ? TEXT("Enabled") : TEXT("Disabled"));
-        
+
         bOk = true;
     }
-    
+
     return true;
 }
 
@@ -440,7 +441,7 @@ bool USuspenseEquipmentDataService::ShutdownService(bool bForce)
     SCOPED_SERVICE_TIMER("Data.ShutdownService");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     // Phase 0: Quick exit check with read lock only
     {
         FRWScopeLock ScopeLock(DataLock, SLT_ReadOnly);
@@ -450,47 +451,47 @@ bool USuspenseEquipmentDataService::ShutdownService(bool bForce)
             return true;
         }
     }
-    
+
     // Phase 1: External operations WITHOUT DataLock to prevent deadlocks
     // Save references before nullifying them
     USuspenseEquipmentTransactionProcessor* OldTransactionProcessor = TransactionProcessor;
-    
+
     if (OldTransactionProcessor && !bForce)
     {
         // Rollback happens outside of DataLock to avoid nested locking
         int32 RolledBack = OldTransactionProcessor->RollbackAllTransactions();
         if (RolledBack > 0)
         {
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("ShutdownService: Rolled back %d active transactions"), RolledBack);
             RECORD_SERVICE_METRIC("Data.Shutdown.TransactionsRolledBack", RolledBack);
         }
     }
-    
+
     // Clear delta callback outside of locks
     if (OldTransactionProcessor)
     {
         OldTransactionProcessor->ClearDeltaCallback();
     }
-    
+
     // Phase 2: Internal cleanup under DataLock
     {
         FRWScopeLock ScopeLock(DataLock, SLT_Write);
-        
+
         // Double-check state
         if (ServiceState == EServiceLifecycleState::Shutdown)
         {
             bOk = true;
             return true;
         }
-        
+
         ServiceState = EServiceLifecycleState::Shutting;
-        
+
         // Clear event subscriptions and delegates
         EventScope.UnsubscribeAll();
         OnEquipmentDeltaDelegate.Clear();
         OnBatchDeltasDelegate.Clear();
-        
+
         // Null out component references (we don't own their lifecycle)
         TransactionProcessor = nullptr;
         DataStore = nullptr;
@@ -498,10 +499,10 @@ bool USuspenseEquipmentDataService::ShutdownService(bool bForce)
         DataProviderInterface.SetInterface(nullptr);
         TransactionManagerInterface.SetObject(nullptr);
         TransactionManagerInterface.SetInterface(nullptr);
-        
+
         ServiceState = EServiceLifecycleState::Shutdown;
     }
-    
+
     // Phase 3: Cache and registry cleanup (these operations take their own locks)
     // Clear all caches
     {
@@ -511,34 +512,34 @@ bool USuspenseEquipmentDataService::ShutdownService(bool bForce)
         ConfigCache->Clear();
     }
     RECORD_SERVICE_METRIC("Data.Shutdown.CachesCleared", 3);
-    
+
     // Unregister from global cache registry
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Snapshots"));
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Items"));
-    FGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Configs"));
-    
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Snapshots"));
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Items"));
+    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Configs"));
+
     // Unsubscribe global invalidation lambda
     if (GlobalCacheInvalidateHandle.IsValid())
     {
-        FGlobalCacheRegistry::Get().OnGlobalInvalidate.Remove(GlobalCacheInvalidateHandle);
+        FSuspenseGlobalCacheRegistry::Get().OnGlobalInvalidate.Remove(GlobalCacheInvalidateHandle);
         GlobalCacheInvalidateHandle.Reset();
     }
-    
+
     // Clear delta history
     {
         FScopeLock DeltaScopeLock(&DeltaLock);
         RecentDeltaHistory.Empty();
         DeltasByType.Empty();
     }
-    
+
     RECORD_SERVICE_METRIC("Data.Shutdown.Complete", 1);
-    
+
     // Log final statistics
     float Uptime = (FDateTime::Now() - InitializationTime).GetTotalSeconds();
-    UE_LOG(LogSuspenseEquipmentData, Log, 
+    UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("EquipmentDataService shutdown complete (uptime: %.1f hours, total ops: %d reads, %d writes, cache contention: %d, deltas: %d)"),
         Uptime / 3600.0f, TotalReads.load(), TotalWrites.load(), CacheContention.load(), TotalDeltasProcessed.load());
-    
+
     bOk = true;
     return true;
 }
@@ -561,12 +562,12 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
     SCOPED_SERVICE_TIMER("Data.ValidateService");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     FRWScopeLock ScopeLock(DataLock, SLT_ReadOnly);
-    
+
     OutErrors.Empty();
     bool bIsValid = true;
-    
+
     // Validate core components
     if (!DataStore)
     {
@@ -574,14 +575,14 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
         bIsValid = false;
         RECORD_SERVICE_METRIC("Data.Validation.ErrorDataStore", 1);
     }
-    
+
     if (!TransactionProcessor)
     {
         OutErrors.Add(FText::FromString(TEXT("TransactionProcessor component not initialized")));
         bIsValid = false;
         RECORD_SERVICE_METRIC("Data.Validation.ErrorTransactionProcessor", 1);
     }
-    
+
     // Validate data integrity using internal version since we already hold DataLock
     if (!ValidateDataIntegrity_Internal(false))
     {
@@ -589,7 +590,7 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
         bIsValid = false;
         RECORD_SERVICE_METRIC("Data.Validation.ErrorDataIntegrity", 1);
     }
-    
+
     // Check for transaction issues
     if (TransactionProcessor && TransactionProcessor->GetActiveTransactionCount() > 10)
     {
@@ -600,7 +601,7 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
         bIsValid = false;
         RECORD_SERVICE_METRIC("Data.Validation.ErrorExcessiveTransactions", 1);
     }
-    
+
     // Check cache health
     int32 TotalReadsValue = TotalReads.load();
     int32 CacheHitsValue = CacheHits.load();
@@ -614,7 +615,7 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
         RECORD_SERVICE_METRIC("Data.Validation.WarningLowCacheHitRate", 1);
         // This is a warning, not a failure
     }
-    
+
     // Check cache contention
     int32 ContentionValue = CacheContention.load();
     if (ContentionValue > TotalReadsValue * 0.1f && TotalReadsValue > 100)
@@ -625,7 +626,7 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
         ));
         RECORD_SERVICE_METRIC("Data.Validation.WarningHighCacheContention", 1);
     }
-    
+
     bOk = bIsValid;
     return bIsValid;
 }
@@ -633,40 +634,40 @@ bool USuspenseEquipmentDataService::ValidateService(TArray<FText>& OutErrors) co
 void USuspenseEquipmentDataService::ResetService()
 {
     SCOPED_SERVICE_TIMER("Data.ResetService");
-    
+
     // Track success of the reset operation
     bool bResetSuccessful = false;
-    
+
     // Ensure we record the result of the reset attempt
-    ON_SCOPE_EXIT 
-    { 
-        if (bResetSuccessful) 
+    ON_SCOPE_EXIT
+    {
+        if (bResetSuccessful)
         {
             ServiceMetrics.RecordSuccess();
             RECORD_SERVICE_METRIC("Data.Service.ResetSuccess", 1);
         }
-        else 
+        else
         {
             ServiceMetrics.RecordError();
             RECORD_SERVICE_METRIC("Data.Service.ResetFailed", 1);
         }
     };
-    
+
     FRWScopeLock ScopeLock(DataLock, SLT_Write);
-    
+
     UE_LOG(LogSuspenseEquipmentData, Log, TEXT("ResetService: Beginning comprehensive service reset"));
-    
+
     // Reset the core data store to initial state
     ResetDataStore();
     RECORD_SERVICE_METRIC("Data.Reset.DataStore", 1);
-    
+
     // Clear all transaction history if processor is available
     if (TransactionProcessor)
     {
         TransactionProcessor->ClearTransactionHistory(false);
         RECORD_SERVICE_METRIC("Data.Reset.TransactionHistory", 1);
     }
-    
+
     // Clear all data caches
     if (SnapshotCache.IsValid())
     {
@@ -681,7 +682,7 @@ void USuspenseEquipmentDataService::ResetService()
         ConfigCache->Clear();
     }
     RECORD_SERVICE_METRIC("Data.Reset.Caches", 3);
-    
+
     // Clear delta history
     {
         FScopeLock DeltaScopeLock(&DeltaLock);
@@ -689,7 +690,7 @@ void USuspenseEquipmentDataService::ResetService()
         DeltasByType.Empty();
         TotalDeltasProcessed.store(0);
     }
-    
+
     // Reset all atomic statistics
     TotalReads.store(0);
     TotalWrites.store(0);
@@ -699,14 +700,14 @@ void USuspenseEquipmentDataService::ResetService()
     TotalTransactions.store(0);
     SuccessfulTransactions.store(0);
     FailedTransactions.store(0);
-    
+
     // Reset the service metrics container
     ServiceMetrics.Reset();
     DeltaMetrics.Reset();
-    
+
     // Mark the reset as successful
     bResetSuccessful = true;
-    
+
     UE_LOG(LogSuspenseEquipmentData, Log, TEXT("ResetService: Service reset completed successfully"));
 }
 
@@ -836,19 +837,19 @@ FSuspenseInventoryItemInstance USuspenseEquipmentDataService::GetSlotItemCached(
     SCOPED_SERVICE_TIMER("Data.GetSlotItemCached");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     // Validate input
     if (!IsValidSlotIndex(SlotIndex))
     {
         RECORD_SERVICE_METRIC("Data.Input.InvalidSlot", 1);
         return FSuspenseInventoryItemInstance();
     }
-    
-    if (bEnableDetailedLogging) 
-    { 
-        LogDataOperation(TEXT("GetSlotItemCached"), SlotIndex); 
+
+    if (bEnableDetailedLogging)
+    {
+        LogDataOperation(TEXT("GetSlotItemCached"), SlotIndex);
     }
-    
+
     TotalReads.fetch_add(1);
     RECORD_SERVICE_METRIC("Data.Read.Op", 1);
 
@@ -875,7 +876,7 @@ FSuspenseInventoryItemInstance USuspenseEquipmentDataService::GetSlotItemCached(
     // Step 2: Cache miss — read from DataStore
     {
         FRWScopeLock DataScopeLock(DataLock, SLT_ReadOnly);
-        
+
         if (!DataStore)
         {
             return FSuspenseInventoryItemInstance();
@@ -913,12 +914,12 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseEquipmentDataService::Batch
     SCOPED_SERVICE_TIMER("Data.BatchGetSlotItems");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
-    if (bEnableDetailedLogging) 
-    { 
-        LogDataOperation(TEXT("BatchGetSlotItems")); 
+
+    if (bEnableDetailedLogging)
+    {
+        LogDataOperation(TEXT("BatchGetSlotItems"));
     }
-    
+
     // Filter and deduplicate input
     TSet<int32> ValidUnique;
     for (int32 SlotIndex : SlotIndices)
@@ -932,21 +933,21 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseEquipmentDataService::Batch
             RECORD_SERVICE_METRIC("Data.Input.InvalidSlot", 1);
         }
     }
-    
+
     RECORD_SERVICE_METRIC("Data.Batch.Requested", SlotIndices.Num());
     RECORD_SERVICE_METRIC("Data.Batch.ValidUnique", ValidUnique.Num());
-    
+
     TMap<int32, FSuspenseInventoryItemInstance> Result;
     TArray<int32> CacheMissIndices;
-    
+
     // Count reads for each requested slot
     TotalReads.fetch_add(ValidUnique.Num());
     RECORD_SERVICE_METRIC("Data.Batch.Read.Op", ValidUnique.Num());
-    
+
     // First pass: read cache for all requested items under a single cache read lock
     {
         FRWScopeLock CacheScopeLock(CacheLock, SLT_ReadOnly);
-        
+
         for (int32 SlotIndex : ValidUnique)
         {
             FSuspenseInventoryItemInstance CachedItem;
@@ -964,20 +965,20 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseEquipmentDataService::Batch
             }
         }
     }
-    
+
     // Second pass: if misses exist, read all of them under a single DataLock read
     if (CacheMissIndices.Num() > 0)
     {
         TMap<int32, FSuspenseInventoryItemInstance> DataStoreItems;
-        
+
         {
             FRWScopeLock DataScopeLock(DataLock, SLT_ReadOnly);
-            
+
             if (!DataStore)
             {
                 return Result;
             }
-            
+
             for (int32 SlotIndex : CacheMissIndices)
             {
                 FSuspenseInventoryItemInstance Item = DataStore->GetSlotItem(SlotIndex);
@@ -987,10 +988,10 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseEquipmentDataService::Batch
                     Result.Add(SlotIndex, Item);
                 }
             }
-            
+
             RECORD_SERVICE_METRIC("Data.Batch.DataStore.Fetches", CacheMissIndices.Num());
         }
-        
+
         // Third pass: batch update cache under a single cache write lock
         if (DataStoreItems.Num() > 0)
         {
@@ -998,9 +999,9 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseEquipmentDataService::Batch
             RECORD_SERVICE_METRIC("Data.Batch.Cache.Updates", DataStoreItems.Num());
         }
     }
-    
+
     RECORD_SERVICE_METRIC("Data.Batch.Complete", 1);
-    
+
     bOk = true;
     return Result;
 }
@@ -1011,42 +1012,42 @@ FGuid USuspenseEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
     SCOPED_DIFF_TIMER("Swap");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
-    if (bEnableDetailedLogging) 
-    { 
-        LogDataOperation(TEXT("SwapSlotItems"), SlotA); 
+
+    if (bEnableDetailedLogging)
+    {
+        LogDataOperation(TEXT("SwapSlotItems"), SlotA);
     }
-    
+
     // Validate inputs
     if (!IsValidSlotIndex(SlotA) || !IsValidSlotIndex(SlotB))
     {
         RECORD_SERVICE_METRIC("Data.Input.InvalidSlot", 1);
         return FGuid();
     }
-    
+
     if (SlotA == SlotB)
     {
         RECORD_SERVICE_METRIC("Data.Input.SameSlotSwap", 1);
         return FGuid();
     }
-    
+
     if (!TransactionProcessor || !DataStore)
     {
         RECORD_SERVICE_METRIC("Data.Swap.NoComponents", 1);
         return FGuid();
     }
-    
+
     // Start transaction for atomic swap
     FGuid TransactionId = TransactionProcessor->BeginTransaction(
         FString::Printf(TEXT("Swap slots %d and %d"), SlotA, SlotB)
     );
-    
+
     if (!TransactionId.IsValid())
     {
         RECORD_SERVICE_METRIC("Data.Swap.TransactionStartFailed", 1);
         return FGuid();
     }
-    
+
     TotalTransactions.fetch_add(1);
     RECORD_SERVICE_METRIC("Data.Tx.Started", 1);
 
@@ -1087,13 +1088,13 @@ FGuid USuspenseEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
         // Apply the swap
         DataStore->SetSlotItem(SlotA, ItemB, false);
         DataStore->SetSlotItem(SlotB, ItemA, false);
-        
+
         RECORD_SERVICE_METRIC("Data.Swap.Executed", 1);
     }
 
     // Commit transaction (no locks held)
     bool bSuccess = TransactionProcessor->CommitTransaction(TransactionId);
-    
+
     if (bSuccess)
     {
         // Invalidate caches for both slots with a single lock
@@ -1105,7 +1106,7 @@ FGuid USuspenseEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
                 ItemCache->Remove(SlotB);
             }
         }
-        
+
         SuccessfulTransactions.fetch_add(1);
         TotalWrites.fetch_add(2);
         RECORD_SERVICE_METRIC("Data.Swap.Success", 1);
@@ -1122,23 +1123,23 @@ FGuid USuspenseEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
                 WeakDS->OnSlotDataChanged().Broadcast(SlotB, ItemA);
             }
         });
-        
+
         bOk = true;
     }
     else
     {
         FailedTransactions.fetch_add(1);
         RECORD_SERVICE_METRIC("Data.Swap.Failed", 1);
-        
+
         // Rollback transaction on commit failure
         TransactionProcessor->RollbackTransaction(TransactionId);
         RECORD_SERVICE_METRIC("Data.Tx.RollbackOnCommitFail", 1);
-        
-        UE_LOG(LogSuspenseEquipmentData, Error, 
+
+        UE_LOG(LogSuspenseEquipmentData, Error,
             TEXT("SwapSlotItems: Failed to commit transaction %s"),
             *TransactionId.ToString());
     }
-    
+
     return TransactionId;
 }
 
@@ -1148,18 +1149,18 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
     SCOPED_DIFF_TIMER("BatchUpdate");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
-    if (bEnableDetailedLogging) 
-    { 
-        LogDataOperation(TEXT("BatchUpdateSlots")); 
+
+    if (bEnableDetailedLogging)
+    {
+        LogDataOperation(TEXT("BatchUpdateSlots"));
     }
-    
+
     if (!TransactionProcessor || !DataStore || Updates.Num() == 0)
     {
         RECORD_SERVICE_METRIC("Data.BatchUpdate.InvalidParams", 1);
         return FGuid();
     }
-    
+
     // Validate all slot indices
     for (const auto& UpdatePair : Updates)
     {
@@ -1169,21 +1170,21 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
             return FGuid();
         }
     }
-    
+
     RECORD_SERVICE_METRIC("Data.BatchUpdate.SlotCount", Updates.Num());
     RECORD_DIFF_METRIC("BatchUpdate.Slots", Updates.Num());
-    
+
     // Start transaction for batch update
     FGuid TransactionId = TransactionProcessor->BeginTransaction(
         FString::Printf(TEXT("Batch update %d slots"), Updates.Num())
     );
-    
+
     if (!TransactionId.IsValid())
     {
         RECORD_SERVICE_METRIC("Data.BatchUpdate.TransactionStartFailed", 1);
         return FGuid();
     }
-    
+
     TotalTransactions.fetch_add(1);
     RECORD_SERVICE_METRIC("Data.Tx.Started", 1);
 
@@ -1203,18 +1204,18 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
             UpdateOp.ItemBefore = DataStore->GetSlotItem(SlotIdx);
             UpdateOp.ItemAfter = NewItem;
             UpdateOp.bReversible = true;
-            
+
             TransactionProcessor->RecordDetailedOperation(UpdateOp);
 
             DataStore->SetSlotItem(SlotIdx, NewItem, false);
         }
-        
+
         RECORD_SERVICE_METRIC("Data.BatchUpdate.OperationsRecorded", Updates.Num());
     }
-    
+
     // Commit transaction
     bool bSuccess = TransactionProcessor->CommitTransaction(TransactionId);
-    
+
     if (bSuccess)
     {
         // Invalidate cache for all updated slots with single lock
@@ -1228,7 +1229,7 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
                 }
             }
         }
-        
+
         // Notify observers on game thread with safe weak pointer
         TWeakObjectPtr<USuspenseEquipmentDataStore> WeakDS = DataStore;
         AsyncTask(ENamedThreads::GameThread, [WeakDS, Updates]()
@@ -1241,7 +1242,7 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
                 }
             }
         });
-        
+
         SuccessfulTransactions.fetch_add(1);
         TotalWrites.fetch_add(Updates.Num());
         RECORD_SERVICE_METRIC("Data.BatchUpdate.Success", 1);
@@ -1254,16 +1255,16 @@ FGuid USuspenseEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspens
         FailedTransactions.fetch_add(1);
         RECORD_SERVICE_METRIC("Data.BatchUpdate.Failed", 1);
         RECORD_DIFF_METRIC("BatchUpdate.Failed", 1);
-        
+
         // Rollback transaction on commit failure
         TransactionProcessor->RollbackTransaction(TransactionId);
         RECORD_SERVICE_METRIC("Data.Tx.RollbackOnCommitFail", 1);
-        
+
         UE_LOG(LogSuspenseEquipmentData, Error,
             TEXT("BatchUpdateSlots: Failed to commit transaction %s"),
             *TransactionId.ToString());
     }
-    
+
     return TransactionId;
 }
 
@@ -1272,15 +1273,15 @@ FGuid USuspenseEquipmentDataService::CreateDataCheckpoint(const FString& Checkpo
     SCOPED_SERVICE_TIMER("Data.CreateDataCheckpoint");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     if (!TransactionProcessor || !DataStore)
     {
         RECORD_SERVICE_METRIC("Data.Checkpoint.NoComponents", 1);
         return FGuid();
     }
-    
+
     FGuid CheckpointId = TransactionProcessor->CreateSavepoint(CheckpointName);
-    
+
     if (CheckpointId.IsValid())
     {
         // Take snapshot under DataLock read
@@ -1289,26 +1290,26 @@ FGuid USuspenseEquipmentDataService::CreateDataCheckpoint(const FString& Checkpo
             FRWScopeLock DataScopeLock(DataLock, SLT_ReadOnly);
             Snapshot = DataStore->CreateSnapshot();
         }
-        
+
         // Cache the snapshot under CacheLock write
         {
             FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
             SnapshotCache->Set(CheckpointId, Snapshot, 300.0f); // 5 minute TTL for checkpoints
         }
-        
+
         RECORD_SERVICE_METRIC("Data.Checkpoint.Created", 1);
-        
+
         UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("CreateDataCheckpoint: Created checkpoint '%s' (ID: %s)"),
             *CheckpointName, *CheckpointId.ToString());
-        
+
         bOk = true;
     }
     else
     {
         RECORD_SERVICE_METRIC("Data.Checkpoint.CreationFailed", 1);
     }
-    
+
     return CheckpointId;
 }
 
@@ -1318,22 +1319,22 @@ bool USuspenseEquipmentDataService::RollbackToCheckpoint(const FGuid& Checkpoint
     SCOPED_DIFF_TIMER("Rollback");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     if (!TransactionProcessor || !CheckpointId.IsValid() || !DataStore)
     {
         RECORD_SERVICE_METRIC("Data.Rollback.InvalidParams", 1);
         return false;
     }
-    
+
     // Try to get cached snapshot first
     FEquipmentStateSnapshot CachedSnapshot;
     bool bHasCachedSnapshot = false;
-    
+
     {
         FRWScopeLock CacheScopeLock(CacheLock, SLT_ReadOnly);
         bHasCachedSnapshot = SnapshotCache->Get(CheckpointId, CachedSnapshot);
     }
-    
+
     if (bHasCachedSnapshot)
     {
         bool bRestored = false;
@@ -1343,7 +1344,7 @@ bool USuspenseEquipmentDataService::RollbackToCheckpoint(const FGuid& Checkpoint
             FRWScopeLock DataWriteLock(DataLock, SLT_Write);
             bRestored = DataStore->RestoreSnapshot(CachedSnapshot);
         }
-        
+
         if (bRestored)
         {
             // Invalidate item cache
@@ -1351,22 +1352,22 @@ bool USuspenseEquipmentDataService::RollbackToCheckpoint(const FGuid& Checkpoint
                 FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
                 ItemCache->Clear();
             }
-            
+
             RECORD_SERVICE_METRIC("Data.Rollback.FromCache", 1);
             RECORD_DIFF_METRIC("Rollback.FromCache", 1);
-            
+
             UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("RollbackToCheckpoint: Restored from cached snapshot %s"),
                 *CheckpointId.ToString());
-            
+
             bOk = true;
             return true;
         }
     }
-    
+
     // Slow path - use transaction processor
     bool bSuccess = TransactionProcessor->RollbackToSavepoint(CheckpointId);
-    
+
     if (bSuccess)
     {
         RECORD_SERVICE_METRIC("Data.Rollback.FromProcessor", 1);
@@ -1378,7 +1379,7 @@ bool USuspenseEquipmentDataService::RollbackToCheckpoint(const FGuid& Checkpoint
         RECORD_SERVICE_METRIC("Data.Rollback.Failed", 1);
         RECORD_DIFF_METRIC("Rollback.Failed", 1);
     }
-    
+
     return bSuccess;
 }
 
@@ -1387,7 +1388,7 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity(bool bDeep) const
     SCOPED_SERVICE_TIMER("Data.ValidateDataIntegrity");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     FRWScopeLock ScopeLock(DataLock, SLT_ReadOnly);
     bool bResult = ValidateDataIntegrity_Internal(bDeep);
     bOk = bResult;
@@ -1397,16 +1398,16 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity(bool bDeep) const
 void USuspenseEquipmentDataService::InvalidateCache(int32 SlotIndex)
 {
     SCOPED_SERVICE_TIMER("Data.InvalidateCache");
-    
+
     FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
-    
+
     if (SlotIndex == -1)
     {
         // Invalidate all caches
         if (ItemCache.IsValid())     { ItemCache->Clear(); }
         if (ConfigCache.IsValid())   { ConfigCache->Clear(); }
         if (SnapshotCache.IsValid()) { SnapshotCache->Clear(); }
-        
+
         RECORD_SERVICE_METRIC("Data.Cache.FullInvalidation", 1);
         UE_LOG(LogSuspenseEquipmentData, Log, TEXT("InvalidateCache: All caches cleared"));
     }
@@ -1415,9 +1416,9 @@ void USuspenseEquipmentDataService::InvalidateCache(int32 SlotIndex)
         // Invalidate specific slot
         if (ItemCache.IsValid())   { ItemCache->Remove(SlotIndex); }
         if (ConfigCache.IsValid()) { ConfigCache->Remove(SlotIndex); }
-        
+
         RECORD_SERVICE_METRIC("Data.Cache.SlotInvalidation", 1);
-        
+
         if (bEnableDetailedLogging)
         {
             UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1429,9 +1430,9 @@ void USuspenseEquipmentDataService::InvalidateCache(int32 SlotIndex)
 FString USuspenseEquipmentDataService::GetCacheStatistics() const
 {
     SCOPED_SERVICE_TIMER("Data.GetCacheStatistics");
-    
+
     FRWScopeLock CacheScopeLock(CacheLock, SLT_ReadOnly);
-    
+
     FString Stats = TEXT("=== Cache Statistics ===\n");
 
     Stats += TEXT("Item Cache:\n");
@@ -1448,7 +1449,7 @@ FString USuspenseEquipmentDataService::GetCacheStatistics() const
     if (SnapshotCache.IsValid()) { Stats += SnapshotCache->DumpStats(); }
     else                         { Stats += TEXT("N/A"); }
     Stats += TEXT("\n");
-    
+
     return Stats;
 }
 
@@ -1458,7 +1459,7 @@ bool USuspenseEquipmentDataService::ExportMetricsToCSV(const FString& FilePath) 
     SCOPED_SERVICE_TIMER("Data.ExportMetricsToCSV");
     bool bOk = false;
     ON_SCOPE_EXIT { if (bOk) ServiceMetrics.RecordSuccess(); else ServiceMetrics.RecordError(); };
-    
+
     // Guard против пустого пути
     if (FilePath.IsEmpty())
     {
@@ -1466,20 +1467,20 @@ bool USuspenseEquipmentDataService::ExportMetricsToCSV(const FString& FilePath) 
         RECORD_SERVICE_METRIC("Data.Metrics.Export.EmptyPath", 1);
         return false;
     }
-    
+
     // Ensure directory exists
     FString DirectoryPath = FPaths::GetPath(FilePath);
     IFileManager::Get().MakeDirectory(*DirectoryPath, true);
-    
+
     bool bSuccess = ServiceMetrics.ExportToCSV(FilePath, TEXT("EquipmentDataService"));
-    
+
     // Also export delta metrics
     if (bSuccess)
     {
         FString DeltaPath = FilePath.Replace(TEXT(".csv"), TEXT("_deltas.csv"));
         bSuccess = DeltaMetrics.ExportToCSV(DeltaPath, TEXT("EquipmentDeltas"));
     }
-    
+
     if (bSuccess)
     {
         RECORD_SERVICE_METRIC("Data.Metrics.Export.Ok", 1);
@@ -1491,7 +1492,7 @@ bool USuspenseEquipmentDataService::ExportMetricsToCSV(const FString& FilePath) 
         RECORD_SERVICE_METRIC("Data.Metrics.Export.Fail", 1);
         UE_LOG(LogSuspenseEquipmentData, Error, TEXT("ExportMetricsToCSV: Failed to export metrics to %s"), *FilePath);
     }
-    
+
     return bSuccess;
 }
 
@@ -1502,38 +1503,38 @@ bool USuspenseEquipmentDataService::ExportMetricsToCSV(const FString& FilePath) 
 TArray<FEquipmentDelta> USuspenseEquipmentDataService::GetRecentDeltas(int32 MaxCount) const
 {
     FScopeLock Lock(&DeltaLock);
-    
+
     TArray<FEquipmentDelta> Result;
     int32 StartIndex = FMath::Max(0, RecentDeltaHistory.Num() - MaxCount);
-    
+
     for (int32 i = StartIndex; i < RecentDeltaHistory.Num(); i++)
     {
         Result.Add(RecentDeltaHistory[i]);
     }
-    
+
     return Result;
 }
 
 FString USuspenseEquipmentDataService::GetDeltaStatistics() const
 {
     FScopeLock Lock(&DeltaLock);
-    
+
     FString Stats = TEXT("\n--- Delta Statistics ---\n");
     Stats += FString::Printf(TEXT("Total Deltas Processed: %d\n"), TotalDeltasProcessed.load());
     Stats += FString::Printf(TEXT("Recent History Size: %d\n"), RecentDeltaHistory.Num());
-    
+
     if (DeltasByType.Num() > 0)
     {
         Stats += TEXT("Deltas by Type:\n");
         for (const auto& Pair : DeltasByType)
         {
-            Stats += FString::Printf(TEXT("  %s: %d\n"), 
+            Stats += FString::Printf(TEXT("  %s: %d\n"),
                 *Pair.Key.ToString(), Pair.Value);
         }
     }
-    
+
     Stats += DeltaMetrics.ToString(TEXT("DeltaMetrics"));
-    
+
     return Stats;
 }
 
@@ -1545,7 +1546,7 @@ void USuspenseEquipmentDataService::InitializeDataStorage()
 {
     // DEPRECATED: Этот метод больше не используется
     // Компоненты теперь инжектируются через InjectComponents
-    UE_LOG(LogSuspenseEquipmentData, Warning, 
+    UE_LOG(LogSuspenseEquipmentData, Warning,
         TEXT("InitializeDataStorage: This method is deprecated. "
              "Components should be injected via InjectComponents"));
 }
@@ -1553,22 +1554,22 @@ void USuspenseEquipmentDataService::InitializeDataStorage()
 void USuspenseEquipmentDataService::SetupEventSubscriptions()
 {
     // Эта функция теперь работает с инжектированными компонентами
-    
+
     if (!DataStore)
     {
-        UE_LOG(LogSuspenseEquipmentData, Warning, 
+        UE_LOG(LogSuspenseEquipmentData, Warning,
             TEXT("SetupEventSubscriptions: DataStore is null"));
         return;
     }
-    
+
     // ===================================================================
     // Подписка на изменения данных в слотах
     // ===================================================================
-    
+
     // Важно: мы НЕ берём DataLock здесь, так как мы уже под ним в InitializeService
     // Создаём weak pointer для безопасного захвата в лямбдах
     TWeakObjectPtr<USuspenseEquipmentDataService> WeakThis(this);
-    
+
     DataStore->OnSlotDataChanged().AddLambda(
         [WeakThis](int32 SlotIndex, const FSuspenseInventoryItemInstance& NewItem)
         {
@@ -1576,16 +1577,16 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             {
                 return;
             }
-            
+
             USuspenseEquipmentDataService* Service = WeakThis.Get();
-            
+
             // Инвалидируем кэш для изменённого слота
             // Используем отдельный CacheLock, не DataLock, чтобы избежать дедлока
             Service->InvalidateCache(SlotIndex);
-            
+
             // Записываем метрику
             Service->ServiceMetrics.RecordEvent("Data.SlotChanged", 1);
-            
+
             if (Service->bEnableDetailedLogging)
             {
                 UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1594,17 +1595,17 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             }
         }
     );
-    
+
     // ===================================================================
     // НОВОЕ: Подписка на delta события от DataStore
     // ===================================================================
-    
+
     DataStore->OnEquipmentDelta().AddUObject(this, &USuspenseEquipmentDataService::OnDataStoreDelta);
-    
+
     // ===================================================================
     // Подписка на изменения конфигурации слотов
     // ===================================================================
-    
+
     DataStore->OnSlotConfigurationChanged().AddLambda(
         [WeakThis](int32 SlotIndex)
         {
@@ -1612,18 +1613,18 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             {
                 return;
             }
-            
+
             USuspenseEquipmentDataService* Service = WeakThis.Get();
-            
+
             // Инвалидируем кэш конфигурации
             FRWScopeLock CacheWriteLock(Service->CacheLock, SLT_Write);
             if (Service->ConfigCache.IsValid())
             {
                 Service->ConfigCache->Remove(SlotIndex);
             }
-            
+
             Service->ServiceMetrics.RecordEvent("Data.ConfigChanged", 1);
-            
+
             if (Service->bEnableDetailedLogging)
             {
                 UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1632,11 +1633,11 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             }
         }
     );
-    
+
     // ===================================================================
     // Подписка на полный сброс хранилища
     // ===================================================================
-    
+
     DataStore->OnDataStoreReset().AddLambda(
         [WeakThis]()
         {
@@ -1644,24 +1645,24 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             {
                 return;
             }
-            
+
             USuspenseEquipmentDataService* Service = WeakThis.Get();
-            
+
             // При сбросе очищаем все кэши
             Service->InvalidateCache(-1); // -1 означает очистить всё
-            
+
             Service->ServiceMetrics.RecordEvent("Data.StoreReset", 1);
-            
+
             UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("OnDataStoreReset: DataStore was reset, all caches cleared"));
         }
     );
-    
+
     // ===================================================================
     // Подписка на глобальные события через EventBus
     // ===================================================================
-    
-    auto EventBus = FEquipmentEventBus::Get();
+
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (EventBus.IsValid())
     {
         // Подписываемся на запросы инвалидации кэша от других систем
@@ -1676,16 +1677,16 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             FEventHandlerDelegate::CreateUObject(this, &USuspenseEquipmentDataService::OnResendRequested)
         );
 
-        
+
         UE_LOG(LogSuspenseEquipmentData, Log,
             TEXT("SetupEventSubscriptions: Subscribed to global cache invalidation events"));
     }
-    
+
     // ===================================================================
     // Подписка на глобальную инвалидацию кэшей
     // ===================================================================
-    
-    GlobalCacheInvalidateHandle = FGlobalCacheRegistry::Get().OnGlobalInvalidate.AddLambda(
+
+    GlobalCacheInvalidateHandle = FSuspenseGlobalCacheRegistry::Get().OnGlobalInvalidate.AddLambda(
         [WeakThis]()
         {
             if (WeakThis.IsValid())
@@ -1696,19 +1697,19 @@ void USuspenseEquipmentDataService::SetupEventSubscriptions()
             }
         }
     );
-    
-    UE_LOG(LogSuspenseEquipmentData, Log, 
+
+    UE_LOG(LogSuspenseEquipmentData, Log,
         TEXT("SetupEventSubscriptions: All event subscriptions configured"));
 }
 
-void USuspenseEquipmentDataService::OnCacheInvalidation(const FEquipmentEventData& EventData)
+void USuspenseEquipmentDataService::OnCacheInvalidation(const FSuspenseEquipmentEventData& EventData)
 {
     // Parse slot index from event payload if available
     int32 SlotIndex = -1;
-    
+
     TArray<FString> Params;
     EventData.Payload.ParseIntoArray(Params, TEXT(","));
-    
+
     for (const FString& Param : Params)
     {
         FString Key, Value;
@@ -1721,7 +1722,7 @@ void USuspenseEquipmentDataService::OnCacheInvalidation(const FEquipmentEventDat
             }
         }
     }
-    
+
     InvalidateCache(SlotIndex);
     RECORD_SERVICE_METRIC("Data.Cache.EventDrivenInvalidation", 1);
 }
@@ -1738,7 +1739,7 @@ void USuspenseEquipmentDataService::OnTransactionCompleted(const FGuid& Transact
         FailedTransactions.fetch_add(1);
         RECORD_SERVICE_METRIC("Data.Tx.Failed", 1);
     }
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1754,26 +1755,26 @@ void USuspenseEquipmentDataService::OnDataStoreDelta(const FEquipmentDelta& Delt
     {
         return;
     }
-    
+
     // Update delta metrics
     TotalDeltasProcessed.fetch_add(1);
-    
+
     // Record the total count with static metric
     RECORD_DIFF_METRIC("Total", 1);
-    
+
     // For dynamic delta types, use the DeltaMetrics system which supports runtime names
     DeltaMetrics.RecordValue(FName(*Delta.ChangeType.ToString()), 1);
-    
+
     // Store in history
     {
         FScopeLock Lock(&DeltaLock);
-        
+
         RecentDeltaHistory.Add(Delta);
         if (RecentDeltaHistory.Num() > MaxDeltaHistory)
         {
             RecentDeltaHistory.RemoveAt(0);
         }
-        
+
         // Update type counter
         if (int32* Count = DeltasByType.Find(Delta.ChangeType))
         {
@@ -1784,10 +1785,10 @@ void USuspenseEquipmentDataService::OnDataStoreDelta(const FEquipmentDelta& Delt
             DeltasByType.Add(Delta.ChangeType, 1);
         }
     }
-    
+
     // Broadcast to listeners
     BroadcastDelta(Delta);
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1802,19 +1803,19 @@ void USuspenseEquipmentDataService::OnTransactionDeltas(const TArray<FEquipmentD
     {
         return;
     }
-    
+
     // Update metrics
     TotalDeltasProcessed.fetch_add(Deltas.Num());
     RECORD_DIFF_METRIC("BatchTotal", Deltas.Num());
-    
+
     // Store in history and update counters
     {
         FScopeLock Lock(&DeltaLock);
-        
+
         for (const FEquipmentDelta& Delta : Deltas)
         {
             RecentDeltaHistory.Add(Delta);
-            
+
             // Update type counter
             if (int32* Count = DeltasByType.Find(Delta.ChangeType))
             {
@@ -1824,21 +1825,21 @@ void USuspenseEquipmentDataService::OnTransactionDeltas(const TArray<FEquipmentD
             {
                 DeltasByType.Add(Delta.ChangeType, 1);
             }
-            
+
             // Use DeltaMetrics for dynamic type recording
             DeltaMetrics.RecordValue(FName(*Delta.ChangeType.ToString()), 1);
         }
-        
+
         // Trim history if needed
         while (RecentDeltaHistory.Num() > MaxDeltaHistory)
         {
             RecentDeltaHistory.RemoveAt(0);
         }
     }
-    
+
     // Broadcast batch
     BroadcastBatchDeltas(Deltas);
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogSuspenseEquipmentData, Verbose,
@@ -1852,49 +1853,49 @@ void USuspenseEquipmentDataService::BroadcastDelta(const FEquipmentDelta& Delta)
     // Ensure we're on the game thread for event safety
     if (!IsInGameThread())
     {
-        AsyncTask(ENamedThreads::GameThread, [this, Delta]() 
-        { 
-            BroadcastDelta(Delta); 
+        AsyncTask(ENamedThreads::GameThread, [this, Delta]()
+        {
+            BroadcastDelta(Delta);
         });
         return;
     }
-    
+
     // Broadcast through delegate (now guaranteed on game thread)
     OnEquipmentDeltaDelegate.Broadcast(Delta);
-    
+
     // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Транслируем дельты в правильные события
-    auto EventBus = FEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (EventBus.IsValid())
     {
-        FEquipmentEventData EventData;
+        FSuspenseEquipmentEventData EventData;
         EventData.Source = this;
         EventData.Timestamp = FPlatformTime::Seconds();
         EventData.Priority = EEventPriority::Normal;
-        
+
         // Определяем тип события на основе типа операции в дельте
         const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
         const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
         const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
         const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
-        
+
         // 🎯 КЛЮЧЕВАЯ ЛОГИКА: Преобразуем операции в события
         if (Delta.ChangeType.MatchesTag(OperationEquip) || Delta.ChangeType.MatchesTag(OperationSet))
         {
             // ЭТО СОБЫТИЕ ТРИГГЕРИТ СПАВН ВИЗУАЛЬНОГО АКТОРА!
             EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
-            
+
             // Добавляем критически важные метаданные для VisualizationService
             EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
             EventData.AddMetadata(TEXT("ItemID"), Delta.ItemAfter.ItemID.ToString());
             EventData.AddMetadata(TEXT("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
-            
+
             // Устанавливаем Target для события (владелец экипировки)
             if (DataStore)
             {
                 EventData.Target = DataStore->GetOwner();
             }
-            
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("🟢 Broadcasting Equipment.Event.Equipped - Slot: %d, Item: %s"),
                 Delta.SlotIndex, *Delta.ItemAfter.ItemID.ToString());
         }
@@ -1902,13 +1903,13 @@ void USuspenseEquipmentDataService::BroadcastDelta(const FEquipmentDelta& Delta)
         {
             EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
             EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
-            
+
             if (DataStore)
             {
                 EventData.Target = DataStore->GetOwner();
             }
-            
-            UE_LOG(LogSuspenseEquipmentData, Log, 
+
+            UE_LOG(LogSuspenseEquipmentData, Log,
                 TEXT("Broadcasting Equipment.Event.Unequipped - Slot: %d"), Delta.SlotIndex);
         }
         else
@@ -1919,7 +1920,7 @@ void USuspenseEquipmentDataService::BroadcastDelta(const FEquipmentDelta& Delta)
             EventData.AddMetadata(TEXT("DeltaType"), Delta.ChangeType.ToString());
             EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(Delta.SlotIndex));
         }
-        
+
         // Broadcast события
         if (EventData.EventType.IsValid())
         {
@@ -1933,37 +1934,37 @@ void USuspenseEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquipment
     // Ensure we're on the game thread
     if (!IsInGameThread())
     {
-        AsyncTask(ENamedThreads::GameThread, [this, Deltas]() 
-        { 
-            BroadcastBatchDeltas(Deltas); 
+        AsyncTask(ENamedThreads::GameThread, [this, Deltas]()
+        {
+            BroadcastBatchDeltas(Deltas);
         });
         return;
     }
-    
+
     // Broadcast through delegate
     OnBatchDeltasDelegate.Broadcast(Deltas);
-    
+
     // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обрабатываем каждую дельту индивидуально
     // для генерации правильных событий типа Equipment.Event.Equipped/Unequipped
     for (const FEquipmentDelta& Delta : Deltas)
     {
         // Переиспользуем логику из BroadcastDelta для единообразия
-        auto EventBus = FEquipmentEventBus::Get();
+        auto EventBus = FSuspenseEquipmentEventBus::Get();
         if (!EventBus.IsValid())
         {
             continue;
         }
-        
-        FEquipmentEventData EventData;
+
+        FSuspenseEquipmentEventData EventData;
         EventData.Source = this;
         EventData.Timestamp = FPlatformTime::Seconds();
         EventData.Priority = EEventPriority::Normal;
-        
+
         const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
         const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
         const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
         const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
-        
+
         if (Delta.ChangeType.MatchesTag(OperationEquip) || Delta.ChangeType.MatchesTag(OperationSet))
         {
             EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
@@ -1971,16 +1972,16 @@ void USuspenseEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquipment
             EventData.AddMetadata(TEXT("ItemID"), Delta.ItemAfter.ItemID.ToString());
             EventData.AddMetadata(TEXT("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
             EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
-            
+
             if (DataStore)
             {
                 EventData.Target = DataStore->GetOwner();
             }
-            
-            UE_LOG(LogSuspenseEquipmentData, Warning, 
+
+            UE_LOG(LogSuspenseEquipmentData, Warning,
                 TEXT("🟢 [Batch] Broadcasting Equipment.Event.Equipped - Slot: %d, Item: %s"),
                 Delta.SlotIndex, *Delta.ItemAfter.ItemID.ToString());
-            
+
             EventBus->Broadcast(EventData);
         }
         else if (Delta.ChangeType.MatchesTag(OperationUnequip) || Delta.ChangeType.MatchesTag(OperationClear))
@@ -1988,12 +1989,12 @@ void USuspenseEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquipment
             EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
             EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
             EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
-            
+
             if (DataStore)
             {
                 EventData.Target = DataStore->GetOwner();
             }
-            
+
             EventBus->Broadcast(EventData);
         }
         else
@@ -2004,7 +2005,7 @@ void USuspenseEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquipment
             EventData.AddMetadata(TEXT("DeltaType"), Delta.ChangeType.ToString());
             EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(Delta.SlotIndex));
             EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
-            
+
             EventBus->Broadcast(EventData);
         }
     }
@@ -2021,16 +2022,16 @@ bool USuspenseEquipmentDataService::PerformDeepValidation_Internal() const
     // Предполагаем, что DataLock уже удерживается вызывающим кодом
     // Deep validation for data consistency
     TMap<FGuid, int32> InstanceIdToSlot;
-    
+
     for (int32 i = 0; i < DataStore->GetSlotCount(); ++i)
     {
         FSuspenseInventoryItemInstance Item = DataStore->GetSlotItem(i);
-        
+
         if (!Item.IsValid())
         {
             continue;
         }
-        
+
         // Check for duplicate instance IDs
         if (InstanceIdToSlot.Contains(Item.InstanceID))
         {
@@ -2040,9 +2041,9 @@ bool USuspenseEquipmentDataService::PerformDeepValidation_Internal() const
             RECORD_SERVICE_METRIC("Data.Validation.DuplicateInstances", 1);
             return false;
         }
-        
+
         InstanceIdToSlot.Add(Item.InstanceID, i);
-        
+
         // Validate item configuration matches slot
         FEquipmentSlotConfig SlotConfig = DataStore->GetSlotConfiguration(i);
         if (!SlotConfig.IsValid())
@@ -2052,10 +2053,10 @@ bool USuspenseEquipmentDataService::PerformDeepValidation_Internal() const
             RECORD_SERVICE_METRIC("Data.Validation.InvalidConfigs", 1);
             return false;
         }
-        
+
         // Additional deep checks can be added here
     }
-    
+
     RECORD_SERVICE_METRIC("Data.Validation.ItemsChecked", InstanceIdToSlot.Num());
     return true;
 }
@@ -2068,7 +2069,7 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity_Internal(bool bDeep) c
         RECORD_SERVICE_METRIC("Data.IntegrityCheck.NoDataStore", 1);
         return false;
     }
-    
+
     // Basic validation
     int32 SlotCount = DataStore->GetSlotCount();
     if (SlotCount <= 0 || SlotCount > MaxSlotCount)
@@ -2079,7 +2080,7 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity_Internal(bool bDeep) c
         RECORD_SERVICE_METRIC("Data.IntegrityCheck.InvalidSlotCount", 1);
         return false;
     }
-    
+
     // Validate active weapon slot
     int32 ActiveSlot = DataStore->GetActiveWeaponSlot();
     if (ActiveSlot != INDEX_NONE && !DataStore->IsValidSlotIndex(ActiveSlot))
@@ -2090,7 +2091,7 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity_Internal(bool bDeep) c
         RECORD_SERVICE_METRIC("Data.IntegrityCheck.InvalidActiveSlot", 1);
         return false;
     }
-    
+
     if (bDeep)
     {
         bool bDeepSuccess = PerformDeepValidation_Internal();
@@ -2104,13 +2105,13 @@ bool USuspenseEquipmentDataService::ValidateDataIntegrity_Internal(bool bDeep) c
         }
         return bDeepSuccess;
     }
-    
+
     RECORD_SERVICE_METRIC("Data.IntegrityCheck.BasicPassed", 1);
     return true;
 }
 
 // Остальные методы остаются без изменений...
-// [Методы CreateDefaultSlotConfiguration, UpdateCacheEntry, BatchUpdateCache, 
+// [Методы CreateDefaultSlotConfiguration, UpdateCacheEntry, BatchUpdateCache,
 //  LogDataOperation, ResetDataStore, IsValidSlotIndex, WarmupCachesSafe
 //  остаются такими же как в оригинальном файле]
 
@@ -2273,7 +2274,7 @@ TArray<FEquipmentSlotConfig> USuspenseEquipmentDataService::CreateDefaultSlotCon
 void USuspenseEquipmentDataService::UpdateCacheEntry(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const
 {
     FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
-    
+
     if (!ItemCache.IsValid())
     {
         return;
@@ -2379,23 +2380,23 @@ void USuspenseEquipmentDataService::ResetDataStore()
     {
         return;
     }
-    
+
     // Clear all slots
     const int32 SlotCount = DataStore->GetSlotCount();
     for (int32 i = 0; i < SlotCount; ++i)
     {
         DataStore->ClearSlot(i, false);
     }
-    
+
     // Reset active weapon slot
     DataStore->SetActiveWeaponSlot(INDEX_NONE);
-    
+
     // Reset equipment state
     DataStore->SetEquipmentState(FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Default")));
-    
+
     // Reinitialize with default configuration
     InitializeDataStorage();
-    
+
     // Notify observers on game thread (safe weak pointer capture)
     TWeakObjectPtr<USuspenseEquipmentDataStore> WeakDS = DataStore;
     AsyncTask(ENamedThreads::GameThread, [WeakDS]()
@@ -2405,7 +2406,7 @@ void USuspenseEquipmentDataService::ResetDataStore()
             WeakDS->OnDataStoreReset().Broadcast();
         }
     });
-    
+
     RECORD_SERVICE_METRIC("Data.DataStore.Reset", 1);
 }
 
@@ -2415,12 +2416,12 @@ bool USuspenseEquipmentDataService::IsValidSlotIndex(int32 SlotIndex) const
     {
         return false;
     }
-    
+
     if (DataStore && !DataStore->IsValidSlotIndex(SlotIndex))
     {
         return false;
     }
-    
+
     return true;
 }
 
@@ -2481,7 +2482,7 @@ void USuspenseEquipmentDataService::WarmupCachesSafe()
     }
 }
 
-void USuspenseEquipmentDataService::OnResendRequested(const FEquipmentEventData& Event)
+void USuspenseEquipmentDataService::OnResendRequested(const FSuspenseEquipmentEventData& Event)
 {
     // Минимальная корректная реализация: фиксируем запрос и инициируем безопасное переотправление
     UE_LOG(LogTemp, Verbose,

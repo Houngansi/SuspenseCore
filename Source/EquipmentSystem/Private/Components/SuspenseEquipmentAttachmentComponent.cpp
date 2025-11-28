@@ -4,7 +4,7 @@
 #include "Components/SuspenseEquipmentMeshComponent.h"
 #include "Components/SuspenseWeaponStanceComponent.h"
 #include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
-#include "Subsystems/MedComWeaponAnimationSubsystem.h"
+#include "Subsystems/WeaponAnimationSubsystem.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "GameFramework/Character.h"
@@ -26,7 +26,7 @@ const TArray<FName> USuspenseEquipmentAttachmentComponent::WeaponSocketPriority 
 
 const TArray<FName> USuspenseEquipmentAttachmentComponent::ArmorSocketPriority = {
     FName("spine_03"),
-    FName("spine_02"), 
+    FName("spine_02"),
     FName("pelvis"),
     FName("root")
 };
@@ -43,7 +43,7 @@ USuspenseEquipmentAttachmentComponent::USuspenseEquipmentAttachmentComponent()
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.TickInterval = 0.0f; // Tick every frame for animation updates
     SetIsReplicatedByDefault(true);
-    
+
     SpawnedEquipmentActor = nullptr;
     AttachTarget = nullptr;
     bIsAttached = false;
@@ -62,7 +62,7 @@ USuspenseEquipmentAttachmentComponent::USuspenseEquipmentAttachmentComponent()
 void USuspenseEquipmentAttachmentComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Auto-link stance component if enabled
     if (bAutoLinkStanceComponent)
     {
@@ -88,42 +88,42 @@ void USuspenseEquipmentAttachmentComponent::EndPlay(const EEndPlayReason::Type E
     {
         GetWorld()->GetTimerManager().ClearTimer(AnimationCompletionTimer);
     }
-    
+
     // Clean up any attachments
     if (IsAttached())
     {
         Detach(false);
     }
-    
+
     // Destroy spawned actor ONLY if we created it
     if (bDidSpawnActor && SpawnedEquipmentActor && SpawnedEquipmentActor != GetOwner())
     {
         DestroyEquipmentActor();
     }
-    
+
     // Clear references
     LinkedStanceComponent.Reset();
     CachedAnimationInterface = nullptr;
-    
+
     // Clear caches
     {
         FScopeLock Lock(&SocketCacheCriticalSection);
         SocketCache.Empty();
     }
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 void USuspenseEquipmentAttachmentComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-    
+
     // Update animation state
     if (AnimationState.bIsPlaying)
     {
         UpdateAnimationState(DeltaTime);
     }
-    
+
     // Clean up expired predictions on clients
     if (!GetOwner()->HasAuthority())
     {
@@ -134,7 +134,7 @@ void USuspenseEquipmentAttachmentComponent::TickComponent(float DeltaTime, ELeve
 void USuspenseEquipmentAttachmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(USuspenseEquipmentAttachmentComponent, SpawnedEquipmentActor);
     DOREPLIFETIME(USuspenseEquipmentAttachmentComponent, bIsAttached);
     DOREPLIFETIME(USuspenseEquipmentAttachmentComponent, bIsInActiveState);
@@ -150,13 +150,13 @@ void USuspenseEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* I
 {
     // Call base initialization
     Super::InitializeWithItemInstance(InOwner, InASC, ItemInstance);
-    
+
     if (!IsInitialized())
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to initialize base component"));
         return;
     }
-    
+
     // Get item data
     FSuspenseUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
@@ -164,14 +164,14 @@ void USuspenseEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* I
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for attachment"));
         return;
     }
-    
+
     // Store weapon type for animations
     CurrentWeaponType = GetWeaponArchetypeFromItem();
-    
+
     // Check if we are already part of an equipment actor
     AActor* OwnerActor = GetOwner();
     bool bIsPartOfEquipmentActor = false;
-    
+
     if (OwnerActor)
     {
         // Check if our owner already has mesh component and other equipment components
@@ -181,7 +181,7 @@ void USuspenseEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* I
             EQUIPMENT_LOG(Log, TEXT("AttachmentComponent is part of equipment actor %s"), *OwnerActor->GetName());
         }
     }
-    
+
     // Only spawn equipment actor if we're NOT already part of one
     if (!bIsPartOfEquipmentActor && GetOwner() && GetOwner()->HasAuthority())
     {
@@ -192,7 +192,7 @@ void USuspenseEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* I
             {
                 bDidSpawnActor = true;
                 AttachmentVersion++;
-                
+
                 // Force replication update on the owner actor
                 if (AActor* Owner = GetOwner())
                 {
@@ -208,13 +208,13 @@ void USuspenseEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* I
         bDidSpawnActor = false;
         EQUIPMENT_LOG(Log, TEXT("Using owner as equipment actor: %s"), *OwnerActor->GetName());
     }
-    
+
     // Notify stance component of new equipment
     if (LinkedStanceComponent.IsValid())
     {
         LinkedStanceComponent->OnEquipmentChanged(SpawnedEquipmentActor);
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("Initialized attachment for item: %s"), *ItemInstance.ItemID.ToString());
 }
 
@@ -222,19 +222,19 @@ void USuspenseEquipmentAttachmentComponent::Cleanup()
 {
     // Detach first
     Detach(false);
-    
+
     // Notify stance component
     if (LinkedStanceComponent.IsValid())
     {
         LinkedStanceComponent->OnEquipmentChanged(nullptr);
     }
-    
+
     // Destroy spawned actor ONLY if we created it
     if (bDidSpawnActor && SpawnedEquipmentActor && SpawnedEquipmentActor != GetOwner())
     {
         DestroyEquipmentActor();
     }
-    
+
     // Reset state
     SpawnedEquipmentActor = nullptr;
     AttachTarget = nullptr;
@@ -247,18 +247,18 @@ void USuspenseEquipmentAttachmentComponent::Cleanup()
     bDidSpawnActor = false;
     AttachmentPredictions.Empty();
     AnimationState = FAttachmentAnimationState();
-    
+
     // Update version and force replication
     if (GetOwner() && GetOwner()->HasAuthority())
     {
         AttachmentVersion++;
-        
+
         if (AActor* Owner = GetOwner())
         {
             Owner->ForceNetUpdate();
         }
     }
-    
+
     // Call base cleanup
     Super::Cleanup();
 }
@@ -269,16 +269,16 @@ void USuspenseEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspenseIn
     TWeakObjectPtr<AActor> CurrentCharacter = AttachedCharacter;
     bool bWasAttached = IsAttached();
     bool bWasActiveSocket = bIsInActiveState;
-    
+
     // Detach current equipment
     if (bWasAttached)
     {
         Detach(false);
     }
-    
+
     // Update base item
     Super::UpdateEquippedItem(NewItemInstance);
-    
+
     // Handle new item
     if (NewItemInstance.IsValid())
     {
@@ -287,16 +287,16 @@ void USuspenseEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspenseIn
         {
             // Update weapon type
             CurrentWeaponType = GetWeaponArchetypeFromItem();
-            
+
             // Destroy old actor ONLY if we spawned it
             if (bDidSpawnActor && SpawnedEquipmentActor && SpawnedEquipmentActor != GetOwner())
             {
                 DestroyEquipmentActor();
             }
-            
+
             // Check if we need to spawn new actor
             bool bIsPartOfEquipmentActor = GetOwner() && GetOwner()->FindComponentByClass<USuspenseEquipmentMeshComponent>() != nullptr;
-            
+
             if (!bIsPartOfEquipmentActor && GetOwner() && GetOwner()->HasAuthority())
             {
                 if (ItemData.bIsEquippable && !ItemData.EquipmentActorClass.IsNull())
@@ -314,13 +314,13 @@ void USuspenseEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspenseIn
                 SpawnedEquipmentActor = GetOwner();
                 bDidSpawnActor = false;
             }
-            
+
             // Notify stance component
             if (LinkedStanceComponent.IsValid())
             {
                 LinkedStanceComponent->OnEquipmentChanged(SpawnedEquipmentActor);
             }
-            
+
             // Reattach to previous character if we were attached
             if (bWasAttached && CurrentCharacter.IsValid())
             {
@@ -337,13 +337,13 @@ bool USuspenseEquipmentAttachmentComponent::AttachToCharacter(AActor* Character,
         EQUIPMENT_LOG(Warning, TEXT("Cannot attach - null character"));
         return false;
     }
-    
+
     if (!HasEquippedItem())
     {
         EQUIPMENT_LOG(Warning, TEXT("Cannot attach - no item equipped"));
         return false;
     }
-    
+
     // Get item data for attachment info
     FSuspenseUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
@@ -351,70 +351,70 @@ bool USuspenseEquipmentAttachmentComponent::AttachToCharacter(AActor* Character,
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for attachment"));
         return false;
     }
-    
+
     // Find target mesh on character
     USkeletalMeshComponent* TargetMesh = GetCharacterMesh(Character);
     if (!TargetMesh)
     {
         EQUIPMENT_LOG(Warning, TEXT("No skeletal mesh found on character, using root component"));
     }
-    
+
     // Select socket and offset based on active state
     FName SocketName = bUseActiveSocket ? ItemData.AttachmentSocket : ItemData.UnequippedSocket;
     FTransform SocketOffset = bUseActiveSocket ? ItemData.AttachmentOffset : ItemData.UnequippedOffset;
-    
-    EQUIPMENT_LOG(Log, TEXT("Attaching %s as %s weapon"), 
+
+    EQUIPMENT_LOG(Log, TEXT("Attaching %s as %s weapon"),
         *ItemData.DisplayName.ToString(),
         bUseActiveSocket ? TEXT("ACTIVE") : TEXT("INACTIVE"));
-    
+
     // If socket not specified in DataTable, use default
     if (SocketName.IsNone())
     {
         SocketName = GetDefaultSocketForSlot(ItemData.EquipmentSlot, bUseActiveSocket);
-        
-        EQUIPMENT_LOG(Warning, TEXT("No %s socket in DataTable for %s, using fallback: %s"), 
+
+        EQUIPMENT_LOG(Warning, TEXT("No %s socket in DataTable for %s, using fallback: %s"),
             bUseActiveSocket ? TEXT("AttachmentSocket") : TEXT("UnequippedSocket"),
-            *ItemData.ItemID.ToString(), 
+            *ItemData.ItemID.ToString(),
             *SocketName.ToString());
     }
     else
     {
-        EQUIPMENT_LOG(Log, TEXT("Using %s from DataTable: %s"), 
+        EQUIPMENT_LOG(Log, TEXT("Using %s from DataTable: %s"),
             bUseActiveSocket ? TEXT("AttachmentSocket") : TEXT("UnequippedSocket"),
             *SocketName.ToString());
     }
-    
+
     // Validate socket exists on mesh
     if (TargetMesh && !TargetMesh->DoesSocketExist(SocketName))
     {
-        EQUIPMENT_LOG(Warning, TEXT("Socket %s does not exist on mesh, trying to find alternative"), 
+        EQUIPMENT_LOG(Warning, TEXT("Socket %s does not exist on mesh, trying to find alternative"),
             *SocketName.ToString());
-        
+
         // Try to find alternative socket
         SocketName = FindBestAttachmentSocket(TargetMesh, ItemData, bUseActiveSocket);
-        
+
         if (SocketName.IsNone())
         {
             EQUIPMENT_LOG(Error, TEXT("No valid socket found for attachment"));
             return false;
         }
     }
-    
+
     // Handle client prediction
     if (!GetOwner()->HasAuthority())
     {
         // Start prediction
         int32 PredictionKey = PredictAttachment(Character, bUseActiveSocket, SocketName, SocketOffset, CurrentWeaponType);
-        
+
         // Send request to server
         ServerRequestAttachment(Character, bUseActiveSocket, SocketName, SocketOffset, CurrentWeaponType, PredictionKey);
-        
+
         return true; // Optimistically return true
     }
-    
+
     // Server-side attachment
     USceneComponent* AttachComponent = ComponentToAttach;
-    
+
     // Determine what component to attach
     if (!AttachComponent)
     {
@@ -426,21 +426,21 @@ bool USuspenseEquipmentAttachmentComponent::AttachToCharacter(AActor* Character,
             {
                 AttachComponent = SpawnedEquipmentActor->GetRootComponent();
             }
-            
+
             EQUIPMENT_LOG(Log, TEXT("Using spawned actor's component for attachment"));
         }
     }
-    
+
     if (!AttachComponent)
     {
         EQUIPMENT_LOG(Error, TEXT("No component to attach"));
         return false;
     }
-    
+
     // Apply attachment
     USceneComponent* FinalTarget = TargetMesh ? TargetMesh : Character->GetRootComponent();
     ApplyAttachment(AttachComponent, FinalTarget, SocketName, SocketOffset);
-    
+
     // Update state
     AttachTarget = FinalTarget;
     CurrentSocketName = SocketName;
@@ -448,28 +448,28 @@ bool USuspenseEquipmentAttachmentComponent::AttachToCharacter(AActor* Character,
     AttachedCharacter = Character;
     bIsAttached = true;
     bIsInActiveState = bUseActiveSocket;
-    
+
     // Notify stance component
     NotifyStanceOfAttachment(true);
-    
+
     // Broadcast event
     BroadcastAttachmentEvent(true, Character, SocketName);
-    
+
     // Update replication
     UpdateReplicatedAttachmentState();
-    
+
     // Replicate to clients with animation info
     if (SpawnedEquipmentActor)
     {
         MulticastAttachment(SpawnedEquipmentActor, FinalTarget, SocketName, SocketOffset, CurrentWeaponType, false);
     }
-    
-    EQUIPMENT_LOG(Log, TEXT("Successfully attached %s to %s at socket %s (State: %s)"), 
-        *ItemData.DisplayName.ToString(), 
-        *Character->GetName(), 
+
+    EQUIPMENT_LOG(Log, TEXT("Successfully attached %s to %s at socket %s (State: %s)"),
+        *ItemData.DisplayName.ToString(),
+        *Character->GetName(),
         *SocketName.ToString(),
         bUseActiveSocket ? TEXT("Active") : TEXT("Inactive"));
-    
+
     return true;
 }
 
@@ -480,19 +480,19 @@ void USuspenseEquipmentAttachmentComponent::Detach(bool bMaintainWorldTransform)
     {
         // Start prediction
         int32 PredictionKey = PredictDetachment();
-        
+
         // Send request to server
         ServerRequestDetachment(bMaintainWorldTransform, PredictionKey);
-        
+
         return;
     }
-    
+
     // Server-side detachment
     if (!IsAttached())
     {
         return;
     }
-    
+
     // Stop any ongoing animations
     if (AnimationState.bIsPlaying)
     {
@@ -502,39 +502,39 @@ void USuspenseEquipmentAttachmentComponent::Detach(bool bMaintainWorldTransform)
             GetWorld()->GetTimerManager().ClearTimer(AnimationCompletionTimer);
         }
     }
-    
+
     // Detach component
     if (SpawnedEquipmentActor)
     {
-        FDetachmentTransformRules Rules = bMaintainWorldTransform ? 
-            FDetachmentTransformRules::KeepWorldTransform : 
+        FDetachmentTransformRules Rules = bMaintainWorldTransform ?
+            FDetachmentTransformRules::KeepWorldTransform :
             FDetachmentTransformRules::KeepRelativeTransform;
-            
+
         SpawnedEquipmentActor->DetachFromActor(Rules);
-        
+
         // Replicate to clients
         MulticastDetachment(SpawnedEquipmentActor, bMaintainWorldTransform);
     }
-    
+
     // Notify stance component
     NotifyStanceOfAttachment(false);
-    
+
     // Broadcast event before clearing state
     if (AttachedCharacter.IsValid())
     {
         BroadcastAttachmentEvent(false, AttachedCharacter.Get(), CurrentSocketName);
     }
-    
+
     // Clear state
     AttachTarget = nullptr;
     CurrentSocketName = NAME_None;
     AttachedCharacter.Reset();
     bIsAttached = false;
     bIsInActiveState = false;
-    
+
     // Update replication
     UpdateReplicatedAttachmentState();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Detached equipment"));
 }
 
@@ -545,15 +545,15 @@ void USuspenseEquipmentAttachmentComponent::UpdateAttachmentState(bool bMakeActi
         EQUIPMENT_LOG(Warning, TEXT("UpdateAttachmentState: Not attached to character"));
         return;
     }
-    
+
     // If already in desired state and not animating, do nothing
     if (bIsInActiveState == bMakeActive && !AnimationState.bIsPlaying)
     {
-        EQUIPMENT_LOG(Verbose, TEXT("UpdateAttachmentState: Already in %s state"), 
+        EQUIPMENT_LOG(Verbose, TEXT("UpdateAttachmentState: Already in %s state"),
             bMakeActive ? TEXT("active") : TEXT("inactive"));
         return;
     }
-    
+
     // Get item data
     FSuspenseUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
@@ -561,28 +561,28 @@ void USuspenseEquipmentAttachmentComponent::UpdateAttachmentState(bool bMakeActi
         EQUIPMENT_LOG(Error, TEXT("UpdateAttachmentState: Failed to get item data"));
         return;
     }
-    
+
     // Get new socket and offset
     FName NewSocket = bMakeActive ? ItemData.AttachmentSocket : ItemData.UnequippedSocket;
     FTransform NewOffset = bMakeActive ? ItemData.AttachmentOffset : ItemData.UnequippedOffset;
-    
+
     // If socket not specified, use default
     if (NewSocket.IsNone())
     {
         NewSocket = GetDefaultSocketForSlot(ItemData.EquipmentSlot, bMakeActive);
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("UpdateAttachmentState: Moving %s to %s position (Socket: %s)"),
         *ItemData.DisplayName.ToString(),
         bMakeActive ? TEXT("ACTIVE") : TEXT("INACTIVE"),
         *NewSocket.ToString());
-    
+
     // Play animation if requested
     if (bAnimated && CurrentWeaponType.IsValid())
     {
         PlayAttachmentAnimation(bMakeActive);
     }
-    
+
     // Re-attach to new socket
     if (AttachTarget && SpawnedEquipmentActor)
     {
@@ -591,24 +591,24 @@ void USuspenseEquipmentAttachmentComponent::UpdateAttachmentState(bool bMakeActi
         {
             ComponentToMove = SpawnedEquipmentActor->GetRootComponent();
         }
-        
+
         // Apply new attachment
         ApplyAttachment(ComponentToMove, AttachTarget, NewSocket, NewOffset);
-        
+
         // Update state
         CurrentSocketName = NewSocket;
         CurrentAttachmentOffset = NewOffset;
         bIsInActiveState = bMakeActive;
-        
+
         // Update stance component
         if (LinkedStanceComponent.IsValid())
         {
             LinkedStanceComponent->SetWeaponDrawnState(bMakeActive);
         }
-        
+
         // Update replication
         UpdateReplicatedAttachmentState();
-        
+
         // Replicate change with animation info
         if (GetOwner() && GetOwner()->HasAuthority())
         {
@@ -626,7 +626,7 @@ void USuspenseEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bToActi
         OnAttachmentAnimationComplete();
         return;
     }
-    
+
     // Get appropriate montage
     UAnimMontage* Montage = nullptr;
     if (bToActive)
@@ -639,22 +639,22 @@ void USuspenseEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bToActi
         Montage = ISuspenseWeaponAnimation::Execute_GetHolsterMontage(
             AnimInterface.GetObject(), CurrentWeaponType);
     }
-    
+
     if (!Montage)
     {
         OnAttachmentAnimationComplete();
         return;
     }
-    
+
     // Set animation state
     AnimationState.CurrentMontage = Montage;
     AnimationState.PlayRate = 1.0f;
     AnimationState.bIsPlaying = true;
     AnimationState.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Calculate duration
     float AnimDuration = Duration > 0.0f ? Duration : Montage->GetPlayLength() / AnimationState.PlayRate;
-    
+
     // Set timer for completion
     if (GetWorld())
     {
@@ -666,7 +666,7 @@ void USuspenseEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bToActi
             false
         );
     }
-    
+
     // Play on character mesh if available
     if (AttachedCharacter.IsValid())
     {
@@ -691,7 +691,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseEquipmentAttachmentComponent
             return CachedAnimationInterface;
         }
     }
-    
+
     // Try stance component first
     if (LinkedStanceComponent.IsValid())
     {
@@ -703,7 +703,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseEquipmentAttachmentComponent
             return CachedAnimationInterface;
         }
     }
-    
+
     // Get from subsystem
     if (UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
     {
@@ -712,11 +712,11 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseEquipmentAttachmentComponent
             CachedAnimationInterface.SetObject(AnimSubsystem);
             CachedAnimationInterface.SetInterface(AnimSubsystem);
             LastAnimationInterfaceCacheTime = CurrentTime;
-            
+
             return CachedAnimationInterface;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -725,20 +725,20 @@ void USuspenseEquipmentAttachmentComponent::OnAttachmentAnimationComplete()
     // Clear animation state
     AnimationState.bIsPlaying = false;
     AnimationState.CurrentMontage = nullptr;
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(AnimationCompletionTimer);
     }
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("Attachment animation completed"));
 }
 
 void USuspenseEquipmentAttachmentComponent::LinkStanceComponent(USuspenseWeaponStanceComponent* StanceComponent)
 {
     LinkedStanceComponent = StanceComponent;
-    
+
     if (StanceComponent)
     {
         // Notify stance of current equipment
@@ -746,13 +746,13 @@ void USuspenseEquipmentAttachmentComponent::LinkStanceComponent(USuspenseWeaponS
         {
             StanceComponent->OnEquipmentChanged(SpawnedEquipmentActor);
         }
-        
+
         // Set weapon stance based on current type
         if (CurrentWeaponType.IsValid())
         {
             StanceComponent->SetWeaponStance(CurrentWeaponType, true);
         }
-        
+
         EQUIPMENT_LOG(Log, TEXT("Linked to stance component"));
     }
 }
@@ -784,13 +784,13 @@ FName USuspenseEquipmentAttachmentComponent::GetAttachmentSocketName(bool bActiv
     {
         return NAME_None;
     }
-    
+
     FSuspenseUnifiedItemData ItemData;
     if (GetEquippedItemData(ItemData))
     {
         return bActive ? ItemData.AttachmentSocket : ItemData.UnequippedSocket;
     }
-    
+
     return NAME_None;
 }
 
@@ -800,13 +800,13 @@ FTransform USuspenseEquipmentAttachmentComponent::GetAttachmentOffset(bool bActi
     {
         return FTransform::Identity;
     }
-    
+
     FSuspenseUnifiedItemData ItemData;
     if (GetEquippedItemData(ItemData))
     {
         return bActive ? ItemData.AttachmentOffset : ItemData.UnequippedOffset;
     }
-    
+
     return FTransform::Identity;
 }
 
@@ -814,14 +814,14 @@ FTransform USuspenseEquipmentAttachmentComponent::GetAttachmentOffset(bool bActi
 // Client Prediction Implementation
 //================================================
 
-int32 USuspenseEquipmentAttachmentComponent::PredictAttachment(AActor* Character, bool bUseActiveSocket, const FName& SocketName, 
+int32 USuspenseEquipmentAttachmentComponent::PredictAttachment(AActor* Character, bool bUseActiveSocket, const FName& SocketName,
                                                       const FTransform& Offset, const FGameplayTag& WeaponType)
 {
     if (GetOwner()->HasAuthority())
     {
         return 0; // No prediction on server
     }
-    
+
     // Create prediction
     FAttachmentPredictionData Prediction;
     Prediction.PredictionKey = NextAttachmentPredictionKey++;
@@ -832,15 +832,15 @@ int32 USuspenseEquipmentAttachmentComponent::PredictAttachment(AActor* Character
     Prediction.PredictedCharacter = Character;
     Prediction.WeaponTypeTag = WeaponType;
     Prediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Apply prediction locally
     ApplyPredictedAttachment(Prediction);
-    
+
     // Store prediction
     AttachmentPredictions.Add(Prediction);
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("Started attachment prediction %d"), Prediction.PredictionKey);
-    
+
     return Prediction.PredictionKey;
 }
 
@@ -850,24 +850,24 @@ int32 USuspenseEquipmentAttachmentComponent::PredictDetachment()
     {
         return 0; // No prediction on server
     }
-    
+
     // Create prediction
     FAttachmentPredictionData Prediction;
     Prediction.PredictionKey = NextAttachmentPredictionKey++;
     Prediction.bPredictedAttached = false;
     Prediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Apply prediction locally (detach)
     if (SpawnedEquipmentActor)
     {
         SpawnedEquipmentActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     }
-    
+
     // Store prediction
     AttachmentPredictions.Add(Prediction);
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("Started detachment prediction %d"), Prediction.PredictionKey);
-    
+
     return Prediction.PredictionKey;
 }
 
@@ -877,15 +877,15 @@ void USuspenseEquipmentAttachmentComponent::ConfirmAttachmentPrediction(int32 Pr
     int32 PredictionIndex = AttachmentPredictions.IndexOfByPredicate(
         [PredictionKey](const FAttachmentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
-    
+
     if (PredictionIndex == INDEX_NONE)
     {
         return;
     }
-    
+
     FAttachmentPredictionData Prediction = AttachmentPredictions[PredictionIndex];
     AttachmentPredictions.RemoveAt(PredictionIndex);
-    
+
     if (!bSuccess)
     {
         // Revert prediction
@@ -904,15 +904,15 @@ void USuspenseEquipmentAttachmentComponent::ApplyPredictedAttachment(const FAtta
     {
         return;
     }
-    
+
     if (AActor* Character = Prediction.PredictedCharacter.Get())
     {
         USkeletalMeshComponent* TargetMesh = GetCharacterMesh(Character);
         USceneComponent* FinalTarget = TargetMesh ? TargetMesh : Character->GetRootComponent();
-        
+
         USceneComponent* AttachComponent = SpawnedEquipmentActor->GetRootComponent();
         ApplyAttachment(AttachComponent, FinalTarget, Prediction.PredictedSocketName, Prediction.PredictedOffset);
-        
+
         // Play animation if weapon type is valid
         if (Prediction.WeaponTypeTag.IsValid())
         {
@@ -940,10 +940,10 @@ void USuspenseEquipmentAttachmentComponent::CleanupExpiredPredictions()
     {
         return;
     }
-    
+
     const float CurrentTime = GetWorld()->GetTimeSeconds();
     const float TimeoutSeconds = 2.0f;
-    
+
     AttachmentPredictions.RemoveAll([CurrentTime, TimeoutSeconds](const FAttachmentPredictionData& Data)
     {
         return (CurrentTime - Data.PredictionTime) > TimeoutSeconds;
@@ -956,7 +956,7 @@ void USuspenseEquipmentAttachmentComponent::UpdateAnimationState(float DeltaTime
     {
         return;
     }
-    
+
     // Update animation progress
     // This could be used to sync animation states across network
     // or to control attachment interpolation
@@ -969,7 +969,7 @@ FGameplayTag USuspenseEquipmentAttachmentComponent::GetWeaponArchetypeFromItem()
     {
         return ItemData.WeaponArchetype;
     }
-    
+
     return FGameplayTag();
 }
 
@@ -980,44 +980,44 @@ FGameplayTag USuspenseEquipmentAttachmentComponent::GetWeaponArchetypeFromItem()
 TArray<FSocketSearchResult> USuspenseEquipmentAttachmentComponent::GetValidSocketsForItem(const FSuspenseUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const
 {
     TArray<FSocketSearchResult> Results;
-    
+
     if (!TargetMesh)
     {
         return Results;
     }
-    
+
     // Check primary sockets from DataTable FIRST
     if (ItemData.AttachmentSocket != NAME_None)
     {
         bool bExists = TargetMesh->DoesSocketExist(ItemData.AttachmentSocket);
         Results.Add(FSocketSearchResult(ItemData.AttachmentSocket, 100, bExists));
     }
-    
+
     if (ItemData.UnequippedSocket != NAME_None)
     {
         bool bExists = TargetMesh->DoesSocketExist(ItemData.UnequippedSocket);
         Results.Add(FSocketSearchResult(ItemData.UnequippedSocket, 95, bExists));
     }
-    
+
     // Check slot defaults
     FName DefaultActive = GetDefaultSocketForSlot(ItemData.EquipmentSlot, true);
     FName DefaultInactive = GetDefaultSocketForSlot(ItemData.EquipmentSlot, false);
-    
+
     if (DefaultActive != NAME_None && DefaultActive != ItemData.AttachmentSocket)
     {
         bool bExists = TargetMesh->DoesSocketExist(DefaultActive);
         Results.Add(FSocketSearchResult(DefaultActive, 90, bExists));
     }
-    
+
     if (DefaultInactive != NAME_None && DefaultInactive != ItemData.UnequippedSocket)
     {
         bool bExists = TargetMesh->DoesSocketExist(DefaultInactive);
         Results.Add(FSocketSearchResult(DefaultInactive, 85, bExists));
     }
-    
+
     // Check priority lists
     const TArray<FName>* PriorityList = nullptr;
-    
+
     if (ItemData.bIsWeapon)
     {
         PriorityList = &WeaponSocketPriority;
@@ -1030,7 +1030,7 @@ TArray<FSocketSearchResult> USuspenseEquipmentAttachmentComponent::GetValidSocke
     {
         PriorityList = &AccessorySocketPriority;
     }
-    
+
     if (PriorityList)
     {
         int32 Score = 80;
@@ -1041,7 +1041,7 @@ TArray<FSocketSearchResult> USuspenseEquipmentAttachmentComponent::GetValidSocke
             {
                 return Result.SocketName == SocketName;
             });
-            
+
             if (!bAlreadyAdded)
             {
                 bool bExists = TargetMesh->DoesSocketExist(SocketName);
@@ -1049,13 +1049,13 @@ TArray<FSocketSearchResult> USuspenseEquipmentAttachmentComponent::GetValidSocke
             }
         }
     }
-    
+
     // Sort by score
     Results.Sort([](const FSocketSearchResult& A, const FSocketSearchResult& B)
     {
         return A.QualityScore > B.QualityScore;
     });
-    
+
     return Results;
 }
 
@@ -1065,7 +1065,7 @@ bool USuspenseEquipmentAttachmentComponent::ValidateSocket(const FName& SocketNa
     {
         return false;
     }
-    
+
     return TargetMesh->DoesSocketExist(SocketName);
 }
 
@@ -1080,7 +1080,7 @@ AActor* USuspenseEquipmentAttachmentComponent::SpawnEquipmentActor(const FSuspen
         EQUIPMENT_LOG(Error, TEXT("Cannot spawn equipment actor - invalid owner or world"));
         return nullptr;
     }
-    
+
     // Load actor class
     UClass* ActorClass = ItemData.EquipmentActorClass.LoadSynchronous();
     if (!ActorClass)
@@ -1088,25 +1088,25 @@ AActor* USuspenseEquipmentAttachmentComponent::SpawnEquipmentActor(const FSuspen
         EQUIPMENT_LOG(Error, TEXT("Failed to load equipment actor class"));
         return nullptr;
     }
-    
+
     // Spawn actor
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = GetOwner();
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
+
     AActor* NewActor = GetWorld()->SpawnActor<AActor>(ActorClass, FTransform::Identity, SpawnParams);
     if (!NewActor)
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to spawn equipment actor"));
         return nullptr;
     }
-    
+
     // Initialize mesh component if exists
     if (USuspenseEquipmentMeshComponent* MeshComp = NewActor->FindComponentByClass<USuspenseEquipmentMeshComponent>())
     {
         MeshComp->InitializeFromItemInstance(EquippedItemInstance);
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("Spawned equipment actor: %s"), *NewActor->GetName());
     return NewActor;
 }
@@ -1127,19 +1127,19 @@ FName USuspenseEquipmentAttachmentComponent::FindBestAttachmentSocket(USkeletalM
     {
         return NAME_None;
     }
-    
+
     // Check socket cache first
     {
         FScopeLock Lock(&SocketCacheCriticalSection);
-        
+
         const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
         if ((CurrentTime - LastSocketCacheTime) < SocketCacheLifetime)
         {
-            FString CacheKey = FString::Printf(TEXT("%s_%s_%s"), 
-                *ItemData.ItemID.ToString(), 
+            FString CacheKey = FString::Printf(TEXT("%s_%s_%s"),
+                *ItemData.ItemID.ToString(),
                 *TargetMesh->GetName(),
                 bForActive ? TEXT("Active") : TEXT("Inactive"));
-                
+
             if (FSocketSearchResult* CachedResult = SocketCache.Find(CacheKey))
             {
                 if (CachedResult->bSocketExists)
@@ -1149,10 +1149,10 @@ FName USuspenseEquipmentAttachmentComponent::FindBestAttachmentSocket(USkeletalM
             }
         }
     }
-    
+
     // Get all valid sockets
     TArray<FSocketSearchResult> ValidSockets = GetValidSocketsForItem(ItemData, TargetMesh);
-    
+
     // Find first existing socket
     for (const FSocketSearchResult& Result : ValidSockets)
     {
@@ -1161,19 +1161,19 @@ FName USuspenseEquipmentAttachmentComponent::FindBestAttachmentSocket(USkeletalM
             // Cache the result
             {
                 FScopeLock Lock(&SocketCacheCriticalSection);
-                FString CacheKey = FString::Printf(TEXT("%s_%s_%s"), 
-                    *ItemData.ItemID.ToString(), 
+                FString CacheKey = FString::Printf(TEXT("%s_%s_%s"),
+                    *ItemData.ItemID.ToString(),
                     *TargetMesh->GetName(),
                     bForActive ? TEXT("Active") : TEXT("Inactive"));
-                    
+
                 SocketCache.Add(CacheKey, Result);
                 LastSocketCacheTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
             }
-            
+
             return Result.SocketName;
         }
     }
-    
+
     // No suitable socket found
     return NAME_None;
 }
@@ -1219,11 +1219,11 @@ FName USuspenseEquipmentAttachmentComponent::GetDefaultSocketForSlot(const FGame
         else if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Backpack"))))
             return FName("spine_02");
     }
-    
+
     return NAME_None;
 }
 
-void USuspenseEquipmentAttachmentComponent::ApplyAttachment(USceneComponent* ComponentToAttach, USceneComponent* TargetComponent, 
+void USuspenseEquipmentAttachmentComponent::ApplyAttachment(USceneComponent* ComponentToAttach, USceneComponent* TargetComponent,
                                                    const FName& SocketName, const FTransform& AttachmentOffset)
 {
     if (!ComponentToAttach || !TargetComponent)
@@ -1231,34 +1231,34 @@ void USuspenseEquipmentAttachmentComponent::ApplyAttachment(USceneComponent* Com
         EQUIPMENT_LOG(Error, TEXT("ApplyAttachment: Invalid components"));
         return;
     }
-    
+
     // First, ensure the component is not simulating physics
     if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ComponentToAttach))
     {
         // Disable physics simulation to prevent "floating" behavior
         PrimComp->SetSimulatePhysics(false);
         PrimComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        
+
         EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Disabled physics simulation on component"));
     }
-    
+
     // Log attachment details for debugging
-    EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Attaching %s to %s (Socket: %s)"), 
-        *ComponentToAttach->GetName(), 
-        *TargetComponent->GetName(), 
+    EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Attaching %s to %s (Socket: %s)"),
+        *ComponentToAttach->GetName(),
+        *TargetComponent->GetName(),
         *SocketName.ToString());
-    
+
     // Detach first to ensure clean state
     ComponentToAttach->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-    
+
     // Use explicit attachment rules for all transform components
     FAttachmentTransformRules AttachRules(
         EAttachmentRule::SnapToTarget,      // Location - snap to target
-        EAttachmentRule::SnapToTarget,      // Rotation - snap to target  
+        EAttachmentRule::SnapToTarget,      // Rotation - snap to target
         EAttachmentRule::SnapToTarget,      // Scale - snap to target
         true                                // Weld simulated bodies
     );
-    
+
     // Attach to socket or component
     bool bAttachSuccess = false;
     if (SocketName != NAME_None)
@@ -1266,7 +1266,7 @@ void USuspenseEquipmentAttachmentComponent::ApplyAttachment(USceneComponent* Com
         bAttachSuccess = ComponentToAttach->AttachToComponent(TargetComponent, AttachRules, SocketName);
         if (!bAttachSuccess)
         {
-            EQUIPMENT_LOG(Warning, TEXT("ApplyAttachment: Failed to attach to socket %s, trying without socket"), 
+            EQUIPMENT_LOG(Warning, TEXT("ApplyAttachment: Failed to attach to socket %s, trying without socket"),
                 *SocketName.ToString());
             bAttachSuccess = ComponentToAttach->AttachToComponent(TargetComponent, AttachRules);
         }
@@ -1275,36 +1275,36 @@ void USuspenseEquipmentAttachmentComponent::ApplyAttachment(USceneComponent* Com
     {
         bAttachSuccess = ComponentToAttach->AttachToComponent(TargetComponent, AttachRules);
     }
-    
+
     if (!bAttachSuccess)
     {
         EQUIPMENT_LOG(Error, TEXT("ApplyAttachment: Failed to attach component"));
         return;
     }
-    
+
     // Apply transform offset AFTER attachment
     if (!AttachmentOffset.Equals(FTransform::Identity))
     {
         // Set relative transform directly
         ComponentToAttach->SetRelativeTransform(AttachmentOffset);
-        
+
         EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Applied relative transform offset"));
     }
-    
+
     // Ensure the component updates its transform
     ComponentToAttach->UpdateComponentToWorld();
-    
+
     // Double-check physics is disabled on the entire actor
     if (AActor* AttachedActor = ComponentToAttach->GetOwner())
     {
         AttachedActor->DisableComponentsSimulatePhysics();
         AttachedActor->SetActorEnableCollision(false);
-        
-        EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Disabled physics on entire actor %s"), 
+
+        EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Disabled physics on entire actor %s"),
             *AttachedActor->GetName());
     }
-    
-    EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Successfully attached with final world location: %s"), 
+
+    EQUIPMENT_LOG(Log, TEXT("ApplyAttachment: Successfully attached with final world location: %s"),
         *ComponentToAttach->GetComponentLocation().ToString());
 }
 
@@ -1314,7 +1314,7 @@ void USuspenseEquipmentAttachmentComponent::BroadcastAttachmentEvent(bool bAttac
     {
         return;
     }
-    
+
     // Create event data
     FString EventData = FString::Printf(
         TEXT("Character:%s,Socket:%s,ItemID:%s,InstanceID:%s,Active:%s,WeaponType:%s"),
@@ -1325,12 +1325,12 @@ void USuspenseEquipmentAttachmentComponent::BroadcastAttachmentEvent(bool bAttac
         bIsInActiveState ? TEXT("true") : TEXT("false"),
         *CurrentWeaponType.ToString()
     );
-    
+
     // Broadcast appropriate event
-    FGameplayTag EventTag = bAttached ? 
+    FGameplayTag EventTag = bAttached ?
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Attached")) :
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Detached"));
-    
+
     BroadcastEquipmentEvent(EventTag, EventData);
 }
 
@@ -1340,17 +1340,17 @@ USkeletalMeshComponent* USuspenseEquipmentAttachmentComponent::GetCharacterMesh(
     {
         return nullptr;
     }
-    
+
     // Try character class first
     if (ACharacter* CharacterPawn = Cast<ACharacter>(Character))
     {
         return CharacterPawn->GetMesh();
     }
-    
+
     // Look for first skeletal mesh component
     TArray<USkeletalMeshComponent*> MeshComponents;
     Character->GetComponents<USkeletalMeshComponent>(MeshComponents);
-    
+
     // Return first valid mesh that's not an equipment mesh
     for (USkeletalMeshComponent* Mesh : MeshComponents)
     {
@@ -1359,7 +1359,7 @@ USkeletalMeshComponent* USuspenseEquipmentAttachmentComponent::GetCharacterMesh(
             return Mesh;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -1369,10 +1369,10 @@ void USuspenseEquipmentAttachmentComponent::UpdateReplicatedAttachmentState()
     {
         return;
     }
-    
+
     // Update version to force replication
     AttachmentVersion++;
-    
+
     // Force net update on the owner actor
     if (AActor* Owner = GetOwner())
     {
@@ -1391,7 +1391,7 @@ void USuspenseEquipmentAttachmentComponent::OnRep_AttachmentState()
         bIsInActiveState ? TEXT("true") : TEXT("false"),
         *CurrentSocketName.ToString(),
         AttachmentVersion);
-    
+
     // Update last confirmed state for predictions
     LastConfirmedState.bPredictedAttached = bIsAttached;
     LastConfirmedState.bPredictedActive = bIsInActiveState;
@@ -1399,7 +1399,7 @@ void USuspenseEquipmentAttachmentComponent::OnRep_AttachmentState()
     LastConfirmedState.PredictedOffset = CurrentAttachmentOffset;
     LastConfirmedState.PredictedCharacter = AttachedCharacter;
     LastConfirmedState.WeaponTypeTag = CurrentWeaponType;
-    
+
     // Update stance component
     if (LinkedStanceComponent.IsValid())
     {
@@ -1419,7 +1419,7 @@ void USuspenseEquipmentAttachmentComponent::OnRep_SpawnedEquipmentActor()
 {
     EQUIPMENT_LOG(Verbose, TEXT("OnRep_SpawnedEquipmentActor: %s"),
         SpawnedEquipmentActor ? *SpawnedEquipmentActor->GetName() : TEXT("None"));
-    
+
     // Initialize mesh component on clients
     if (SpawnedEquipmentActor && HasEquippedItem())
     {
@@ -1428,7 +1428,7 @@ void USuspenseEquipmentAttachmentComponent::OnRep_SpawnedEquipmentActor()
             MeshComp->InitializeFromItemInstance(EquippedItemInstance);
         }
     }
-    
+
     // Notify stance component
     if (LinkedStanceComponent.IsValid())
     {
@@ -1441,7 +1441,7 @@ void USuspenseEquipmentAttachmentComponent::OnRep_AnimationState()
     EQUIPMENT_LOG(Verbose, TEXT("OnRep_AnimationState: Playing=%s, PlayRate=%.2f"),
         AnimationState.bIsPlaying ? TEXT("true") : TEXT("false"),
         AnimationState.PlayRate);
-    
+
     // Play animation on client if needed
     if (AnimationState.bIsPlaying && AnimationState.CurrentMontage)
     {
@@ -1462,33 +1462,33 @@ void USuspenseEquipmentAttachmentComponent::OnRep_AnimationState()
 // Server RPC Implementation
 //================================================
 
-void USuspenseEquipmentAttachmentComponent::ServerRequestAttachment_Implementation(AActor* Character, bool bUseActiveSocket, FName RequestedSocket, 
+void USuspenseEquipmentAttachmentComponent::ServerRequestAttachment_Implementation(AActor* Character, bool bUseActiveSocket, FName RequestedSocket,
                                                                          FTransform RequestedOffset, FGameplayTag WeaponType, int32 PredictionKey)
 {
     bool bSuccess = false;
     FName ActualSocket = RequestedSocket;
     FTransform ActualOffset = RequestedOffset;
-    
+
     if (Character && HasEquippedItem())
     {
         // Update weapon type
         CurrentWeaponType = WeaponType;
-        
+
         // Validate and perform attachment
         bSuccess = AttachToCharacter(Character, bUseActiveSocket, nullptr);
-        
+
         if (bSuccess)
         {
             ActualSocket = CurrentSocketName;
             ActualOffset = CurrentAttachmentOffset;
         }
     }
-    
+
     // Send confirmation to client
     ClientConfirmAttachment(PredictionKey, bSuccess, ActualSocket, ActualOffset);
 }
 
-bool USuspenseEquipmentAttachmentComponent::ServerRequestAttachment_Validate(AActor* Character, bool bUseActiveSocket, FName RequestedSocket, 
+bool USuspenseEquipmentAttachmentComponent::ServerRequestAttachment_Validate(AActor* Character, bool bUseActiveSocket, FName RequestedSocket,
                                                                     FTransform RequestedOffset, FGameplayTag WeaponType, int32 PredictionKey)
 {
     return Character != nullptr && PredictionKey > 0;
@@ -1497,7 +1497,7 @@ bool USuspenseEquipmentAttachmentComponent::ServerRequestAttachment_Validate(AAc
 void USuspenseEquipmentAttachmentComponent::ServerRequestDetachment_Implementation(bool bMaintainTransform, int32 PredictionKey)
 {
     Detach(bMaintainTransform);
-    
+
     // Send confirmation to client
     ClientConfirmAttachment(PredictionKey, true, NAME_None, FTransform::Identity);
 }
@@ -1510,7 +1510,7 @@ bool USuspenseEquipmentAttachmentComponent::ServerRequestDetachment_Validate(boo
 void USuspenseEquipmentAttachmentComponent::ClientConfirmAttachment_Implementation(int32 PredictionKey, bool bSuccess, FName ActualSocket, FTransform ActualOffset)
 {
     ConfirmAttachmentPrediction(PredictionKey, bSuccess);
-    
+
     if (bSuccess)
     {
         // Update confirmed state
@@ -1523,39 +1523,39 @@ void USuspenseEquipmentAttachmentComponent::ClientConfirmAttachment_Implementati
 // Multicast RPC Implementation
 //================================================
 
-void USuspenseEquipmentAttachmentComponent::MulticastAttachment_Implementation(AActor* Actor, USceneComponent* Parent, FName Socket, 
+void USuspenseEquipmentAttachmentComponent::MulticastAttachment_Implementation(AActor* Actor, USceneComponent* Parent, FName Socket,
                                                                       FTransform Offset, FGameplayTag WeaponType, bool bAnimated)
 {
     if (!Actor || !Parent)
     {
         return;
     }
-    
+
     // Skip on server as it's already done
     if (GetOwner() && GetOwner()->HasAuthority())
     {
         return;
     }
-    
+
     // Update weapon type
     CurrentWeaponType = WeaponType;
-    
+
     // Find component to attach
     USceneComponent* ComponentToAttach = Actor->FindComponentByClass<USuspenseEquipmentMeshComponent>();
     if (!ComponentToAttach)
     {
         ComponentToAttach = Actor->GetRootComponent();
     }
-    
+
     // Apply attachment
     ApplyAttachment(ComponentToAttach, Parent, Socket, Offset);
-    
+
     // Play animation if requested
     if (bAnimated && WeaponType.IsValid())
     {
         PlayAttachmentAnimation(bIsInActiveState);
     }
-    
+
     // Update stance component
     if (LinkedStanceComponent.IsValid())
     {
@@ -1570,20 +1570,20 @@ void USuspenseEquipmentAttachmentComponent::MulticastDetachment_Implementation(A
     {
         return;
     }
-    
+
     // Skip on server as it's already done
     if (GetOwner() && GetOwner()->HasAuthority())
     {
         return;
     }
-    
+
     // Detach actor
-    FDetachmentTransformRules Rules = bMaintainTransform ? 
-        FDetachmentTransformRules::KeepWorldTransform : 
+    FDetachmentTransformRules Rules = bMaintainTransform ?
+        FDetachmentTransformRules::KeepWorldTransform :
         FDetachmentTransformRules::KeepRelativeTransform;
-        
+
     Actor->DetachFromActor(Rules);
-    
+
     // Update stance component
     if (LinkedStanceComponent.IsValid())
     {
@@ -1598,7 +1598,7 @@ void USuspenseEquipmentAttachmentComponent::MulticastDetachment_Implementation(A
 void USuspenseEquipmentAttachmentComponent::OnEquipmentInitialized()
 {
     Super::OnEquipmentInitialized();
-    
+
     // Update weapon type when equipment is initialized
     CurrentWeaponType = GetWeaponArchetypeFromItem();
 }
@@ -1606,10 +1606,10 @@ void USuspenseEquipmentAttachmentComponent::OnEquipmentInitialized()
 void USuspenseEquipmentAttachmentComponent::OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem)
 {
     Super::OnEquippedItemChanged(OldItem, NewItem);
-    
+
     // Update weapon type when item changes
     CurrentWeaponType = GetWeaponArchetypeFromItem();
-    
+
     // Notify stance component
     if (LinkedStanceComponent.IsValid())
     {

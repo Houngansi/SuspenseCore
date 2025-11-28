@@ -5,7 +5,7 @@
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "Attributes/SuspenseBaseAttributeSet.h"
+#include "Attributes/DefaultAttributeSet.h"
 #include "Interfaces/Core/ISuspenseMovement.h"
 
 USuspenseCharacterMovementComponent::USuspenseCharacterMovementComponent()
@@ -89,7 +89,7 @@ void USuspenseCharacterMovementComponent::SyncMovementSpeedFromAttributes()
     }
 
     // Get AttributeSet
-    const USuspenseBaseAttributeSet* AttributeSet = GetOwnerAttributeSet();
+    const UDefaultAttributeSet* AttributeSet = GetOwnerAttributeSet();
     if (!AttributeSet)
     {
         if (++SyncLogCounter % 60 == 0)
@@ -171,11 +171,11 @@ UAbilitySystemComponent* USuspenseCharacterMovementComponent::GetOwnerASC() cons
     return ASC;
 }
 
-const USuspenseBaseAttributeSet* USuspenseCharacterMovementComponent::GetOwnerAttributeSet() const
+const UDefaultAttributeSet* USuspenseCharacterMovementComponent::GetOwnerAttributeSet() const
 {
     if (UAbilitySystemComponent* ASC = GetOwnerASC())
     {
-        return ASC->GetSet<USuspenseBaseAttributeSet>();
+        return ASC->GetSet<UDefaultAttributeSet>();
     }
     return nullptr;
 }

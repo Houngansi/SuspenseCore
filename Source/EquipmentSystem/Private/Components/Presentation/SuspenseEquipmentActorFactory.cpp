@@ -2,18 +2,18 @@
 
 #include "Components/Presentation/SuspenseEquipmentActorFactory.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Services/EquipmentServiceMacros.h"
-#include "Base/WeaponActor.h"
-#include "Base/EquipmentActorBase.h"
-#include "Components/EquipmentAttributeComponent.h"
-#include "Components/EquipmentAttachmentComponent.h"
-#include "Components/WeaponAmmoComponent.h"
-#include "Components/WeaponFireModeComponent.h"
-#include "Components/EquipmentMeshComponent.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "Base/SuspenseWeaponActor.h"
+#include "Base/SuspenseEquipmentActor.h"
+#include "Components/SuspenseEquipmentAttributeComponent.h"
+#include "Components/SuspenseEquipmentAttachmentComponent.h"
+#include "Components/SuspenseWeaponAmmoComponent.h"
+#include "Components/SuspenseWeaponFireModeComponent.h"
+#include "Components/SuspenseEquipmentMeshComponent.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "UObject/SoftObjectPath.h"
 
 // ===== helper (поместите в .cpp файла фабрики, над методами) =====
@@ -40,17 +40,17 @@ USuspenseEquipmentActorFactory::USuspenseEquipmentActorFactory()
 void USuspenseEquipmentActorFactory::BeginPlay()
 {
     Super::BeginPlay();
-    
-    UEquipmentServiceLocator* Locator = UEquipmentServiceLocator::Get(this);
+
+    USuspenseEquipmentServiceLocator* Locator = USuspenseEquipmentServiceLocator::Get(this);
     if (Locator)
     {
         const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
-        
+
         if (!Locator->IsServiceRegistered(FactoryTag))
         {
             Locator->RegisterServiceInstance(FactoryTag, this);
-            
-            UE_LOG(LogEquipmentOperation, Log, 
+
+            UE_LOG(LogEquipmentOperation, Log,
                 TEXT("✓ ActorFactory registered as service: Service.ActorFactory"));
         }
         else
@@ -66,7 +66,7 @@ void USuspenseEquipmentActorFactory::BeginPlay()
         UE_LOG(LogEquipmentOperation, Error,
             TEXT("   VisualizationService will use fallback spawn and actors won't be pooled"));
     }
-    
+
     // Остальной код BeginPlay...
     if (FactoryConfig.PoolCleanupInterval > 0.0f)
     {
@@ -78,39 +78,39 @@ void USuspenseEquipmentActorFactory::BeginPlay()
             true
         );
     }
-    
+
     if (FactoryConfig.bEnableAsyncLoading && FactoryConfig.PriorityPreloadItems.Num() > 0)
     {
         PreloadItemClasses(FactoryConfig.PriorityPreloadItems);
     }
-    
+
     LogFactoryOperation(TEXT("BeginPlay"), TEXT("Factory initialized"));
 }
 
 void USuspenseEquipmentActorFactory::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    UEquipmentServiceLocator* Locator = UEquipmentServiceLocator::Get(this);
+    USuspenseEquipmentServiceLocator* Locator = USuspenseEquipmentServiceLocator::Get(this);
     if (Locator)
     {
         const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
-        
+
         if (Locator->IsServiceRegistered(FactoryTag))
         {
             Locator->UnregisterService(FactoryTag, /*bForceShutdown=*/false);
-            
+
             UE_LOG(LogEquipmentOperation, Log,
                 TEXT("ActorFactory unregistered from ServiceLocator"));
         }
     }
-    
+
     // Остальной код EndPlay...
     ClearAllActors(true);
-    
+
     if (PoolCleanupTimerHandle.IsValid())
     {
         GetWorld()->GetTimerManager().ClearTimer(PoolCleanupTimerHandle);
     }
-    
+
     for (auto& LoadHandle : LoadingHandles)
     {
         if (LoadHandle.Value.IsValid())
@@ -119,7 +119,7 @@ void USuspenseEquipmentActorFactory::EndPlay(const EEndPlayReason::Type EndPlayR
         }
     }
     LoadingHandles.Empty();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 void USuspenseEquipmentActorFactory::TickComponent(
@@ -160,26 +160,26 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
     {
         Result.bSuccess = false;
         Result.FailureReason = FText::FromString(TEXT("ItemManager subsystem not available"));
-        UE_LOG(LogEquipmentOperation, Error, 
+        UE_LOG(LogEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] ItemManager not found - cannot load item data"));
         return Result;
     }
-    
+
     // Load full item data from DataTable - single source of truth
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(Params.ItemInstance.ItemID, ItemData))
     {
         Result.bSuccess = false;
         Result.FailureReason = FText::FromString(
-            FString::Printf(TEXT("Item data not found for ItemID: %s"), 
+            FString::Printf(TEXT("Item data not found for ItemID: %s"),
             *Params.ItemInstance.ItemID.ToString()));
-        UE_LOG(LogEquipmentOperation, Error, 
+        UE_LOG(LogEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] Failed to load item data for ItemID: %s"),
             *Params.ItemInstance.ItemID.ToString());
         return Result;
     }
-    
-    UE_LOG(LogEquipmentOperation, Log, 
+
+    UE_LOG(LogEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] Loaded ItemData for %s: Type=%s, IsWeapon=%d, IsEquippable=%d"),
         *Params.ItemInstance.ItemID.ToString(),
         *ItemData.ItemType.ToString(),
@@ -191,13 +191,13 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
     // ============================================================================
     // Create enriched instance with initialized runtime properties
     FSuspenseInventoryItemInstance EnrichedInstance = Params.ItemInstance;
-    
+
     // Ensure quantity is valid
     if (EnrichedInstance.Quantity <= 0)
     {
         EnrichedInstance.Quantity = 1;
     }
-    
+
     // For weapons: initialize ammo state if not already set
     if (ItemData.bIsWeapon)
     {
@@ -207,16 +207,16 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
             // Default starting ammo - will be overridden by AttributeSet initialization
             // These keys match ConfigureEquipmentActor expectations
             EnrichedInstance.SetRuntimeProperty(TEXT("CurrentAmmo"), 30.0f);
-            
+
             UE_LOG(LogEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Initialized CurrentAmmo=30 for weapon %s"),
                 *ItemData.ItemID.ToString());
         }
-        
+
         if (!EnrichedInstance.RuntimeProperties.Contains(TEXT("RemainingAmmo")))
         {
             EnrichedInstance.SetRuntimeProperty(TEXT("RemainingAmmo"), 90.0f);
-            
+
             UE_LOG(LogEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Initialized RemainingAmmo=90 for weapon %s"),
                 *ItemData.ItemID.ToString());
@@ -228,14 +228,14 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
     // ============================================================================
     // Resolve actor class from ItemData (not from cache directly)
     TSubclassOf<AActor> ActorClass = nullptr;
-    
+
     if (!ItemData.EquipmentActorClass.IsNull())
     {
         // Prefer already loaded class
         if (ItemData.EquipmentActorClass.IsValid())
         {
             ActorClass = ItemData.EquipmentActorClass.Get();
-            
+
             UE_LOG(LogEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Using already loaded ActorClass: %s"),
                 *ActorClass->GetName());
@@ -244,7 +244,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
         {
             // Synchronous load if needed
             ActorClass = ItemData.EquipmentActorClass.LoadSynchronous();
-            
+
             if (ActorClass)
             {
                 UE_LOG(LogEquipmentOperation, Log,
@@ -253,16 +253,16 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
             }
         }
     }
-    
+
     if (!ActorClass)
     {
         // Fallback to cache-based resolution (last resort)
         UE_LOG(LogEquipmentOperation, Warning,
             TEXT("[SpawnEquipmentActor] EquipmentActorClass is null in DataTable, trying cache fallback"));
-        
+
         ActorClass = GetActorClassForItem(Params.ItemInstance.ItemID);
     }
-    
+
     if (!ActorClass)
     {
         Result.bSuccess = false;
@@ -273,7 +273,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
             *Params.ItemInstance.ItemID.ToString());
         return Result;
     }
-    
+
     UE_LOG(LogEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] Resolved ActorClass: %s for ItemID: %s"),
         *ActorClass->GetName(),
@@ -295,9 +295,9 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
                 *ActorClass->GetName());
             return Result;
         }
-        
+
         UE_LOG(LogEquipmentOperation, Log,
-            TEXT("[SpawnEquipmentActor] ✓ Spawned new actor: %s"), 
+            TEXT("[SpawnEquipmentActor] ✓ Spawned new actor: %s"),
             *SpawnedActor->GetName());
     }
     else
@@ -307,9 +307,9 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
         SpawnedActor->SetActorHiddenInGame(false);
         SpawnedActor->SetActorEnableCollision(true);
         SpawnedActor->SetActorTickEnabled(true);
-        
+
         UE_LOG(LogEquipmentOperation, Log,
-            TEXT("[SpawnEquipmentActor] ✓ Reused pooled actor: %s"), 
+            TEXT("[SpawnEquipmentActor] ✓ Reused pooled actor: %s"),
             *SpawnedActor->GetName());
     }
 
@@ -328,7 +328,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
         Result.FailureReason = FText::FromString(TEXT("Failed to configure actor"));
         return Result;
     }
-    
+
     UE_LOG(LogEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓ Successfully configured actor: %s"),
         *SpawnedActor->GetName());
@@ -342,11 +342,11 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
     {
         SlotIndex = FCString::Atoi(**SlotStr);
     }
-    
+
     if (SlotIndex != INDEX_NONE)
     {
         RegisterSpawnedActor(SpawnedActor, SlotIndex);
-        
+
         UE_LOG(LogEquipmentOperation, Verbose,
             TEXT("[SpawnEquipmentActor] ✓ Registered actor in slot: %d"), SlotIndex);
     }
@@ -356,7 +356,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
     // ============================================================================
     Result.bSuccess = true;
     Result.SpawnedActor = SpawnedActor;
-    
+
     UE_LOG(LogEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓✓✓ SUCCESS ✓✓✓"));
     UE_LOG(LogEquipmentOperation, Log,
@@ -367,7 +367,7 @@ FEquipmentActorSpawnResult USuspenseEquipmentActorFactory::SpawnEquipmentActor(c
         TEXT("  InstanceID: %s"), *EnrichedInstance.InstanceID.ToString());
     UE_LOG(LogEquipmentOperation, Log,
         TEXT("  RuntimeProperties: %d"), EnrichedInstance.RuntimeProperties.Num());
-    
+
     return Result;
 }
 bool USuspenseEquipmentActorFactory::DestroyEquipmentActor(AActor* Actor, bool bImmediate)
@@ -376,22 +376,22 @@ bool USuspenseEquipmentActorFactory::DestroyEquipmentActor(AActor* Actor, bool b
     {
         return false;
     }
-    
+
     // Unregister from registry
     UnregisterActor(Actor);
-    
+
     // Try to recycle to pool
     if (!bImmediate && RecycleActor(Actor))
     {
         return true;
     }
-    
+
     // Destroy actor
     DestroyActorInternal(Actor, bImmediate);
-    
+
     LogFactoryOperation(TEXT("DestroyEquipmentActor"),
         FString::Printf(TEXT("Destroyed %s"), *Actor->GetName()));
-    
+
     return true;
 }
 
@@ -407,7 +407,7 @@ bool USuspenseEquipmentActorFactory::ConfigureEquipmentActor(AActor* Actor, cons
     {
         ISuspenseEquipment::Execute_OnItemInstanceEquipped(Actor, ItemInstance);
     }
-    else if (AEquipmentActorBase* EquipmentActor = Cast<AEquipmentActorBase>(Actor))
+    else if (ASuspenseEquipmentActor* EquipmentActor = Cast<ASuspenseEquipmentActor>(Actor))
     {
         // Fallback для редких случаев (но по нашей архитектуре базовый актор реализует интерфейс)
         EquipmentActor->OnItemInstanceEquipped_Implementation(ItemInstance);
@@ -416,7 +416,7 @@ bool USuspenseEquipmentActorFactory::ConfigureEquipmentActor(AActor* Actor, cons
     // 2) Если актор поддерживает оружейный интерфейс — пробрасываем стартовый AmmoState ЧЕРЕЗ ИНТЕРФЕЙС
     if (Actor->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
     {
-        FInventoryAmmoState AmmoState{};
+        FSuspenseInventoryAmmoState AmmoState{};
         bool bHasAnyAmmo = false;
 
         // Ключи должны совпадать с тем, как оружие сохраняет состояние (см. WeaponActor::SaveWeaponState)
@@ -448,9 +448,9 @@ bool USuspenseEquipmentActorFactory::RecycleActor(AActor* Actor)
     {
         return false;
     }
-    
+
     EQUIPMENT_SCOPE_LOCK(PoolLock);
-    
+
     // Find existing pool entry
     FActorPoolEntry* Entry = FindPoolEntry(Actor);
     if (Entry)
@@ -458,15 +458,15 @@ bool USuspenseEquipmentActorFactory::RecycleActor(AActor* Actor)
         // Already in pool → просто обновляем таймстамп/флаги
         Entry->bInUse = false;
         Entry->LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-        
+
         // Hide and disable
         Actor->SetActorHiddenInGame(true);
         Actor->SetActorEnableCollision(false);
         Actor->SetActorTickEnabled(false);
-        
+
         return true;
     }
-    
+
     // Check pool size limit per class
     int32 ClassCount = 0;
     for (const FActorPoolEntry& PoolEntry : ActorPool)
@@ -476,26 +476,26 @@ bool USuspenseEquipmentActorFactory::RecycleActor(AActor* Actor)
             ClassCount++;
         }
     }
-    
+
     if (ClassCount >= FactoryConfig.MaxPoolSizePerClass)
     {
         return false;
     }
-    
+
     // Add to pool
     FActorPoolEntry NewEntry;
     NewEntry.Actor = Actor;
     NewEntry.ActorClass = Actor->GetClass();
     NewEntry.bInUse = false;
     NewEntry.LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     ActorPool.Add(NewEntry);
-    
+
     // Hide and disable
     Actor->SetActorHiddenInGame(true);
     Actor->SetActorEnableCollision(false);
     Actor->SetActorTickEnabled(false);
-    
+
     return true;
 }
 
@@ -505,15 +505,15 @@ AActor* USuspenseEquipmentActorFactory::GetPooledActor(TSubclassOf<AActor> Actor
     {
         return nullptr;
     }
-    
+
     EQUIPMENT_SCOPE_LOCK(PoolLock);
-    
+
     FActorPoolEntry* Entry = FindAvailablePoolEntry(ActorClass);
     if (Entry)
     {
         Entry->bInUse = true;
         Entry->LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-        
+
         // Reset actor state
         if (IsActorValid(Entry->Actor))
         {
@@ -521,10 +521,10 @@ AActor* USuspenseEquipmentActorFactory::GetPooledActor(TSubclassOf<AActor> Actor
             Entry->Actor->SetActorEnableCollision(true);
             Entry->Actor->SetActorTickEnabled(true);
         }
-        
+
         return Entry->Actor;
     }
-    
+
     return nullptr;
 }
 
@@ -595,7 +595,7 @@ FTransform USuspenseEquipmentActorFactory::GetSpawnTransformForSlot(int32 SlotIn
     {
         return Owner->GetActorTransform();
     }
-    
+
     return FTransform::Identity;
 }
 
@@ -637,9 +637,9 @@ bool USuspenseEquipmentActorFactory::UnregisterActor(AActor* Actor)
     {
         return false;
     }
-    
+
     EQUIPMENT_SCOPE_LOCK(RegistryLock);
-    
+
     // Find and remove from registry
     for (auto It = SpawnedActorRegistry.CreateIterator(); It; ++It)
     {
@@ -649,7 +649,7 @@ bool USuspenseEquipmentActorFactory::UnregisterActor(AActor* Actor)
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -688,13 +688,13 @@ void USuspenseEquipmentActorFactory::ClearAllActors(bool bDestroy)
             }
         }
     }
-    
+
     // Clear pool
     {
         TArray<AActor*> PoolToDestroy;
         {
             EQUIPMENT_SCOPE_LOCK(PoolLock);
-            
+
             if (bDestroy)
             {
                 for (FActorPoolEntry& Entry : ActorPool)
@@ -705,7 +705,7 @@ void USuspenseEquipmentActorFactory::ClearAllActors(bool bDestroy)
                     }
                 }
             }
-            
+
             ActorPool.Empty();
         }
 
@@ -714,7 +714,7 @@ void USuspenseEquipmentActorFactory::ClearAllActors(bool bDestroy)
             DestroyActorInternal(A, true);
         }
     }
-    
+
     LogFactoryOperation(TEXT("ClearAllActors"),
         FString::Printf(TEXT("Cleared all actors, destroy=%s"), bDestroy ? TEXT("true") : TEXT("false")));
 }
@@ -726,7 +726,7 @@ void USuspenseEquipmentActorFactory::ClearAllActors(bool bDestroy)
 void USuspenseEquipmentActorFactory::SetFactoryConfiguration(const FActorFactoryConfig& NewConfig)
 {
     FactoryConfig = NewConfig;
-    
+
     // Restart cleanup timer with new interval
     if (FactoryConfig.PoolCleanupInterval > 0.0f && GetWorld())
     {
@@ -744,11 +744,11 @@ void USuspenseEquipmentActorFactory::SetFactoryConfiguration(const FActorFactory
 void USuspenseEquipmentActorFactory::GetPoolStatistics(int32& TotalActors, int32& ActiveActors, int32& PooledActors) const
 {
     EQUIPMENT_SCOPE_LOCK(PoolLock);
-    
+
     TotalActors = ActorPool.Num();
     ActiveActors = 0;
     PooledActors = 0;
-    
+
     for (const FActorPoolEntry& Entry : ActorPool)
     {
         if (Entry.bInUse)
@@ -780,11 +780,11 @@ AActor* USuspenseEquipmentActorFactory::SpawnActorInternal(TSubclassOf<AActor> A
     {
         return nullptr;
     }
-    
+
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = Owner;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
+
     return GetWorld()->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParams);
 }
 
@@ -794,7 +794,7 @@ void USuspenseEquipmentActorFactory::DestroyActorInternal(AActor* Actor, bool bI
     {
         return;
     }
-    
+
     if (bImmediate)
     {
         Actor->Destroy();
@@ -888,25 +888,25 @@ FActorPoolEntry* USuspenseEquipmentActorFactory::CreatePoolEntry(TSubclassOf<AAc
     NewEntry.ActorClass = ActorClass;
     NewEntry.bInUse = false;
     NewEntry.LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     return &ActorPool.Add_GetRef(NewEntry);
 }
 
 void USuspenseEquipmentActorFactory::CleanupPool()
 {
     EQUIPMENT_SCOPE_LOCK(PoolLock);
-    
+
     if (!GetWorld())
     {
         return;
     }
-    
+
     const float CurrentTime = GetWorld()->GetTimeSeconds();
-    
+
     for (int32 i = ActorPool.Num() - 1; i >= 0; i--)
     {
         FActorPoolEntry& Entry = ActorPool[i];
-        
+
         // Remove expired unused entries
         if (!Entry.bInUse && (CurrentTime - Entry.LastUsedTime) > FactoryConfig.ActorIdleTimeout)
         {

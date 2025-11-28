@@ -10,11 +10,11 @@
 #include "Misc/ScopeLock.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 // Единые макросы/логи проекта
-#include "Services/EquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 
 // Типы/лоадаут
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 
 // ==============================================
 // Статическая матрица совместимости типов
@@ -39,11 +39,11 @@ FSlotValidationResult USuspenseEquipmentSlotValidator::CanPlaceItemInSlot(
     const FSuspenseInventoryItemInstance& ItemInstance) const
 {
     // ДИАГНОСТИКА: Логируем ВСЕ попытки валидации
-    UE_LOG(LogEquipmentValidation, Warning, 
-        TEXT("🔴 VALIDATOR CALLED: Item=%s, Slot=%s"), 
-        *ItemInstance.ItemID.ToString(), 
+    UE_LOG(LogEquipmentValidation, Warning,
+        TEXT("🔴 VALIDATOR CALLED: Item=%s, Slot=%s"),
+        *ItemInstance.ItemID.ToString(),
         *SlotConfig.SlotTag.ToString());
-    
+
     // Зафиксируем вызов
     ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
 
@@ -52,49 +52,49 @@ FSlotValidationResult USuspenseEquipmentSlotValidator::CanPlaceItemInSlot(
     {
         FScopeLock L(&CacheLock);
         CacheKey = GenerateCacheKey(ItemInstance, SlotConfig);
-        
+
         // ДИАГНОСТИКА: Логируем ключ кеша
-        UE_LOG(LogEquipmentValidation, Warning, 
+        UE_LOG(LogEquipmentValidation, Warning,
             TEXT("   Cache Key: %s"), *CacheKey);
 
         FSlotValidationResult Cached;
         if (GetCachedValidation(CacheKey, Cached))
         {
             CacheHitCount.fetch_add(1, std::memory_order_relaxed);
-            
+
             // ДИАГНОСТИКА: Логируем кеш-хит
-            UE_LOG(LogEquipmentValidation, Error, 
-                TEXT("   🟡 CACHE HIT! Returning cached result: %s"), 
+            UE_LOG(LogEquipmentValidation, Error,
+                TEXT("   🟡 CACHE HIT! Returning cached result: %s"),
                 Cached.bIsValid ? TEXT("PASS") : TEXT("FAIL"));
-            
+
             if (!Cached.bIsValid)
             {
-                UE_LOG(LogEquipmentValidation, Error, 
-                    TEXT("   ❌ Cached FAIL reason: %s"), 
+                UE_LOG(LogEquipmentValidation, Error,
+                    TEXT("   ❌ Cached FAIL reason: %s"),
                     *Cached.ErrorMessage.ToString());
             }
-            
+
             return Cached;
         }
         CacheMissCount.fetch_add(1, std::memory_order_relaxed);
-        
+
         // ДИАГНОСТИКА: Логируем кеш-мисс
-        UE_LOG(LogEquipmentValidation, Warning, 
+        UE_LOG(LogEquipmentValidation, Warning,
             TEXT("   🟢 CACHE MISS - Will perform real validation"));
     }
 
     // 2) Без локов — сама валидация
     const FSlotValidationResult Result = CanPlaceItemInSlot_NoLock(SlotConfig, ItemInstance);
-    
+
     // ДИАГНОСТИКА: Логируем результат реальной валидации
-    UE_LOG(LogEquipmentValidation, Warning, 
-        TEXT("   Real validation result: %s"), 
+    UE_LOG(LogEquipmentValidation, Warning,
+        TEXT("   Real validation result: %s"),
         Result.bIsValid ? TEXT("✅ PASS") : TEXT("❌ FAIL"));
-    
+
     if (!Result.bIsValid)
     {
-        UE_LOG(LogEquipmentValidation, Error, 
-            TEXT("   FAIL reason: %s"), 
+        UE_LOG(LogEquipmentValidation, Error,
+            TEXT("   FAIL reason: %s"),
             *Result.ErrorMessage.ToString());
     }
 
@@ -102,12 +102,12 @@ FSlotValidationResult USuspenseEquipmentSlotValidator::CanPlaceItemInSlot(
     {
         FScopeLock L(&CacheLock);
         CacheValidationResult(CacheKey, Result);
-        
-        UE_LOG(LogEquipmentValidation, Log, 
-            TEXT("   Cached new result: %s"), 
+
+        UE_LOG(LogEquipmentValidation, Log,
+            TEXT("   Cached new result: %s"),
             Result.bIsValid ? TEXT("PASS") : TEXT("FAIL"));
     }
-    
+
     if (!Result.bIsValid)
     {
         FailedValidationCount.fetch_add(1, std::memory_order_relaxed);
@@ -575,19 +575,19 @@ void USuspenseEquipmentSlotValidator::InitializeDefaultRules()
 
 void USuspenseEquipmentSlotValidator::ClearValidationCache()
 {
-	UE_LOG(LogEquipmentValidation, Error, 
+	UE_LOG(LogEquipmentValidation, Error,
 		TEXT("=== CLEARING VALIDATION CACHE ==="));
-    
+
 	FScopeLock L(&CacheLock);
-    
+
 	const int32 OldCacheSize = ValidationCache.Num();
 	const int32 OldExtendedSize = ExtendedCache.Num();
-    
+
 	ValidationCache.Empty();
 	ExtendedCache.Empty();
-    
-	UE_LOG(LogEquipmentValidation, Error, 
-		TEXT("Cache cleared: Base(%d) + Extended(%d) entries removed"), 
+
+	UE_LOG(LogEquipmentValidation, Error,
+		TEXT("Cache cleared: Base(%d) + Extended(%d) entries removed"),
 		OldCacheSize, OldExtendedSize);
 }
 
@@ -785,37 +785,37 @@ void USuspenseEquipmentSlotValidator::InitializeBuiltInRules()
 	TypeRule.RuleFunction = [this](const FSuspenseInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
 	{
 		UE_LOG(LogEquipmentValidation, Error, TEXT("    🔵 TypeRule executing..."));
-    
+
 		// Достаём тип из unified item data
 		FSuspenseUnifiedItemData Data;
 		const bool bGotData = GetItemData(Item.ItemID, Data);
-    
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       GetItemData result: %s"), 
+
+		UE_LOG(LogEquipmentValidation, Error, TEXT("       GetItemData result: %s"),
 			bGotData ? TEXT("SUCCESS") : TEXT("FAILED"));
-    
+
 		if (!bGotData)
 		{
-			UE_LOG(LogEquipmentValidation, Error, TEXT("       ❌ Cannot get item data for: %s"), 
+			UE_LOG(LogEquipmentValidation, Error, TEXT("       ❌ Cannot get item data for: %s"),
 				*Item.ItemID.ToString());
 			return false;
 		}
-    
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       Item Type: %s"), 
+
+		UE_LOG(LogEquipmentValidation, Error, TEXT("       Item Type: %s"),
 			Data.ItemType.IsValid() ? *Data.ItemType.ToString() : TEXT("NONE"));
-    
+
 		// Проверяем Allowed/Disallowed в конфиге + матрицу
 		const bool bSlotAllows = Slot.CanEquipItemType(Data.ItemType);
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       Slot.CanEquipItemType: %s"), 
+		UE_LOG(LogEquipmentValidation, Error, TEXT("       Slot.CanEquipItemType: %s"),
 			bSlotAllows ? TEXT("TRUE") : TEXT("FALSE"));
-    
+
 		const bool bMatrixOk = IsItemTypeCompatibleWithSlot(Data.ItemType, Slot.SlotType);
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       IsItemTypeCompatibleWithSlot: %s"), 
+		UE_LOG(LogEquipmentValidation, Error, TEXT("       IsItemTypeCompatibleWithSlot: %s"),
 			bMatrixOk ? TEXT("TRUE") : TEXT("FALSE"));
-    
+
 		const bool bFinalResult = bSlotAllows && bMatrixOk;
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       🎯 TypeRule FINAL: %s"), 
+		UE_LOG(LogEquipmentValidation, Error, TEXT("       🎯 TypeRule FINAL: %s"),
 			bFinalResult ? TEXT("✅ PASS") : TEXT("❌ FAIL"));
-    
+
 		return bFinalResult;
 	};
 	ValidationRules.Add(TypeRule);
@@ -1018,27 +1018,27 @@ FSlotValidationResult USuspenseEquipmentSlotValidator::ValidateUniqueItem(
 bool USuspenseEquipmentSlotValidator::GetItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData) const
 {
 	UE_LOG(LogEquipmentValidation, Error, TEXT("      GetItemData called for: %s"), *ItemID.ToString());
-    
+
 	// Внедрённый провайдер — авторитетный источник
 	{
 		FScopeLock DL(&DataLock);
-        
-		UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider.IsValid(): %s"), 
+
+		UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider.IsValid(): %s"),
 			ItemDataProvider.IsValid() ? TEXT("TRUE") : TEXT("FALSE"));
-        
+
 		if (ItemDataProvider.IsValid())
 		{
 			const bool bResult = ItemDataProvider->GetUnifiedItemData(ItemID, OutData);
-            
-			UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider->GetUnifiedItemData result: %s"), 
+
+			UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider->GetUnifiedItemData result: %s"),
 				bResult ? TEXT("SUCCESS") : TEXT("FAILED"));
-            
+
 			if (bResult)
 			{
-				UE_LOG(LogEquipmentValidation, Error, TEXT("      Retrieved ItemType: %s"), 
+				UE_LOG(LogEquipmentValidation, Error, TEXT("      Retrieved ItemType: %s"),
 					OutData.ItemType.IsValid() ? *OutData.ItemType.ToString() : TEXT("NONE"));
 			}
-            
+
 			return bResult;
 		}
 	}
@@ -1223,27 +1223,27 @@ FString USuspenseEquipmentSlotValidator::GenerateCacheKey(
 {
 	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Включаем ItemType в ключ кеша
 	// чтобы инвалидировать кеш при изменении типа предмета в DataTable
-    
+
 	FString ItemTypeStr = TEXT("Unknown");
-    
+
 	// Получаем актуальный тип предмета из ItemManager
 	FSuspenseUnifiedItemData ItemData;
 	if (GetItemData(Item.ItemID, ItemData))
 	{
-		ItemTypeStr = ItemData.ItemType.IsValid() ? 
+		ItemTypeStr = ItemData.ItemType.IsValid() ?
 			ItemData.ItemType.ToString() : TEXT("None");
 	}
-    
+
 	// Генерируем хеш для AllowedItemTypes вручную
 	uint32 AllowedTypesHash = 0;
 	for (const FGameplayTag& Tag : Slot.AllowedItemTypes)
 	{
 		AllowedTypesHash = HashCombine(AllowedTypesHash, GetTypeHash(Tag));
 	}
-    
+
 	const uint32 ItemHash = GetTypeHash(Item);
 	const uint32 SlotTagHash = GetTypeHash(Slot.SlotTag);
-    
+
 	// Новый ключ включает:
 	// 1. ItemID (как раньше)
 	// 2. АКТУАЛЬНЫЙ ItemType из DataTable (НОВОЕ!)
@@ -1308,18 +1308,18 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseEquipmentSlotValidator::
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))   // ← ДОБАВЛЕНО родительский тег
     });
-    
+
     M.Add(EEquipmentSlotType::SecondaryWeapon, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.PDW"))
     });
-    
+
     M.Add(EEquipmentSlotType::Holster, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Revolver"))
     });
-    
+
     M.Add(EEquipmentSlotType::Scabbard, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife"))
     });
@@ -1329,15 +1329,15 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseEquipmentSlotValidator::
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Headwear"))
     });
-    
+
     M.Add(EEquipmentSlotType::Earpiece, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece"))
     });
-    
+
     M.Add(EEquipmentSlotType::Eyewear, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear"))
     });
-    
+
     M.Add(EEquipmentSlotType::FaceCover, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover"))
     });
@@ -1346,7 +1346,7 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseEquipmentSlotValidator::
     M.Add(EEquipmentSlotType::BodyArmor, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor"))
     });
-    
+
     M.Add(EEquipmentSlotType::TacticalRig, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig"))
     });
@@ -1355,7 +1355,7 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseEquipmentSlotValidator::
     M.Add(EEquipmentSlotType::Backpack, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack"))
     });
-    
+
     M.Add(EEquipmentSlotType::SecureContainer, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer"))
     });

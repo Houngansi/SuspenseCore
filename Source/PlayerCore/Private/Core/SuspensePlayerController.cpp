@@ -4,7 +4,7 @@
 #include "Core/SuspensePlayerController.h"
 #include "Characters/SuspenseCharacter.h"
 #include "Core/SuspensePlayerState.h"
-#include "Components/MedComAbilitySystemComponent.h"
+#include "Components/GASAbilitySystemComponent.h"
 #include "Components/SuspenseUIManager.h"
 #include "Components/SuspenseInventoryUIBridge.h"
 #include "AbilitySystemComponent.h"
@@ -14,11 +14,11 @@
 #include "Interfaces/Core/ISuspenseController.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/IMedComHUDWidgetInterface.h"
+#include "Interfaces/UI/ISuspenseHUDWidget.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
-#include "Types/UI/EquipmentUITypes.h"
+#include "Types/UI/SuspenseEquipmentUITypes.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
-#include "Components/MedComInventoryComponent.h"
+#include "Components/SuspenseInventoryComponent.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -26,13 +26,13 @@
 // UPDATED: Remove UIConnector include - no longer needed
 // OLD: #include "UI/MedComEquipmentUIConnector.h"
 // NEW: Direct DataStore access only
-#include "Components/Core/MedComEquipmentDataStore.h"
+#include "Components/Core/SuspenseEquipmentDataStore.h"
 
 /* ===== Constructor & Basic ===== */
 ASuspensePlayerController::ASuspensePlayerController()
-{ 
+{
     bShowMouseCursor = false;
-    
+
     // Default HUD settings
     HUDCreationDelay = 0.1f;
     bAutoCreateHUD = true;
@@ -43,13 +43,13 @@ ASuspensePlayerController::ASuspensePlayerController()
 void ASuspensePlayerController::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Setup input first
     SetupEnhancedInput();
-    
+
     // Cache UI Manager
     CachedUIManager = GetUIManager();
-    
+
     // Subscribe to delegate system events
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
@@ -60,7 +60,7 @@ void ASuspensePlayerController::BeginPlay()
             FGameplayTag::RequestGameplayTag(TEXT("Player.Inventory.Initialized")),
             InventoryDelegate
         );
-        
+
         // Subscribe to equipment initialization event
         FGenericEventDelegate EquipmentDelegate;
         EquipmentDelegate.BindUObject(this, &ASuspensePlayerController::HandleEquipmentInitializationRequest);
@@ -68,7 +68,7 @@ void ASuspensePlayerController::BeginPlay()
             FGameplayTag::RequestGameplayTag(TEXT("Player.Equipment.Initialized")),
             EquipmentDelegate
         );
-        
+
         // Subscribe to loadout ready event
         FGenericEventDelegate LoadoutReadyDelegate;
         LoadoutReadyDelegate.BindUObject(this, &ASuspensePlayerController::OnLoadoutReady);
@@ -76,7 +76,7 @@ void ASuspensePlayerController::BeginPlay()
             FGameplayTag::RequestGameplayTag(TEXT("Player.Loadout.Ready")),
             LoadoutReadyDelegate
         );
-        
+
         // Subscribe to loadout failed event
         FGenericEventDelegate LoadoutFailedDelegate;
         LoadoutFailedDelegate.BindUObject(this, &ASuspensePlayerController::OnLoadoutFailed);
@@ -84,14 +84,14 @@ void ASuspensePlayerController::BeginPlay()
             FGameplayTag::RequestGameplayTag(TEXT("Player.Loadout.Failed")),
             LoadoutFailedDelegate
         );
-        
+
         // Existing equipment state change subscription
         EquipmentStateChangeHandle = Manager->SubscribeToEquipmentStateChanged(
-            [this](FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted) 
+            [this](FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted)
             {
                 HandleEquipmentStateChange(OldState, NewState, bInterrupted);
             });
-        
+
         // Health update subscription
         FDelegateHandle HealthHandle = Manager->SubscribeToHealthUpdated(
             [this](float Current, float Max, float Percent)
@@ -106,7 +106,7 @@ void ASuspensePlayerController::BeginPlay()
                 }
             });
         UIEventHandles.Add(HealthHandle);
-        
+
         // Ammo change subscription
         FDelegateHandle AmmoHandle = Manager->SubscribeToAmmoChanged(
             [this](float CurrentAmmo, float RemainingAmmo, float MagazineSize)
@@ -122,10 +122,10 @@ void ASuspensePlayerController::BeginPlay()
                 }
             });
         UIEventHandles.Add(AmmoHandle);
-            
+
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Subscribed to event system"));
     }
-    
+
     // Register debug commands
     RegisterDebugCommands();
 }
@@ -134,7 +134,7 @@ void ASuspensePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 {
     // Clean up HUD through UI Manager
     DestroyHUD();
-    
+
     // Unsubscribe from events
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
@@ -143,31 +143,31 @@ void ASuspensePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
             Manager->UnsubscribeFromGenericEvent(InventoryInitHandle);
             InventoryInitHandle.Reset();
         }
-        
+
         if (LoadoutReadyHandle.IsValid())
         {
             Manager->UnsubscribeFromGenericEvent(LoadoutReadyHandle);
             LoadoutReadyHandle.Reset();
         }
-        
+
         if (LoadoutFailedHandle.IsValid())
         {
             Manager->UnsubscribeFromGenericEvent(LoadoutFailedHandle);
             LoadoutFailedHandle.Reset();
         }
-        
+
         if (EquipmentStateChangeHandle.IsValid())
         {
             Manager->UniversalUnsubscribe(EquipmentStateChangeHandle);
             EquipmentStateChangeHandle.Reset();
         }
-        
+
         if (AttributeChangeHandle.IsValid())
         {
             Manager->UniversalUnsubscribe(AttributeChangeHandle);
             AttributeChangeHandle.Reset();
         }
-        
+
         for (const FDelegateHandle& Handle : UIEventHandles)
         {
             if (Handle.IsValid())
@@ -176,10 +176,10 @@ void ASuspensePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
             }
         }
         UIEventHandles.Empty();
-        
+
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Unsubscribed from event system"));
     }
-    
+
     // REMOVED: No more UIConnector cleanup needed
     // OLD CODE:
     // if (EquipmentUIConnector)
@@ -188,26 +188,26 @@ void ASuspensePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
     //     EquipmentUIConnector->DestroyComponent();
     //     EquipmentUIConnector = nullptr;
     // }
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(HUDCreationTimerHandle);
     }
-    
+
     // Clear cached references
     CachedUIManager = nullptr;
     bInventoryBridgeReady = false;
     bEquipmentBridgeReady = false;
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 void ASuspensePlayerController::OnInventoryInitialized(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
 {
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received inventory initialized event from: %s, Data: %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received inventory initialized event from: %s, Data: %s"),
         Source ? *Source->GetName() : TEXT("Unknown"), *EventData);
-    
+
     // Check this is our PlayerState
     ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>();
     if (!PS || PS != Source)
@@ -215,14 +215,14 @@ void ASuspensePlayerController::OnInventoryInitialized(const UObject* Source, co
         UE_LOG(LogTemp, Verbose, TEXT("[PlayerController] Ignoring inventory init event from different source"));
         return;
     }
-    
+
     // Parse event data
     FString PlayerStateName;
     FString LoadoutID;
-    
+
     TArray<FString> DataPairs;
     EventData.ParseIntoArray(DataPairs, TEXT(","), true);
-    
+
     for (const FString& Pair : DataPairs)
     {
         FString Key, Value;
@@ -238,21 +238,21 @@ void ASuspensePlayerController::OnInventoryInitialized(const UObject* Source, co
             }
         }
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Our inventory is ready. PlayerState: %s, LoadoutID: %s"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Our inventory is ready. PlayerState: %s, LoadoutID: %s"),
         *PlayerStateName, *LoadoutID);
 }
 
 void ASuspensePlayerController::OnLoadoutReady(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] Loadout ready event received. Loadout ID: %s"), *EventData);
-    
+
     ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>();
     if (!PS || PS != Source)
     {
         return;
     }
-    
+
     // Loadout fully applied and ready
     if (CachedUIManager && IsHUDCreated())
     {
@@ -263,7 +263,7 @@ void ASuspensePlayerController::OnLoadoutReady(const UObject* Source, const FGam
 void ASuspensePlayerController::OnLoadoutFailed(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
 {
     UE_LOG(LogTemp, Error, TEXT("[PlayerController] Loadout failed event received: %s"), *EventData);
-    
+
     if (CachedUIManager)
     {
         CachedUIManager->ShowNotification(
@@ -277,31 +277,31 @@ void ASuspensePlayerController::OnLoadoutFailed(const UObject* Source, const FGa
 void ASuspensePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
-    
+
     if(UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
     {
         if(IA_Move)   EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &ASuspensePlayerController::HandleMove);
         if(IA_Look)   EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &ASuspensePlayerController::HandleLook);
-        
+
         if(IA_Jump)   {
             EIC->BindAction(IA_Jump, ETriggerEvent::Started, this, &ASuspensePlayerController::OnJumpPressed);
             EIC->BindAction(IA_Jump, ETriggerEvent::Completed, this, &ASuspensePlayerController::OnJumpReleased);
         }
-        
+
         if(IA_Sprint) {
             EIC->BindAction(IA_Sprint, ETriggerEvent::Started, this, &ASuspensePlayerController::OnSprintPressed);
             EIC->BindAction(IA_Sprint, ETriggerEvent::Completed, this, &ASuspensePlayerController::OnSprintReleased);
         }
-        
+
         if(IA_Crouch) {
             EIC->BindAction(IA_Crouch, ETriggerEvent::Started, this, &ASuspensePlayerController::OnCrouchPressed);
             EIC->BindAction(IA_Crouch, ETriggerEvent::Completed, this, &ASuspensePlayerController::OnCrouchReleased);
         }
-        
+
         if(IA_Interact) {
             EIC->BindAction(IA_Interact, ETriggerEvent::Started, this, &ASuspensePlayerController::OnInteractPressed);
         }
-        
+
         if(IA_OpenInventory) {
             EIC->BindAction(IA_OpenInventory, ETriggerEvent::Started, this, &ASuspensePlayerController::OnInventoryToggle);
         }
@@ -309,15 +309,15 @@ void ASuspensePlayerController::SetupInputComponent()
         if(IA_NextWeapon) {
             EIC->BindAction(IA_NextWeapon, ETriggerEvent::Started, this, &ASuspensePlayerController::OnNextWeapon);
         }
-        
+
         if(IA_PrevWeapon) {
             EIC->BindAction(IA_PrevWeapon, ETriggerEvent::Started, this, &ASuspensePlayerController::OnPrevWeapon);
         }
-        
+
         if(IA_QuickSwitch) {
             EIC->BindAction(IA_QuickSwitch, ETriggerEvent::Started, this, &ASuspensePlayerController::OnQuickSwitch);
         }
-        
+
         if(IA_WeaponSlot1) {
             EIC->BindAction(IA_WeaponSlot1, ETriggerEvent::Started, this, &ASuspensePlayerController::OnWeaponSlot1);
         }
@@ -339,7 +339,7 @@ void ASuspensePlayerController::SetupInputComponent()
 void ASuspensePlayerController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
-    
+
     // Initialize ASC
     if(ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>())
     {
@@ -348,7 +348,7 @@ void ASuspensePlayerController::OnPossess(APawn* InPawn)
             ASC->InitAbilityActorInfo(PS, InPawn);
         }
     }
-    
+
     // Create HUD after a short delay
     if (bAutoCreateHUD && IsLocalController())
     {
@@ -374,7 +374,7 @@ void ASuspensePlayerController::OnUnPossess()
 void ASuspensePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
-    
+
     // Initialize ASC on client
     if(ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>())
     {
@@ -383,7 +383,7 @@ void ASuspensePlayerController::OnRep_PlayerState()
             ASC->InitAbilityActorInfo(PS, GetPawn());
         }
     }
-    
+
     if (bAutoCreateHUD && IsLocalController() && !IsHUDCreated())
     {
         TryCreateHUD();
@@ -399,14 +399,14 @@ void ASuspensePlayerController::CreateHUD()
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] CreateHUD called on non-local controller"));
         return;
     }
-    
+
     USuspenseUIManager* UIManager = GetUIManager();
     if (!UIManager)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to get UIManager"));
         return;
     }
-    
+
     FGameplayTag HUDTag = FGameplayTag::RequestGameplayTag("UI.HUD.Main");
     if (UIManager->WidgetExists(HUDTag))
     {
@@ -414,30 +414,30 @@ void ASuspensePlayerController::CreateHUD()
         MainHUDWidget = UIManager->GetWidget(HUDTag);
         return;
     }
-    
+
     if (!MainHUDClass)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] MainHUDClass not set in Blueprint!"));
         return;
     }
-    
+
     UUserWidget* CreatedHUD = UIManager->CreateWidget(MainHUDClass, HUDTag, this, true);
     if (!CreatedHUD)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to create HUD widget"));
         return;
     }
-    
+
     MainHUDWidget = CreatedHUD;
-    
-    if (CreatedHUD->GetClass()->ImplementsInterface(UMedComHUDWidgetInterface::StaticClass()))
+
+    if (CreatedHUD->GetClass()->ImplementsInterface(USuspenseHUDWidget::StaticClass()))
     {
         if (APawn* CurrentPawn = GetPawn())
         {
-            IMedComHUDWidgetInterface::Execute_SetupForPlayer(CreatedHUD, CurrentPawn);
+            ISuspenseHUDWidget::Execute_SetupForPlayer(CreatedHUD, CurrentPawn);
         }
     }
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] HUD created successfully"));
 }
 
@@ -467,7 +467,7 @@ void ASuspensePlayerController::SetHUDVisibility(bool bShow)
     if (USuspenseUIManager* UIManager = GetUIManager())
     {
         FGameplayTag HUDTag = FGameplayTag::RequestGameplayTag("UI.HUD.Main");
-        
+
         if (bShow)
         {
             UIManager->ShowWidget(HUDTag, false);
@@ -476,8 +476,8 @@ void ASuspensePlayerController::SetHUDVisibility(bool bShow)
         {
             UIManager->HideWidget(HUDTag, false);
         }
-        
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] HUD visibility set to: %s"), 
+
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] HUD visibility set to: %s"),
             bShow ? TEXT("Visible") : TEXT("Hidden"));
     }
 }
@@ -497,15 +497,15 @@ void ASuspensePlayerController::ShowInGameMenu()
     if (USuspenseUIManager* UIManager = GetUIManager())
     {
         FGameplayTag MenuTag = FGameplayTag::RequestGameplayTag("UI.Menu.Pause");
-        
+
         if (!UIManager->WidgetExists(MenuTag))
         {
             UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Pause menu not configured"));
             return;
         }
-        
+
         UIManager->ShowWidget(MenuTag, true);
-        
+
         FInputModeGameAndUI InputMode;
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         SetInputMode(InputMode);
@@ -520,7 +520,7 @@ void ASuspensePlayerController::HideInGameMenu()
     {
         FGameplayTag MenuTag = FGameplayTag::RequestGameplayTag("UI.Menu.Pause");
         UIManager->HideWidget(MenuTag, true);
-        
+
         FInputModeGameOnly InputMode;
         SetInputMode(InputMode);
         SetShowMouseCursor(false);
@@ -531,56 +531,56 @@ void ASuspensePlayerController::HideInGameMenu()
 void ASuspensePlayerController::ToggleInventory()
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ToggleInventory called"));
-    
+
     // Initialize both bridges when needed
     EnsureInventoryBridgeInitialized();
     EnsureEquipmentBridgeInitialized();
-    
+
     USuspenseUIManager* UIManager = GetUIManager();
     if (!UIManager)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] No UIManager found"));
         return;
     }
-    
+
     bool bIsCharacterScreenVisible = UIManager->IsCharacterScreenVisible();
-    
+
     if (bIsCharacterScreenVisible)
     {
         UIManager->HideCharacterScreen();
-        
+
         FInputModeGameOnly InputMode;
         SetInputMode(InputMode);
         SetShowMouseCursor(false);
-        
+
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Character screen closed"));
     }
     else
     {
         FGameplayTag InventoryTabTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"));
         UIManager->ShowCharacterScreen(this, InventoryTabTag);
-        
+
         // Refresh both bridges after screen is shown
         FTimerHandle RefreshHandle;
         GetWorld()->GetTimerManager().SetTimer(RefreshHandle, [UIManager]()
         {
-            if (UMedComInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
+            if (USuspenseInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
             {
-                IMedComInventoryUIBridgeWidget::Execute_RefreshInventoryUI(InvBridge);
+                ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(InvBridge);
             }
-            
-            if (UMedComEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
+
+            if (USuspenseEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
             {
-                ISuspenseEquipmentUIBridge::Execute_RefreshEquipmentUI(EquipBridge);
+                ISuspenseEquipmentUIBridgeInterface::Execute_RefreshEquipmentUI(EquipBridge);
             }
         }, 0.1f, false);
-        
+
         FInputModeGameAndUI InputMode;
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         InputMode.SetHideCursorDuringCapture(false);
         SetInputMode(InputMode);
         SetShowMouseCursor(true);
-        
+
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Character screen opened"));
     }
 }
@@ -588,17 +588,17 @@ void ASuspensePlayerController::ToggleInventory()
 void ASuspensePlayerController::TryCreateHUD()
 {
     HUDCreationTimerHandle.Invalidate();
-    
+
     if (!IsLocalController())
     {
         return;
     }
-    
+
     if (IsHUDCreated())
     {
         return;
     }
-    
+
     ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>();
     if (!PS)
     {
@@ -614,7 +614,7 @@ void ASuspensePlayerController::TryCreateHUD()
         }
         return;
     }
-    
+
     CreateHUD();
 }
 
@@ -628,7 +628,7 @@ void ASuspensePlayerController::UpdateHUDData()
 
 void ASuspensePlayerController::HandleAttributeChanged(const FGameplayTag& AttributeTag, float NewValue, float OldValue)
 {
-    UE_LOG(LogTemp, Verbose, TEXT("[PlayerController] Attribute changed: %s (%.2f -> %.2f)"), 
+    UE_LOG(LogTemp, Verbose, TEXT("[PlayerController] Attribute changed: %s (%.2f -> %.2f)"),
         *AttributeTag.ToString(), OldValue, NewValue);
 }
 
@@ -648,7 +648,7 @@ void ASuspensePlayerController::SetupEnhancedInput()
     {
         if(UEnhancedInputLocalPlayerSubsystem* Sub = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
         {
-            if(DefaultContext) 
+            if(DefaultContext)
             {
                 Sub->AddMappingContext(DefaultContext, 0);
             }
@@ -676,39 +676,39 @@ void ASuspensePlayerController::HandleLook(const FInputActionValue& V)
 /* ===== Ability wrappers ===== */
 #define FIRE_TAG(Name) FGameplayTag::RequestGameplayTag("Ability.Input." Name)
 
-void ASuspensePlayerController::OnJumpPressed(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Jump"), true); 
+void ASuspensePlayerController::OnJumpPressed(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Jump"), true);
 }
 
-void ASuspensePlayerController::OnJumpReleased(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Jump"), false); 
+void ASuspensePlayerController::OnJumpReleased(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Jump"), false);
 }
 
-void ASuspensePlayerController::OnSprintPressed(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Sprint"), true); 
+void ASuspensePlayerController::OnSprintPressed(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Sprint"), true);
 }
 
-void ASuspensePlayerController::OnSprintReleased(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Sprint"), false); 
+void ASuspensePlayerController::OnSprintReleased(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Sprint"), false);
 }
 
-void ASuspensePlayerController::OnCrouchPressed(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Crouch"), true); 
+void ASuspensePlayerController::OnCrouchPressed(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Crouch"), true);
 }
 
-void ASuspensePlayerController::OnCrouchReleased(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Crouch"), false); 
+void ASuspensePlayerController::OnCrouchReleased(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Crouch"), false);
 }
 
-void ASuspensePlayerController::OnInteractPressed(const FInputActionValue&) 
-{ 
-    ActivateAbility(FIRE_TAG("Interact"), true); 
+void ASuspensePlayerController::OnInteractPressed(const FInputActionValue&)
+{
+    ActivateAbility(FIRE_TAG("Interact"), true);
 }
 
 void ASuspensePlayerController::OnInventoryToggle(const FInputActionValue& Value)
@@ -761,19 +761,19 @@ void ASuspensePlayerController::OnWeaponSlot5(const FInputActionValue&)
 /* ===== GAS ===== */
 void ASuspensePlayerController::ActivateAbility(const FGameplayTag& Tag, bool bPressed)
 {
-    if(!Tag.IsValid()) 
+    if(!Tag.IsValid())
     {
         UE_LOG(LogTemp, Error, TEXT("ActivateAbility: Invalid tag!"));
         return;
     }
-    
+
     UAbilitySystemComponent* ASC = GetCharacterASC();
     if(!ASC)
     {
         UE_LOG(LogTemp, Error, TEXT("ActivateAbility: No ASC found!"));
         return;
     }
-    
+
     int32 ID = (int32)ESuspenseAbilityInputID::None;
 
     if(Tag.MatchesTagExact(FGameplayTag::RequestGameplayTag("Ability.Input.Jump")))
@@ -850,17 +850,17 @@ UAbilitySystemComponent* ASuspensePlayerController::GetCharacterASC() const
 {
     if(ASuspenseCharacter* MedComCharacter = GetMedComCharacter())
     {
-        if (MedComCharacter->GetClass()->ImplementsInterface(UMedComCharacterInterface::StaticClass()))
+        if (MedComCharacter->GetClass()->ImplementsInterface(USuspenseCharacterInterface::StaticClass()))
         {
-            return IMedComCharacterInterface::Execute_GetASC(MedComCharacter);
+            return ISuspenseCharacterInterface::Execute_GetASC(MedComCharacter);
         }
     }
-    
+
     if (ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>())
     {
         return PS->GetAbilitySystemComponent();
     }
-    
+
     return nullptr;
 }
 
@@ -874,18 +874,18 @@ void ASuspensePlayerController::HandleEquipmentStateChange(FGameplayTag OldState
 void ASuspensePlayerController::NotifyWeaponChanged_Implementation(AActor* NewWeapon)
 {
     CurrentWeapon = NewWeapon;
-    
+
     if (ASuspenseCharacter* CharacterPawn = GetMedComCharacter())
     {
-        if (CharacterPawn->GetClass()->ImplementsInterface(UMedComCharacterInterface::StaticClass()))
+        if (CharacterPawn->GetClass()->ImplementsInterface(USuspenseCharacterInterface::StaticClass()))
         {
-            IMedComCharacterInterface::Execute_SetCurrentWeaponActor(CharacterPawn, NewWeapon);
-            IMedComCharacterInterface::Execute_SetHasWeapon(CharacterPawn, NewWeapon != nullptr);
+            ISuspenseCharacterInterface::Execute_SetCurrentWeaponActor(CharacterPawn, NewWeapon);
+            ISuspenseCharacterInterface::Execute_SetHasWeapon(CharacterPawn, NewWeapon != nullptr);
         }
     }
-    
+
     ISuspenseController::BroadcastControllerWeaponChanged(this, NewWeapon);
-    
+
     if (USuspenseUIManager* UIManager = GetUIManager())
     {
         FGameplayTag WeaponInfoTag = FGameplayTag::RequestGameplayTag("UI.HUD.WeaponInfo");
@@ -898,8 +898,8 @@ void ASuspensePlayerController::NotifyWeaponChanged_Implementation(AActor* NewWe
             UIManager->HideWidget(WeaponInfoTag, false);
         }
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Weapon changed to: %s"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Weapon changed to: %s"),
         NewWeapon ? *NewWeapon->GetName() : TEXT("None"));
 }
 
@@ -911,8 +911,8 @@ AActor* ASuspensePlayerController::GetCurrentWeapon_Implementation() const
 void ASuspensePlayerController::NotifyWeaponStateChanged_Implementation(FGameplayTag WeaponState)
 {
     CurrentWeaponState = WeaponState;
-    
-    if (UEventDelegateManager* Manager = GetDelegateManager())
+
+    if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponStateChanged(FGameplayTag(), WeaponState, false);
     }
@@ -943,7 +943,7 @@ int32 ASuspensePlayerController::GetInputPriority_Implementation() const
     return 0;
 }
 
-UEventDelegateManager* ASuspensePlayerController::GetDelegateManager() const
+USuspenseEventManager* ASuspensePlayerController::GetDelegateManager() const
 {
     return ISuspenseController::GetDelegateManagerStatic(this);
 }
@@ -953,21 +953,21 @@ UEventDelegateManager* ASuspensePlayerController::GetDelegateManager() const
 void ASuspensePlayerController::EnsureInventoryBridgeInitialized()
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnsureInventoryBridgeInitialized called"));
-    
+
     if (bInventoryBridgeReady)
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Inventory bridge already initialized"));
         return;
     }
-    
+
     USuspenseUIManager* UIManager = GetUIManager();
     if (!UIManager)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to get UIManager"));
         return;
     }
-    
-    UMedComInventoryUIBridge* Bridge = UIManager->GetInventoryUIBridge();
+
+    USuspenseInventoryUIBridge* Bridge = UIManager->GetInventoryUIBridge();
     if (!Bridge)
     {
         Bridge = UIManager->CreateInventoryUIBridge(this);
@@ -977,63 +977,63 @@ void ASuspensePlayerController::EnsureInventoryBridgeInitialized()
             return;
         }
     }
-    
-    if (IMedComInventoryUIBridgeWidget::Execute_IsInventoryConnected(Bridge))
+
+    if (ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryConnected(Bridge))
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Inventory already connected to bridge"));
         bInventoryBridgeReady = true;
         return;
     }
-    
+
     ConnectInventoryToBridge(Bridge);
 }
 
-void ASuspensePlayerController::ConnectInventoryToBridge(UMedComInventoryUIBridge* Bridge)
+void ASuspensePlayerController::ConnectInventoryToBridge(USuspenseInventoryUIBridge* Bridge)
 {
     if (!Bridge)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] ConnectInventoryToBridge - invalid bridge"));
         return;
     }
-    
+
     ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>();
     if (!PS)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] No PlayerState found"));
         return;
     }
-    
-    UMedComInventoryComponent* InventoryComp = PS->GetInventoryComponent();
+
+    USuspenseInventoryComponent* InventoryComp = PS->GetInventoryComponent();
     if (!InventoryComp)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] No InventoryComponent in PlayerState"));
         return;
     }
-    
+
     if (!InventoryComp->IsInventoryInitialized())
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] InventoryComponent not initialized"));
         return;
     }
-    
-    TScriptInterface<IMedComInventoryInterface> InventoryInterface;
+
+    TScriptInterface<ISuspenseInventory> InventoryInterface;
     InventoryInterface.SetObject(InventoryComp);
-    InventoryInterface.SetInterface(Cast<IMedComInventoryInterface>(InventoryComp));
-    
+    InventoryInterface.SetInterface(Cast<ISuspenseInventory>(InventoryComp));
+
     Bridge->SetInventoryInterface(InventoryInterface);
     bInventoryBridgeReady = true;
-    
+
     FVector2D InvSize = InventoryComp->GetInventorySize();
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] Successfully connected InventoryComponent to UI Bridge"));
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Inventory size: %dx%d"), 
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Inventory size: %dx%d"),
         (int32)InvSize.X, (int32)InvSize.Y);
-    
-    IMedComInventoryUIBridgeWidget::Execute_RefreshInventoryUI(Bridge);
+
+    ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(Bridge);
 }
 
 void ASuspensePlayerController::HandleInventoryInitializationRequest(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
 {
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received inventory initialization request from: %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received inventory initialization request from: %s"),
         Source ? *Source->GetName() : TEXT("Unknown"));
 }
 
@@ -1056,7 +1056,7 @@ void ASuspensePlayerController::EnsureEquipmentBridgeInitialized()
     }
 
     // Create bridge if not yet created
-    UMedComEquipmentUIBridge* Bridge = UIManager->GetEquipmentUIBridge();
+    USuspenseEquipmentUIBridge* Bridge = UIManager->GetEquipmentUIBridge();
     if (!Bridge)
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Creating equipment bridge..."));
@@ -1074,7 +1074,7 @@ void ASuspensePlayerController::EnsureEquipmentBridgeInitialized()
     }
 
     // Check connection status
-    if (ISuspenseEquipmentUIBridge::Execute_IsEquipmentConnected(Bridge))
+    if (ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(Bridge))
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Equipment already connected to bridge"));
         bEquipmentBridgeReady = true;
@@ -1085,11 +1085,11 @@ void ASuspensePlayerController::EnsureEquipmentBridgeInitialized()
     // Connect through simplified method (no more UIConnector!)
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Connecting equipment to bridge..."));
     ConnectEquipmentToBridge(Bridge);
-    
+
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] === EnsureEquipmentBridgeInitialized END ==="));
 }
 
-void ASuspensePlayerController::ConnectEquipmentToBridge(UMedComEquipmentUIBridge* Bridge)
+void ASuspensePlayerController::ConnectEquipmentToBridge(USuspenseEquipmentUIBridge* Bridge)
 {
     if (!Bridge)
     {
@@ -1111,7 +1111,7 @@ void ASuspensePlayerController::ConnectEquipmentToBridge(UMedComEquipmentUIBridg
     }
 
     // STEP 3: Get EquipmentDataStore from PlayerState
-    UMedComEquipmentDataStore* DataStore = PS->GetEquipmentDataStore();
+    USuspenseEquipmentDataStore* DataStore = PS->GetEquipmentDataStore();
     if (!DataStore)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] No EquipmentDataStore in PlayerState"));
@@ -1122,21 +1122,21 @@ void ASuspensePlayerController::ConnectEquipmentToBridge(UMedComEquipmentUIBridg
 
     // STEP 4 (NEW SIMPLIFIED): Direct binding to DataStore - NO UIConnector!
     // Wrap DataStore in TScriptInterface for the call
-    TScriptInterface<IMedComEquipmentDataProvider> DataStoreInterface;
+    TScriptInterface<ISuspenseEquipmentDataProvider> DataStoreInterface;
     DataStoreInterface.SetObject(DataStore);
-    DataStoreInterface.SetInterface(Cast<IMedComEquipmentDataProvider>(DataStore));
-    
+    DataStoreInterface.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataStore));
+
     Bridge->BindToDataStore(DataStoreInterface);
 
     // STEP 5: Check connection status
-    bEquipmentBridgeReady = ISuspenseEquipmentUIBridge::Execute_IsEquipmentConnected(Bridge);
-    
+    bEquipmentBridgeReady = ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(Bridge);
+
     if (bEquipmentBridgeReady)
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] ✅ Equipment bridge fully connected (SIMPLIFIED FLOW)"));
-        
+
         // Trigger initial UI refresh
-        ISuspenseEquipmentUIBridge::Execute_RefreshEquipmentUI(Bridge);
+        ISuspenseEquipmentUIBridgeInterface::Execute_RefreshEquipmentUI(Bridge);
     }
     else
     {
@@ -1148,73 +1148,73 @@ void ASuspensePlayerController::ConnectEquipmentToBridge(UMedComEquipmentUIBridg
 
 void ASuspensePlayerController::HandleEquipmentInitializationRequest(const UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
 {
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received equipment initialization request from: %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Received equipment initialization request from: %s"),
         Source ? *Source->GetName() : TEXT("Unknown"));
 }
 
 void ASuspensePlayerController::ShowCharacterScreen(const FGameplayTag& DefaultTab)
 {
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ShowCharacterScreen called with tab: %s"), 
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ShowCharacterScreen called with tab: %s"),
         *DefaultTab.ToString());
-    
+
     // Initialize both bridges BEFORE showing screen
     EnsureInventoryBridgeInitialized();
     EnsureEquipmentBridgeInitialized();
-    
+
     USuspenseUIManager* UIManager = GetUIManager();
     if (!UIManager)
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] No UIManager available"));
         return;
     }
-    
+
     // Check bridge readiness
     bool bInventoryReady = false;
     bool bEquipmentReady = false;
-    
-    if (UMedComInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
+
+    if (USuspenseInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
     {
-        bInventoryReady = IMedComInventoryUIBridgeWidget::Execute_IsInventoryConnected(InvBridge);
+        bInventoryReady = ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryConnected(InvBridge);
     }
-    
-    if (UMedComEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
+
+    if (USuspenseEquipmentUIBridgeInterface* EquipBridge = UIManager->GetEquipmentUIBridge())
     {
-        bEquipmentReady = ISuspenseEquipmentUIBridge::Execute_IsEquipmentConnected(EquipBridge);
+        bEquipmentReady = ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(EquipBridge);
     }
-    
+
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Bridge status: Inventory=%s, Equipment=%s"),
         bInventoryReady ? TEXT("READY") : TEXT("NOT READY"),
         bEquipmentReady ? TEXT("READY") : TEXT("NOT READY"));
-    
+
     // Show screen through UI Manager
     UIManager->ShowCharacterScreen(this, DefaultTab);
-    
+
     // Delayed refresh to ensure UI is fully constructed
     FTimerHandle RefreshHandle;
     GetWorld()->GetTimerManager().SetTimer(RefreshHandle, [UIManager, this]()
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Executing delayed refresh..."));
-        
-        if (UMedComInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
+
+        if (USuspenseInventoryUIBridge* InvBridge = UIManager->GetInventoryUIBridge())
         {
-            if (IMedComInventoryUIBridgeWidget::Execute_IsInventoryConnected(InvBridge))
+            if (ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryConnected(InvBridge))
             {
-                IMedComInventoryUIBridgeWidget::Execute_RefreshInventoryUI(InvBridge);
+                ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(InvBridge);
                 UE_LOG(LogTemp, Log, TEXT("[PlayerController] Inventory UI refreshed"));
             }
         }
-        
-        if (UMedComEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
+
+        if (USuspenseEquipmentUIBridge* EquipBridge = UIManager->GetEquipmentUIBridge())
         {
-            if (ISuspenseEquipmentUIBridge::Execute_IsEquipmentConnected(EquipBridge))
+            if (ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(EquipBridge))
             {
-                ISuspenseEquipmentUIBridge::Execute_RefreshEquipmentUI(EquipBridge);
+                ISuspenseEquipmentUIBridgeInterface::Execute_RefreshEquipmentUI(EquipBridge);
                 UE_LOG(LogTemp, Log, TEXT("[PlayerController] Equipment UI refreshed"));
             }
         }
-        
+
     }, 0.15f, false);
-    
+
     // Set UI input mode
     FInputModeGameAndUI InputMode;
     InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -1235,51 +1235,51 @@ void ASuspensePlayerController::RegisterDebugCommands()
             FConsoleCommandDelegate::CreateLambda([this]()
             {
                 UE_LOG(LogTemp, Warning, TEXT("=== Inventory Debug Status ==="));
-                
+
                 if (USuspenseUIManager* UIManager = GetUIManager())
                 {
-                    if (UMedComInventoryUIBridge* Bridge = UIManager->GetInventoryUIBridge())
+                    if (USuspenseInventoryUIBridge* Bridge = UIManager->GetInventoryUIBridge())
                     {
-                        bool bConnected = IMedComInventoryUIBridgeWidget::Execute_IsInventoryConnected(Bridge);
-                        UE_LOG(LogTemp, Warning, TEXT("Inventory Bridge Connected: %s"), 
+                        bool bConnected = ISuspenseInventoryUIBridgeInterface::Execute_IsInventoryConnected(Bridge);
+                        UE_LOG(LogTemp, Warning, TEXT("Inventory Bridge Connected: %s"),
                             bConnected ? TEXT("YES") : TEXT("NO"));
                     }
                     else
                     {
                         UE_LOG(LogTemp, Warning, TEXT("Inventory Bridge: NOT CREATED"));
                     }
-                    
+
                     bool bCharScreenVisible = UIManager->IsCharacterScreenVisible();
-                    UE_LOG(LogTemp, Warning, TEXT("Character Screen Visible: %s"), 
+                    UE_LOG(LogTemp, Warning, TEXT("Character Screen Visible: %s"),
                         bCharScreenVisible ? TEXT("YES") : TEXT("NO"));
                 }
-                
+
                 if (ASuspensePlayerState* PS = GetPlayerState<ASuspensePlayerState>())
                 {
-                    if (UMedComInventoryComponent* Inv = PS->GetInventoryComponent())
+                    if (USuspenseInventoryComponent* Inv = PS->GetInventoryComponent())
                     {
                         UE_LOG(LogTemp, Warning, TEXT("Inventory Component: Valid"));
-                        UE_LOG(LogTemp, Warning, TEXT("Inventory Initialized: %s"), 
+                        UE_LOG(LogTemp, Warning, TEXT("Inventory Initialized: %s"),
                             Inv->IsInventoryInitialized() ? TEXT("YES") : TEXT("NO"));
-                        
+
                         FVector2D Size = Inv->GetInventorySize();
-                        UE_LOG(LogTemp, Warning, TEXT("Inventory Size: %dx%d"), 
+                        UE_LOG(LogTemp, Warning, TEXT("Inventory Size: %dx%d"),
                             (int32)Size.X, (int32)Size.Y);
-                        
-                        TArray<FInventoryItemInstance> Items = Inv->GetAllItemInstances();
+
+                        TArray<FSuspenseInventoryItemInstance> Items = Inv->GetAllItemInstances();
                         UE_LOG(LogTemp, Warning, TEXT("Items Count: %d"), Items.Num());
-                        
+
                         float CurrentWeight = Inv->GetCurrentWeight_Implementation();
                         float MaxWeight = Inv->GetMaxWeight_Implementation();
-                        UE_LOG(LogTemp, Warning, TEXT("Weight: %.1f / %.1f kg"), 
+                        UE_LOG(LogTemp, Warning, TEXT("Weight: %.1f / %.1f kg"),
                             CurrentWeight, MaxWeight);
                     }
                 }
-                
+
                 UE_LOG(LogTemp, Warning, TEXT("=== End Debug Status ==="));
             })
         );
-        
+
         IConsoleManager::Get().RegisterConsoleCommand(
             TEXT("Debug.Equipment.Status"),
             TEXT("Print equipment connection and slots UI data (SIMPLIFIED)"),
@@ -1293,17 +1293,17 @@ void ASuspensePlayerController::RegisterDebugCommands()
                         return;
                     }
 
-                    UMedComEquipmentUIBridge* Bridge = UIManager->GetEquipmentUIBridge();
+                    USuspenseEquipmentUIBridge* Bridge = UIManager->GetEquipmentUIBridge();
                     if (!Bridge)
                     {
                         UE_LOG(LogTemp, Warning, TEXT("EquipmentUIBridge not created; run Debug.Equipment.ForceInit"));
                         return;
                     }
 
-                    const bool bConnected = ISuspenseEquipmentUIBridge::Execute_IsEquipmentConnected(Bridge);
-                    UE_LOG(LogTemp, Log, TEXT("Bridge connected: %s (SIMPLIFIED FLOW - NO UIConnector)"), 
+                    const bool bConnected = ISuspenseEquipmentUIBridgeInterface::Execute_IsEquipmentConnected(Bridge);
+                    UE_LOG(LogTemp, Log, TEXT("Bridge connected: %s (SIMPLIFIED FLOW - NO UIConnector)"),
                         bConnected ? TEXT("YES") : TEXT("NO"));
-                    
+
                     if (!bConnected)
                     {
                         UE_LOG(LogTemp, Warning, TEXT("Hint: open Character Screen -> Equipment tab to trigger connection"));
@@ -1311,7 +1311,7 @@ void ASuspensePlayerController::RegisterDebugCommands()
                     }
 
                     TArray<FEquipmentSlotUIData> Slots;
-                    const bool bGot = ISuspenseEquipmentUIBridge::Execute_GetEquipmentSlotsUIData(Bridge, Slots);
+                    const bool bGot = ISuspenseEquipmentUIBridgeInterface::Execute_GetEquipmentSlotsUIData(Bridge, Slots);
                     if (!bGot)
                     {
                         UE_LOG(LogTemp, Warning, TEXT("GetEquipmentSlotsUIData returned false"));
@@ -1332,7 +1332,7 @@ void ASuspensePlayerController::RegisterDebugCommands()
             ),
             ECVF_Default
         );
-        
+
         IConsoleManager::Get().RegisterConsoleCommand(
             TEXT("Debug.Equipment.ForceInit"),
             TEXT("Force initialize equipment bridge (SIMPLIFIED - NO UIConnector)"),
@@ -1344,7 +1344,7 @@ void ASuspensePlayerController::RegisterDebugCommands()
                         UE_LOG(LogTemp, Warning, TEXT("Not local controller"));
                         return;
                     }
-                    
+
                     UE_LOG(LogTemp, Warning, TEXT("Forcing SIMPLIFIED equipment bridge initialization..."));
                     EnsureEquipmentBridgeInitialized();
                 }

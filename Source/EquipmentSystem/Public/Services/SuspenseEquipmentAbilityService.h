@@ -259,7 +259,7 @@ private:
     UPROPERTY()
     TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> EquipmentToOwnerMap;
 
-    TSharedPtr<FEquipmentCacheManager<FName, FEquipmentAbilityMapping>> MappingCache;
+    TSharedPtr<FSuspenseEquipmentCacheManager<FName, FEquipmentAbilityMapping>> MappingCache;
     FStreamableManager StreamableManager;
     FTimerHandle CleanupTimerHandle;
 

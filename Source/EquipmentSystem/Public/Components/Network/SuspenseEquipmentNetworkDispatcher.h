@@ -229,8 +229,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category="Network|Config") float IdempotencyLifetime     = 60.0f;
 
 	// Wiring
-	UPROPERTY() USuspenseEquipmentNetworkService*                 SecurityService = nullptr;
-	UPROPERTY() TScriptInterface<ISuspenseEquipmentOperations>  OperationExecutor;
+	UPROPERTY() USuspenseEquipmentNetworkService* SecurityService = nullptr;
+	UPROPERTY() TScriptInterface<ISuspenseEquipmentOperations> OperationExecutor;
 
 	// State
 	UPROPERTY() TArray<FOperationQueueEntry> OperationQueue;

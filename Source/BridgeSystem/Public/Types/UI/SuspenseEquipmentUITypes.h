@@ -6,7 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "Types/UI/SuspenseContainerUITypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipment.h"
-#include "EquipmentUITypes.generated.h"
+#include "SuspenseEquipmentUITypes.generated.h"
 
 /**
  * UI representation of equipment slot

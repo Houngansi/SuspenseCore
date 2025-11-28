@@ -315,7 +315,7 @@ public:
     virtual ISuspenseReplicationProvider* GetReplicationProvider() override
     {
         if (!ReplicationProvider) return nullptr;
-        if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseReplicationProviderInterface::StaticClass()))
+        if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseReplicationProvider::StaticClass()))
         {
             return Cast<ISuspenseReplicationProvider>(ReplicationProvider);
         }

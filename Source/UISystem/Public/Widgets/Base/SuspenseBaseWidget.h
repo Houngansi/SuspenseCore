@@ -13,20 +13,20 @@ class USuspenseEventManager;
 
 /**
  * Base class for all UI widgets in MedCom game
- * 
+ *
  * Key responsibilities:
  * - Implements ISuspenseUIWidget interface for standardized widget behavior
  * - Provides lifecycle management (initialization, updates, cleanup)
  * - Handles animation support for show/hide operations
  * - Manages event system integration through EventDelegateManager
- * 
+ *
  * Architecture notes:
  * - No dependencies on game modules (only MedComShared)
  * - All game data comes through interfaces or events
  * - Follows Single Responsibility Principle - only base widget functionality
  */
 UCLASS(Abstract)
-class UISYSTEM_API USuspenseBaseWidget : public UUserWidget, public ISuspenseUIWidgetInterface
+class UISYSTEM_API USuspenseBaseWidget : public UUserWidget, public ISuspenseUIWidget
 {
     GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
     //================================================
     // UUserWidget Interface
     //================================================
-    
+
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -45,7 +45,7 @@ public:
     //================================================
     // ISuspenseUIWidget Interface Implementation
     //================================================
-    
+
     virtual void InitializeWidget_Implementation() override;
     virtual void UninitializeWidget_Implementation() override;
     virtual void UpdateWidget_Implementation(float DeltaTime) override;
@@ -60,7 +60,7 @@ public:
     //================================================
     // Animation Support
     //================================================
-    
+
     UFUNCTION(BlueprintCallable, Category = "UI|Animation")
     void PlayShowAnimation();
 
@@ -80,7 +80,7 @@ protected:
     //================================================
     // Properties
     //================================================
-    
+
 
 
     /** Whether this widget should tick */
@@ -99,10 +99,10 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Widget")
     bool bIsShowing = true;
 
-    //================================================ 
+    //================================================
     // Internal State
     //================================================
-    
+
     /** Whether widget has been properly initialized */
     bool bIsInitialized = false;
 
@@ -113,7 +113,7 @@ protected:
     //================================================
     // Helper Methods
     //================================================
-    
+
     /** Log widget lifecycle events for debugging */
     void LogLifecycleEvent(const FString& EventName) const;
 

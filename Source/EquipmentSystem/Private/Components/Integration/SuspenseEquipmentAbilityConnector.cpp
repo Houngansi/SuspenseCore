@@ -9,7 +9,7 @@
 #include "AttributeSet.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
@@ -30,10 +30,10 @@ USuspenseEquipmentAbilityConnector::USuspenseEquipmentAbilityConnector()
 void USuspenseEquipmentAbilityConnector::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] AbilityConnector beginning play on %s"),
         *GetName(), GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
-    
+
     const bool bHasAuthority = (GetOwner() && GetOwner()->HasAuthority());
     if (!bHasAuthority)
     {
@@ -47,17 +47,17 @@ void USuspenseEquipmentAbilityConnector::EndPlay(const EEndPlayReason::Type EndP
 {
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] AbilityConnector ending play - Reason: %s"),
         *GetName(), *UEnum::GetValueAsString(EndPlayReason));
-    
+
     ClearAll();
-    
+
     AbilitySystemComponent = nullptr;
     DataProvider.SetInterface(nullptr);
     DataProvider.SetObject(nullptr);
     EventDispatcher.SetInterface(nullptr);
     EventDispatcher.SetObject(nullptr);
-    
+
     LogStatistics();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
@@ -73,9 +73,9 @@ bool USuspenseEquipmentAbilityConnector::Initialize(
     {
         return false;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     if (!InASC)
     {
         UE_LOG(LogAbilityConnector, Error, TEXT("[%s] Initialize failed - ASC is null"),
@@ -83,21 +83,21 @@ bool USuspenseEquipmentAbilityConnector::Initialize(
         FailedGrantOperations++;
         return false;
     }
-    
+
     if (bIsInitialized && AbilitySystemComponent)
     {
         UE_LOG(LogAbilityConnector, Warning, TEXT("[%s] Already initialized with ASC: %s"),
             *GetName(), *AbilitySystemComponent->GetName());
         return true;
     }
-    
+
     AbilitySystemComponent = InASC;
     DataProvider = InDataProvider;
     bIsInitialized = true;
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Initialized successfully with ASC: %s"),
         *GetName(), *AbilitySystemComponent->GetName());
-    
+
     return true;
 }
 
@@ -237,15 +237,15 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
     {
         return false;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     if (!AbilitySystemComponent)
     {
         FailedApplyOperations++;
         return false;
     }
-    
+
     // Get item data from single source of truth
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -253,14 +253,14 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
         FailedApplyOperations++;
         return false;
     }
-    
+
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, ItemData))
     {
         FailedApplyOperations++;
         return false;
     }
-    
+
     // Check if this item has an attribute set
     TSubclassOf<UAttributeSet> AttributeClass = ItemData.GetPrimaryAttributeSet();
     if (!AttributeClass)
@@ -269,11 +269,11 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
             *GetName(), *ItemInstance.ItemID.ToString());
         return true; // Not an error - item just doesn't have attributes
     }
-    
+
     // Check if we already have an attribute set for this item
     UAttributeSet* ExistingSet = nullptr;
     int32 ExistingSlotIndex = INDEX_NONE;
-    
+
     for (FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
     {
         if (ManagedSet.ItemInstanceId == ItemInstance.InstanceID)
@@ -283,10 +283,10 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
             break;
         }
     }
-    
+
     // Determine slot index
     int32 SlotIndex = ItemInstance.AnchorIndex != INDEX_NONE ? ItemInstance.AnchorIndex : INDEX_NONE;
-    
+
     // Create new attribute set if needed
     if (!ExistingSet)
     {
@@ -311,7 +311,7 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
             }
         }
     }
-    
+
     // Apply initialization effect (ONLY here)
     TSubclassOf<UGameplayEffect> InitEffect = nullptr;
     if (ItemData.bIsWeapon)
@@ -326,12 +326,12 @@ bool USuspenseEquipmentAbilityConnector::UpdateEquipmentAttributes(
     {
         InitEffect = ItemData.EquipmentInitEffect;
     }
-    
+
     if (InitEffect)
     {
         return InitializeAttributeSet(ExistingSet, InitEffect, ItemInstance);
     }
-    
+
     return true;
 }
 
@@ -344,7 +344,7 @@ UAttributeSet* USuspenseEquipmentAbilityConnector::GetEquipmentAttributeSet(int3
             return ManagedSet.AttributeSet;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -355,19 +355,19 @@ bool USuspenseEquipmentAbilityConnector::ActivateEquipmentAbility(
     {
         return false;
     }
-    
+
     if (!AbilitySystemComponent || !AbilityHandle.IsValid())
     {
         FailedActivateOperations++;
         return false;
     }
-    
+
     bool bSuccess = AbilitySystemComponent->TryActivateAbility(AbilityHandle);
-    
+
     if (bSuccess)
     {
         TotalActivations++;
-        
+
         const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
         if (AbilitySpec && AbilitySpec->Ability)
         {
@@ -383,7 +383,7 @@ bool USuspenseEquipmentAbilityConnector::ActivateEquipmentAbility(
     else
     {
         FailedActivateOperations++;
-        
+
         const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilityHandle);
         if (AbilitySpec && AbilitySpec->Ability)
         {
@@ -396,7 +396,7 @@ bool USuspenseEquipmentAbilityConnector::ActivateEquipmentAbility(
                 *GetName(), &AbilityHandle);
         }
     }
-    
+
     return bSuccess;
 }
 
@@ -408,14 +408,14 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
     int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance)
 {
     TArray<FGameplayAbilitySpecHandle> GrantedHandles;
-    
+
     if (!EnsureValidExecution(TEXT("GrantAbilitiesForSlot")))
     {
         return GrantedHandles;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     if (!bIsInitialized || !AbilitySystemComponent)
     {
         UE_LOG(LogAbilityConnector, Error, TEXT("[%s] GrantAbilitiesForSlot - Not initialized"),
@@ -423,7 +423,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
         FailedGrantOperations++;
         return GrantedHandles;
     }
-    
+
     if (!ItemInstance.IsValid())
     {
         UE_LOG(LogAbilityConnector, Warning, TEXT("[%s] GrantAbilitiesForSlot - Invalid item instance"),
@@ -431,7 +431,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
         FailedGrantOperations++;
         return GrantedHandles;
     }
-    
+
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
@@ -440,7 +440,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
         FailedGrantOperations++;
         return GrantedHandles;
     }
-    
+
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, ItemData))
     {
@@ -449,19 +449,19 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
         FailedGrantOperations++;
         return GrantedHandles;
     }
-    
+
     GrantedHandles = GrantAbilitiesFromItemData(ItemData, ItemInstance, SlotIndex);
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Granted %d abilities for item: %s in slot %d"),
         *GetName(), GrantedHandles.Num(), *ItemInstance.ItemID.ToString(), SlotIndex);
-    
+
     return GrantedHandles;
 }
 
 int32 USuspenseEquipmentAbilityConnector::RemoveAbilitiesForSlot(int32 SlotIndex)
 {
     TArray<FGameplayAbilitySpecHandle> HandlesToRemove;
-    
+
     for (const FGrantedAbilityRecord& Record : GrantedAbilities)
     {
         if (Record.SlotIndex == SlotIndex)
@@ -469,7 +469,7 @@ int32 USuspenseEquipmentAbilityConnector::RemoveAbilitiesForSlot(int32 SlotIndex
             HandlesToRemove.Add(Record.AbilityHandle);
         }
     }
-    
+
     return RemoveGrantedAbilities(HandlesToRemove);
 }
 
@@ -477,14 +477,14 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
     int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance)
 {
     TArray<FActiveGameplayEffectHandle> AppliedHandles;
-    
+
     if (!EnsureValidExecution(TEXT("ApplyEffectsForSlot")))
     {
         return AppliedHandles;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     if (!bIsInitialized || !AbilitySystemComponent)
     {
         UE_LOG(LogAbilityConnector, Error, TEXT("[%s] ApplyEffectsForSlot - Not initialized"),
@@ -492,7 +492,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
         FailedApplyOperations++;
         return AppliedHandles;
     }
-    
+
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
@@ -501,7 +501,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
         FailedApplyOperations++;
         return AppliedHandles;
     }
-    
+
     FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, ItemData))
     {
@@ -510,20 +510,20 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
         FailedApplyOperations++;
         return AppliedHandles;
     }
-    
+
     // Apply ONLY passive effects (init effects are handled in UpdateEquipmentAttributes)
     AppliedHandles = ApplyEffectsFromItemData(ItemData, ItemInstance, SlotIndex);
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Applied %d effects for item: %s in slot %d"),
         *GetName(), AppliedHandles.Num(), *ItemInstance.ItemID.ToString(), SlotIndex);
-    
+
     return AppliedHandles;
 }
 
 int32 USuspenseEquipmentAbilityConnector::RemoveEffectsForSlot(int32 SlotIndex)
 {
     TArray<FActiveGameplayEffectHandle> HandlesToRemove;
-    
+
     for (const FAppliedEffectRecord& Record : AppliedEffects)
     {
         if (Record.SlotIndex == SlotIndex)
@@ -531,7 +531,7 @@ int32 USuspenseEquipmentAbilityConnector::RemoveEffectsForSlot(int32 SlotIndex)
             HandlesToRemove.Add(Record.EffectHandle);
         }
     }
-    
+
     return RemoveAppliedEffects(HandlesToRemove);
 }
 
@@ -545,12 +545,12 @@ void USuspenseEquipmentAbilityConnector::ClearAll()
     {
         return;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Clearing all abilities and effects"),
         *GetName());
-    
+
     if (AbilitySystemComponent)
     {
         for (const FGrantedAbilityRecord& Record : GrantedAbilities)
@@ -561,7 +561,7 @@ void USuspenseEquipmentAbilityConnector::ClearAll()
                 AbilitySystemComponent->ClearAbility(Record.AbilityHandle);
             }
         }
-        
+
         for (const FAppliedEffectRecord& Record : AppliedEffects)
         {
             if (Record.EffectHandle.IsValid())
@@ -569,18 +569,18 @@ void USuspenseEquipmentAbilityConnector::ClearAll()
                 AbilitySystemComponent->RemoveActiveGameplayEffect(Record.EffectHandle);
             }
         }
-        
+
         // AttributeSets: не снимаем вручную — в UE5 это небезопасно.
     }
-    
+
     int32 ClearedAbilities = GrantedAbilities.Num();
     int32 ClearedEffects = AppliedEffects.Num();
     int32 ClearedAttributes = ManagedAttributeSets.Num();
-    
+
     GrantedAbilities.Empty();
     AppliedEffects.Empty();
     ManagedAttributeSets.Empty();
-    
+
     UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Cleared %d abilities, %d effects, %d attribute sets"),
         *GetName(), ClearedAbilities, ClearedEffects, ClearedAttributes);
 }
@@ -591,16 +591,16 @@ int32 USuspenseEquipmentAbilityConnector::CleanupInvalidHandles()
     {
         return 0;
     }
-    
+
     FScopeLock Lock(&ConnectorCriticalSection);
-    
+
     if (!AbilitySystemComponent)
     {
         return 0;
     }
-    
+
     int32 CleanedCount = 0;
-    
+
     for (int32 i = GrantedAbilities.Num() - 1; i >= 0; i--)
     {
         if (!AbilitySystemComponent->FindAbilitySpecFromHandle(GrantedAbilities[i].AbilityHandle))
@@ -609,7 +609,7 @@ int32 USuspenseEquipmentAbilityConnector::CleanupInvalidHandles()
             CleanedCount++;
         }
     }
-    
+
     for (int32 i = AppliedEffects.Num() - 1; i >= 0; i--)
     {
         const FActiveGameplayEffect* ActiveEffect = AbilitySystemComponent->GetActiveGameplayEffect(AppliedEffects[i].EffectHandle);
@@ -619,13 +619,13 @@ int32 USuspenseEquipmentAbilityConnector::CleanupInvalidHandles()
             CleanedCount++;
         }
     }
-    
+
     if (CleanedCount > 0)
     {
         UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Cleaned %d invalid handles"),
             *GetName(), CleanedCount);
     }
-    
+
     return CleanedCount;
 }
 
@@ -637,19 +637,19 @@ bool USuspenseEquipmentAbilityConnector::ValidateConnector(TArray<FString>& OutE
 {
     OutErrors.Empty();
     bool bIsValid = true;
-    
+
     if (!bIsInitialized)
     {
         OutErrors.Add(TEXT("Connector not initialized"));
         bIsValid = false;
     }
-    
+
     if (!AbilitySystemComponent)
     {
         OutErrors.Add(TEXT("No AbilitySystemComponent set"));
         bIsValid = false;
     }
-    
+
     if (AbilitySystemComponent)
     {
         int32 OrphanedAbilities = 0;
@@ -660,13 +660,13 @@ bool USuspenseEquipmentAbilityConnector::ValidateConnector(TArray<FString>& OutE
                 OrphanedAbilities++;
             }
         }
-        
+
         if (OrphanedAbilities > 0)
         {
             OutErrors.Add(FString::Printf(TEXT("%d orphaned ability records"), OrphanedAbilities));
             bIsValid = false;
         }
-        
+
         int32 OrphanedEffects = 0;
         for (const FAppliedEffectRecord& Record : AppliedEffects)
         {
@@ -676,32 +676,32 @@ bool USuspenseEquipmentAbilityConnector::ValidateConnector(TArray<FString>& OutE
                 OrphanedEffects++;
             }
         }
-        
+
         if (OrphanedEffects > 0)
         {
             OutErrors.Add(FString::Printf(TEXT("%d orphaned effect records"), OrphanedEffects));
             bIsValid = false;
         }
     }
-    
+
     return bIsValid;
 }
 
 FString USuspenseEquipmentAbilityConnector::GetDebugInfo() const
 {
     FString DebugInfo;
-    
+
     DebugInfo += TEXT("=== Equipment Ability Connector Debug ===\n");
     DebugInfo += FString::Printf(TEXT("Component: %s\n"), *GetName());
-    DebugInfo += FString::Printf(TEXT("Owner: %s\n"), 
+    DebugInfo += FString::Printf(TEXT("Owner: %s\n"),
         GetOwner() ? *GetOwner()->GetName() : TEXT("None"));
-    DebugInfo += FString::Printf(TEXT("Initialized: %s\n"), 
+    DebugInfo += FString::Printf(TEXT("Initialized: %s\n"),
         bIsInitialized ? TEXT("Yes") : TEXT("No"));
-    DebugInfo += FString::Printf(TEXT("ASC: %s\n"), 
+    DebugInfo += FString::Printf(TEXT("ASC: %s\n"),
         AbilitySystemComponent ? *AbilitySystemComponent->GetName() : TEXT("None"));
-    DebugInfo += FString::Printf(TEXT("Server Only: %s\n"), 
+    DebugInfo += FString::Printf(TEXT("Server Only: %s\n"),
         bServerOnly ? TEXT("Yes") : TEXT("No"));
-    
+
     DebugInfo += TEXT("\n--- Granted Abilities ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), GrantedAbilities.Num());
     for (const FGrantedAbilityRecord& Record : GrantedAbilities)
@@ -713,7 +713,7 @@ FString USuspenseEquipmentAbilityConnector::GetDebugInfo() const
             Record.SlotIndex,
             *Record.Source);
     }
-    
+
     DebugInfo += TEXT("\n--- Applied Effects ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), AppliedEffects.Num());
     for (const FAppliedEffectRecord& Record : AppliedEffects)
@@ -725,7 +725,7 @@ FString USuspenseEquipmentAbilityConnector::GetDebugInfo() const
             Record.SlotIndex,
             *Record.Source);
     }
-    
+
     DebugInfo += TEXT("\n--- Managed Attributes ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), ManagedAttributeSets.Num());
     for (const FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
@@ -737,7 +737,7 @@ FString USuspenseEquipmentAbilityConnector::GetDebugInfo() const
             *ManagedSet.AttributeType,
             ManagedSet.bIsInitialized ? TEXT("Yes") : TEXT("No"));
     }
-    
+
     DebugInfo += TEXT("\n--- Statistics ---\n");
     DebugInfo += FString::Printf(TEXT("Total Abilities Granted: %d\n"), TotalAbilitiesGranted);
     DebugInfo += FString::Printf(TEXT("Total Effects Applied: %d\n"), TotalEffectsApplied);
@@ -746,40 +746,40 @@ FString USuspenseEquipmentAbilityConnector::GetDebugInfo() const
     DebugInfo += FString::Printf(TEXT("Failed Grant Operations: %d\n"), FailedGrantOperations);
     DebugInfo += FString::Printf(TEXT("Failed Apply Operations: %d\n"), FailedApplyOperations);
     DebugInfo += FString::Printf(TEXT("Failed Activate Operations: %d\n"), FailedActivateOperations);
-    
+
     if (TotalAbilitiesGranted > 0 || FailedGrantOperations > 0)
     {
         float GrantSuccessRate = (float)TotalAbilitiesGranted / (TotalAbilitiesGranted + FailedGrantOperations) * 100.0f;
         DebugInfo += FString::Printf(TEXT("Grant Success Rate: %.1f%%\n"), GrantSuccessRate);
     }
-    
+
     if (TotalActivations > 0 || FailedActivateOperations > 0)
     {
         float ActivateSuccessRate = (float)TotalActivations / (TotalActivations + FailedActivateOperations) * 100.0f;
         DebugInfo += FString::Printf(TEXT("Activate Success Rate: %.1f%%\n"), ActivateSuccessRate);
     }
-    
+
     return DebugInfo;
 }
 
 void USuspenseEquipmentAbilityConnector::LogStatistics() const
 {
     UE_LOG(LogAbilityConnector, Log, TEXT("=== Ability Connector Statistics for %s ==="), *GetName());
-    UE_LOG(LogAbilityConnector, Log, TEXT("  Granted: %d abilities (Failed: %d)"), 
+    UE_LOG(LogAbilityConnector, Log, TEXT("  Granted: %d abilities (Failed: %d)"),
         TotalAbilitiesGranted, FailedGrantOperations);
-    UE_LOG(LogAbilityConnector, Log, TEXT("  Applied: %d effects (Failed: %d)"), 
+    UE_LOG(LogAbilityConnector, Log, TEXT("  Applied: %d effects (Failed: %d)"),
         TotalEffectsApplied, FailedApplyOperations);
-    UE_LOG(LogAbilityConnector, Log, TEXT("  Created: %d attribute sets"), 
+    UE_LOG(LogAbilityConnector, Log, TEXT("  Created: %d attribute sets"),
         TotalAttributeSetsCreated);
-    UE_LOG(LogAbilityConnector, Log, TEXT("  Activated: %d abilities (Failed: %d)"), 
+    UE_LOG(LogAbilityConnector, Log, TEXT("  Activated: %d abilities (Failed: %d)"),
         TotalActivations, FailedActivateOperations);
-    
+
     if (TotalAbilitiesGranted > 0 || FailedGrantOperations > 0)
     {
         float SuccessRate = (float)TotalAbilitiesGranted / (TotalAbilitiesGranted + FailedGrantOperations) * 100.0f;
         UE_LOG(LogAbilityConnector, Log, TEXT("  Grant Success Rate: %.1f%%"), SuccessRate);
     }
-    
+
     if (TotalActivations > 0 || FailedActivateOperations > 0)
     {
         float SuccessRate = (float)TotalActivations / (TotalActivations + FailedActivateOperations) * 100.0f;
@@ -797,7 +797,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
     int32 SlotIndex)
 {
     TArray<FGameplayAbilitySpecHandle> GrantedHandles;
-    
+
     // Base abilities
     for (const FGrantedAbilityData& AbilityData : ItemData.GrantedAbilities)
     {
@@ -807,7 +807,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
                 *GetName(), *ItemData.ItemID.ToString());
             continue;
         }
-        
+
         FGameplayAbilitySpecHandle Handle = GrantSingleAbility(
             AbilityData.AbilityClass,
             AbilityData.AbilityLevel,
@@ -815,11 +815,11 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
             this,
             TEXT("Base")
         );
-        
+
         if (Handle.IsValid())
         {
             GrantedHandles.Add(Handle);
-            
+
             FGrantedAbilityRecord Record;
             Record.ItemInstanceId = ItemInstance.InstanceID;
             Record.SlotIndex = SlotIndex;
@@ -829,15 +829,15 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
             Record.InputTag = AbilityData.InputTag;
             Record.GrantTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
             Record.Source = TEXT("Base");
-            
+
             GrantedAbilities.Add(Record);
             TotalAbilitiesGranted++;
-            
+
             UE_LOG(LogAbilityConnector, Verbose, TEXT("[%s] Granted base ability: %s for slot %d"),
                 *GetName(), *AbilityData.AbilityClass->GetName(), SlotIndex);
         }
     }
-    
+
     // Fire modes
     if (ItemData.bIsWeapon)
     {
@@ -847,7 +847,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
             {
                 continue;
             }
-            
+
             FGameplayAbilitySpecHandle Handle = GrantSingleAbility(
                 FireMode.FireModeAbility,
                 1,
@@ -855,11 +855,11 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
                 this,
                 FString::Printf(TEXT("FireMode_%s"), *FireMode.DisplayName.ToString())
             );
-            
+
             if (Handle.IsValid())
             {
                 GrantedHandles.Add(Handle);
-                
+
                 FGrantedAbilityRecord Record;
                 Record.ItemInstanceId = ItemInstance.InstanceID;
                 Record.SlotIndex = SlotIndex;
@@ -869,16 +869,16 @@ TArray<FGameplayAbilitySpecHandle> USuspenseEquipmentAbilityConnector::GrantAbil
                 Record.InputTag = FireMode.FireModeTag;
                 Record.GrantTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
                 Record.Source = FString::Printf(TEXT("FireMode_%s"), *FireMode.DisplayName.ToString());
-                
+
                 GrantedAbilities.Add(Record);
                 TotalAbilitiesGranted++;
-                
+
                 UE_LOG(LogAbilityConnector, Verbose, TEXT("[%s] Granted fire mode: %s for slot %d"),
                     *GetName(), *FireMode.DisplayName.ToString(), SlotIndex);
             }
         }
     }
-    
+
     return GrantedHandles;
 }
 
@@ -888,25 +888,25 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
     int32 SlotIndex)
 {
     TArray<FActiveGameplayEffectHandle> AppliedHandles;
-    
+
     for (TSubclassOf<UGameplayEffect> EffectClass : ItemData.PassiveEffects)
     {
         if (!EffectClass)
         {
             continue;
         }
-        
+
         FActiveGameplayEffectHandle Handle = ApplySingleEffect(
             EffectClass,
             1.0f,
             this,
             TEXT("Passive")
         );
-        
+
         if (Handle.IsValid())
         {
             AppliedHandles.Add(Handle);
-            
+
             FAppliedEffectRecord Record;
             Record.ItemInstanceId = ItemInstance.InstanceID;
             Record.SlotIndex = SlotIndex;
@@ -914,7 +914,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
             Record.EffectClass = EffectClass;
             Record.ApplicationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
             Record.Source = TEXT("Passive");
-            
+
             const UGameplayEffect* CDO = EffectClass->GetDefaultObject<UGameplayEffect>();
             if (CDO)
             {
@@ -932,7 +932,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
                     Record.Duration = bSuccess ? CalculatedDuration : 0.0f;
                     if (!bSuccess)
                     {
-                        UE_LOG(LogAbilityConnector, Warning, 
+                        UE_LOG(LogAbilityConnector, Warning,
                             TEXT("[%s] Failed to calculate duration for effect %s - using 0"),
                             *GetName(), *EffectClass->GetName());
                     }
@@ -942,15 +942,15 @@ TArray<FActiveGameplayEffectHandle> USuspenseEquipmentAbilityConnector::ApplyEff
                     Record.Duration = 0.0f;
                 }
             }
-            
+
             AppliedEffects.Add(Record);
             TotalEffectsApplied++;
-            
+
             UE_LOG(LogAbilityConnector, Verbose, TEXT("[%s] Applied passive effect: %s for slot %d (Duration: %.2f)"),
                 *GetName(), *EffectClass->GetName(), SlotIndex, Record.Duration);
         }
     }
-    
+
     return AppliedHandles;
 }
 
@@ -1051,27 +1051,27 @@ FGameplayAbilitySpecHandle USuspenseEquipmentAbilityConnector::GrantSingleAbilit
     {
         return FGameplayAbilitySpecHandle();
     }
-    
+
     FGameplayAbilitySpec AbilitySpec(
         AbilityClass,
         Level,
         INDEX_NONE, // Input ID handled elsewhere
         SourceObject
     );
-    
+
     if (InputTag.IsValid())
     {
         AbilitySpec.DynamicAbilityTags.AddTag(InputTag);
     }
-    
+
     FGameplayAbilitySpecHandle Handle = AbilitySystemComponent->GiveAbility(AbilitySpec);
-    
+
     if (Handle.IsValid())
     {
         UE_LOG(LogAbilityConnector, VeryVerbose, TEXT("[%s] Granted ability %s from source: %s"),
             *GetName(), *AbilityClass->GetName(), *Source);
     }
-    
+
     return Handle;
 }
 
@@ -1085,31 +1085,31 @@ FActiveGameplayEffectHandle USuspenseEquipmentAbilityConnector::ApplySingleEffec
     {
         return FActiveGameplayEffectHandle();
     }
-    
+
     FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
     ContextHandle.AddSourceObject(SourceObject);
-    
+
     FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(
         EffectClass,
         Level,
         ContextHandle
     );
-    
+
     if (!SpecHandle.IsValid())
     {
         return FActiveGameplayEffectHandle();
     }
-    
+
     FActiveGameplayEffectHandle Handle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
         *SpecHandle.Data.Get()
     );
-    
+
     if (Handle.IsValid())
     {
         UE_LOG(LogAbilityConnector, VeryVerbose, TEXT("[%s] Applied effect %s from source: %s"),
             *GetName(), *EffectClass->GetName(), *Source);
     }
-    
+
     return Handle;
 }
 
@@ -1122,27 +1122,27 @@ bool USuspenseEquipmentAbilityConnector::InitializeAttributeSet(
     {
         return false;
     }
-    
+
     FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
     ContextHandle.AddSourceObject(this);
-    
+
     FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(
         InitEffect,
         1.0f,
         ContextHandle
     );
-    
+
     if (!SpecHandle.IsValid())
     {
         return false;
     }
-    
+
     // Runtime properties -> SetByCaller.<Tag>
     for (const auto& PropertyPair : ItemInstance.RuntimeProperties)
     {
         const FName TagName(*(TEXT("SetByCaller.") + PropertyPair.Key.ToString()));
         const FGameplayTag PropertyTag = FGameplayTag::RequestGameplayTag(TagName, false);
-        
+
         if (PropertyTag.IsValid())
         {
             SpecHandle.Data->SetSetByCallerMagnitude(PropertyTag, PropertyPair.Value);
@@ -1155,11 +1155,11 @@ bool USuspenseEquipmentAbilityConnector::InitializeAttributeSet(
                 *GetName(), *TagName.ToString());
         }
     }
-    
+
     FActiveGameplayEffectHandle Handle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
         *SpecHandle.Data.Get()
     );
-    
+
     if (Handle.IsValid())
     {
         for (FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
@@ -1170,13 +1170,13 @@ bool USuspenseEquipmentAbilityConnector::InitializeAttributeSet(
                 break;
             }
         }
-        
+
         UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Initialized attribute set with effect: %s"),
             *GetName(), *InitEffect->GetName());
-        
+
         return true;
     }
-    
+
     return false;
 }
 
@@ -1194,14 +1194,14 @@ USuspenseItemManager* USuspenseEquipmentAbilityConnector::GetItemManager() const
             return CachedItemManager.Get();
         }
     }
-    
+
     if (UWorld* World = GetWorld())
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
             CachedItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
             LastCacheTime = World->GetTimeSeconds();
-            
+
             if (!CachedItemManager.IsValid())
             {
                 UE_LOG(LogAbilityConnector, Error, TEXT("[%s] ItemManager subsystem not found!"),
@@ -1209,7 +1209,7 @@ USuspenseItemManager* USuspenseEquipmentAbilityConnector::GetItemManager() const
             }
         }
     }
-    
+
     return CachedItemManager.Get();
 }
 
@@ -1221,16 +1221,16 @@ bool USuspenseEquipmentAbilityConnector::EnsureValidExecution(const FString& Fun
             *GetName(), *FunctionName);
         return false;
     }
-    
+
     AActor* OwnerActor = GetOwner();
     const bool bHasAuthority = (OwnerActor && OwnerActor->HasAuthority());
-    
+
     if (bServerOnly && !bHasAuthority)
     {
         UE_LOG(LogAbilityConnector, VeryVerbose, TEXT("[%s] %s skipped on client"),
             *GetName(), *FunctionName);
         return false;
     }
-    
+
     return true;
 }

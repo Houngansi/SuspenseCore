@@ -3,7 +3,7 @@
 #include "Components/Network/SuspenseEquipmentPredictionSystem.h"
 #include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
-#include "Services/EquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"

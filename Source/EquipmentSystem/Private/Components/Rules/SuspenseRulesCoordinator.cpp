@@ -27,12 +27,12 @@ bool USuspenseRulesCoordinator::Initialize(TScriptInterface<ISuspenseEquipmentDa
 
     if (DataProvider.GetInterface())
     {
-        UE_LOG(LogRulesCoordinator, Log, 
+        UE_LOG(LogRulesCoordinator, Log,
             TEXT("Initialize: DataProvider provided - coordinator will use it for fallback operations"));
     }
     else
     {
-        UE_LOG(LogRulesCoordinator, Warning, 
+        UE_LOG(LogRulesCoordinator, Warning,
             TEXT("Initialize: DataProvider is null - coordinator will work in STATELESS mode"));
         UE_LOG(LogRulesCoordinator, Warning,
             TEXT("  All equipment data must be provided through FSuspenseRuleContext"));
@@ -41,7 +41,7 @@ bool USuspenseRulesCoordinator::Initialize(TScriptInterface<ISuspenseEquipmentDa
     // Создаем движки независимо от наличия DataProvider
     CreateSpecializedEngines();
 
-    UE_LOG(LogRulesCoordinator, Log, 
+    UE_LOG(LogRulesCoordinator, Log,
         TEXT("Rules Coordinator initialized successfully:"));
     UE_LOG(LogRulesCoordinator, Log,
         TEXT("  - Mode: %s"), DataProvider.GetInterface() ? TEXT("STATEFUL") : TEXT("STATELESS"));
@@ -66,7 +66,7 @@ void USuspenseRulesCoordinator::CreateSpecializedEngines()
         if (DataProvider.GetInterface())
         {
             CompatibilityEngine->SetDefaultEquipmentDataProvider(DataProvider);
-            UE_LOG(LogRulesCoordinator, Verbose, 
+            UE_LOG(LogRulesCoordinator, Verbose,
                 TEXT("Compatibility engine initialized WITH DataProvider"));
         }
         else
@@ -195,16 +195,16 @@ FEquipmentStateSnapshot USuspenseRulesCoordinator::BuildShadowSnapshotFromContex
         for (int32 i = 0; i < Context.CurrentItems.Num(); ++i)
         {
             const FSuspenseInventoryItemInstance& Item = Context.CurrentItems[i];
-            
+
             FEquipmentSlotSnapshot SlotSnapshot;
             SlotSnapshot.SlotIndex = i; // Use index as slot number
             SlotSnapshot.ItemInstance = Item;
-            
+
             // Create minimal slot configuration
             // Note: SlotSnapshot.Configuration doesn't have SlotIndex field, removed
             const FName SlotTagName = FName(*FString::Printf(TEXT("Equipment.Slot.%d"), i));
             SlotSnapshot.Configuration.SlotTag = FGameplayTag::RequestGameplayTag(SlotTagName);
-            
+
             Snapshot.SlotSnapshots.Add(SlotSnapshot);
         }
 
@@ -216,7 +216,7 @@ FEquipmentStateSnapshot USuspenseRulesCoordinator::BuildShadowSnapshotFromContex
     else if (DataProvider.GetInterface())
     {
         Snapshot = DataProvider->CreateSnapshot();
-        
+
         UE_LOG(LogRulesCoordinator, Verbose,
             TEXT("BuildShadowSnapshotFromContext: Built snapshot from DataProvider (fallback)"));
     }
@@ -247,7 +247,7 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
             }
         }
         break;
-        
+
     case EEquipmentOperationType::Move:
         if (Op.SourceSlotIndex != INDEX_NONE && Op.TargetSlotIndex != INDEX_NONE)
         {
@@ -271,14 +271,14 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
             }
         }
         break;
-        
+
     case EEquipmentOperationType::Swap:
         if (Op.SourceSlotIndex != INDEX_NONE && Op.TargetSlotIndex != INDEX_NONE)
         {
             FSuspenseInventoryItemInstance TempItem;
             FEquipmentSlotSnapshot* SourceSlot = nullptr;
             FEquipmentSlotSnapshot* TargetSlot = nullptr;
-            
+
             for (FEquipmentSlotSnapshot& S : Snapshot.SlotSnapshots)
             {
                 if (S.SlotIndex == Op.SourceSlotIndex)
@@ -290,7 +290,7 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
                     TargetSlot = &S;
                 }
             }
-            
+
             if (SourceSlot && TargetSlot)
             {
                 TempItem = SourceSlot->ItemInstance;
@@ -299,7 +299,7 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
             }
         }
         break;
-        
+
     case EEquipmentOperationType::Unequip:
         for (FEquipmentSlotSnapshot& S : Snapshot.SlotSnapshots)
         {
@@ -310,7 +310,7 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
             }
         }
         break;
-        
+
     default:
         break;
     }
@@ -325,14 +325,14 @@ static void SnapshotToItemsFiltered(const FEquipmentStateSnapshot& Snapshot,
 {
     OutItems.Reset();
     OutItems.Reserve(Snapshot.SlotSnapshots.Num());
-    
+
     for (const FEquipmentSlotSnapshot& S : Snapshot.SlotSnapshots)
     {
         const FGameplayTag SlotTag = S.Configuration.SlotTag;
         if (!S.ItemInstance.IsValid()) continue;
-        
+
         if (!ExcludedSlots.IsEmpty() && ExcludedSlots.HasTag(SlotTag)) continue;
-        
+
         OutItems.Add(S.ItemInstance);
     }
 }
@@ -340,7 +340,7 @@ static void SnapshotToItemsFiltered(const FEquipmentStateSnapshot& Snapshot,
 // ============================================================================
 // ИСПРАВЛЕНО: EvaluateRules теперь работает без обязательного DataProvider
 // ============================================================================
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRules(const FEquipmentOperationRequest& Operation) const
+FRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRules(const FEquipmentOperationRequest& Operation) const
 {
     // Строим минимальный контекст
     FSuspenseRuleContext Context;
@@ -367,7 +367,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRules(const FEq
 void USuspenseRulesCoordinator::RecordEngineMetrics(const FGameplayTag& EngineType, double DurationMs) const
 {
     FScopeLock Lock(&RulesLock);
-    
+
     EngineExecCount.FindOrAdd(EngineType) += 1;
     EngineExecTimeMs.FindOrAdd(EngineType) += DurationMs;
 }
@@ -375,14 +375,14 @@ void USuspenseRulesCoordinator::RecordEngineMetrics(const FGameplayTag& EngineTy
 // ============================================================================
 // ОСНОВНОЙ МЕТОД ВАЛИДАЦИИ С ПОЛНЫМ PIPELINE
 // ============================================================================
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContext(
+FRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
     const FSuspenseRuleContext& Context) const
 {
     TArray<FSuspenseRuleCheckResult> AllResults;
 
     const double EvaluationStartTime = FPlatformTime::Seconds();
-    
+
     {
         FScopeLock Lock(&RulesLock);
         TotalEvaluations += 1;
@@ -390,7 +390,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
 
     // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем новый метод построения snapshot из контекста
     FEquipmentStateSnapshot ShadowSnapshot = BuildShadowSnapshotFromContext(Context);
-    
+
     // Применяем планируемую операцию к теневому снапшоту
     ApplyOperationToSnapshot(Operation, ShadowSnapshot);
 
@@ -399,7 +399,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
     SnapshotToItemsFiltered(ShadowSnapshot, ExcludedSlotsCache, LocalContext.CurrentItems);
 
     // Определяем pipeline в фиксированном порядке: Critical -> High -> Normal -> Low
-    struct FPipelineEntry 
+    struct FPipelineEntry
     {
         UObject* Engine;
         FGameplayTag EngineType;
@@ -430,9 +430,9 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
     for (const FPipelineEntry& Entry : Pipeline)
     {
         FSuspenseAggregatedRuleResult EngineResult;
-        
+
         const double EngineStartTime = FPlatformTime::Seconds();
-        
+
         if (Entry.Engine == CompatibilityEngine)
         {
             EngineResult = CompatibilityEngine->EvaluateCompatibilityRules(LocalContext);
@@ -453,16 +453,16 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
             // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем перегрузку с реальными слотами
             EngineResult = ConflictEngine->EvaluateConflictRulesWithSlots(LocalContext, ShadowSnapshot.SlotSnapshots);
         }
-        
+
         const double EngineEndTime = FPlatformTime::Seconds();
         const double EngineDurationMs = (EngineEndTime - EngineStartTime) * 1000.0;
-        
+
         RecordEngineMetrics(Entry.EngineType, EngineDurationMs);
 
         AllResults.Append(EngineResult.Results);
 
         // Досрочное завершение при критических ошибках
-        if (EngineResult.HasCriticalIssues() && 
+        if (EngineResult.HasCriticalIssues() &&
             (Entry.Priority == ERuleExecutionPriority::Critical || Entry.Priority == ERuleExecutionPriority::High))
         {
             UE_LOG(LogRulesCoordinator, Warning, TEXT("Critical failure in %s engine - terminating rule pipeline early"),
@@ -473,7 +473,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
 
     const double EvaluationEndTime = FPlatformTime::Seconds();
     const double TotalEvaluationMs = (EvaluationEndTime - EvaluationStartTime) * 1000.0;
-    
+
     {
         FScopeLock Lock(&RulesLock);
         AccumulatedEvalMs += TotalEvaluationMs;
@@ -487,7 +487,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::EvaluateRulesWithContex
 // Остальные методы интерфейса ISuspenseEquipmentRules
 // ============================================================================
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckItemCompatibility(
+FRuleEvaluationResult USuspenseRulesCoordinator::CheckItemCompatibility(
     const FSuspenseInventoryItemInstance& ItemInstance,
     const FEquipmentSlotConfig& SlotConfig) const
 {
@@ -496,21 +496,21 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckItemCompatibility(
         return ConvertSingleResult(CompatibilityEngine->CheckItemCompatibility(ItemInstance, SlotConfig));
     }
 
-    FSuspenseRuleEvaluationResult Compatible;
+    FRuleEvaluationResult Compatible;
     Compatible.bPassed = true;
     Compatible.ConfidenceScore = 0.5f;
     Compatible.FailureReason = FText::FromString(TEXT("No compatibility engine - assuming compatible"));
     return Compatible;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckCharacterRequirements(
+FRuleEvaluationResult USuspenseRulesCoordinator::CheckCharacterRequirements(
     const AActor* Character,
     const FSuspenseInventoryItemInstance& ItemInstance) const
 {
     if (RequirementEngine)
     {
         FMedComItemRequirements Requirements;
-        
+
         Requirements.RequiredLevel = FMath::RoundToInt(ItemInstance.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f));
 
         const FString ItemName = ItemInstance.ItemID.ToString();
@@ -539,14 +539,14 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckCharacterRequireme
         return ConvertAggregatedResult(RequirementEngine->CheckAllRequirements(Character, Requirements));
     }
 
-    FSuspenseRuleEvaluationResult RequirementsMet;
+    FRuleEvaluationResult RequirementsMet;
     RequirementsMet.bPassed = true;
     RequirementsMet.ConfidenceScore = 0.5f;
     RequirementsMet.FailureReason = FText::FromString(TEXT("No requirement engine - assuming requirements met"));
     return RequirementsMet;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckWeightLimit(
+FRuleEvaluationResult USuspenseRulesCoordinator::CheckWeightLimit(
     float CurrentWeight,
     float AdditionalWeight) const
 {
@@ -558,17 +558,17 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckWeightLimit(
 
     const float TotalWeight = CurrentWeight + AdditionalWeight;
     const float DefaultCapacity = 40.0f;
-    
-    FSuspenseRuleEvaluationResult WeightCheck;
+
+    FRuleEvaluationResult WeightCheck;
     WeightCheck.bPassed = (TotalWeight <= DefaultCapacity);
     WeightCheck.ConfidenceScore = 0.3f;
-    WeightCheck.FailureReason = WeightCheck.bPassed 
-        ? FText::FromString(TEXT("Weight within default capacity")) 
+    WeightCheck.FailureReason = WeightCheck.bPassed
+        ? FText::FromString(TEXT("Weight within default capacity"))
         : FText::FromString(TEXT("Exceeds default weight capacity"));
     return WeightCheck;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckConflictingEquipment(
+FRuleEvaluationResult USuspenseRulesCoordinator::CheckConflictingEquipment(
     const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
     const FSuspenseInventoryItemInstance& NewItem) const
 {
@@ -577,28 +577,28 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::CheckConflictingEquipme
         return ConvertSingleResult(ConflictEngine->CheckItemConflicts(NewItem, ExistingItems));
     }
 
-    FSuspenseRuleEvaluationResult NoConflicts;
+    FRuleEvaluationResult NoConflicts;
     NoConflicts.bPassed = true;
     NoConflicts.ConfidenceScore = 0.5f;
     NoConflicts.FailureReason = FText::FromString(TEXT("No conflict engine - assuming no conflicts"));
     return NoConflicts;
 }
 
-TArray<FSuspenseEquipmentRule> USuspenseRulesCoordinator::GetActiveRules() const
+TArray<FEquipmentRule> USuspenseRulesCoordinator::GetActiveRules() const
 {
     FScopeLock Lock(&RulesLock);
 
-    TArray<FSuspenseEquipmentRule> ActiveRules = GlobalRules;
-    
-    ActiveRules.RemoveAll([this](const FSuspenseEquipmentRule& Rule)
+    TArray<FEquipmentRule> ActiveRules = GlobalRules;
+
+    ActiveRules.RemoveAll([this](const FEquipmentRule& Rule)
     {
         return DisabledRules.Contains(Rule.RuleTag);
     });
-    
+
     return ActiveRules;
 }
 
-bool USuspenseRulesCoordinator::RegisterRule(const FSuspenseEquipmentRule& Rule)
+bool USuspenseRulesCoordinator::RegisterRule(const FEquipmentRule& Rule)
 {
     FScopeLock Lock(&RulesLock);
     GlobalRules.Add(Rule);
@@ -609,11 +609,11 @@ bool USuspenseRulesCoordinator::RegisterRule(const FSuspenseEquipmentRule& Rule)
 bool USuspenseRulesCoordinator::UnregisterRule(const FGameplayTag& RuleTag)
 {
     FScopeLock Lock(&RulesLock);
-    const int32 RemovedCount = GlobalRules.RemoveAll([&RuleTag](const FSuspenseEquipmentRule& Rule)
+    const int32 RemovedCount = GlobalRules.RemoveAll([&RuleTag](const FEquipmentRule& Rule)
     {
         return Rule.RuleTag == RuleTag;
     });
-    
+
     if (RemovedCount > 0)
     {
         DisabledRules.Remove(RuleTag);
@@ -626,7 +626,7 @@ bool USuspenseRulesCoordinator::UnregisterRule(const FGameplayTag& RuleTag)
 bool USuspenseRulesCoordinator::SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled)
 {
     FScopeLock Lock(&RulesLock);
-    
+
     if (bEnabled)
     {
         DisabledRules.Remove(RuleTag);
@@ -635,7 +635,7 @@ bool USuspenseRulesCoordinator::SetRuleEnabled(const FGameplayTag& RuleTag, bool
     {
         DisabledRules.Add(RuleTag);
     }
-    
+
     UE_LOG(LogRulesCoordinator, Log, TEXT("Rule %s: %s"),
         *RuleTag.ToString(), bEnabled ? TEXT("enabled") : TEXT("disabled"));
     return true;
@@ -647,14 +647,14 @@ void USuspenseRulesCoordinator::ClearRuleCache()
     if (RequirementEngine)   { RequirementEngine->ClearCache(); }
     if (ConflictEngine)      { ConflictEngine->ClearCache(); }
     if (CompatibilityEngine) { CompatibilityEngine->ClearCache(); }
-    
+
     UE_LOG(LogRulesCoordinator, Log, TEXT("Cleared all engine caches"));
 }
 
 void USuspenseRulesCoordinator::ResetStatistics()
 {
     FScopeLock Lock(&RulesLock);
-    
+
     TotalEvaluations = 0;
     AccumulatedEvalMs = 0.0;
     EngineExecCount.Empty();
@@ -664,7 +664,7 @@ void USuspenseRulesCoordinator::ResetStatistics()
     if (RequirementEngine)   { RequirementEngine->ResetStatistics(); }
     if (ConflictEngine)      { ConflictEngine->ResetStatistics(); }
     if (CompatibilityEngine) { CompatibilityEngine->ResetStatistics(); }
-    
+
     UE_LOG(LogRulesCoordinator, Log, TEXT("Reset all statistics"));
 }
 
@@ -677,7 +677,7 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
     Report += FString::Printf(TEXT("Registered Engines: %d\n"), RegisteredEngines.Num());
     Report += FString::Printf(TEXT("Global Rules: %d\n"), GlobalRules.Num());
     Report += FString::Printf(TEXT("Disabled Rules: %d\n"), DisabledRules.Num());
-    
+
     int64 SafeTotalEvaluations;
     double SafeAccumulatedMs;
     {
@@ -686,7 +686,7 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
         SafeAccumulatedMs = AccumulatedEvalMs;
         Report += FString::Printf(TEXT("Last Execution: %s\n"), LastExecutionTime.IsSet() ? *LastExecutionTime.GetValue().ToString() : TEXT("Never"));
     }
-    
+
     Report += FString::Printf(TEXT("Total Evaluations: %lld\n"), SafeTotalEvaluations);
     Report += FString::Printf(TEXT("Total Evaluation Time: %.2fms\n\n"), SafeAccumulatedMs);
 
@@ -696,7 +696,7 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
     {
         const FGameplayTag& EngineType = EnginePair.Key;
         const FRuleEngineRegistration& Registration = EnginePair.Value;
-        
+
         int64 ExecCount;
         double ExecTime;
         {
@@ -704,14 +704,14 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
             ExecCount = EngineExecCount.FindRef(EngineType);
             ExecTime = EngineExecTimeMs.FindRef(EngineType);
         }
-        
+
         const double AvgTime = (ExecCount > 0) ? (ExecTime / ExecCount) : 0.0;
-        
+
         Report += FString::Printf(TEXT("  %s: %s (Priority: %s)\n"),
             *EngineType.ToString(),
             Registration.bEnabled ? TEXT("✓ Enabled") : TEXT("✗ Disabled"),
             *UEnum::GetValueAsString(Registration.Priority));
-        
+
         if (ExecCount > 0)
         {
             Report += FString::Printf(TEXT("    Executions: %lld, Total Time: %.2fms, Avg Time: %.2fms\n"),
@@ -722,11 +722,11 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
 
     Report += TEXT("Slot Compliance Analysis:\n");
     Report += TEXT("------------------------\n");
-    
+
     int32 CompliantSlots = 0;
     int32 NonCompliantSlots = 0;
     int32 EmptySlots = 0;
-    
+
     for (const FEquipmentSlotSnapshot& SlotSnapshot : CurrentState.SlotSnapshots)
     {
         if (SlotSnapshot.ItemInstance.IsValid())
@@ -738,7 +738,7 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
             TestOperation.Instigator      = nullptr;
             TestOperation.bForceOperation = false;
 
-            const FSuspenseRuleEvaluationResult ComplianceResult = EvaluateRules(TestOperation);
+            const FRuleEvaluationResult ComplianceResult = EvaluateRules(TestOperation);
 
             if (ComplianceResult.bPassed)
             {
@@ -770,14 +770,14 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
 
     Report += TEXT("\nWeight Analysis:\n");
     Report += TEXT("---------------\n");
-    
+
     float TotalWeight = 0.0f;
     if (WeightEngine)
     {
         TArray<FSuspenseInventoryItemInstance> FilteredItems;
         SnapshotToItemsFiltered(CurrentState, ExcludedSlotsCache, FilteredItems);
         TotalWeight = WeightEngine->CalculateTotalWeight(FilteredItems);
-        
+
         const float MaxCapacity = WeightEngine->CalculateWeightCapacity(nullptr);
         const float EncumbranceRatio = (MaxCapacity > 0.0f) ? (TotalWeight / MaxCapacity) : 0.0f;
         const FGameplayTag EncumbranceTag = WeightEngine->GetEncumbranceTag(EncumbranceRatio);
@@ -787,10 +787,10 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
         Report += FString::Printf(TEXT("  Utilization: %.1f%%\n"), EncumbranceRatio * 100.0f);
         Report += FString::Printf(TEXT("  Status: %s\n"), *EncumbranceTag.ToString());
         Report += FString::Printf(TEXT("  Excluded Slots: %s\n"), *ExcludedSlotsCache.ToStringSimple());
-        
+
         TArray<FGameplayTagContainer> EmptyTags;
         const TMap<FGameplayTag, float> Distribution = WeightEngine->AnalyzeWeightDistribution(FilteredItems, EmptyTags);
-        
+
         if (Distribution.Num() > 0)
         {
             Report += TEXT("  Distribution:\n");
@@ -814,8 +814,8 @@ FString USuspenseRulesCoordinator::GenerateComplianceReport(const FEquipmentStat
     Report += FString::Printf(TEXT("  Compliant: %d\n"), CompliantSlots);
     Report += FString::Printf(TEXT("  Non-compliant: %d\n"), NonCompliantSlots);
     Report += FString::Printf(TEXT("  Empty: %d\n"), EmptySlots);
-    
-    const float ComplianceRate = (CurrentState.SlotSnapshots.Num() > 0) 
+
+    const float ComplianceRate = (CurrentState.SlotSnapshots.Num() > 0)
         ? (static_cast<float>(CompliantSlots) / static_cast<float>(CurrentState.SlotSnapshots.Num()) * 100.0f)
         : 100.0f;
     Report += FString::Printf(TEXT("  Compliance Rate: %.1f%%\n"), ComplianceRate);
@@ -835,7 +835,7 @@ bool USuspenseRulesCoordinator::RegisterRuleEngine(
     }
 
     FScopeLock Lock(&RulesLock);
-    
+
     FRuleEngineRegistration Registration;
     Registration.EngineType = EngineType;
     Registration.Engine     = Engine;
@@ -843,7 +843,7 @@ bool USuspenseRulesCoordinator::RegisterRuleEngine(
     Registration.bEnabled   = true;
 
     RegisteredEngines.Add(EngineType, Registration);
-    
+
     UE_LOG(LogRulesCoordinator, Log, TEXT("Registered external rule engine: %s (Priority: %s)"),
         *EngineType.ToString(), *UEnum::GetValueAsString(Priority));
     return true;
@@ -852,7 +852,7 @@ bool USuspenseRulesCoordinator::RegisterRuleEngine(
 bool USuspenseRulesCoordinator::UnregisterRuleEngine(const FGameplayTag& EngineType)
 {
     FScopeLock Lock(&RulesLock);
-    
+
     if (RegisteredEngines.Remove(EngineType) > 0)
     {
         UE_LOG(LogRulesCoordinator, Log, TEXT("Unregistered rule engine: %s"), *EngineType.ToString());
@@ -864,7 +864,7 @@ bool USuspenseRulesCoordinator::UnregisterRuleEngine(const FGameplayTag& EngineT
 bool USuspenseRulesCoordinator::SetEngineEnabled(const FGameplayTag& EngineType, bool bEnabled)
 {
     FScopeLock Lock(&RulesLock);
-    
+
     FRuleEngineRegistration* Registration = RegisteredEngines.Find(EngineType);
     if (Registration)
     {
@@ -879,15 +879,15 @@ bool USuspenseRulesCoordinator::SetEngineEnabled(const FGameplayTag& EngineType,
 TArray<FRuleEngineRegistration> USuspenseRulesCoordinator::GetRegisteredEngines() const
 {
     FScopeLock Lock(&RulesLock);
-    
+
     TArray<FRuleEngineRegistration> Result;
     RegisteredEngines.GenerateValueArray(Result);
-    
+
     Result.Sort([](const FRuleEngineRegistration& A, const FRuleEngineRegistration& B)
     {
         return static_cast<int32>(A.Priority) < static_cast<int32>(B.Priority);
     });
-    
+
     return Result;
 }
 
@@ -899,53 +899,53 @@ TArray<FRuleEngineRegistration> USuspenseRulesCoordinator::GetSortedEngines() co
 TMap<FString, FString> USuspenseRulesCoordinator::GetExecutionStatistics() const
 {
     TMap<FString, FString> Stats;
-    
+
     FScopeLock Lock(&RulesLock);
-    
+
     Stats.Add(TEXT("TotalEvaluations"), FString::Printf(TEXT("%lld"), TotalEvaluations));
     Stats.Add(TEXT("TotalTimeMs"), FString::Printf(TEXT("%.2f"), AccumulatedEvalMs));
-    Stats.Add(TEXT("AverageTimeMs"), TotalEvaluations > 0 
+    Stats.Add(TEXT("AverageTimeMs"), TotalEvaluations > 0
         ? FString::Printf(TEXT("%.2f"), AccumulatedEvalMs / TotalEvaluations)
         : TEXT("0.0"));
-    
+
     Stats.Add(TEXT("RegisteredEngines"), FString::Printf(TEXT("%d"), RegisteredEngines.Num()));
     Stats.Add(TEXT("GlobalRules"), FString::Printf(TEXT("%d"), GlobalRules.Num()));
     Stats.Add(TEXT("DisabledRules"), FString::Printf(TEXT("%d"), DisabledRules.Num()));
-    
+
     if (LastExecutionTime.IsSet())
     {
         Stats.Add(TEXT("LastExecution"), LastExecutionTime.GetValue().ToString());
     }
-    
+
     return Stats;
 }
 
 FString USuspenseRulesCoordinator::GetPipelineHealth() const
 {
     FString Health = TEXT("Rules Pipeline Health Check:\n");
-    
+
     const bool bHasDataProvider = DataProvider.GetInterface() != nullptr;
     const bool bHasCompatibility = CompatibilityEngine != nullptr;
     const bool bHasRequirement = RequirementEngine != nullptr;
     const bool bHasWeight = WeightEngine != nullptr;
     const bool bHasConflict = ConflictEngine != nullptr;
-    
+
     Health += FString::Printf(TEXT("Data Provider: %s\n"), bHasDataProvider ? TEXT("✓ OK") : TEXT("⚠ OPTIONAL"));
     Health += FString::Printf(TEXT("Compatibility Engine: %s\n"), bHasCompatibility ? TEXT("✓ OK") : TEXT("✗ MISSING"));
     Health += FString::Printf(TEXT("Requirement Engine: %s\n"), bHasRequirement ? TEXT("✓ OK") : TEXT("✗ MISSING"));
     Health += FString::Printf(TEXT("Weight Engine: %s\n"), bHasWeight ? TEXT("✓ OK") : TEXT("✗ MISSING"));
     Health += FString::Printf(TEXT("Conflict Engine: %s\n"), bHasConflict ? TEXT("✓ OK") : TEXT("✗ MISSING"));
-    
+
     const bool bHealthy = bHasCompatibility && bHasRequirement && bHasWeight && bHasConflict;
     Health += FString::Printf(TEXT("\nOverall Status: %s"), bHealthy ? TEXT("✓ HEALTHY") : TEXT("✗ DEGRADED"));
-    
+
     return Health;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
+FRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
     const TArray<FSuspenseRuleCheckResult>& NewResults) const
 {
-    FSuspenseRuleEvaluationResult LegacyResult;
+    FRuleEvaluationResult LegacyResult;
     LegacyResult.bPassed = true;
     LegacyResult.ConfidenceScore = 1.0f;
 
@@ -954,7 +954,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
         if (!Result.bPassed)
         {
             LegacyResult.bPassed = false;
-            
+
             if (Result.Severity == ESuspenseRuleSeverity::Critical && LegacyResult.FailureReason.IsEmpty())
             {
                 LegacyResult.FailureReason = Result.Message;
@@ -966,9 +966,9 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
                 LegacyResult.RuleType = Result.RuleTag;
             }
         }
-        
+
         LegacyResult.ConfidenceScore *= Result.ConfidenceScore;
-        
+
         if (!Result.Message.IsEmpty())
         {
             LegacyResult.Details.Add(Result.Message.ToString());
@@ -979,7 +979,7 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
     {
         LegacyResult.FailureReason = FText::FromString(TEXT("Rule validation failed"));
     }
-    
+
     if (LegacyResult.bPassed && LegacyResult.FailureReason.IsEmpty())
     {
         LegacyResult.FailureReason = FText::FromString(TEXT("All rules passed"));
@@ -988,23 +988,23 @@ FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertToLegacyResult(
     return LegacyResult;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const
+FRuleEvaluationResult USuspenseRulesCoordinator::ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const
 {
-    FSuspenseRuleEvaluationResult LegacyResult;
+    FRuleEvaluationResult LegacyResult;
     LegacyResult.bPassed = NewResult.bPassed;
     LegacyResult.FailureReason = NewResult.Message;
     LegacyResult.RuleType = NewResult.RuleTag;
     LegacyResult.ConfidenceScore = NewResult.ConfidenceScore;
-    
+
     for (const auto& ContextPair : NewResult.Context)
     {
         LegacyResult.Details.Add(FString::Printf(TEXT("%s: %s"), *ContextPair.Key, *ContextPair.Value));
     }
-    
+
     return LegacyResult;
 }
 
-FSuspenseRuleEvaluationResult USuspenseRulesCoordinator::ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggregatedResult) const
+FRuleEvaluationResult USuspenseRulesCoordinator::ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggregatedResult) const
 {
     return ConvertToLegacyResult(AggregatedResult.Results);
 }

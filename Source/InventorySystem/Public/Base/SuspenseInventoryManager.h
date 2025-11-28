@@ -17,7 +17,7 @@ struct FLoadoutConfiguration;
  *
  * ОБНОВЛЕНО ДЛЯ НОВОЙ АРХИТЕКТУРЫ:
  * - Интеграция с LoadoutSettings вместо устаревших FInventorySettings
- * - Использование FInventoryItemInstance вместо FMCInventoryItemData
+ * - Использование FSuspenseInventoryItemInstance вместо FMCInventoryItemData
  * - Делегирование создания предметов в ItemManager и InventoryUtils
  * - Удаление собственного кэша - теперь используем DataTable как источник истины
  *

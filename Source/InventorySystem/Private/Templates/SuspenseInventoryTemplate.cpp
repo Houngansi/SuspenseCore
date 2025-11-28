@@ -164,7 +164,7 @@ int32 USuspenseInventoryTemplate::CreateStartingItemsInInventory(USuspenseInvent
         }
         
         // Create runtime instance
-        FInventoryItemInstance NewInstance = SpawnData.CreateInventoryInstance();
+        FSuspenseInventoryItemInstance NewInstance = SpawnData.CreateInventoryInstance();
         
         // Add to inventory
         FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(NewInstance);
@@ -275,7 +275,7 @@ FInventoryTemplateAnalysis USuspenseInventoryTemplate::AnalyzeTemplate() const
         // Main inventory items
         for (const FSuspensePickupSpawnData& SpawnData : MainInventoryConfig.StartingItems)
         {
-            FMedComUnifiedItemData ItemData;
+            FSuspenseUnifiedItemData ItemData;
             if (ItemManager->GetUnifiedItemData(SpawnData.ItemID, ItemData))
             {
                 UniqueTypes.Add(ItemData.ItemType);
@@ -288,7 +288,7 @@ FInventoryTemplateAnalysis USuspenseInventoryTemplate::AnalyzeTemplate() const
         {
             for (const FSuspensePickupSpawnData& SpawnData : Pair.Value.StartingItems)
             {
-                FMedComUnifiedItemData ItemData;
+                FSuspenseUnifiedItemData ItemData;
                 if (ItemManager->GetUnifiedItemData(SpawnData.ItemID, ItemData))
                 {
                     UniqueTypes.Add(ItemData.ItemType);
@@ -802,7 +802,7 @@ bool USuspenseInventoryTemplate::ValidateStartingItems(const TArray<FSuspensePic
             continue;
         }
         
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (!ItemManager->GetUnifiedItemData(SpawnData.ItemID, ItemData))
         {
             OutMissingItems.AddUnique(SpawnData.ItemID);

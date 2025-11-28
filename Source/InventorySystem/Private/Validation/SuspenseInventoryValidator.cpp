@@ -533,13 +533,13 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOp
         );
     }
     
-    IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface)
     {
         return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
-                NSLOCTEXT("Inventory", "NoInventoryInterface", "Object '{0}' does not implement IMedComInventoryItemInterface"),
+                NSLOCTEXT("Inventory", "NoInventoryInterface", "Object '{0}' does not implement ISuspenseInventoryItemInterface"),
                 FText::FromString(ItemObject->GetClass()->GetName())
             ),
             FunctionName

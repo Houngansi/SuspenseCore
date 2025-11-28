@@ -100,7 +100,7 @@ struct FInventoryCellUI
  * ARCHITECTURAL PRINCIPLES:
  * - All item data comes from DataTable via ItemManager
  * - Uses EventDelegateManager for all notifications
- * - Works with FInventoryItemInstance for runtime data
+ * - Works with FSuspenseInventoryItemInstance for runtime data
  * - Supports inventory operations through FSuspenseInventoryOperation system
  */
 UCLASS(ClassGroup=(MedCom), meta=(BlueprintSpawnableComponent))

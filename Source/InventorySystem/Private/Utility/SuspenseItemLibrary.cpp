@@ -102,7 +102,7 @@ UTexture2D* USuspenseItemLibrary::GetItemIcon(const FSuspenseUnifiedItemData& It
 // Enhanced Runtime Instance Methods - НОВЫЕ МЕТОДЫ ДЛЯ RUNTIME
 //==================================================================
 
-bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName ItemID, int32 Quantity, FInventoryItemInstance& OutInstance)
+bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance)
 {
     // Создание runtime экземпляра из DataTable ID - центральный метод новой архитектуры
     
@@ -135,7 +135,7 @@ bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName
     }
     
     // Создаем новый runtime экземпляр
-    OutInstance = FInventoryItemInstance();
+    OutInstance = FSuspenseInventoryItemInstance();
     OutInstance.ItemID = ItemID;
     OutInstance.Quantity = FMath::Clamp(Quantity, 1, UnifiedData.MaxStackSize);
     OutInstance.InstanceID = FGuid::NewGuid(); // Уникальный GUID для tracking в multiplayer
@@ -170,7 +170,7 @@ bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName
     return true;
 }
 
-bool USuspenseItemLibrary::GetUnifiedDataFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutItemData)
+bool USuspenseItemLibrary::GetUnifiedDataFromInstance(const UObject* WorldContext, const FSuspenseInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutItemData)
 {
     // Получение unified данных из runtime экземпляра
     if (!ItemInstance.IsValid())
@@ -182,7 +182,7 @@ bool USuspenseItemLibrary::GetUnifiedDataFromInstance(const UObject* WorldContex
     return GetUnifiedItemData(WorldContext, ItemInstance.ItemID, OutItemData);
 }
 
-float USuspenseItemLibrary::GetRuntimeProperty(const FInventoryItemInstance& ItemInstance, const FString& PropertyName, float DefaultValue)
+float USuspenseItemLibrary::GetRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName, float DefaultValue)
 {
     // Получение runtime свойства с корректной конверсией типов
     if (!ItemInstance.IsValid() || PropertyName.IsEmpty())
@@ -196,7 +196,7 @@ float USuspenseItemLibrary::GetRuntimeProperty(const FInventoryItemInstance& Ite
     return FoundValue ? *FoundValue : DefaultValue;
 }
 
-void USuspenseItemLibrary::SetRuntimeProperty(FInventoryItemInstance& ItemInstance, const FString& PropertyName, float Value)
+void USuspenseItemLibrary::SetRuntimeProperty(FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName, float Value)
 {
     // Установка runtime свойства с корректной конверсией типов
     if (!ItemInstance.IsValid() || PropertyName.IsEmpty())
@@ -213,7 +213,7 @@ void USuspenseItemLibrary::SetRuntimeProperty(FInventoryItemInstance& ItemInstan
         *ItemInstance.ItemID.ToString(), *PropertyName, Value, *ItemInstance.InstanceID.ToString().Left(8));
 }
 
-bool USuspenseItemLibrary::HasRuntimeProperty(const FInventoryItemInstance& ItemInstance, const FString& PropertyName)
+bool USuspenseItemLibrary::HasRuntimeProperty(const FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName)
 {
     // Проверка существования runtime свойства с корректной конверсией типов
     if (!ItemInstance.IsValid() || PropertyName.IsEmpty())
@@ -249,7 +249,7 @@ FText USuspenseItemLibrary::FormatItemQuantity(const FSuspenseUnifiedItemData& I
         FText::AsNumber(Quantity), FText::AsNumber(ItemData.MaxStackSize));
 }
 
-FText USuspenseItemLibrary::FormatItemQuantityFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance)
+FText USuspenseItemLibrary::FormatItemQuantityFromInstance(const UObject* WorldContext, const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Форматирование количества из runtime экземпляра
     if (!ItemInstance.IsValid())
@@ -288,7 +288,7 @@ FLinearColor USuspenseItemLibrary::GetRarityColor(const FSuspenseUnifiedItemData
     return ItemData.GetRarityColor();
 }
 
-FText USuspenseItemLibrary::FormatItemDurability(const FInventoryItemInstance& ItemInstance, bool bAsPercentage)
+FText USuspenseItemLibrary::FormatItemDurability(const FSuspenseInventoryItemInstance& ItemInstance, bool bAsPercentage)
 {
     // Форматирование прочности из runtime свойств
     if (!ItemInstance.IsValid())
@@ -572,7 +572,7 @@ float USuspenseItemLibrary::GetTotalItemsWeight(const TArray<FSuspenseUnifiedIte
     return TotalWeight;
 }
 
-float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FInventoryItemInstance>& ItemInstances, const UObject* WorldContext)
+float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FSuspenseInventoryItemInstance>& ItemInstances, const UObject* WorldContext)
 {
     // Расчет веса из runtime экземпляров с получением данных из DataTable
     USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
@@ -584,7 +584,7 @@ float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FInventoryItemI
     
     float TotalWeight = 0.0f;
     
-    for (const FInventoryItemInstance& Instance : ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : ItemInstances)
     {
         if (!Instance.IsValid())
         {
@@ -772,7 +772,7 @@ bool USuspenseItemLibrary::GetUnifiedDataFromObject(UObject* ItemObject, FSuspen
     }
     
     // Проверяем интерфейс инвентарного предмета
-    IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface || !ItemInterface->IsInitialized())
     {
         return false;
@@ -782,7 +782,7 @@ bool USuspenseItemLibrary::GetUnifiedDataFromObject(UObject* ItemObject, FSuspen
     return ItemInterface->GetItemData(OutItemData);
 }
 
-bool USuspenseItemLibrary::GetInstanceFromObject(UObject* ItemObject, FInventoryItemInstance& OutInstance)
+bool USuspenseItemLibrary::GetInstanceFromObject(UObject* ItemObject, FSuspenseInventoryItemInstance& OutInstance)
 {
     // Получение runtime экземпляра из объекта предмета
     if (!ItemObject)
@@ -790,7 +790,7 @@ bool USuspenseItemLibrary::GetInstanceFromObject(UObject* ItemObject, FInventory
         return false;
     }
     
-    IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface || !ItemInterface->IsInitialized())
     {
         return false;
@@ -880,7 +880,7 @@ FString USuspenseItemLibrary::GetItemDebugInfo(const FSuspenseUnifiedItemData& I
     return DebugInfo;
 }
 
-bool USuspenseItemLibrary::ValidateItemInstance(const FInventoryItemInstance& ItemInstance, const UObject* WorldContext, TArray<FString>& OutErrors)
+bool USuspenseItemLibrary::ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, const UObject* WorldContext, TArray<FString>& OutErrors)
 {
     // Валидация runtime экземпляра с исправленной обработкой типов
     OutErrors.Empty();
@@ -1019,7 +1019,7 @@ bool USuspenseItemLibrary::DoesTagMatch(const FGameplayTag& ItemTag, const FGame
     }
 }
 
-void USuspenseItemLibrary::ClearRuntimeProperty(FInventoryItemInstance& ItemInstance, const FString& PropertyName)
+void USuspenseItemLibrary::ClearRuntimeProperty(FSuspenseInventoryItemInstance& ItemInstance, const FString& PropertyName)
 {
     // Удаление runtime свойства с корректной обработкой типов
     if (!ItemInstance.IsValid() || PropertyName.IsEmpty())
@@ -1043,7 +1043,7 @@ void USuspenseItemLibrary::ClearRuntimeProperty(FInventoryItemInstance& ItemInst
     }
 }
 
-TArray<FString> USuspenseItemLibrary::GetAllRuntimePropertyNames(const FInventoryItemInstance& ItemInstance)
+TArray<FString> USuspenseItemLibrary::GetAllRuntimePropertyNames(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Получение всех имен runtime свойств для debugging и UI
     TArray<FString> PropertyNames;
@@ -1062,7 +1062,7 @@ TArray<FString> USuspenseItemLibrary::GetAllRuntimePropertyNames(const FInventor
     return PropertyNames;
 }
 
-int32 USuspenseItemLibrary::GetRuntimePropertiesCount(const FInventoryItemInstance& ItemInstance)
+int32 USuspenseItemLibrary::GetRuntimePropertiesCount(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Получение количества runtime свойств
     if (!ItemInstance.IsValid())
@@ -1073,7 +1073,7 @@ int32 USuspenseItemLibrary::GetRuntimePropertiesCount(const FInventoryItemInstan
     return ItemInstance.RuntimeProperties.Num();
 }
 
-void USuspenseItemLibrary::ClearAllRuntimeProperties(FInventoryItemInstance& ItemInstance)
+void USuspenseItemLibrary::ClearAllRuntimeProperties(FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Очистка всех runtime свойств для переинициализации
     if (!ItemInstance.IsValid())
@@ -1093,13 +1093,13 @@ void USuspenseItemLibrary::ClearAllRuntimeProperties(FInventoryItemInstance& Ite
 // Convenience методы для часто используемых runtime свойств - ОБНОВЛЕННЫЕ
 //==================================================================
 
-float USuspenseItemLibrary::GetItemDurability(const FInventoryItemInstance& ItemInstance)
+float USuspenseItemLibrary::GetItemDurability(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Получение текущей прочности через unified interface
     return GetRuntimeProperty(ItemInstance, TEXT("Durability"), 0.0f);
 }
 
-void USuspenseItemLibrary::SetItemDurability(FInventoryItemInstance& ItemInstance, float Durability)
+void USuspenseItemLibrary::SetItemDurability(FSuspenseInventoryItemInstance& ItemInstance, float Durability)
 {
     // Установка прочности с автоматическим клампингом к максимуму
     float MaxDurability = GetRuntimeProperty(ItemInstance, TEXT("MaxDurability"), 100.0f);
@@ -1110,7 +1110,7 @@ void USuspenseItemLibrary::SetItemDurability(FInventoryItemInstance& ItemInstanc
         *ItemInstance.ItemID.ToString(), ClampedDurability, MaxDurability, *ItemInstance.InstanceID.ToString().Left(8));
 }
 
-float USuspenseItemLibrary::GetItemDurabilityPercent(const FInventoryItemInstance& ItemInstance)
+float USuspenseItemLibrary::GetItemDurabilityPercent(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Получение прочности в процентах от 0.0 до 1.0
     float MaxDurability = GetRuntimeProperty(ItemInstance, TEXT("MaxDurability"), 100.0f);
@@ -1123,13 +1123,13 @@ float USuspenseItemLibrary::GetItemDurabilityPercent(const FInventoryItemInstanc
     return FMath::Clamp(CurrentDurability / MaxDurability, 0.0f, 1.0f);
 }
 
-int32 USuspenseItemLibrary::GetItemAmmo(const FInventoryItemInstance& ItemInstance)
+int32 USuspenseItemLibrary::GetItemAmmo(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     // Получение текущих патронов в оружии
     return FMath::RoundToInt(GetRuntimeProperty(ItemInstance, TEXT("Ammo"), 0.0f));
 }
 
-void USuspenseItemLibrary::SetItemAmmo(FInventoryItemInstance& ItemInstance, int32 AmmoCount)
+void USuspenseItemLibrary::SetItemAmmo(FSuspenseInventoryItemInstance& ItemInstance, int32 AmmoCount)
 {
     // Установка патронов с клампингом к максимуму
     int32 MaxAmmo = FMath::RoundToInt(GetRuntimeProperty(ItemInstance, TEXT("MaxAmmo"), 30.0f));
@@ -1140,14 +1140,14 @@ void USuspenseItemLibrary::SetItemAmmo(FInventoryItemInstance& ItemInstance, int
         *ItemInstance.ItemID.ToString(), ClampedAmmo, MaxAmmo, *ItemInstance.InstanceID.ToString().Left(8));
 }
 
-bool USuspenseItemLibrary::IsItemOnCooldown(const FInventoryItemInstance& ItemInstance, float CurrentTime)
+bool USuspenseItemLibrary::IsItemOnCooldown(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime)
 {
     // Проверка активного кулдауна
     float CooldownEndTime = GetRuntimeProperty(ItemInstance, TEXT("CooldownEnd"), 0.0f);
     return CurrentTime < CooldownEndTime;
 }
 
-void USuspenseItemLibrary::StartItemCooldown(FInventoryItemInstance& ItemInstance, float CurrentTime, float CooldownDuration)
+void USuspenseItemLibrary::StartItemCooldown(FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime, float CooldownDuration)
 {
     // Запуск кулдауна предмета
     float CooldownEndTime = CurrentTime + CooldownDuration;
@@ -1157,7 +1157,7 @@ void USuspenseItemLibrary::StartItemCooldown(FInventoryItemInstance& ItemInstanc
         *ItemInstance.ItemID.ToString(), CooldownDuration, *ItemInstance.InstanceID.ToString().Left(8));
 }
 
-float USuspenseItemLibrary::GetRemainingCooldown(const FInventoryItemInstance& ItemInstance, float CurrentTime)
+float USuspenseItemLibrary::GetRemainingCooldown(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentTime)
 {
     // Получение оставшегося времени кулдауна
     float CooldownEndTime = GetRuntimeProperty(ItemInstance, TEXT("CooldownEnd"), 0.0f);

@@ -208,7 +208,7 @@ FReplicatedItemMeta FReplicatedItemMeta::FromItemInstance(const FSuspenseInvento
     return Result;
 }
 
-FReplicatedItemMeta FReplicatedItemMeta::FromItemInterface(const IMedComInventoryItemInterface* ItemInterface)
+FReplicatedItemMeta FReplicatedItemMeta::FromItemInterface(const ISuspenseInventoryItemInterface* ItemInterface)
 {
     FReplicatedItemMeta Result;
     
@@ -1182,7 +1182,7 @@ int32 FInventoryReplicatedState::FindMetaIndexByObject(UObject* ItemObject) cons
     }
     
     // Если legacy поиск не дал результатов, пытаемся через interface
-    if (const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject))
+    if (const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject))
     {
         FGuid InstanceID = ItemInterface->GetInstanceID();
         if (InstanceID.IsValid())
@@ -1342,7 +1342,7 @@ bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemOb
     }
     
     // Пытаемся получить данные через interface
-    if (const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject))
+    if (const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject))
     {
         // Получаем полный instance из interface
         OutInstance = ItemInterface->GetItemInstance();

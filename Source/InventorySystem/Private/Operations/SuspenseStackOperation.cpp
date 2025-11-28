@@ -22,7 +22,7 @@ FSuspenseStackOperation::FSuspenseStackOperation(
     if (SourceItem)
     {
         // Получаем интерфейс для доступа к свойствам источника
-        if (const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem))
+        if (const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem))
         {
             SourceInstance = SourceInterface->GetItemInstance();
             SourceInitialAmount = SourceInterface->GetAmount();
@@ -33,7 +33,7 @@ FSuspenseStackOperation::FSuspenseStackOperation(
     if (TargetItem)
     {
         // Получаем интерфейс для доступа к свойствам цели
-        if (const IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem))
+        if (const ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem))
         {
             TargetInstance = TargetInterface->GetItemInstance();
             TargetInitialAmount = TargetInterface->GetAmount();
@@ -115,7 +115,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
     }
     
     // Получаем интерфейс источника для определения количества
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(InSourceItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(InSourceItem);
     if (!SourceInterface)
     {
         FSuspenseStackOperation InvalidOp;
@@ -161,7 +161,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
     if (InSourceItem)
     {
         // Получаем интерфейс источника
-        if (const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(InSourceItem))
+        if (const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(InSourceItem))
         {
             Operation.SourceInstance = SourceInterface->GetItemInstance();
             Operation.SourceInitialAmount = SourceInterface->GetAmount();
@@ -202,7 +202,7 @@ bool FSuspenseStackOperation::CacheItemDataFromTable(USuspenseItemManager* InIte
     }
     
     // Получаем интерфейс источника
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
     {
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Source item doesn't implement required interface"));
@@ -355,8 +355,8 @@ bool FSuspenseStackOperation::AreItemsStackable() const
     }
     
     // Получаем интерфейсы
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
-    const IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
+    const ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
     
     if (!SourceInterface || !TargetInterface)
     {
@@ -564,7 +564,7 @@ void FSuspenseStackOperation::ApplyMergedProperties()
     }
     
     // Получаем интерфейс цели
-    IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem);
+    ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
     if (!TargetInterface)
     {
         return;
@@ -598,8 +598,8 @@ bool FSuspenseStackOperation::TransferAmount()
     }
     
     // Получаем интерфейсы
-    IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
-    IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem);
+    ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
+    ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
     
     if (!SourceInterface || !TargetInterface)
     {
@@ -641,7 +641,7 @@ void FSuspenseStackOperation::HandleSourceDepletion()
     }
     
     // Получаем ItemID для удаления
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
     {
         return;
@@ -698,7 +698,7 @@ void FSuspenseStackOperation::LogOperationDetails(const FString& Message, bool b
     FString ItemName = TEXT("None");
     if (SourceItem)
     {
-        if (const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem))
+        if (const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem))
         {
             ItemName = SourceInterface->GetItemID().ToString();
         }
@@ -739,7 +739,7 @@ bool FSuspenseStackOperation::Undo()
     }
     
     // Получаем интерфейсы
-    IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
+    ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
     {
         return false;
@@ -751,7 +751,7 @@ bool FSuspenseStackOperation::Undo()
     
     if (TargetItem)
     {
-        IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem);
+        ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
         if (TargetInterface)
         {
             bTargetSuccess = TargetInterface->TrySetAmount(TargetInitialAmount);
@@ -812,7 +812,7 @@ FString FSuspenseStackOperation::ToString() const
     // Получаем информацию о источнике
     if (SourceItem)
     {
-        if (const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem))
+        if (const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem))
         {
             ItemName = SourceInterface->GetItemID().ToString();
             CurrentSourceAmount = SourceInterface->GetAmount();
@@ -822,7 +822,7 @@ FString FSuspenseStackOperation::ToString() const
     // Получаем информацию о цели
     if (TargetItem)
     {
-        if (const IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem))
+        if (const ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem))
         {
             CurrentTargetAmount = TargetInterface->GetAmount();
         }

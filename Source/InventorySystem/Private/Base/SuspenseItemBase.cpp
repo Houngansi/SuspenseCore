@@ -55,7 +55,7 @@ void USuspenseItemBase::BeginDestroy()
 // Методы доступа к статическим данным из DataTable
 //==============================================================================
 
-const FMedComUnifiedItemData* USuspenseItemBase::GetItemData() const
+const FSuspenseUnifiedItemData* USuspenseItemBase::GetItemData() const
 {
     UpdateCacheIfNeeded();
     return CachedItemData;
@@ -101,13 +101,13 @@ void USuspenseItemBase::UpdateCacheIfNeeded() const
     {
         // Создаем статическую переменную для хранения данных
         // Это безопасно потому что данные из DataTable неизменяемы
-        static TMap<FName, FMedComUnifiedItemData> StaticDataCache;
+        static TMap<FName, FSuspenseUnifiedItemData> StaticDataCache;
         
-        FMedComUnifiedItemData* CachedData = StaticDataCache.Find(ItemID);
+        FSuspenseUnifiedItemData* CachedData = StaticDataCache.Find(ItemID);
         if (!CachedData)
         {
             // Загружаем данные из DataTable в статический кэш
-            FMedComUnifiedItemData NewData;
+            FSuspenseUnifiedItemData NewData;
             if (ItemManager->GetUnifiedItemData(ItemID, NewData))
             {
                 StaticDataCache.Add(ItemID, NewData);
@@ -131,79 +131,79 @@ void USuspenseItemBase::UpdateCacheIfNeeded() const
 
 FText USuspenseItemBase::GetItemName() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->DisplayName : FText::FromString(TEXT("Unknown Item"));
 }
 
 FText USuspenseItemBase::GetItemDescription() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->Description : FText::FromString(TEXT("No description available"));
 }
 
 UTexture2D* USuspenseItemBase::GetItemIcon() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data && !Data->Icon.IsNull() ? Data->Icon.LoadSynchronous() : nullptr;
 }
 
 FGameplayTag USuspenseItemBase::GetItemType() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->ItemType : FGameplayTag();
 }
 
 FIntPoint USuspenseItemBase::GetGridSize() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->GridSize : FIntPoint(1, 1);
 }
 
 int32 USuspenseItemBase::GetMaxStackSize() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->MaxStackSize : 1;
 }
 
 float USuspenseItemBase::GetWeight() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->Weight : 1.0f;
 }
 
 int32 USuspenseItemBase::GetBaseValue() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->BaseValue : 0;
 }
 
 bool USuspenseItemBase::IsEquippable() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->bIsEquippable : false;
 }
 
 FGameplayTag USuspenseItemBase::GetEquipmentSlot() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->EquipmentSlot : FGameplayTag();
 }
 
 bool USuspenseItemBase::IsConsumable() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->bIsConsumable : false;
 }
 
 bool USuspenseItemBase::IsDroppable() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->bCanDrop : true;
 }
 
 bool USuspenseItemBase::IsTradeable() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     return Data ? Data->bCanTrade : true;
 }
 
@@ -279,7 +279,7 @@ float USuspenseItemBase::GetMaxDurability() const
     // TODO: В будущем получать из AttributeSet если предмет экипирован
     
     // Возвращаем значение по умолчанию для типа предмета
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (Data && Data->bIsEquippable)
     {
         if (Data->bIsWeapon)
@@ -357,7 +357,7 @@ int32 USuspenseItemBase::GetMaxAmmo() const
     // TODO: В будущем получать из AmmoAttributeSet
     
     // Временная логика на основе типа оружия
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (Data && Data->bIsWeapon)
     {
         FString ArchetypeString = Data->WeaponArchetype.ToString();
@@ -421,7 +421,7 @@ void USuspenseItemBase::UseItem_Implementation(ACharacter* Character)
         return;
     }
     
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (!Data)
     {
         UE_LOG(LogInventory, Error, TEXT("UseItem failed: No item data for %s"), *ItemID.ToString());
@@ -455,7 +455,7 @@ bool USuspenseItemBase::IsValid() const
 
 FString USuspenseItemBase::GetDebugString() const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (!Data)
     {
         return FString::Printf(TEXT("INVALID ITEM: %s"), *ItemID.ToString());
@@ -478,10 +478,10 @@ FString USuspenseItemBase::GetDebugString() const
 // Конверсия и совместимость
 //==============================================================================
 
-FInventoryItemInstance USuspenseItemBase::ToInventoryInstance(int32 Quantity) const
+FSuspenseInventoryItemInstance USuspenseItemBase::ToInventoryInstance(int32 Quantity) const
 {
     // Create instance using factory method
-    FInventoryItemInstance Instance = FInventoryItemInstance::Create(ItemID, Quantity);
+    FSuspenseInventoryItemInstance Instance = FSuspenseInventoryItemInstance::Create(ItemID, Quantity);
     
     // Копируем runtime свойства из кэша
     Instance.RuntimeProperties = RuntimePropertiesCache;
@@ -496,7 +496,7 @@ FInventoryItemInstance USuspenseItemBase::ToInventoryInstance(int32 Quantity) co
     
     return Instance;
 }
-void USuspenseItemBase::InitFromInventoryInstance(const FInventoryItemInstance& Instance)
+void USuspenseItemBase::InitFromInventoryInstance(const FSuspenseInventoryItemInstance& Instance)
 {
     ItemID = Instance.ItemID;
     RuntimePropertiesCache = Instance.RuntimeProperties;
@@ -544,7 +544,7 @@ void USuspenseItemBase::ResetToDefaults()
 
 void USuspenseItemBase::InitializeRuntimePropertiesFromData()
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (!Data)
     {
         return;
@@ -594,16 +594,16 @@ void USuspenseItemBase::SyncPropertiesArrayWithCache()
     }
 }
 
-bool USuspenseItemBase::GetItemDataCopy(FMedComUnifiedItemData& OutItemData) const
+bool USuspenseItemBase::GetItemDataCopy(FSuspenseUnifiedItemData& OutItemData) const
 {
-    const FMedComUnifiedItemData* Data = GetItemData();
+    const FSuspenseUnifiedItemData* Data = GetItemData();
     if (Data)
     {
         OutItemData = *Data;
         return true;
     }
     
-    OutItemData = FMedComUnifiedItemData(); // Пустая структура
+    OutItemData = FSuspenseUnifiedItemData(); // Пустая структура
     return false;
 }
 

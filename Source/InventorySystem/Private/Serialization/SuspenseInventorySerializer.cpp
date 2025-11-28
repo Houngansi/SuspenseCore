@@ -47,14 +47,14 @@ FSerializedInventoryData USuspenseInventorySerializer::SerializeInventory(USuspe
     Result.AllowedItemTypes = InventoryComponent->GetAllowedItemTypes();
     
     // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Получаем runtime экземпляры вместо legacy структур
-    TArray<FInventoryItemInstance> AllInstances = InventoryComponent->GetAllItemInstances();
+    TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryComponent->GetAllItemInstances();
     
     UE_LOG(LogInventory, VeryVerbose, TEXT("SerializeInventory: Found %d item instances to serialize"), 
         AllInstances.Num());
     
     // Сериализуем каждый runtime экземпляр
     int32 SerializedCount = 0;
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         // Валидируем экземпляр перед сериализацией
         if (!Instance.IsValid())
@@ -66,7 +66,7 @@ FSerializedInventoryData USuspenseInventorySerializer::SerializeInventory(USuspe
         
         // ИСПРАВЛЕНО: Добавлен WorldContextObject как первый параметр
         // Проверяем что предмет еще существует в DataTable (защита от orphaned items)
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (!InventoryUtils::GetUnifiedItemData(InventoryComponent, Instance.ItemID, ItemData))
         {
             UE_LOG(LogInventory, Warning, TEXT("SerializeInventory: Item '%s' no longer exists in DataTable, skipping"), 
@@ -145,8 +145,8 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
     try
     {
         // Очищаем все предметы
-        TArray<FInventoryItemInstance> ExistingItems = InventoryComponent->GetAllItemInstances();
-        for (const FInventoryItemInstance& Item : ExistingItems)
+        TArray<FSuspenseInventoryItemInstance> ExistingItems = InventoryComponent->GetAllItemInstances();
+        for (const FSuspenseInventoryItemInstance& Item : ExistingItems)
         {
             InventoryComponent->RemoveItemByID(Item.ItemID, Item.Quantity);
         }
@@ -170,7 +170,7 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
             return false;
         }
         
-        for (const FInventoryItemInstance& SerializedInstance : MutableData.ItemInstances)
+        for (const FSuspenseInventoryItemInstance& SerializedInstance : MutableData.ItemInstances)
         {
             // Валидируем каждый предмет против текущего DataTable
             FString ValidationError;
@@ -473,7 +473,7 @@ bool USuspenseInventorySerializer::ValidateSerializedData(const FSerializedInven
     bool bAllValid = true;
     TSet<FName> ProcessedItems; // Для отслеживания дубликатов
     
-    for (const FInventoryItemInstance& Instance : SerializedData.ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : SerializedData.ItemInstances)
     {
         // Проверяем базовую валидность экземпляра
         if (!Instance.IsValid())
@@ -485,7 +485,7 @@ bool USuspenseInventorySerializer::ValidateSerializedData(const FSerializedInven
         }
         
         // Проверяем существование в DataTable
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (!ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
             OutMissingItems.AddUnique(Instance.ItemID);
@@ -547,7 +547,7 @@ bool USuspenseInventorySerializer::MigrateSerializedData(FSerializedInventoryDat
     if (SerializedData.Version == 1)
     {
         // В версии 1 использовались FMCInventoryItemData структуры
-        // Мы должны сконвертировать их в FInventoryItemInstance
+        // Мы должны сконвертировать их в FSuspenseInventoryItemInstance
         
         // NOTE: Здесь был бы код конверсии, но поскольку у нас нет доступа к старым структурам
         // в текущем коде, мы просто обновляем версию
@@ -555,7 +555,7 @@ bool USuspenseInventorySerializer::MigrateSerializedData(FSerializedInventoryDat
         UE_LOG(LogInventory, Warning, TEXT("MigrateSerializedData: Version 1 to 2 migration not fully implemented"));
         
         // Мигрируем runtime свойства каждого экземпляра
-        for (FInventoryItemInstance& Instance : SerializedData.ItemInstances)
+        for (FSuspenseInventoryItemInstance& Instance : SerializedData.ItemInstances)
         {
             MigrateRuntimeProperties(Instance);
         }
@@ -586,7 +586,7 @@ int32 USuspenseInventorySerializer::CleanupInvalidItems(FSerializedInventoryData
     
     // Удаляем недопустимые предметы
     int32 RemovedCount = 0;
-    SerializedData.ItemInstances.RemoveAll([&MissingItems, &RemovedCount](const FInventoryItemInstance& Instance)
+    SerializedData.ItemInstances.RemoveAll([&MissingItems, &RemovedCount](const FSuspenseInventoryItemInstance& Instance)
     {
         if (MissingItems.Contains(Instance.ItemID))
         {
@@ -631,7 +631,7 @@ FString USuspenseInventorySerializer::GetInventoryStatistics(const FSerializedIn
     float TotalWeight = 0.0f;
     TMap<FGameplayTag, int32> TypeCounts;
     
-    for (const FInventoryItemInstance& Instance : SerializedData.ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : SerializedData.ItemInstances)
     {
         TotalItems += Instance.Quantity;
         
@@ -641,7 +641,7 @@ FString USuspenseInventorySerializer::GetInventoryStatistics(const FSerializedIn
         TotalWeight += ItemWeight * Instance.Quantity;
         
         // Подсчитываем типы предметов
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (InventoryUtils::GetUnifiedItemData(World, Instance.ItemID, ItemData))
         {
             TypeCounts.FindOrAdd(ItemData.ItemType)++;
@@ -712,14 +712,14 @@ bool USuspenseInventorySerializer::CompareInventoryData(const FSerializedInvento
     }
     
     // Создаем карты для сравнения предметов
-    TMap<FGuid, FInventoryItemInstance> MapA, MapB;
+    TMap<FGuid, FSuspenseInventoryItemInstance> MapA, MapB;
     
-    for (const FInventoryItemInstance& Instance : DataA.ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : DataA.ItemInstances)
     {
         MapA.Add(Instance.InstanceID, Instance);
     }
     
-    for (const FInventoryItemInstance& Instance : DataB.ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : DataB.ItemInstances)
     {
         MapB.Add(Instance.InstanceID, Instance);
     }
@@ -727,7 +727,7 @@ bool USuspenseInventorySerializer::CompareInventoryData(const FSerializedInvento
     // Ищем различия в предметах
     for (const auto& PairA : MapA)
     {
-        const FInventoryItemInstance* InstanceB = MapB.Find(PairA.Key);
+        const FSuspenseInventoryItemInstance* InstanceB = MapB.Find(PairA.Key);
         if (!InstanceB)
         {
             OutDifferences.Add(FString::Printf(TEXT("Item only in A: %s"), 
@@ -819,7 +819,7 @@ USuspenseItemManager* USuspenseInventorySerializer::GetItemManager(const UObject
     return FSuspenseItemSystemAccess::GetItemManager(WorldContext);
 }
 
-bool USuspenseInventorySerializer::ValidateItemInstance(const FInventoryItemInstance& Instance, 
+bool USuspenseInventorySerializer::ValidateItemInstance(const FSuspenseInventoryItemInstance& Instance, 
                                                      USuspenseItemManager* ItemManager,
                                                      FString& OutError)
 {
@@ -831,7 +831,7 @@ bool USuspenseInventorySerializer::ValidateItemInstance(const FInventoryItemInst
     }
     
     // Проверяем существование в DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
     {
         OutError = FString::Printf(TEXT("Item '%s' not found in DataTable"), *Instance.ItemID.ToString());
@@ -926,7 +926,7 @@ bool USuspenseInventorySerializer::DetectFileFormat(const FString& FilePath, boo
     return true;
 }
 
-void USuspenseInventorySerializer::MigrateRuntimeProperties(FInventoryItemInstance& Instance)
+void USuspenseInventorySerializer::MigrateRuntimeProperties(FSuspenseInventoryItemInstance& Instance)
 {
     // Миграция runtime свойств от старой версии к новой
     // В этой версии ничего не делаем, но метод готов для future migrations

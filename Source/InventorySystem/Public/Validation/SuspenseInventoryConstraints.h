@@ -21,7 +21,7 @@ struct FSuspenseUnifiedItemData;
  *
  * Architectural principles of new version:
  * - Integration with DataTable as source of truth for static data
- * - Support for FInventoryItemInstance for runtime validation
+ * - Support for FSuspenseInventoryItemInstance for runtime validation
  * - Centralized data access through USuspenseItemManager
  * - Enhanced error reporting with detailed diagnostics
  * - Backward compatibility with legacy structures during migration

@@ -91,7 +91,7 @@ TArray<FInventoryCellUI> USuspenseInventoryUIConnector::GetAllCellsForUI()
     Result.Reserve(TotalCells);
     
     // Получаем все экземпляры предметов из инвентаря
-    TArray<FInventoryItemInstance> AllInstances = InventoryComponent->GetAllItemInstances();
+    TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryComponent->GetAllItemInstances();
     
     // Получаем ItemManager для доступа к DataTable
     USuspenseItemManager* ItemManager = GetItemManager();
@@ -101,13 +101,13 @@ TArray<FInventoryCellUI> USuspenseInventoryUIConnector::GetAllCellsForUI()
     }
     
     // Создаём карту якорных индексов к экземплярам для быстрого поиска
-    TMap<int32, const FInventoryItemInstance*> AnchorToInstance;
+    TMap<int32, const FSuspenseInventoryItemInstance*> AnchorToInstance;
     
     // Также нужна карта всех занятых ячеек
     TSet<int32> OccupiedCells;
     
     // Первый проход: мапим предметы и их занятые ячейки
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         if (Instance.AnchorIndex == INDEX_NONE)
         {
@@ -149,7 +149,7 @@ TArray<FInventoryCellUI> USuspenseInventoryUIConnector::GetAllCellsForUI()
         }
         
         // Проверяем, является ли это якорной позицией с предметом
-        if (const FInventoryItemInstance** InstancePtr = AnchorToInstance.Find(CellIndex))
+        if (const FSuspenseInventoryItemInstance** InstancePtr = AnchorToInstance.Find(CellIndex))
         {
             // Конвертируем в UI ячейку с полными данными
             // Передаём nullptr вместо ItemObject, так как мы больше не работаем с объектами
@@ -180,7 +180,7 @@ FInventoryCellUI USuspenseInventoryUIConnector::GetCellData(int32 CellIndex) con
     }
     
     // Проверяем, есть ли предмет в этой позиции
-    FInventoryItemInstance Instance;
+    FSuspenseInventoryItemInstance Instance;
     if (!InventoryComponent->GetItemInstanceAtSlot(CellIndex, Instance))
     {
         return CellUI; // Пустая ячейка
@@ -274,7 +274,7 @@ bool USuspenseInventoryUIConnector::StartDragOperation(UObject* ItemObject, int3
     }
     
     // Validate item
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface || !ItemInterface->IsInitialized())
     {
         return false;
@@ -298,7 +298,7 @@ bool USuspenseInventoryUIConnector::PreviewDrop(UObject* ItemObject, int32 Targe
         return false;
     }
     
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface)
     {
         return false;
@@ -330,7 +330,7 @@ bool USuspenseInventoryUIConnector::CompleteDrop(UObject* ItemObject, int32 Targ
     }
     
     // Получаем экземпляр из исходного слота
-    FInventoryItemInstance SourceInstance;
+    FSuspenseInventoryItemInstance SourceInstance;
     if (!InventoryComponent->GetItemInstanceAtSlot(CurrentDragOperation.OriginalCellIndex, SourceInstance))
     {
         UE_LOG(LogInventory, Warning, TEXT("UIConnector: No item at source slot %d"), 
@@ -391,8 +391,8 @@ bool USuspenseInventoryUIConnector::TryStackItems(UObject* SourceItem, UObject* 
         return false;
     }
     
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
-    const IMedComInventoryItemInterface* TargetInterface = Cast<IMedComInventoryItemInterface>(TargetItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
+    const ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
     
     if (!SourceInterface || !TargetInterface)
     {
@@ -451,7 +451,7 @@ bool USuspenseInventoryUIConnector::SplitItemStack(UObject* SourceItem, int32 Sp
         return false;
     }
     
-    const IMedComInventoryItemInterface* SourceInterface = Cast<IMedComInventoryItemInterface>(SourceItem);
+    const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface || !SourceInterface->IsStackable())
     {
         return false;
@@ -482,8 +482,8 @@ bool USuspenseInventoryUIConnector::CanItemsStack(UObject* Item1, UObject* Item2
         return false;
     }
     
-    const IMedComInventoryItemInterface* Interface1 = Cast<IMedComInventoryItemInterface>(Item1);
-    const IMedComInventoryItemInterface* Interface2 = Cast<IMedComInventoryItemInterface>(Item2);
+    const ISuspenseInventoryItemInterface* Interface1 = Cast<ISuspenseInventoryItemInterface>(Item1);
+    const ISuspenseInventoryItemInterface* Interface2 = Cast<ISuspenseInventoryItemInterface>(Item2);
     
     if (!Interface1 || !Interface2)
     {
@@ -584,7 +584,7 @@ bool USuspenseInventoryUIConnector::GetItemTooltip(UObject* ItemObject, FText& O
         return false;
     }
     
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface)
     {
         return false;
@@ -598,7 +598,7 @@ bool USuspenseInventoryUIConnector::GetItemTooltip(UObject* ItemObject, FText& O
     }
     
     // Get runtime instance
-    FInventoryItemInstance Instance = ItemInterface->GetItemInstance();
+    FSuspenseInventoryItemInstance Instance = ItemInterface->GetItemInstance();
     
     // Build tooltip
     OutTooltipText = BuildItemTooltip(Instance, ItemData);
@@ -646,7 +646,7 @@ TArray<int32> USuspenseInventoryUIConnector::GetItemOccupiedCells(UObject* ItemO
         return Result;
     }
     
-    const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(ItemObject);
+    const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface)
     {
         return Result;
@@ -722,7 +722,7 @@ UEventDelegateManager* USuspenseInventoryUIConnector::GetDelegateManager() const
 }
 
 FInventoryCellUI USuspenseInventoryUIConnector::ConvertItemToUICell(
-    const FInventoryItemInstance& Instance, 
+    const FSuspenseInventoryItemInstance& Instance, 
     UObject* ItemObject, 
     int32 CellIndex) const
 {
@@ -864,7 +864,7 @@ FInventoryCellUI USuspenseInventoryUIConnector::ConvertItemToUICell(
 }
 
 FText USuspenseInventoryUIConnector::BuildItemTooltip(
-    const FInventoryItemInstance& Instance, 
+    const FSuspenseInventoryItemInstance& Instance, 
     const FSuspenseUnifiedItemData& ItemData) const
 {
     TArray<FString> TooltipLines;
@@ -913,7 +913,7 @@ FText USuspenseInventoryUIConnector::BuildItemTooltip(
     if (ItemData.bIsWeapon && Instance.HasRuntimeProperty(TEXT("Ammo")))
     {
         int32 CurrentAmmo = Instance.GetCurrentAmmo();
-        // GetMaxAmmo() doesn't exist in FInventoryItemInstance
+        // GetMaxAmmo() doesn't exist in FSuspenseInventoryItemInstance
         // We need to get it from RuntimeProperties directly
         int32 MaxAmmo = FMath::RoundToInt(Instance.GetRuntimeProperty(TEXT("MaxAmmo"), 30.0f));
         TooltipLines.Add(FString::Printf(TEXT("Ammo: %d/%d"), 
@@ -1065,7 +1065,7 @@ void USuspenseInventoryUIConnector::OnInventoryUpdated()
     }
 }
 
-void USuspenseInventoryUIConnector::OnItemAdded(const FInventoryItemInstance& Instance, int32 SlotIndex)
+void USuspenseInventoryUIConnector::OnItemAdded(const FSuspenseInventoryItemInstance& Instance, int32 SlotIndex)
 {
     // Specific handling for item added if needed
     OnInventoryUpdated();

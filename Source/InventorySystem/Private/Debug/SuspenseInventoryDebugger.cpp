@@ -999,7 +999,7 @@ void USuspenseInventoryDebugger::UpdateMemoryMetrics() const
 
         for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
         {
-            // Базовый размер структуры FInventoryItemInstance
+            // Базовый размер структуры FSuspenseInventoryItemInstance
             EstimatedMemory += sizeof(FSuspenseInventoryItemInstance);
 
             // Размер runtime properties

@@ -445,8 +445,8 @@ void USuspenseWeaponFireModeComponent::LoadFireModesFromData(const FSuspenseUnif
     // Convert DataTable fire modes to runtime data
     for (int32 i = 0; i < WeaponData.FireModes.Num(); ++i)
     {
-        const FSuspenseWeaponFireModeData& DataTableMode = WeaponData.FireModes[i];
-        
+        const FWeaponFireModeData& DataTableMode = WeaponData.FireModes[i];
+
         // Create runtime data
         FFireModeRuntimeData RuntimeMode(DataTableMode, i);
         FireModes.Add(RuntimeMode);

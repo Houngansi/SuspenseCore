@@ -10,6 +10,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
 #include "Interfaces/UI/ISuspenseContainerUI.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Interfaces/UI/ISuspenseUIWidget.h"
 #include "Engine/World.h"
@@ -89,41 +91,41 @@ bool USuspenseInventoryUIBridge::Initialize(APlayerController* InPlayerControlle
     return true;
 }
 
-void USuspenseInventoryUIBridge::SetInventoryInterface(TScriptInterface<ISuspenseInventoryInterface> InInventory)
+void USuspenseInventoryUIBridge::SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventory)
 {
     if (!bIsInitialized)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Attempt to set inventory before initialization"));
         return;
     }
-    
+
     // Unsubscribe from old events
     if (GameInventory.GetInterface())
     {
         UnsubscribeFromEvents();
     }
-    
+
     // Clear cached data when inventory changes
     InvalidateWidgetCache();
     PendingUIUpdates.Empty();
-    
+
     GameInventory = InInventory;
-    
+
     if (GameInventory.GetInterface())
     {
         // Get event manager
-        EventManager = ISuspenseInventoryInterface::GetDelegateManagerStatic(GameInventory.GetObject());
+        EventManager = ISuspenseInventory::Execute_GetDelegateManager(GameInventory.GetObject());
         if (!EventManager)
         {
             UE_LOG(LogTemp, Error, TEXT("[InventoryUIBridge] Failed to get event manager"));
             return;
         }
-        
+
         // Subscribe to events
         SubscribeToEvents();
-        
+
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Connected to inventory interface"));
-        
+
         // Schedule initial refresh
         ScheduleUIUpdate(FGameplayTag::RequestGameplayTag(TEXT("UI.Update.Full")));
     }
@@ -180,7 +182,7 @@ void USuspenseInventoryUIBridge::Shutdown()
         // Unsubscribe widget from events through interface
         if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
         {
-            ISuspenseUIWidgetInterface::Execute_UninitializeWidget(InventoryWidget);
+            ISuspenseUIWidget::Execute_UninitializeWidget(InventoryWidget);
         }
         
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Inventory widget found and uninitialized"));
@@ -216,7 +218,7 @@ bool USuspenseInventoryUIBridge::RemoveItemFromInventorySlot(int32 SlotIndex, FS
         return false;
     }
     
-    ISuspenseInventoryInterface* Inventory = GameInventory.GetInterface();
+    ISuspenseInventory* Inventory = GameInventory.GetInterface();
     
     // Get item instance at slot
     FSuspenseInventoryItemInstance ItemInstance;
@@ -230,7 +232,7 @@ bool USuspenseInventoryUIBridge::RemoveItemFromInventorySlot(int32 SlotIndex, FS
     OutRemovedInstance = ItemInstance;
     
     // Remove item from inventory
-    FInventoryOperationResult Result = Inventory->RemoveItemByID(
+    FSuspenseInventoryOperationResult Result = Inventory->RemoveItemByID(
         ItemInstance.ItemID, 
         ItemInstance.Quantity
     );
@@ -267,7 +269,7 @@ bool USuspenseInventoryUIBridge::RestoreItemToInventory(const FSuspenseInventory
     }
     
     // Add item instance through interface
-    FInventoryOperationResult Result = GameInventory.GetInterface()->AddItemInstance(ItemInstance);
+    FSuspenseInventoryOperationResult Result = GameInventory.GetInterface()->AddItemInstance(ItemInstance);
     
     if (Result.IsSuccess())
     {
@@ -277,7 +279,7 @@ bool USuspenseInventoryUIBridge::RestoreItemToInventory(const FSuspenseInventory
     }
     
     // Try fallback method through Blueprint interface
-    bool bFallbackSuccess = ISuspenseInventoryInterface::Execute_AddItemByID(
+    bool bFallbackSuccess = ISuspenseInventory::Execute_AddItemByID(
         GameInventory.GetObject(),
         ItemInstance.ItemID,
         ItemInstance.Quantity
@@ -362,14 +364,14 @@ void USuspenseInventoryUIBridge::RefreshInventoryUI_Implementation()
     if (!InventoryWidget->IsFullyInitialized())
     {
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Widget not initialized, initializing now"));
-        ISuspenseContainerUIInterface::Execute_InitializeContainer(InventoryWidget, ContainerData);
+        ISuspenseContainerUI::Execute_InitializeContainer(InventoryWidget, ContainerData);
     }
     else
     {
         // Step 5: Update existing widget
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Updating widget with %d items"), 
             ContainerData.Items.Num());
-        ISuspenseContainerUIInterface::Execute_UpdateContainer(InventoryWidget, ContainerData);
+        ISuspenseContainerUI::Execute_UpdateContainer(InventoryWidget, ContainerData);
     }
     
     UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] === RefreshInventoryUI END ==="));
@@ -736,9 +738,9 @@ void USuspenseInventoryUIBridge::InitializeInventoryWidgetWithData(USuspenseInve
             {
                 if (Component && Component->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
                 {
-                    TScriptInterface<ISuspenseInventoryInterface> InventoryInterface;
+                    TScriptInterface<ISuspenseInventory> InventoryInterface;
                     InventoryInterface.SetObject(Component);
-                    InventoryInterface.SetInterface(Cast<ISuspenseInventoryInterface>(Component));
+                    InventoryInterface.SetInterface(Cast<ISuspenseInventory>(Component));
                     
                     SetInventoryInterface(InventoryInterface);
                     UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Successfully reconnected to inventory during widget init"));
@@ -781,7 +783,7 @@ void USuspenseInventoryUIBridge::InitializeInventoryWidgetWithData(USuspenseInve
             
             // Всегда вызываем Initialize, даже если виджет "инициализирован"
             // Это гарантирует что слоты созданы
-            ISuspenseContainerUIInterface::Execute_InitializeContainer(Widget, ContainerData);
+            ISuspenseContainerUI::Execute_InitializeContainer(Widget, ContainerData);
             
             // Force immediate layout update
             Widget->ForceLayoutPrepass();
@@ -826,12 +828,12 @@ void USuspenseInventoryUIBridge::UpdateInventoryWidgetData(USuspenseInventoryWid
         // Check if widget is already initialized
         if (!Widget->IsFullyInitialized())
         {
-            ISuspenseContainerUIInterface::Execute_InitializeContainer(Widget, ContainerData);
+            ISuspenseContainerUI::Execute_InitializeContainer(Widget, ContainerData);
             UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Widget was not initialized, initialized now"));
         }
         else
         {
-            ISuspenseContainerUIInterface::Execute_UpdateContainer(Widget, ContainerData);
+            ISuspenseContainerUI::Execute_UpdateContainer(Widget, ContainerData);
             UE_LOG(LogTemp, Verbose, TEXT("[InventoryUIBridge] Widget updated"));
         }
     }
@@ -878,15 +880,15 @@ bool USuspenseInventoryUIBridge::ConvertInventoryToUIData(FContainerUIData& OutC
     }
     
     // Step 3: Get interface and data
-    ISuspenseInventoryInterface* InventoryInterface = GameInventory.GetInterface();
+    ISuspenseInventory* InventoryInterface = GameInventory.GetInterface();
     
     // Get weight parameters
-    OutContainerData.CurrentWeight = ISuspenseInventoryInterface::Execute_GetCurrentWeight(GameInventory.GetObject());
-    OutContainerData.MaxWeight = ISuspenseInventoryInterface::Execute_GetMaxWeight(GameInventory.GetObject());
+    OutContainerData.CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(GameInventory.GetObject());
+    OutContainerData.MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(GameInventory.GetObject());
     OutContainerData.bHasWeightLimit = true;
     
     // Get allowed item types
-    OutContainerData.AllowedItemTypes = ISuspenseInventoryInterface::Execute_GetAllowedItemTypes(GameInventory.GetObject());
+    OutContainerData.AllowedItemTypes = ISuspenseInventory::Execute_GetAllowedItemTypes(GameInventory.GetObject());
     
     // Step 4: Create slots for entire grid
     int32 TotalSlots = GridCols * GridRows;
@@ -1303,7 +1305,7 @@ void USuspenseInventoryUIBridge::OnUIItemDropped(UUserWidget* ContainerWidget, c
 
     if (ContainerWidget && ContainerWidget->GetClass()->ImplementsInterface(USuspenseContainerUI::StaticClass()))
     {
-        TargetContainerType = ISuspenseContainerUIInterface::Execute_GetContainerType(ContainerWidget);
+        TargetContainerType = ISuspenseContainerUI::Execute_GetContainerType(ContainerWidget);
 
         bTargetIsInventory = TargetContainerType.MatchesTag(
             FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"), false));
@@ -1352,9 +1354,9 @@ void USuspenseInventoryUIBridge::OnUIItemDropped(UUserWidget* ContainerWidget, c
             // Инвентарь (через интерфейс виджета)
             if (UUserWidget* InvWidget = GetCachedInventoryWidget())
             {
-                if (InvWidget->GetClass()->ImplementsInterface(USuspenseInventoryUIBridge::StaticClass()))
+                if (InvWidget->GetClass()->ImplementsInterface(USuspenseInventoryUIBridgeInterface::StaticClass()))
                 {
-                    ISuspenseInventoryUIBridge::Execute_RefreshInventoryUI(InvWidget);
+                    ISuspenseInventoryUIBridgeInterface::Execute_RefreshInventoryUI(InvWidget);
                 }
             }
 
@@ -1667,7 +1669,7 @@ void USuspenseInventoryUIBridge::ForceFullInventoryRefresh()
    if (InventoryWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
    {
        // Uninitialize
-       ISuspenseUIWidgetInterface::Execute_UninitializeWidget(InventoryWidget);
+       ISuspenseUIWidget::Execute_UninitializeWidget(InventoryWidget);
    }
    
    // Delay for cleanup completion
@@ -1681,7 +1683,7 @@ void USuspenseInventoryUIBridge::ForceFullInventoryRefresh()
            if (ConvertInventoryToUIData(ContainerData))
            {
                // Reinitialize
-               ISuspenseContainerUIInterface::Execute_InitializeContainer(InventoryWidget, ContainerData);
+               ISuspenseContainerUI::Execute_InitializeContainer(InventoryWidget, ContainerData);
                
                UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Full refresh completed"));
            }
@@ -1700,7 +1702,7 @@ void USuspenseInventoryUIBridge::HandleInventoryToInventoryDrop(const FDragDropU
     UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] === HandleInventoryToInventoryDrop START ==="));
     
     // Use centralized drop processing method
-    FInventoryOperationResult Result = ProcessInventoryDrop(
+    FSuspenseInventoryOperationResult Result = ProcessInventoryDrop(
         DragData,
         FSlateApplication::Get().GetCursorPos(),
         nullptr
@@ -1750,7 +1752,7 @@ void USuspenseInventoryUIBridge::HandleExternalToInventoryDrop(
         // Проверим возможность размещения именно в этот слот (если подключение к инвентарю валидно)
         if (ValidateInventoryConnection())
         {
-            if (ISuspenseInventoryInterface* InventoryInterface = GameInventory.GetInterface())
+            if (ISuspenseInventory* InventoryInterface = GameInventory.GetInterface())
             {
                 // Размер предмета (учтите поворот выше по стеку, если нужно)
                 const FVector2D ItemSize(DragData.ItemData.GridSize.X, DragData.ItemData.GridSize.Y);
@@ -1867,7 +1869,7 @@ void USuspenseInventoryUIBridge::HandleInventoryToEquipmentDrop(
 // Drag & Drop Operations
 // =====================================================
 
-FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
+FSuspenseInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
     const FDragDropUIData& DragData,
     const FVector2D& ScreenPosition,
     UUserWidget* TargetWidget)
@@ -1880,7 +1882,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
     // 1) Базовая валидация
     if (!DragData.IsValidDragData())
     {
-        return FInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             EInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid drag data")),
             TEXT("ProcessInventoryDrop"),
@@ -1891,7 +1893,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
     // 2) Проверка подключения к инвентарю
     if (!ValidateInventoryConnection())
     {
-        return FInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             EInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("No inventory connection")),
             TEXT("ProcessInventoryDrop"),
@@ -1922,7 +1924,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
 
         if (DragData.SourceContainerType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Container.Equipment"))))
         {
-            if (ISuspenseInventoryInterface* InventoryInterface = GameInventory.GetInterface())
+            if (ISuspenseInventory* InventoryInterface = GameInventory.GetInterface())
             {
                 // Учитываем поворот при определении занимаемого размера, если логика интерфейса это требует
                 const FVector2D ItemSizeVec(DragData.ItemData.GridSize.X, DragData.ItemData.GridSize.Y);
@@ -1933,7 +1935,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
 
                     DiagnoseInventoryState();
 
-                    return FInventoryOperationResult::Failure(
+                    return FSuspenseInventoryOperationResult::Failure(
                         EInventoryErrorCode::InvalidSlot,
                         FText::FromString(TEXT("Drop the item over a valid inventory slot")),
                         TEXT("ProcessInventoryDrop"),
@@ -1960,7 +1962,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
                             TargetSlot, *ExistingItem.ItemID.ToString());
                     }
 
-                    return FInventoryOperationResult::Failure(
+                    return FSuspenseInventoryOperationResult::Failure(
                         EInventoryErrorCode::SlotOccupied,
                         FText::FromString(TEXT("Cannot place item at this location")),
                         TEXT("ProcessInventoryDrop"),
@@ -1992,11 +1994,11 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
                 // Запланируем обновление UI после операции (конкретный тег не критичен — используется вашей подсистемой)
                 ScheduleUIUpdate(FGameplayTag::RequestGameplayTag(TEXT("UI.Update.EquipmentTransfer")));
 
-                return FInventoryOperationResult::Success(TEXT("ProcessInventoryDrop"));
+                return FSuspenseInventoryOperationResult::Success(TEXT("ProcessInventoryDrop"));
             }
             else
             {
-                return FInventoryOperationResult::Failure(
+                return FSuspenseInventoryOperationResult::Failure(
                     EInventoryErrorCode::UnknownError,
                     FText::FromString(TEXT("No event manager available")),
                     TEXT("ProcessInventoryDrop"),
@@ -2009,7 +2011,7 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
             UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Unsupported external source: %s"),
                 *DragData.SourceContainerType.ToString());
 
-            return FInventoryOperationResult::Failure(
+            return FSuspenseInventoryOperationResult::Failure(
                 EInventoryErrorCode::UnknownError,
                 FText::FromString(TEXT("Unsupported drag source")),
                 TEXT("ProcessInventoryDrop"),
@@ -2051,12 +2053,12 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
         else
         {
             ScheduleUIUpdate(FGameplayTag::RequestGameplayTag(TEXT("UI.Update.InvalidDrop")));
-            return FInventoryOperationResult::NoSpace(TEXT("ProcessInventoryDrop"));
+            return FSuspenseInventoryOperationResult::NoSpace(TEXT("ProcessInventoryDrop"));
         }
     }
 
     // Выполняем перемещение через интерфейс инвентаря
-    const bool bSuccess = ISuspenseInventoryInterface::Execute_MoveItemBySlots(
+    const bool bSuccess = ISuspenseInventory::Execute_MoveItemBySlots(
         GameInventory.GetObject(),
         DragData.SourceSlotIndex,
         FinalTargetSlot,
@@ -2068,14 +2070,14 @@ FInventoryOperationResult USuspenseInventoryUIBridge::ProcessInventoryDrop(
         UE_LOG(LogTemp, Log, TEXT("[InventoryUIBridge] Move operation successful"));
 
         ScheduleUIUpdate(FGameplayTag::RequestGameplayTag(TEXT("UI.Update.ItemMoved")));
-        return FInventoryOperationResult::Success(TEXT("ProcessInventoryDrop"));
+        return FSuspenseInventoryOperationResult::Success(TEXT("ProcessInventoryDrop"));
     }
     else
     {
         UE_LOG(LogTemp, Error, TEXT("[InventoryUIBridge] Move operation failed"));
 
         ScheduleUIUpdate(FGameplayTag::RequestGameplayTag(TEXT("UI.Update.MoveFailed")));
-        return FInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             EInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Move operation failed")),
             TEXT("ProcessInventoryDrop"),
@@ -2198,7 +2200,7 @@ bool USuspenseInventoryUIBridge::ValidateDropPlacement(
    }
    
    // Get inventory interface
-   ISuspenseInventoryInterface* Inventory = GameInventory.GetInterface();
+   ISuspenseInventory* Inventory = GameInventory.GetInterface();
    if (!Inventory)
    {
        return false;
@@ -2265,7 +2267,7 @@ int32 USuspenseInventoryUIBridge::FindNearestValidSlot(
    }
    
    // Get grid parameters
-   ISuspenseInventoryInterface* Inventory = GameInventory.GetInterface();
+   ISuspenseInventory* Inventory = GameInventory.GetInterface();
    FVector2D GridSizeVec = Inventory->GetInventorySize();
    int32 GridColumns = FMath::RoundToInt(GridSizeVec.X);
    int32 GridRows = FMath::RoundToInt(GridSizeVec.Y);
@@ -2410,7 +2412,7 @@ void USuspenseInventoryUIBridge::ProcessItemRotationRequest(int32 SlotIndex)
        return;
    }
    
-   ISuspenseInventoryInterface* Inventory = GameInventory.GetInterface();
+   ISuspenseInventory* Inventory = GameInventory.GetInterface();
    
    // Check if there's an item at the slot
    FSuspenseInventoryItemInstance ItemInstance;
@@ -2605,7 +2607,7 @@ bool USuspenseInventoryUIBridge::AreRequiredSlotsFree(
        return false;
    }
    
-   ISuspenseInventoryInterface* Inventory = GameInventory.GetInterface();
+   ISuspenseInventory* Inventory = GameInventory.GetInterface();
    
    // Get anchor slot coordinates
    int32 StartX = AnchorSlot % GridColumns;
@@ -2702,7 +2704,7 @@ void USuspenseInventoryUIBridge::DiagnoseInventoryState() const
    UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] === INVENTORY STATE DIAGNOSIS ==="));
    
    // Get inventory interface
-   ISuspenseInventoryInterface* InventoryInterface = GameInventory.GetInterface();
+   ISuspenseInventory* InventoryInterface = GameInventory.GetInterface();
    if (!InventoryInterface)
    {
        UE_LOG(LogTemp, Error, TEXT("[InventoryUIBridge] No inventory interface available"));
@@ -2734,8 +2736,8 @@ void USuspenseInventoryUIBridge::DiagnoseInventoryState() const
        InventorySize.X, InventorySize.Y, TotalSlots);
    
    // Check weight through Blueprint-compatible interface methods
-   float CurrentWeight = ISuspenseInventoryInterface::Execute_GetCurrentWeight(GameInventory.GetObject());
-   float MaxWeight = ISuspenseInventoryInterface::Execute_GetMaxWeight(GameInventory.GetObject());
+   float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(GameInventory.GetObject());
+   float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(GameInventory.GetObject());
    
    UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Weight: %.1f / %.1f kg"), CurrentWeight, MaxWeight);
    
@@ -2759,7 +2761,7 @@ void USuspenseInventoryUIBridge::DiagnoseInventoryState() const
    UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Occupied slots in first 20: %d"), OccupiedSlots);
    
    // Check inventory settings
-   FGameplayTagContainer AllowedTypes = ISuspenseInventoryInterface::Execute_GetAllowedItemTypes(GameInventory.GetObject());
+   FGameplayTagContainer AllowedTypes = ISuspenseInventory::Execute_GetAllowedItemTypes(GameInventory.GetObject());
    UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] Allowed item types: %d"), AllowedTypes.Num());
    
    UE_LOG(LogTemp, Warning, TEXT("[InventoryUIBridge] === END DIAGNOSIS ==="));

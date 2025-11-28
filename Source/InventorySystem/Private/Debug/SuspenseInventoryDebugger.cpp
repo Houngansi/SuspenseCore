@@ -3,11 +3,11 @@
 
 #include "Debug/SuspenseInventoryDebugger.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Serialization/SuspenseInventorySerializer.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "Base/SuspenseInventoryLibrary.h"
-#include "Interfaces/Inventory/IMedComInventoryInterface.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
@@ -269,10 +269,10 @@ FString USuspenseInventoryDebugger::GetInventoryDump(bool bIncludeRuntimePropert
                 Instance.AnchorIndex, Instance.bIsRotated ? TEXT("Yes") : TEXT("No"));
             
             // Получаем размер из DataTable
-            UMedComItemManager* ItemManager = GetItemManager();
+            USuspenseItemManager* ItemManager = GetItemManager();
             if (ItemManager)
             {
-                FMedComUnifiedItemData ItemData;
+                FSuspenseUnifiedItemData ItemData;
                 if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
                 {
                     FIntPoint EffectiveSize = Instance.bIsRotated ? 
@@ -592,7 +592,7 @@ bool USuspenseInventoryDebugger::ValidateDataTableReferences(TArray<FName>& OutM
 {
     OutMissingItems.Empty();
     
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
@@ -744,7 +744,7 @@ FString USuspenseInventoryDebugger::RunInstanceCreationTest(int32 InstanceCount)
 {
     FString Result = FString::Printf(TEXT("--- Instance Creation Test (%d instances) ---\n"), InstanceCount);
     
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         Result += TEXT("Failed: ItemManager not available\n");
@@ -864,7 +864,7 @@ void USuspenseInventoryDebugger::OnItemsSwapped(UObject* FirstItem, UObject* Sec
     ValidationCache.Empty();
 }
 
-void USuspenseInventoryDebugger::OnInventoryError(EInventoryErrorCode ErrorCode, const FString& Context)
+void USuspenseInventoryDebugger::OnInventoryError(ESuspenseInventoryErrorCode ErrorCode, const FString& Context)
 {
     // Логируем ошибку с подробностями
     FString ErrorString = FInventoryOperationResult::GetErrorCodeString(ErrorCode);
@@ -1017,7 +1017,7 @@ bool USuspenseInventoryDebugger::ValidateInstanceInternal(const FInventoryItemIn
     return USuspenseInventoryLibrary::ValidateItemInstance(Instance, InventoryComponent, OutErrors);
 }
 
-UMedComItemManager* USuspenseInventoryDebugger::GetItemManager() const
+USuspenseItemManager* USuspenseInventoryDebugger::GetItemManager() const
 {
     if (!InventoryComponent)
     {
@@ -1036,7 +1036,7 @@ UMedComItemManager* USuspenseInventoryDebugger::GetItemManager() const
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UMedComItemManager>();
+    return GameInstance->GetSubsystem<USuspenseItemManager>();
 }
 
 void USuspenseInventoryDebugger::ClearValidationCacheIfNeeded() const
@@ -1088,7 +1088,7 @@ FString USuspenseInventoryDebugger::RunDataTableAccessTest(int32 AccessCount) co
 {
     FString Result = FString::Printf(TEXT("--- DataTable Access Test (%d accesses) ---\n"), AccessCount);
     
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         Result += TEXT("Failed: ItemManager not available\n");
@@ -1112,7 +1112,7 @@ FString USuspenseInventoryDebugger::RunDataTableAccessTest(int32 AccessCount) co
         FName TestItemID = AllItemIDs[FMath::RandRange(0, AllItemIDs.Num() - 1)];
         
         // Получаем данные предмета
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(TestItemID, ItemData))
         {
             SuccessfulAccesses++;

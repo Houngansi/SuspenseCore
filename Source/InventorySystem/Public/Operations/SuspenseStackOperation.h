@@ -9,7 +9,7 @@
 #include "SuspenseStackOperation.generated.h"
 
 // Forward declarations
-class AMedComInventoryItem;
+class ASuspenseInventoryItem;
 class USuspenseInventoryComponent;
 class USuspenseItemManager;
 
@@ -33,11 +33,11 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
     
     /** Исходный предмет (из которого берутся предметы) */
     UPROPERTY()
-    AMedComInventoryItem* SourceItem = nullptr;
+    ASuspenseInventoryItem* SourceItem = nullptr;
     
     /** Целевой предмет (в который добавляются предметы) */
     UPROPERTY()
-    AMedComInventoryItem* TargetItem = nullptr;
+    ASuspenseInventoryItem* TargetItem = nullptr;
     
     /** Runtime экземпляры предметов */
     UPROPERTY()
@@ -148,8 +148,8 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      */
     FSuspenseStackOperation(
         USuspenseInventoryComponent* InComponent, 
-        AMedComInventoryItem* InSourceItem, 
-        AMedComInventoryItem* InTargetItem, 
+        ASuspenseInventoryItem* InSourceItem, 
+        ASuspenseInventoryItem* InTargetItem, 
         int32 InAmountToTransfer,
         USuspenseInventoryComponent* InTargetInventory = nullptr
     );
@@ -170,8 +170,8 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      */
     static FSuspenseStackOperation Create(
         USuspenseInventoryComponent* InComponent, 
-        AMedComInventoryItem* InSourceItem, 
-        AMedComInventoryItem* InTargetItem, 
+        ASuspenseInventoryItem* InSourceItem, 
+        ASuspenseInventoryItem* InTargetItem, 
         int32 InAmountToTransfer,
         USuspenseInventoryComponent* InTargetInventory,
         USuspenseItemManager* InItemManager
@@ -187,8 +187,8 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      */
     static FSuspenseStackOperation CreateFullStack(
         USuspenseInventoryComponent* InComponent,
-        AMedComInventoryItem* InSourceItem,
-        AMedComInventoryItem* InTargetItem,
+        ASuspenseInventoryItem* InSourceItem,
+        ASuspenseInventoryItem* InTargetItem,
         USuspenseItemManager* InItemManager
     );
     
@@ -203,7 +203,7 @@ struct INVENTORYSYSTEM_API FSuspenseStackOperation : public FSuspenseInventoryOp
      */
     static FSuspenseStackOperation CreateSplit(
         USuspenseInventoryComponent* InComponent,
-        AMedComInventoryItem* InSourceItem,
+        ASuspenseInventoryItem* InSourceItem,
         int32 InSplitAmount,
         int32 InTargetIndex,
         USuspenseItemManager* InItemManager

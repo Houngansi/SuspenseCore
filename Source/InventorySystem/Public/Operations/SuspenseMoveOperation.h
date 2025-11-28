@@ -9,7 +9,7 @@
 #include "SuspenseMoveOperation.generated.h"
 
 // Forward declarations
-class AMedComInventoryItem;
+class ASuspenseInventoryItem;
 class USuspenseInventoryComponent;
 class USuspenseItemManager;
 
@@ -33,7 +33,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     
     /** Актор предмета для перемещения */
     UPROPERTY()
-    AMedComInventoryItem* Item = nullptr;
+    ASuspenseInventoryItem* Item = nullptr;
     
     /** Runtime экземпляр предмета (для доступа к свойствам) */
     UPROPERTY()
@@ -97,7 +97,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
     
     /** Предмет с которым был выполнен обмен */
     UPROPERTY()
-    AMedComInventoryItem* SwappedItem = nullptr;
+    ASuspenseInventoryItem* SwappedItem = nullptr;
     
     /** Экземпляр обмененного предмета */
     UPROPERTY()
@@ -139,7 +139,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      */
     FSuspenseMoveOperation(
         USuspenseInventoryComponent* InComponent, 
-        AMedComInventoryItem* InItem, 
+        ASuspenseInventoryItem* InItem, 
         int32 InTargetIndex, 
         bool InTargetRotated, 
         USuspenseInventoryComponent* InTargetInventory = nullptr
@@ -161,7 +161,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      */
     static FSuspenseMoveOperation Create(
         USuspenseInventoryComponent* InComponent, 
-        AMedComInventoryItem* InItem, 
+        ASuspenseInventoryItem* InItem, 
         int32 InTargetIndex, 
         bool InTargetRotated, 
         USuspenseInventoryComponent* InTargetInventory,
@@ -178,7 +178,7 @@ struct INVENTORYSYSTEM_API FSuspenseMoveOperation : public FSuspenseInventoryOpe
      */
     static FSuspenseMoveOperation CreateWithOptimalRotation(
         USuspenseInventoryComponent* InComponent,
-        AMedComInventoryItem* InItem,
+        ASuspenseInventoryItem* InItem,
         int32 InTargetIndex,
         USuspenseItemManager* InItemManager
     );
@@ -298,7 +298,7 @@ private:
      * @return true если обмен успешен
      */
     bool HandleSwapOperation(
-        AMedComInventoryItem* BlockingItem, 
+        ASuspenseInventoryItem* BlockingItem, 
         EInventoryErrorCode& OutErrorCode,
         USuspenseItemManager* InItemManager
     );

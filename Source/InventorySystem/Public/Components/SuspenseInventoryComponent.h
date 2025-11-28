@@ -74,7 +74,7 @@ public:
     //==================================================================
 
     virtual bool AddItem(const FSuspenseUnifiedItemData& ItemData, int32 Amount) override;
-    virtual bool AddItemWithErrorCode(const FSuspenseUnifiedItemData& ItemData, int32 Amount, EInventoryErrorCode& OutErrorCode) override;
+    virtual bool AddItemWithErrorCode(const FSuspenseUnifiedItemData& ItemData, int32 Amount, ESuspenseInventoryErrorCode& OutErrorCode) override;
     virtual bool TryAddItem_Implementation(const FSuspenseUnifiedItemData& ItemData, int32 Quantity) override;
     virtual bool RemoveItem(const FName& ItemID, int32 Amount) override;
 
@@ -110,7 +110,7 @@ public:
     virtual bool HasItem(const FName& ItemID, int32 Amount = 1) const override;
 
     // UI support
-    virtual bool SwapItemsInSlots(int32 Slot1, int32 Slot2, EInventoryErrorCode& OutErrorCode) override;
+    virtual bool SwapItemsInSlots(int32 Slot1, int32 Slot2, ESuspenseInventoryErrorCode& OutErrorCode) override;
     virtual bool CanSwapSlots(int32 Slot1, int32 Slot2) const override;
     virtual bool RotateItemAtSlot(int32 SlotIndex) override;
     virtual bool CanRotateItemAtSlot(int32 SlotIndex) const override;
@@ -334,7 +334,7 @@ private:
     bool ValidateItemPlacement(const FVector2D& ItemSize, int32 TargetSlot, const FGuid& ExcludeInstanceID = FGuid()) const;
 
     /** Execute item swap between two positions */
-    bool ExecuteSlotSwap(int32 Slot1, int32 Slot2, EInventoryErrorCode& OutErrorCode);
+    bool ExecuteSlotSwap(int32 Slot1, int32 Slot2, ESuspenseInventoryErrorCode& OutErrorCode);
 
     /** Get inventory manager subsystem */
     USuspenseInventoryManager* GetInventoryManager() const;
@@ -350,5 +350,5 @@ private:
      * @param OutErrorCode Detailed error code on failure
      * @return true if item was successfully moved
      */
-    bool TryMoveInstanceToSlot(const FGuid& InstanceID, int32 NewSlot, bool bAllowRotation, EInventoryErrorCode& OutErrorCode);
+    bool TryMoveInstanceToSlot(const FGuid& InstanceID, int32 NewSlot, bool bAllowRotation, ESuspenseInventoryErrorCode& OutErrorCode);
 };

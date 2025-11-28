@@ -3,9 +3,9 @@
 #include "Base/SuspenseItemBase.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Character.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "Base/SuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -73,13 +73,13 @@ bool USuspenseItemBase::HasValidItemData() const
     return GetItemData() != nullptr;
 }
 
-UMedComItemManager* USuspenseItemBase::GetItemManager() const
+USuspenseItemManager* USuspenseItemBase::GetItemManager() const
 {
     if (UWorld* World = GetWorld())
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            return GameInstance->GetSubsystem<UMedComItemManager>();
+            return GameInstance->GetSubsystem<USuspenseItemManager>();
         }
     }
     return nullptr;
@@ -97,7 +97,7 @@ void USuspenseItemBase::UpdateCacheIfNeeded() const
     }
     
     // Обновляем кэш из DataTable
-    if (UMedComItemManager* ItemManager = GetItemManager())
+    if (USuspenseItemManager* ItemManager = GetItemManager())
     {
         // Создаем статическую переменную для хранения данных
         // Это безопасно потому что данные из DataTable неизменяемы

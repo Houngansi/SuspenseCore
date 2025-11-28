@@ -1,6 +1,6 @@
 #include "Utility/SuspenseItemLibrary.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagsManager.h"
@@ -13,12 +13,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogMedComItemLibrary, Log, All);
 // Core DataTable Integration Methods - ОСНОВНЫЕ МЕТОДЫ DATATABLE
 //==================================================================
 
-bool USuspenseItemLibrary::GetUnifiedItemData(const UObject* WorldContext, FName ItemID, FMedComUnifiedItemData& OutItemData)
+bool USuspenseItemLibrary::GetUnifiedItemData(const UObject* WorldContext, FName ItemID, FSuspenseUnifiedItemData& OutItemData)
 {
     // Основной метод новой архитектуры - получение статических данных из DataTable
     // Заменяет все legacy методы получения item data
     
-    UMedComItemManager* ItemManager = GetValidatedItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
     if (!ItemManager)
     {
         UE_LOG(LogMedComItemLibrary, Warning, TEXT("GetUnifiedItemData: ItemManager недоступен"));
@@ -40,7 +40,7 @@ bool USuspenseItemLibrary::GetUnifiedItemData(const UObject* WorldContext, FName
     return bSuccess;
 }
 
-UMedComItemManager* USuspenseItemLibrary::GetItemManager(const UObject* WorldContext)
+USuspenseItemManager* USuspenseItemLibrary::GetItemManager(const UObject* WorldContext)
 {
     // Публичный метод для прямого доступа к ItemManager из Blueprint
     return GetValidatedItemManager(WorldContext);
@@ -49,7 +49,7 @@ UMedComItemManager* USuspenseItemLibrary::GetItemManager(const UObject* WorldCon
 bool USuspenseItemLibrary::DoesItemExistInDataTable(const UObject* WorldContext, FName ItemID)
 {
     // ИСПРАВЛЕНО: Используем правильное имя метода HasItem вместо DoesItemExist
-    UMedComItemManager* ItemManager = GetValidatedItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
     if (!ItemManager || ItemID.IsNone())
     {
         return false;
@@ -64,7 +64,7 @@ bool USuspenseItemLibrary::DoesItemExistInDataTable(const UObject* WorldContext,
 // Updated Legacy Support Methods - ОБНОВЛЕННЫЕ LEGACY МЕТОДЫ
 //==================================================================
 
-FText USuspenseItemLibrary::GetItemName(const FMedComUnifiedItemData& ItemData)
+FText USuspenseItemLibrary::GetItemName(const FSuspenseUnifiedItemData& ItemData)
 {
     // ОБНОВЛЕНО: Теперь работает с unified структурой вместо legacy FMCInventoryItemData
     if (!ItemData.DisplayName.IsEmpty())
@@ -76,7 +76,7 @@ FText USuspenseItemLibrary::GetItemName(const FMedComUnifiedItemData& ItemData)
     return FText::FromName(ItemData.ItemID);
 }
 
-FText USuspenseItemLibrary::GetItemDescription(const FMedComUnifiedItemData& ItemData)
+FText USuspenseItemLibrary::GetItemDescription(const FSuspenseUnifiedItemData& ItemData)
 {
     // ОБНОВЛЕНО: Используем Description поле из unified структуры
     if (!ItemData.Description.IsEmpty())
@@ -87,7 +87,7 @@ FText USuspenseItemLibrary::GetItemDescription(const FMedComUnifiedItemData& Ite
     return FText::GetEmpty();
 }
 
-UTexture2D* USuspenseItemLibrary::GetItemIcon(const FMedComUnifiedItemData& ItemData)
+UTexture2D* USuspenseItemLibrary::GetItemIcon(const FSuspenseUnifiedItemData& ItemData)
 {
     // ОБНОВЛЕНО: Обрабатываем soft object pointer и загружаем синхронно для immediate use
     if (!ItemData.Icon.IsNull())
@@ -106,7 +106,7 @@ bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName
 {
     // Создание runtime экземпляра из DataTable ID - центральный метод новой архитектуры
     
-    UMedComItemManager* ItemManager = GetValidatedItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
     if (!ItemManager)
     {
         UE_LOG(LogMedComItemLibrary, Warning, TEXT("CreateItemInstance: ItemManager недоступен"));
@@ -127,7 +127,7 @@ bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName
     }
     
     // Получаем unified данные для валидации и ограничений
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         UE_LOG(LogMedComItemLibrary, Error, TEXT("CreateItemInstance: Предмет '%s' не найден в DataTable"), *ItemID.ToString());
@@ -170,7 +170,7 @@ bool USuspenseItemLibrary::CreateItemInstance(const UObject* WorldContext, FName
     return true;
 }
 
-bool USuspenseItemLibrary::GetUnifiedDataFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance, FMedComUnifiedItemData& OutItemData)
+bool USuspenseItemLibrary::GetUnifiedDataFromInstance(const UObject* WorldContext, const FInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutItemData)
 {
     // Получение unified данных из runtime экземпляра
     if (!ItemInstance.IsValid())
@@ -230,7 +230,7 @@ bool USuspenseItemLibrary::HasRuntimeProperty(const FInventoryItemInstance& Item
 // Enhanced Display and Formatting Methods - УЛУЧШЕННЫЕ МЕТОДЫ ОТОБРАЖЕНИЯ
 //==================================================================
 
-FText USuspenseItemLibrary::FormatItemQuantity(const FMedComUnifiedItemData& ItemData, int32 Quantity)
+FText USuspenseItemLibrary::FormatItemQuantity(const FSuspenseUnifiedItemData& ItemData, int32 Quantity)
 {
     // ОБНОВЛЕНО: Используем MaxStackSize из unified данных вместо параметра
     if (ItemData.MaxStackSize <= 1)
@@ -257,7 +257,7 @@ FText USuspenseItemLibrary::FormatItemQuantityFromInstance(const UObject* WorldC
         return FText::GetEmpty();
     }
     
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetUnifiedDataFromInstance(WorldContext, ItemInstance, UnifiedData))
     {
         // Fallback форматирование без DataTable данных
@@ -267,7 +267,7 @@ FText USuspenseItemLibrary::FormatItemQuantityFromInstance(const UObject* WorldC
     return FormatItemQuantity(UnifiedData, ItemInstance.Quantity);
 }
 
-FText USuspenseItemLibrary::FormatItemWeight(const FMedComUnifiedItemData& ItemData, int32 Quantity, bool bIncludeUnit)
+FText USuspenseItemLibrary::FormatItemWeight(const FSuspenseUnifiedItemData& ItemData, int32 Quantity, bool bIncludeUnit)
 {
     // Форматирование веса с учетом количества и локализации
     float TotalWeight = ItemData.Weight * Quantity;
@@ -281,7 +281,7 @@ FText USuspenseItemLibrary::FormatItemWeight(const FMedComUnifiedItemData& ItemD
     return FText::AsNumber(TotalWeight, &FNumberFormattingOptions::DefaultNoGrouping());
 }
 
-FLinearColor USuspenseItemLibrary::GetRarityColor(const FMedComUnifiedItemData& ItemData)
+FLinearColor USuspenseItemLibrary::GetRarityColor(const FSuspenseUnifiedItemData& ItemData)
 {
     // Получение цвета редкости из unified данных
     // Использует встроенный метод unified структуры
@@ -322,17 +322,17 @@ FText USuspenseItemLibrary::FormatItemDurability(const FInventoryItemInstance& I
 // Enhanced Search and Filtering Methods - УЛУЧШЕННЫЕ МЕТОДЫ ПОИСКА
 //==================================================================
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByType(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTag& TypeTag, bool bExactMatch)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::FilterItemsByType(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTag& TypeTag, bool bExactMatch)
 {
     // ОБНОВЛЕНО: Поддержка иерархических тегов для гибкой фильтрации
-    TArray<FMedComUnifiedItemData> FilteredItems;
+    TArray<FSuspenseUnifiedItemData> FilteredItems;
     
     if (!TypeTag.IsValid())
     {
         return ItemDataArray; // Пустой фильтр возвращает все предметы
     }
     
-    for (const FMedComUnifiedItemData& Item : ItemDataArray)
+    for (const FSuspenseUnifiedItemData& Item : ItemDataArray)
     {
         if (DoesTagMatch(Item.ItemType, TypeTag, bExactMatch))
         {
@@ -346,17 +346,17 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByType(const TAr
     return FilteredItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByRarity(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTag& RarityTag)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::FilterItemsByRarity(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTag& RarityTag)
 {
     // Фильтрация по редкости с точным совпадением
-    TArray<FMedComUnifiedItemData> FilteredItems;
+    TArray<FSuspenseUnifiedItemData> FilteredItems;
     
     if (!RarityTag.IsValid())
     {
         return ItemDataArray;
     }
     
-    for (const FMedComUnifiedItemData& Item : ItemDataArray)
+    for (const FSuspenseUnifiedItemData& Item : ItemDataArray)
     {
         if (Item.Rarity.MatchesTagExact(RarityTag))
         {
@@ -367,17 +367,17 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByRarity(const T
     return FilteredItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByTags(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FGameplayTagContainer& FilterTags, bool bRequireAll)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::FilterItemsByTags(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FGameplayTagContainer& FilterTags, bool bRequireAll)
 {
     // Расширенная фильтрация с логическими операторами
-    TArray<FMedComUnifiedItemData> FilteredItems;
+    TArray<FSuspenseUnifiedItemData> FilteredItems;
     
     if (FilterTags.IsEmpty())
     {
         return ItemDataArray;
     }
     
-    for (const FMedComUnifiedItemData& Item : ItemDataArray)
+    for (const FSuspenseUnifiedItemData& Item : ItemDataArray)
     {
         // Собираем все теги предмета для проверки
         FGameplayTagContainer ItemAllTags;
@@ -419,7 +419,7 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::FilterItemsByTags(const TAr
     return FilteredItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SearchItems(const TArray<FMedComUnifiedItemData>& ItemDataArray, const FString& SearchText, bool bSearchDescription, bool bSearchTags)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::SearchItems(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const FString& SearchText, bool bSearchDescription, bool bSearchTags)
 {
     // ОБНОВЛЕНО: Расширенный поиск с дополнительными опциями
     if (SearchText.IsEmpty())
@@ -427,9 +427,9 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SearchItems(const TArray<FM
         return ItemDataArray;
     }
     
-    TArray<FMedComUnifiedItemData> MatchingItems;
+    TArray<FSuspenseUnifiedItemData> MatchingItems;
     
-    for (const FMedComUnifiedItemData& Item : ItemDataArray)
+    for (const FSuspenseUnifiedItemData& Item : ItemDataArray)
     {
         bool bFound = false;
         
@@ -491,12 +491,12 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SearchItems(const TArray<FM
 // Enhanced Sorting Methods - УЛУЧШЕННЫЕ МЕТОДЫ СОРТИРОВКИ
 //==================================================================
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByName(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::SortItemsByName(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending)
 {
     // ОБНОВЛЕНО: Сортировка по DisplayName из unified структуры
-    TArray<FMedComUnifiedItemData> SortedItems = ItemDataArray;
+    TArray<FSuspenseUnifiedItemData> SortedItems = ItemDataArray;
     
-    SortedItems.Sort([bAscending](const FMedComUnifiedItemData& A, const FMedComUnifiedItemData& B) {
+    SortedItems.Sort([bAscending](const FSuspenseUnifiedItemData& A, const FSuspenseUnifiedItemData& B) {
         const FString NameA = A.DisplayName.ToString();
         const FString NameB = B.DisplayName.ToString();
         
@@ -506,36 +506,36 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByName(const TArra
     return SortedItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByWeight(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::SortItemsByWeight(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending)
 {
     // Сортировка по весу из unified данных
-    TArray<FMedComUnifiedItemData> SortedItems = ItemDataArray;
+    TArray<FSuspenseUnifiedItemData> SortedItems = ItemDataArray;
     
-    SortedItems.Sort([bAscending](const FMedComUnifiedItemData& A, const FMedComUnifiedItemData& B) {
+    SortedItems.Sort([bAscending](const FSuspenseUnifiedItemData& A, const FSuspenseUnifiedItemData& B) {
         return bAscending ? A.Weight < B.Weight : A.Weight > B.Weight;
     });
     
     return SortedItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByValue(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::SortItemsByValue(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending)
 {
     // Сортировка по базовой стоимости
-    TArray<FMedComUnifiedItemData> SortedItems = ItemDataArray;
+    TArray<FSuspenseUnifiedItemData> SortedItems = ItemDataArray;
     
-    SortedItems.Sort([bAscending](const FMedComUnifiedItemData& A, const FMedComUnifiedItemData& B) {
+    SortedItems.Sort([bAscending](const FSuspenseUnifiedItemData& A, const FSuspenseUnifiedItemData& B) {
         return bAscending ? A.BaseValue < B.BaseValue : A.BaseValue > B.BaseValue;
     });
     
     return SortedItems;
 }
 
-TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByRarity(const TArray<FMedComUnifiedItemData>& ItemDataArray, bool bAscending)
+TArray<FSuspenseUnifiedItemData> USuspenseItemLibrary::SortItemsByRarity(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, bool bAscending)
 {
     // Сортировка по редкости с учетом иерархии
-    TArray<FMedComUnifiedItemData> SortedItems = ItemDataArray;
+    TArray<FSuspenseUnifiedItemData> SortedItems = ItemDataArray;
     
-    SortedItems.Sort([bAscending](const FMedComUnifiedItemData& A, const FMedComUnifiedItemData& B) {
+    SortedItems.Sort([bAscending](const FSuspenseUnifiedItemData& A, const FSuspenseUnifiedItemData& B) {
         int32 PriorityA = GetRarityPriority(A.Rarity);
         int32 PriorityB = GetRarityPriority(B.Rarity);
         
@@ -549,7 +549,7 @@ TArray<FMedComUnifiedItemData> USuspenseItemLibrary::SortItemsByRarity(const TAr
 // Enhanced Weight and Calculation Methods - УЛУЧШЕННЫЕ РАСЧЕТНЫЕ МЕТОДЫ
 //==================================================================
 
-float USuspenseItemLibrary::GetTotalItemsWeight(const TArray<FMedComUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray)
+float USuspenseItemLibrary::GetTotalItemsWeight(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray)
 {
     // ОБНОВЛЕНО: Корректная работа с unified данными и массивом количеств
     if (ItemDataArray.Num() != QuantityArray.Num())
@@ -563,7 +563,7 @@ float USuspenseItemLibrary::GetTotalItemsWeight(const TArray<FMedComUnifiedItemD
     
     for (int32 i = 0; i < ItemDataArray.Num(); ++i)
     {
-        const FMedComUnifiedItemData& Item = ItemDataArray[i];
+        const FSuspenseUnifiedItemData& Item = ItemDataArray[i];
         int32 Quantity = FMath::Max(0, QuantityArray[i]); // Защита от отрицательных значений
         
         TotalWeight += Item.Weight * Quantity;
@@ -575,7 +575,7 @@ float USuspenseItemLibrary::GetTotalItemsWeight(const TArray<FMedComUnifiedItemD
 float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FInventoryItemInstance>& ItemInstances, const UObject* WorldContext)
 {
     // Расчет веса из runtime экземпляров с получением данных из DataTable
-    UMedComItemManager* ItemManager = GetValidatedItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
     if (!ItemManager)
     {
         UE_LOG(LogMedComItemLibrary, Warning, TEXT("GetTotalInstancesWeight: ItemManager недоступен"));
@@ -591,7 +591,7 @@ float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FInventoryItemI
             continue;
         }
         
-        FMedComUnifiedItemData UnifiedData;
+        FSuspenseUnifiedItemData UnifiedData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, UnifiedData))
         {
             TotalWeight += UnifiedData.Weight * Instance.Quantity;
@@ -606,7 +606,7 @@ float USuspenseItemLibrary::GetTotalInstancesWeight(const TArray<FInventoryItemI
     return TotalWeight;
 }
 
-int32 USuspenseItemLibrary::GetTotalItemsValue(const TArray<FMedComUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray)
+int32 USuspenseItemLibrary::GetTotalItemsValue(const TArray<FSuspenseUnifiedItemData>& ItemDataArray, const TArray<int32>& QuantityArray)
 {
     // Расчет общей стоимости предметов
     if (ItemDataArray.Num() != QuantityArray.Num())
@@ -619,7 +619,7 @@ int32 USuspenseItemLibrary::GetTotalItemsValue(const TArray<FMedComUnifiedItemDa
     
     for (int32 i = 0; i < ItemDataArray.Num(); ++i)
     {
-        const FMedComUnifiedItemData& Item = ItemDataArray[i];
+        const FSuspenseUnifiedItemData& Item = ItemDataArray[i];
         int32 Quantity = FMath::Max(0, QuantityArray[i]);
         
         TotalValue += Item.BaseValue * Quantity;
@@ -641,7 +641,7 @@ FVector2D USuspenseItemLibrary::GetItemUIPosition(int32 GridX, int32 GridY, cons
     );
 }
 
-FVector2D USuspenseItemLibrary::GetItemUISize(const FMedComUnifiedItemData& ItemData, bool bIsRotated, const FVector2D& CellSize, float CellSpacing)
+FVector2D USuspenseItemLibrary::GetItemUISize(const FSuspenseUnifiedItemData& ItemData, bool bIsRotated, const FVector2D& CellSize, float CellSpacing)
 {
     // ОБНОВЛЕНО: Использует GridSize из unified данных с учетом поворота
     FVector2D EffectiveSize = bIsRotated ? 
@@ -681,7 +681,7 @@ int32 USuspenseItemLibrary::GetIndexFromCoordinates(int32 X, int32 Y, int32 Grid
     return Y * GridWidth + X;
 }
 
-TArray<int32> USuspenseItemLibrary::GetOccupiedSlots(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, int32 GridWidth)
+TArray<int32> USuspenseItemLibrary::GetOccupiedSlots(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, int32 GridWidth)
 {
     // ОБНОВЛЕНО: Расчет занятых слотов из unified данных
     TArray<int32> OccupiedSlots;
@@ -723,37 +723,37 @@ TArray<int32> USuspenseItemLibrary::GetOccupiedSlots(const FMedComUnifiedItemDat
 // Item Type and Classification Helpers - МЕТОДЫ КЛАССИФИКАЦИИ
 //==================================================================
 
-bool USuspenseItemLibrary::IsWeapon(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsWeapon(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка является ли предмет оружием
     return ItemData.bIsWeapon;
 }
 
-bool USuspenseItemLibrary::IsArmor(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsArmor(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка является ли предмет броней
     return ItemData.bIsArmor;
 }
 
-bool USuspenseItemLibrary::IsAmmo(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsAmmo(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка является ли предмет боеприпасами
     return ItemData.bIsAmmo;
 }
 
-bool USuspenseItemLibrary::IsConsumable(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsConsumable(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка является ли предмет расходным материалом
     return ItemData.bIsConsumable;
 }
 
-bool USuspenseItemLibrary::IsEquippable(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsEquippable(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка может ли предмет быть экипирован
     return ItemData.bIsEquippable;
 }
 
-bool USuspenseItemLibrary::IsStackable(const FMedComUnifiedItemData& ItemData)
+bool USuspenseItemLibrary::IsStackable(const FSuspenseUnifiedItemData& ItemData)
 {
     // Проверка может ли предмет стакаться
     return ItemData.MaxStackSize > 1;
@@ -763,7 +763,7 @@ bool USuspenseItemLibrary::IsStackable(const FMedComUnifiedItemData& ItemData)
 // Conversion and Compatibility Methods - МЕТОДЫ КОНВЕРСИИ
 //==================================================================
 
-bool USuspenseItemLibrary::GetUnifiedDataFromObject(UObject* ItemObject, FMedComUnifiedItemData& OutItemData)
+bool USuspenseItemLibrary::GetUnifiedDataFromObject(UObject* ItemObject, FSuspenseUnifiedItemData& OutItemData)
 {
     // ОБНОВЛЕНО: Конверсия из объекта в unified данные через новый интерфейс
     if (!ItemObject)
@@ -801,7 +801,7 @@ bool USuspenseItemLibrary::GetInstanceFromObject(UObject* ItemObject, FInventory
     return OutInstance.IsValid();
 }
 
-bool USuspenseItemLibrary::CreatePickupDataFromUnified(const FMedComUnifiedItemData& ItemData, int32 Quantity, FMCPickupData& OutPickupData)
+bool USuspenseItemLibrary::CreatePickupDataFromUnified(const FSuspenseUnifiedItemData& ItemData, int32 Quantity, FMCPickupData& OutPickupData)
 {
     // Создание pickup данных из unified структуры
     if (ItemData.ItemID.IsNone() || Quantity <= 0)
@@ -814,7 +814,7 @@ bool USuspenseItemLibrary::CreatePickupDataFromUnified(const FMedComUnifiedItemD
     return true;
 }
 
-bool USuspenseItemLibrary::CreateEquipmentDataFromUnified(const FMedComUnifiedItemData& ItemData, FMCEquipmentData& OutEquipmentData)
+bool USuspenseItemLibrary::CreateEquipmentDataFromUnified(const FSuspenseUnifiedItemData& ItemData, FMCEquipmentData& OutEquipmentData)
 {
     // Создание equipment данных из unified структуры
     if (ItemData.ItemID.IsNone() || !ItemData.bIsEquippable)
@@ -831,7 +831,7 @@ bool USuspenseItemLibrary::CreateEquipmentDataFromUnified(const FMedComUnifiedIt
 // Debug and Validation Methods - МЕТОДЫ ОТЛАДКИ И ВАЛИДАЦИИ
 //==================================================================
 
-bool USuspenseItemLibrary::ValidateUnifiedItemData(const FMedComUnifiedItemData& ItemData, TArray<FString>& OutErrors)
+bool USuspenseItemLibrary::ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, TArray<FString>& OutErrors)
 {
     // Валидация unified данных с детальными ошибками
     OutErrors.Empty();
@@ -848,7 +848,7 @@ bool USuspenseItemLibrary::ValidateUnifiedItemData(const FMedComUnifiedItemData&
     return OutErrors.Num() == 0;
 }
 
-FString USuspenseItemLibrary::GetItemDebugInfo(const FMedComUnifiedItemData& ItemData)
+FString USuspenseItemLibrary::GetItemDebugInfo(const FSuspenseUnifiedItemData& ItemData)
 {
     // Генерация подробной debug информации
     FString DebugInfo;
@@ -893,14 +893,14 @@ bool USuspenseItemLibrary::ValidateItemInstance(const FInventoryItemInstance& It
     }
     
     // Проверяем существование в DataTable
-    UMedComItemManager* ItemManager = GetValidatedItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetValidatedItemManager(WorldContext);
     if (!ItemManager)
     {
         OutErrors.Add(TEXT("ItemManager недоступен для валидации"));
         return false;
     }
     
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, UnifiedData))
     {
         OutErrors.Add(FString::Printf(TEXT("Предмет '%s' не найден в DataTable"), *ItemInstance.ItemID.ToString()));
@@ -948,7 +948,7 @@ bool USuspenseItemLibrary::ValidateItemInstance(const FInventoryItemInstance& It
 // Internal Helper Methods - ВНУТРЕННИЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
 //==================================================================
 
-UMedComItemManager* USuspenseItemLibrary::GetValidatedItemManager(const UObject* WorldContext)
+USuspenseItemManager* USuspenseItemLibrary::GetValidatedItemManager(const UObject* WorldContext)
 {
     // Централизованная логика получения ItemManager с proper error handling
     if (!WorldContext)
@@ -971,11 +971,11 @@ UMedComItemManager* USuspenseItemLibrary::GetValidatedItemManager(const UObject*
         return nullptr;
     }
     
-    UMedComItemManager* ItemManager = GameInstance->GetSubsystem<UMedComItemManager>();
+    USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogMedComItemLibrary, Error, TEXT("GetValidatedItemManager: ItemManager subsystem не найден"));
-        UE_LOG(LogMedComItemLibrary, Error, TEXT("Убедитесь что UMedComItemManager зарегистрирован как subsystem"));
+        UE_LOG(LogMedComItemLibrary, Error, TEXT("Убедитесь что USuspenseItemManager зарегистрирован как subsystem"));
     }
     
     return ItemManager;

@@ -3,14 +3,14 @@
 #include "Operations/SuspenseStackOperation.h"
 #include "Base/SuspenseInventoryItem.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 // Основной конструктор
 FSuspenseStackOperation::FSuspenseStackOperation(
     USuspenseInventoryComponent* InComponent, 
-    AMedComInventoryItem* InSourceItem, 
-    AMedComInventoryItem* InTargetItem, 
+    ASuspenseInventoryItem* InSourceItem, 
+    ASuspenseInventoryItem* InTargetItem, 
     int32 InAmountToTransfer,
     USuspenseInventoryComponent* InTargetInventory)
     : FSuspenseInventoryOperation(EInventoryOperationType::Stack, InComponent)
@@ -45,39 +45,39 @@ FSuspenseStackOperation::FSuspenseStackOperation(
 // Статический метод создания с валидацией
 FSuspenseStackOperation FSuspenseStackOperation::Create(
     USuspenseInventoryComponent* InComponent, 
-    AMedComInventoryItem* InSourceItem, 
-    AMedComInventoryItem* InTargetItem, 
+    ASuspenseInventoryItem* InSourceItem, 
+    ASuspenseInventoryItem* InTargetItem, 
     int32 InAmountToTransfer,
     USuspenseInventoryComponent* InTargetInventory,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     FSuspenseStackOperation Operation(InComponent, InSourceItem, InTargetItem, InAmountToTransfer, InTargetInventory);
     
     // Базовая валидация
     if (!InSourceItem)
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid source item"));
         return Operation;
     }
     
     if (!InTargetItem && Operation.TargetIndex == INDEX_NONE)
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid target item and no target index"));
         return Operation;
     }
     
     if (!InComponent)
     {
-        Operation.ErrorCode = EInventoryErrorCode::NotInitialized;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid component"));
         return Operation;
     }
     
     if (!InItemManager)
     {
-        Operation.ErrorCode = EInventoryErrorCode::NotInitialized;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: ItemManager not available"));
         return Operation;
     }
@@ -85,7 +85,7 @@ FSuspenseStackOperation FSuspenseStackOperation::Create(
     // Кэшируем данные из DataTable
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Failed to cache item data"));
         return Operation;
     }
@@ -103,14 +103,14 @@ FSuspenseStackOperation FSuspenseStackOperation::Create(
 // Создание операции полного стакинга
 FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
     USuspenseInventoryComponent* InComponent,
-    AMedComInventoryItem* InSourceItem,
-    AMedComInventoryItem* InTargetItem,
-    UMedComItemManager* InItemManager)
+    ASuspenseInventoryItem* InSourceItem,
+    ASuspenseInventoryItem* InTargetItem,
+    USuspenseItemManager* InItemManager)
 {
     if (!InSourceItem || !InTargetItem)
     {
         FSuspenseStackOperation InvalidOp;
-        InvalidOp.ErrorCode = EInventoryErrorCode::InvalidItem;
+        InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
     
@@ -119,7 +119,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
     if (!SourceInterface)
     {
         FSuspenseStackOperation InvalidOp;
-        InvalidOp.ErrorCode = EInventoryErrorCode::InvalidItem;
+        InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
     
@@ -145,10 +145,10 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
 // Создание операции разделения стека
 FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
     USuspenseInventoryComponent* InComponent,
-    AMedComInventoryItem* InSourceItem,
+    ASuspenseInventoryItem* InSourceItem,
     int32 InSplitAmount,
     int32 InTargetIndex,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     FSuspenseStackOperation Operation;
     Operation.InventoryComponent = InComponent;
@@ -172,21 +172,21 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
     // Валидация split операции
     if (!InSourceItem || InSplitAmount <= 0 || InSplitAmount >= Operation.SourceInitialAmount)
     {
-        Operation.ErrorCode = EInventoryErrorCode::InsufficientQuantity;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InsufficientQuantity;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CreateSplit: Invalid split amount"));
         return Operation;
     }
     
     if (!InItemManager)
     {
-        Operation.ErrorCode = EInventoryErrorCode::NotInitialized;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         return Operation;
     }
     
     // Кэшируем данные
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return Operation;
     }
     
@@ -194,7 +194,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
 }
 
 // Кэширование данных из DataTable
-bool FSuspenseStackOperation::CacheItemDataFromTable(UMedComItemManager* InItemManager)
+bool FSuspenseStackOperation::CacheItemDataFromTable(USuspenseItemManager* InItemManager)
 {
     if (!InItemManager || !SourceItem)
     {
@@ -248,14 +248,14 @@ int32 FSuspenseStackOperation::CalculateMaxTransferAmount() const
 
 // Полная валидация операции
 bool FSuspenseStackOperation::ValidateStacking(
-    EInventoryErrorCode& OutErrorCode,
+    ESuspenseInventoryErrorCode& OutErrorCode,
     FString& OutErrorMessage,
-    UMedComItemManager* InItemManager) const
+    USuspenseItemManager* InItemManager) const
 {
     // Проверка базовых компонентов
     if (!SourceItem || !InventoryComponent)
     {
-        OutErrorCode = EInventoryErrorCode::NotInitialized;
+        OutErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         OutErrorMessage = TEXT("Invalid operation components");
         return false;
     }
@@ -263,7 +263,7 @@ bool FSuspenseStackOperation::ValidateStacking(
     // Проверка кэшированных данных
     if (!bHasCachedData)
     {
-        OutErrorCode = EInventoryErrorCode::InvalidItem;
+        OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         OutErrorMessage = TEXT("No cached item data");
         return false;
     }
@@ -271,14 +271,14 @@ bool FSuspenseStackOperation::ValidateStacking(
     // Проверка количества
     if (AmountToTransfer <= 0)
     {
-        OutErrorCode = EInventoryErrorCode::InsufficientQuantity;
+        OutErrorCode = ESuspenseInventoryErrorCode::InsufficientQuantity;
         OutErrorMessage = TEXT("Invalid transfer amount");
         return false;
     }
     
     if (AmountToTransfer > SourceInitialAmount)
     {
-        OutErrorCode = EInventoryErrorCode::InsufficientQuantity;
+        OutErrorCode = ESuspenseInventoryErrorCode::InsufficientQuantity;
         OutErrorMessage = FString::Printf(TEXT("Transfer amount %d exceeds source amount %d"), 
             AmountToTransfer, SourceInitialAmount);
         return false;
@@ -290,7 +290,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         // Проверка совместимости предметов
         if (!AreItemsStackable())
         {
-            OutErrorCode = EInventoryErrorCode::InvalidItem;
+            OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
             OutErrorMessage = TEXT("Items are not stackable");
             return false;
         }
@@ -298,7 +298,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         // Проверка лимита стека
         if (TargetInitialAmount >= MaxStackSize)
         {
-            OutErrorCode = EInventoryErrorCode::NoSpace;
+            OutErrorCode = ESuspenseInventoryErrorCode::NoSpace;
             OutErrorMessage = FString::Printf(TEXT("Target stack is full (%d/%d)"), 
                 TargetInitialAmount, MaxStackSize);
             return false;
@@ -307,7 +307,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         // Проверка runtime свойств
         if (!AreRuntimePropertiesCompatible())
         {
-            OutErrorCode = EInventoryErrorCode::InvalidItem;
+            OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
             OutErrorMessage = TEXT("Runtime properties are not compatible for stacking");
             return false;
         }
@@ -318,7 +318,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         // Проверка что исходный стек достаточно большой
         if (SourceInitialAmount <= 1)
         {
-            OutErrorCode = EInventoryErrorCode::InsufficientQuantity;
+            OutErrorCode = ESuspenseInventoryErrorCode::InsufficientQuantity;
             OutErrorMessage = TEXT("Cannot split single item");
             return false;
         }
@@ -326,7 +326,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         // Проверка целевой позиции
         if (TargetIndex < 0)
         {
-            OutErrorCode = EInventoryErrorCode::InvalidSlot;
+            OutErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
             OutErrorMessage = TEXT("Invalid target index for split");
             return false;
         }
@@ -335,14 +335,14 @@ bool FSuspenseStackOperation::ValidateStacking(
     // Проверка весовых ограничений для cross-inventory
     if (!ValidateWeightConstraints())
     {
-        OutErrorCode = EInventoryErrorCode::WeightLimit;
+        OutErrorCode = ESuspenseInventoryErrorCode::WeightLimit;
         float TransferWeight = ItemWeight * AmountToTransfer;
         OutErrorMessage = FString::Printf(TEXT("Weight limit exceeded - transfer weight: %.2f"), 
             TransferWeight);
         return false;
     }
     
-    OutErrorCode = EInventoryErrorCode::Success;
+    OutErrorCode = ESuspenseInventoryErrorCode::Success;
     return true;
 }
 
@@ -450,8 +450,8 @@ FString FSuspenseStackOperation::GetOperationDescription() const
 
 // Выполнение операции стакинга
 bool FSuspenseStackOperation::ExecuteStacking(
-    EInventoryErrorCode& OutErrorCode,
-    UMedComItemManager* InItemManager)
+    ESuspenseInventoryErrorCode& OutErrorCode,
+    USuspenseItemManager* InItemManager)
 {
     double StartTime = FPlatformTime::Seconds();
     
@@ -468,7 +468,7 @@ bool FSuspenseStackOperation::ExecuteStacking(
     {
         if (!CreateNewStackForSplit(InItemManager))
         {
-            OutErrorCode = EInventoryErrorCode::UnknownError;
+            OutErrorCode = ESuspenseInventoryErrorCode::UnknownError;
             LogOperationDetails(TEXT("Failed to create new stack for split"), true);
             return false;
         }
@@ -485,7 +485,7 @@ bool FSuspenseStackOperation::ExecuteStacking(
         // Переносим количество
         if (!TransferAmount())
         {
-            OutErrorCode = EInventoryErrorCode::UnknownError;
+            OutErrorCode = ESuspenseInventoryErrorCode::UnknownError;
             LogOperationDetails(TEXT("Failed to transfer amount"), true);
             return false;
         }
@@ -508,7 +508,7 @@ bool FSuspenseStackOperation::ExecuteStacking(
     }
     
     bSuccess = true;
-    OutErrorCode = EInventoryErrorCode::Success;
+    OutErrorCode = ESuspenseInventoryErrorCode::Success;
     
     ExecutionTime = static_cast<float>(FPlatformTime::Seconds() - StartTime);
     
@@ -662,7 +662,7 @@ void FSuspenseStackOperation::HandleSourceDepletion()
 }
 
 // Создание нового стека для split
-bool FSuspenseStackOperation::CreateNewStackForSplit(UMedComItemManager* InItemManager)
+bool FSuspenseStackOperation::CreateNewStackForSplit(USuspenseItemManager* InItemManager)
 {
     if (!SourceItem || !InventoryComponent || !InItemManager)
     {
@@ -783,12 +783,12 @@ bool FSuspenseStackOperation::Redo()
     }
     
     // Получаем ItemManager
-    UMedComItemManager* ItemManager = nullptr;
+    USuspenseItemManager* ItemManager = nullptr;
     if (UWorld* World = InventoryComponent->GetWorld())
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            ItemManager = GameInstance->GetSubsystem<UMedComItemManager>();
+            ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
         }
     }
     
@@ -799,7 +799,7 @@ bool FSuspenseStackOperation::Redo()
     }
     
     // Повторяем операцию с уникальным именем для локальной переменной
-    EInventoryErrorCode RedoErrorCode;
+    ESuspenseInventoryErrorCode RedoErrorCode;
     return ExecuteStacking(RedoErrorCode, ItemManager);
 }
 // Преобразование в строку

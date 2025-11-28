@@ -9,7 +9,7 @@
 #include "RotationOperation.generated.h"
 
 // Forward declarations
-class AMedComInventoryItem;
+class ASuspenseInventoryItem;
 class USuspenseInventoryComponent;
 class USuspenseItemManager;
 
@@ -33,7 +33,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
     
     /** Предмет для поворота */
     UPROPERTY()
-    AMedComInventoryItem* Item = nullptr;
+    ASuspenseInventoryItem* Item = nullptr;
     
     /** Runtime экземпляр предмета */
     UPROPERTY()
@@ -113,7 +113,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      */
     FSuspenseRotationOperation(
         USuspenseInventoryComponent* InComponent,
-        AMedComInventoryItem* InItem,
+        ASuspenseInventoryItem* InItem,
         bool InTargetRotation
     );
     
@@ -129,7 +129,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      * @return Структура операции поворота
      */
     static FSuspenseRotationOperation Create(
-        AMedComInventoryItem* InItem, 
+        ASuspenseInventoryItem* InItem, 
         bool InTargetRotation,
         USuspenseItemManager* InItemManager
     );
@@ -144,7 +144,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      */
     static FSuspenseRotationOperation Create(
         USuspenseInventoryComponent* InComponent, 
-        AMedComInventoryItem* InItem, 
+        ASuspenseInventoryItem* InItem, 
         bool InTargetRotation,
         USuspenseItemManager* InItemManager
     );
@@ -158,7 +158,7 @@ struct INVENTORYSYSTEM_API FSuspenseRotationOperation : public FSuspenseInventor
      */
     static FSuspenseRotationOperation CreateToggle(
         USuspenseInventoryComponent* InComponent,
-        AMedComInventoryItem* InItem,
+        ASuspenseInventoryItem* InItem,
         USuspenseItemManager* InItemManager
     );
     

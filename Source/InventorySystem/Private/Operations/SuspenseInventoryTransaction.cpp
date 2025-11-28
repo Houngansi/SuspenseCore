@@ -2,10 +2,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Operations/SuspenseInventoryTransaction.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
+#include "Base/SuspenseInventoryLogs.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
 #include "Base/SuspenseItemBase.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Events/SuspenseInventoryEvents.h"
 #include "Engine/World.h"
 
@@ -24,7 +24,7 @@ USuspenseInventoryTransaction::USuspenseInventoryTransaction()
 
 void USuspenseInventoryTransaction::Initialize(USuspenseInventoryStorage* InStorage, 
                                            USuspenseInventoryValidator* InConstraints, 
-                                           UMedComItemManager* InItemManager,
+                                           USuspenseItemManager* InItemManager,
                                            USuspenseInventoryEvents* InEvents)
 {
     Storage = InStorage;

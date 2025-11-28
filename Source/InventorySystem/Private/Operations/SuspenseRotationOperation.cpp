@@ -5,13 +5,13 @@
 #include "Components/SuspenseInventoryComponent.h"
 // ИСПРАВЛЕНО: добавляем полный include для USuspenseInventoryStorage
 #include "Storage/SuspenseInventoryStorage.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 // Основной конструктор
 FSuspenseRotationOperation::FSuspenseRotationOperation(
     USuspenseInventoryComponent* InComponent,
-    AMedComInventoryItem* InItem,
+    ASuspenseInventoryItem* InItem,
     bool InTargetRotation)
     : FSuspenseInventoryOperation(EInventoryOperationType::Rotate, InComponent)
     , Item(InItem)
@@ -34,23 +34,23 @@ FSuspenseRotationOperation::FSuspenseRotationOperation(
 
 // Статический метод создания базовый
 FSuspenseRotationOperation FSuspenseRotationOperation::Create(
-    AMedComInventoryItem* InItem, 
+    ASuspenseInventoryItem* InItem, 
     bool InTargetRotation,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     FSuspenseRotationOperation Operation;
     
     // Базовая валидация
     if (!InItem)
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Invalid item"));
         return Operation;
     }
     
     if (!InItemManager)
     {
-        Operation.ErrorCode = EInventoryErrorCode::NotInitialized;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: ItemManager not available"));
         return Operation;
     }
@@ -59,7 +59,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
     const IMedComInventoryItemInterface* ItemInterface = Cast<IMedComInventoryItemInterface>(InItem);
     if (!ItemInterface)
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Item doesn't implement required interface"));
         return Operation;
     }
@@ -74,7 +74,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
     // Кэширование данных из DataTable
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
-        Operation.ErrorCode = EInventoryErrorCode::InvalidItem;
+        Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Failed to cache item data"));
         return Operation;
     }
@@ -85,7 +85,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
     // Предварительная валидация
     FString ErrorMessage;
     // ИСПРАВЛЕНО: используем временную переменную для избежания конфликта имен
-    EInventoryErrorCode ValidationError;
+    ESuspenseInventoryErrorCode ValidationError;
     if (!Operation.ValidateRotation(ValidationError, ErrorMessage))
     {
         Operation.ErrorCode = ValidationError;
@@ -98,15 +98,15 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
 // Статический метод создания с компонентом
 FSuspenseRotationOperation FSuspenseRotationOperation::Create(
     USuspenseInventoryComponent* InComponent, 
-    AMedComInventoryItem* InItem, 
+    ASuspenseInventoryItem* InItem, 
     bool InTargetRotation,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     FSuspenseRotationOperation Operation = Create(InItem, InTargetRotation, InItemManager);
     Operation.InventoryComponent = InComponent;
     
     // Дополнительная валидация с учетом компонента
-    if (InComponent && Operation.ErrorCode == EInventoryErrorCode::Success)
+    if (InComponent && Operation.ErrorCode == ESuspenseInventoryErrorCode::Success)
     {
         Operation.CalculateTargetCells();
     }
@@ -117,13 +117,13 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
 // Создание операции переключения
 FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
     USuspenseInventoryComponent* InComponent,
-    AMedComInventoryItem* InItem,
-    UMedComItemManager* InItemManager)
+    ASuspenseInventoryItem* InItem,
+    USuspenseItemManager* InItemManager)
 {
     if (!InItem)
     {
         FSuspenseRotationOperation InvalidOp;
-        InvalidOp.ErrorCode = EInventoryErrorCode::InvalidItem;
+        InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
     
@@ -132,7 +132,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
     if (!ItemInterface)
     {
         FSuspenseRotationOperation InvalidOp;
-        InvalidOp.ErrorCode = EInventoryErrorCode::InvalidItem;
+        InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
     
@@ -142,7 +142,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
 }
 
 // Кэширование данных из DataTable
-bool FSuspenseRotationOperation::CacheItemDataFromTable(UMedComItemManager* InItemManager)
+bool FSuspenseRotationOperation::CacheItemDataFromTable(USuspenseItemManager* InItemManager)
 {
     if (!InItemManager || !Item)
     {
@@ -217,13 +217,13 @@ void FSuspenseRotationOperation::CalculateEffectiveSizes()
 
 // Полная валидация операции
 bool FSuspenseRotationOperation::ValidateRotation(
-    EInventoryErrorCode& OutErrorCode,
+    ESuspenseInventoryErrorCode& OutErrorCode,
     FString& OutErrorMessage) const
 {
     // Проверка базовых компонентов
     if (!Item)
     {
-        OutErrorCode = EInventoryErrorCode::InvalidItem;
+        OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         OutErrorMessage = TEXT("Invalid item");
         return false;
     }
@@ -231,7 +231,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
     // Проверка кэшированных данных
     if (!bHasCachedData)
     {
-        OutErrorCode = EInventoryErrorCode::InvalidItem;
+        OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         OutErrorMessage = TEXT("No cached item data");
         return false;
     }
@@ -239,7 +239,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
     // Проверка изменения состояния
     if (!HasRotationChanged())
     {
-        OutErrorCode = EInventoryErrorCode::Success;
+        OutErrorCode = ESuspenseInventoryErrorCode::Success;
         OutErrorMessage = TEXT("No rotation change needed");
         return true; // Технически это не ошибка
     }
@@ -247,7 +247,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
     // Проверка размещения в инвентаре
     if (AnchorIndex == INDEX_NONE)
     {
-        OutErrorCode = EInventoryErrorCode::InvalidSlot;
+        OutErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
         OutErrorMessage = TEXT("Item not placed in inventory");
         return false;
     }
@@ -266,7 +266,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
         if (AnchorX + TargetEffectiveSize.X > GridWidth || 
             AnchorY + TargetEffectiveSize.Y > GridHeight)
         {
-            OutErrorCode = EInventoryErrorCode::NoSpace;
+            OutErrorCode = ESuspenseInventoryErrorCode::NoSpace;
             OutErrorMessage = FString::Printf(
                 TEXT("Item would extend beyond grid bounds after rotation (pos: %d,%d, size: %.0fx%.0f, grid: %dx%d)"),
                 AnchorX, AnchorY,
@@ -279,13 +279,13 @@ bool FSuspenseRotationOperation::ValidateRotation(
         // Проверка коллизий
         if (!CheckCollisions())
         {
-            OutErrorCode = EInventoryErrorCode::SlotOccupied;
+            OutErrorCode = ESuspenseInventoryErrorCode::SlotOccupied;
             OutErrorMessage = TEXT("Target cells are occupied");
             return false;
         }
     }
     
-    OutErrorCode = EInventoryErrorCode::Success;
+    OutErrorCode = ESuspenseInventoryErrorCode::Success;
     return true;
 }
 
@@ -373,7 +373,7 @@ FString FSuspenseRotationOperation::GetOperationDescription() const
 }
 
 // Выполнение операции поворота
-bool FSuspenseRotationOperation::ExecuteRotation(EInventoryErrorCode& OutErrorCode)
+bool FSuspenseRotationOperation::ExecuteRotation(ESuspenseInventoryErrorCode& OutErrorCode)
 {
     double StartTime = FPlatformTime::Seconds();
     
@@ -389,7 +389,7 @@ bool FSuspenseRotationOperation::ExecuteRotation(EInventoryErrorCode& OutErrorCo
     if (!HasRotationChanged())
     {
         bSuccess = true;
-        OutErrorCode = EInventoryErrorCode::Success;
+        OutErrorCode = ESuspenseInventoryErrorCode::Success;
         LogOperationDetails(TEXT("No rotation needed - already in target state"));
         return true;
     }
@@ -405,7 +405,7 @@ bool FSuspenseRotationOperation::ExecuteRotation(EInventoryErrorCode& OutErrorCo
     
     // Отмечаем успех
     bSuccess = true;
-    OutErrorCode = EInventoryErrorCode::Success;
+    OutErrorCode = ESuspenseInventoryErrorCode::Success;
     
     // Записываем время выполнения
     ExecutionTime = static_cast<float>(FPlatformTime::Seconds() - StartTime);
@@ -553,7 +553,7 @@ bool FSuspenseRotationOperation::Redo()
     
     // Повторяем операцию поворота
     // ИСПРАВЛЕНО: используем локальную переменную для избежания конфликта имен
-    EInventoryErrorCode RedoErrorCode;
+    ESuspenseInventoryErrorCode RedoErrorCode;
     bool bResult = ExecuteRotation(RedoErrorCode);
     
     if (!bResult)

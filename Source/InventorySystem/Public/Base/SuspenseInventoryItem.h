@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/Texture2D.h"
@@ -18,7 +18,7 @@ struct FSuspenseUnifiedItemData;
  * Actor-based inventory item implementation for DataTable architecture
  * 
  * АРХИТЕКТУРНЫЕ ПРИНЦИПЫ:
- * - Runtime состояние хранится в FInventoryItemInstance  
+ * - Runtime состояние хранится в FSuspenseInventoryItemInstance  
  * - Статические данные получаются из DataTable через ItemManager
  * - Полная интеграция с LoadoutSettings и новой системой предметов
  * - Оптимизация производительности через интеллектуальное кэширование
@@ -32,7 +32,7 @@ struct FSuspenseUnifiedItemData;
  * - Интеграция с GAS через runtime свойства (патроны, прочность)
  */
 UCLASS(BlueprintType, Blueprintable)
-class INVENTORYSYSTEM_API AMedComInventoryItem : public AActor, public IMedComInventoryItemInterface
+class INVENTORYSYSTEM_API ASuspenseInventoryItem : public AActor, public ISuspenseInventoryItemInterface
 {
     GENERATED_BODY()
     
@@ -41,7 +41,7 @@ public:
     // Constructor and Core Actor Lifecycle
     //==================================================================
     
-    AMedComInventoryItem();
+    ASuspenseInventoryItem();
 
     //~ Begin AActor Interface
     virtual void BeginPlay() override;
@@ -49,7 +49,7 @@ public:
     //~ End AActor Interface
 
     //==================================================================
-    // IMedComInventoryItemInterface Implementation (Pure DataTable)
+    // ISuspenseInventoryItemInterface Implementation (Pure DataTable)
     //==================================================================
 
     // Core item identification and data access
@@ -94,7 +94,7 @@ public:
     virtual const FSuspenseInventoryItemInstance& GetItemInstance() const override { return ItemInstance; }
     virtual bool SetItemInstance(const FSuspenseInventoryItemInstance& InInstance) override;
     virtual FGuid GetInstanceID() const override { return ItemInstance.InstanceID; }
-    //~ End IMedComInventoryItemInterface
+    //~ End ISuspenseInventoryItemInterface
 
     //==================================================================
     // Extended Functionality for Gameplay Systems

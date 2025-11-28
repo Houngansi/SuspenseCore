@@ -2,9 +2,9 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Validation/SuspenseInventoryValidator.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "Base/SuspenseInventoryLogs.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -27,7 +27,7 @@ USuspenseInventoryValidator::USuspenseInventoryValidator()
     UE_LOG(LogConstraints, VeryVerbose, TEXT("USuspenseInventoryValidator: Default constructor called"));
 }
 
-void USuspenseInventoryValidator::Initialize(float InMaxWeight, const FGameplayTagContainer& InAllowedTypes, int32 InGridWidth, int32 InGridHeight, UMedComItemManager* InItemManager)
+void USuspenseInventoryValidator::Initialize(float InMaxWeight, const FGameplayTagContainer& InAllowedTypes, int32 InGridWidth, int32 InGridHeight, USuspenseItemManager* InItemManager)
 {
     // Санитизация входных параметров для предотвращения некорректных значений
     MaxWeight = FMath::Max(0.0f, InMaxWeight);
@@ -67,7 +67,7 @@ bool USuspenseInventoryValidator::InitializeFromLoadout(const FName& LoadoutID, 
         return false;
     }
     
-    UMedComItemManager* ItemManager = World->GetGameInstance()->GetSubsystem<UMedComItemManager>();
+    USuspenseItemManager* ItemManager = World->GetGameInstance()->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogConstraints, Error, TEXT("InitializeFromLoadout: ItemManager subsystem not found"));
@@ -91,7 +91,7 @@ bool USuspenseInventoryValidator::InitializeFromLoadout(const FName& LoadoutID, 
 // Enhanced Unified Data Validation - ВАЛИДАЦИЯ UNIFIED ДАННЫХ
 //==================================================================
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemData(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
 {
     // ОСНОВНОЙ МЕТОД валидации для новой архитектуры DataTable
     FInventoryOperationResult BasicResult = ValidateUnifiedDataBasics(ItemData, Amount, FunctionName);
@@ -107,7 +107,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemData(c
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemDataWithRestrictions(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemDataWithRestrictions(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
 {
     // Комплексная валидация включая type restrictions
     FInventoryOperationResult BasicResult = ValidateUnifiedItemData(ItemData, Amount, FunctionName);
@@ -122,7 +122,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemDataWi
         if (!IsItemTypeAllowed(ItemData.ItemType))
         {
             FInventoryOperationResult TypeResult = FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+                ESuspenseInventoryErrorCode::InvalidItem,
                 FText::Format(
                     NSLOCTEXT("Inventory", "ItemTypeNotAllowed", "Item type '{0}' is not allowed in this inventory"),
                     FText::FromString(ItemData.ItemType.ToString())
@@ -142,24 +142,24 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedItemDataWi
 // Runtime Instance Validation - ВАЛИДАЦИЯ RUNTIME ЭКЗЕМПЛЯРОВ
 //==================================================================
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateItemInstance(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const
 {
     // Базовая проверка экземпляра
     if (!ItemInstance.IsValid())
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             NSLOCTEXT("Inventory", "InvalidItemInstance", "Item instance is not valid"),
             FunctionName
         );
     }
     
     // Получаем unified данные из DataTable
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetUnifiedDataForInstance(ItemInstance, UnifiedData))
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::ItemNotFound,
+            ESuspenseInventoryErrorCode::ItemNotFound,
             FText::Format(
                 NSLOCTEXT("Inventory", "ItemNotFoundInDataTable", "Item '{0}' not found in DataTable"),
                 FText::FromName(ItemInstance.ItemID)
@@ -188,7 +188,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemInstance(cons
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FInventoryItemInstance>& OutFailedInstances) const
+int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances, const FName& FunctionName, TArray<FSuspenseInventoryItemInstance>& OutFailedInstances) const
 {
     // ИСПРАВЛЕНО: Правильный доступ к полям структуры результата
     OutFailedInstances.Empty();
@@ -196,7 +196,7 @@ int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FInventory
     
     int32 SuccessfulCount = 0;
     
-    for (const FInventoryItemInstance& Instance : ItemInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : ItemInstances)
     {
         FInventoryOperationResult ValidationResult = ValidateItemInstance(Instance, FunctionName);
         if (ValidationResult.IsSuccess())
@@ -219,7 +219,7 @@ int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FInventory
     return SuccessfulCount;
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties(const FInventoryItemInstance& ItemInstance, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties(const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const
 {
     // Валидация runtime свойств
     for (const auto& PropertyPair : ItemInstance.RuntimeProperties)
@@ -227,7 +227,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties
         if (PropertyPair.Key.IsNone())
         {
             return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+                ESuspenseInventoryErrorCode::InvalidItem,
                 NSLOCTEXT("Inventory", "EmptyPropertyName", "Found runtime property with empty name"),
                 FunctionName
             );
@@ -236,7 +236,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties
         if (!FMath::IsFinite(PropertyPair.Value))
         {
             return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+                ESuspenseInventoryErrorCode::InvalidItem,
                 FText::Format(
                     NSLOCTEXT("Inventory", "InvalidPropertyValue", "Invalid value for runtime property '{0}': {1}"),
                     FText::FromName(PropertyPair.Key),
@@ -253,7 +253,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties
             if (PropertyPair.Value < 0.0f)
             {
                 return FInventoryOperationResult::Failure(
-                    EInventoryErrorCode::InvalidItem,
+                    ESuspenseInventoryErrorCode::InvalidItem,
                     FText::Format(
                         NSLOCTEXT("Inventory", "NegativeDurability", "Durability cannot be negative: {0}"),
                         FText::AsNumber(PropertyPair.Value)
@@ -273,7 +273,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimeProperties
         if (CurrentDurability > MaxDurability)
         {
             return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::InvalidItem,
+                ESuspenseInventoryErrorCode::InvalidItem,
                 FText::Format(
                     NSLOCTEXT("Inventory", "DurabilityExceedsMax", "Current durability ({0}) exceeds maximum ({1})"),
                     FText::AsNumber(CurrentDurability),
@@ -296,7 +296,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateSlotIndex(int32 S
     if (!bInitialized)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             NSLOCTEXT("Inventory", "ConstraintsNotInitialized", "Inventory constraints not initialized"),
             FunctionName
         );
@@ -306,7 +306,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateSlotIndex(int32 S
     if (SlotIndex < 0 || SlotIndex >= TotalSlots)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidSlot,
+            ESuspenseInventoryErrorCode::InvalidSlot,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidSlotIndex", "Invalid slot index: {0}. Valid range: 0-{1} (Grid: {2}x{3})"),
                 FText::AsNumber(SlotIndex),
@@ -321,12 +321,12 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateSlotIndex(int32 S
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnified(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnified(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const
 {
     if (!bInitialized)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             NSLOCTEXT("Inventory", "ConstraintsNotInitialized", "Inventory constraints not initialized"),
             FunctionName
         );
@@ -345,7 +345,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnif
     if (EffectiveSize.X <= 0 || EffectiveSize.Y <= 0)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidItemSize", "Invalid item size for '{0}': {1}x{2}"),
                 FText::FromName(ItemData.ItemID),
@@ -363,7 +363,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnif
     if (AnchorX + FMath::CeilToInt(EffectiveSize.X) > GridWidth)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidSlot,
+            ESuspenseInventoryErrorCode::InvalidSlot,
             FText::Format(
                 NSLOCTEXT("Inventory", "OutOfBoundsX", "Item '{0}' extends beyond horizontal boundary"),
                 FText::FromName(ItemData.ItemID)
@@ -375,7 +375,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnif
     if (AnchorY + FMath::CeilToInt(EffectiveSize.Y) > GridHeight)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidSlot,
+            ESuspenseInventoryErrorCode::InvalidSlot,
             FText::Format(
                 NSLOCTEXT("Inventory", "OutOfBoundsY", "Item '{0}' extends beyond vertical boundary"),
                 FText::FromName(ItemData.ItemID)
@@ -387,13 +387,13 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForUnif
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex, const FName& FunctionName) const
 {
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetUnifiedDataForInstance(ItemInstance, UnifiedData))
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::ItemNotFound,
+            ESuspenseInventoryErrorCode::ItemNotFound,
             FText::Format(
                 NSLOCTEXT("Inventory", "ItemNotFoundForBounds", "Cannot validate bounds: item '{0}' not found in DataTable"),
                 FText::FromName(ItemInstance.ItemID)
@@ -405,7 +405,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateGridBoundsForInst
     return ValidateGridBoundsForUnified(UnifiedData, AnchorIndex, ItemInstance.bIsRotated, FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlacement(const FMedComUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlacement(const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const TArray<bool>& OccupiedSlots, const FName& FunctionName) const
 {
     // Проверяем границы
     FInventoryOperationResult BoundsResult = ValidateGridBoundsForUnified(ItemData, AnchorIndex, bIsRotated, FunctionName);
@@ -422,7 +422,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlacement(con
     if (OccupiedSlots.Num() != TotalSlots)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidSlot,
+            ESuspenseInventoryErrorCode::InvalidSlot,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidOccupiedSlotsSize", "OccupiedSlots array size mismatch: expected {0}, got {1}"),
                 FText::AsNumber(TotalSlots),
@@ -441,7 +441,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlacement(con
             int32 SlotY = SlotIndex / GridWidth;
             
             return FInventoryOperationResult::Failure(
-                EInventoryErrorCode::SlotOccupied,
+                ESuspenseInventoryErrorCode::SlotOccupied,
                 FText::Format(
                     NSLOCTEXT("Inventory", "SlotOccupied", "Cannot place item '{0}': slot ({1},{2}) is already occupied"),
                     FText::FromName(ItemData.ItemID),
@@ -460,7 +460,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlacement(con
 // Weight Validation - ВАЛИДАЦИЯ ВЕСА
 //==================================================================
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForUnified(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const
 {
     if (MaxWeight <= 0.0f)
     {
@@ -473,7 +473,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForUnified(
     if (TotalWeight > MaxWeight)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::WeightLimit,
+            ESuspenseInventoryErrorCode::WeightLimit,
             FText::Format(
                 NSLOCTEXT("Inventory", "WeightLimitExceeded", "Adding '{0}' (x{1}) would exceed weight limit. Current: {2}kg, Adding: {3}kg, Maximum: {4}kg"),
                 FText::FromString(ItemData.DisplayName.ToString()),
@@ -489,13 +489,13 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForUnified(
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForInstance(const FInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForInstance(const FSuspenseInventoryItemInstance& ItemInstance, float CurrentWeight, const FName& FunctionName) const
 {
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!GetUnifiedDataForInstance(ItemInstance, UnifiedData))
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::ItemNotFound,
+            ESuspenseInventoryErrorCode::ItemNotFound,
             FText::Format(
                 NSLOCTEXT("Inventory", "ItemNotFoundForWeight", "Cannot validate weight: item '{0}' not found in DataTable"),
                 FText::FromName(ItemInstance.ItemID)
@@ -507,7 +507,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateWeightForInstance
     return ValidateWeightForUnified(UnifiedData, ItemInstance.Quantity, CurrentWeight, FunctionName);
 }
 
-bool USuspenseInventoryValidator::WouldExceedWeightLimitUnified(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const
+bool USuspenseInventoryValidator::WouldExceedWeightLimitUnified(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const
 {
     if (MaxWeight <= 0.0f)
     {
@@ -527,7 +527,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOperation(
     if (!ItemObject)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             NSLOCTEXT("Inventory", "NullItemObject", "Item object is null"),
             FunctionName
         );
@@ -537,7 +537,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOperation(
     if (!ItemInterface)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "NoInventoryInterface", "Object '{0}' does not implement IMedComInventoryItemInterface"),
                 FText::FromString(ItemObject->GetClass()->GetName())
@@ -549,7 +549,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOperation(
     if (!ItemInterface->IsInitialized())
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::NotInitialized,
+            ESuspenseInventoryErrorCode::NotInitialized,
             NSLOCTEXT("Inventory", "ItemNotInitialized", "Item object is not properly initialized"),
             FunctionName
         );
@@ -558,7 +558,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOperation(
     return FInventoryOperationResult::Success(FunctionName);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompatibility(const FMedComUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompatibility(const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const
 {
     // Валидация unified данных
     FInventoryOperationResult UnifiedResult = ValidateUnifiedItemDataWithRestrictions(ItemData, Amount, FunctionName);
@@ -578,7 +578,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompatibility
     if (ItemData.bIsWeapon && !ItemData.WeaponArchetype.IsValid())
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidWeaponArchetype", "Weapon '{0}' has invalid archetype"),
                 FText::FromName(ItemData.ItemID)
@@ -590,7 +590,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompatibility
     if (ItemData.bIsAmmo && !ItemData.AmmoCaliber.IsValid())
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidAmmoCaliber", "Ammo '{0}' has invalid caliber"),
                 FText::FromName(ItemData.ItemID)
@@ -624,7 +624,7 @@ bool USuspenseInventoryValidator::IsItemTypeAllowed(const FGameplayTag& ItemType
     return false;
 }
 
-bool USuspenseInventoryValidator::IsItemAllowedByAllCriteria(const FMedComUnifiedItemData& ItemData) const
+bool USuspenseInventoryValidator::IsItemAllowedByAllCriteria(const FSuspenseUnifiedItemData& ItemData) const
 {
     if (!IsItemTypeAllowed(ItemData.ItemType))
     {
@@ -728,7 +728,7 @@ bool USuspenseInventoryValidator::ValidateConstraintsConfiguration(TArray<FStrin
 // Internal Helper Methods - ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
 //==================================================================
 
-UMedComItemManager* USuspenseInventoryValidator::GetValidatedItemManager() const
+USuspenseItemManager* USuspenseInventoryValidator::GetValidatedItemManager() const
 {
     if (!ItemManagerRef.IsValid())
     {
@@ -738,9 +738,9 @@ UMedComItemManager* USuspenseInventoryValidator::GetValidatedItemManager() const
     return ItemManagerRef.Get();
 }
 
-bool USuspenseInventoryValidator::GetUnifiedDataForInstance(const FInventoryItemInstance& ItemInstance, FMedComUnifiedItemData& OutUnifiedData) const
+bool USuspenseInventoryValidator::GetUnifiedDataForInstance(const FSuspenseInventoryItemInstance& ItemInstance, FSuspenseUnifiedItemData& OutUnifiedData) const
 {
-    UMedComItemManager* ItemManager = GetValidatedItemManager();
+    USuspenseItemManager* ItemManager = GetValidatedItemManager();
     if (!ItemManager)
     {
         return false;
@@ -749,12 +749,12 @@ bool USuspenseInventoryValidator::GetUnifiedDataForInstance(const FInventoryItem
     return ItemManager->GetUnifiedItemData(ItemInstance.ItemID, OutUnifiedData);
 }
 
-FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics(const FMedComUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
+FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics(const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const
 {
     if (ItemData.ItemID.IsNone())
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             NSLOCTEXT("Inventory", "MissingItemID", "Item ID is required"),
             FunctionName
         );
@@ -763,7 +763,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics
     if (Amount <= 0)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidAmount", "Invalid amount: {0}"),
                 FText::AsNumber(Amount)
@@ -775,7 +775,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics
     if (Amount > ItemData.MaxStackSize)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "ExceedsMaxStack", "Amount {0} exceeds maximum stack size {1}"),
                 FText::AsNumber(Amount),
@@ -788,7 +788,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics
     if (ItemData.GridSize.X <= 0 || ItemData.GridSize.Y <= 0)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "InvalidGridSize", "Invalid grid size: {0}x{1}"),
                 FText::AsNumber(ItemData.GridSize.X),
@@ -801,7 +801,7 @@ FInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDataBasics
     if (ItemData.Weight < 0.0f)
     {
         return FInventoryOperationResult::Failure(
-            EInventoryErrorCode::InvalidItem,
+            ESuspenseInventoryErrorCode::InvalidItem,
             FText::Format(
                 NSLOCTEXT("Inventory", "NegativeWeight", "Item has negative weight: {0}"),
                 FText::AsNumber(ItemData.Weight)

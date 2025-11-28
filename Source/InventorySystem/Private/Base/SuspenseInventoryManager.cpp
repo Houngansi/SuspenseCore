@@ -1,17 +1,17 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Base/SuspenseInventoryManager.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "Interfaces/Equipment/IMedComEquipmentInterface.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/Engine.h"
 
 // Подключаем InventoryUtils для создания экземпляров предметов
 namespace InventoryUtils
 {
-    extern FInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity);
-    extern bool GetUnifiedItemData(const FName& ItemID, FMedComUnifiedItemData& OutData);
+    extern FSuspenseInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity);
+    extern bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData);
 }
 
 //==================================================================
@@ -197,7 +197,7 @@ int32 USuspenseInventoryManager::CreateStartingItemsFromLoadout(USuspenseInvento
     }
     
     int32 SuccessCount = 0;
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     
     if (!ItemManager)
     {
@@ -206,7 +206,7 @@ int32 USuspenseInventoryManager::CreateStartingItemsFromLoadout(USuspenseInvento
     }
     
     // Process each starting item
-    for (const FPickupSpawnData& SpawnData : InventoryConfig->StartingItems)
+    for (const FSuspensePickupSpawnData& SpawnData : InventoryConfig->StartingItems)
     {
         if (!SpawnData.IsValid())
         {
@@ -278,7 +278,7 @@ int32 USuspenseInventoryManager::InitializeEquipmentFromLoadout(UObject* Equipme
     }
     
     int32 SuccessCount = 0;
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     
     if (!ItemManager)
     {
@@ -399,7 +399,7 @@ int32 USuspenseInventoryManager::InitializeEquipmentFromLoadout(UObject* Equipme
 
 bool USuspenseInventoryManager::CreateItemInstance(const FName& ItemID, int32 Quantity, FInventoryItemInstance& OutInstance) const
 {
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("USuspenseInventoryManager::CreateItemInstance: ItemManager not available"));
@@ -410,10 +410,10 @@ bool USuspenseInventoryManager::CreateItemInstance(const FName& ItemID, int32 Qu
     return ItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
-int32 USuspenseInventoryManager::CreateItemInstancesFromSpawnData(const TArray<FPickupSpawnData>& SpawnDataArray, 
+int32 USuspenseInventoryManager::CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray, 
                                                          TArray<FInventoryItemInstance>& OutInstances) const
 {
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("USuspenseInventoryManager::CreateItemInstancesFromSpawnData: ItemManager not available"));
@@ -633,11 +633,11 @@ void USuspenseInventoryManager::InitializeDefaultLoadout()
     UE_LOG(LogTemp, Log, TEXT("USuspenseInventoryManager: Initialized default loadout configuration"));
 }
 
-UMedComItemManager* USuspenseInventoryManager::GetItemManager() const
+USuspenseItemManager* USuspenseInventoryManager::GetItemManager() const
 {
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        return GameInstance->GetSubsystem<UMedComItemManager>();
+        return GameInstance->GetSubsystem<USuspenseItemManager>();
     }
     
     return nullptr;

@@ -6,6 +6,7 @@
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/Engine.h"
+#include "Interfaces/Equipment/ISuspenseEquipment.h"
 
 // Подключаем InventoryUtils для создания экземпляров предметов
 namespace InventoryUtils
@@ -198,7 +199,7 @@ int32 USuspenseInventoryManager::CreateStartingItemsFromLoadout(USuspenseInvento
 
     int32 SuccessCount = 0;
     USuspenseItemManager* ItemManager = GetItemManager();
-    
+
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("USuspenseInventoryManager::CreateStartingItemsFromLoadout: ItemManager not available"));
@@ -279,7 +280,7 @@ int32 USuspenseInventoryManager::InitializeEquipmentFromLoadout(UObject* Equipme
 
     int32 SuccessCount = 0;
     USuspenseItemManager* ItemManager = GetItemManager();
-    
+
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("USuspenseInventoryManager::InitializeEquipmentFromLoadout: ItemManager недоступен"));
@@ -410,7 +411,7 @@ bool USuspenseInventoryManager::CreateItemInstance(const FName& ItemID, int32 Qu
     return ItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
-int32 USuspenseInventoryManager::CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray, 
+int32 USuspenseInventoryManager::CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray,
                                                          TArray<FSuspenseInventoryItemInstance>& OutInstances) const
 {
     USuspenseItemManager* ItemManager = GetItemManager();

@@ -22,8 +22,8 @@ USuspenseInventoryTransaction::USuspenseInventoryTransaction()
     OperationCount = 0;
 }
 
-void USuspenseInventoryTransaction::Initialize(USuspenseInventoryStorage* InStorage, 
-                                           USuspenseInventoryValidator* InConstraints, 
+void USuspenseInventoryTransaction::Initialize(USuspenseInventoryStorage* InStorage,
+                                           USuspenseInventoryValidator* InConstraints,
                                            USuspenseItemManager* InItemManager,
                                            USuspenseInventoryEvents* InEvents)
 {
@@ -31,14 +31,14 @@ void USuspenseInventoryTransaction::Initialize(USuspenseInventoryStorage* InStor
     Constraints = InConstraints;
     ItemManager = InItemManager;
     Events = InEvents;
-    
+
     // Clear any existing transaction
     if (bTransactionActive)
     {
         UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Initializing while transaction active - rolling back"));
         RollbackTransaction();
     }
-    
+
     UE_LOG(LogInventory, Log, TEXT("InventoryTransaction: Initialized with Storage=%s, Constraints=%s, ItemManager=%s, Events=%s"),
         *GetNameSafe(InStorage), *GetNameSafe(InConstraints), *GetNameSafe(InItemManager), *GetNameSafe(InEvents));
 }
@@ -51,34 +51,34 @@ bool USuspenseInventoryTransaction::BeginTransaction(EInventoryTransactionType T
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: Prerequisites validation failed"));
         return false;
     }
-    
+
     // Check if another transaction is already active
     if (bTransactionActive)
     {
-        UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Transaction already in progress - %s [%s]"), 
+        UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Transaction already in progress - %s [%s]"),
             *UEnum::GetValueAsString(CurrentType), *CurrentContext.ToString());
         return false;
     }
-    
+
     // Set transaction properties
     CurrentType = Type;
     CurrentContext = Context;
     TransactionStartTime = FPlatformTime::Seconds();
     OperationCount = 0;
-    
+
     // Create backup of current state
     CreateStorageBackup();
-    
+
     // Clear tracking arrays
     CreatedItems.Empty();
     CreatedInstances.Empty();
-    
+
     // Mark transaction as active
     bTransactionActive = true;
-    
+
     UE_LOG(LogInventory, Log, TEXT("InventoryTransaction: Started %s transaction [%s]"),
         *UEnum::GetValueAsString(CurrentType), *CurrentContext.ToString());
-    
+
     return true;
 }
 
@@ -90,30 +90,30 @@ bool USuspenseInventoryTransaction::CommitTransaction()
         UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Cannot commit - no active transaction"));
         return false;
     }
-    
+
     // Calculate transaction duration
     double TransactionDuration = FPlatformTime::Seconds() - TransactionStartTime;
-    
+
     // Clear backup data
     BackupItemInstances.Empty();
     BackupItemObjects.Empty();
     BackupCells.Empty();
     CreatedItems.Empty();
     CreatedInstances.Empty();
-    
+
     // Fire events if available
     if (Events)
     {
         // Events->NotifyTransactionCommitted(CurrentType, CurrentContext, OperationCount, TransactionDuration);
     }
-    
+
     // Log transaction completion
     UE_LOG(LogInventory, Log, TEXT("InventoryTransaction: Committed %s transaction [%s] - %d operations in %.3f seconds"),
         *UEnum::GetValueAsString(CurrentType), *CurrentContext.ToString(), OperationCount, TransactionDuration);
-    
+
     // Reset transaction state
     bTransactionActive = false;
-    
+
     return true;
 }
 
@@ -125,26 +125,26 @@ void USuspenseInventoryTransaction::RollbackTransaction()
         UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Cannot rollback - no active transaction"));
         return;
     }
-    
+
     // Calculate transaction duration for logging
     double TransactionDuration = FPlatformTime::Seconds() - TransactionStartTime;
-    
+
     // Log rollback
     UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Rolling back %s transaction [%s] after %d operations (%.3f seconds)"),
         *UEnum::GetValueAsString(CurrentType), *CurrentContext.ToString(), OperationCount, TransactionDuration);
-    
+
     // Destroy any created items and instances
     DestroyCreatedItems();
-    
+
     // Restore storage state
     RestoreStorageFromBackup();
-    
+
     // Fire events if available
     if (Events)
     {
         // Events->NotifyTransactionRolledBack(CurrentType, CurrentContext, OperationCount, TransactionDuration);
     }
-    
+
     // Reset transaction state
     bTransactionActive = false;
 }
@@ -156,7 +156,7 @@ void USuspenseInventoryTransaction::RollbackTransaction()
 FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(const FName& ItemID, int32 Amount)
 {
     static const FName OperationName = TEXT("AddItemByID");
-    
+
     // Start transaction if not already active
     if (!bTransactionActive)
     {
@@ -169,7 +169,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
             );
         }
     }
-    
+
     // Create item instance from DataTable ID
     FSuspenseInventoryOperationResult CreateResult = CreateItemInstanceFromID(ItemID, Amount, OperationName);
     if (!CreateResult.IsSuccess())
@@ -177,7 +177,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
         LogTransactionOperation(TEXT("Instance creation failed"), CreateResult);
         return CreateResult;
     }
-    
+
     // Get the created instance
     FSuspenseInventoryItemInstance* CreatedInstance = nullptr;
     for (FSuspenseInventoryItemInstance& Instance : CreatedInstances)
@@ -188,7 +188,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
             break;
         }
     }
-    
+
     if (!CreatedInstance)
     {
         FSuspenseInventoryOperationResult ErrorResult = FSuspenseInventoryOperationResult::Failure(
@@ -199,7 +199,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
         LogTransactionOperation(TEXT("Instance tracking error"), ErrorResult);
         return ErrorResult;
     }
-    
+
     // Find free space for the instance
     int32 FreeSpace = FindFreeSpaceForInstance(*CreatedInstance);
     if (FreeSpace == INDEX_NONE)
@@ -211,7 +211,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
         LogTransactionOperation(TEXT("No space"), ErrorResult);
         return ErrorResult;
     }
-    
+
     // Place instance in storage
     FSuspenseInventoryOperationResult PlaceResult = PlaceItemInstanceInStorage(*CreatedInstance, FreeSpace);
     if (!PlaceResult.IsSuccess())
@@ -219,17 +219,17 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
         LogTransactionOperation(TEXT("Placement failed"), PlaceResult);
         return PlaceResult;
     }
-    
+
     // Update transaction stats
     UpdateTransactionStats();
-    
+
     // Create success result with instance data
     FSuspenseInventoryOperationResult SuccessResult = FSuspenseInventoryOperationResult::Success(OperationName);
     SuccessResult.AddResultData(TEXT("ItemID"), ItemID.ToString());
     SuccessResult.AddResultData(TEXT("Amount"), FString::FromInt(Amount));
     SuccessResult.AddResultData(TEXT("AnchorIndex"), FString::FromInt(FreeSpace));
     SuccessResult.AddResultData(TEXT("InstanceID"), CreatedInstance->InstanceID.ToString());
-    
+
     LogTransactionOperation(TEXT("Success"), SuccessResult);
     return SuccessResult;
 }
@@ -237,7 +237,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemByID(con
 FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData(const FSuspenseUnifiedItemData& ItemData, int32 Amount)
 {
     static const FName OperationName = TEXT("AddItemFromData");
-    
+
     // Start transaction if not already active
     if (!bTransactionActive)
     {
@@ -250,7 +250,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
             );
         }
     }
-    
+
     // Validate ItemData
     if (ItemData.ItemID.IsNone())
     {
@@ -262,7 +262,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
         LogTransactionOperation(TEXT("Validation failed"), ErrorResult);
         return ErrorResult;
     }
-    
+
     // Create item instance from unified data
     FSuspenseInventoryOperationResult CreateResult = CreateItemInstanceFromData(ItemData, Amount, OperationName);
     if (!CreateResult.IsSuccess())
@@ -270,12 +270,12 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
         LogTransactionOperation(TEXT("Instance creation failed"), CreateResult);
         return CreateResult;
     }
-    
+
     // Continue with placement logic (similar to AddItemByID)
     // ... (rest of implementation follows same pattern)
-    
+
     UpdateTransactionStats();
-    
+
     FSuspenseInventoryOperationResult SuccessResult = FSuspenseInventoryOperationResult::Success(OperationName);
     LogTransactionOperation(TEXT("Success"), SuccessResult);
     return SuccessResult;
@@ -284,7 +284,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemFromData
 FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
 {
     static const FName OperationName = TEXT("AddItemInstance");
-    
+
     // Start transaction if not already active
     if (!bTransactionActive)
     {
@@ -297,7 +297,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
             );
         }
     }
-    
+
     // Validate the instance
     FSuspenseInventoryOperationResult ValidateResult = ValidateItemInstance(ItemInstance, OperationName);
     if (!ValidateResult.IsSuccess())
@@ -305,7 +305,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
         LogTransactionOperation(TEXT("Validation failed"), ValidateResult);
         return ValidateResult;
     }
-    
+
     // Find free space
     int32 FreeSpace = FindFreeSpaceForInstance(ItemInstance);
     if (FreeSpace == INDEX_NONE)
@@ -317,10 +317,10 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
         LogTransactionOperation(TEXT("No space"), ErrorResult);
         return ErrorResult;
     }
-    
+
     // Add to created instances tracking
     CreatedInstances.Add(ItemInstance);
-    
+
     // Place in storage
     FSuspenseInventoryOperationResult PlaceResult = PlaceItemInstanceInStorage(ItemInstance, FreeSpace);
     if (!PlaceResult.IsSuccess())
@@ -329,13 +329,13 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::AddItemInstance
         CreatedInstances.RemoveAll([&ItemInstance](const FSuspenseInventoryItemInstance& Instance) {
             return Instance.InstanceID == ItemInstance.InstanceID;
         });
-        
+
         LogTransactionOperation(TEXT("Placement failed"), PlaceResult);
         return PlaceResult;
     }
-    
+
     UpdateTransactionStats();
-    
+
     FSuspenseInventoryOperationResult SuccessResult = FSuspenseInventoryOperationResult::Success(OperationName);
     SuccessResult.AddResultData(TEXT("InstanceID"), ItemInstance.InstanceID.ToString());
     LogTransactionOperation(TEXT("Success"), SuccessResult);
@@ -354,26 +354,26 @@ bool USuspenseInventoryTransaction::ValidateTransactionPrerequisites() const
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: Storage component is null"));
         return false;
     }
-    
+
     if (!Constraints)
     {
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: Constraints component is null"));
         return false;
     }
-    
+
     if (!ItemManager)
     {
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: ItemManager is null"));
         return false;
     }
-    
+
     // Check if storage is initialized
     if (!Storage->IsInitialized())
     {
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: Storage is not initialized"));
         return false;
     }
-    
+
     return true;
 }
 
@@ -387,14 +387,14 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
             Context
         );
     }
-    
+
     // Get unified data from DataTable
     FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         return FSuspenseInventoryOperationResult::ItemNotFound(Context, ItemID);
     }
-    
+
     // Create instance using ItemManager
     FSuspenseInventoryItemInstance NewInstance;
     if (!ItemManager->CreateItemInstance(ItemID, Amount, NewInstance))
@@ -405,10 +405,10 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
             Context
         );
     }
-    
+
     // Add to tracking
     CreatedInstances.Add(NewInstance);
-    
+
     return FSuspenseInventoryOperationResult::Success(Context);
 }
 
@@ -423,14 +423,14 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::ValidateItemIns
             Context
         );
     }
-    
+
     // Validate against constraints if available
     if (Constraints)
     {
         // Note: This would call actual constraint validation methods
         // return Constraints->ValidateItemInstance(Instance, Context);
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(Context);
 }
 
@@ -440,13 +440,13 @@ int32 USuspenseInventoryTransaction::FindFreeSpaceForInstance(const FSuspenseInv
     {
         return INDEX_NONE;
     }
-    
+
     // Validate instance
     if (!Instance.IsValid())
     {
         return INDEX_NONE;
     }
-    
+
     // If the instance already has a specific rotation state, we need to handle it carefully
     if (Instance.bIsRotated)
     {
@@ -464,7 +464,7 @@ int32 USuspenseInventoryTransaction::FindFreeSpaceForInstance(const FSuspenseInv
 FSuspenseInventoryOperationResult USuspenseInventoryTransaction::PlaceItemInstanceInStorage(const FSuspenseInventoryItemInstance& Instance, int32 AnchorIndex)
 {
     static const FName OperationName = TEXT("PlaceItemInstance");
-    
+
     if (!Storage)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -473,14 +473,14 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::PlaceItemInstan
             OperationName
         );
     }
-    
+
     // Note: This would call the actual storage placement method
     // The exact implementation depends on how Storage is structured
     // For now, we'll assume success
-    
-    UE_LOG(LogInventory, Verbose, TEXT("PlaceItemInstanceInStorage: Placed instance %s at anchor %d"), 
+
+    UE_LOG(LogInventory, Verbose, TEXT("PlaceItemInstanceInStorage: Placed instance %s at anchor %d"),
         *Instance.InstanceID.ToString(), AnchorIndex);
-    
+
     return FSuspenseInventoryOperationResult::Success(OperationName);
 }
 
@@ -491,18 +491,18 @@ void USuspenseInventoryTransaction::CreateStorageBackup()
         UE_LOG(LogInventory, Warning, TEXT("InventoryTransaction: Cannot create backup - storage not available"));
         return;
     }
-    
+
     // Clear previous backup
     BackupItemInstances.Empty();
     BackupItemObjects.Empty();
     BackupCells.Empty();
-    
+
     // Note: These would call actual storage methods
     // BackupItemInstances = Storage->GetAllItemInstances();
     // BackupItemObjects = Storage->GetAllItemObjects();
     // BackupCells = Storage->GetAllCells();
-    
-    UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: Created backup with %d instances, %d objects, %d cells"), 
+
+    UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: Created backup with %d instances, %d objects, %d cells"),
         BackupItemInstances.Num(), BackupItemObjects.Num(), BackupCells.Num());
 }
 
@@ -513,10 +513,10 @@ void USuspenseInventoryTransaction::RestoreStorageFromBackup()
         UE_LOG(LogInventory, Error, TEXT("InventoryTransaction: Cannot restore backup - storage not available"));
         return;
     }
-    
+
     // Note: This would call actual storage restoration methods
     // Storage->RestoreFromBackup(BackupItemInstances, BackupItemObjects, BackupCells);
-    
+
     UE_LOG(LogInventory, Log, TEXT("InventoryTransaction: Restored from backup"));
 }
 
@@ -530,10 +530,10 @@ void USuspenseInventoryTransaction::DestroyCreatedItems()
             ItemActor->Destroy();
         }
     }
-    
-    UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: Destroyed %d created items and %d created instances"), 
+
+    UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: Destroyed %d created items and %d created instances"),
         CreatedItems.Num(), CreatedInstances.Num());
-    
+
     CreatedItems.Empty();
     CreatedInstances.Empty();
 }
@@ -547,7 +547,7 @@ void USuspenseInventoryTransaction::LogTransactionOperation(const FString& Actio
 {
     if (Result.IsSuccess())
     {
-        UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: %s - Success [%s] (Op #%d)"), 
+        UE_LOG(LogInventory, Verbose, TEXT("InventoryTransaction: %s - Success [%s] (Op #%d)"),
             *Action, *CurrentContext.ToString(), OperationCount);
     }
     else
@@ -562,7 +562,7 @@ FString USuspenseInventoryTransaction::GetTransactionDebugInfo() const
     FString DebugInfo;
     DebugInfo += FString::Printf(TEXT("=== Transaction Debug Info ===\n"));
     DebugInfo += FString::Printf(TEXT("Active: %s\n"), bTransactionActive ? TEXT("Yes") : TEXT("No"));
-    
+
     if (bTransactionActive)
     {
         double CurrentDuration = FPlatformTime::Seconds() - TransactionStartTime;
@@ -573,13 +573,13 @@ FString USuspenseInventoryTransaction::GetTransactionDebugInfo() const
         DebugInfo += FString::Printf(TEXT("Created Items: %d\n"), CreatedItems.Num());
         DebugInfo += FString::Printf(TEXT("Created Instances: %d\n"), CreatedInstances.Num());
     }
-    
+
     DebugInfo += FString::Printf(TEXT("Components: Storage=%s, Constraints=%s, ItemManager=%s, Events=%s\n"),
         Storage ? TEXT("OK") : TEXT("NULL"),
         Constraints ? TEXT("OK") : TEXT("NULL"),
         ItemManager ? TEXT("OK") : TEXT("NULL"),
         Events ? TEXT("OK") : TEXT("NULL"));
-    
+
     return DebugInfo;
 }
 
@@ -672,10 +672,10 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
             Context
         );
     }
-    
+
     // Create instance directly from unified data using factory method
     FSuspenseInventoryItemInstance NewInstance = FSuspenseInventoryItemInstance::Create(ItemData.ItemID, Amount);
-    
+
     // Initialize runtime properties based on item type
     if (ItemData.bIsEquippable && ItemData.bIsWeapon)
     {
@@ -683,16 +683,16 @@ FSuspenseInventoryOperationResult USuspenseInventoryTransaction::CreateItemInsta
         NewInstance.SetRuntimeProperty(TEXT("MaxAmmo"), 30.0f); // Default value
         NewInstance.SetRuntimeProperty(TEXT("Ammo"), 30.0f);    // Start full
     }
-    
+
     if (ItemData.bIsEquippable && (ItemData.bIsWeapon || ItemData.bIsArmor))
     {
         // Set durability for equipment
         NewInstance.SetRuntimeProperty(TEXT("MaxDurability"), 100.0f);
         NewInstance.SetRuntimeProperty(TEXT("Durability"), 100.0f);
     }
-    
+
     // Add to tracking
     CreatedInstances.Add(NewInstance);
-    
+
     return FSuspenseInventoryOperationResult::Success(Context);
 }

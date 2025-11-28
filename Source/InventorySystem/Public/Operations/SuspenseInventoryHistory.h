@@ -64,7 +64,7 @@ public:
      * @param OperationType Тип искомой операции
      * @return Указатель на последнюю операцию или nullptr
      */
-    TSharedPtr<FSuspenseInventoryOperation> FindLastOperationOfType(EInventoryOperationType OperationType) const;
+    TSharedPtr<FSuspenseInventoryOperation> FindLastOperationOfType(ESuspenseInventoryOperationType OperationType) const;
 
     /**
      * Возвращает количество операций в истории

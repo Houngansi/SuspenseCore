@@ -7,6 +7,7 @@
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Operations/SuspenseInventoryResult.h"
 
 // Определяем log категорию для consistent logging во всем модуле валидации
 DEFINE_LOG_CATEGORY_STATIC(LogConstraints, Log, All);
@@ -23,7 +24,7 @@ USuspenseInventoryValidator::USuspenseInventoryValidator()
     GridHeight = 0;
     bInitialized = false;
     ItemManagerRef = nullptr;
-    
+
     UE_LOG(LogConstraints, VeryVerbose, TEXT("USuspenseInventoryValidator: Default constructor called"));
 }
 
@@ -34,14 +35,14 @@ void USuspenseInventoryValidator::Initialize(float InMaxWeight, const FGameplayT
     AllowedItemTypes = InAllowedTypes;
     GridWidth = FMath::Max(0, InGridWidth);
     GridHeight = FMath::Max(0, InGridHeight);
-    
+
     // Устанавливаем слабую ссылку на ItemManager для доступа к DataTable
     ItemManagerRef = InItemManager;
-    
+
     bInitialized = true;
-    
+
     UE_LOG(LogConstraints, Log, TEXT("InventoryConstraints initialized: MaxWeight=%.1f, Grid=%dx%d, AllowedTypes=%s, ItemManager=%s"),
-        MaxWeight, GridWidth, GridHeight, *AllowedItemTypes.ToStringSimple(), 
+        MaxWeight, GridWidth, GridHeight, *AllowedItemTypes.ToStringSimple(),
         InItemManager ? TEXT("Available") : TEXT("None"));
 }
 
@@ -52,13 +53,13 @@ bool USuspenseInventoryValidator::InitializeFromLoadout(const FName& LoadoutID, 
         UE_LOG(LogConstraints, Error, TEXT("InitializeFromLoadout: WorldContext is null"));
         return false;
     }
-    
+
     if (LoadoutID.IsNone())
     {
         UE_LOG(LogConstraints, Error, TEXT("InitializeFromLoadout: LoadoutID is None"));
         return false;
     }
-    
+
     // Получаем ItemManager из world context
     UWorld* World = WorldContext->GetWorld();
     if (!World || !World->GetGameInstance())
@@ -66,24 +67,24 @@ bool USuspenseInventoryValidator::InitializeFromLoadout(const FName& LoadoutID, 
         UE_LOG(LogConstraints, Error, TEXT("InitializeFromLoadout: Failed to get world or game instance"));
         return false;
     }
-    
+
     USuspenseItemManager* ItemManager = World->GetGameInstance()->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogConstraints, Error, TEXT("InitializeFromLoadout: ItemManager subsystem not found"));
         return false;
     }
-    
+
     // TODO: Загрузка реальных параметров из LoadoutSettings
     float LoadoutMaxWeight = 50.0f;
     FGameplayTagContainer LoadoutAllowedTypes;
     int32 LoadoutGridWidth = 10;
     int32 LoadoutGridHeight = 6;
-    
+
     Initialize(LoadoutMaxWeight, LoadoutAllowedTypes, LoadoutGridWidth, LoadoutGridHeight, ItemManager);
-    
+
     UE_LOG(LogConstraints, Log, TEXT("InitializeFromLoadout: Successfully initialized from LoadoutID='%s'"), *LoadoutID.ToString());
-    
+
     return true;
 }
 
@@ -100,10 +101,10 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedIt
         LogValidationResult(BasicResult, FString::Printf(TEXT("Basic unified data validation for item '%s'"), *ItemData.ItemID.ToString()));
         return BasicResult;
     }
-    
-    UE_LOG(LogConstraints, VeryVerbose, TEXT("ValidateUnifiedItemData: Item '%s' (x%d) passed basic validation"), 
+
+    UE_LOG(LogConstraints, VeryVerbose, TEXT("ValidateUnifiedItemData: Item '%s' (x%d) passed basic validation"),
         *ItemData.ItemID.ToString(), Amount);
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -115,7 +116,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedIt
     {
         return BasicResult;
     }
-    
+
     // Проверяем типовые ограничения
     if (AllowedItemTypes.Num() > 0 && ItemData.ItemType.IsValid())
     {
@@ -129,12 +130,12 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedIt
                 ),
                 FunctionName
             );
-            
+
             LogValidationResult(TypeResult, FString::Printf(TEXT("Type restriction check for '%s'"), *ItemData.ItemID.ToString()));
             return TypeResult;
         }
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -153,7 +154,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemInsta
             FunctionName
         );
     }
-    
+
     // Получаем unified данные из DataTable
     FSuspenseUnifiedItemData UnifiedData;
     if (!GetUnifiedDataForInstance(ItemInstance, UnifiedData))
@@ -167,24 +168,24 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemInsta
             FunctionName
         );
     }
-    
+
     // Валидируем unified данные
     FSuspenseInventoryOperationResult UnifiedResult = ValidateUnifiedItemDataWithRestrictions(UnifiedData, ItemInstance.Quantity, FunctionName);
     if (!UnifiedResult.IsSuccess())
     {
         return UnifiedResult;
     }
-    
+
     // Валидируем runtime свойства
     FSuspenseInventoryOperationResult RuntimeResult = ValidateRuntimeProperties(ItemInstance, FunctionName);
     if (!RuntimeResult.IsSuccess())
     {
         return RuntimeResult;
     }
-    
-    UE_LOG(LogConstraints, VeryVerbose, TEXT("ValidateItemInstance: Instance '%s' [%s] passed validation"), 
+
+    UE_LOG(LogConstraints, VeryVerbose, TEXT("ValidateItemInstance: Instance '%s' [%s] passed validation"),
         *ItemInstance.ItemID.ToString(), *ItemInstance.InstanceID.ToString().Left(8));
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -193,9 +194,9 @@ int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FSuspenseI
     // ИСПРАВЛЕНО: Правильный доступ к полям структуры результата
     OutFailedInstances.Empty();
     OutFailedInstances.Reserve(ItemInstances.Num() / 4);
-    
+
     int32 SuccessfulCount = 0;
-    
+
     for (const FSuspenseInventoryItemInstance& Instance : ItemInstances)
     {
         FSuspenseInventoryOperationResult ValidationResult = ValidateItemInstance(Instance, FunctionName);
@@ -207,15 +208,15 @@ int32 USuspenseInventoryValidator::ValidateItemInstances(const TArray<FSuspenseI
         {
             OutFailedInstances.Add(Instance);
             UE_LOG(LogConstraints, Warning, TEXT("ValidateItemInstances: Instance '%s' [%s] failed validation: %s"),
-                *Instance.ItemID.ToString(), 
-                *Instance.InstanceID.ToString().Left(8), 
+                *Instance.ItemID.ToString(),
+                *Instance.InstanceID.ToString().Left(8),
                 *ValidationResult.ErrorMessage.ToString()); // ИСПРАВЛЕНО: прямой доступ к полю
         }
     }
-    
-    UE_LOG(LogConstraints, Log, TEXT("ValidateItemInstances: %d/%d instances passed batch validation (%d failed)"), 
+
+    UE_LOG(LogConstraints, Log, TEXT("ValidateItemInstances: %d/%d instances passed batch validation (%d failed)"),
         SuccessfulCount, ItemInstances.Num(), OutFailedInstances.Num());
-    
+
     return SuccessfulCount;
 }
 
@@ -232,7 +233,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimePr
                 FunctionName
             );
         }
-        
+
         if (!FMath::IsFinite(PropertyPair.Value))
         {
             return FSuspenseInventoryOperationResult::Failure(
@@ -245,7 +246,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimePr
                 FunctionName
             );
         }
-        
+
         // Специальные проверки для well-known свойств
         FString PropertyName = PropertyPair.Key.ToString();
         if (PropertyName == TEXT("Durability") || PropertyName == TEXT("MaxDurability"))
@@ -263,13 +264,13 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimePr
             }
         }
     }
-    
+
     // Проверяем логическую consistency между связанными свойствами
     if (ItemInstance.HasRuntimeProperty(TEXT("Durability")) && ItemInstance.HasRuntimeProperty(TEXT("MaxDurability")))
     {
         float CurrentDurability = ItemInstance.GetRuntimeProperty(TEXT("Durability"), 0.0f);
         float MaxDurability = ItemInstance.GetRuntimeProperty(TEXT("MaxDurability"), 100.0f);
-        
+
         if (CurrentDurability > MaxDurability)
         {
             return FSuspenseInventoryOperationResult::Failure(
@@ -283,7 +284,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateRuntimePr
             );
         }
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -301,7 +302,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateSlotIndex
             FunctionName
         );
     }
-    
+
     int32 TotalSlots = GridWidth * GridHeight;
     if (SlotIndex < 0 || SlotIndex >= TotalSlots)
     {
@@ -317,7 +318,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateSlotIndex
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -331,17 +332,17 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateGridBound
             FunctionName
         );
     }
-    
+
     // Валидируем anchor index
     FSuspenseInventoryOperationResult IndexResult = ValidateSlotIndex(AnchorIndex, FunctionName);
     if (!IndexResult.IsSuccess())
     {
         return IndexResult;
     }
-    
+
     // Рассчитываем эффективный размер с учетом поворота
     FVector2D EffectiveSize = CalculateEffectiveItemSize(ItemData.GridSize, bIsRotated);
-    
+
     if (EffectiveSize.X <= 0 || EffectiveSize.Y <= 0)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -355,11 +356,11 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateGridBound
             FunctionName
         );
     }
-    
+
     // Проверяем границы
     int32 AnchorX = AnchorIndex % GridWidth;
     int32 AnchorY = AnchorIndex / GridWidth;
-    
+
     if (AnchorX + FMath::CeilToInt(EffectiveSize.X) > GridWidth)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -371,7 +372,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateGridBound
             FunctionName
         );
     }
-    
+
     if (AnchorY + FMath::CeilToInt(EffectiveSize.Y) > GridHeight)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -383,7 +384,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateGridBound
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -401,7 +402,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateGridBound
             FunctionName
         );
     }
-    
+
     return ValidateGridBoundsForUnified(UnifiedData, AnchorIndex, ItemInstance.bIsRotated, FunctionName);
 }
 
@@ -413,11 +414,11 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlace
     {
         return BoundsResult;
     }
-    
+
     // Проверяем коллизии
     FVector2D EffectiveSize = CalculateEffectiveItemSize(ItemData.GridSize, bIsRotated);
     TArray<int32> RequiredSlots = GetOccupiedSlots(AnchorIndex, EffectiveSize);
-    
+
     int32 TotalSlots = GridWidth * GridHeight;
     if (OccupiedSlots.Num() != TotalSlots)
     {
@@ -431,7 +432,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlace
             FunctionName
         );
     }
-    
+
     // Проверяем занятость слотов
     for (int32 SlotIndex : RequiredSlots)
     {
@@ -439,7 +440,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlace
         {
             int32 SlotX = SlotIndex % GridWidth;
             int32 SlotY = SlotIndex / GridWidth;
-            
+
             return FSuspenseInventoryOperationResult::Failure(
                 ESuspenseInventoryErrorCode::SlotOccupied,
                 FText::Format(
@@ -452,7 +453,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemPlace
             );
         }
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -466,10 +467,10 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateWeightFor
     {
         return FSuspenseInventoryOperationResult::Success(FunctionName);
     }
-    
+
     float AddedWeight = ItemData.Weight * Amount;
     float TotalWeight = CurrentWeight + AddedWeight;
-    
+
     if (TotalWeight > MaxWeight)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -485,7 +486,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateWeightFor
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -503,7 +504,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateWeightFor
             FunctionName
         );
     }
-    
+
     return ValidateWeightForUnified(UnifiedData, ItemInstance.Quantity, CurrentWeight, FunctionName);
 }
 
@@ -513,7 +514,7 @@ bool USuspenseInventoryValidator::WouldExceedWeightLimitUnified(const FSuspenseU
     {
         return false;
     }
-    
+
     float AddedWeight = ItemData.Weight * Amount;
     return (CurrentWeight + AddedWeight) > MaxWeight;
 }
@@ -532,7 +533,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOp
             FunctionName
         );
     }
-    
+
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(ItemObject);
     if (!ItemInterface)
     {
@@ -545,7 +546,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOp
             FunctionName
         );
     }
-    
+
     if (!ItemInterface->IsInitialized())
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -554,7 +555,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemForOp
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -566,14 +567,14 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompa
     {
         return UnifiedResult;
     }
-    
+
     // Валидация веса
     FSuspenseInventoryOperationResult WeightResult = ValidateWeightForUnified(ItemData, Amount, CurrentWeight, FunctionName);
     if (!WeightResult.IsSuccess())
     {
         return WeightResult;
     }
-    
+
     // Дополнительные проверки для специализированных предметов
     if (ItemData.bIsWeapon && !ItemData.WeaponArchetype.IsValid())
     {
@@ -586,7 +587,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompa
             FunctionName
         );
     }
-    
+
     if (ItemData.bIsAmmo && !ItemData.AmmoCaliber.IsValid())
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -598,7 +599,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateItemCompa
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -612,7 +613,7 @@ bool USuspenseInventoryValidator::IsItemTypeAllowed(const FGameplayTag& ItemType
     {
         return true;
     }
-    
+
     for (const FGameplayTag& AllowedTag : AllowedItemTypes)
     {
         if (ItemType == AllowedTag || ItemType.MatchesTag(AllowedTag))
@@ -620,7 +621,7 @@ bool USuspenseInventoryValidator::IsItemTypeAllowed(const FGameplayTag& ItemType
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -630,7 +631,7 @@ bool USuspenseInventoryValidator::IsItemAllowedByAllCriteria(const FSuspenseUnif
     {
         return false;
     }
-    
+
     if (ItemData.bIsWeapon && ItemData.WeaponArchetype.IsValid())
     {
         if (!IsItemTypeAllowed(ItemData.WeaponArchetype))
@@ -638,7 +639,7 @@ bool USuspenseInventoryValidator::IsItemAllowedByAllCriteria(const FSuspenseUnif
             return false;
         }
     }
-    
+
     if (ItemData.bIsArmor && ItemData.ArmorType.IsValid())
     {
         if (!IsItemTypeAllowed(ItemData.ArmorType))
@@ -646,7 +647,7 @@ bool USuspenseInventoryValidator::IsItemAllowedByAllCriteria(const FSuspenseUnif
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -656,7 +657,7 @@ bool USuspenseInventoryValidator::WouldExceedWeightLimit(float CurrentWeight, fl
     {
         return false;
     }
-    
+
     return (CurrentWeight + (ItemWeight * Amount)) > MaxWeight;
 }
 
@@ -688,7 +689,7 @@ FString USuspenseInventoryValidator::GetDetailedDiagnosticInfo() const
     DiagnosticInfo += FString::Printf(TEXT("Max Weight: %.2f kg\n"), MaxWeight);
     DiagnosticInfo += FString::Printf(TEXT("Grid Size: %dx%d (%d total slots)\n"), GridWidth, GridHeight, GridWidth * GridHeight);
     DiagnosticInfo += FString::Printf(TEXT("ItemManager: %s\n"), ItemManagerRef.IsValid() ? TEXT("Available") : TEXT("None"));
-    
+
     if (AllowedItemTypes.IsEmpty())
     {
         DiagnosticInfo += TEXT("Allowed Types: All types allowed\n");
@@ -697,7 +698,7 @@ FString USuspenseInventoryValidator::GetDetailedDiagnosticInfo() const
     {
         DiagnosticInfo += FString::Printf(TEXT("Allowed Types: %s\n"), *AllowedItemTypes.ToStringSimple());
     }
-    
+
     DiagnosticInfo += TEXT("===============================================");
     return DiagnosticInfo;
 }
@@ -705,22 +706,22 @@ FString USuspenseInventoryValidator::GetDetailedDiagnosticInfo() const
 bool USuspenseInventoryValidator::ValidateConstraintsConfiguration(TArray<FString>& OutErrors) const
 {
     OutErrors.Empty();
-    
+
     if (!bInitialized)
     {
         OutErrors.Add(TEXT("Constraints object is not initialized"));
     }
-    
+
     if (MaxWeight < 0.0f)
     {
         OutErrors.Add(FString::Printf(TEXT("Invalid max weight: %.2f"), MaxWeight));
     }
-    
+
     if (GridWidth <= 0 || GridHeight <= 0)
     {
         OutErrors.Add(FString::Printf(TEXT("Invalid grid dimensions: %dx%d"), GridWidth, GridHeight));
     }
-    
+
     return OutErrors.Num() == 0;
 }
 
@@ -734,7 +735,7 @@ USuspenseItemManager* USuspenseInventoryValidator::GetValidatedItemManager() con
     {
         return nullptr;
     }
-    
+
     return ItemManagerRef.Get();
 }
 
@@ -745,7 +746,7 @@ bool USuspenseInventoryValidator::GetUnifiedDataForInstance(const FSuspenseInven
     {
         return false;
     }
-    
+
     return ItemManager->GetUnifiedItemData(ItemInstance.ItemID, OutUnifiedData);
 }
 
@@ -759,7 +760,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDa
             FunctionName
         );
     }
-    
+
     if (Amount <= 0)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -771,7 +772,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDa
             FunctionName
         );
     }
-    
+
     if (Amount > ItemData.MaxStackSize)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -784,7 +785,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDa
             FunctionName
         );
     }
-    
+
     if (ItemData.GridSize.X <= 0 || ItemData.GridSize.Y <= 0)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -797,7 +798,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDa
             FunctionName
         );
     }
-    
+
     if (ItemData.Weight < 0.0f)
     {
         return FSuspenseInventoryOperationResult::Failure(
@@ -809,7 +810,7 @@ FSuspenseInventoryOperationResult USuspenseInventoryValidator::ValidateUnifiedDa
             FunctionName
         );
     }
-    
+
     return FSuspenseInventoryOperationResult::Success(FunctionName);
 }
 
@@ -828,25 +829,25 @@ FVector2D USuspenseInventoryValidator::CalculateEffectiveItemSize(const FIntPoin
 TArray<int32> USuspenseInventoryValidator::GetOccupiedSlots(int32 AnchorIndex, const FVector2D& ItemSize) const
 {
     TArray<int32> OccupiedSlots;
-    
+
     if (AnchorIndex < 0 || GridWidth <= 0)
     {
         return OccupiedSlots;
     }
-    
+
     int32 AnchorX = AnchorIndex % GridWidth;
     int32 AnchorY = AnchorIndex / GridWidth;
-    
+
     int32 ItemWidth = FMath::CeilToInt(ItemSize.X);
     int32 ItemHeight = FMath::CeilToInt(ItemSize.Y);
-    
+
     for (int32 Y = 0; Y < ItemHeight; ++Y)
     {
         for (int32 X = 0; X < ItemWidth; ++X)
         {
             int32 SlotX = AnchorX + X;
             int32 SlotY = AnchorY + Y;
-            
+
             if (SlotX >= 0 && SlotX < GridWidth && SlotY >= 0 && SlotY < GridHeight)
             {
                 int32 SlotIndex = SlotY * GridWidth + SlotX;
@@ -854,7 +855,7 @@ TArray<int32> USuspenseInventoryValidator::GetOccupiedSlots(int32 AnchorIndex, c
             }
         }
     }
-    
+
     return OccupiedSlots;
 }
 
@@ -866,10 +867,10 @@ void USuspenseInventoryValidator::LogValidationResult(const FSuspenseInventoryOp
     }
     else
     {
-        UE_LOG(LogConstraints, Warning, TEXT("ValidationResult [%s]: FAILURE - %s (ErrorCode: %s, Context: %s)"), 
-            *Context, 
+        UE_LOG(LogConstraints, Warning, TEXT("ValidationResult [%s]: FAILURE - %s (ErrorCode: %s, Context: %s)"),
+            *Context,
             *Result.ErrorMessage.ToString(),
             *UEnum::GetValueAsString(Result.ErrorCode),
-            *Result.Context.ToString()); 
+            *Result.Context.ToString());
     }
 }

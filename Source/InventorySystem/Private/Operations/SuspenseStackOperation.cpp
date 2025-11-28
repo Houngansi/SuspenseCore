@@ -8,12 +8,12 @@
 
 // Основной конструктор
 FSuspenseStackOperation::FSuspenseStackOperation(
-    USuspenseInventoryComponent* InComponent, 
-    ASuspenseInventoryItem* InSourceItem, 
-    ASuspenseInventoryItem* InTargetItem, 
+    USuspenseInventoryComponent* InComponent,
+    ASuspenseInventoryItem* InSourceItem,
+    ASuspenseInventoryItem* InTargetItem,
     int32 InAmountToTransfer,
     USuspenseInventoryComponent* InTargetInventory)
-    : FSuspenseInventoryOperation(EInventoryOperationType::Stack, InComponent)
+    : FSuspenseInventoryOperation(ESuspenseInventoryOperationType::Stack, InComponent)
     , SourceItem(InSourceItem)
     , TargetItem(InTargetItem)
     , AmountToTransfer(InAmountToTransfer)
@@ -29,7 +29,7 @@ FSuspenseStackOperation::FSuspenseStackOperation(
             SourceIndex = SourceInterface->GetAnchorIndex();
         }
     }
-    
+
     if (TargetItem)
     {
         // Получаем интерфейс для доступа к свойствам цели
@@ -44,15 +44,15 @@ FSuspenseStackOperation::FSuspenseStackOperation(
 
 // Статический метод создания с валидацией
 FSuspenseStackOperation FSuspenseStackOperation::Create(
-    USuspenseInventoryComponent* InComponent, 
-    ASuspenseInventoryItem* InSourceItem, 
-    ASuspenseInventoryItem* InTargetItem, 
+    USuspenseInventoryComponent* InComponent,
+    ASuspenseInventoryItem* InSourceItem,
+    ASuspenseInventoryItem* InTargetItem,
     int32 InAmountToTransfer,
     USuspenseInventoryComponent* InTargetInventory,
     USuspenseItemManager* InItemManager)
 {
     FSuspenseStackOperation Operation(InComponent, InSourceItem, InTargetItem, InAmountToTransfer, InTargetInventory);
-    
+
     // Базовая валидация
     if (!InSourceItem)
     {
@@ -60,28 +60,28 @@ FSuspenseStackOperation FSuspenseStackOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid source item"));
         return Operation;
     }
-    
+
     if (!InTargetItem && Operation.TargetIndex == INDEX_NONE)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid target item and no target index"));
         return Operation;
     }
-    
+
     if (!InComponent)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Invalid component"));
         return Operation;
     }
-    
+
     if (!InItemManager)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: ItemManager not available"));
         return Operation;
     }
-    
+
     // Кэшируем данные из DataTable
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
@@ -89,14 +89,14 @@ FSuspenseStackOperation FSuspenseStackOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::Create: Failed to cache item data"));
         return Operation;
     }
-    
+
     // Предварительная валидация
     FString ErrorMessage;
     if (!Operation.ValidateStacking(Operation.ErrorCode, ErrorMessage, InItemManager))
     {
         UE_LOG(LogInventory, Warning, TEXT("FSuspenseStackOperation::Create: Validation failed - %s"), *ErrorMessage);
     }
-    
+
     return Operation;
 }
 
@@ -113,7 +113,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Получаем интерфейс источника для определения количества
     const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(InSourceItem);
     if (!SourceInterface)
@@ -122,23 +122,23 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateFullStack(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Создаем операцию с полным количеством исходного предмета
     FSuspenseStackOperation Operation = Create(
-        InComponent, 
-        InSourceItem, 
-        InTargetItem, 
+        InComponent,
+        InSourceItem,
+        InTargetItem,
         SourceInterface->GetAmount(),
         nullptr,
         InItemManager
     );
-    
+
     // Вычисляем фактическое максимальное количество для переноса
     if (Operation.bHasCachedData)
     {
         Operation.AmountToTransfer = Operation.CalculateMaxTransferAmount();
     }
-    
+
     return Operation;
 }
 
@@ -157,7 +157,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
     Operation.AmountToTransfer = InSplitAmount;
     Operation.TargetIndex = InTargetIndex;
     Operation.TargetInventory = InComponent;
-    
+
     if (InSourceItem)
     {
         // Получаем интерфейс источника
@@ -168,7 +168,7 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
             Operation.SourceIndex = SourceInterface->GetAnchorIndex();
         }
     }
-    
+
     // Валидация split операции
     if (!InSourceItem || InSplitAmount <= 0 || InSplitAmount >= Operation.SourceInitialAmount)
     {
@@ -176,20 +176,20 @@ FSuspenseStackOperation FSuspenseStackOperation::CreateSplit(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CreateSplit: Invalid split amount"));
         return Operation;
     }
-    
+
     if (!InItemManager)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         return Operation;
     }
-    
+
     // Кэшируем данные
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return Operation;
     }
-    
+
     return Operation;
 }
 
@@ -200,7 +200,7 @@ bool FSuspenseStackOperation::CacheItemDataFromTable(USuspenseItemManager* InIte
     {
         return false;
     }
-    
+
     // Получаем интерфейс источника
     const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
@@ -208,26 +208,26 @@ bool FSuspenseStackOperation::CacheItemDataFromTable(USuspenseItemManager* InIte
         UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Source item doesn't implement required interface"));
         return false;
     }
-    
+
     // Получаем ItemID через интерфейс
     FName ItemID = SourceInterface->GetItemID();
-    
+
     // Получаем данные из DataTable
     if (!InItemManager->GetUnifiedItemData(ItemID, CachedItemData))
     {
-        UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Failed to get data for %s"), 
+        UE_LOG(LogInventory, Error, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Failed to get data for %s"),
             *ItemID.ToString());
         return false;
     }
-    
+
     // Сохраняем важные параметры
     MaxStackSize = CachedItemData.MaxStackSize;
     ItemWeight = CachedItemData.Weight;
     bHasCachedData = true;
-    
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Cached data for %s - MaxStack: %d, Weight: %.2f"), 
+
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::CacheItemDataFromTable: Cached data for %s - MaxStack: %d, Weight: %.2f"),
         *ItemID.ToString(), MaxStackSize, ItemWeight);
-    
+
     return true;
 }
 
@@ -238,10 +238,10 @@ int32 FSuspenseStackOperation::CalculateMaxTransferAmount() const
     {
         return AmountToTransfer;
     }
-    
+
     // Вычисляем доступное место в целевом стеке
     int32 TargetAvailableSpace = MaxStackSize - TargetInitialAmount;
-    
+
     // Возвращаем минимум из запрошенного, доступного в источнике и места в цели
     return FMath::Min3(AmountToTransfer, SourceInitialAmount, TargetAvailableSpace);
 }
@@ -259,7 +259,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         OutErrorMessage = TEXT("Invalid operation components");
         return false;
     }
-    
+
     // Проверка кэшированных данных
     if (!bHasCachedData)
     {
@@ -267,7 +267,7 @@ bool FSuspenseStackOperation::ValidateStacking(
         OutErrorMessage = TEXT("No cached item data");
         return false;
     }
-    
+
     // Проверка количества
     if (AmountToTransfer <= 0)
     {
@@ -275,15 +275,15 @@ bool FSuspenseStackOperation::ValidateStacking(
         OutErrorMessage = TEXT("Invalid transfer amount");
         return false;
     }
-    
+
     if (AmountToTransfer > SourceInitialAmount)
     {
         OutErrorCode = ESuspenseInventoryErrorCode::InsufficientQuantity;
-        OutErrorMessage = FString::Printf(TEXT("Transfer amount %d exceeds source amount %d"), 
+        OutErrorMessage = FString::Printf(TEXT("Transfer amount %d exceeds source amount %d"),
             AmountToTransfer, SourceInitialAmount);
         return false;
     }
-    
+
     // Валидация для обычного стакинга
     if (TargetItem)
     {
@@ -294,16 +294,16 @@ bool FSuspenseStackOperation::ValidateStacking(
             OutErrorMessage = TEXT("Items are not stackable");
             return false;
         }
-        
+
         // Проверка лимита стека
         if (TargetInitialAmount >= MaxStackSize)
         {
             OutErrorCode = ESuspenseInventoryErrorCode::NoSpace;
-            OutErrorMessage = FString::Printf(TEXT("Target stack is full (%d/%d)"), 
+            OutErrorMessage = FString::Printf(TEXT("Target stack is full (%d/%d)"),
                 TargetInitialAmount, MaxStackSize);
             return false;
         }
-        
+
         // Проверка runtime свойств
         if (!AreRuntimePropertiesCompatible())
         {
@@ -322,7 +322,7 @@ bool FSuspenseStackOperation::ValidateStacking(
             OutErrorMessage = TEXT("Cannot split single item");
             return false;
         }
-        
+
         // Проверка целевой позиции
         if (TargetIndex < 0)
         {
@@ -331,17 +331,17 @@ bool FSuspenseStackOperation::ValidateStacking(
             return false;
         }
     }
-    
+
     // Проверка весовых ограничений для cross-inventory
     if (!ValidateWeightConstraints())
     {
         OutErrorCode = ESuspenseInventoryErrorCode::WeightLimit;
         float TransferWeight = ItemWeight * AmountToTransfer;
-        OutErrorMessage = FString::Printf(TEXT("Weight limit exceeded - transfer weight: %.2f"), 
+        OutErrorMessage = FString::Printf(TEXT("Weight limit exceeded - transfer weight: %.2f"),
             TransferWeight);
         return false;
     }
-    
+
     OutErrorCode = ESuspenseInventoryErrorCode::Success;
     return true;
 }
@@ -353,28 +353,28 @@ bool FSuspenseStackOperation::AreItemsStackable() const
     {
         return false;
     }
-    
+
     // Получаем интерфейсы
     const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     const ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
-    
+
     if (!SourceInterface || !TargetInterface)
     {
         return false;
     }
-    
+
     // Базовая проверка - одинаковый ItemID
     if (SourceInterface->GetItemID() != TargetInterface->GetItemID())
     {
         return false;
     }
-    
+
     // Проверка возможности стакинга из DataTable
     if (MaxStackSize <= 1)
     {
         return false;
     }
-    
+
     return true;
 }
 
@@ -385,36 +385,36 @@ bool FSuspenseStackOperation::AreRuntimePropertiesCompatible() const
     {
         return true;
     }
-    
+
     // Проверка прочности для экипируемых предметов
     if (CachedItemData.bIsEquippable && !bAllowDifferentDurability)
     {
         float SourceDurability = SourceInstance.GetDurabilityPercent();
         float TargetDurability = TargetInstance.GetDurabilityPercent();
-        
+
         // Разрешаем стакинг только с близкой прочностью (разница < 10%)
         if (FMath::Abs(SourceDurability - TargetDurability) > 0.1f)
         {
-            UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation: Durability mismatch - Source: %.2f, Target: %.2f"), 
+            UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation: Durability mismatch - Source: %.2f, Target: %.2f"),
                 SourceDurability, TargetDurability);
             return false;
         }
     }
-    
+
     // Проверка патронов для оружия
     if (CachedItemData.bIsWeapon && !bAllowDifferentAmmo)
     {
         int32 SourceAmmo = SourceInstance.GetCurrentAmmo();
         int32 TargetAmmo = TargetInstance.GetCurrentAmmo();
-        
+
         if (SourceAmmo != TargetAmmo)
         {
-            UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation: Ammo mismatch - Source: %d, Target: %d"), 
+            UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation: Ammo mismatch - Source: %d, Target: %d"),
                 SourceAmmo, TargetAmmo);
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -425,7 +425,7 @@ bool FSuspenseStackOperation::ValidateWeightConstraints() const
     {
         return true; // Вес не меняется при стакинге в одном инвентаре
     }
-    
+
     float TransferWeight = ItemWeight * AmountToTransfer;
     // Используем правильный метод из интерфейса IMedComInventoryInterface
     return TargetInventory->HasWeightCapacity_Implementation(TransferWeight);
@@ -454,7 +454,7 @@ bool FSuspenseStackOperation::ExecuteStacking(
     USuspenseItemManager* InItemManager)
 {
     double StartTime = FPlatformTime::Seconds();
-    
+
     // Финальная валидация
     FString ErrorMessage;
     if (!ValidateStacking(OutErrorCode, ErrorMessage, InItemManager))
@@ -462,7 +462,7 @@ bool FSuspenseStackOperation::ExecuteStacking(
         LogOperationDetails(FString::Printf(TEXT("Execution failed validation: %s"), *ErrorMessage), true);
         return false;
     }
-    
+
     // Выполнение для split операции
     if (IsSplitOperation())
     {
@@ -478,10 +478,10 @@ bool FSuspenseStackOperation::ExecuteStacking(
     {
         // Вычисляем фактическое количество для переноса
         ActualTransferred = CalculateMaxTransferAmount();
-        
+
         // Объединяем runtime свойства
         MergeRuntimeProperties();
-        
+
         // Переносим количество
         if (!TransferAmount())
         {
@@ -489,32 +489,32 @@ bool FSuspenseStackOperation::ExecuteStacking(
             LogOperationDetails(TEXT("Failed to transfer amount"), true);
             return false;
         }
-        
+
         // Применяем объединенные свойства
         ApplyMergedProperties();
     }
-    
+
     // Обрабатываем истощение источника
     HandleSourceDepletion();
-    
+
     // Обновляем веса инвентарей
     UpdateInventoryWeights();
-    
+
     // Отправляем уведомления
     InventoryComponent->BroadcastInventoryUpdated();
     if (IsCrossInventoryStack() && TargetInventory)
     {
         TargetInventory->BroadcastInventoryUpdated();
     }
-    
+
     bSuccess = true;
     OutErrorCode = ESuspenseInventoryErrorCode::Success;
-    
+
     ExecutionTime = static_cast<float>(FPlatformTime::Seconds() - StartTime);
-    
-    LogOperationDetails(FString::Printf(TEXT("Stacking executed successfully in %.3f ms"), 
+
+    LogOperationDetails(FString::Printf(TEXT("Stacking executed successfully in %.3f ms"),
         ExecutionTime * 1000.0f));
-    
+
     return true;
 }
 
@@ -525,32 +525,32 @@ void FSuspenseStackOperation::MergeRuntimeProperties()
     {
         return;
     }
-    
+
     // Вычисляем взвешенное среднее для прочности
     if (CachedItemData.bIsEquippable)
     {
         float SourceDurability = SourceInstance.GetCurrentDurability();
         float TargetDurability = TargetInstance.GetCurrentDurability();
-        
+
         float TotalItems = static_cast<float>(TargetInitialAmount + ActualTransferred);
         float SourceWeight = static_cast<float>(ActualTransferred) / TotalItems;
         float TargetWeight = static_cast<float>(TargetInitialAmount) / TotalItems;
-        
+
         AverageDurability = (SourceDurability * SourceWeight) + (TargetDurability * TargetWeight);
-        
-        UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::MergeRuntimeProperties: Average durability: %.2f"), 
+
+        UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::MergeRuntimeProperties: Average durability: %.2f"),
             AverageDurability);
     }
-    
+
     // Для оружия берем минимальное количество патронов (безопасный подход)
     if (CachedItemData.bIsWeapon)
     {
         AverageAmmo = static_cast<float>(FMath::Min(
-            SourceInstance.GetCurrentAmmo(), 
+            SourceInstance.GetCurrentAmmo(),
             TargetInstance.GetCurrentAmmo()
         ));
-        
-        UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::MergeRuntimeProperties: Using minimum ammo: %.0f"), 
+
+        UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseStackOperation::MergeRuntimeProperties: Using minimum ammo: %.0f"),
             AverageAmmo);
     }
 }
@@ -562,29 +562,29 @@ void FSuspenseStackOperation::ApplyMergedProperties()
     {
         return;
     }
-    
+
     // Получаем интерфейс цели
     ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
     if (!TargetInterface)
     {
         return;
     }
-    
+
     // Применяем среднюю прочность
     if (CachedItemData.bIsEquippable && AverageDurability > 0)
     {
         TargetInstance.SetCurrentDurability(AverageDurability);
     }
-    
+
     // Применяем минимальные патроны
     if (CachedItemData.bIsWeapon && AverageAmmo >= 0)
     {
         TargetInstance.SetCurrentAmmo(static_cast<int32>(AverageAmmo));
     }
-    
+
     // Обновляем время использования
     TargetInstance.LastUsedTime = FPlatformTime::Seconds();
-    
+
     // Применяем обновленный экземпляр
     TargetInterface->SetItemInstance(TargetInstance);
 }
@@ -596,24 +596,24 @@ bool FSuspenseStackOperation::TransferAmount()
     {
         return false;
     }
-    
+
     // Получаем интерфейсы
     ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
-    
+
     if (!SourceInterface || !TargetInterface)
     {
         return false;
     }
-    
+
     // Обновляем количества
     int32 NewSourceAmount = SourceInitialAmount - ActualTransferred;
     int32 NewTargetAmount = TargetInitialAmount + ActualTransferred;
-    
+
     // Применяем новые количества
     bool bSourceSuccess = SourceInterface->TrySetAmount(NewSourceAmount);
     bool bTargetSuccess = TargetInterface->TrySetAmount(NewTargetAmount);
-    
+
     if (!bSourceSuccess || !bTargetSuccess)
     {
         // Откатываем изменения при ошибке
@@ -621,14 +621,14 @@ bool FSuspenseStackOperation::TransferAmount()
         TargetInterface->TrySetAmount(TargetInitialAmount);
         return false;
     }
-    
+
     // Отмечаем истощение источника
     bSourceDepleted = (NewSourceAmount <= 0);
-    
-    LogOperationDetails(FString::Printf(TEXT("Transferred %d items: Source %d->%d, Target %d->%d"), 
-        ActualTransferred, SourceInitialAmount, NewSourceAmount, 
+
+    LogOperationDetails(FString::Printf(TEXT("Transferred %d items: Source %d->%d, Target %d->%d"),
+        ActualTransferred, SourceInitialAmount, NewSourceAmount,
         TargetInitialAmount, NewTargetAmount));
-    
+
     return true;
 }
 
@@ -639,20 +639,20 @@ void FSuspenseStackOperation::HandleSourceDepletion()
     {
         return;
     }
-    
+
     // Получаем ItemID для удаления
     const ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
     {
         return;
     }
-    
+
     FName ItemID = SourceInterface->GetItemID();
-    
+
     // Удаляем предмет из инвентаря через правильный метод интерфейса
     // Поскольку количество уже 0, RemoveItem удалит предмет полностью
     InventoryComponent->RemoveItem(ItemID, 0);
-    
+
     // Уничтожаем актор
     if (AActor* SourceActor = Cast<AActor>(SourceItem))
     {
@@ -668,11 +668,11 @@ bool FSuspenseStackOperation::CreateNewStackForSplit(USuspenseItemManager* InIte
     {
         return false;
     }
-    
+
     // TODO: Implement split stack creation
     // Это требует создания нового актора предмета, что выходит за рамки операции
     // Должно быть реализовано через систему транзакций
-    
+
     LogOperationDetails(TEXT("Split operation not fully implemented"), true);
     return false;
 }
@@ -703,7 +703,7 @@ void FSuspenseStackOperation::LogOperationDetails(const FString& Message, bool b
             ItemName = SourceInterface->GetItemID().ToString();
         }
     }
-    
+
     const FString Details = FString::Printf(
         TEXT("[StackOp] %s - Item: %s, Transfer: %d/%d, CrossInv: %s, Split: %s - %s"),
         *GetOperationDescription(),
@@ -714,7 +714,7 @@ void FSuspenseStackOperation::LogOperationDetails(const FString& Message, bool b
         IsSplitOperation() ? TEXT("Yes") : TEXT("No"),
         *Message
     );
-    
+
     if (bIsError)
     {
         UE_LOG(LogInventory, Error, TEXT("%s"), *Details);
@@ -737,35 +737,35 @@ bool FSuspenseStackOperation::Undo()
     {
         return false;
     }
-    
+
     // Получаем интерфейсы
     ISuspenseInventoryItemInterface* SourceInterface = Cast<ISuspenseInventoryItemInterface>(SourceItem);
     if (!SourceInterface)
     {
         return false;
     }
-    
+
     // Восстанавливаем исходные количества
     bool bSourceSuccess = SourceInterface->TrySetAmount(SourceInitialAmount);
     bool bTargetSuccess = true;
-    
+
     if (TargetItem)
     {
         ISuspenseInventoryItemInterface* TargetInterface = Cast<ISuspenseInventoryItemInterface>(TargetItem);
         if (TargetInterface)
         {
             bTargetSuccess = TargetInterface->TrySetAmount(TargetInitialAmount);
-            
+
             // Восстанавливаем исходные runtime свойства
             TargetInterface->SetItemInstance(TargetInstance);
         }
     }
-    
+
     // Обновляем веса если нужно
     UpdateInventoryWeights();
-    
+
     LogOperationDetails(TEXT("Operation undone"));
-    
+
     return bSourceSuccess && bTargetSuccess;
 }
 
@@ -781,7 +781,7 @@ bool FSuspenseStackOperation::Redo()
     {
         return false;
     }
-    
+
     // Получаем ItemManager
     USuspenseItemManager* ItemManager = nullptr;
     if (UWorld* World = InventoryComponent->GetWorld())
@@ -791,13 +791,13 @@ bool FSuspenseStackOperation::Redo()
             ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
         }
     }
-    
+
     if (!ItemManager)
     {
         LogOperationDetails(TEXT("Redo failed - ItemManager not available"), true);
         return false;
     }
-    
+
     // Повторяем операцию с уникальным именем для локальной переменной
     ESuspenseInventoryErrorCode RedoErrorCode;
     return ExecuteStacking(RedoErrorCode, ItemManager);
@@ -808,7 +808,7 @@ FString FSuspenseStackOperation::ToString() const
     FString ItemName = TEXT("None");
     int32 CurrentSourceAmount = 0;
     int32 CurrentTargetAmount = 0;
-    
+
     // Получаем информацию о источнике
     if (SourceItem)
     {
@@ -818,7 +818,7 @@ FString FSuspenseStackOperation::ToString() const
             CurrentSourceAmount = SourceInterface->GetAmount();
         }
     }
-    
+
     // Получаем информацию о цели
     if (TargetItem)
     {
@@ -827,7 +827,7 @@ FString FSuspenseStackOperation::ToString() const
             CurrentTargetAmount = TargetInterface->GetAmount();
         }
     }
-    
+
     return FString::Printf(
         TEXT("StackOp[%s, Item=%s, Source=%d->%d, Target=%d->%d, Transfer=%d(%d), MaxStack=%d, CrossInv=%s, Success=%s]"),
         *GetOperationDescription(),

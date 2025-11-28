@@ -13,7 +13,7 @@ FSuspenseRotationOperation::FSuspenseRotationOperation(
     USuspenseInventoryComponent* InComponent,
     ASuspenseInventoryItem* InItem,
     bool InTargetRotation)
-    : FSuspenseInventoryOperation(EInventoryOperationType::Rotate, InComponent)
+    : FSuspenseInventoryOperation(ESuspenseInventoryOperationType::Rotate, InComponent)
     , Item(InItem)
     , bTargetRotation(InTargetRotation)
 {
@@ -25,7 +25,7 @@ FSuspenseRotationOperation::FSuspenseRotationOperation(
             // Сохраняем исходное состояние
             bInitialRotation = ItemInterface->IsRotated();
             AnchorIndex = ItemInterface->GetAnchorIndex();
-            
+
             // Получаем runtime экземпляр
             ItemInstance = ItemInterface->GetItemInstance();
         }
@@ -34,12 +34,12 @@ FSuspenseRotationOperation::FSuspenseRotationOperation(
 
 // Статический метод создания базовый
 FSuspenseRotationOperation FSuspenseRotationOperation::Create(
-    ASuspenseInventoryItem* InItem, 
+    ASuspenseInventoryItem* InItem,
     bool InTargetRotation,
     USuspenseItemManager* InItemManager)
 {
     FSuspenseRotationOperation Operation;
-    
+
     // Базовая валидация
     if (!InItem)
     {
@@ -47,14 +47,14 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Invalid item"));
         return Operation;
     }
-    
+
     if (!InItemManager)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: ItemManager not available"));
         return Operation;
     }
-    
+
     // Получаем интерфейс предмета
     const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(InItem);
     if (!ItemInterface)
@@ -63,14 +63,14 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Item doesn't implement required interface"));
         return Operation;
     }
-    
+
     // Инициализация базовых полей
     Operation.Item = InItem;
     Operation.bInitialRotation = ItemInterface->IsRotated();
     Operation.bTargetRotation = InTargetRotation;
     Operation.AnchorIndex = ItemInterface->GetAnchorIndex();
     Operation.ItemInstance = ItemInterface->GetItemInstance();
-    
+
     // Кэширование данных из DataTable
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
@@ -78,10 +78,10 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::Create: Failed to cache item data"));
         return Operation;
     }
-    
+
     // Вычисление размеров
     Operation.CalculateEffectiveSizes();
-    
+
     // Предварительная валидация
     FString ErrorMessage;
     // ИСПРАВЛЕНО: используем временную переменную для избежания конфликта имен
@@ -91,26 +91,26 @@ FSuspenseRotationOperation FSuspenseRotationOperation::Create(
         Operation.ErrorCode = ValidationError;
         UE_LOG(LogInventory, Warning, TEXT("FSuspenseRotationOperation::Create: Validation failed - %s"), *ErrorMessage);
     }
-    
+
     return Operation;
 }
 
 // Статический метод создания с компонентом
 FSuspenseRotationOperation FSuspenseRotationOperation::Create(
-    USuspenseInventoryComponent* InComponent, 
-    ASuspenseInventoryItem* InItem, 
+    USuspenseInventoryComponent* InComponent,
+    ASuspenseInventoryItem* InItem,
     bool InTargetRotation,
     USuspenseItemManager* InItemManager)
 {
     FSuspenseRotationOperation Operation = Create(InItem, InTargetRotation, InItemManager);
     Operation.InventoryComponent = InComponent;
-    
+
     // Дополнительная валидация с учетом компонента
     if (InComponent && Operation.ErrorCode == ESuspenseInventoryErrorCode::Success)
     {
         Operation.CalculateTargetCells();
     }
-    
+
     return Operation;
 }
 
@@ -126,7 +126,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Получаем интерфейс для доступа к текущему состоянию
     const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(InItem);
     if (!ItemInterface)
@@ -135,7 +135,7 @@ FSuspenseRotationOperation FSuspenseRotationOperation::CreateToggle(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Создаем операцию с противоположным состоянием
     bool bCurrentRotation = ItemInterface->IsRotated();
     return Create(InComponent, InItem, !bCurrentRotation, InItemManager);
@@ -148,7 +148,7 @@ bool FSuspenseRotationOperation::CacheItemDataFromTable(USuspenseItemManager* In
     {
         return false;
     }
-    
+
     // Получаем интерфейс предмета
     const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
@@ -156,28 +156,28 @@ bool FSuspenseRotationOperation::CacheItemDataFromTable(USuspenseItemManager* In
         UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Item doesn't implement required interface"));
         return false;
     }
-    
+
     // Получаем ItemID через интерфейс
     FName ItemID = ItemInterface->GetItemID();
-    
+
     // Получаем данные из DataTable
     if (!InItemManager->GetUnifiedItemData(ItemID, CachedItemData))
     {
-        UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Failed to get data for %s"), 
+        UE_LOG(LogInventory, Error, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Failed to get data for %s"),
             *ItemID.ToString());
         return false;
     }
-    
+
     // Сохраняем базовый размер (корректная конвертация FIntPoint в FVector2D)
     BaseGridSize.X = static_cast<int32>(CachedItemData.GridSize.X);
     BaseGridSize.Y = static_cast<int32>(CachedItemData.GridSize.Y);
-    
+
     bHasCachedData = true;
-    
+
     // ИСПРАВЛЕНО: используем %d для int32 вместо %.0f
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Cached data for %s - Size: %dx%d"), 
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CacheItemDataFromTable: Cached data for %s - Size: %dx%d"),
         *ItemID.ToString(), BaseGridSize.X, BaseGridSize.Y);
-    
+
     return true;
 }
 
@@ -189,7 +189,7 @@ void FSuspenseRotationOperation::CalculateEffectiveSizes()
         UE_LOG(LogInventory, Warning, TEXT("FSuspenseRotationOperation::CalculateEffectiveSizes: No cached data"));
         return;
     }
-    
+
     // Исходный размер
     if (bInitialRotation)
     {
@@ -199,7 +199,7 @@ void FSuspenseRotationOperation::CalculateEffectiveSizes()
     {
         InitialEffectiveSize = FVector2D(BaseGridSize.X, BaseGridSize.Y);
     }
-    
+
     // Целевой размер
     if (bTargetRotation)
     {
@@ -209,8 +209,8 @@ void FSuspenseRotationOperation::CalculateEffectiveSizes()
     {
         TargetEffectiveSize = FVector2D(BaseGridSize.X, BaseGridSize.Y);
     }
-    
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CalculateEffectiveSizes: Initial: %.0fx%.0f, Target: %.0fx%.0f"), 
+
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CalculateEffectiveSizes: Initial: %.0fx%.0f, Target: %.0fx%.0f"),
         InitialEffectiveSize.X, InitialEffectiveSize.Y,
         TargetEffectiveSize.X, TargetEffectiveSize.Y);
 }
@@ -227,7 +227,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
         OutErrorMessage = TEXT("Invalid item");
         return false;
     }
-    
+
     // Проверка кэшированных данных
     if (!bHasCachedData)
     {
@@ -235,7 +235,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
         OutErrorMessage = TEXT("No cached item data");
         return false;
     }
-    
+
     // Проверка изменения состояния
     if (!HasRotationChanged())
     {
@@ -243,7 +243,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
         OutErrorMessage = TEXT("No rotation change needed");
         return true; // Технически это не ошибка
     }
-    
+
     // Проверка размещения в инвентаре
     if (AnchorIndex == INDEX_NONE)
     {
@@ -251,7 +251,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
         OutErrorMessage = TEXT("Item not placed in inventory");
         return false;
     }
-    
+
     // Проверка компонента инвентаря для детальной валидации
     if (InventoryComponent)
     {
@@ -259,11 +259,11 @@ bool FSuspenseRotationOperation::ValidateRotation(
         FVector2D GridSize = InventoryComponent->GetInventorySize();
         int32 GridWidth = static_cast<int32>(GridSize.X);
         int32 GridHeight = static_cast<int32>(GridSize.Y);
-        
+
         int32 AnchorX = AnchorIndex % GridWidth;
         int32 AnchorY = AnchorIndex / GridWidth;
-        
-        if (AnchorX + TargetEffectiveSize.X > GridWidth || 
+
+        if (AnchorX + TargetEffectiveSize.X > GridWidth ||
             AnchorY + TargetEffectiveSize.Y > GridHeight)
         {
             OutErrorCode = ESuspenseInventoryErrorCode::NoSpace;
@@ -275,7 +275,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
             );
             return false;
         }
-        
+
         // Проверка коллизий
         if (!CheckCollisions())
         {
@@ -284,7 +284,7 @@ bool FSuspenseRotationOperation::ValidateRotation(
             return false;
         }
     }
-    
+
     OutErrorCode = ESuspenseInventoryErrorCode::Success;
     return true;
 }
@@ -295,7 +295,7 @@ bool FSuspenseRotationOperation::CheckCollisions() const
     {
         return true; // Нет данных для проверки
     }
-    
+
     // ИСПРАВЛЕНО: Используем GetItemInstanceAtSlot вместо GetItemAtSlot
     // Проверяем что все целевые ячейки свободны или заняты текущим предметом
     for (int32 CellIndex : TargetOccupiedCells)
@@ -312,7 +312,7 @@ bool FSuspenseRotationOperation::CheckCollisions() const
         }
         // Если GetItemInstanceAtSlot вернул false, ячейка свободна
     }
-    
+
     return true;
 }
 
@@ -320,22 +320,22 @@ bool FSuspenseRotationOperation::CheckCollisions() const
 void FSuspenseRotationOperation::CalculateTargetCells()
 {
     TargetOccupiedCells.Empty();
-    
+
     if (!InventoryComponent || AnchorIndex == INDEX_NONE)
     {
         return;
     }
-    
+
     FVector2D GridSize = InventoryComponent->GetInventorySize();
     int32 GridWidth = static_cast<int32>(GridSize.X);
-    
+
     int32 AnchorX = AnchorIndex % GridWidth;
     int32 AnchorY = AnchorIndex / GridWidth;
-    
+
     // Резервируем память
     int32 CellCount = static_cast<int32>(TargetEffectiveSize.X * TargetEffectiveSize.Y);
     TargetOccupiedCells.Reserve(CellCount);
-    
+
     // Вычисляем все ячейки которые будут заняты после поворота
     for (int32 Y = 0; Y < TargetEffectiveSize.Y; ++Y)
     {
@@ -345,8 +345,8 @@ void FSuspenseRotationOperation::CalculateTargetCells()
             TargetOccupiedCells.Add(CellIndex);
         }
     }
-    
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CalculateTargetCells: %d cells for item at anchor %d"), 
+
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseRotationOperation::CalculateTargetCells: %d cells for item at anchor %d"),
         TargetOccupiedCells.Num(), AnchorIndex);
 }
 
@@ -357,7 +357,7 @@ FString FSuspenseRotationOperation::GetOperationDescription() const
     {
         return TEXT("No Rotation Change");
     }
-    
+
     if (HasSizeChanged())
     {
         return FString::Printf(TEXT("Rotate %s (%.0fx%.0f -> %.0fx%.0f)"),
@@ -376,7 +376,7 @@ FString FSuspenseRotationOperation::GetOperationDescription() const
 bool FSuspenseRotationOperation::ExecuteRotation(ESuspenseInventoryErrorCode& OutErrorCode)
 {
     double StartTime = FPlatformTime::Seconds();
-    
+
     // Финальная валидация
     FString ErrorMessage;
     if (!ValidateRotation(OutErrorCode, ErrorMessage))
@@ -384,7 +384,7 @@ bool FSuspenseRotationOperation::ExecuteRotation(ESuspenseInventoryErrorCode& Ou
         LogOperationDetails(FString::Printf(TEXT("Execution failed validation: %s"), *ErrorMessage), true);
         return false;
     }
-    
+
     // Если нет изменений, считаем операцию успешной
     if (!HasRotationChanged())
     {
@@ -393,26 +393,26 @@ bool FSuspenseRotationOperation::ExecuteRotation(ESuspenseInventoryErrorCode& Ou
         LogOperationDetails(TEXT("No rotation needed - already in target state"));
         return true;
     }
-    
+
     // Применяем поворот
     ApplyRotation(bTargetRotation);
-    
+
     // Обновляем размещение в сетке если есть компонент
     if (InventoryComponent)
     {
         UpdateGridPlacement();
     }
-    
+
     // Отмечаем успех
     bSuccess = true;
     OutErrorCode = ESuspenseInventoryErrorCode::Success;
-    
+
     // Записываем время выполнения
     ExecutionTime = static_cast<float>(FPlatformTime::Seconds() - StartTime);
-    
-    LogOperationDetails(FString::Printf(TEXT("Rotation executed successfully in %.3f ms"), 
+
+    LogOperationDetails(FString::Printf(TEXT("Rotation executed successfully in %.3f ms"),
         ExecutionTime * 1000.0f));
-    
+
     return true;
 }
 
@@ -423,25 +423,25 @@ void FSuspenseRotationOperation::ApplyRotation(bool bRotated)
     {
         return;
     }
-    
+
     // Получаем интерфейс предмета
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         return;
     }
-    
+
     // Применяем новое состояние поворота
     ItemInterface->SetRotated(bRotated);
-    
+
     // Обновляем runtime свойства
     ItemInstance.bIsRotated = bRotated;
     ItemInstance.LastUsedTime = FPlatformTime::Seconds();
-    
+
     // Применяем обновленный экземпляр
     ItemInterface->SetItemInstance(ItemInstance);
-    
-    LogOperationDetails(FString::Printf(TEXT("Applied rotation state: %s"), 
+
+    LogOperationDetails(FString::Printf(TEXT("Applied rotation state: %s"),
         bRotated ? TEXT("Rotated") : TEXT("Normal")));
 }
 
@@ -451,23 +451,23 @@ void FSuspenseRotationOperation::UpdateGridPlacement()
     {
         return;
     }
-    
+
     // ИСПРАВЛЕНО: Используем RotateItemAtSlot вместо RotateItem
     // В новой архитектуре работаем со слотами, а не с объектами
-    
+
     // Проверяем возможность поворота через слот
     if (InventoryComponent->CanRotateItemAtSlot(AnchorIndex))
     {
         // Выполняем поворот через API инвентаря
         bool bRotateSuccess = InventoryComponent->RotateItemAtSlot(AnchorIndex);
-        
+
         if (bRotateSuccess)
         {
             LogOperationDetails(TEXT("Grid placement updated via InventoryComponent::RotateItemAtSlot"));
         }
         else
         {
-            UE_LOG(LogInventory, Warning, 
+            UE_LOG(LogInventory, Warning,
                 TEXT("FSuspenseRotationOperation::UpdateGridPlacement: RotateItemAtSlot failed for slot %d"),
                 AnchorIndex);
         }
@@ -475,14 +475,14 @@ void FSuspenseRotationOperation::UpdateGridPlacement()
     else
     {
         // Если прямой поворот невозможен, логируем причину
-        UE_LOG(LogInventory, Warning, 
+        UE_LOG(LogInventory, Warning,
             TEXT("FSuspenseRotationOperation::UpdateGridPlacement: CanRotateItemAtSlot returned false for slot %d"),
             AnchorIndex);
-        
+
         // Альтернатива: пробуем обновить через refresh
         InventoryComponent->RefreshItemsUI();
     }
-    
+
     // Всегда отправляем уведомление об изменении
     InventoryComponent->BroadcastInventoryUpdated();
 }
@@ -500,7 +500,7 @@ void FSuspenseRotationOperation::LogOperationDetails(const FString& Message, boo
         bTargetRotation ? TEXT("Rotated") : TEXT("Normal"),
         *Message
     );
-    
+
     if (bIsError)
     {
         UE_LOG(LogInventory, Error, TEXT("%s"), *Details);
@@ -523,22 +523,22 @@ bool FSuspenseRotationOperation::Undo()
     {
         return false;
     }
-    
+
     // Применяем исходное состояние поворота
     ApplyRotation(bInitialRotation);
-    
+
     // Обновляем размещение в сетке
     if (InventoryComponent)
     {
         UpdateGridPlacement();
     }
-    
+
     LogOperationDetails(TEXT("Operation undone"));
-    
+
     return true;
 }
 
-// Реализация Redo  
+// Реализация Redo
 bool FSuspenseRotationOperation::CanRedo() const
 {
     return Item != nullptr && HasRotationChanged();
@@ -550,18 +550,18 @@ bool FSuspenseRotationOperation::Redo()
     {
         return false;
     }
-    
+
     // Повторяем операцию поворота
     // ИСПРАВЛЕНО: используем локальную переменную для избежания конфликта имен
     ESuspenseInventoryErrorCode RedoErrorCode;
     bool bResult = ExecuteRotation(RedoErrorCode);
-    
+
     if (!bResult)
     {
-        LogOperationDetails(FString::Printf(TEXT("Redo failed with error: %d"), 
+        LogOperationDetails(FString::Printf(TEXT("Redo failed with error: %d"),
             static_cast<int32>(RedoErrorCode)), true);
     }
-    
+
     return bResult;
 }
 

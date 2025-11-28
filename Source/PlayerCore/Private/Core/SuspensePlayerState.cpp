@@ -441,7 +441,7 @@ int32 ASuspensePlayerState::GetTeamId_Implementation() const
 
 USuspenseEventManager* ASuspensePlayerState::GetDelegateManager() const
 {
-    return ISuspenseCharacter::GetDelegateManagerStatic(this);
+    return ISuspenseCharacterInterface::GetDelegateManagerStatic(this);
 }
 
 //========================================

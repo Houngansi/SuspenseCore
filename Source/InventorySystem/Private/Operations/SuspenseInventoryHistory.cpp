@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Operations/SuspenseInventoryHistory.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 UInventoryHistory::UInventoryHistory()
     : CurrentIndex(-1)
@@ -17,24 +17,24 @@ void UInventoryHistory::AddOperation(const FSuspenseInventoryOperation& Operatio
     {
         Operations.RemoveAt(CurrentIndex + 1, Operations.Num() - CurrentIndex - 1);
     }
-    
+
     // Создаем новую операцию в куче (heap) и добавляем в историю
     TSharedPtr<FSuspenseInventoryOperation> NewOperation = MakeShared<FSuspenseInventoryOperation>(Operation);
     Operations.Add(NewOperation);
-    
+
     // Увеличиваем текущий индекс
     CurrentIndex = Operations.Num() - 1;
-    
+
     // Проверяем лимит истории
     EnforceHistoryLimit();
-    
-    UE_LOG(LogInventory, Verbose, TEXT("[InventoryHistory] Added operation: %s. Total: %d, Current: %d"), 
+
+    UE_LOG(LogInventory, Verbose, TEXT("[InventoryHistory] Added operation: %s. Total: %d, Current: %d"),
            *Operation.ToString(), Operations.Num(), CurrentIndex);
 }
 
 bool UInventoryHistory::CanUndo() const
 {
-    return CurrentIndex >= 0 && Operations.IsValidIndex(CurrentIndex) && 
+    return CurrentIndex >= 0 && Operations.IsValidIndex(CurrentIndex) &&
            Operations[CurrentIndex]->CanUndo();
 }
 
@@ -45,32 +45,32 @@ bool UInventoryHistory::Undo()
         UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Cannot undo: No valid operation at index %d"), CurrentIndex);
         return false;
     }
-    
+
     // Получаем текущую операцию
     TSharedPtr<FSuspenseInventoryOperation> Operation = Operations[CurrentIndex];
-    
+
     // Выполняем отмену операции
     bool bResult = Operation->Undo();
-    
+
     if (bResult)
     {
         // Уменьшаем текущий индекс
         CurrentIndex--;
-        UE_LOG(LogInventory, Log, TEXT("[InventoryHistory] Undone operation: %s. New current index: %d"), 
+        UE_LOG(LogInventory, Log, TEXT("[InventoryHistory] Undone operation: %s. New current index: %d"),
                *Operation->ToString(), CurrentIndex);
     }
     else
     {
-        UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Failed to undo operation: %s"), 
+        UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Failed to undo operation: %s"),
                *Operation->ToString());
     }
-    
+
     return bResult;
 }
 
 bool UInventoryHistory::CanRedo() const
 {
-    return Operations.IsValidIndex(CurrentIndex + 1) && 
+    return Operations.IsValidIndex(CurrentIndex + 1) &&
            Operations[CurrentIndex + 1]->CanRedo();
 }
 
@@ -81,29 +81,29 @@ bool UInventoryHistory::Redo()
         UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Cannot redo: No valid operation at index %d"), CurrentIndex + 1);
         return false;
     }
-    
+
     // Увеличиваем текущий индекс
     CurrentIndex++;
-    
+
     // Получаем операцию для повтора
     TSharedPtr<FSuspenseInventoryOperation> Operation = Operations[CurrentIndex];
-    
+
     // Выполняем повтор операции
     bool bResult = Operation->Redo();
-    
+
     if (bResult)
     {
-        UE_LOG(LogInventory, Log, TEXT("[InventoryHistory] Redone operation: %s. New current index: %d"), 
+        UE_LOG(LogInventory, Log, TEXT("[InventoryHistory] Redone operation: %s. New current index: %d"),
                *Operation->ToString(), CurrentIndex);
     }
     else
     {
         // Если повтор не удался, возвращаемся к предыдущему индексу
         CurrentIndex--;
-        UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Failed to redo operation: %s"), 
+        UE_LOG(LogInventory, Warning, TEXT("[InventoryHistory] Failed to redo operation: %s"),
                *Operation->ToString());
     }
-    
+
     return bResult;
 }
 
@@ -114,7 +114,7 @@ void UInventoryHistory::ClearHistory()
     UE_LOG(LogInventory, Log, TEXT("[InventoryHistory] History cleared"));
 }
 
-TSharedPtr<FSuspenseInventoryOperation> UInventoryHistory::FindLastOperationOfType(EInventoryOperationType OperationType) const
+TSharedPtr<FSuspenseInventoryOperation> UInventoryHistory::FindLastOperationOfType(ESuspenseInventoryOperationType OperationType) const
 {
     // Ищем операцию, начиная с текущего индекса и двигаясь назад
     for (int32 i = CurrentIndex; i >= 0; i--)
@@ -124,7 +124,7 @@ TSharedPtr<FSuspenseInventoryOperation> UInventoryHistory::FindLastOperationOfTy
             return Operations[i];
         }
     }
-    
+
     return nullptr;
 }
 
@@ -159,11 +159,11 @@ void UInventoryHistory::EnforceHistoryLimit()
     {
         int32 RemoveCount = Operations.Num() - HistoryLimit;
         Operations.RemoveAt(0, RemoveCount);
-        
+
         // Корректируем текущий индекс
         CurrentIndex = FMath::Max(0, CurrentIndex - RemoveCount);
-        
-        UE_LOG(LogInventory, Verbose, TEXT("[InventoryHistory] Removed %d oldest operations to enforce history limit"), 
+
+        UE_LOG(LogInventory, Verbose, TEXT("[InventoryHistory] Removed %d oldest operations to enforce history limit"),
                RemoveCount);
     }
 }

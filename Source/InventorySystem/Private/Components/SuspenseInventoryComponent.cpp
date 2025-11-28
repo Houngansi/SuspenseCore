@@ -2879,7 +2879,7 @@ bool USuspenseInventoryComponent::LoadFromFile(const FString& FilePath)
     return SerializerComponent->LoadInventoryFromFile(this, FilePath);
 }
 
-const FSuspenseLoadoutConfiguration* USuspenseInventoryComponent::GetCurrentLoadoutConfig() const
+const FLoadoutConfiguration* USuspenseInventoryComponent::GetCurrentLoadoutConfig() const
 {
     if (CurrentLoadoutID.IsNone())
     {

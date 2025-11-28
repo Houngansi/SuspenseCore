@@ -177,7 +177,7 @@ public:
     void LogInventoryStatistics(const FString& Context) const;
 
     /** Get current loadout configuration if initialized from loadout */
-    const FSuspenseLoadoutConfiguration* GetCurrentLoadoutConfig() const;
+    const FLoadoutConfiguration* GetCurrentLoadoutConfig() const;
 
     /** Check if inventory was initialized from a loadout */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Loadout")

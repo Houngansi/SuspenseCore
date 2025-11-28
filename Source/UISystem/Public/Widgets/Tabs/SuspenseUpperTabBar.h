@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/Tabs/ISuspenseTabBarInterface.h"
+#include "Interfaces/Tabs/ISuspenseTabBar.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseUpperTabBar.generated.h"
 
@@ -27,10 +27,10 @@ enum class ETabContentLayoutType : uint8
 {
     /** Single widget - backward compatibility */
     Single UMETA(DisplayName = "Single Widget"),
-    
+
     /** Multiple widgets with layout */
     Layout UMETA(DisplayName = "Layout Widget"),
-    
+
     /** Custom composite widget */
     Custom UMETA(DisplayName = "Custom")
 };
@@ -86,7 +86,7 @@ struct FSuspenseTabConfig
  * Обеспечивает обратную совместимость с существующими конфигурациями
  */
 UCLASS()
-class UISYSTEM_API USuspenseUpperTabBar : public USuspenseBaseWidget, public ISuspenseTabBarInterface
+class UISYSTEM_API USuspenseUpperTabBar : public USuspenseBaseWidget, public ISuspenseTabBar
 {
     GENERATED_BODY()
 
@@ -96,7 +96,7 @@ public:
     //=============================================================================
     // ISuspenseTabBarInterface Implementation
     //=============================================================================
-    
+
     virtual int32 GetTabCount_Implementation() const override;
     virtual bool SelectTabByIndex_Implementation(int32 TabIndex) override;
     virtual int32 GetSelectedTabIndex_Implementation() const override;
@@ -104,7 +104,7 @@ public:
     virtual void SetTabEnabled_Implementation(int32 TabIndex, bool bEnabled) override;
     virtual bool IsTabEnabled_Implementation(int32 TabIndex) const override;
     virtual FGameplayTag GetTabBarTag_Implementation() const override;
-    
+
     // Native delegate getters for C++ binding
     virtual FOnTabBarSelectionChanged* GetOnTabSelectionChanged() override;
     virtual FOnTabBarClosed* GetOnTabBarClosed() override;
@@ -305,17 +305,17 @@ private:
 
     /** Обработчик активации экрана */
     void OnScreenActivated(int32 TabIndex);
-    
+
     /** Create single widget content */
     UUserWidget* CreateSingleWidgetContent(const FSuspenseTabConfig& Config);
-    
+
     /** Create layout widget content */
     UUserWidget* CreateLayoutWidgetContent(const FSuspenseTabConfig& Config);
 
     /** Маппинг кнопок на индексы */
     UPROPERTY(Transient)
     TMap<UButton*, int32> ButtonToIndexMap;
-    
+
     /** Универсальный обработчик нажатия кнопки вкладки */
     UFUNCTION()
     void InternalOnTabButtonClicked();

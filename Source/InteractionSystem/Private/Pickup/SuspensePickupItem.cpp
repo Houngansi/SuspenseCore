@@ -23,12 +23,12 @@ ASuspensePickupItem::ASuspensePickupItem()
 {
     bReplicates = true;
     SetReplicateMovement(true);
-    
+
     // Get default settings
     const USuspenseInteractionSettings* Settings = GetDefault<USuspenseInteractionSettings>();
-    TEnumAsByte<ECollisionChannel> TraceChannel = 
+    TEnumAsByte<ECollisionChannel> TraceChannel =
         Settings ? Settings->DefaultTraceChannel : TEnumAsByte<ECollisionChannel>(ECC_Visibility);
-    
+
     // Create root collision component
     SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
     RootComponent = SphereCollision;
@@ -38,7 +38,7 @@ ASuspensePickupItem::ASuspensePickupItem()
     SphereCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
     SphereCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     SphereCollision->SetCollisionResponseToChannel(TraceChannel, ECR_Block);
-    
+
     // Create mesh component
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
     MeshComponent->SetupAttachment(RootComponent);
@@ -46,17 +46,17 @@ ASuspensePickupItem::ASuspensePickupItem()
     MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
     MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     MeshComponent->SetCollisionResponseToChannel(TraceChannel, ECR_Block);
-    
+
     // Create VFX component (inactive by default)
     SpawnVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpawnVFX"));
     SpawnVFXComponent->SetupAttachment(RootComponent);
     SpawnVFXComponent->bAutoActivate = false;
-    
+
     // Create audio component (inactive by default)
     AudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComponent"));
     AudioComponent->SetupAttachment(RootComponent);
     AudioComponent->bAutoActivate = false;
-    
+
     // Default values
     Amount = 1;
     bHasSavedAmmoState = false;
@@ -72,10 +72,10 @@ ASuspensePickupItem::ASuspensePickupItem()
 void ASuspensePickupItem::BeginPlay()
 {
     Super::BeginPlay();
-    
-    UE_LOG(LogSuspenseInteraction, Log, TEXT("Pickup BeginPlay: %s with ItemID: %s"), 
+
+    UE_LOG(LogSuspenseInteraction, Log, TEXT("Pickup BeginPlay: %s with ItemID: %s"),
         *GetName(), *ItemID.ToString());
-    
+
     // Load item data from DataTable
     if (!ItemID.IsNone())
     {
@@ -88,7 +88,7 @@ void ASuspensePickupItem::BeginPlay()
         }
         else
         {
-            UE_LOG(LogSuspenseInteraction, Error, TEXT("Pickup %s failed to load item data for: %s"), 
+            UE_LOG(LogSuspenseInteraction, Error, TEXT("Pickup %s failed to load item data for: %s"),
                 *GetName(), *ItemID.ToString());
         }
     }
@@ -96,7 +96,7 @@ void ASuspensePickupItem::BeginPlay()
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("Pickup %s has no ItemID set!"), *GetName());
     }
-    
+
     // Broadcast spawn event
     BroadcastPickupSpawned();
 }
@@ -110,7 +110,7 @@ void ASuspensePickupItem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ASuspensePickupItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(ASuspensePickupItem, ItemID);
     DOREPLIFETIME(ASuspensePickupItem, Amount);
     DOREPLIFETIME(ASuspensePickupItem, bHasSavedAmmoState);
@@ -123,7 +123,7 @@ void ASuspensePickupItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 void ASuspensePickupItem::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
-    
+
     // In editor, try to load and apply visuals
     if (GetWorld() && GetWorld()->IsEditorWorld() && !ItemID.IsNone())
     {
@@ -145,15 +145,15 @@ void ASuspensePickupItem::InitializeFromInstance(const FSuspenseInventoryItemIns
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("InitializeFromInstance: Invalid instance provided"));
         return;
     }
-    
+
     // Set runtime instance and enable its usage
     RuntimeInstance = Instance;
     bUseRuntimeInstance = true;
-    
+
     // Extract basic properties from instance
     ItemID = Instance.ItemID;
     Amount = Instance.Quantity;
-    
+
     // Handle weapon ammo state
     if (Instance.HasRuntimeProperty(TEXT("Ammo")))
     {
@@ -161,7 +161,7 @@ void ASuspensePickupItem::InitializeFromInstance(const FSuspenseInventoryItemIns
         SavedCurrentAmmo = Instance.GetRuntimeProperty(TEXT("Ammo"), 0.0f);
         SavedRemainingAmmo = Instance.GetRuntimeProperty(TEXT("RemainingAmmo"), 0.0f);
     }
-    
+
     // Trigger data loading and visual update
     if (LoadItemData())
     {
@@ -169,41 +169,41 @@ void ASuspensePickupItem::InitializeFromInstance(const FSuspenseInventoryItemIns
         ApplyItemAudio();
         ApplyItemVFX();
     }
-    
-    UE_LOG(LogSuspenseInteraction, Log, TEXT("InitializeFromInstance: Initialized pickup for %s with full runtime state"), 
+
+    UE_LOG(LogSuspenseInteraction, Log, TEXT("InitializeFromInstance: Initialized pickup for %s with full runtime state"),
         *ItemID.ToString());
 }
 
-void ASuspensePickupItem::InitializeFromSpawnData(const FPickupSpawnData& SpawnData)
+void ASuspensePickupItem::InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData)
 {
     if (!SpawnData.IsValid())
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
+        UE_LOG(LogSuspenseInteraction, Warning,
             TEXT("InitializeFromSpawnData: Invalid spawn data provided"));
         return;
     }
-    
+
     // Устанавливаем базовые свойства
     ItemID = SpawnData.ItemID;
     Amount = SpawnData.Quantity;
-    
+
     // Конвертируем TMap в TArray для репликации
     SetPresetPropertiesFromMap(SpawnData.PresetRuntimeProperties);
-    
+
     // Не используем полный runtime instance для spawn data
     bUseRuntimeInstance = false;
-    
+
     // Проверяем наличие патронов в предустановленных свойствах
     float AmmoValue = GetPresetProperty(TEXT("Ammo"), -1.0f);
     float RemainingAmmoValue = GetPresetProperty(TEXT("RemainingAmmo"), -1.0f);
-    
+
     if (AmmoValue >= 0.0f && RemainingAmmoValue >= 0.0f)
     {
         bHasSavedAmmoState = true;
         SavedCurrentAmmo = AmmoValue;
         SavedRemainingAmmo = RemainingAmmoValue;
     }
-    
+
     // Загружаем данные и применяем визуальные эффекты
     if (LoadItemData())
     {
@@ -211,9 +211,9 @@ void ASuspensePickupItem::InitializeFromSpawnData(const FPickupSpawnData& SpawnD
         ApplyItemAudio();
         ApplyItemVFX();
     }
-    
-    UE_LOG(LogSuspenseInteraction, Log, 
-        TEXT("InitializeFromSpawnData: Initialized pickup for %s from spawn data"), 
+
+    UE_LOG(LogSuspenseInteraction, Log,
+        TEXT("InitializeFromSpawnData: Initialized pickup for %s from spawn data"),
         *ItemID.ToString());
 }
 
@@ -224,35 +224,35 @@ void ASuspensePickupItem::InitializeFromSpawnData(const FPickupSpawnData& SpawnD
 bool ASuspensePickupItem::CanInteract_Implementation(APlayerController* InstigatingController) const
 {
     UE_LOG(LogSuspenseInteraction, Warning, TEXT("CanInteract: Checking for %s"), *GetName());
-    
+
     if (!InstigatingController || !InstigatingController->GetPawn())
     {
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("CanInteract: No controller or pawn"));
         return false;
     }
-    
+
     // Must have valid item ID and cached data
     if (ItemID.IsNone() || !bDataCached)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
-            TEXT("CanInteract: Failed - ItemID=%s, DataCached=%d"), 
+        UE_LOG(LogSuspenseInteraction, Warning,
+            TEXT("CanInteract: Failed - ItemID=%s, DataCached=%d"),
             *ItemID.ToString(), bDataCached);
         return false;
     }
-    
+
     // On client, always allow (server will validate)
     if (!HasAuthority())
     {
         UE_LOG(LogSuspenseInteraction, Log, TEXT("CanInteract: Client - allowing interaction"));
         return true;
     }
-    
+
     // Check if can be picked up
     bool bCanPickup = CanBePickedUpBy_Implementation(InstigatingController->GetPawn());
-    UE_LOG(LogSuspenseInteraction, Warning, 
-        TEXT("CanInteract: CanBePickedUpBy returned %s"), 
+    UE_LOG(LogSuspenseInteraction, Warning,
+        TEXT("CanInteract: CanBePickedUpBy returned %s"),
         bCanPickup ? TEXT("true") : TEXT("false"));
-    
+
     return bCanPickup;
 }
 
@@ -263,14 +263,14 @@ bool ASuspensePickupItem::Interact_Implementation(APlayerController* Instigating
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("Interact called on client for %s"), *GetName());
         return false;
     }
-    
+
     if (!InstigatingController || !InstigatingController->GetPawn())
     {
         return false;
     }
-    
+
     AActor* Pawn = InstigatingController->GetPawn();
-    
+
     // Broadcast interaction started
     ISuspenseInteract::BroadcastInteractionStarted(this, InstigatingController, GetInteractionType_Implementation());
 
@@ -278,7 +278,7 @@ bool ASuspensePickupItem::Interact_Implementation(APlayerController* Instigating
 
     // Broadcast interaction completed
     ISuspenseInteract::BroadcastInteractionCompleted(this, InstigatingController, bSuccess);
-    
+
     return bSuccess;
 }
 
@@ -289,18 +289,18 @@ FGameplayTag ASuspensePickupItem::GetInteractionType_Implementation() const
     {
         LoadItemData();
     }
-    
+
     // Return specific interaction type based on item
     if (bDataCached && CachedItemData.bIsWeapon)
     {
         return FGameplayTag::RequestGameplayTag(TEXT("Interaction.Type.Weapon"));
     }
-    
+
     if (bDataCached && CachedItemData.bIsAmmo)
     {
         return FGameplayTag::RequestGameplayTag(TEXT("Interaction.Type.Ammo"));
     }
-    
+
     return FGameplayTag::RequestGameplayTag(TEXT("Interaction.Type.Pickup"));
 }
 
@@ -311,12 +311,12 @@ FText ASuspensePickupItem::GetInteractionText_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return FText::Format(FText::FromString(TEXT("Pick up {0}")), CachedItemData.DisplayName);
     }
-    
+
     return FText::FromString(TEXT("Pick up"));
 }
 
@@ -331,7 +331,7 @@ float ASuspensePickupItem::GetInteractionDistance_Implementation() const
     {
         return InteractionDistanceOverride;
     }
-    
+
     const USuspenseInteractionSettings* Settings = GetDefault<USuspenseInteractionSettings>();
     return Settings ? Settings->DefaultTraceDistance : 300.0f;
 }
@@ -379,7 +379,7 @@ void ASuspensePickupItem::SetItemID_Implementation(FName NewItemID)
     {
         ItemID = NewItemID;
         bDataCached = false; // Invalidate cache
-        
+
         // Reload data if needed
         if (HasAuthority() || (GetWorld() && GetWorld()->IsEditorWorld()))
         {
@@ -395,13 +395,13 @@ bool ASuspensePickupItem::GetUnifiedItemData_Implementation(FSuspenseUnifiedItem
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         OutItemData = CachedItemData;
         return true;
     }
-    
+
     return false;
 }
 
@@ -428,7 +428,7 @@ bool ASuspensePickupItem::GetSavedAmmoState_Implementation(float& OutCurrentAmmo
         OutRemainingAmmo = SavedRemainingAmmo;
         return true;
     }
-    
+
     return false;
 }
 
@@ -445,23 +445,23 @@ bool ASuspensePickupItem::CreateItemInstance_Implementation(FSuspenseInventoryIt
     if (bUseRuntimeInstance && RuntimeInstance.IsValid())
     {
         OutInstance = RuntimeInstance;
-        UE_LOG(LogSuspenseInteraction, Log, 
-            TEXT("CreateItemInstance: Using full runtime instance for %s"), 
+        UE_LOG(LogSuspenseInteraction, Log,
+            TEXT("CreateItemInstance: Using full runtime instance for %s"),
             *ItemID.ToString());
         return true;
     }
-    
+
     // Иначе создаем новый экземпляр
     if (!bDataCached)
     {
         LoadItemData();
     }
-    
+
     if (!bDataCached)
     {
         return false;
     }
-    
+
     // Получаем менеджер предметов для создания экземпляра
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -474,20 +474,20 @@ bool ASuspensePickupItem::CreateItemInstance_Implementation(FSuspenseInventoryIt
     {
         return false;
     }
-    
+
     // Применяем предустановленные свойства к создаваемому экземпляру
     for (const FPresetPropertyPair& PropertyPair : PresetRuntimeProperties)
     {
         OutInstance.SetRuntimeProperty(PropertyPair.PropertyName, PropertyPair.PropertyValue);
     }
-    
+
     // Применяем состояние патронов для оружия
     if (CachedItemData.bIsWeapon && bHasSavedAmmoState)
     {
         OutInstance.SetRuntimeProperty(TEXT("Ammo"), SavedCurrentAmmo);
         OutInstance.SetRuntimeProperty(TEXT("RemainingAmmo"), SavedRemainingAmmo);
     }
-    
+
     return true;
 }
 
@@ -497,12 +497,12 @@ FGameplayTag ASuspensePickupItem::GetItemRarity_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return CachedItemData.Rarity;
     }
-    
+
     return FGameplayTag();
 }
 
@@ -512,12 +512,12 @@ FText ASuspensePickupItem::GetDisplayName_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return CachedItemData.DisplayName;
     }
-    
+
     return FText::FromString(ItemID.ToString());
 }
 
@@ -527,12 +527,12 @@ bool ASuspensePickupItem::IsStackable_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return CachedItemData.MaxStackSize > 1;
     }
-    
+
     return false;
 }
 
@@ -542,12 +542,12 @@ float ASuspensePickupItem::GetItemWeight_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return CachedItemData.Weight;
     }
-    
+
     return 1.0f;
 }
 
@@ -557,75 +557,75 @@ bool ASuspensePickupItem::HandlePickedUp_Implementation(AActor* InstigatorActor)
     {
         return false;
     }
-    
+
     if (!CanBePickedUpBy_Implementation(InstigatorActor))
     {
         return false;
     }
-    
+
     // Try to add to inventory
     if (TryAddToInventory(InstigatorActor))
     {
         OnPickedUp(InstigatorActor);
         return true;
     }
-    
+
     return false;
 }
 
 bool ASuspensePickupItem::CanBePickedUpBy_Implementation(AActor* InstigatorActor) const
 {
-    UE_LOG(LogSuspenseInteraction, Log, 
-        TEXT("CanBePickedUpBy: Checking pickup %s for actor %s"), 
+    UE_LOG(LogSuspenseInteraction, Log,
+        TEXT("CanBePickedUpBy: Checking pickup %s for actor %s"),
         *GetName(), *GetNameSafe(InstigatorActor));
-    
+
     if (!InstigatorActor)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
+        UE_LOG(LogSuspenseInteraction, Warning,
             TEXT("CanBePickedUpBy: No instigator actor"));
         return false;
     }
-    
+
     // Убеждаемся что данные загружены
     if (!bDataCached)
     {
         LoadItemData();
     }
-    
+
     if (!bDataCached)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
-            TEXT("CanBePickedUpBy: Failed to load item data for %s"), 
+        UE_LOG(LogSuspenseInteraction, Warning,
+            TEXT("CanBePickedUpBy: Failed to load item data for %s"),
             *GetName());
         return false;
     }
-    
+
     // Детальное логирование данных предмета
-    UE_LOG(LogSuspenseInteraction, Log, 
-        TEXT("CanBePickedUpBy: Item details - ID:%s, Type:%s, DisplayName:%s, Quantity:%d"), 
-        *ItemID.ToString(), 
+    UE_LOG(LogSuspenseInteraction, Log,
+        TEXT("CanBePickedUpBy: Item details - ID:%s, Type:%s, DisplayName:%s, Quantity:%d"),
+        *ItemID.ToString(),
         *CachedItemData.ItemType.ToString(),
         *CachedItemData.DisplayName.ToString(),
         Amount);
-    
+
     // Проверяем базовую валидность типа предмета
     static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
     if (!CachedItemData.ItemType.MatchesTag(BaseItemTag))
     {
-        UE_LOG(LogSuspenseInteraction, Error, 
-            TEXT("CanBePickedUpBy: Item type %s is not in Item.* hierarchy! Cannot pickup."), 
+        UE_LOG(LogSuspenseInteraction, Error,
+            TEXT("CanBePickedUpBy: Item type %s is not in Item.* hierarchy! Cannot pickup."),
             *CachedItemData.ItemType.ToString());
         return false;
     }
-    
+
     // Проверяем через статический хелпер с расширенной диагностикой
     bool bCanPickup = USuspenseHelpers::CanActorPickupItem(InstigatorActor, ItemID, Amount);
-    
-    UE_LOG(LogSuspenseInteraction, Log, 
-        TEXT("CanBePickedUpBy: Final result for %s = %s"), 
+
+    UE_LOG(LogSuspenseInteraction, Log,
+        TEXT("CanBePickedUpBy: Final result for %s = %s"),
         *ItemID.ToString(),
         bCanPickup ? TEXT("CAN PICKUP") : TEXT("CANNOT PICKUP"));
-    
+
     return bCanPickup;
 }
 FGameplayTag ASuspensePickupItem::GetItemType_Implementation() const
@@ -635,12 +635,12 @@ FGameplayTag ASuspensePickupItem::GetItemType_Implementation() const
     {
         LoadItemData();
     }
-    
+
     if (bDataCached)
     {
         return CachedItemData.GetEffectiveItemType();
     }
-    
+
     return FGameplayTag::RequestGameplayTag(TEXT("Item.Generic"));
 }
 
@@ -650,24 +650,24 @@ FGameplayTag ASuspensePickupItem::GetItemType_Implementation() const
 
 bool ASuspensePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
 {
-    UE_LOG(LogSuspenseInteraction, Log, TEXT("Item %s picked up by %s"), 
+    UE_LOG(LogSuspenseInteraction, Log, TEXT("Item %s picked up by %s"),
         *ItemID.ToString(), *InstigatorActor->GetName());
-    
+
     // Broadcast event
     BroadcastPickupCollected(InstigatorActor);
-    
+
     // Schedule destruction
     SetLifeSpan(DestroyDelay);
-    
+
     // Disable collision
     SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    
+
     // Hide visuals
     if (MeshComponent)
     {
         MeshComponent->SetVisibility(false);
     }
-    
+
     // Play collect VFX
     if (bDataCached && !CachedItemData.PickupCollectVFX.IsNull())
     {
@@ -682,7 +682,7 @@ bool ASuspensePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
             );
         }
     }
-    
+
     // Play pickup sound
     if (bDataCached && !CachedItemData.PickupSound.IsNull())
     {
@@ -692,7 +692,7 @@ bool ASuspensePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
             UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
         }
     }
-    
+
     return true;
 }
 
@@ -707,7 +707,7 @@ bool ASuspensePickupItem::LoadItemData() const
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("LoadItemData: ItemID is None"));
         return false;
     }
-    
+
     // Get item manager
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
@@ -720,9 +720,9 @@ bool ASuspensePickupItem::LoadItemData() const
     if (ItemManager->GetUnifiedItemData(ItemID, CachedItemData))
     {
         bDataCached = true;
-        
+
         UE_LOG(LogSuspenseInteraction, Log, TEXT("LoadItemData: Loaded data for %s"), *ItemID.ToString());
-        
+
         // Call blueprint events for type-specific setup
         if (CachedItemData.bIsWeapon)
         {
@@ -732,10 +732,10 @@ bool ASuspensePickupItem::LoadItemData() const
         {
             const_cast<ASuspensePickupItem*>(this)->OnArmorPickupSetup();
         }
-        
+
         return true;
     }
-    
+
     UE_LOG(LogSuspenseInteraction, Warning, TEXT("LoadItemData: Failed to load data for %s"), *ItemID.ToString());
     return false;
 }
@@ -746,7 +746,7 @@ void ASuspensePickupItem::ApplyItemVisuals()
     {
         return;
     }
-    
+
     // Apply world mesh from DataTable
     if (!CachedItemData.WorldMesh.IsNull())
     {
@@ -757,7 +757,7 @@ void ASuspensePickupItem::ApplyItemVisuals()
             UE_LOG(LogSuspenseInteraction, Log, TEXT("Applied mesh for %s"), *ItemID.ToString());
         }
     }
-    
+
     // Notify blueprint
     OnVisualsApplied();
 }
@@ -774,7 +774,7 @@ void ASuspensePickupItem::ApplyItemVFX()
     {
         return;
     }
-    
+
     // Apply spawn VFX from DataTable
     if (!CachedItemData.PickupSpawnVFX.IsNull())
     {
@@ -802,29 +802,29 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
 {
     if (!HasAuthority() || !InstigatorActor || !bDataCached)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
-            TEXT("TryAddToInventory: Basic validation failed - HasAuth:%d, Actor:%s, DataCached:%d"), 
+        UE_LOG(LogSuspenseInteraction, Warning,
+            TEXT("TryAddToInventory: Basic validation failed - HasAuth:%d, Actor:%s, DataCached:%d"),
             HasAuthority(), *GetNameSafe(InstigatorActor), bDataCached);
         return false;
     }
-    
+
     // Детальная диагностика типа предмета
-    UE_LOG(LogSuspenseInteraction, Log, 
-        TEXT("TryAddToInventory: Processing item - ID:%s, Type:%s, Quantity:%d"), 
-        *ItemID.ToString(), 
-        *CachedItemData.ItemType.ToString(), 
+    UE_LOG(LogSuspenseInteraction, Log,
+        TEXT("TryAddToInventory: Processing item - ID:%s, Type:%s, Quantity:%d"),
+        *ItemID.ToString(),
+        *CachedItemData.ItemType.ToString(),
         Amount);
-    
+
     // Проверяем, что тип предмета в правильной иерархии
     static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
     if (!CachedItemData.ItemType.MatchesTag(BaseItemTag))
     {
-        UE_LOG(LogSuspenseInteraction, Error, 
-            TEXT("TryAddToInventory: Item type %s is not in Item.* hierarchy!"), 
+        UE_LOG(LogSuspenseInteraction, Error,
+            TEXT("TryAddToInventory: Item type %s is not in Item.* hierarchy!"),
             *CachedItemData.ItemType.ToString());
         return false;
     }
-    
+
     // Create item instance
     FSuspenseInventoryItemInstance ItemInstance;
     if (!CreateItemInstance_Implementation(ItemInstance))
@@ -847,47 +847,47 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
         UE_LOG(LogSuspenseInteraction, Warning, TEXT("TryAddToInventory: Inventory doesn't implement interface"));
         return false;
     }
-    
+
     // Используем ТОЛЬКО интерфейсные методы для проверок
-    
+
     // 1. Проверяем, может ли инвентарь принять этот предмет через интерфейс
     bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
         InventoryComponent,
         CachedItemData,
         Amount
     );
-    
+
     if (!bCanReceive)
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
+        UE_LOG(LogSuspenseInteraction, Warning,
             TEXT("TryAddToInventory: Inventory cannot receive item (CanReceiveItem returned false)"));
-        
+
         // Дополнительная диагностика через интерфейсные методы
-        
+
         // Проверяем разрешенные типы
         FGameplayTagContainer AllowedTypes = ISuspenseInventory::Execute_GetAllowedItemTypes(InventoryComponent);
         if (!AllowedTypes.IsEmpty())
         {
-            UE_LOG(LogSuspenseInteraction, Warning, 
-                TEXT("  - Inventory has type restrictions (%d allowed types)"), 
+            UE_LOG(LogSuspenseInteraction, Warning,
+                TEXT("  - Inventory has type restrictions (%d allowed types)"),
                 AllowedTypes.Num());
-            
+
             bool bTypeAllowed = AllowedTypes.HasTag(CachedItemData.ItemType);
-            UE_LOG(LogSuspenseInteraction, Warning, 
-                TEXT("  - Item type %s allowed: %s"), 
+            UE_LOG(LogSuspenseInteraction, Warning,
+                TEXT("  - Item type %s allowed: %s"),
                 *CachedItemData.ItemType.ToString(),
                 bTypeAllowed ? TEXT("YES") : TEXT("NO"));
         }
-        
+
         // Проверяем вес через интерфейс
         float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
         float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
         float RequiredWeight = CachedItemData.Weight * Amount;
-        
-        UE_LOG(LogSuspenseInteraction, Warning, 
-            TEXT("  - Weight: Current=%.2f, Max=%.2f, Required=%.2f"), 
+
+        UE_LOG(LogSuspenseInteraction, Warning,
+            TEXT("  - Weight: Current=%.2f, Max=%.2f, Required=%.2f"),
             CurrentWeight, MaxWeight, RequiredWeight);
-        
+
         if (CurrentWeight + RequiredWeight > MaxWeight)
         {
             UE_LOG(LogSuspenseInteraction, Warning, TEXT("  - Would exceed weight limit"));
@@ -907,10 +907,10 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
                 TEXT("Cannot add item to inventory")
             );
         }
-        
+
         return false;
     }
-    
+
     // Try to add using the interface method
     UE_LOG(LogSuspenseInteraction, Log, TEXT("TryAddToInventory: Adding item through interface..."));
 
@@ -938,7 +938,7 @@ bool ASuspensePickupItem::TryAddToInventory(AActor* InstigatorActor)
             TEXT("Pickup failed")
         );
     }
-    
+
     return bAdded;
 }
 
@@ -959,11 +959,11 @@ void ASuspensePickupItem::BroadcastPickupSpawned()
     if (Manager)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Pickup.Event.Spawned"));
-        FString EventData = FString::Printf(TEXT("ItemID:%s,Amount:%d,Location:%s"), 
+        FString EventData = FString::Printf(TEXT("ItemID:%s,Amount:%d,Location:%s"),
             *ItemID.ToString(),
             Amount,
             *GetActorLocation().ToString());
-            
+
         Manager->NotifyEquipmentEvent(this, EventTag, EventData);
     }
 }
@@ -974,11 +974,11 @@ void ASuspensePickupItem::BroadcastPickupCollected(AActor* Collector)
     if (Manager && Collector)
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Pickup.Event.Collected"));
-        FString EventData = FString::Printf(TEXT("ItemID:%s,Amount:%d,Collector:%s"), 
+        FString EventData = FString::Printf(TEXT("ItemID:%s,Amount:%d,Collector:%s"),
             *ItemID.ToString(),
             Amount,
             *Collector->GetName());
-            
+
         Manager->NotifyEquipmentEvent(this, EventTag, EventData);
     }
 }
@@ -999,7 +999,7 @@ void ASuspensePickupItem::SetPresetProperty(FName PropertyName, float Value)
 {
     if (!HasAuthority())
     {
-        UE_LOG(LogSuspenseInteraction, Warning, 
+        UE_LOG(LogSuspenseInteraction, Warning,
             TEXT("SetPresetProperty called on client for %s"), *GetName());
         return;
     }
@@ -1042,13 +1042,13 @@ bool ASuspensePickupItem::RemovePresetProperty(FName PropertyName)
 TMap<FName, float> ASuspensePickupItem::GetPresetPropertiesAsMap() const
 {
     TMap<FName, float> ResultMap;
-    
+
     // Конвертируем массив в map для удобства использования
     for (const FPresetPropertyPair& Pair : PresetRuntimeProperties)
     {
         ResultMap.Add(Pair.PropertyName, Pair.PropertyValue);
     }
-    
+
     return ResultMap;
 }
 
@@ -1061,7 +1061,7 @@ void ASuspensePickupItem::SetPresetPropertiesFromMap(const TMap<FName, float>& N
 
     // Очищаем существующие свойства
     PresetRuntimeProperties.Empty(NewProperties.Num());
-    
+
     // Добавляем новые из map
     for (const auto& PropertyPair : NewProperties)
     {

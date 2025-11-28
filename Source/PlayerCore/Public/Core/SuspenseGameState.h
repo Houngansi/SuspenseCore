@@ -23,7 +23,7 @@ enum class ESuspenseMatchState : uint8
  * Manages match state and public game data
  */
 UCLASS()
-class SUSPENSECORE_API ASuspenseGameState : public AGameStateBase
+class PLAYERCORE_API ASuspenseGameState : public AGameStateBase
 {
 	GENERATED_BODY()
 

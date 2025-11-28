@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
-#include "Services/EquipmentNetworkServiceImpl.h"
+#include "Services/SuspenseEquipmentNetworkService.h"
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "GameFramework/PlayerController.h"
@@ -12,9 +12,9 @@
 // ----------------------------------------------------
 // Helpers: DTO <-> Domain (локальные, без сторонних зависимостей)
 // ----------------------------------------------------
-FInventoryItemInstanceNet USuspenseEquipmentNetworkDispatcher::ToNet(const FSuspenseInventoryItemInstance& In)
+FSuspenseInventoryItemInstanceNet USuspenseEquipmentNetworkDispatcher::ToNet(const FSuspenseInventoryItemInstance& In)
 {
-	FInventoryItemInstanceNet Out;
+	FSuspenseInventoryItemInstanceNet Out;
 	Out.ItemID       = In.ItemID;
 	Out.InstanceID   = In.InstanceID;
 	Out.Quantity     = In.Quantity;
@@ -24,7 +24,7 @@ FInventoryItemInstanceNet USuspenseEquipmentNetworkDispatcher::ToNet(const FSusp
 	return Out;
 }
 
-FSuspenseInventoryItemInstance USuspenseEquipmentNetworkDispatcher::FromNet(const FInventoryItemInstanceNet& In)
+FSuspenseInventoryItemInstance USuspenseEquipmentNetworkDispatcher::FromNet(const FSuspenseInventoryItemInstanceNet& In)
 {
 	FSuspenseInventoryItemInstance Out;
 	Out.ItemID       = In.ItemID;
@@ -335,7 +335,7 @@ bool USuspenseEquipmentNetworkDispatcher::IsOperationPending(const FGuid& Reques
 // Security / Wiring
 // ============================
 
-void USuspenseEquipmentNetworkDispatcher::SetSecurityService(UEquipmentNetworkServiceImpl* InSecurityService)
+void USuspenseEquipmentNetworkDispatcher::SetSecurityService(USuspenseEquipmentNetworkService* InSecurityService)
 {
 	SecurityService = InSecurityService;
 }

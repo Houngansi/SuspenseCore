@@ -6,7 +6,7 @@
 #include "GameplayEffectExtension.h"
 #include "AttributeSet.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "GameplayTagsManager.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemGlobals.h"
@@ -15,7 +15,7 @@ USuspenseEquipmentAttributeComponent::USuspenseEquipmentAttributeComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     SetIsReplicatedByDefault(true);
-    
+
     CurrentAttributeSet = nullptr;
     WeaponAttributeSet = nullptr;
     ArmorAttributeSet = nullptr;
@@ -27,7 +27,7 @@ USuspenseEquipmentAttributeComponent::USuspenseEquipmentAttributeComponent()
 void USuspenseEquipmentAttributeComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Start periodic attribute collection on server
     if (GetOwner() && GetOwner()->HasAuthority() && GetWorld())
     {
@@ -45,7 +45,7 @@ void USuspenseEquipmentAttributeComponent::BeginPlay()
 void USuspenseEquipmentAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(USuspenseEquipmentAttributeComponent, ReplicatedAttributes);
     DOREPLIFETIME(USuspenseEquipmentAttributeComponent, ReplicatedAttributeSetClasses);
     DOREPLIFETIME(USuspenseEquipmentAttributeComponent, AttributeReplicationVersion);
@@ -55,13 +55,13 @@ void USuspenseEquipmentAttributeComponent::InitializeWithItemInstance(AActor* In
 {
     // Call base initialization first
     Super::InitializeWithItemInstance(InOwner, InASC, ItemInstance);
-    
+
     if (!IsInitialized())
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to initialize base component"));
         return;
     }
-    
+
     // Get item data from DataTable - this is our source of truth
     FSuspenseUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
@@ -69,25 +69,25 @@ void USuspenseEquipmentAttributeComponent::InitializeWithItemInstance(AActor* In
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for: %s"), *ItemInstance.ItemID.ToString());
         return;
     }
-    
+
     // Create attribute sets based on item configuration in DataTable
     CreateAttributeSetsForItem(ItemData);
-    
+
     // Apply all item effects including passive effects and granted abilities
     ApplyItemEffects(ItemData);
-    
+
     // Force initial replication to sync clients
     if (GetOwner() && GetOwner()->HasAuthority())
     {
         CollectReplicatedAttributes();
         AttributeReplicationVersion++;
-        
+
         if (AActor* Owner = GetOwner())
         {
             Owner->ForceNetUpdate();
         }
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("Initialized attributes for item: %s"), *ItemInstance.ItemID.ToString());
 }
 
@@ -95,16 +95,16 @@ void USuspenseEquipmentAttributeComponent::Cleanup()
 {
     // Remove all effects first before destroying AttributeSets
     RemoveItemEffects();
-    
+
     // Clean up attribute sets
     CleanupAttributeSets();
-    
+
     // Clear all cached and replicated data
     ReplicatedAttributes.Empty();
     ReplicatedAttributeSetClasses.Empty();
     ActiveAttributePredictions.Empty();
     AttributePropertyCache.Empty();
-    
+
     // Call base cleanup last
     Super::Cleanup();
 }
@@ -113,7 +113,7 @@ void USuspenseEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseInv
 {
     // Update base item
     Super::UpdateEquippedItem(ItemInstance);
-    
+
     // Reinitialize with new item if valid
     if (ItemInstance.IsValid())
     {
@@ -123,17 +123,17 @@ void USuspenseEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseInv
             // Clean up old AttributeSets
             CleanupAttributeSets();
             RemoveItemEffects();
-            
+
             // Create new AttributeSets for new item
             CreateAttributeSetsForItem(ItemData);
             ApplyItemEffects(ItemData);
-            
+
             // Force replication update
             if (GetOwner() && GetOwner()->HasAuthority())
             {
                 CollectReplicatedAttributes();
                 AttributeReplicationVersion++;
-                
+
                 if (AActor* Owner = GetOwner())
                 {
                     Owner->ForceNetUpdate();
@@ -146,14 +146,14 @@ void USuspenseEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseInv
 void USuspenseEquipmentAttributeComponent::OnEquipmentInitialized()
 {
     Super::OnEquipmentInitialized();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Equipment attributes component initialized"));
 }
 
 void USuspenseEquipmentAttributeComponent::OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem)
 {
     Super::OnEquippedItemChanged(OldItem, NewItem);
-    
+
     // Additional handling if needed when item changes
 }
 
@@ -164,20 +164,20 @@ void USuspenseEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSus
         EQUIPMENT_LOG(Error, TEXT("Cannot create attribute sets - no ASC"));
         return;
     }
-    
+
     AActor* Owner = GetOwner();
     if (!Owner)
     {
         EQUIPMENT_LOG(Error, TEXT("Cannot create attribute sets - no owner"));
         return;
     }
-    
+
     // Clean up any existing sets first
     CleanupAttributeSets();
-    
+
     // Clear replicated classes list
     ReplicatedAttributeSetClasses.Empty();
-    
+
     // Create weapon-specific attributes
     if (ItemData.bIsWeapon && ItemData.WeaponInitialization.WeaponAttributeSetClass)
     {
@@ -187,13 +187,13 @@ void USuspenseEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSus
         AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
         CurrentAttributeSet = WeaponAttributeSet;
         ReplicatedAttributeSetClasses.Add(ItemData.WeaponInitialization.WeaponAttributeSetClass);
-        
+
         // Apply initialization effect for weapon
         if (ItemData.WeaponInitialization.WeaponInitEffect)
         {
             ApplyInitializationEffect(WeaponAttributeSet, ItemData.WeaponInitialization.WeaponInitEffect, ItemData);
         }
-        
+
         // Create ammo attributes if specified
         if (ItemData.AmmoAttributeSet)
         {
@@ -201,10 +201,10 @@ void USuspenseEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSus
             CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
             AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
             ReplicatedAttributeSetClasses.Add(ItemData.AmmoAttributeSet);
-            
+
             // Note: Ammo initialization happens when specific ammo is loaded
         }
-        
+
         EQUIPMENT_LOG(Log, TEXT("Created weapon attribute sets for: %s"), *ItemData.DisplayName.ToString());
     }
     // Create armor-specific attributes
@@ -216,13 +216,13 @@ void USuspenseEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSus
         AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Armor")), ArmorAttributeSet);
         CurrentAttributeSet = ArmorAttributeSet;
         ReplicatedAttributeSetClasses.Add(ItemData.ArmorInitialization.ArmorAttributeSetClass);
-        
+
         // Apply initialization effect for armor
         if (ItemData.ArmorInitialization.ArmorInitEffect)
         {
             ApplyInitializationEffect(ArmorAttributeSet, ItemData.ArmorInitialization.ArmorInitEffect, ItemData);
         }
-        
+
         EQUIPMENT_LOG(Log, TEXT("Created armor attribute sets for: %s"), *ItemData.DisplayName.ToString());
     }
     // Create general equipment attributes
@@ -233,16 +233,16 @@ void USuspenseEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSus
         CachedASC->AddAttributeSetSubobject(CurrentAttributeSet);
         AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Equipment")), CurrentAttributeSet);
         ReplicatedAttributeSetClasses.Add(ItemData.EquipmentAttributeSet);
-        
+
         // Apply initialization effect for general equipment
         if (ItemData.EquipmentInitEffect)
         {
             ApplyInitializationEffect(CurrentAttributeSet, ItemData.EquipmentInitEffect, ItemData);
         }
-        
+
         EQUIPMENT_LOG(Log, TEXT("Created equipment attribute sets for: %s"), *ItemData.DisplayName.ToString());
     }
-    
+
     // Force attribute system to update
     if (CachedASC)
     {
@@ -256,35 +256,35 @@ void USuspenseEquipmentAttributeComponent::CleanupAttributeSets()
     {
         return;
     }
-    
+
     // Remove all attribute sets from ASC
     if (CurrentAttributeSet)
     {
         CachedASC->RemoveSpawnedAttribute(CurrentAttributeSet);
         CurrentAttributeSet = nullptr;
     }
-    
+
     if (WeaponAttributeSet)
     {
         CachedASC->RemoveSpawnedAttribute(WeaponAttributeSet);
         WeaponAttributeSet = nullptr;
     }
-    
+
     if (ArmorAttributeSet)
     {
         CachedASC->RemoveSpawnedAttribute(ArmorAttributeSet);
         ArmorAttributeSet = nullptr;
     }
-    
+
     if (AmmoAttributeSet)
     {
         CachedASC->RemoveSpawnedAttribute(AmmoAttributeSet);
         AmmoAttributeSet = nullptr;
     }
-    
+
     AttributeSetsByType.Empty();
     AttributePropertyCache.Empty();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Cleaned up all attribute sets"));
 }
 
@@ -294,27 +294,27 @@ void USuspenseEquipmentAttributeComponent::ApplyInitializationEffect(UAttributeS
     {
         return;
     }
-    
+
     // Create effect context with item data
     FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
     Context.AddSourceObject(this);
-    
+
     // Create effect spec
     FGameplayEffectSpecHandle Spec = CachedASC->MakeOutgoingSpec(InitEffect, 1.0f, Context);
-    
+
     if (Spec.IsValid())
     {
         // Add item-specific data to the effect spec if needed
         // For example, item level, rarity, etc. could modify initial values
-        
+
         // Apply the initialization effect
         FActiveGameplayEffectHandle Handle = CachedASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
-        
+
         if (Handle.IsValid())
         {
             // Initialization effects are instant, so they don't need to be tracked
-            EQUIPMENT_LOG(Log, TEXT("Applied initialization effect %s to AttributeSet %s"), 
-                *GetNameSafe(InitEffect), 
+            EQUIPMENT_LOG(Log, TEXT("Applied initialization effect %s to AttributeSet %s"),
+                *GetNameSafe(InitEffect),
                 *GetNameSafe(AttributeSet->GetClass()));
         }
     }
@@ -327,13 +327,13 @@ void USuspenseEquipmentAttributeComponent::ApplyItemEffects(const FSuspenseUnifi
         EQUIPMENT_LOG(Warning, TEXT("Cannot apply effects - no ASC"));
         return;
     }
-    
+
     // Apply passive effects for equipped items
     if (ItemData.bIsEquippable)
     {
         ApplyPassiveEffects(ItemData);
     }
-    
+
     // Apply ammo projectile effects
     if (ItemData.bIsAmmo)
     {
@@ -349,12 +349,12 @@ void USuspenseEquipmentAttributeComponent::ApplyItemEffects(const FSuspenseUnifi
             }
         }
     }
-    
+
     // Grant abilities from equipped item
     ApplyGrantedAbilities(ItemData);
-    
-    EQUIPMENT_LOG(Log, TEXT("Applied %d effects and granted %d abilities from item %s"), 
-        AppliedEffectHandles.Num(), 
+
+    EQUIPMENT_LOG(Log, TEXT("Applied %d effects and granted %d abilities from item %s"),
+        AppliedEffectHandles.Num(),
         GrantedAbilityHandles.Num(),
         *ItemData.DisplayName.ToString());
 }
@@ -365,7 +365,7 @@ void USuspenseEquipmentAttributeComponent::RemoveItemEffects()
     {
         return;
     }
-    
+
     // Remove all applied effects
     for (const FActiveGameplayEffectHandle& Handle : AppliedEffectHandles)
     {
@@ -375,7 +375,7 @@ void USuspenseEquipmentAttributeComponent::RemoveItemEffects()
         }
     }
     AppliedEffectHandles.Empty();
-    
+
     // Remove all granted abilities
     for (const FGameplayAbilitySpecHandle& Handle : GrantedAbilityHandles)
     {
@@ -385,7 +385,7 @@ void USuspenseEquipmentAttributeComponent::RemoveItemEffects()
         }
     }
     GrantedAbilityHandles.Empty();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Removed all item effects and abilities"));
 }
 
@@ -416,19 +416,19 @@ void USuspenseEquipmentAttributeComponent::ApplyGrantedAbilities(const FSuspense
                 AbilityData.AbilityLevel,
                 INDEX_NONE
             );
-            
+
             if (Handle.IsValid())
             {
                 GrantedAbilityHandles.Add(Handle);
-                
+
                 // Add activation required tags if specified
                 if (!AbilityData.ActivationRequiredTags.IsEmpty())
                 {
                     if (FGameplayAbilitySpec* Spec = CachedASC->FindAbilitySpecFromHandle(Handle))
                     {
                         Spec->GetDynamicSpecSourceTags().AppendTags(AbilityData.ActivationRequiredTags);
-                        
-                        EQUIPMENT_LOG(Verbose, TEXT("Added activation tags to ability %s: %s"), 
+
+                        EQUIPMENT_LOG(Verbose, TEXT("Added activation tags to ability %s: %s"),
                             *AbilityData.AbilityClass->GetName(),
                             *AbilityData.ActivationRequiredTags.ToString());
                     }
@@ -449,7 +449,7 @@ int32 USuspenseEquipmentAttributeComponent::PredictAttributeChange(const FString
     {
         return 0;
     }
-    
+
     // Get current value
     float CurrentValue = 0.0f;
     if (!GetAttributeValue(AttributeName, CurrentValue))
@@ -457,7 +457,7 @@ int32 USuspenseEquipmentAttributeComponent::PredictAttributeChange(const FString
         EQUIPMENT_LOG(Warning, TEXT("Cannot predict unknown attribute: %s"), *AttributeName);
         return 0;
     }
-    
+
     // Create prediction
     FAttributePredictionData Prediction;
     Prediction.PredictionKey = NextAttributePredictionKey++;
@@ -465,15 +465,15 @@ int32 USuspenseEquipmentAttributeComponent::PredictAttributeChange(const FString
     Prediction.PredictedValue = NewValue;
     Prediction.OriginalValue = CurrentValue;
     Prediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     ActiveAttributePredictions.Add(Prediction);
-    
+
     // Apply prediction locally
     SetAttributeValue(AttributeName, NewValue, false);
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("Predicted attribute %s: %.2f -> %.2f (Key: %d)"),
         *AttributeName, CurrentValue, NewValue, Prediction.PredictionKey);
-    
+
     return Prediction.PredictionKey;
 }
 
@@ -482,14 +482,14 @@ void USuspenseEquipmentAttributeComponent::ConfirmAttributePrediction(int32 Pred
     int32 PredictionIndex = ActiveAttributePredictions.IndexOfByPredicate(
         [PredictionKey](const FAttributePredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
-    
+
     if (PredictionIndex == INDEX_NONE)
     {
         return;
     }
-    
+
     FAttributePredictionData& Prediction = ActiveAttributePredictions[PredictionIndex];
-    
+
     if (!bSuccess)
     {
         // Revert to actual value
@@ -497,7 +497,7 @@ void USuspenseEquipmentAttributeComponent::ConfirmAttributePrediction(int32 Pred
         EQUIPMENT_LOG(Warning, TEXT("Attribute prediction failed for %s - reverting to %.2f"),
             *Prediction.AttributeName, ActualValue);
     }
-    
+
     ActiveAttributePredictions.RemoveAt(PredictionIndex);
 }
 
@@ -508,7 +508,7 @@ void USuspenseEquipmentAttributeComponent::ConfirmAttributePrediction(int32 Pred
 bool USuspenseEquipmentAttributeComponent::GetAttributeValue(const FString& AttributeName, float& OutValue) const
 {
     FScopeLock Lock(&AttributeCacheCriticalSection);
-    
+
     // Check predictions first
     for (const FAttributePredictionData& Prediction : ActiveAttributePredictions)
     {
@@ -518,7 +518,7 @@ bool USuspenseEquipmentAttributeComponent::GetAttributeValue(const FString& Attr
             return true;
         }
     }
-    
+
     // Check cache
     if (AttributePropertyCache.Contains(AttributeName))
     {
@@ -529,14 +529,14 @@ bool USuspenseEquipmentAttributeComponent::GetAttributeValue(const FString& Attr
             return true;
         }
     }
-    
+
     // Search all attribute sets
     TArray<UAttributeSet*> AllSets = { CurrentAttributeSet, WeaponAttributeSet, ArmorAttributeSet, AmmoAttributeSet };
-    
+
     for (UAttributeSet* Set : AllSets)
     {
         if (!Set) continue;
-        
+
         if (FProperty* Property = FindAttributeProperty(Set, AttributeName))
         {
             AttributePropertyCache.Add(AttributeName, TPair<UAttributeSet*, FProperty*>(Set, Property));
@@ -544,18 +544,18 @@ bool USuspenseEquipmentAttributeComponent::GetAttributeValue(const FString& Attr
             return true;
         }
     }
-    
+
     return false;
 }
 
 void USuspenseEquipmentAttributeComponent::SetAttributeValue(const FString& AttributeName, float NewValue, bool bForceReplication)
 {
     FScopeLock Lock(&AttributeCacheCriticalSection);
-    
+
     // Find attribute
     UAttributeSet* TargetSet = nullptr;
     FProperty* Property = nullptr;
-    
+
     // Check cache
     if (AttributePropertyCache.Contains(AttributeName))
     {
@@ -567,11 +567,11 @@ void USuspenseEquipmentAttributeComponent::SetAttributeValue(const FString& Attr
     {
         // Search all attribute sets
         TArray<UAttributeSet*> AllSets = { CurrentAttributeSet, WeaponAttributeSet, ArmorAttributeSet, AmmoAttributeSet };
-        
+
         for (UAttributeSet* Set : AllSets)
         {
             if (!Set) continue;
-            
+
             if (FProperty* FoundProperty = FindAttributeProperty(Set, AttributeName))
             {
                 TargetSet = Set;
@@ -581,16 +581,16 @@ void USuspenseEquipmentAttributeComponent::SetAttributeValue(const FString& Attr
             }
         }
     }
-    
+
     if (!TargetSet || !Property)
     {
         EQUIPMENT_LOG(Warning, TEXT("Attribute not found: %s"), *AttributeName);
         return;
     }
-    
+
     // Get old value for broadcast
     float OldValue = GetAttributeValueFromProperty(TargetSet, Property);
-    
+
     // Set new value through GAS for proper validation
     if (CachedASC)
     {
@@ -606,10 +606,10 @@ void USuspenseEquipmentAttributeComponent::SetAttributeValue(const FString& Attr
         // Fallback to direct set
         SetAttributeValueToProperty(TargetSet, Property, NewValue);
     }
-    
+
     // Broadcast change
     BroadcastEquipmentPropertyChanged(FName(*AttributeName), OldValue, NewValue);
-    
+
     // Force replication if needed
     if (bForceReplication)
     {
@@ -620,13 +620,13 @@ void USuspenseEquipmentAttributeComponent::SetAttributeValue(const FString& Attr
 TMap<FString, float> USuspenseEquipmentAttributeComponent::GetAllAttributeValues() const
 {
     TMap<FString, float> Result;
-    
+
     TArray<UAttributeSet*> AllSets = { CurrentAttributeSet, WeaponAttributeSet, ArmorAttributeSet, AmmoAttributeSet };
-    
+
     for (UAttributeSet* Set : AllSets)
     {
         if (!Set) continue;
-        
+
         for (TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
         {
             FProperty* Property = *It;
@@ -638,7 +638,7 @@ TMap<FString, float> USuspenseEquipmentAttributeComponent::GetAllAttributeValues
             }
         }
     }
-    
+
     return Result;
 }
 
@@ -659,27 +659,27 @@ bool USuspenseEquipmentAttributeComponent::GetAttributeByTag(const FGameplayTag&
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Weapon.ReloadTime")), TEXT("TacticalReloadTime") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Weapon.Spread")), TEXT("HipFireSpread") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Weapon.Recoil")), TEXT("VerticalRecoil") },
-        
+
         // Armor attributes
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Armor.Class")), TEXT("ArmorClass") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Armor.Defense")), TEXT("BallisticDefense") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Armor.Weight")), TEXT("ArmorWeight") },
-        
+
         // Ammo attributes
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Ammo.Damage")), TEXT("BaseDamage") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Ammo.Penetration")), TEXT("ArmorPenetration") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Ammo.Velocity")), TEXT("MuzzleVelocity") },
-        
+
         // Common attributes
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.Durability")), TEXT("Durability") },
         { FGameplayTag::RequestGameplayTag(TEXT("Attribute.MaxDurability")), TEXT("MaxDurability") },
     };
-    
+
     if (FString* AttributeName = TagToAttributeMap.Find(AttributeTag))
     {
         return GetAttributeValue(*AttributeName, OutValue);
     }
-    
+
     return false;
 }
 
@@ -689,7 +689,7 @@ void USuspenseEquipmentAttributeComponent::ForceAttributeReplication()
     {
         CollectReplicatedAttributes();
         AttributeReplicationVersion++;
-        
+
         if (AActor* Owner = GetOwner())
         {
             Owner->ForceNetUpdate();
@@ -707,15 +707,15 @@ void USuspenseEquipmentAttributeComponent::CollectReplicatedAttributes()
     {
         return;
     }
-    
+
     ReplicatedAttributes.Empty();
-    
+
     TArray<UAttributeSet*> AllSets = { CurrentAttributeSet, WeaponAttributeSet, ArmorAttributeSet, AmmoAttributeSet };
-    
+
     for (UAttributeSet* Set : AllSets)
     {
         if (!Set) continue;
-        
+
         for (TFieldIterator<FProperty> It(Set->GetClass()); It; ++It)
         {
             FProperty* Property = *It;
@@ -725,7 +725,7 @@ void USuspenseEquipmentAttributeComponent::CollectReplicatedAttributes()
                 Data.AttributeName = Property->GetName();
                 Data.CurrentValue = GetAttributeValueFromProperty(Set, Property);
                 Data.BaseValue = Data.CurrentValue; // Could be enhanced to track base vs current
-                
+
                 ReplicatedAttributes.Add(Data);
             }
         }
@@ -744,10 +744,10 @@ void USuspenseEquipmentAttributeComponent::OnRep_ReplicatedAttributes()
 {
     // Apply replicated values to local attribute sets
     ApplyReplicatedAttributes();
-    
+
     // Notify about updates
     BroadcastEquipmentUpdated();
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("Applied %d replicated attributes"), ReplicatedAttributes.Num());
 }
 
@@ -758,18 +758,18 @@ void USuspenseEquipmentAttributeComponent::OnRep_AttributeSetClasses()
     {
         return;
     }
-    
+
     // Clean up existing sets
     CleanupAttributeSets();
-    
+
     // Create new sets from replicated classes
     for (TSubclassOf<UAttributeSet> SetClass : ReplicatedAttributeSetClasses)
     {
         if (!SetClass) continue;
-        
+
         UAttributeSet* NewSet = NewObject<UAttributeSet>(GetOwner(), SetClass);
         CachedASC->AddAttributeSetSubobject(NewSet);
-        
+
         // Determine type and store
         FString ClassName = SetClass->GetName();
         if (ClassName.Contains(TEXT("Weapon")))
@@ -795,10 +795,10 @@ void USuspenseEquipmentAttributeComponent::OnRep_AttributeSetClasses()
             AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Equipment")), NewSet);
         }
     }
-    
+
     // Apply replicated values
     ApplyReplicatedAttributes();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Created %d attribute sets from replicated classes"), ReplicatedAttributeSetClasses.Num());
 }
 
@@ -850,7 +850,7 @@ FProperty* USuspenseEquipmentAttributeComponent::FindAttributeProperty(UAttribut
     {
         return nullptr;
     }
-    
+
     for (TFieldIterator<FProperty> It(AttributeSet->GetClass()); It; ++It)
     {
         FProperty* Property = *It;
@@ -859,7 +859,7 @@ FProperty* USuspenseEquipmentAttributeComponent::FindAttributeProperty(UAttribut
             return Property;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -869,7 +869,7 @@ float USuspenseEquipmentAttributeComponent::GetAttributeValueFromProperty(UAttri
     {
         return 0.0f;
     }
-    
+
     // Try to get value through reflection
     if (FFloatProperty* FloatProp = CastField<FFloatProperty>(Property))
     {
@@ -883,7 +883,7 @@ float USuspenseEquipmentAttributeComponent::GetAttributeValueFromProperty(UAttri
     {
         return static_cast<float>(*IntProp->ContainerPtrToValuePtr<int32>(AttributeSet));
     }
-    
+
     // If property is FGameplayAttributeData, we need to access it differently
     if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
     {
@@ -896,7 +896,7 @@ float USuspenseEquipmentAttributeComponent::GetAttributeValueFromProperty(UAttri
             }
         }
     }
-    
+
     return 0.0f;
 }
 
@@ -906,7 +906,7 @@ void USuspenseEquipmentAttributeComponent::SetAttributeValueToProperty(UAttribut
     {
         return;
     }
-    
+
     // Try to set value through reflection
     if (FFloatProperty* FloatProp = CastField<FFloatProperty>(Property))
     {
@@ -940,7 +940,7 @@ FGameplayAttribute USuspenseEquipmentAttributeComponent::GetGameplayAttributeFro
     {
         return FGameplayAttribute();
     }
-    
+
     // Create GameplayAttribute from property
     return FGameplayAttribute(Property);
 }

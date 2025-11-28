@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Engine/Texture2D.h"
-#include "ContainerUITypes.generated.h"
+#include "SuspenseContainerUITypes.generated.h"
 
 // Forward declaration для избежания циклических зависимостей
 class UUserWidget;
@@ -182,7 +182,7 @@ public:
         {
             return CachedIcon.Get();
         }
-    
+
         // Медленный путь: загружаем из пути
         if (!IconAssetPath.IsEmpty())
         {
@@ -192,7 +192,7 @@ public:
             {
                 // КРИТИЧНО: Используем LoadSynchronous для гарантированной загрузки
                 UTexture2D* LoadedIcon = Cast<UTexture2D>(SoftPath.TryLoad());
-            
+
                 if (LoadedIcon)
                 {
                     // Кешируем результат
@@ -202,7 +202,7 @@ public:
                 }
             }
         }
-    
+
         // Финальный fallback
         return CachedIcon.IsValid() ? CachedIcon.Get() : nullptr;
     }
@@ -224,14 +224,14 @@ public:
         }
     }
 
-    /** 
+    /**
      * Create a safe copy for drag operations
      * This method reconstructs FText members to ensure their validity
      */
     FItemUIData CreateDragCopy() const
     {
         FItemUIData Copy;
-        
+
         // КРИТИЧЕСКАЯ ПРОВЕРКА: Валидация перед копированием
         if (!IsValid())
         {
@@ -324,8 +324,8 @@ public:
     /** Validate item data integrity */
     bool IsValid() const
     {
-        return ItemID != NAME_None && 
-               GridSize.X > 0 && 
+        return ItemID != NAME_None &&
+               GridSize.X > 0 &&
                GridSize.Y > 0 &&
                Quantity > 0 &&
                MaxStackSize > 0;
@@ -338,7 +338,7 @@ public:
         {
             return FIntPoint(1, 1); // Возвращаем минимальный размер для невалидных данных
         }
-        
+
         return bIsRotated ? FIntPoint(GridSize.Y, GridSize.X) : GridSize;
     }
 };
@@ -404,7 +404,7 @@ struct BRIDGESYSTEM_API FContainerUIData
     /** Validate container data integrity */
     bool IsValid() const
     {
-        return GridSize.X > 0 && 
+        return GridSize.X > 0 &&
                GridSize.Y > 0 &&
                (Slots.Num() == (GridSize.X * GridSize.Y)) &&
                CurrentWeight >= 0.0f &&
@@ -432,11 +432,11 @@ struct BRIDGESYSTEM_API FDragDropUIData
     /** Source slot index */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     int32 SourceSlotIndex;
-    
+
     /** Target container type (filled when drop occurs) */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     FGameplayTag TargetContainerType;
-    
+
     /** Target slot index (filled when drop occurs) */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     int32 TargetSlotIndex;
@@ -468,51 +468,51 @@ struct BRIDGESYSTEM_API FDragDropUIData
     }
 
     /** Create a validated drag data from item */
-    static FDragDropUIData CreateValidated(const FItemUIData& InItemData, 
+    static FDragDropUIData CreateValidated(const FItemUIData& InItemData,
                                           const FGameplayTag& InSourceContainerType,
                                           int32 InSourceSlotIndex)
     {
         FDragDropUIData DragData;
-        
+
         // КРИТИЧЕСКАЯ ПРОВЕРКА: Валидация входных данных
         if (!InItemData.IsValid())
         {
             UE_LOG(LogTemp, Error, TEXT("CreateValidated: Invalid input item data!"));
             return DragData; // Возвращаем невалидные данные
         }
-        
+
         if (!InSourceContainerType.IsValid() || InSourceSlotIndex < 0)
         {
             UE_LOG(LogTemp, Error, TEXT("CreateValidated: Invalid container type or slot index!"));
             return DragData;
         }
-        
+
         // Безопасное копирование
         DragData.ItemData = InItemData.CreateDragCopy();
-        
+
         // Validate the copy was successful
         if (!DragData.ItemData.IsValid())
         {
             UE_LOG(LogTemp, Error, TEXT("CreateValidated: Failed to create valid item copy"));
             return DragData;
         }
-        
+
         DragData.SourceContainerType = InSourceContainerType;
         DragData.SourceSlotIndex = InSourceSlotIndex;
         DragData.DraggedQuantity = InItemData.Quantity;
         DragData.bIsValid = true;
-        
-        UE_LOG(LogTemp, Verbose, TEXT("CreateValidated: Successfully created drag data for item %s"), 
+
+        UE_LOG(LogTemp, Verbose, TEXT("CreateValidated: Successfully created drag data for item %s"),
             *DragData.ItemData.ItemID.ToString());
-        
+
         return DragData;
     }
 
     /** Validate drag data integrity */
     bool IsValidDragData() const
     {
-        return bIsValid && 
-               ItemData.IsValid() && 
+        return bIsValid &&
+               ItemData.IsValid() &&
                SourceSlotIndex >= 0 &&
                DraggedQuantity > 0 &&
                SourceContainerType.IsValid();
@@ -525,9 +525,9 @@ struct BRIDGESYSTEM_API FDragDropUIData
         {
             return FIntPoint(1, 1);
         }
-        
-        return ItemData.bIsRotated ? 
-            FIntPoint(ItemData.GridSize.Y, ItemData.GridSize.X) : 
+
+        return ItemData.bIsRotated ?
+            FIntPoint(ItemData.GridSize.Y, ItemData.GridSize.X) :
             ItemData.GridSize;
     }
 };
@@ -606,19 +606,19 @@ struct BRIDGESYSTEM_API FSmartDropZone
     /** Target slot index where item would be placed */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     int32 SlotIndex = INDEX_NONE;
-    
+
     /** Distance from cursor to drop zone center in pixels */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     float Distance = 0.0f;
-    
+
     /** Snap strength (0-1) based on distance and configuration */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     float SnapStrength = 0.0f;
-    
+
     /** Visual feedback position in screen space */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     FVector2D FeedbackPosition = FVector2D::ZeroVector;
-    
+
     /** Whether this is a valid drop target for the current item */
     UPROPERTY(BlueprintReadOnly, Category = "UI|DragDrop")
     bool bIsValid = false;

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Core/Utils/FSuspenseEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 
 /*
  * DEPRECATION NOTICE:

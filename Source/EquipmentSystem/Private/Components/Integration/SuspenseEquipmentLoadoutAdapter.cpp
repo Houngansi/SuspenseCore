@@ -14,14 +14,14 @@
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "Interfaces/Core/ISuspenseLoadout.h"
 
-#include "Types/Loadout/MedComLoadoutManager.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Types/Events/EquipmentEventData.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Types/Events/SuspenseEquipmentEventData.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 
-#include "Services/EquipmentOperationServiceImpl.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Services/SuspenseEquipmentOperationService.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLoadoutAdapter, Log, All);
 
@@ -80,19 +80,19 @@ bool USuspenseEquipmentLoadoutAdapter::Initialize(
 	return true;
 }
 
-UEquipmentOperationServiceImpl* USuspenseEquipmentLoadoutAdapter::GetOperationService()
+USuspenseEquipmentOperationService* USuspenseEquipmentLoadoutAdapter::GetOperationService()
 {
 	if (CachedOpService.IsValid())
 	{
 		return CachedOpService.Get();
 	}
 
-	if (UEquipmentServiceLocator* Locator = UEquipmentServiceLocator::Get(this))
+	if (USuspenseEquipmentServiceLocator* Locator = USuspenseEquipmentServiceLocator::Get(this))
 	{
 		// По соглашению сервис транзакций/операций помечен Service.Equipment.Transaction
 		if (UObject* SvcObj = Locator->GetService(FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Transaction"))))
 		{
-			if (UEquipmentOperationServiceImpl* Impl = Cast<UEquipmentOperationServiceImpl>(SvcObj))
+			if (USuspenseEquipmentOperationService* Impl = Cast<USuspenseEquipmentOperationService>(SvcObj))
 			{
 				CachedOpService = Impl; // теперь метод не const — кэшируем нормально
 				return Impl;
@@ -118,7 +118,7 @@ FLoadoutApplicationResult USuspenseEquipmentLoadoutAdapter::ApplyLoadout(const F
 	// ——— optional centralized path via OperationService (S8 pipeline) ———
 	if (bPreferOperationService)
 	{
-		if (UEquipmentOperationServiceImpl* OpSvc = GetOperationService())
+		if (USuspenseEquipmentOperationService* OpSvc = GetOperationService())
 		{
 			// Preflight validation (optional, unless bForce)
 			if (!bForce)
@@ -158,7 +158,7 @@ FLoadoutApplicationResult USuspenseEquipmentLoadoutAdapter::ApplyLoadout(const F
 			// Event: Loadout applied (EventBus)
 			if (EventDispatcher.GetInterface())
 			{
-				FEquipmentEventData Ev;
+				FSuspenseEquipmentEventData Ev;
 				Ev.EventType  = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Applied"));
 				Ev.Source     = this;
 				Ev.Payload    = LoadoutId.ToString();
@@ -183,7 +183,7 @@ FLoadoutApplicationResult USuspenseEquipmentLoadoutAdapter::ApplyLoadout(const F
 	// ——— fallback path via TransactionManager/OperationsExecutor ———
 	if (EventDispatcher.GetInterface())
 	{
-		FEquipmentEventData Event;
+		FSuspenseEquipmentEventData Event;
 		Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Start"));
 		Event.Source    = this;
 		Event.Payload   = LoadoutId.ToString();
@@ -198,7 +198,7 @@ FLoadoutApplicationResult USuspenseEquipmentLoadoutAdapter::ApplyLoadout(const F
 
 	if (EventDispatcher.GetInterface())
 	{
-		FEquipmentEventData Event;
+		FSuspenseEquipmentEventData Event;
 		Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.End"));
 		Event.Source    = this;
 		Event.Payload   = LoadoutId.ToString();
@@ -630,7 +630,7 @@ int32 USuspenseEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EEquip
 	// Предпочитаем централизованный батч через OperationService
 	if (bPreferOperationService)
 	{
-		if (UEquipmentOperationServiceImpl* OpSvc = GetOperationService())
+		if (USuspenseEquipmentOperationService* OpSvc = GetOperationService())
 		{
 			TArray<FEquipmentOperationRequest> Requests;
 			Requests.Reserve(StartingEquipment.Num());
@@ -724,7 +724,7 @@ void USuspenseEquipmentLoadoutAdapter::NotifyLoadoutChange(const FName& LoadoutI
 {
 	if (!EventDispatcher.GetInterface()) { return; }
 
-	FEquipmentEventData Event;
+	FSuspenseEquipmentEventData Event;
 	Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Changed"));
 	Event.Source    = this;
 	Event.Payload   = LoadoutId.ToString();

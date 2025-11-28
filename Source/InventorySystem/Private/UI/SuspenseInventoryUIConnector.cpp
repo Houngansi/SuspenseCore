@@ -459,7 +459,7 @@ bool USuspenseInventoryUIConnector::SplitItemStack(UObject* SourceItem, int32 Sp
     
     // Use inventory component's split stack operation
     int32 SourceSlot = SourceInterface->GetAnchorIndex();
-    FInventoryOperationResult Result = InventoryComponent->SplitStack(SourceSlot, SplitAmount, TargetCellIndex);
+    FSuspenseInventoryOperationResult Result = InventoryComponent->SplitStack(SourceSlot, SplitAmount, TargetCellIndex);
     
     if (Result.IsSuccess())
     {

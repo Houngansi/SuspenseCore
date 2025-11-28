@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Weapon/FSuspenseInventoryAmmoState.h"
-#include "WeaponTypes.generated.h"
+#include "Types/Weapon/SuspenseInventoryAmmoState.h"
+#include "SuspenseWeaponTypes.generated.h"
 
 /**
  * Битовые флаги состояния оружия для оптимизированного хранения
@@ -128,7 +128,7 @@ struct BRIDGESYSTEM_API FWeaponStateMask
     FString ToString() const
     {
         FString Result;
-        
+
         if (HasFlags(EWeaponStateMask::Initialized)) Result += TEXT("Initialized ");
         if (HasFlags(EWeaponStateMask::Equipped)) Result += TEXT("Equipped ");
         if (HasFlags(EWeaponStateMask::Reloading)) Result += TEXT("Reloading ");
@@ -137,7 +137,7 @@ struct BRIDGESYSTEM_API FWeaponStateMask
         if (HasFlags(EWeaponStateMask::Overheated)) Result += TEXT("Overheated ");
         if (HasFlags(EWeaponStateMask::OutOfAmmo)) Result += TEXT("OutOfAmmo ");
         if (HasFlags(EWeaponStateMask::Disabled)) Result += TEXT("Disabled ");
-        
+
         return Result.IsEmpty() ? TEXT("None") : Result.TrimEnd();
     }
 };
@@ -235,7 +235,7 @@ struct BRIDGESYSTEM_API FWeaponShotParams
 
         // Конвертируем угол разброса в радианы
         const float SpreadRadians = FMath::DegreesToRadians(SpreadAngle);
-        
+
         // Генерируем случайный угол в конусе разброса
         const float ConeHalfAngle = SpreadRadians * 0.5f;
         const float RandomConeAngle = RandomStream.FRandRange(0.0f, ConeHalfAngle);
@@ -244,7 +244,7 @@ struct BRIDGESYSTEM_API FWeaponShotParams
         // Создаём вектор с разбросом
         FVector SpreadDirection = Direction.RotateAngleAxis(RandomConeAngle * 180.0f / PI, FVector::RightVector);
         SpreadDirection = SpreadDirection.RotateAngleAxis(RandomRotAngle * 180.0f / PI, Direction);
-        
+
         return SpreadDirection.GetSafeNormal();
     }
 };

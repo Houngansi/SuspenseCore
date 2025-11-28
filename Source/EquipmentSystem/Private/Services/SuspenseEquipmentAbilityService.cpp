@@ -11,13 +11,14 @@
 #include "GameFramework/PlayerState.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 
 USuspenseEquipmentAbilityService::USuspenseEquipmentAbilityService()
 {
     // Initialize cache with reasonable size
-    MappingCache = MakeShareable(new FEquipmentCacheManager<FName, FEquipmentAbilityMapping>(100));
+    MappingCache = MakeShareable(new FSuspenseEquipmentCacheManager<FName, FEquipmentAbilityMapping>(100));
 }
 
 USuspenseEquipmentAbilityService::~USuspenseEquipmentAbilityService()
@@ -39,19 +40,19 @@ bool USuspenseEquipmentAbilityService::InitializeService(const FServiceInitParam
 {
     SCOPED_SERVICE_TIMER("InitializeService");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
-    
+
     if (ServiceState != EServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseEquipmentAbility, Warning, TEXT("Service already initialized"));
         ServiceMetrics.RecordError();
         return false;
     }
-    
+
     ServiceState = EServiceLifecycleState::Initializing;
-    
+
     // Ensure valid configuration
     EnsureValidConfig();
-    
+
     // Load default mappings
     InitializeDefaultMappings();
 
@@ -60,16 +61,16 @@ bool USuspenseEquipmentAbilityService::InitializeService(const FServiceInitParam
     Tag_OnUnequipped      = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"), /*ErrorIfNotFound*/false);
     Tag_OnAbilitiesRefresh= FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Ability.Refresh"), /*ErrorIfNotFound*/false);
     Tag_OnCommit          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Commit"), /*ErrorIfNotFound*/false);
-    
+
     // Setup event handlers
     SetupEventHandlers();
-    
+
     // Register cache for monitoring
-    FGlobalCacheRegistry::Get().RegisterCache(
+    FSuspenseGlobalCacheRegistry::Get().RegisterCache(
         TEXT("EquipmentAbilityService.Mappings"),
-        [this]() { 
-            float HitRate = (CacheHits + CacheMisses) > 0 
-                ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f 
+        [this]() {
+            float HitRate = (CacheHits + CacheMisses) > 0
+                ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f
                 : 0.0f;
             return FString::Printf(TEXT("Cache: Hits=%d, Misses=%d, HitRate=%.1f%%\n%s"),
                 CacheHits, CacheMisses, HitRate,
@@ -89,18 +90,18 @@ bool USuspenseEquipmentAbilityService::InitializeService(const FServiceInitParam
                 CleanupInterval,
                 true // Loop
             );
-            
+
             UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("Periodic cleanup enabled every %.1f seconds"),
                 CleanupInterval);
         }
     }
-    
+
     ServiceState = EServiceLifecycleState::Ready;
     ServiceMetrics.RecordSuccess();
-    
+
     UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("EquipmentAbilityService initialized with %d mappings"),
         AbilityMappings.Num());
-    
+
     return true;
 }
 
@@ -136,7 +137,7 @@ bool USuspenseEquipmentAbilityService::ShutdownService(bool bForce)
     EquipmentToOwnerMap.Empty();
 
     // Безопасная отписка от EventBus
-    if (auto EventBus = FEquipmentEventBus::Get())
+    if (auto EventBus = FSuspenseEquipmentEventBus::Get())
     {
         for (const FEventSubscriptionHandle& Handle : EventSubscriptions)
         {
@@ -154,7 +155,7 @@ bool USuspenseEquipmentAbilityService::ShutdownService(bool bForce)
     // ВАЖНО: во время выхода движка НЕ трогаем глобальные реестры/синглтоны
     if (bCacheRegistered && !IsEngineExitRequested())
     {
-        FGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentAbilityService.Mappings"));
+        FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentAbilityService.Mappings"));
         bCacheRegistered = false;
     }
 
@@ -180,10 +181,10 @@ bool USuspenseEquipmentAbilityService::ValidateService(TArray<FText>& OutErrors)
 {
     SCOPED_SERVICE_TIMER_CONST("ValidateService");
     EQUIPMENT_READ_LOCK(ConnectorLock);
-    
+
     OutErrors.Empty();
     bool bIsValid = true;
-    
+
     // Check for invalid connectors
     int32 InvalidConnectors = 0;
     for (const auto& ConnectorPair : EquipmentConnectors)
@@ -193,21 +194,21 @@ bool USuspenseEquipmentAbilityService::ValidateService(TArray<FText>& OutErrors)
             InvalidConnectors++;
         }
     }
-    
+
     if (InvalidConnectors > 0)
     {
         OutErrors.Add(FText::FromString(FString::Printf(
             TEXT("%d invalid equipment connectors detected"), InvalidConnectors)));
         bIsValid = false;
     }
-    
+
     // Check if we have any mappings
     if (AbilityMappings.Num() == 0)
     {
         OutErrors.Add(FText::FromString(TEXT("No ability mappings loaded")));
         // This is a warning, not an error
     }
-    
+
     if (bIsValid)
     {
         ServiceMetrics.RecordSuccess();
@@ -216,7 +217,7 @@ bool USuspenseEquipmentAbilityService::ValidateService(TArray<FText>& OutErrors)
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return bIsValid;
 }
 
@@ -224,7 +225,7 @@ void USuspenseEquipmentAbilityService::ResetService()
 {
     SCOPED_SERVICE_TIMER("ResetService");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
-    
+
     // Clear all connectors
     for (auto& ConnectorPair : EquipmentConnectors)
     {
@@ -236,37 +237,37 @@ void USuspenseEquipmentAbilityService::ResetService()
             }
         }
     }
-    
+
     // Clear cache
     MappingCache->Clear();
-    
+
     // Reset statistics
     ServiceMetrics.Reset();
     CacheHits = 0;
     CacheMisses = 0;
-    
+
     UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("EquipmentAbilityService reset"));
 }
 
 FString USuspenseEquipmentAbilityService::GetServiceStats() const
 {
     EQUIPMENT_READ_LOCK(ConnectorLock);
-    
+
     FString Stats = TEXT("=== Equipment Ability Service Statistics ===\n");
-    Stats += FString::Printf(TEXT("Service State: %s\n"), 
+    Stats += FString::Printf(TEXT("Service State: %s\n"),
         *UEnum::GetValueAsString(ServiceState));
-    Stats += FString::Printf(TEXT("Active Equipment Connectors: %d\n"), 
+    Stats += FString::Printf(TEXT("Active Equipment Connectors: %d\n"),
         EquipmentConnectors.Num());
-    Stats += FString::Printf(TEXT("Loaded Mappings: %d\n"), 
+    Stats += FString::Printf(TEXT("Loaded Mappings: %d\n"),
         AbilityMappings.Num());
-    
+
     // Cache statistics
-    float HitRate = (CacheHits + CacheMisses) > 0 
-        ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f 
+    float HitRate = (CacheHits + CacheMisses) > 0
+        ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f
         : 0.0f;
     Stats += FString::Printf(TEXT("Cache: Hits=%d, Misses=%d, HitRate=%.1f%%\n"),
         CacheHits, CacheMisses, HitRate);
-    
+
     // List active equipment connectors
     if (EquipmentConnectors.Num() > 0)
     {
@@ -280,7 +281,7 @@ FString USuspenseEquipmentAbilityService::GetServiceStats() const
                 {
                     Owner = OwnerPtr->Get();
                 }
-                
+
                 if (USuspenseEquipmentAbilityConnector* Connector = ConnectorPair.Value)
                 {
                     Stats += FString::Printf(TEXT("  Equipment: %s | Owner: %s | Valid: %s\n"),
@@ -292,10 +293,10 @@ FString USuspenseEquipmentAbilityService::GetServiceStats() const
             }
         }
     }
-    
+
     // Add service metrics
     Stats += ServiceMetrics.ToString(TEXT("EquipmentAbilityService"));
-    
+
     return Stats;
 }
 
@@ -306,117 +307,117 @@ FString USuspenseEquipmentAbilityService::GetServiceStats() const
 int32 USuspenseEquipmentAbilityService::LoadAbilityMappings(UDataTable* MappingTable)
 {
     SCOPED_SERVICE_TIMER("LoadAbilityMappings");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("LoadAbilityMappings must be called on GameThread"));
         ServiceMetrics.RecordError();
         return 0;
     }
-    
+
     if (!MappingTable)
     {
         ServiceMetrics.RecordError();
         return 0;
     }
-    
+
     EQUIPMENT_WRITE_LOCK(MappingLock);
-    
+
     int32 LoadedCount = 0;
     int32 InvalidCount = 0;
-    
+
     // Type-safe iteration through rows
     const TArray<FName> RowNames = MappingTable->GetRowNames();
     for (const FName& RowName : RowNames)
     {
-        const FEquipmentAbilityMapping* Mapping = 
+        const FEquipmentAbilityMapping* Mapping =
             MappingTable->FindRow<FEquipmentAbilityMapping>(RowName, TEXT("LoadAbilityMappings"));
-        
+
         if (!Mapping)
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+            UE_LOG(LogSuspenseEquipmentAbility, Warning,
                 TEXT("Failed to cast row %s to FEquipmentAbilityMapping"),
                 *RowName.ToString());
             InvalidCount++;
             continue;
         }
-        
+
         // Validate mapping
         if (!Mapping->IsValid())
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+            UE_LOG(LogSuspenseEquipmentAbility, Warning,
                 TEXT("Invalid mapping: ItemID is None for row %s"),
                 *RowName.ToString());
             InvalidCount++;
             continue;
         }
-        
+
         // Validate ability classes
         bool bHasInvalidAbility = false;
         for (const auto& AbilityClass : Mapping->GrantedAbilities)
         {
             if (!AbilityClass)
             {
-                UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+                UE_LOG(LogSuspenseEquipmentAbility, Warning,
                     TEXT("Null ability class in mapping for item %s"),
                     *Mapping->ItemID.ToString());
                 bHasInvalidAbility = true;
             }
         }
-        
+
         // Validate effect classes
         bool bHasInvalidEffect = false;
         for (const auto& EffectClass : Mapping->PassiveEffects)
         {
             if (!EffectClass)
             {
-                UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+                UE_LOG(LogSuspenseEquipmentAbility, Warning,
                     TEXT("Null effect class in mapping for item %s"),
                     *Mapping->ItemID.ToString());
                 bHasInvalidEffect = true;
             }
         }
-        
+
         if (bHasInvalidAbility || bHasInvalidEffect)
         {
             InvalidCount++;
             continue;
         }
-        
+
         // Add or update mapping
         AbilityMappings.Add(Mapping->ItemID, *Mapping);
-        
+
         // Update cache
         MappingCache->Set(Mapping->ItemID, *Mapping, MappingCacheTTL);
-        
+
         LoadedCount++;
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Verbose, 
+            UE_LOG(LogSuspenseEquipmentAbility, Verbose,
                 TEXT("Loaded ability mapping for item %s: %d abilities, %d effects"),
                 *Mapping->ItemID.ToString(),
                 Mapping->GrantedAbilities.Num(),
                 Mapping->PassiveEffects.Num());
         }
     }
-    
+
     ServiceMetrics.RecordValue(FName("Ability.Mappings.Loaded"), LoadedCount);
     ServiceMetrics.RecordValue(FName("Ability.Mappings.Invalid"), InvalidCount);
-    
+
     if (InvalidCount > 0)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("Loaded %d ability mappings from DataTable, skipped %d invalid entries"),
             LoadedCount, InvalidCount);
     }
     else
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Log, 
+        UE_LOG(LogSuspenseEquipmentAbility, Log,
             TEXT("Loaded %d ability mappings from DataTable"),
             LoadedCount);
     }
-    
+
     ServiceMetrics.RecordSuccess();
     return LoadedCount;
 }
@@ -426,31 +427,31 @@ USuspenseEquipmentAbilityConnector* USuspenseEquipmentAbilityService::GetOrCreat
     AActor* OwnerActor)
 {
     SCOPED_SERVICE_TIMER("GetOrCreateConnectorForEquipment");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("GetOrCreateConnectorForEquipment must be called on GameThread"));
         ServiceMetrics.RecordError();
         return nullptr;
     }
-    
+
     if (!EquipmentActor || !OwnerActor)
     {
         ServiceMetrics.RecordError();
         return nullptr;
     }
-    
+
     // Check validity of actors
     if (!IsValid(EquipmentActor) || !IsValid(OwnerActor))
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, TEXT("Equipment %s or Owner %s is not valid"), 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning, TEXT("Equipment %s or Owner %s is not valid"),
             *GetNameSafe(EquipmentActor), *GetNameSafe(OwnerActor));
         ServiceMetrics.RecordError();
         return nullptr;
     }
-    
+
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
-    
+
     // Check if connector already exists for this equipment
     USuspenseEquipmentAbilityConnector** ExistingConnector = EquipmentConnectors.Find(EquipmentActor);
     if (ExistingConnector && IsValid(*ExistingConnector))
@@ -458,7 +459,7 @@ USuspenseEquipmentAbilityConnector* USuspenseEquipmentAbilityService::GetOrCreat
         ServiceMetrics.Inc(FName("Ability.Connectors.Reused"));
         return *ExistingConnector;
     }
-    
+
     // Create new connector for equipment
     USuspenseEquipmentAbilityConnector* NewConnector = CreateConnectorForEquipment(EquipmentActor, OwnerActor);
     if (NewConnector)
@@ -466,44 +467,44 @@ USuspenseEquipmentAbilityConnector* USuspenseEquipmentAbilityService::GetOrCreat
         EquipmentConnectors.Add(EquipmentActor, NewConnector);
         EquipmentToOwnerMap.Add(EquipmentActor, OwnerActor);
         ServiceMetrics.Inc(FName("Ability.Connectors.Created"));
-        
+
         // Subscribe to equipment destruction
         EquipmentActor->OnDestroyed.AddDynamic(this, &USuspenseEquipmentAbilityService::OnEquipmentActorDestroyed);
-        
-        UE_LOG(LogSuspenseEquipmentAbility, Log, 
+
+        UE_LOG(LogSuspenseEquipmentAbility, Log,
             TEXT("Created ability connector for equipment %s owned by %s"),
             *GetNameSafe(EquipmentActor),
             *GetNameSafe(OwnerActor));
-        
+
         ServiceMetrics.RecordSuccess();
     }
     else
     {
         ServiceMetrics.RecordError();
     }
-    
+
     return NewConnector;
 }
 
 bool USuspenseEquipmentAbilityService::RemoveConnectorForEquipment(AActor* EquipmentActor)
 {
     SCOPED_SERVICE_TIMER("RemoveConnectorForEquipment");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("RemoveConnectorForEquipment must be called on GameThread"));
         ServiceMetrics.RecordError();
         return false;
     }
-    
+
     if (!EquipmentActor)
     {
         ServiceMetrics.RecordError();
         return false;
     }
-    
+
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
-    
+
     USuspenseEquipmentAbilityConnector* Connector = nullptr;
     if (EquipmentConnectors.RemoveAndCopyValue(EquipmentActor, Connector))
     {
@@ -512,23 +513,23 @@ bool USuspenseEquipmentAbilityService::RemoveConnectorForEquipment(AActor* Equip
             Connector->ClearAll();
             Connector->DestroyComponent();
         }
-        
+
         // Remove from owner map
         EquipmentToOwnerMap.Remove(EquipmentActor);
-        
+
         ServiceMetrics.Inc(FName("Ability.Connectors.Destroyed"));
-        
+
         // Unsubscribe from destruction (safe to call even if not subscribed)
         EquipmentActor->OnDestroyed.RemoveDynamic(this, &USuspenseEquipmentAbilityService::OnEquipmentActorDestroyed);
-        
-        UE_LOG(LogSuspenseEquipmentAbility, Log, 
+
+        UE_LOG(LogSuspenseEquipmentAbility, Log,
             TEXT("Removed ability connector for equipment %s"),
             *GetNameSafe(EquipmentActor));
-        
+
         ServiceMetrics.RecordSuccess();
         return true;
     }
-    
+
     // Not an error if connector doesn't exist (idempotent)
     return false;
 }
@@ -536,7 +537,7 @@ bool USuspenseEquipmentAbilityService::RemoveConnectorForEquipment(AActor* Equip
 bool USuspenseEquipmentAbilityService::HasAbilityMapping(FName ItemID) const
 {
     EQUIPMENT_READ_LOCK(MappingLock);
-    
+
     // Check cache first
     FEquipmentAbilityMapping CachedMapping;
     if (MappingCache->Get(ItemID, CachedMapping))
@@ -544,17 +545,17 @@ bool USuspenseEquipmentAbilityService::HasAbilityMapping(FName ItemID) const
         CacheHits++;
         return true;
     }
-    
+
     CacheMisses++;
     return AbilityMappings.Contains(ItemID);
 }
 
 bool USuspenseEquipmentAbilityService::GetAbilityMapping(
-    FName ItemID, 
+    FName ItemID,
     FEquipmentAbilityMapping& OutMapping) const
 {
     EQUIPMENT_READ_LOCK(MappingLock);
-    
+
     // Check cache first
     if (MappingCache->Get(ItemID, OutMapping))
     {
@@ -562,22 +563,22 @@ bool USuspenseEquipmentAbilityService::GetAbilityMapping(
         ServiceMetrics.Inc(FName("Ability.Cache.Hit"));
         return true;
     }
-    
+
     // Check main storage
     const FEquipmentAbilityMapping* Mapping = AbilityMappings.Find(ItemID);
     if (Mapping)
     {
         OutMapping = *Mapping;
-        
+
         // Update cache
         const_cast<USuspenseEquipmentAbilityService*>(this)->MappingCache->Set(
             ItemID, *Mapping, MappingCacheTTL);
-        
+
         CacheMisses++;
         ServiceMetrics.Inc(FName("Ability.Cache.Miss"));
         return true;
     }
-    
+
     CacheMisses++;
     ServiceMetrics.Inc(FName("Ability.Cache.Miss"));
     return false;
@@ -586,9 +587,9 @@ bool USuspenseEquipmentAbilityService::GetAbilityMapping(
 bool USuspenseEquipmentAbilityService::ExportMetricsToCSV(const FString& FilePath) const
 {
     SCOPED_SERVICE_TIMER_CONST("ExportMetricsToCSV");
-    
+
     bool bResult = ServiceMetrics.ExportToCSV(FilePath, TEXT("EquipmentAbilityService"));
-    
+
     if (bResult)
     {
         UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("Exported metrics to %s"), *FilePath);
@@ -597,7 +598,7 @@ bool USuspenseEquipmentAbilityService::ExportMetricsToCSV(const FString& FilePat
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("Failed to export metrics to %s"), *FilePath);
     }
-    
+
     return bResult;
 }
 
@@ -611,41 +612,41 @@ void USuspenseEquipmentAbilityService::ProcessEquipmentSpawn(
     const FSuspenseInventoryItemInstance& ItemInstance)
 {
     SCOPED_SERVICE_TIMER("ProcessEquipmentSpawn");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("ProcessEquipmentSpawn must be called on GameThread"));
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     if (!EquipmentActor || !OwnerActor)
     {
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     if (!ItemInstance.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("Invalid item instance for equipment %s"),
             *GetNameSafe(EquipmentActor));
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     // Get or create connector for this equipment
     USuspenseEquipmentAbilityConnector* Connector = GetOrCreateConnectorForEquipment(EquipmentActor, OwnerActor);
     if (!Connector)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Error, 
+        UE_LOG(LogSuspenseEquipmentAbility, Error,
             TEXT("Failed to get connector for equipment %s owned by %s"),
             *GetNameSafe(EquipmentActor),
             *GetNameSafe(OwnerActor));
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     // Check if we have a mapping for this item
     FEquipmentAbilityMapping Mapping;
     if (GetAbilityMapping(ItemInstance.ItemID, Mapping))
@@ -654,12 +655,12 @@ void USuspenseEquipmentAbilityService::ProcessEquipmentSpawn(
         if (Mapping.RequiredTags.Num() > 0 || Mapping.BlockedTags.Num() > 0)
         {
             FGameplayTagContainer EquipmentTags = GetEquipmentTags(EquipmentActor);
-            
+
             // Check required tags
-            if (Mapping.RequiredTags.Num() > 0 && 
+            if (Mapping.RequiredTags.Num() > 0 &&
                 !EquipmentTags.HasAll(Mapping.RequiredTags))
             {
-                UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+                UE_LOG(LogSuspenseEquipmentAbility, Warning,
                     TEXT("Equipment %s missing required tags for item %s. Required: %s, Has: %s"),
                     *GetNameSafe(EquipmentActor),
                     *ItemInstance.ItemID.ToString(),
@@ -668,12 +669,12 @@ void USuspenseEquipmentAbilityService::ProcessEquipmentSpawn(
                 ServiceMetrics.Inc(FName("Ability.Spawn.BlockedByTags"));
                 return;
             }
-            
+
             // Check blocked tags
-            if (Mapping.BlockedTags.Num() > 0 && 
+            if (Mapping.BlockedTags.Num() > 0 &&
                 EquipmentTags.HasAny(Mapping.BlockedTags))
             {
-                UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+                UE_LOG(LogSuspenseEquipmentAbility, Warning,
                     TEXT("Equipment %s has blocked tags for item %s. Blocked: %s, Has: %s"),
                     *GetNameSafe(EquipmentActor),
                     *ItemInstance.ItemID.ToString(),
@@ -683,55 +684,55 @@ void USuspenseEquipmentAbilityService::ProcessEquipmentSpawn(
                 return;
             }
         }
-        
+
         // Grant abilities through connector
         // The connector will use the ItemInstance's slot index if it has one
         int32 SlotIndex = ItemInstance.AnchorIndex != INDEX_NONE ? ItemInstance.AnchorIndex : 0;
         Connector->GrantAbilitiesForSlot(SlotIndex, ItemInstance);
         Connector->ApplyEffectsForSlot(SlotIndex, ItemInstance);
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Verbose, 
+            UE_LOG(LogSuspenseEquipmentAbility, Verbose,
                 TEXT("Granted abilities for equipment %s (item: %s)"),
                 *GetNameSafe(EquipmentActor),
                 *ItemInstance.ItemID.ToString());
         }
-        
+
         ServiceMetrics.Inc(FName("Ability.Spawn.Processed"));
     }
     else
     {
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Verbose, 
+            UE_LOG(LogSuspenseEquipmentAbility, Verbose,
                 TEXT("No ability mapping for item %s on equipment %s"),
                 *ItemInstance.ItemID.ToString(),
                 *GetNameSafe(EquipmentActor));
         }
         ServiceMetrics.Inc(FName("Ability.Spawn.NoMapping"));
     }
-    
+
     ServiceMetrics.RecordSuccess();
 }
 
 void USuspenseEquipmentAbilityService::ProcessEquipmentDestroy(AActor* EquipmentActor)
 {
     SCOPED_SERVICE_TIMER("ProcessEquipmentDestroy");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("ProcessEquipmentDestroy must be called on GameThread"));
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     if (!EquipmentActor)
     {
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     // Remove connector and clean up abilities
     if (RemoveConnectorForEquipment(EquipmentActor))
     {
@@ -743,7 +744,7 @@ void USuspenseEquipmentAbilityService::ProcessEquipmentDestroy(AActor* Equipment
         // Not necessarily an error - equipment might not have had abilities
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogSuspenseEquipmentAbility, Verbose, 
+            UE_LOG(LogSuspenseEquipmentAbility, Verbose,
                 TEXT("No connector found for equipment %s"),
                 *GetNameSafe(EquipmentActor));
         }
@@ -755,53 +756,53 @@ void USuspenseEquipmentAbilityService::UpdateEquipmentAbilities(
     const FSuspenseInventoryItemInstance& UpdatedItemInstance)
 {
     SCOPED_SERVICE_TIMER("UpdateEquipmentAbilities");
-    
+
     if (!ensure(IsInGameThread()))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Error, TEXT("UpdateEquipmentAbilities must be called on GameThread"));
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     if (!EquipmentActor || !UpdatedItemInstance.IsValid())
     {
         ServiceMetrics.RecordError();
         return;
     }
-    
+
     EQUIPMENT_READ_LOCK(ConnectorLock);
-    
+
     // Find existing connector
     USuspenseEquipmentAbilityConnector** ConnectorPtr = EquipmentConnectors.Find(EquipmentActor);
     if (ConnectorPtr && *ConnectorPtr)
     {
         USuspenseEquipmentAbilityConnector* Connector = *ConnectorPtr;
-        
+
         // Clear current abilities/effects for the slot
         int32 SlotIndex = UpdatedItemInstance.AnchorIndex != INDEX_NONE ? UpdatedItemInstance.AnchorIndex : 0;
         Connector->RemoveAbilitiesForSlot(SlotIndex);
         Connector->RemoveEffectsForSlot(SlotIndex);
-        
+
         // Re-grant with updated item data
         FEquipmentAbilityMapping Mapping;
         if (GetAbilityMapping(UpdatedItemInstance.ItemID, Mapping))
         {
             Connector->GrantAbilitiesForSlot(SlotIndex, UpdatedItemInstance);
             Connector->ApplyEffectsForSlot(SlotIndex, UpdatedItemInstance);
-            
-            UE_LOG(LogSuspenseEquipmentAbility, Log, 
+
+            UE_LOG(LogSuspenseEquipmentAbility, Log,
                 TEXT("Updated abilities for equipment %s with item %s"),
                 *GetNameSafe(EquipmentActor),
                 *UpdatedItemInstance.ItemID.ToString());
-            
+
             ServiceMetrics.Inc(FName("Ability.Updates.Processed"));
         }
-        
+
         ServiceMetrics.RecordSuccess();
     }
     else
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("No connector found for equipment %s"),
             *GetNameSafe(EquipmentActor));
         ServiceMetrics.RecordError();
@@ -812,12 +813,12 @@ int32 USuspenseEquipmentAbilityService::CleanupInvalidConnectors()
 {
     SCOPED_SERVICE_TIMER("CleanupInvalidConnectors");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
-    
+
     int32 CleanedCount = 0;
-    
+
     // Find invalid connectors
     TArray<TWeakObjectPtr<AActor>> ToRemove;
-    
+
     for (const auto& ConnectorPair : EquipmentConnectors)
     {
         if (!ConnectorPair.Key.IsValid() || !IsValid(ConnectorPair.Value))
@@ -825,7 +826,7 @@ int32 USuspenseEquipmentAbilityService::CleanupInvalidConnectors()
             ToRemove.Add(ConnectorPair.Key);
         }
     }
-    
+
     // Remove invalid connectors
     for (const auto& Equipment : ToRemove)
     {
@@ -839,20 +840,20 @@ int32 USuspenseEquipmentAbilityService::CleanupInvalidConnectors()
                 Connector->DestroyComponent();
             }
         }
-        
+
         EquipmentConnectors.Remove(Equipment);
         EquipmentToOwnerMap.Remove(Equipment);
         CleanedCount++;
     }
-    
+
     if (CleanedCount > 0)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Log, 
+        UE_LOG(LogSuspenseEquipmentAbility, Log,
             TEXT("Cleaned up %d invalid equipment connectors"),
             CleanedCount);
         ServiceMetrics.RecordValue(FName("Ability.Connectors.Cleaned"), CleanedCount);
     }
-    
+
     return CleanedCount;
 }
 
@@ -868,19 +869,19 @@ void USuspenseEquipmentAbilityService::InitializeDefaultMappings()
         UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("No default mapping table configured"));
         return;
     }
-    
+
 #if !(UE_BUILD_SHIPPING)
     // Synchronous load for development builds
     if (UDataTable* DefaultTable = DefaultMappingTable.LoadSynchronous())
     {
         int32 Loaded = LoadAbilityMappings(DefaultTable);
-        UE_LOG(LogSuspenseEquipmentAbility, Log, 
+        UE_LOG(LogSuspenseEquipmentAbility, Log,
             TEXT("Loaded %d default ability mappings"),
             Loaded);
     }
     else
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("Failed to load default mapping table from %s"),
             *DefaultMappingTable.ToString());
     }
@@ -896,7 +897,7 @@ void USuspenseEquipmentAbilityService::InitializeDefaultMappings()
                 if (UDataTable* DefaultTable = StrongThis->DefaultMappingTable.Get())
                 {
                     int32 Loaded = StrongThis->LoadAbilityMappings(DefaultTable);
-                    UE_LOG(LogSuspenseEquipmentAbility, Log, 
+                    UE_LOG(LogSuspenseEquipmentAbility, Log,
                         TEXT("Async loaded %d default ability mappings"),
                         Loaded);
                 }
@@ -908,14 +909,14 @@ void USuspenseEquipmentAbilityService::InitializeDefaultMappings()
 
 void USuspenseEquipmentAbilityService::SetupEventHandlers()
 {
-    auto EventBus = FEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("EventBus not available, event handling disabled"));
         return;
     }
-    
+
     // Spawned
     FEventSubscriptionHandle SpawnedHandle = EventBus->Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Spawned")),
@@ -924,7 +925,7 @@ void USuspenseEquipmentAbilityService::SetupEventHandlers()
         EEventPriority::High
     );
     EventSubscriptions.Add(SpawnedHandle);
-    
+
     // Destroyed
     FEventSubscriptionHandle DestroyedHandle = EventBus->Subscribe(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Destroyed")),
@@ -963,7 +964,7 @@ void USuspenseEquipmentAbilityService::SetupEventHandlers()
             FEventHandlerDelegate::CreateUObject(this, &USuspenseEquipmentAbilityService::OnCommit),
             EEventPriority::Normal));
     }
-    
+
     UE_LOG(LogSuspenseEquipmentAbility, Log, TEXT("Event handlers registered"));
 }
 
@@ -971,11 +972,11 @@ void USuspenseEquipmentAbilityService::EnsureValidConfig()
 {
     // Sanitize cache TTL
     MappingCacheTTL = FMath::Clamp(MappingCacheTTL, 60.0f, 3600.0f);
-    
+
     // Sanitize cleanup interval
     CleanupInterval = FMath::Clamp(CleanupInterval, 10.0f, 300.0f);
-    
-    UE_LOG(LogSuspenseEquipmentAbility, Log, 
+
+    UE_LOG(LogSuspenseEquipmentAbility, Log,
         TEXT("Configuration sanitized: CacheTTL=%.1fs, CleanupInterval=%.1fs"),
         MappingCacheTTL, CleanupInterval);
 }
@@ -986,15 +987,15 @@ void USuspenseEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseEquipme
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
-    
+
     if (!ParseEquipmentEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("Failed to parse equipment spawned event"));
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
-    
+
     ProcessEquipmentSpawn(EquipmentActor, OwnerActor, ItemInstance);
     ServiceMetrics.Inc(FName("Ability.Events.Spawned"));
 }
@@ -1007,7 +1008,7 @@ void USuspenseEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseEquip
         ServiceMetrics.Inc(FName("Ability.Events.InvalidSource"));
         return;
     }
-    
+
     ProcessEquipmentDestroy(EquipmentActor);
     ServiceMetrics.Inc(FName("Ability.Events.Destroyed"));
 }
@@ -1089,7 +1090,7 @@ void USuspenseEquipmentAbilityService::OnCleanupTimer()
     int32 Cleaned = CleanupInvalidConnectors();
     if (Cleaned > 0 && bEnableDetailedLogging)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Verbose, 
+        UE_LOG(LogSuspenseEquipmentAbility, Verbose,
             TEXT("Periodic cleanup removed %d invalid connectors"),
             Cleaned);
     }
@@ -1103,17 +1104,17 @@ USuspenseEquipmentAbilityConnector* USuspenseEquipmentAbilityService::CreateConn
     {
         return nullptr;
     }
-    
+
     // Find ASC on the OWNER (character/pawn), not the equipment
     UAbilitySystemComponent* ASC = FindOwnerAbilitySystemComponent(OwnerActor);
     if (!ASC)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Warning, 
+        UE_LOG(LogSuspenseEquipmentAbility, Warning,
             TEXT("No AbilitySystemComponent found on owner %s (checked: component, interface, controller, playerstate)"),
             *GetNameSafe(OwnerActor));
         return nullptr;
     }
-    
+
     // Create connector component on the EQUIPMENT actor
     USuspenseEquipmentAbilityConnector* Connector = NewObject<USuspenseEquipmentAbilityConnector>(
         EquipmentActor,
@@ -1121,27 +1122,27 @@ USuspenseEquipmentAbilityConnector* USuspenseEquipmentAbilityService::CreateConn
         TEXT("EquipmentAbilityConnector"),
         RF_Transient
     );
-    
+
     if (!Connector)
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Error, 
+        UE_LOG(LogSuspenseEquipmentAbility, Error,
             TEXT("Failed to create ability connector"));
         return nullptr;
     }
-    
+
     // Register component with equipment actor
     Connector->RegisterComponent();
-    
+
     // Initialize connector with owner's ASC
     TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
     if (!Connector->Initialize(ASC, DataProvider))
     {
-        UE_LOG(LogSuspenseEquipmentAbility, Error, 
+        UE_LOG(LogSuspenseEquipmentAbility, Error,
             TEXT("Failed to initialize ability connector"));
         Connector->DestroyComponent();
         return nullptr;
     }
-    
+
     return Connector;
 }
 
@@ -1151,13 +1152,13 @@ UAbilitySystemComponent* USuspenseEquipmentAbilityService::FindOwnerAbilitySyste
     {
         return nullptr;
     }
-    
+
     // 1. Try to find ASC as component on owner
     if (UAbilitySystemComponent* ASC = OwnerActor->FindComponentByClass<UAbilitySystemComponent>())
     {
         return ASC;
     }
-    
+
     // 2. Try through interface on owner
     if (OwnerActor->GetClass()->ImplementsInterface(UAbilitySystemInterface::StaticClass()))
     {
@@ -1169,7 +1170,7 @@ UAbilitySystemComponent* USuspenseEquipmentAbilityService::FindOwnerAbilitySyste
             }
         }
     }
-    
+
     // 3. Try on controller (if owner is a pawn)
     if (APawn* Pawn = Cast<APawn>(OwnerActor))
     {
@@ -1187,7 +1188,7 @@ UAbilitySystemComponent* USuspenseEquipmentAbilityService::FindOwnerAbilitySyste
             }
         }
     }
-    
+
     // 4. Try on player state (most common in your architecture)
     if (APawn* Pawn = Cast<APawn>(OwnerActor))
     {
@@ -1198,7 +1199,7 @@ UAbilitySystemComponent* USuspenseEquipmentAbilityService::FindOwnerAbilitySyste
             {
                 return ASC;
             }
-            
+
             // Interface check
             if (PS->GetClass()->ImplementsInterface(UAbilitySystemInterface::StaticClass()))
             {
@@ -1212,20 +1213,20 @@ UAbilitySystemComponent* USuspenseEquipmentAbilityService::FindOwnerAbilitySyste
             }
         }
     }
-    
+
     return nullptr;
 }
 
 FGameplayTagContainer USuspenseEquipmentAbilityService::GetEquipmentTags(AActor* EquipmentActor) const
 {
     FGameplayTagContainer Tags;
-    
+
     if (!EquipmentActor || !IsValid(EquipmentActor))
     {
         UE_LOG(LogSuspenseEquipmentAbility, Warning, TEXT("GetEquipmentTags called with invalid equipment"));
         return Tags;
     }
-    
+
     // Option 1: If any component implements IGameplayTagAssetInterface
     if (UActorComponent* TagComponent = EquipmentActor->GetComponentByClass(UGameplayTagAssetInterface::StaticClass()))
     {
@@ -1234,7 +1235,7 @@ FGameplayTagContainer USuspenseEquipmentAbilityService::GetEquipmentTags(AActor*
             TagInterface->GetOwnedGameplayTags(Tags);
         }
     }
-    
+
     // Option 2: Actor implements IGameplayTagAssetInterface
     if (EquipmentActor->GetClass()->ImplementsInterface(UGameplayTagAssetInterface::StaticClass()))
     {
@@ -1245,7 +1246,7 @@ FGameplayTagContainer USuspenseEquipmentAbilityService::GetEquipmentTags(AActor*
             Tags.AppendTags(ActorTags);
         }
     }
-    
+
     return Tags;
 }
 
@@ -1261,41 +1262,41 @@ bool USuspenseEquipmentAbilityService::ParseEquipmentEventData(
     {
         return false;
     }
-    
+
     // Owner should be in Target
     OutOwnerActor = Cast<AActor>(EventData.Target.Get());
     if (!OutOwnerActor)
     {
         return false;
     }
-    
+
     // Try to parse item data from metadata
     FString ItemIDStr = EventData.GetMetadata(TEXT("ItemID"));
     if (!ItemIDStr.IsEmpty())
     {
         OutItem.ItemID = *ItemIDStr;
-        
+
         FString InstanceIDStr = EventData.GetMetadata(TEXT("InstanceID"));
         if (!InstanceIDStr.IsEmpty())
         {
             FGuid::Parse(InstanceIDStr, OutItem.InstanceID);
         }
-        
+
         FString QuantityStr = EventData.GetMetadata(TEXT("Quantity"));
         if (!QuantityStr.IsEmpty())
         {
             OutItem.Quantity = FCString::Atoi(*QuantityStr);
         }
-        
+
         return OutItem.IsValid();
     }
-    
+
     // Fallback: Try JSON parsing from payload
     if (!EventData.Payload.IsEmpty())
     {
         TSharedPtr<FJsonObject> JsonObject;
         TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(EventData.Payload);
-        
+
         if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
         {
             FString ItemID;
@@ -1303,22 +1304,22 @@ bool USuspenseEquipmentAbilityService::ParseEquipmentEventData(
             {
                 OutItem.ItemID = *ItemID;
             }
-            
+
             FString InstanceID;
             if (JsonObject->TryGetStringField(TEXT("InstanceID"), InstanceID))
             {
                 FGuid::Parse(InstanceID, OutItem.InstanceID);
             }
-            
+
             int32 Quantity;
             if (JsonObject->TryGetNumberField(TEXT("Quantity"), Quantity))
             {
                 OutItem.Quantity = Quantity;
             }
-            
+
             return OutItem.IsValid();
         }
     }
-    
+
     return false;
 }

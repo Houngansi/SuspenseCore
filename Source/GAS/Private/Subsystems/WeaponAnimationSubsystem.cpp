@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Subsystems/WeaponAnimationSubsystem.h"
-#include "Types/Animation/AnimationStateStruct.h"
+#include "Types/Animation/SuspenseAnimationState.h"
 #include "Engine/DataTable.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
@@ -18,7 +18,7 @@ UWeaponAnimationSubsystem::UWeaponAnimationSubsystem()
     AnimationDataTable = nullptr;
     bIsInitialized = false;
     bEnableDetailedLogging = false;
-    
+
     // Инициализация статистики
     CacheHits = 0;
     CacheMisses = 0;
@@ -28,19 +28,19 @@ UWeaponAnimationSubsystem::UWeaponAnimationSubsystem()
 void UWeaponAnimationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    
+
     UE_LOG(LogWeaponAnimation, Log, TEXT("WeaponAnimationSubsystem: Initializing..."));
-    
+
     // НЕ загружаем никакие дефолтные DataTable!
     // GameInstance загрузит правильную DataTable через LoadAnimationDataTable()
-    
+
     UE_LOG(LogWeaponAnimation, Log, TEXT("WeaponAnimationSubsystem: Waiting for DataTable from GameInstance"));
 }
 
 void UWeaponAnimationSubsystem::Deinitialize()
 {
     UE_LOG(LogWeaponAnimation, Log, TEXT("WeaponAnimationSubsystem: Deinitializing..."));
-    
+
     // Выводим финальную статистику кэша
     if (CacheHits > 0 || CacheMisses > 0)
     {
@@ -48,18 +48,18 @@ void UWeaponAnimationSubsystem::Deinitialize()
         int32 MemoryUsage = 0;
         int32 CacheEntries = 0;
         GetCacheMetrics(HitRate, MemoryUsage, CacheEntries);
-        
-        UE_LOG(LogWeaponAnimation, Log, 
+
+        UE_LOG(LogWeaponAnimation, Log,
             TEXT("WeaponAnimationSubsystem: Final cache stats - Hit Rate: %.2f%%, Memory: %d bytes, Entries: %d, Evictions: %d"),
             HitRate, MemoryUsage, CacheEntries, CacheEvictions);
     }
-    
+
     // Очищаем все данные
     ClearAnimationCache();
     LoadedAnimationData.Empty();
     AnimationDataTable = nullptr;
     bIsInitialized = false;
-    
+
     Super::Deinitialize();
 }
 
@@ -80,7 +80,7 @@ bool UWeaponAnimationSubsystem::LoadAnimationDataTable(UDataTable* InDataTable)
         UE_LOG(LogWeaponAnimation, Error, TEXT("LoadAnimationDataTable: Cannot load null DataTable"));
         return false;
     }
-    
+
     // Проверяем структуру строк
     const UScriptStruct* RowStruct = InDataTable->GetRowStruct();
     if (!RowStruct)
@@ -88,54 +88,54 @@ bool UWeaponAnimationSubsystem::LoadAnimationDataTable(UDataTable* InDataTable)
         UE_LOG(LogWeaponAnimation, Error, TEXT("LoadAnimationDataTable: DataTable has no row structure"));
         return false;
     }
-    
+
     // Проверяем что это правильная структура
     if (!RowStruct->IsChildOf(FAnimationStateData::StaticStruct()))
     {
-        UE_LOG(LogWeaponAnimation, Error, 
-            TEXT("LoadAnimationDataTable: Invalid row structure. Expected: FAnimationStateData, Got: %s"), 
+        UE_LOG(LogWeaponAnimation, Error,
+            TEXT("LoadAnimationDataTable: Invalid row structure. Expected: FAnimationStateData, Got: %s"),
             *RowStruct->GetName());
         return false;
     }
-    
+
     // Очищаем старые данные
     LoadedAnimationData.Empty();
     ClearAnimationCache();
-    
+
     AnimationDataTable = InDataTable;
-    
+
     // Загружаем все строки в память
-    UE_LOG(LogWeaponAnimation, Log, TEXT("LoadAnimationDataTable: Loading animation data from %s"), 
+    UE_LOG(LogWeaponAnimation, Log, TEXT("LoadAnimationDataTable: Loading animation data from %s"),
         *InDataTable->GetName());
-    
+
     InDataTable->ForeachRow<FAnimationStateData>(TEXT("LoadAnimationData"),
         [this](const FName& Key, const FAnimationStateData& Value)
         {
             // Сохраняем указатель на данные
             LoadedAnimationData.Add(Key, &Value);
-            
+
             // Проверяем наличие критических анимаций
-            bool bHasCriticalAnims = (Value.Draw != nullptr && 
-                                      Value.Holster != nullptr && 
-                                      Value.Idle != nullptr && 
+            bool bHasCriticalAnims = (Value.Draw != nullptr &&
+                                      Value.Holster != nullptr &&
+                                      Value.Idle != nullptr &&
                                       Value.Stance != nullptr);
-            
+
             if (bHasCriticalAnims)
             {
-                UE_LOG(LogWeaponAnimation, Log, 
+                UE_LOG(LogWeaponAnimation, Log,
                     TEXT("  Loaded animations for %s [OK]"), *Key.ToString());
             }
             else
             {
-                UE_LOG(LogWeaponAnimation, Warning, 
+                UE_LOG(LogWeaponAnimation, Warning,
                     TEXT("  Loaded animations for %s [INCOMPLETE - missing critical animations]"), *Key.ToString());
-                
+
                 if (!Value.Draw) UE_LOG(LogWeaponAnimation, Warning, TEXT("    - Missing Draw montage"));
                 if (!Value.Holster) UE_LOG(LogWeaponAnimation, Warning, TEXT("    - Missing Holster montage"));
                 if (!Value.Idle) UE_LOG(LogWeaponAnimation, Warning, TEXT("    - Missing Idle sequence"));
                 if (!Value.Stance) UE_LOG(LogWeaponAnimation, Warning, TEXT("    - Missing Stance blendspace"));
             }
-            
+
             // Оповещаем о загрузке
             FGameplayTag WeaponTag = FGameplayTag::RequestGameplayTag(Key, false);
             if (WeaponTag.IsValid())
@@ -143,19 +143,19 @@ bool UWeaponAnimationSubsystem::LoadAnimationDataTable(UDataTable* InDataTable)
                 OnAnimationDataLoaded.Broadcast(WeaponTag);
             }
         });
-    
+
     bIsInitialized = LoadedAnimationData.Num() > 0;
-    
-    UE_LOG(LogWeaponAnimation, Log, 
-        TEXT("LoadAnimationDataTable: Successfully loaded %d weapon animation sets"), 
+
+    UE_LOG(LogWeaponAnimation, Log,
+        TEXT("LoadAnimationDataTable: Successfully loaded %d weapon animation sets"),
         LoadedAnimationData.Num());
-    
+
     // Выводим сводку по типам оружия
     if (bIsInitialized && bEnableDetailedLogging)
     {
         LogSystemState();
     }
-    
+
     return bIsInitialized;
 }
 
@@ -170,20 +170,20 @@ const FAnimationStateData* UWeaponAnimationSubsystem::GetAnimationStateDataPtr(c
         UE_LOG(LogWeaponAnimation, Warning, TEXT("GetAnimationStateDataPtr: Subsystem not initialized"));
         return nullptr;
     }
-    
+
     // Строим ключ кэша
     FString CacheKey = BuildCacheKey(WeaponType);
-    
+
     // Проверяем кэш с потокобезопасностью
     {
         FScopeLock Lock(&CacheCriticalSection);
-        
+
         if (FWeaponAnimationCacheEntry* CachedEntry = AnimationCache.Find(CacheKey))
         {
             if (CachedEntry->bIsValid)
             {
                 float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-                
+
                 // Проверяем TTL кэша
                 if ((CurrentTime - CachedEntry->CacheTime) < CacheLifetime)
                 {
@@ -191,13 +191,13 @@ const FAnimationStateData* UWeaponAnimationSubsystem::GetAnimationStateDataPtr(c
                     CachedEntry->HitCount++;
                     CachedEntry->LastAccessTime = CurrentTime;
                     CacheHits++;
-                    
+
                     if (bEnableDetailedLogging)
                     {
-                        UE_LOG(LogWeaponAnimation, VeryVerbose, 
+                        UE_LOG(LogWeaponAnimation, VeryVerbose,
                             TEXT("Cache HIT for %s (hits: %d)"), *WeaponType.ToString(), CachedEntry->HitCount);
                     }
-                    
+
                     return CachedEntry->AnimationData;
                 }
                 else
@@ -208,31 +208,31 @@ const FAnimationStateData* UWeaponAnimationSubsystem::GetAnimationStateDataPtr(c
             }
         }
     }
-    
+
     // Cache miss
     CacheMisses++;
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogWeaponAnimation, VeryVerbose, TEXT("Cache MISS for %s"), *WeaponType.ToString());
     }
-    
+
     // Ищем данные в загруженной таблице
     const FAnimationStateData* FoundData = FindAnimationData(WeaponType);
-    
+
     if (FoundData)
     {
         // Обновляем кэш
         UpdateCache(CacheKey, FoundData);
     }
-    
+
     return FoundData;
 }
 
 void UWeaponAnimationSubsystem::PreloadAnimationDataBatch(const TArray<FGameplayTag>& WeaponTypes)
 {
     UE_LOG(LogWeaponAnimation, Log, TEXT("PreloadAnimationDataBatch: Preloading %d weapon types"), WeaponTypes.Num());
-    
+
     int32 SuccessCount = 0;
     for (const FGameplayTag& WeaponType : WeaponTypes)
     {
@@ -241,25 +241,25 @@ void UWeaponAnimationSubsystem::PreloadAnimationDataBatch(const TArray<FGameplay
             SuccessCount++;
         }
     }
-    
-    UE_LOG(LogWeaponAnimation, Log, TEXT("PreloadAnimationDataBatch: Successfully preloaded %d/%d weapon types"), 
+
+    UE_LOG(LogWeaponAnimation, Log, TEXT("PreloadAnimationDataBatch: Successfully preloaded %d/%d weapon types"),
         SuccessCount, WeaponTypes.Num());
 }
 
 void UWeaponAnimationSubsystem::GetCacheMetrics(float& OutHitRate, int32& OutMemoryUsageBytes, int32& OutCacheEntries) const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     // Вычисляем hit rate
     int32 TotalAccesses = CacheHits + CacheMisses;
     OutHitRate = TotalAccesses > 0 ? (float(CacheHits) / float(TotalAccesses)) * 100.0f : 0.0f;
-    
+
     // Вычисляем использование памяти
     OutMemoryUsageBytes = CalculateMemoryUsage();
-    
+
     // Количество записей в кэше
     OutCacheEntries = AnimationCache.Num();
-    
+
     // Оповещаем об обновлении метрик
     const_cast<UWeaponAnimationSubsystem*>(this)->OnCacheMetricsUpdated.Broadcast(OutHitRate, OutCacheEntries);
 }
@@ -271,14 +271,14 @@ void UWeaponAnimationSubsystem::GetCacheMetrics(float& OutHitRate, int32& OutMem
 bool UWeaponAnimationSubsystem::GetAnimationStateData_Implementation(const FGameplayTag& WeaponType, FAnimationStateData& OutAnimationData) const
 {
     const FAnimationStateData* DataPtr = GetAnimationStateDataPtr(WeaponType);
-    
+
     if (DataPtr)
     {
         // Копируем данные для безопасности Blueprint
         OutAnimationData = *DataPtr;
         return true;
     }
-    
+
     return false;
 }
 
@@ -382,7 +382,7 @@ float UWeaponAnimationSubsystem::GetSwitchDuration_Implementation(const FGamepla
     {
         return SwitchMontage->GetPlayLength();
     }
-    
+
     // Стандартная последовательность: holster + draw
     float HolsterDuration = GetHolsterDuration_Implementation(FromWeaponType);
     float DrawDuration = GetDrawDuration_Implementation(ToWeaponType, false);
@@ -407,67 +407,67 @@ bool UWeaponAnimationSubsystem::HasAnimationData_Implementation(const FGameplayT
 bool UWeaponAnimationSubsystem::ValidateAnimationData_Implementation(const FGameplayTag& WeaponType, TArray<FString>& OutErrors) const
 {
     OutErrors.Empty();
-    
+
     const FAnimationStateData* AnimData = GetAnimationStateDataPtr(WeaponType);
     if (!AnimData)
     {
         OutErrors.Add(FString::Printf(TEXT("No animation data found for weapon type: %s"), *WeaponType.ToString()));
         return false;
     }
-    
+
     bool bIsValid = true;
-    
+
     // Проверяем критические анимации
     if (!ValidateMontage(AnimData->Draw.Get(), TEXT("Draw"), OutErrors))
     {
         bIsValid = false;
     }
-    
+
     if (!ValidateMontage(AnimData->Holster.Get(), TEXT("Holster"), OutErrors))
     {
         bIsValid = false;
     }
-    
+
     if (!AnimData->Idle)
     {
         OutErrors.Add(TEXT("Missing Idle animation sequence"));
         bIsValid = false;
     }
-    
+
     if (!AnimData->Stance)
     {
         OutErrors.Add(TEXT("Missing Stance blend space"));
         bIsValid = false;
     }
-    
+
     // Проверяем опциональные анимации (только предупреждения)
     if (!AnimData->FirstDraw)
     {
         OutErrors.Add(TEXT("Warning: Missing FirstDraw animation (will use regular Draw)"));
     }
-    
+
     if (!AnimData->ReloadShort)
     {
         OutErrors.Add(TEXT("Warning: Missing ReloadShort animation"));
     }
-    
+
     if (!AnimData->ReloadLong)
     {
         OutErrors.Add(TEXT("Warning: Missing ReloadLong animation"));
     }
-    
+
     if (!AnimData->AimPose)
     {
         OutErrors.Add(TEXT("Warning: Missing AimPose animation"));
     }
-    
+
     return bIsValid;
 }
 
 TArray<FGameplayTag> UWeaponAnimationSubsystem::GetAvailableWeaponTypes_Implementation() const
 {
     TArray<FGameplayTag> AvailableTypes;
-    
+
     for (const auto& DataPair : LoadedAnimationData)
     {
         FGameplayTag WeaponTag = FGameplayTag::RequestGameplayTag(DataPair.Key, false);
@@ -476,7 +476,7 @@ TArray<FGameplayTag> UWeaponAnimationSubsystem::GetAvailableWeaponTypes_Implemen
             AvailableTypes.Add(WeaponTag);
         }
     }
-    
+
     return AvailableTypes;
 }
 
@@ -494,7 +494,7 @@ bool UWeaponAnimationSubsystem::HasSwitchAnimation_Implementation(const FGamepla
 void UWeaponAnimationSubsystem::ClearAnimationCache()
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     // Оповещаем об очистке
     for (const auto& CacheEntry : AnimationCache)
     {
@@ -504,21 +504,21 @@ void UWeaponAnimationSubsystem::ClearAnimationCache()
             OnAnimationDataCleared.Broadcast(WeaponTag);
         }
     }
-    
+
     AnimationCache.Empty();
-    
+
     // Сбрасываем статистику
     CacheHits = 0;
     CacheMisses = 0;
     CacheEvictions = 0;
-    
+
     UE_LOG(LogWeaponAnimation, Log, TEXT("ClearAnimationCache: Animation cache cleared"));
 }
 
 void UWeaponAnimationSubsystem::GetCacheStatistics(int32& OutCacheSize, int32& OutMemoryUsage) const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     OutCacheSize = AnimationCache.Num();
     OutMemoryUsage = CalculateMemoryUsage();
 }
@@ -531,12 +531,12 @@ void UWeaponAnimationSubsystem::PreloadWeaponAnimations(const TArray<FGameplayTa
 FString UWeaponAnimationSubsystem::GetDebugInfo() const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     float HitRate = 0.0f;
     int32 MemoryUsage = 0;
     int32 CacheEntries = 0;
     GetCacheMetrics(HitRate, MemoryUsage, CacheEntries);
-    
+
     FString DebugInfo = FString::Printf(
         TEXT("WeaponAnimationSubsystem Debug Info:\n")
         TEXT("  Initialized: %s\n")
@@ -556,7 +556,7 @@ FString UWeaponAnimationSubsystem::GetDebugInfo() const
         CacheEvictions,
         MemoryUsage
     );
-    
+
     return DebugInfo;
 }
 
@@ -568,7 +568,7 @@ const FAnimationStateData* UWeaponAnimationSubsystem::FindAnimationData(const FG
 {
     // Сначала ищем точное совпадение
     FName RowName = WeaponType.GetTagName();
-    
+
     // Используем auto для автоматического вывода правильного типа
     // или явно указываем полный const-корректный тип
     if (const auto Found = LoadedAnimationData.Find(RowName))
@@ -579,34 +579,34 @@ const FAnimationStateData* UWeaponAnimationSubsystem::FindAnimationData(const FG
         }
         return *Found;
     }
-    
+
     // Поддержка наследования тегов - ищем по родительским тегам
     // Например: Weapon.Type.Rifle.AK47 -> Weapon.Type.Rifle -> Weapon.Type
     FGameplayTag ParentTag = WeaponType.RequestDirectParent();
     int32 ParentCheckCount = 0;
-    
+
     while (ParentTag.IsValid())
     {
         RowName = ParentTag.GetTagName();
         ParentCheckCount++;
-        
+
         // Снова используем auto для правильной типизации
         if (const auto Found = LoadedAnimationData.Find(RowName))
         {
-            UE_LOG(LogWeaponAnimation, Log, 
-                TEXT("FindAnimationData: Using parent animations %s for %s (checked %d levels up)"), 
+            UE_LOG(LogWeaponAnimation, Log,
+                TEXT("FindAnimationData: Using parent animations %s for %s (checked %d levels up)"),
                 *ParentTag.ToString(), *WeaponType.ToString(), ParentCheckCount);
             return *Found;
         }
-        
+
         ParentTag = ParentTag.RequestDirectParent();
     }
-    
+
     // Логируем детальную информацию о неудачном поиске
-    UE_LOG(LogWeaponAnimation, Warning, 
-        TEXT("FindAnimationData: No animation data found for %s (checked tag and %d parent levels)"), 
+    UE_LOG(LogWeaponAnimation, Warning,
+        TEXT("FindAnimationData: No animation data found for %s (checked tag and %d parent levels)"),
         *WeaponType.ToString(), ParentCheckCount);
-    
+
     // В режиме отладки можем вывести список доступных анимаций
     if (bEnableDetailedLogging && LoadedAnimationData.Num() > 0)
     {
@@ -619,10 +619,10 @@ const FAnimationStateData* UWeaponAnimationSubsystem::FindAnimationData(const FG
             }
             AvailableTags += Pair.Key.ToString();
         }
-        UE_LOG(LogWeaponAnimation, Warning, 
+        UE_LOG(LogWeaponAnimation, Warning,
             TEXT("  Available animation sets: [%s]"), *AvailableTags);
     }
-    
+
     return nullptr;
 }
 
@@ -634,13 +634,13 @@ FString UWeaponAnimationSubsystem::BuildCacheKey(const FGameplayTag& WeaponType)
 void UWeaponAnimationSubsystem::UpdateCache(const FString& CacheKey, const FAnimationStateData* Data) const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     // Проверяем нужно ли освободить место
     if (AnimationCache.Num() >= MaxCacheSize)
     {
         EvictLRUCacheEntry();
     }
-    
+
     // Добавляем или обновляем запись
     FWeaponAnimationCacheEntry& NewEntry = AnimationCache.FindOrAdd(CacheKey);
     NewEntry.AnimationData = Data;
@@ -648,7 +648,7 @@ void UWeaponAnimationSubsystem::UpdateCache(const FString& CacheKey, const FAnim
     NewEntry.LastAccessTime = NewEntry.CacheTime;
     NewEntry.bIsValid = true;
     NewEntry.HitCount = 0;
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogWeaponAnimation, VeryVerbose, TEXT("UpdateCache: Cached data for %s"), *CacheKey);
@@ -660,7 +660,7 @@ void UWeaponAnimationSubsystem::EvictLRUCacheEntry() const
     FString LRUKey;
     float OldestAccessTime = FLT_MAX;
     int32 MinHitCount = INT32_MAX;
-    
+
     // Находим наименее используемую запись
     for (const auto& Pair : AnimationCache)
     {
@@ -669,9 +669,9 @@ void UWeaponAnimationSubsystem::EvictLRUCacheEntry() const
         {
             continue;
         }
-        
+
         // Приоритет: сначала по количеству использований, потом по времени доступа
-        if (Pair.Value.HitCount < MinHitCount || 
+        if (Pair.Value.HitCount < MinHitCount ||
             (Pair.Value.HitCount == MinHitCount && Pair.Value.LastAccessTime < OldestAccessTime))
         {
             MinHitCount = Pair.Value.HitCount;
@@ -679,15 +679,15 @@ void UWeaponAnimationSubsystem::EvictLRUCacheEntry() const
             LRUKey = Pair.Key;
         }
     }
-    
+
     if (!LRUKey.IsEmpty())
     {
         AnimationCache.Remove(LRUKey);
         CacheEvictions++;
-        
+
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogWeaponAnimation, VeryVerbose, 
+            UE_LOG(LogWeaponAnimation, VeryVerbose,
                 TEXT("EvictLRUCacheEntry: Evicted %s (hits: %d)"), *LRUKey, MinHitCount);
         }
     }
@@ -700,44 +700,44 @@ bool UWeaponAnimationSubsystem::ValidateMontage(const UAnimMontage* Montage, con
         OutErrors.Add(FString::Printf(TEXT("Missing %s animation montage"), *AnimationName));
         return false;
     }
-    
+
     if (Montage->GetPlayLength() <= 0.0f)
     {
-        OutErrors.Add(FString::Printf(TEXT("%s animation has invalid length (%.2f)"), 
+        OutErrors.Add(FString::Printf(TEXT("%s animation has invalid length (%.2f)"),
             *AnimationName, Montage->GetPlayLength()));
         return false;
     }
-    
+
     // Дополнительная проверка на валидность ассета
     if (Montage->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
     {
         OutErrors.Add(FString::Printf(TEXT("%s animation montage is being destroyed"), *AnimationName));
         return false;
     }
-    
+
     return true;
 }
 
 int32 UWeaponAnimationSubsystem::CalculateMemoryUsage() const
 {
     int32 TotalMemory = 0;
-    
+
     // Размер записей кэша
     TotalMemory += AnimationCache.Num() * sizeof(FWeaponAnimationCacheEntry);
-    
+
     // Размер загруженных данных (приблизительно)
     TotalMemory += LoadedAnimationData.Num() * sizeof(FAnimationStateData);
-    
+
     // Overhead структур данных
     TotalMemory += AnimationCache.GetAllocatedSize();
     TotalMemory += LoadedAnimationData.GetAllocatedSize();
-    
+
     // Дополнительный overhead на строки в кэше
     for (const auto& Pair : AnimationCache)
     {
         TotalMemory += Pair.Key.GetAllocatedSize();
     }
-    
+
     return TotalMemory;
 }
 
@@ -745,7 +745,7 @@ void UWeaponAnimationSubsystem::LogSystemState() const
 {
     UE_LOG(LogWeaponAnimation, Log, TEXT("=== WeaponAnimationSubsystem State ==="));
     UE_LOG(LogWeaponAnimation, Log, TEXT("  Loaded weapon types:"));
-    
+
     for (const auto& DataPair : LoadedAnimationData)
     {
         const FAnimationStateData* Data = DataPair.Value;
@@ -760,12 +760,12 @@ void UWeaponAnimationSubsystem::LogSystemState() const
             if (Data->Idle) AnimCount++;
             if (Data->Stance) AnimCount++;
             if (Data->AimPose) AnimCount++;
-            
-            UE_LOG(LogWeaponAnimation, Log, TEXT("    %s - %d animations configured"), 
+
+            UE_LOG(LogWeaponAnimation, Log, TEXT("    %s - %d animations configured"),
                 *DataPair.Key.ToString(), AnimCount);
         }
     }
-    
+
     UE_LOG(LogWeaponAnimation, Log, TEXT("  Cache state: %d entries"), AnimationCache.Num());
     UE_LOG(LogWeaponAnimation, Log, TEXT("======================================="));
 }

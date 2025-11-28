@@ -1003,11 +1003,11 @@ FText USuspenseInventoryLibrary::GetErrorMessage(EInventoryErrorCode ErrorCode, 
     return BaseMessage;
 }
 
-FInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const FName& Context,
+FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const FName& Context,
                                                                              UObject* ResultObject,
                                                                              const FString& AdditionalData)
 {
-    FInventoryOperationResult Result = FInventoryOperationResult::Success(Context, ResultObject);
+    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(Context, ResultObject);
     if (!AdditionalData.IsEmpty())
     {
         Result.AddResultData(TEXT("AdditionalData"), AdditionalData);
@@ -1016,12 +1016,12 @@ FInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const F
     return Result;
 }
 
-FInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(EInventoryErrorCode ErrorCode,
+FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(EInventoryErrorCode ErrorCode,
                                                                               const FText& ErrorMessage,
                                                                               const FName& Context,
                                                                               UObject* ResultObject)
 {
-    return FInventoryOperationResult::Failure(ErrorCode, ErrorMessage, Context, ResultObject);
+    return FSuspenseInventoryOperationResult::Failure(ErrorCode, ErrorMessage, Context, ResultObject);
 }
 
 //==================================================================

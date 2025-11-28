@@ -5,8 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
-#include "Types/UI/EquipmentUITypes.h"
+#include "Types/UI/SuspenseEquipmentUITypes.h"
 #include "Components/CanvasPanel.h"
+#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseEquipmentContainerWidget.generated.h"
 
@@ -19,7 +20,6 @@ class USuspenseEquipmentSlotWidget;
 class USuspenseEquipmentUIBridge;
 class USuspenseDragDropOperation;
 class USuspenseLoadoutManager;
-class ISuspenseEquipmentUIBridgeInterfaceWidget;
 
 /**
  * Equipment slot container info
@@ -55,28 +55,28 @@ struct FEquipmentSlotContainer
 
 /**
  * Equipment Container Widget - SIMPLIFIED ARCHITECTURE
- * 
+ *
  * NEW DATA FLOW (5 steps):
  *  1. DataStore changes slot data
  *  2. UIBridge receives HandleDataStoreSlotChanged
  *  3. Bridge updates CachedUIData and broadcasts OnEquipmentUIDataChanged
  *  4. Container receives HandleEquipmentDataChanged with ready data
  *  5. Container calls UpdateAllEquipmentSlots and widgets update
- * 
+ *
  * OLD DATA FLOW (13 steps) - REMOVED:
  *  - No more UIConnector component
  *  - No more UIPort interface
  *  - No more EventDelegateManager::NotifyInventoryUIRefreshRequested
  *  - No more RequestDataRefresh with debounce
  *  - No more GetEquipmentSlotsUIData calls
- * 
+ *
  * Key improvements:
  *  - Direct subscription to UIBridge delegate (no global events)
  *  - Receives pre-built FEquipmentSlotUIData (no conversion needed)
  *  - Immediate updates (no debounce delay unless desired)
  *  - Simpler code path (easier to debug)
  *  - Better performance (fewer allocations, no extra copies)
- * 
+ *
  * Responsibilities:
  *  - Manage equipment slot layout based on LoadoutManager config
  *  - Subscribe directly to UIBridge for data updates
@@ -121,7 +121,7 @@ public:
     //~ End ISuspenseContainerUIInterface
 
     // ===== NEW: Direct UIBridge Integration =====
-    
+
     /**
      * Set UIBridge reference for direct subscription
      * This replaces the old global event system approach
@@ -130,7 +130,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category="Equipment")
     void SetUIBridge(USuspenseEquipmentUIBridge* InBridge);
-    
+
     /**
      * Get current UIBridge reference
      * @return Current equipment UI bridge or nullptr
@@ -139,7 +139,7 @@ public:
     USuspenseEquipmentUIBridge* GetUIBridge() const { return UIBridge; }
 
     // ===== Loadout Management =====
-    
+
     /** Pull loadout config from LoadoutManager and rebuild UI */
     UFUNCTION(BlueprintCallable, Category="Equipment|Loadout")
     void RefreshFromLoadoutManager();
@@ -157,7 +157,7 @@ public:
     bool IsSlotActiveInCurrentLoadout(EEquipmentSlotType SlotType) const;
 
     // ===== Equipment Display =====
-    
+
     /** Update equipment visual state from bridge data */
     UFUNCTION(BlueprintCallable, Category="Equipment")
     void UpdateEquipmentDisplay(const FEquipmentContainerUIData& EquipmentData);
@@ -183,7 +183,7 @@ public:
 
 protected:
     // ===== UI Bindings =====
-    
+
     //~ Root panel
     UPROPERTY(BlueprintReadOnly, meta=(BindWidget))
     UCanvasPanel* EquipmentCanvas;
@@ -224,7 +224,7 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional)) UTextBlock* LoadoutNameText;
 
     // ===== Configuration =====
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Equipment|Config")
     FName FallbackLoadoutID;
 
@@ -238,7 +238,7 @@ protected:
     float CellPadding;
 
     // ===== State =====
-    
+
     UPROPERTY(BlueprintReadOnly, Category="Equipment|State")
     FName CurrentLoadoutID;
 
@@ -251,7 +251,7 @@ protected:
     UPROPERTY() USuspenseLoadoutManager* CachedLoadoutManager;
 
     // ===== Blueprint Events =====
-    
+
     UFUNCTION(BlueprintImplementableEvent, Category="Equipment|Events", DisplayName="On Loadout Changed")
     void K2_OnLoadoutChanged(const FName& NewLoadoutID);
 
@@ -262,13 +262,13 @@ protected:
     void K2_OnLoadoutRefreshFailed(const FString& Reason);
 
     // ===== Event Subscriptions =====
-    
+
     virtual void SubscribeToEvents() override;
     virtual void UnsubscribeFromEvents() override;
 
 private:
     // ===== NEW: Direct UIBridge Reference =====
-    
+
     /**
      * Direct reference to UIBridge (replaces TScriptInterface)
      * This is the single source of equipment data for this widget
@@ -276,13 +276,13 @@ private:
      */
     UPROPERTY()
     USuspenseEquipmentUIBridge* UIBridge = nullptr;
-    
+
     /**
      * Delegate handle for UIBridge subscription
      * Must be properly removed in NativeDestruct to prevent crashes
      */
     FDelegateHandle DataChangedHandle;
-    
+
     /**
      * NEW: Direct handler for equipment data changes from Bridge
      * Receives pre-built FEquipmentSlotUIData array ready for display
@@ -292,7 +292,7 @@ private:
     void HandleEquipmentDataChanged(const TArray<FEquipmentSlotUIData>& FreshData);
 
     // ===== Container Management =====
-    
+
     /** Map of equipment slot containers by slot tag */
     UPROPERTY() TMap<FGameplayTag, FEquipmentSlotContainer> EquipmentContainers;
 
@@ -304,7 +304,7 @@ private:
 
     /** Active slot types in current loadout */
     TArray<EEquipmentSlotType> ActiveSlotTypes;
-    
+
     /** All available slot types (taxonomy) */
     TArray<EEquipmentSlotType> AllAvailableSlotTypes;
 
@@ -312,7 +312,7 @@ private:
     bool bEventSubscriptionsActive = false;
 
     // ===== Legacy Event Handles (kept for backward compatibility) =====
-    
+
     /**
      * NOTE: These native event handles are KEPT for potential future use
      * They are NOT used in the new simplified architecture
@@ -324,7 +324,7 @@ private:
     FDelegateHandle EquipmentUpdatedHandle;
 
     // ===== Internal Helpers =====
-    
+
     bool ValidateAllBorderBindings() const;
     void ShowAllSlotsForDesign();
     void UseDefaultLoadoutForTesting();
@@ -352,7 +352,7 @@ private:
     bool CalculateOccupiedSlotsInContainer(const FGameplayTag& SlotType, int32 LocalIndex, FIntPoint ItemSize, TArray<int32>& OutGlobalIndices) const;
     bool IsItemTypeAllowedInSlot(const FGameplayTag& ItemType, const FGameplayTag& SlotType) const;
 
-    ISuspenseEquipmentUIBridgeInterfaceWidget* GetOrCreateEquipmentBridge();
+    ISuspenseEquipmentUIBridgeInterface* GetOrCreateEquipmentBridge();
     bool ProcessEquipmentOperationThroughBridge(const FDragDropUIData& DragData, int32 TargetSlotIndex);
 
     /** Event handlers for legacy compatibility */

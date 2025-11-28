@@ -6,24 +6,24 @@
 #include "Net/UnrealNetwork.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Engine/World.h"
 #include "Components/SuspenseEquipmentAttributeComponent.h"
-#include "Attributes/MedComWeaponAttributeSet.h"
-#include "Attributes/MedComAmmoAttributeSet.h"
+#include "Attributes/WeaponAttributeSet.h"
+#include "Attributes/AmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"
 
 USuspenseWeaponAmmoComponent::USuspenseWeaponAmmoComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     SetIsReplicatedByDefault(true);
-    
+
     // Initialize runtime state
-    AmmoState = FInventoryAmmoState();
+    AmmoState = FSuspenseInventoryAmmoState();
     bIsReloading = false;
     ReloadStartTime = 0.0f;
     bIsTacticalReload = true;
-    
+
     // Initialize cached references
     LinkedAttributeComponent = nullptr;
     CachedWeaponAttributeSet = nullptr;
@@ -35,7 +35,7 @@ USuspenseWeaponAmmoComponent::USuspenseWeaponAmmoComponent()
 void USuspenseWeaponAmmoComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Try to find and link attribute component on the same actor
     if (AActor* Owner = GetOwner())
     {
@@ -44,14 +44,14 @@ void USuspenseWeaponAmmoComponent::BeginPlay()
             LinkAttributeComponent(AttrComp);
         }
     }
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("WeaponAmmoComponent initialized"));
 }
 
 void USuspenseWeaponAmmoComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     // Only replicate runtime state
     DOREPLIFETIME(USuspenseWeaponAmmoComponent, AmmoState);
     DOREPLIFETIME(USuspenseWeaponAmmoComponent, bIsReloading);
@@ -66,16 +66,16 @@ void USuspenseWeaponAmmoComponent::Cleanup()
     {
         CancelReload();
     }
-    
+
     // Clear cached references
     CachedWeaponInterface = nullptr;
     LinkedAttributeComponent = nullptr;
     CachedWeaponAttributeSet = nullptr;
     CachedAmmoAttributeSet = nullptr;
     bMagazineSizeCached = false;
-    
+
     Super::Cleanup();
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("WeaponAmmoComponent cleaned up"));
 }
 
@@ -86,15 +86,15 @@ bool USuspenseWeaponAmmoComponent::InitializeFromWeapon(TScriptInterface<ISuspen
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Invalid weapon interface"));
         return false;
     }
-    
+
     CachedWeaponInterface = WeaponInterface;
-    
+
     // Get initial ammo state from weapon
     AmmoState = ISuspenseWeapon::Execute_GetAmmoState(WeaponInterface.GetObject());
-    
+
     // Update cached magazine size from attributes
     UpdateMagazineSizeFromAttributes();
-    
+
     // If no saved state, initialize with full magazine
     if (!AmmoState.bHasAmmoState)
     {
@@ -103,31 +103,31 @@ bool USuspenseWeaponAmmoComponent::InitializeFromWeapon(TScriptInterface<ISuspen
         AmmoState.RemainingAmmo = MagazineSize * 3; // Default reserve ammo
         AmmoState.AmmoType = GetAmmoType();
         AmmoState.bHasAmmoState = true;
-        
-        EQUIPMENT_LOG(Log, TEXT("Initialized with default ammo: %.0f/%.0f"), 
+
+        EQUIPMENT_LOG(Log, TEXT("Initialized with default ammo: %.0f/%.0f"),
             AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
     }
-    
+
     // Initial broadcast
     BroadcastAmmoChanged();
-    
+
     return true;
 }
 
 void USuspenseWeaponAmmoComponent::LinkAttributeComponent(USuspenseEquipmentAttributeComponent* AttributeComponent)
 {
     LinkedAttributeComponent = AttributeComponent;
-    
+
     if (LinkedAttributeComponent)
     {
         // Cache AttributeSets for performance
         CachedWeaponAttributeSet = Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
         CachedAmmoAttributeSet = Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
-        
+
         // Invalidate cache to force update
         bMagazineSizeCached = false;
-        
-        EQUIPMENT_LOG(Log, TEXT("Linked to attribute component - WeaponAS: %s, AmmoAS: %s"), 
+
+        EQUIPMENT_LOG(Log, TEXT("Linked to attribute component - WeaponAS: %s, AmmoAS: %s"),
             CachedWeaponAttributeSet ? TEXT("Valid") : TEXT("Null"),
             CachedAmmoAttributeSet ? TEXT("Valid") : TEXT("Null"));
     }
@@ -140,13 +140,13 @@ UWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet() const
     {
         return CachedWeaponAttributeSet;
     }
-    
+
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
         return Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
     }
-    
+
     // Try to find from ASC on owner
     if (AActor* Owner = GetOwner())
     {
@@ -161,7 +161,7 @@ UWeaponAttributeSet* USuspenseWeaponAmmoComponent::GetWeaponAttributeSet() const
             }
         }
     }
-    
+
     return nullptr;
 }
 
@@ -172,13 +172,13 @@ UAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() const
     {
         return CachedAmmoAttributeSet;
     }
-    
+
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
         return Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
     }
-    
+
     // Try to find from ASC on owner
     if (AActor* Owner = GetOwner())
     {
@@ -193,7 +193,7 @@ UAmmoAttributeSet* USuspenseWeaponAmmoComponent::GetAmmoAttributeSet() const
             }
         }
     }
-    
+
     return nullptr;
 }
 
@@ -203,36 +203,36 @@ bool USuspenseWeaponAmmoComponent::ConsumeAmmo(float Amount)
     {
         return false;
     }
-    
+
     if (Amount <= 0.0f)
     {
         EQUIPMENT_LOG(Warning, TEXT("ConsumeAmmo: Invalid amount: %.1f"), Amount);
         return false;
     }
-    
+
     // Проверяем наличие патронов
     if (AmmoState.CurrentAmmo < Amount)
     {
-        EQUIPMENT_LOG(Verbose, TEXT("ConsumeAmmo: Insufficient ammo (%.1f < %.1f)"), 
+        EQUIPMENT_LOG(Verbose, TEXT("ConsumeAmmo: Insufficient ammo (%.1f < %.1f)"),
             AmmoState.CurrentAmmo, Amount);
         return false;
     }
-    
+
     // Расходуем патроны
     AmmoState.CurrentAmmo -= Amount;
-    
+
     // Применяем эффекты износа
     ApplyDurabilityModifiers();
-    
+
     // Сохраняем изменения для персистентности
     SaveAmmoStateToWeapon();
-    
+
     // Уведомляем об изменении
     BroadcastAmmoChanged();
-    
-    EQUIPMENT_LOG(Verbose, TEXT("Consumed %.1f ammo, %.1f remaining in magazine"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("Consumed %.1f ammo, %.1f remaining in magazine"),
         Amount, AmmoState.CurrentAmmo);
-    
+
     return true;
 }
 
@@ -245,12 +245,12 @@ void USuspenseWeaponAmmoComponent::SaveAmmoStateToWeapon()
         // Нет оружия - нечего сохранять
         return;
     }
-    
+
     // Вызываем SetAmmoState на оружии ТОЛЬКО для сохранения в ItemInstance
     // Оружие НЕ должно вызывать обратно SetAmmoState на компоненте
     ISuspenseWeapon::Execute_SetAmmoState(Cast<UObject>(WeaponInterface), AmmoState);
-    
-    EQUIPMENT_LOG(Verbose, TEXT("SaveAmmoStateToWeapon: Persisted ammo state %.1f/%.1f"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("SaveAmmoStateToWeapon: Persisted ammo state %.1f/%.1f"),
         AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
 }
 
@@ -260,29 +260,29 @@ float USuspenseWeaponAmmoComponent::AddAmmo(float Amount)
     {
         return 0.0f;
     }
-    
+
     if (Amount <= 0.0f)
     {
         return 0.0f;
     }
-    
+
     float OldRemaining = AmmoState.RemainingAmmo;
     AmmoState.RemainingAmmo += Amount;
-    
+
     float ActuallyAdded = AmmoState.RemainingAmmo - OldRemaining;
-    
+
     if (ActuallyAdded > 0.0f)
     {
         // Сохраняем изменения
         SaveAmmoStateToWeapon();
-        
+
         // Уведомляем об изменении
         BroadcastAmmoChanged();
-        
-        EQUIPMENT_LOG(Log, TEXT("Added %.1f ammo to reserve, total: %.1f"), 
+
+        EQUIPMENT_LOG(Log, TEXT("Added %.1f ammo to reserve, total: %.1f"),
             ActuallyAdded, AmmoState.RemainingAmmo);
     }
-    
+
     return ActuallyAdded;
 }
 
@@ -294,41 +294,41 @@ bool USuspenseWeaponAmmoComponent::StartReload(bool bForce)
     {
         return true; // Client prediction
     }
-    
+
     // Check if already reloading
     if (bIsReloading)
     {
         EQUIPMENT_LOG(Verbose, TEXT("Already reloading"));
         return false;
     }
-    
+
     // Check if reload needed
     if (!bForce && (IsMagazineFull() || AmmoState.RemainingAmmo <= 0.0f))
     {
         EQUIPMENT_LOG(Verbose, TEXT("Reload not needed"));
         return false;
     }
-    
+
     // Determine reload type
     bIsTacticalReload = AmmoState.CurrentAmmo > 0.0f;
-    
+
     // Start reload
     bIsReloading = true;
     ReloadStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Apply reload effect
     ApplyReloadEffect();
-    
+
     // Broadcast reload start
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadStart();
     }
-    
+
     float ReloadDuration = GetReloadTime(bIsTacticalReload);
-    EQUIPMENT_LOG(Log, TEXT("%s reload started, duration: %.1fs"), 
+    EQUIPMENT_LOG(Log, TEXT("%s reload started, duration: %.1fs"),
         bIsTacticalReload ? TEXT("Tactical") : TEXT("Full"), ReloadDuration);
-    
+
     return true;
 }
 
@@ -340,45 +340,45 @@ void USuspenseWeaponAmmoComponent::CompleteReload()
     {
         return;
     }
-    
+
     if (!bIsReloading)
     {
         EQUIPMENT_LOG(Warning, TEXT("CompleteReload called but not reloading"));
         return;
     }
-    
+
     // Вычисляем количество патронов для перезарядки
     float MagazineSize = GetMagazineSize();
     float AmmoNeeded = MagazineSize - AmmoState.CurrentAmmo;
     float AmmoToTransfer = FMath::Min(AmmoNeeded, AmmoState.RemainingAmmo);
-    
+
     // Переносим патроны
     AmmoState.CurrentAmmo += AmmoToTransfer;
     AmmoState.RemainingAmmo -= AmmoToTransfer;
-    
+
     // Завершаем перезарядку
     bIsReloading = false;
     ReloadStartTime = 0.0f;
-    
+
     // Удаляем эффект перезарядки
     if (ReloadEffectHandle.IsValid() && CachedASC)
     {
         CachedASC->RemoveActiveGameplayEffect(ReloadEffectHandle);
         ReloadEffectHandle.Invalidate();
     }
-    
+
     // Сохраняем новое состояние
     SaveAmmoStateToWeapon();
-    
+
     // Уведомляем о завершении перезарядки
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadEnd();
     }
-    
+
     BroadcastAmmoChanged();
-    
-    EQUIPMENT_LOG(Log, TEXT("Reload completed: transferred %.1f ammo, magazine: %.1f/%.1f"), 
+
+    EQUIPMENT_LOG(Log, TEXT("Reload completed: transferred %.1f ammo, magazine: %.1f/%.1f"),
         AmmoToTransfer, AmmoState.CurrentAmmo, MagazineSize);
 }
 
@@ -388,43 +388,43 @@ void USuspenseWeaponAmmoComponent::CancelReload()
     {
         return;
     }
-    
+
     bIsReloading = false;
     ReloadStartTime = 0.0f;
-    
+
     // Remove reload effect
     if (ReloadEffectHandle.IsValid() && CachedASC)
     {
         CachedASC->RemoveActiveGameplayEffect(ReloadEffectHandle);
         ReloadEffectHandle.Invalidate();
     }
-    
+
     // Broadcast cancel
     if (USuspenseEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadEnd();
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("Reload cancelled"));
 }
 
-void USuspenseWeaponAmmoComponent::SetAmmoState(const FInventoryAmmoState& NewState)
+void USuspenseWeaponAmmoComponent::SetAmmoState(const FSuspenseInventoryAmmoState& NewState)
 {
     if (!ExecuteOnServer("SetAmmoState", [&]() {}))
     {
         return;
     }
-    
+
     // Обновляем внутреннее состояние
     AmmoState = NewState;
-    
+
     // Сохраняем для персистентности
     SaveAmmoStateToWeapon();
-    
+
     // Уведомляем подписчиков об изменении
     BroadcastAmmoChanged();
-    
-    EQUIPMENT_LOG(Log, TEXT("Ammo state set: %.1f/%.1f"), 
+
+    EQUIPMENT_LOG(Log, TEXT("Ammo state set: %.1f/%.1f"),
         AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
 }
 
@@ -434,12 +434,12 @@ bool USuspenseWeaponAmmoComponent::CanReload() const
     {
         return false;
     }
-    
+
     if (IsMagazineFull())
     {
         return false;
     }
-    
+
     return AmmoState.RemainingAmmo > 0.0f;
 }
 
@@ -453,15 +453,15 @@ bool USuspenseWeaponAmmoComponent::IsMagazineFull() const
     float MagazineSize = GetMagazineSize();
     return AmmoState.IsMagazineFull(MagazineSize);
 }
-void USuspenseWeaponAmmoComponent::UpdateInternalAmmoState(const FInventoryAmmoState& NewState)
+void USuspenseWeaponAmmoComponent::UpdateInternalAmmoState(const FSuspenseInventoryAmmoState& NewState)
 {
     // Обновляем состояние без вызова внешних интерфейсов
     AmmoState = NewState;
-    
+
     // Только broadcast изменения
     BroadcastAmmoChanged();
-    
-    EQUIPMENT_LOG(Verbose, TEXT("Internal ammo state updated: %.1f/%.1f"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("Internal ammo state updated: %.1f/%.1f"),
         AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
 }
 float USuspenseWeaponAmmoComponent::GetMagazineSize() const
@@ -471,7 +471,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
     {
         return CachedMagazineSize;
     }
-    
+
     // First priority: Get from WeaponAttributeSet
     if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
@@ -479,7 +479,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
         bMagazineSizeCached = true;
         return CachedMagazineSize;
     }
-    
+
     // Second priority: Get from AmmoAttributeSet (for special ammo types that modify magazine)
     if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
@@ -491,7 +491,7 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
             return CachedMagazineSize;
         }
     }
-    
+
     // Fallback: Get base values from DataTable for weapon archetype
     FSuspenseUnifiedItemData WeaponData;
     if (GetWeaponData(WeaponData))
@@ -525,11 +525,11 @@ float USuspenseWeaponAmmoComponent::GetMagazineSize() const
         {
             CachedMagazineSize = 30.0f; // Default
         }
-        
+
         bMagazineSizeCached = true;
         return CachedMagazineSize;
     }
-    
+
     // Ultimate fallback
     EQUIPMENT_LOG(Warning, TEXT("GetMagazineSize: Failed to get magazine size from any source, using default"));
     return 30.0f;
@@ -549,7 +549,7 @@ float USuspenseWeaponAmmoComponent::GetReloadTime(bool bTactical) const
             return WeaponAS->GetFullReloadTime();
         }
     }
-    
+
     // Second priority: Get from AmmoAttributeSet (special ammo might affect reload)
     if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
@@ -561,13 +561,13 @@ float USuspenseWeaponAmmoComponent::GetReloadTime(bool bTactical) const
             return BaseTime * ReloadTimeModifier;
         }
     }
-    
+
     // Fallback: Get base values from weapon archetype
     FSuspenseUnifiedItemData WeaponData;
     if (GetWeaponData(WeaponData))
     {
         float BaseReloadTime = bTactical ? 2.5f : 3.5f;
-        
+
         // Adjust by weapon type
         if (WeaponData.WeaponArchetype.MatchesTag(FGameplayTag::RequestGameplayTag("Weapon.Type.Ranged.LMG")))
         {
@@ -584,10 +584,10 @@ float USuspenseWeaponAmmoComponent::GetReloadTime(bool bTactical) const
             float AmmoToLoad = bTactical ? (MagazineSize - AmmoState.CurrentAmmo) : MagazineSize;
             return 0.5f * AmmoToLoad; // 0.5s per shell
         }
-        
+
         return BaseReloadTime;
     }
-    
+
     // Ultimate fallback
     return bTactical ? 2.5f : 3.5f;
 }
@@ -600,7 +600,7 @@ FGameplayTag USuspenseWeaponAmmoComponent::GetAmmoType() const
     {
         return WeaponData.AmmoType;
     }
-    
+
     return FGameplayTag::EmptyTag;
 }
 
@@ -608,17 +608,17 @@ void USuspenseWeaponAmmoComponent::UpdateMagazineSizeFromAttributes()
 {
     // Invalidate cache to force recalculation
     bMagazineSizeCached = false;
-    
+
     // Update cached values
     float NewMagazineSize = GetMagazineSize();
-    
+
     // If magazine size changed and we have more ammo than new size, adjust
     if (AmmoState.CurrentAmmo > NewMagazineSize)
     {
         float Excess = AmmoState.CurrentAmmo - NewMagazineSize;
         AmmoState.CurrentAmmo = NewMagazineSize;
         AmmoState.RemainingAmmo += Excess;
-        
+
         EQUIPMENT_LOG(Log, TEXT("Magazine size reduced, moved %.1f ammo to reserve"), Excess);
     }
 }
@@ -631,7 +631,7 @@ void USuspenseWeaponAmmoComponent::ApplyDurabilityModifiers()
         float Durability = WeaponAS->GetDurability();
         float MaxDurability = WeaponAS->GetMaxDurability();
         float DurabilityPercent = MaxDurability > 0.0f ? Durability / MaxDurability : 1.0f;
-        
+
         // Low durability increases misfire chance
         if (DurabilityPercent < 0.5f && FMath::RandRange(0.0f, 1.0f) < WeaponAS->GetMisfireChance() / 100.0f)
         {
@@ -641,14 +641,14 @@ void USuspenseWeaponAmmoComponent::ApplyDurabilityModifiers()
                 FGameplayEventData Payload;
                 Payload.EventTag = FGameplayTag::RequestGameplayTag("Event.Weapon.Misfire");
                 Payload.EventMagnitude = DurabilityPercent;
-                
+
                 // Handle misfire event through GAS
                 if (CachedASC)
                 {
                     CachedASC->HandleGameplayEvent(Payload.EventTag, &Payload);
                 }
             }
-            
+
             EQUIPMENT_LOG(Warning, TEXT("Weapon misfire due to low durability: %.1f%%"), DurabilityPercent * 100.0f);
         }
     }
@@ -660,7 +660,7 @@ ISuspenseWeapon* USuspenseWeaponAmmoComponent::GetWeaponInterface() const
     {
         return Cast<ISuspenseWeapon>(CachedWeaponInterface.GetInterface());
     }
-    
+
     // Try to get from owner
     if (AActor* Owner = GetOwner())
     {
@@ -669,7 +669,7 @@ ISuspenseWeapon* USuspenseWeaponAmmoComponent::GetWeaponInterface() const
             return Cast<ISuspenseWeapon>(Owner);
         }
     }
-    
+
     return nullptr;
 }
 
@@ -680,9 +680,9 @@ bool USuspenseWeaponAmmoComponent::GetWeaponData(FSuspenseUnifiedItemData& OutDa
     {
         return false;
     }
-    
+
     return ISuspenseWeapon::Execute_GetWeaponItemData(
-        Cast<UObject>(WeaponInterface), 
+        Cast<UObject>(WeaponInterface),
         OutData
     );
 }
@@ -690,11 +690,11 @@ bool USuspenseWeaponAmmoComponent::GetWeaponData(FSuspenseUnifiedItemData& OutDa
 void USuspenseWeaponAmmoComponent::BroadcastAmmoChanged()
 {
     float MagazineSize = GetMagazineSize();
-    
+
     // Call base class method to broadcast
     USuspenseEquipmentComponentBase::BroadcastAmmoChanged(
-        AmmoState.CurrentAmmo, 
-        AmmoState.RemainingAmmo, 
+        AmmoState.CurrentAmmo,
+        AmmoState.RemainingAmmo,
         MagazineSize
     );
 }
@@ -705,14 +705,14 @@ void USuspenseWeaponAmmoComponent::ApplyReloadEffect()
     {
         return;
     }
-    
+
     // Get reload effect from weapon data
     FSuspenseUnifiedItemData WeaponData;
     if (!GetWeaponData(WeaponData))
     {
         return;
     }
-    
+
     // Find reload effect in passive effects
     for (const TSubclassOf<UGameplayEffect>& EffectClass : WeaponData.PassiveEffects)
     {
@@ -720,7 +720,7 @@ void USuspenseWeaponAmmoComponent::ApplyReloadEffect()
         {
             continue;
         }
-        
+
         // Check if this is reload effect by tag
         UGameplayEffect* CDO = EffectClass.GetDefaultObject();
         if (CDO && CDO->InheritableGameplayEffectTags.CombinedTags.HasTag(
@@ -729,22 +729,22 @@ void USuspenseWeaponAmmoComponent::ApplyReloadEffect()
             // Apply effect
             FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
             Context.AddSourceObject(this);
-            
+
             FGameplayEffectSpecHandle Spec = CachedASC->MakeOutgoingSpec(
-                EffectClass, 
-                1.0f, 
+                EffectClass,
+                1.0f,
                 Context
             );
-            
+
             if (Spec.IsValid())
             {
                 // Set reload duration based on reload type
                 float ReloadDuration = GetReloadTime(bIsTacticalReload);
                 Spec.Data->SetSetByCallerMagnitude(
-                    FGameplayTag::RequestGameplayTag(TEXT("Data.Duration")), 
+                    FGameplayTag::RequestGameplayTag(TEXT("Data.Duration")),
                     ReloadDuration
                 );
-                
+
                 // Add tags to identify reload type
                 if (bIsTacticalReload)
                 {
@@ -754,10 +754,10 @@ void USuspenseWeaponAmmoComponent::ApplyReloadEffect()
                 {
                     Spec.Data->DynamicGrantedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Weapon.Reloading.Full")));
                 }
-                
+
                 ReloadEffectHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
-                
-                EQUIPMENT_LOG(Verbose, TEXT("Applied %s reload effect for %.1fs"), 
+
+                EQUIPMENT_LOG(Verbose, TEXT("Applied %s reload effect for %.1fs"),
                     bIsTacticalReload ? TEXT("tactical") : TEXT("full"), ReloadDuration);
             }
         }
@@ -767,8 +767,8 @@ void USuspenseWeaponAmmoComponent::ApplyReloadEffect()
 void USuspenseWeaponAmmoComponent::OnRep_AmmoState()
 {
     BroadcastAmmoChanged();
-    
-    EQUIPMENT_LOG(Verbose, TEXT("OnRep_AmmoState: %.1f/%.1f"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("OnRep_AmmoState: %.1f/%.1f"),
         AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
 }
 
@@ -788,8 +788,8 @@ void USuspenseWeaponAmmoComponent::OnRep_ReloadState()
             Manager->NotifyWeaponReloadEnd();
         }
     }
-    
-    EQUIPMENT_LOG(Verbose, TEXT("OnRep_ReloadState: %s"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("OnRep_ReloadState: %s"),
         bIsReloading ? TEXT("Reloading") : TEXT("Not reloading"));
 }
 

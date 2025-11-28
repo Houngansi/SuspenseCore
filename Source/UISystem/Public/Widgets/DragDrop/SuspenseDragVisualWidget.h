@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 #include "Engine/StreamableManager.h"
 #include "Components/TextBlock.h"
 #include "SuspenseDragVisualWidget.generated.h"
@@ -83,19 +83,19 @@ public:
     // Advanced Visual Features
     UFUNCTION(BlueprintCallable, Category = "DragVisual|Advanced")
     void ShowPlacementPreview(const FVector2D& ScreenPosition, bool bIsValid);
-    
+
     UFUNCTION(BlueprintCallable, Category = "DragVisual|Advanced")
     void AnimateSnapFeedback(const FVector2D& TargetPosition, float SnapStrength);
-    
+
     UFUNCTION(BlueprintCallable, Category = "DragVisual|Advanced")
     void PreviewRotation(bool bShowRotated);
-    
+
     UFUNCTION(BlueprintCallable, Category = "DragVisual|Advanced")
     void UpdateStackingFeedback(int32 StackCount, int32 MaxStack);
-    
+
     UFUNCTION(BlueprintCallable, Category = "DragVisual|Advanced")
     void SetVisualMode(EDragVisualMode NewMode);
-    
+
     UFUNCTION(BlueprintPure, Category = "DragVisual|Advanced")
     EDragVisualMode GetVisualMode() const { return CurrentVisualMode; }
 
@@ -133,29 +133,29 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UTextBlock* QuantityText;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UOverlay* EffectsOverlay;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UImage* PreviewGhost;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UImage* SnapIndicator;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UTextBlock* StackingText;
 
     // Animations
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetAnimationOptional))
     UWidgetAnimation* SnapAnimation;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetAnimationOptional))
     UWidgetAnimation* InvalidAnimation;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetAnimationOptional))
     UWidgetAnimation* StackingAnimation;
-    
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetAnimationOptional))
     UWidgetAnimation* RotationAnimation;
 
@@ -171,26 +171,26 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DragVisual|Colors")
     FLinearColor InvalidDropColor;
-    
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DragVisual|Colors")
     FLinearColor SnapColor;
-    
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DragVisual|Colors", meta = (ClampMin = "0", ClampMax = "1"))
     float PreviewOpacity = 0.5f;
 
     // State
     UPROPERTY(BlueprintReadOnly, Category = "DragVisual|State")
     EDragVisualMode CurrentVisualMode;
-    
+
     UPROPERTY(BlueprintReadOnly, Category = "DragVisual|State")
     bool bIsShowingRotationPreview;
-    
+
     UPROPERTY(BlueprintReadOnly, Category = "DragVisual|State")
     FVector2D CurrentSnapTarget;
-    
+
     UPROPERTY(BlueprintReadOnly, Category = "DragVisual|State")
     float CurrentSnapStrength;
-    
+
     float SnapAnimationTime;
     float RotationAnimationTime;
 
@@ -206,7 +206,7 @@ protected:
 
     UFUNCTION(BlueprintCallable, Category = "DragVisual")
     void AutoBindWidgets();
-    
+
     virtual void UpdateAnimations(float DeltaTime);
     virtual void ApplyVisualMode();
     void PlayModeAnimation(EDragVisualMode Mode);
@@ -216,7 +216,7 @@ protected:
 
     UFUNCTION(BlueprintImplementableEvent, Category = "DragVisual")
     void OnDragVisualDestroyed();
-    
+
     UFUNCTION(BlueprintImplementableEvent, Category = "DragVisual")
     void OnVisualModeChanged(EDragVisualMode NewMode);
 
@@ -228,7 +228,7 @@ private:
     void InvalidateVisual();
 	// Add to private members
 	bool bCurrentlyValid = true;
-    
+
 	// Helper method
 	UBorder* GetHighlightBorder() const;
     // Cached data
@@ -237,20 +237,20 @@ private:
 
     UPROPERTY(Transient)
     bool bWidgetsValidated;
-    
+
     // Icon loading
     TSharedPtr<FStreamableHandle> IconStreamingHandle;
     TSoftObjectPtr<UTexture2D> PendingIconTexture;
-    
+
     // Performance mode
     bool bLowPerformanceMode;
     float LastVisualUpdateTime;
     static constexpr float VISUAL_UPDATE_THROTTLE = 0.033f; // ~30 FPS for visuals
 
-    
+
     // Invalidation tracking
     bool bNeedsVisualUpdate;
-    
+
     // Static texture cache (shared between all instances)
     static TMap<FString, TWeakObjectPtr<UTexture2D>> IconTextureCache;
     static FCriticalSection IconCacheMutex;

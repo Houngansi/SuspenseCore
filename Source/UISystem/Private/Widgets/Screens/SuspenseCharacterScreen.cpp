@@ -5,9 +5,9 @@
 #include "Widgets/Tabs/SuspenseUpperTabBar.h"
 #include "Widgets/Inventory/SuspenseInventoryWidget.h"
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
-#include "Interfaces/Tabs/ISuspenseTabBarInterface.h"
-#include "Interfaces/Screens/ISuspenseScreenInterface.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Interfaces/Tabs/ISuspenseTabBar.h"
+#include "Interfaces/Screens/ISuspenseScreen.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "GameFramework/PlayerController.h"
 
 USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& ObjectInitializer)
@@ -15,10 +15,10 @@ USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& Obj
 {
     // Set default screen tag
     ScreenTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Screen.Character"));
-    
+
     // Default to inventory tab
     DefaultTabTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"));
-    
+
     bRememberLastTab = true;
     bIsActive = false;
 }
@@ -34,14 +34,14 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
     }
 
     // Initialize tab bar through interface
-    if (ISuspenseTabBarInterface* TabBarInterface = Cast<ISuspenseTabBarInterface>(UpperTabBar))
+    if (ISuspenseTabBar* TabBarInterface = Cast<ISuspenseTabBar>(UpperTabBar))
     {
         // Subscribe to tab selection changes - это обычные C++ методы, не BlueprintNativeEvent
         if (FOnTabBarSelectionChanged* SelectionDelegate = TabBarInterface->GetOnTabSelectionChanged())
         {
             TabSelectionChangeHandle = SelectionDelegate->AddUObject(this, &USuspenseCharacterScreen::OnTabSelectionChanged);
         }
-        
+
         // Subscribe to tab bar close events
         if (FOnTabBarClosed* ClosedDelegate = TabBarInterface->GetOnTabBarClosed())
         {
@@ -50,24 +50,24 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
     }
 
     // Verify tabs are properly configured
-    int32 TabCount = ISuspenseTabBarInterface::Execute_GetTabCount(UpperTabBar);
+    int32 TabCount = ISuspenseTabBar::Execute_GetTabCount(UpperTabBar);
     UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab bar initialized with %d tabs"), TabCount);
-    
+
     // Log all tabs for debugging
     for (int32 i = 0; i < TabCount; i++)
     {
         if (USuspenseUpperTabBar* TabBarWidget = Cast<USuspenseUpperTabBar>(UpperTabBar))
         {
             FSuspenseTabConfig TabConfig = TabBarWidget->GetTabConfig(i);
-            UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab[%d]: %s (%s)"), 
+            UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab[%d]: %s (%s)"),
                 i, *TabConfig.TabName.ToString(), *TabConfig.TabTag.ToString());
-            
+
             // Verify content widgets
-            UUserWidget* TabContent = ISuspenseTabBarInterface::Execute_GetTabContent(UpperTabBar, i);
+            UUserWidget* TabContent = ISuspenseTabBar::Execute_GetTabContent(UpperTabBar, i);
             if (TabContent)
             {
                 FString ContentType = TEXT("Unknown");
-                
+
                 // Check content type
                 if (TabContent->IsA<USuspenseInventoryWidget>())
                 {
@@ -79,11 +79,11 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
                 }
                 else if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                 {
-                    FGameplayTag ContentScreenTag = ISuspenseScreenInterface::Execute_GetScreenTag(TabContent);
+                    FGameplayTag ContentScreenTag = ISuspenseScreen::Execute_GetScreenTag(TabContent);
                     ContentType = FString::Printf(TEXT("Screen: %s"), *ContentScreenTag.ToString());
                 }
-                
-                UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab[%d] content: %s (%s)"), 
+
+                UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab[%d] content: %s (%s)"),
                     i, *TabContent->GetClass()->GetName(), *ContentType);
             }
             else
@@ -92,7 +92,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
             }
         }
     }
-    
+
     // Select default tab if specified
     if (DefaultTabTag.IsValid())
     {
@@ -103,13 +103,13 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
         // Select first tab by default
         if (TabCount > 0)
         {
-            ISuspenseTabBarInterface::Execute_SelectTabByIndex(UpperTabBar, 0);
+            ISuspenseTabBar::Execute_SelectTabByIndex(UpperTabBar, 0);
         }
     }
-    
+
     // Initialize screen state
     UpdateInputMode();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Widget initialization completed"));
 }
 
@@ -118,13 +118,13 @@ void USuspenseCharacterScreen::UninitializeWidget_Implementation()
     // Unsubscribe from tab bar events
     if (UpperTabBar)
     {
-        if (ISuspenseTabBarInterface* TabBarInterface = Cast<ISuspenseTabBarInterface>(UpperTabBar))
+        if (ISuspenseTabBar* TabBarInterface = Cast<ISuspenseTabBar>(UpperTabBar))
         {
             if (FOnTabBarSelectionChanged* SelectionDelegate = TabBarInterface->GetOnTabSelectionChanged())
             {
                 SelectionDelegate->Remove(TabSelectionChangeHandle);
             }
-            
+
             if (FOnTabBarClosed* CloseDelegate = TabBarInterface->GetOnTabBarClosed())
             {
                 CloseDelegate->Remove(TabBarCloseHandle);
@@ -146,7 +146,7 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
 
     // Determine which tab to open
     FGameplayTag TabToOpen = DefaultTabTag;
-    
+
     if (bRememberLastTab && LastOpenedTab.IsValid())
     {
         TabToOpen = LastOpenedTab;
@@ -162,13 +162,13 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
     K2_OnCharacterScreenOpened();
 
     // Notify event system
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         EventManager->NotifyScreenActivated(this, ScreenTag);
-        
+
         FGameplayTag OpenedTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Opened"));
         EventManager->NotifyUIEventGeneric(this, OpenedTag, TEXT(""));
-        
+
         // Force refresh active tab content after a short delay
         FTimerHandle RefreshHandle;
         GetWorld()->GetTimerManager().SetTimer(RefreshHandle, [this]()
@@ -176,7 +176,7 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
             if (UpperTabBar)
             {
                 UpperTabBar->RefreshActiveTabContent();
-                
+
                 // Refresh content of active tab
                 int32 CurrentIndex = UpperTabBar->GetSelectedTabIndex_Implementation();
                 if (CurrentIndex >= 0)
@@ -187,7 +187,7 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
                         // Use interface to refresh content instead of direct class access
                         if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
                         {
-                            ISuspenseScreenInterface::Execute_RefreshScreenContent(TabContent);
+                            ISuspenseScreen::Execute_RefreshScreenContent(TabContent);
                         }
                     }
                 }
@@ -222,10 +222,10 @@ void USuspenseCharacterScreen::OnScreenDeactivated_Implementation()
     K2_OnCharacterScreenClosed();
 
     // Notify event system
-    if (UEventDelegateManager* EventManager = GetDelegateManager())
+    if (USuspenseEventManager* EventManager = GetDelegateManager())
     {
         EventManager->NotifyScreenDeactivated(this, ScreenTag);
-        
+
         FGameplayTag ClosedTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Closed"));
         EventManager->NotifyUIEventGeneric(this, ClosedTag, TEXT(""));
     }
@@ -257,17 +257,17 @@ void USuspenseCharacterScreen::OpenTabByTag(const FGameplayTag& TabTag)
 
     // Use SelectTabByTag directly
     bool bSuccess = UpperTabBar->SelectTabByTag(TabTag);
-    
+
     if (bSuccess)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Successfully opened tab: %s"), 
+        UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Successfully opened tab: %s"),
             *TabTag.ToString());
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CharacterScreen] Failed to open tab: %s"), 
+        UE_LOG(LogTemp, Warning, TEXT("[CharacterScreen] Failed to open tab: %s"),
             *TabTag.ToString());
-        
+
         // Fallback: try to select first tab
         if (UpperTabBar->GetTabCount_Implementation() > 0)
         {
@@ -291,7 +291,7 @@ bool USuspenseCharacterScreen::SelectTabByTag(const FGameplayTag& TabTag)
     {
         return false;
     }
-    
+
     return UpperTabBar->SelectTabByTag(TabTag);
 }
 
@@ -301,9 +301,9 @@ void USuspenseCharacterScreen::OnTabSelectionChanged(UObject* TabBar, int32 OldI
     {
         return;
     }
-    
+
     UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab selection changed from %d to %d"), OldIndex, NewIndex);
-    
+
     // Remember new tab
     if (bRememberLastTab && UpperTabBar && NewIndex >= 0)
     {
@@ -323,7 +323,7 @@ void USuspenseCharacterScreen::OnTabBarClosed(UObject* TabBar)
         SetVisibility(ESlateVisibility::Collapsed);
 
         // Notify about close
-        if (UEventDelegateManager* EventManager = GetDelegateManager())
+        if (USuspenseEventManager* EventManager = GetDelegateManager())
         {
             FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Closed"));
             EventManager->NotifyUIEventGeneric(this, EventTag, TEXT(""));

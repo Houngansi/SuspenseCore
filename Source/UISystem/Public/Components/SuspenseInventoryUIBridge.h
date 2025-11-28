@@ -6,7 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
 #include "Interfaces/Inventory/ISuspenseInventory.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryUIBridge.generated.h"
@@ -22,13 +22,13 @@ struct FSuspenseInventoryItemInstance;
 /**
  * UI inventory bridge implementation
  * Handles all UI-specific operations for inventory
- * 
+ *
  * Architecture:
  * - Bridge pattern implementation for UI-game communication
  * - Manages data transformation between game and UI formats
  * - Handles all inventory UI events and updates
  * - Works with new DataTable architecture through interfaces
- * 
+ *
  * TODO: Future refactoring targets:
  * - Extract data conversion logic to InventoryDataConverter class
  * - Move drag&drop handling to dedicated DragDropManager
@@ -46,7 +46,7 @@ public:
     // =====================================================
     // Core Initialization & Lifecycle
     // =====================================================
-    
+
     /**
      * Initialize bridge with player controller
      * Sets up all necessary connections and references
@@ -78,7 +78,7 @@ public:
     // =====================================================
     // External Bridge Operations
     // =====================================================
-    
+
     /**
      * Remove item from inventory slot (used by equipment bridge)
      * @param SlotIndex Slot to remove from
@@ -99,7 +99,7 @@ public:
     // =====================================================
     // ISuspenseInventoryUIBridgeInterface Interface
     // =====================================================
-    
+
     virtual void ShowInventoryUI_Implementation() override;
     virtual void HideInventoryUI_Implementation() override;
     virtual void ToggleInventoryUI_Implementation() override;
@@ -109,7 +109,7 @@ public:
     virtual bool IsInventoryConnected_Implementation() const override;
     virtual bool GetInventoryGridSize_Implementation(int32& OutColumns, int32& OutRows) const override;
     virtual int32 GetInventorySlotCount_Implementation() const override;
-    
+
     virtual void ShowCharacterScreenWithTab_Implementation(const FGameplayTag& TabTag) override;
     virtual void HideCharacterScreen_Implementation() override;
     virtual void ToggleCharacterScreen_Implementation() override;
@@ -118,7 +118,7 @@ public:
     // =====================================================
     // Static Registration
     // =====================================================
-    
+
     /**
      * Static helper to register bridge instance globally
      */
@@ -133,7 +133,7 @@ public:
     // Widget Discovery & Management
     // TODO: Move to WidgetManager in future refactoring
     // =====================================================
-    
+
     /**
      * Find inventory widget within the character screen
      * Searches through the tab system to locate the inventory widget
@@ -154,7 +154,7 @@ public:
     // Drag & Drop Operations
     // TODO: Extract to DragDropManager class
     // =====================================================
-    
+
     /**
      * Process complete drop operation
      * Centralized method for all drop scenarios
@@ -172,7 +172,7 @@ public:
         const FVector2D& DragOffset,
         const FIntPoint& ItemSize,
         bool bIsRotated) const;
-    
+
     /**
      * Validate drop placement
      */
@@ -181,7 +181,7 @@ public:
         const FIntPoint& ItemSize,
         bool bIsRotated,
         TArray<int32>& OutOccupiedSlots) const;
-    
+
     /**
      * Find nearest valid slot for placement
      */
@@ -195,7 +195,7 @@ protected:
     // =====================================================
     // Core References
     // =====================================================
-    
+
     /** Player controller that owns this bridge */
     UPROPERTY()
     APlayerController* OwningPlayerController;
@@ -218,7 +218,7 @@ protected:
     // =====================================================
     // State Management
     // =====================================================
-    
+
     /** Initialization state */
     bool bIsInitialized;
 
@@ -227,19 +227,19 @@ protected:
 
     /** Cached inventory widget reference with validation */
     mutable TWeakObjectPtr<USuspenseInventoryWidget> CachedInventoryWidget;
-    
+
     /** Time when widget cache was last validated */
     mutable float LastWidgetCacheValidationTime;
-    
+
     /** Cache lifetime in seconds */
     static constexpr float WIDGET_CACHE_LIFETIME = 2.0f;
 
     /** Pending UI updates for batching */
     TArray<FGameplayTag> PendingUIUpdates;
-    
+
     /** Timer handle for batched updates */
     FTimerHandle BatchedUpdateTimerHandle;
-    
+
     /** Update batching delay in seconds */
     static constexpr float UPDATE_BATCH_DELAY = 0.1f;
 
@@ -248,7 +248,7 @@ private:
     // Data Conversion
     // TODO: Extract to InventoryDataConverter class
     // =====================================================
-    
+
     /**
      * Convert game inventory data to UI format
      */
@@ -258,15 +258,15 @@ private:
      * Convert item instance to UI format
      */
     bool ConvertItemInstanceToUIData(
-        const FSuspenseInventoryItemInstance& Instance, 
-        int32 SlotIndex, 
+        const FSuspenseInventoryItemInstance& Instance,
+        int32 SlotIndex,
         FItemUIData& OutItemData) const;
 
     // =====================================================
     // Event Management
     // TODO: Extract to EventSubscriptionManager
     // =====================================================
-    
+
     /** Subscribe to all necessary events */
     void SubscribeToEvents();
 
@@ -302,16 +302,16 @@ private:
     // =====================================================
     // UI Update Management
     // =====================================================
-    
+
     /** Process batched UI updates */
     void ProcessBatchedUIUpdates();
-    
+
     /** Schedule UI update with batching */
     void ScheduleUIUpdate(const FGameplayTag& UpdateType);
-    
+
     /** Refresh all widgets in active layout */
     void RefreshAllWidgetsInActiveLayout();
-    
+
     /** Force immediate full inventory refresh */
     void ForceFullInventoryRefresh();
 
@@ -319,19 +319,19 @@ private:
     // Drop Operation Handlers
     // TODO: Consolidate into unified drop handler
     // =====================================================
-    
+
     /** Handle drop within inventory */
     void HandleInventoryToInventoryDrop(const FDragDropUIData& DragData, int32 TargetSlot);
 
     /** Handle drop from external container to inventory */
     void HandleExternalToInventoryDrop(
-        UUserWidget* ContainerWidget, 
-        const FDragDropUIData& DragData, 
+        UUserWidget* ContainerWidget,
+        const FDragDropUIData& DragData,
         int32 TargetSlot);
     /**
       * Handles drop operation from inventory to equipment container.
       * Delegates the operation to EquipmentUIBridge for proper equipment slot validation and execution.
-      * 
+      *
       * @param ContainerWidget - The equipment container widget where item is being dropped
       * @param DragData - Complete drag operation data including source item information
       * @param TargetSlot - Target equipment slot index
@@ -350,7 +350,7 @@ private:
     // Processing Methods
     // TODO: Move to dedicated processors
     // =====================================================
-    
+
     /** Process item move request */
     void ProcessItemMoveRequest(const FGuid& ItemInstanceID, int32 TargetSlotIndex, bool bIsRotated);
 
@@ -366,19 +366,19 @@ private:
     // =====================================================
     // Utility Methods
     // =====================================================
-    
+
     /** Validate that inventory connection is valid */
     bool ValidateInventoryConnection() const;
-    
+
     /** Get cached inventory widget with validation */
     USuspenseInventoryWidget* GetCachedInventoryWidget() const;
-    
+
     /** Invalidate widget cache */
     void InvalidateWidgetCache();
-    
+
     /** Get human-readable error string */
-    FString GetErrorCodeString(EInventoryErrorCode ErrorCode) const;
-    
+    FString GetErrorCodeString(ESuspenseInventoryErrorCode ErrorCode) const;
+
     /** Get UI manager reference */
     class USuspenseUIManager* GetUIManager() const;
 
@@ -386,19 +386,19 @@ private:
     // Grid Calculation Helpers
     // TODO: Extract to GridCalculationHelper
     // =====================================================
-    
+
     /** Get inventory grid parameters */
     bool GetInventoryGridParams(
         int32& OutColumns,
         int32& OutRows,
         float& OutCellSize,
         FGeometry& OutGridGeometry) const;
-    
+
     /** Convert screen coordinates to grid coordinates */
     FVector2D ScreenToGridCoordinates(
         const FVector2D& ScreenPos,
         const FGeometry& GridGeometry) const;
-    
+
     /** Check if required slots are free */
     bool AreRequiredSlotsFree(
         int32 AnchorSlot,
@@ -410,19 +410,19 @@ private:
     // Diagnostics
     // TODO: Extract to InventoryDiagnostics utility
     // =====================================================
-    
+
     /** Diagnose drop position for debugging */
     void DiagnoseDropPosition(const FVector2D& ScreenPosition) const;
-    
+
     /** Diagnose inventory state for debugging */
     void DiagnoseInventoryState() const;
 
     // =====================================================
     // Event Subscription Handles
     // =====================================================
-    
+
     /** Native delegate handles */
     FDelegateHandle ItemDroppedNativeHandle;
     FDelegateHandle InventoryRefreshHandle;
-    
+
 };

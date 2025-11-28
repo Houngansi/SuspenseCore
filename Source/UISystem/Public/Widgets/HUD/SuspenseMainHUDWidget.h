@@ -18,11 +18,11 @@ class ISuspenseAttributeProvider;
 
 /**
  * Main HUD widget that serves as a container for all UI elements
- * 
+ *
  * This widget follows the composition pattern where sub-widgets are
  * bound through the Blueprint editor. Each sub-widget (health, crosshair,
  * inventory, etc.) is a separate widget that can be designed independently.
- * 
+ *
  * Blueprint Setup:
  * 1. Create a Blueprint based on this class
  * 2. In the Designer, add child widgets for each UI element
@@ -30,7 +30,7 @@ class ISuspenseAttributeProvider;
  * 4. Set the MainHUDClass in your PlayerController to this Blueprint
  */
 UCLASS()
-class UISYSTEM_API USuspenseMainHUDWidget : public USuspenseBaseWidget, public ISuspenseHUDWidgetInterface
+class UISYSTEM_API USuspenseMainHUDWidget : public USuspenseBaseWidget, public ISuspenseHUDWidget
 {
     GENERATED_BODY()
 
@@ -77,21 +77,21 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Character")
     void ShowCharacterScreenWithTab(const FGameplayTag& TabTag);
-    
+
     /**
      * Closes the character screen
      * This hides the entire character menu system
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Character")
     void HideCharacterScreen();
-    
+
     /**
      * Toggles the character screen visibility
      * Opens with the last selected tab or default tab
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Character")
     void ToggleCharacterScreen();
-    
+
     /**
      * Checks if the character screen is currently visible
      * @return true if the character screen is open
@@ -101,7 +101,7 @@ public:
 
     // Backward compatibility methods for direct value setting
     // These bypass the provider system and directly update the widgets
-    
+
     UFUNCTION(BlueprintCallable, Category = "UI|Health")
     void SetCurrentHealth_UI(float CurrentHealth);
 
@@ -125,7 +125,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "UI|Stamina")
     float GetStaminaPercentage() const;
-    
+
     UFUNCTION(BlueprintCallable, Category = "UI|Crosshair")
     void SetCrosshairVisibility(bool bVisible);
 
@@ -140,21 +140,21 @@ protected:
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     USuspenseHealthStaminaWidget* HealthStaminaWidget;
-    
+
     /**
      * Dynamic crosshair widget
      * Optional: Only bind if your game uses a crosshair
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     USuspenseCrosshairWidget* DynamicCrosshair;
-    
+
     /**
      * Weapon information display widget
      * Optional: Only needed for games with weapons
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     USuspenseWeaponUIWidget* WeaponInfoWidget;
-    
+
     /**
      * Character screen widget
      * Optional: Contains the full character menu with tabs
@@ -162,7 +162,7 @@ protected:
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     USuspenseCharacterScreen* CharacterScreen;
-    
+
     /**
      * Legacy inventory widget
      * Optional: Direct inventory widget for backward compatibility
@@ -170,7 +170,7 @@ protected:
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     USuspenseInventoryWidget* InventoryWidget;
-    
+
     /**
      * Text block for interaction prompts
      * Optional: Used to display contextual interaction hints
@@ -181,13 +181,13 @@ protected:
     //================================================
     // Configuration Properties
     //================================================
-    
+
     /**
      * Whether to automatically hide combat UI when no weapon is equipped
      */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI|HUD")
     bool bAutoHideCombatElements = true;
-    
+
     /**
      * Duration for interaction prompt fade animations
      */
@@ -207,7 +207,7 @@ protected:
      */
     UFUNCTION(BlueprintImplementableEvent, Category = "UI|HUD", DisplayName = "On Inventory Visibility Changed")
     void K2_OnInventoryVisibilityChanged(bool bIsVisible);
-    
+
     /**
      * Called when character screen visibility changes
      * Override in Blueprint to add custom logic
@@ -221,7 +221,7 @@ protected:
      * Calls the Blueprint event and handles any C++ logic
      */
     virtual void OnInventoryVisibilityChanged(bool bIsVisible);
-    
+
     /**
      * Native implementation of character screen visibility change
      * Calls the Blueprint event and handles any C++ logic
@@ -233,17 +233,17 @@ private:
      * Initializes all child widgets with proper tags and settings
      */
     void InitializeChildWidgets();
-    
+
     /**
      * Subscribes to relevant events from the EventDelegateManager
      */
     void SetupEventSubscriptions();
-    
+
     /**
      * Cleans up event subscriptions
      */
     void ClearEventSubscriptions();
-    
+
     /**
      * Validates that required widgets are properly bound
      * @return true if all required widgets are valid
@@ -255,7 +255,7 @@ private:
      * Отложенная инициализация - вызывается только при первом открытии инвентаря
      */
     void EnsureInventoryBridgeInitialized();
-    
+
     // Event Handlers
     void OnActiveWeaponChanged(AActor* NewWeapon);
     void OnCrosshairUpdateRequested(float Spread, float Recoil);
@@ -266,19 +266,19 @@ private:
     // Internal state
     UPROPERTY()
     TScriptInterface<ISuspenseAttributeProvider> AttributeProvider;
-    
+
     UPROPERTY()
     APawn* OwningPawn;
-    
+
     bool bCombatElementsVisible = true;
     bool bNonCombatElementsVisible = true;
     bool bInventoryBridgeInitialized = false; // Флаг инициализации Bridge
-    
+
     // Event subscription handles
     FDelegateHandle WeaponChangedHandle;
     FDelegateHandle CrosshairUpdateHandle;
     FDelegateHandle CrosshairColorHandle;
     FDelegateHandle NotificationHandle;
-    
+
     bool bIsSetup = false;
 };

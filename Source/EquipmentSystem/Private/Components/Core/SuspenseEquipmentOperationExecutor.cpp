@@ -4,8 +4,8 @@
 #include "Components/Core/SuspenseEquipmentOperationExecutor.h"
 #include "Components/Core/SuspenseEquipmentDataStore.h"
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
-#include "Services/EquipmentServiceMacros.h"
-#include "Types/Loadout/LoadoutSettings.h"  // Для ESuspenseEquipmentSlotType
+#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"  // Для ESuspenseEquipmentSlotType
 
 // Define proper log category
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentExecutor, Log, All);
@@ -24,7 +24,7 @@ USuspenseEquipmentOperationExecutor::USuspenseEquipmentOperationExecutor()
 void USuspenseEquipmentOperationExecutor::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     UE_LOG(LogEquipmentExecutor, Log, TEXT("EquipmentOperationExecutor: Initialized as pure planner"));
 }
 
@@ -32,7 +32,7 @@ void USuspenseEquipmentOperationExecutor::EndPlay(const EEndPlayReason::Type End
 {
     // Reset statistics
     ResetStatistics();
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
@@ -46,95 +46,95 @@ bool USuspenseEquipmentOperationExecutor::BuildPlan(
     FText& OutError) const
 {
     FScopeLock Lock(&PlanningCriticalSection);
-    
+
     // Validate request
     if (!Request.IsValid())
     {
         OutError = NSLOCTEXT("Equipment", "InvalidRequest", "Invalid equipment request");
         return false;
     }
-    
+
     // Check initialization
     if (!IsInitialized())
     {
         OutError = NSLOCTEXT("Equipment", "ExecutorNotInitialized", "Executor not initialized");
         return false;
     }
-    
+
     // Initialize plan
     OutPlan = FTransactionPlan();
     OutPlan.DebugLabel = FString::Printf(TEXT("Plan-%s-%s"),
         *Request.OperationId.ToString(),
         *UEnum::GetValueAsString(Request.OperationType));
-    
+
     // Build plan based on operation type
     switch (Request.OperationType)
     {
         case EEquipmentOperationType::Equip:
             Expand_Equip(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Unequip:
             Expand_Unequip(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Move:
             Expand_Move(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Drop:
             Expand_Drop(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Swap:
             Expand_Swap(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::QuickSwitch:
             Expand_QuickSwitch(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Transfer:
             Expand_Transfer(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Reload:
             Expand_Reload(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Repair:
             Expand_Repair(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Upgrade:
             Expand_Upgrade(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Modify:
             Expand_Modify(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Combine:
             Expand_Combine(Request, OutPlan);
             break;
-            
+
         case EEquipmentOperationType::Split:
             Expand_Split(Request, OutPlan);
             break;
-            
+
         default:
             // For unsupported operations, create single-step plan
             OutPlan.Add(FTransactionPlanStep(Request, TEXT("Direct execution")));
             break;
     }
-    
+
     // Validate plan has steps
     if (!OutPlan.IsValid())
     {
         OutError = NSLOCTEXT("Equipment", "EmptyPlan", "Failed to build operation plan");
         return false;
     }
-    
+
     // Check plan complexity
     if (OutPlan.Num() > MaxPlanComplexity)
     {
@@ -145,22 +145,22 @@ bool USuspenseEquipmentOperationExecutor::BuildPlan(
         );
         return false;
     }
-    
+
     // Update statistics
     TotalPlansBuilt.fetch_add(1);
     float CurrentAvg = AveragePlanSize.load();
     AveragePlanSize.store(CurrentAvg * 0.9f + OutPlan.Num() * 0.1f);
-    
+
     // Estimate execution time
     OutPlan.EstimatedExecutionTimeMs = EstimatePlanExecutionTime(OutPlan);
-    
+
     // Set idempotency flag
     OutPlan.bIdempotent = IsPlanIdempotent(OutPlan);
-    
+
     // Add metadata
     OutPlan.Metadata.Add(TEXT("RequestType"), UEnum::GetValueAsString(Request.OperationType));
     OutPlan.Metadata.Add(TEXT("BuildTime"), FString::SanitizeFloat(FPlatformTime::Seconds()));
-    
+
     if (bEnableDetailedLogging)
     {
         UE_LOG(LogEquipmentExecutor, Verbose,
@@ -171,7 +171,7 @@ bool USuspenseEquipmentOperationExecutor::BuildPlan(
             OutPlan.bIdempotent ? TEXT("Yes") : TEXT("No")
         );
     }
-    
+
     return true;
 }
 
@@ -180,31 +180,31 @@ bool USuspenseEquipmentOperationExecutor::ValidatePlan(
     FText& OutError) const
 {
     FScopeLock Lock(&PlanningCriticalSection);
-    
+
     if (!Plan.IsValid())
     {
         OutError = NSLOCTEXT("Equipment", "InvalidPlan", "Invalid transaction plan");
         FailedValidations.fetch_add(1);
         return false;
     }
-    
+
     // If no validator, consider all plans valid
     if (!SlotValidator.GetInterface())
     {
         if (bRequireValidation)
         {
-            UE_LOG(LogEquipmentExecutor, Warning, 
+            UE_LOG(LogEquipmentExecutor, Warning,
                 TEXT("Validation required but no validator available"));
         }
         SuccessfulValidations.fetch_add(1);
         return true;
     }
-    
+
     // Validate each step
     for (int32 i = 0; i < Plan.Steps.Num(); i++)
     {
         const FTransactionPlanStep& Step = Plan.Steps[i];
-        
+
         if (!ValidateStep(Step, OutError))
         {
             OutError = FText::Format(
@@ -216,7 +216,7 @@ bool USuspenseEquipmentOperationExecutor::ValidatePlan(
             return false;
         }
     }
-    
+
     SuccessfulValidations.fetch_add(1);
     return true;
 }
@@ -239,9 +239,9 @@ float USuspenseEquipmentOperationExecutor::EstimatePlanExecutionTime(const FTran
         {EEquipmentOperationType::Combine, 5.0f},
         {EEquipmentOperationType::Split, 3.0f}
     };
-    
+
     float TotalMs = 0.0f;
-    
+
     for (const FTransactionPlanStep& Step : Plan.Steps)
     {
         if (const float* Cost = OperationCosts.Find(Step.Request.OperationType))
@@ -252,25 +252,25 @@ float USuspenseEquipmentOperationExecutor::EstimatePlanExecutionTime(const FTran
         {
             TotalMs += 5.0f; // Default cost for unknown operations
         }
-        
+
         // Add validation overhead if required
         if (bRequireValidation && SlotValidator.GetInterface())
         {
             TotalMs += 1.0f;
         }
     }
-    
+
     // Add transaction overhead
     if (Plan.bAtomic)
     {
         TotalMs += 2.0f; // Begin/commit overhead
     }
-    
+
     if (Plan.bReversible)
     {
         TotalMs += 1.0f; // Savepoint overhead
     }
-    
+
     return TotalMs;
 }
 
@@ -278,7 +278,7 @@ bool USuspenseEquipmentOperationExecutor::IsPlanIdempotent(const FTransactionPla
 {
     // Plans are idempotent if they only contain absolute-set operations
     // Move/Swap/QuickSwitch operations are generally not idempotent
-    
+
     for (const FTransactionPlanStep& Step : Plan.Steps)
     {
         switch (Step.Request.OperationType)
@@ -288,34 +288,34 @@ bool USuspenseEquipmentOperationExecutor::IsPlanIdempotent(const FTransactionPla
             case EEquipmentOperationType::QuickSwitch:
             case EEquipmentOperationType::Transfer:
                 return false; // These modify relative state
-                
+
             case EEquipmentOperationType::Equip:
             case EEquipmentOperationType::Unequip:
             case EEquipmentOperationType::Drop:
                 // These are idempotent if they target specific items/slots
-                if (Step.Request.TargetSlotIndex == INDEX_NONE && 
+                if (Step.Request.TargetSlotIndex == INDEX_NONE &&
                     Step.Request.SourceSlotIndex == INDEX_NONE)
                 {
                     return false;
                 }
                 break;
-                
+
             case EEquipmentOperationType::Reload:
             case EEquipmentOperationType::Repair:
             case EEquipmentOperationType::Upgrade:
             case EEquipmentOperationType::Modify:
                 // These might be idempotent depending on implementation
                 break;
-                
+
             case EEquipmentOperationType::Combine:
             case EEquipmentOperationType::Split:
                 return false; // These create/destroy items
-                
+
             default:
                 break;
         }
     }
-    
+
     return true;
 }
 
@@ -373,40 +373,40 @@ void USuspenseEquipmentOperationExecutor::Expand_Swap(
     FTransactionPlan& Out) const
 {
     // Swap expands to three-step atomic operation for safety
-    
+
     // Step 1: Move item from slot A to temporary storage
     FEquipmentOperationRequest TempMove = In;
     TempMove.OperationType = EEquipmentOperationType::Move;
     TempMove.OperationId = FGuid::NewGuid();
     TempMove.SourceSlotIndex = In.SourceSlotIndex;
     TempMove.TargetSlotIndex = -1; // Special marker for temp storage
-    
+
     FTransactionPlanStep Step1(TempMove, TEXT("Swap step 1: Move A to temp"));
     Step1.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step1);
-    
+
     // Step 2: Move item from slot B to slot A
     FEquipmentOperationRequest MoveBA = In;
     MoveBA.OperationType = EEquipmentOperationType::Move;
     MoveBA.OperationId = FGuid::NewGuid();
     MoveBA.SourceSlotIndex = In.TargetSlotIndex;
     MoveBA.TargetSlotIndex = In.SourceSlotIndex;
-    
+
     FTransactionPlanStep Step2(MoveBA, TEXT("Swap step 2: Move B to A"));
     Step2.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step2);
-    
+
     // Step 3: Move item from temp to slot B
     FEquipmentOperationRequest MoveTemp = In;
     MoveTemp.OperationType = EEquipmentOperationType::Move;
     MoveTemp.OperationId = FGuid::NewGuid();
     MoveTemp.SourceSlotIndex = -1; // From temporary storage
     MoveTemp.TargetSlotIndex = In.TargetSlotIndex;
-    
+
     FTransactionPlanStep Step3(MoveTemp, TEXT("Swap step 3: Move temp to B"));
     Step3.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step3);
-    
+
     // Mark as atomic and reversible
     Out.bAtomic = true;
     Out.bReversible = true;
@@ -458,8 +458,8 @@ void USuspenseEquipmentOperationExecutor::Expand_QuickSwitch(
     SwitchRequest.TargetSlotIndex = TargetSlot;
 
     // Описание шага (если есть типы — показываем их; на случай отсутствия GetWeaponSlotType можно заменить на краткое)
-    const ESuspenseEquipmentSlotType FromType = GetWeaponSlotType(CurrentActive);
-    const ESuspenseEquipmentSlotType ToType   = GetWeaponSlotType(TargetSlot);
+    const EEquipmentSlotType FromType = GetWeaponSlotType(CurrentActive);
+    const EEquipmentSlotType ToType   = GetWeaponSlotType(TargetSlot);
 
     const FString Description = FString::Printf(
         TEXT("Quick switch weapon: %s (slot %d) -> %s (slot %d)"),
@@ -566,16 +566,16 @@ bool USuspenseEquipmentOperationExecutor::ValidateStep(
     {
         return true;
     }
-    
+
     // Use existing validation methods
     FSlotValidationResult ValidationResult = ValidateOperation(Step.Request);
-    
+
     if (!ValidationResult.bIsValid)
     {
         OutError = ValidationResult.ErrorMessage;
         return false;
     }
-    
+
     return true;
 }
 
@@ -586,22 +586,22 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateOperation(
     {
         case EEquipmentOperationType::Equip:
             return ValidateEquip(Request);
-            
+
         case EEquipmentOperationType::Unequip:
             return ValidateUnequip(Request);
-            
+
         case EEquipmentOperationType::Swap:
             return ValidateSwap(Request);
-            
+
         case EEquipmentOperationType::Move:
             return ValidateMove(Request);
-            
+
         case EEquipmentOperationType::Drop:
             return ValidateDrop(Request);
-            
+
         case EEquipmentOperationType::QuickSwitch:
             return ValidateQuickSwitch(Request);
-            
+
         default:
             // For unhandled types, assume valid if no validator
             if (!SlotValidator.GetInterface())
@@ -621,55 +621,55 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateEquip(
     UE_LOG(LogTemp, Verbose, TEXT("=== ValidateEquip START ==="));
     UE_LOG(LogTemp, Verbose, TEXT("ItemID: %s"), *Request.ItemInstance.ItemID.ToString());
     UE_LOG(LogTemp, Verbose, TEXT("TargetSlot: %d"), Request.TargetSlotIndex);
-    
+
     // Step 1: Validate item instance
     if (!Request.ItemInstance.IsValid())
     {
         UE_LOG(LogTemp, Error, TEXT("ValidateEquip: Invalid item instance"));
-        
+
         return FSlotValidationResult::Failure(
             NSLOCTEXT("Equipment", "InvalidItem", "Invalid item instance"),
             EEquipmentValidationFailure::SystemError,
             FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.InvalidItem"))
         );
     }
-    
+
     // Step 2: Validate DataProvider
     if (!DataProvider.GetInterface())
     {
         UE_LOG(LogTemp, Error, TEXT("ValidateEquip: No data provider"));
-        
+
         return FSlotValidationResult::Failure(
             NSLOCTEXT("Equipment", "NoDataProvider", "Data provider not available"),
             EEquipmentValidationFailure::SystemError,
             FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.NoProvider"))
         );
     }
-    
+
     // Step 3: Validate slot index
     if (!DataProvider->IsValidSlotIndex(Request.TargetSlotIndex))
     {
         UE_LOG(LogTemp, Error, TEXT("ValidateEquip: Invalid slot index %d"), Request.TargetSlotIndex);
-        
+
         return FSlotValidationResult::Failure(
             NSLOCTEXT("Equipment", "InvalidSlot", "Invalid slot index"),
             EEquipmentValidationFailure::InvalidSlot,
             FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.InvalidSlotIndex"))
         );
     }
-    
+
     // Step 4: CRITICAL CHECK - Verify target slot is not already occupied
     // This is the PRIMARY cause of failed equip operations
     if (DataProvider->IsSlotOccupied(Request.TargetSlotIndex))
     {
         const FSuspenseInventoryItemInstance ExistingItem = DataProvider->GetSlotItem(Request.TargetSlotIndex);
-        
-        UE_LOG(LogTemp, Warning, 
+
+        UE_LOG(LogTemp, Warning,
             TEXT("ValidateEquip FAILED: Slot %d is occupied by %s (instance %s)"),
             Request.TargetSlotIndex,
             *ExistingItem.ItemID.ToString(),
             *ExistingItem.InstanceID.ToString());
-        
+
         FSlotValidationResult Result = FSlotValidationResult::Failure(
             FText::Format(
                 NSLOCTEXT("Equipment", "SlotOccupied", "Slot {0} is already occupied by {1}. Unequip or use swap operation."),
@@ -679,41 +679,41 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateEquip(
             EEquipmentValidationFailure::SlotOccupied,
             FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.SlotOccupied"))
         );
-        
+
         // Add diagnostic context
         Result.Context.Add(TEXT("OccupiedByItemID"), ExistingItem.ItemID.ToString());
         Result.Context.Add(TEXT("OccupiedByInstanceID"), ExistingItem.InstanceID.ToString());
         Result.Context.Add(TEXT("TargetSlotIndex"), FString::FromInt(Request.TargetSlotIndex));
         Result.Context.Add(TEXT("AttemptedItemID"), Request.ItemInstance.ItemID.ToString());
-        
+
         return Result;
     }
-    
+
     UE_LOG(LogTemp, Verbose, TEXT("✓ Slot %d is empty"), Request.TargetSlotIndex);
-    
+
     // Step 5: Detailed compatibility validation through SlotValidator
     if (!SlotValidator.GetInterface())
     {
         // No validator available - permissive mode
         if (bEnableDetailedLogging)
         {
-            UE_LOG(LogTemp, Warning, 
+            UE_LOG(LogTemp, Warning,
                 TEXT("ValidateEquip: No SlotValidator, skipping detailed validation"));
         }
-        
+
         UE_LOG(LogTemp, Verbose, TEXT("=== ValidateEquip END (Success - no validator) ==="));
         return FSlotValidationResult::Success();
     }
-    
+
     // Get slot configuration
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
-    
+
     // Perform detailed validation (type, level, weight, etc.)
     FSlotValidationResult ValidationResult = SlotValidator->CanPlaceItemInSlot(
-        SlotConfig, 
+        SlotConfig,
         Request.ItemInstance
     );
-    
+
     if (!ValidationResult.bIsValid)
     {
         // Add operation context to error
@@ -721,7 +721,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateEquip(
         ValidationResult.Context.Add(TEXT("OperationID"), Request.OperationId.ToString());
         ValidationResult.Context.Add(TEXT("RequestedSlot"), FString::FromInt(Request.TargetSlotIndex));
         ValidationResult.Context.Add(TEXT("ItemID"), Request.ItemInstance.ItemID.ToString());
-        
+
         if (bEnableDetailedLogging)
         {
             UE_LOG(LogTemp, Warning,
@@ -729,14 +729,14 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateEquip(
                 *ValidationResult.ErrorMessage.ToString(),
                 *UEnum::GetValueAsString(ValidationResult.FailureType));
         }
-        
+
         UE_LOG(LogTemp, Verbose, TEXT("=== ValidateEquip END (Failed) ==="));
         return ValidationResult;
     }
-    
+
     UE_LOG(LogTemp, Verbose, TEXT("✓ Passed detailed validation"));
     UE_LOG(LogTemp, Verbose, TEXT("=== ValidateEquip END (Success) ==="));
-    
+
     return FSlotValidationResult::Success();
 }
 
@@ -750,7 +750,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateUnequip(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     if (!DataProvider->IsSlotOccupied(Request.SourceSlotIndex))
     {
         return FSlotValidationResult::Failure(
@@ -758,7 +758,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateUnequip(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     return FSlotValidationResult::Success();
 }
 
@@ -772,7 +772,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateSwap(
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     if (!DataProvider->IsValidSlotIndex(Request.SourceSlotIndex) ||
         !DataProvider->IsValidSlotIndex(Request.TargetSlotIndex))
     {
@@ -781,17 +781,17 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateSwap(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     if (!SlotValidator.GetInterface())
     {
         return FSlotValidationResult::Success();
     }
-    
+
     FSuspenseInventoryItemInstance ItemA = DataProvider->GetSlotItem(Request.SourceSlotIndex);
     FSuspenseInventoryItemInstance ItemB = DataProvider->GetSlotItem(Request.TargetSlotIndex);
     FEquipmentSlotConfig ConfigA = DataProvider->GetSlotConfiguration(Request.SourceSlotIndex);
     FEquipmentSlotConfig ConfigB = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
-    
+
     return SlotValidator->CanSwapItems(ConfigA, ItemA, ConfigB, ItemB);
 }
 
@@ -805,7 +805,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateMove(
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     if (!DataProvider->IsValidSlotIndex(Request.SourceSlotIndex) ||
         !DataProvider->IsValidSlotIndex(Request.TargetSlotIndex))
     {
@@ -814,7 +814,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateMove(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     if (!DataProvider->IsSlotOccupied(Request.SourceSlotIndex))
     {
         return FSlotValidationResult::Failure(
@@ -822,7 +822,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateMove(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     if (DataProvider->IsSlotOccupied(Request.TargetSlotIndex))
     {
         return FSlotValidationResult::Failure(
@@ -830,15 +830,15 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateMove(
             EEquipmentValidationFailure::SlotOccupied
         );
     }
-    
+
     if (!SlotValidator.GetInterface())
     {
         return FSlotValidationResult::Success();
     }
-    
+
     FSuspenseInventoryItemInstance Item = DataProvider->GetSlotItem(Request.SourceSlotIndex);
     FEquipmentSlotConfig TargetConfig = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
-    
+
     return SlotValidator->CanPlaceItemInSlot(TargetConfig, Item);
 }
 
@@ -852,7 +852,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateDrop(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     if (!DataProvider->IsSlotOccupied(Request.SourceSlotIndex))
     {
         return FSlotValidationResult::Failure(
@@ -860,7 +860,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateDrop(
             EEquipmentValidationFailure::InvalidSlot
         );
     }
-    
+
     // Check if item can be dropped
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(Request.SourceSlotIndex);
     if (SlotConfig.bIsRequired)
@@ -870,7 +870,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateDrop(
             EEquipmentValidationFailure::RequirementsNotMet
         );
     }
-    
+
     return FSlotValidationResult::Success();
 }
 
@@ -884,10 +884,10 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateQuickSwitch(
             EEquipmentValidationFailure::SystemError
         );
     }
-    
+
     int32 CurrentActive = GetCurrentActiveWeaponSlot();
     int32 NextWeapon = FindNextWeaponSlot(CurrentActive);
-    
+
     if (NextWeapon == INDEX_NONE || NextWeapon == CurrentActive)
     {
         return FSlotValidationResult::Failure(
@@ -895,7 +895,7 @@ FSlotValidationResult USuspenseEquipmentOperationExecutor::ValidateQuickSwitch(
             EEquipmentValidationFailure::RequirementsNotMet
         );
     }
-    
+
     return FSlotValidationResult::Success();
 }
 
@@ -909,59 +909,59 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::ExecuteOperation(
     UE_LOG(LogEquipmentExecutor, Error, TEXT("╔═══════════════════════════════════════════════════════════╗"));
     UE_LOG(LogEquipmentExecutor, Error, TEXT("║  ExecuteOperation START (PLANNER MODE)                   ║"));
     UE_LOG(LogEquipmentExecutor, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Operation Type: %s"), 
+    UE_LOG(LogEquipmentExecutor, Error, TEXT("Operation Type: %s"),
         *UEnum::GetValueAsString(Request.OperationType));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Item ID:        %s"), 
+    UE_LOG(LogEquipmentExecutor, Error, TEXT("Item ID:        %s"),
         *Request.ItemInstance.ItemID.ToString());
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Instance ID:    %s"), 
+    UE_LOG(LogEquipmentExecutor, Error, TEXT("Instance ID:    %s"),
         *Request.ItemInstance.InstanceID.ToString());
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Target Slot:    %d"), 
+    UE_LOG(LogEquipmentExecutor, Error, TEXT("Target Slot:    %d"),
         Request.TargetSlotIndex);
-    
+
     FScopeLock Lock(&PlanningCriticalSection);
-    
+
     // Build plan
     FTransactionPlan Plan;
     FText PlanError;
-    
+
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("Building execution plan..."));
-    
+
     if (!BuildPlan(Request, Plan, PlanError))
     {
-        UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan building FAILED: %s"), 
+        UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan building FAILED: %s"),
             *PlanError.ToString());
-        
+
         return FEquipmentOperationResult::CreateFailure(
             Request.OperationId,
             PlanError,
             EEquipmentValidationFailure::SystemError
         );
     }
-    
-    UE_LOG(LogEquipmentExecutor, Log, TEXT("✓ Plan built successfully: %d steps"), 
+
+    UE_LOG(LogEquipmentExecutor, Log, TEXT("✓ Plan built successfully: %d steps"),
         Plan.Num());
-    
+
     // Validate plan if required
     if (bRequireValidation && SlotValidator.GetInterface())
     {
         UE_LOG(LogEquipmentExecutor, Warning, TEXT("Validating plan..."));
-        
+
         FText ValidationError;
         if (!ValidatePlan(Plan, ValidationError))
         {
-            UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan validation FAILED: %s"), 
+            UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan validation FAILED: %s"),
                 *ValidationError.ToString());
-            
+
             return FEquipmentOperationResult::CreateFailure(
                 Request.OperationId,
                 ValidationError,
                 EEquipmentValidationFailure::RequirementsNotMet
             );
         }
-        
+
         UE_LOG(LogEquipmentExecutor, Log, TEXT("✓ Plan validated successfully"));
     }
-    
+
     // Return success with plan metadata
     // ⚠️ ВАЖНО: Actual execution happens in the service layer!
     FEquipmentOperationResult Result = FEquipmentOperationResult::CreateSuccess(Request.OperationId);
@@ -969,13 +969,13 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::ExecuteOperation(
     Result.ResultMetadata.Add(TEXT("PlanSteps"), FString::FromInt(Plan.Num()));
     Result.ResultMetadata.Add(TEXT("EstimatedMs"), FString::SanitizeFloat(Plan.EstimatedExecutionTimeMs));
     Result.ResultMetadata.Add(TEXT("Idempotent"), Plan.bIdempotent ? TEXT("true") : TEXT("false"));
-    
+
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("⚠️ ExecuteOperation returns SUCCESS (plan created)"));
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("   BUT actual execution must happen in SERVICE LAYER!"));
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("   Plan ID: %s"), *Plan.PlanId.ToString());
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("   Steps: %d"), Plan.Num());
     UE_LOG(LogEquipmentExecutor, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
-    
+
     return Result;
 }
 
@@ -989,7 +989,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::EquipItem(
     Request.TargetSlotIndex = SlotIndex;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1000,7 +1000,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::UnequipItem(int32
     Request.SourceSlotIndex = SlotIndex;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1014,7 +1014,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::SwapItems(
     Request.TargetSlotIndex = SlotIndexB;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1028,7 +1028,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::MoveItem(
     Request.TargetSlotIndex = TargetSlot;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1039,7 +1039,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::DropItem(int32 Sl
     Request.SourceSlotIndex = SlotIndex;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1049,7 +1049,7 @@ FEquipmentOperationResult USuspenseEquipmentOperationExecutor::QuickSwitchWeapon
     Request.OperationType = EEquipmentOperationType::QuickSwitch;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
-    
+
     return ExecuteOperation(Request);
 }
 
@@ -1090,14 +1090,14 @@ bool USuspenseEquipmentOperationExecutor::Initialize(
         UE_LOG(LogEquipmentExecutor, Error, TEXT("Invalid data provider provided"));
         return false;
     }
-    
+
     DataProvider = InDataProvider;
     SlotValidator = InValidator; // Validator is optional
-    
-    UE_LOG(LogEquipmentExecutor, Log, 
+
+    UE_LOG(LogEquipmentExecutor, Log,
         TEXT("Executor initialized with data provider. Validator: %s"),
         SlotValidator.GetInterface() ? TEXT("Present") : TEXT("Absent"));
-    
+
     return true;
 }
 
@@ -1141,7 +1141,7 @@ int32 USuspenseEquipmentOperationExecutor::FindBestSlotForItem(
     {
         return INDEX_NONE;
     }
-    
+
     // Find first compatible empty slot
     for (int32 i = 0; i < DataProvider->GetSlotCount(); i++)
     {
@@ -1151,17 +1151,17 @@ int32 USuspenseEquipmentOperationExecutor::FindBestSlotForItem(
             {
                 return i; // No validator - use first empty
             }
-            
+
             FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(i);
             FSlotValidationResult ValidationResult = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
-            
+
             if (ValidationResult.bIsValid)
             {
                 return i;
             }
         }
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -1172,34 +1172,34 @@ bool USuspenseEquipmentOperationExecutor::IsWeaponSlot(int32 SlotIndex) const
     {
         return false;
     }
-    
+
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(SlotIndex);
-    
+
     // Поддерживаем новые типы слотов согласно LoadoutSettings.h
     // PrimaryWeapon - основное оружие (AR, DMR, SR, Shotgun, LMG)
     // SecondaryWeapon - вторичное оружие (SMG, PDW, Shotgun)
     // Holster - пистолеты и револьверы
     // Scabbard - холодное оружие (ножи)
-    return SlotConfig.SlotType == ESuspenseEquipmentSlotType::PrimaryWeapon ||
-           SlotConfig.SlotType == ESuspenseEquipmentSlotType::SecondaryWeapon ||
-           SlotConfig.SlotType == ESuspenseEquipmentSlotType::Holster ||
-           SlotConfig.SlotType == ESuspenseEquipmentSlotType::Scabbard;
+    return SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon ||
+           SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon ||
+           SlotConfig.SlotType == EEquipmentSlotType::Holster ||
+           SlotConfig.SlotType == EEquipmentSlotType::Scabbard;
 }
 
 // Статический метод для оптимизации - определение приоритета слотов
-static inline int32 GetWeaponSlotPriorityStatic(ESuspenseEquipmentSlotType SlotType)
+static inline int32 GetWeaponSlotPriorityStatic(EEquipmentSlotType SlotType)
 {
     // Приоритетность переключения оружия для Tarkov-style геймплея
     // Меньшее значение = выше приоритет при quick switch
     switch (SlotType)
     {
-        case ESuspenseEquipmentSlotType::PrimaryWeapon:
+        case EEquipmentSlotType::PrimaryWeapon:
             return 1; // Высший приоритет - основное оружие
-        case ESuspenseEquipmentSlotType::SecondaryWeapon:
+        case EEquipmentSlotType::SecondaryWeapon:
             return 2; // Вторичное оружие
-        case ESuspenseEquipmentSlotType::Holster:
+        case EEquipmentSlotType::Holster:
             return 3; // Пистолет в кобуре
-        case ESuspenseEquipmentSlotType::Scabbard:
+        case EEquipmentSlotType::Scabbard:
             return 4; // Нож - низший приоритет
         default:
             return 999; // Не оружейный слот
@@ -1207,7 +1207,7 @@ static inline int32 GetWeaponSlotPriorityStatic(ESuspenseEquipmentSlotType SlotT
 }
 
 // Публичный метод-обертка
-int32 USuspenseEquipmentOperationExecutor::GetWeaponSlotPriority(ESuspenseEquipmentSlotType SlotType) const
+int32 USuspenseEquipmentOperationExecutor::GetWeaponSlotPriority(EEquipmentSlotType SlotType) const
 {
     return GetWeaponSlotPriorityStatic(SlotType);
 }
@@ -1218,7 +1218,7 @@ int32 USuspenseEquipmentOperationExecutor::GetCurrentActiveWeaponSlot() const
     {
         return INDEX_NONE;
     }
-    
+
     return DataProvider->GetActiveWeaponSlot();
 }
 
@@ -1229,19 +1229,19 @@ int32 USuspenseEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentSlot)
     {
         return INDEX_NONE;
     }
-    
+
     int32 SlotCount = DataProvider->GetSlotCount();
-    
+
     // Структура для хранения информации о доступных слотах
     struct FWeaponSlotInfo
     {
         int32 SlotIndex;
-        ESuspenseEquipmentSlotType SlotType;
+        EEquipmentSlotType SlotType;
         int32 Priority;
     };
-    
+
     TArray<FWeaponSlotInfo> AvailableWeaponSlots;
-    
+
     // Собираем все доступные слоты с оружием
     for (int32 i = 0; i < SlotCount; i++)
     {
@@ -1255,12 +1255,12 @@ int32 USuspenseEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentSlot)
             AvailableWeaponSlots.Add(Info);
         }
     }
-    
+
     if (AvailableWeaponSlots.Num() == 0)
     {
         return INDEX_NONE;
     }
-    
+
     // Сортируем по приоритету для предсказуемого переключения
     // При одинаковом приоритете сохраняется порядок индексов слотов (tie-break: по возрастанию индекса)
     AvailableWeaponSlots.Sort([](const FWeaponSlotInfo& A, const FWeaponSlotInfo& B)
@@ -1271,7 +1271,7 @@ int32 USuspenseEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentSlot)
         }
         return A.Priority < B.Priority;
     });
-    
+
     // Определяем текущий приоритет для циклического переключения
     int32 CurrentPriority = 999;
     if (CurrentSlot != INDEX_NONE && DataProvider->IsValidSlotIndex(CurrentSlot))
@@ -1279,7 +1279,7 @@ int32 USuspenseEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentSlot)
         FEquipmentSlotConfig CurrentConfig = DataProvider->GetSlotConfiguration(CurrentSlot);
         CurrentPriority = GetWeaponSlotPriorityStatic(CurrentConfig.SlotType);
     }
-    
+
     // Ищем следующий слот с более низким приоритетом
     for (const FWeaponSlotInfo& SlotInfo : AvailableWeaponSlots)
     {
@@ -1288,13 +1288,13 @@ int32 USuspenseEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentSlot)
             return SlotInfo.SlotIndex;
         }
     }
-    
+
     // Если не нашли слот с более низким приоритетом, возвращаем первый доступный
     // Это обеспечивает циклическое переключение
     return AvailableWeaponSlots[0].SlotIndex;
 }
 
-// Проверка на огнестрельное оружие 
+// Проверка на огнестрельное оружие
 // Используется для UI подсказок амуниции и анимаций прицеливания (aiming state machine)
 bool USuspenseEquipmentOperationExecutor::IsFirearmSlot(int32 SlotIndex) const
 {
@@ -1302,17 +1302,17 @@ bool USuspenseEquipmentOperationExecutor::IsFirearmSlot(int32 SlotIndex) const
     {
         return false;
     }
-    
+
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(SlotIndex);
-    
+
     // Только слоты для огнестрельного оружия (исключаем холодное)
     // Используется для определения возможности прицеливания и показа UI амуниции
-    return SlotConfig.SlotType == ESuspenseEquipmentSlotType::PrimaryWeapon ||
-           SlotConfig.SlotType == ESuspenseEquipmentSlotType::SecondaryWeapon ||
-           SlotConfig.SlotType == ESuspenseEquipmentSlotType::Holster;
+    return SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon ||
+           SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon ||
+           SlotConfig.SlotType == EEquipmentSlotType::Holster;
 }
 
-// Проверка на холодное оружие 
+// Проверка на холодное оружие
 // Используется для специальных анимаций атаки (melee anim state machines)
 bool USuspenseEquipmentOperationExecutor::IsMeleeWeaponSlot(int32 SlotIndex) const
 {
@@ -1320,29 +1320,29 @@ bool USuspenseEquipmentOperationExecutor::IsMeleeWeaponSlot(int32 SlotIndex) con
     {
         return false;
     }
-    
+
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(SlotIndex);
-    
+
     // Только слот для холодного оружия
     // Используется для переключения на melee combat mode
-    return SlotConfig.SlotType == ESuspenseEquipmentSlotType::Scabbard;
+    return SlotConfig.SlotType == EEquipmentSlotType::Scabbard;
 }
 
 // Получение типа оружейного слота
-ESuspenseEquipmentSlotType USuspenseEquipmentOperationExecutor::GetWeaponSlotType(int32 SlotIndex) const
+EEquipmentSlotType USuspenseEquipmentOperationExecutor::GetWeaponSlotType(int32 SlotIndex) const
 {
     if (!DataProvider.GetInterface() || !DataProvider->IsValidSlotIndex(SlotIndex))
     {
-        return ESuspenseEquipmentSlotType::None;
+        return EEquipmentSlotType::None;
     }
-    
+
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(SlotIndex);
-    
+
     // Возвращаем тип только для валидных оружейных слотов
     if (IsWeaponSlot(SlotIndex))
     {
         return SlotConfig.SlotType;
     }
-    
-    return ESuspenseEquipmentSlotType::None;
+
+    return EEquipmentSlotType::None;
 }

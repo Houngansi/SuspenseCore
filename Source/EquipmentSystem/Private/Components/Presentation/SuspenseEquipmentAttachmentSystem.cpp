@@ -7,9 +7,10 @@
 #include "GameFramework/Character.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Core/Services/EquipmentServiceLocator.h"
-#include "Services/EquipmentServiceMacros.h"
-#include "Core/Utils/FEquipmentEventBus.h"
+#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 
 USuspenseEquipmentAttachmentSystem::USuspenseEquipmentAttachmentSystem()
 	: SocketConfigCache(50)
@@ -21,16 +22,16 @@ USuspenseEquipmentAttachmentSystem::USuspenseEquipmentAttachmentSystem()
 void USuspenseEquipmentAttachmentSystem::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	UEquipmentServiceLocator* Locator = UEquipmentServiceLocator::Get(this);
+
+	USuspenseEquipmentServiceLocator* Locator = USuspenseEquipmentServiceLocator::Get(this);
 	if (Locator)
 	{
 		const FGameplayTag AttachmentTag = FGameplayTag::RequestGameplayTag(TEXT("Service.AttachmentSystem"));
-		
+
 		if (!Locator->IsServiceRegistered(AttachmentTag))
 		{
 			Locator->RegisterServiceInstance(AttachmentTag, this);
-			
+
 			UE_LOG(LogEquipmentOperation, Log,
 				TEXT("✓ AttachmentSystem registered as service: Service.AttachmentSystem"));
 		}
@@ -57,15 +58,15 @@ void USuspenseEquipmentAttachmentSystem::BeginPlay()
 
 void USuspenseEquipmentAttachmentSystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UEquipmentServiceLocator* Locator = UEquipmentServiceLocator::Get(this);
+	USuspenseEquipmentServiceLocator* Locator = USuspenseEquipmentServiceLocator::Get(this);
 	if (Locator)
 	{
 		const FGameplayTag AttachmentTag = FGameplayTag::RequestGameplayTag(TEXT("Service.AttachmentSystem"));
-		
+
 		if (Locator->IsServiceRegistered(AttachmentTag))
 		{
 			Locator->UnregisterService(AttachmentTag, /*bForceShutdown=*/false);
-			
+
 			UE_LOG(LogEquipmentOperation, Log,
 				TEXT("AttachmentSystem unregistered from ServiceLocator"));
 		}
@@ -155,14 +156,14 @@ bool USuspenseEquipmentAttachmentSystem::AttachEquipment(
 
 		MarkSocketOccupied(Config.SocketName, Equipment);
 
-		FEquipmentEventData Ev;
+		FSuspenseEquipmentEventData Ev;
 		Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 		Ev.Source      = this;
 		Ev.Target      = Equipment;
 		Ev.Timestamp   = FPlatformTime::Seconds();
 		Ev.NumericData = 1.0f; // attached
 		Ev.AddMetadata(TEXT("Socket"), Config.SocketName.ToString());
-		FEquipmentEventBus::Get()->Broadcast(Ev);
+		FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 		LogAttachmentOperation(TEXT("AttachEquipment"),
 			FString::Printf(TEXT("Attached %s to '%s'"),
@@ -212,14 +213,14 @@ bool USuspenseEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, bool
 
 	AttachmentStates.Remove(Equipment);
 
-	FEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = 0.0f;
 	Ev.AddMetadata(TEXT("Socket"), OldSocket.ToString());
-	FEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 	LogAttachmentOperation(TEXT("DetachEquipment"),
 		FString::Printf(TEXT("Detached %s"), *Equipment->GetName()));
@@ -284,14 +285,14 @@ bool USuspenseEquipmentAttachmentSystem::UpdateAttachment(
 
 			MarkSocketOccupied(NewConfig.SocketName, Equipment);
 
-			FEquipmentEventData Ev;
+			FSuspenseEquipmentEventData Ev;
 			Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 			Ev.Source      = this;
 			Ev.Target      = Equipment;
 			Ev.Timestamp   = FPlatformTime::Seconds();
 			Ev.NumericData = 1.0f;
 			Ev.AddMetadata(TEXT("Socket"), NewConfig.SocketName.ToString());
-			FEquipmentEventBus::Get()->Broadcast(Ev);
+			FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 			LogAttachmentOperation(TEXT("UpdateAttachment"),
 				FString::Printf(TEXT("Immediate update for %s"), *Equipment->GetName()));
@@ -377,14 +378,14 @@ bool USuspenseEquipmentAttachmentSystem::SwitchAttachmentState(
 
 	StateData->CurrentState.bIsActive = bMakeActive;
 
-	FEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.StateChanged"));
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = bMakeActive ? 1.0f : 0.0f;
 	Ev.AddMetadata(TEXT("IsActive"), bMakeActive ? TEXT("1") : TEXT("0"));
-	FEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 	LogAttachmentOperation(TEXT("SwitchAttachmentState"),
 		FString::Printf(TEXT("Switched %s to %s"),
@@ -662,13 +663,13 @@ void USuspenseEquipmentAttachmentSystem::InitializeDefaultMappings()
 
 void USuspenseEquipmentAttachmentSystem::BroadcastAttachmentEvent(const FGameplayTag& EventTag, AActor* Equipment, bool bSuccess)
 {
-	FEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = EventTag;
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = bSuccess ? 1.0f : 0.0f;
-	FEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 }
 
 void USuspenseEquipmentAttachmentSystem::LogAttachmentOperation(const FString& Operation, const FString& Details) const

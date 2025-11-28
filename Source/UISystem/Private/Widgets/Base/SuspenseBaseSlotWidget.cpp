@@ -3,7 +3,7 @@
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -26,26 +26,26 @@ USuspenseBaseSlotWidget::USuspenseBaseSlotWidget(const FObjectInitializer& Objec
     bIsDragging = false;
     bIsPooled = false;
     bIsTooltipActive = false;
-    
+
     OwningContainer = nullptr;
     CachedDragDropHandler = nullptr;
     CachedEventManager = nullptr;
     CurrentHighlightColor = FLinearColor::White;
-    
+
     // Performance settings
     bNeedsVisualUpdate = false;
     LastVisualUpdateTime = 0.0f;
     bGeometryCached = false;
     GeometryCacheTime = 0.0f;
-    
+
     // Cache colors
     CachedBackgroundColor = EmptySlotColor;
     CachedHighlightColor = FLinearColor::White;
-    
+
     // Tooltip settings
     bEnableTooltip = true;
     TooltipDelay = 0.5f;
-    
+
     // Disable tick by default - we'll use invalidation
     bHasScriptImplementedTick = false;
 }
@@ -53,33 +53,33 @@ USuspenseBaseSlotWidget::USuspenseBaseSlotWidget(const FObjectInitializer& Objec
 void USuspenseBaseSlotWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
+
     // Validate widget bindings
     if (!ValidateWidgetBindings())
     {
         return;
     }
-    
+
     // Validate owning container
     if (!OwningContainer)
     {
         UE_LOG(LogTemp, Error, TEXT("[%s] OwningContainer not set!"), *GetName());
     }
-    
+
     // Cache managers
     CachedDragDropHandler = GetDragDropHandler();
     CachedEventManager = GetEventManager();
-    
+
     // Set initial size
     if (RootSizeBox)
     {
         RootSizeBox->SetWidthOverride(SlotSize);
         RootSizeBox->SetHeightOverride(SlotSize);
     }
-    
+
     // Initialize visual state
     UpdateVisualState();
-    
+
     // Make sure we can receive mouse events
     SetVisibility(ESlateVisibility::Visible);
 }
@@ -89,31 +89,31 @@ void USuspenseBaseSlotWidget::NativeDestruct()
     // Clean up tooltip
     CancelTooltipTimer();
     HideTooltip();
-    
+
     // Cancel any async loading
     if (IconStreamingHandle.IsValid())
     {
         IconStreamingHandle->CancelHandle();
         IconStreamingHandle.Reset();
     }
-    
+
     CachedDragDropHandler = nullptr;
     CachedEventManager = nullptr;
     OwningContainer = nullptr;
-    
+
     Super::NativeDestruct();
 }
 
 void USuspenseBaseSlotWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
-    
+
     // Process pending visual updates
     if (bNeedsVisualUpdate)
     {
         ProcessPendingVisualUpdates();
     }
-    
+
     // Update tooltip position if active
     if (bIsTooltipActive && bIsHovered)
     {
@@ -124,13 +124,13 @@ void USuspenseBaseSlotWidget::NativeTick(const FGeometry& MyGeometry, float InDe
 void USuspenseBaseSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
     Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-    
+
     // Update cached geometry
     UpdateCachedGeometry(InGeometry);
-    
+
     bIsHovered = true;
     ScheduleVisualUpdate();
-    
+
     // Start tooltip timer
     StartTooltipTimer();
 }
@@ -138,10 +138,10 @@ void USuspenseBaseSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, co
 void USuspenseBaseSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
     Super::NativeOnMouseLeave(InMouseEvent);
-    
+
     bIsHovered = false;
     ScheduleVisualUpdate();
-    
+
     // Cancel tooltip
     CancelTooltipTimer();
     HideTooltip();
@@ -153,13 +153,13 @@ FReply USuspenseBaseSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeome
     {
         return FReply::Handled();
     }
-    
+
     // Update cached geometry
     UpdateCachedGeometry(InGeometry);
-    
+
     // Hide tooltip on interaction
     HideTooltip();
-    
+
     // Handle different mouse buttons
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
@@ -168,7 +168,7 @@ FReply USuspenseBaseSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeome
         {
             return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
         }
-        
+
         // Handle normal click
         HandleClick();
         return FReply::Handled();
@@ -178,7 +178,7 @@ FReply USuspenseBaseSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeome
         HandleRightClick();
         return FReply::Handled();
     }
-    
+
     return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
@@ -188,33 +188,33 @@ FReply USuspenseBaseSlotWidget::NativeOnMouseButtonDoubleClick(const FGeometry& 
     {
         return FReply::Handled();
     }
-    
+
     // Hide tooltip on interaction
     HideTooltip();
-    
+
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
         HandleDoubleClick();
         return FReply::Handled();
     }
-    
+
     return Super::NativeOnMouseButtonDoubleClick(InGeometry, InMouseEvent);
 }
 
 void USuspenseBaseSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
     Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
-    
+
     // Validate drag possibility
     if (!CanBeDragged_Implementation() || !CachedDragDropHandler)
     {
         OutOperation = nullptr;
         return;
     }
-    
+
     // Delegate to handler to create operation
     OutOperation = CachedDragDropHandler->StartDragOperation(this, InMouseEvent);
-    
+
     if (OutOperation)
     {
         // Create visual if needed
@@ -227,7 +227,7 @@ void USuspenseBaseSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, 
                 MedComOp->DefaultDragVisual = DragVisual;
             }
         }
-        
+
         // Notify drag started
         OnDragStarted_Implementation();
     }
@@ -240,7 +240,7 @@ bool USuspenseBaseSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FD
     {
         return false;
     }
-    
+
     // Delegate to container
     return OwningContainer->ProcessDropOnSlot(
         DragOp,
@@ -257,7 +257,7 @@ bool USuspenseBaseSlotWidget::NativeOnDragOver(const FGeometry& InGeometry, cons
     {
         return false;
     }
-    
+
     // Delegate to container
     return OwningContainer->ProcessDragOverSlot(
         DragOp,
@@ -270,12 +270,12 @@ bool USuspenseBaseSlotWidget::NativeOnDragOver(const FGeometry& InGeometry, cons
 void USuspenseBaseSlotWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
-    
+
     if (!IsValid(InOperation) || !IsValid(OwningContainer))
     {
         return;
     }
-    
+
     USuspenseDragDropOperation* MedComDragOp = Cast<USuspenseDragDropOperation>(InOperation);
     if (MedComDragOp)
     {
@@ -286,14 +286,14 @@ void USuspenseBaseSlotWidget::NativeOnDragEnter(const FGeometry& InGeometry, con
 void USuspenseBaseSlotWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     Super::NativeOnDragLeave(InDragDropEvent, InOperation);
-    
+
     OnDragLeave_Implementation();
 }
 
 void USuspenseBaseSlotWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
-    
+
     if (bIsDragging)
     {
         OnDragEnded_Implementation(false);
@@ -304,16 +304,16 @@ void USuspenseBaseSlotWidget::InitializeSlot_Implementation(const FSlotUIData& S
 {
     CurrentSlotData = SlotData;
     CurrentItemData = ItemData;
-    
+
     // Clear any cached icon
     CachedIconTexture = nullptr;
-    
+
     // Load icon if needed
     if (ItemData.IsValid() && !ItemData.IconAssetPath.IsEmpty())
     {
         LoadIconAsync(ItemData.IconAssetPath);
     }
-    
+
     ScheduleVisualUpdate();
 }
 
@@ -326,15 +326,15 @@ void USuspenseBaseSlotWidget::UpdateSlot_Implementation(const FSlotUIData& SlotD
                        CurrentSlotData.bIsPartOfItem != SlotData.bIsPartOfItem ||
                        CurrentItemData.ItemInstanceID != ItemData.ItemInstanceID ||
                        CurrentItemData.Quantity != ItemData.Quantity;
-    
+
     if (!bDataChanged)
     {
         return; // No update needed
     }
-    
+
     CurrentSlotData = SlotData;
     CurrentItemData = ItemData;
-    
+
     // Check if icon changed
     if (ItemData.IconAssetPath != CurrentItemData.IconAssetPath)
     {
@@ -344,7 +344,7 @@ void USuspenseBaseSlotWidget::UpdateSlot_Implementation(const FSlotUIData& SlotD
             LoadIconAsync(ItemData.IconAssetPath);
         }
     }
-    
+
     ScheduleVisualUpdate();
 }
 
@@ -354,10 +354,10 @@ void USuspenseBaseSlotWidget::SetSelected_Implementation(bool bInIsSelected)
     {
         return;
     }
-    
+
     bIsSelected = bInIsSelected;
     ScheduleVisualUpdate();
-    
+
     // Notify container
     if (IsValid(OwningContainer))
     {
@@ -371,15 +371,15 @@ void USuspenseBaseSlotWidget::SetHighlighted_Implementation(bool bInIsHighlighte
     {
         return;
     }
-    
+
     bIsHighlighted = bInIsHighlighted;
     CurrentHighlightColor = HighlightColor;
     CachedHighlightColor = HighlightColor;
-    
+
     // Apply highlight immediately
     UpdateHighlightVisual();
-    
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] SetHighlighted: %s, Color=(%.2f,%.2f,%.2f,%.2f)"), 
+
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] SetHighlighted: %s, Color=(%.2f,%.2f,%.2f,%.2f)"),
         CurrentSlotData.SlotIndex,
         bIsHighlighted ? TEXT("ON") : TEXT("OFF"),
         HighlightColor.R, HighlightColor.G, HighlightColor.B, HighlightColor.A);
@@ -391,7 +391,7 @@ void USuspenseBaseSlotWidget::SetLocked_Implementation(bool bInIsLocked)
     {
         return;
     }
-    
+
     bIsLocked = bInIsLocked;
     ScheduleVisualUpdate();
 }
@@ -406,7 +406,7 @@ FDragDropUIData USuspenseBaseSlotWidget::GetDragData_Implementation() const
     FGameplayTag SourceContainerType = FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"));
     if (IsValid(OwningContainer))
     {
-        SourceContainerType = ISuspenseContainerUIInterface::Execute_GetContainerType(OwningContainer);
+        SourceContainerType = ISuspenseContainerUI::Execute_GetContainerType(OwningContainer);
     }
 
     return FDragDropUIData::CreateValidated(
@@ -419,29 +419,29 @@ FDragDropUIData USuspenseBaseSlotWidget::GetDragData_Implementation() const
 void USuspenseBaseSlotWidget::OnDragStarted_Implementation()
 {
     bIsDragging = true;
-    
+
     // Hide tooltip
     HideTooltip();
-    
+
     // Make icon semi-transparent
     if (ItemIcon)
     {
         ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
     }
-    
+
     ScheduleVisualUpdate();
 }
 
 void USuspenseBaseSlotWidget::OnDragEnded_Implementation(bool bWasDropped)
 {
     bIsDragging = false;
-    
+
     // Restore icon opacity
     if (ItemIcon)
     {
         ItemIcon->SetColorAndOpacity(FLinearColor::White);
     }
-    
+
     ScheduleVisualUpdate();
 }
 
@@ -468,7 +468,7 @@ FSlotValidationResult USuspenseBaseSlotWidget::CanAcceptDrop_Implementation(cons
     }
 
     // Делегируем контейнеру (он возвращает FSlotValidationResult)
-    return ISuspenseContainerUIInterface::Execute_CanAcceptDrop(
+    return ISuspenseContainerUI::Execute_CanAcceptDrop(
         OwningContainer,
         DragOperation,
         CurrentSlotData.SlotIndex
@@ -503,8 +503,8 @@ FItemUIData USuspenseBaseSlotWidget::GetTooltipData_Implementation() const
 
 bool USuspenseBaseSlotWidget::CanShowTooltip_Implementation() const
 {
-    return bEnableTooltip && 
-           CurrentSlotData.bIsOccupied && 
+    return bEnableTooltip &&
+           CurrentSlotData.bIsOccupied &&
            CurrentSlotData.bIsAnchor &&
            CurrentItemData.IsValid() &&
            !bIsDragging;
@@ -533,7 +533,7 @@ void USuspenseBaseSlotWidget::StartTooltipTimer()
     {
         return;
     }
-    
+
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().SetTimer(
@@ -563,26 +563,26 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
     {
         return;
     }
-    
+
     if (!CachedEventManager)
     {
         CachedEventManager = GetEventManager();
     }
-    
+
     if (!CachedEventManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Slot %d] No EventDelegateManager available for tooltip"), 
+        UE_LOG(LogTemp, Warning, TEXT("[Slot %d] No EventDelegateManager available for tooltip"),
             CurrentSlotData.SlotIndex);
         return;
     }
-    
+
     // Get current mouse position directly from PlayerController
     APlayerController* PC = GetOwningPlayer();
     if (!PC)
     {
         return;
     }
-    
+
     // Get raw mouse position
     float MouseX, MouseY;
     if (!PC->GetMousePosition(MouseX, MouseY))
@@ -593,27 +593,27 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
             return;
         }
     }
-    
+
     // Convert to viewport space (no additional scaling needed for raw mouse position)
     FVector2D ViewportPosition = FVector2D(MouseX, MouseY);
-    
+
     // НОВОЕ: Передаём информацию о кастомном классе тултипа через ItemData
     FItemUIData TooltipItemData = CurrentItemData;
     if (CustomTooltipClass)
     {
         TooltipItemData.PreferredTooltipClass = CustomTooltipClass;
     }
-    
+
     // Request tooltip through EventDelegateManager
     CachedEventManager->NotifyTooltipRequested(TooltipItemData, ViewportPosition);
-    
+
     // Mark as active
     bIsTooltipActive = true;
-    
-    UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip at mouse position: (%.1f, %.1f) for item: %s%s"), 
-        CurrentSlotData.SlotIndex, 
-        ViewportPosition.X, 
-        ViewportPosition.Y, 
+
+    UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip at mouse position: (%.1f, %.1f) for item: %s%s"),
+        CurrentSlotData.SlotIndex,
+        ViewportPosition.X,
+        ViewportPosition.Y,
         *CurrentItemData.DisplayName.ToString(),
         CustomTooltipClass ? TEXT(" (with custom class)") : TEXT(""));
 }
@@ -621,23 +621,23 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
 void USuspenseBaseSlotWidget::HideTooltip()
 {
     CancelTooltipTimer();
-    
+
     if (bIsTooltipActive)
     {
         if (!CachedEventManager)
         {
             CachedEventManager = GetEventManager();
         }
-        
+
         if (CachedEventManager)
         {
             // Hide tooltip through EventDelegateManager instead of direct TooltipManager call
             CachedEventManager->NotifyTooltipHideRequested();
-            
-            UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip hide through EventDelegateManager"), 
+
+            UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip hide through EventDelegateManager"),
                 CurrentSlotData.SlotIndex);
         }
-        
+
         bIsTooltipActive = false;
     }
 }
@@ -648,13 +648,13 @@ void USuspenseBaseSlotWidget::UpdateTooltipPosition()
     {
         return;
     }
-    
+
     APlayerController* PC = GetOwningPlayer();
     if (!PC)
     {
         return;
     }
-    
+
     // Get raw mouse position for accurate tracking
     float MouseX, MouseY;
     if (!PC->GetMousePosition(MouseX, MouseY))
@@ -665,9 +665,9 @@ void USuspenseBaseSlotWidget::UpdateTooltipPosition()
             return;
         }
     }
-    
+
     FVector2D ViewportPosition = FVector2D(MouseX, MouseY);
-    
+
     // Update position through EventDelegateManager
     CachedEventManager->NotifyTooltipUpdatePosition(ViewportPosition);
 }
@@ -710,28 +710,28 @@ void USuspenseBaseSlotWidget::ResetForPool()
     bIsLocked = false;
     bIsDragging = false;
     bIsTooltipActive = false;
-    
+
     CurrentSlotData = FSlotUIData();
     CurrentItemData = FItemUIData();
     CurrentHighlightColor = FLinearColor::White;
-    
+
     // Cancel any timers
     CancelTooltipTimer();
-    
+
     // Cancel any async loading
     if (IconStreamingHandle.IsValid())
     {
         IconStreamingHandle->CancelHandle();
         IconStreamingHandle.Reset();
     }
-    
+
     // Clear cached data
     CachedIconTexture = nullptr;
     bGeometryCached = false;
-    
+
     // Reset visuals
     UpdateVisualState();
-    
+
     // Mark as pooled
     bIsPooled = true;
 }
@@ -745,7 +745,7 @@ bool USuspenseBaseSlotWidget::CanBePooled() const
 void USuspenseBaseSlotWidget::ScheduleVisualUpdate()
 {
     bNeedsVisualUpdate = true;
-    
+
     // Enable tick only when needed
     if (!bHasScriptImplementedTick)
     {
@@ -757,18 +757,18 @@ void USuspenseBaseSlotWidget::ScheduleVisualUpdate()
 void USuspenseBaseSlotWidget::ProcessPendingVisualUpdates()
 {
     float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Throttle updates
     if (CurrentTime - LastVisualUpdateTime < VISUAL_UPDATE_THROTTLE)
     {
         return;
     }
-    
+
     UpdateVisualState();
-    
+
     LastVisualUpdateTime = CurrentTime;
     bNeedsVisualUpdate = false;
-    
+
     // Disable tick when not needed
     if (bHasScriptImplementedTick)
     {
@@ -792,7 +792,7 @@ void USuspenseBaseSlotWidget::UpdateBackgroundVisual()
     {
         return;
     }
-    
+
     FLinearColor NewColor = GetBackgroundColor();
     BackgroundBorder->SetBrushColor(NewColor);
 }
@@ -803,11 +803,11 @@ void USuspenseBaseSlotWidget::UpdateItemIcon()
     {
         return;
     }
-    
+
     if (CurrentSlotData.bIsOccupied && CurrentSlotData.bIsAnchor && (CurrentItemData.GetIcon() || CachedIconTexture))
     {
         ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
-        
+
         // Use cached texture if available
         if (CachedIconTexture)
         {
@@ -817,10 +817,10 @@ void USuspenseBaseSlotWidget::UpdateItemIcon()
         {
             ItemIcon->SetBrushFromTexture(CurrentItemData.GetIcon());
         }
-        
+
         // Handle rotation
         ItemIcon->SetRenderTransformAngle(CurrentItemData.bIsRotated ? 90.0f : 0.0f);
-        
+
         // Apply drag opacity
         if (bIsDragging)
         {
@@ -843,7 +843,7 @@ void USuspenseBaseSlotWidget::UpdateQuantityText()
     {
         return;
     }
-    
+
     if (CurrentSlotData.bIsOccupied && CurrentSlotData.bIsAnchor && CurrentItemData.Quantity > 1)
     {
         QuantityText->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -864,8 +864,8 @@ void USuspenseBaseSlotWidget::UpdateHighlightVisual()
         {
             HighlightBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
             HighlightBorder->SetBrushColor(CurrentHighlightColor);
-            
-            UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] HighlightBorder visible with color: (%.2f, %.2f, %.2f, %.2f)"), 
+
+            UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] HighlightBorder visible with color: (%.2f, %.2f, %.2f, %.2f)"),
                 CurrentSlotData.SlotIndex,
                 CurrentHighlightColor.R, CurrentHighlightColor.G, CurrentHighlightColor.B, CurrentHighlightColor.A);
         }
@@ -880,8 +880,8 @@ void USuspenseBaseSlotWidget::UpdateHighlightVisual()
         if (bIsHighlighted)
         {
             BackgroundBorder->SetBrushColor(CurrentHighlightColor);
-            
-            UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] BackgroundBorder highlighted with color: (%.2f, %.2f, %.2f, %.2f)"), 
+
+            UE_LOG(LogTemp, VeryVerbose, TEXT("[Slot %d] BackgroundBorder highlighted with color: (%.2f, %.2f, %.2f, %.2f)"),
                 CurrentSlotData.SlotIndex,
                 CurrentHighlightColor.R, CurrentHighlightColor.G, CurrentHighlightColor.B, CurrentHighlightColor.A);
         }
@@ -898,7 +898,7 @@ void USuspenseBaseSlotWidget::UpdateSelectionVisual()
     {
         return;
     }
-    
+
     SelectionBorder->SetVisibility(bIsSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
@@ -909,17 +909,17 @@ FLinearColor USuspenseBaseSlotWidget::GetBackgroundColor() const
     {
         return LockedColor;
     }
-    
+
     if (bIsSelected)
     {
         return SelectedColor;
     }
-    
+
     if (bIsHovered)
     {
         return HoveredColor;
     }
-    
+
     return CurrentSlotData.bIsOccupied ? OccupiedSlotColor : EmptySlotColor;
 }
 
@@ -927,9 +927,9 @@ void USuspenseBaseSlotWidget::HandleClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUIInterface::Execute_OnSlotClicked(
-            OwningContainer, 
-            CurrentSlotData.SlotIndex, 
+        ISuspenseContainerUI::Execute_OnSlotClicked(
+            OwningContainer,
+            CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID
         );
     }
@@ -939,9 +939,9 @@ void USuspenseBaseSlotWidget::HandleDoubleClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUIInterface::Execute_OnSlotDoubleClicked(
-            OwningContainer, 
-            CurrentSlotData.SlotIndex, 
+        ISuspenseContainerUI::Execute_OnSlotDoubleClicked(
+            OwningContainer,
+            CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID
         );
     }
@@ -951,9 +951,9 @@ void USuspenseBaseSlotWidget::HandleRightClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUIInterface::Execute_OnSlotRightClicked(
-            OwningContainer, 
-            CurrentSlotData.SlotIndex, 
+        ISuspenseContainerUI::Execute_OnSlotRightClicked(
+            OwningContainer,
+            CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID
         );
     }
@@ -965,22 +965,22 @@ USuspenseDragDropHandler* USuspenseBaseSlotWidget::GetDragDropHandler() const
     {
         return CachedDragDropHandler;
     }
-    
+
     return USuspenseDragDropHandler::Get(this);
 }
 
-UEventDelegateManager* USuspenseBaseSlotWidget::GetEventManager() const
+USuspenseEventManager* USuspenseBaseSlotWidget::GetEventManager() const
 {
     if (CachedEventManager)
     {
         return CachedEventManager;
     }
-    
+
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        return GameInstance->GetSubsystem<UEventDelegateManager>();
+        return GameInstance->GetSubsystem<USuspenseEventManager>();
     }
-    
+
     return nullptr;
 }
 
@@ -1029,13 +1029,13 @@ void USuspenseBaseSlotWidget::LoadIconAsync(const FString& IconPath)
         IconStreamingHandle->CancelHandle();
         IconStreamingHandle.Reset();
     }
-    
+
     FSoftObjectPath SoftPath(IconPath);
     if (!SoftPath.IsValid())
     {
         return;
     }
-    
+
     // Check if already loaded
     TSoftObjectPtr<UTexture2D> SoftTexture(SoftPath);
     if (UTexture2D* LoadedTexture = SoftTexture.Get())
@@ -1047,7 +1047,7 @@ void USuspenseBaseSlotWidget::LoadIconAsync(const FString& IconPath)
         }
         return;
     }
-    
+
     // Load asynchronously
     FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
     IconStreamingHandle = StreamableManager.RequestAsyncLoad(
@@ -1063,13 +1063,13 @@ void USuspenseBaseSlotWidget::OnIconLoaded()
     {
         return;
     }
-    
+
     if (UTexture2D* LoadedTexture = Cast<UTexture2D>(IconStreamingHandle->GetLoadedAsset()))
     {
         CachedIconTexture = LoadedTexture;
         ScheduleVisualUpdate();
     }
-    
+
     IconStreamingHandle.Reset();
 }
 
@@ -1090,7 +1090,7 @@ const FGeometry& USuspenseBaseSlotWidget::GetCachedOrCurrentGeometry() const
             return CachedGeometry;
         }
     }
-    
+
     // Return current if cache invalid
     return GetCachedGeometry();
 }

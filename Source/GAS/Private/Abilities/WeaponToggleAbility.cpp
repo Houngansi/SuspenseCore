@@ -1,11 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Abilities/WeaponToggleAbility.h"
-#include "Interfaces/Equipment/IMedComEquipmentInterface.h"
-#include "Interfaces/Weapon/IMedComWeaponAnimationInterface.h"
+#include "Interfaces/Equipment/ISuspenseEquipment.h"
+#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
 #include "Subsystems/WeaponAnimationSubsystem.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerState.h"
@@ -22,37 +22,37 @@ UWeaponToggleAbility::UWeaponToggleAbility()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
     ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
-    
+
     // Initialize tags
     WeaponTogglingTag = FGameplayTag::RequestGameplayTag(TEXT("State.WeaponToggling"));
     ToggleBlockTag = FGameplayTag::RequestGameplayTag(TEXT("Block.WeaponToggle"));
-    
+
     EquipmentDrawingTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Drawing"));
     EquipmentHolsteringTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Holstering"));
     EquipmentReadyTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Ready"));
     EquipmentHolsteredTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Holstered"));
-    
+
     // Input tags
     InputSlot1Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot1"));
     InputSlot2Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot2"));
     InputSlot3Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot3"));
     InputSlot4Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot4"));
     InputSlot5Tag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Input.WeaponSlot5"));
-    
+
     // Set ability tags
     FGameplayTagContainer AssetTags;
     AssetTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Toggle")));
     SetAssetTags(AssetTags);
-    
+
     // Set blocking tags
     BlockAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Fire")));
     BlockAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Weapon.Switch")));
-    
+
     // Set activation blocked tags
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Dead")));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Stunned")));
     ActivationBlockedTags.AddTag(ToggleBlockTag);
-    
+
     // Default values
     CurrentToggleSlot = INDEX_NONE;
     bIsDrawing = false;
@@ -72,7 +72,7 @@ bool UWeaponToggleAbility::CanActivateAbility(
     {
         return false;
     }
-    
+
     // Check for blocking states
     if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
     {
@@ -82,14 +82,14 @@ bool UWeaponToggleAbility::CanActivateAbility(
             LogToggleDebug(TEXT("Already toggling weapon"));
             return false;
         }
-        
+
         // Check reload state
         if (!bAllowToggleDuringReload && ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("State.Reloading"))))
         {
             LogToggleDebug(TEXT("Cannot toggle during reload"));
             return false;
         }
-        
+
         // Check aiming state
         if (!bAllowToggleWhileAiming && ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("State.Aiming"))))
         {
@@ -97,7 +97,7 @@ bool UWeaponToggleAbility::CanActivateAbility(
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -108,21 +108,21 @@ void UWeaponToggleAbility::ActivateAbility(
     const FGameplayEventData* TriggerEventData)
 {
     LogToggleDebug(TEXT("ActivateAbility started"));
-    
+
     CurrentSpecHandle = Handle;
-    
+
     if (!HasAuthorityOrPredictionKey(ActorInfo, &ActivationInfo))
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     // Find equipment interface
     CachedEquipmentInterface = FindEquipmentInterface();
     if (!CachedEquipmentInterface.GetInterface())
@@ -131,17 +131,17 @@ void UWeaponToggleAbility::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
-    
+
     // Get animation interface
     CachedAnimationInterface = GetAnimationInterface();
-    
+
     // Determine slot to toggle
     CurrentToggleSlot = DetermineToggleSlot(TriggerEventData);
     if (CurrentToggleSlot == INDEX_NONE)
     {
         // Get active weapon slot through interface
-        CurrentToggleSlot = IMedComEquipmentInterface::Execute_GetActiveWeaponSlotIndex(CachedEquipmentInterface.GetObject());
-        
+        CurrentToggleSlot = ISuspenseEquipment::Execute_GetActiveWeaponSlotIndex(CachedEquipmentInterface.GetObject());
+
         if (CurrentToggleSlot == INDEX_NONE)
         {
             LogToggleDebug(TEXT("No active weapon slot to toggle"));
@@ -149,26 +149,26 @@ void UWeaponToggleAbility::ActivateAbility(
             return;
         }
     }
-    
+
     // Check if weapon is drawn
     bIsDrawing = !IsWeaponDrawn(CachedEquipmentInterface, CurrentToggleSlot);
-    
+
     // Get weapon type
     CurrentWeaponType = GetWeaponTypeForSlot(CachedEquipmentInterface, CurrentToggleSlot);
-    
-    LogToggleDebug(FString::Printf(TEXT("Toggling slot %d: %s"), 
+
+    LogToggleDebug(FString::Printf(TEXT("Toggling slot %d: %s"),
         CurrentToggleSlot, bIsDrawing ? TEXT("Drawing") : TEXT("Holstering")));
-    
+
     // Apply tags
     ApplyToggleTags(true, bIsDrawing);
-    
+
     // Send start event
     SendToggleEvent(true, CurrentToggleSlot, bIsDrawing);
     OnToggleStarted.Broadcast(CurrentToggleSlot, bIsDrawing);
-    
+
     // Store prediction key
     CurrentPredictionKey = GetCurrentActivationInfo().GetActivationPredictionKey().Current;
-    
+
     // Perform toggle
     if (bIsDrawing)
     {
@@ -187,18 +187,18 @@ void UWeaponToggleAbility::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
-    LogToggleDebug(FString::Printf(TEXT("EndAbility called. Cancelled: %s"), 
+    LogToggleDebug(FString::Printf(TEXT("EndAbility called. Cancelled: %s"),
         bWasCancelled ? TEXT("Yes") : TEXT("No")));
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(AnimationTimeoutHandle);
     }
-    
+
     // Remove tags
     ApplyToggleTags(false, bIsDrawing);
-    
+
     // Clear montage delegates
     if (CurrentMontage)
     {
@@ -214,7 +214,7 @@ void UWeaponToggleAbility::EndAbility(
             }
         }
     }
-    
+
     // Clear state
     CurrentToggleSlot = INDEX_NONE;
     bIsDrawing = false;
@@ -223,7 +223,7 @@ void UWeaponToggleAbility::EndAbility(
     CurrentPredictionKey = 0;
     CachedEquipmentInterface = nullptr;
     CachedAnimationInterface = nullptr;
-    
+
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -233,14 +233,14 @@ int32 UWeaponToggleAbility::DetermineToggleSlot(const FGameplayEventData* Trigge
     if (TriggerEventData && TriggerEventData->EventTag.IsValid())
     {
         const FGameplayTag& EventTag = TriggerEventData->EventTag;
-        
+
         if (EventTag == InputSlot1Tag) return 0;
         if (EventTag == InputSlot2Tag) return 1;
         if (EventTag == InputSlot3Tag) return 2;
         if (EventTag == InputSlot4Tag) return 3;
         if (EventTag == InputSlot5Tag) return 4;
     }
-    
+
     // Check current ability spec input ID
     if (CurrentActorInfo && CurrentActorInfo->AbilitySystemComponent.IsValid())
     {
@@ -249,57 +249,57 @@ int32 UWeaponToggleAbility::DetermineToggleSlot(const FGameplayEventData* Trigge
         {
             switch (Spec->InputID)
             {
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot1): return 0;
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot2): return 1;
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot3): return 2;
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot4): return 3;
-                case static_cast<int32>(EMCAbilityInputID::WeaponSlot5): return 4;
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot1): return 0;
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot2): return 1;
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot3): return 2;
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot4): return 3;
+                case static_cast<int32>(ESuspenseAbilityInputID::WeaponSlot5): return 4;
             }
         }
     }
-    
+
     return INDEX_NONE;
 }
 
-bool UWeaponToggleAbility::IsWeaponDrawn(const TScriptInterface<IMedComEquipmentInterface>& EquipmentInterface, int32 SlotIndex) const
+bool UWeaponToggleAbility::IsWeaponDrawn(const TScriptInterface<ISuspenseEquipment>& EquipmentInterface, int32 SlotIndex) const
 {
     if (!EquipmentInterface.GetInterface())
     {
         return false;
     }
-    
+
     // Get current equipment state through interface
-    FGameplayTag CurrentState = IMedComEquipmentInterface::Execute_GetCurrentEquipmentState(EquipmentInterface.GetObject());
-    
+    FGameplayTag CurrentState = ISuspenseEquipment::Execute_GetCurrentEquipmentState(EquipmentInterface.GetObject());
+
     // Check if in ready state (weapon drawn)
     return CurrentState == EquipmentReadyTag;
 }
 
-FGameplayTag UWeaponToggleAbility::GetCurrentEquipmentState(const TScriptInterface<IMedComEquipmentInterface>& EquipmentInterface) const
+FGameplayTag UWeaponToggleAbility::GetCurrentEquipmentState(const TScriptInterface<ISuspenseEquipment>& EquipmentInterface) const
 {
     if (!EquipmentInterface.GetInterface())
     {
         return FGameplayTag();
     }
-    
-    return IMedComEquipmentInterface::Execute_GetCurrentEquipmentState(EquipmentInterface.GetObject());
+
+    return ISuspenseEquipment::Execute_GetCurrentEquipmentState(EquipmentInterface.GetObject());
 }
 
-void UWeaponToggleAbility::SetEquipmentState(const TScriptInterface<IMedComEquipmentInterface>& EquipmentInterface, const FGameplayTag& NewState)
+void UWeaponToggleAbility::SetEquipmentState(const TScriptInterface<ISuspenseEquipment>& EquipmentInterface, const FGameplayTag& NewState)
 {
     if (!EquipmentInterface.GetInterface())
     {
         return;
     }
-    
-    IMedComEquipmentInterface::Execute_SetEquipmentState(EquipmentInterface.GetObject(), NewState, false);
+
+    ISuspenseEquipment::Execute_SetEquipmentState(EquipmentInterface.GetObject(), NewState, false);
 }
 
 void UWeaponToggleAbility::PerformDraw(int32 SlotIndex)
 {
     // Update equipment state through interface
     SetEquipmentState(CachedEquipmentInterface, EquipmentDrawingTag);
-    
+
     // Play animation
     if (bPlayToggleAnimations)
     {
@@ -312,7 +312,7 @@ void UWeaponToggleAbility::PerformDraw(int32 SlotIndex)
         // No animation, complete immediately
         OnDrawAnimationComplete();
     }
-    
+
     // Send server RPC
     if (CurrentActivationInfo.ActivationMode != EGameplayAbilityActivationMode::Authority)
     {
@@ -324,7 +324,7 @@ void UWeaponToggleAbility::PerformHolster(int32 SlotIndex)
 {
     // Update equipment state through interface
     SetEquipmentState(CachedEquipmentInterface, EquipmentHolsteringTag);
-    
+
     // Play animation
     if (bPlayToggleAnimations)
     {
@@ -335,7 +335,7 @@ void UWeaponToggleAbility::PerformHolster(int32 SlotIndex)
         // No animation, complete immediately
         OnHolsterAnimationComplete();
     }
-    
+
     // Send server RPC
     if (CurrentActivationInfo.ActivationMode != EGameplayAbilityActivationMode::Authority)
     {
@@ -350,18 +350,18 @@ void UWeaponToggleAbility::PlayDrawAnimation(const FGameplayTag& WeaponType, boo
         OnDrawAnimationComplete();
         return;
     }
-    
+
     // Get draw montage through interface
-    UAnimMontage* DrawMontage = IMedComWeaponAnimationInterface::Execute_GetDrawMontage(
+    UAnimMontage* DrawMontage = ISuspenseWeaponAnimation::Execute_GetDrawMontage(
         CachedAnimationInterface.GetObject(), WeaponType, bFirstDraw);
-    
+
     if (!DrawMontage)
     {
         LogToggleDebug(TEXT("No draw montage found"), true);
         OnDrawAnimationComplete();
         return;
     }
-    
+
     // Play montage
     if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
     {
@@ -373,11 +373,11 @@ void UWeaponToggleAbility::PlayDrawAnimation(const FGameplayTag& WeaponType, boo
                 // Bind delegates
                 AnimInstance->OnMontageBlendingOut.AddDynamic(this, &UWeaponToggleAbility::OnMontageBlendingOut);
                 AnimInstance->OnMontageEnded.AddDynamic(this, &UWeaponToggleAbility::OnMontageEnded);
-                
+
                 // Play montage
                 float Duration = AnimInstance->Montage_Play(DrawMontage, AnimationPlayRate);
                 CurrentMontage = DrawMontage;
-                
+
                 // Set timeout
                 if (Duration > 0.0f)
                 {
@@ -389,7 +389,7 @@ void UWeaponToggleAbility::PlayDrawAnimation(const FGameplayTag& WeaponType, boo
                         false
                     );
                 }
-                
+
                 LogToggleDebug(FString::Printf(TEXT("Playing draw animation for %.2f seconds"), Duration));
             }
         }
@@ -403,18 +403,18 @@ void UWeaponToggleAbility::PlayHolsterAnimation(const FGameplayTag& WeaponType)
         OnHolsterAnimationComplete();
         return;
     }
-    
+
     // Get holster montage through interface
-    UAnimMontage* HolsterMontage = IMedComWeaponAnimationInterface::Execute_GetHolsterMontage(
+    UAnimMontage* HolsterMontage = ISuspenseWeaponAnimation::Execute_GetHolsterMontage(
         CachedAnimationInterface.GetObject(), WeaponType);
-    
+
     if (!HolsterMontage)
     {
         LogToggleDebug(TEXT("No holster montage found"), true);
         OnHolsterAnimationComplete();
         return;
     }
-    
+
     // Play montage
     if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
     {
@@ -426,11 +426,11 @@ void UWeaponToggleAbility::PlayHolsterAnimation(const FGameplayTag& WeaponType)
                 // Bind delegates
                 AnimInstance->OnMontageBlendingOut.AddDynamic(this, &UWeaponToggleAbility::OnMontageBlendingOut);
                 AnimInstance->OnMontageEnded.AddDynamic(this, &UWeaponToggleAbility::OnMontageEnded);
-                
+
                 // Play montage
                 float Duration = AnimInstance->Montage_Play(HolsterMontage, AnimationPlayRate);
                 CurrentMontage = HolsterMontage;
-                
+
                 // Set timeout
                 if (Duration > 0.0f)
                 {
@@ -442,7 +442,7 @@ void UWeaponToggleAbility::PlayHolsterAnimation(const FGameplayTag& WeaponType)
                         false
                     );
                 }
-                
+
                 LogToggleDebug(FString::Printf(TEXT("Playing holster animation for %.2f seconds"), Duration));
             }
         }
@@ -452,20 +452,20 @@ void UWeaponToggleAbility::PlayHolsterAnimation(const FGameplayTag& WeaponType)
 void UWeaponToggleAbility::OnDrawAnimationComplete()
 {
     LogToggleDebug(TEXT("Draw animation complete"));
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(AnimationTimeoutHandle);
     }
-    
+
     // Update equipment state through interface
     SetEquipmentState(CachedEquipmentInterface, EquipmentReadyTag);
-    
+
     // Send completion event
     SendToggleEvent(false, CurrentToggleSlot, true);
     OnToggleCompleted.Broadcast(CurrentToggleSlot, true);
-    
+
     // End ability
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
@@ -473,20 +473,20 @@ void UWeaponToggleAbility::OnDrawAnimationComplete()
 void UWeaponToggleAbility::OnHolsterAnimationComplete()
 {
     LogToggleDebug(TEXT("Holster animation complete"));
-    
+
     // Clear timer
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(AnimationTimeoutHandle);
     }
-    
+
     // Update equipment state through interface
     SetEquipmentState(CachedEquipmentInterface, EquipmentHolsteredTag);
-    
+
     // Send completion event
     SendToggleEvent(false, CurrentToggleSlot, false);
     OnToggleCompleted.Broadcast(CurrentToggleSlot, false);
-    
+
     // End ability
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
@@ -495,7 +495,7 @@ void UWeaponToggleAbility::OnMontageBlendingOut(UAnimMontage* Montage, bool bInt
 {
     if (Montage == CurrentMontage)
     {
-        LogToggleDebug(FString::Printf(TEXT("Montage blending out. Interrupted: %s"), 
+        LogToggleDebug(FString::Printf(TEXT("Montage blending out. Interrupted: %s"),
             bInterrupted ? TEXT("Yes") : TEXT("No")));
     }
 }
@@ -504,9 +504,9 @@ void UWeaponToggleAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupt
 {
     if (Montage == CurrentMontage)
     {
-        LogToggleDebug(FString::Printf(TEXT("Montage ended. Interrupted: %s"), 
+        LogToggleDebug(FString::Printf(TEXT("Montage ended. Interrupted: %s"),
             bInterrupted ? TEXT("Yes") : TEXT("No")));
-        
+
         if (!bInterrupted)
         {
             // Animation completed normally
@@ -522,23 +522,23 @@ void UWeaponToggleAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupt
     }
 }
 
-TScriptInterface<IMedComEquipmentInterface> UWeaponToggleAbility::FindEquipmentInterface() const
+TScriptInterface<ISuspenseEquipment> UWeaponToggleAbility::FindEquipmentInterface() const
 {
-    TScriptInterface<IMedComEquipmentInterface> Result;
-    
+    TScriptInterface<ISuspenseEquipment> Result;
+
     if (!CurrentActorInfo || !CurrentActorInfo->AvatarActor.IsValid())
     {
         return Result;
     }
-    
+
     // First check the pawn itself for equipment interface
-    if (CurrentActorInfo->AvatarActor->GetClass()->ImplementsInterface(UMedComEquipmentInterface::StaticClass()))
+    if (CurrentActorInfo->AvatarActor->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
     {
         Result.SetObject(CurrentActorInfo->AvatarActor.Get());
-        Result.SetInterface(Cast<IMedComEquipmentInterface>(CurrentActorInfo->AvatarActor.Get()));
+        Result.SetInterface(Cast<ISuspenseEquipment>(CurrentActorInfo->AvatarActor.Get()));
         return Result;
     }
-    
+
     // Check PlayerState for equipment component that implements interface
     if (APawn* Pawn = Cast<APawn>(CurrentActorInfo->AvatarActor.Get()))
     {
@@ -548,23 +548,23 @@ TScriptInterface<IMedComEquipmentInterface> UWeaponToggleAbility::FindEquipmentI
             TArray<UActorComponent*> Components = PS->GetComponents().Array();
             for (UActorComponent* Component : Components)
             {
-                if (Component && Component->GetClass()->ImplementsInterface(UMedComEquipmentInterface::StaticClass()))
+                if (Component && Component->GetClass()->ImplementsInterface(USuspenseEquipment::StaticClass()))
                 {
                     Result.SetObject(Component);
-                    Result.SetInterface(Cast<IMedComEquipmentInterface>(Component));
+                    Result.SetInterface(Cast<ISuspenseEquipment>(Component));
                     return Result;
                 }
             }
         }
     }
-    
+
     return Result;
 }
 
-TScriptInterface<IMedComWeaponAnimationInterface> UWeaponToggleAbility::GetAnimationInterface() const
+TScriptInterface<ISuspenseWeaponAnimation> UWeaponToggleAbility::GetAnimationInterface() const
 {
-    TScriptInterface<IMedComWeaponAnimationInterface> Result;
-    
+    TScriptInterface<ISuspenseWeaponAnimation> Result;
+
     // Get from animation subsystem
     if (UWorld* World = GetWorld())
     {
@@ -578,19 +578,19 @@ TScriptInterface<IMedComWeaponAnimationInterface> UWeaponToggleAbility::GetAnima
             }
         }
     }
-    
+
     return Result;
 }
 
-FGameplayTag UWeaponToggleAbility::GetWeaponTypeForSlot(const TScriptInterface<IMedComEquipmentInterface>& EquipmentInterface, int32 SlotIndex) const
+FGameplayTag UWeaponToggleAbility::GetWeaponTypeForSlot(const TScriptInterface<ISuspenseEquipment>& EquipmentInterface, int32 SlotIndex) const
 {
     if (!EquipmentInterface.GetInterface())
     {
         return FGameplayTag();
     }
-    
+
     // Get weapon archetype through equipment interface
-    return IMedComEquipmentInterface::Execute_GetWeaponArchetype(EquipmentInterface.GetObject());
+    return ISuspenseEquipment::Execute_GetWeaponArchetype(EquipmentInterface.GetObject());
 }
 
 void UWeaponToggleAbility::ApplyToggleTags(bool bApply, bool bIsDrawingWeapon)
@@ -599,13 +599,13 @@ void UWeaponToggleAbility::ApplyToggleTags(bool bApply, bool bIsDrawingWeapon)
     {
         return;
     }
-    
+
     UAbilitySystemComponent* ASC = CurrentActorInfo->AbilitySystemComponent.Get();
-    
+
     if (bApply)
     {
         ASC->AddLooseGameplayTag(WeaponTogglingTag);
-        
+
         if (bIsDrawingWeapon)
         {
             ASC->AddLooseGameplayTag(EquipmentDrawingTag);
@@ -628,7 +628,7 @@ void UWeaponToggleAbility::SendToggleEvent(bool bStarted, int32 SlotIndex, bool 
     // Get delegate manager through equipment interface
     if (CachedEquipmentInterface.GetInterface())
     {
-        if (UEventDelegateManager* DelegateManager = IMedComEquipmentInterface::Execute_GetDelegateManager(CachedEquipmentInterface.GetObject()))
+        if (USuspenseEventManager* DelegateManager = ISuspenseEquipment::Execute_GetDelegateManager(CachedEquipmentInterface.GetObject()))
         {
             FGameplayTag EventTag;
             if (bStarted)
@@ -639,10 +639,10 @@ void UWeaponToggleAbility::SendToggleEvent(bool bStarted, int32 SlotIndex, bool 
             {
                 EventTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Toggle.Completed"));
             }
-            
-            FString EventData = FString::Printf(TEXT("Slot:%d,Drawing:%s"), 
+
+            FString EventData = FString::Printf(TEXT("Slot:%d,Drawing:%s"),
                 SlotIndex, bIsDrawingWeapon ? TEXT("true") : TEXT("false"));
-            
+
             DelegateManager->BroadcastGenericEvent(
                 this,
                 EventTag,
@@ -679,6 +679,6 @@ void UWeaponToggleAbility::ServerRequestToggle_Implementation(int32 SlotIndex, b
 
 void UWeaponToggleAbility::ClientConfirmToggle_Implementation(int32 SlotIndex, bool bSuccess, int32 PredictionKey)
 {
-    LogToggleDebug(FString::Printf(TEXT("Client received toggle confirmation: %s, Slot: %d"), 
+    LogToggleDebug(FString::Printf(TEXT("Client received toggle confirmation: %s, Slot: %d"),
         bSuccess ? TEXT("Success") : TEXT("Failed"), SlotIndex));
 }

@@ -48,24 +48,24 @@ struct FAbilityInfo
 
 /**
  * Player state with integrated GAS, inventory and equipment systems.
- * 
+ *
  * ARCHITECTURE:
  * - Global services managed by USuspenseSystemCoordinatorSubsystem (GameInstance-level)
  * - Per-player components owned by this PlayerState (DataStore, TransactionProcessor, etc.)
  * - Components communicate with global services through ServiceLocator
- * 
+ *
  * LIFECYCLE:
  * 1. BeginPlay(): Apply loadout, initialize attributes, grant abilities
  * 2. WireEquipmentModule(): Connect per-player components with global services
  * 3. EndPlay(): Cleanup listeners and callbacks
- * 
+ *
  * MULTIPLAYER:
  * - Server authority: all components created on server
  * - Client: components replicated, read-only access
  * - Global services: single instance per GameInstance, accessed via ServiceLocator
  */
 UCLASS()
-class SUSPENSECORE_API ASuspensePlayerState
+class PLAYERCORE_API ASuspensePlayerState
     : public APlayerState
     , public IAbilitySystemInterface
     , public ISuspenseCharacterInterface
@@ -80,7 +80,7 @@ public:
     //========================================
     // Actor Lifecycle
     //========================================
-    
+
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -89,7 +89,7 @@ public:
     //========================================
     // IAbilitySystemInterface
     //========================================
-    
+
     virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
     //========================================
@@ -105,11 +105,11 @@ public:
     virtual bool IsAlive_Implementation() const override;
     virtual int32 GetTeamId_Implementation() const override;
     virtual USuspenseEventManager* GetDelegateManager() const override;
-    
+
     //========================================
     // ISuspenseAttributeProvider
     //========================================
-    
+
     virtual UAttributeSet* GetAttributeSet_Implementation() const override;
     virtual TSubclassOf<UAttributeSet> GetAttributeSetClass_Implementation() const override;
     virtual TSubclassOf<UGameplayEffect> GetBaseStatsEffect_Implementation() const override;
@@ -124,13 +124,13 @@ public:
     virtual TArray<FSuspenseAttributeData> GetAllAttributeData_Implementation() const override;
     virtual bool GetAttributeValue_Implementation(const FGameplayTag& AttributeTag, float& OutCurrentValue, float& OutMaxValue) const override;
     virtual void NotifyAttributeChanged_Implementation(const FGameplayTag& AttributeTag, float NewValue, float OldValue) override;
-    
+
     //========================================
     // ISuspenseLoadout
     //========================================
-    
+
     virtual FLoadoutApplicationResult ApplyLoadoutConfiguration_Implementation(
-        const FName& LoadoutID, 
+        const FName& LoadoutID,
         USuspenseLoadoutManager* LoadoutManager,
         bool bForceApply = false) override;
     virtual FName GetCurrentLoadoutID_Implementation() const override;
@@ -146,60 +146,60 @@ public:
     virtual void OnLoadoutPostChange_Implementation(const FName& PreviousLoadoutID, const FName& NewLoadoutID) override;
     virtual FGameplayTagContainer GetRequiredLoadoutFeatures_Implementation() const override;
     virtual bool ValidateAgainstLoadout_Implementation(TArray<FString>& OutViolations) const override;
-    
+
     //========================================
     // Public API
     //========================================
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Attributes")
     const UGASAttributeSet* GetBaseAttributeSet() const { return Attributes; }
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout", meta = (CallInEditor = "true"))
     bool ApplyLoadout(const FName& LoadoutID, bool bForceReapply = false);
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     bool SwitchLoadout(const FName& NewLoadoutID, bool bPreserveRuntimeData = false);
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     FName GetCurrentLoadout() const { return CurrentLoadoutID; }
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     bool HasLoadout() const { return !CurrentLoadoutID.IsNone(); }
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Loadout")
     void LogLoadoutStatus();
-    
+
     //========================================
     // Component Access
     //========================================
-    
+
     UFUNCTION(BlueprintCallable, Category = "Suspense|Inventory")
     USuspenseInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
     UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
     USuspenseEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
-    
+
     UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
     USuspenseEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
-    
+
     UFUNCTION(BlueprintCallable, Category="Suspense|Equipment")
     USuspenseEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
 
     //========================================
     // Debug
     //========================================
-    
+
     void DebugActiveEffects();
 
 protected:
     //========================================
     // Core Components (Replicated)
     //========================================
-    
+
     /** Ability System Component */
     UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Core")
     UGASAbilitySystemComponent* ASC = nullptr;
-    
+
     /** Inventory component for item management */
     UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Inventory")
     USuspenseInventoryComponent* InventoryComponent = nullptr;
@@ -211,63 +211,63 @@ protected:
     //========================================
     // GAS Configuration
     //========================================
-    
+
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
     TSubclassOf<UGASAttributeSet> InitialAttributeSetClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Attributes")
     TSubclassOf<UGameplayEffect> InitialAttributesEffect;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TArray<FAbilityInfo> AbilityPool;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TSubclassOf<UGameplayAbility> InteractAbility;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TSubclassOf<UGameplayAbility> SprintAbility;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TSubclassOf<UGameplayAbility> CrouchAbility;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TSubclassOf<UGameplayAbility> JumpAbility;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities") 
+    UPROPERTY(EditDefaultsOnly, Category = "Suspense|Abilities")
     TSubclassOf<UGameplayAbility> WeaponSwitchAbility;
- 
+
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Passive Effects")
     TSubclassOf<UGameplayEffect> PassiveHealthRegenEffect;
-    
+
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Passive Effects")
     TSubclassOf<UGameplayEffect> PassiveStaminaRegenEffect;
-    
+
     //========================================
     // Weapon State
     //========================================
-    
+
     UPROPERTY(Transient)
     bool bHasWeapon = false;
-    
+
     UPROPERTY(Transient)
     AActor* CurrentWeaponActor = nullptr;
-    
+
     //========================================
     // Loadout State
     //========================================
-    
+
     /** Currently applied loadout ID (replicated for UI) */
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Suspense|Loadout")
     FName CurrentLoadoutID = NAME_None;
-    
+
     /** Default loadout to apply on spawn */
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     FName DefaultLoadoutID = TEXT("Default_Soldier");
-    
+
     /** Whether to automatically apply default loadout on begin play */
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     bool bAutoApplyDefaultLoadout = true;
-    
+
     /** Whether to log loadout operations */
     UPROPERTY(EditDefaultsOnly, Category = "Suspense|Loadout")
     bool bLogLoadoutOperations = true;
@@ -279,7 +279,7 @@ protected:
     //========================================
     // Equipment Module Components (Per-Player)
     //========================================
-    
+
     /** Core data store for equipment state (Server authoritative, replicated) */
     UPROPERTY(VisibleAnywhere, Replicated, Category = "Suspense|Equipment|Core")
     USuspenseEquipmentDataStore* EquipmentDataStore = nullptr;
@@ -333,16 +333,16 @@ protected:
     //========================================
     // Equipment Wiring Retry (Server-side)
     //========================================
-    
+
     /** Текущее количество попыток подключения equipment module */
     int32 EquipmentWireRetryCount = 0;
-    
+
     /** Handle таймера для retry */
     FTimerHandle EquipmentWireRetryHandle;
-    
+
     /** Максимальное количество попыток (20 × 50ms = 1 секунда) */
     static constexpr int32 MaxEquipmentWireRetries = 20;
-    
+
     /** Интервал между попытками (50 миллисекунд) */
     static constexpr float EquipmentWireRetryInterval = 0.05f;
 
@@ -355,20 +355,20 @@ protected:
     //========================================
     // Internal Methods
     //========================================
-    
+
     void InitAttributes();
     void GrantStartupAbilities();
     void ApplyPassiveStartupEffects();
     bool CheckAuthority(const TCHAR* Fn) const;
-    
+
     USuspenseLoadoutManager* GetLoadoutManager() const;
     FLoadoutApplicationResult ApplyLoadoutToComponents(const FName& LoadoutID, USuspenseLoadoutManager* LoadoutManager);
     void ResetComponentsForLoadout(bool bPreserveRuntimeData);
-    
-    UFUNCTION() 
+
+    UFUNCTION()
     void HandleComponentInitialized();
-    
-    UFUNCTION() 
+
+    UFUNCTION()
     void HandleComponentUpdated();
 
     bool SetupComponentListeners();
@@ -377,7 +377,7 @@ protected:
     /**
      * Wire up per-player equipment components with global services
      * CRITICAL: Called AFTER loadout application to ensure slots are configured
-     * 
+     *
      * @param LoadoutManager - Manager containing loadout configuration
      * @param AppliedLoadoutID - ID of loadout that was just applied
      * @return true if wiring succeeded, false otherwise
@@ -387,7 +387,7 @@ protected:
     //========================================
     // Attribute Change Callbacks
     //========================================
-    
+
     void SetupAttributeChangeCallbacks();
     void CleanupAttributeChangeCallbacks();
     void OnHealthChanged(const FOnAttributeChangeData& Data);
@@ -396,7 +396,7 @@ protected:
     void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
     void OnMovementSpeedChanged(const FOnAttributeChangeData& Data);
     void OnSprintTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
-    
+
     FDelegateHandle HealthChangedDelegateHandle;
     FDelegateHandle MaxHealthChangedDelegateHandle;
     FDelegateHandle StaminaChangedDelegateHandle;

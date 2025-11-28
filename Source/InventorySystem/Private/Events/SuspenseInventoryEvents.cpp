@@ -88,7 +88,7 @@ void USuspenseInventoryEvents::BroadcastItemRotated(const FGuid& InstanceID, int
     OnItemRotated.Broadcast(InstanceID, SlotIndex, bRotated);
 }
 
-void USuspenseInventoryEvents::LogOperationResult(const FInventoryOperationResult& Result)
+void USuspenseInventoryEvents::LogOperationResult(const FSuspenseInventoryOperationResult& Result)
 {
     if (Result.IsSuccess())
     {

@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
-#include "Types/UI/EquipmentUITypes.h"
+#include "Types/UI/SuspenseEquipmentUITypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseEquipmentSlotWidget.generated.h"
 
@@ -19,32 +19,32 @@ class USuspenseEquipmentContainerWidget;
 
 /**
  * Equipment Slot Widget - SIMPLIFIED ARCHITECTURE
- * 
+ *
  * Responsibilities (UNCHANGED):
  *  - Visual representation of single equipment slot (1x1 cell)
  *  - Display slot type indicator (silhouette) when empty
  *  - Display equipped item icon when occupied
  *  - Handle slot-specific visual states (hover, selected, locked)
  *  - Minimal UI-level validation (item type compatibility hints)
- * 
+ *
  * Does NOT handle (delegated to higher layers):
  *  - Equipment operations (equip/unequip) - handled by Bridge
  *  - Multi-cell layout - equipment slots are always 1x1
  *  - Business logic validation - handled by ValidationService
  *  - Data fetching - receives ready FEquipmentSlotUIData from Container
- * 
+ *
  * NEW DATA FLOW (simplified):
  *  1. Container receives HandleEquipmentDataChanged from Bridge
  *  2. Container calls UpdateEquipmentSlot on this widget
  *  3. Widget updates CurrentEquipmentData field
  *  4. Widget calls UpdateVisualState which triggers UpdateItemIcon
  *  5. UpdateItemIcon uses CurrentEquipmentData.EquippedItem directly
- * 
+ *
  * OLD DATA FLOW (removed complexity):
  *  - No more waiting for GetEquipmentSlotsUIData calls
  *  - No more manual icon refresh requests
  *  - No more inconsistencies between data and display
- * 
+ *
  * Key improvements:
  *  - Always shows correct icon because data comes directly from cache
  *  - No race conditions between data updates and visual updates
@@ -59,7 +59,7 @@ public:
     USuspenseEquipmentSlotWidget(const FObjectInitializer& ObjectInitializer);
 
     // ===== Equipment Slot API =====
-    
+
     /**
      * Initialize slot with equipment data (primary setup)
      * Called once when slot widget is first created
@@ -104,12 +104,12 @@ public:
 
 protected:
     // ===== UUserWidget Overrides =====
-    
+
     virtual void NativePreConstruct() override;
     virtual void NativeConstruct() override;
 
     // ===== Base Slot Interface (compatibility bridge) =====
-    
+
     /**
      * Initialize with generic slot data (converts to equipment format)
      * Used for backward compatibility with base container systems
@@ -137,7 +137,7 @@ protected:
     virtual void UpdateItemIcon() override;
 
     // ===== Visual State Management =====
-    
+
     /**
      * Update all visual elements based on current state
      * Handles slot type color, borders, highlights, etc.
@@ -166,7 +166,7 @@ protected:
     virtual void UpdateDurabilityDisplay();
 
     // ===== Icon Management =====
-    
+
     /**
      * Get icon texture for current slot type
      * Returns slot-specific silhouette icon for visual identification
@@ -199,7 +199,7 @@ protected:
 
 protected:
     // ===== UI Widget Bindings (all optional - can be unbound in BP) =====
-    
+
     /** Border showing slot type color */
     UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional))
     UBorder* SlotTypeBorder = nullptr;
@@ -225,7 +225,7 @@ protected:
     UTextBlock* ItemCountText = nullptr;
 
     // ===== Configuration =====
-    
+
     /** Show slot name text for empty slots */
     UPROPERTY(EditAnywhere, Category="Equipment Slot")
     bool bShowSlotName = true;
@@ -239,17 +239,17 @@ protected:
     bool bShowCondition = false;
 
     /** Base size for equipment cell (1x1 slots) */
-    UPROPERTY(EditAnywhere, Category="Equipment Slot", 
+    UPROPERTY(EditAnywhere, Category="Equipment Slot",
         meta=(ClampMin="8.0", ClampMax="256.0"))
     float EquipmentCellSize = 48.f;
 
     /** Padding between cells */
-    UPROPERTY(EditAnywhere, Category="Equipment Slot", 
+    UPROPERTY(EditAnywhere, Category="Equipment Slot",
         meta=(ClampMin="0.0", ClampMax="10.0"))
     float CellPadding = 2.f;
 
     // ===== Visual Assets (per slot type using Equipment.Slot.* tags) =====
-    
+
     /**
      * Map of slot type tags to silhouette icons
      * Each equipment slot type can have unique visual indicator
@@ -275,13 +275,13 @@ protected:
     FLinearColor DefaultSlotColor = FLinearColor(0.3f, 0.3f, 0.3f, 1.f);
 
     // ===== State =====
-    
+
     /**
      * CRITICAL: Current equipment slot data
      * This is the single source of truth for this widget
      * Updated by Container via UpdateEquipmentSlot
      * Used by UpdateItemIcon to display correct item
-     * 
+     *
      * NEW ARCHITECTURE: This field is always in sync with UIBridge cache
      * OLD ARCHITECTURE: Could be stale until next GetEquipmentSlotsUIData call
      */

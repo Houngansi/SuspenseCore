@@ -6,7 +6,7 @@
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Interfaces/Core/ISuspenseLoadout.h" // canonical FLoadoutApplicationResult
-#include "EquipmentTypes.generated.h"
+#include "SuspenseEquipmentTypes.generated.h"
 
 UENUM(BlueprintType)
 enum class EEquipmentOperationType:uint8
@@ -89,39 +89,39 @@ struct BRIDGESYSTEM_API FEquipmentOperationRequest
 {
     GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     FGuid OperationId;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     EEquipmentOperationType OperationType=EEquipmentOperationType::None;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     EEquipmentOperationPriority Priority=EEquipmentOperationPriority::Normal;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     FSuspenseInventoryItemInstance ItemInstance;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     int32 SourceSlotIndex=INDEX_NONE;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     int32 TargetSlotIndex=INDEX_NONE;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     float Timestamp=0.0f;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     TWeakObjectPtr<AActor> Instigator;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     TMap<FString,FString> Parameters;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     bool bForceOperation=false;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Operation") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Operation")
     bool bIsSimulated=false;
-    
+
     uint32 SequenceNumber=0;
 
     /** Static factory method to create new request */
@@ -226,22 +226,22 @@ struct BRIDGESYSTEM_API FEquipmentSlotSnapshot
 {
     GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     int32 SlotIndex=INDEX_NONE;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FSuspenseInventoryItemInstance ItemInstance;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FEquipmentSlotConfig Configuration;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FDateTime Timestamp;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FGuid SnapshotId;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     TMap<FString,FString> Metadata;
 
     /** Static factory method to create snapshot with generated ID */
@@ -252,7 +252,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotSnapshot
         Snapshot.Timestamp = FDateTime::Now();
         return Snapshot;
     }
-    
+
     /** Static factory method to create snapshot with specific ID */
     static FEquipmentSlotSnapshot CreateWithID(const FGuid& InSnapshotId)
     {
@@ -268,28 +268,28 @@ struct BRIDGESYSTEM_API FEquipmentStateSnapshot
 {
     GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     TArray<FEquipmentSlotSnapshot> SlotSnapshots;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     int32 ActiveWeaponSlotIndex=INDEX_NONE;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     int32 PreviousWeaponSlotIndex=INDEX_NONE;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     EEquipmentState CurrentState=EEquipmentState::Idle;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FGameplayTag CurrentStateTag;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FGuid SnapshotId;
-    
+
     FDateTime Timestamp;
     uint32 Version=1;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Snapshot") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     TMap<FString,FString> StateData;
 
     /** Static factory method to create snapshot with generated ID */
@@ -300,7 +300,7 @@ struct BRIDGESYSTEM_API FEquipmentStateSnapshot
         Snapshot.Timestamp = FDateTime::Now();
         return Snapshot;
     }
-    
+
     /** Static factory method to create snapshot with specific ID */
     static FEquipmentStateSnapshot CreateWithID(const FGuid& InSnapshotId)
     {
@@ -309,8 +309,8 @@ struct BRIDGESYSTEM_API FEquipmentStateSnapshot
         Snapshot.Timestamp = FDateTime::Now();
         return Snapshot;
     }
-    
-    bool IsValid() const 
+
+    bool IsValid() const
     {
         return SnapshotId.IsValid();
     }
@@ -321,43 +321,43 @@ struct BRIDGESYSTEM_API FEquipmentTransaction
 {
     GENERATED_BODY()
 
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FGuid TransactionId;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     ETransactionState State=ETransactionState::None;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     TArray<FEquipmentOperationRequest> Operations;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     TArray<FGuid> OperationIds;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FEquipmentStateSnapshot StateBefore;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FEquipmentStateSnapshot StateAfter;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FDateTime StartTime;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FDateTime EndTime;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     bool bIsCommitted=false;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     bool bIsRolledBack=false;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     bool bIsNested=false;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FGuid ParentTransactionId;
-    
-    UPROPERTY(BlueprintReadWrite,Category="Transaction") 
+
+    UPROPERTY(BlueprintReadWrite,Category="Transaction")
     FString Description;
 
     /** Static factory method to create transaction with generated ID */
@@ -368,7 +368,7 @@ struct BRIDGESYSTEM_API FEquipmentTransaction
         Transaction.StartTime = FDateTime::Now();
         return Transaction;
     }
-    
+
     /** Static factory method to create transaction with specific ID */
     static FEquipmentTransaction CreateWithID(const FGuid& InTransactionId)
     {
@@ -377,13 +377,13 @@ struct BRIDGESYSTEM_API FEquipmentTransaction
         Transaction.StartTime = FDateTime::Now();
         return Transaction;
     }
-    
-    bool IsFinalized() const 
+
+    bool IsFinalized() const
     {
         return State==ETransactionState::Committed||State==ETransactionState::RolledBack||State==ETransactionState::Failed;
     }
-    
-    bool CanModify() const 
+
+    bool CanModify() const
     {
         return State==ETransactionState::Active;
     }

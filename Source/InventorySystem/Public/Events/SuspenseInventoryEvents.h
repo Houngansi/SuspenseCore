@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Operations/InventoryResult.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "SuspenseInventoryEvents.generated.h"
 
 // Core inventory events

@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 #include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
-#include "Core/Utils/FEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Engine/World.h"
 #include "Algo/Sort.h"
 #include "Async/Async.h"
@@ -16,7 +16,7 @@ USuspenseEquipmentEventDispatcher::USuspenseEquipmentEventDispatcher()
 void USuspenseEquipmentEventDispatcher::BeginPlay()
 {
 	Super::BeginPlay();
-	EventBus=FEquipmentEventBus::Get();
+	EventBus=FSuspenseEquipmentEventBus::Get();
 	WireBus();
 }
 
@@ -131,13 +131,13 @@ int32 USuspenseEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 	return Removed;
 }
 
-void USuspenseEquipmentEventDispatcher::BroadcastEvent(const FEquipmentEventData& Event)
+void USuspenseEquipmentEventDispatcher::BroadcastEvent(const FSuspenseEquipmentEventData& Event)
 {
 	if(!EventBus.IsValid())return;
 	EventBus->Broadcast(Event);
 }
 
-void USuspenseEquipmentEventDispatcher::QueueEvent(const FEquipmentEventData& Event)
+void USuspenseEquipmentEventDispatcher::QueueEvent(const FSuspenseEquipmentEventData& Event)
 {
 	if(!EventBus.IsValid())return;
 	EventBus->QueueEvent(Event);
@@ -262,19 +262,19 @@ void USuspenseEquipmentEventDispatcher::UnwireBus()
 	BusOpCompleted.Invalidate();
 }
 
-void USuspenseEquipmentEventDispatcher::OnBusEvent_Delta(const FEquipmentEventData& E)
+void USuspenseEquipmentEventDispatcher::OnBusEvent_Delta(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
 }
 
-void USuspenseEquipmentEventDispatcher::OnBusEvent_BatchDelta(const FEquipmentEventData& E)
+void USuspenseEquipmentEventDispatcher::OnBusEvent_BatchDelta(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	Enqueue(D);
 }
 
-void USuspenseEquipmentEventDispatcher::OnBusEvent_OperationCompleted(const FEquipmentEventData& E)
+void USuspenseEquipmentEventDispatcher::OnBusEvent_OperationCompleted(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
@@ -326,7 +326,7 @@ void USuspenseEquipmentEventDispatcher::SortByPriority(TArray<FDispatcherLocalSu
 	Arr.Sort([](const FDispatcherLocalSubscription& A,const FDispatcherLocalSubscription& B){return A.Priority>B.Priority;});
 }
 
-FDispatcherEquipmentEventData USuspenseEquipmentEventDispatcher::ToDispatcherPayload(const FEquipmentEventData& In)
+FDispatcherEquipmentEventData USuspenseEquipmentEventDispatcher::ToDispatcherPayload(const FSuspenseEquipmentEventData& In)
 {
 	FDispatcherEquipmentEventData Out;
 	Out.EventType=In.EventType;

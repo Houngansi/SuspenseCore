@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayEffect.h"
+#include "GASEffect.h"
 #include "GameplayEffect_CrouchDebuff.generated.h"
 
 /**
@@ -16,7 +17,7 @@ UCLASS(BlueprintType)
 class GAS_API UGameplayEffect_CrouchDebuff : public UGASEffect
 {
 	GENERATED_BODY()
-    
+
 public:
 	UGameplayEffect_CrouchDebuff();
 };

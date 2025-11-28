@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 // Определение категории логирования
 DEFINE_LOG_CATEGORY(LogInventory);

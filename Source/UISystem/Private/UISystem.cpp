@@ -2,16 +2,16 @@
 
 #define LOCTEXT_NAMESPACE "FSuspenseUIModule"
 
-void FSuspenseUIModule::StartupModule()
+void FUISystemModule::StartupModule()
 {
-    
+
 }
 
-void FSuspenseUIModule::ShutdownModule()
+void FUISystemModule::ShutdownModule()
 {
-    
+
 }
 
 #undef LOCTEXT_NAMESPACE
-    
-IMPLEMENT_MODULE(FSuspenseUIModule, MedComUI)
+
+IMPLEMENT_MODULE(FUISystemModule, SuspenseUI)

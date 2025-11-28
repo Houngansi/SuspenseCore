@@ -3,9 +3,9 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Interfaces/UI/ISuspenseDraggable.h"
-#include "Operations/InventoryResult.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "Engine/World.h"
 
 USuspenseDragDropOperation::USuspenseDragDropOperation()
@@ -14,7 +14,7 @@ USuspenseDragDropOperation::USuspenseDragDropOperation()
 }
 
 bool USuspenseDragDropOperation::InitializeOperation(
-    const FDragDropUIData& InDragData, 
+    const FDragDropUIData& InDragData,
     USuspenseBaseSlotWidget* InSourceWidget,
     const FVector2D& InDragOffset,
     USuspenseDragDropHandler* InHandler)
@@ -44,9 +44,9 @@ bool USuspenseDragDropOperation::InitializeOperation(
     SourceWidget = InSourceWidget;
     Handler = InHandler;
 
-    UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Initialized with item: %s, offset: (%.2f, %.2f)"), 
-        *DragData.ItemData.ItemID.ToString(), 
-        DragData.DragOffset.X, 
+    UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Initialized with item: %s, offset: (%.2f, %.2f)"),
+        *DragData.ItemData.ItemID.ToString(),
+        DragData.DragOffset.X,
         DragData.DragOffset.Y);
 
     return true;
@@ -54,26 +54,26 @@ bool USuspenseDragDropOperation::InitializeOperation(
 
 bool USuspenseDragDropOperation::IsValidOperation() const
 {
-    return DragData.IsValidDragData() && 
-           SourceWidget.IsValid() && 
+    return DragData.IsValidDragData() &&
+           SourceWidget.IsValid() &&
            Handler.IsValid();
 }
 
 void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& PointerEvent)
 {
     FVector2D ScreenPos = PointerEvent.GetScreenSpacePosition();
-    UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Drop at screen position: (%.1f, %.1f)"), 
+    UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Drop at screen position: (%.1f, %.1f)"),
         ScreenPos.X, ScreenPos.Y);
 
     if (!IsValidOperation())
     {
         UE_LOG(LogTemp, Warning, TEXT("[DragDropOperation] Drop called on invalid operation"));
         bWasSuccessful = false;
-        
+
         // Refresh source container even on invalid operation
         if (Handler.IsValid())
         {
-            if (UEventDelegateManager* EventManager = UEventDelegateManager::Get(Handler.Get()))
+            if (USuspenseEventManager* EventManager = USuspenseEventManager::Get(Handler.Get()))
             {
                 EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
             }
@@ -82,7 +82,7 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
     else if (Handler.IsValid())
     {
         // Delegate to handler
-        FInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
+        FSuspenseInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
         bWasSuccessful = Result.IsSuccess();
     }
     else
@@ -92,10 +92,10 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
     }
 
     // Notify source about completion
-    if (SourceWidget.IsValid() && 
+    if (SourceWidget.IsValid() &&
         SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
     {
-        ISuspenseDraggableInterface::Execute_OnDragEnded(SourceWidget.Get(), bWasSuccessful);
+        ISuspenseDraggable::Execute_OnDragEnded(SourceWidget.Get(), bWasSuccessful);
     }
 
     Super::Drop_Implementation(PointerEvent);
@@ -106,43 +106,43 @@ void USuspenseDragDropOperation::DragCancelled_Implementation(const FPointerEven
     UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Drag operation cancelled"));
 
     bWasSuccessful = false;
-    
+
     // Clear visual feedback through handler
     if (Handler.IsValid())
     {
         Handler->ClearAllVisualFeedback();
-        
+
         // Ensure source container refreshes to show item in original position
-        if (UEventDelegateManager* EventManager = UEventDelegateManager::Get(Handler.Get()))
+        if (USuspenseEventManager* EventManager = USuspenseEventManager::Get(Handler.Get()))
         {
             EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
-            
-            UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Requested refresh for source container: %s"), 
+
+            UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Requested refresh for source container: %s"),
                 *DragData.SourceContainerType.ToString());
         }
     }
-    
+
     // Notify source
-    if (SourceWidget.IsValid() && 
+    if (SourceWidget.IsValid() &&
         SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
     {
-        ISuspenseDraggableInterface::Execute_OnDragEnded(SourceWidget.Get(), false);
+        ISuspenseDraggable::Execute_OnDragEnded(SourceWidget.Get(), false);
     }
-    
+
     Super::DragCancelled_Implementation(PointerEvent);
 }
 
 void USuspenseDragDropOperation::Dragged_Implementation(const FPointerEvent& PointerEvent)
 {
     Super::Dragged_Implementation(PointerEvent);
-    
+
     // Получаем экранную позицию
     FVector2D ScreenPos = PointerEvent.GetScreenSpacePosition();
-    
+
     // ВАЖНО: Добавляем детальное логирование
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[DragDropOperation] Dragged at screen pos: (%.1f, %.1f)"), 
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[DragDropOperation] Dragged at screen pos: (%.1f, %.1f)"),
         ScreenPos.X, ScreenPos.Y);
-    
+
     // Only delegate update to handler, don't do any visual updates here
     if (Handler.IsValid())
     {

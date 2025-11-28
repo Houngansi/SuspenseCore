@@ -2,15 +2,15 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Components/Core/SuspenseSystemCoordinatorComponent.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 
 // Concrete service implementations
-#include "Services/EquipmentDataServiceImpl.h"
-#include "Services/EquipmentValidationServiceImpl.h"
-#include "Services/EquipmentOperationServiceImpl.h"
-#include "Services/EquipmentVisualizationServiceImpl.h"
-#include "Services/EquipmentAbilityServiceImpl.h"
+#include "Services/SuspenseEquipmentDataService.h"
+#include "Services/SuspenseEquipmentValidationService.h"
+#include "Services/SuspenseEquipmentOperationService.h"
+#include "Services/SuspenseEquipmentVisualizationService.h"
+#include "Services/SuspenseEquipmentAbilityService.h"
 
 // Presentation layer components (registered as services)
 #include "Components/Presentation/SuspenseEquipmentActorFactory.h"
@@ -45,7 +45,7 @@ void USuspenseSystemCoordinatorComponent::BeginPlay()
     AbilityServiceTag       = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Ability"));
 
     UE_LOG(LogMedComCoordinator, Log, TEXT("Coordinator BeginPlay: Service tags cached"));
-    
+
     bBootstrapped = false;
 }
 
@@ -57,23 +57,23 @@ void USuspenseSystemCoordinatorComponent::EndPlay(const EEndPlayReason::Type End
 void USuspenseSystemCoordinatorComponent::Shutdown()
 {
     UE_LOG(LogMedComCoordinator, Log, TEXT("=== Coordinator Shutdown START ==="));
-    
+
     bBootstrapped = false;
-    
+
     USuspenseEquipmentServiceLocator* Locator = GetLocator();
     if (Locator)
     {
         UE_LOG(LogMedComCoordinator, Log, TEXT("Locator services notified of shutdown"));
     }
-    
+
     DataServiceTag = FGameplayTag();
     ValidationServiceTag = FGameplayTag();
     OperationServiceTag = FGameplayTag();
     VisualizationServiceTag = FGameplayTag();
     AbilityServiceTag = FGameplayTag();
-    
+
     SlotValidator = nullptr;
-    
+
     UE_LOG(LogMedComCoordinator, Log, TEXT("=== Coordinator Shutdown COMPLETE ==="));
 }
 
@@ -110,7 +110,7 @@ FGameplayTag USuspenseSystemCoordinatorComponent::GetServiceTagFromClass(UClass*
         return FGameplayTag();
     }
 
-    if (!ServiceClass->ImplementsInterface(UEquipmentService::StaticClass()))
+    if (!ServiceClass->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
     {
         UE_LOG(LogMedComCoordinator, Error, TEXT("GetServiceTagFromClass: %s does not implement UEquipmentService"),
             *ServiceClass->GetName());
@@ -160,7 +160,7 @@ bool USuspenseSystemCoordinatorComponent::BootstrapServices()
 
     TArray<FText> Errors;
     const bool bValid = ValidateServices(Errors);
-    
+
     if (!bValid)
     {
         for (const FText& E : Errors)
@@ -181,7 +181,7 @@ bool USuspenseSystemCoordinatorComponent::BootstrapServices()
 void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
 {
     USuspenseEquipmentServiceLocator* Locator = GetLocator();
-    if (!Locator) 
+    if (!Locator)
     {
         UE_LOG(LogMedComCoordinator, Error, TEXT("RegisterCoreServices: Locator is null"));
         return;
@@ -200,7 +200,7 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
     {
         FServiceInitParams DataParams;
         DataParams.bAutoStart = true;
-        
+
         FServiceInjectionDelegate DataInjection;
         DataInjection.BindLambda([](UObject* ServiceInstance, USuspenseEquipmentServiceLocator* ServiceLocator)
         {
@@ -209,31 +209,31 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
                 UE_LOG(LogMedComCoordinator, Error, TEXT("DataService injection: ServiceInstance is null"));
                 return;
             }
-            
+
             UGameInstance* GI = ServiceLocator->GetGameInstance();
             if (!GI)
             {
                 UE_LOG(LogMedComCoordinator, Error, TEXT("DataService injection: GameInstance not available"));
                 return;
             }
-            
+
             USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
             if (!ItemManager)
             {
                 UE_LOG(LogMedComCoordinator, Error, TEXT("DataService injection: ItemManager subsystem not found"));
                 return;
             }
-            
+
             if (ItemManager->GetCachedItemCount() == 0)
             {
                 UE_LOG(LogMedComCoordinator, Warning, TEXT("DataService injection: ItemManager has no cached items yet"));
             }
-            
-            if (UEquipmentDataServiceImpl* DataService = Cast<UEquipmentDataServiceImpl>(ServiceInstance))
+
+            if (USuspenseEquipmentDataService* DataService = Cast<USuspenseEquipmentDataService>(ServiceInstance))
             {
                 DataService->InjectComponents(nullptr, ItemManager);
-                
-                UE_LOG(LogMedComCoordinator, Log, 
+
+                UE_LOG(LogMedComCoordinator, Log,
                     TEXT("DataService: ItemManager injected successfully (stateless mode)"));
             }
             else
@@ -242,13 +242,13 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
                     TEXT("DataService injection: Failed to cast ServiceInstance to UEquipmentDataServiceImpl"));
             }
         });
-        
+
         Locator->RegisterServiceClassWithInjection(
-            TagData, 
-            UEquipmentDataServiceImpl::StaticClass(), 
-            DataParams, 
+            TagData,
+            USuspenseEquipmentDataService::StaticClass(),
+            DataParams,
             DataInjection);
-        
+
         UE_LOG(LogMedComCoordinator, Log, TEXT("Registered Data Service with ItemManager injection"));
     }
 
@@ -258,12 +258,12 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
         FServiceInitParams ValidationParams;
         ValidationParams.bAutoStart = true;
         ValidationParams.RequiredServices.AddTag(TagData);
-        
+
         Locator->RegisterServiceClass(
-            TagValidation, 
-            UEquipmentValidationServiceImpl::StaticClass(), 
+            TagValidation,
+            USuspenseEquipmentValidationService::StaticClass(),
             ValidationParams);
-        
+
         UE_LOG(LogMedComCoordinator, Log, TEXT("Registered Validation Service"));
     }
 
@@ -274,12 +274,12 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
         OperationParams.bAutoStart = true;
         OperationParams.RequiredServices.AddTag(TagData);
         OperationParams.RequiredServices.AddTag(TagValidation);
-        
+
         Locator->RegisterServiceClass(
-            TagOperations, 
-            UEquipmentOperationServiceImpl::StaticClass(), 
+            TagOperations,
+            USuspenseEquipmentOperationService::StaticClass(),
             OperationParams);
-        
+
         UE_LOG(LogMedComCoordinator, Log, TEXT("Registered Operation Service"));
     }
 
@@ -289,12 +289,12 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
         FServiceInitParams VisualizationParams;
         VisualizationParams.bAutoStart = true;
         VisualizationParams.RequiredServices.AddTag(TagData);
-        
+
         Locator->RegisterServiceClass(
-            TagVisualization, 
-            UEquipmentVisualizationServiceImpl::StaticClass(), 
+            TagVisualization,
+            USuspenseEquipmentVisualizationService::StaticClass(),
             VisualizationParams);
-        
+
         UE_LOG(LogMedComCoordinator, Log, TEXT("Registered Visualization Service"));
     }
 
@@ -303,12 +303,12 @@ void USuspenseSystemCoordinatorComponent::RegisterCoreServices()
     {
         FServiceInitParams AbilityParams;
         AbilityParams.bAutoStart = true;
-        
+
         Locator->RegisterServiceClass(
-            TagAbility, 
-            UEquipmentAbilityServiceImpl::StaticClass(), 
+            TagAbility,
+            USuspenseEquipmentAbilityService::StaticClass(),
             AbilityParams);
-        
+
         UE_LOG(LogMedComCoordinator, Log, TEXT("Registered Ability Service"));
     }
 
@@ -331,14 +331,14 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
     AActor* Owner = GetTypedOuter<AActor>();
     if (!Owner)
     {
-        UE_LOG(LogMedComCoordinator, Error, 
+        UE_LOG(LogMedComCoordinator, Error,
             TEXT("RegisterPresentationServices: Owner actor is null"));
         UE_LOG(LogMedComCoordinator, Error,
             TEXT("  This component should be attached to PlayerState (AActor)"));
         return;
     }
 
-    UE_LOG(LogMedComCoordinator, Log, 
+    UE_LOG(LogMedComCoordinator, Log,
         TEXT("RegisterPresentationServices: Owner = %s (Class: %s)"),
         *Owner->GetName(), *Owner->GetClass()->GetName());
 
@@ -347,15 +347,15 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
     // ========================================
     {
         const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
-        
+
         if (!Locator->IsServiceRegistered(FactoryTag))
         {
             // Ищем ActorFactory компонент на PlayerState
             USuspenseEquipmentActorFactory* Factory = Owner->FindComponentByClass<USuspenseEquipmentActorFactory>();
-            
+
             if (!Factory)
             {
-                UE_LOG(LogMedComCoordinator, Warning, 
+                UE_LOG(LogMedComCoordinator, Warning,
                     TEXT("ActorFactory not found on %s - this is expected at initialization"),
                     *Owner->GetName());
                 UE_LOG(LogMedComCoordinator, Warning,
@@ -381,12 +381,12 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
     // ========================================
     {
         const FGameplayTag AttachmentTag = FGameplayTag::RequestGameplayTag(TEXT("Service.AttachmentSystem"));
-        
+
         if (!Locator->IsServiceRegistered(AttachmentTag))
         {
-            USuspenseEquipmentAttachmentSystem* AttachmentSystem = 
+            USuspenseEquipmentAttachmentSystem* AttachmentSystem =
                 Owner->FindComponentByClass<USuspenseEquipmentAttachmentSystem>();
-            
+
             if (!AttachmentSystem)
             {
                 UE_LOG(LogMedComCoordinator, Warning,
@@ -412,12 +412,12 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
     // ========================================
     {
         const FGameplayTag VisualControllerTag = FGameplayTag::RequestGameplayTag(TEXT("Service.VisualController"));
-        
+
         if (!Locator->IsServiceRegistered(VisualControllerTag))
         {
-            USuspenseEquipmentVisualController* VisualController = 
+            USuspenseEquipmentVisualController* VisualController =
                 Owner->FindComponentByClass<USuspenseEquipmentVisualController>();
-            
+
             if (!VisualController)
             {
                 UE_LOG(LogMedComCoordinator, Warning,
@@ -439,7 +439,7 @@ void USuspenseSystemCoordinatorComponent::RegisterPresentationServices()
     }
 
     UE_LOG(LogMedComCoordinator, Warning, TEXT("=== RegisterPresentationServices END ==="));
-    UE_LOG(LogMedComCoordinator, Warning, 
+    UE_LOG(LogMedComCoordinator, Warning,
         TEXT("  Presentation services should be created as components in Blueprint"));
     UE_LOG(LogMedComCoordinator, Warning,
         TEXT("  They will auto-register on their BeginPlay if not already registered"));

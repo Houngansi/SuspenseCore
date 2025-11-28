@@ -222,7 +222,7 @@ protected:
 	/**
 	 * Cache for socket configurations (mutable — чтобы вызывать Get() в const методе)
 	 */
-	mutable FEquipmentCacheManager<FGameplayTag, FSocketMappingConfig> SocketConfigCache;
+	mutable FSuspenseEquipmentCacheManager<FGameplayTag, FSocketMappingConfig> SocketConfigCache;
 
 	/**
 	 * Thread synchronization (RW)

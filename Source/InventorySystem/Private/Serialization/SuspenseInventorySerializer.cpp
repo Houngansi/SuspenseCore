@@ -183,7 +183,7 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
             }
         
             // Добавляем предмет в инвентарь
-            FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(SerializedInstance);
+            FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(SerializedInstance);
             if (AddResult.bSuccess)
             {
                 SuccessCount++;

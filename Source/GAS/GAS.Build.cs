@@ -17,7 +17,8 @@ public class GAS : ModuleRules
                 // Gameplay Ability System dependencies
                 "GameplayAbilities",
                 "GameplayTags",
-                "GameplayTasks"
+                "GameplayTasks",
+                "BridgeSystem"
             }
         );
 

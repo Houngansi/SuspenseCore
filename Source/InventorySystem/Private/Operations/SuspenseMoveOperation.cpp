@@ -448,7 +448,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
         {
             // Перемещение между разными инвентарями
             // Сначала удаляем из источника
-            FInventoryOperationResult RemoveResult = InventoryComponent->RemoveItemByID(
+            FSuspenseInventoryOperationResult RemoveResult = InventoryComponent->RemoveItemByID(
                 ItemInstance.ItemID, ItemInstance.Quantity);
             
             if (RemoveResult.IsSuccess())
@@ -459,7 +459,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                 TargetInstance.bIsRotated = bTargetRotated;
                 
                 // Пытаемся добавить в целевой инвентарь
-                FInventoryOperationResult AddResult = TargetInventory->AddItemInstance(TargetInstance);
+                FSuspenseInventoryOperationResult AddResult = TargetInventory->AddItemInstance(TargetInstance);
                 bMoveSuccess = AddResult.IsSuccess();
                 
                 if (!bMoveSuccess)
@@ -827,7 +827,7 @@ bool FSuspenseMoveOperation::Undo()
                 RestoreInstance.AnchorIndex = SourceIndex;
                 RestoreInstance.bIsRotated = bSourceRotated;
                 
-                FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(RestoreInstance);
+                FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(RestoreInstance);
                 bUndoSuccess = AddResult.IsSuccess();
             }
         }

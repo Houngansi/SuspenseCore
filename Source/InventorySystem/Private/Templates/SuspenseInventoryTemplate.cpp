@@ -167,7 +167,7 @@ int32 USuspenseInventoryTemplate::CreateStartingItemsInInventory(USuspenseInvent
         FInventoryItemInstance NewInstance = SpawnData.CreateInventoryInstance();
         
         // Add to inventory
-        FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(NewInstance);
+        FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(NewInstance);
         if (AddResult.bSuccess)
         {
             SuccessCount++;

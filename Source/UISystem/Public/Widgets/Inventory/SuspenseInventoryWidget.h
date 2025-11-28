@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
-#include "Types/UI/ContainerUITypes.h"
+#include "Types/UI/SuspenseContainerUITypes.h"
 #include "Components/PanelWidget.h"
 #include "Components/GridPanel.h"
 #include "SuspenseInventoryWidget.generated.h"
@@ -31,13 +31,13 @@ struct FInventoryGridUpdateBatch
 
     /** Slots that need span updates */
     TMap<int32, FIntPoint> SlotSpanUpdates;
-    
+
     /** Slots that need visibility updates */
     TMap<int32, bool> SlotVisibilityUpdates;
-    
+
     /** Whether grid needs full refresh */
     bool bNeedsFullGridRefresh = false;
-    
+
     /** Clear batch */
     void Clear()
     {
@@ -45,12 +45,12 @@ struct FInventoryGridUpdateBatch
         SlotVisibilityUpdates.Empty();
         bNeedsFullGridRefresh = false;
     }
-    
+
     /** Check if has updates */
     bool HasUpdates() const
     {
-        return SlotSpanUpdates.Num() > 0 || 
-               SlotVisibilityUpdates.Num() > 0 || 
+        return SlotSpanUpdates.Num() > 0 ||
+               SlotVisibilityUpdates.Num() > 0 ||
                bNeedsFullGridRefresh;
     }
 };
@@ -62,19 +62,19 @@ USTRUCT()
 struct FCachedGridSlotData
 {
     GENERATED_BODY()
-    
+
     /** Current span */
     UPROPERTY()
     FIntPoint CurrentSpan = FIntPoint(1, 1);
-    
+
     /** Is currently visible */
     UPROPERTY()
     bool bIsVisible = true;
-    
+
     /** Last known item instance */
     UPROPERTY()
     FGuid LastItemInstance;
-    
+
     /** Grid slot reference */
     UPROPERTY()
     UGridSlot* GridSlot = nullptr;
@@ -87,18 +87,18 @@ USTRUCT(BlueprintType)
 struct FGridSnapPoint
 {
     GENERATED_BODY()
-    
+
  UPROPERTY(BlueprintReadWrite)
- FVector2D GridPosition = FVector2D::ZeroVector; 
-    
+ FVector2D GridPosition = FVector2D::ZeroVector;
+
  UPROPERTY(BlueprintReadWrite)
  FVector2D ScreenPosition = FVector2D::ZeroVector;
- 
-    
+
+
     /** Snap strength */
     UPROPERTY(BlueprintReadOnly)
     float SnapStrength = 0.0f;
-    
+
     /** Is valid snap point */
     UPROPERTY(BlueprintReadOnly)
     bool bIsValid = false;
@@ -126,23 +126,23 @@ public:
     //~ Begin USuspenseBaseContainerWidget Interface
     virtual void InitializeContainer_Implementation(const FContainerUIData& ContainerData) override;
     virtual void UpdateContainer_Implementation(const FContainerUIData& ContainerData) override;
-    
+
     virtual FSlotValidationResult CanAcceptDrop_Implementation(
-        const UDragDropOperation* DragOperation, 
+        const UDragDropOperation* DragOperation,
         int32 TargetSlotIndex) const override;
- 
+
     virtual UPanelWidget* GetSlotsPanel() const override { return Cast<UPanelWidget>(InventoryGrid); }
     virtual float GetCellSize() const override { return CellSize; }
-    
+
     virtual FSmartDropZone FindBestDropZone(
         const FVector2D& ScreenPosition,
         const FIntPoint& ItemSize,
         bool bIsRotated) const override;
-    
+
     virtual bool CalculateOccupiedSlots(
-        int32 TargetSlot, 
-        FIntPoint ItemSize, 
-        bool bIsRotated, 
+        int32 TargetSlot,
+        FIntPoint ItemSize,
+        bool bIsRotated,
         TArray<int32>& OutOccupiedSlots) const override;
     //~ End USuspenseBaseContainerWidget Interface
 
@@ -194,7 +194,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory")
     bool FindItemAtScreenPosition(const FVector2D& ScreenPosition, int32& OutAnchorSlot) const;
-    
+
     /**
      * Get best grid snap point near position
      * @param ScreenPosition Screen position to check
@@ -258,25 +258,25 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory")
     int32 GetAnchorSlotForSlot(int32 SlotIndex) const;
-    
+
     /**
      * Check if position is valid for item placement
      * @param GridX Start X position
-     * @param GridY Start Y position  
+     * @param GridY Start Y position
      * @param ItemSize Size of item
      * @return True if item fits at position
      */
     UFUNCTION(BlueprintCallable, Category = "Inventory")
     bool IsValidPlacementPosition(int32 GridX, int32 GridY, const FIntPoint& ItemSize) const;
-    
+
     /**
      * Get selected slot index
      * @return Currently selected slot index
      */
     int32 GetSelectedSlotIndex() const { return SelectedSlotIndex; }
- 
+
 protected:
-    /** 
+    /**
      * Grid panel for slot layout
      * MUST be bound in Blueprint!
      */
@@ -284,7 +284,7 @@ protected:
     UGridPanel* InventoryGrid;
 
     //~ Inventory-specific UI components
-    
+
     /** Text showing current/max weight */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     UTextBlock* WeightText;
@@ -306,7 +306,7 @@ protected:
     UButton* SortButton;
 
     //~ Configuration
-    
+
     /** Slot class to create (can be overridden in Blueprint) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|EventBinding", meta = (ExposeOnSpawn = true))
     TSubclassOf<USuspenseBaseSlotWidget> InventorySlotClass;
@@ -321,11 +321,11 @@ protected:
     /** Default cell size */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|EventBinding", meta = (ExposeOnSpawn = true))
     float DefaultCellSize;
-    
+
     /** Enable grid snap visualization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Grid")
     bool bShowGridSnapVisualization;
-    
+
     /** Grid snap visualization strength */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Grid", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float GridSnapVisualizationStrength;
@@ -333,7 +333,7 @@ protected:
     /** Enable smart drop zones */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Grid")
     bool bEnableSmartDropZones;
-    
+
     /** Smart drop search radius in pixels */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Grid", meta = (ClampMin = "50.0", ClampMax = "200.0"))
     float SmartDropRadius;
@@ -349,7 +349,7 @@ protected:
     FOnInventorySlotsNeeded OnInventorySlotsNeeded;
 
     //~ Settings
-    
+
     /** Number of columns in inventory grid */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory|Layout")
     int32 GridColumns;
@@ -357,7 +357,7 @@ protected:
     /** Number of rows in inventory grid */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory|Layout")
     int32 GridRows;
- 
+
     /** Padding between cells */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory|Layout")
     float CellPadding;
@@ -412,7 +412,7 @@ protected:
  // =====================================================
  // Drag & Drop Visual Override
  // =====================================================
-    
+
  /**
   * Get cell size for drag visual from inventory grid
   * @return Actual cell size used in grid
@@ -421,13 +421,13 @@ protected:
 private:
     /** Optimized slot creation method */
     void CreateSlotsOptimized();
-    
+
     /** Differential slot updates */
     void ApplyDifferentialSlotUpdates(const FContainerUIData& ContainerData);
-    
+
     /** Update grid layout for multi-slot items */
     void UpdateGridLayoutForMultiSlotItems();
-    
+
     /**
      * Update grid slot span for multi-slot items
      * @param SlotWidget The slot widget to update
@@ -437,10 +437,10 @@ private:
 
     /** Cache which slots are occupied by multi-slot items */
     TMap<int32, int32> SlotToAnchorMap; // Maps any occupied slot to its item's anchor slot
-    
+
     /** Cached grid slot data for optimization */
     TMap<int32, FCachedGridSlotData> CachedGridSlotData;
-    
+
     /** Pending grid update batch */
     FInventoryGridUpdateBatch PendingGridUpdateBatch;
 
@@ -460,31 +460,31 @@ private:
 
     /** Find best fit position for item near target */
     int32 FindBestFitSlot(int32 TargetSlot, FIntPoint ItemSize, bool bIsRotated) const;
-    
+
     /** Convert screen position to grid coordinates */
     FIntPoint ScreenToGridCoordinates(const FVector2D& ScreenPos) const;
-    
+
     /** Get screen bounds of grid cell */
     FBox2D GetGridCellScreenBounds(int32 GridX, int32 GridY) const;
-    
+
     /** Validate critical components */
     bool ValidateCriticalComponents() const;
-    
+
     /** Auto-bind components by name */
     void AutoBindComponents();
 
     /** Flag indicating grid has been initialized */
     bool bGridInitialized;
-    
+
     /** Flag indicating widget is fully initialized with proper data */
     bool bIsFullyInitialized;
-    
+
     /** Last grid update timestamp */
     float LastGridUpdateTime;
-    
+
     /** Grid update counter for metrics */
     int32 GridUpdateCounter;
-    
+
     /** Active grid snap point for visualization */
     FGridSnapPoint ActiveGridSnapPoint;
 };

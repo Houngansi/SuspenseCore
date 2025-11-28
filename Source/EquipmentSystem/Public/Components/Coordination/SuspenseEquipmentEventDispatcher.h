@@ -9,7 +9,7 @@
 #include "SuspenseEquipmentEventDispatcher.generated.h"
 
 struct FEventSubscriptionHandle;
-class FEquipmentEventBus;
+class FSuspenseEquipmentEventBus;
 
 /** Внутренняя запись локальной подписки диспетчера */
 struct FDispatcherLocalSubscription
@@ -70,7 +70,7 @@ public:
 
 private:
 	// шина
-	TSharedPtr<FEquipmentEventBus> EventBus;
+	TSharedPtr<FSuspenseEquipmentEventBus> EventBus;
 	FEventSubscriptionHandle BusDelta;
 	FEventSubscriptionHandle BusBatchDelta;
 	FEventSubscriptionHandle BusOpCompleted;

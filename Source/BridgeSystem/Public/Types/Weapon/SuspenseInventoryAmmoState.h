@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "FSuspenseInventoryAmmoState.generated.h"
+#include "SuspenseInventoryAmmoState.generated.h"
 
 /**
  * Структура для хранения состояния патронов в оружии
@@ -13,31 +13,31 @@ USTRUCT(BlueprintType)
 struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
 {
     GENERATED_BODY()
-    
+
     /**
      * Текущее количество патронов в магазине
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
     float CurrentAmmo = 0.0f;
-    
+
     /**
      * Оставшееся количество патронов (вне магазина)
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
     float RemainingAmmo = 0.0f;
-    
+
     /**
      * Тип используемых патронов
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
     FGameplayTag AmmoType;
-    
+
     /**
      * Флаг, указывающий, что данные о патронах действительны
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
     bool bHasAmmoState = false;
-    
+
     /**
      * Конструктор по умолчанию
      */
@@ -48,7 +48,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
         , bHasAmmoState(false)
     {
     }
-    
+
     /**
      * Конструктор с параметрами
      */
@@ -59,7 +59,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
         , bHasAmmoState(true)
     {
     }
-    
+
     /**
      * Сбрасывает состояние патронов к начальным значениям
      */
@@ -70,7 +70,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
         AmmoType = FGameplayTag::EmptyTag;
         bHasAmmoState = false;
     }
-    
+
     /**
      * Проверка на полностью пустое состояние патронов
      */
@@ -78,7 +78,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
     {
         return CurrentAmmo <= 0.0f && RemainingAmmo <= 0.0f;
     }
-    
+
     /**
      * Проверка, полностью ли заполнен магазин
      */
@@ -86,7 +86,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
     {
         return CurrentAmmo >= MagazineSize;
     }
-    
+
     /**
      * Общее количество патронов
      */

@@ -3,13 +3,12 @@
 
 #include "Core/SuspensePlayerState.h"
 #include "Core/SuspenseGameInstance.h"
-#include "Components/SuspenseAbilitySystemComponent.h"
+#include "Components/GASAbilitySystemComponent.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "Attributes/SuspenseBaseAttributeSet.h"
-#include "Attributes/SuspenseDefaultAttributeSet.h"
-#include "Effects/SuspenseInitialAttributesEffect.h"
+#include "Attributes/DefaultAttributeSet.h"
+#include "Effects/InitialAttributesEffect.h"
 #include "Types/Loadout/SuspenseLoadoutManager.h"
-#include "Types/Loadout/LoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Character.h"
 #include "Characters/SuspenseCharacter.h"
@@ -34,53 +33,53 @@
 #include "Components/Core/SuspenseEquipmentInventoryBridge.h"
 #include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "Components/Core/SuspenseWeaponStateManager.h"
-#include "Components/Core/SuspenseSystemCoordinator.h"
+#include "Components/Core/SuspenseSystemCoordinatorComponent.h"
 
 // Services
-#include "Services/EquipmentNetworkServiceImpl.h"
-#include "Services/EquipmentDataServiceImpl.h"
-#include "Services/EquipmentOperationServiceImpl.h"
-#include "Services/EquipmentValidationServiceImpl.h"
-#include "Services/EquipmentAbilityServiceImpl.h"
+#include "Services/SuspenseEquipmentNetworkService.h"
+#include "Services/SuspenseEquipmentDataService.h"
+#include "Services/SuspenseEquipmentOperationService.h"
+#include "Services/SuspenseEquipmentValidationService.h"
+#include "Services/SuspenseEquipmentAbilityService.h"
 #include "Components/Rules/SuspenseRulesCoordinator.h"
-#include "Core/Services/EquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Subsystems/SuspenseSystemCoordinatorSubsystem.h"
+#include "Subsystems/SuspenseSystemCoordinator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspensePlayerState, Log, All);
 
 ASuspensePlayerState::ASuspensePlayerState()
 {
     // ASC
-    ASC = CreateDefaultSubobject<USuspenseAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    ASC = CreateDefaultSubobject<UGASAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
     ASC->SetIsReplicated(true);
     ASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
     // Inventory
     InventoryComponent = CreateDefaultSubobject<USuspenseInventoryComponent>(TEXT("InventoryComponent"));
     InventoryComponent->SetIsReplicated(true);
-    
+
     // Attribute config
-    InitialAttributeSetClass = TSubclassOf<USuspenseBaseAttributeSet>(UMedComDefaultAttributeSet::StaticClass());
-    InitialAttributesEffect = TSubclassOf<UGameplayEffect>(UMedComInitialAttributesEffect::StaticClass());
+    InitialAttributeSetClass = TSubclassOf<UDefaultAttributeSet>(UDefaultAttributeSet::StaticClass());
+    InitialAttributesEffect = TSubclassOf<UGameplayEffect>(UInitialAttributesEffect::StaticClass());
 
     // Weapon params
     bHasWeapon = false;
     CurrentWeaponActor = nullptr;
-    
+
     // Loadout defaults
     CurrentLoadoutID = NAME_None;
     DefaultLoadoutID = TEXT("Default_Soldier");
     bAutoApplyDefaultLoadout = true;
     bLogLoadoutOperations = true;
     bComponentListenersSetup = false;
-    
+
     SprintingTag = FGameplayTag::RequestGameplayTag(TEXT("State.Sprinting"));
 
     //========================================
     // Equipment Module Components (Per-Player)
     //========================================
-    
+
     EquipmentDataStore = CreateDefaultSubobject<USuspenseEquipmentDataStore>(TEXT("EquipmentDataStore"));
     EquipmentDataStore->SetIsReplicated(true);
 
@@ -110,7 +109,7 @@ ASuspensePlayerState::ASuspensePlayerState()
 
     // DEPRECATED: Kept for backward compatibility
     EquipmentSystemCoordinator = CreateDefaultSubobject<USuspenseSystemCoordinator>(TEXT("SystemCoordinator"));
-    EquipmentSystemCoordinator->SetIsReplicated(true);
+    //EquipmentSystemCoordinator->SetIsReplicated(true);
 
     // Validator created during WireEquipmentModule()
     EquipmentSlotValidator = nullptr;
@@ -129,10 +128,10 @@ void ASuspensePlayerState::BeginPlay()
 
     // Passive effects
     ApplyPassiveStartupEffects();
-    
+
     // Attribute callbacks
     SetupAttributeChangeCallbacks();
-    
+
     // Apply loadout on server
     if (HasAuthority())
     {
@@ -142,74 +141,74 @@ void ASuspensePlayerState::BeginPlay()
             UE_LOG(LogSuspensePlayerState, Error, TEXT("Failed to get SuspenseGameInstance"));
             return;
         }
-        
+
         USuspenseLoadoutManager* LoadoutManager = GameInstance->GetLoadoutManager();
         if (!LoadoutManager)
         {
             UE_LOG(LogSuspensePlayerState, Error, TEXT("LoadoutManager not available from GameInstance"));
             return;
         }
-        
+
         TArray<FName> AvailableLoadouts = LoadoutManager->GetAllLoadoutIDs();
         if (AvailableLoadouts.Num() == 0)
         {
             UE_LOG(LogSuspensePlayerState, Error, TEXT("No loadouts available in LoadoutManager!"));
             return;
         }
-        
+
         FName LoadoutToApply = GameInstance->GetDefaultLoadoutID();
         if (LoadoutToApply.IsNone())
         {
             LoadoutToApply = DefaultLoadoutID;
         }
-        
+
         if (!LoadoutManager->IsLoadoutValid(LoadoutToApply))
         {
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("Loadout '%s' not valid, using first available"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("Loadout '%s' not valid, using first available"),
                 *LoadoutToApply.ToString());
             LoadoutToApply = AvailableLoadouts[0];
         }
 
-        UE_LOG(LogSuspensePlayerState, Log, TEXT("Applying loadout '%s' to player %s"), 
+        UE_LOG(LogSuspensePlayerState, Log, TEXT("Applying loadout '%s' to player %s"),
             *LoadoutToApply.ToString(), *GetPlayerName());
-            
+
         FLoadoutApplicationResult Result = ApplyLoadoutConfiguration_Implementation(
             LoadoutToApply, LoadoutManager, false);
-        
+
         if (Result.bSuccess)
         {
             // ✅ ДИАГНОСТИКА: Проверяем состояние всех компонентов перед wiring
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== LOADOUT APPLIED SUCCESSFULLY ==="));
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("Loadout: %s"), *LoadoutToApply.ToString());
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("Now verifying equipment components before wiring..."));
-            
+
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("Component Verification:"));
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentDataStore: %s"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentDataStore: %s"),
                 EquipmentDataStore ? TEXT("✓ OK") : TEXT("✗ NULL"));
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentTxnProcessor: %s"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentTxnProcessor: %s"),
                 EquipmentTxnProcessor ? TEXT("✓ OK") : TEXT("✗ NULL"));
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentOps: %s"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentOps: %s"),
                 EquipmentOps ? TEXT("✓ OK") : TEXT("✗ NULL"));
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentInventoryBridge: %s"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - EquipmentInventoryBridge: %s"),
                 EquipmentInventoryBridge ? TEXT("✓ OK") : TEXT("✗ NULL"));
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - InventoryComponent: %s"), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - InventoryComponent: %s"),
                 InventoryComponent ? TEXT("✓ OK") : TEXT("✗ NULL"));
-            
+
             // Проверка что DataStore был инициализирован с слотами
             if (EquipmentDataStore)
             {
                 const int32 SlotCount = EquipmentDataStore->GetSlotCount();
                 UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - DataStore Slots: %d"), SlotCount);
-                
+
                 if (SlotCount == 0)
                 {
-                    UE_LOG(LogSuspensePlayerState, Warning, 
+                    UE_LOG(LogSuspensePlayerState, Warning,
                         TEXT("  ⚠ WARNING: DataStore has 0 slots! Loadout may not have applied correctly."));
                 }
             }
-            
+
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("Starting Equipment Module wiring with retry mechanism..."));
-            
+
             // ✅ Запускаем retry-механизм для подключения equipment module
             EquipmentWireRetryCount = 0;
 
@@ -234,45 +233,45 @@ void ASuspensePlayerState::BeginPlay()
 
                         const FString Payload = FString::Printf(TEXT("PlayerState:%s,LoadoutID:%s"),
                             *GetPlayerName(), *LoadoutToApply.ToString());
-                        
+
                         EventManager->BroadcastGenericEvent(this, InvInit, Payload);
                         EventManager->BroadcastGenericEvent(this, EqInit, Payload);
                         EventManager->BroadcastGenericEvent(this, LoadoutReady, LoadoutToApply.ToString());
                     }
-                    
-                    UE_LOG(LogSuspensePlayerState, Warning, 
-                        TEXT("=== Equipment initialization COMPLETE for player %s ==="), 
+
+                    UE_LOG(LogSuspensePlayerState, Warning,
+                        TEXT("=== Equipment initialization COMPLETE for player %s ==="),
                         *GetPlayerName());
                     return;
                 }
 
                 // Не готово - проверяем лимит попыток
                 ++EquipmentWireRetryCount;
-                
+
                 if (EquipmentWireRetryCount >= MaxEquipmentWireRetries)
                 {
                     // Превышен лимит - останавливаем таймер и логируем ошибку
                     UE_LOG(LogSuspensePlayerState, Error,
                         TEXT("✗✗✗ Equipment wiring FAILED after %d retries for player %s ✗✗✗"),
                         MaxEquipmentWireRetries, *GetPlayerName());
-                    UE_LOG(LogSuspensePlayerState, Error, 
+                    UE_LOG(LogSuspensePlayerState, Error,
                         TEXT("     Equipment-Inventory integration will NOT be available!"));
                     UE_LOG(LogSuspensePlayerState, Error,
                         TEXT("     Check that MedComSystemCoordinatorSubsystem initialized properly."));
-                    
+
                     GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
-                    
+
                     // Broadcast события об ошибке
                     if (USuspenseEventManager* EventManager = GetDelegateManager())
                     {
-                        EventManager->BroadcastGenericEvent(this, 
+                        EventManager->BroadcastGenericEvent(this,
                             FGameplayTag::RequestGameplayTag(TEXT("Player.Equipment.Failed")),
                             TEXT("Services initialization timeout"));
                     }
                 }
                 else
                 {
-                    UE_LOG(LogSuspensePlayerState, Verbose, 
+                    UE_LOG(LogSuspensePlayerState, Verbose,
                         TEXT("Retry attempt %d/%d - waiting for global services..."),
                         EquipmentWireRetryCount, MaxEquipmentWireRetries);
                 }
@@ -280,35 +279,35 @@ void ASuspensePlayerState::BeginPlay()
 
             // Первый запуск немедленно
             RetryLambda();
-            
+
             // Если не удалось сразу - запускаем таймер для retry
             if (GetWorld()->GetTimerManager().IsTimerActive(EquipmentWireRetryHandle) == false)
             {
                 GetWorld()->GetTimerManager().SetTimer(
-                    EquipmentWireRetryHandle, 
+                    EquipmentWireRetryHandle,
                     FTimerDelegate::CreateLambda(RetryLambda),
-                    EquipmentWireRetryInterval, 
+                    EquipmentWireRetryInterval,
                     true); // Повторяющийся таймер
-                    
-                UE_LOG(LogSuspensePlayerState, Log, 
+
+                UE_LOG(LogSuspensePlayerState, Log,
                     TEXT("Retry timer started: checking every %.2fs (max %d attempts)"),
                     EquipmentWireRetryInterval, MaxEquipmentWireRetries);
             }
         }
         else
         {
-            UE_LOG(LogSuspensePlayerState, Error, 
-                TEXT("Failed to apply loadout '%s' to player %s"), 
+            UE_LOG(LogSuspensePlayerState, Error,
+                TEXT("Failed to apply loadout '%s' to player %s"),
                 *LoadoutToApply.ToString(), *GetPlayerName());
-            
+
             for (const FString& Error : Result.ErrorMessages)
             {
                 UE_LOG(LogSuspensePlayerState, Error, TEXT("  - %s"), *Error);
             }
-            
+
             if (USuspenseEventManager* EventManager = GetDelegateManager())
             {
-                EventManager->BroadcastGenericEvent(this, 
+                EventManager->BroadcastGenericEvent(this,
                     FGameplayTag::RequestGameplayTag(TEXT("Player.Loadout.Failed")),
                     FString::Printf(TEXT("Failed to apply loadout: %s"), *LoadoutToApply.ToString()));
             }
@@ -326,7 +325,7 @@ void ASuspensePlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ASuspensePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(ASuspensePlayerState, ASC);
     DOREPLIFETIME(ASuspensePlayerState, InventoryComponent);
     DOREPLIFETIME(ASuspensePlayerState, CurrentLoadoutID);
@@ -345,7 +344,7 @@ void ASuspensePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 bool ASuspensePlayerState::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
 {
     bool bWroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
-    
+
     if (ASC && IsValid(ASC))
     {
         bWroteSomething |= Channel->ReplicateSubobject(ASC, *Bunch, *RepFlags);
@@ -354,7 +353,7 @@ bool ASuspensePlayerState::ReplicateSubobjects(UActorChannel* Channel, FOutBunch
     {
         bWroteSomething |= Channel->ReplicateSubobject(InventoryComponent, *Bunch, *RepFlags);
     }
-    
+
     auto RepComp = [&](UActorComponent* C){ if (C && IsValid(C)) { bWroteSomething |= Channel->ReplicateSubobject(C, *Bunch, *RepFlags); } };
     RepComp(EquipmentDataStore);
     RepComp(EquipmentTxnProcessor);
@@ -365,7 +364,8 @@ bool ASuspensePlayerState::ReplicateSubobjects(UActorChannel* Channel, FOutBunch
     RepComp(EquipmentEventDispatcher);
     RepComp(WeaponStateManager);
     RepComp(EquipmentInventoryBridge);
-    RepComp(EquipmentSystemCoordinator);
+    //RepComp(EquipmentSystemCoordinator); need repair!
+	//Cannot convert USuspenseSystemCoordinator* to parameter type UActorComponent*
     return bWroteSomething;
 }
 
@@ -425,7 +425,7 @@ bool ASuspensePlayerState::IsAlive_Implementation() const
 {
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             return BaseAttributes->GetHealth() > 0.0f;
@@ -449,7 +449,7 @@ USuspenseEventManager* ASuspensePlayerState::GetDelegateManager() const
 //========================================
 
 FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutConfiguration_Implementation(
-    const FName& LoadoutID, 
+    const FName& LoadoutID,
     USuspenseLoadoutManager* LoadoutManager,
     bool bForceApply)
 {
@@ -629,9 +629,9 @@ bool ASuspensePlayerState::SwitchLoadout(const FName& NewLoadoutID, bool bPreser
 void ASuspensePlayerState::LogLoadoutStatus()
 {
     UE_LOG(LogSuspensePlayerState, Log, TEXT("=== Loadout Status for %s ==="), *GetPlayerName());
-    UE_LOG(LogSuspensePlayerState, Log, TEXT("Current Loadout: %s"), 
+    UE_LOG(LogSuspensePlayerState, Log, TEXT("Current Loadout: %s"),
         CurrentLoadoutID.IsNone() ? TEXT("None") : *CurrentLoadoutID.ToString());
-    
+
     if (USuspenseLoadoutManager* LoadoutManager = GetLoadoutManager())
     {
         if (!CurrentLoadoutID.IsNone())
@@ -640,7 +640,7 @@ void ASuspensePlayerState::LogLoadoutStatus()
             UE_LOG(LogSuspensePlayerState, Log, TEXT("Configured Inventories: %d"), InventoryNames.Num());
             for (const FName& InvName : InventoryNames)
             {
-                FInventoryConfig InvConfig;
+                FSuspenseInventoryConfig InvConfig;
                 if (LoadoutManager->GetInventoryConfigBP(CurrentLoadoutID, InvName, InvConfig))
                 {
                     UE_LOG(LogSuspensePlayerState, Log, TEXT("  - %s: %dx%d grid, %.1f max weight"),
@@ -678,25 +678,25 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
 {
     UE_LOG(LogSuspensePlayerState , Warning, TEXT("=== ApplyLoadoutToComponents START ==="));
     UE_LOG(LogSuspensePlayerState , Warning, TEXT("LoadoutID: %s"), *LoadoutID.ToString());
-    
+
     if (!LoadoutManager)
     {
         UE_LOG(LogSuspensePlayerState , Error, TEXT("LoadoutManager is null"));
         return FLoadoutApplicationResult::CreateFailure(LoadoutID, TEXT("LoadoutManager is null"));
     }
-    
+
     if (!LoadoutManager->IsLoadoutValid(LoadoutID))
     {
         UE_LOG(LogSuspensePlayerState , Error, TEXT("Loadout '%s' not found or invalid"), *LoadoutID.ToString());
-        return FLoadoutApplicationResult::CreateFailure(LoadoutID, 
+        return FLoadoutApplicationResult::CreateFailure(LoadoutID,
             FString::Printf(TEXT("Loadout '%s' not found or invalid"), *LoadoutID.ToString()));
     }
-    
+
     FLoadoutApplicationResult Result;
     Result.AppliedLoadoutID = LoadoutID;
     Result.ApplicationTime = FDateTime::Now();
     Result.bSuccess = true;
-    
+
     // Get full loadout configuration
     FLoadoutConfiguration LoadoutConfig;
     if (!LoadoutManager->GetLoadoutConfigBP(LoadoutID, LoadoutConfig))
@@ -704,18 +704,18 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
         UE_LOG(LogSuspensePlayerState , Error, TEXT("Failed to get loadout configuration for '%s'"), *LoadoutID.ToString());
         return FLoadoutApplicationResult::CreateFailure(LoadoutID, TEXT("Failed to retrieve loadout configuration"));
     }
-    
+
     // Step 1: Apply to Inventory Component
     if (InventoryComponent)
     {
         UE_LOG(LogSuspensePlayerState , Warning, TEXT("Step 1: Applying loadout to inventory component..."));
-        
+
         bool bInventorySuccess = LoadoutManager->ApplyLoadoutToInventory(InventoryComponent, LoadoutID);
         FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(TEXT("Loadout.Component.Inventory"));
-        
-        Result.MergeComponentResult(InventoryTag, bInventorySuccess, 
+
+        Result.MergeComponentResult(InventoryTag, bInventorySuccess,
             bInventorySuccess ? TEXT("") : TEXT("Failed to apply inventory configuration"));
-        
+
         if (bInventorySuccess)
         {
             UE_LOG(LogSuspensePlayerState , Log, TEXT("Inventory configuration applied successfully"));
@@ -740,10 +740,10 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
     else
     {
         UE_LOG(LogSuspensePlayerState , Warning, TEXT("Step 2: Applying loadout to equipment DataStore..."));
-        
+
         // Step 2a: Initialize equipment slots
         TArray<FEquipmentSlotConfig> SlotConfigs = LoadoutManager->GetEquipmentSlots(LoadoutID);
-        
+
         if (SlotConfigs.Num() == 0)
         {
             UE_LOG(LogSuspensePlayerState , Warning, TEXT("No equipment slot configurations in loadout"));
@@ -752,7 +752,7 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
         else
         {
             UE_LOG(LogSuspensePlayerState , Log, TEXT("Initializing %d equipment slots..."), SlotConfigs.Num());
-            
+
             if (!EquipmentDataStore->InitializeSlots(SlotConfigs))
             {
                 UE_LOG(LogSuspensePlayerState , Error, TEXT("Failed to initialize equipment slots in DataStore"));
@@ -764,29 +764,29 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
             {
                 UE_LOG(LogSuspensePlayerState , Log, TEXT("Equipment slots initialized successfully"));
                 Result.AppliedComponents.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Loadout.Component.Equipment")));
-                
+
                 // Step 2b: Apply starting equipment items
                 if (LoadoutConfig.StartingEquipment.Num() > 0)
                 {
-                    UE_LOG(LogSuspensePlayerState , Warning, TEXT("Step 2b: Applying %d starting equipment items..."), 
+                    UE_LOG(LogSuspensePlayerState , Warning, TEXT("Step 2b: Applying %d starting equipment items..."),
                         LoadoutConfig.StartingEquipment.Num());
-                    
+
                     int32 SuccessfulEquips = 0;
-                    
+
                     for (const auto& EquipPair : LoadoutConfig.StartingEquipment)
                     {
                         const EEquipmentSlotType SlotType = EquipPair.Key;
                         const FName ItemID = EquipPair.Value;
-                        
+
                         if (ItemID.IsNone())
                         {
                             continue;
                         }
-                        
-                        UE_LOG(LogSuspensePlayerState , Log, TEXT("  Equipping %s to slot %s..."), 
-                            *ItemID.ToString(), 
+
+                        UE_LOG(LogSuspensePlayerState , Log, TEXT("  Equipping %s to slot %s..."),
+                            *ItemID.ToString(),
                             *UEnum::GetValueAsString(SlotType));
-                        
+
                         // Find slot index for this slot type
                         int32 TargetSlotIndex = INDEX_NONE;
                         for (int32 i = 0; i < SlotConfigs.Num(); i++)
@@ -797,41 +797,41 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
                                 break;
                             }
                         }
-                        
+
                         if (TargetSlotIndex == INDEX_NONE)
                         {
-                            UE_LOG(LogSuspensePlayerState , Warning, TEXT("    Slot type %s not found in slot configs"), 
+                            UE_LOG(LogSuspensePlayerState , Warning, TEXT("    Slot type %s not found in slot configs"),
                                 *UEnum::GetValueAsString(SlotType));
                             continue;
                         }
-                        
+
                         // Create item instance
                         FSuspenseInventoryItemInstance ItemInstance;
                         ItemInstance.ItemID = ItemID;
                         ItemInstance.InstanceID = FGuid::NewGuid();
                         ItemInstance.Quantity = 1;
-                        
+
                         // Apply to slot
                         bool bEquipSuccess = EquipmentDataStore->SetSlotItem(TargetSlotIndex, ItemInstance, true);
-                        
+
                         if (bEquipSuccess)
                         {
                             SuccessfulEquips++;
-                            UE_LOG(LogSuspensePlayerState , Log, TEXT("    Successfully equipped %s to slot %d"), 
-                                *ItemID.ToString(), 
+                            UE_LOG(LogSuspensePlayerState , Log, TEXT("    Successfully equipped %s to slot %d"),
+                                *ItemID.ToString(),
                                 TargetSlotIndex);
                         }
                         else
                         {
-                            UE_LOG(LogSuspensePlayerState , Warning, TEXT("    Failed to equip %s to slot %d"), 
-                                *ItemID.ToString(), 
+                            UE_LOG(LogSuspensePlayerState , Warning, TEXT("    Failed to equip %s to slot %d"),
+                                *ItemID.ToString(),
                                 TargetSlotIndex);
                         }
                     }
-                    
-                    UE_LOG(LogSuspensePlayerState , Log, TEXT("Equipment application: %d items equipped successfully"), 
+
+                    UE_LOG(LogSuspensePlayerState , Log, TEXT("Equipment application: %d items equipped successfully"),
                         SuccessfulEquips);
-                    
+
                     // Broadcast equipment initialized event
                     if (SuccessfulEquips > 0)
                     {
@@ -842,12 +842,12 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
                             {
                                 FGameplayTag EquipInitTag = FGameplayTag::RequestGameplayTag(
                                     TEXT("Player.Equipment.Initialized"));
-                                
-                                FString EventData = FString::Printf(TEXT("LoadoutID:%s,ItemsEquipped:%d"), 
+
+                                FString EventData = FString::Printf(TEXT("LoadoutID:%s,ItemsEquipped:%d"),
                                     *LoadoutID.ToString(), SuccessfulEquips);
-                                
+
                                 EventManager->BroadcastGenericEvent(this, EquipInitTag, EventData);
-                                
+
                                 UE_LOG(LogSuspensePlayerState , Log, TEXT("Broadcasted Equipment.Initialized event"));
                             }
                         }
@@ -856,18 +856,18 @@ FLoadoutApplicationResult ASuspensePlayerState::ApplyLoadoutToComponents(const F
             }
         }
     }
-    
+
     // Step 3: Finalize
     if (Result.bSuccess)
     {
         CurrentLoadoutID = LoadoutID;
         SetupComponentListeners();
-        
+
         UE_LOG(LogSuspensePlayerState , Log, TEXT("Loadout '%s' applied successfully"), *LoadoutID.ToString());
     }
-    
+
     UE_LOG(LogSuspensePlayerState , Warning, TEXT("=== ApplyLoadoutToComponents END ==="));
-    
+
     return Result;
 }
 
@@ -989,7 +989,7 @@ FSuspenseAttributeData ASuspensePlayerState::GetHealthData_Implementation() cons
     {
         return FSuspenseAttributeData();
     }
-    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+    UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float CurrentHealth = BaseAttributes->GetHealth();
@@ -1006,7 +1006,7 @@ FSuspenseAttributeData ASuspensePlayerState::GetStaminaData_Implementation() con
     {
         return FSuspenseAttributeData();
     }
-    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+    UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float CurrentStamina = BaseAttributes->GetStamina();
@@ -1023,7 +1023,7 @@ FSuspenseAttributeData ASuspensePlayerState::GetArmorData_Implementation() const
     {
         return FSuspenseAttributeData();
     }
-    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+    UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
     if (BaseAttributes)
     {
         float Armor = BaseAttributes->GetArmor();
@@ -1063,7 +1063,7 @@ void ASuspensePlayerState::NotifyAttributeChanged_Implementation(const FGameplay
     {
         if (Attributes)
         {
-            USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+            UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
             if (BaseAttributes)
             {
                 float MaxHealth = BaseAttributes->GetMaxHealth();
@@ -1075,7 +1075,7 @@ void ASuspensePlayerState::NotifyAttributeChanged_Implementation(const FGameplay
     {
         if (Attributes)
         {
-            USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+            UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
             if (BaseAttributes)
             {
                 float MaxStamina = BaseAttributes->GetMaxStamina();
@@ -1095,7 +1095,7 @@ void ASuspensePlayerState::SetupAttributeChangeCallbacks()
     {
         return;
     }
-    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+    UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
     if (!BaseAttributes)
     {
         return;
@@ -1121,7 +1121,7 @@ void ASuspensePlayerState::CleanupAttributeChangeCallbacks()
     {
         return;
     }
-    USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+    UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
     if (!BaseAttributes)
     {
         return;
@@ -1156,12 +1156,12 @@ void ASuspensePlayerState::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float MaxHealth = BaseAttributes->GetMaxHealth();
             ISuspenseAttributeProvider::BroadcastHealthUpdate(this, Data.NewValue, MaxHealth);
-            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Health changed: %.1f/%.1f (was %.1f)"), 
+            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Health changed: %.1f/%.1f (was %.1f)"),
                 Data.NewValue, MaxHealth, Data.OldValue);
         }
     }
@@ -1171,12 +1171,12 @@ void ASuspensePlayerState::OnMaxHealthChanged(const FOnAttributeChangeData& Data
 {
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float CurrentHealth = BaseAttributes->GetHealth();
             ISuspenseAttributeProvider::BroadcastHealthUpdate(this, CurrentHealth, Data.NewValue);
-            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max health changed: %.1f (was %.1f)"), 
+            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max health changed: %.1f (was %.1f)"),
                 Data.NewValue, Data.OldValue);
         }
     }
@@ -1186,12 +1186,12 @@ void ASuspensePlayerState::OnStaminaChanged(const FOnAttributeChangeData& Data)
 {
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float MaxStamina = BaseAttributes->GetMaxStamina();
             ISuspenseAttributeProvider::BroadcastStaminaUpdate(this, Data.NewValue, MaxStamina);
-            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Stamina changed: %.1f/%.1f (was %.1f)"), 
+            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Stamina changed: %.1f/%.1f (was %.1f)"),
                 Data.NewValue, MaxStamina, Data.OldValue);
         }
     }
@@ -1201,12 +1201,12 @@ void ASuspensePlayerState::OnMaxStaminaChanged(const FOnAttributeChangeData& Dat
 {
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
             float CurrentStamina = BaseAttributes->GetStamina();
             ISuspenseAttributeProvider::BroadcastStaminaUpdate(this, CurrentStamina, Data.NewValue);
-            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max stamina changed: %.1f (was %.1f)"), 
+            UE_LOG(LogSuspensePlayerState, Verbose, TEXT("[PlayerState] Max stamina changed: %.1f (was %.1f)"),
                 Data.NewValue, Data.OldValue);
         }
     }
@@ -1214,13 +1214,13 @@ void ASuspensePlayerState::OnMaxStaminaChanged(const FOnAttributeChangeData& Dat
 
 void ASuspensePlayerState::OnMovementSpeedChanged(const FOnAttributeChangeData& Data)
 {
-    UE_LOG(LogSuspensePlayerState, Warning, TEXT("[PlayerState] OnMovementSpeedChanged: OldValue=%.1f, NewValue=%.1f"), 
+    UE_LOG(LogSuspensePlayerState, Warning, TEXT("[PlayerState] OnMovementSpeedChanged: OldValue=%.1f, NewValue=%.1f"),
         Data.OldValue, Data.NewValue);
     APawn* Pawn = GetPawn();
-    if (Pawn && Pawn->GetClass()->ImplementsInterface(UMedComMovementInterface::StaticClass()))
+    if (Pawn && Pawn->GetClass()->ImplementsInterface(USuspenseMovement::StaticClass()))
     {
         bool bIsSprinting = ASC && ASC->HasMatchingGameplayTag(SprintingTag);
-        IMedComMovementInterface::NotifyMovementSpeedChanged(Pawn, Data.OldValue, Data.NewValue, bIsSprinting);
+        ISuspenseMovement::NotifyMovementSpeedChanged(Pawn, Data.OldValue, Data.NewValue, bIsSprinting);
     }
     DebugActiveEffects();
 }
@@ -1232,7 +1232,7 @@ void ASuspensePlayerState::OnSprintTagChanged(const FGameplayTag CallbackTag, in
         return;
     }
     APawn* Pawn = GetPawn();
-    if (!Pawn || !Pawn->GetClass()->ImplementsInterface(UMedComMovementInterface::StaticClass()))
+    if (!Pawn || !Pawn->GetClass()->ImplementsInterface(USuspenseMovement::StaticClass()))
     {
         return;
     }
@@ -1245,10 +1245,10 @@ void ASuspensePlayerState::OnSprintTagChanged(const FGameplayTag CallbackTag, in
     {
         UE_LOG(LogSuspensePlayerState, Log, TEXT("[PlayerState] Sprint tag removed, speed will be updated through attribute change"));
     }
-    FGameplayTag MovementState = bIsSprinting 
+    FGameplayTag MovementState = bIsSprinting
         ? FGameplayTag::RequestGameplayTag(TEXT("Movement.Sprinting"))
         : FGameplayTag::RequestGameplayTag(TEXT("Movement.Walking"));
-    IMedComMovementInterface::NotifyMovementStateChanged(Pawn, MovementState, bIsSprinting);
+    ISuspenseMovement::NotifyMovementStateChanged(Pawn, MovementState, bIsSprinting);
     DebugActiveEffects();
 }
 
@@ -1272,7 +1272,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // =====================================================================
     // Step 2: Get CoordinatorSubsystem
     // =====================================================================
-    USuspenseSystemCoordinatorSubsystem* SysSub = GI->GetSubsystem<USuspenseSystemCoordinatorSubsystem>();
+    USuspenseSystemCoordinator* SysSub = GI->GetSubsystem<USuspenseSystemCoordinator>();
     if (!SysSub)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ CoordinatorSubsystem not found in GameInstance"));
@@ -1293,7 +1293,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // =====================================================================
     // Step 4: Get ServiceLocator
     // =====================================================================
-    UEquipmentServiceLocator* Locator = SysSub->GetServiceLocator();
+    USuspenseEquipmentServiceLocator* Locator = SysSub->GetServiceLocator();
     if (!Locator)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ ServiceLocator is null"));
@@ -1329,7 +1329,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
         UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ CRITICAL: InventoryComponent is NULL!"));
         return false;
     }
-    
+
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("✓ All local components validated"));
 
     // =====================================================================
@@ -1347,24 +1347,24 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     {
         const FGameplayTag OpsTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"));
         UObject* OpsObj = Locator->TryGetService(OpsTag);
-        
+
         if (!OpsObj)
         {
             UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ OperationsService not found in locator"));
             return false;
         }
-        
-        UEquipmentOperationServiceImpl* OpsService = Cast<UEquipmentOperationServiceImpl>(OpsObj);
+
+        USuspenseEquipmentOperationService* OpsService = Cast<USuspenseEquipmentOperationService>(OpsObj);
         if (!OpsService)
         {
             UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ Service object is not UEquipmentOperationServiceImpl"));
             return false;
         }
 
-        TScriptInterface<IMedComEquipmentOperations> ExecIf;
+        TScriptInterface<ISuspenseEquipmentOperations> ExecIf;
         ExecIf.SetObject(EquipmentOps);
-        ExecIf.SetInterface(Cast<IMedComEquipmentOperations>(EquipmentOps));
-        
+        ExecIf.SetInterface(Cast<ISuspenseEquipmentOperations>(EquipmentOps));
+
         OpsService->SetOperationsExecutor(ExecIf);
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("✓ Executor injected into OperationsService"));
     }
@@ -1374,14 +1374,14 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // This interface will be used by multiple components
     // =====================================================================
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Preparing shared DataProvider interface ==="));
-    
-    TScriptInterface<IMedComEquipmentDataProvider> DataProviderInterface;
+
+    TScriptInterface<ISuspenseEquipmentDataProvider> DataProviderInterface;
     DataProviderInterface.SetObject(EquipmentDataStore);
-    DataProviderInterface.SetInterface(Cast<IMedComEquipmentDataProvider>(EquipmentDataStore));
-    
+    DataProviderInterface.SetInterface(Cast<ISuspenseEquipmentDataProvider>(EquipmentDataStore));
+
     if (!DataProviderInterface.GetInterface())
     {
-        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ DataStore does not implement IMedComEquipmentDataProvider!"));
+        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ DataStore does not implement ISuspenseEquipmentDataProvider!"));
         return false;
     }
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("✓ DataProvider interface prepared for reuse"));
@@ -1392,20 +1392,20 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // Without this, BeginTransaction() will fail with "Processor not initialized"
     // =====================================================================
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Initializing TransactionProcessor START ==="));
-    
+
     const bool bTxnProcessorInit = EquipmentTxnProcessor->Initialize(DataProviderInterface);
-    
+
     if (!bTxnProcessorInit)
     {
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("✗ CRITICAL: EquipmentTxnProcessor->Initialize() FAILED!"));
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   Transactional operations will NOT work!"));
         UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   BeginTransaction() will return invalid GUID"));
         return false;
     }
-    
+
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ TransactionProcessor initialized with DataProvider"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Transaction processor ready to accept transactions"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Initializing TransactionProcessor END ==="));
@@ -1415,13 +1415,13 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // This enables item validation and slot compatibility checks
     // =====================================================================
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Initializing EquipmentOps START ==="));
-    
+
     // Prepare SlotValidator interface (optional but recommended)
-    TScriptInterface<IMedComSlotValidator> ValidatorInterface;
+    TScriptInterface<ISuspenseSlotValidator> ValidatorInterface;
     if (EquipmentSlotValidator)
     {
         ValidatorInterface.SetObject(EquipmentSlotValidator);
-        ValidatorInterface.SetInterface(Cast<IMedComSlotValidator>(EquipmentSlotValidator));
+        ValidatorInterface.SetInterface(Cast<ISuspenseSlotValidator>(EquipmentSlotValidator));
         UE_LOG(LogSuspensePlayerState, Log, TEXT("  ✓ SlotValidator interface prepared"));
     }
     else
@@ -1431,18 +1431,18 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
 
     // Initialize EquipmentOps with both DataProvider and Validator
     const bool bOpsInitialized = EquipmentOps->Initialize(DataProviderInterface, ValidatorInterface);
-    
+
     if (!bOpsInitialized)
     {
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("✗ CRITICAL: EquipmentOps->Initialize() FAILED!"));
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   Item validation will NOT work!"));
         UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   Equipment operations will fail validation checks"));
         return false;
     }
-    
+
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ EquipmentOps initialized with DataProvider"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Item validation system ready"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Initializing EquipmentOps END ==="));
@@ -1453,27 +1453,27 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     // AND TransactionProcessor (initialized and ready for transactions)
     // =====================================================================
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Initializing EquipmentInventoryBridge START ==="));
-    
+
     // Prepare Operations interface
-    TScriptInterface<IMedComEquipmentOperations> OperationsInterface;
+    TScriptInterface<ISuspenseEquipmentOperations> OperationsInterface;
     OperationsInterface.SetObject(EquipmentOps);
-    OperationsInterface.SetInterface(Cast<IMedComEquipmentOperations>(EquipmentOps));
-    
+    OperationsInterface.SetInterface(Cast<ISuspenseEquipmentOperations>(EquipmentOps));
+
     if (!OperationsInterface.GetInterface())
     {
-        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ EquipmentOps does not implement IMedComEquipmentOperations!"));
+        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ EquipmentOps does not implement ISuspenseEquipmentOperations!"));
         return false;
     }
     UE_LOG(LogSuspensePlayerState, Log, TEXT("  ✓ Operations interface prepared"));
 
     // Prepare TransactionManager interface
-    TScriptInterface<IMedComTransactionManager> TransactionInterface;
+    TScriptInterface<ISuspenseTransactionManager> TransactionInterface;
     TransactionInterface.SetObject(EquipmentTxnProcessor);
-    TransactionInterface.SetInterface(Cast<IMedComTransactionManager>(EquipmentTxnProcessor));
-    
+    TransactionInterface.SetInterface(Cast<ISuspenseTransactionManager>(EquipmentTxnProcessor));
+
     if (!TransactionInterface.GetInterface())
     {
-        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ TxnProcessor does not implement IMedComTransactionManager!"));
+        UE_LOG(LogSuspensePlayerState, Error, TEXT("✗ TxnProcessor does not implement ISuspenseTransactionManager!"));
         return false;
     }
     UE_LOG(LogSuspensePlayerState, Log, TEXT("  ✓ TransactionManager interface prepared"));
@@ -1491,32 +1491,32 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
 
     if (!bBridgeInit)
     {
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("✗ CRITICAL: EquipmentInventoryBridge->Initialize() FAILED!"));
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   Equipment-Inventory integration will NOT work!"));
         UE_LOG(LogSuspensePlayerState, Error,
             TEXT("   Players will not be able to equip items from inventory"));
         return false;
     }
-    
+
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Bridge initialized successfully"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Bridge has access to all required systems"));
 
     // Connect Inventory interface to Bridge
     UE_LOG(LogSuspensePlayerState, Log, TEXT("  Connecting Inventory to Bridge..."));
-    
-    TScriptInterface<IMedComInventoryInterface> InventoryInterface;
+
+    TScriptInterface<ISuspenseInventory> InventoryInterface;
     InventoryInterface.SetObject(InventoryComponent);
-    InventoryInterface.SetInterface(Cast<IMedComInventoryInterface>(InventoryComponent));
-    
+    InventoryInterface.SetInterface(Cast<ISuspenseInventory>(InventoryComponent));
+
     if (!InventoryInterface.GetInterface())
     {
-        UE_LOG(LogSuspensePlayerState, Error, 
+        UE_LOG(LogSuspensePlayerState, Error,
             TEXT("✗ InventoryComponent does not implement IMedComInventoryInterface!"));
         return false;
     }
-    
+
     EquipmentInventoryBridge->SetInventoryInterface(InventoryInterface);
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Inventory connected to Bridge"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  ✓ Bridge can now transfer items between systems"));
@@ -1530,7 +1530,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("All systems operational for player: %s"), *GetPlayerName());
     UE_LOG(LogSuspensePlayerState, Warning, TEXT(""));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("Component Status Summary:"));
-    UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • DataStore:            Initialized with %d slots"), 
+    UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • DataStore:            Initialized with %d slots"),
         EquipmentDataStore->GetSlotCount());
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • TransactionProcessor: Initialized and ready"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • EquipmentOps:         Initialized with validation"));
@@ -1541,7 +1541,7 @@ bool ASuspensePlayerState::TryWireEquipmentModuleOnce()
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • Unequip items back to inventory"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • Swap items between equipment slots"));
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("  • All operations are atomic and transactional"));
-    
+
     return true;
 }
 
@@ -1564,10 +1564,10 @@ void ASuspensePlayerState::InitAttributes()
     UClass* AttributeSetClassToUse = InitialAttributeSetClass.Get();
     if (!AttributeSetClassToUse)
     {
-        AttributeSetClassToUse = UMedComDefaultAttributeSet::StaticClass();
+        AttributeSetClassToUse = UDefaultAttributeSet::StaticClass();
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("Using default UMedComDefaultAttributeSet"));
     }
-    Attributes = NewObject<USuspenseBaseAttributeSet>(this, AttributeSetClassToUse);
+    Attributes = NewObject<UDefaultAttributeSet>(this, AttributeSetClassToUse);
     if (!Attributes)
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Failed to create AttributeSet"));
@@ -1596,20 +1596,20 @@ void ASuspensePlayerState::InitAttributes()
         UE_LOG(LogSuspensePlayerState, Error, TEXT("Failed to apply InitialAttributesEffect"));
         return;
     }
-    if (USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes))
+    if (UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes))
     {
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("=== Final Attribute Values After Initialization ==="));
-        UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed: %.1f"), 
+        UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed: %.1f"),
             ASC->GetNumericAttribute(BaseAttributes->GetMovementSpeedAttribute()));
-        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Health: %.1f / %.1f"), 
+        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Health: %.1f / %.1f"),
             ASC->GetNumericAttribute(BaseAttributes->GetHealthAttribute()),
             ASC->GetNumericAttribute(BaseAttributes->GetMaxHealthAttribute()));
-        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Stamina: %.1f / %.1f"), 
+        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Stamina: %.1f / %.1f"),
             ASC->GetNumericAttribute(BaseAttributes->GetStaminaAttribute()),
             ASC->GetNumericAttribute(BaseAttributes->GetMaxStaminaAttribute()));
-        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Armor: %.1f"), 
+        UE_LOG(LogSuspensePlayerState, Warning, TEXT("Armor: %.1f"),
             ASC->GetNumericAttribute(BaseAttributes->GetArmorAttribute()));
-        UE_LOG(LogSuspensePlayerState, Warning, TEXT("AttackPower: %.1f"), 
+        UE_LOG(LogSuspensePlayerState, Warning, TEXT("AttackPower: %.1f"),
             ASC->GetNumericAttribute(BaseAttributes->GetAttackPowerAttribute()));
         UE_LOG(LogSuspensePlayerState, Warning, TEXT("================================================"));
 
@@ -1648,13 +1648,13 @@ void ASuspensePlayerState::GrantStartupAbilities()
             FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(
                 FGameplayAbilitySpec(AbilityInfo.Ability, 1, AbilityInfo.InputID));
             UE_LOG(LogSuspensePlayerState, Warning, TEXT("  - Added ability from pool: %s, InputID=%d, Handle Valid=%s"),
-                   *AbilityInfo.Ability->GetName(), 
+                   *AbilityInfo.Ability->GetName(),
                    AbilityInfo.InputID,
                    Handle.IsValid() ? TEXT("YES") : TEXT("NO"));
         }
     }
 
-    if (InteractAbility) 
+    if (InteractAbility)
     {
         int32 InteractInputID = static_cast<int32>(ESuspenseAbilityInputID::Interact);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(InteractAbility, 1, InteractInputID));
@@ -1665,8 +1665,8 @@ void ASuspensePlayerState::GrantStartupAbilities()
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("  - InteractAbility NOT SET in Blueprint!"));
     }
-    
-    if (SprintAbility) 
+
+    if (SprintAbility)
     {
         int32 SprintInputID = static_cast<int32>(ESuspenseAbilityInputID::Sprint);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(SprintAbility, 1, SprintInputID));
@@ -1677,8 +1677,8 @@ void ASuspensePlayerState::GrantStartupAbilities()
     {
         UE_LOG(LogSuspensePlayerState, Error, TEXT("  - SprintAbility NOT SET in Blueprint!"));
     }
-    
-    if (CrouchAbility) 
+
+    if (CrouchAbility)
     {
         int32 CrouchInputID = static_cast<int32>(ESuspenseAbilityInputID::Crouch);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(CrouchAbility, 1, CrouchInputID));
@@ -1698,8 +1698,8 @@ void ASuspensePlayerState::GrantStartupAbilities()
         UE_LOG(LogSuspensePlayerState, Error, TEXT("  - CrouchAbility NOT SET in Blueprint!"));
         UE_LOG(LogSuspensePlayerState, Error, TEXT("    CRITICAL: Check BP_SuspensePlayerState and set CrouchAbility!"));
     }
-    
-    if (JumpAbility) 
+
+    if (JumpAbility)
     {
         int32 JumpInputID = static_cast<int32>(ESuspenseAbilityInputID::Jump);
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(FGameplayAbilitySpec(JumpAbility, 1, JumpInputID));
@@ -1711,7 +1711,7 @@ void ASuspensePlayerState::GrantStartupAbilities()
         UE_LOG(LogSuspensePlayerState, Error, TEXT("  - JumpAbility NOT SET in Blueprint!"));
     }
 
-    if (WeaponSwitchAbility) 
+    if (WeaponSwitchAbility)
     {
         ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::NextWeapon)));
         ASC->GiveAbility(FGameplayAbilitySpec(WeaponSwitchAbility, 1, static_cast<int32>(ESuspenseAbilityInputID::PrevWeapon)));
@@ -1810,11 +1810,11 @@ void ASuspensePlayerState::DebugActiveEffects()
     UE_LOG(LogSuspensePlayerState, Warning, TEXT("Current Owned Tags: %s"), *OwnedTags.ToString());
     if (Attributes)
     {
-        USuspenseBaseAttributeSet* BaseAttributes = Cast<USuspenseBaseAttributeSet>(Attributes);
+        UDefaultAttributeSet* BaseAttributes = Cast<UDefaultAttributeSet>(Attributes);
         if (BaseAttributes)
         {
-            UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed Base: %.1f, Current: %.1f"), 
-                BaseAttributes->GetMovementSpeed(), 
+            UE_LOG(LogSuspensePlayerState, Warning, TEXT("MovementSpeed Base: %.1f, Current: %.1f"),
+                BaseAttributes->GetMovementSpeed(),
                 ASC->GetNumericAttribute(BaseAttributes->GetMovementSpeedAttribute()));
         }
     }

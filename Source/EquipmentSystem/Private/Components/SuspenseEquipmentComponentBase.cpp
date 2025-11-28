@@ -5,7 +5,7 @@
 #include "GameplayEffect.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayAbilitySpec.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Interfaces/Equipment/ISuspenseEquipment.h"
 #include "Engine/World.h"
@@ -18,7 +18,7 @@ USuspenseEquipmentComponentBase::USuspenseEquipmentComponentBase()
 {
     PrimaryComponentTick.bCanEverTick = false;
     SetIsReplicatedByDefault(true);
-    
+
     bIsInitialized = false;
     ComponentVersion = 1; // Current component version
     EquippedItemInstance = FSuspenseInventoryItemInstance();
@@ -32,10 +32,10 @@ USuspenseEquipmentComponentBase::USuspenseEquipmentComponentBase()
 void USuspenseEquipmentComponentBase::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // Initialize core references on begin play
     InitializeCoreReferences();
-    
+
     // Start periodic prediction cleanup on clients
     if (!GetOwner()->HasAuthority() && GetWorld())
     {
@@ -56,7 +56,7 @@ void USuspenseEquipmentComponentBase::EndPlay(const EEndPlayReason::Type EndPlay
     {
         Cleanup();
     }
-    
+
     // Clear cached references with thread safety
     {
         FScopeLock Lock(&CacheCriticalSection);
@@ -64,14 +64,14 @@ void USuspenseEquipmentComponentBase::EndPlay(const EEndPlayReason::Type EndPlay
         CachedItemManager.Reset();
         CachedDelegateManager.Reset();
     }
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 void USuspenseEquipmentComponentBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     DOREPLIFETIME(USuspenseEquipmentComponentBase, bIsInitialized);
     DOREPLIFETIME(USuspenseEquipmentComponentBase, EquippedItemInstance);
     DOREPLIFETIME(USuspenseEquipmentComponentBase, ComponentVersion);
@@ -87,13 +87,13 @@ void USuspenseEquipmentComponentBase::Initialize(AActor* InOwner, UAbilitySystem
             InASC ? TEXT("Valid") : TEXT("NULL"));
         return;
     }
-    
+
     if (bIsInitialized)
     {
         EQUIPMENT_LOG(Warning, TEXT("Already initialized, cleaning up first"));
         Cleanup();
     }
-    
+
     // Проверяем тип владельца для диагностики
     FString OwnerType = TEXT("Unknown");
     if (Cast<APlayerState>(InOwner))
@@ -108,23 +108,23 @@ void USuspenseEquipmentComponentBase::Initialize(AActor* InOwner, UAbilitySystem
     {
         OwnerType = TEXT("Controller");
     }
-    
-    EQUIPMENT_LOG(Log, TEXT("Initialize: Owner=%s (Type: %s), ASC=%s"), 
-        *InOwner->GetName(), 
+
+    EQUIPMENT_LOG(Log, TEXT("Initialize: Owner=%s (Type: %s), ASC=%s"),
+        *InOwner->GetName(),
         *OwnerType,
         *InASC->GetName());
-    
+
     EquipmentCycleCounter++;
     CachedASC = InASC;
     bIsInitialized = true;
-    
+
     // Ensure core references are initialized
     InitializeCoreReferences();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Initialized (Cycle: %d, Version: %d)"), EquipmentCycleCounter, ComponentVersion);
-    
+
     OnEquipmentInitialized();
-    
+
     // Mark for replication
     if (InOwner->HasAuthority())
     {
@@ -136,13 +136,13 @@ void USuspenseEquipmentComponentBase::InitializeWithItemInstance(AActor* InOwner
 {
     // First do basic initialization
     Initialize(InOwner, InASC);
-    
+
     if (!bIsInitialized)
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to initialize base component"));
         return;
     }
-    
+
     // Set the equipped item
     SetEquippedItemInstance(ItemInstance);
 }
@@ -153,27 +153,27 @@ void USuspenseEquipmentComponentBase::Cleanup()
     {
         return;
     }
-    
+
     EQUIPMENT_LOG(Log, TEXT("Cleaning up (Cycle: %d)"), EquipmentCycleCounter);
-    
+
     // Store old item for event
     FSuspenseInventoryItemInstance OldItem = EquippedItemInstance;
-    
+
     // Clear equipped item
     EquippedItemInstance = FSuspenseInventoryItemInstance();
-    
+
     // Clear predictions
     ActivePredictions.Empty();
-    
+
     // Notify about change
     if (OldItem.IsValid())
     {
         OnEquippedItemChanged(OldItem, EquippedItemInstance);
     }
-    
+
     bIsInitialized = false;
     CachedASC = nullptr;
-    
+
     // Mark for replication
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -192,20 +192,20 @@ void USuspenseEquipmentComponentBase::UpdateEquippedItem(const FSuspenseInventor
         EQUIPMENT_LOG(Warning, TEXT("Cannot update equipped item - not initialized"));
         return;
     }
-    
+
     if (!NewItemInstance.IsValid())
     {
         EQUIPMENT_LOG(Warning, TEXT("Cannot update with invalid item instance"));
         return;
     }
-    
+
     FSuspenseInventoryItemInstance OldItem = EquippedItemInstance;
     EquippedItemInstance = NewItemInstance;
-    
+
     OnEquippedItemChanged(OldItem, NewItemInstance);
-    
+
     BroadcastEquipmentUpdated();
-    
+
     // Mark for replication
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -221,10 +221,10 @@ void USuspenseEquipmentComponentBase::SetEquippedItemInstance(const FSuspenseInv
 {
     FSuspenseInventoryItemInstance OldItem = EquippedItemInstance;
     EquippedItemInstance = ItemInstance;
-    
+
     // Notify about change
     OnEquippedItemChanged(OldItem, ItemInstance);
-    
+
     // Broadcast appropriate event
     if (ItemInstance.IsValid())
     {
@@ -244,7 +244,7 @@ void USuspenseEquipmentComponentBase::SetEquippedItemInstance(const FSuspenseInv
             BroadcastItemUnequipped(OldItem, OldItemData.EquipmentSlot);
         }
     }
-    
+
     // Mark for replication
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -267,31 +267,31 @@ int32 USuspenseEquipmentComponentBase::StartClientPrediction(const FSuspenseInve
     {
         return 0;
     }
-    
+
     // Limit concurrent predictions
     if (ActivePredictions.Num() >= MaxConcurrentPredictions)
     {
         EQUIPMENT_LOG(Warning, TEXT("Too many concurrent predictions (%d)"), ActivePredictions.Num());
         CleanupExpiredPredictions();
-        
+
         if (ActivePredictions.Num() >= MaxConcurrentPredictions)
         {
             return 0;
         }
     }
-    
+
     // Create new prediction
     FEquipmentComponentPredictionData NewPrediction;
     NewPrediction.PredictionKey = NextPredictionKey++;
     NewPrediction.PredictedItem = PredictedInstance;
     NewPrediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     NewPrediction.bConfirmed = false;
-    
+
     ActivePredictions.Add(NewPrediction);
-    
-    EQUIPMENT_LOG(Verbose, TEXT("Started client prediction %d for item %s"), 
+
+    EQUIPMENT_LOG(Verbose, TEXT("Started client prediction %d for item %s"),
         NewPrediction.PredictionKey, *PredictedInstance.ItemID.ToString());
-    
+
     return NewPrediction.PredictionKey;
 }
 
@@ -301,15 +301,15 @@ void USuspenseEquipmentComponentBase::ConfirmClientPrediction(int32 PredictionKe
     int32 PredictionIndex = ActivePredictions.IndexOfByPredicate(
         [PredictionKey](const FEquipmentComponentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
-    
+
     if (PredictionIndex == INDEX_NONE)
     {
         EQUIPMENT_LOG(VeryVerbose, TEXT("Prediction %d not found (may have expired)"), PredictionKey);
         return;
     }
-    
+
     FEquipmentComponentPredictionData& Prediction = ActivePredictions[PredictionIndex];
-    
+
     if (bSuccess)
     {
         Prediction.bConfirmed = true;
@@ -319,14 +319,14 @@ void USuspenseEquipmentComponentBase::ConfirmClientPrediction(int32 PredictionKe
     {
         // Prediction failed - revert to actual state
         EQUIPMENT_LOG(Warning, TEXT("Prediction %d failed - reverting to server state"), PredictionKey);
-        
+
         // Update to actual item
         if (ActualInstance.IsValid() || EquippedItemInstance.IsValid())
         {
             UpdateEquippedItem(ActualInstance);
         }
     }
-    
+
     // Remove confirmed/failed prediction
     ActivePredictions.RemoveAt(PredictionIndex);
 }
@@ -337,9 +337,9 @@ void USuspenseEquipmentComponentBase::CleanupExpiredPredictions()
     {
         return;
     }
-    
+
     const float CurrentTime = GetWorld()->GetTimeSeconds();
-    
+
     // Remove expired predictions
     ActivePredictions.RemoveAll([CurrentTime](const FEquipmentComponentPredictionData& Data)
     {
@@ -354,15 +354,15 @@ void USuspenseEquipmentComponentBase::CleanupExpiredPredictions()
 USuspenseItemManager* USuspenseEquipmentComponentBase::GetItemManager() const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     // Validate cache periodically
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     const bool bShouldValidate = (CurrentTime - LastCacheValidationTime) > 1.0f;
-    
+
     if (!CachedItemManager.IsValid() || bShouldValidate)
     {
         LastCacheValidationTime = CurrentTime;
-        
+
         if (UWorld* World = GetWorld())
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
@@ -371,22 +371,22 @@ USuspenseItemManager* USuspenseEquipmentComponentBase::GetItemManager() const
             }
         }
     }
-    
+
     return CachedItemManager.Get();
 }
 
 USuspenseEventManager* USuspenseEquipmentComponentBase::GetDelegateManager() const
 {
     FScopeLock Lock(&CacheCriticalSection);
-    
+
     // Validate cache periodically
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     const bool bShouldValidate = (CurrentTime - LastCacheValidationTime) > 1.0f;
-    
+
     if (!CachedDelegateManager.IsValid() || bShouldValidate)
     {
         LastCacheValidationTime = CurrentTime;
-        
+
         if (UWorld* World = GetWorld())
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
@@ -395,7 +395,7 @@ USuspenseEventManager* USuspenseEquipmentComponentBase::GetDelegateManager() con
             }
         }
     }
-    
+
     return CachedDelegateManager.Get();
 }
 
@@ -405,14 +405,14 @@ bool USuspenseEquipmentComponentBase::GetEquippedItemData(FSuspenseUnifiedItemDa
     {
         return false;
     }
-    
+
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         EQUIPMENT_LOG(Warning, TEXT("ItemManager not available"));
         return false;
     }
-    
+
     return ItemManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData);
 }
 
@@ -422,7 +422,7 @@ float USuspenseEquipmentComponentBase::GetEquippedItemProperty(const FName& Prop
     {
         return DefaultValue;
     }
-    
+
     return EquippedItemInstance.GetRuntimeProperty(PropertyName, DefaultValue);
 }
 
@@ -433,13 +433,13 @@ void USuspenseEquipmentComponentBase::SetEquippedItemProperty(const FName& Prope
         EQUIPMENT_LOG(Warning, TEXT("Cannot set property - no item equipped"));
         return;
     }
-    
+
     float OldValue = EquippedItemInstance.GetRuntimeProperty(PropertyName, 0.0f);
     EquippedItemInstance.SetRuntimeProperty(PropertyName, Value);
-    
+
     // Broadcast property change
     BroadcastEquipmentPropertyChanged(PropertyName, OldValue, Value);
-    
+
     // Mark for replication
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -461,19 +461,19 @@ void USuspenseEquipmentComponentBase::InitializeCoreReferences()
 bool USuspenseEquipmentComponentBase::ValidateSystemReferences() const
 {
     bool bValid = true;
-    
+
     if (!GetItemManager())
     {
         EQUIPMENT_LOG(Error, TEXT("ItemManager subsystem not available"));
         bValid = false;
     }
-    
+
     if (!GetDelegateManager())
     {
         EQUIPMENT_LOG(Error, TEXT("EventDelegateManager subsystem not available"));
         bValid = false;
     }
-    
+
     return bValid;
 }
 
@@ -504,7 +504,7 @@ bool USuspenseEquipmentComponentBase::ExecuteOnServer(const FString& FuncName, T
         EQUIPMENT_LOG(Warning, TEXT("%s: Must be called on server"), *FuncName);
         return false;
     }
-    
+
     ServerCode();
     return true;
 }
@@ -512,10 +512,10 @@ bool USuspenseEquipmentComponentBase::ExecuteOnServer(const FString& FuncName, T
 void USuspenseEquipmentComponentBase::LogEventBroadcast(const FString& EventName, bool bSuccess) const
 {
     BroadcastEventCounter++;
-    
+
     if (bSuccess)
     {
-        EQUIPMENT_LOG(VeryVerbose, TEXT("Event broadcast: %s (Total: %d)"), 
+        EQUIPMENT_LOG(VeryVerbose, TEXT("Event broadcast: %s (Total: %d)"),
             *EventName, BroadcastEventCounter);
     }
     else
@@ -532,10 +532,10 @@ void USuspenseEquipmentComponentBase::OnRep_EquippedItemInstance(const FSuspense
 {
     // Handle item change on clients
     OnEquippedItemChanged(OldInstance, EquippedItemInstance);
-    
+
     // Broadcast update
     BroadcastEquipmentUpdated();
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("OnRep_EquippedItemInstance: %s -> %s"),
         OldInstance.IsValid() ? *OldInstance.ItemID.ToString() : TEXT("None"),
         EquippedItemInstance.IsValid() ? *EquippedItemInstance.ItemID.ToString() : TEXT("None"));
@@ -558,9 +558,9 @@ void USuspenseEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseInven
         LogEventBroadcast(TEXT("ItemEquipped"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     // Create comprehensive event data
     FString EventData = FString::Printf(
         TEXT("ItemID:%s,Quantity:%d,Slot:%s,InstanceID:%s"),
@@ -569,13 +569,13 @@ void USuspenseEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseInven
         *SlotType.ToString(),
         *ItemInstance.InstanceID.ToString()
     );
-    
+
     Manager->NotifyEquipmentEvent(
         GetOwner(),
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemEquipped")),
         EventData
     );
-    
+
     LogEventBroadcast(TEXT("ItemEquipped"), true);
 }
 
@@ -586,9 +586,9 @@ void USuspenseEquipmentComponentBase::BroadcastItemUnequipped(const FSuspenseInv
         LogEventBroadcast(TEXT("ItemUnequipped"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     FString EventData = FString::Printf(
         TEXT("ItemID:%s,Quantity:%d,Slot:%s,InstanceID:%s"),
         *ItemInstance.ItemID.ToString(),
@@ -596,13 +596,13 @@ void USuspenseEquipmentComponentBase::BroadcastItemUnequipped(const FSuspenseInv
         *SlotType.ToString(),
         *ItemInstance.InstanceID.ToString()
     );
-    
+
     Manager->NotifyEquipmentEvent(
         GetOwner(),
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemUnequipped")),
         EventData
     );
-    
+
     LogEventBroadcast(TEXT("ItemUnequipped"), true);
 }
 
@@ -613,11 +613,11 @@ void USuspenseEquipmentComponentBase::BroadcastEquipmentPropertyChanged(const FN
         LogEventBroadcast(FString::Printf(TEXT("PropertyChanged:%s"), *PropertyName.ToString()), false);
         return;
     }
-    
+
     ISuspenseEquipment::BroadcastEquipmentPropertyChanged(
         this, PropertyName, OldValue, NewValue
     );
-    
+
     LogEventBroadcast(FString::Printf(TEXT("PropertyChanged:%s"), *PropertyName.ToString()), true);
 }
 
@@ -628,7 +628,7 @@ void USuspenseEquipmentComponentBase::BroadcastEquipmentStateChanged(const FGame
         LogEventBroadcast(TEXT("StateChanged"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
     Manager->NotifyEquipmentStateChanged(OldState, NewState, bInterrupted);
     LogEventBroadcast(TEXT("StateChanged"), true);
@@ -641,7 +641,7 @@ void USuspenseEquipmentComponentBase::BroadcastEquipmentEvent(const FGameplayTag
         LogEventBroadcast(EventTag.ToString(), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
     Manager->NotifyEquipmentEvent(GetOwner(), EventTag, EventData);
     LogEventBroadcast(EventTag.ToString(), true);
@@ -654,7 +654,7 @@ void USuspenseEquipmentComponentBase::BroadcastEquipmentUpdated()
         LogEventBroadcast(TEXT("EquipmentUpdated"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
     Manager->NotifyEquipmentUpdated();
     LogEventBroadcast(TEXT("EquipmentUpdated"), true);
@@ -667,7 +667,7 @@ void USuspenseEquipmentComponentBase::BroadcastAmmoChanged(float CurrentAmmo, fl
         LogEventBroadcast(TEXT("AmmoChanged"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
     Manager->NotifyAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
     LogEventBroadcast(TEXT("AmmoChanged"), true);
@@ -680,9 +680,9 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponFired(const FVector& Origin
         LogEventBroadcast(TEXT("WeaponFired"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     // Enhanced with fire mode information
     FString EventData = FString::Printf(
         TEXT("Origin:%s,Impact:%s,Success:%s,FireMode:%s"),
@@ -691,13 +691,13 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponFired(const FVector& Origin
         bSuccess ? TEXT("true") : TEXT("false"),
         *FireMode.ToString()
     );
-    
+
     Manager->NotifyEquipmentEvent(
         GetOwner(),
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.WeaponFired")),
         EventData
     );
-    
+
     Manager->NotifyWeaponFired(Origin, Impact, bSuccess, FireMode.GetTagName());
     LogEventBroadcast(TEXT("WeaponFired"), true);
 }
@@ -709,18 +709,18 @@ void USuspenseEquipmentComponentBase::BroadcastFireModeChanged(const FGameplayTa
         LogEventBroadcast(TEXT("FireModeChanged"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     // Get current spread from weapon data if available
     float CurrentSpread = 0.0f;
     if (EquippedItemInstance.IsValid())
     {
         CurrentSpread = GetEquippedItemProperty(TEXT("CurrentSpread"), 0.0f);
     }
-    
+
     Manager->NotifyFireModeChanged(NewFireMode, CurrentSpread);
-    
+
     // Also send detailed event
     FString EventData = FString::Printf(
         TEXT("FireMode:%s,DisplayName:%s,Spread:%.3f"),
@@ -728,13 +728,13 @@ void USuspenseEquipmentComponentBase::BroadcastFireModeChanged(const FGameplayTa
         *FireModeDisplayName.ToString(),
         CurrentSpread
     );
-    
+
     Manager->NotifyEquipmentEvent(
         GetOwner(),
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.FireModeChanged")),
         EventData
     );
-    
+
     LogEventBroadcast(TEXT("FireModeChanged"), true);
 }
 
@@ -745,13 +745,13 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponReload(bool bStarted, float
         LogEventBroadcast(TEXT("WeaponReload"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     if (bStarted)
     {
         Manager->NotifyWeaponReloadStart();
-        
+
         // Send detailed event with duration
         FString EventData = FString::Printf(TEXT("Duration:%.2f"), ReloadDuration);
         Manager->NotifyEquipmentEvent(
@@ -769,7 +769,7 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponReload(bool bStarted, float
             TEXT("")
         );
     }
-    
+
     LogEventBroadcast(TEXT("WeaponReload"), true);
 }
 
@@ -780,11 +780,11 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponSpreadUpdated(float NewSpre
         LogEventBroadcast(TEXT("SpreadUpdated"), false);
         return;
     }
-    
+
     USuspenseEventManager* Manager = GetDelegateManager();
-    
+
     Manager->NotifyWeaponSpreadUpdated(NewSpread);
-    
+
     // Send detailed event
     FString EventData = FString::Printf(
         TEXT("CurrentSpread:%.3f,MaxSpread:%.3f,Percentage:%.1f"),
@@ -792,13 +792,13 @@ void USuspenseEquipmentComponentBase::BroadcastWeaponSpreadUpdated(float NewSpre
         MaxSpread,
         MaxSpread > 0.0f ? (NewSpread / MaxSpread * 100.0f) : 0.0f
     );
-    
+
     Manager->NotifyEquipmentEvent(
         GetOwner(),
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SpreadUpdated")),
         EventData
     );
-    
+
     LogEventBroadcast(TEXT("SpreadUpdated"), true);
 }
 
@@ -819,13 +819,13 @@ FGameplayAbilitySpecHandle USuspenseEquipmentComponentBase::GrantAbility_Impleme
         EQUIPMENT_LOG(Warning, TEXT("Cannot grant ability - ASC or ability class invalid"));
         return FGameplayAbilitySpecHandle();
     }
-    
+
     FGameplayAbilitySpec AbilitySpec(AbilityClass, Level, InputID, this);
     FGameplayAbilitySpecHandle Handle = CachedASC->GiveAbility(AbilitySpec);
-    
-    EQUIPMENT_LOG(Log, TEXT("Granted ability: %s (Level: %d, InputID: %d)"), 
+
+    EQUIPMENT_LOG(Log, TEXT("Granted ability: %s (Level: %d, InputID: %d)"),
         *GetNameSafe(AbilityClass), Level, InputID);
-    
+
     return Handle;
 }
 
@@ -835,7 +835,7 @@ void USuspenseEquipmentComponentBase::RemoveAbility_Implementation(FGameplayAbil
     {
         return;
     }
-    
+
     CachedASC->ClearAbility(AbilityHandle);
     EQUIPMENT_LOG(Log, TEXT("Removed ability handle"));
 }
@@ -847,19 +847,19 @@ FActiveGameplayEffectHandle USuspenseEquipmentComponentBase::ApplyEffectToSelf_I
         EQUIPMENT_LOG(Warning, TEXT("Cannot apply effect - ASC or effect class invalid"));
         return FActiveGameplayEffectHandle();
     }
-    
+
     FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
     Context.AddSourceObject(this);
-    
+
     FGameplayEffectSpecHandle Spec = CachedASC->MakeOutgoingSpec(EffectClass, Level, Context);
     if (Spec.IsValid())
     {
         FActiveGameplayEffectHandle Handle = CachedASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-        EQUIPMENT_LOG(Log, TEXT("Applied effect: %s (Level: %.1f)"), 
+        EQUIPMENT_LOG(Log, TEXT("Applied effect: %s (Level: %.1f)"),
             *GetNameSafe(EffectClass), Level);
         return Handle;
     }
-    
+
     return FActiveGameplayEffectHandle();
 }
 
@@ -869,7 +869,7 @@ void USuspenseEquipmentComponentBase::RemoveEffect_Implementation(FActiveGamepla
     {
         return;
     }
-    
+
     CachedASC->RemoveActiveGameplayEffect(EffectHandle);
     EQUIPMENT_LOG(Log, TEXT("Removed effect handle"));
 }

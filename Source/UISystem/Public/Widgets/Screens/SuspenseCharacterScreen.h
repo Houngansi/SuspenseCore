@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/Screens/ISuspenseScreenInterface.h"
+#include "Interfaces/Screens/ISuspenseScreen.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCharacterScreen.generated.h"
 
@@ -19,7 +19,7 @@ class USuspenseEquipmentContainerWidget;
  * This is the main container shown when player opens character menu
  */
 UCLASS()
-class UISYSTEM_API USuspenseCharacterScreen : public USuspenseBaseWidget, public ISuspenseScreenInterface
+class UISYSTEM_API USuspenseCharacterScreen : public USuspenseBaseWidget, public ISuspenseScreen
 {
     GENERATED_BODY()
 
@@ -122,7 +122,7 @@ protected:
 private:
     /** Tab selection change subscription handle */
     FDelegateHandle TabSelectionChangeHandle;
-    
+
     /** Tab bar close subscription handle */
     FDelegateHandle TabBarCloseHandle;
 

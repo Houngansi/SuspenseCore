@@ -21,7 +21,7 @@ struct FLayoutWidgetConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TSubclassOf<UUserWidget> WidgetClass;
 
-    /** 
+    /**
      * Tag for identifying widget in layout - REQUIRED
      * This tag must be unique within the layout
      * Example: "UI.Widget.Inventory", "UI.Widget.Equipment"
@@ -29,14 +29,14 @@ struct FLayoutWidgetConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FGameplayTag WidgetTag;
 
-    /** 
+    /**
      * Layout-specific slot tag (e.g., "Layout.Slot.Left", "Layout.Slot.Right", "Layout.Slot.Center")
      * Used for positioning within specific layout types
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FGameplayTag SlotTag;
 
-    /** 
+    /**
      * Size weight for flexible layouts (0 = auto, >0 = flex)
      * Higher values take more space in flex layouts
      */
@@ -47,14 +47,14 @@ struct FLayoutWidgetConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FMargin Padding;
 
-    /** 
+    /**
      * Whether this widget should be created immediately
      * If false, widget will be created on demand
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bCreateImmediately = true;
 
-    /** 
+    /**
      * Whether to initialize widget after creation
      * Set to false if you need custom initialization
      */
@@ -87,7 +87,7 @@ struct FLayoutWidgetConfig
 /**
  * Base class for layout widgets that can contain multiple child widgets
  * Provides foundation for different layout types (horizontal, vertical, grid, etc.)
- * 
+ *
  * Key features:
  * - Requires explicit tags for all widgets (no dynamic generation)
  * - Supports lazy creation of widgets
@@ -96,7 +96,7 @@ struct FLayoutWidgetConfig
  * - Integrates with UIManager for widget registration
  */
 UCLASS(Abstract)
-class UISYSTEM_API USuspenseBaseLayoutWidget : public USuspenseBaseWidget, public ISuspenseLayoutInterface
+class UISYSTEM_API USuspenseBaseLayoutWidget : public USuspenseBaseWidget, public ISuspenseLayout
 {
     GENERATED_BODY()
 
@@ -174,7 +174,7 @@ public:
     TArray<FGameplayTag> GetAllWidgetTags() const;
 
 protected:
-    /** 
+    /**
      * Configuration for widgets in this layout
      * All widgets must have unique WidgetTag values
      */

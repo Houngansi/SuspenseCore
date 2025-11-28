@@ -18,7 +18,7 @@ struct FSuspenseUnifiedItemData;
  * Actor-based inventory item implementation for DataTable architecture
  *
  * АРХИТЕКТУРНЫЕ ПРИНЦИПЫ:
- * - Runtime состояние хранится в FSuspenseInventoryItemInstance  
+ * - Runtime состояние хранится в FSuspenseInventoryItemInstance
  * - Статические данные получаются из DataTable через ItemManager
  * - Полная интеграция с LoadoutSettings и новой системой предметов
  * - Оптимизация производительности через интеллектуальное кэширование
@@ -40,7 +40,7 @@ public:
     //==================================================================
     // Constructor and Core Actor Lifecycle
     //==================================================================
-    
+
     ASuspenseInventoryItem();
 
     //~ Begin AActor Interface

@@ -533,9 +533,9 @@ void UWeaponSwitchAbility::ClientConfirmWeaponSwitch_Implementation(int32 NewAct
         bSuccess ? TEXT("Success") : TEXT("Failed"), NewActiveSlot));
 }
 
-TScriptInterface<IMedComEquipmentInterface> UWeaponSwitchAbility::FindEquipmentInterface() const
+TScriptInterface<ISuspenseEquipment> UWeaponSwitchAbility::FindEquipmentInterface() const
 {
-    TScriptInterface<IMedComEquipmentInterface> Result;
+    TScriptInterface<ISuspenseEquipment> Result;
 
     if (!CurrentActorInfo || !CurrentActorInfo->AvatarActor.IsValid())
     {

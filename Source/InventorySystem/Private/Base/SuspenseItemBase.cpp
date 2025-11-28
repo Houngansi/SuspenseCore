@@ -17,17 +17,17 @@ USuspenseItemBase::USuspenseItemBase()
 {
     // Генерируем уникальный ID экземпляра
     InstanceID = FGuid::NewGuid();
-    
+
     // Инициализируем runtime состояние
     CurrentDurability = 0.0f;
     LastUsedTime = 0.0f;
     LastCacheUpdateTime = 0.0f;
     CachedItemData = nullptr;
-    
+
     // Очищаем контейнеры
     RuntimePropertiesArray.Empty();
     RuntimePropertiesCache.Empty();
-    
+
     // Настраиваем сетевую репликацию
     SetFlags(RF_DefaultSubObject);
 }
@@ -35,7 +35,7 @@ USuspenseItemBase::USuspenseItemBase()
 void USuspenseItemBase::PostInitProperties()
 {
     Super::PostInitProperties();
-    
+
     // Инициализируем runtime свойства если ItemID уже установлен
     if (!ItemID.IsNone())
     {
@@ -47,7 +47,7 @@ void USuspenseItemBase::BeginDestroy()
 {
     // Очищаем кэш перед уничтожением
     CachedItemData = nullptr;
-    
+
     Super::BeginDestroy();
 }
 
@@ -89,20 +89,20 @@ void USuspenseItemBase::UpdateCacheIfNeeded() const
 {
     // Проверяем, нужно ли обновить кэш
     float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
-    if (CachedItemData != nullptr && 
+
+    if (CachedItemData != nullptr &&
         (CurrentTime - LastCacheUpdateTime) < CACHE_UPDATE_INTERVAL)
     {
         return; // Кэш еще актуален
     }
-    
+
     // Обновляем кэш из DataTable
     if (USuspenseItemManager* ItemManager = GetItemManager())
     {
         // Создаем статическую переменную для хранения данных
         // Это безопасно потому что данные из DataTable неизменяемы
         static TMap<FName, FSuspenseUnifiedItemData> StaticDataCache;
-        
+
         FSuspenseUnifiedItemData* CachedData = StaticDataCache.Find(ItemID);
         if (!CachedData)
         {
@@ -114,11 +114,11 @@ void USuspenseItemBase::UpdateCacheIfNeeded() const
                 CachedData = StaticDataCache.Find(ItemID);
             }
         }
-        
+
         CachedItemData = CachedData;
         LastCacheUpdateTime = CurrentTime;
     }
-    
+
     if (!CachedItemData)
     {
         UE_LOG(LogInventory, Warning, TEXT("Failed to load item data for ID: %s"), *ItemID.ToString());
@@ -219,11 +219,11 @@ float USuspenseItemBase::GetRuntimeProperty(const FName& PropertyName, float Def
     {
         return *CachedValue;
     }
-    
+
     // Если не в кэше, синхронизируем и проверяем снова
     SyncPropertiesCacheWithArray();
     CachedValue = RuntimePropertiesCache.Find(PropertyName);
-    
+
     return CachedValue ? *CachedValue : DefaultValue;
 }
 
@@ -231,7 +231,7 @@ void USuspenseItemBase::SetRuntimeProperty(const FName& PropertyName, float Valu
 {
     // Обновляем локальный кэш
     RuntimePropertiesCache.Add(PropertyName, Value);
-    
+
     // Синхронизируем с реплицируемым массивом
     SyncPropertiesArrayWithCache();
 }
@@ -246,7 +246,7 @@ void USuspenseItemBase::RemoveRuntimeProperty(const FName& PropertyName)
 {
     // Удаляем из кэша
     RuntimePropertiesCache.Remove(PropertyName);
-    
+
     // Синхронизируем с массивом
     SyncPropertiesArrayWithCache();
 }
@@ -258,7 +258,7 @@ bool USuspenseItemBase::HasRuntimeProperty(const FName& PropertyName) const
     {
         return true;
     }
-    
+
     // Синхронизируем и проверяем снова
     SyncPropertiesCacheWithArray();
     return RuntimePropertiesCache.Contains(PropertyName);
@@ -275,9 +275,9 @@ float USuspenseItemBase::GetMaxDurability() const
     {
         return GetRuntimeProperty(TEXT("MaxDurability"));
     }
-    
+
     // TODO: В будущем получать из AttributeSet если предмет экипирован
-    
+
     // Возвращаем значение по умолчанию для типа предмета
     const FSuspenseUnifiedItemData* Data = GetItemData();
     if (Data && Data->bIsEquippable)
@@ -292,7 +292,7 @@ float USuspenseItemBase::GetMaxDurability() const
         }
         return 100.0f; // Значение по умолчанию для экипировки
     }
-    
+
     return 0.0f; // Нет прочности
 }
 
@@ -308,7 +308,7 @@ float USuspenseItemBase::GetDurabilityPercent() const
     {
         return 1.0f; // Предметы без прочности всегда "целые"
     }
-    
+
     return FMath::Clamp(CurrentDurability / MaxDur, 0.0f, 1.0f);
 }
 
@@ -353,15 +353,15 @@ int32 USuspenseItemBase::GetMaxAmmo() const
     {
         return FMath::RoundToInt(GetRuntimeProperty(TEXT("MaxAmmo")));
     }
-    
+
     // TODO: В будущем получать из AmmoAttributeSet
-    
+
     // Временная логика на основе типа оружия
     const FSuspenseUnifiedItemData* Data = GetItemData();
     if (Data && Data->bIsWeapon)
     {
         FString ArchetypeString = Data->WeaponArchetype.ToString();
-        
+
         if (ArchetypeString.Contains(TEXT("Rifle")))
         {
             return 30;
@@ -379,7 +379,7 @@ int32 USuspenseItemBase::GetMaxAmmo() const
             return 5;
         }
     }
-    
+
     return 30; // Значение по умолчанию
 }
 
@@ -420,26 +420,26 @@ void USuspenseItemBase::UseItem_Implementation(ACharacter* Character)
         UE_LOG(LogInventory, Warning, TEXT("UseItem called with null Character"));
         return;
     }
-    
+
     const FSuspenseUnifiedItemData* Data = GetItemData();
     if (!Data)
     {
         UE_LOG(LogInventory, Error, TEXT("UseItem failed: No item data for %s"), *ItemID.ToString());
         return;
     }
-    
-    UE_LOG(LogInventory, Log, TEXT("Item %s used by character %s"), 
+
+    UE_LOG(LogInventory, Log, TEXT("Item %s used by character %s"),
         *ItemID.ToString(), *Character->GetName());
-    
+
     // Обновляем время последнего использования
     LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    
+
     // Если предмет имеет кулдаун, запускаем его
     if (Data->bIsConsumable && Data->UseTime > 0.0f)
     {
         StartCooldown(LastUsedTime, Data->UseTime);
     }
-    
+
     // Применяем эффекты потребления из DataTable
     if (Data->bIsConsumable && Data->ConsumeEffects.Num() > 0)
     {
@@ -460,7 +460,7 @@ FString USuspenseItemBase::GetDebugString() const
     {
         return FString::Printf(TEXT("INVALID ITEM: %s"), *ItemID.ToString());
     }
-    
+
     // Используем размер кэша для подсчета свойств
     return FString::Printf(
         TEXT("Item: %s (ID: %s, Type: %s, Durability: %.1f/%.1f, Props: %d, Instance: %s)"),
@@ -482,18 +482,18 @@ FSuspenseInventoryItemInstance USuspenseItemBase::ToInventoryInstance(int32 Quan
 {
     // Create instance using factory method
     FSuspenseInventoryItemInstance Instance = FSuspenseInventoryItemInstance::Create(ItemID, Quantity);
-    
+
     // Копируем runtime свойства из кэша
     Instance.RuntimeProperties = RuntimePropertiesCache;
     Instance.LastUsedTime = LastUsedTime;
-    
+
     // Устанавливаем прочность
     if (HasDurability())
     {
         Instance.SetRuntimeProperty(TEXT("Durability"), CurrentDurability);
         Instance.SetRuntimeProperty(TEXT("MaxDurability"), GetMaxDurability());
     }
-    
+
     return Instance;
 }
 void USuspenseItemBase::InitFromInventoryInstance(const FSuspenseInventoryItemInstance& Instance)
@@ -502,10 +502,10 @@ void USuspenseItemBase::InitFromInventoryInstance(const FSuspenseInventoryItemIn
     RuntimePropertiesCache = Instance.RuntimeProperties;
     LastUsedTime = Instance.LastUsedTime;
     CurrentDurability = Instance.GetCurrentDurability();
-    
+
     // Синхронизируем массив с кэшем для репликации
     SyncPropertiesArrayWithCache();
-    
+
     // Принудительно обновляем кэш данных
     RefreshItemData();
 }
@@ -517,16 +517,16 @@ void USuspenseItemBase::InitFromInventoryInstance(const FSuspenseInventoryItemIn
 void USuspenseItemBase::Initialize(const FName& InItemID)
 {
     ItemID = InItemID;
-    
+
     // Очищаем старые данные
     ResetToDefaults();
-    
+
     // Обновляем кэш из DataTable
     RefreshItemData();
-    
+
     // Инициализируем runtime свойства
     InitializeRuntimePropertiesFromData();
-    
+
     UE_LOG(LogInventory, Log, TEXT("Initialized item: %s"), *GetDebugString());
 }
 
@@ -534,11 +534,11 @@ void USuspenseItemBase::ResetToDefaults()
 {
     CurrentDurability = 0.0f;
     LastUsedTime = 0.0f;
-    
+
     // Очищаем оба контейнера runtime свойств
     RuntimePropertiesCache.Empty();
     RuntimePropertiesArray.Empty();
-    
+
     InstanceID = FGuid::NewGuid();
 }
 
@@ -549,7 +549,7 @@ void USuspenseItemBase::InitializeRuntimePropertiesFromData()
     {
         return;
     }
-    
+
     // Инициализируем прочность для экипируемых предметов
     if (Data->bIsEquippable)
     {
@@ -557,7 +557,7 @@ void USuspenseItemBase::InitializeRuntimePropertiesFromData()
         SetRuntimeProperty(TEXT("MaxDurability"), MaxDur);
         CurrentDurability = MaxDur; // Начинаем с полной прочности
     }
-    
+
     // Инициализируем патроны для оружия
     if (Data->bIsWeapon)
     {
@@ -565,7 +565,7 @@ void USuspenseItemBase::InitializeRuntimePropertiesFromData()
         SetRuntimeProperty(TEXT("MaxAmmo"), static_cast<float>(MaxAmmo));
         SetRuntimeProperty(TEXT("Ammo"), static_cast<float>(MaxAmmo)); // Полный магазин
     }
-    
+
     // Инициализируем заряды для расходуемых предметов
     if (Data->bIsConsumable)
     {
@@ -576,7 +576,7 @@ void USuspenseItemBase::SyncPropertiesCacheWithArray() const
 {
     // Обновляем кэш из массива (для клиентов после репликации)
     RuntimePropertiesCache.Empty();
-    
+
     for (const FItemRuntimeProperty& Prop : RuntimePropertiesArray)
     {
         RuntimePropertiesCache.Add(Prop.PropertyName, Prop.PropertyValue);
@@ -587,7 +587,7 @@ void USuspenseItemBase::SyncPropertiesArrayWithCache()
 {
     // Обновляем массив из кэша (для сервера перед репликацией)
     RuntimePropertiesArray.Empty();
-    
+
     for (const auto& Pair : RuntimePropertiesCache)
     {
         RuntimePropertiesArray.Add(FItemRuntimeProperty(Pair.Key, Pair.Value));
@@ -602,7 +602,7 @@ bool USuspenseItemBase::GetItemDataCopy(FSuspenseUnifiedItemData& OutItemData) c
         OutItemData = *Data;
         return true;
     }
-    
+
     OutItemData = FSuspenseUnifiedItemData(); // Пустая структура
     return false;
 }
@@ -612,8 +612,8 @@ void USuspenseItemBase::OnRep_RuntimeProperties()
     // Вызывается на клиенте после репликации массива свойств
     // Синхронизируем локальный кэш с полученными данными
     SyncPropertiesCacheWithArray();
-    
-    UE_LOG(LogInventory, VeryVerbose, TEXT("Runtime properties replicated for item %s, count: %d"), 
+
+    UE_LOG(LogInventory, VeryVerbose, TEXT("Runtime properties replicated for item %s, count: %d"),
         *ItemID.ToString(), RuntimePropertiesArray.Num());
 }
 //==============================================================================
@@ -623,7 +623,7 @@ void USuspenseItemBase::OnRep_RuntimeProperties()
 void USuspenseItemBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     // Реплицируем только runtime данные
     DOREPLIFETIME(USuspenseItemBase, ItemID);
     DOREPLIFETIME(USuspenseItemBase, CurrentDurability);
@@ -635,11 +635,11 @@ void USuspenseItemBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 void USuspenseItemBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
-    
+
     if (PropertyChangedEvent.Property)
     {
         const FName PropertyName = PropertyChangedEvent.Property->GetFName();
-        
+
         // При изменении ItemID в редакторе, обновляем данные
         if (PropertyName == GET_MEMBER_NAME_CHECKED(USuspenseItemBase, ItemID))
         {

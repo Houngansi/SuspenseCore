@@ -8,12 +8,12 @@
 
 // Конструктор с полной инициализацией
 FSuspenseMoveOperation::FSuspenseMoveOperation(
-    USuspenseInventoryComponent* InComponent, 
-    ASuspenseInventoryItem* InItem, 
-    int32 InTargetIndex, 
-    bool InTargetRotated, 
+    USuspenseInventoryComponent* InComponent,
+    ASuspenseInventoryItem* InItem,
+    int32 InTargetIndex,
+    bool InTargetRotated,
     USuspenseInventoryComponent* InTargetInventory)
-    : FSuspenseInventoryOperation(EInventoryOperationType::Move, InComponent)
+    : FSuspenseInventoryOperation(ESuspenseInventoryOperationType::Move, InComponent)
     , Item(InItem)
     , TargetIndex(InTargetIndex)
     , bTargetRotated(InTargetRotated)
@@ -28,11 +28,11 @@ FSuspenseMoveOperation::FSuspenseMoveOperation(
         {
             SourceIndex = ItemInterface->GetAnchorIndex();
             bSourceRotated = ItemInterface->IsRotated();
-            
+
             // Получаем runtime экземпляр
             ItemInstance = ItemInterface->GetItemInstance();
         }
-        
+
         // Отмечаем необходимость кэширования данных из DataTable
         bHasCachedData = false;
     }
@@ -40,15 +40,15 @@ FSuspenseMoveOperation::FSuspenseMoveOperation(
 
 // Статический метод создания с валидацией
 FSuspenseMoveOperation FSuspenseMoveOperation::Create(
-    USuspenseInventoryComponent* InComponent, 
-    ASuspenseInventoryItem* InItem, 
-    int32 InTargetIndex, 
-    bool InTargetRotated, 
+    USuspenseInventoryComponent* InComponent,
+    ASuspenseInventoryItem* InItem,
+    int32 InTargetIndex,
+    bool InTargetRotated,
     USuspenseInventoryComponent* InTargetInventory,
     USuspenseItemManager* InItemManager)
 {
     FSuspenseMoveOperation Operation(InComponent, InItem, InTargetIndex, InTargetRotated, InTargetInventory);
-    
+
     // Базовая валидация
     if (!InItem)
     {
@@ -56,40 +56,40 @@ FSuspenseMoveOperation FSuspenseMoveOperation::Create(
         UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::Create: Invalid item"));
         return Operation;
     }
-    
+
     if (!InComponent)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::Create: Invalid component"));
         return Operation;
     }
-    
+
     if (!InItemManager)
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::NotInitialized;
         UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::Create: ItemManager not available"));
         return Operation;
     }
-    
+
     // Кэшируем данные из DataTable
     if (!Operation.CacheItemDataFromTable(InItemManager))
     {
         Operation.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
-        UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::Create: Failed to cache item data for %s"), 
+        UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::Create: Failed to cache item data for %s"),
             *InItem->GetName());
         return Operation;
     }
-    
+
     // Вычисляем эффективные размеры
     Operation.CalculateEffectiveSizes();
-    
+
     // Предварительная валидация
     FString ErrorMessage;
     if (!Operation.ValidateOperation(Operation.ErrorCode, ErrorMessage, InItemManager))
     {
         UE_LOG(LogInventory, Warning, TEXT("FSuspenseMoveOperation::Create: Validation failed - %s"), *ErrorMessage);
     }
-    
+
     return Operation;
 }
 
@@ -106,10 +106,10 @@ FSuspenseMoveOperation FSuspenseMoveOperation::CreateWithOptimalRotation(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Получаем размеры сетки инвентаря через компонент
     FVector2D GridSize = InComponent->GetInventorySize();
-    
+
     // Получаем ItemInterface для работы с предметом
     const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(InItem);
     if (!ItemInterface)
@@ -118,30 +118,30 @@ FSuspenseMoveOperation FSuspenseMoveOperation::CreateWithOptimalRotation(
         InvalidOp.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return InvalidOp;
     }
-    
+
     // Определяем текущий размер предмета
     FVector2D BaseSize = ItemInterface->GetBaseGridSize();
-    
+
     // Определяем оптимальный поворот на основе доступного места
     bool bOptimalRotation = false;
-    
+
     // Если предмет не квадратный, проверяем какая ориентация лучше подходит
     if (BaseSize.X != BaseSize.Y)
     {
         // Проверяем помещается ли в обычной ориентации
         bool bNormalFits = InComponent->CanPlaceItemAtSlot(BaseSize, InTargetIndex, true);
-        
+
         // Проверяем повернутую ориентацию
         FVector2D RotatedSize(BaseSize.Y, BaseSize.X);
         bool bRotatedFits = InComponent->CanPlaceItemAtSlot(RotatedSize, InTargetIndex, true);
-        
+
         // Предпочитаем поворот если обычная ориентация не помещается, а повернутая помещается
         if (!bNormalFits && bRotatedFits)
         {
             bOptimalRotation = true;
         }
     }
-    
+
     return Create(InComponent, InItem, InTargetIndex, bOptimalRotation, nullptr, InItemManager);
 }
 
@@ -151,7 +151,7 @@ bool FSuspenseMoveOperation::CacheItemDataFromTable(USuspenseItemManager* InItem
     {
         return false;
     }
-    
+
     // Получаем ItemID через интерфейс
     const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
@@ -159,31 +159,31 @@ bool FSuspenseMoveOperation::CacheItemDataFromTable(USuspenseItemManager* InItem
         UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::CacheItemDataFromTable: Item doesn't implement required interface"));
         return false;
     }
-    
+
     FName ItemID = ItemInterface->GetItemID();
-    
+
     // Получаем данные из DataTable
     if (!InItemManager->GetUnifiedItemData(ItemID, CachedItemData))
     {
-        UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::CacheItemDataFromTable: Failed to get data for %s"), 
+        UE_LOG(LogInventory, Error, TEXT("FSuspenseMoveOperation::CacheItemDataFromTable: Failed to get data for %s"),
             *ItemID.ToString());
         return false;
     }
-    
+
     // ИСПРАВЛЕНО: BaseGridSize теперь FIntPoint, сохраняем как целые числа
     BaseGridSize = CachedItemData.GridSize; // Прямое присваивание FIntPoint
-    
+
     // Вычисляем общий вес
     ItemTotalWeight = CachedItemData.Weight * ItemInstance.Quantity;
-    
+
     bHasCachedData = true;
-    
+
     // ИСПРАВЛЕНО: используем %d для целых чисел вместо %.0f
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseMoveOperation::CacheItemDataFromTable: Cached data for %s - Size: %dx%d, Weight: %.2f"), 
-        *ItemID.ToString(), 
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseMoveOperation::CacheItemDataFromTable: Cached data for %s - Size: %dx%d, Weight: %.2f"),
+        *ItemID.ToString(),
         BaseGridSize.X, BaseGridSize.Y,  // Теперь это int32
         ItemTotalWeight);
-    
+
     return true;
 }
 
@@ -203,7 +203,7 @@ void FSuspenseMoveOperation::CalculateEffectiveSizes()
     {
         SourceEffectiveSize = FVector2D(BaseGridSize.X, BaseGridSize.Y);
     }
-    
+
     // Целевой эффективный размер
     if (bTargetRotated)
     {
@@ -213,8 +213,8 @@ void FSuspenseMoveOperation::CalculateEffectiveSizes()
     {
         TargetEffectiveSize = FVector2D(BaseGridSize.X, BaseGridSize.Y);
     }
-    
-    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseMoveOperation::CalculateEffectiveSizes: Source: %.0fx%.0f, Target: %.0fx%.0f"), 
+
+    UE_LOG(LogInventory, VeryVerbose, TEXT("FSuspenseMoveOperation::CalculateEffectiveSizes: Source: %.0fx%.0f, Target: %.0fx%.0f"),
         SourceEffectiveSize.X, SourceEffectiveSize.Y,
         TargetEffectiveSize.X, TargetEffectiveSize.Y);
 }
@@ -227,7 +227,7 @@ float FSuspenseMoveOperation::GetCachedItemWeight() const
 
 // Полная валидация операции
 bool FSuspenseMoveOperation::ValidateOperation(
-    ESuspenseInventoryErrorCode& OutErrorCode, 
+    ESuspenseInventoryErrorCode& OutErrorCode,
     FString& OutErrorMessage,
     USuspenseItemManager* InItemManager) const
 {
@@ -238,7 +238,7 @@ bool FSuspenseMoveOperation::ValidateOperation(
         OutErrorMessage = TEXT("Invalid operation components");
         return false;
     }
-    
+
     // Проверка наличия кэшированных данных
     if (!bHasCachedData)
     {
@@ -246,7 +246,7 @@ bool FSuspenseMoveOperation::ValidateOperation(
         OutErrorMessage = TEXT("No cached item data available");
         return false;
     }
-    
+
     // Проверка индекса
     if (TargetIndex < 0)
     {
@@ -254,20 +254,20 @@ bool FSuspenseMoveOperation::ValidateOperation(
         OutErrorMessage = TEXT("Invalid target index");
         return false;
     }
-    
+
     // Проверка границ сетки через компонент
     FVector2D GridSize = TargetInventory->GetInventorySize();
     int32 GridWidth = static_cast<int32>(GridSize.X);
     int32 GridHeight = static_cast<int32>(GridSize.Y);
-    
+
     if (TargetIndex >= GridWidth * GridHeight)
     {
         OutErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
-        OutErrorMessage = FString::Printf(TEXT("Target index %d out of bounds (max: %d)"), 
+        OutErrorMessage = FString::Printf(TEXT("Target index %d out of bounds (max: %d)"),
             TargetIndex, GridWidth * GridHeight - 1);
         return false;
     }
-    
+
     // Проверка размещения в границах с учетом размера предмета через интерфейс компонента
     if (!TargetInventory->CanPlaceItemAtSlot(TargetEffectiveSize, TargetIndex, false))
     {
@@ -275,7 +275,7 @@ bool FSuspenseMoveOperation::ValidateOperation(
         OutErrorMessage = TEXT("Item doesn't fit at target position");
         return false;
     }
-    
+
     // Проверка весовых ограничений
     if (!ValidateWeightConstraints())
     {
@@ -283,16 +283,16 @@ bool FSuspenseMoveOperation::ValidateOperation(
         OutErrorMessage = FString::Printf(TEXT("Weight limit exceeded - item weight: %.2f"), ItemTotalWeight);
         return false;
     }
-    
+
     // Проверка типовых ограничений
     if (!ValidateItemTypeConstraints())
     {
         OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
-        OutErrorMessage = FString::Printf(TEXT("Item type %s not allowed in target inventory"), 
+        OutErrorMessage = FString::Printf(TEXT("Item type %s not allowed in target inventory"),
             *CachedItemData.ItemType.ToString());
         return false;
     }
-    
+
     OutErrorCode = ESuspenseInventoryErrorCode::Success;
     return true;
 }
@@ -305,7 +305,7 @@ bool FSuspenseMoveOperation::ValidateWeightConstraints() const
         // При перемещении между инвентарями проверяем вес в целевом через компонент
         return TargetInventory->HasWeightCapacity_Implementation(ItemTotalWeight);
     }
-    
+
     // При перемещении внутри инвентаря вес не меняется
     return true;
 }
@@ -318,14 +318,14 @@ bool FSuspenseMoveOperation::ValidateItemTypeConstraints() const
     {
         return true;
     }
-    
+
     // Проверяем разрешенные типы предметов в целевом инвентаре
     FGameplayTagContainer AllowedTypes = TargetInventory->GetAllowedItemTypes_Implementation();
     if (!AllowedTypes.IsEmpty() && !AllowedTypes.HasTag(CachedItemData.ItemType))
     {
         return false;
     }
-    
+
     return true;
 }
 
@@ -367,7 +367,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
         LogOperationDetails(FString::Printf(TEXT("Execution failed validation: %s"), *ErrorMessage), true);
         return false;
     }
-    
+
     // В новой архитектуре мы работаем с экземплярами, но все еще можем иметь Item для обратной совместимости
     // Проверяем, что у нас есть валидный экземпляр
     if (!ItemInstance.IsValid())
@@ -376,21 +376,21 @@ bool FSuspenseMoveOperation::ExecuteOperation(
         LogOperationDetails(TEXT("Invalid item instance"), true);
         return false;
     }
-    
+
     // Начинаем транзакции для обеспечения атомарности операции
     InventoryComponent->BeginTransaction();
     if (IsCrossInventoryMove())
     {
         TargetInventory->BeginTransaction();
     }
-    
+
     // Используем try-catch для безопасной обработки исключений
     try
     {
         // Проверяем, занята ли целевая позиция другим предметом
         FSuspenseInventoryItemInstance BlockingInstance;
         bool bHasBlockingItem = TargetInventory->GetItemInstanceAtSlot(TargetIndex, BlockingInstance);
-        
+
         // Если слот занят и это не тот же самый предмет
         if (bHasBlockingItem && BlockingInstance.InstanceID != ItemInstance.InstanceID)
         {
@@ -400,14 +400,14 @@ bool FSuspenseMoveOperation::ExecuteOperation(
             SwappedItemInstance = BlockingInstance;
             SwappedItemOriginalIndex = BlockingInstance.AnchorIndex;
             bSwappedItemOriginalRotated = BlockingInstance.bIsRotated;
-            
+
             // Получаем данные блокирующего предмета для проверок
             FSuspenseUnifiedItemData SwappedItemData;
             if (!InItemManager->GetUnifiedItemData(BlockingInstance.ItemID, SwappedItemData))
             {
                 OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
                 LogOperationDetails(TEXT("Failed to get data for blocking item"), true);
-                
+
                 InventoryComponent->RollbackTransaction();
                 if (IsCrossInventoryMove())
                 {
@@ -415,19 +415,19 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                 }
                 return false;
             }
-            
+
             // Проверяем возможность размещения блокирующего предмета в исходной позиции
             FVector2D SwappedItemSize(SwappedItemData.GridSize.X, SwappedItemData.GridSize.Y);
             if (bSwappedItemOriginalRotated)
             {
                 SwappedItemSize = FVector2D(SwappedItemSize.Y, SwappedItemSize.X);
             }
-            
+
             if (!InventoryComponent->CanPlaceItemAtSlot(SwappedItemSize, SourceIndex, true))
             {
                 OutErrorCode = ESuspenseInventoryErrorCode::NoSpace;
                 LogOperationDetails(TEXT("Swap failed - no space for swapped item in source position"), true);
-                
+
                 InventoryComponent->RollbackTransaction();
                 if (IsCrossInventoryMove())
                 {
@@ -435,33 +435,33 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                 }
                 return false;
             }
-            
+
             bWasSwapOperation = true;
-            LogOperationDetails(FString::Printf(TEXT("Swap operation prepared with item %s"), 
+            LogOperationDetails(FString::Printf(TEXT("Swap operation prepared with item %s"),
                 *BlockingInstance.ItemID.ToString()));
         }
-        
+
         // Выполняем фактическое перемещение
         bool bMoveSuccess = false;
-        
+
         if (IsCrossInventoryMove())
         {
             // Перемещение между разными инвентарями
             // Сначала удаляем из источника
             FSuspenseInventoryOperationResult RemoveResult = InventoryComponent->RemoveItemByID(
                 ItemInstance.ItemID, ItemInstance.Quantity);
-            
+
             if (RemoveResult.IsSuccess())
             {
                 // Создаем обновленный экземпляр для целевого инвентаря
                 FSuspenseInventoryItemInstance TargetInstance = ItemInstance;
                 TargetInstance.AnchorIndex = TargetIndex;
                 TargetInstance.bIsRotated = bTargetRotated;
-                
+
                 // Пытаемся добавить в целевой инвентарь
                 FSuspenseInventoryOperationResult AddResult = TargetInventory->AddItemInstance(TargetInstance);
                 bMoveSuccess = AddResult.IsSuccess();
-                
+
                 if (!bMoveSuccess)
                 {
                     // Если добавление не удалось, возвращаем предмет обратно
@@ -469,7 +469,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                     RestoreInstance.AnchorIndex = SourceIndex;
                     RestoreInstance.bIsRotated = bSourceRotated;
                     InventoryComponent->AddItemInstance(RestoreInstance);
-                    
+
                     OutErrorCode = AddResult.ErrorCode;
                 }
             }
@@ -487,7 +487,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                 // Используем SwapItemsInSlots для атомарного обмена
                 ESuspenseInventoryErrorCode SwapError;
                 bMoveSuccess = InventoryComponent->SwapItemsInSlots(SourceIndex, TargetIndex, SwapError);
-                
+
                 if (!bMoveSuccess)
                 {
                     OutErrorCode = SwapError;
@@ -501,14 +501,14 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                     SourceIndex, TargetIndex, !HasRotationChanged());
             }
         }
-        
+
         if (bMoveSuccess)
         {
             // Операция успешна - обновляем данные экземпляра
             ItemInstance.AnchorIndex = TargetIndex;
             ItemInstance.bIsRotated = bTargetRotated;
             ItemInstance.LastUsedTime = FPlatformTime::Seconds();
-            
+
             // Если у нас все еще есть Item (для обратной совместимости), обновляем его
             if (Item)
             {
@@ -519,14 +519,14 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                     ItemInterface->SetItemInstance(ItemInstance);
                 }
             }
-            
+
             // Коммитим все транзакции
             InventoryComponent->CommitTransaction();
             if (IsCrossInventoryMove())
             {
                 TargetInventory->CommitTransaction();
             }
-            
+
             // Отправляем уведомления об изменениях
             if (IsCrossInventoryMove())
             {
@@ -537,14 +537,14 @@ bool FSuspenseMoveOperation::ExecuteOperation(
             {
                 InventoryComponent->BroadcastInventoryUpdated();
             }
-            
+
             // Помечаем операцию как успешную
             bSuccess = true;
             OutErrorCode = ESuspenseInventoryErrorCode::Success;
-            
-            LogOperationDetails(FString::Printf(TEXT("Operation executed successfully (%s)"), 
+
+            LogOperationDetails(FString::Printf(TEXT("Operation executed successfully (%s)"),
                 *GetOperationTypeDescription()));
-            
+
             return true;
         }
         else
@@ -555,13 +555,13 @@ bool FSuspenseMoveOperation::ExecuteOperation(
             {
                 TargetInventory->RollbackTransaction();
             }
-            
+
             // Если код ошибки еще не установлен, используем общий
             if (OutErrorCode == ESuspenseInventoryErrorCode::Success)
             {
                 OutErrorCode = ESuspenseInventoryErrorCode::UnknownError;
             }
-            
+
             LogOperationDetails(TEXT("Failed to execute move operation"), true);
             return false;
         }
@@ -574,7 +574,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
         {
             TargetInventory->RollbackTransaction();
         }
-        
+
         OutErrorCode = ESuspenseInventoryErrorCode::UnknownError;
         LogOperationDetails(TEXT("Exception during operation execution"), true);
         return false;
@@ -583,7 +583,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
 
 // Обработка операции обмена
 bool FSuspenseMoveOperation::HandleSwapOperation(
-    ASuspenseInventoryItem* BlockingItem, 
+    ASuspenseInventoryItem* BlockingItem,
     ESuspenseInventoryErrorCode& OutErrorCode,
     USuspenseItemManager* InItemManager)
 {
@@ -592,8 +592,8 @@ bool FSuspenseMoveOperation::HandleSwapOperation(
         OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
         return false;
     }
-    
-    // ИСПРАВЛЕНО: Работаем через FSuspenseInventoryItemInstance вместо UObject*
+
+    // ИСПРАВЛЕНО: Работаем через FInventoryItemInstance вместо UObject*
     // Получаем экземпляр предмета в целевом слоте
     FSuspenseInventoryItemInstance TargetInstance;
     if (!TargetInventory->GetItemInstanceAtSlot(TargetIndex, TargetInstance))
@@ -602,7 +602,7 @@ bool FSuspenseMoveOperation::HandleSwapOperation(
         OutErrorCode = ESuspenseInventoryErrorCode::Success;
         return true;
     }
-    
+
     // Проверяем, что это действительно другой предмет
     if (TargetInstance.InstanceID == ItemInstance.InstanceID)
     {
@@ -610,31 +610,31 @@ bool FSuspenseMoveOperation::HandleSwapOperation(
         OutErrorCode = ESuspenseInventoryErrorCode::Success;
         return true;
     }
-    
+
     // Сохраняем информацию об обмениваемом предмете
     // В новой архитектуре мы работаем с экземплярами, а не с акторами
     SwappedItem = nullptr; // Больше не используем актор
     SwappedItemInstance = TargetInstance;
     SwappedItemOriginalIndex = TargetIndex;
     bSwappedItemOriginalRotated = TargetInstance.bIsRotated;
-    
+
     // Получаем данные обмениваемого предмета из DataTable
     FSuspenseUnifiedItemData SwappedItemData;
     if (!InItemManager->GetUnifiedItemData(SwappedItemInstance.ItemID, SwappedItemData))
     {
         OutErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
-        LogOperationDetails(FString::Printf(TEXT("Failed to get data for swapped item %s"), 
+        LogOperationDetails(FString::Printf(TEXT("Failed to get data for swapped item %s"),
             *SwappedItemInstance.ItemID.ToString()), true);
         return false;
     }
-    
+
     // Вычисляем размер обмениваемого предмета с учетом поворота
     FVector2D SwappedItemSize(SwappedItemData.GridSize.X, SwappedItemData.GridSize.Y);
     if (bSwappedItemOriginalRotated)
     {
         SwappedItemSize = FVector2D(SwappedItemSize.Y, SwappedItemSize.X);
     }
-    
+
     // Проверяем возможность размещения обмениваемого предмета в исходной позиции
     // Используем метод CanPlaceItemAtSlot, который все еще доступен
     if (!InventoryComponent->CanPlaceItemAtSlot(SwappedItemSize, SourceIndex, true))
@@ -643,13 +643,13 @@ bool FSuspenseMoveOperation::HandleSwapOperation(
         LogOperationDetails(TEXT("Swap failed - no space for swapped item in source position"), true);
         return false;
     }
-    
+
     // Проверяем весовые ограничения для обмена
     if (IsCrossInventoryMove())
     {
         float SwappedItemWeight = SwappedItemData.Weight * SwappedItemInstance.Quantity;
         float WeightDelta = ItemTotalWeight - SwappedItemWeight;
-        
+
         if (WeightDelta > 0 && !TargetInventory->HasWeightCapacity_Implementation(WeightDelta))
         {
             OutErrorCode = ESuspenseInventoryErrorCode::WeightLimit;
@@ -657,11 +657,11 @@ bool FSuspenseMoveOperation::HandleSwapOperation(
             return false;
         }
     }
-    
+
     bWasSwapOperation = true;
-    LogOperationDetails(FString::Printf(TEXT("Swap operation prepared with item %s"), 
+    LogOperationDetails(FString::Printf(TEXT("Swap operation prepared with item %s"),
         *SwappedItemInstance.ItemID.ToString()));
-    
+
     return true;
 }
 
@@ -672,27 +672,27 @@ void FSuspenseMoveOperation::ApplyNewState()
     {
         return;
     }
-    
+
     // Получаем интерфейс предмета
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         return;
     }
-    
+
     // Применяем поворот если нужно
     if (bSourceRotated != bTargetRotated)
     {
         ItemInterface->SetRotated(bTargetRotated);
-        UE_LOG(LogInventory, VeryVerbose, TEXT("Applied rotation change: %s -> %s"), 
+        UE_LOG(LogInventory, VeryVerbose, TEXT("Applied rotation change: %s -> %s"),
             bSourceRotated ? TEXT("Rotated") : TEXT("Normal"),
             bTargetRotated ? TEXT("Rotated") : TEXT("Normal"));
     }
-    
+
     // Обновляем anchor index
     ItemInterface->SetAnchorIndex(TargetIndex);
-    
-    LogOperationDetails(FString::Printf(TEXT("Applied new state - Rotated: %s"), 
+
+    LogOperationDetails(FString::Printf(TEXT("Applied new state - Rotated: %s"),
         bTargetRotated ? TEXT("Yes") : TEXT("No")));
 }
 
@@ -703,16 +703,16 @@ void FSuspenseMoveOperation::RestoreOriginalState()
     {
         return;
     }
-    
+
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         return;
     }
-    
+
     // Восстанавливаем исходный поворот
     ItemInterface->SetRotated(bSourceRotated);
-    
+
     // Восстанавливаем исходный anchor index
     ItemInterface->SetAnchorIndex(SourceIndex);
 }
@@ -724,21 +724,21 @@ void FSuspenseMoveOperation::UpdateRuntimeProperties()
     {
         return;
     }
-    
+
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
     {
         return;
     }
-    
+
     // Обновляем время последнего перемещения
     ItemInstance.LastUsedTime = FPlatformTime::Seconds();
     ItemInstance.AnchorIndex = TargetIndex;
     ItemInstance.bIsRotated = bTargetRotated;
-    
+
     // Применяем обновленный экземпляр к актору
     ItemInterface->SetItemInstance(ItemInstance);
-    
+
     LogOperationDetails(TEXT("Updated runtime properties"));
 }
 
@@ -748,7 +748,7 @@ void FSuspenseMoveOperation::LogOperationDetails(const FString& Message, bool bI
     // ИСПРАВЛЕНО: Используем другое имя для локальной переменной, чтобы избежать затенения
     const FString OperationTypeStr = GetOperationTypeDescription();
     FString ItemName = TEXT("None");
-    
+
     if (Item)
     {
         if (const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item))
@@ -760,7 +760,7 @@ void FSuspenseMoveOperation::LogOperationDetails(const FString& Message, bool bI
             ItemName = Item->GetName();
         }
     }
-    
+
     const FString Details = FString::Printf(
         TEXT("[MoveOp] %s - Item: %s, Source: %d, Target: %d, CrossInv: %s, Swap: %s - %s"),
         *OperationTypeStr,  // Используем переименованную переменную
@@ -771,7 +771,7 @@ void FSuspenseMoveOperation::LogOperationDetails(const FString& Message, bool bI
         bWasSwapOperation ? TEXT("Yes") : TEXT("No"),
         *Message
     );
-    
+
     if (bIsError)
     {
         UE_LOG(LogInventory, Error, TEXT("%s"), *Details);
@@ -794,7 +794,7 @@ bool FSuspenseMoveOperation::Undo()
     {
         return false;
     }
-    
+
     // Получаем item interface
     ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item);
     if (!ItemInterface)
@@ -802,18 +802,18 @@ bool FSuspenseMoveOperation::Undo()
         LogOperationDetails(TEXT("Undo failed - item interface not available"), true);
         return false;
     }
-    
+
     // Начинаем транзакции для отката
     InventoryComponent->BeginTransaction();
     if (IsCrossInventoryMove())
     {
         TargetInventory->BeginTransaction();
     }
-    
+
     try
     {
         bool bUndoSuccess = false;
-        
+
         if (IsCrossInventoryMove())
         {
             // Cross-inventory undo - удаляем из цели и добавляем в источник
@@ -821,12 +821,12 @@ bool FSuspenseMoveOperation::Undo()
             {
                 // Восстанавливаем исходное состояние
                 RestoreOriginalState();
-                
+
                 // Создаем instance для восстановления в источнике
                 FSuspenseInventoryItemInstance RestoreInstance = ItemInstance;
                 RestoreInstance.AnchorIndex = SourceIndex;
                 RestoreInstance.bIsRotated = bSourceRotated;
-                
+
                 FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(RestoreInstance);
                 bUndoSuccess = AddResult.IsSuccess();
             }
@@ -836,14 +836,14 @@ bool FSuspenseMoveOperation::Undo()
             // Внутренний undo - перемещаем обратно
             bUndoSuccess = InventoryComponent->MoveItemBySlots_Implementation(
                 TargetIndex, SourceIndex, true);
-            
+
             if (bUndoSuccess)
             {
                 // Восстанавливаем исходное состояние поворота
                 RestoreOriginalState();
             }
         }
-        
+
         // Если был своп, восстанавливаем обмененный предмет
         if (bUndoSuccess && bWasSwapOperation && SwappedItem)
         {
@@ -854,7 +854,7 @@ bool FSuspenseMoveOperation::Undo()
                 LogOperationDetails(TEXT("Warning: Failed to restore swapped item during undo"), false);
             }
         }
-        
+
         if (bUndoSuccess)
         {
             // Коммитим транзакции
@@ -863,7 +863,7 @@ bool FSuspenseMoveOperation::Undo()
             {
                 TargetInventory->CommitTransaction();
             }
-            
+
             LogOperationDetails(TEXT("Operation undone"));
             return true;
         }
@@ -875,7 +875,7 @@ bool FSuspenseMoveOperation::Undo()
             {
                 TargetInventory->RollbackTransaction();
             }
-            
+
             LogOperationDetails(TEXT("Undo failed"), true);
             return false;
         }
@@ -888,7 +888,7 @@ bool FSuspenseMoveOperation::Undo()
         {
             TargetInventory->RollbackTransaction();
         }
-        
+
         LogOperationDetails(TEXT("Exception during undo operation"), true);
         return false;
     }
@@ -906,17 +906,17 @@ bool FSuspenseMoveOperation::Redo()
     {
         return false;
     }
-    
+
     // ИСПРАВЛЕНО: используем другое имя для локальной переменной
     ESuspenseInventoryErrorCode RedoErrorCode;
     USuspenseItemManager* ItemManager = InventoryComponent->GetItemManager();
-    
+
     if (!ItemManager)
     {
         LogOperationDetails(TEXT("Redo failed - ItemManager not available"), true);
         return false;
     }
-    
+
     return ExecuteOperation(RedoErrorCode, ItemManager);
 }
 
@@ -924,7 +924,7 @@ bool FSuspenseMoveOperation::Redo()
 FString FSuspenseMoveOperation::ToString() const
 {
     FString ItemName = TEXT("None");
-    
+
     if (Item)
     {
         if (const ISuspenseInventoryItemInterface* ItemInterface = Cast<ISuspenseInventoryItemInterface>(Item))
@@ -936,7 +936,7 @@ FString FSuspenseMoveOperation::ToString() const
             ItemName = Item->GetName();
         }
     }
-    
+
     return FString::Printf(
         TEXT("MoveOp[%s, Item=%s, Src=%d(%.0fx%.0f), Tgt=%d(%.0fx%.0f), Weight=%.2f, CrossInv=%s, Swap=%s, Success=%s]"),
         *GetOperationTypeDescription(),

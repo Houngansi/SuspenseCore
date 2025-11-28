@@ -134,8 +134,8 @@ public:
     // Events & delegates
     virtual void BroadcastInventoryUpdated() override;
     virtual USuspenseEventManager* GetDelegateManager() const override;
-    virtual void BindToInventoryUpdates(const FOnSuspenseInventoryUpdated::FDelegate& Delegate) override;
-    virtual void UnbindFromInventoryUpdates(const FOnSuspenseInventoryUpdated::FDelegate& Delegate) override;
+    virtual void BindToInventoryUpdates(const FSuspenseOnInventoryUpdated::FDelegate& Delegate) override;
+    virtual void UnbindFromInventoryUpdates(const FSuspenseOnInventoryUpdated::FDelegate& Delegate) override;
 
     // Debug & utility
     virtual bool GetInventoryCoordinates(int32 Index, int32& OutX, int32& OutY) const override;

@@ -8,8 +8,8 @@
 #include "WeaponSwitchAbility.generated.h"
 
 class USuspenseEventManager;
-class IMedComEquipmentInterface;
-class IMedComWeaponInterface;
+class ISuspenseEquipment;
+class ISuspenseWeapon;
 struct FAnimationStateData;
 
 /**
@@ -137,7 +137,7 @@ protected:
     //==================================================================
     
     /** Find equipment interface on owner */
-    TScriptInterface<IMedComEquipmentInterface> FindEquipmentInterface() const;
+    TScriptInterface<ISuspenseEquipment> FindEquipmentInterface() const;
     
     /** Get all equipment slots that contain weapons */
     TArray<int32> GetWeaponSlotIndices() const;
@@ -198,7 +198,7 @@ private:
     class UAnimMontage* CurrentDrawMontage;
     
     /** Cached equipment interface */
-    TScriptInterface<IMedComEquipmentInterface> CachedEquipmentInterface;
+    TScriptInterface<ISuspenseEquipment> CachedEquipmentInterface;
     
     /** Track last active slot for quick switch */
     mutable int32 LastActiveWeaponSlot;

@@ -1758,7 +1758,7 @@ USuspenseEquipmentUIBridge* USuspenseUIManager::CreateEquipmentUIBridge(APlayerC
     return Bridge;
 }
 
-USuspenseEquipmentUIBridgeInterface* USuspenseUIManager::GetEquipmentUIBridge() const
+USuspenseEquipmentUIBridge* USuspenseUIManager::GetEquipmentUIBridge() const
 {
     return EquipmentUIBridge;
 }

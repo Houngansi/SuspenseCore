@@ -37,6 +37,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentPrediction, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentNetwork, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentValidation, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentOperation, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentReplication, Log, All);
 
 //========================================
 /* Thread Safety Macros */

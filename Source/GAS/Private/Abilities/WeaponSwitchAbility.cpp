@@ -533,9 +533,9 @@ void UWeaponSwitchAbility::ClientConfirmWeaponSwitch_Implementation(int32 NewAct
         bSuccess ? TEXT("Success") : TEXT("Failed"), NewActiveSlot));
 }
 
-TScriptInterface<IMedComEquipmentInterface> UWeaponSwitchAbility::FindEquipmentInterface() const
+TScriptInterface<ISuspenseEquipment> UWeaponSwitchAbility::FindEquipmentInterface() const
 {
-    TScriptInterface<IMedComEquipmentInterface> Result;
+    TScriptInterface<ISuspenseEquipment> Result;
 
     if (!CurrentActorInfo || !CurrentActorInfo->AvatarActor.IsValid())
     {
@@ -719,7 +719,7 @@ void UWeaponSwitchAbility::SendWeaponSwitchEvent(bool bStarted, int32 FromSlot, 
 bool UWeaponSwitchAbility::CanSwitchWeapons() const
 {
     // Find equipment interface
-    TScriptInterface<IMedComEquipmentInterface> EquipInterface = FindEquipmentInterface();
+    TScriptInterface<ISuspenseEquipment> EquipInterface = FindEquipmentInterface();
     if (!EquipInterface.GetInterface())
     {
         LogSwitchDebug(TEXT("No equipment interface found"));

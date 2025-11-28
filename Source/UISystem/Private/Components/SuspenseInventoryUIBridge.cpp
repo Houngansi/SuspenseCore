@@ -3,7 +3,7 @@
 #include "Components/SuspenseInventoryUIBridge.h"
 #include "Widgets/Inventory/SuspenseInventoryWidget.h"
 #include "Components/SuspenseUIManager.h"
-#include "Delegates/EventDelegateManager.h"
+#include "Delegates/SuspenseEventManager.h"
 #include "Types/Inventory/InventoryTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Loadout/MedComItemDataTable.h"

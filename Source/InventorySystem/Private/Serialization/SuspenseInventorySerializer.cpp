@@ -162,7 +162,7 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
         int32 FailureCount = 0;
         
         // ИСПРАВЛЕНО: Используем FSuspenseItemSystemAccess вместо прямого обращения
-        USuspenseItemManager* ItemManager = FSuspenseItemSystemAccess::GetItemManager(InventoryComponent);
+        USuspenseItemManager* ItemManager = FItemSystemAccess::GetItemManager(InventoryComponent);
         if (!ItemManager)
         {
             UE_LOG(LogInventory, Error, TEXT("DeserializeInventory: ItemManager not available"));
@@ -456,7 +456,7 @@ bool USuspenseInventorySerializer::ValidateSerializedData(const FSerializedInven
         const FWorldContext& WorldContext = GEngine->GetWorldContexts()[0];
         if (WorldContext.World())
         {
-            ItemManager = FSuspenseItemSystemAccess::GetItemManager(WorldContext.World());
+            ItemManager = FItemSystemAccess::GetItemManager(WorldContext.World());
         }
     }
     
@@ -816,7 +816,7 @@ bool USuspenseInventorySerializer::JsonToStruct(const FString& JsonString, FSeri
 USuspenseItemManager* USuspenseInventorySerializer::GetItemManager(const UObject* WorldContext)
 {
     // ИСПРАВЛЕНО: Используем FSuspenseItemSystemAccess вместо прямого обращения
-    return FSuspenseItemSystemAccess::GetItemManager(WorldContext);
+    return FItemSystemAccess::GetItemManager(WorldContext);
 }
 
 bool USuspenseInventorySerializer::ValidateItemInstance(const FSuspenseInventoryItemInstance& Instance, 

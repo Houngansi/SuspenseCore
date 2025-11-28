@@ -17,6 +17,7 @@ DEFINE_LOG_CATEGORY(LogEquipmentPrediction);
 DEFINE_LOG_CATEGORY(LogEquipmentNetwork);
 DEFINE_LOG_CATEGORY(LogEquipmentValidation);
 DEFINE_LOG_CATEGORY(LogEquipmentOperation);
+DEFINE_LOG_CATEGORY(LogEquipmentReplication);
 
 #define LOCTEXT_NAMESPACE "FEquipmentSystemModule"
 

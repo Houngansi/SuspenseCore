@@ -520,7 +520,7 @@ bool USuspenseGameInstance::ValidateItemConfigurations()
     UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Total Items in DataTable: %d"), ItemManager->GetCachedItemCount());
     UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Valid Items: %d"), ItemManager->GetValidItemCount());
     UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Items with Errors: %d"), ErrorCount);
-    UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Critical Items Validated: %d"), CriticalErrors.Num() == 0 ? TEXT("All passed") : *FString::Printf(TEXT("%d failed"), CriticalErrors.Num()));
+    UE_LOG(LogSuspenseGameInstance, Warning, TEXT("Critical Items Validated: %s"), CriticalErrors.Num() == 0 ? TEXT("All passed") : *FString::Printf(TEXT("%d failed"), CriticalErrors.Num()));
     UE_LOG(LogSuspenseGameInstance, Warning, TEXT("================================"));
 
     // Return true only if:

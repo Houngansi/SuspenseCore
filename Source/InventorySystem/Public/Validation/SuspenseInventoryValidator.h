@@ -7,7 +7,7 @@
 #include "UObject/NoExportTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Operations/InventoryResult.h"
+#include "Operations/SuspenseInventoryResult.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseInventoryValidator.generated.h"
 

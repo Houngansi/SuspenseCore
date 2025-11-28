@@ -2,7 +2,7 @@
 
 #include "Base/SuspenseInventoryItem.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "ItemSystem/SuspenseItemSystemAccess.h"
+#include "ItemSystem/SuspenseItemSystemAccess.h"  // Provides FItemSystemAccess
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/World.h"
@@ -36,8 +36,8 @@ void ASuspenseInventoryItem::BeginPlay()
 {
     Super::BeginPlay();
     
-    // УЛУЧШЕНО: Используем FSuspenseItemSystemAccess для надежного получения ItemManager
-    CachedItemManager = FSuspenseItemSystemAccess::GetItemManager(this);
+    // УЛУЧШЕНО: Используем FItemSystemAccess для надежного получения ItemManager
+    CachedItemManager = FItemSystemAccess::GetItemManager(this);
     
     if (CachedItemManager)
     {
@@ -137,8 +137,8 @@ USuspenseItemManager* ASuspenseInventoryItem::GetItemManager() const
         return CachedItemManager;
     }
     
-    // УЛУЧШЕНО: Используем FSuspenseItemSystemAccess для получения ItemManager с полной валидацией
-    CachedItemManager = FSuspenseItemSystemAccess::GetItemManager(this);
+    // УЛУЧШЕНО: Используем FItemSystemAccess для получения ItemManager с полной валидацией
+    CachedItemManager = FItemSystemAccess::GetItemManager(this);
     
     if (CachedItemManager)
     {

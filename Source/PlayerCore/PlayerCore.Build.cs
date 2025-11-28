@@ -12,6 +12,8 @@ public class PlayerCore : ModuleRules
                 "Core",
                 "CinematicCamera",
                 "GameplayAbilities",
+                "GameplayTags",
+                "UMG",
                 "BridgeSystem",
                 "InventorySystem",
                 "EquipmentSystem",

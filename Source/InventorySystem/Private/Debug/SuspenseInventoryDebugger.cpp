@@ -591,7 +591,7 @@ bool USuspenseInventoryDebugger::ValidateGridInstanceIntegrity(TArray<FString>& 
 bool USuspenseInventoryDebugger::ValidateDataTableReferences(TArray<FName>& OutMissingItems) const
 {
     OutMissingItems.Empty();
-
+    
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
@@ -743,7 +743,7 @@ FString USuspenseInventoryDebugger::RunGridPerformanceTest(int32 GridTestCount) 
 FString USuspenseInventoryDebugger::RunInstanceCreationTest(int32 InstanceCount) const
 {
     FString Result = FString::Printf(TEXT("--- Instance Creation Test (%d instances) ---\n"), InstanceCount);
-
+    
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
@@ -1035,7 +1035,7 @@ USuspenseItemManager* USuspenseInventoryDebugger::GetItemManager() const
     {
         return nullptr;
     }
-
+    
     return GameInstance->GetSubsystem<USuspenseItemManager>();
 }
 
@@ -1087,7 +1087,7 @@ FString USuspenseInventoryDebugger::FormatMemorySize(int32 SizeInBytes)
 FString USuspenseInventoryDebugger::RunDataTableAccessTest(int32 AccessCount) const
 {
     FString Result = FString::Printf(TEXT("--- DataTable Access Test (%d accesses) ---\n"), AccessCount);
-
+    
     USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {

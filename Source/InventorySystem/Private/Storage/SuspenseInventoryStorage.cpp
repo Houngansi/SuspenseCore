@@ -4,10 +4,10 @@
 #include "Storage/SuspenseInventoryStorage.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Interfaces/Inventory/ISuspenseInventoryItemInterface.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "Base/InventoryLogs.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 //==================================================================
 // Constructor and Lifecycle Implementation
@@ -157,7 +157,7 @@ int32 USuspenseInventoryStorage::GetFreeCellCount() const
 // Item Instance Management Implementation
 //==================================================================
 
-bool USuspenseInventoryStorage::AddItemInstance(const FInventoryItemInstance& ItemInstance, bool bAllowRotation)
+bool USuspenseInventoryStorage::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, bool bAllowRotation)
 {
     if (!bInitialized)
     {
@@ -228,7 +228,7 @@ bool USuspenseInventoryStorage::RemoveItemInstance(const FGuid& InstanceID)
     UE_LOG(LogSuspenseInventory, VeryVerbose, TEXT("RemoveItemInstance: Removing instance %s"), *InstanceID.ToString());
 
     // Find instance
-    FInventoryItemInstance* FoundInstance = FindStoredInstance(InstanceID);
+    FSuspenseInventoryItemInstance* FoundInstance = FindStoredInstance(InstanceID);
     if (!FoundInstance)
     {
         UE_LOG(LogSuspenseInventory, Warning, TEXT("RemoveItemInstance: Instance not found: %s"), *InstanceID.ToString());
@@ -243,7 +243,7 @@ bool USuspenseInventoryStorage::RemoveItemInstance(const FGuid& InstanceID)
     }
 
     // Remove from runtime instances array
-    StoredInstances.RemoveAll([&InstanceID](const FInventoryItemInstance& Instance)
+    StoredInstances.RemoveAll([&InstanceID](const FSuspenseInventoryItemInstance& Instance)
     {
         return Instance.InstanceID == InstanceID;
     });
@@ -254,14 +254,14 @@ bool USuspenseInventoryStorage::RemoveItemInstance(const FGuid& InstanceID)
     return true;
 }
 
-bool USuspenseInventoryStorage::GetItemInstance(const FGuid& InstanceID, FInventoryItemInstance& OutInstance) const
+bool USuspenseInventoryStorage::GetItemInstance(const FGuid& InstanceID, FSuspenseInventoryItemInstance& OutInstance) const
 {
     if (!bInitialized || !InstanceID.IsValid())
     {
         return false;
     }
 
-    const FInventoryItemInstance* FoundInstance = FindStoredInstance(InstanceID);
+    const FSuspenseInventoryItemInstance* FoundInstance = FindStoredInstance(InstanceID);
     if (FoundInstance)
     {
         OutInstance = *FoundInstance;
@@ -271,12 +271,12 @@ bool USuspenseInventoryStorage::GetItemInstance(const FGuid& InstanceID, FInvent
     return false;
 }
 
-TArray<FInventoryItemInstance> USuspenseInventoryStorage::GetAllItemInstances() const
+TArray<FSuspenseInventoryItemInstance> USuspenseInventoryStorage::GetAllItemInstances() const
 {
     return StoredInstances;
 }
 
-bool USuspenseInventoryStorage::UpdateItemInstance(const FInventoryItemInstance& UpdatedInstance)
+bool USuspenseInventoryStorage::UpdateItemInstance(const FSuspenseInventoryItemInstance& UpdatedInstance)
 {
     if (!bInitialized || !UpdatedInstance.IsValid())
     {
@@ -284,7 +284,7 @@ bool USuspenseInventoryStorage::UpdateItemInstance(const FInventoryItemInstance&
     }
 
     // Find existing instance
-    FInventoryItemInstance* ExistingInstance = FindStoredInstance(UpdatedInstance.InstanceID);
+    FSuspenseInventoryItemInstance* ExistingInstance = FindStoredInstance(UpdatedInstance.InstanceID);
     if (!ExistingInstance)
     {
         UE_LOG(LogSuspenseInventory, Warning, TEXT("UpdateItemInstance: Instance not found: %s"),
@@ -431,7 +431,7 @@ bool USuspenseInventoryStorage::AreCellsFree(int32 StartIndex, const FVector2D& 
     return true;
 }
 
-bool USuspenseInventoryStorage::PlaceItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex)
+bool USuspenseInventoryStorage::PlaceItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex)
 {
     if (!bInitialized || !ItemInstance.IsValid() || !IsValidIndex(AnchorIndex))
     {
@@ -446,7 +446,7 @@ bool USuspenseInventoryStorage::PlaceItemInstance(const FInventoryItemInstance& 
     }
 
     // Create copy with proper placement
-    FInventoryItemInstance PlacedInstance = ItemInstance;
+    FSuspenseInventoryItemInstance PlacedInstance = ItemInstance;
     PlacedInstance.AnchorIndex = AnchorIndex;
 
     // Add to runtime instances array
@@ -456,7 +456,7 @@ bool USuspenseInventoryStorage::PlaceItemInstance(const FInventoryItemInstance& 
     if (!PlaceInstanceInCells(PlacedInstance, AnchorIndex))
     {
         // Rollback on failure
-        StoredInstances.RemoveAll([&PlacedInstance](const FInventoryItemInstance& Instance)
+        StoredInstances.RemoveAll([&PlacedInstance](const FSuspenseInventoryItemInstance& Instance)
         {
             return Instance.InstanceID == PlacedInstance.InstanceID;
         });
@@ -478,7 +478,7 @@ bool USuspenseInventoryStorage::MoveItem(const FGuid& InstanceID, int32 NewAncho
         return false;
     }
 
-    FInventoryItemInstance* ExistingInstance = FindStoredInstance(InstanceID);
+    FSuspenseInventoryItemInstance* ExistingInstance = FindStoredInstance(InstanceID);
     if (!ExistingInstance)
     {
         UE_LOG(LogSuspenseInventory, Warning, TEXT("MoveItem: Instance not found: %s"), *InstanceID.ToString());
@@ -495,7 +495,7 @@ bool USuspenseInventoryStorage::MoveItem(const FGuid& InstanceID, int32 NewAncho
     }
 
     // Create complete backup
-    FInventoryItemInstance BackupInstance = *ExistingInstance;
+    FSuspenseInventoryItemInstance BackupInstance = *ExistingInstance;
     TArray<FInventoryCell> BackupCells;
 
     TArray<int32> OccupiedCellsList = GetOccupiedCells(InstanceID);
@@ -507,7 +507,7 @@ bool USuspenseInventoryStorage::MoveItem(const FGuid& InstanceID, int32 NewAncho
         }
     }
 
-    FInventoryItemInstance TempInstance = *ExistingInstance;
+    FSuspenseInventoryItemInstance TempInstance = *ExistingInstance;
 
     BeginTransaction();
 
@@ -550,7 +550,7 @@ bool USuspenseInventoryStorage::MoveItem(const FGuid& InstanceID, int32 NewAncho
 
     RollbackTransaction();
 
-    FInventoryItemInstance* RestoredInstance = FindStoredInstance(InstanceID);
+    FSuspenseInventoryItemInstance* RestoredInstance = FindStoredInstance(InstanceID);
     if (!RestoredInstance)
     {
         UE_LOG(LogSuspenseInventory, Error, TEXT("MoveItem: CRITICAL - Item lost during move, recreating from backup"));
@@ -587,7 +587,7 @@ bool USuspenseInventoryStorage::MoveItem(const FGuid& InstanceID, int32 NewAncho
 // Item Queries and Access Implementation
 //==================================================================
 
-bool USuspenseInventoryStorage::GetItemInstanceAt(int32 Index, FInventoryItemInstance& OutInstance) const
+bool USuspenseInventoryStorage::GetItemInstanceAt(int32 Index, FSuspenseInventoryItemInstance& OutInstance) const
 {
     if (!bInitialized || !IsValidIndex(Index))
     {
@@ -600,7 +600,7 @@ bool USuspenseInventoryStorage::GetItemInstanceAt(int32 Index, FInventoryItemIns
         return false;
     }
 
-    const FInventoryItemInstance* FoundInstance = FindStoredInstance(Cell.OccupyingInstanceID);
+    const FSuspenseInventoryItemInstance* FoundInstance = FindStoredInstance(Cell.OccupyingInstanceID);
     if (FoundInstance)
     {
         OutInstance = *FoundInstance;
@@ -619,7 +619,7 @@ int32 USuspenseInventoryStorage::GetItemCountByID(const FName& ItemID) const
 
     int32 TotalCount = 0;
 
-    for (const FInventoryItemInstance& Instance : StoredInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         if (Instance.ItemID == ItemID)
         {
@@ -630,9 +630,9 @@ int32 USuspenseInventoryStorage::GetItemCountByID(const FName& ItemID) const
     return TotalCount;
 }
 
-TArray<FInventoryItemInstance> USuspenseInventoryStorage::FindItemsByType(const FGameplayTag& ItemType) const
+TArray<FSuspenseInventoryItemInstance> USuspenseInventoryStorage::FindItemsByType(const FGameplayTag& ItemType) const
 {
-    TArray<FInventoryItemInstance> FoundItems;
+    TArray<FSuspenseInventoryItemInstance> FoundItems;
 
     if (!bInitialized || !ItemType.IsValid())
     {
@@ -645,7 +645,7 @@ TArray<FInventoryItemInstance> USuspenseInventoryStorage::FindItemsByType(const 
         return FoundItems;
     }
 
-    for (const FInventoryItemInstance& Instance : StoredInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
@@ -698,7 +698,7 @@ float USuspenseInventoryStorage::GetCurrentWeight() const
         return 0.0f;
     }
 
-    for (const FInventoryItemInstance& Instance : StoredInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
@@ -851,7 +851,7 @@ bool USuspenseInventoryStorage::ValidateStorageIntegrity(TArray<FString>& OutErr
         }
     }
 
-    for (const FInventoryItemInstance& Instance : StoredInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         StoredInstanceIDs.Add(Instance.InstanceID);
 
@@ -889,7 +889,7 @@ bool USuspenseInventoryStorage::ValidateStorageIntegrity(TArray<FString>& OutErr
 
     for (const FGuid& StoredInstanceID : StoredInstanceIDs)
     {
-        const FInventoryItemInstance* Instance = FindStoredInstance(StoredInstanceID);
+        const FSuspenseInventoryItemInstance* Instance = FindStoredInstance(StoredInstanceID);
         if (Instance && Instance->IsPlacedInInventory())
         {
             if (!CellInstanceIDs.Contains(StoredInstanceID))
@@ -951,7 +951,7 @@ FString USuspenseInventoryStorage::GetStorageDebugInfo() const
     if (StoredInstances.Num() > 0)
     {
         DebugInfo += TEXT("\nRuntime Instances:\n");
-        for (const FInventoryItemInstance& Instance : StoredInstances)
+        for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
         {
             DebugInfo += FString::Printf(TEXT("  %s\n"), *Instance.GetDebugString());
         }
@@ -971,11 +971,11 @@ int32 USuspenseInventoryStorage::DefragmentStorage()
 
     BeginTransaction();
 
-    TArray<FInventoryItemInstance> AllInstances = StoredInstances;
+    TArray<FSuspenseInventoryItemInstance> AllInstances = StoredInstances;
 
     ClearAllItems();
 
-    AllInstances.Sort([this](const FInventoryItemInstance& A, const FInventoryItemInstance& B)
+    AllInstances.Sort([this](const FSuspenseInventoryItemInstance& A, const FSuspenseInventoryItemInstance& B)
     {
         FSuspenseUnifiedItemData DataA, DataB;
         float AreaA = 1.0f, AreaB = 1.0f;
@@ -1004,7 +1004,7 @@ int32 USuspenseInventoryStorage::DefragmentStorage()
     });
 
     int32 MovedCount = 0;
-    for (const FInventoryItemInstance& Instance : AllInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
     {
         if (AddItemInstance(Instance, true))
         {
@@ -1068,7 +1068,7 @@ bool USuspenseInventoryStorage::GetItemData(const FName& ItemID, FSuspenseUnifie
     return ItemManager->GetUnifiedItemData(ItemID, OutData);
 }
 
-bool USuspenseInventoryStorage::PlaceInstanceInCells(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex)
+bool USuspenseInventoryStorage::PlaceInstanceInCells(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex)
 {
     if (!bInitialized || !ItemInstance.IsValid() || !IsValidIndex(AnchorIndex))
     {
@@ -1185,9 +1185,9 @@ bool USuspenseInventoryStorage::RemoveInstanceFromCells(const FGuid& InstanceID)
     return bRemovedAny;
 }
 
-FInventoryItemInstance* USuspenseInventoryStorage::FindStoredInstance(const FGuid& InstanceID)
+FSuspenseInventoryItemInstance* USuspenseInventoryStorage::FindStoredInstance(const FGuid& InstanceID)
 {
-    for (FInventoryItemInstance& Instance : StoredInstances)
+    for (FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         if (Instance.InstanceID == InstanceID)
         {
@@ -1197,9 +1197,9 @@ FInventoryItemInstance* USuspenseInventoryStorage::FindStoredInstance(const FGui
     return nullptr;
 }
 
-const FInventoryItemInstance* USuspenseInventoryStorage::FindStoredInstance(const FGuid& InstanceID) const
+const FSuspenseInventoryItemInstance* USuspenseInventoryStorage::FindStoredInstance(const FGuid& InstanceID) const
 {
-    for (const FInventoryItemInstance& Instance : StoredInstances)
+    for (const FSuspenseInventoryItemInstance& Instance : StoredInstances)
     {
         if (Instance.InstanceID == InstanceID)
         {

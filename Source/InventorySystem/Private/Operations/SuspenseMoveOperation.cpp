@@ -3,13 +3,13 @@
 #include "Operations/SuspenseMoveOperation.h"
 #include "Base/SuspenseInventoryItem.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Base/SuspenseInventoryLogs.h"
 
 // Конструктор с полной инициализацией
 FSuspenseMoveOperation::FSuspenseMoveOperation(
     USuspenseInventoryComponent* InComponent, 
-    AMedComInventoryItem* InItem, 
+    ASuspenseInventoryItem* InItem, 
     int32 InTargetIndex, 
     bool InTargetRotated, 
     USuspenseInventoryComponent* InTargetInventory)
@@ -41,11 +41,11 @@ FSuspenseMoveOperation::FSuspenseMoveOperation(
 // Статический метод создания с валидацией
 FSuspenseMoveOperation FSuspenseMoveOperation::Create(
     USuspenseInventoryComponent* InComponent, 
-    AMedComInventoryItem* InItem, 
+    ASuspenseInventoryItem* InItem, 
     int32 InTargetIndex, 
     bool InTargetRotated, 
     USuspenseInventoryComponent* InTargetInventory,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     FSuspenseMoveOperation Operation(InComponent, InItem, InTargetIndex, InTargetRotated, InTargetInventory);
     
@@ -96,9 +96,9 @@ FSuspenseMoveOperation FSuspenseMoveOperation::Create(
 // Создание с автоматическим определением оптимального поворота
 FSuspenseMoveOperation FSuspenseMoveOperation::CreateWithOptimalRotation(
     USuspenseInventoryComponent* InComponent,
-    AMedComInventoryItem* InItem,
+    ASuspenseInventoryItem* InItem,
     int32 InTargetIndex,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     if (!InComponent || !InItem || !InItemManager)
     {
@@ -145,7 +145,7 @@ FSuspenseMoveOperation FSuspenseMoveOperation::CreateWithOptimalRotation(
     return Create(InComponent, InItem, InTargetIndex, bOptimalRotation, nullptr, InItemManager);
 }
 
-bool FSuspenseMoveOperation::CacheItemDataFromTable(UMedComItemManager* InItemManager)
+bool FSuspenseMoveOperation::CacheItemDataFromTable(USuspenseItemManager* InItemManager)
 {
     if (!InItemManager || !Item)
     {
@@ -229,7 +229,7 @@ float FSuspenseMoveOperation::GetCachedItemWeight() const
 bool FSuspenseMoveOperation::ValidateOperation(
     EInventoryErrorCode& OutErrorCode, 
     FString& OutErrorMessage,
-    UMedComItemManager* InItemManager) const
+    USuspenseItemManager* InItemManager) const
 {
     // Проверка базовых компонентов
     if (!Item || !InventoryComponent || !TargetInventory)
@@ -357,7 +357,7 @@ FString FSuspenseMoveOperation::GetOperationTypeDescription() const
 // Выполнение операции
 bool FSuspenseMoveOperation::ExecuteOperation(
     EInventoryErrorCode& OutErrorCode,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     // Начинаем с финальной валидации операции
     // Это критически важно для обеспечения целостности данных
@@ -448,7 +448,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
         {
             // Перемещение между разными инвентарями
             // Сначала удаляем из источника
-            FInventoryOperationResult RemoveResult = InventoryComponent->RemoveItemByID(
+            FSuspenseInventoryOperationResult RemoveResult = InventoryComponent->RemoveItemByID(
                 ItemInstance.ItemID, ItemInstance.Quantity);
             
             if (RemoveResult.IsSuccess())
@@ -459,7 +459,7 @@ bool FSuspenseMoveOperation::ExecuteOperation(
                 TargetInstance.bIsRotated = bTargetRotated;
                 
                 // Пытаемся добавить в целевой инвентарь
-                FInventoryOperationResult AddResult = TargetInventory->AddItemInstance(TargetInstance);
+                FSuspenseInventoryOperationResult AddResult = TargetInventory->AddItemInstance(TargetInstance);
                 bMoveSuccess = AddResult.IsSuccess();
                 
                 if (!bMoveSuccess)
@@ -583,9 +583,9 @@ bool FSuspenseMoveOperation::ExecuteOperation(
 
 // Обработка операции обмена
 bool FSuspenseMoveOperation::HandleSwapOperation(
-    AMedComInventoryItem* BlockingItem, 
+    ASuspenseInventoryItem* BlockingItem, 
     EInventoryErrorCode& OutErrorCode,
-    UMedComItemManager* InItemManager)
+    USuspenseItemManager* InItemManager)
 {
     if (!BlockingItem || !InItemManager)
     {
@@ -827,7 +827,7 @@ bool FSuspenseMoveOperation::Undo()
                 RestoreInstance.AnchorIndex = SourceIndex;
                 RestoreInstance.bIsRotated = bSourceRotated;
                 
-                FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(RestoreInstance);
+                FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(RestoreInstance);
                 bUndoSuccess = AddResult.IsSuccess();
             }
         }
@@ -909,7 +909,7 @@ bool FSuspenseMoveOperation::Redo()
     
     // ИСПРАВЛЕНО: используем другое имя для локальной переменной
     EInventoryErrorCode RedoErrorCode;
-    UMedComItemManager* ItemManager = InventoryComponent->GetItemManager();
+    USuspenseItemManager* ItemManager = InventoryComponent->GetItemManager();
     
     if (!ItemManager)
     {

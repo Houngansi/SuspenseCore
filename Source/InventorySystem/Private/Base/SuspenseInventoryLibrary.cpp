@@ -1,9 +1,9 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Base/SuspenseInventoryLibrary.h"
-#include "ItemSystem/MedComItemManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "Base/SuspenseInventoryItem.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Internationalization/Text.h"
@@ -33,7 +33,7 @@ FInventoryItemInstance USuspenseInventoryLibrary::CreateItemInstance(const FName
     }
     
     // Получаем ItemManager для создания экземпляра
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         LogError(TEXT("CreateItemInstance"), TEXT("ItemManager not available"), ItemID);
@@ -64,7 +64,7 @@ int32 USuspenseInventoryLibrary::CreateItemInstancesFromSpawnData(const TArray<F
         return 0;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         LogError(TEXT("CreateItemInstancesFromSpawnData"), TEXT("ItemManager not available"));
@@ -80,7 +80,7 @@ int32 USuspenseInventoryLibrary::CreateItemInstancesFromSpawnData(const TArray<F
     return SuccessCount;
 }
 
-bool USuspenseInventoryLibrary::GetUnifiedItemData(const FName& ItemID, const UObject* WorldContext, FMedComUnifiedItemData& OutItemData)
+bool USuspenseInventoryLibrary::GetUnifiedItemData(const FName& ItemID, const UObject* WorldContext, FSuspenseUnifiedItemData& OutItemData)
 {
     if (ItemID.IsNone())
     {
@@ -93,7 +93,7 @@ bool USuspenseInventoryLibrary::GetUnifiedItemData(const FName& ItemID, const UO
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         LogError(TEXT("GetUnifiedItemData"), TEXT("ItemManager not available"), ItemID);
@@ -132,7 +132,7 @@ AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FInventoryItemInstance
     SpawnParams.bDeferConstruction = false; // Немедленная инициализация
     
     // Создаем актор предмета в мире
-    AActor* ItemActor = World->SpawnActor<AMedComInventoryItem>(AMedComInventoryItem::StaticClass(), Transform, SpawnParams);
+    AActor* ItemActor = World->SpawnActor<ASuspenseInventoryItem>(ASuspenseInventoryItem::StaticClass(), Transform, SpawnParams);
     
     if (!ItemActor)
     {
@@ -141,7 +141,7 @@ AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FInventoryItemInstance
     }
     
     // Инициализируем актор с runtime экземпляром
-    if (AMedComInventoryItem* InventoryItem = Cast<AMedComInventoryItem>(ItemActor))
+    if (ASuspenseInventoryItem* InventoryItem = Cast<ASuspenseInventoryItem>(ItemActor))
     {
         if (InventoryItem->SetItemInstance(ItemInstance))
         {
@@ -162,7 +162,7 @@ AActor* USuspenseInventoryLibrary::SpawnItemInWorld(const FInventoryItemInstance
     else
     {
         ItemActor->Destroy();
-        LogError(TEXT("SpawnItemInWorld"), TEXT("Spawned actor is not AMedComInventoryItem"), ItemInstance.ItemID);
+        LogError(TEXT("SpawnItemInWorld"), TEXT("Spawned actor is not ASuspenseInventoryItem"), ItemInstance.ItemID);
     }
     
     return nullptr;
@@ -191,7 +191,7 @@ bool USuspenseInventoryLibrary::ValidateItemInstance(const FInventoryItemInstanc
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         OutErrors.Add(TEXT("ItemManager not available"));
@@ -199,7 +199,7 @@ bool USuspenseInventoryLibrary::ValidateItemInstance(const FInventoryItemInstanc
     }
     
     // Проверяем существование в DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, ItemData))
     {
         OutErrors.Add(FString::Printf(TEXT("Item '%s' not found in DataTable"), *ItemInstance.ItemID.ToString()));
@@ -277,7 +277,7 @@ bool USuspenseInventoryLibrary::IsValidItemID(const FName& ItemID, const UObject
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         return false;
@@ -504,7 +504,7 @@ FIntPoint USuspenseInventoryLibrary::GetEffectiveItemSize(const FName& ItemID, b
         return DEFAULT_ITEM_SIZE;
     }
     
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         LogError(TEXT("GetEffectiveItemSize"), TEXT("Failed to get item data"), ItemID);
@@ -535,7 +535,7 @@ float USuspenseInventoryLibrary::CalculateTotalWeightFromInstances(const TArray<
     }
     
     float TotalWeight = 0.0f;
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     
     if (!ItemManager)
     {
@@ -584,7 +584,7 @@ bool USuspenseInventoryLibrary::CanAddItemsByWeight(float CurrentWeight,
 
 float USuspenseInventoryLibrary::GetItemWeight(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         return ItemData.Weight;
@@ -670,7 +670,7 @@ bool USuspenseInventoryLibrary::IsItemTypeAllowed(const FName& ItemID,
 
 FGameplayTag USuspenseInventoryLibrary::GetItemType(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         return ItemData.ItemType;
@@ -681,7 +681,7 @@ FGameplayTag USuspenseInventoryLibrary::GetItemType(const FName& ItemID, const U
 
 FGameplayTagContainer USuspenseInventoryLibrary::GetItemTags(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         FGameplayTagContainer AllTags = ItemData.ItemTags;
@@ -814,7 +814,7 @@ bool USuspenseInventoryLibrary::SplitInstance(FInventoryItemInstance& SourceInst
 
 int32 USuspenseInventoryLibrary::GetMaxStackSize(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         return ItemData.MaxStackSize;
@@ -854,7 +854,7 @@ FVector2D USuspenseInventoryLibrary::CalculateItemSizeInUI(const FName& ItemID,
 
 FText USuspenseInventoryLibrary::GetItemDisplayName(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         return ItemData.DisplayName;
@@ -865,7 +865,7 @@ FText USuspenseInventoryLibrary::GetItemDisplayName(const FName& ItemID, const U
 
 FText USuspenseInventoryLibrary::GetItemDescription(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         return ItemData.Description;
@@ -876,7 +876,7 @@ FText USuspenseInventoryLibrary::GetItemDescription(const FName& ItemID, const U
 
 UTexture2D* USuspenseInventoryLibrary::GetItemIcon(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         if (!ItemData.Icon.IsNull())
@@ -911,7 +911,7 @@ FText USuspenseInventoryLibrary::FormatWeightForDisplay(float Weight, bool bShow
 
 FLinearColor USuspenseInventoryLibrary::GetItemRarityColor(const FName& ItemID, const UObject* WorldContext)
 {
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemID, WorldContext, ItemData))
     {
         // Get rarity color based on rarity tag
@@ -1003,11 +1003,11 @@ FText USuspenseInventoryLibrary::GetErrorMessage(EInventoryErrorCode ErrorCode, 
     return BaseMessage;
 }
 
-FInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const FName& Context,
+FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const FName& Context,
                                                                              UObject* ResultObject,
                                                                              const FString& AdditionalData)
 {
-    FInventoryOperationResult Result = FInventoryOperationResult::Success(Context, ResultObject);
+    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(Context, ResultObject);
     if (!AdditionalData.IsEmpty())
     {
         Result.AddResultData(TEXT("AdditionalData"), AdditionalData);
@@ -1016,12 +1016,12 @@ FInventoryOperationResult USuspenseInventoryLibrary::CreateSuccessResult(const F
     return Result;
 }
 
-FInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(EInventoryErrorCode ErrorCode,
+FSuspenseInventoryOperationResult USuspenseInventoryLibrary::CreateFailureResult(EInventoryErrorCode ErrorCode,
                                                                               const FText& ErrorMessage,
                                                                               const FName& Context,
                                                                               UObject* ResultObject)
 {
-    return FInventoryOperationResult::Failure(ErrorCode, ErrorMessage, Context, ResultObject);
+    return FSuspenseInventoryOperationResult::Failure(ErrorCode, ErrorMessage, Context, ResultObject);
 }
 
 //==================================================================
@@ -1070,7 +1070,7 @@ FString USuspenseInventoryLibrary::GetItemInstanceDebugInfo(const FInventoryItem
     );
     
     // Add DataTable info if available
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetUnifiedItemData(ItemInstance.ItemID, WorldContext, ItemData))
     {
         DebugInfo += FString::Printf(
@@ -1122,7 +1122,7 @@ FString USuspenseInventoryLibrary::GetItemInstanceDebugInfo(const FInventoryItem
 
 FString USuspenseInventoryLibrary::GetItemManagerStatistics(const UObject* WorldContext)
 {
-    UMedComItemManager* ItemManager = GetItemManager(WorldContext);
+    USuspenseItemManager* ItemManager = GetItemManager(WorldContext);
     if (!ItemManager)
     {
         return TEXT("ItemManager not available");
@@ -1130,13 +1130,13 @@ FString USuspenseInventoryLibrary::GetItemManagerStatistics(const UObject* World
     
     // Get statistics from ItemManager
     // NOTE: This assumes ItemManager has a GetStatistics method
-    // You'll need to implement this in UMedComItemManager
+    // You'll need to implement this in USuspenseItemManager
     
     return FString::Printf(
         TEXT("=== ItemManager Statistics ===\n")
         TEXT("ItemManager: %s\n")
         TEXT("Status: Available\n")
-        TEXT("Note: Detailed statistics require implementation in UMedComItemManager\n"),
+        TEXT("Note: Detailed statistics require implementation in USuspenseItemManager\n"),
         *ItemManager->GetClass()->GetName()
     );
 }
@@ -1145,7 +1145,7 @@ FString USuspenseInventoryLibrary::GetItemManagerStatistics(const UObject* World
 // Internal Helper Methods Implementation
 //==================================================================
 
-UMedComItemManager* USuspenseInventoryLibrary::GetItemManager(const UObject* WorldContext)
+USuspenseItemManager* USuspenseInventoryLibrary::GetItemManager(const UObject* WorldContext)
 {
     if (!WorldContext)
     {
@@ -1164,7 +1164,7 @@ UMedComItemManager* USuspenseInventoryLibrary::GetItemManager(const UObject* Wor
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<UMedComItemManager>();
+    return GameInstance->GetSubsystem<USuspenseItemManager>();
 }
 
 void USuspenseInventoryLibrary::LogError(const FString& FunctionName, const FString& ErrorMessage, const FName& ItemID)

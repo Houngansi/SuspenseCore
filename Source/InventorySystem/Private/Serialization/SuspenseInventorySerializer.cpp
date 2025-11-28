@@ -3,11 +3,11 @@
 
 #include "Serialization/SuspenseInventorySerializer.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "ItemSystem/ItemSystemAccess.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Inventory/InventoryUtils.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "ItemSystem/SuspenseItemSystemAccess.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryUtils.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "JsonObjectConverter.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
@@ -161,8 +161,8 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
         int32 SuccessCount = 0;
         int32 FailureCount = 0;
         
-        // ИСПРАВЛЕНО: Используем FItemSystemAccess вместо прямого обращения
-        UMedComItemManager* ItemManager = FItemSystemAccess::GetItemManager(InventoryComponent);
+        // ИСПРАВЛЕНО: Используем FSuspenseItemSystemAccess вместо прямого обращения
+        USuspenseItemManager* ItemManager = FSuspenseItemSystemAccess::GetItemManager(InventoryComponent);
         if (!ItemManager)
         {
             UE_LOG(LogInventory, Error, TEXT("DeserializeInventory: ItemManager not available"));
@@ -183,7 +183,7 @@ bool USuspenseInventorySerializer::DeserializeInventory(USuspenseInventoryCompon
             }
         
             // Добавляем предмет в инвентарь
-            FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(SerializedInstance);
+            FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(SerializedInstance);
             if (AddResult.bSuccess)
             {
                 SuccessCount++;
@@ -448,15 +448,15 @@ bool USuspenseInventorySerializer::ValidateSerializedData(const FSerializedInven
         return false;
     }
     
-    // ИСПРАВЛЕНО: Используем FItemSystemAccess для получения ItemManager
+    // ИСПРАВЛЕНО: Используем FSuspenseItemSystemAccess для получения ItemManager
     // Получаем любой World context из engine для доступа к ItemManager
-    UMedComItemManager* ItemManager = nullptr;
+    USuspenseItemManager* ItemManager = nullptr;
     if (GEngine && GEngine->GetWorldContexts().Num() > 0)
     {
         const FWorldContext& WorldContext = GEngine->GetWorldContexts()[0];
         if (WorldContext.World())
         {
-            ItemManager = FItemSystemAccess::GetItemManager(WorldContext.World());
+            ItemManager = FSuspenseItemSystemAccess::GetItemManager(WorldContext.World());
         }
     }
     
@@ -813,14 +813,14 @@ bool USuspenseInventorySerializer::JsonToStruct(const FString& JsonString, FSeri
     return true;
 }
 
-UMedComItemManager* USuspenseInventorySerializer::GetItemManager(const UObject* WorldContext)
+USuspenseItemManager* USuspenseInventorySerializer::GetItemManager(const UObject* WorldContext)
 {
-    // ИСПРАВЛЕНО: Используем FItemSystemAccess вместо прямого обращения
-    return FItemSystemAccess::GetItemManager(WorldContext);
+    // ИСПРАВЛЕНО: Используем FSuspenseItemSystemAccess вместо прямого обращения
+    return FSuspenseItemSystemAccess::GetItemManager(WorldContext);
 }
 
 bool USuspenseInventorySerializer::ValidateItemInstance(const FInventoryItemInstance& Instance, 
-                                                     UMedComItemManager* ItemManager,
+                                                     USuspenseItemManager* ItemManager,
                                                      FString& OutError)
 {
     // Базовая валидация экземпляра

@@ -3,11 +3,11 @@
 
 #include "Network/SuspenseInventoryReplicator.h"
 #include "Net/UnrealNetwork.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
+#include "Base/SuspenseInventoryLogs.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
 #include "Base/SuspenseItemBase.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Types/Loadout/MedComItemDataTable.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -112,7 +112,7 @@ void FReplicatedItemsMetaState::PostReplicatedRemove(const TArrayView<int32>& Re
 // FReplicatedItemMeta Static Methods - ПОЛНОСТЬЮ ОБНОВЛЕНО
 //==============================================================================
 
-FReplicatedItemMeta FReplicatedItemMeta::FromItemInstance(const FInventoryItemInstance& ItemInstance, UMedComItemManager* ItemManager)
+FReplicatedItemMeta FReplicatedItemMeta::FromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, USuspenseItemManager* ItemManager)
 {
     FReplicatedItemMeta Result;
     
@@ -134,7 +134,7 @@ FReplicatedItemMeta FReplicatedItemMeta::FromItemInstance(const FInventoryItemIn
     // Если есть ItemManager, получаем данные из DataTable
     if (ItemManager)
     {
-        FMedComUnifiedItemData UnifiedData;
+        FSuspenseUnifiedItemData UnifiedData;
         if (ItemManager->GetUnifiedItemData(ItemInstance.ItemID, UnifiedData))
         {
             // Устанавливаем размер сетки из DataTable
@@ -236,7 +236,7 @@ FReplicatedItemMeta FReplicatedItemMeta::FromItemInterface(const IMedComInventor
     Result.ItemWeight = ItemInterface->GetWeight();
     
     // Получаем unified данные из DataTable через interface
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (ItemInterface->GetItemData(UnifiedData))
     {
         // Устанавливаем флаги данных из DataTable
@@ -276,7 +276,7 @@ FReplicatedItemMeta FReplicatedItemMeta::FromItemInterface(const IMedComInventor
     return Result;
 }
 
-FReplicatedItemMeta FReplicatedItemMeta::FromUnifiedItemData(const FMedComUnifiedItemData& ItemData, int32 Amount, int32 AnchorIdx, const FGuid& InstanceID)
+FReplicatedItemMeta FReplicatedItemMeta::FromUnifiedItemData(const FSuspenseUnifiedItemData& ItemData, int32 Amount, int32 AnchorIdx, const FGuid& InstanceID)
 {
     FReplicatedItemMeta Result;
     
@@ -309,9 +309,9 @@ FReplicatedItemMeta FReplicatedItemMeta::FromUnifiedItemData(const FMedComUnifie
     return Result;
 }
 
-FInventoryItemInstance FReplicatedItemMeta::ToItemInstance() const
+FSuspenseInventoryItemInstance FReplicatedItemMeta::ToItemInstance() const
 {
-    FInventoryItemInstance Result;
+    FSuspenseInventoryItemInstance Result;
     
     // Устанавливаем основные данные
     Result.ItemID = ItemID;
@@ -364,7 +364,7 @@ FInventoryItemInstance FReplicatedItemMeta::ToItemInstance() const
     return Result;
 }
 
-void FReplicatedItemMeta::UpdateFromItemInstance(const FInventoryItemInstance& ItemInstance, UMedComItemManager* ItemManager)
+void FReplicatedItemMeta::UpdateFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, USuspenseItemManager* ItemManager)
 {
     if (!ItemInstance.IsValid())
     {
@@ -461,7 +461,7 @@ void FInventoryReplicatedState::Reset()
     UE_LOG(LogInventory, Log, TEXT("ReplicatedState: Reset complete"));
 }
 
-int32 FInventoryReplicatedState::AddItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex)
+int32 FInventoryReplicatedState::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex)
 {
     if (!ItemInstance.IsValid() || AnchorIndex < 0 || AnchorIndex >= CellsState.Cells.Num())
     {
@@ -471,7 +471,7 @@ int32 FInventoryReplicatedState::AddItemInstance(const FInventoryItemInstance& I
     }
     
     // Получаем ItemManager для доступа к размерам из DataTable
-    UMedComItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
+    USuspenseItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
     
     // Создаем metadata из instance
     FReplicatedItemMeta Meta = FReplicatedItemMeta::FromItemInstance(ItemInstance, ItemManager);
@@ -498,7 +498,7 @@ int32 FInventoryReplicatedState::AddItemInstance(const FInventoryItemInstance& I
     FVector2D ItemSize = Meta.GetGridSize();
     if (ItemManager)
     {
-        FMedComUnifiedItemData UnifiedData;
+        FSuspenseUnifiedItemData UnifiedData;
         if (ItemManager->GetUnifiedItemData(ItemInstance.ItemID, UnifiedData))
         {
             // Применяем поворот если нужно
@@ -554,8 +554,8 @@ int32 FInventoryReplicatedState::AddItem(UObject* ItemObject, const FReplicatedI
         return INDEX_NONE;
     }
     
-    // Создаем FInventoryItemInstance для consistency
-    FInventoryItemInstance ItemInstance;
+    // Создаем FSuspenseInventoryItemInstance для consistency
+    FSuspenseInventoryItemInstance ItemInstance;
     ItemInstance.ItemID = Meta.ItemID;
     ItemInstance.InstanceID = Meta.InstanceID;
     ItemInstance.Quantity = Meta.Stack;
@@ -578,7 +578,7 @@ int32 FInventoryReplicatedState::AddItem(UObject* ItemObject, const FReplicatedI
     return MetaIndex;
 }
 
-bool FInventoryReplicatedState::UpdateItemInstance(int32 MetaIndex, const FInventoryItemInstance& NewInstance)
+bool FInventoryReplicatedState::UpdateItemInstance(int32 MetaIndex, const FSuspenseInventoryItemInstance& NewInstance)
 {
     if (MetaIndex < 0 || MetaIndex >= ItemsState.Items.Num())
     {
@@ -586,7 +586,7 @@ bool FInventoryReplicatedState::UpdateItemInstance(int32 MetaIndex, const FInven
     }
     
     // Обновляем metadata из нового instance
-    UMedComItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
+    USuspenseItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
     ItemsState.Items[MetaIndex].UpdateFromItemInstance(NewInstance, ItemManager);
     
     // Обновляем локальный instance
@@ -604,7 +604,7 @@ bool FInventoryReplicatedState::UpdateItemInstance(int32 MetaIndex, const FInven
     return true;
 }
 
-const FInventoryItemInstance* FInventoryReplicatedState::GetItemInstance(int32 MetaIndex) const
+const FSuspenseInventoryItemInstance* FInventoryReplicatedState::GetItemInstance(int32 MetaIndex) const
 {
     if (ItemInstances.IsValidIndex(MetaIndex))
     {
@@ -613,7 +613,7 @@ const FInventoryItemInstance* FInventoryReplicatedState::GetItemInstance(int32 M
     return nullptr;
 }
 
-FInventoryItemInstance* FInventoryReplicatedState::GetItemInstance(int32 MetaIndex)
+FSuspenseInventoryItemInstance* FInventoryReplicatedState::GetItemInstance(int32 MetaIndex)
 {
     if (ItemInstances.IsValidIndex(MetaIndex))
     {
@@ -644,14 +644,14 @@ int32 FInventoryReplicatedState::FindMetaIndexByInstanceID(const FGuid& Instance
 bool FInventoryReplicatedState::AreCellsFreeForItem(int32 StartIndex, const FName& ItemID, bool bIsRotated) const
 {
     // Получаем размер предмета из DataTable
-    UMedComItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
+    USuspenseItemManager* ItemManager = OwnerComponent ? OwnerComponent->GetItemManager() : nullptr;
     if (!ItemManager)
     {
         UE_LOG(LogInventory, Warning, TEXT("AreCellsFreeForItem: No ItemManager available"));
         return false;
     }
     
-    FMedComUnifiedItemData UnifiedData;
+    FSuspenseUnifiedItemData UnifiedData;
     if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
     {
         UE_LOG(LogInventory, Warning, TEXT("AreCellsFreeForItem: Could not find data for ItemID: %s"), *ItemID.ToString());
@@ -672,7 +672,7 @@ bool FInventoryReplicatedState::AreCellsFreeForItem(int32 StartIndex, const FNam
     return AreCellsFree(StartIndex, ItemSize);
 }
 
-void FInventoryReplicatedState::SynchronizeWithItemManager(UMedComItemManager* ItemManager)
+void FInventoryReplicatedState::SynchronizeWithItemManager(USuspenseItemManager* ItemManager)
 {
     if (!ItemManager)
     {
@@ -687,7 +687,7 @@ void FInventoryReplicatedState::SynchronizeWithItemManager(UMedComItemManager* I
         FReplicatedItemMeta& Meta = ItemsState.Items[i];
         if (!Meta.ItemID.IsNone())
         {
-            FMedComUnifiedItemData UnifiedData;
+            FSuspenseUnifiedItemData UnifiedData;
             if (ItemManager->GetUnifiedItemData(Meta.ItemID, UnifiedData))
             {
                 // Обновляем вес если изменился в DataTable
@@ -745,7 +745,7 @@ bool FInventoryReplicatedState::ValidateIntegrity(TArray<FString>& OutErrors) co
             // Проверяем соответствие с local instance
             if (ItemInstances.IsValidIndex(i))
             {
-                const FInventoryItemInstance& Instance = ItemInstances[i];
+                const FSuspenseInventoryItemInstance& Instance = ItemInstances[i];
                 if (Instance.ItemID != Meta.ItemID)
                 {
                     OutErrors.Add(FString::Printf(TEXT("ItemID mismatch at index %d: Meta=%s, Instance=%s"), 
@@ -835,7 +835,7 @@ void USuspenseInventoryReplicator::TickComponent(float DeltaTime, enum ELevelTic
     }
 }
 
-bool USuspenseInventoryReplicator::Initialize(int32 GridWidth, int32 GridHeight, UMedComItemManager* InItemManager)
+bool USuspenseInventoryReplicator::Initialize(int32 GridWidth, int32 GridHeight, USuspenseItemManager* InItemManager)
 {
     if (GridWidth <= 0 || GridHeight <= 0)
     {
@@ -863,7 +863,7 @@ bool USuspenseInventoryReplicator::Initialize(int32 GridWidth, int32 GridHeight,
     return true;
 }
 
-int32 USuspenseInventoryReplicator::AddItemInstance(const FInventoryItemInstance& ItemInstance, int32 AnchorIndex)
+int32 USuspenseInventoryReplicator::AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex)
 {
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -887,7 +887,7 @@ bool USuspenseInventoryReplicator::UpdateItemRuntimeProperties(int32 MetaIndex, 
         return false;
     }
     
-    FInventoryItemInstance* Instance = ReplicationState.GetItemInstance(MetaIndex);
+    FSuspenseInventoryItemInstance* Instance = ReplicationState.GetItemInstance(MetaIndex);
     if (!Instance)
     {
         return false;
@@ -909,9 +909,9 @@ bool USuspenseInventoryReplicator::UpdateItemRuntimeProperties(int32 MetaIndex, 
     return bResult;
 }
 
-bool USuspenseInventoryReplicator::GetItemInstanceByIndex(int32 MetaIndex, FInventoryItemInstance& OutInstance) const
+bool USuspenseInventoryReplicator::GetItemInstanceByIndex(int32 MetaIndex, FSuspenseInventoryItemInstance& OutInstance) const
 {
-    const FInventoryItemInstance* Instance = ReplicationState.GetItemInstance(MetaIndex);
+    const FSuspenseInventoryItemInstance* Instance = ReplicationState.GetItemInstance(MetaIndex);
     if (Instance)
     {
         OutInstance = *Instance;
@@ -1000,7 +1000,7 @@ void USuspenseInventoryReplicator::OnRep_ReplicationState()
     OnReplicationUpdated.Broadcast();
 }
 
-UMedComItemManager* USuspenseInventoryReplicator::GetOrCreateItemManager()
+USuspenseItemManager* USuspenseInventoryReplicator::GetOrCreateItemManager()
 {
     if (ItemManager)
     {
@@ -1019,7 +1019,7 @@ UMedComItemManager* USuspenseInventoryReplicator::GetOrCreateItemManager()
         return nullptr;
     }
     
-    ItemManager = GameInstance->GetSubsystem<UMedComItemManager>();
+    ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogInventory, Warning, TEXT("GetOrCreateItemManager: ItemManager subsystem not found"));
@@ -1092,11 +1092,11 @@ bool FInventoryReplicatedState::RemoveItem(int32 MetaIndex)
         ItemObjects[MetaIndex] = nullptr;
     }
     
-    // Очищаем FInventoryItemInstance
+    // Очищаем FSuspenseInventoryItemInstance
     if (ItemInstances.IsValidIndex(MetaIndex))
     {
         // Создаем пустой instance для замещения
-        FInventoryItemInstance EmptyInstance;
+        FSuspenseInventoryItemInstance EmptyInstance;
         ItemInstances[MetaIndex] = EmptyInstance;
     }
     
@@ -1142,10 +1142,10 @@ bool FInventoryReplicatedState::UpdateItem(int32 MetaIndex, const FReplicatedIte
     // Обновляем metadata
     ItemsState.Items[MetaIndex] = NewMeta;
     
-    // Синхронизируем с локальным FInventoryItemInstance если он существует
+    // Синхронизируем с локальным FSuspenseInventoryItemInstance если он существует
     if (ItemInstances.IsValidIndex(MetaIndex))
     {
-        FInventoryItemInstance UpdatedInstance = NewMeta.ToItemInstance();
+        FSuspenseInventoryItemInstance UpdatedInstance = NewMeta.ToItemInstance();
         ItemInstances[MetaIndex] = UpdatedInstance;
     }
     
@@ -1333,7 +1333,7 @@ void USuspenseInventoryReplicator::RequestNetUpdate()
     }
 }
 
-bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemObject, FInventoryItemInstance& OutInstance) const
+bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemObject, FSuspenseInventoryItemInstance& OutInstance) const
 {
     if (!ItemObject)
     {
@@ -1357,7 +1357,7 @@ bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemOb
     if (USuspenseItemBase* ItemBase = Cast<USuspenseItemBase>(ItemObject))
     {
         // Создаем instance из базового объекта
-        OutInstance = FInventoryItemInstance();
+        OutInstance = FSuspenseInventoryItemInstance();
         
         // Получаем ItemID из объекта
         OutInstance.ItemID = ItemBase->ItemID;
@@ -1397,7 +1397,7 @@ bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemOb
         // Добавляем данные оружия если применимо
         if (ItemBase->IsEquippable() && ItemBase->GetItemData())
         {
-            const FMedComUnifiedItemData* Data = ItemBase->GetItemData();
+            const FSuspenseUnifiedItemData* Data = ItemBase->GetItemData();
             if (Data && Data->bIsWeapon)
             {
                 int32 CurrentAmmo = ItemBase->GetCurrentAmmo();
@@ -1425,7 +1425,7 @@ bool USuspenseInventoryReplicator::ConvertLegacyObjectToInstance(UObject* ItemOb
     }
     
     // Последний fallback - создаем minimal instance
-    OutInstance = FInventoryItemInstance();
+    OutInstance = FSuspenseInventoryItemInstance();
     OutInstance.ItemID = FName(*ItemObject->GetName());
     OutInstance.InstanceID = FGuid::NewGuid();
     OutInstance.Quantity = 1;
@@ -1461,7 +1461,7 @@ void USuspenseInventoryReplicator::SynchronizeItemSizesWithDataTable()
         if (!Meta.ItemID.IsNone() && Meta.Stack > 0)
         {
             // Получаем актуальные данные из DataTable
-            FMedComUnifiedItemData UnifiedData;
+            FSuspenseUnifiedItemData UnifiedData;
             if (ItemManager->GetUnifiedItemData(Meta.ItemID, UnifiedData))
             {
                 // Проверяем размер сетки
@@ -1488,10 +1488,10 @@ void USuspenseInventoryReplicator::SynchronizeItemSizesWithDataTable()
                         *Meta.ItemID.ToString(), UnifiedData.Weight);
                 }
                 
-                // Обновляем соответствующий FInventoryItemInstance если есть
+                // Обновляем соответствующий FSuspenseInventoryItemInstance если есть
                 if (ReplicationState.ItemInstances.IsValidIndex(i))
                 {
-                    FInventoryItemInstance& Instance = ReplicationState.ItemInstances[i];
+                    FSuspenseInventoryItemInstance& Instance = ReplicationState.ItemInstances[i];
                     if (Instance.ItemID == Meta.ItemID)
                     {
                         // Экземпляр уже содержит правильные данные, просто помечаем как обновленный
@@ -1557,7 +1557,7 @@ bool USuspenseInventoryReplicator::TryCompactReplication()
     }
     
     TArray<FReplicatedItemMeta> CompactedItems;
-    TArray<FInventoryItemInstance> CompactedInstances;
+    TArray<FSuspenseInventoryItemInstance> CompactedInstances;
     TArray<UObject*> CompactedObjects;
     TMap<int32, int32> IndexMapping; // Старый индекс -> новый индекс
     
@@ -1579,7 +1579,7 @@ bool USuspenseInventoryReplicator::TryCompactReplication()
             }
             else
             {
-                CompactedInstances.Add(FInventoryItemInstance());
+                CompactedInstances.Add(FSuspenseInventoryItemInstance());
             }
             
             if (ReplicationState.ItemObjects.IsValidIndex(i))

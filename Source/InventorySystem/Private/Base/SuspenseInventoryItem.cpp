@@ -1,22 +1,22 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Base/SuspenseInventoryItem.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "ItemSystem/ItemSystemAccess.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Types/Inventory/InventoryTypes.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "ItemSystem/SuspenseItemSystemAccess.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "Types/Inventory/InventoryUtils.h"
+#include "Types/Inventory/SuspenseInventoryUtils.h"
 #include "Base/SuspenseItemBase.h"
-#include "Interfaces/Equipment/IMedComItemDefinitionInterface.h"
+#include "Interfaces/Equipment/ISuspenseItemDefinition.h"
 
 
 //==================================================================
 // Constructor and Core Actor Lifecycle
 //==================================================================
 
-AMedComInventoryItem::AMedComInventoryItem()
+ASuspenseInventoryItem::ASuspenseInventoryItem()
 {
     // Настройка базовых параметров Actor
     PrimaryActorTick.bCanEverTick = false; // Этот Actor не требует постоянных обновлений
@@ -27,25 +27,25 @@ AMedComInventoryItem::AMedComInventoryItem()
     CachedItemManager = nullptr;
     
     // Создание валидного пустого экземпляра
-    ItemInstance = FInventoryItemInstance();
+    ItemInstance = FSuspenseInventoryItemInstance();
     
-    UE_LOG(LogTemp, VeryVerbose, TEXT("AMedComInventoryItem: Created new inventory item actor"));
+    UE_LOG(LogTemp, VeryVerbose, TEXT("ASuspenseInventoryItem: Created new inventory item actor"));
 }
 
-void AMedComInventoryItem::BeginPlay()
+void ASuspenseInventoryItem::BeginPlay()
 {
     Super::BeginPlay();
     
-    // УЛУЧШЕНО: Используем FItemSystemAccess для надежного получения ItemManager
-    CachedItemManager = FItemSystemAccess::GetItemManager(this);
+    // УЛУЧШЕНО: Используем FSuspenseItemSystemAccess для надежного получения ItemManager
+    CachedItemManager = FSuspenseItemSystemAccess::GetItemManager(this);
     
     if (CachedItemManager)
     {
-        UE_LOG(LogTemp, VeryVerbose, TEXT("AMedComInventoryItem: Cached ItemManager reference"));
+        UE_LOG(LogTemp, VeryVerbose, TEXT("ASuspenseInventoryItem: Cached ItemManager reference"));
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("AMedComInventoryItem: Failed to get ItemManager subsystem"));
+        UE_LOG(LogTemp, Warning, TEXT("ASuspenseInventoryItem: Failed to get ItemManager subsystem"));
     }
     
     // Валидируем состояние если предмет уже инициализирован
@@ -54,7 +54,7 @@ void AMedComInventoryItem::BeginPlay()
         TArray<FString> ValidationErrors;
         if (!ValidateItemStateInternal(ValidationErrors))
         {
-            UE_LOG(LogTemp, Warning, TEXT("AMedComInventoryItem: Item state validation failed on BeginPlay"));
+            UE_LOG(LogTemp, Warning, TEXT("ASuspenseInventoryItem: Item state validation failed on BeginPlay"));
             for (const FString& Error : ValidationErrors)
             {
                 UE_LOG(LogTemp, Warning, TEXT("  - %s"), *Error);
@@ -63,13 +63,13 @@ void AMedComInventoryItem::BeginPlay()
     }
 }
 
-void AMedComInventoryItem::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ASuspenseInventoryItem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     // Очищаем кэш при уничтожении
     ClearCachedData();
     CachedItemManager = nullptr;
     
-    UE_LOG(LogTemp, VeryVerbose, TEXT("AMedComInventoryItem: Cleaned up inventory item actor"));
+    UE_LOG(LogTemp, VeryVerbose, TEXT("ASuspenseInventoryItem: Cleaned up inventory item actor"));
     
     Super::EndPlay(EndPlayReason);
 }
@@ -78,7 +78,7 @@ void AMedComInventoryItem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 // Core Item Data Access (Updated for DataTable Architecture)
 //==================================================================
 
-bool AMedComInventoryItem::GetItemData(FMedComUnifiedItemData& OutItemData) const
+bool ASuspenseInventoryItem::GetItemData(FSuspenseUnifiedItemData& OutItemData) const
 {
     // Проверяем валидность ItemID
     if (ItemInstance.ItemID.IsNone())
@@ -106,7 +106,7 @@ bool AMedComInventoryItem::GetItemData(FMedComUnifiedItemData& OutItemData) cons
     }
     
     // Получаем данные из ItemManager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Warning, TEXT("GetItemData: ItemManager not available"));
@@ -129,7 +129,7 @@ bool AMedComInventoryItem::GetItemData(FMedComUnifiedItemData& OutItemData) cons
     return false;
 }
 
-UMedComItemManager* AMedComInventoryItem::GetItemManager() const
+USuspenseItemManager* ASuspenseInventoryItem::GetItemManager() const
 {
     // Используем кэш если доступен
     if (CachedItemManager)
@@ -137,8 +137,8 @@ UMedComItemManager* AMedComInventoryItem::GetItemManager() const
         return CachedItemManager;
     }
     
-    // УЛУЧШЕНО: Используем FItemSystemAccess для получения ItemManager с полной валидацией
-    CachedItemManager = FItemSystemAccess::GetItemManager(this);
+    // УЛУЧШЕНО: Используем FSuspenseItemSystemAccess для получения ItemManager с полной валидацией
+    CachedItemManager = FSuspenseItemSystemAccess::GetItemManager(this);
     
     if (CachedItemManager)
     {
@@ -152,7 +152,7 @@ UMedComItemManager* AMedComInventoryItem::GetItemManager() const
 // Quantity Management with DataTable Validation
 //==================================================================
 
-bool AMedComInventoryItem::TrySetAmount(int32 NewAmount)
+bool ASuspenseInventoryItem::TrySetAmount(int32 NewAmount)
 {
     // Валидация базовых параметров
     if (NewAmount <= 0)
@@ -162,7 +162,7 @@ bool AMedComInventoryItem::TrySetAmount(int32 NewAmount)
     }
     
     // Проверяем максимальный размер стека из DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetItemData(ItemData))
     {
         if (NewAmount > ItemData.MaxStackSize)
@@ -192,7 +192,7 @@ bool AMedComInventoryItem::TrySetAmount(int32 NewAmount)
 // Enhanced Runtime Properties System
 //==================================================================
 
-float AMedComInventoryItem::GetRuntimeProperty(const FName& PropertyName, float DefaultValue) const
+float ASuspenseInventoryItem::GetRuntimeProperty(const FName& PropertyName, float DefaultValue) const
 {
     float Value = ItemInstance.GetRuntimeProperty(PropertyName, DefaultValue);
     
@@ -202,7 +202,7 @@ float AMedComInventoryItem::GetRuntimeProperty(const FName& PropertyName, float 
     return Value;
 }
 
-void AMedComInventoryItem::SetRuntimeProperty(const FName& PropertyName, float Value)
+void ASuspenseInventoryItem::SetRuntimeProperty(const FName& PropertyName, float Value)
 {
     float OldValue = ItemInstance.GetRuntimeProperty(PropertyName, 0.0f);
     ItemInstance.SetRuntimeProperty(PropertyName, Value);
@@ -211,12 +211,12 @@ void AMedComInventoryItem::SetRuntimeProperty(const FName& PropertyName, float V
         *ItemInstance.ItemID.ToString(), *PropertyName.ToString(), OldValue, Value);
 }
 
-bool AMedComInventoryItem::HasRuntimeProperty(const FName& PropertyName) const
+bool ASuspenseInventoryItem::HasRuntimeProperty(const FName& PropertyName) const
 {
     return ItemInstance.HasRuntimeProperty(PropertyName);
 }
 
-void AMedComInventoryItem::ClearRuntimeProperty(const FName& PropertyName)
+void ASuspenseInventoryItem::ClearRuntimeProperty(const FName& PropertyName)
 {
     if (ItemInstance.HasRuntimeProperty(PropertyName))
     {
@@ -232,7 +232,7 @@ void AMedComInventoryItem::ClearRuntimeProperty(const FName& PropertyName)
 // Grid Size Management (DataTable-Driven)
 //==================================================================
 
-FVector2D AMedComInventoryItem::GetEffectiveGridSize() const
+FVector2D ASuspenseInventoryItem::GetEffectiveGridSize() const
 {
     // Проверяем валидность ItemID
     if (ItemInstance.ItemID.IsNone())
@@ -253,7 +253,7 @@ FVector2D AMedComInventoryItem::GetEffectiveGridSize() const
     return EffectiveSize;
 }
 
-FVector2D AMedComInventoryItem::GetBaseGridSize() const
+FVector2D ASuspenseInventoryItem::GetBaseGridSize() const
 {
     // Проверяем валидность ItemID
     if (ItemInstance.ItemID.IsNone())
@@ -263,7 +263,7 @@ FVector2D AMedComInventoryItem::GetBaseGridSize() const
     }
     
     // Получаем базовый размер из DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (GetItemData(ItemData))
     {
         FVector2D BaseSize(ItemData.GridSize.X, ItemData.GridSize.Y);
@@ -284,7 +284,7 @@ FVector2D AMedComInventoryItem::GetBaseGridSize() const
 // Item Rotation Management
 //==================================================================
 
-void AMedComInventoryItem::SetRotated(bool bRotated)
+void ASuspenseInventoryItem::SetRotated(bool bRotated)
 {
     if (ItemInstance.bIsRotated != bRotated)
     {
@@ -301,7 +301,7 @@ void AMedComInventoryItem::SetRotated(bool bRotated)
 // Advanced Grid and Placement System
 //==================================================================
 
-FVector2D AMedComInventoryItem::GetGridSizeForRotation(bool bForRotated) const
+FVector2D ASuspenseInventoryItem::GetGridSizeForRotation(bool bForRotated) const
 {
     if (ItemInstance.ItemID.IsNone())
     {
@@ -312,7 +312,7 @@ FVector2D AMedComInventoryItem::GetGridSizeForRotation(bool bForRotated) const
     return InventoryUtils::GetItemGridSize(this, ItemInstance.ItemID, bForRotated);
 }
 
-bool AMedComInventoryItem::CanFitInGrid(int32 GridWidth, int32 GridHeight, bool bCheckRotated) const
+bool ASuspenseInventoryItem::CanFitInGrid(int32 GridWidth, int32 GridHeight, bool bCheckRotated) const
 {
     FVector2D RequiredSize = GetGridSizeForRotation(bCheckRotated);
     
@@ -327,7 +327,7 @@ bool AMedComInventoryItem::CanFitInGrid(int32 GridWidth, int32 GridHeight, bool 
     return bCanFit;
 }
 
-bool AMedComInventoryItem::GetOptimalRotationForGrid(int32 GridWidth, int32 GridHeight) const
+bool ASuspenseInventoryItem::GetOptimalRotationForGrid(int32 GridWidth, int32 GridHeight) const
 {
     FVector2D NormalSize = GetGridSizeForRotation(false);
     FVector2D RotatedSize = GetGridSizeForRotation(true);
@@ -363,37 +363,37 @@ bool AMedComInventoryItem::GetOptimalRotationForGrid(int32 GridWidth, int32 Grid
 // Item Type Query System
 //==================================================================
 
-bool AMedComInventoryItem::IsEquippable() const
+bool ASuspenseInventoryItem::IsEquippable() const
 {
-    const FMedComUnifiedItemData* ItemData = GetCachedUnifiedData();
+    const FSuspenseUnifiedItemData* ItemData = GetCachedUnifiedData();
     return ItemData ? ItemData->bIsEquippable : false;
 }
 
-bool AMedComInventoryItem::IsWeapon() const
+bool ASuspenseInventoryItem::IsWeapon() const
 {
-    const FMedComUnifiedItemData* ItemData = GetCachedUnifiedData();
+    const FSuspenseUnifiedItemData* ItemData = GetCachedUnifiedData();
     return ItemData ? ItemData->bIsWeapon : false;
 }
 
-bool AMedComInventoryItem::IsArmor() const
+bool ASuspenseInventoryItem::IsArmor() const
 {
-    const FMedComUnifiedItemData* ItemData = GetCachedUnifiedData();
+    const FSuspenseUnifiedItemData* ItemData = GetCachedUnifiedData();
     return ItemData ? ItemData->bIsArmor : false;
 }
 
-bool AMedComInventoryItem::IsConsumable() const
+bool ASuspenseInventoryItem::IsConsumable() const
 {
-    const FMedComUnifiedItemData* ItemData = GetCachedUnifiedData();
+    const FSuspenseUnifiedItemData* ItemData = GetCachedUnifiedData();
     return ItemData ? ItemData->bIsConsumable : false;
 }
 
-bool AMedComInventoryItem::IsAmmo() const
+bool ASuspenseInventoryItem::IsAmmo() const
 {
-    const FMedComUnifiedItemData* ItemData = GetCachedUnifiedData();
+    const FSuspenseUnifiedItemData* ItemData = GetCachedUnifiedData();
     return ItemData ? ItemData->bIsAmmo : false;
 }
 
-float AMedComInventoryItem::GetItemWeight() const
+float ASuspenseInventoryItem::GetItemWeight() const
 {
     if (ItemInstance.ItemID.IsNone())
     {
@@ -404,12 +404,12 @@ float AMedComInventoryItem::GetItemWeight() const
     return InventoryUtils::GetItemWeight(this, ItemInstance.ItemID);
 }
 
-float AMedComInventoryItem::GetTotalWeight() const
+float ASuspenseInventoryItem::GetTotalWeight() const
 {
     return GetItemWeight() * ItemInstance.Quantity;
 }
 
-int32 AMedComInventoryItem::GetMaxStackSize() const
+int32 ASuspenseInventoryItem::GetMaxStackSize() const
 {
     if (ItemInstance.ItemID.IsNone())
     {
@@ -424,22 +424,22 @@ int32 AMedComInventoryItem::GetMaxStackSize() const
 // Enhanced Runtime Properties for Gameplay Systems
 //==================================================================
 
-float AMedComInventoryItem::GetCurrentDurability() const
+float ASuspenseInventoryItem::GetCurrentDurability() const
 {
     return ItemInstance.GetCurrentDurability();
 }
 
-float AMedComInventoryItem::GetMaxDurability() const
+float ASuspenseInventoryItem::GetMaxDurability() const
 {
     return GetRuntimeProperty(TEXT("MaxDurability"), 100.0f);
 }
 
-float AMedComInventoryItem::GetDurabilityPercent() const
+float ASuspenseInventoryItem::GetDurabilityPercent() const
 {
     return ItemInstance.GetDurabilityPercent();
 }
 
-void AMedComInventoryItem::SetCurrentDurability(float NewDurability)
+void ASuspenseInventoryItem::SetCurrentDurability(float NewDurability)
 {
     ItemInstance.SetCurrentDurability(NewDurability);
     
@@ -447,17 +447,17 @@ void AMedComInventoryItem::SetCurrentDurability(float NewDurability)
         *ItemInstance.ItemID.ToString(), NewDurability);
 }
 
-int32 AMedComInventoryItem::GetCurrentAmmo() const
+int32 ASuspenseInventoryItem::GetCurrentAmmo() const
 {
     return ItemInstance.GetCurrentAmmo();
 }
 
-int32 AMedComInventoryItem::GetMaxAmmo() const
+int32 ASuspenseInventoryItem::GetMaxAmmo() const
 {
     return FMath::RoundToInt(GetRuntimeProperty(TEXT("MaxAmmo"), 30.0f));
 }
 
-void AMedComInventoryItem::SetCurrentAmmo(int32 NewAmmo)
+void ASuspenseInventoryItem::SetCurrentAmmo(int32 NewAmmo)
 {
     ItemInstance.SetCurrentAmmo(NewAmmo);
     
@@ -469,7 +469,7 @@ void AMedComInventoryItem::SetCurrentAmmo(int32 NewAmmo)
 // Item Initialization (Enhanced for New Architecture)
 //==================================================================
 
-bool AMedComInventoryItem::InitializeFromID(const FName& InItemID, int32 InAmount)
+bool ASuspenseInventoryItem::InitializeFromID(const FName& InItemID, int32 InAmount)
 {
     // Валидация входных параметров
     if (InItemID.IsNone() || InAmount <= 0)
@@ -480,7 +480,7 @@ bool AMedComInventoryItem::InitializeFromID(const FName& InItemID, int32 InAmoun
     }
     
     // Проверяем доступность ItemManager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         UE_LOG(LogTemp, Error, TEXT("InitializeFromID: ItemManager not available"));
@@ -488,7 +488,7 @@ bool AMedComInventoryItem::InitializeFromID(const FName& InItemID, int32 InAmoun
     }
     
     // Проверяем что предмет существует в DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(InItemID, ItemData))
     {
         UE_LOG(LogTemp, Error, TEXT("InitializeFromID: Item '%s' not found in DataTable"), 
@@ -539,7 +539,7 @@ bool AMedComInventoryItem::InitializeFromID(const FName& InItemID, int32 InAmoun
 // Enhanced Item Instance Management
 //==================================================================
 
-bool AMedComInventoryItem::SetItemInstance(const FInventoryItemInstance& InInstance)
+bool ASuspenseInventoryItem::SetItemInstance(const FSuspenseInventoryItemInstance& InInstance)
 {
     // Валидация нового экземпляра
     if (!InInstance.IsValid())
@@ -549,7 +549,7 @@ bool AMedComInventoryItem::SetItemInstance(const FInventoryItemInstance& InInsta
     }
     
     // Проверяем что предмет существует в DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!GetItemManager() || !GetItemManager()->GetUnifiedItemData(InInstance.ItemID, ItemData))
     {
         UE_LOG(LogTemp, Warning, TEXT("SetItemInstance: Item '%s' not found in DataTable"), 
@@ -577,7 +577,7 @@ bool AMedComInventoryItem::SetItemInstance(const FInventoryItemInstance& InInsta
     return true;
 }
 
-void AMedComInventoryItem::RefreshFromDataTable()
+void ASuspenseInventoryItem::RefreshFromDataTable()
 {
     if (ItemInstance.ItemID.IsNone())
     {
@@ -602,22 +602,22 @@ void AMedComInventoryItem::RefreshFromDataTable()
 // Weapon Ammo State Persistence
 //==================================================================
 
-float AMedComInventoryItem::GetSavedCurrentAmmo() const
+float ASuspenseInventoryItem::GetSavedCurrentAmmo() const
 {
     return GetRuntimeProperty(TEXT("SavedCurrentAmmo"), 0.0f);
 }
 
-float AMedComInventoryItem::GetSavedRemainingAmmo() const
+float ASuspenseInventoryItem::GetSavedRemainingAmmo() const
 {
     return GetRuntimeProperty(TEXT("SavedRemainingAmmo"), 0.0f);
 }
 
-bool AMedComInventoryItem::HasSavedAmmoState() const
+bool ASuspenseInventoryItem::HasSavedAmmoState() const
 {
     return GetRuntimeProperty(TEXT("HasSavedAmmoState"), 0.0f) > 0.0f;
 }
 
-void AMedComInventoryItem::SetSavedAmmoState(float CurrentAmmo, float RemainingAmmo)
+void ASuspenseInventoryItem::SetSavedAmmoState(float CurrentAmmo, float RemainingAmmo)
 {
     SetRuntimeProperty(TEXT("SavedCurrentAmmo"), CurrentAmmo);
     SetRuntimeProperty(TEXT("SavedRemainingAmmo"), RemainingAmmo);
@@ -627,7 +627,7 @@ void AMedComInventoryItem::SetSavedAmmoState(float CurrentAmmo, float RemainingA
         *ItemInstance.ItemID.ToString(), CurrentAmmo, RemainingAmmo);
 }
 
-void AMedComInventoryItem::ClearSavedAmmoState()
+void ASuspenseInventoryItem::ClearSavedAmmoState()
 {
     ItemInstance.RuntimeProperties.Remove(TEXT("SavedCurrentAmmo"));
     ItemInstance.RuntimeProperties.Remove(TEXT("SavedRemainingAmmo"));
@@ -641,12 +641,12 @@ void AMedComInventoryItem::ClearSavedAmmoState()
 // Validation and Debug Support
 //==================================================================
 
-bool AMedComInventoryItem::ValidateItemState(TArray<FString>& OutErrors) const
+bool ASuspenseInventoryItem::ValidateItemState(TArray<FString>& OutErrors) const
 {
     return ValidateItemStateInternal(OutErrors);
 }
 
-bool AMedComInventoryItem::ValidateItemStateInternal(TArray<FString>& OutErrors) const
+bool ASuspenseInventoryItem::ValidateItemStateInternal(TArray<FString>& OutErrors) const
 {
     OutErrors.Empty();
     
@@ -677,7 +677,7 @@ bool AMedComInventoryItem::ValidateItemStateInternal(TArray<FString>& OutErrors)
     }
     
     // Валидация существования в DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!GetItemData(ItemData))
     {
         OutErrors.Add(FString::Printf(TEXT("Item '%s' not found in DataTable"), *ItemInstance.ItemID.ToString()));
@@ -711,10 +711,10 @@ bool AMedComInventoryItem::ValidateItemStateInternal(TArray<FString>& OutErrors)
     return OutErrors.Num() == 0;
 }
 
-FString AMedComInventoryItem::GetItemStateDebugInfo() const
+FString ASuspenseInventoryItem::GetItemStateDebugInfo() const
 {
     FString DebugInfo = FString::Printf(
-        TEXT("=== AMedComInventoryItem Debug Info ===\n")
+        TEXT("=== ASuspenseInventoryItem Debug Info ===\n")
         TEXT("ItemID: %s\n")
         TEXT("InstanceID: %s\n")
         TEXT("Quantity: %d\n")
@@ -782,7 +782,7 @@ FString AMedComInventoryItem::GetItemStateDebugInfo() const
     return DebugInfo;
 }
 
-bool AMedComInventoryItem::IsDataCached() const
+bool ASuspenseInventoryItem::IsDataCached() const
 {
     if (!CachedItemData.IsSet())
     {
@@ -793,7 +793,7 @@ bool AMedComInventoryItem::IsDataCached() const
     return CacheAge < CACHE_DURATION;
 }
 
-float AMedComInventoryItem::GetCacheAge() const
+float ASuspenseInventoryItem::GetCacheAge() const
 {
     if (!CachedItemData.IsSet())
     {
@@ -807,11 +807,11 @@ float AMedComInventoryItem::GetCacheAge() const
 // Internal Helper Methods
 //==================================================================
 
-void AMedComInventoryItem::UpdateCachedData() const
+void ASuspenseInventoryItem::UpdateCachedData() const
 {
     if (!IsDataCached())
     {
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (GetItemData(ItemData))
         {
             CachedItemData = ItemData;
@@ -823,7 +823,7 @@ void AMedComInventoryItem::UpdateCachedData() const
     }
 }
 
-void AMedComInventoryItem::ClearCachedData()
+void ASuspenseInventoryItem::ClearCachedData()
 {
     if (CachedItemData.IsSet())
     {
@@ -834,7 +834,7 @@ void AMedComInventoryItem::ClearCachedData()
     CachedItemData.Reset();
 }
 
-const FMedComUnifiedItemData* AMedComInventoryItem::GetCachedUnifiedData() const
+const FSuspenseUnifiedItemData* ASuspenseInventoryItem::GetCachedUnifiedData() const
 {
     UpdateCachedData();
     return CachedItemData.IsSet() ? &CachedItemData.GetValue() : nullptr;

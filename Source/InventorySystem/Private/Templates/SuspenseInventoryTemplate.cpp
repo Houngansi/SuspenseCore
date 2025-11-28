@@ -3,18 +3,18 @@
 
 #include "Templates/SuspenseInventoryTemplate.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
 // Import InventoryUtils for new architecture
 namespace InventoryUtils
 {
-    extern bool GetUnifiedItemData(const FName& ItemID, FMedComUnifiedItemData& OutData);
+    extern bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData);
     extern float GetItemWeight(const FName& ItemID);
-    extern FInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity);
+    extern FSuspenseInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity);
 }
 
 //==================================================================
@@ -154,7 +154,7 @@ int32 USuspenseInventoryTemplate::CreateStartingItemsInInventory(USuspenseInvent
     int32 SuccessCount = 0;
     
     // Create each starting item
-    for (const FPickupSpawnData& SpawnData : ConfigToUse->StartingItems)
+    for (const FSuspensePickupSpawnData& SpawnData : ConfigToUse->StartingItems)
     {
         if (!SpawnData.IsValid())
         {
@@ -167,7 +167,7 @@ int32 USuspenseInventoryTemplate::CreateStartingItemsInInventory(USuspenseInvent
         FInventoryItemInstance NewInstance = SpawnData.CreateInventoryInstance();
         
         // Add to inventory
-        FInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(NewInstance);
+        FSuspenseInventoryOperationResult AddResult = InventoryComponent->AddItemInstance(NewInstance);
         if (AddResult.bSuccess)
         {
             SuccessCount++;
@@ -269,11 +269,11 @@ FInventoryTemplateAnalysis USuspenseInventoryTemplate::AnalyzeTemplate() const
     TSet<FGameplayTag> UniqueTypes;
     float EstimatedWeight = 0.0f;
     
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (ItemManager)
     {
         // Main inventory items
-        for (const FPickupSpawnData& SpawnData : MainInventoryConfig.StartingItems)
+        for (const FSuspensePickupSpawnData& SpawnData : MainInventoryConfig.StartingItems)
         {
             FMedComUnifiedItemData ItemData;
             if (ItemManager->GetUnifiedItemData(SpawnData.ItemID, ItemData))
@@ -286,7 +286,7 @@ FInventoryTemplateAnalysis USuspenseInventoryTemplate::AnalyzeTemplate() const
         // Additional inventory items
         for (const auto& Pair : AdditionalInventories)
         {
-            for (const FPickupSpawnData& SpawnData : Pair.Value.StartingItems)
+            for (const FSuspensePickupSpawnData& SpawnData : Pair.Value.StartingItems)
             {
                 FMedComUnifiedItemData ItemData;
                 if (ItemManager->GetUnifiedItemData(SpawnData.ItemID, ItemData))
@@ -392,12 +392,12 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateMinimalTemplate()
     Template->MainInventoryConfig.MaxWeight = 50.0f;
     
     // Basic starting items
-    FPickupSpawnData HealthKit;
+    FSuspensePickupSpawnData HealthKit;
     HealthKit.ItemID = TEXT("Consumable_HealthKit_Small");
     HealthKit.Quantity = 2;
     Template->MainInventoryConfig.StartingItems.Add(HealthKit);
     
-    FPickupSpawnData BasicAmmo;
+    FSuspensePickupSpawnData BasicAmmo;
     BasicAmmo.ItemID = TEXT("Ammo_Universal_Small");
     BasicAmmo.Quantity = 3;
     Template->MainInventoryConfig.StartingItems.Add(BasicAmmo);
@@ -433,12 +433,12 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateStandardTemplate()
     BackpackConfig.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Type.Ammo")));
     
     // Starting items for backpack
-    FPickupSpawnData HealthKits;
+    FSuspensePickupSpawnData HealthKits;
     HealthKits.ItemID = TEXT("Consumable_HealthKit_Medium");
     HealthKits.Quantity = 4;
     BackpackConfig.StartingItems.Add(HealthKits);
     
-    FPickupSpawnData AmmoBox;
+    FSuspensePickupSpawnData AmmoBox;
     AmmoBox.ItemID = TEXT("Ammo_Universal_Standard");
     AmmoBox.Quantity = 6;
     BackpackConfig.StartingItems.Add(AmmoBox);
@@ -485,12 +485,12 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateExpandedTemplate()
     Template->AdditionalInventories.Add(TEXT("UtilityBelt"), UtilityConfig);
     
     // Diverse starting items
-    FPickupSpawnData HealthKits;
+    FSuspensePickupSpawnData HealthKits;
     HealthKits.ItemID = TEXT("Consumable_HealthKit_Large");
     HealthKits.Quantity = 6;
     BackpackConfig.StartingItems.Add(HealthKits);
     
-    FPickupSpawnData MultiTool;
+    FSuspensePickupSpawnData MultiTool;
     MultiTool.ItemID = TEXT("Tool_MultiTool");
     MultiTool.Quantity = 1;
     UtilityConfig.StartingItems.Add(MultiTool);
@@ -535,17 +535,17 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateSurvivalTemplate()
     ToolConfig.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Type.Tool")));
     
     // Survival items
-    FPickupSpawnData SurvivalKit;
+    FSuspensePickupSpawnData SurvivalKit;
     SurvivalKit.ItemID = TEXT("Consumable_SurvivalKit");
     SurvivalKit.Quantity = 3;
     BackpackConfig.StartingItems.Add(SurvivalKit);
     
-    FPickupSpawnData WaterPurifier;
+    FSuspensePickupSpawnData WaterPurifier;
     WaterPurifier.ItemID = TEXT("Tool_WaterPurifier");
     WaterPurifier.Quantity = 1;
     ToolConfig.StartingItems.Add(WaterPurifier);
     
-    FPickupSpawnData FireStarter;
+    FSuspensePickupSpawnData FireStarter;
     FireStarter.ItemID = TEXT("Tool_FireStarter");
     FireStarter.Quantity = 2;
     ToolConfig.StartingItems.Add(FireStarter);
@@ -582,7 +582,7 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateClassSpecificTempl
         AmmoPouch.MaxWeight = 50.0f;
         AmmoPouch.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Type.Ammo")));
         
-        FPickupSpawnData MilitaryAmmo;
+        FSuspensePickupSpawnData MilitaryAmmo;
         MilitaryAmmo.ItemID = TEXT("Ammo_Military_Standard");
         MilitaryAmmo.Quantity = 8;
         AmmoPouch.StartingItems.Add(MilitaryAmmo);
@@ -608,12 +608,12 @@ USuspenseInventoryTemplate* USuspenseInventoryTemplate::CreateClassSpecificTempl
         MedicalBag.MaxWeight = 100.0f;
         MedicalBag.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Type.Medical")));
         
-        FPickupSpawnData AdvancedMedKit;
+        FSuspensePickupSpawnData AdvancedMedKit;
         AdvancedMedKit.ItemID = TEXT("Medical_AdvancedKit");
         AdvancedMedKit.Quantity = 3;
         MedicalBag.StartingItems.Add(AdvancedMedKit);
         
-        FPickupSpawnData Morphine;
+        FSuspensePickupSpawnData Morphine;
         Morphine.ItemID = TEXT("Medical_Morphine");
         Morphine.Quantity = 6;
         MedicalBag.StartingItems.Add(Morphine);
@@ -735,7 +735,7 @@ bool USuspenseInventoryTemplate::RemoveAdditionalInventory(const FName& Inventor
 // Internal Helper Methods
 //==================================================================
 
-UMedComItemManager* USuspenseInventoryTemplate::GetItemManager() const
+USuspenseItemManager* USuspenseInventoryTemplate::GetItemManager() const
 {
     // Try to get ItemManager from any available world context
     if (GEngine && GEngine->GetWorldContexts().Num() > 0)
@@ -743,7 +743,7 @@ UMedComItemManager* USuspenseInventoryTemplate::GetItemManager() const
         UWorld* World = GEngine->GetWorldContexts()[0].World();
         if (World && World->GetGameInstance())
         {
-            return World->GetGameInstance()->GetSubsystem<UMedComItemManager>();
+            return World->GetGameInstance()->GetSubsystem<USuspenseItemManager>();
         }
     }
     
@@ -779,12 +779,12 @@ bool USuspenseInventoryTemplate::ValidateInventoryConfig(const FInventoryTemplat
     return bIsValid;
 }
 
-bool USuspenseInventoryTemplate::ValidateStartingItems(const TArray<FPickupSpawnData>& StartingItems,
+bool USuspenseInventoryTemplate::ValidateStartingItems(const TArray<FSuspensePickupSpawnData>& StartingItems,
                                                     TArray<FName>& OutMissingItems,
                                                     TArray<FString>& OutErrors) const
 {
     bool bIsValid = true;
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     
     if (!ItemManager)
     {
@@ -792,7 +792,7 @@ bool USuspenseInventoryTemplate::ValidateStartingItems(const TArray<FPickupSpawn
         return false;
     }
     
-    for (const FPickupSpawnData& SpawnData : StartingItems)
+    for (const FSuspensePickupSpawnData& SpawnData : StartingItems)
     {
         if (!SpawnData.IsValid())
         {

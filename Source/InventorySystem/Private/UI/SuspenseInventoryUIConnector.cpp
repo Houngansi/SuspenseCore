@@ -2,13 +2,13 @@
 
 #include "UI/SuspenseInventoryUIConnector.h"
 #include "Components/SuspenseInventoryComponent.h"
-#include "Interfaces/UI/IMedComInventoryUIBridgeWidget.h"
-#include "Interfaces/Inventory/IMedComInventoryItemInterface.h"
-#include "Interfaces/Inventory/IMedComInventoryInterface.h"
-#include "ItemSystem/MedComItemManager.h"
-#include "Delegates/EventDelegateManager.h"
-#include "Types/Loadout/MedComItemDataTable.h"
-#include "Base/SuspenseSuspenseInventoryLogs.h"
+#include "Interfaces/UI/ISuspenseUIWidget.h"
+#include "Interfaces/Inventory/ISuspenseInventoryItem.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "ItemSystem/SuspenseItemManager.h"
+#include "Delegates/SuspenseEventManager.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Base/SuspenseInventoryLogs.h"
 #include "Engine/GameInstance.h"
 #include "Internationalization/Text.h"
 
@@ -24,7 +24,7 @@ void USuspenseInventoryUIConnector::BeginPlay()
     // Cache managers
     if (UGameInstance* GameInstance = GetWorld()->GetGameInstance())
     {
-        CachedItemManager = GameInstance->GetSubsystem<UMedComItemManager>();
+        CachedItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
         CachedDelegateManager = GameInstance->GetSubsystem<UEventDelegateManager>();
     }
 }
@@ -94,7 +94,7 @@ TArray<FInventoryCellUI> USuspenseInventoryUIConnector::GetAllCellsForUI()
     TArray<FInventoryItemInstance> AllInstances = InventoryComponent->GetAllItemInstances();
     
     // Получаем ItemManager для доступа к DataTable
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return Result;
@@ -117,7 +117,7 @@ TArray<FInventoryCellUI> USuspenseInventoryUIConnector::GetAllCellsForUI()
         AnchorToInstance.Add(Instance.AnchorIndex, &Instance);
         
         // Получаем данные предмета из DataTable
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
             // Вычисляем эффективный размер с учётом поворота
@@ -428,7 +428,7 @@ bool USuspenseInventoryUIConnector::TryStackItems(UObject* SourceItem, UObject* 
     int32 SourceSlot = SourceInterface->GetAnchorIndex();
     int32 TargetSlot = TargetInterface->GetAnchorIndex();
     
-    EInventoryErrorCode ErrorCode;
+    ESuspenseInventoryErrorCode ErrorCode;
     bool bSuccess = InventoryComponent->SwapItemsInSlots(SourceSlot, TargetSlot, ErrorCode);
     
     if (bSuccess)
@@ -459,7 +459,7 @@ bool USuspenseInventoryUIConnector::SplitItemStack(UObject* SourceItem, int32 Sp
     
     // Use inventory component's split stack operation
     int32 SourceSlot = SourceInterface->GetAnchorIndex();
-    FInventoryOperationResult Result = InventoryComponent->SplitStack(SourceSlot, SplitAmount, TargetCellIndex);
+    FSuspenseInventoryOperationResult Result = InventoryComponent->SplitStack(SourceSlot, SplitAmount, TargetCellIndex);
     
     if (Result.IsSuccess())
     {
@@ -527,13 +527,13 @@ UTexture2D* USuspenseInventoryUIConnector::GetItemIcon(const FName& ItemID) cons
     }
     
     // Get from item manager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return nullptr;
     }
     
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         if (!ItemData.Icon.IsNull())
@@ -558,13 +558,13 @@ bool USuspenseInventoryUIConnector::GetItemDisplayInfo(const FName& ItemID, FTex
         return false;
     }
     
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
         return false;
     }
     
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         OutDisplayName = ItemData.DisplayName;
@@ -591,7 +591,7 @@ bool USuspenseInventoryUIConnector::GetItemTooltip(UObject* ItemObject, FText& O
     }
     
     // Get item data from DataTable
-    FMedComUnifiedItemData ItemData;
+    FSuspenseUnifiedItemData ItemData;
     if (!ItemInterface->GetItemData(ItemData))
     {
         return false;
@@ -663,7 +663,7 @@ TArray<int32> USuspenseInventoryUIConnector::GetItemOccupiedCells(UObject* ItemO
 // Internal Helpers
 //==================================================================
 
-UMedComItemManager* USuspenseInventoryUIConnector::GetItemManager() const
+USuspenseItemManager* USuspenseInventoryUIConnector::GetItemManager() const
 {
     if (CachedItemManager.IsValid())
     {
@@ -673,7 +673,7 @@ UMedComItemManager* USuspenseInventoryUIConnector::GetItemManager() const
     // Try to get from inventory component
     if (InventoryComponent)
     {
-        UMedComItemManager* Manager = InventoryComponent->GetItemManager();
+        USuspenseItemManager* Manager = InventoryComponent->GetItemManager();
         if (Manager)
         {
             CachedItemManager = Manager;
@@ -684,7 +684,7 @@ UMedComItemManager* USuspenseInventoryUIConnector::GetItemManager() const
     // Get from game instance
     if (UGameInstance* GameInstance = GetWorld()->GetGameInstance())
     {
-        UMedComItemManager* Manager = GameInstance->GetSubsystem<UMedComItemManager>();
+        USuspenseItemManager* Manager = GameInstance->GetSubsystem<USuspenseItemManager>();
         CachedItemManager = Manager;
         return Manager;
     }
@@ -767,10 +767,10 @@ FInventoryCellUI USuspenseInventoryUIConnector::ConvertItemToUICell(
     }
     
     // Получаем унифицированные данные из DataTable через ItemManager
-    UMedComItemManager* ItemManager = GetItemManager();
+    USuspenseItemManager* ItemManager = GetItemManager();
     if (ItemManager)
     {
-        FMedComUnifiedItemData ItemData;
+        FSuspenseUnifiedItemData ItemData;
         if (ItemManager->GetUnifiedItemData(Instance.ItemID, ItemData))
         {
             // Свойства отображения
@@ -865,7 +865,7 @@ FInventoryCellUI USuspenseInventoryUIConnector::ConvertItemToUICell(
 
 FText USuspenseInventoryUIConnector::BuildItemTooltip(
     const FInventoryItemInstance& Instance, 
-    const FMedComUnifiedItemData& ItemData) const
+    const FSuspenseUnifiedItemData& ItemData) const
 {
     TArray<FString> TooltipLines;
     

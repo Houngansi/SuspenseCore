@@ -414,3 +414,86 @@ void USuspenseSystemCoordinator::DebugForceRebind()
     ForceRebindWorld(World);
     UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("DebugForceRebind: complete"));
 }
+
+//========================================
+// Coordinator Lifecycle Methods
+//========================================
+
+void USuspenseSystemCoordinator::Shutdown()
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::Shutdown"));
+
+    // Cleanup any active subscriptions or timers
+    // Currently no additional cleanup needed - services handle their own cleanup
+}
+
+void USuspenseSystemCoordinator::RegisterCoreServices()
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::RegisterCoreServices"));
+
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("RegisterCoreServices: ServiceLocator is null"));
+        return;
+    }
+
+    // Core services are registered through ServiceLocator when components initialize
+    // This method serves as a hook for any coordinator-level registration logic
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete"));
+}
+
+void USuspenseSystemCoordinator::WarmUpServices()
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::WarmUpServices"));
+
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("WarmUpServices: ServiceLocator is null"));
+        return;
+    }
+
+    // Initialize all lazy services
+    const int32 Initialized = ServiceLocator->InitializeAllServices();
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("WarmUpServices: %d services initialized"), Initialized);
+}
+
+bool USuspenseSystemCoordinator::ValidateServices(TArray<FText>& OutErrors) const
+{
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::ValidateServices"));
+
+    OutErrors.Empty();
+
+    if (!ServiceLocator)
+    {
+        OutErrors.Add(FText::FromString(TEXT("ServiceLocator is null")));
+        return false;
+    }
+
+    // Validate all registered services
+    const TArray<FGameplayTag> AllTags = ServiceLocator->GetAllRegisteredServiceTags();
+
+    int32 ValidCount = 0;
+    int32 InvalidCount = 0;
+
+    for (const FGameplayTag& Tag : AllTags)
+    {
+        if (ServiceLocator->IsServiceReady(Tag))
+        {
+            ValidCount++;
+        }
+        else
+        {
+            InvalidCount++;
+            OutErrors.Add(FText::Format(
+                FText::FromString(TEXT("Service not ready: {0}")),
+                FText::FromString(Tag.ToString())
+            ));
+        }
+    }
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("ValidateServices: Valid=%d, Invalid=%d, Total=%d"),
+        ValidCount, InvalidCount, AllTags.Num());
+
+    return InvalidCount == 0;
+}

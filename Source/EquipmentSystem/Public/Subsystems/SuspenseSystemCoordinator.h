@@ -112,6 +112,35 @@ public:
     UFUNCTION(Exec, Category="MedCom|Debug")
     void DebugForceRebind();
 
+    //========================================
+    // Coordinator Lifecycle Methods
+    //========================================
+
+    /**
+     * Shuts down the coordinator and cleans up resources
+     * Called from Deinitialize()
+     */
+    void Shutdown();
+
+    /**
+     * Registers core equipment services with the ServiceLocator
+     * Called during initial service registration
+     */
+    void RegisterCoreServices();
+
+    /**
+     * Warms up services by initializing caches and subscriptions
+     * Called after services are registered
+     */
+    void WarmUpServices();
+
+    /**
+     * Validates all registered services are properly configured
+     * @param OutErrors Array to receive validation error messages
+     * @return true if all services pass validation
+     */
+    bool ValidateServices(TArray<FText>& OutErrors) const;
+
 private:
     //========================================
     // World Lifecycle Handlers

@@ -32,6 +32,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseEquipmentPrediction, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseEquipmentReplication, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseEquipmentDelta, Log, All);  // New category for delta logging
 
+// Short aliases for convenience (used by legacy code)
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentPrediction, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentNetwork, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentValidation, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentOperation, Log, All);
+
 //========================================
 /* Thread Safety Macros */
 //========================================

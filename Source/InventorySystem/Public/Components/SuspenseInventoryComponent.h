@@ -13,7 +13,7 @@
 
 // Forward declarations
 class USuspenseInventoryStorage;
-class USuspenseInventoryConstraints;
+class USuspenseInventoryValidator;
 class USuspenseInventoryTransaction;
 class USuspenseInventoryReplicator;
 class USuspenseInventoryEvents;
@@ -245,7 +245,7 @@ protected:
     USuspenseInventoryStorage* StorageComponent;
 
     UPROPERTY()
-    USuspenseInventoryConstraints* ConstraintsComponent;
+    USuspenseInventoryValidator* ConstraintsComponent;
 
     UPROPERTY()
     USuspenseInventoryTransaction* TransactionComponent;

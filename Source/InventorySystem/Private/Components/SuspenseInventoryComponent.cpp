@@ -3275,7 +3275,7 @@ void USuspenseInventoryComponent::UpdateCurrentWeight()
             EventsComponent->BroadcastWeightChanged(CurrentWeight);
         }
 
-        if (UEventDelegateManager* Manager = GetDelegateManager())
+        if (USuspenseEventManager* Manager = GetDelegateManager())
         {
             const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.WeightChanged"));
             Manager->NotifyUIEvent(this, EventTag, FString::Printf(TEXT("Current:%.2f"), CurrentWeight));
@@ -3325,7 +3325,7 @@ void USuspenseInventoryComponent::UpdateCurrentWeight()
             EventsComponent->BroadcastWeightChanged(CurrentWeight);
         }
 
-        if (UEventDelegateManager* Manager = GetDelegateManager())
+        if (USuspenseEventManager* Manager = GetDelegateManager())
         {
             const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.WeightChanged"));
             Manager->NotifyUIEvent(this, EventTag, FString::Printf(TEXT("Current:%.2f"), CurrentWeight));

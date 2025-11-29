@@ -7,10 +7,13 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
+#include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Blueprint/UserWidget.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -31,6 +34,12 @@ void ASuspenseCorePlayerController::BeginPlay()
 	Super::BeginPlay();
 
 	SetupEnhancedInput();
+
+	// Create pause menu for local player
+	if (IsLocalController())
+	{
+		CreatePauseMenu();
+	}
 
 	// Publish controller ready event
 	PublishEvent(
@@ -91,6 +100,22 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 		if (IA_Interact)
 		{
 			EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleInteract);
+		}
+
+		// UI Inputs
+		if (IA_PauseGame)
+		{
+			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandlePauseGame);
+		}
+
+		if (IA_QuickSave)
+		{
+			EnhancedInput->BindAction(IA_QuickSave, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSave);
+		}
+
+		if (IA_QuickLoad)
+		{
+			EnhancedInput->BindAction(IA_QuickLoad, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickLoad);
 		}
 
 		// Bind additional ability inputs
@@ -394,4 +419,99 @@ USuspenseCoreEventBus* ASuspenseCorePlayerController::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAUSE MENU
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::CreatePauseMenu()
+{
+	if (!PauseMenuWidgetClass)
+	{
+		return;
+	}
+
+	PauseMenuWidget = CreateWidget<USuspenseCorePauseMenuWidget>(this, PauseMenuWidgetClass);
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->AddToViewport(100); // High Z-order for pause menu
+		PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void ASuspenseCorePlayerController::TogglePauseMenu()
+{
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->TogglePauseMenu();
+	}
+}
+
+void ASuspenseCorePlayerController::ShowPauseMenu()
+{
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->ShowPauseMenu();
+	}
+}
+
+void ASuspenseCorePlayerController::HidePauseMenu()
+{
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->HidePauseMenu();
+	}
+}
+
+bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
+{
+	return PauseMenuWidget && PauseMenuWidget->IsMenuVisible();
+}
+
+void ASuspenseCorePlayerController::QuickSave()
+{
+	if (USuspenseCoreSaveManager* SaveManager = USuspenseCoreSaveManager::Get(this))
+	{
+		SaveManager->QuickSave();
+	}
+}
+
+void ASuspenseCorePlayerController::QuickLoad()
+{
+	if (USuspenseCoreSaveManager* SaveManager = USuspenseCoreSaveManager::Get(this))
+	{
+		SaveManager->QuickLoad();
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI INPUT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::HandlePauseGame(const FInputActionValue& Value)
+{
+	TogglePauseMenu();
+}
+
+void ASuspenseCorePlayerController::HandleQuickSave(const FInputActionValue& Value)
+{
+	QuickSave();
+
+	// Publish event for UI feedback
+	PublishEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Save.QuickSave")),
+		TEXT("{}")
+	);
+}
+
+void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Value)
+{
+	QuickLoad();
+
+	// Publish event for UI feedback
+	PublishEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Save.QuickLoad")),
+		TEXT("{}")
+	);
 }

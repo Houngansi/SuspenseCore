@@ -831,51 +831,86 @@ void AGameGameMode::BeginPlay()
 }
 ```
 
-### 7.13.3 Input Bindings
+### 7.13.3 Input Bindings (Enhanced Input System - UE5)
 
-**Project Settings → Input → Action Mappings:**
+SuspenseCore использует Enhanced Input System (современный подход UE5) вместо legacy Input.
 
-| Action | Key |
-|--------|-----|
-| PauseGame | Escape |
-| QuickSave | F5 |
-| QuickLoad | F9 |
+**1. Создайте Input Actions:**
 
-**В PlayerController:**
+В Content Browser создайте 3 Data Asset:
+- Right Click → Input → **Input Action**
+
+| Asset Name | Value Type | Trigger |
+|------------|------------|---------|
+| `IA_PauseGame` | Digital (bool) | Down |
+| `IA_QuickSave` | Digital (bool) | Down |
+| `IA_QuickLoad` | Digital (bool) | Down |
+
+**2. Создайте/обновите Input Mapping Context:**
+
+- Right Click → Input → **Input Mapping Context**
+- Name: `IMC_GameplayDefault` (или существующий)
+
+**3. Добавьте маппинги в IMC:**
+
+| Input Action | Key | Triggers |
+|--------------|-----|----------|
+| `IA_PauseGame` | Escape | Down |
+| `IA_QuickSave` | F5 | Down |
+| `IA_QuickLoad` | F9 | Down |
+
+**4. Настройте BP_SuspenseCorePlayerController:**
+
+В Class Defaults вашего PlayerController Blueprint:
+
+```
+Input | UI:
+├── IA_PauseGame = IA_PauseGame
+├── IA_QuickSave = IA_QuickSave
+└── IA_QuickLoad = IA_QuickLoad
+
+UI:
+├── PauseMenuWidgetClass = WBP_PauseMenu
+```
+
+**5. Код уже реализован в C++:**
 
 ```cpp
-void AGamePlayerController::SetupInputComponent()
-{
-    Super::SetupInputComponent();
+// SuspenseCorePlayerController.h - Input Actions (уже есть)
+UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+UInputAction* IA_PauseGame;
 
-    InputComponent->BindAction("PauseGame", IE_Pressed, this, &AGamePlayerController::TogglePauseMenu);
-    InputComponent->BindAction("QuickSave", IE_Pressed, this, &AGamePlayerController::QuickSave);
-    InputComponent->BindAction("QuickLoad", IE_Pressed, this, &AGamePlayerController::QuickLoad);
-}
+UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+UInputAction* IA_QuickSave;
 
-void AGamePlayerController::TogglePauseMenu()
-{
-    if (PauseMenuWidget)
-    {
-        PauseMenuWidget->TogglePauseMenu();
-    }
-}
+UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+UInputAction* IA_QuickLoad;
 
-void AGamePlayerController::QuickSave()
+// В SetupInputComponent() уже забиндено:
+if (IA_PauseGame)
 {
-    if (PauseMenuWidget)
-    {
-        PauseMenuWidget->QuickSave();
-    }
+    EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Started,
+        this, &ASuspenseCorePlayerController::HandlePauseGame);
 }
+// ... аналогично для QuickSave/QuickLoad
+```
 
-void AGamePlayerController::QuickLoad()
-{
-    if (PauseMenuWidget)
-    {
-        PauseMenuWidget->QuickLoad();
-    }
-}
+**6. Структура файлов Input:**
+
+```
+Content/
+└── Input/
+    ├── Actions/
+    │   ├── IA_Move.uasset
+    │   ├── IA_Look.uasset
+    │   ├── IA_Jump.uasset
+    │   ├── IA_PauseGame.uasset      # Escape
+    │   ├── IA_QuickSave.uasset      # F5
+    │   └── IA_QuickLoad.uasset      # F9
+    │
+    └── Contexts/
+        ├── IMC_GameplayDefault.uasset    # Основной контекст
+        └── IMC_UIOnly.uasset             # Для меню (без movement)
 ```
 
 ### 7.13.4 Функционал кнопок

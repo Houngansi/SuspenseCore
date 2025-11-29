@@ -37,6 +37,18 @@ void ASuspenseCorePlayerController::BeginPlay()
 	UE_LOG(LogTemp, Warning, TEXT("  Controller: %s"), *GetName());
 	UE_LOG(LogTemp, Warning, TEXT("  IsLocalController: %s"), IsLocalController() ? TEXT("true") : TEXT("false"));
 
+	// CRITICAL: Set Input Mode to Game Only!
+	// When transitioning from MainMenu (which uses UIOnly mode), the input mode
+	// may still be in UI mode. We MUST explicitly set it to Game mode.
+	if (IsLocalController())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("=== Setting Input Mode to Game Only ==="));
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		bShowMouseCursor = false;
+		UE_LOG(LogTemp, Warning, TEXT("  Input Mode set to GameOnly, cursor hidden"));
+	}
+
 	SetupEnhancedInput();
 
 	// Create pause menu for local player
@@ -363,6 +375,7 @@ void ASuspenseCorePlayerController::SetupEnhancedInput()
 {
 	UE_LOG(LogTemp, Warning, TEXT("=== SetupEnhancedInput ==="));
 	UE_LOG(LogTemp, Warning, TEXT("  DefaultMappingContext: %s"), DefaultMappingContext ? *DefaultMappingContext->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  LocalPlayer: %s"), GetLocalPlayer() ? TEXT("EXISTS") : TEXT("NULL!"));
 
 	// Log all mappings in the context to debug
 	if (DefaultMappingContext)
@@ -381,12 +394,35 @@ void ASuspenseCorePlayerController::SetupEnhancedInput()
 		UE_LOG(LogTemp, Warning, TEXT("  === END MAPPINGS ==="));
 	}
 
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (!LocalPlayer)
 	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: LocalPlayer is NULL! Cannot setup Enhanced Input."));
+		return;
+	}
+
+	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
+	if (Subsystem)
+	{
+		// Clear any existing mapping contexts first to ensure clean state
 		if (DefaultMappingContext)
 		{
+			// Remove if already exists (in case of re-entry)
+			Subsystem->RemoveMappingContext(DefaultMappingContext);
+
+			// Add fresh
 			Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
 			UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: MappingContext added to subsystem with priority %d"), MappingContextPriority);
+
+			// Verify it was added
+			if (Subsystem->HasMappingContext(DefaultMappingContext))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("  VERIFIED: MappingContext is active in subsystem"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("  ERROR: MappingContext was NOT added to subsystem!"));
+			}
 		}
 		else
 		{

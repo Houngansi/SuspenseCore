@@ -120,7 +120,7 @@ protected:
 
 	/** Input priority for mapping context */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input")
-	int32 InputPriority = 0;
+	int32 MappingContextPriority = 0;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CORE INPUT ACTIONS

@@ -312,7 +312,7 @@ void ASuspenseCorePlayerController::SetupEnhancedInput()
 	{
 		if (DefaultMappingContext)
 		{
-			Subsystem->AddMappingContext(DefaultMappingContext, InputPriority);
+			Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
 		}
 	}
 }

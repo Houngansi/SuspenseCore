@@ -112,6 +112,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PauseMenu|Config")
 	FName LobbyMapName = TEXT("MainMenuMap");
 
+	/**
+	 * GameMode class path for menu maps (used when exiting to lobby).
+	 * CRITICAL: Must be set for GameMode switching to work!
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreMenuGameMode.BP_SuspenseCoreMenuGameMode_C
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PauseMenu|Config|GameMode")
+	FString MenuGameModePath;
+
+	/**
+	 * GameMode class path for game maps.
+	 * CRITICAL: Must be set for GameMode switching to work!
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreGameMode.BP_SuspenseCoreGameMode_C
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PauseMenu|Config|GameMode")
+	FString GameGameModePath;
+
 	// ═══════════════════════════════════════════════════════════════
 	// PUBLIC API
 	// ═══════════════════════════════════════════════════════════════

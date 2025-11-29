@@ -129,16 +129,43 @@ public:
 
 	/**
 	 * Prepare transition to game map.
-	 * Sets up all necessary data and opens the level.
+	 * Sets up all necessary data and opens the level with forced GameMode.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
 	void TransitionToGameMap(const FString& PlayerId, FName GameMapName);
 
 	/**
 	 * Prepare transition to main menu.
+	 * Forces MenuGameMode via URL options.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
 	void TransitionToMainMenu(FName MainMenuMapName);
+
+	/**
+	 * Set the GameMode class path for game maps.
+	 * Format: /Game/Path/To/BP_GameMode.BP_GameMode_C
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
+	void SetGameGameModePath(const FString& Path) { GameGameModePath = Path; }
+
+	/**
+	 * Set the GameMode class path for menu maps.
+	 * Format: /Game/Path/To/BP_MenuGameMode.BP_MenuGameMode_C
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
+	void SetMenuGameModePath(const FString& Path) { MenuGameModePath = Path; }
+
+	/**
+	 * Get the configured GameMode path for game maps.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
+	FString GetGameGameModePath() const { return GameGameModePath; }
+
+	/**
+	 * Get the configured GameMode path for menu maps.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Transition")
+	FString GetMenuGameModePath() const { return MenuGameModePath; }
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// DELEGATES
@@ -160,4 +187,20 @@ protected:
 	/** Current transition data */
 	UPROPERTY()
 	FSuspenseCoreTransitionData TransitionData;
+
+	/**
+	 * GameMode class path for game maps.
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreGameMode.BP_SuspenseCoreGameMode_C
+	 * Set this via SetGameGameModePath() or in Blueprint.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config")
+	FString GameGameModePath;
+
+	/**
+	 * GameMode class path for menu maps.
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreMenuGameMode.BP_SuspenseCoreMenuGameMode_C
+	 * Set this via SetMenuGameModePath() or in Blueprint.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config")
+	FString MenuGameModePath;
 };

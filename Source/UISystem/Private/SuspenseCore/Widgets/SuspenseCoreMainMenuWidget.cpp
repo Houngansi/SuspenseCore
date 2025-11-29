@@ -194,16 +194,37 @@ void USuspenseCoreMainMenuWidget::TransitionToGame()
 	// Use transition subsystem for proper state persistence
 	if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem = USuspenseCoreMapTransitionSubsystem::Get(this))
 	{
+		// Configure GameMode paths for proper switching
+		if (!GameGameModePath.IsEmpty())
+		{
+			TransitionSubsystem->SetGameGameModePath(GameGameModePath);
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Set GameGameModePath: %s"), *GameGameModePath);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: GameGameModePath not set! Configure it in Blueprint."));
+		}
+
+		if (!MenuGameModePath.IsEmpty())
+		{
+			TransitionSubsystem->SetMenuGameModePath(MenuGameModePath);
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Set MenuGameModePath: %s"), *MenuGameModePath);
+		}
+
 		TransitionSubsystem->TransitionToGameMap(CurrentPlayerId, GameMapName);
 	}
 	else
 	{
-		// Fallback: direct level open (less reliable for state persistence)
+		// Fallback: direct level open with forced GameMode
 		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: TransitionSubsystem not found, using direct OpenLevel"));
 		UWorld* World = GetWorld();
 		if (World)
 		{
 			FString Options = FString::Printf(TEXT("?PlayerId=%s"), *CurrentPlayerId);
+			if (!GameGameModePath.IsEmpty())
+			{
+				Options += FString::Printf(TEXT("?game=%s"), *GameGameModePath);
+			}
 			UGameplayStatics::OpenLevel(World, GameMapName, true, Options);
 		}
 	}

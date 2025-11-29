@@ -427,8 +427,15 @@ USuspenseCoreEventBus* ASuspenseCorePlayerController::GetEventBus() const
 
 void ASuspenseCorePlayerController::CreatePauseMenu()
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreatePauseMenu ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidgetClass: %s"), PauseMenuWidgetClass ? *PauseMenuWidgetClass->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_PauseGame: %s"), IA_PauseGame ? *IA_PauseGame->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickSave: %s"), IA_QuickSave ? *IA_QuickSave->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickLoad: %s"), IA_QuickLoad ? *IA_QuickLoad->GetName() : TEXT("NOT SET!"));
+
 	if (!PauseMenuWidgetClass)
 	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidgetClass is not set in BP_SuspenseCorePlayerController!"));
 		return;
 	}
 
@@ -437,6 +444,11 @@ void ASuspenseCorePlayerController::CreatePauseMenu()
 	{
 		PauseMenuWidget->AddToViewport(100); // High Z-order for pause menu
 		PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: PauseMenuWidget created and added to viewport"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not create PauseMenuWidget!"));
 	}
 }
 
@@ -491,6 +503,8 @@ void ASuspenseCorePlayerController::QuickLoad()
 
 void ASuspenseCorePlayerController::HandlePauseGame(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGame called! ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
 	TogglePauseMenu();
 }
 

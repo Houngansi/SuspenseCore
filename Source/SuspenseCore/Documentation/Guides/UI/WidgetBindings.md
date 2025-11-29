@@ -176,7 +176,7 @@ UButton* PlayButton;  // Имя: PlayButton
 | `InfoText` | `UTextBlock` | **✓** | Информация о сохранении |
 | `SlotBorder` | `UBorder` | | Рамка для подсветки |
 | `TimestampText` | `UTextBlock` | | Дата/время |
-| `EmptySlotText` | `UTextBlock` | | Текст пустого слота |
+| `EmptyText` | `UTextBlock` | | Текст пустого слота |
 | `ThumbnailImage` | `UImage` | | Превью скриншот |
 | `DeleteButton` | `UButton` | | Кнопка удаления |
 | `SelectButton` | `UButton` | | Кнопка выбора |

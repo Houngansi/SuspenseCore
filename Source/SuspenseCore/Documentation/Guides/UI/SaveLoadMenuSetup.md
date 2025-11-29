@@ -181,7 +181,7 @@ Save/Load Menu - это полноценное меню для управлен�
 | `SlotNameText` | UTextBlock | **Да** | Название слота |
 | `InfoText` | UTextBlock | **Да** | Информация (уровень, локация, время) |
 | `TimestampText` | UTextBlock | Нет | Дата/время сохранения |
-| `EmptySlotText` | UTextBlock | Нет | Текст пустого слота |
+| `EmptyText` | UTextBlock | Нет | Текст пустого слота |
 | `ThumbnailImage` | UImage | Нет | Превью скриншот |
 | `DeleteButton` | UButton | Нет | Кнопка удаления |
 
@@ -320,7 +320,35 @@ FText FormatSlotInfo(const FSuspenseCoreSaveHeader& Header)
 | `BackgroundOverlay` | UBorder | Нет | Затемнение фона |
 | `MenuContainer` | UBorder | Нет | Контейнер меню |
 
-### 4.4 Настройка в Class Defaults
+### 4.4 Настройка в Class Defaults (КРИТИЧЕСКИ ВАЖНО!)
+
+**Шаги для настройки SaveSlotWidgetClass:**
+
+1. Откройте Blueprint `WBP_SaveLoadMenu` в редакторе
+2. Нажмите **Class Defaults** в тулбаре (или Alt+Enter)
+3. В панели **Details** найдите категорию **"SuspenseCore | Config"**
+4. Найдите параметр **"Save Slot Widget Class"**
+5. Выберите из выпадающего списка **WBP_SaveSlot**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  WBP_SaveLoadMenu - Class Defaults                          │
+├─────────────────────────────────────────────────────────────┤
+│  ▼ SuspenseCore | Config                                    │
+│    ┌─────────────────────────────────────────────────────┐  │
+│    │ Save Slot Widget Class: [WBP_SaveSlot        ▼]    │  │ ← УСТАНОВИТЬ!
+│    │ Save Mode Title:        "SAVE GAME"                │  │
+│    │ Load Mode Title:        "LOAD GAME"                │  │
+│    │ Num Manual Slots:       10                         │  │
+│    │ Show Quick Save Slot:   ✓                          │  │
+│    │ Show Auto Save Slot:    ✓                          │  │
+│    └─────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**⚠️ БЕЗ ЭТОЙ НАСТРОЙКИ СЛОТЫ НЕ БУДУТ ОТОБРАЖАТЬСЯ!**
+
+**Полные настройки:**
 
 ```
 SaveLoad Menu | Config:

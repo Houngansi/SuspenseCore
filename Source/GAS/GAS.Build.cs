@@ -12,12 +12,13 @@ public class GAS : ModuleRules
             new string[]
             {
                 "Core",
-                "SuspenseCore",
 
                 // Gameplay Ability System dependencies
                 "GameplayAbilities",
                 "GameplayTags",
                 "GameplayTasks",
+
+                // Clean Architecture - EventBus and Services
                 "BridgeSystem"
             }
         );

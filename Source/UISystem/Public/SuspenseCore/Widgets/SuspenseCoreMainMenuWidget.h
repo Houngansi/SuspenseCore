@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCoreCharacterSelectWidget.h"
 #include "SuspenseCoreMainMenuWidget.generated.h"
 
 class UTextBlock;
@@ -235,6 +236,9 @@ protected:
 	/** Unsubscribe from events */
 	void TeardownEventSubscriptions();
 
+	/** Setup direct bindings to CharacterSelectWidget delegates */
+	void SetupCharacterSelectBindings();
+
 	/** Get player repository */
 	ISuspenseCorePlayerRepository* GetRepository();
 
@@ -252,6 +256,22 @@ protected:
 
 	/** Handle create new character event */
 	void OnCreateNewCharacter(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// DIRECT DELEGATE HANDLERS (from CharacterSelectWidget)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Handle character selection - direct from widget delegate */
+	UFUNCTION()
+	void OnCharacterSelectedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry);
+
+	/** Handle create new character - direct from widget delegate */
+	UFUNCTION()
+	void OnCreateNewCharacterDirect();
+
+	/** Handle character deleted - direct from widget delegate */
+	UFUNCTION()
+	void OnCharacterDeletedDirect(const FString& PlayerId);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

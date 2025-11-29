@@ -517,13 +517,20 @@ public:
 - `TitleText` (UTextBlock)
 - `CharacterListScrollBox` (UScrollBox) или `CharacterListBox` (UVerticalBox)
 - `StatusText` (UTextBlock)
-- `PlayButton` (UButton) - **НОВАЯ кнопка для игры**
+- `PlayButton` (UButton) - **Кнопка для начала игры**
 - `PlayButtonText` (UTextBlock)
+- `DeleteButton` (UButton) - **Кнопка удаления персонажа**
+- `DeleteButtonText` (UTextBlock)
 - `CreateNewButton` (UButton)
 - `CreateNewButtonText` (UTextBlock)
 
 **3. В Class Defaults установите:**
 - `CharacterEntryWidgetClass` = `WBP_CharacterEntry`
+
+**4. Логика кнопок:**
+- **Play**: активна только когда выбран персонаж → переход в Main Menu
+- **Delete**: активна только когда выбран персонаж → удаление и обновление списка
+- **Create New**: всегда активна → переход на Registration
 
 ### 7.7.1 Создание WBP_CharacterEntry (карточка персонажа)
 

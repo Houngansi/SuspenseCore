@@ -105,6 +105,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* PlayButtonText;
 
+	/** Delete button - deletes highlighted character */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* DeleteButton;
+
+	/** Text for delete button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* DeleteButtonText;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -132,6 +140,10 @@ public:
 	/** Text for play button when no character selected */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Select|Config")
 	FText SelectCharacterText = FText::FromString(TEXT("Select a character"));
+
+	/** Text for delete button */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Select|Config")
+	FText DeleteText = FText::FromString(TEXT("DELETE"));
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// PUBLIC API
@@ -271,6 +283,10 @@ protected:
 	/** Handle play button click */
 	UFUNCTION()
 	void OnPlayButtonClicked();
+
+	/** Handle delete button click */
+	UFUNCTION()
+	void OnDeleteButtonClicked();
 
 	/** Handle entry widget clicked */
 	UFUNCTION()

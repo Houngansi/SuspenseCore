@@ -36,6 +36,11 @@ void USuspenseCoreCharacterSelectWidget::NativeConstruct()
 		PlayButton->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnPlayButtonClicked);
 	}
 
+	if (DeleteButton)
+	{
+		DeleteButton->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnDeleteButtonClicked);
+	}
+
 	// Update UI
 	UpdateUIDisplay();
 
@@ -291,6 +296,11 @@ void USuspenseCoreCharacterSelectWidget::UpdateUIDisplay()
 	{
 		PlayButtonText->SetText(PlayText);
 	}
+
+	if (DeleteButtonText)
+	{
+		DeleteButtonText->SetText(DeleteText);
+	}
 }
 
 void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
@@ -472,6 +482,27 @@ void USuspenseCoreCharacterSelectWidget::OnPlayButtonClicked()
 	PlayWithHighlightedCharacter();
 }
 
+void USuspenseCoreCharacterSelectWidget::OnDeleteButtonClicked()
+{
+	UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Delete button clicked"));
+
+	if (!HighlightedPlayerId.IsEmpty())
+	{
+		FString PlayerIdToDelete = HighlightedPlayerId;
+
+		// Clear highlight before delete
+		HighlightedPlayerId.Empty();
+		HighlightedEntry = FSuspenseCoreCharacterEntry();
+
+		// Delete the character (this will refresh list and broadcast delegate)
+		DeleteCharacter(PlayerIdToDelete);
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreCharacterSelect, Warning, TEXT("No character highlighted to delete"));
+	}
+}
+
 void USuspenseCoreCharacterSelectWidget::OnEntryWidgetClicked(const FString& PlayerId)
 {
 	UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Entry widget clicked: %s"), *PlayerId);
@@ -480,9 +511,10 @@ void USuspenseCoreCharacterSelectWidget::OnEntryWidgetClicked(const FString& Pla
 
 void USuspenseCoreCharacterSelectWidget::UpdatePlayButtonState()
 {
+	bool bHasSelection = !HighlightedPlayerId.IsEmpty();
+
 	if (PlayButton)
 	{
-		bool bHasSelection = !HighlightedPlayerId.IsEmpty();
 		PlayButton->SetIsEnabled(bHasSelection);
 
 		// Update button text
@@ -497,5 +529,11 @@ void USuspenseCoreCharacterSelectWidget::UpdatePlayButtonState()
 				PlayButtonText->SetText(SelectCharacterText);
 			}
 		}
+	}
+
+	// Delete button also requires selection
+	if (DeleteButton)
+	{
+		DeleteButton->SetIsEnabled(bHasSelection);
 	}
 }

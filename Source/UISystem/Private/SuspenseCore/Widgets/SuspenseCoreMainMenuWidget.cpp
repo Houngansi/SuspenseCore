@@ -31,6 +31,7 @@ void USuspenseCoreMainMenuWidget::NativeConstruct()
 	UpdateUIDisplay();
 	SetupButtonBindings();
 	SetupEventSubscriptions();
+	SetupCharacterSelectBindings();
 
 	// Initialize menu flow
 	InitializeMenu();
@@ -266,6 +267,60 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 			CachedEventBus->Unsubscribe(CreateNewCharacterEventHandle);
 		}
 	}
+}
+
+void USuspenseCoreMainMenuWidget::SetupCharacterSelectBindings()
+{
+	// Direct delegate bindings - more reliable than EventBus for widget communication
+	if (CharacterSelectWidget)
+	{
+		// Subscribe to character selection
+		CharacterSelectWidget->OnCharacterSelectedDelegate.AddDynamic(
+			this, &USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect);
+
+		// Subscribe to create new request
+		CharacterSelectWidget->OnCreateNewRequestedDelegate.AddDynamic(
+			this, &USuspenseCoreMainMenuWidget::OnCreateNewCharacterDirect);
+
+		// Subscribe to delete events
+		CharacterSelectWidget->OnCharacterDeletedDelegate.AddDynamic(
+			this, &USuspenseCoreMainMenuWidget::OnCharacterDeletedDirect);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Bound to CharacterSelectWidget delegates"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: CharacterSelectWidget not found for direct binding"));
+	}
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character selected (direct): %s"), *PlayerId);
+
+	if (!PlayerId.IsEmpty())
+	{
+		ShowMainMenuScreen(PlayerId);
+	}
+}
+
+void USuspenseCoreMainMenuWidget::OnCreateNewCharacterDirect()
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Create new character (direct)"));
+	ShowRegistrationScreen();
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterDeletedDirect(const FString& PlayerId)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character deleted (direct): %s"), *PlayerId);
+
+	// If deleted the current player, clear the selection
+	if (CurrentPlayerId == PlayerId)
+	{
+		CurrentPlayerId.Empty();
+	}
+
+	// CharacterSelectWidget already refreshes its list, so nothing else needed here
 }
 
 ISuspenseCorePlayerRepository* USuspenseCoreMainMenuWidget::GetRepository()

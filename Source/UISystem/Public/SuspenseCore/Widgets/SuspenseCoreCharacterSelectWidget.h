@@ -16,6 +16,7 @@ class UScrollBox;
 class UVerticalBox;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
+class USuspenseCoreCharacterEntryWidget;
 
 /**
  * Character entry item for the character list
@@ -96,6 +97,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* StatusText;
 
+	/** Play button - starts game with selected character */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* PlayButton;
+
+	/** Text for play button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* PlayButtonText;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -115,6 +124,14 @@ public:
 	/** Text when no characters exist */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Select|Config")
 	FText NoCharactersText = FText::FromString(TEXT("No characters found. Create your first character!"));
+
+	/** Text for play button */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Select|Config")
+	FText PlayText = FText::FromString(TEXT("PLAY"));
+
+	/** Text for play button when no character selected */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Select|Config")
+	FText SelectCharacterText = FText::FromString(TEXT("Select a character"));
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// PUBLIC API
@@ -139,6 +156,22 @@ public:
 	/** Request to create new character (navigates to registration) */
 	UFUNCTION(BlueprintCallable, Category = "Character Select")
 	void RequestCreateNewCharacter();
+
+	/** Highlight a character (visual selection without confirming) */
+	UFUNCTION(BlueprintCallable, Category = "Character Select")
+	void HighlightCharacter(const FString& PlayerId);
+
+	/** Get currently highlighted character ID */
+	UFUNCTION(BlueprintCallable, Category = "Character Select")
+	FString GetHighlightedPlayerId() const { return HighlightedPlayerId; }
+
+	/** Play with currently highlighted character */
+	UFUNCTION(BlueprintCallable, Category = "Character Select")
+	void PlayWithHighlightedCharacter();
+
+	/** Check if a character is highlighted */
+	UFUNCTION(BlueprintCallable, Category = "Character Select")
+	bool HasHighlightedCharacter() const { return !HighlightedPlayerId.IsEmpty(); }
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -197,6 +230,18 @@ protected:
 	UPROPERTY()
 	TMap<UButton*, FString> ButtonToPlayerIdMap;
 
+	/** Map of entry widgets to player IDs */
+	UPROPERTY()
+	TMap<USuspenseCoreCharacterEntryWidget*, FString> EntryWidgetMap;
+
+	/** Currently highlighted (selected) player ID */
+	UPROPERTY()
+	FString HighlightedPlayerId;
+
+	/** Currently highlighted entry data */
+	UPROPERTY()
+	FSuspenseCoreCharacterEntry HighlightedEntry;
+
 	/** Get repository interface */
 	ISuspenseCorePlayerRepository* GetOrCreateRepository();
 
@@ -222,6 +267,17 @@ protected:
 	/** Handle character button click - looks up PlayerId from button map */
 	UFUNCTION()
 	void OnCharacterButtonClicked();
+
+	/** Handle play button click */
+	UFUNCTION()
+	void OnPlayButtonClicked();
+
+	/** Handle entry widget clicked */
+	UFUNCTION()
+	void OnEntryWidgetClicked(const FString& PlayerId);
+
+	/** Update play button state based on selection */
+	void UpdatePlayButtonState();
 
 	/** Last clicked button (for lookup) */
 	UPROPERTY()

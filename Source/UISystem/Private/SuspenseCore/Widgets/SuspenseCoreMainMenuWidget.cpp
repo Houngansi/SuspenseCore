@@ -10,6 +10,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "SuspenseCore/Repository/SuspenseCoreFilePlayerRepository.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
+#include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -159,6 +161,12 @@ void USuspenseCoreMainMenuWidget::ShowMainMenuScreen(const FString& PlayerId)
 
 void USuspenseCoreMainMenuWidget::TransitionToGame()
 {
+	if (CurrentPlayerId.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Cannot transition to game - no player selected"));
+		return;
+	}
+
 	// Publish event
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
 	if (Manager && Manager->GetEventBus())
@@ -173,14 +181,31 @@ void USuspenseCoreMainMenuWidget::TransitionToGame()
 		);
 	}
 
+	// Setup SaveManager with current player before transition
+	if (USuspenseCoreSaveManager* SaveManager = USuspenseCoreSaveManager::Get(this))
+	{
+		SaveManager->SetCurrentPlayer(CurrentPlayerId);
+		SaveManager->SetProfileData(CachedPlayerData);
+	}
+
 	// Call Blueprint event
 	OnTransitionToGame();
 
-	// Open the game map
-	UWorld* World = GetWorld();
-	if (World)
+	// Use transition subsystem for proper state persistence
+	if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem = USuspenseCoreMapTransitionSubsystem::Get(this))
 	{
-		UGameplayStatics::OpenLevel(World, GameMapName);
+		TransitionSubsystem->TransitionToGameMap(CurrentPlayerId, GameMapName);
+	}
+	else
+	{
+		// Fallback: direct level open (less reliable for state persistence)
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: TransitionSubsystem not found, using direct OpenLevel"));
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			FString Options = FString::Printf(TEXT("?PlayerId=%s"), *CurrentPlayerId);
+			UGameplayStatics::OpenLevel(World, GameMapName, true, Options);
+		}
 	}
 }
 

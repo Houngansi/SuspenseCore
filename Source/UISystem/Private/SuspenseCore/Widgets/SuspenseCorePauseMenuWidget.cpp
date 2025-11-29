@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
@@ -322,13 +323,27 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Exit to lobby clicked"));
 
+	// Auto-save before leaving
+	if (USuspenseCoreSaveManager* SaveMgr = GetSaveManager())
+	{
+		SaveMgr->TriggerAutoSave();
+	}
+
 	OnExitToLobby();
 
 	// Unpause before loading new level
 	SetGamePaused(false);
 
-	// Load lobby map
-	UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName);
+	// Use transition subsystem for proper state handling
+	if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem = USuspenseCoreMapTransitionSubsystem::Get(this))
+	{
+		TransitionSubsystem->TransitionToMainMenu(LobbyMapName);
+	}
+	else
+	{
+		// Fallback: direct level open
+		UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName);
+	}
 }
 
 void USuspenseCorePauseMenuWidget::OnQuitButtonClicked()

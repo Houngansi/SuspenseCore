@@ -354,12 +354,29 @@ void ASuspenseCorePlayerController::SetupEnhancedInput()
 	UE_LOG(LogTemp, Warning, TEXT("=== SetupEnhancedInput ==="));
 	UE_LOG(LogTemp, Warning, TEXT("  DefaultMappingContext: %s"), DefaultMappingContext ? *DefaultMappingContext->GetName() : TEXT("NOT SET!"));
 
+	// Log all mappings in the context to debug
+	if (DefaultMappingContext)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  === MAPPINGS IN %s ==="), *DefaultMappingContext->GetName());
+		const TArray<FEnhancedActionKeyMapping>& Mappings = DefaultMappingContext->GetMappings();
+		for (const FEnhancedActionKeyMapping& Mapping : Mappings)
+		{
+			if (Mapping.Action)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("    Action: %s -> Key: %s"),
+					*Mapping.Action->GetName(),
+					*Mapping.Key.ToString());
+			}
+		}
+		UE_LOG(LogTemp, Warning, TEXT("  === END MAPPINGS ==="));
+	}
+
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		if (DefaultMappingContext)
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
-			UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: MappingContext added to subsystem"));
+			UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: MappingContext added to subsystem with priority %d"), MappingContextPriority);
 		}
 		else
 		{

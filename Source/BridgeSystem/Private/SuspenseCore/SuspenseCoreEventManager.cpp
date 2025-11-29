@@ -41,7 +41,6 @@ void USuspenseCoreEventManager::Deinitialize()
 	if (TickDelegateHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
-		TickDelegateHandle.Reset();
 	}
 
 	// Публикуем событие shutdown

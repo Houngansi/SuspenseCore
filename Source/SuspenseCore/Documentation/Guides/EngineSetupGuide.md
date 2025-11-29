@@ -33,22 +33,30 @@ PublicDependencyModuleNames.AddRange(new string[]
 
 ### 1.2 GameplayTags
 
-Создайте файл тегов `Config/DefaultGameplayTags.ini`:
+**SSOT (Single Source of Truth):** Все теги игры хранятся в одном файле:
 
-```ini
-[/Script/GameplayTags.GameplayTagsSettings]
-+GameplayTagList=(Tag="Event.GAS.Health.Death",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Health.Low",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Health.Changed",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Shield.Broken",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Shield.Low",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Shield.Changed",DevComment="")
-+GameplayTagList=(Tag="Event.GAS.Attribute.Changed",DevComment="")
-+GameplayTagList=(Tag="Event.Progression.LevelUp",DevComment="")
-+GameplayTagList=(Tag="Event.Progression.XPGained",DevComment="")
-+GameplayTagList=(Tag="Event.UI.Registration.Success",DevComment="")
-+GameplayTagList=(Tag="Event.UI.Registration.Failed",DevComment="")
 ```
+Source/SuspenseCore/Documentation/SuspenseCoreGameplayTags.ini
+```
+
+**ВАЖНО:** При создании новых файлов с тегами - сначала добавьте теги в SSOT файл!
+
+**Подключение тегов:**
+
+1. Скопируйте содержимое `SuspenseCoreGameplayTags.ini` в `Config/DefaultGameplayTags.ini`
+2. Или импортируйте через **Project Settings** → **GameplayTags** → **Import Tags from File**
+
+**Основные категории тегов:**
+
+| Категория | Префикс | Описание |
+|-----------|---------|----------|
+| События SuspenseCore | `SuspenseCore.Event.*` | Новая архитектура |
+| GAS Events | `Event.GAS.*` | Здоровье, щит, атрибуты |
+| Progression | `Event.Progression.*` | Level up, XP, валюта |
+| UI Events | `Event.UI.*` | Виджеты, регистрация |
+| Equipment | `Equipment.*` | Legacy система экипировки |
+| Items | `Item.*` | Предметы, оружие |
+| Services | `Service.*` | Сервисы |
 
 ---
 

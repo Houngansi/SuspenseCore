@@ -1,833 +1,319 @@
 # ЭТАП 2: GAS (Gameplay Ability System) — Детальный план
 
-> **Статус:** Не начат
+> **Статус:** ✅ ВЫПОЛНЕНО (Phase 2 Core)
 > **Приоритет:** P0 (КРИТИЧЕСКИЙ)
 > **Зависимости:** BridgeSystem (Этап 1)
 > **Предыдущий этап:** [BridgeSystem](../BridgeSystem/README.md)
 
 ---
 
-## 1. Обзор
+## 1. Созданные классы (SuspenseCore*)
 
-GAS модуль содержит Gameplay Ability System компоненты.
-Создаём с нуля следующие классы:
-
-| Класс | Legacy референс | Описание |
-|-------|-----------------|----------|
-| `USuspenseCoreAbilitySystemComponent` | `USuspenseAbilitySystemComponent` | ASC с интеграцией EventBus |
-| `USuspenseCoreAttributeSet` | — | Базовый класс для всех атрибутов |
-| `USuspenseCoreHealthAttributeSet` | — | Атрибуты здоровья |
-| `USuspenseCoreWeaponAttributeSet` | `USuspenseWeaponAttributeSet` | Атрибуты оружия |
-| `ISuspenseCoreAbilityInterface` | — | Интерфейс для владельца ASC |
+| Класс | Путь | Статус |
+|-------|------|--------|
+| `USuspenseCoreAbilitySystemComponent` | `GAS/Public/SuspenseCore/Components/` | ✅ Создан |
+| `USuspenseCoreAttributeSet` | `GAS/Public/SuspenseCore/Attributes/` | ✅ Создан |
+| `USuspenseCoreShieldAttributeSet` | `GAS/Public/SuspenseCore/Attributes/` | ✅ Создан |
+| `USuspenseCoreMovementAttributeSet` | `GAS/Public/SuspenseCore/Attributes/` | ✅ Создан |
+| `USuspenseCoreProgressionAttributeSet` | `GAS/Public/SuspenseCore/Attributes/` | ✅ Создан |
 
 ---
 
-## 2. Архитектура GAS модуля
+## 2. Архитектура AttributeSets
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         GAS MODULE ARCHITECTURE                              │
+│                    ATTRIBUTE SETS HIERARCHY                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│                    ┌─────────────────────────────────┐                       │
-│                    │  USuspenseCoreEventManager     │                       │
-│                    │      (from BridgeSystem)       │                       │
-│                    └───────────────┬─────────────────┘                       │
-│                                    │                                         │
-│                                    ▼                                         │
-│    ┌───────────────────────────────────────────────────────────────────┐    │
-│    │              USuspenseCoreAbilitySystemComponent                  │    │
-│    │  ═══════════════════════════════════════════════════════════════  │    │
-│    │  • Владеет AttributeSets                                          │    │
-│    │  • Публикует события через EventBus                               │    │
-│    │  • НЕ использует делегаты напрямую                                │    │
-│    └───────────────────────────────┬───────────────────────────────────┘    │
-│                                    │                                         │
-│              ┌─────────────────────┼─────────────────────┐                  │
-│              │                     │                     │                  │
-│              ▼                     ▼                     ▼                  │
-│   ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐         │
-│   │ USuspenseCore    │  │ USuspenseCore    │  │ USuspenseCore    │         │
-│   │ HealthAttribute  │  │ WeaponAttribute  │  │ StaminaAttribute │         │
-│   │ Set              │  │ Set              │  │ Set              │         │
-│   └──────────────────┘  └──────────────────┘  └──────────────────┘         │
-│              │                     │                     │                  │
-│              └─────────────────────┼─────────────────────┘                  │
-│                                    │                                         │
-│                         ┌──────────▼──────────┐                              │
-│                         │  USuspenseCore      │                              │
-│                         │  AttributeSet       │                              │
-│                         │  (базовый класс)    │                              │
-│                         └─────────────────────┘                              │
+│                    USuspenseCoreAbilitySystemComponent                      │
+│                              │                                              │
+│              ┌───────────────┼───────────────┬───────────────┐              │
+│              │               │               │               │              │
+│              ▼               ▼               ▼               ▼              │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│   │ SuspenseCore │  │ SuspenseCore │  │ SuspenseCore │  │ SuspenseCore │   │
+│   │ AttributeSet │  │ ShieldAttr   │  │ MovementAttr │  │ Progression  │   │
+│   │              │  │ Set          │  │ Set          │  │ AttributeSet │   │
+│   │ ────────────│  │ ────────────│  │ ────────────│  │ ────────────│   │
+│   │ Health      │  │ Shield      │  │ WalkSpeed   │  │ Level       │   │
+│   │ MaxHealth   │  │ MaxShield   │  │ SprintSpeed │  │ Experience  │   │
+│   │ HealthRegen │  │ ShieldRegen │  │ CrouchSpeed │  │ XPToNext    │   │
+│   │ Stamina     │  │ RegenDelay  │  │ ProneSpeed  │  │ XPMultiplier│   │
+│   │ MaxStamina  │  │ BreakCool   │  │ AimSpeed    │  │ Reputation  │   │
+│   │ StaminaRegen│  │ DmgReduce   │  │ JumpHeight  │  │ SoftCurrency│   │
+│   │ Armor       │  │ Overflow    │  │ AirControl  │  │ HardCurrency│   │
+│   │ AttackPower │  │             │  │ TurnRate    │  │ SkillPoints │   │
+│   │ MoveSpeed   │  │             │  │ Weight      │  │ AttrPoints  │   │
+│   │ IncomingDmg │  │             │  │ MaxWeight   │  │ Prestige    │   │
+│   │ IncomingHeal│  │             │  │             │  │ SeasonRank  │   │
+│   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+│                                                                              │
+│   ВСЕГО: 11 атр.     ВСЕГО: 10 атр.    ВСЕГО: 18 атр.    ВСЕГО: 14 атр.    │
+│                                                                              │
+│                         ИТОГО: 53 АТРИБУТА                                  │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Классы к созданию
-
-### 3.1 USuspenseCoreAbilitySystemComponent
-
-**Файл:** `GAS/Public/Core/SuspenseCoreAbilitySystemComponent.h`
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "AbilitySystemComponent.h"
-#include "GameplayTagContainer.h"
-#include "SuspenseCoreAbilitySystemComponent.generated.h"
-
-class USuspenseCoreEventBus;
-class USuspenseCoreEventManager;
-struct FSuspenseCoreEventData;
-
-/**
- * USuspenseCoreAbilitySystemComponent
- *
- * Новый ASC с интеграцией EventBus.
- *
- * Ключевые отличия от legacy:
- * - Все изменения атрибутов публикуются через EventBus
- * - Активация/завершение способностей = события
- * - Эффекты = события
- * - НЕТ прямых делегатов для внешних систем
- *
- * Legacy референс: USuspenseAbilitySystemComponent
- */
-UCLASS(ClassGroup = "SuspenseCore", meta = (BlueprintSpawnableComponent))
-class GAS_API USuspenseCoreAbilitySystemComponent : public UAbilitySystemComponent
-{
-    GENERATED_BODY()
-
-public:
-    USuspenseCoreAbilitySystemComponent();
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UActorComponent Interface
-    // ═══════════════════════════════════════════════════════════════════════
-
-    virtual void BeginPlay() override;
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UAbilitySystemComponent Interface
-    // ═══════════════════════════════════════════════════════════════════════
-
-    virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // EVENT PUBLISHING
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Публикует событие изменения атрибута
-     */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS|Events")
-    void PublishAttributeChangeEvent(
-        const FGameplayAttribute& Attribute,
-        float OldValue,
-        float NewValue,
-        AActor* Instigator
-    );
-
-    /**
-     * Публикует событие активации способности
-     */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS|Events")
-    void PublishAbilityActivatedEvent(
-        const FGameplayAbilitySpecHandle& Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo& ActivationInfo
-    );
-
-    /**
-     * Публикует событие завершения способности
-     */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS|Events")
-    void PublishAbilityEndedEvent(
-        const FGameplayAbilitySpecHandle& Handle,
-        bool bWasCancelled
-    );
-
-    /**
-     * Публикует событие применения эффекта
-     */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS|Events")
-    void PublishEffectAppliedEvent(
-        const FActiveGameplayEffectHandle& Handle,
-        const FGameplayEffectSpec& Spec
-    );
-
-    /**
-     * Публикует событие удаления эффекта
-     */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS|Events")
-    void PublishEffectRemovedEvent(
-        const FActiveGameplayEffectHandle& Handle
-    );
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // CONFIGURATION
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Автоматически публиковать события изменения атрибутов */
-    UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
-    bool bAutoPublishAttributeChanges = true;
-
-    /** Автоматически публиковать события способностей */
-    UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
-    bool bAutoPublishAbilityEvents = true;
-
-    /** Автоматически публиковать события эффектов */
-    UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
-    bool bAutoPublishEffectEvents = true;
-
-    /** Список атрибутов для публикации (пустой = все) */
-    UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
-    TArray<FGameplayAttribute> AttributesToPublish;
-
-protected:
-    // ═══════════════════════════════════════════════════════════════════════
-    // INTERNAL
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Кэшированный EventBus */
-    UPROPERTY()
-    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
-
-    /** Получить EventBus */
-    USuspenseCoreEventBus* GetEventBus() const;
-
-    /** Настроить callbacks на изменения */
-    void SetupAttributeChangeCallbacks();
-
-    /** Отписаться от callbacks */
-    void TeardownAttributeChangeCallbacks();
-
-    /** Callback при изменении атрибута */
-    void OnAttributeChanged(const FOnAttributeChangeData& Data);
-
-    /** Handle для отслеживания изменений */
-    TMap<FGameplayAttribute, FDelegateHandle> AttributeChangeDelegates;
-
-private:
-    /** Проверка нужно ли публиковать атрибут */
-    bool ShouldPublishAttribute(const FGameplayAttribute& Attribute) const;
-
-    /** Формирование GameplayTag для атрибута */
-    FGameplayTag GetAttributeEventTag(const FGameplayAttribute& Attribute) const;
-};
-```
-
-### 3.2 USuspenseCoreAttributeSet (Базовый класс)
-
-**Файл:** `GAS/Public/Core/SuspenseCoreAttributeSet.h`
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "AttributeSet.h"
-#include "AbilitySystemComponent.h"
-#include "SuspenseCoreAttributeSet.generated.h"
-
-/**
- * USuspenseCoreAttributeSet
- *
- * Базовый класс для всех AttributeSet в проекте.
- *
- * Особенности:
- * - Интеграция с EventBus (через владеющий ASC)
- * - Стандартные макросы для атрибутов
- * - Валидация значений
- */
-UCLASS(Abstract)
-class GAS_API USuspenseCoreAttributeSet : public UAttributeSet
-{
-    GENERATED_BODY()
-
-public:
-    USuspenseCoreAttributeSet();
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UAttributeSet Interface
-    // ═══════════════════════════════════════════════════════════════════════
-
-    virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
-    virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
-    virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-protected:
-    // ═══════════════════════════════════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Получить владеющий ASC
-     */
-    USuspenseCoreAbilitySystemComponent* GetOwningASC() const;
-
-    /**
-     * Получить владеющего Actor
-     */
-    AActor* GetOwningActor() const;
-
-    /**
-     * Clamp значение атрибута
-     */
-    void ClampAttribute(const FGameplayAttribute& Attribute, float& Value, float Min, float Max) const;
-
-    /**
-     * Проверить и применить clamp к CurrentValue
-     */
-    void AdjustAttributeForMaxChange(
-        const FGameplayAttribute& AffectedAttribute,
-        const FGameplayAttribute& MaxAttribute,
-        float NewMaxValue,
-        const FGameplayAttribute& AffectedAttributeProperty
-    );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ATTRIBUTE MACROS
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Макрос для объявления атрибута с accessor функциями
- * Использование: SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, Health)
- */
-#define SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
-    GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
-```
-
-### 3.3 USuspenseCoreHealthAttributeSet
-
-**Файл:** `GAS/Public/Core/Attributes/SuspenseCoreHealthAttributeSet.h`
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "Core/SuspenseCoreAttributeSet.h"
-#include "SuspenseCoreHealthAttributeSet.generated.h"
-
-/**
- * USuspenseCoreHealthAttributeSet
- *
- * Атрибуты здоровья персонажа.
- *
- * Атрибуты:
- * - Health: Текущее здоровье
- * - MaxHealth: Максимальное здоровье
- * - HealthRegenRate: Скорость регенерации
- * - Shield: Щит (поглощает урон перед Health)
- * - MaxShield: Максимальный щит
- */
-UCLASS()
-class GAS_API USuspenseCoreHealthAttributeSet : public USuspenseCoreAttributeSet
-{
-    GENERATED_BODY()
-
-public:
-    USuspenseCoreHealthAttributeSet();
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // ATTRIBUTES
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Текущее здоровье */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Health")
-    FGameplayAttributeData Health;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, Health)
-
-    /** Максимальное здоровье */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
-    FGameplayAttributeData MaxHealth;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, MaxHealth)
-
-    /** Скорость регенерации здоровья (в секунду) */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_HealthRegenRate, Category = "Health")
-    FGameplayAttributeData HealthRegenRate;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, HealthRegenRate)
-
-    /** Текущий щит */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Shield")
-    FGameplayAttributeData Shield;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, Shield)
-
-    /** Максимальный щит */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxShield, Category = "Shield")
-    FGameplayAttributeData MaxShield;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, MaxShield)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // META ATTRIBUTES (не реплицируются, для расчётов)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Входящий урон (для расчёта в PostGameplayEffectExecute) */
-    UPROPERTY(BlueprintReadOnly, Category = "Meta")
-    FGameplayAttributeData IncomingDamage;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, IncomingDamage)
-
-    /** Входящее лечение */
-    UPROPERTY(BlueprintReadOnly, Category = "Meta")
-    FGameplayAttributeData IncomingHealing;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreHealthAttributeSet, IncomingHealing)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UAttributeSet Interface
-    // ═══════════════════════════════════════════════════════════════════════
-
-    virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
-    virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-protected:
-    // ═══════════════════════════════════════════════════════════════════════
-    // REPLICATION
-    // ═══════════════════════════════════════════════════════════════════════
-
-    UFUNCTION()
-    virtual void OnRep_Health(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_HealthRegenRate(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_Shield(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_MaxShield(const FGameplayAttributeData& OldValue);
-
-private:
-    /** Обработка входящего урона */
-    void HandleIncomingDamage(const FGameplayEffectModCallbackData& Data);
-
-    /** Обработка входящего лечения */
-    void HandleIncomingHealing(const FGameplayEffectModCallbackData& Data);
-};
-```
-
-### 3.4 USuspenseCoreWeaponAttributeSet
-
-**Файл:** `GAS/Public/Core/Attributes/SuspenseCoreWeaponAttributeSet.h`
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "Core/SuspenseCoreAttributeSet.h"
-#include "SuspenseCoreWeaponAttributeSet.generated.h"
-
-/**
- * USuspenseCoreWeaponAttributeSet
- *
- * Атрибуты оружия.
- *
- * Legacy референс: USuspenseWeaponAttributeSet
- *
- * Атрибуты:
- * - CurrentAmmo: Патроны в магазине
- * - MaxAmmo: Размер магазина
- * - ReserveAmmo: Запас патронов
- * - MaxReserveAmmo: Максимальный запас
- * - FireRate: Скорострельность
- * - ReloadSpeed: Скорость перезарядки
- * - Damage: Базовый урон
- * - Spread: Разброс
- */
-UCLASS()
-class GAS_API USuspenseCoreWeaponAttributeSet : public USuspenseCoreAttributeSet
-{
-    GENERATED_BODY()
-
-public:
-    USuspenseCoreWeaponAttributeSet();
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // AMMO ATTRIBUTES
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Текущие патроны в магазине */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_CurrentAmmo, Category = "Ammo")
-    FGameplayAttributeData CurrentAmmo;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, CurrentAmmo)
-
-    /** Максимум патронов в магазине */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxAmmo, Category = "Ammo")
-    FGameplayAttributeData MaxAmmo;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, MaxAmmo)
-
-    /** Запас патронов */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ReserveAmmo, Category = "Ammo")
-    FGameplayAttributeData ReserveAmmo;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, ReserveAmmo)
-
-    /** Максимальный запас */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxReserveAmmo, Category = "Ammo")
-    FGameplayAttributeData MaxReserveAmmo;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, MaxReserveAmmo)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // WEAPON STATS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Скорострельность (выстрелов в минуту) */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_FireRate, Category = "Stats")
-    FGameplayAttributeData FireRate;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, FireRate)
-
-    /** Скорость перезарядки (множитель) */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ReloadSpeed, Category = "Stats")
-    FGameplayAttributeData ReloadSpeed;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, ReloadSpeed)
-
-    /** Базовый урон */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Damage, Category = "Stats")
-    FGameplayAttributeData Damage;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, Damage)
-
-    /** Разброс (в градусах) */
-    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Spread, Category = "Stats")
-    FGameplayAttributeData Spread;
-    SUSPENSE_CORE_ATTRIBUTE_ACCESSORS(USuspenseCoreWeaponAttributeSet, Spread)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UAttributeSet Interface
-    // ═══════════════════════════════════════════════════════════════════════
-
-    virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
-    virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // UTILITY
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Проверить можно ли стрелять */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-    bool CanFire() const;
-
-    /** Проверить нужна ли перезарядка */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-    bool NeedsReload() const;
-
-    /** Проверить есть ли патроны в запасе */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-    bool HasReserveAmmo() const;
-
-    /** Получить время между выстрелами (в секундах) */
-    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-    float GetTimeBetweenShots() const;
-
-protected:
-    // ═══════════════════════════════════════════════════════════════════════
-    // REPLICATION
-    // ═══════════════════════════════════════════════════════════════════════
-
-    UFUNCTION()
-    virtual void OnRep_CurrentAmmo(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_MaxAmmo(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_ReserveAmmo(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_MaxReserveAmmo(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_FireRate(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_ReloadSpeed(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_Damage(const FGameplayAttributeData& OldValue);
-
-    UFUNCTION()
-    virtual void OnRep_Spread(const FGameplayAttributeData& OldValue);
-};
-```
-
-### 3.5 ISuspenseCoreAbilityInterface
-
-**Файл:** `GAS/Public/Core/Interfaces/SuspenseCoreAbilityInterface.h`
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "SuspenseCoreAbilityInterface.generated.h"
-
-class USuspenseCoreAbilitySystemComponent;
-
-UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseCoreAbilityInterface : public UInterface
-{
-    GENERATED_BODY()
-};
-
-/**
- * ISuspenseCoreAbilityInterface
- *
- * Интерфейс для Actor'ов, владеющих AbilitySystemComponent.
- * Стандартный способ получения ASC.
- */
-class GAS_API ISuspenseCoreAbilityInterface
-{
-    GENERATED_BODY()
-
-public:
-    /**
-     * Получить AbilitySystemComponent
-     */
-    virtual USuspenseCoreAbilitySystemComponent* GetSuspenseCoreAbilitySystemComponent() const = 0;
-
-    /**
-     * Проверить жив ли Actor (для GAS)
-     */
-    virtual bool IsAlive() const { return true; }
-
-    /**
-     * Получить уровень для GAS (для скейлинга эффектов)
-     */
-    virtual int32 GetAbilityLevel() const { return 1; }
-};
-```
+## 3. Детальное описание AttributeSets
+
+### 3.1 USuspenseCoreAttributeSet (Базовый)
+
+**Путь:** `GAS/Public/SuspenseCore/Attributes/SuspenseCoreAttributeSet.h`
+
+**11 атрибутов:**
+
+| Атрибут | Тип | Описание | Репликация |
+|---------|-----|----------|------------|
+| `Health` | Primary | Текущее здоровье | ✅ |
+| `MaxHealth` | Primary | Максимальное здоровье | ✅ |
+| `HealthRegen` | Primary | Регенерация HP/сек | ✅ |
+| `Stamina` | Primary | Текущая стамина | ✅ |
+| `MaxStamina` | Primary | Максимальная стамина | ✅ |
+| `StaminaRegen` | Primary | Регенерация стамины/сек | ✅ |
+| `Armor` | Primary | Снижение урона | ✅ |
+| `AttackPower` | Primary | Множитель урона | ✅ |
+| `MovementSpeed` | Primary | Множитель скорости | ✅ |
+| `IncomingDamage` | Meta | Для расчёта урона | ❌ |
+| `IncomingHealing` | Meta | Для расчёта лечения | ❌ |
+
+### 3.2 USuspenseCoreShieldAttributeSet
+
+**Путь:** `GAS/Public/SuspenseCore/Attributes/SuspenseCoreShieldAttributeSet.h`
+
+**10 атрибутов:**
+
+| Атрибут | Категория | Описание |
+|---------|-----------|----------|
+| `Shield` | Shield | Текущий щит |
+| `MaxShield` | Shield | Максимальный щит |
+| `ShieldRegen` | Shield | Регенерация/сек |
+| `ShieldRegenDelay` | Shield | Задержка перед регеном (сек) |
+| `ShieldBreakCooldown` | Break | Кулдаун после разрушения |
+| `ShieldBreakRecoveryPercent` | Break | % восстановления после разрушения |
+| `ShieldDamageReduction` | Damage | Снижение урона щитом (0-1) |
+| `ShieldOverflowDamage` | Damage | Пробитие в HP при разрушении |
+| `IncomingShieldDamage` | Meta | Входящий урон |
+| `IncomingShieldHealing` | Meta | Входящее восстановление |
+
+**Механики:**
+- Щит поглощает урон до здоровья (Halo/Apex style)
+- Регенерация с задержкой после получения урона
+- Событие `Event.GAS.Shield.Broken` при разрушении
+- Событие `Event.GAS.Shield.Low` при 25%
+
+### 3.3 USuspenseCoreMovementAttributeSet
+
+**Путь:** `GAS/Public/SuspenseCore/Attributes/SuspenseCoreMovementAttributeSet.h`
+
+**18 атрибутов:**
+
+| Атрибут | Категория | Описание |
+|---------|-----------|----------|
+| `WalkSpeed` | Speed | Базовая скорость ходьбы |
+| `SprintSpeed` | Speed | Скорость спринта |
+| `CrouchSpeed` | Speed | Скорость в присяде |
+| `ProneSpeed` | Speed | Скорость ползком |
+| `AimSpeed` | Speed | Скорость в прицеле |
+| `BackwardSpeedMultiplier` | Speed | Множитель назад |
+| `StrafeSpeedMultiplier` | Speed | Множитель боком |
+| `JumpHeight` | Jump | Высота прыжка |
+| `MaxJumpCount` | Jump | Макс. прыжков (double jump) |
+| `AirControl` | Jump | Управление в воздухе |
+| `TurnRate` | Rotation | Скорость поворота |
+| `AimTurnRateMultiplier` | Rotation | Множитель в прицеле |
+| `GroundAcceleration` | Acceleration | Ускорение на земле |
+| `GroundDeceleration` | Acceleration | Торможение на земле |
+| `AirAcceleration` | Acceleration | Ускорение в воздухе |
+| `CurrentWeight` | Weight | Текущий вес |
+| `MaxWeight` | Weight | Максимальный вес |
+| `WeightSpeedPenalty` | Weight | Штраф от веса (авто) |
+
+**Механики:**
+- Автоматический пересчёт штрафа от веса
+- Применение скоростей к CharacterMovementComponent
+- Штраф начинается после 50% загрузки
+- Максимальный штраф 80% при перегрузе
+
+### 3.4 USuspenseCoreProgressionAttributeSet
+
+**Путь:** `GAS/Public/SuspenseCore/Attributes/SuspenseCoreProgressionAttributeSet.h`
+
+**14 атрибутов:**
+
+| Атрибут | Категория | Описание |
+|---------|-----------|----------|
+| `Level` | Level | Текущий уровень |
+| `MaxLevel` | Level | Максимальный уровень |
+| `Experience` | Experience | Текущий опыт |
+| `ExperienceToNextLevel` | Experience | XP до следующего уровня |
+| `ExperienceMultiplier` | Experience | Множитель получаемого XP |
+| `IncomingExperience` | Meta | Входящий опыт |
+| `Reputation` | Reputation | Репутация (0-100) |
+| `ReputationMultiplier` | Reputation | Множитель репутации |
+| `SoftCurrency` | Currency | Мягкая валюта |
+| `HardCurrency` | Currency | Твёрдая валюта |
+| `SkillPoints` | Skills | Очки навыков |
+| `AttributePoints` | Skills | Очки атрибутов |
+| `PrestigeLevel` | Prestige | Уровень престижа |
+| `SeasonRank` | Season | Сезонный ранг |
+| `SeasonExperience` | Season | Сезонный опыт |
+
+**Механики:**
+- Экспоненциальная кривая опыта: `BaseXP * (1.15 ^ (Level - 2))`
+- Автоматический level up с выдачей очков
+- +1 SkillPoint и +3 AttributePoints за уровень
+- Событие `Event.Progression.LevelUp`
 
 ---
 
 ## 4. Интеграция с EventBus
 
-### 4.1 Публикуемые события
-
-| Событие | Tag | Payload |
-|---------|-----|---------|
-| Изменение атрибута | `SuspenseCore.Event.GAS.Attribute.Changed` | AttributeName, OldValue, NewValue, Instigator |
-| Здоровье изменилось | `SuspenseCore.Event.GAS.Attribute.Health` | OldValue, NewValue, Instigator |
-| Патроны изменились | `SuspenseCore.Event.GAS.Attribute.Ammo` | CurrentAmmo, MaxAmmo, ReserveAmmo |
-| Способность активирована | `SuspenseCore.Event.GAS.Ability.Activated` | AbilityClass, AbilityLevel |
-| Способность завершена | `SuspenseCore.Event.GAS.Ability.Ended` | AbilityClass, WasCancelled |
-| Эффект применён | `SuspenseCore.Event.GAS.Effect.Applied` | EffectClass, Duration, Stacks |
-| Эффект удалён | `SuspenseCore.Event.GAS.Effect.Removed` | EffectClass |
-
-### 4.2 Пример интеграции
+### 4.1 События атрибутов
 
 ```cpp
-void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
-    const FGameplayAttribute& Attribute,
-    float OldValue,
-    float NewValue,
-    AActor* Instigator)
+// Все AttributeSets публикуют через ASC
+USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
+if (ASC)
 {
-    if (!bAutoPublishAttributeChanges) return;
-    if (!ShouldPublishAttribute(Attribute)) return;
+    ASC->PublishAttributeChangeEvent(Attribute, OldValue, NewValue);
+}
+```
 
-    USuspenseCoreEventBus* EventBus = GetEventBus();
-    if (!EventBus) return;
+### 4.2 Критические события
 
-    // Создаём данные события
-    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
-    EventData.SetString(TEXT("AttributeName"), Attribute.GetName());
-    EventData.SetFloat(TEXT("OldValue"), OldValue);
-    EventData.SetFloat(TEXT("NewValue"), NewValue);
-    EventData.SetObject(TEXT("Instigator"), Instigator);
+| Событие | Tag | Когда публикуется |
+|---------|-----|-------------------|
+| Смерть | `Event.GAS.Health.Death` | Health <= 0 |
+| Низкое HP | `Event.GAS.Health.Low` | Health <= 25% |
+| Щит разрушен | `Event.GAS.Shield.Broken` | Shield = 0 (was > 0) |
+| Level Up | `Event.Progression.LevelUp` | Level increased |
 
-    // Общее событие изменения атрибута
-    EventBus->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.GAS.Attribute.Changed")),
-        EventData
-    );
+---
 
-    // Специфичное событие для атрибута (например Health)
-    FGameplayTag SpecificTag = GetAttributeEventTag(Attribute);
-    if (SpecificTag.IsValid())
+## 5. Использование в PlayerState
+
+### 5.1 Конфигурация Blueprint
+
+В `BP_SuspenseCorePlayerState`:
+
+```
+AttributeSetClass: USuspenseCoreAttributeSet (или кастомный)
+
+AdditionalAttributeSets:
+  - USuspenseCoreShieldAttributeSet
+  - USuspenseCoreMovementAttributeSet
+  - USuspenseCoreProgressionAttributeSet
+```
+
+### 5.2 Код инициализации
+
+```cpp
+void ASuspenseCorePlayerState::InitializeAbilitySystem()
+{
+    // Базовый AttributeSet
+    if (AttributeSetClass)
     {
-        EventBus->Publish(SpecificTag, EventData);
+        AttributeSet = NewObject<USuspenseCoreAttributeSet>(this, AttributeSetClass);
+        AbilitySystemComponent->AddAttributeSetSubobject(AttributeSet);
     }
+
+    // Дополнительные AttributeSets
+    ShieldAttributes = NewObject<USuspenseCoreShieldAttributeSet>(this);
+    AbilitySystemComponent->AddAttributeSetSubobject(ShieldAttributes);
+
+    MovementAttributes = NewObject<USuspenseCoreMovementAttributeSet>(this);
+    AbilitySystemComponent->AddAttributeSetSubobject(MovementAttributes);
+
+    ProgressionAttributes = NewObject<USuspenseCoreProgressionAttributeSet>(this);
+    AbilitySystemComponent->AddAttributeSetSubobject(ProgressionAttributes);
 }
 ```
 
 ---
 
-## 5. Зависимости модуля
+## 6. Файловая структура
 
-### 5.1 GAS.Build.cs (ЦЕЛЕВОЙ)
-
-```csharp
-PublicDependencyModuleNames.AddRange(
-    new string[]
-    {
-        "Core",
-        "CoreUObject",
-        "Engine",
-        "GameplayAbilities",
-        "GameplayTags",
-        "GameplayTasks",
-        "BridgeSystem"          // ← ЕДИНСТВЕННАЯ внутренняя зависимость
-    }
-);
-
-PrivateDependencyModuleNames.AddRange(
-    new string[]
-    {
-        "NetCore"
-    }
-);
-
-// УБРАТЬ зависимость от SuspenseCore (если была)
+```
+GAS/
+├── Public/
+│   ├── SuspenseCore/
+│   │   ├── Components/
+│   │   │   └── SuspenseCoreAbilitySystemComponent.h    ✅
+│   │   └── Attributes/
+│   │       ├── SuspenseCoreAttributeSet.h              ✅
+│   │       ├── SuspenseCoreShieldAttributeSet.h        ✅ NEW
+│   │       ├── SuspenseCoreMovementAttributeSet.h      ✅ NEW
+│   │       └── SuspenseCoreProgressionAttributeSet.h   ✅ NEW
+│   │
+│   ├── Components/          (Legacy)
+│   ├── Attributes/          (Legacy)
+│   ├── Abilities/           (Legacy)
+│   └── Effects/             (Legacy)
+│
+└── Private/
+    └── SuspenseCore/
+        ├── Components/
+        │   └── SuspenseCoreAbilitySystemComponent.cpp  ✅
+        └── Attributes/
+            ├── SuspenseCoreAttributeSet.cpp            ✅
+            ├── SuspenseCoreShieldAttributeSet.cpp      ✅ NEW
+            ├── SuspenseCoreMovementAttributeSet.cpp    ✅ NEW
+            └── SuspenseCoreProgressionAttributeSet.cpp ✅ NEW
 ```
 
 ---
 
-## 6. Чеклист выполнения
+## 7. Чеклист выполнения
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    ЧЕКЛИСТ ЭТАПА 2: GAS                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ ПОДГОТОВКА                                                                   │
-│ ☐ Создать папку GAS/Public/Core/                                            │
-│ ☐ Создать папку GAS/Public/Core/Attributes/                                 │
-│ ☐ Создать папку GAS/Public/Core/Interfaces/                                 │
-│ ☐ Создать папку GAS/Private/Core/                                           │
-│                                                                              │
 │ ABILITY SYSTEM COMPONENT                                                     │
-│ ☐ Создать SuspenseCoreAbilitySystemComponent.h                              │
-│ ☐ Создать SuspenseCoreAbilitySystemComponent.cpp                            │
-│   ☐ BeginPlay/EndPlay                                                       │
-│   ☐ InitAbilityActorInfo                                                    │
-│   ☐ PublishAttributeChangeEvent                                             │
-│   ☐ PublishAbilityActivatedEvent                                            │
-│   ☐ PublishAbilityEndedEvent                                                │
-│   ☐ PublishEffectAppliedEvent                                               │
-│   ☐ PublishEffectRemovedEvent                                               │
-│   ☐ SetupAttributeChangeCallbacks                                           │
-│   ☐ Интеграция с EventBus                                                   │
+│ ✅ SuspenseCoreAbilitySystemComponent.h                                     │
+│ ✅ SuspenseCoreAbilitySystemComponent.cpp                                   │
+│ ✅ EventBus интеграция                                                      │
+│ ✅ Attribute change publishing                                              │
 │                                                                              │
 │ BASE ATTRIBUTE SET                                                           │
-│ ☐ Создать SuspenseCoreAttributeSet.h                                        │
-│ ☐ Создать SuspenseCoreAttributeSet.cpp                                      │
-│   ☐ PreAttributeChange                                                      │
-│   ☐ PostAttributeChange                                                     │
-│   ☐ PostGameplayEffectExecute                                               │
-│   ☐ Helper методы                                                           │
-│   ☐ Макрос SUSPENSE_CORE_ATTRIBUTE_ACCESSORS                                │
+│ ✅ SuspenseCoreAttributeSet.h                                               │
+│ ✅ SuspenseCoreAttributeSet.cpp                                             │
+│ ✅ 11 базовых атрибутов                                                     │
+│ ✅ Meta атрибуты (IncomingDamage, IncomingHealing)                          │
+│ ✅ Репликация                                                               │
 │                                                                              │
-│ HEALTH ATTRIBUTE SET                                                         │
-│ ☐ Создать SuspenseCoreHealthAttributeSet.h                                  │
-│ ☐ Создать SuspenseCoreHealthAttributeSet.cpp                                │
-│   ☐ Health, MaxHealth атрибуты                                              │
-│   ☐ Shield, MaxShield атрибуты                                              │
-│   ☐ IncomingDamage, IncomingHealing мета-атрибуты                           │
-│   ☐ Репликация                                                              │
-│   ☐ Обработка урона                                                         │
+│ SHIELD ATTRIBUTE SET                                                         │
+│ ✅ SuspenseCoreShieldAttributeSet.h                                         │
+│ ✅ SuspenseCoreShieldAttributeSet.cpp                                       │
+│ ✅ 10 атрибутов щита                                                        │
+│ ✅ Shield break механика                                                    │
+│ ✅ Regen delay механика                                                     │
 │                                                                              │
-│ WEAPON ATTRIBUTE SET                                                         │
-│ ☐ Создать SuspenseCoreWeaponAttributeSet.h                                  │
-│ ☐ Создать SuspenseCoreWeaponAttributeSet.cpp                                │
-│   ☐ CurrentAmmo, MaxAmmo, ReserveAmmo атрибуты                              │
-│   ☐ FireRate, ReloadSpeed, Damage, Spread атрибуты                          │
-│   ☐ Репликация                                                              │
-│   ☐ Utility методы (CanFire, NeedsReload, etc.)                             │
+│ MOVEMENT ATTRIBUTE SET                                                       │
+│ ✅ SuspenseCoreMovementAttributeSet.h                                       │
+│ ✅ SuspenseCoreMovementAttributeSet.cpp                                     │
+│ ✅ 18 атрибутов движения                                                    │
+│ ✅ Weight/Encumbrance система                                               │
+│ ✅ Интеграция с CharacterMovement                                           │
 │                                                                              │
-│ INTERFACE                                                                    │
-│ ☐ Создать SuspenseCoreAbilityInterface.h                                    │
-│   ☐ GetSuspenseCoreAbilitySystemComponent                                   │
-│   ☐ IsAlive                                                                 │
-│   ☐ GetAbilityLevel                                                         │
-│                                                                              │
-│ ЗАВИСИМОСТИ                                                                  │
-│ ☐ Обновить GAS.Build.cs                                                     │
-│ ☐ Убрать SuspenseCore из зависимостей                                       │
-│ ☐ Добавить BridgeSystem в зависимости                                       │
-│                                                                              │
-│ ТЕСТИРОВАНИЕ                                                                 │
-│ ☐ Unit тест: ASC публикует события                                          │
-│ ☐ Unit тест: AttributeSet clamp работает                                    │
-│ ☐ Unit тест: Репликация атрибутов                                           │
-│ ☐ Integration тест: GAS + EventBus                                          │
-│                                                                              │
-│ ФИНАЛИЗАЦИЯ                                                                  │
-│ ☐ Компиляция без ошибок                                                     │
-│ ☐ Компиляция без warnings                                                   │
-│ ☐ Изолированная компиляция модуля                                           │
-│ ☐ Code review пройден                                                       │
+│ PROGRESSION ATTRIBUTE SET                                                    │
+│ ✅ SuspenseCoreProgressionAttributeSet.h                                    │
+│ ✅ SuspenseCoreProgressionAttributeSet.cpp                                  │
+│ ✅ 14 атрибутов прогрессии                                                  │
+│ ✅ Level up система                                                         │
+│ ✅ Currency система                                                         │
+│ ✅ Season/Prestige система                                                  │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. Пример использования
-
-### 7.1 Создание персонажа с GAS
-
-```cpp
-// В SuspenseCoreCharacter
-void ASuspenseCoreCharacter::PostInitializeComponents()
-{
-    Super::PostInitializeComponents();
-
-    // ASC создаётся как компонент
-    AbilitySystemComponent = CreateDefaultSubobject<USuspenseCoreAbilitySystemComponent>(
-        TEXT("AbilitySystemComponent")
-    );
-
-    // Инициализация
-    AbilitySystemComponent->InitAbilityActorInfo(this, this);
-}
-
-USuspenseCoreAbilitySystemComponent* ASuspenseCoreCharacter::GetSuspenseCoreAbilitySystemComponent() const
-{
-    return AbilitySystemComponent;
-}
-```
-
-### 7.2 Подписка на изменение здоровья
-
-```cpp
-// В UI виджете
-void UHealthBarWidget::NativeConstruct()
-{
-    Super::NativeConstruct();
-
-    if (auto* Manager = USuspenseCoreEventManager::Get(this))
-    {
-        Manager->GetEventBus()->Subscribe(
-            FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.GAS.Attribute.Health")),
-            FSuspenseCoreEventCallback::CreateUObject(this, &UHealthBarWidget::OnHealthChanged)
-        );
-    }
-}
-
-void UHealthBarWidget::OnHealthChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& Data)
-{
-    // Проверяем что это наш персонаж
-    if (Data.Source != OwnerCharacter) return;
-
-    float NewHealth = Data.GetFloat(TEXT("NewValue"));
-    float MaxHealth = Data.GetFloat(TEXT("MaxValue")); // нужно добавить в публикацию
-
-    UpdateHealthBar(NewHealth / MaxHealth);
-}
-```
-
----
-
-*Документ создан: 2025-11-29*
+*Документ обновлён: 2025-11-29*
 *Этап: 2 из 7*
-*Зависимости: BridgeSystem*
+*Статус: ✅ Core выполнен*

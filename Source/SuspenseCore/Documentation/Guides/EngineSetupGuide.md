@@ -318,9 +318,227 @@ public:
 
 ---
 
-## 7. Тестирование
+## 7. UI Flow - Меню и переходы
 
-### 7.1 Быстрый тест регистрации
+### 7.1 Архитектура UI Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        MAIN MENU MAP                             │
+│                                                                 │
+│  ┌──────────────────┐         ┌─────────────────────────────┐   │
+│  │  Registration    │         │       Main Menu              │   │
+│  │  Screen          │────────►│  ┌───────────────────────┐  │   │
+│  │                  │ Success │  │   Player Info Widget  │  │   │
+│  │  [Name Input]    │         │  │   Name: Player_X      │  │   │
+│  │  [Create]        │         │  │   Level: 1            │  │   │
+│  └──────────────────┘         │  └───────────────────────┘  │   │
+│         ▲                     │                              │   │
+│         │ No save             │  [PLAY] ─────────────────────┼───┼──► GAME MAP
+│         │                     │  [OPERATORS] (disabled)      │   │
+│  ┌──────┴──────┐              │  [SETTINGS] (disabled)       │   │
+│  │ Check Save  │              │  [QUIT]                      │   │
+│  │ on Start    │              └─────────────────────────────┘   │
+│  └─────────────┘                        ▲                       │
+│         │ Has save                      │                       │
+│         └───────────────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 Карты игры
+
+| Карта | GameMode | Описание |
+|-------|----------|----------|
+| `MainMenuMap` | `BP_MenuGameMode` | Главное меню и регистрация |
+| `CharacterSelectMap` | `BP_MenuGameMode` | Выбор оперативника (future) |
+| `GameMap` | `BP_SuspenseCoreGameMode` | Игровой процесс |
+
+### 7.3 Настройка Menu GameMode
+
+**1. Создайте Blueprint:**
+- Parent: `ASuspenseCoreMenuGameMode`
+- Name: `BP_MenuGameMode`
+
+**2. Настройки в Class Defaults:**
+
+| Параметр | Значение |
+|----------|----------|
+| Main Menu Widget Class | `WBP_MainMenu` |
+| Main Menu Map Name | `MainMenuMap` |
+| Default Game Map Name | `GameMap` |
+| Auto Create Main Menu | ✓ |
+
+### 7.4 Настройка Menu PlayerController
+
+**1. Создайте Blueprint:**
+- Parent: `ASuspenseCoreMenuPlayerController`
+- Name: `BP_MenuPlayerController`
+
+**2. Настройки:**
+- Show Cursor On Start: ✓
+- UI Only Mode On Start: ✓
+- Main Menu Map Name: `MainMenuMap`
+
+### 7.5 Создание WBP_MainMenu
+
+**1. Создайте Widget Blueprint:**
+- Parent: `USuspenseCoreMainMenuWidget`
+- Name: `WBP_MainMenu`
+
+**2. Designer структура:**
+
+```
+[Canvas Panel] (Full Screen)
+├── [Image] "BackgroundImage"
+│       Brush: Your background image
+│       Size To Content: false
+│       Anchors: Full stretch
+│
+├── [Vertical Box] (Centered)
+│   │
+│   ├── [Text Block] "GameTitleText"
+│   │       Text: "SUSPENSE"
+│   │       Font Size: 72
+│   │
+│   ├── [Spacer] Height: 50
+│   │
+│   ├── [Widget Switcher] "ScreenSwitcher"
+│   │   │
+│   │   │── [Index 0] Registration Panel
+│   │   │   └── WBP_Registration (встроить как child)
+│   │   │
+│   │   └── [Index 1] Main Menu Panel
+│   │       │
+│   │       ├── WBP_PlayerInfo "PlayerInfoWidget"
+│   │       │
+│   │       ├── [Spacer] Height: 30
+│   │       │
+│   │       └── [Vertical Box] Menu Buttons
+│   │           ├── [Button] "PlayButton"
+│   │           │   └── [Text Block] "PlayButtonText" = "PLAY"
+│   │           │
+│   │           ├── [Button] "OperatorsButton"
+│   │           │   └── [Text Block] "OPERATORS"
+│   │           │
+│   │           ├── [Button] "SettingsButton"
+│   │           │   └── [Text Block] "SETTINGS"
+│   │           │
+│   │           └── [Button] "QuitButton"
+│   │               └── [Text Block] "QUIT"
+│   │
+│   └── [Spacer] Height: 20
+│
+└── [Text Block] "VersionText"
+        Text: "v0.1.0 Alpha"
+        Anchors: Bottom-Right
+```
+
+**ВАЖНО:** Имена виджетов должны совпадать с `BindWidget`:
+- `ScreenSwitcher` (UWidgetSwitcher)
+- `BackgroundImage` (UImage)
+- `GameTitleText` (UTextBlock)
+- `PlayerInfoWidget` (USuspenseCorePlayerInfoWidget)
+- `PlayButton`, `OperatorsButton`, `SettingsButton`, `QuitButton` (UButton)
+- `PlayButtonText` (UTextBlock)
+- `VersionText` (UTextBlock)
+- `RegistrationWidget` (USuspenseCoreRegistrationWidget) - optional
+
+### 7.6 Встраивание Registration Widget
+
+**Вариант A: Через Widget Switcher**
+
+1. В ScreenSwitcher создайте первый слот (Index 0)
+2. Добавьте туда WBP_Registration как child
+3. Переименуйте в "RegistrationWidget"
+
+**Вариант B: Отдельный UserWidget**
+
+1. Создайте WBP_Registration отдельно
+2. В C++ он будет создан динамически
+
+### 7.7 Настройка MainMenuMap
+
+**1. Создайте карту:**
+- File → New Level → Empty Level
+- Save as: `MainMenuMap`
+
+**2. World Settings:**
+
+| Параметр | Значение |
+|----------|----------|
+| GameMode Override | `BP_MenuGameMode` |
+
+**3. Level Blueprint:**
+
+Обычно не нужен - MenuGameMode сам создаёт виджеты.
+Но если нужна кастомная логика:
+
+```
+Event BeginPlay
+    │
+    ▼
+Get Game Mode (Cast to BP_MenuGameMode)
+    │
+    ▼
+Get Main Menu Widget
+    │
+    ▼
+[Your custom logic]
+```
+
+### 7.8 Переход из игры в меню
+
+**В любом месте игры (например, Pause Menu):**
+
+```cpp
+// C++
+ASuspenseCoreMenuGameMode::ReturnToMainMenu(this);
+
+// Blueprint
+Call "Return To Main Menu" on MenuPlayerController
+// или
+Open Level "MainMenuMap"
+```
+
+### 7.9 Input Action для Escape
+
+**1. Добавьте в Project Settings → Input:**
+
+```
+Action Mappings:
+  Escape
+    - Keyboard: Escape
+  Back
+    - Gamepad: Special Right (Menu button)
+```
+
+**2. В MenuPlayerController:**
+
+Escape автоматически вызывает `OnEscapePressedEvent` (Blueprint event)
+
+### 7.10 Project Settings для Menu Flow
+
+**Maps & Modes:**
+
+| Параметр | Значение |
+|----------|----------|
+| Editor Startup Map | `MainMenuMap` |
+| Game Default Map | `MainMenuMap` |
+| Default GameMode | `BP_MenuGameMode` |
+
+**Map Overrides (per-map):**
+
+| Карта | GameMode |
+|-------|----------|
+| MainMenuMap | BP_MenuGameMode |
+| CharacterSelectMap | BP_MenuGameMode |
+| GameMap | BP_SuspenseCoreGameMode |
+
+---
+
+## 8. Тестирование
+
+### 8.1 Быстрый тест регистрации
 
 1. Откройте тестовую карту
 2. Нажмите **Play**
@@ -329,7 +547,7 @@ public:
 5. Нажмите "Create Character"
 6. Проверьте `Saved/PlayerData/` на наличие JSON файла
 
-### 7.2 Проверка EventManager
+### 8.2 Проверка EventManager
 
 ```cpp
 // В любом Blueprint или C++
@@ -343,7 +561,7 @@ if (Manager)
 }
 ```
 
-### 7.3 Проверка AttributeSets
+### 8.3 Проверка AttributeSets
 
 ```cpp
 // В PlayerState Blueprint
@@ -363,9 +581,9 @@ if (PS && PS->GetAbilitySystemComponent())
 
 ---
 
-## 8. Debugging
+## 9. Debugging
 
-### 8.1 Console Commands
+### 9.1 Console Commands
 
 ```
 // Показать статистику EventBus
@@ -378,7 +596,7 @@ SuspenseCore.Services.List
 showdebug abilitysystem
 ```
 
-### 8.2 Логирование
+### 9.2 Логирование
 
 ```cpp
 // Включить подробные логи
@@ -389,7 +607,7 @@ UE_LOG(LogSuspenseCore, Log, TEXT("..."));
 LogSuspenseCore=Verbose
 ```
 
-### 8.3 Типичные проблемы
+### 9.3 Типичные проблемы
 
 | Проблема | Решение |
 |----------|---------|
@@ -397,10 +615,12 @@ LogSuspenseCore=Verbose
 | EventManager = nullptr | Убедитесь, что BridgeSystem модуль подключён |
 | AttributeSet не найден | Добавьте в AdditionalAttributeSets в PlayerState |
 | Репликация не работает | Проверьте GetLifetimeReplicatedProps |
+| MainMenu не появляется | Проверьте GameMode Override в World Settings карты |
+| Play button не работает | Проверьте что GameMapName в GameMode настроен |
 
 ---
 
-## 9. Следующие шаги
+## 10. Следующие шаги
 
 После успешной настройки:
 
@@ -409,26 +629,34 @@ LogSuspenseCore=Verbose
 3. **Настройте Input** для управления
 4. **Создайте HUD** для отображения атрибутов в игре
 5. **Тестируйте multiplayer** для проверки репликации
+6. **Реализуйте Character Select** для выбора оперативников
 
 ---
 
-## 10. Структура файлов после настройки
+## 11. Структура файлов после настройки
 
 ```
 Content/
 ├── Blueprints/
 │   ├── Core/
-│   │   ├── BP_SuspenseCoreGameMode.uasset
+│   │   ├── BP_SuspenseCoreGameMode.uasset      (для игрового процесса)
 │   │   ├── BP_SuspenseCorePlayerState.uasset
 │   │   ├── BP_SuspenseCorePlayerController.uasset
 │   │   └── BP_SuspenseCoreCharacter.uasset
 │   │
+│   ├── Menu/
+│   │   ├── BP_MenuGameMode.uasset              (для меню)
+│   │   └── BP_MenuPlayerController.uasset
+│   │
 │   └── UI/
-│       ├── WBP_SuspenseCoreRegistration.uasset
-│       └── WBP_SuspenseCorePlayerInfo.uasset
+│       ├── WBP_MainMenu.uasset                 (главное меню)
+│       ├── WBP_SuspenseCoreRegistration.uasset (регистрация)
+│       └── WBP_SuspenseCorePlayerInfo.uasset   (инфо игрока)
 │
 └── Maps/
-    └── TestMap.umap
+    ├── MainMenuMap.umap                        (карта меню)
+    ├── CharacterSelectMap.umap                 (выбор персонажа - future)
+    └── GameMap.umap                            (игровая карта)
 ```
 
 ---

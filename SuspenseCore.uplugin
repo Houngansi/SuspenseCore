@@ -20,32 +20,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "SuspenseCore",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "GAS",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "InteractionSystem",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "InventorySystem",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "EquipmentSystem",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "UISystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

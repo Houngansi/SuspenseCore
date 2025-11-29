@@ -25,7 +25,7 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	// Network settings
-	NetUpdateFrequency = 100.0f;
+	SetNetUpdateFrequency(100.0f);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -117,7 +117,8 @@ bool ASuspenseCorePlayerState::ApplyEffect(TSubclassOf<UGameplayEffect> EffectCl
 		return false;
 	}
 
-	return AbilitySystemComponent->ApplyEffectToSelf(EffectClass, Level);
+	FActiveGameplayEffectHandle Handle = AbilitySystemComponent->ApplyEffectToSelf(EffectClass, Level);
+	return Handle.IsValid();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

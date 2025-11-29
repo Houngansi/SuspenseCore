@@ -664,11 +664,105 @@ Escape автоматически вызывает `OnEscapePressedEvent` (Bluep
 
 **Map Overrides (per-map):**
 
-| Карта | GameMode |
-|-------|----------|
-| MainMenuMap | BP_MenuGameMode |
-| CharacterSelectMap | BP_MenuGameMode |
-| GameMap | BP_SuspenseCoreGameMode |
+| Карта | GameMode | PlayerController |
+|-------|----------|------------------|
+| MainMenuMap | BP_MenuGameMode | BP_MenuPlayerController |
+| CharacterSelectMap | BP_MenuGameMode | BP_MenuPlayerController |
+| GameMap | BP_SuspenseCoreGameGameMode | BP_SuspenseCorePlayerController |
+
+---
+
+## 7.11 Map Transition System
+
+### 7.11.1 Архитектура переходов между картами
+
+SuspenseCore использует `USuspenseCoreMapTransitionSubsystem` для корректного переключения между картами с разными GameMode.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MAP TRANSITION ARCHITECTURE                           │
+│                                                                             │
+│  ┌─────────────────────┐         ┌─────────────────────┐                    │
+│  │   MAIN MENU MAP     │         │      GAME MAP       │                    │
+│  │                     │         │                     │                    │
+│  │  GameMode:          │         │  GameMode:          │                    │
+│  │  MenuGameMode       │         │  GameGameMode       │                    │
+│  │                     │         │                     │                    │
+│  │  PlayerController:  │         │  PlayerController:  │                    │
+│  │  MenuPlayerController│        │  SuspenseCorePC     │                    │
+│  │                     │  Play   │                     │                    │
+│  │  Features:          │ ──────► │  Features:          │                    │
+│  │  - UI Only Mode     │         │  - Enhanced Input   │                    │
+│  │  - No Pawn          │         │  - GAS Integration  │                    │
+│  │  - Mouse Cursor     │ ◄────── │  - Pause Menu       │                    │
+│  │                     │ Exit    │  - Save System      │                    │
+│  └─────────────────────┘ ToLobby └─────────────────────┘                    │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                 MapTransitionSubsystem (GameInstance)                 │  │
+│  │  - Persists across map changes                                        │  │
+│  │  - Stores: PlayerId, SourceMap, TargetMap, CustomData                │  │
+│  │  - Handles: TransitionToGameMap(), TransitionToMainMenu()            │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 7.11.2 GameMode классы
+
+| Класс | Использование | PlayerController | PlayerState |
+|-------|---------------|------------------|-------------|
+| `ASuspenseCoreMenuGameMode` | Меню (MainMenu, CharSelect) | MenuPlayerController | nullptr |
+| `ASuspenseCoreGameGameMode` | Игровой процесс | SuspenseCorePlayerController | SuspenseCorePlayerState |
+
+### 7.11.3 Создание BP_SuspenseCoreGameGameMode
+
+**1. Создайте Blueprint:**
+- Parent: `ASuspenseCoreGameGameMode`
+- Name: `BP_SuspenseCoreGameGameMode`
+
+**2. В Class Defaults настройте:**
+
+| Параметр | Значение |
+|----------|----------|
+| Main Menu Map Name | `MainMenuMap` |
+| Auto Start Save Manager | ✓ |
+| Auto Save Interval | 300.0 (5 минут) |
+| Default Pawn Class | `BP_SuspenseCoreCharacter` |
+
+### 7.11.4 Использование MapTransitionSubsystem
+
+```cpp
+// Переход из меню в игру (автоматически в MainMenuWidget)
+if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem =
+    USuspenseCoreMapTransitionSubsystem::Get(this))
+{
+    TransitionSubsystem->TransitionToGameMap(CurrentPlayerId, GameMapName);
+}
+
+// Возврат в меню из игры (автоматически в PauseMenuWidget)
+if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem =
+    USuspenseCoreMapTransitionSubsystem::Get(this))
+{
+    TransitionSubsystem->TransitionToMainMenu(MainMenuMapName);
+}
+
+// В GameMode получить PlayerId после перехода
+void ASuspenseCoreGameGameMode::InitGame(...)
+{
+    // PlayerId автоматически извлекается из TransitionSubsystem
+    FString PlayerId = GetCurrentPlayerId();
+}
+```
+
+### 7.11.5 Настройка World Settings для карт
+
+**MainMenuMap World Settings:**
+- GameMode Override: `BP_MenuGameMode`
+
+**GameMap World Settings:**
+- GameMode Override: `BP_SuspenseCoreGameGameMode`
+
+**ВАЖНО:** Каждая карта должна иметь правильный GameMode Override!
 
 ---
 

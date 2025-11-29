@@ -15,7 +15,7 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "HAL/PlatformProcess.h"
-#include "OnlineSubsystemTypes.h"
+#include "Online/CoreOnline.h"
 #include "Misc/Crc.h"
 
 //========================================

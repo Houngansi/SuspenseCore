@@ -17,11 +17,14 @@ public class PlayerCore : ModuleRules
                 "GameplayAbilities",
                 "GameplayTags",
                 "GameplayTasks",
-                "UMG",
                 "BridgeSystem",
                 "GAS"
             }
         );
+
+        // UMG for widgets
+        PrivateIncludePathModuleNames.Add("UMG");
+        PrivateDependencyModuleNames.Add("UMG");
 
         PrivateDependencyModuleNames.AddRange(
             new string[]

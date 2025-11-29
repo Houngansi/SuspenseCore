@@ -332,7 +332,110 @@ Source/
 
 ---
 
-## 10. Связанные документы
+## 10. Конфигурация модулей (ПРОВЕРЕННАЯ)
+
+### 10.1 SuspenseCore.uplugin
+
+```json
+{
+    "FileVersion": 3,
+    "Version": 1,
+    "VersionName": "1.0",
+    "FriendlyName": "SuspenseCore",
+    "Description": "Plugin with GAS for FPS and other projects",
+    "Category": "Other",
+    "CreatedBy": "Houngansi",
+    "CanContainContent": true,
+    "IsBetaVersion": true,
+    "Installed": false,
+    "Modules": [
+        {
+            "Name": "PlayerCore",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        },
+        {
+            "Name": "GAS",
+            "Type": "Runtime",
+            "LoadingPhase": "PreDefault"
+        },
+        {
+            "Name": "BridgeSystem",
+            "Type": "Runtime",
+            "LoadingPhase": "PreDefault"
+        },
+        {
+            "Name": "SuspenseCore",
+            "Type": "Runtime",
+            "LoadingPhase": "PreDefault"
+        },
+        {
+            "Name": "InteractionSystem",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        },
+        {
+            "Name": "InventorySystem",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        },
+        {
+            "Name": "EquipmentSystem",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        },
+        {
+            "Name": "UISystem",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        }
+    ],
+    "Plugins": [
+        {
+            "Name": "GameplayAbilities",
+            "Enabled": true
+        },
+        {
+            "Name": "EnhancedInput",
+            "Enabled": true
+        }
+    ]
+}
+```
+
+### 10.2 Важные заметки по LoadingPhase
+
+| LoadingPhase | Модули | Описание |
+|--------------|--------|----------|
+| **PreDefault** | BridgeSystem, GAS, SuspenseCore | Базовые модули загружаются РАНЬШЕ |
+| **Default** | PlayerCore, InteractionSystem, InventorySystem, EquipmentSystem, UISystem | Зависимые модули |
+
+### 10.3 Build.cs зависимости (минимальные)
+
+```
+BridgeSystem:
+  - Core, CoreUObject, Engine
+  - GameplayAbilities, GameplayTags, GameplayTasks
+  - Niagara
+  - Slate, SlateCore, Json, JsonUtilities
+
+GAS:
+  - Core, CoreUObject, Engine
+  - GameplayAbilities, GameplayTags, GameplayTasks
+  - BridgeSystem
+  - NetCore, Slate, SlateCore
+
+PlayerCore:
+  - Core, CoreUObject, Engine
+  - CinematicCamera, EnhancedInput
+  - GameplayAbilities, GameplayTags, GameplayTasks
+  - BridgeSystem, GAS
+  - UMG (Private), Slate, SlateCore
+```
+
+---
+
+## 11. Связанные документы
 
 - [EventSystemMigration.md](./EventSystemMigration.md) — миграция системы событий
 - [SuspenseNamingConvention.md](../Standards/SuspenseNamingConvention.md) — конвенции именования

@@ -2,7 +2,7 @@
 // SuspenseCore - Clean Architecture Foundation
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCoreFilePlayerRepository.h"
+#include "SuspenseCore/Repository/SuspenseCoreFilePlayerRepository.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"

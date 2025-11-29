@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCoreTypes.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "SuspenseCoreEventBus.generated.h"
 
 /**

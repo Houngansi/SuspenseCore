@@ -5,8 +5,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCoreInterfaces.h"
-#include "SuspenseCorePlayerData.h"
+#include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/SuspenseCorePlayerData.h"
 #include "SuspenseCoreFilePlayerRepository.generated.h"
 
 /**

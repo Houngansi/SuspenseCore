@@ -15,27 +15,12 @@
 	"Installed": false,
 	"Modules": [
 		{
+			"Name": "BridgeSystem",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "SuspenseCore",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "PlayerCore",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "EquipmentSystem",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "InventorySystem",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "InteractionSystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
@@ -45,7 +30,22 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "BridgeSystem",
+			"Name": "PlayerCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "InventorySystem",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "EquipmentSystem",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "InteractionSystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

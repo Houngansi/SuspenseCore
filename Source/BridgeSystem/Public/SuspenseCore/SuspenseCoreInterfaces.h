@@ -6,12 +6,12 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "SuspenseCoreTypes.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/SuspenseCorePlayerData.h"
 #include "SuspenseCoreInterfaces.generated.h"
 
 // Forward declarations
 class USuspenseCoreEventBus;
-struct FSuspenseCorePlayerData;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ISuspenseCoreEventSubscriber

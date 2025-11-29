@@ -2,9 +2,9 @@
 // SuspenseCore - Clean Architecture Foundation
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCoreEventManager.h"
-#include "SuspenseCoreEventBus.h"
-#include "SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/SuspenseCoreEventManager.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/SuspenseCoreServiceLocator.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 

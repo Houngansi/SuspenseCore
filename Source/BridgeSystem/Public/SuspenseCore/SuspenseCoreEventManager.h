@@ -6,7 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "SuspenseCoreTypes.h"
+#include "Containers/Ticker.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "SuspenseCoreEventManager.generated.h"
 
 class USuspenseCoreEventBus;
@@ -129,7 +130,7 @@ protected:
 	bool bLogEvents = false;
 
 	/** Handle для Tick */
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 private:
 	/**

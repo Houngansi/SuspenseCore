@@ -229,6 +229,7 @@ protected:
 
 	// UI Input Handlers
 	void HandlePauseGame(const FInputActionValue& Value);
+	void HandlePauseGameTriggered(const FInputActionValue& Value);  // Debug handler
 	void HandleQuickSave(const FInputActionValue& Value);
 	void HandleQuickLoad(const FInputActionValue& Value);
 

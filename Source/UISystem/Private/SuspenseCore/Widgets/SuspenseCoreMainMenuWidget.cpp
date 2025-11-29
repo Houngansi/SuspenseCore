@@ -20,6 +20,41 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+namespace
+{
+	/**
+	 * Converts a Blueprint SoftObjectPath to a proper class path for ?game= URL parameter.
+	 */
+	FString NormalizeGameModeClassPath(const FString& InputPath)
+	{
+		if (InputPath.IsEmpty())
+		{
+			return InputPath;
+		}
+
+		FString Result = InputPath;
+
+		// Check if it's in SoftObjectPath format: /Script/Engine.Blueprint'/Game/...'
+		if (Result.Contains(TEXT("'/")) && Result.EndsWith(TEXT("'")))
+		{
+			int32 StartIndex = Result.Find(TEXT("'/"));
+			if (StartIndex != INDEX_NONE)
+			{
+				Result = Result.Mid(StartIndex + 1);
+				Result = Result.Left(Result.Len() - 1);
+			}
+		}
+
+		// Ensure it ends with _C (class suffix for Blueprints)
+		if (!Result.EndsWith(TEXT("_C")))
+		{
+			Result += TEXT("_C");
+		}
+
+		return Result;
+	}
+}
+
 USuspenseCoreMainMenuWidget::USuspenseCoreMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -223,7 +258,8 @@ void USuspenseCoreMainMenuWidget::TransitionToGame()
 			FString Options = FString::Printf(TEXT("?PlayerId=%s"), *CurrentPlayerId);
 			if (!GameGameModePath.IsEmpty())
 			{
-				Options += FString::Printf(TEXT("?game=%s"), *GameGameModePath);
+				FString NormalizedPath = NormalizeGameModeClassPath(GameGameModePath);
+				Options += FString::Printf(TEXT("?game=%s"), *NormalizedPath);
 			}
 			UGameplayStatics::OpenLevel(World, GameMapName, true, Options);
 		}

@@ -672,6 +672,224 @@ Escape автоматически вызывает `OnEscapePressedEvent` (Bluep
 
 ---
 
+## 7.12 Save System
+
+### 7.12.1 Обзор
+
+SaveSystem позволяет сохранять и загружать:
+- **Profile** - аккаунт, XP, валюта, статистика
+- **Character** - HP, позиция, атрибуты, эффекты
+- **Inventory** - предметы, экипировка
+
+**Пути сохранения:**
+```
+[Project]/Saved/
+├── Players/          # Профили (существующее)
+│   └── [PlayerId].json
+│
+└── SaveGames/        # Игровые сохранения (новое)
+    └── [PlayerId]/
+        ├── Slot_0.sav
+        ├── Slot_1.sav
+        ├── AutoSave.sav
+        └── QuickSave.sav
+```
+
+### 7.12.2 Использование SaveManager
+
+```cpp
+// Получение SaveManager
+USuspenseCoreSaveManager* SaveMgr = USuspenseCoreSaveManager::Get(this);
+
+// Установить текущего игрока (после логина/выбора персонажа)
+SaveMgr->SetCurrentPlayer(PlayerId);
+SaveMgr->SetProfileData(PlayerData);
+
+// Quick Save/Load (F5/F9)
+SaveMgr->QuickSave();
+SaveMgr->QuickLoad();
+
+// Сохранение в слот
+SaveMgr->SaveToSlot(0, TEXT("My Save"));
+SaveMgr->LoadFromSlot(0);
+
+// Auto-Save
+SaveMgr->SetAutoSaveEnabled(true);
+SaveMgr->SetAutoSaveInterval(300.0f); // 5 минут
+SaveMgr->TriggerAutoSave(); // На чекпоинте
+
+// Получить список сохранений для UI
+TArray<FSuspenseCoreSaveHeader> Headers = SaveMgr->GetAllSlotHeaders();
+```
+
+### 7.12.3 Слоты сохранений
+
+| Слот | Описание |
+|------|----------|
+| 0-9 | Обычные слоты (ручное сохранение) |
+| 100 | AutoSave (автоматическое) |
+| 101 | QuickSave (F5) |
+
+### 7.12.4 Интеграция с MainMenu
+
+При выборе персонажа установите его в SaveManager:
+
+```cpp
+// В MainMenuWidget::ShowMainMenuScreen()
+if (USuspenseCoreSaveManager* SaveMgr = USuspenseCoreSaveManager::Get(this))
+{
+    SaveMgr->SetCurrentPlayer(PlayerId);
+    SaveMgr->SetProfileData(CachedPlayerData);
+}
+```
+
+---
+
+## 7.13 Pause Menu (In-Game)
+
+### 7.13.1 Создание WBP_PauseMenu
+
+**1. Создайте Widget Blueprint:**
+- Parent: `USuspenseCorePauseMenuWidget`
+- Name: `WBP_PauseMenu`
+
+**2. Designer структура:**
+
+```
+[Canvas Panel] (Full Screen, с затемнением)
+│
+├── [Border] (Полупрозрачный фон)
+│       Brush Color: (0, 0, 0, 0.7)
+│
+└── [Vertical Box] (Centered)
+    │
+    ├── [Text Block] "TitleText"
+    │       Text: "PAUSED"
+    │       Font Size: 48
+    │
+    ├── [Spacer] Height: 40
+    │
+    ├── [Button] "ContinueButton"
+    │   └── [Text Block] "ContinueButtonText" - "CONTINUE"
+    │
+    ├── [Spacer] Height: 10
+    │
+    ├── [Button] "SaveButton"
+    │   └── [Text Block] "SaveButtonText" - "SAVE GAME"
+    │
+    ├── [Spacer] Height: 10
+    │
+    ├── [Button] "LoadButton"
+    │   └── [Text Block] "LoadButtonText" - "LOAD GAME"
+    │
+    ├── [Spacer] Height: 10
+    │
+    ├── [Button] "ExitToLobbyButton"
+    │   └── [Text Block] "ExitToLobbyButtonText" - "EXIT TO LOBBY"
+    │
+    ├── [Spacer] Height: 10
+    │
+    ├── [Button] "QuitButton"
+    │   └── [Text Block] "QuitButtonText" - "QUIT GAME"
+    │
+    └── [Text Block] "SaveStatusText" (Hidden by default)
+            Text: "Saving..."
+```
+
+**3. Биндинги (BindWidget):**
+- `TitleText` (UTextBlock)
+- `ContinueButton`, `ContinueButtonText`
+- `SaveButton`, `SaveButtonText`
+- `LoadButton`, `LoadButtonText`
+- `ExitToLobbyButton`, `ExitToLobbyButtonText`
+- `QuitButton`, `QuitButtonText`
+- `SaveStatusText` (UTextBlock) - показывает "Saving..." / "Saved!"
+
+### 7.13.2 Настройка в GameMode
+
+**Для игровой карты (GameMap):**
+
+```cpp
+// В вашем игровом GameMode
+void AGameGameMode::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // Создать Pause Menu
+    if (PauseMenuWidgetClass)
+    {
+        APlayerController* PC = GetWorld()->GetFirstPlayerController();
+        if (PC)
+        {
+            PauseMenuWidget = CreateWidget<USuspenseCorePauseMenuWidget>(PC, PauseMenuWidgetClass);
+            if (PauseMenuWidget)
+            {
+                PauseMenuWidget->AddToViewport(100); // Высокий Z-order
+            }
+        }
+    }
+}
+```
+
+### 7.13.3 Input Bindings
+
+**Project Settings → Input → Action Mappings:**
+
+| Action | Key |
+|--------|-----|
+| PauseGame | Escape |
+| QuickSave | F5 |
+| QuickLoad | F9 |
+
+**В PlayerController:**
+
+```cpp
+void AGamePlayerController::SetupInputComponent()
+{
+    Super::SetupInputComponent();
+
+    InputComponent->BindAction("PauseGame", IE_Pressed, this, &AGamePlayerController::TogglePauseMenu);
+    InputComponent->BindAction("QuickSave", IE_Pressed, this, &AGamePlayerController::QuickSave);
+    InputComponent->BindAction("QuickLoad", IE_Pressed, this, &AGamePlayerController::QuickLoad);
+}
+
+void AGamePlayerController::TogglePauseMenu()
+{
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->TogglePauseMenu();
+    }
+}
+
+void AGamePlayerController::QuickSave()
+{
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->QuickSave();
+    }
+}
+
+void AGamePlayerController::QuickLoad()
+{
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->QuickLoad();
+    }
+}
+```
+
+### 7.13.4 Функционал кнопок
+
+| Кнопка | Действие |
+|--------|----------|
+| **Continue** | Скрыть меню, продолжить игру |
+| **Save Game** | QuickSave, показать "Saved!" |
+| **Load Game** | Загрузить QuickSave |
+| **Exit to Lobby** | Открыть MainMenuMap |
+| **Quit Game** | Выход из игры |
+
+---
+
 ## 8. Тестирование
 
 ### 8.1 Быстрый тест регистрации

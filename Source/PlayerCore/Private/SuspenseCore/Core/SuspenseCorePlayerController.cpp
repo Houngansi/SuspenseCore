@@ -596,8 +596,7 @@ void ASuspenseCorePlayerController::HandlePauseGame(const FInputActionValue& Val
 {
 	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGame called! (ETriggerEvent::Started) ==="));
 	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
-	UE_LOG(LogTemp, Warning, TEXT("  InputMode: %s"), GetInputMode() == FInputModeUIOnly().GetInputModeName() ? TEXT("UI Only") :
-		(GetInputMode() == FInputModeGameOnly().GetInputModeName() ? TEXT("Game Only") : TEXT("Game And UI")));
+	UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));
 	TogglePauseMenu();
 }
 

@@ -164,8 +164,7 @@ void USuspenseCoreSaveLoadMenuWidget::RefreshSlots()
 	}
 
 	// Get all save headers
-	TArray<FSuspenseCoreSaveHeader> Headers;
-	SaveMgr->GetAllSaveHeaders(Headers);
+	TArray<FSuspenseCoreSaveHeader> Headers = SaveMgr->GetAllSlotHeaders();
 
 	// Create a map for quick lookup
 	TMap<int32, FSuspenseCoreSaveHeader> HeaderMap;
@@ -511,16 +510,10 @@ void USuspenseCoreSaveLoadMenuWidget::PerformDelete(int32 SlotIndex)
 		return;
 	}
 
-	if (SaveMgr->DeleteSlot(SlotIndex))
-	{
-		RefreshSlots();
-		ShowStatus(FText::FromString(TEXT("Save deleted.")));
-		UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Deleted slot %d"), SlotIndex);
-	}
-	else
-	{
-		ShowStatus(OperationFailedText);
-	}
+	SaveMgr->DeleteSlot(SlotIndex);
+	RefreshSlots();
+	ShowStatus(FText::FromString(TEXT("Save deleted.")));
+	UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Deleted slot %d"), SlotIndex);
 }
 
 void USuspenseCoreSaveLoadMenuWidget::SetUIInputMode()

@@ -12,6 +12,7 @@ public class PlayerCore : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
+                "InputCore",  // For FKey::ToString()
                 "CinematicCamera",
                 "EnhancedInput",
                 "GameplayAbilities",
@@ -23,7 +24,6 @@ public class PlayerCore : ModuleRules
                 "EquipmentSystem",
                 "UISystem",
                 "InteractionSystem"
-
             }
         );
 

@@ -25,8 +25,10 @@ ASuspenseCoreGameGameMode::ASuspenseCoreGameGameMode()
 	// Enable seamless travel for smoother transitions
 	bUseSeamlessTravel = false; // Disabled for simpler map loading
 
-	// Standard game state
-	// GameStateClass = ASuspenseCoreGameState::StaticClass(); // If you have one
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCoreGameGameMode CONSTRUCTOR ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PlayerControllerClass: %s"), *PlayerControllerClass->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("  PlayerStateClass: %s"), *PlayerStateClass->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("  DefaultPawnClass: %s"), DefaultPawnClass ? *DefaultPawnClass->GetName() : TEXT("null"));
 }
 
 void ASuspenseCoreGameGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)

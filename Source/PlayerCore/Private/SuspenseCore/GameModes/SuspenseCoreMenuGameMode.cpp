@@ -25,11 +25,15 @@ ASuspenseCoreMenuGameMode::ASuspenseCoreMenuGameMode()
 
 	// Don't start players
 	bStartPlayersAsSpectators = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCoreMenuGameMode CONSTRUCTOR ==="));
 }
 
 void ASuspenseCoreMenuGameMode::StartPlay()
 {
 	Super::StartPlay();
+
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCoreMenuGameMode::StartPlay on map: %s ==="), *GetWorld()->GetMapName());
 
 	if (bAutoCreateMainMenu)
 	{

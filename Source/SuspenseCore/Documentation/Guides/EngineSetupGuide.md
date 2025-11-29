@@ -497,23 +497,79 @@ public:
 │       Font Size: 32
 │
 ├── [Scroll Box] "CharacterListScrollBox"
-│       (динамически заполняется кнопками персонажей)
-│       или
-│   [Vertical Box] "CharacterListBox"
+│       (динамически заполняется карточками персонажей)
+│       Size: Fill, Min Height: 200
 │
 ├── [Text Block] "StatusText"
 │       Text: "" (показывается если нет персонажей)
+│       Visibility: Collapsed (по умолчанию)
 │
-└── [Button] "CreateNewButton"
-    └── [Text Block] "CreateNewButtonText" = "CREATE NEW CHARACTER"
+├── [Horizontal Box] Buttons
+│   ├── [Button] "PlayButton"
+│   │   └── [Text Block] "PlayButtonText" = "PLAY"
+│   │       (активна только при выбранном персонаже)
+│   │
+│   └── [Button] "CreateNewButton"
+│       └── [Text Block] "CreateNewButtonText" = "CREATE NEW"
 ```
 
-**ВАЖНО:** Имена виджетов:
+**ВАЖНО:** Имена виджетов для BindWidget:
 - `TitleText` (UTextBlock)
 - `CharacterListScrollBox` (UScrollBox) или `CharacterListBox` (UVerticalBox)
 - `StatusText` (UTextBlock)
+- `PlayButton` (UButton) - **НОВАЯ кнопка для игры**
+- `PlayButtonText` (UTextBlock)
 - `CreateNewButton` (UButton)
 - `CreateNewButtonText` (UTextBlock)
+
+**3. В Class Defaults установите:**
+- `CharacterEntryWidgetClass` = `WBP_CharacterEntry`
+
+### 7.7.1 Создание WBP_CharacterEntry (карточка персонажа)
+
+**1. Создайте Widget Blueprint:**
+- Parent: `USuspenseCoreCharacterEntryWidget`
+- Name: `WBP_CharacterEntry`
+
+**2. Designer структура:**
+
+```
+[Border] "EntryBorder"
+│       Brush Color: (0.1, 0.1, 0.1, 1) - меняется при выборе
+│       Padding: 10
+│
+└── [Horizontal Box]
+    ├── [Image] "AvatarImage"
+    │       Size: 64x64
+    │       Brush: Default avatar
+    │
+    ├── [Spacer] Width: 10
+    │
+    ├── [Vertical Box]
+    │   ├── [Text Block] "DisplayNameText"
+    │   │       Font Size: 18
+    │   │       Color: White
+    │   │
+    │   └── [Text Block] "LevelText"
+    │           Text: "Level X"
+    │           Font Size: 14
+    │           Color: Gray
+    │
+    └── [Button] "SelectButton" (опционально)
+            (весь виджет кликабелен)
+```
+
+**ВАЖНО:** Имена виджетов для BindWidget:
+- `EntryBorder` (UBorder) - для подсветки выбора
+- `AvatarImage` (UImage) - аватар персонажа
+- `DisplayNameText` (UTextBlock) - имя
+- `LevelText` (UTextBlock) - уровень
+- `SelectButton` или `EntryButton` (UButton) - опционально
+
+**3. Цвета границы (настраиваются в Class Defaults):**
+- `NormalBorderColor`: (0.1, 0.1, 0.1, 1) - обычное состояние
+- `SelectedBorderColor`: (0.0, 0.5, 1.0, 1) - выбран (синий)
+- `HoveredBorderColor`: (0.3, 0.3, 0.3, 1) - наведение
 
 ### 7.8 Встраивание виджетов в WidgetSwitcher
 

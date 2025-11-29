@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/SuspenseCoreCharacterSelectWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreCharacterEntryWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -30,11 +31,19 @@ void USuspenseCoreCharacterSelectWidget::NativeConstruct()
 		CreateNewButton->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnCreateNewButtonClicked);
 	}
 
+	if (PlayButton)
+	{
+		PlayButton->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnPlayButtonClicked);
+	}
+
 	// Update UI
 	UpdateUIDisplay();
 
 	// Load and display characters
 	RefreshCharacterList();
+
+	// Initial play button state
+	UpdatePlayButtonState();
 }
 
 void USuspenseCoreCharacterSelectWidget::NativeDestruct()
@@ -161,6 +170,61 @@ void USuspenseCoreCharacterSelectWidget::RequestCreateNewCharacter()
 	OnCreateNewRequestedDelegate.Broadcast();
 }
 
+void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& PlayerId)
+{
+	// Clear previous highlight
+	FString PreviousHighlight = HighlightedPlayerId;
+
+	// Find the entry
+	FSuspenseCoreCharacterEntry* FoundEntry = CharacterEntries.FindByPredicate(
+		[&PlayerId](const FSuspenseCoreCharacterEntry& Entry) { return Entry.PlayerId == PlayerId; }
+	);
+
+	if (FoundEntry)
+	{
+		HighlightedPlayerId = PlayerId;
+		HighlightedEntry = *FoundEntry;
+
+		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Highlighted character: %s (%s)"),
+			*FoundEntry->DisplayName, *PlayerId);
+
+		// Update entry widgets visual state
+		for (const auto& Pair : EntryWidgetMap)
+		{
+			USuspenseCoreCharacterEntryWidget* EntryWidget = Pair.Key;
+			if (EntryWidget)
+			{
+				EntryWidget->SetSelected(Pair.Value == PlayerId);
+			}
+		}
+	}
+	else
+	{
+		// Clear highlight if not found
+		HighlightedPlayerId = TEXT("");
+		HighlightedEntry = FSuspenseCoreCharacterEntry();
+	}
+
+	// Update play button
+	UpdatePlayButtonState();
+}
+
+void USuspenseCoreCharacterSelectWidget::PlayWithHighlightedCharacter()
+{
+	if (!HighlightedPlayerId.IsEmpty())
+	{
+		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Playing with highlighted character: %s"),
+			*HighlightedPlayerId);
+
+		// This will trigger the transition to main menu
+		SelectCharacter(HighlightedPlayerId);
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreCharacterSelect, Warning, TEXT("No character highlighted to play with"));
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERNAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -222,12 +286,19 @@ void USuspenseCoreCharacterSelectWidget::UpdateUIDisplay()
 	{
 		CreateNewButtonText->SetText(CreateNewText);
 	}
+
+	if (PlayButtonText)
+	{
+		PlayButtonText->SetText(PlayText);
+	}
 }
 
 void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
 {
-	// Clear existing items and button map
+	// Clear existing items and maps
 	ButtonToPlayerIdMap.Empty();
+	EntryWidgetMap.Empty();
+	HighlightedPlayerId = TEXT("");
 
 	if (CharacterListScrollBox)
 	{
@@ -252,30 +323,75 @@ void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
 		}
 	}
 
-	// Create buttons for each character
-	for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
+	// Use custom entry widget if available
+	if (CharacterEntryWidgetClass && CharacterEntryWidgetClass->IsChildOf(USuspenseCoreCharacterEntryWidget::StaticClass()))
 	{
-		UButton* CharButton = CreateCharacterButton(Entry);
-		if (CharButton)
+		for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
 		{
-			// Store mapping for click handler
-			ButtonToPlayerIdMap.Add(CharButton, Entry.PlayerId);
-
-			// Add to container
-			if (CharacterListScrollBox)
+			USuspenseCoreCharacterEntryWidget* EntryWidget = CreateWidget<USuspenseCoreCharacterEntryWidget>(GetWorld(), CharacterEntryWidgetClass);
+			if (EntryWidget)
 			{
-				CharacterListScrollBox->AddChild(CharButton);
-			}
-			else if (CharacterListBox)
-			{
-				CharacterListBox->AddChild(CharButton);
-			}
+				// Set character data
+				EntryWidget->SetCharacterData(Entry.PlayerId, Entry.DisplayName, Entry.Level, nullptr);
 
-			UE_LOG(LogSuspenseCoreCharacterSelect, Log,
-				TEXT("Created button for character: %s (Lv.%d)"),
-				*Entry.DisplayName, Entry.Level);
+				// Bind click event
+				EntryWidget->OnEntryClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnEntryWidgetClicked);
+
+				// Store mapping
+				EntryWidgetMap.Add(EntryWidget, Entry.PlayerId);
+
+				// Add to container
+				if (CharacterListScrollBox)
+				{
+					CharacterListScrollBox->AddChild(EntryWidget);
+				}
+				else if (CharacterListBox)
+				{
+					CharacterListBox->AddChild(EntryWidget);
+				}
+
+				UE_LOG(LogSuspenseCoreCharacterSelect, Log,
+					TEXT("Created entry widget for character: %s (Lv.%d)"),
+					*Entry.DisplayName, Entry.Level);
+			}
 		}
 	}
+	else
+	{
+		// Fallback: Create simple buttons for each character
+		for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
+		{
+			UButton* CharButton = CreateCharacterButton(Entry);
+			if (CharButton)
+			{
+				// Store mapping for click handler
+				ButtonToPlayerIdMap.Add(CharButton, Entry.PlayerId);
+
+				// Add to container
+				if (CharacterListScrollBox)
+				{
+					CharacterListScrollBox->AddChild(CharButton);
+				}
+				else if (CharacterListBox)
+				{
+					CharacterListBox->AddChild(CharButton);
+				}
+
+				UE_LOG(LogSuspenseCoreCharacterSelect, Log,
+					TEXT("Created button for character: %s (Lv.%d)"),
+					*Entry.DisplayName, Entry.Level);
+			}
+		}
+	}
+
+	// Auto-highlight first character if we have any
+	if (CharacterEntries.Num() > 0)
+	{
+		HighlightCharacter(CharacterEntries[0].PlayerId);
+	}
+
+	// Update play button state
+	UpdatePlayButtonState();
 }
 
 UButton* USuspenseCoreCharacterSelectWidget::CreateCharacterButton(const FSuspenseCoreCharacterEntry& Entry)
@@ -340,11 +456,46 @@ void USuspenseCoreCharacterSelectWidget::OnCharacterButtonClicked()
 		UButton* Button = Pair.Key;
 		if (Button && Button->IsHovered())
 		{
-			SelectCharacter(Pair.Value);
+			// Highlight instead of select - user needs to click Play to confirm
+			HighlightCharacter(Pair.Value);
 			return;
 		}
 	}
 
-	// Fallback: if no hovered button found, try first entry (shouldn't happen normally)
+	// Fallback: if no hovered button found
 	UE_LOG(LogSuspenseCoreCharacterSelect, Warning, TEXT("OnCharacterButtonClicked: Could not determine which button was clicked"));
+}
+
+void USuspenseCoreCharacterSelectWidget::OnPlayButtonClicked()
+{
+	UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Play button clicked"));
+	PlayWithHighlightedCharacter();
+}
+
+void USuspenseCoreCharacterSelectWidget::OnEntryWidgetClicked(const FString& PlayerId)
+{
+	UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Entry widget clicked: %s"), *PlayerId);
+	HighlightCharacter(PlayerId);
+}
+
+void USuspenseCoreCharacterSelectWidget::UpdatePlayButtonState()
+{
+	if (PlayButton)
+	{
+		bool bHasSelection = !HighlightedPlayerId.IsEmpty();
+		PlayButton->SetIsEnabled(bHasSelection);
+
+		// Update button text
+		if (PlayButtonText)
+		{
+			if (bHasSelection)
+			{
+				PlayButtonText->SetText(PlayText);
+			}
+			else
+			{
+				PlayButtonText->SetText(SelectCharacterText);
+			}
+		}
+	}
 }

@@ -14,12 +14,10 @@ public class BridgeSystem : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
-                "GameplayAbilities",  // For GAS integration
-                "GameplayTags",       // Tag system
-                "GameplayTasks",      // Task system
-                "UMG",                // UI widgets
-                "Niagara",            // VFX system
-                "PhysicsCore"         // Physics types
+                "GameplayAbilities",
+                "GameplayTags",
+                "GameplayTasks",
+                "Niagara"
             }
         );
 

@@ -1,6 +1,4 @@
-﻿// Copyright Suspense Team. All Rights Reserved.
-
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 
 public class InventorySystem : ModuleRules
 {
@@ -15,10 +13,8 @@ public class InventorySystem : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
-
-				// Suspense modules
 				"BridgeSystem",
-				"InteractionSystem"    // Migrated from MedComInteraction
+				"InteractionSystem"
 			}
 		);
 
@@ -27,10 +23,10 @@ public class InventorySystem : ModuleRules
 			{
 				"Slate",
 				"SlateCore",
-				"NetCore",               // For replication support
-				"GameplayAbilities",     // GAS integration
-				"Json",                  // JSON serialization
-				"JsonUtilities"          // JSON utilities
+				"NetCore",
+				"GameplayAbilities",
+				"Json",
+				"JsonUtilities"
 			}
 		);
 	}

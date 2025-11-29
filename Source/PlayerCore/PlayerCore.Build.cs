@@ -18,7 +18,12 @@ public class PlayerCore : ModuleRules
                 "GameplayTags",
                 "GameplayTasks",
                 "BridgeSystem",
-                "GAS"
+                "GAS",
+                "InventorySystem",
+                "EquipmentSystem",
+                "UISystem",
+                "InteractionSystem"
+
             }
         );
 

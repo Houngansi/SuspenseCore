@@ -12,6 +12,41 @@
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 
+namespace
+{
+	/**
+	 * Converts a Blueprint SoftObjectPath to a proper class path for ?game= URL parameter.
+	 */
+	FString NormalizeGameModeClassPath(const FString& InputPath)
+	{
+		if (InputPath.IsEmpty())
+		{
+			return InputPath;
+		}
+
+		FString Result = InputPath;
+
+		// Check if it's in SoftObjectPath format: /Script/Engine.Blueprint'/Game/...'
+		if (Result.Contains(TEXT("'/")) && Result.EndsWith(TEXT("'")))
+		{
+			int32 StartIndex = Result.Find(TEXT("'/"));
+			if (StartIndex != INDEX_NONE)
+			{
+				Result = Result.Mid(StartIndex + 1);
+				Result = Result.Left(Result.Len() - 1);
+			}
+		}
+
+		// Ensure it ends with _C (class suffix for Blueprints)
+		if (!Result.EndsWith(TEXT("_C")))
+		{
+			Result += TEXT("_C");
+		}
+
+		return Result;
+	}
+}
+
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCorePauseMenu, Log, All);
 
 USuspenseCorePauseMenuWidget::USuspenseCorePauseMenuWidget(const FObjectInitializer& ObjectInitializer)
@@ -144,12 +179,17 @@ void USuspenseCorePauseMenuWidget::HidePauseMenu()
 
 void USuspenseCorePauseMenuWidget::TogglePauseMenu()
 {
+	UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("=== TogglePauseMenu: bIsVisible=%s ==="),
+		bIsVisible ? TEXT("true") : TEXT("false"));
+
 	if (bIsVisible)
 	{
+		UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("  -> HidePauseMenu()"));
 		HidePauseMenu();
 	}
 	else
 	{
+		UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("  -> ShowPauseMenu()"));
 		ShowPauseMenu();
 	}
 }
@@ -362,7 +402,8 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 		FString Options;
 		if (!MenuGameModePath.IsEmpty())
 		{
-			Options = FString::Printf(TEXT("?game=%s"), *MenuGameModePath);
+			FString NormalizedPath = NormalizeGameModeClassPath(MenuGameModePath);
+			Options = FString::Printf(TEXT("?game=%s"), *NormalizedPath);
 		}
 		UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName, true, Options);
 	}

@@ -33,12 +33,20 @@ void ASuspenseCorePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::BeginPlay ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  Controller: %s"), *GetName());
+	UE_LOG(LogTemp, Warning, TEXT("  IsLocalController: %s"), IsLocalController() ? TEXT("true") : TEXT("false"));
+
 	SetupEnhancedInput();
 
 	// Create pause menu for local player
 	if (IsLocalController())
 	{
 		CreatePauseMenu();
+
+		// Verify input mode
+		UE_LOG(LogTemp, Warning, TEXT("=== Input Mode Check ==="));
+		UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));
 	}
 
 	// Publish controller ready event
@@ -110,8 +118,10 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 
 		if (IA_PauseGame)
 		{
+			// Bind to multiple trigger events for debugging
 			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandlePauseGame);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_PauseGame -> HandlePauseGame"));
+			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Triggered, this, &ASuspenseCorePlayerController::HandlePauseGameTriggered);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_PauseGame -> HandlePauseGame (Started + Triggered)"));
 		}
 
 		if (IA_QuickSave)
@@ -491,9 +501,17 @@ void ASuspenseCorePlayerController::CreatePauseMenu()
 
 void ASuspenseCorePlayerController::TogglePauseMenu()
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== TogglePauseMenu called ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
+
 	if (PauseMenuWidget)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("  Calling PauseMenuWidget->TogglePauseMenu()"));
 		PauseMenuWidget->TogglePauseMenu();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidget is NULL! Cannot toggle pause menu."));
 	}
 }
 
@@ -540,9 +558,17 @@ void ASuspenseCorePlayerController::QuickLoad()
 
 void ASuspenseCorePlayerController::HandlePauseGame(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGame called! ==="));
+	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGame called! (ETriggerEvent::Started) ==="));
 	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
+	UE_LOG(LogTemp, Warning, TEXT("  InputMode: %s"), GetInputMode() == FInputModeUIOnly().GetInputModeName() ? TEXT("UI Only") :
+		(GetInputMode() == FInputModeGameOnly().GetInputModeName() ? TEXT("Game Only") : TEXT("Game And UI")));
 	TogglePauseMenu();
+}
+
+void ASuspenseCorePlayerController::HandlePauseGameTriggered(const FInputActionValue& Value)
+{
+	// Debug: This helps us understand if the input is being received at all
+	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGameTriggered called! (ETriggerEvent::Triggered) ==="));
 }
 
 void ASuspenseCorePlayerController::HandleQuickSave(const FInputActionValue& Value)

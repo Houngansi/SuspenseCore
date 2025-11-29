@@ -6,6 +6,52 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 
+namespace
+{
+	/**
+	 * Converts a Blueprint SoftObjectPath to a proper class path for ?game= URL parameter.
+	 * Input formats:
+	 *   - "/Script/Engine.Blueprint'/Game/Path/BP_GameMode.BP_GameMode'" (SoftObjectPath)
+	 *   - "/Game/Path/BP_GameMode.BP_GameMode" (partial path)
+	 *   - "/Game/Path/BP_GameMode.BP_GameMode_C" (correct format - returned as-is)
+	 *
+	 * Output format:
+	 *   - "/Game/Path/BP_GameMode.BP_GameMode_C" (class path with _C suffix)
+	 */
+	FString NormalizeGameModeClassPath(const FString& InputPath)
+	{
+		if (InputPath.IsEmpty())
+		{
+			return InputPath;
+		}
+
+		FString Result = InputPath;
+
+		// Check if it's in SoftObjectPath format: /Script/Engine.Blueprint'/Game/...'
+		// Extract the actual path from between quotes
+		if (Result.Contains(TEXT("'/")) && Result.EndsWith(TEXT("'")))
+		{
+			int32 StartIndex = Result.Find(TEXT("'/"));
+			if (StartIndex != INDEX_NONE)
+			{
+				// Extract path between '/ and '
+				Result = Result.Mid(StartIndex + 1); // Skip the '
+				Result = Result.Left(Result.Len() - 1); // Remove trailing '
+				UE_LOG(LogTemp, Log, TEXT("NormalizeGameModeClassPath: Extracted from SoftObjectPath: %s"), *Result);
+			}
+		}
+
+		// Ensure it ends with _C (class suffix for Blueprints)
+		if (!Result.EndsWith(TEXT("_C")))
+		{
+			Result += TEXT("_C");
+			UE_LOG(LogTemp, Log, TEXT("NormalizeGameModeClassPath: Added _C suffix: %s"), *Result);
+		}
+
+		return Result;
+	}
+}
+
 void USuspenseCoreMapTransitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -101,8 +147,9 @@ void USuspenseCoreMapTransitionSubsystem::TransitionToGameMap(const FString& Pla
 	// Must pass ?game=/Path/To/GameMode.GameMode_C
 	if (!GameGameModePath.IsEmpty())
 	{
-		Options += FString::Printf(TEXT("?game=%s"), *GameGameModePath);
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing GameMode: %s"), *GameGameModePath);
+		FString NormalizedPath = NormalizeGameModeClassPath(GameGameModePath);
+		Options += FString::Printf(TEXT("?game=%s"), *NormalizedPath);
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing GameMode: %s (original: %s)"), *NormalizedPath, *GameGameModePath);
 	}
 	else
 	{
@@ -149,8 +196,9 @@ void USuspenseCoreMapTransitionSubsystem::TransitionToMainMenu(FName MainMenuMap
 	// Must pass ?game=/Path/To/GameMode.GameMode_C
 	if (!MenuGameModePath.IsEmpty())
 	{
-		Options = FString::Printf(TEXT("?game=%s"), *MenuGameModePath);
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing MenuGameMode: %s"), *MenuGameModePath);
+		FString NormalizedPath = NormalizeGameModeClassPath(MenuGameModePath);
+		Options = FString::Printf(TEXT("?game=%s"), *NormalizedPath);
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing MenuGameMode: %s (original: %s)"), *NormalizedPath, *MenuGameModePath);
 	}
 	else
 	{

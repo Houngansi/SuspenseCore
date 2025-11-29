@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreSaveLoadMenuWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "Components/Button.h"
@@ -325,6 +326,52 @@ USuspenseCoreSaveManager* USuspenseCorePauseMenuWidget::GetSaveManager()
 	return CachedSaveManager.Get();
 }
 
+void USuspenseCorePauseMenuWidget::CreateSaveLoadMenu()
+{
+	if (!SaveLoadMenuWidgetClass)
+	{
+		UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("SaveLoadMenuWidgetClass not set!"));
+		return;
+	}
+
+	if (SaveLoadMenuWidget)
+	{
+		return; // Already created
+	}
+
+	SaveLoadMenuWidget = CreateWidget<USuspenseCoreSaveLoadMenuWidget>(GetOwningPlayer(), SaveLoadMenuWidgetClass);
+	if (SaveLoadMenuWidget)
+	{
+		SaveLoadMenuWidget->AddToViewport(100); // Above pause menu
+		SaveLoadMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		SaveLoadMenuWidget->OnMenuClosed.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnSaveLoadMenuClosed);
+		UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("SaveLoadMenuWidget created"));
+	}
+}
+
+void USuspenseCorePauseMenuWidget::ShowSaveLoadMenu(ESuspenseCoreSaveLoadMode Mode)
+{
+	if (!SaveLoadMenuWidget)
+	{
+		CreateSaveLoadMenu();
+	}
+
+	if (SaveLoadMenuWidget)
+	{
+		SaveLoadMenuWidget->ShowMenu(Mode);
+		UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Showing SaveLoadMenu in mode: %s"),
+			Mode == ESuspenseCoreSaveLoadMode::Save ? TEXT("Save") : TEXT("Load"));
+	}
+}
+
+void USuspenseCorePauseMenuWidget::OnSaveLoadMenuClosed()
+{
+	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("SaveLoadMenu closed"));
+
+	// Re-focus pause menu
+	SetFocus();
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BUTTON HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -338,23 +385,41 @@ void USuspenseCorePauseMenuWidget::OnContinueButtonClicked()
 void USuspenseCorePauseMenuWidget::OnSaveButtonClicked()
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Save clicked"));
-	QuickSave();
+
+	// If SaveLoadMenuWidget is configured, show the full save menu
+	if (SaveLoadMenuWidgetClass)
+	{
+		ShowSaveLoadMenu(ESuspenseCoreSaveLoadMode::Save);
+	}
+	else
+	{
+		// Fallback to quick save
+		QuickSave();
+	}
 }
 
 void USuspenseCorePauseMenuWidget::OnLoadButtonClicked()
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Load clicked"));
 
-	if (USuspenseCoreSaveManager* SaveMgr = GetSaveManager())
+	// If SaveLoadMenuWidget is configured, show the full load menu
+	if (SaveLoadMenuWidgetClass)
 	{
-		if (SaveMgr->HasQuickSave())
+		ShowSaveLoadMenu(ESuspenseCoreSaveLoadMode::Load);
+	}
+	else
+	{
+		// Fallback to quick load
+		if (USuspenseCoreSaveManager* SaveMgr = GetSaveManager())
 		{
-			QuickLoad();
-		}
-		else
-		{
-			UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("No quick save to load"));
-			// TODO: Show "No save found" message
+			if (SaveMgr->HasQuickSave())
+			{
+				QuickLoad();
+			}
+			else
+			{
+				UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("No quick save to load"));
+			}
 		}
 	}
 }

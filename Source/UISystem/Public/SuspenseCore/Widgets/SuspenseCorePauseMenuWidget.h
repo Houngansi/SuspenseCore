@@ -12,6 +12,8 @@ class UButton;
 class UTextBlock;
 class UWidgetSwitcher;
 class USuspenseCoreSaveManager;
+class USuspenseCoreSaveLoadMenuWidget;
+enum class ESuspenseCoreSaveLoadMode : uint8;
 
 /**
  * USuspenseCorePauseMenuWidget
@@ -128,6 +130,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PauseMenu|Config|GameMode")
 	FString GameGameModePath;
 
+	/**
+	 * Save/Load menu widget class.
+	 * If set, clicking Save/Load buttons will open this menu instead of quick save/load.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PauseMenu|Config|SaveLoad")
+	TSubclassOf<USuspenseCoreSaveLoadMenuWidget> SaveLoadMenuWidgetClass;
+
 	// ═══════════════════════════════════════════════════════════════
 	// PUBLIC API
 	// ═══════════════════════════════════════════════════════════════
@@ -220,8 +229,22 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreSaveManager> CachedSaveManager;
 
+	/** Created Save/Load menu widget */
+	UPROPERTY()
+	USuspenseCoreSaveLoadMenuWidget* SaveLoadMenuWidget;
+
 	/** Setup button bindings */
 	void SetupButtonBindings();
+
+	/** Create Save/Load menu widget */
+	void CreateSaveLoadMenu();
+
+	/** Show Save/Load menu in specified mode */
+	void ShowSaveLoadMenu(ESuspenseCoreSaveLoadMode Mode);
+
+	/** Called when Save/Load menu closes */
+	UFUNCTION()
+	void OnSaveLoadMenuClosed();
 
 	/** Update UI text */
 	void UpdateUIDisplay();

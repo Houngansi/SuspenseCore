@@ -1,4 +1,4 @@
-﻿using UnrealBuildTool;
+using UnrealBuildTool;
 
 public class PlayerCore : ModuleRules
 {
@@ -10,14 +10,15 @@ public class PlayerCore : ModuleRules
             new string[]
             {
                 "Core",
+                "CoreUObject",
+                "Engine",
                 "CinematicCamera",
+                "EnhancedInput",
                 "GameplayAbilities",
                 "GameplayTags",
+                "GameplayTasks",
                 "UMG",
                 "BridgeSystem",
-                "InventorySystem",
-                "EquipmentSystem",
-                "UISystem",
                 "GAS"
             }
         );
@@ -25,10 +26,8 @@ public class PlayerCore : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "CoreUObject",
-                "Engine",
                 "Slate",
-                "SlateCore", "UISystem", "EnhancedInput"
+                "SlateCore"
             }
         );
     }

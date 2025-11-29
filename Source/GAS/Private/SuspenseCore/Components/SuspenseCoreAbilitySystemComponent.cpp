@@ -3,9 +3,9 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
-#include "SuspenseCore/SuspenseCoreEventManager.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Actor.h"
 

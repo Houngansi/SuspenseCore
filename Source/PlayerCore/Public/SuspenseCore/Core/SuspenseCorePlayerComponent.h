@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCorePlayerComponent.generated.h"
 
 class USuspenseCoreEventBus;

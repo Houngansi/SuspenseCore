@@ -2,7 +2,7 @@
 // SuspenseCore - Clean Architecture Foundation
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCore/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreServiceLocator, Log, All);
 

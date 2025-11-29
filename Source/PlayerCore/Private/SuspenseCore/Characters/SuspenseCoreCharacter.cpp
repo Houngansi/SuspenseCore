@@ -3,9 +3,9 @@
 
 #include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
-#include "SuspenseCore/SuspenseCoreEventManager.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"

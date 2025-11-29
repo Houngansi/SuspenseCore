@@ -2,7 +2,7 @@
 // SuspenseCore - Clean Architecture Foundation
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreEventBus, Log, All);
 

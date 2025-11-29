@@ -4,8 +4,8 @@
 
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "GameplayEffectExtension.h"
 #include "GameFramework/Character.h"

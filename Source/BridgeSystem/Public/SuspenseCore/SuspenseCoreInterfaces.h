@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/SuspenseCorePlayerData.h"
 #include "SuspenseCoreInterfaces.generated.h"
 

@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Containers/Ticker.h"
-#include "SuspenseCore/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEventManager.generated.h"
 
 class USuspenseCoreEventBus;

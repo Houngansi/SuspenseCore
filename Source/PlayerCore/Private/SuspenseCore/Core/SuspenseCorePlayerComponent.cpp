@@ -2,8 +2,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Core/SuspenseCorePlayerComponent.h"
-#include "SuspenseCore/SuspenseCoreEventManager.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 

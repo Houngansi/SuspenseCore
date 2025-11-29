@@ -2,8 +2,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Core/SuspenseCorePlayerComponent.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/SuspenseCoreEventManager.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 
@@ -54,7 +54,12 @@ void USuspenseCorePlayerComponent::PublishEvent(const FGameplayTag& EventTag, co
 
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		EventBus->Publish(GetOwner(), EventTag, Payload);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
+		if (!Payload.IsEmpty())
+		{
+			EventData.SetString(FName("Payload"), Payload);
+		}
+		EventBus->Publish(EventTag, EventData);
 	}
 }
 
@@ -66,7 +71,7 @@ bool USuspenseCorePlayerComponent::SubscribeToEvent(const FGameplayTag& EventTag
 	}
 
 	// Check if already subscribed
-	for (const FSuspenseCoreEventSubscription& Sub : ActiveSubscriptions)
+	for (const FPlayerComponentSubscription& Sub : ActiveSubscriptions)
 	{
 		if (Sub.EventTag == EventTag)
 		{
@@ -80,15 +85,17 @@ bool USuspenseCorePlayerComponent::SubscribeToEvent(const FGameplayTag& EventTag
 		return false;
 	}
 
-	// Subscribe and store handle
-	FDelegateHandle Handle = EventBus->Subscribe(
+	// Subscribe using native callback
+	FSuspenseCoreSubscriptionHandle Handle = EventBus->SubscribeNative(
 		EventTag,
-		FOnSuspenseCoreEvent::FDelegate::CreateUObject(this, &USuspenseCorePlayerComponent::HandleEventReceived)
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCorePlayerComponent::HandleNativeEvent),
+		ESuspenseCoreEventPriority::Normal
 	);
 
 	if (Handle.IsValid())
 	{
-		FSuspenseCoreEventSubscription NewSub;
+		FPlayerComponentSubscription NewSub;
 		NewSub.EventTag = EventTag;
 		NewSub.Handle = Handle;
 		ActiveSubscriptions.Add(NewSub);
@@ -111,9 +118,9 @@ void USuspenseCorePlayerComponent::UnsubscribeFromEvent(const FGameplayTag& Even
 	{
 		if (ActiveSubscriptions[i].EventTag == EventTag)
 		{
-			if (EventBus)
+			if (EventBus && ActiveSubscriptions[i].Handle.IsValid())
 			{
-				EventBus->Unsubscribe(EventTag, ActiveSubscriptions[i].Handle);
+				EventBus->Unsubscribe(ActiveSubscriptions[i].Handle);
 			}
 			ActiveSubscriptions.RemoveAt(i);
 			break;
@@ -160,10 +167,10 @@ UAbilitySystemComponent* USuspenseCorePlayerComponent::GetOwnerASC() const
 // OVERRIDABLE HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void USuspenseCorePlayerComponent::OnEventReceived(const FGameplayTag& EventTag, const FString& Payload, UObject* Source)
+void USuspenseCorePlayerComponent::OnEventReceived(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Base implementation calls Blueprint event
-	K2_OnEventReceived(EventTag, Payload, Source);
+	K2_OnEventReceived(EventTag, EventData);
 }
 
 void USuspenseCorePlayerComponent::OnReady()
@@ -217,11 +224,11 @@ void USuspenseCorePlayerComponent::CleanupSubscriptions()
 {
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 
-	for (const FSuspenseCoreEventSubscription& Sub : ActiveSubscriptions)
+	for (const FPlayerComponentSubscription& Sub : ActiveSubscriptions)
 	{
 		if (EventBus && Sub.Handle.IsValid())
 		{
-			EventBus->Unsubscribe(Sub.EventTag, Sub.Handle);
+			EventBus->Unsubscribe(Sub.Handle);
 		}
 	}
 
@@ -237,19 +244,22 @@ USuspenseCoreEventBus* USuspenseCorePlayerComponent::GetEventBus() const
 
 	if (AActor* Owner = GetOwner())
 	{
-		USuspenseCoreEventBus* EventBus = USuspenseCoreServiceLocator::GetEventBus(Owner->GetWorld());
-		if (EventBus)
+		if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(Owner))
 		{
-			const_cast<USuspenseCorePlayerComponent*>(this)->CachedEventBus = EventBus;
+			USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
+			if (EventBus)
+			{
+				const_cast<USuspenseCorePlayerComponent*>(this)->CachedEventBus = EventBus;
+			}
+			return EventBus;
 		}
-		return EventBus;
 	}
 
 	return nullptr;
 }
 
-void USuspenseCorePlayerComponent::HandleEventReceived(const UObject* Source, const FGameplayTag& EventTag, const FString& Payload)
+void USuspenseCorePlayerComponent::HandleNativeEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Forward to overridable handler
-	OnEventReceived(EventTag, Payload, const_cast<UObject*>(Source));
+	OnEventReceived(EventTag, EventData);
 }

@@ -200,6 +200,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	int32 MainMenuScreenIndex = 2;
 
+	/**
+	 * GameMode class path for game maps.
+	 * CRITICAL: Must be set for GameMode switching to work!
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreGameMode.BP_SuspenseCoreGameMode_C
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|GameMode")
+	FString GameGameModePath;
+
+	/**
+	 * GameMode class path for menu maps.
+	 * CRITICAL: Must be set for GameMode switching to work!
+	 * Format: /Game/Blueprints/GameModes/BP_SuspenseCoreMenuGameMode.BP_SuspenseCoreMenuGameMode_C
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|GameMode")
+	FString MenuGameModePath;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════

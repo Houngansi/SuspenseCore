@@ -103,19 +103,27 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 		}
 
 		// UI Inputs
+		UE_LOG(LogTemp, Warning, TEXT("=== SetupInputComponent: Binding UI Inputs ==="));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_PauseGame: %s"), IA_PauseGame ? *IA_PauseGame->GetName() : TEXT("NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_QuickSave: %s"), IA_QuickSave ? *IA_QuickSave->GetName() : TEXT("NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_QuickLoad: %s"), IA_QuickLoad ? *IA_QuickLoad->GetName() : TEXT("NULL!"));
+
 		if (IA_PauseGame)
 		{
 			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandlePauseGame);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_PauseGame -> HandlePauseGame"));
 		}
 
 		if (IA_QuickSave)
 		{
 			EnhancedInput->BindAction(IA_QuickSave, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSave);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_QuickSave -> HandleQuickSave"));
 		}
 
 		if (IA_QuickLoad)
 		{
 			EnhancedInput->BindAction(IA_QuickLoad, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickLoad);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_QuickLoad -> HandleQuickLoad"));
 		}
 
 		// Bind additional ability inputs
@@ -343,12 +351,24 @@ void ASuspenseCorePlayerController::SendAbilityInput(const FGameplayTag& InputTa
 
 void ASuspenseCorePlayerController::SetupEnhancedInput()
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== SetupEnhancedInput ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  DefaultMappingContext: %s"), DefaultMappingContext ? *DefaultMappingContext->GetName() : TEXT("NOT SET!"));
+
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		if (DefaultMappingContext)
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
+			UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: MappingContext added to subsystem"));
 		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  FAILED: DefaultMappingContext is NOT SET in BP_SuspenseCorePlayerController!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not get EnhancedInputLocalPlayerSubsystem!"));
 	}
 }
 

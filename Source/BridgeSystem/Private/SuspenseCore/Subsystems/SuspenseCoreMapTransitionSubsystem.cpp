@@ -11,6 +11,8 @@ void USuspenseCoreMapTransitionSubsystem::Initialize(FSubsystemCollectionBase& C
 	Super::Initialize(Collection);
 
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMapTransitionSubsystem: Initialized"));
+	UE_LOG(LogTemp, Log, TEXT("  IMPORTANT: Set GameGameModePath and MenuGameModePath for proper GameMode switching!"));
+	UE_LOG(LogTemp, Log, TEXT("  Example: /Game/Blueprints/GameModes/BP_SuspenseCoreGameMode.BP_SuspenseCoreGameMode_C"));
 }
 
 void USuspenseCoreMapTransitionSubsystem::Deinitialize()
@@ -91,11 +93,27 @@ void USuspenseCoreMapTransitionSubsystem::TransitionToGameMap(const FString& Pla
 	// Broadcast transition begin
 	OnMapTransitionBegin.Broadcast(CurrentMapName, GameMapName);
 
+	// Build options string with PlayerId
+	FString Options = FString::Printf(TEXT("?PlayerId=%s"), *PlayerId);
+
+	// CRITICAL: Force GameMode via URL options
+	// OpenLevel does NOT respect World Settings GameMode Override!
+	// Must pass ?game=/Path/To/GameMode.GameMode_C
+	if (!GameGameModePath.IsEmpty())
+	{
+		Options += FString::Printf(TEXT("?game=%s"), *GameGameModePath);
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing GameMode: %s"), *GameGameModePath);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: GameGameModePath not set! GameMode may not switch correctly."));
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMapTransitionSubsystem: Transitioning to game map %s for player %s"),
 		*GameMapName.ToString(), *PlayerId);
+	UE_LOG(LogTemp, Log, TEXT("  Options: %s"), *Options);
 
-	// Open the level with player ID in options
-	FString Options = FString::Printf(TEXT("?PlayerId=%s"), *PlayerId);
+	// Open the level with forced GameMode
 	UGameplayStatics::OpenLevel(World, GameMapName, true, Options);
 }
 
@@ -123,9 +141,26 @@ void USuspenseCoreMapTransitionSubsystem::TransitionToMainMenu(FName MainMenuMap
 	// Broadcast transition begin
 	OnMapTransitionBegin.Broadcast(CurrentMapName, MainMenuMapName);
 
+	// Build options string
+	FString Options;
+
+	// CRITICAL: Force MenuGameMode via URL options
+	// OpenLevel does NOT respect World Settings GameMode Override!
+	// Must pass ?game=/Path/To/GameMode.GameMode_C
+	if (!MenuGameModePath.IsEmpty())
+	{
+		Options = FString::Printf(TEXT("?game=%s"), *MenuGameModePath);
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: Forcing MenuGameMode: %s"), *MenuGameModePath);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMapTransitionSubsystem: MenuGameModePath not set! GameMode may not switch correctly."));
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMapTransitionSubsystem: Transitioning to main menu %s"),
 		*MainMenuMapName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("  Options: %s"), *Options);
 
-	// Open the level
-	UGameplayStatics::OpenLevel(World, MainMenuMapName);
+	// Open the level with forced GameMode
+	UGameplayStatics::OpenLevel(World, MainMenuMapName, true, Options);
 }

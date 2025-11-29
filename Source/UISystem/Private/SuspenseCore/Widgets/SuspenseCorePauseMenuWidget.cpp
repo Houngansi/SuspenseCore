@@ -337,12 +337,34 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 	// Use transition subsystem for proper state handling
 	if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem = USuspenseCoreMapTransitionSubsystem::Get(this))
 	{
+		// Configure GameMode paths for proper switching
+		if (!MenuGameModePath.IsEmpty())
+		{
+			TransitionSubsystem->SetMenuGameModePath(MenuGameModePath);
+			UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Set MenuGameModePath: %s"), *MenuGameModePath);
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("MenuGameModePath not set! Configure it in Blueprint."));
+		}
+
+		if (!GameGameModePath.IsEmpty())
+		{
+			TransitionSubsystem->SetGameGameModePath(GameGameModePath);
+		}
+
 		TransitionSubsystem->TransitionToMainMenu(LobbyMapName);
 	}
 	else
 	{
-		// Fallback: direct level open
-		UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName);
+		// Fallback: direct level open with forced GameMode
+		UE_LOG(LogSuspenseCorePauseMenu, Warning, TEXT("TransitionSubsystem not found, using direct OpenLevel"));
+		FString Options;
+		if (!MenuGameModePath.IsEmpty())
+		{
+			Options = FString::Printf(TEXT("?game=%s"), *MenuGameModePath);
+		}
+		UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName, true, Options);
 	}
 }
 

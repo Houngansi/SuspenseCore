@@ -30,7 +30,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "PlayerCore",
+			"Name": "InteractionSystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
@@ -45,12 +45,12 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "InteractionSystem",
+			"Name": "UISystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "UISystem",
+			"Name": "PlayerCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}

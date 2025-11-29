@@ -5,6 +5,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreMainMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreRegistrationWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCorePlayerInfoWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreCharacterSelectWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -43,25 +44,20 @@ void USuspenseCoreMainMenuWidget::NativeDestruct()
 
 void USuspenseCoreMainMenuWidget::InitializeMenu()
 {
-	// Check if we have an existing player
+	// Initialize repository first to ensure directory exists
+	GetOrCreateRepository();
+
+	// Check if we have existing players
 	if (HasExistingPlayer())
 	{
-		// Get the first player ID (in future: show player selection if multiple)
-		ISuspenseCorePlayerRepository* Repo = GetOrCreateRepository();
-		if (Repo)
-		{
-			TArray<FString> PlayerIds;
-			Repo->GetAllPlayerIds(PlayerIds);
-			if (PlayerIds.Num() > 0)
-			{
-				ShowMainMenuScreen(PlayerIds[0]);
-				return;
-			}
-		}
+		// Show character select screen (player can choose existing or create new)
+		ShowCharacterSelectScreen();
 	}
-
-	// No existing player - show registration
-	ShowRegistrationScreen();
+	else
+	{
+		// No existing players - go directly to registration
+		ShowRegistrationScreen();
+	}
 }
 
 bool USuspenseCoreMainMenuWidget::HasExistingPlayer() const
@@ -91,12 +87,30 @@ bool USuspenseCoreMainMenuWidget::HasExistingPlayer() const
 	USuspenseCoreFilePlayerRepository* FileRepo = NewObject<USuspenseCoreFilePlayerRepository>();
 	if (FileRepo)
 	{
+		FileRepo->Initialize(TEXT("")); // Initialize with default path
 		TArray<FString> PlayerIds;
 		FileRepo->GetAllPlayerIds(PlayerIds);
 		return PlayerIds.Num() > 0;
 	}
 
 	return false;
+}
+
+void USuspenseCoreMainMenuWidget::ShowCharacterSelectScreen()
+{
+	// Refresh the character list if widget exists
+	if (CharacterSelectWidget)
+	{
+		CharacterSelectWidget->RefreshCharacterList();
+	}
+
+	if (ScreenSwitcher)
+	{
+		ScreenSwitcher->SetActiveWidgetIndex(CharacterSelectScreenIndex);
+		OnScreenChanged(CharacterSelectScreenIndex);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Showing character select screen"));
 }
 
 void USuspenseCoreMainMenuWidget::ShowRegistrationScreen()
@@ -217,13 +231,40 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnRegistrationSuccess),
 		ESuspenseCoreEventPriority::Normal
 	);
+
+	// Subscribe to character select events
+	CharacterSelectEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Selected")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterSelected),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to create new character events
+	CreateNewCharacterEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.CreateNew")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCreateNewCharacter),
+		ESuspenseCoreEventPriority::Normal
+	);
 }
 
 void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 {
-	if (CachedEventBus.IsValid() && RegistrationEventHandle.IsValid())
+	if (CachedEventBus.IsValid())
 	{
-		CachedEventBus->Unsubscribe(RegistrationEventHandle);
+		if (RegistrationEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(RegistrationEventHandle);
+		}
+		if (CharacterSelectEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(CharacterSelectEventHandle);
+		}
+		if (CreateNewCharacterEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(CreateNewCharacterEventHandle);
+		}
 	}
 }
 
@@ -255,6 +296,9 @@ ISuspenseCorePlayerRepository* USuspenseCoreMainMenuWidget::GetOrCreateRepositor
 
 	// Create and register file repository
 	USuspenseCoreFilePlayerRepository* FileRepo = NewObject<USuspenseCoreFilePlayerRepository>(this);
+
+	// IMPORTANT: Initialize repository with default path ([Project]/Saved/Players/)
+	FileRepo->Initialize(TEXT(""));
 
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
 	if (Manager)
@@ -302,6 +346,28 @@ void USuspenseCoreMainMenuWidget::OnRegistrationSuccess(FGameplayTag EventTag, c
 
 		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration successful for %s, transitioning to main menu"), *PlayerId);
 	}
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterSelected(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get player ID from event data
+	FString PlayerId = EventData.GetString(FName("PlayerId"));
+
+	if (!PlayerId.IsEmpty())
+	{
+		// Transition to main menu with selected player
+		ShowMainMenuScreen(PlayerId);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character selected %s, transitioning to main menu"), *PlayerId);
+	}
+}
+
+void USuspenseCoreMainMenuWidget::OnCreateNewCharacter(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Navigate to registration screen
+	ShowRegistrationScreen();
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Create new character requested, showing registration"));
 }
 
 void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()

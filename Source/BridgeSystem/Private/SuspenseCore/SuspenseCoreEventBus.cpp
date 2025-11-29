@@ -2,7 +2,7 @@
 // SuspenseCore - Clean Architecture Foundation
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCoreEventBus.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreEventBus, Log, All);
 
@@ -53,36 +53,37 @@ void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspen
 {
 	TotalEventsPublished++;
 
-	// Прямые подписчики
+	// Прямые подписчики - копируем под локом, вызываем без лока
+	TArray<FSuspenseCoreSubscription> DirectSubs;
 	{
 		FScopeLock Lock(&SubscriptionLock);
-
 		if (TArray<FSuspenseCoreSubscription>* Subs = Subscriptions.Find(EventTag))
 		{
-			// Копируем чтобы избежать проблем при модификации во время итерации
-			TArray<FSuspenseCoreSubscription> SubsCopy = *Subs;
-			Lock.Unlock();
-
-			NotifySubscribers(SubsCopy, EventTag, EventData);
+			DirectSubs = *Subs;
 		}
 	}
 
-	// Подписчики на родительские теги
+	if (DirectSubs.Num() > 0)
+	{
+		NotifySubscribers(DirectSubs, EventTag, EventData);
+	}
+
+	// Подписчики на родительские теги - собираем под локом
+	TArray<FSuspenseCoreSubscription> ChildSubs;
 	{
 		FScopeLock Lock(&SubscriptionLock);
-
-		for (auto& Pair : ChildSubscriptions)
+		for (const auto& Pair : ChildSubscriptions)
 		{
 			if (EventTag.MatchesTag(Pair.Key))
 			{
-				TArray<FSuspenseCoreSubscription> SubsCopy = Pair.Value;
-				Lock.Unlock();
-
-				NotifySubscribers(SubsCopy, EventTag, EventData);
-
-				Lock.Lock();
+				ChildSubs.Append(Pair.Value);
 			}
 		}
+	}
+
+	if (ChildSubs.Num() > 0)
+	{
+		NotifySubscribers(ChildSubs, EventTag, EventData);
 	}
 }
 
@@ -136,8 +137,8 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::Subscribe(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	// Получаем объект из callback
-	UObject* Subscriber = Callback.GetUObject();
+	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
 		EventTag,
@@ -159,7 +160,8 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::SubscribeToChildren(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	UObject* Subscriber = Callback.GetUObject();
+	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
 		ParentTag,
@@ -182,7 +184,8 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::SubscribeWithFilter(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	UObject* Subscriber = Callback.GetUObject();
+	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
 		EventTag,

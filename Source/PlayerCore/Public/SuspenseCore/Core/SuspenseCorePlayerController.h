@@ -183,6 +183,10 @@ protected:
 	void SetupEnhancedInput();
 	void BindAbilityInputs();
 
+	/** Handle ability input by binding index */
+	void HandleAbilityInputByIndex(const FInputActionValue& Value, int32 BindingIndex);
+	void HandleAbilityInputReleasedByIndex(const FInputActionValue& Value, int32 BindingIndex);
+
 	USuspenseCoreEventBus* GetEventBus() const;
 
 private:

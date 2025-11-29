@@ -4,8 +4,9 @@
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/SuspenseCoreEventManager.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
@@ -375,14 +376,12 @@ void ASuspenseCorePlayerState::HandleAttributeChange(const FGameplayTag& Attribu
 	// Publish to EventBus
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		const FString Payload = FString::Printf(
-			TEXT("{\"attribute\":\"%s\",\"newValue\":%.2f,\"oldValue\":%.2f}"),
-			*AttributeTag.ToString(),
-			NewValue,
-			OldValue
-		);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCorePlayerState*>(this));
+		EventData.SetString(FName("Attribute"), AttributeTag.ToString());
+		EventData.SetFloat(FName("NewValue"), NewValue);
+		EventData.SetFloat(FName("OldValue"), OldValue);
 
-		EventBus->Publish(this, FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Attribute.Changed")), Payload);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Attribute.Changed")), EventData);
 	}
 }
 
@@ -394,7 +393,12 @@ void ASuspenseCorePlayerState::PublishPlayerStateEvent(const FGameplayTag& Event
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		EventBus->Publish(this, EventTag, Payload);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCorePlayerState*>(this));
+		if (!Payload.IsEmpty())
+		{
+			EventData.SetString(FName("Payload"), Payload);
+		}
+		EventBus->Publish(EventTag, EventData);
 	}
 }
 
@@ -405,12 +409,16 @@ USuspenseCoreEventBus* ASuspenseCorePlayerState::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	// Get from Service Locator
-	USuspenseCoreEventBus* EventBus = USuspenseCoreServiceLocator::GetEventBus(GetWorld());
-	if (EventBus)
+	// Get from EventManager
+	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
 	{
-		const_cast<ASuspenseCorePlayerState*>(this)->CachedEventBus = EventBus;
+		USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
+		if (EventBus)
+		{
+			const_cast<ASuspenseCorePlayerState*>(this)->CachedEventBus = EventBus;
+		}
+		return EventBus;
 	}
 
-	return EventBus;
+	return nullptr;
 }

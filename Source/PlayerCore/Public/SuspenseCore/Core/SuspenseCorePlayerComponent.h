@@ -7,22 +7,23 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "SuspenseCorePlayerComponent.generated.h"
 
 class USuspenseCoreEventBus;
 class UAbilitySystemComponent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EVENT SUBSCRIPTION HANDLE
+// INTERNAL SUBSCRIPTION TRACKING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 USTRUCT()
-struct FSuspenseCoreEventSubscription
+struct FPlayerComponentSubscription
 {
 	GENERATED_BODY()
 
 	FGameplayTag EventTag;
-	FDelegateHandle Handle;
+	FSuspenseCoreSubscriptionHandle Handle;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -104,7 +105,7 @@ public:
 
 	/** Called when an event is received */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Events", meta = (DisplayName = "On Event Received"))
-	void K2_OnEventReceived(const FGameplayTag& EventTag, const FString& Payload, UObject* Source);
+	void K2_OnEventReceived(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Called when component is ready */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Lifecycle", meta = (DisplayName = "On Ready"))
@@ -128,7 +129,7 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Native handler for received events - override in C++ subclasses */
-	virtual void OnEventReceived(const FGameplayTag& EventTag, const FString& Payload, UObject* Source);
+	virtual void OnEventReceived(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Native handler for ready state - override in C++ subclasses */
 	virtual void OnReady();
@@ -146,7 +147,7 @@ private:
 	bool bIsReady = false;
 
 	/** Active event subscriptions */
-	TArray<FSuspenseCoreEventSubscription> ActiveSubscriptions;
+	TArray<FPlayerComponentSubscription> ActiveSubscriptions;
 
 	/** Cached EventBus reference */
 	UPROPERTY()
@@ -162,5 +163,6 @@ private:
 
 	USuspenseCoreEventBus* GetEventBus() const;
 
-	void HandleEventReceived(const UObject* Source, const FGameplayTag& EventTag, const FString& Payload);
+	/** Native callback handler */
+	void HandleNativeEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 };

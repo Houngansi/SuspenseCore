@@ -3,8 +3,9 @@
 
 #include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/SuspenseCoreEventManager.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -372,7 +373,12 @@ void ASuspenseCoreCharacter::PublishCharacterEvent(const FGameplayTag& EventTag,
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		EventBus->Publish(this, EventTag, Payload);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCoreCharacter*>(this));
+		if (!Payload.IsEmpty())
+		{
+			EventData.SetString(FName("Payload"), Payload);
+		}
+		EventBus->Publish(EventTag, EventData);
 	}
 }
 
@@ -383,11 +389,15 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	USuspenseCoreEventBus* EventBus = USuspenseCoreServiceLocator::GetEventBus(GetWorld());
-	if (EventBus)
+	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
 	{
-		const_cast<ASuspenseCoreCharacter*>(this)->CachedEventBus = EventBus;
+		USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
+		if (EventBus)
+		{
+			const_cast<ASuspenseCoreCharacter*>(this)->CachedEventBus = EventBus;
+		}
+		return EventBus;
 	}
 
-	return EventBus;
+	return nullptr;
 }

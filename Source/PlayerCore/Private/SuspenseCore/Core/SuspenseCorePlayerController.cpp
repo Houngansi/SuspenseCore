@@ -4,8 +4,9 @@
 #include "SuspenseCore/Core/SuspenseCorePlayerController.h"
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
+#include "SuspenseCore/SuspenseCoreEventManager.h"
+#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -190,7 +191,12 @@ void ASuspenseCorePlayerController::PublishEvent(const FGameplayTag& EventTag, c
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		EventBus->Publish(this, EventTag, Payload);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCorePlayerController*>(this));
+		if (!Payload.IsEmpty())
+		{
+			EventData.SetString(FName("Payload"), Payload);
+		}
+		EventBus->Publish(EventTag, EventData);
 	}
 }
 
@@ -202,9 +208,9 @@ void ASuspenseCorePlayerController::HandleMove(const FInputActionValue& Value)
 {
 	CurrentMovementInput = Value.Get<FVector2D>();
 
-	if (ASuspenseCoreCharacter* Character = GetSuspenseCoreCharacter())
+	if (ASuspenseCoreCharacter* SuspenseCharacter = GetSuspenseCoreCharacter())
 	{
-		Character->Move(CurrentMovementInput);
+		SuspenseCharacter->Move(CurrentMovementInput);
 	}
 }
 
@@ -212,9 +218,9 @@ void ASuspenseCorePlayerController::HandleLook(const FInputActionValue& Value)
 {
 	const FVector2D LookInput = Value.Get<FVector2D>();
 
-	if (ASuspenseCoreCharacter* Character = GetSuspenseCoreCharacter())
+	if (ASuspenseCoreCharacter* SuspenseCharacter = GetSuspenseCoreCharacter())
 	{
-		Character->Look(LookInput);
+		SuspenseCharacter->Look(LookInput);
 	}
 }
 
@@ -289,11 +295,15 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 void ASuspenseCorePlayerController::SendAbilityInput(const FGameplayTag& InputTag, bool bPressed)
 {
 	// Forward to ASC for ability input handling
+	// Note: In GAS, ability input is typically handled via InputID (int32)
+	// This method is a placeholder for custom input binding systems
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
+		// For now, use input ID 0 as default
+		// Custom implementations should map InputTag to proper InputID
 		if (bPressed)
 		{
-			ASC->AbilityLocalInputPressed(InputTag.IsValid() ? InputTag.GetTagName().GetComparisonIndex().IsValidIndex() ? 0 : 0 : 0);
+			ASC->AbilityLocalInputPressed(0);
 		}
 		else
 		{
@@ -319,40 +329,50 @@ void ASuspenseCorePlayerController::SetupEnhancedInput()
 
 void ASuspenseCorePlayerController::BindAbilityInputs()
 {
-	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
+	if (!EnhancedInput)
 	{
-		for (const FSuspenseCoreInputBinding& Binding : AbilityInputBindings)
+		return;
+	}
+
+	for (int32 i = 0; i < AbilityInputBindings.Num(); ++i)
+	{
+		const FSuspenseCoreInputBinding& Binding = AbilityInputBindings[i];
+
+		if (!Binding.InputAction || !Binding.AbilityTag.IsValid())
 		{
-			if (Binding.InputAction && Binding.AbilityTag.IsValid())
-			{
-				// Capture binding for lambda
-				const FGameplayTag CapturedTag = Binding.AbilityTag;
-				const bool bOnRelease = Binding.bActivateOnRelease;
-
-				if (bOnRelease)
-				{
-					EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
-						[this, CapturedTag](const FInputActionValue& Value)
-						{
-							ActivateAbilityByTag(CapturedTag, true);
-						});
-				}
-				else
-				{
-					EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Started, this,
-						[this, CapturedTag](const FInputActionValue& Value)
-						{
-							ActivateAbilityByTag(CapturedTag, true);
-						});
-
-					EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
-						[this, CapturedTag](const FInputActionValue& Value)
-						{
-							ActivateAbilityByTag(CapturedTag, false);
-						});
-				}
-			}
+			continue;
 		}
+
+		// Use index-based approach to avoid lambda capture issues
+		if (Binding.bActivateOnRelease)
+		{
+			EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
+				&ASuspenseCorePlayerController::HandleAbilityInputByIndex, i);
+		}
+		else
+		{
+			EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Started, this,
+				&ASuspenseCorePlayerController::HandleAbilityInputByIndex, i);
+			EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
+				&ASuspenseCorePlayerController::HandleAbilityInputReleasedByIndex, i);
+		}
+	}
+}
+
+void ASuspenseCorePlayerController::HandleAbilityInputByIndex(const FInputActionValue& Value, int32 BindingIndex)
+{
+	if (AbilityInputBindings.IsValidIndex(BindingIndex))
+	{
+		ActivateAbilityByTag(AbilityInputBindings[BindingIndex].AbilityTag, true);
+	}
+}
+
+void ASuspenseCorePlayerController::HandleAbilityInputReleasedByIndex(const FInputActionValue& Value, int32 BindingIndex)
+{
+	if (AbilityInputBindings.IsValidIndex(BindingIndex))
+	{
+		ActivateAbilityByTag(AbilityInputBindings[BindingIndex].AbilityTag, false);
 	}
 }
 
@@ -363,11 +383,15 @@ USuspenseCoreEventBus* ASuspenseCorePlayerController::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	USuspenseCoreEventBus* EventBus = USuspenseCoreServiceLocator::GetEventBus(GetWorld());
-	if (EventBus)
+	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
 	{
-		const_cast<ASuspenseCorePlayerController*>(this)->CachedEventBus = EventBus;
+		USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
+		if (EventBus)
+		{
+			const_cast<ASuspenseCorePlayerController*>(this)->CachedEventBus = EventBus;
+		}
+		return EventBus;
 	}
 
-	return EventBus;
+	return nullptr;
 }

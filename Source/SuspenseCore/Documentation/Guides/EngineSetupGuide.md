@@ -1,7 +1,20 @@
 # SuspenseCore - Engine Setup Guide
 
 > Руководство по настройке SuspenseCore в Unreal Engine
-> Версия: 1.0 | Дата: 2025-11-29
+> Версия: 1.1 | Дата: 2025-11-29
+
+---
+
+## Связанная документация
+
+| Документ | Описание |
+|----------|----------|
+| **[UI/](UI/)** | **Полная документация по UI системе** |
+| [UI/MainMenuSetup.md](UI/MainMenuSetup.md) | Настройка главного меню |
+| [UI/PauseMenuSetup.md](UI/PauseMenuSetup.md) | Настройка меню паузы |
+| [UI/SaveLoadMenuSetup.md](UI/SaveLoadMenuSetup.md) | Настройка Save/Load меню |
+| [UI/InputModeHandling.md](UI/InputModeHandling.md) | **КРИТИЧНО:** Input Mode при переходах |
+| [UI/WidgetBindings.md](UI/WidgetBindings.md) | Справочник BindWidget имён |
 
 ---
 

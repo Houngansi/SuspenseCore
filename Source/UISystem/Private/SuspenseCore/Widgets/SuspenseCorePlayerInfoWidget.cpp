@@ -72,10 +72,7 @@ void USuspenseCorePlayerInfoWidget::SetupEventSubscriptions()
 	ProgressionEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("Event.Progression")),
 		const_cast<USuspenseCorePlayerInfoWidget*>(this),
-		[this](const FGameplayTag& Tag, const FSuspenseCoreEventData& Data)
-		{
-			OnProgressionEvent(Tag, Data);
-		},
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCorePlayerInfoWidget::OnProgressionEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 }
@@ -205,7 +202,7 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 		// Calculate XP progress (simple exponential curve)
 		int64 XPForCurrentLevel = 100 * FMath::Pow(1.15f, Data.Level - 1);
 		int64 XPForNextLevel = 100 * FMath::Pow(1.15f, Data.Level);
-		int64 XPInLevel = Data.TotalExperience - XPForCurrentLevel;
+		int64 XPInLevel = Data.ExperiencePoints - XPForCurrentLevel;
 		int64 XPNeeded = XPForNextLevel - XPForCurrentLevel;
 
 		float Progress = (XPNeeded > 0) ? static_cast<float>(XPInLevel) / XPNeeded : 1.0f;
@@ -215,7 +212,7 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 	if (XPText)
 	{
 		XPText->SetText(FText::FromString(
-			FString::Printf(TEXT("%s XP"), *FormatLargeNumber(Data.TotalExperience))));
+			FString::Printf(TEXT("%s XP"), *FormatLargeNumber(Data.ExperiencePoints))));
 	}
 
 	// Currency
@@ -258,7 +255,7 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 
 	if (PlaytimeText)
 	{
-		PlaytimeText->SetText(FText::FromString(FormatPlaytime(Data.Stats.TotalPlaytimeSeconds)));
+		PlaytimeText->SetText(FText::FromString(FormatPlaytime(Data.Stats.PlayTimeSeconds)));
 	}
 }
 

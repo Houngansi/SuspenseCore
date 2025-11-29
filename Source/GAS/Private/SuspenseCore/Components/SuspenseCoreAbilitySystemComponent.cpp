@@ -204,7 +204,7 @@ bool USuspenseCoreAbilitySystemComponent::HasAbilityWithTag(FGameplayTag Ability
 {
 	for (const FGameplayAbilitySpec& Spec : GetActivatableAbilities())
 	{
-		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(AbilityTag))
+		if (Spec.Ability && Spec.Ability->GetAssetTags().HasTag(AbilityTag))
 		{
 			return true;
 		}
@@ -266,7 +266,7 @@ void USuspenseCoreAbilitySystemComponent::RemoveActiveEffectsOfClass(TSubclassOf
 	}
 
 	FGameplayEffectQuery Query;
-	Query.EffectDefinition = EffectClass.GetDefaultObject();
+	Query.EffectDefinition = EffectClass;
 	RemoveActiveEffects(Query);
 }
 

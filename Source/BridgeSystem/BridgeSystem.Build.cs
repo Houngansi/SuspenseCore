@@ -17,7 +17,9 @@ public class BridgeSystem : ModuleRules
                 "GameplayAbilities",
                 "GameplayTags",
                 "GameplayTasks",
-                "Niagara"
+                "Niagara",
+                "UMG",
+                "PhysicsCore"
             }
         );
 

@@ -226,7 +226,9 @@ void USuspenseCoreCharacterSelectWidget::UpdateUIDisplay()
 
 void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
 {
-	// Clear existing items
+	// Clear existing items and button map
+	ButtonToPlayerIdMap.Empty();
+
 	if (CharacterListScrollBox)
 	{
 		CharacterListScrollBox->ClearChildren();
@@ -250,60 +252,65 @@ void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
 		}
 	}
 
-	// If no custom entry widget class, create simple buttons
-	if (!CharacterEntryWidgetClass)
+	// Create buttons for each character
+	for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
 	{
-		for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
+		UButton* CharButton = CreateCharacterButton(Entry);
+		if (CharButton)
 		{
-			UButton* CharButton = CreateCharacterButton(Entry);
-			if (CharButton)
-			{
-				if (CharacterListScrollBox)
-				{
-					CharacterListScrollBox->AddChild(CharButton);
-				}
-				else if (CharacterListBox)
-				{
-					CharacterListBox->AddChild(CharButton);
-				}
-			}
-		}
-	}
-	else
-	{
-		// Create custom entry widgets
-		for (const FSuspenseCoreCharacterEntry& Entry : CharacterEntries)
-		{
-			UUserWidget* EntryWidget = CreateWidget<UUserWidget>(GetWorld(), CharacterEntryWidgetClass);
-			if (EntryWidget)
-			{
-				// Try to set data via interface or properties
-				// The Blueprint widget should handle its own display
+			// Store mapping for click handler
+			ButtonToPlayerIdMap.Add(CharButton, Entry.PlayerId);
 
-				if (CharacterListScrollBox)
-				{
-					CharacterListScrollBox->AddChild(EntryWidget);
-				}
-				else if (CharacterListBox)
-				{
-					CharacterListBox->AddChild(EntryWidget);
-				}
+			// Add to container
+			if (CharacterListScrollBox)
+			{
+				CharacterListScrollBox->AddChild(CharButton);
 			}
+			else if (CharacterListBox)
+			{
+				CharacterListBox->AddChild(CharButton);
+			}
+
+			UE_LOG(LogSuspenseCoreCharacterSelect, Log,
+				TEXT("Created button for character: %s (Lv.%d)"),
+				*Entry.DisplayName, Entry.Level);
 		}
 	}
 }
 
 UButton* USuspenseCoreCharacterSelectWidget::CreateCharacterButton(const FSuspenseCoreCharacterEntry& Entry)
 {
-	// Note: This is a simple fallback. For better UI, use CharacterEntryWidgetClass
-	// In UMG, we can't easily create buttons with text dynamically without a widget class
-	// This method is mainly for documentation - actual implementation should use Blueprint widgets
+	// Create button
+	UButton* Button = NewObject<UButton>(this);
+	if (!Button)
+	{
+		return nullptr;
+	}
+
+	// Create text block for button content
+	UTextBlock* ButtonText = NewObject<UTextBlock>(Button);
+	if (ButtonText)
+	{
+		// Format: "DisplayName (Lv.X)"
+		FString ButtonLabel = FString::Printf(TEXT("%s (Lv.%d)"), *Entry.DisplayName, Entry.Level);
+		ButtonText->SetText(FText::FromString(ButtonLabel));
+
+		// Style the text
+		FSlateFontInfo FontInfo = ButtonText->GetFont();
+		FontInfo.Size = 18;
+		ButtonText->SetFont(FontInfo);
+
+		Button->AddChild(ButtonText);
+	}
+
+	// Bind click event
+	Button->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnCharacterButtonClicked);
 
 	UE_LOG(LogSuspenseCoreCharacterSelect, Verbose,
-		TEXT("Character: %s (Lv.%d) - %s"),
+		TEXT("Character button created: %s (Lv.%d) - %s"),
 		*Entry.DisplayName, Entry.Level, *Entry.PlayerId);
 
-	return nullptr; // Blueprint should handle this
+	return Button;
 }
 
 void USuspenseCoreCharacterSelectWidget::PublishCharacterSelectEvent(const FGameplayTag& EventTag, const FString& PlayerId)
@@ -325,7 +332,19 @@ void USuspenseCoreCharacterSelectWidget::OnCreateNewButtonClicked()
 	RequestCreateNewCharacter();
 }
 
-void USuspenseCoreCharacterSelectWidget::OnCharacterButtonClicked(const FString& PlayerId)
+void USuspenseCoreCharacterSelectWidget::OnCharacterButtonClicked()
 {
-	SelectCharacter(PlayerId);
+	// Find which button was clicked by checking hovered state
+	for (const auto& Pair : ButtonToPlayerIdMap)
+	{
+		UButton* Button = Pair.Key;
+		if (Button && Button->IsHovered())
+		{
+			SelectCharacter(Pair.Value);
+			return;
+		}
+	}
+
+	// Fallback: if no hovered button found, try first entry (shouldn't happen normally)
+	UE_LOG(LogSuspenseCoreCharacterSelect, Warning, TEXT("OnCharacterButtonClicked: Could not determine which button was clicked"));
 }

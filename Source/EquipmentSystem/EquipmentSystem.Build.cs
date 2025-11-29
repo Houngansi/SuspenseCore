@@ -29,14 +29,13 @@ public class EquipmentSystem : ModuleRules
             {
                 "Slate",
                 "SlateCore",
-                "InputCore",          // Input bindings
-                "NetCore",            // Network core
-                "IrisCore",           // Replication
-                "Niagara",            // VFX system
-                "Json",               // JSON serialization
-                "JsonUtilities",      // JSON utilities
-                "OnlineSubsystem",    // Online features
-                "OnlineSubsystemUtils" // Online utilities
+                "InputCore",
+                "NetCore",
+                "Niagara",
+                "Json",
+                "JsonUtilities",
+                "OnlineSubsystem",
+                "OnlineSubsystemUtils"
             }
         );
     }

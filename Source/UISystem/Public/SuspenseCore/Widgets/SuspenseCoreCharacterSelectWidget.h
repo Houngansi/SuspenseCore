@@ -43,7 +43,7 @@ struct FSuspenseCoreCharacterEntry
 		: PlayerId(PlayerData.PlayerId)
 		, DisplayName(PlayerData.DisplayName)
 		, Level(PlayerData.Level)
-		, LastPlayed(PlayerData.LastLoginTime)
+		, LastPlayed(PlayerData.LastLoginAt)
 	{
 	}
 };

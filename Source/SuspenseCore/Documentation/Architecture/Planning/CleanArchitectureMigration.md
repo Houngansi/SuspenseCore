@@ -190,55 +190,74 @@
 
 ## 5. Структура папок
 
-### 5.1 Новая структура (SuspenseCore классы)
+### 5.1 Организация файлов
+
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ВАЖНО: НЕ создаём отдельную директорию Legacy!                              ║
+║                                                                              ║
+║  Все файлы хранятся ВМЕСТЕ в одной директории.                               ║
+║  Различаются ТОЛЬКО по naming:                                               ║
+║                                                                              ║
+║    Legacy:      SuspenseCharacter.h          ← НЕ ТРОГАЕМ                    ║
+║    Новый:       SuspenseCoreCharacter.h      ← ПИШЕМ С НУЛЯ                  ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+### 5.2 Примеры структуры
 
 ```
 Source/
 ├── BridgeSystem/
 │   ├── Public/
-│   │   ├── Core/                          # Новые SuspenseCore классы
-│   │   │   ├── SuspenseCoreEventBus.h
-│   │   │   ├── SuspenseCoreServiceLocator.h
-│   │   │   ├── SuspenseCoreEventManager.h
-│   │   │   ├── SuspenseCoreTypes.h        # FSuspenseCoreEventData, etc.
-│   │   │   └── SuspenseCoreInterfaces.h   # ISuspenseCoreEventSubscriber, etc.
-│   │   └── Legacy/                        # Старый код (НЕ ТРОГАЕМ)
-│   │       └── ... (существующие файлы)
+│   │   ├── SuspenseEquipmentEventBus.h       # Legacy (НЕ ТРОГАЕМ)
+│   │   ├── SuspenseEquipmentServiceLocator.h # Legacy (НЕ ТРОГАЕМ)
+│   │   ├── SuspenseCoreEventBus.h            # НОВЫЙ (пишем с нуля)
+│   │   ├── SuspenseCoreServiceLocator.h      # НОВЫЙ (пишем с нуля)
+│   │   ├── SuspenseCoreEventManager.h        # НОВЫЙ (пишем с нуля)
+│   │   ├── SuspenseCoreTypes.h               # НОВЫЙ (типы данных)
+│   │   └── SuspenseCoreInterfaces.h          # НОВЫЙ (интерфейсы)
 │   └── Private/
-│       ├── Core/
-│       │   ├── SuspenseCoreEventBus.cpp
-│       │   ├── SuspenseCoreServiceLocator.cpp
-│       │   └── SuspenseCoreEventManager.cpp
-│       └── Legacy/
+│       ├── SuspenseEquipmentEventBus.cpp     # Legacy
+│       ├── SuspenseCoreEventBus.cpp          # НОВЫЙ
+│       ├── SuspenseCoreServiceLocator.cpp    # НОВЫЙ
+│       └── SuspenseCoreEventManager.cpp      # НОВЫЙ
 │
 ├── GAS/
 │   ├── Public/
-│   │   ├── Core/                          # Новые SuspenseCore классы
-│   │   │   ├── SuspenseCoreAbilitySystemComponent.h
-│   │   │   ├── SuspenseCoreAttributeSet.h
-│   │   │   └── Attributes/
-│   │   │       ├── SuspenseCoreWeaponAttributeSet.h
-│   │   │       └── SuspenseCoreHealthAttributeSet.h
-│   │   └── Legacy/                        # Старый код (НЕ ТРОГАЕМ)
-│   │       └── ...
+│   │   ├── SuspenseAbilitySystemComponent.h      # Legacy
+│   │   ├── SuspenseWeaponAttributeSet.h          # Legacy
+│   │   ├── SuspenseCoreAbilitySystemComponent.h  # НОВЫЙ
+│   │   ├── SuspenseCoreAttributeSet.h            # НОВЫЙ (базовый)
+│   │   ├── SuspenseCoreHealthAttributeSet.h      # НОВЫЙ
+│   │   └── SuspenseCoreWeaponAttributeSet.h      # НОВЫЙ
 │   └── Private/
-│       ├── Core/
-│       └── Legacy/
+│       ├── SuspenseAbilitySystemComponent.cpp    # Legacy
+│       ├── SuspenseCoreAbilitySystemComponent.cpp # НОВЫЙ
+│       └── ...
 │
 ├── PlayerCore/
 │   ├── Public/
-│   │   ├── Core/                          # Новые SuspenseCore классы
-│   │   │   ├── SuspenseCoreCharacter.h
-│   │   │   ├── SuspenseCorePlayerController.h
-│   │   │   ├── SuspenseCorePlayerState.h
-│   │   │   └── Interfaces/
-│   │   │       └── SuspenseCoreCharacterInterface.h
-│   │   └── Legacy/                        # Старый код (НЕ ТРОГАЕМ)
-│   │       └── ...
+│   │   ├── SuspenseCharacter.h               # Legacy
+│   │   ├── SuspensePlayerController.h        # Legacy
+│   │   ├── SuspensePlayerState.h             # Legacy
+│   │   ├── SuspenseCoreCharacter.h           # НОВЫЙ
+│   │   ├── SuspenseCorePlayerController.h    # НОВЫЙ
+│   │   ├── SuspenseCorePlayerState.h         # НОВЫЙ
+│   │   └── SuspenseCoreCharacterInterface.h  # НОВЫЙ (интерфейс)
 │   └── Private/
-│       ├── Core/
-│       └── Legacy/
+│       └── ...
 ```
+
+### 5.3 Как отличать файлы
+
+| Признак | Legacy | Новый (SuspenseCore) |
+|---------|--------|----------------------|
+| Naming | `Suspense*` | `SuspenseCore*` |
+| EventBus | Делегаты | Только EventBus |
+| Зависимости | Много | Минимум |
+| Статус | Шпаргалка | Рабочий код |
 
 ---
 

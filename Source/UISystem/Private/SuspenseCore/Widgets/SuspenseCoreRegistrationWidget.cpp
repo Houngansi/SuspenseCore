@@ -272,6 +272,9 @@ ISuspenseCorePlayerRepository* USuspenseCoreRegistrationWidget::GetOrCreateRepos
 	// Create default file repository
 	USuspenseCoreFilePlayerRepository* FileRepo = NewObject<USuspenseCoreFilePlayerRepository>(this);
 
+	// IMPORTANT: Initialize repository with default path ([Project]/Saved/Players/)
+	FileRepo->Initialize(TEXT(""));
+
 	// Register with ServiceLocator for future use
 	if (Manager)
 	{

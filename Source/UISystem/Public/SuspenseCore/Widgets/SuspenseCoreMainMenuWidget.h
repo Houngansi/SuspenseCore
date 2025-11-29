@@ -17,6 +17,7 @@ class UWidgetSwitcher;
 class UImage;
 class USuspenseCorePlayerInfoWidget;
 class USuspenseCoreRegistrationWidget;
+class USuspenseCoreCharacterSelectWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
 
@@ -24,9 +25,19 @@ class ISuspenseCorePlayerRepository;
  * USuspenseCoreMainMenuWidget
  *
  * Main menu widget that handles the complete menu flow:
+ * - Character Select screen (if players exist)
  * - Registration screen for new players
  * - Main menu with player info and Play button
  * - Transitions between screens via EventBus
+ *
+ * Screen Flow:
+ * - Start → Has saves? → Character Select (Index 0)
+ * - Start → No saves? → Registration (Index 1)
+ * - Character Select → Select player → Main Menu (Index 2)
+ * - Character Select → Create new → Registration (Index 1)
+ * - Registration → Success → Main Menu (Index 2)
+ *
+ * Save Location: [Project]/Saved/Players/[PlayerId].json
  *
  * Pure C++ implementation with Blueprint bindings.
  */
@@ -54,6 +65,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
 	void InitializeMenu();
+
+	/**
+	 * Show character select screen.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
+	void ShowCharacterSelectScreen();
 
 	/**
 	 * Show registration screen.
@@ -107,7 +124,15 @@ protected:
 	UTextBlock* VersionText;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Registration Screen (Index 0)
+	// UI BINDINGS - Character Select Screen (Index 0)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Character select widget */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	USuspenseCoreCharacterSelectWidget* CharacterSelectWidget;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// UI BINDINGS - Registration Screen (Index 1)
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Registration widget (embedded or referenced) */
@@ -115,7 +140,7 @@ protected:
 	USuspenseCoreRegistrationWidget* RegistrationWidget;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Main Menu Screen (Index 1)
+	// UI BINDINGS - Main Menu Screen (Index 2)
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Player info widget */
@@ -162,13 +187,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FText VersionString = FText::FromString(TEXT("v0.1.0 Alpha"));
 
+	/** Index of character select screen in WidgetSwitcher */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	int32 CharacterSelectScreenIndex = 0;
+
 	/** Index of registration screen in WidgetSwitcher */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	int32 RegistrationScreenIndex = 0;
+	int32 RegistrationScreenIndex = 1;
 
 	/** Index of main menu screen in WidgetSwitcher */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	int32 MainMenuScreenIndex = 1;
+	int32 MainMenuScreenIndex = 2;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
@@ -180,8 +209,14 @@ protected:
 	/** Cached player data */
 	FSuspenseCorePlayerData CachedPlayerData;
 
-	/** EventBus subscription handle */
+	/** EventBus subscription handle for registration */
 	FSuspenseCoreSubscriptionHandle RegistrationEventHandle;
+
+	/** EventBus subscription handle for character select */
+	FSuspenseCoreSubscriptionHandle CharacterSelectEventHandle;
+
+	/** EventBus subscription handle for create new character */
+	FSuspenseCoreSubscriptionHandle CreateNewCharacterEventHandle;
 
 	/** Cached EventBus */
 	UPROPERTY()
@@ -211,6 +246,12 @@ protected:
 
 	/** Handle registration success event */
 	void OnRegistrationSuccess(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle character selected event */
+	void OnCharacterSelected(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle create new character event */
+	void OnCreateNewCharacter(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

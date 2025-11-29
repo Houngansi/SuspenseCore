@@ -320,40 +320,72 @@ public:
 
 ## 7. UI Flow - Меню и переходы
 
-### 7.1 Архитектура UI Flow
+### 7.1 Путь сохранения данных
 
+**Сохранения игроков хранятся в:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        MAIN MENU MAP                             │
-│                                                                 │
-│  ┌──────────────────┐         ┌─────────────────────────────┐   │
-│  │  Registration    │         │       Main Menu              │   │
-│  │  Screen          │────────►│  ┌───────────────────────┐  │   │
-│  │                  │ Success │  │   Player Info Widget  │  │   │
-│  │  [Name Input]    │         │  │   Name: Player_X      │  │   │
-│  │  [Create]        │         │  │   Level: 1            │  │   │
-│  └──────────────────┘         │  └───────────────────────┘  │   │
-│         ▲                     │                              │   │
-│         │ No save             │  [PLAY] ─────────────────────┼───┼──► GAME MAP
-│         │                     │  [OPERATORS] (disabled)      │   │
-│  ┌──────┴──────┐              │  [SETTINGS] (disabled)       │   │
-│  │ Check Save  │              │  [QUIT]                      │   │
-│  │ on Start    │              └─────────────────────────────┘   │
-│  └─────────────┘                        ▲                       │
-│         │ Has save                      │                       │
-│         └───────────────────────────────┘                       │
-└─────────────────────────────────────────────────────────────────┘
+[Project]/Saved/Players/[PlayerId].json
 ```
 
-### 7.2 Карты игры
+Например: `MyProject/Saved/Players/Player_ABC123.json`
+
+### 7.2 Архитектура UI Flow (3 экрана)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           MAIN MENU MAP                                  │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │                        START                                       │  │
+│  │                          │                                         │  │
+│  │         ┌────────────────┼────────────────┐                        │  │
+│  │         │ No saves       │ Has saves      │                        │  │
+│  │         ▼                ▼                │                        │  │
+│  │  ┌──────────────┐  ┌──────────────────┐   │                        │  │
+│  │  │ Registration │  │ Character Select │   │                        │  │
+│  │  │  (Index 1)   │  │    (Index 0)     │   │                        │  │
+│  │  │              │  │                  │   │                        │  │
+│  │  │ [Name Input] │  │ [Player_1 Lv.5]◄─┼───┼─ Select                │  │
+│  │  │ [Create]─────┼──│ [Player_2 Lv.2] │   │                        │  │
+│  │  │              │  │ [+ Create New]──┼───┘                        │  │
+│  │  └──────┬───────┘  └────────┬────────┘                            │  │
+│  │         │ Success           │ Select                               │  │
+│  │         └─────────┬─────────┘                                      │  │
+│  │                   ▼                                                │  │
+│  │         ┌─────────────────────────────┐                            │  │
+│  │         │       Main Menu             │                            │  │
+│  │         │        (Index 2)            │                            │  │
+│  │         │  ┌───────────────────────┐  │                            │  │
+│  │         │  │   Player Info Widget  │  │                            │  │
+│  │         │  │   Name: Player_X      │  │                            │  │
+│  │         │  │   Level: 5            │  │                            │  │
+│  │         │  └───────────────────────┘  │                            │  │
+│  │         │                              │                            │  │
+│  │         │  [PLAY] ─────────────────────┼────────────► GAME MAP     │  │
+│  │         │  [OPERATORS] (disabled)      │                            │  │
+│  │         │  [SETTINGS] (disabled)       │                            │  │
+│  │         │  [QUIT]                      │                            │  │
+│  │         └─────────────────────────────┘                            │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Логика:**
+1. **Старт** → проверка `[Project]/Saved/Players/` на наличие `.json` файлов
+2. **Есть сохранения** → Character Select (Index 0) - список персонажей + "Создать нового"
+3. **Нет сохранений** → Registration (Index 1) - создание первого персонажа
+4. **После регистрации** → Main Menu (Index 2) с данными игрока
+5. **После выбора персонажа** → Main Menu (Index 2) с данными выбранного игрока
+
+### 7.3 Карты игры
 
 | Карта | GameMode | Описание |
 |-------|----------|----------|
-| `MainMenuMap` | `BP_MenuGameMode` | Главное меню и регистрация |
-| `CharacterSelectMap` | `BP_MenuGameMode` | Выбор оперативника (future) |
+| `MainMenuMap` | `BP_MenuGameMode` | Главное меню, регистрация, выбор персонажа |
+| `CharacterSelectMap` | `BP_MenuGameMode` | Выбор оперативника (future - отдельная карта) |
 | `GameMap` | `BP_SuspenseCoreGameMode` | Игровой процесс |
 
-### 7.3 Настройка Menu GameMode
+### 7.4 Настройка Menu GameMode
 
 **1. Создайте Blueprint:**
 - Parent: `ASuspenseCoreMenuGameMode`
@@ -368,7 +400,7 @@ public:
 | Default Game Map Name | `GameMap` |
 | Auto Create Main Menu | ✓ |
 
-### 7.4 Настройка Menu PlayerController
+### 7.5 Настройка Menu PlayerController
 
 **1. Создайте Blueprint:**
 - Parent: `ASuspenseCoreMenuPlayerController`
@@ -379,13 +411,13 @@ public:
 - UI Only Mode On Start: ✓
 - Main Menu Map Name: `MainMenuMap`
 
-### 7.5 Создание WBP_MainMenu
+### 7.6 Создание WBP_MainMenu (3 экрана)
 
 **1. Создайте Widget Blueprint:**
 - Parent: `USuspenseCoreMainMenuWidget`
 - Name: `WBP_MainMenu`
 
-**2. Designer структура:**
+**2. Designer структура (3 экрана):**
 
 ```
 [Canvas Panel] (Full Screen)
@@ -404,12 +436,18 @@ public:
 │   │
 │   ├── [Widget Switcher] "ScreenSwitcher"
 │   │   │
-│   │   │── [Index 0] Registration Panel
-│   │   │   └── WBP_Registration (встроить как child)
+│   │   │── [Index 0] Panel_CharacterSelect
+│   │   │   └── WBP_CharacterSelect "CharacterSelectWidget"
+│   │   │       (Parent: USuspenseCoreCharacterSelectWidget)
 │   │   │
-│   │   └── [Index 1] Main Menu Panel
+│   │   │── [Index 1] Panel_Registration
+│   │   │   └── WBP_Registration "RegistrationWidget"
+│   │   │       (Parent: USuspenseCoreRegistrationWidget)
+│   │   │
+│   │   └── [Index 2] Panel_MainMenu
 │   │       │
 │   │       ├── WBP_PlayerInfo "PlayerInfoWidget"
+│   │       │   (Parent: USuspenseCorePlayerInfoWidget)
 │   │       │
 │   │       ├── [Spacer] Height: 30
 │   │       │
@@ -437,26 +475,61 @@ public:
 - `ScreenSwitcher` (UWidgetSwitcher)
 - `BackgroundImage` (UImage)
 - `GameTitleText` (UTextBlock)
-- `PlayerInfoWidget` (USuspenseCorePlayerInfoWidget)
+- `CharacterSelectWidget` (USuspenseCoreCharacterSelectWidget) - Index 0
+- `RegistrationWidget` (USuspenseCoreRegistrationWidget) - Index 1
+- `PlayerInfoWidget` (USuspenseCorePlayerInfoWidget) - Index 2
 - `PlayButton`, `OperatorsButton`, `SettingsButton`, `QuitButton` (UButton)
 - `PlayButtonText` (UTextBlock)
 - `VersionText` (UTextBlock)
-- `RegistrationWidget` (USuspenseCoreRegistrationWidget) - optional
 
-### 7.6 Встраивание Registration Widget
+### 7.7 Создание WBP_CharacterSelect
 
-**Вариант A: Через Widget Switcher**
+**1. Создайте Widget Blueprint:**
+- Parent: `USuspenseCoreCharacterSelectWidget`
+- Name: `WBP_CharacterSelect`
 
-1. В ScreenSwitcher создайте первый слот (Index 0)
-2. Добавьте туда WBP_Registration как child
-3. Переименуйте в "RegistrationWidget"
+**2. Designer структура:**
 
-**Вариант B: Отдельный UserWidget**
+```
+[Canvas Panel]
+├── [Text Block] "TitleText"
+│       Text: "SELECT CHARACTER"
+│       Font Size: 32
+│
+├── [Scroll Box] "CharacterListScrollBox"
+│       (динамически заполняется кнопками персонажей)
+│       или
+│   [Vertical Box] "CharacterListBox"
+│
+├── [Text Block] "StatusText"
+│       Text: "" (показывается если нет персонажей)
+│
+└── [Button] "CreateNewButton"
+    └── [Text Block] "CreateNewButtonText" = "CREATE NEW CHARACTER"
+```
 
-1. Создайте WBP_Registration отдельно
-2. В C++ он будет создан динамически
+**ВАЖНО:** Имена виджетов:
+- `TitleText` (UTextBlock)
+- `CharacterListScrollBox` (UScrollBox) или `CharacterListBox` (UVerticalBox)
+- `StatusText` (UTextBlock)
+- `CreateNewButton` (UButton)
+- `CreateNewButtonText` (UTextBlock)
 
-### 7.7 Настройка MainMenuMap
+### 7.8 Встраивание виджетов в WidgetSwitcher
+
+**Шаги:**
+
+1. В ScreenSwitcher создайте 3 слота
+2. **Index 0:** Добавьте WBP_CharacterSelect, переименуйте в "CharacterSelectWidget"
+3. **Index 1:** Добавьте WBP_Registration, переименуйте в "RegistrationWidget"
+4. **Index 2:** Добавьте Panel с WBP_PlayerInfo и кнопками меню
+
+**Важно:** Порядок слотов критичен! C++ код использует индексы:
+- `CharacterSelectScreenIndex = 0`
+- `RegistrationScreenIndex = 1`
+- `MainMenuScreenIndex = 2`
+
+### 7.9 Настройка MainMenuMap
 
 **1. Создайте карту:**
 - File → New Level → Empty Level
@@ -486,7 +559,7 @@ Get Main Menu Widget
 [Your custom logic]
 ```
 
-### 7.8 Переход из игры в меню
+### 7.10 Переход из игры в меню
 
 **В любом месте игры (например, Pause Menu):**
 
@@ -500,7 +573,7 @@ Call "Return To Main Menu" on MenuPlayerController
 Open Level "MainMenuMap"
 ```
 
-### 7.9 Input Action для Escape
+### 7.11 Input Action для Escape
 
 **1. Добавьте в Project Settings → Input:**
 

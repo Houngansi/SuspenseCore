@@ -6,7 +6,9 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "GameplayTagContainer.h"
 #include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCorePlayerInfoWidget.generated.h"
 
 class UTextBlock;
@@ -15,7 +17,6 @@ class UImage;
 class UButton;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
-struct FSuspenseCoreSubscriptionHandle;
 
 /**
  * USuspenseCorePlayerInfoWidget

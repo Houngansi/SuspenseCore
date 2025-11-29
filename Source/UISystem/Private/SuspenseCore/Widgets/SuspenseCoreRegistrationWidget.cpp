@@ -293,10 +293,17 @@ void USuspenseCoreRegistrationWidget::PublishRegistrationEvent(bool bSuccess, co
 		return;
 	}
 
-	FSuspenseCoreEventData EventData;
-	EventData.Source = this;
-	EventData.BoolValue = bSuccess;
-	EventData.StringPayload = bSuccess ? PlayerData.PlayerId : ErrorMessage;
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetBool(FName("Success"), bSuccess);
+	if (bSuccess)
+	{
+		EventData.SetString(FName("PlayerId"), PlayerData.PlayerId);
+		EventData.SetString(FName("DisplayName"), PlayerData.DisplayName);
+	}
+	else
+	{
+		EventData.SetString(FName("ErrorMessage"), ErrorMessage);
+	}
 
 	FGameplayTag EventTag = bSuccess
 		? FGameplayTag::RequestGameplayTag(FName("Event.UI.Registration.Success"))

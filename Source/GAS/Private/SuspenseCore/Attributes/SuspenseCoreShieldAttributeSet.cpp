@@ -227,7 +227,8 @@ void USuspenseCoreShieldAttributeSet::HandleShieldBroken(AActor* DamageInstigato
 	{
 		ASC->PublishCriticalEvent(
 			FGameplayTag::RequestGameplayTag(FName("Event.GAS.Shield.Broken")),
-			DamageInstigator
+			0.0f,  // Current shield (broken = 0)
+			GetMaxShield()
 		);
 	}
 
@@ -241,7 +242,8 @@ void USuspenseCoreShieldAttributeSet::HandleLowShield()
 	{
 		ASC->PublishCriticalEvent(
 			FGameplayTag::RequestGameplayTag(FName("Event.GAS.Shield.Low")),
-			nullptr
+			GetShield(),
+			GetMaxShield()
 		);
 	}
 }

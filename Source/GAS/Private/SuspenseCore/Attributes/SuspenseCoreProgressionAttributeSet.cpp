@@ -293,7 +293,8 @@ void USuspenseCoreProgressionAttributeSet::HandleLevelUp(int32 OldLevel, int32 N
 	{
 		ASC->PublishCriticalEvent(
 			FGameplayTag::RequestGameplayTag(FName("Event.Progression.LevelUp")),
-			nullptr
+			static_cast<float>(NewLevel),
+			GetMaxLevel()
 		);
 	}
 

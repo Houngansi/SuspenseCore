@@ -193,6 +193,10 @@ protected:
 	UPROPERTY()
 	TArray<FSuspenseCoreCharacterEntry> CharacterEntries;
 
+	/** Map of buttons to player IDs for click handling */
+	UPROPERTY()
+	TMap<UButton*, FString> ButtonToPlayerIdMap;
+
 	/** Get repository interface */
 	ISuspenseCorePlayerRepository* GetOrCreateRepository();
 
@@ -215,7 +219,11 @@ protected:
 	UFUNCTION()
 	void OnCreateNewButtonClicked();
 
-	/** Handle character button click */
+	/** Handle character button click - looks up PlayerId from button map */
 	UFUNCTION()
-	void OnCharacterButtonClicked(const FString& PlayerId);
+	void OnCharacterButtonClicked();
+
+	/** Last clicked button (for lookup) */
+	UPROPERTY()
+	UButton* LastClickedButton;
 };

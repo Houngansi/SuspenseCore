@@ -16,6 +16,7 @@ class USuspenseCoreEventBus;
 class UAbilitySystemComponent;
 class ASuspenseCorePlayerState;
 class ASuspenseCoreCharacter;
+class USuspenseCorePauseMenuWidget;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INPUT CONFIGURATION
@@ -109,6 +110,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Events")
 	void PublishEvent(const FGameplayTag& EventTag, const FString& Payload = TEXT(""));
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - PAUSE MENU
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Toggle pause menu visibility */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void TogglePauseMenu();
+
+	/** Show pause menu */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void ShowPauseMenu();
+
+	/** Hide pause menu */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void HidePauseMenu();
+
+	/** Quick save game */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Save")
+	void QuickSave();
+
+	/** Quick load game */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Save")
+	void QuickLoad();
+
+	/** Check if pause menu is visible */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	bool IsPauseMenuVisible() const;
+
+	/** Get pause menu widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	USuspenseCorePauseMenuWidget* GetPauseMenuWidget() const { return PauseMenuWidget; }
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT CONFIGURATION
@@ -145,12 +178,40 @@ protected:
 	UInputAction* IA_Interact;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// UI INPUT ACTIONS
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Pause game / toggle pause menu */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+	UInputAction* IA_PauseGame;
+
+	/** Quick save (F5) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+	UInputAction* IA_QuickSave;
+
+	/** Quick load (F9) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+	UInputAction* IA_QuickLoad;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY INPUT BINDINGS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Additional ability bindings (beyond core movement) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Abilities")
 	TArray<FSuspenseCoreInputBinding> AbilityInputBindings;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PAUSE MENU CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Pause menu widget class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<USuspenseCorePauseMenuWidget> PauseMenuWidgetClass;
+
+	/** Spawned pause menu widget */
+	UPROPERTY()
+	USuspenseCorePauseMenuWidget* PauseMenuWidget;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS
@@ -165,6 +226,11 @@ protected:
 	void HandleCrouchPressed(const FInputActionValue& Value);
 	void HandleCrouchReleased(const FInputActionValue& Value);
 	void HandleInteract(const FInputActionValue& Value);
+
+	// UI Input Handlers
+	void HandlePauseGame(const FInputActionValue& Value);
+	void HandleQuickSave(const FInputActionValue& Value);
+	void HandleQuickLoad(const FInputActionValue& Value);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY ACTIVATION
@@ -182,6 +248,7 @@ protected:
 
 	void SetupEnhancedInput();
 	void BindAbilityInputs();
+	void CreatePauseMenu();
 
 	/** Handle ability input by binding index */
 	void HandleAbilityInputByIndex(const FInputActionValue& Value, int32 BindingIndex);

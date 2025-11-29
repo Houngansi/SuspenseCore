@@ -50,7 +50,8 @@ void USuspenseCoreMainMenuWidget::InitializeMenu()
 		ISuspenseCorePlayerRepository* Repo = GetOrCreateRepository();
 		if (Repo)
 		{
-			TArray<FString> PlayerIds = Repo->GetAllPlayerIds();
+			TArray<FString> PlayerIds;
+			Repo->GetAllPlayerIds(PlayerIds);
 			if (PlayerIds.Num() > 0)
 			{
 				ShowMainMenuScreen(PlayerIds[0]);
@@ -78,7 +79,8 @@ bool USuspenseCoreMainMenuWidget::HasExistingPlayer() const
 				ISuspenseCorePlayerRepository* Repo = Cast<ISuspenseCorePlayerRepository>(RepoObj);
 				if (Repo)
 				{
-					TArray<FString> PlayerIds = Repo->GetAllPlayerIds();
+					TArray<FString> PlayerIds;
+					Repo->GetAllPlayerIds(PlayerIds);
 					return PlayerIds.Num() > 0;
 				}
 			}
@@ -89,7 +91,8 @@ bool USuspenseCoreMainMenuWidget::HasExistingPlayer() const
 	USuspenseCoreFilePlayerRepository* FileRepo = NewObject<USuspenseCoreFilePlayerRepository>();
 	if (FileRepo)
 	{
-		TArray<FString> PlayerIds = FileRepo->GetAllPlayerIds();
+		TArray<FString> PlayerIds;
+		FileRepo->GetAllPlayerIds(PlayerIds);
 		return PlayerIds.Num() > 0;
 	}
 

@@ -14,6 +14,7 @@ class UTextBlock;
 class UProgressBar;
 class UImage;
 class USuspenseCoreEventBus;
+class USuspenseCoreAttributesWidget;
 
 /**
  * USuspenseCoreHUDWidget
@@ -142,9 +143,25 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|HUD|Events")
 	void OnShieldBroken();
 
+	/** Get the embedded Attributes widget (if bound) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
+	USuspenseCoreAttributesWidget* GetAttributesWidget() const { return AttributesWidget.Get(); }
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - HEALTH
+	// UI BINDINGS - CHILD WIDGETS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Optional embedded Attributes widget (WBP_Attributes).
+	 * If bound, this widget will handle its own EventBus subscriptions.
+	 * Use this for modular HUD design where AttributesWidget is a reusable component.
+	 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<USuspenseCoreAttributesWidget> AttributesWidget;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// UI BINDINGS - HEALTH (Direct bindings, use if not using AttributesWidget)
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Health progress bar */

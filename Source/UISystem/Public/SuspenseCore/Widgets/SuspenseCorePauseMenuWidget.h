@@ -231,7 +231,7 @@ protected:
 
 	/** Created Save/Load menu widget */
 	UPROPERTY()
-	USuspenseCoreSaveLoadMenuWidget* SaveLoadMenuWidget;
+	TObjectPtr<USuspenseCoreSaveLoadMenuWidget> SaveLoadMenuWidget;
 
 	/** Setup button bindings */
 	void SetupButtonBindings();

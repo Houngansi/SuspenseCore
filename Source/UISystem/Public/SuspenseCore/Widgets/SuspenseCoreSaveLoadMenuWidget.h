@@ -278,7 +278,7 @@ protected:
 
 	/** Created slot widgets */
 	UPROPERTY()
-	TArray<USuspenseCoreSaveSlotWidget*> SlotWidgets;
+	TArray<TObjectPtr<USuspenseCoreSaveSlotWidget>> SlotWidgets;
 
 	/** Timer handle for status message */
 	FTimerHandle StatusTimerHandle;

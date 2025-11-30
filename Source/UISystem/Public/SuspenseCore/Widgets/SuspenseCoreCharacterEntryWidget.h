@@ -70,7 +70,7 @@ public:
 
 	/** Default avatar texture when none specified */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Entry|Config")
-	UTexture2D* DefaultAvatarTexture;
+	TObjectPtr<UTexture2D> DefaultAvatarTexture;
 
 	/** Normal border color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Entry|Config")

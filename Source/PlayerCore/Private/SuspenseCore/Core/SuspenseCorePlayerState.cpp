@@ -65,9 +65,9 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
-	DOREPLIFETIME(ASuspenseCorePlayerState, PlayerLevel);
-	DOREPLIFETIME(ASuspenseCorePlayerState, TeamId);
-	DOREPLIFETIME(ASuspenseCorePlayerState, CharacterClassId);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, PlayerLevel, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, TeamId, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, CharacterClassId, COND_None, REPNOTIFY_Always);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -278,6 +278,46 @@ float ASuspenseCorePlayerState::GetStaminaPercent() const
 		return GetStamina() / MaxStam;
 	}
 	return 0.0f;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REPLICATION CALLBACKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerState::OnRep_PlayerLevel(int32 OldPlayerLevel)
+{
+	// Broadcast change to clients via EventBus
+	if (OldPlayerLevel != PlayerLevel)
+	{
+		PublishPlayerStateEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.LevelChanged")),
+			FString::Printf(TEXT("{\"oldLevel\":%d,\"newLevel\":%d}"), OldPlayerLevel, PlayerLevel)
+		);
+	}
+}
+
+void ASuspenseCorePlayerState::OnRep_TeamId(int32 OldTeamId)
+{
+	// Broadcast change to clients via EventBus
+	if (OldTeamId != TeamId)
+	{
+		PublishPlayerStateEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.TeamChanged")),
+			FString::Printf(TEXT("{\"oldTeam\":%d,\"newTeam\":%d}"), OldTeamId, TeamId)
+		);
+	}
+}
+
+void ASuspenseCorePlayerState::OnRep_CharacterClassId(FName OldClassId)
+{
+	// Broadcast change to clients via EventBus
+	if (OldClassId != CharacterClassId)
+	{
+		PublishPlayerStateEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged")),
+			FString::Printf(TEXT("{\"oldClassId\":\"%s\",\"newClassId\":\"%s\"}"), *OldClassId.ToString(), *CharacterClassId.ToString())
+		);
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

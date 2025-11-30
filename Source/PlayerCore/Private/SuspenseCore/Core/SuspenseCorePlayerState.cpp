@@ -53,7 +53,7 @@ void ASuspenseCorePlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	// Publish player left event
 	PublishPlayerStateEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Player.Left")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Left")),
 		FString::Printf(TEXT("{\"playerId\":\"%s\"}"), *GetPlayerName())
 	);
 
@@ -148,7 +148,7 @@ void ASuspenseCorePlayerState::SetPlayerLevel(int32 NewLevel)
 	if (OldLevel != PlayerLevel)
 	{
 		PublishPlayerStateEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Player.LevelChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.LevelChanged")),
 			FString::Printf(TEXT("{\"oldLevel\":%d,\"newLevel\":%d}"), OldLevel, PlayerLevel)
 		);
 	}
@@ -167,7 +167,7 @@ void ASuspenseCorePlayerState::SetTeamId(int32 NewTeamId)
 	if (OldTeamId != TeamId)
 	{
 		PublishPlayerStateEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Player.TeamChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.TeamChanged")),
 			FString::Printf(TEXT("{\"oldTeam\":%d,\"newTeam\":%d}"), OldTeamId, TeamId)
 		);
 	}
@@ -320,7 +320,7 @@ void ASuspenseCorePlayerState::InitializeAbilitySystem()
 
 	// Publish initialization complete
 	PublishPlayerStateEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Player.Initialized")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Initialized")),
 		FString::Printf(TEXT("{\"playerId\":\"%s\",\"level\":%d}"), *GetPlayerName(), PlayerLevel)
 	);
 }
@@ -381,7 +381,7 @@ void ASuspenseCorePlayerState::SetupAttributeCallbacks()
 	).AddLambda([this](const FOnAttributeChangeData& Data)
 	{
 		HandleAttributeChange(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Attribute.Health")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Health")),
 			Data.NewValue,
 			Data.OldValue
 		);
@@ -394,7 +394,7 @@ void ASuspenseCorePlayerState::SetupAttributeCallbacks()
 	).AddLambda([this](const FOnAttributeChangeData& Data)
 	{
 		HandleAttributeChange(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Attribute.Stamina")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina")),
 			Data.NewValue,
 			Data.OldValue
 		);
@@ -434,7 +434,7 @@ void ASuspenseCorePlayerState::HandleAttributeChange(const FGameplayTag& Attribu
 		EventData.SetFloat(FName("NewValue"), NewValue);
 		EventData.SetFloat(FName("OldValue"), OldValue);
 
-		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Attribute.Changed")), EventData);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Changed")), EventData);
 	}
 }
 

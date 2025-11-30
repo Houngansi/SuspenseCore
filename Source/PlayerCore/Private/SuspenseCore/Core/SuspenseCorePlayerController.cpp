@@ -63,7 +63,7 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 	// Publish controller ready event
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Controller.Ready")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerReady")),
 		FString::Printf(TEXT("{\"isLocal\":%s}"), IsLocalController() ? TEXT("true") : TEXT("false"))
 	);
 }
@@ -167,7 +167,7 @@ void ASuspenseCorePlayerController::OnPossess(APawn* InPawn)
 	}
 
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Controller.Possessed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerPossessed")),
 		FString::Printf(TEXT("{\"pawnClass\":\"%s\"}"), *InPawn->GetClass()->GetName())
 	);
 }
@@ -175,7 +175,7 @@ void ASuspenseCorePlayerController::OnPossess(APawn* InPawn)
 void ASuspenseCorePlayerController::OnUnPossess()
 {
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Controller.UnPossessed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerUnPossessed")),
 		TEXT("{}")
 	);
 
@@ -340,7 +340,7 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 
 	// Also publish input event for UI/other systems
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Input.Ability")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Input.AbilityActivated")),
 		FString::Printf(TEXT("{\"ability\":\"%s\",\"pressed\":%s}"),
 			*AbilityTag.ToString(),
 			bPressed ? TEXT("true") : TEXT("false"))
@@ -612,7 +612,7 @@ void ASuspenseCorePlayerController::HandleQuickSave(const FInputActionValue& Val
 
 	// Publish event for UI feedback
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Save.QuickSave")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickSave")),
 		TEXT("{}")
 	);
 }
@@ -623,7 +623,7 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 
 	// Publish event for UI feedback
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Save.QuickLoad")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickLoad")),
 		TEXT("{}")
 	);
 }

@@ -145,7 +145,7 @@ void USuspenseCorePlayerComponent::SetPlayerIdentifier(const FString& NewIdentif
 		PlayerIdentifier = NewIdentifier;
 
 		PublishEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Player.IdentifierChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.IdentifierChanged")),
 			FString::Printf(TEXT("{\"old\":\"%s\",\"new\":\"%s\"}"), *OldIdentifier, *PlayerIdentifier)
 		);
 	}
@@ -207,7 +207,7 @@ void USuspenseCorePlayerComponent::Initialize()
 
 	// Publish ready event
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.PlayerComponent.Ready")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ComponentReady")),
 		FString::Printf(TEXT("{\"identifier\":\"%s\"}"), *PlayerIdentifier)
 	);
 }

@@ -70,7 +70,7 @@ void USuspenseCorePlayerInfoWidget::SetupEventSubscriptions()
 
 	// Subscribe to progression events
 	ProgressionEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.Progression")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression")),
 		const_cast<USuspenseCorePlayerInfoWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCorePlayerInfoWidget::OnProgressionEvent),
 		ESuspenseCoreEventPriority::Normal

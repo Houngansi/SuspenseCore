@@ -115,6 +115,14 @@ void USuspenseCoreProgressionAttributeSet::AddExperience(float Amount)
 		return;
 	}
 
+	// Server authority check - prevent client from directly modifying progression
+	AActor* Owner = GetOwningActor();
+	if (Owner && !Owner->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddExperience called on non-authority client - ignoring"));
+		return;
+	}
+
 	// Применяем множитель
 	const float FinalXP = Amount * GetExperienceMultiplier();
 	const float OldXP = GetExperience();
@@ -148,7 +156,7 @@ void USuspenseCoreProgressionAttributeSet::AddExperience(float Amount)
 
 	// Broadcast XP change
 	BroadcastProgressionEvent(
-		FGameplayTag::RequestGameplayTag(FName("Event.Progression.Experience.Changed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Experience.Changed")),
 		OldXP,
 		GetExperience()
 	);
@@ -161,11 +169,19 @@ bool USuspenseCoreProgressionAttributeSet::AddSoftCurrency(float Amount)
 		return false;
 	}
 
+	// Server authority check - prevent client from adding currency
+	AActor* Owner = GetOwningActor();
+	if (Owner && !Owner->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddSoftCurrency called on non-authority client - ignoring"));
+		return false;
+	}
+
 	const float OldValue = GetSoftCurrency();
 	SetSoftCurrency(OldValue + Amount);
 
 	BroadcastProgressionEvent(
-		FGameplayTag::RequestGameplayTag(FName("Event.Progression.Currency.Soft.Changed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Currency.Soft.Changed")),
 		OldValue,
 		GetSoftCurrency()
 	);
@@ -180,11 +196,19 @@ bool USuspenseCoreProgressionAttributeSet::SpendSoftCurrency(float Amount)
 		return false;
 	}
 
+	// Server authority check - prevent client from spending currency
+	AActor* Owner = GetOwningActor();
+	if (Owner && !Owner->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpendSoftCurrency called on non-authority client - ignoring"));
+		return false;
+	}
+
 	const float OldValue = GetSoftCurrency();
 	SetSoftCurrency(OldValue - Amount);
 
 	BroadcastProgressionEvent(
-		FGameplayTag::RequestGameplayTag(FName("Event.Progression.Currency.Soft.Changed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.Currency.Soft.Changed")),
 		OldValue,
 		GetSoftCurrency()
 	);
@@ -292,7 +316,7 @@ void USuspenseCoreProgressionAttributeSet::HandleLevelUp(int32 OldLevel, int32 N
 	if (ASC)
 	{
 		ASC->PublishCriticalEvent(
-			FGameplayTag::RequestGameplayTag(FName("Event.Progression.LevelUp")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Progression.LevelUp")),
 			static_cast<float>(NewLevel),
 			GetMaxLevel()
 		);

@@ -67,7 +67,7 @@ void ASuspenseCoreCharacter::BeginPlay()
 	UpdateMovementSpeed();
 
 	PublishCharacterEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.Spawned")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Spawned")),
 		TEXT("{}")
 	);
 }
@@ -105,7 +105,7 @@ void ASuspenseCoreCharacter::PossessedBy(AController* NewController)
 	}
 
 	PublishCharacterEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.Possessed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Possessed")),
 		TEXT("{}")
 	);
 }
@@ -113,7 +113,7 @@ void ASuspenseCoreCharacter::PossessedBy(AController* NewController)
 void ASuspenseCoreCharacter::UnPossessed()
 {
 	PublishCharacterEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.UnPossessed")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.UnPossessed")),
 		TEXT("{}")
 	);
 
@@ -190,7 +190,7 @@ void ASuspenseCoreCharacter::StartSprinting()
 		UpdateMovementSpeed();
 
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.SprintStarted")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.SprintStarted")),
 			TEXT("{}")
 		);
 	}
@@ -204,7 +204,7 @@ void ASuspenseCoreCharacter::StopSprinting()
 		UpdateMovementSpeed();
 
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.SprintStopped")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.SprintStopped")),
 			TEXT("{}")
 		);
 	}
@@ -275,7 +275,7 @@ void ASuspenseCoreCharacter::SetHasWeapon(bool bNewHasWeapon)
 		bHasWeapon = bNewHasWeapon;
 
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.WeaponStateChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.WeaponStateChanged")),
 			FString::Printf(TEXT("{\"hasWeapon\":%s}"), bHasWeapon ? TEXT("true") : TEXT("false"))
 		);
 	}
@@ -289,7 +289,7 @@ void ASuspenseCoreCharacter::SetCurrentWeaponActor(AActor* WeaponActor)
 		SetHasWeapon(CurrentWeaponActor != nullptr);
 
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.WeaponChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.WeaponChanged")),
 			FString::Printf(TEXT("{\"weapon\":\"%s\"}"),
 				WeaponActor ? *WeaponActor->GetName() : TEXT("None"))
 		);
@@ -330,7 +330,7 @@ void ASuspenseCoreCharacter::UpdateMovementState()
 		CurrentMovementState = NewState;
 
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Character.MovementStateChanged")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.MovementStateChanged")),
 			FString::Printf(TEXT("{\"state\":%d}"), static_cast<int32>(CurrentMovementState))
 		);
 	}

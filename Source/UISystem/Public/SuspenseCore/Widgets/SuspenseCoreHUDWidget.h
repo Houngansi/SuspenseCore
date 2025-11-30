@@ -248,22 +248,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")
 	float CriticalHealthThreshold = 0.25f;
 
-	/** Color for normal health bar */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config|Colors")
-	FLinearColor HealthColorNormal = FLinearColor(0.2f, 0.8f, 0.2f, 1.0f);
-
-	/** Color for critical health bar */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config|Colors")
-	FLinearColor HealthColorCritical = FLinearColor(0.9f, 0.1f, 0.1f, 1.0f);
-
-	/** Color for shield bar */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config|Colors")
-	FLinearColor ShieldColor = FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
-
-	/** Color for stamina bar */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config|Colors")
-	FLinearColor StaminaColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);
-
 	/** Number format pattern (e.g., "{0} / {1}" for "75 / 100") */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config|Format")
 	FString ValueFormatPattern = TEXT("{0} / {1}");
@@ -335,9 +319,6 @@ protected:
 
 	/** Update progress bar with smooth interpolation */
 	void UpdateProgressBar(UProgressBar* ProgressBar, float& DisplayedPercent, float TargetPercent, float DeltaTime);
-
-	/** Apply color to progress bar based on value */
-	void ApplyHealthBarColor();
 
 	/** Format value text */
 	FString FormatValueText(float Current, float Max) const;

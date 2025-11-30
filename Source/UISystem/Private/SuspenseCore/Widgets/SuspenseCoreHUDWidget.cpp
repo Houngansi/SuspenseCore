@@ -373,9 +373,6 @@ void USuspenseCoreHUDWidget::UpdateHealthUI()
 	{
 		HealthText->SetText(FText::FromString(FormatValueText(CachedHealth, CachedMaxHealth)));
 	}
-
-	// Apply color based on health level
-	ApplyHealthBarColor();
 }
 
 void USuspenseCoreHUDWidget::UpdateShieldUI()
@@ -466,29 +463,6 @@ void USuspenseCoreHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, float&
 	// Smooth interpolation
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
 	ProgressBar->SetPercent(DisplayedPercent);
-}
-
-void USuspenseCoreHUDWidget::ApplyHealthBarColor()
-{
-	if (!HealthProgressBar)
-	{
-		return;
-	}
-
-	// Determine color based on health percentage
-	FLinearColor BarColor;
-	if (TargetHealthPercent <= CriticalHealthThreshold)
-	{
-		BarColor = HealthColorCritical;
-	}
-	else
-	{
-		// Interpolate between critical and normal based on health
-		float Alpha = FMath::Clamp((TargetHealthPercent - CriticalHealthThreshold) / (1.0f - CriticalHealthThreshold), 0.0f, 1.0f);
-		BarColor = FLinearColor::LerpUsingHSV(HealthColorCritical, HealthColorNormal, Alpha);
-	}
-
-	HealthProgressBar->SetFillColorAndOpacity(BarColor);
 }
 
 FString USuspenseCoreHUDWidget::FormatValueText(float Current, float Max) const

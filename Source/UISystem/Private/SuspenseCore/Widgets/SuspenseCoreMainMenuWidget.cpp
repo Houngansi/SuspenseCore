@@ -368,9 +368,13 @@ void USuspenseCoreMainMenuWidget::SetupCharacterSelectBindings()
 	// Direct delegate bindings - more reliable than EventBus for widget communication
 	if (CharacterSelectWidget)
 	{
-		// Subscribe to character selection
+		// Subscribe to character selection (Play button clicked)
 		CharacterSelectWidget->OnCharacterSelectedDelegate.AddDynamic(
 			this, &USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect);
+
+		// Subscribe to character highlight (entry clicked - updates PlayerInfo immediately)
+		CharacterSelectWidget->OnCharacterHighlightedDelegate.AddDynamic(
+			this, &USuspenseCoreMainMenuWidget::OnCharacterHighlightedDirect);
 
 		// Subscribe to create new request
 		CharacterSelectWidget->OnCreateNewRequestedDelegate.AddDynamic(
@@ -408,13 +412,29 @@ void USuspenseCoreMainMenuWidget::OnCharacterDeletedDirect(const FString& Player
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character deleted (direct): %s"), *PlayerId);
 
-	// If deleted the current player, clear the selection
+	// If deleted the current player, clear the selection and PlayerInfo
 	if (CurrentPlayerId == PlayerId)
 	{
 		CurrentPlayerId.Empty();
+		if (PlayerInfoWidget)
+		{
+			PlayerInfoWidget->ClearDisplay();
+		}
 	}
 
 	// CharacterSelectWidget already refreshes its list, so nothing else needed here
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterHighlightedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character highlighted (direct): %s (%s)"),
+		*Entry.DisplayName, *PlayerId);
+
+	// Update PlayerInfo immediately when character is highlighted
+	if (!PlayerId.IsEmpty())
+	{
+		SelectPlayer(PlayerId);
+	}
 }
 
 ISuspenseCorePlayerRepository* USuspenseCoreMainMenuWidget::GetRepository()

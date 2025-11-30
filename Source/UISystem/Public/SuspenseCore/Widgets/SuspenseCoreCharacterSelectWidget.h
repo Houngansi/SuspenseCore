@@ -212,6 +212,7 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCharacterSelectedDelegate, const FString&, PlayerId, const FSuspenseCoreCharacterEntry&, Entry);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCreateNewRequestedDelegate);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterDeletedDelegate, const FString&, PlayerId);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCharacterHighlightedDelegate, const FString&, PlayerId, const FSuspenseCoreCharacterEntry&, Entry);
 
 	UPROPERTY(BlueprintAssignable, Category = "Character Select|Events")
 	FOnCharacterSelectedDelegate OnCharacterSelectedDelegate;
@@ -221,6 +222,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Character Select|Events")
 	FOnCharacterDeletedDelegate OnCharacterDeletedDelegate;
+
+	/** Called when a character is highlighted (before Play is clicked) */
+	UPROPERTY(BlueprintAssignable, Category = "Character Select|Events")
+	FOnCharacterHighlightedDelegate OnCharacterHighlightedDelegate;
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════

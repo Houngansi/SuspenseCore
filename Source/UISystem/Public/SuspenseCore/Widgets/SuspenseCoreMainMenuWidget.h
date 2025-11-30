@@ -293,6 +293,10 @@ protected:
 	UFUNCTION()
 	void OnCharacterDeletedDirect(const FString& PlayerId);
 
+	/** Handle character highlighted - direct from widget delegate (updates PlayerInfo) */
+	UFUNCTION()
+	void OnCharacterHighlightedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry);
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════

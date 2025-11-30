@@ -676,4 +676,149 @@ void Foo()
 
 ---
 
-**Последнее обновление:** 2025-11-23
+## 10. EventBus & GameplayTags
+
+### ⚠️ КРИТИЧНО: Формат GameplayTags для событий
+
+**Все события EventBus ДОЛЖНЫ использовать префикс `SuspenseCore.Event.`**
+
+```cpp
+// ✅ ПРАВИЛЬНО: С префиксом SuspenseCore.Event.
+FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted"))
+FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Died"))
+FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Changed"))
+
+// ❌ НЕПРАВИЛЬНО: Без префикса (события не будут работать!)
+FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Highlighted"))  // BROKEN
+FGameplayTag::RequestGameplayTag(FName("UI.CharacterSelect.Highlighted"))        // BROKEN
+```
+
+**Типичная ошибка:**
+Виджеты публикуют события с тегом `Event.UI.*`, а подписчики ожидают `SuspenseCore.Event.UI.*` — события "пропадают" и UI перестаёт работать.
+
+---
+
+### ✅ DO: Используйте макросы для тегов событий
+
+```cpp
+// Рекомендуется использовать макросы из SuspenseCoreEventTags.h
+#include "SuspenseCore/Events/SuspenseCoreEventTags.h"
+
+// Публикация
+EventBus->Publish(SUSPENSE_CORE_EVENT_PLAYER_DIED, EventData);
+
+// Подписка
+EventBus->Subscribe(SUSPENSE_CORE_EVENT_UI_WIDGET_OPENED, Callback);
+```
+
+**Почему:** Макросы гарантируют правильный формат и кэшируют теги для производительности.
+
+---
+
+### ✅ DO: Проверьте DefaultGameplayTags.ini при добавлении событий
+
+Все теги должны быть определены в `Config/DefaultGameplayTags.ini`:
+
+```ini
+; UI События
++GameplayTagList=(Tag="SuspenseCore.Event.UI.Registration.Success",DevComment="Registration success")
++GameplayTagList=(Tag="SuspenseCore.Event.UI.CharacterSelect.Highlighted",DevComment="Character highlighted")
++GameplayTagList=(Tag="SuspenseCore.Event.UI.MainMenu.PlayClicked",DevComment="Play button clicked")
+
+; Player События
++GameplayTagList=(Tag="SuspenseCore.Event.Player.Spawned",DevComment="Player spawned")
++GameplayTagList=(Tag="SuspenseCore.Event.Player.Died",DevComment="Player died")
++GameplayTagList=(Tag="SuspenseCore.Event.Player.ClassChanged",DevComment="Character class changed")
+```
+
+---
+
+### ✅ DO: Всегда отписывайтесь от событий
+
+```cpp
+// Header
+FSuspenseCoreSubscriptionHandle CharacterHighlightedEventHandle;
+
+// NativeConstruct
+CharacterHighlightedEventHandle = CachedEventBus->SubscribeNative(
+    FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted")),
+    this,
+    FSuspenseCoreNativeEventCallback::CreateUObject(this, &UMyWidget::OnCharacterHighlighted),
+    ESuspenseCoreEventPriority::Normal
+);
+
+// NativeDestruct - ОБЯЗАТЕЛЬНО!
+if (CachedEventBus.IsValid() && CharacterHighlightedEventHandle.IsValid())
+{
+    CachedEventBus->Unsubscribe(CharacterHighlightedEventHandle);
+}
+```
+
+---
+
+### ❌ DON'T: Прямые делегаты между виджетами
+
+```cpp
+// ❌ ПЛОХО: Прямая связь между виджетами (tight coupling)
+CharacterSelectWidget->OnCharacterHighlightedDelegate.AddDynamic(
+    this, &UMainMenuWidget::HandleCharacterHighlighted);
+
+// ✅ ХОРОШО: Через EventBus (loose coupling)
+EventBus->SubscribeNative(
+    FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted")),
+    this,
+    FSuspenseCoreNativeEventCallback::CreateUObject(this, &UMainMenuWidget::OnCharacterHighlighted),
+    ESuspenseCoreEventPriority::Normal
+);
+```
+
+**Почему:** EventBus обеспечивает слабую связность между модулями. Виджеты не знают друг о друге — они знают только о событиях.
+
+---
+
+### Иерархия тегов событий SuspenseCore
+
+```
+SuspenseCore.Event
+├── System
+│   ├── Initialized
+│   ├── Shutdown
+│   └── Error
+│
+├── Player
+│   ├── Spawned
+│   ├── Died
+│   ├── ClassChanged
+│   └── StateChanged
+│
+├── UI
+│   ├── Registration
+│   │   ├── Success
+│   │   └── Failed
+│   ├── CharacterSelect
+│   │   ├── Selected
+│   │   ├── Highlighted
+│   │   ├── Deleted
+│   │   └── CreateNew
+│   ├── MainMenu
+│   │   └── PlayClicked
+│   ├── WidgetOpened
+│   ├── WidgetClosed
+│   └── Notification
+│
+├── GAS
+│   ├── Ability.*
+│   ├── Attribute.*
+│   └── Effect.*
+│
+├── Weapon.*
+├── Inventory.*
+├── Equipment.*
+└── Interaction.*
+```
+
+См. полную документацию: `Documentation/Architecture/Planning/EventBus/README.md`
+
+---
+
+**Последнее обновление:** 2025-11-30

@@ -16,7 +16,8 @@ public class UISystem : ModuleRules
 				"InputCore",
 				"UMG",
 				"EquipmentSystem",
-				"InventorySystem"
+				"InventorySystem",
+				"GAS"
 			}
 		);
 

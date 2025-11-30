@@ -195,30 +195,21 @@ void USuspenseCoreCharacterPreviewComponent::PlayPreviewAnimation()
 
 void USuspenseCoreCharacterPreviewComponent::OnClassPreviewEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Extract ClassId from EventData
-	FName ClassId = NAME_None;
+	// Extract ClassId from EventData using proper API
+	FString ClassIdStr = EventData.GetString(FName("ClassId"));
 
-	// Try to get from StringValue first
-	if (!EventData.StringValue.IsEmpty())
+	// Try to get ClassData from ObjectPayload if passed directly
+	USuspenseCoreCharacterClassData* ClassData = EventData.GetObject<USuspenseCoreCharacterClassData>(FName("ClassData"));
+	if (ClassData)
 	{
-		ClassId = FName(*EventData.StringValue);
-	}
-	// Try to get from payload if ClassData was passed directly
-	else if (EventData.Payload.IsValid())
-	{
-		USuspenseCoreCharacterClassData* ClassData = Cast<USuspenseCoreCharacterClassData>(
-			static_cast<UObject*>(const_cast<void*>(EventData.Payload.Get()))
-		);
-		if (ClassData)
-		{
-			SetClassData(ClassData);
-			return;
-		}
+		SetClassData(ClassData);
+		return;
 	}
 
-	if (!ClassId.IsNone())
+	// Use string ClassId
+	if (!ClassIdStr.IsEmpty())
 	{
-		SetClassById(ClassId);
+		SetClassById(FName(*ClassIdStr));
 	}
 }
 

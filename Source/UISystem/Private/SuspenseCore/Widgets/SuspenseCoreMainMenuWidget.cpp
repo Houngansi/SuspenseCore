@@ -510,7 +510,15 @@ void USuspenseCoreMainMenuWidget::OnRegistrationSuccess(FGameplayTag EventTag, c
 		// Notify Blueprint
 		OnRegistrationComplete(PlayerId);
 
-		// Transition to main menu
+		// Refresh character list to include the newly created character
+		if (CharacterSelectWidget)
+		{
+			CharacterSelectWidget->RefreshCharacterList();
+			// Explicitly highlight the new character in the list
+			CharacterSelectWidget->HighlightCharacter(PlayerId);
+		}
+
+		// Transition to main menu and select the new player
 		ShowMainMenuScreen(PlayerId);
 
 		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration successful for %s, transitioning to main menu"), *PlayerId);

@@ -11,6 +11,7 @@ This guide covers the core UI widgets for player registration, character creatio
 5. [EventBus Integration](#eventbus-integration)
 6. [Customization](#customization)
 7. [USuspenseCoreHUDWidget](#ususpensecorehudwidget)
+8. [Character Class Preview](#character-class-preview)
 
 ---
 
@@ -720,3 +721,267 @@ Classes are defined in `DefaultGameplayTags.ini`:
 - Ensure EventManager subsystem is initialized
 - Check event tags match exactly
 - Verify subscription is bound before events fire
+
+---
+
+## Character Class Preview
+
+System for displaying 3D character model preview when selecting classes in Registration/Main Menu widgets.
+
+### Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           EventBus Flow                                    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+  Registration Widget                    EventBus                    Preview Component
+  ┌─────────────────┐                   ┌───────┐                   ┌─────────────────┐
+  │ OnClassButton   │                   │       │                   │ SkeletalMesh    │
+  │   Clicked()     │──── Publish ─────▶│       │──── Notify ──────▶│   Component     │
+  │                 │    ClassPreview   │       │                   │                 │
+  │ AssaultButton   │     .Selected     │       │                   │ SetClassById()  │
+  │ MedicButton     │    + ClassId      │       │                   │ LoadMesh()      │
+  │ SniperButton    │                   │       │                   │ PlayAnimation() │
+  └─────────────────┘                   └───────┘                   └─────────────────┘
+```
+
+### EventBus Events
+
+| Event Tag | Direction | Data |
+|-----------|-----------|------|
+| `SuspenseCore.Event.UI.ClassPreview.Selected` | Published by Widget | `StringValue` = ClassId |
+
+### USuspenseCoreCharacterPreviewComponent
+
+Component that listens to class preview events and updates a SkeletalMeshComponent.
+
+#### Header Location
+
+```
+Source/UISystem/Public/Components/SuspenseCoreCharacterPreviewComponent.h
+```
+
+#### Configuration Properties
+
+```cpp
+// Set in Blueprint Details panel
+
+/** The skeletal mesh component to update */
+UPROPERTY(EditAnywhere)
+USkeletalMeshComponent* PreviewMeshComponent;
+
+/** Default class to show on BeginPlay */
+UPROPERTY(EditAnywhere)
+FName DefaultClassId = NAME_None;  // e.g., "Assault"
+
+/** Auto-subscribe to EventBus for class preview events */
+UPROPERTY(EditAnywhere)
+bool bAutoSubscribeToEvents = true;
+
+/** Play animation automatically when class changes */
+UPROPERTY(EditAnywhere)
+bool bAutoPlayAnimation = true;
+```
+
+#### Public API
+
+```cpp
+// Set preview by class ID
+UFUNCTION(BlueprintCallable)
+void SetClassById(FName ClassId);
+
+// Set preview using ClassData directly
+UFUNCTION(BlueprintCallable)
+void SetClassData(USuspenseCoreCharacterClassData* ClassData);
+
+// Clear preview (hide mesh)
+UFUNCTION(BlueprintCallable)
+void ClearPreview();
+
+// Play idle animation
+UFUNCTION(BlueprintCallable)
+void PlayPreviewAnimation();
+
+// Getters
+FName GetCurrentClassId() const;
+USuspenseCoreCharacterClassData* GetCurrentClassData() const;
+```
+
+#### Blueprint Events
+
+```cpp
+// Called when class preview changes
+UFUNCTION(BlueprintImplementableEvent)
+void OnClassPreviewChanged(FName ClassId, USuspenseCoreCharacterClassData* ClassData);
+
+// Called when mesh loading starts (for loading indicators)
+UFUNCTION(BlueprintImplementableEvent)
+void OnMeshLoadingStarted();
+
+// Called when mesh loading completes
+UFUNCTION(BlueprintImplementableEvent)
+void OnMeshLoadingCompleted();
+```
+
+### CharacterClassData Visual Properties
+
+Configure these in your CharacterClassData assets:
+
+```cpp
+// In USuspenseCoreCharacterClassData (Source/GAS/Public/SuspenseCore/Data/)
+
+// VISUALS - CHARACTER MESH
+UPROPERTY(EditDefaultsOnly, Category = "Visuals|Character")
+TSoftObjectPtr<USkeletalMesh> CharacterMesh;
+
+UPROPERTY(EditDefaultsOnly, Category = "Visuals|Character")
+TSoftObjectPtr<USkeletalMesh> FirstPersonArmsMesh;
+
+UPROPERTY(EditDefaultsOnly, Category = "Visuals|Character")
+TSoftClassPtr<UAnimInstance> AnimationBlueprint;
+
+UPROPERTY(EditDefaultsOnly, Category = "Visuals|Character")
+TSoftObjectPtr<UAnimSequence> PreviewIdleAnimation;
+```
+
+### Blueprint Setup: Character Preview Actor
+
+#### Step 1: Create Preview Actor
+
+1. **Content Browser** → Create Blueprint Actor: `BP_CharacterPreviewActor`
+2. Add components:
+   - **SceneComponent** (Root)
+   - **SkeletalMeshComponent** (named `PreviewMesh`)
+   - **SuspenseCoreCharacterPreviewComponent** (named `CharacterPreview`)
+
+#### Step 2: Configure Preview Component
+
+1. Select `CharacterPreview` component
+2. In Details panel:
+   - Set `Preview Mesh Component` → `PreviewMesh`
+   - Set `Default Class Id` → `Assault` (or your default)
+   - Enable `Auto Subscribe To Events` → ✓
+   - Enable `Auto Play Animation` → ✓
+
+#### Step 3: Setup Camera Capture (for Widget display)
+
+```
+BP_CharacterPreviewActor
+├── SceneComponent (Root)
+├── SkeletalMeshComponent (PreviewMesh)
+│   └── Configure: No shadows, UI lighting
+├── SuspenseCoreCharacterPreviewComponent (CharacterPreview)
+├── SceneCaptureComponent2D (PreviewCapture)
+│   └── Configure: Capture every frame, Render Target
+└── SpotLightComponent (PreviewLight)
+    └── Configure: UI-friendly lighting
+```
+
+#### Step 4: Create Render Target
+
+1. **Content Browser** → Materials & Textures → Render Target
+2. Name: `RT_CharacterPreview`
+3. Size: 512x512 or 1024x1024
+4. Assign to `SceneCaptureComponent2D`
+
+#### Step 5: Create Preview Material
+
+1. Create Material: `M_CharacterPreview`
+2. Use `TextureSampleParameter2D` with Render Target
+3. Set Material Domain: User Interface
+
+#### Step 6: Add to Widget
+
+In your Registration Widget Blueprint:
+
+1. Add **Image** widget named `CharacterPreviewImage`
+2. Set Brush → Image: Material `M_CharacterPreview`
+3. Size: Match render target aspect ratio
+
+### Alternative: Direct Skeletal Mesh in Widget
+
+For simpler setups, use `UMeshWidget` or viewport capture:
+
+```cpp
+// In your widget Blueprint, add skeletal mesh viewport:
+// 1. Use Viewport widget (UE5.3+)
+// 2. Or use SceneCaptureComponent2D method above
+```
+
+### Complete Setup Checklist
+
+1. **CharacterClassData Assets**:
+   - [ ] Create DA_Class_Assault, DA_Class_Medic, DA_Class_Sniper
+   - [ ] Set `CharacterMesh` for each class
+   - [ ] Set `PreviewIdleAnimation` for each class
+   - [ ] (Optional) Set `AnimationBlueprint`
+
+2. **Preview Actor**:
+   - [ ] Create BP_CharacterPreviewActor
+   - [ ] Add SkeletalMeshComponent
+   - [ ] Add SuspenseCoreCharacterPreviewComponent
+   - [ ] Configure component references
+
+3. **Render Target Setup**:
+   - [ ] Create RT_CharacterPreview
+   - [ ] Create M_CharacterPreview material
+   - [ ] Add SceneCaptureComponent2D to actor
+
+4. **Widget Integration**:
+   - [ ] Add Image widget to Registration/MainMenu
+   - [ ] Set material brush to M_CharacterPreview
+
+5. **Level Placement**:
+   - [ ] Place BP_CharacterPreviewActor in UI level/sublevel
+   - [ ] Position camera capture correctly
+
+### Code Example: Publishing Class Preview Event
+
+Registration widget automatically publishes events on class button click:
+
+```cpp
+// In SuspenseCoreRegistrationWidget.cpp
+
+void USuspenseCoreRegistrationWidget::OnAssaultClassButtonClicked()
+{
+    SelectClass(TEXT("Assault"));
+    PublishClassPreviewEvent(TEXT("Assault"));  // Notifies preview component
+}
+
+void USuspenseCoreRegistrationWidget::PublishClassPreviewEvent(const FString& ClassId)
+{
+    USuspenseCoreEventBus* EventBus = GetEventBus();
+    if (!EventBus) return;
+
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.StringValue = ClassId;
+
+    EventBus->Publish(
+        FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.ClassPreview.Selected")),
+        EventData
+    );
+}
+```
+
+### Troubleshooting
+
+#### Mesh not changing on button click
+- Verify `bAutoSubscribeToEvents = true` on component
+- Check EventBus is initialized (via EventManager)
+- Ensure ClassId matches CharacterClassData::ClassID exactly
+
+#### Preview showing blank/no mesh
+- Check CharacterClassData has `CharacterMesh` assigned
+- Verify soft pointer is valid (not null)
+- Check render target and material setup
+
+#### Animation not playing
+- Ensure `PreviewIdleAnimation` is set in ClassData
+- Verify `bAutoPlayAnimation = true`
+- Check SkeletalMesh has compatible skeleton
+
+#### Performance issues
+- Use `TSoftObjectPtr` for async loading (already implemented)
+- Consider lower resolution render targets
+- Disable real-time capture when widget hidden

@@ -13,10 +13,7 @@
 class UTextBlock;
 class UProgressBar;
 class UImage;
-class UAbilitySystemComponent;
 class USuspenseCoreEventBus;
-class USuspenseCoreAttributeSet;
-class USuspenseCoreShieldAttributeSet;
 
 /**
  * USuspenseCoreHUDWidget
@@ -27,11 +24,19 @@ class USuspenseCoreShieldAttributeSet;
  * - Stamina with progress bar and numeric value
  *
  * Features:
- * - Real-time attribute updates via GAS AttributeSet binding
- * - EventBus integration for attribute change notifications
+ * - Real-time updates via EventBus (NO direct GAS delegates!)
  * - Smooth progress bar animations
  * - Color coding based on values (critical health = red, etc.)
- * - Supports both local player and spectating modes
+ *
+ * EventBus Events (subscribed):
+ * - SuspenseCore.Event.GAS.Attribute.Health
+ * - SuspenseCore.Event.GAS.Attribute.MaxHealth
+ * - SuspenseCore.Event.GAS.Attribute.Shield
+ * - SuspenseCore.Event.GAS.Attribute.MaxShield
+ * - SuspenseCore.Event.GAS.Attribute.Stamina
+ * - SuspenseCore.Event.GAS.Attribute.MaxStamina
+ * - SuspenseCore.Event.Player.LowHealth
+ * - SuspenseCore.Event.GAS.Shield.Broken
  *
  * Usage in Blueprint:
  * 1. Create Widget BP inheriting from this class
@@ -59,83 +64,59 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Bind to a specific actor's ASC for attribute display.
-	 * @param Actor - Actor with AbilitySystemComponent
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
-	void BindToActor(AActor* Actor);
-
-	/**
-	 * Unbind from current actor.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
-	void UnbindFromActor();
-
-	/**
-	 * Bind to local player's pawn automatically.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
-	void BindToLocalPlayer();
-
-	/**
-	 * Force refresh all displayed values.
+	 * Force refresh all displayed values by requesting current state.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
 	void RefreshAllValues();
 
 	/**
-	 * Is currently bound to an actor?
+	 * Set health values directly (for testing/initialization).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
-	bool IsBound() const { return BoundASC.IsValid(); }
+	void SetHealthValues(float Current, float Max);
+
+	/**
+	 * Set shield values directly (for testing/initialization).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
+	void SetShieldValues(float Current, float Max);
+
+	/**
+	 * Set stamina values directly (for testing/initialization).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
+	void SetStaminaValues(float Current, float Max);
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// HEALTH API
+	// GETTERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Get current health value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Health")
-	float GetCurrentHealth() const;
+	float GetCurrentHealth() const { return CachedHealth; }
 
-	/** Get max health value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Health")
-	float GetMaxHealth() const;
+	float GetMaxHealth() const { return CachedMaxHealth; }
 
-	/** Get health as percentage (0-1) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Health")
-	float GetHealthPercent() const;
+	float GetHealthPercent() const { return TargetHealthPercent; }
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// SHIELD API
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Get current shield value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Shield")
-	float GetCurrentShield() const;
+	float GetCurrentShield() const { return CachedShield; }
 
-	/** Get max shield value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Shield")
-	float GetMaxShield() const;
+	float GetMaxShield() const { return CachedMaxShield; }
 
-	/** Get shield as percentage (0-1) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Shield")
-	float GetShieldPercent() const;
+	float GetShieldPercent() const { return TargetShieldPercent; }
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// STAMINA API
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Get current stamina value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Stamina")
-	float GetCurrentStamina() const;
+	float GetCurrentStamina() const { return CachedStamina; }
 
-	/** Get max stamina value */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Stamina")
-	float GetMaxStamina() const;
+	float GetMaxStamina() const { return CachedMaxStamina; }
 
-	/** Get stamina as percentage (0-1) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD|Stamina")
-	float GetStaminaPercent() const;
+	float GetStaminaPercent() const { return TargetStaminaPercent; }
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -168,23 +149,23 @@ protected:
 
 	/** Health progress bar */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* HealthProgressBar;
+	TObjectPtr<UProgressBar> HealthProgressBar;
 
 	/** Current health text (e.g., "75") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* HealthValueText;
+	TObjectPtr<UTextBlock> HealthValueText;
 
 	/** Max health text (e.g., "100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* MaxHealthValueText;
+	TObjectPtr<UTextBlock> MaxHealthValueText;
 
 	/** Combined health text (e.g., "75 / 100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* HealthText;
+	TObjectPtr<UTextBlock> HealthText;
 
 	/** Health icon/image */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UImage* HealthIcon;
+	TObjectPtr<UImage> HealthIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UI BINDINGS - SHIELD
@@ -192,23 +173,23 @@ protected:
 
 	/** Shield progress bar */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* ShieldProgressBar;
+	TObjectPtr<UProgressBar> ShieldProgressBar;
 
 	/** Current shield text (e.g., "50") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ShieldValueText;
+	TObjectPtr<UTextBlock> ShieldValueText;
 
 	/** Max shield text (e.g., "100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* MaxShieldValueText;
+	TObjectPtr<UTextBlock> MaxShieldValueText;
 
 	/** Combined shield text (e.g., "50 / 100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ShieldText;
+	TObjectPtr<UTextBlock> ShieldText;
 
 	/** Shield icon/image */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UImage* ShieldIcon;
+	TObjectPtr<UImage> ShieldIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UI BINDINGS - STAMINA
@@ -216,31 +197,27 @@ protected:
 
 	/** Stamina progress bar */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* StaminaProgressBar;
+	TObjectPtr<UProgressBar> StaminaProgressBar;
 
 	/** Current stamina text (e.g., "80") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* StaminaValueText;
+	TObjectPtr<UTextBlock> StaminaValueText;
 
 	/** Max stamina text (e.g., "100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* MaxStaminaValueText;
+	TObjectPtr<UTextBlock> MaxStaminaValueText;
 
 	/** Combined stamina text (e.g., "80 / 100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* StaminaText;
+	TObjectPtr<UTextBlock> StaminaText;
 
 	/** Stamina icon/image */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UImage* StaminaIcon;
+	TObjectPtr<UImage> StaminaIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Auto-bind to local player on construct */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")
-	bool bAutoBindToLocalPlayer = true;
 
 	/** Enable smooth progress bar interpolation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")
@@ -282,22 +259,19 @@ protected:
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Cached bound ASC */
-	UPROPERTY()
-	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
-
-	/** Cached bound actor */
-	UPROPERTY()
-	TWeakObjectPtr<AActor> BoundActor;
-
 	/** Cached EventBus */
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** EventBus subscription handles */
 	FSuspenseCoreSubscriptionHandle HealthEventHandle;
+	FSuspenseCoreSubscriptionHandle MaxHealthEventHandle;
 	FSuspenseCoreSubscriptionHandle ShieldEventHandle;
+	FSuspenseCoreSubscriptionHandle MaxShieldEventHandle;
 	FSuspenseCoreSubscriptionHandle StaminaEventHandle;
+	FSuspenseCoreSubscriptionHandle MaxStaminaEventHandle;
+	FSuspenseCoreSubscriptionHandle LowHealthEventHandle;
+	FSuspenseCoreSubscriptionHandle ShieldBrokenEventHandle;
 
 	/** Target values for smooth interpolation */
 	float TargetHealthPercent = 1.0f;
@@ -310,11 +284,11 @@ protected:
 	float DisplayedStaminaPercent = 1.0f;
 
 	/** Cached attribute values */
-	float CachedHealth = 0.0f;
+	float CachedHealth = 100.0f;
 	float CachedMaxHealth = 100.0f;
-	float CachedShield = 0.0f;
+	float CachedShield = 100.0f;
 	float CachedMaxShield = 100.0f;
-	float CachedStamina = 0.0f;
+	float CachedStamina = 100.0f;
 	float CachedMaxStamina = 100.0f;
 
 	/** Was health critical in previous frame? */
@@ -327,20 +301,11 @@ protected:
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Setup GAS attribute change callbacks */
-	void SetupAttributeCallbacks();
-
-	/** Teardown GAS attribute callbacks */
-	void TeardownAttributeCallbacks();
-
-	/** Setup EventBus subscriptions */
+	/** Setup EventBus subscriptions - the ONLY way to receive attribute updates! */
 	void SetupEventSubscriptions();
 
 	/** Teardown EventBus subscriptions */
 	void TeardownEventSubscriptions();
-
-	/** Get EventBus instance */
-	USuspenseCoreEventBus* GetEventBus() const;
 
 	/** Update health UI elements */
 	void UpdateHealthUI();
@@ -360,35 +325,31 @@ protected:
 	/** Format value text */
 	FString FormatValueText(float Current, float Max) const;
 
-	/** Handle attribute value changed from GAS */
-	void OnAttributeValueChanged(const FOnAttributeChangeData& Data);
+	// ═══════════════════════════════════════════════════════════════════════════
+	// EVENTBUS HANDLERS
+	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Handle health attribute changed */
-	void HandleHealthChanged(float NewValue);
+	/** Handle Health attribute event from EventBus */
+	void OnHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle max health attribute changed */
-	void HandleMaxHealthChanged(float NewValue);
+	/** Handle MaxHealth attribute event from EventBus */
+	void OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle shield attribute changed */
-	void HandleShieldChanged(float NewValue);
+	/** Handle Shield attribute event from EventBus */
+	void OnShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle max shield attribute changed */
-	void HandleMaxShieldChanged(float NewValue);
+	/** Handle MaxShield attribute event from EventBus */
+	void OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle stamina attribute changed */
-	void HandleStaminaChanged(float NewValue);
+	/** Handle Stamina attribute event from EventBus */
+	void OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle max stamina attribute changed */
-	void HandleMaxStaminaChanged(float NewValue);
+	/** Handle MaxStamina attribute event from EventBus */
+	void OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle EventBus attribute event */
-	void OnAttributeEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	/** Handle LowHealth event from EventBus */
+	void OnLowHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Delegate handles for attribute changes */
-	FDelegateHandle HealthChangedHandle;
-	FDelegateHandle MaxHealthChangedHandle;
-	FDelegateHandle ShieldChangedHandle;
-	FDelegateHandle MaxShieldChangedHandle;
-	FDelegateHandle StaminaChangedHandle;
-	FDelegateHandle MaxStaminaChangedHandle;
+	/** Handle ShieldBroken event from EventBus */
+	void OnShieldBrokenEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 };

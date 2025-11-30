@@ -237,6 +237,9 @@ protected:
 	/** Publish registration event to EventBus */
 	void PublishRegistrationEvent(bool bSuccess, const FSuspenseCorePlayerData& PlayerData, const FString& ErrorMessage);
 
+	/** Publish class preview event to EventBus for character preview components */
+	void PublishClassPreviewEvent(const FString& ClassId);
+
 	/** Handle create button click */
 	UFUNCTION()
 	void OnCreateButtonClicked();

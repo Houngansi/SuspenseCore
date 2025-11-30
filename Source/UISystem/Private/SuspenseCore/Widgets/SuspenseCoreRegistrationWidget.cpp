@@ -355,7 +355,27 @@ void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 	UpdateClassSelectionUI();
 	UpdateUIState();
 
+	// Publish ClassPreview event via EventBus for character preview components
+	PublishClassPreviewEvent(ClassId);
+
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCore Registration: Selected class '%s'"), *ClassId);
+}
+
+void USuspenseCoreRegistrationWidget::PublishClassPreviewEvent(const FString& ClassId)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.StringValue = ClassId;
+
+	EventBus->Publish(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.ClassPreview.Selected")),
+		EventData
+	);
 }
 
 void USuspenseCoreRegistrationWidget::SetupClassSelectionBindings()

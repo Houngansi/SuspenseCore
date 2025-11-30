@@ -13,6 +13,9 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class UTexture2D;
+class USkeletalMesh;
+class UAnimInstance;
+class UAnimSequence;
 
 /**
  * ESuspenseCoreClassRole
@@ -206,24 +209,44 @@ public:
 	ESuspenseCoreClassRole Role = ESuspenseCoreClassRole::Assault;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// VISUALS
+	// VISUALS - UI
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Class icon for UI */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|UI")
 	TSoftObjectPtr<UTexture2D> ClassIcon;
 
 	/** Large portrait for selection screen */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|UI")
 	TSoftObjectPtr<UTexture2D> ClassPortrait;
 
 	/** Primary class color for UI theming */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|UI")
 	FLinearColor PrimaryColor = FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
 
 	/** Secondary accent color */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|UI")
 	FLinearColor SecondaryColor = FLinearColor(0.1f, 0.3f, 0.5f, 1.0f);
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// VISUALS - CHARACTER MESH
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Character skeletal mesh for preview and gameplay */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
+	TSoftObjectPtr<USkeletalMesh> CharacterMesh;
+
+	/** First person arms mesh (if different from third person) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
+	TSoftObjectPtr<USkeletalMesh> FirstPersonArmsMesh;
+
+	/** Animation Blueprint for the character */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
+	TSoftClassPtr<UAnimInstance> AnimationBlueprint;
+
+	/** Preview animation to play in character selection */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
+	TSoftObjectPtr<UAnimSequence> PreviewIdleAnimation;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// ATTRIBUTES

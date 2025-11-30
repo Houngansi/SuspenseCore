@@ -370,7 +370,7 @@ void USuspenseCoreRegistrationWidget::PublishClassPreviewEvent(const FString& Cl
 	}
 
 	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-	EventData.StringValue = ClassId;
+	EventData.SetString(FName("ClassId"), ClassId);
 
 	EventBus->Publish(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.ClassPreview.Selected")),

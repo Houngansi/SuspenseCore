@@ -189,20 +189,8 @@ void USuspenseCoreHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspens
 {
 	float OldHealth = CachedHealth;
 
-	// Extract new value from EventData
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedHealth = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		// Try to extract from payload
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedHealth = *NewValue;
-		}
-	}
+	// Extract new value from EventData using proper API
+	CachedHealth = EventData.GetFloat(FName("Value"), CachedHealth);
 
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	UpdateHealthUI();
@@ -221,18 +209,7 @@ void USuspenseCoreHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspens
 
 void USuspenseCoreHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedMaxHealth = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedMaxHealth = *NewValue;
-		}
-	}
+	CachedMaxHealth = EventData.GetFloat(FName("Value"), CachedMaxHealth);
 
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	UpdateHealthUI();
@@ -242,18 +219,7 @@ void USuspenseCoreHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspens
 {
 	float OldShield = CachedShield;
 
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedShield = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedShield = *NewValue;
-		}
-	}
+	CachedShield = EventData.GetFloat(FName("Value"), CachedShield);
 
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	UpdateShieldUI();
@@ -272,18 +238,7 @@ void USuspenseCoreHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspens
 
 void USuspenseCoreHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedMaxShield = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedMaxShield = *NewValue;
-		}
-	}
+	CachedMaxShield = EventData.GetFloat(FName("Value"), CachedMaxShield);
 
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	UpdateShieldUI();
@@ -293,18 +248,7 @@ void USuspenseCoreHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspen
 {
 	float OldStamina = CachedStamina;
 
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedStamina = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedStamina = *NewValue;
-		}
-	}
+	CachedStamina = EventData.GetFloat(FName("Value"), CachedStamina);
 
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
 	UpdateStaminaUI();
@@ -315,18 +259,7 @@ void USuspenseCoreHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspen
 
 void USuspenseCoreHUDWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (EventData.NumericValue.IsSet())
-	{
-		CachedMaxStamina = EventData.NumericValue.GetValue();
-	}
-	else if (EventData.Payload.IsValid())
-	{
-		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
-		if (NewValue)
-		{
-			CachedMaxStamina = *NewValue;
-		}
-	}
+	CachedMaxStamina = EventData.GetFloat(FName("Value"), CachedMaxStamina);
 
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
 	UpdateStaminaUI();

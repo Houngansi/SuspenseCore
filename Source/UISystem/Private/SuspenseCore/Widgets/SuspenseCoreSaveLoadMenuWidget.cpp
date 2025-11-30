@@ -5,6 +5,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreSaveLoadMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreSaveSlotWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
+#include "SuspenseCore/Core/SuspenseCorePlayerController.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
@@ -526,25 +527,43 @@ void USuspenseCoreSaveLoadMenuWidget::PerformDelete(int32 SlotIndex)
 
 void USuspenseCoreSaveLoadMenuWidget::SetUIInputMode()
 {
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	// Use centralized UI mode management for cursor
+	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
 	{
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(true);
+		SuspensePC->PushUIMode(TEXT("SaveLoadMenu"));
+	}
+	else
+	{
+		// Fallback for non-SuspenseCore controllers
+		APlayerController* PC = GetOwningPlayer();
+		if (PC)
+		{
+			FInputModeUIOnly InputMode;
+			InputMode.SetWidgetToFocus(TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(true);
+		}
 	}
 }
 
 void USuspenseCoreSaveLoadMenuWidget::RestoreGameInputMode()
 {
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	// Use centralized UI mode management for cursor
+	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
 	{
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(false);
+		SuspensePC->PopUIMode(TEXT("SaveLoadMenu"));
+	}
+	else
+	{
+		// Fallback for non-SuspenseCore controllers
+		APlayerController* PC = GetOwningPlayer();
+		if (PC)
+		{
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(false);
+		}
 	}
 }
 

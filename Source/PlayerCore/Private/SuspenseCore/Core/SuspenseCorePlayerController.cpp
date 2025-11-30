@@ -627,3 +627,76 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 		TEXT("{}")
 	);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CURSOR/UI MODE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::PushUIMode(const FString& Reason)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: PushUIMode('%s') - Stack size: %d -> %d"),
+		*Reason, UIModeStack.Num(), UIModeStack.Num() + 1);
+
+	UIModeStack.Add(Reason);
+	ApplyCurrentUIMode();
+}
+
+void ASuspenseCorePlayerController::PopUIMode(const FString& Reason)
+{
+	int32 Index = UIModeStack.Find(Reason);
+	if (Index != INDEX_NONE)
+	{
+		UIModeStack.RemoveAt(Index);
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: PopUIMode('%s') - Stack size: %d"),
+			*Reason, UIModeStack.Num());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePC: PopUIMode('%s') - Reason not found in stack!"), *Reason);
+	}
+
+	ApplyCurrentUIMode();
+}
+
+void ASuspenseCorePlayerController::SetCursorVisible(bool bShowCursor)
+{
+	bShowMouseCursor = bShowCursor;
+
+	if (bShowCursor)
+	{
+		// GameAndUI allows both gameplay input and UI interaction
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		SetInputMode(InputMode);
+	}
+	else
+	{
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+	}
+}
+
+void ASuspenseCorePlayerController::ApplyCurrentUIMode()
+{
+	if (UIModeStack.Num() > 0)
+	{
+		// UI is active - show cursor, use GameAndUI mode for responsiveness
+		bShowMouseCursor = true;
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		SetInputMode(InputMode);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: UI Mode ACTIVE - Cursor ON, Mode: GameAndUI"));
+	}
+	else
+	{
+		// No UI - hide cursor, game only mode
+		bShowMouseCursor = false;
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: UI Mode INACTIVE - Cursor OFF, Mode: GameOnly"));
+	}
+}

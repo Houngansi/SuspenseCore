@@ -204,7 +204,13 @@ void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& Playe
 			}
 		}
 
-		// Broadcast highlight delegate so MainMenu can update PlayerInfo
+		// Publish highlight event via EventBus (primary inter-widget communication)
+		PublishCharacterSelectEvent(
+			FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Highlighted")),
+			PlayerId
+		);
+
+		// Broadcast delegate for Blueprint events only
 		OnCharacterHighlightedDelegate.Broadcast(PlayerId, *FoundEntry);
 	}
 	else

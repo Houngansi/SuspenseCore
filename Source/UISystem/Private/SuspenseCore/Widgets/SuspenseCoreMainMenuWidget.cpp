@@ -67,9 +67,9 @@ void USuspenseCoreMainMenuWidget::NativeConstruct()
 	// Setup UI
 	UpdateUIDisplay();
 	SetupButtonBindings();
+
+	// Setup EventBus subscriptions (primary communication method per architecture docs)
 	SetupEventSubscriptions();
-	SetupCharacterSelectBindings();
-	SetupRegistrationWidgetBindings();
 
 	// Initialize menu flow
 	InitializeMenu();
@@ -343,6 +343,24 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCreateNewCharacter),
 		ESuspenseCoreEventPriority::Normal
 	);
+
+	// Subscribe to character highlighted events (for PlayerInfo updates)
+	CharacterHighlightedEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Highlighted")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterHighlighted),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to character deleted events
+	CharacterDeletedEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Deleted")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterDeleted),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: EventBus subscriptions established"));
 }
 
 void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
@@ -361,128 +379,19 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 		{
 			CachedEventBus->Unsubscribe(CreateNewCharacterEventHandle);
 		}
-	}
-}
-
-void USuspenseCoreMainMenuWidget::SetupCharacterSelectBindings()
-{
-	// Direct delegate bindings - more reliable than EventBus for widget communication
-	if (CharacterSelectWidget)
-	{
-		// Subscribe to character selection (Play button clicked)
-		CharacterSelectWidget->OnCharacterSelectedDelegate.AddDynamic(
-			this, &USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect);
-
-		// Subscribe to character highlight (entry clicked - updates PlayerInfo immediately)
-		CharacterSelectWidget->OnCharacterHighlightedDelegate.AddDynamic(
-			this, &USuspenseCoreMainMenuWidget::OnCharacterHighlightedDirect);
-
-		// Subscribe to create new request
-		CharacterSelectWidget->OnCreateNewRequestedDelegate.AddDynamic(
-			this, &USuspenseCoreMainMenuWidget::OnCreateNewCharacterDirect);
-
-		// Subscribe to delete events
-		CharacterSelectWidget->OnCharacterDeletedDelegate.AddDynamic(
-			this, &USuspenseCoreMainMenuWidget::OnCharacterDeletedDirect);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Bound to CharacterSelectWidget delegates"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: CharacterSelectWidget not found for direct binding"));
-	}
-}
-
-void USuspenseCoreMainMenuWidget::SetupRegistrationWidgetBindings()
-{
-	// Direct delegate binding - more reliable than EventBus
-	if (RegistrationWidget)
-	{
-		RegistrationWidget->OnRegistrationComplete.AddDynamic(
-			this, &USuspenseCoreMainMenuWidget::OnRegistrationCompleteDirect);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Bound to RegistrationWidget delegates"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: RegistrationWidget not found for direct binding"));
-	}
-}
-
-void USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry)
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character selected (direct): %s"), *PlayerId);
-
-	if (!PlayerId.IsEmpty())
-	{
-		ShowMainMenuScreen(PlayerId);
-	}
-}
-
-void USuspenseCoreMainMenuWidget::OnCreateNewCharacterDirect()
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Create new character (direct)"));
-	ShowRegistrationScreen();
-}
-
-void USuspenseCoreMainMenuWidget::OnCharacterDeletedDirect(const FString& PlayerId)
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character deleted (direct): %s"), *PlayerId);
-
-	// If deleted the current player, clear the selection and PlayerInfo
-	if (CurrentPlayerId == PlayerId)
-	{
-		CurrentPlayerId.Empty();
-		if (PlayerInfoWidget)
+		if (CharacterHighlightedEventHandle.IsValid())
 		{
-			PlayerInfoWidget->ClearDisplay();
+			CachedEventBus->Unsubscribe(CharacterHighlightedEventHandle);
+		}
+		if (CharacterDeletedEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(CharacterDeletedEventHandle);
 		}
 	}
-
-	// CharacterSelectWidget already refreshes its list, so nothing else needed here
 }
 
-void USuspenseCoreMainMenuWidget::OnCharacterHighlightedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry)
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character highlighted (direct): %s (%s)"),
-		*Entry.DisplayName, *PlayerId);
-
-	// Update PlayerInfo immediately when character is highlighted
-	if (!PlayerId.IsEmpty())
-	{
-		SelectPlayer(PlayerId);
-	}
-}
-
-void USuspenseCoreMainMenuWidget::OnRegistrationCompleteDirect(const FSuspenseCorePlayerData& PlayerData)
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration complete (direct): %s (%s)"),
-		*PlayerData.DisplayName, *PlayerData.PlayerId);
-
-	if (!PlayerData.PlayerId.IsEmpty())
-	{
-		// Notify Blueprint
-		OnRegistrationComplete(PlayerData.PlayerId);
-
-		// CRITICAL: Refresh character list to include the newly created character
-		if (CharacterSelectWidget)
-		{
-			UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Refreshing CharacterSelectWidget for new character"));
-			CharacterSelectWidget->RefreshCharacterList();
-			// Explicitly highlight the new character in the list
-			CharacterSelectWidget->HighlightCharacter(PlayerData.PlayerId);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: CharacterSelectWidget is NULL!"));
-		}
-
-		// Transition to main menu and select the new player
-		ShowMainMenuScreen(PlayerData.PlayerId);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration successful for %s, transitioned to main menu"), *PlayerData.PlayerId);
-	}
-}
+// NOTE: Direct delegate bindings removed - all widget communication via EventBus per architecture docs
+// See: Source/SuspenseCore/Documentation/Architecture/Planning/EventSystemMigration.md
 
 ISuspenseCorePlayerRepository* USuspenseCoreMainMenuWidget::GetRepository()
 {
@@ -592,6 +501,40 @@ void USuspenseCoreMainMenuWidget::OnCreateNewCharacter(FGameplayTag EventTag, co
 	ShowRegistrationScreen();
 
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Create new character requested, showing registration"));
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterHighlighted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get player ID from event data
+	FString PlayerId = EventData.GetString(FName("PlayerId"));
+
+	if (!PlayerId.IsEmpty())
+	{
+		// Update PlayerInfo immediately when character is highlighted
+		SelectPlayer(PlayerId);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character highlighted %s, updating PlayerInfo"), *PlayerId);
+	}
+}
+
+void USuspenseCoreMainMenuWidget::OnCharacterDeleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get player ID from event data
+	FString PlayerId = EventData.GetString(FName("PlayerId"));
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character deleted %s"), *PlayerId);
+
+	// If deleted the current player, clear the selection and PlayerInfo
+	if (CurrentPlayerId == PlayerId)
+	{
+		CurrentPlayerId.Empty();
+		if (PlayerInfoWidget)
+		{
+			PlayerInfoWidget->ClearDisplay();
+		}
+	}
+
+	// CharacterSelectWidget already refreshes its list via EventBus
 }
 
 void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()

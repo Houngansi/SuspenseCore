@@ -181,35 +181,45 @@ Save/Load Menu - это полноценное меню для управлен�
         │           Visibility: Collapsed
         │           Is Variable: ✓
         │
-        ├── [Spacer] Width: 10
-        │
-        └── [Button] "DeleteButton"                  ← Удаление слота
-            │   Style: Minimal/Transparent
-            │   Is Variable: ✓
-            │
-            └── [Image]
-                    Brush: TrashIcon (X icon)
-                    Size: 24x24
-                    Tint: Red
+        └── (опционально) [Button] "DeleteButton"   ← Можно не добавлять!
 ```
 
-### 3.3 Обязательные BindWidget имена
+### 3.2.1 Упрощённая структура (без DeleteButton в слоте)
 
-| Имя | Тип | Обязательный | Описание |
-|-----|-----|--------------|----------|
-| `SlotButton` | UButton | **ДА!** | Главная кнопка - без неё клики не работают! |
-| `SlotBorder` | UBorder | Нет | Рамка для подсветки |
-| `SlotNameText` | UTextBlock | Нет | "Slot 1" / "Quick Save" / "Auto Save" |
-| `CharacterNameText` | UTextBlock | Нет | Имя персонажа |
-| `LevelText` | UTextBlock | Нет | "Lv. 15" |
-| `LocationText` | UTextBlock | Нет | Название локации |
-| `TimestampText` | UTextBlock | Нет | Дата/время сохранения |
-| `PlaytimeText` | UTextBlock | Нет | Время игры "2h 30m" |
-| `EmptyText` | UTextBlock | Нет | Текст для пустых слотов |
-| `DeleteButton` | UButton | Нет | Кнопка удаления |
-| `ThumbnailImage` | UImage | Нет | Превью скриншот |
+Если не нужна кнопка удаления прямо в слоте:
 
-**ВАЖНО:** `InfoText` НЕ существует в C++ коде! Используй отдельные поля.
+```
+[Button] "SlotButton"                        ← ОБЯЗАТЕЛЬНО!
+│
+└── [Border] "SlotBorder"
+    │
+    └── [Vertical Box]
+        │
+        ├── [Text Block] "SlotNameText"       ← "Slot 1"
+        ├── [Text Block] "CharacterNameText"  ← "Player"
+        ├── [Text Block] "TimestampText"      ← "Nov 29, 2025"
+        └── [Text Block] "EmptyText"          ← "- Empty -"
+```
+
+> **Примечание:** Удаление можно делать через `DeleteButton` в главном меню `WBP_SaveLoadMenu`.
+
+### 3.3 BindWidget имена для SaveSlot
+
+| Имя | Тип | Важность | Описание |
+|-----|-----|----------|----------|
+| `SlotButton` | UButton | **ОБЯЗАТЕЛЬНО** | Главная кнопка - без неё клики не работают! |
+| `SlotBorder` | UBorder | Опционально | Рамка для подсветки |
+| `SlotNameText` | UTextBlock | Опционально | "Slot 1" / "Quick Save" / "Auto Save" |
+| `CharacterNameText` | UTextBlock | Опционально | Имя персонажа |
+| `LevelText` | UTextBlock | Опционально | "Lv. 15" |
+| `LocationText` | UTextBlock | Опционально | Название локации |
+| `TimestampText` | UTextBlock | Опционально | Дата/время сохранения |
+| `PlaytimeText` | UTextBlock | Опционально | Время игры "2h 30m" |
+| `EmptyText` | UTextBlock | Опционально | Текст для пустых слотов |
+| `DeleteButton` | UButton | Опционально | Удаление прямо из слота (можно не добавлять!) |
+| `ThumbnailImage` | UImage | Опционально | Превью скриншот |
+
+> **ВАЖНО:** `InfoText` НЕ существует! Используй отдельные поля (CharacterNameText, LevelText и т.д.)
 
 ### 3.4 Настройка в Class Defaults
 
@@ -365,12 +375,30 @@ void USuspenseCoreSaveSlotWidget::UpdateDisplay()
         │
         ├── [Spacer] Height: 15
         │
-        └── [Horizontal Box]
+        └── [Horizontal Box]                  ← КНОПКИ ДЕЙСТВИЙ
+            │
+            ├── [Button] "ActionButton"       ← **ОБЯЗАТЕЛЬНО!** Save/Load кнопка
+            │   │   Style: Primary/Accent
+            │   │   Is Variable: ✓
+            │   │
+            │   └── [Text Block] "ActionButtonText"
+            │           Text: "SAVE" (меняется автоматически)
+            │           Is Variable: ✓
+            │
+            ├── [Spacer] Width: 10
+            │
+            ├── [Button] "DeleteButton"       ← Опционально: удаление слота
+            │   │   Style: Danger/Red
+            │   │   Is Variable: ✓
+            │   │   Visibility: Collapsed (показывается когда можно удалить)
+            │   │
+            │   └── [Text Block] "DeleteButtonText"
+            │           Text: "DELETE"
             │
             ├── [Spacer] (Fill)
             │
-            └── [Button] "CloseButton"       ← Кнопка "BACK"
-                │   Style: Accent
+            └── [Button] "CloseButton"        ← Кнопка "BACK"
+                │   Style: Secondary
                 │   Is Variable: ✓
                 │
                 └── [Text Block] "CloseButtonText"
@@ -378,23 +406,59 @@ void USuspenseCoreSaveSlotWidget::UpdateDisplay()
                         Is Variable: ✓
 ```
 
-### 4.3 Обязательные BindWidget имена
+### 4.2.1 Панель подтверждения (опционально)
 
-| Имя | Тип | Обязательный | Описание |
-|-----|-----|--------------|----------|
-| `SlotsContainer` | UVerticalBox | **Да** | Контейнер для слотов (внутри ScrollBox) |
-| `TitleText` | UTextBlock | Нет | Заголовок меню |
-| `SlotsScrollBox` | UScrollBox | Нет | ScrollBox (опционально) |
-| `StatusText` | UTextBlock | Нет | Статус операции |
-| `CloseButton` | UButton | Нет | Кнопка закрытия |
-| `CloseButtonText` | UTextBlock | Нет | Текст кнопки |
-| `ActionButton` | UButton | Нет | Кнопка Save/Load |
-| `ActionButtonText` | UTextBlock | Нет | Текст кнопки |
-| `DeleteButton` | UButton | Нет | Кнопка удаления |
-| `BackgroundOverlay` | UBorder | Нет | Затемнение фона |
-| `MenuContainer` | UBorder | Нет | Контейнер меню |
+Для подтверждения перезаписи/удаления/загрузки:
 
-**ВАЖНО:** `SlotsContainer` должен быть **UVerticalBox**, не ScrollBox!
+```
+[Widget] "ConfirmationOverlay"               ← Overlay для подтверждения
+│   Visibility: Collapsed (по умолчанию)
+│   Is Variable: ✓
+│
+└── [Border]
+    │   Brush Color: (0, 0, 0, 0.8)
+    │   Anchors: Full Stretch
+    │
+    └── [Vertical Box]
+        │   Alignment: Center
+        │
+        ├── [Text Block] "ConfirmationText"   ← "Overwrite existing save?"
+        │       Is Variable: ✓
+        │
+        ├── [Spacer] Height: 20
+        │
+        └── [Horizontal Box]
+            │
+            ├── [Button] "ConfirmButton"      ← "YES" / "CONFIRM"
+            │       Is Variable: ✓
+            │
+            ├── [Spacer] Width: 20
+            │
+            └── [Button] "CancelButton"       ← "NO" / "CANCEL"
+                    Is Variable: ✓
+```
+
+### 4.3 BindWidget имена
+
+| Имя | Тип | Важность | Описание |
+|-----|-----|----------|----------|
+| `SlotsContainer` | UVerticalBox | **ОБЯЗАТЕЛЬНО** | Контейнер для слотов |
+| `ActionButton` | UButton | **РЕКОМЕНДУЕТСЯ** | Кнопка Save/Load - без неё нельзя сохранять! |
+| `ActionButtonText` | UTextBlock | Рекомендуется | Текст (меняется: "SAVE"/"LOAD") |
+| `TitleText` | UTextBlock | Опционально | Заголовок ("SAVE GAME"/"LOAD GAME") |
+| `SlotsScrollBox` | UScrollBox | Опционально | Для скролла |
+| `StatusText` | UTextBlock | Опционально | "Game saved!" / "Loading..." |
+| `DeleteButton` | UButton | Опционально | Удаление выбранного слота |
+| `CloseButton` | UButton | Опционально | Кнопка "BACK" |
+| `CloseButtonText` | UTextBlock | Опционально | Текст кнопки Close |
+| `ConfirmationOverlay` | UWidget | Опционально | Панель подтверждения |
+| `ConfirmationText` | UTextBlock | Опционально | Текст подтверждения |
+| `ConfirmButton` | UButton | Опционально | Кнопка "YES" |
+| `CancelButton` | UButton | Опционально | Кнопка "NO" |
+
+**ВАЖНО:**
+- `SlotsContainer` = **UVerticalBox** (не ScrollBox!)
+- Без `ActionButton` сохранение/загрузка не будет работать!
 
 ### 4.4 Настройка в Class Defaults (КРИТИЧЕСКИ ВАЖНО!)
 

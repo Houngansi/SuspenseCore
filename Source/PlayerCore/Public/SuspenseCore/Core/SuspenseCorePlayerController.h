@@ -142,6 +142,45 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
 	USuspenseCorePauseMenuWidget* GetPauseMenuWidget() const { return PauseMenuWidget; }
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - CURSOR/UI MODE MANAGEMENT
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Push UI mode - shows cursor and enables UI input.
+	 * Call when opening any UI widget that needs cursor.
+	 * @param Reason - Debug identifier for this UI push (e.g., "PauseMenu", "Inventory")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void PushUIMode(const FString& Reason = TEXT("UI"));
+
+	/**
+	 * Pop UI mode - potentially hides cursor if no UI is active.
+	 * Call when closing UI widget.
+	 * @param Reason - Must match the reason used in PushUIMode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void PopUIMode(const FString& Reason = TEXT("UI"));
+
+	/**
+	 * Force set cursor visibility (use sparingly, prefer Push/Pop).
+	 * @param bShowCursor - Whether to show cursor
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void SetCursorVisible(bool bShowCursor);
+
+	/**
+	 * Check if any UI is currently active.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	bool IsUIActive() const { return UIModeStack.Num() > 0; }
+
+	/**
+	 * Get count of active UI layers.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	int32 GetUIStackCount() const { return UIModeStack.Num(); }
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT CONFIGURATION
@@ -267,4 +306,10 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<ASuspenseCorePlayerState> CachedPlayerState;
+
+	/** Stack of active UI modes for cursor management */
+	TArray<FString> UIModeStack;
+
+	/** Apply UI mode based on stack state */
+	void ApplyCurrentUIMode();
 };

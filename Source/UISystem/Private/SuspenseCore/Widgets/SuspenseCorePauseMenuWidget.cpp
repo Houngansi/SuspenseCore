@@ -6,6 +6,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreSaveLoadMenuWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
+#include "SuspenseCore/Core/SuspenseCorePlayerController.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
@@ -135,15 +136,23 @@ void USuspenseCorePauseMenuWidget::ShowPauseMenu()
 	// Focus the widget
 	SetFocus();
 
-	// Set input mode
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	// Use centralized UI mode management for cursor
+	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
 	{
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(true);
+		SuspensePC->PushUIMode(TEXT("PauseMenu"));
+	}
+	else
+	{
+		// Fallback for non-SuspenseCore controllers
+		APlayerController* PC = GetOwningPlayer();
+		if (PC)
+		{
+			FInputModeUIOnly InputMode;
+			InputMode.SetWidgetToFocus(TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(true);
+		}
 	}
 
 	OnMenuShown();
@@ -163,13 +172,21 @@ void USuspenseCorePauseMenuWidget::HidePauseMenu()
 	SetVisibility(ESlateVisibility::Collapsed);
 	SetGamePaused(false);
 
-	// Restore input mode
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	// Use centralized UI mode management for cursor
+	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
 	{
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(false);
+		SuspensePC->PopUIMode(TEXT("PauseMenu"));
+	}
+	else
+	{
+		// Fallback for non-SuspenseCore controllers
+		APlayerController* PC = GetOwningPlayer();
+		if (PC)
+		{
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->SetShowMouseCursor(false);
+		}
 	}
 
 	OnMenuHidden();

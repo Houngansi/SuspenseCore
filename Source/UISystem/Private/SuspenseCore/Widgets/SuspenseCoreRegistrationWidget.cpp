@@ -8,10 +8,13 @@
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "SuspenseCore/Repository/SuspenseCoreFilePlayerRepository.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
+#include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/HorizontalBox.h"
 #include "TimerManager.h"
 
 USuspenseCoreRegistrationWidget::USuspenseCoreRegistrationWidget(const FObjectInitializer& ObjectInitializer)
@@ -24,17 +27,22 @@ void USuspenseCoreRegistrationWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetupButtonBindings();
+	SetupClassSelectionBindings();
+
+	// Set default class selection
+	SelectedClassId = TEXT("Assault");
+	UpdateClassSelectionUI();
 	UpdateUIState();
 
 	// Set initial status
 	if (StatusText)
 	{
-		StatusText->SetText(FText::FromString(TEXT("Enter your display name to create an account.")));
+		StatusText->SetText(FText::FromString(TEXT("Выберите класс и введите имя персонажа.")));
 	}
 
 	if (TitleText)
 	{
-		TitleText->SetText(FText::FromString(TEXT("Create New Character")));
+		TitleText->SetText(FText::FromString(TEXT("Создание персонажа")));
 	}
 }
 
@@ -98,50 +106,39 @@ void USuspenseCoreRegistrationWidget::AttemptCreatePlayer()
 		return;
 	}
 
-	// Create player
+	// Create player with selected class
 	FString DisplayName = GetEnteredDisplayName();
-	FSuspenseCorePlayerData NewPlayerData;
+	FSuspenseCorePlayerData NewPlayerData = FSuspenseCorePlayerData::CreateNew(DisplayName, SelectedClassId);
 
-	bool bSuccess = Repository->CreatePlayer(DisplayName, NewPlayerData);
+	// Save to repository
+	bool bSuccess = Repository->SavePlayer(NewPlayerData);
 
 	if (bSuccess)
 	{
-		// Save to file
-		bSuccess = Repository->SavePlayer(NewPlayerData);
+		ShowSuccess(FString::Printf(TEXT("Персонаж '%s' создан! Класс: %s"),
+			*NewPlayerData.DisplayName, *SelectedClassId));
 
-		if (bSuccess)
+		// Broadcast event
+		OnRegistrationComplete.Broadcast(NewPlayerData);
+		PublishRegistrationEvent(true, NewPlayerData, TEXT(""));
+
+		// Auto-close if enabled
+		if (bAutoCloseOnSuccess && GetWorld())
 		{
-			ShowSuccess(FString::Printf(TEXT("Character '%s' created successfully! ID: %s"),
-				*NewPlayerData.DisplayName, *NewPlayerData.PlayerId));
-
-			// Broadcast event
-			OnRegistrationComplete.Broadcast(NewPlayerData);
-			PublishRegistrationEvent(true, NewPlayerData, TEXT(""));
-
-			// Auto-close if enabled
-			if (bAutoCloseOnSuccess && GetWorld())
-			{
-				GetWorld()->GetTimerManager().SetTimer(
-					AutoCloseTimerHandle,
-					this,
-					&USuspenseCoreRegistrationWidget::HandleAutoClose,
-					AutoCloseDelay,
-					false
-				);
-			}
-		}
-		else
-		{
-			ShowError(TEXT("Failed to save player data. Please try again."));
-			OnRegistrationError.Broadcast(TEXT("Save failed"));
-			PublishRegistrationEvent(false, FSuspenseCorePlayerData(), TEXT("Save failed"));
+			GetWorld()->GetTimerManager().SetTimer(
+				AutoCloseTimerHandle,
+				this,
+				&USuspenseCoreRegistrationWidget::HandleAutoClose,
+				AutoCloseDelay,
+				false
+			);
 		}
 	}
 	else
 	{
-		ShowError(TEXT("Failed to create player. Please try again."));
-		OnRegistrationError.Broadcast(TEXT("Creation failed"));
-		PublishRegistrationEvent(false, FSuspenseCorePlayerData(), TEXT("Creation failed"));
+		ShowError(TEXT("Не удалось сохранить данные. Попробуйте снова."));
+		OnRegistrationError.Broadcast(TEXT("Save failed"));
+		PublishRegistrationEvent(false, FSuspenseCorePlayerData(), TEXT("Save failed"));
 	}
 
 	bIsProcessing = false;
@@ -150,19 +147,27 @@ void USuspenseCoreRegistrationWidget::AttemptCreatePlayer()
 
 bool USuspenseCoreRegistrationWidget::ValidateInput() const
 {
+	// Validate class selection
+	if (SelectedClassId.IsEmpty())
+	{
+		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
+			TEXT("Пожалуйста, выберите класс персонажа."));
+		return false;
+	}
+
 	FString DisplayName = GetEnteredDisplayName();
 
 	if (DisplayName.Len() < MinDisplayNameLength)
 	{
 		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-			FString::Printf(TEXT("Display name must be at least %d characters."), MinDisplayNameLength));
+			FString::Printf(TEXT("Имя должно содержать минимум %d символа."), MinDisplayNameLength));
 		return false;
 	}
 
 	if (DisplayName.Len() > MaxDisplayNameLength)
 	{
 		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-			FString::Printf(TEXT("Display name cannot exceed %d characters."), MaxDisplayNameLength));
+			FString::Printf(TEXT("Имя не должно превышать %d символов."), MaxDisplayNameLength));
 		return false;
 	}
 
@@ -172,7 +177,7 @@ bool USuspenseCoreRegistrationWidget::ValidateInput() const
 		if (!FChar::IsAlnum(Char) && Char != '_' && Char != '-' && Char != ' ')
 		{
 			const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-				TEXT("Display name contains invalid characters. Use letters, numbers, spaces, _ or -."));
+				TEXT("Имя содержит недопустимые символы. Используйте буквы, цифры, пробелы, _ или -."));
 			return false;
 		}
 	}
@@ -333,4 +338,151 @@ void USuspenseCoreRegistrationWidget::HandleAutoClose()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
 	RemoveFromParent();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLASS SELECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+FString USuspenseCoreRegistrationWidget::GetSelectedClassId() const
+{
+	return SelectedClassId;
+}
+
+void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
+{
+	SelectedClassId = ClassId;
+	UpdateClassSelectionUI();
+	UpdateUIState();
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCore Registration: Selected class '%s'"), *ClassId);
+}
+
+void USuspenseCoreRegistrationWidget::SetupClassSelectionBindings()
+{
+	if (AssaultClassButton)
+	{
+		AssaultClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnAssaultClassClicked);
+	}
+
+	if (MedicClassButton)
+	{
+		MedicClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnMedicClassClicked);
+	}
+
+	if (SniperClassButton)
+	{
+		SniperClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnSniperClassClicked);
+	}
+}
+
+void USuspenseCoreRegistrationWidget::OnAssaultClassClicked()
+{
+	SelectClass(TEXT("Assault"));
+}
+
+void USuspenseCoreRegistrationWidget::OnMedicClassClicked()
+{
+	SelectClass(TEXT("Medic"));
+}
+
+void USuspenseCoreRegistrationWidget::OnSniperClassClicked()
+{
+	SelectClass(TEXT("Sniper"));
+}
+
+void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
+{
+	// Get class data from subsystem
+	USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+
+	USuspenseCoreCharacterClassData* SelectedClass = nullptr;
+	if (ClassSubsystem)
+	{
+		SelectedClass = ClassSubsystem->GetClassById(FName(*SelectedClassId));
+	}
+
+	// Update class info display
+	if (SelectedClassNameText)
+	{
+		if (SelectedClass)
+		{
+			SelectedClassNameText->SetText(SelectedClass->DisplayName);
+			SelectedClassNameText->SetColorAndOpacity(FSlateColor(SelectedClass->PrimaryColor));
+		}
+		else
+		{
+			// Fallback display names if subsystem not ready
+			FText DisplayName;
+			if (SelectedClassId == TEXT("Assault"))
+			{
+				DisplayName = FText::FromString(TEXT("Штурмовик"));
+			}
+			else if (SelectedClassId == TEXT("Medic"))
+			{
+				DisplayName = FText::FromString(TEXT("Медик"));
+			}
+			else if (SelectedClassId == TEXT("Sniper"))
+			{
+				DisplayName = FText::FromString(TEXT("Снайпер"));
+			}
+			else
+			{
+				DisplayName = FText::FromString(SelectedClassId);
+			}
+			SelectedClassNameText->SetText(DisplayName);
+		}
+	}
+
+	if (SelectedClassDescriptionText)
+	{
+		if (SelectedClass)
+		{
+			SelectedClassDescriptionText->SetText(SelectedClass->ShortDescription);
+		}
+		else
+		{
+			// Fallback descriptions
+			FText Description;
+			if (SelectedClassId == TEXT("Assault"))
+			{
+				Description = FText::FromString(TEXT("Сбалансированный боец передовой линии. Повышенный урон и скорость перезарядки."));
+			}
+			else if (SelectedClassId == TEXT("Medic"))
+			{
+				Description = FText::FromString(TEXT("Поддержка команды. Быстрая регенерация здоровья и щита."));
+			}
+			else if (SelectedClassId == TEXT("Sniper"))
+			{
+				Description = FText::FromString(TEXT("Дальнобойный стрелок. Высокий урон и точность."));
+			}
+			SelectedClassDescriptionText->SetText(Description);
+		}
+	}
+
+	// Update button visual states (highlight selected)
+	auto UpdateButtonStyle = [this](UButton* Button, const FString& ButtonClassId)
+	{
+		if (!Button) return;
+
+		bool bIsSelected = (ButtonClassId == SelectedClassId);
+
+		// Set button style based on selection
+		FButtonStyle Style = Button->GetStyle();
+		if (bIsSelected)
+		{
+			// Highlight selected button
+			Style.Normal.TintColor = FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f, 1.0f));
+		}
+		else
+		{
+			// Default style
+			Style.Normal.TintColor = FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+		}
+		Button->SetStyle(Style);
+	};
+
+	UpdateButtonStyle(AssaultClassButton, TEXT("Assault"));
+	UpdateButtonStyle(MedicClassButton, TEXT("Medic"));
+	UpdateButtonStyle(SniperClassButton, TEXT("Sniper"));
 }

@@ -131,6 +131,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|State")
 	void SetTeamId(int32 NewTeamId);
 
+	/** Get character class ID */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|State")
+	FName GetCharacterClassId() const { return CharacterClassId; }
+
+	/**
+	 * Apply a character class to this player.
+	 * Loads class data from CharacterClassSubsystem and applies modifiers.
+	 * @param ClassId The class identifier (e.g., "Assault", "Medic", "Sniper")
+	 * @return True if successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|State")
+	bool ApplyCharacterClass(FName ClassId);
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - ATTRIBUTES (Convenience Wrappers)
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -211,6 +224,10 @@ protected:
 	/** Team identifier */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SuspenseCore|State")
 	int32 TeamId = 0;
+
+	/** Character class ID (Assault, Medic, Sniper, etc.) */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SuspenseCore|State")
+	FName CharacterClassId;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS

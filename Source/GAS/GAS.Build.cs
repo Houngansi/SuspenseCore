@@ -24,7 +24,8 @@ public class GAS : ModuleRules
 				"Engine",
 				"NetCore",
 				"Slate",
-				"SlateCore"
+				"SlateCore",
+				"PlayerCore"
 			}
 		);
 	}

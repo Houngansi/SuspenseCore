@@ -306,6 +306,15 @@ void USuspenseCorePlayerInfoWidget::OnProgressionEvent(FGameplayTag EventTag, co
 	}
 }
 
+void USuspenseCorePlayerInfoWidget::DisplayTestPlayerData(const FString& DisplayName)
+{
+	// Create test player with sample data for UI debugging
+	FSuspenseCorePlayerData TestData = FSuspenseCorePlayerData::CreateTestPlayer(DisplayName);
+	DisplayPlayerData(TestData);
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerInfoWidget: Displaying test data for '%s'"), *DisplayName);
+}
+
 void USuspenseCorePlayerInfoWidget::StartAutoRefresh()
 {
 	if (AutoRefreshInterval > 0.0f && GetWorld())

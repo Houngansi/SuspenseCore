@@ -100,24 +100,53 @@ UButton* PlayButton;  // Имя: PlayButton
 
 ## USuspenseCorePlayerInfoWidget
 
-**Blueprint:** `WBP_PlayerInfo`
+**Blueprint:** `WBP_PlayerInfo` (или `WBP_SuspenseCorePlayerInfo`)
 
 | Имя | Тип | Required | Описание |
 |-----|-----|----------|----------|
 | `DisplayNameText` | `UTextBlock` | **✓** | Имя игрока |
-| `PlayerIdText` | `UTextBlock` | | ID игрока |
-| `LevelText` | `UTextBlock` | | Уровень |
-| `XPProgressBar` | `UProgressBar` | | Прогресс XP |
-| `XPText` | `UTextBlock` | | "X / Y XP" |
-| `SoftCurrencyText` | `UTextBlock` | | Мягкая валюта |
-| `HardCurrencyText` | `UTextBlock` | | Жёсткая валюта |
+| `PlayerIdText` | `UTextBlock` | | ID игрока (первые 8 символов) |
+| `LevelText` | `UTextBlock` | | Уровень (формат: "Lv. X") |
+| `XPProgressBar` | `UProgressBar` | | Прогресс XP к следующему уровню |
+| `XPText` | `UTextBlock` | | Опыт (формат: "12.5K XP") |
+| `SoftCurrencyText` | `UTextBlock` | | Мягкая валюта (формат: "1.2K") |
+| `HardCurrencyText` | `UTextBlock` | | Жёсткая валюта (формат: "500") |
 | `KillsText` | `UTextBlock` | | Убийства |
 | `DeathsText` | `UTextBlock` | | Смерти |
-| `KDRatioText` | `UTextBlock` | | K/D Ratio |
+| `KDRatioText` | `UTextBlock` | | K/D Ratio (формат: "1.73") |
 | `WinsText` | `UTextBlock` | | Победы |
-| `MatchesText` | `UTextBlock` | | Матчи |
-| `PlaytimeText` | `UTextBlock` | | Время игры |
-| `RefreshButton` | `UButton` | | Обновить данные |
+| `MatchesText` | `UTextBlock` | | Сыгранные матчи |
+| `PlaytimeText` | `UTextBlock` | | Время игры (формат: "20h 0m") |
+| `RefreshButton` | `UButton` | | Обновить данные из репозитория |
+
+**Тестирование виджета:**
+
+Если данные Stats и Currency показывают нули - это нормально для нового игрока!
+Для тестирования используйте метод `DisplayTestPlayerData()`:
+
+```cpp
+// В Blueprint или C++
+PlayerInfoWidget->DisplayTestPlayerData(TEXT("TestPlayer"));
+```
+
+Этот метод создаёт тестового игрока с данными:
+- Level 25, 15K XP
+- 50K SoftCurrency, 500 HardCurrency
+- 342 Kills / 198 Deaths (K/D 1.73)
+- 22 Wins / 48 Matches (Win Rate 45.8%)
+- 20 часов игрового времени
+
+**Использование:**
+```cpp
+// Загрузить данные реального игрока
+PlayerInfoWidget->LoadPlayerData(PlayerId);
+
+// Или отобразить данные напрямую
+PlayerInfoWidget->DisplayPlayerData(PlayerData);
+
+// Для тестирования UI без реальных данных
+PlayerInfoWidget->DisplayTestPlayerData(TEXT("DebugPlayer"));
+```
 
 ---
 

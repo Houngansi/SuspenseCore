@@ -151,24 +151,27 @@ UButton* PlayButton;  // Имя: PlayButton
 
 **Blueprint:** `WBP_SaveLoadMenu`
 
-| Имя | Тип | Required | Описание |
+| Имя | Тип | Важность | Описание |
 |-----|-----|----------|----------|
-| `SlotsContainer` | `UVerticalBox` | **✓** | Контейнер для слотов (ОБЯЗАТЕЛЬНО!) |
+| `SlotsContainer` | `UVerticalBox` | **ОБЯЗАТЕЛЬНО** | Контейнер для слотов |
+| `ActionButton` | `UButton` | **РЕКОМЕНДУЕТСЯ** | Кнопка Save/Load - без неё нельзя сохранять! |
+| `ActionButtonText` | `UTextBlock` | Рекомендуется | Текст (меняется: "SAVE"/"LOAD") |
 | `TitleText` | `UTextBlock` | | "SAVE GAME" / "LOAD GAME" |
 | `SlotsScrollBox` | `UScrollBox` | | ScrollBox для скролла |
 | `CloseButton` | `UButton` | | Кнопка закрытия |
-| `ActionButton` | `UButton` | | Кнопка Save/Load |
-| `ActionButtonText` | `UTextBlock` | | Текст кнопки |
-| `DeleteButton` | `UButton` | | Кнопка удаления |
+| `DeleteButton` | `UButton` | | Кнопка удаления выбранного слота |
 | `StatusText` | `UTextBlock` | | Статус операции |
-| `CloseButtonText` | `UTextBlock` | | Текст кнопки Close |
-| `BackgroundOverlay` | `UBorder` | | Затемнение фона |
-| `MenuContainer` | `UBorder` | | Контейнер меню |
+| `ConfirmationOverlay` | `UWidget` | | Панель подтверждения |
+| `ConfirmationText` | `UTextBlock` | | Текст подтверждения |
+| `ConfirmButton` | `UButton` | | Кнопка "YES" |
+| `CancelButton` | `UButton` | | Кнопка "NO" |
 
 **Class Defaults:**
 - `SaveSlotWidgetClass` = `WBP_SaveSlot` (**ОБЯЗАТЕЛЬНО!**)
 
-**ВАЖНО:** `SlotsContainer` - это `UVerticalBox` внутри `SlotsScrollBox`!
+**ВАЖНО:**
+- `SlotsContainer` = `UVerticalBox` (не ScrollBox!)
+- Без `ActionButton` сохранение/загрузка не будет работать!
 
 ---
 
@@ -229,7 +232,10 @@ WBP_PauseMenu:
 
 WBP_SaveLoadMenu:
   ✓ SlotsContainer (UVerticalBox) ← ОБЯЗАТЕЛЬНО!
+  ✓ ActionButton (UButton) ← РЕКОМЕНДУЕТСЯ! Без неё нельзя Save/Load!
+  + ActionButtonText (опционально)
   + TitleText (опционально)
+  + DeleteButton (опционально - для удаления выбранного слота)
   + CloseButton (опционально)
 
 WBP_SaveSlot:
@@ -238,11 +244,9 @@ WBP_SaveSlot:
   + SlotNameText (опционально)
   + CharacterNameText (опционально)
   + LevelText (опционально)
-  + LocationText (опционально)
   + TimestampText (опционально)
-  + PlaytimeText (опционально)
   + EmptyText (опционально)
-  + DeleteButton (опционально)
+  + DeleteButton (опционально - удаление можно делать через меню)
 ```
 
 **ВАЖНО:** Без `SlotButton` клики на слоты не будут работать!

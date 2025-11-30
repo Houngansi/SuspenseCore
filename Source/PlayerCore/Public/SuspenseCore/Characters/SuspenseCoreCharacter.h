@@ -154,7 +154,7 @@ public:
 
 	/** Get current weapon actor */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-	AActor* GetCurrentWeaponActor() const { return CurrentWeaponActor; }
+	AActor* GetCurrentWeaponActor() const { return CurrentWeaponActor.Get(); }
 
 	/** Set current weapon actor */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")

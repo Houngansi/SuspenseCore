@@ -282,7 +282,13 @@ void USuspenseCoreCharacterClassSubsystem::CreateDefaultClasses()
 TArray<USuspenseCoreCharacterClassData*> USuspenseCoreCharacterClassSubsystem::GetAllClasses() const
 {
 	TArray<USuspenseCoreCharacterClassData*> Result;
-	LoadedClasses.GenerateValueArray(Result);
+	for (const auto& Pair : LoadedClasses)
+	{
+		if (Pair.Value)
+		{
+			Result.Add(Pair.Value.Get());
+		}
+	}
 	return Result;
 }
 
@@ -318,8 +324,8 @@ TArray<USuspenseCoreCharacterClassData*> USuspenseCoreCharacterClassSubsystem::G
 
 USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetClassById(FName ClassId) const
 {
-	const USuspenseCoreCharacterClassData* const* Found = LoadedClasses.Find(ClassId);
-	return Found ? const_cast<USuspenseCoreCharacterClassData*>(*Found) : nullptr;
+	const TObjectPtr<USuspenseCoreCharacterClassData>* Found = LoadedClasses.Find(ClassId);
+	return Found ? Found->Get() : nullptr;
 }
 
 bool USuspenseCoreCharacterClassSubsystem::ClassExists(FName ClassId) const
@@ -439,8 +445,8 @@ void USuspenseCoreCharacterClassSubsystem::RemoveClassFromActor(AActor* Actor)
 		return;
 	}
 
-	USuspenseCoreCharacterClassData** CurrentClass = ActorClassMap.Find(Actor);
-	if (!CurrentClass || !*CurrentClass)
+	TObjectPtr<USuspenseCoreCharacterClassData>* CurrentClassPtr = ActorClassMap.Find(Actor);
+	if (!CurrentClassPtr || !*CurrentClassPtr)
 	{
 		return;
 	}
@@ -460,7 +466,7 @@ void USuspenseCoreCharacterClassSubsystem::RemoveClassFromActor(AActor* Actor)
 		return;
 	}
 
-	USuspenseCoreCharacterClassData* OldClass = *CurrentClass;
+	USuspenseCoreCharacterClassData* OldClass = CurrentClassPtr->Get();
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Removing class '%s' from actor"), *OldClass->ClassID.ToString());
 
@@ -493,8 +499,8 @@ USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetActorC
 		return nullptr;
 	}
 
-	USuspenseCoreCharacterClassData* const* Found = ActorClassMap.Find(Actor);
-	return Found ? *Found : nullptr;
+	const TObjectPtr<USuspenseCoreCharacterClassData>* Found = ActorClassMap.Find(Actor);
+	return Found ? Found->Get() : nullptr;
 }
 
 void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData)

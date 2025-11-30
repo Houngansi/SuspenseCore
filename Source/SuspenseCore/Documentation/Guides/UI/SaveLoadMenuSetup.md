@@ -278,12 +278,14 @@ FText FormatSlotInfo(const FSuspenseCoreSaveHeader& Header)
         │
         ├── [Spacer] Height: 20
         │
-        ├── [Scroll Box] "SlotListScrollBox" ← Список слотов
+        ├── [Scroll Box] "SlotsScrollBox"      ← Опционально, для скролла
         │   │   Orientation: Vertical
         │   │   Size: Fill
         │   │   Is Variable: ✓
         │   │
-        │   └── (Динамически заполняется WBP_SaveSlot виджетами)
+        │   └── [Vertical Box] "SlotsContainer" ← ОБЯЗАТЕЛЬНО! Контейнер слотов
+        │           Is Variable: ✓
+        │           (Динамически заполняется WBP_SaveSlot виджетами)
         │
         ├── [Spacer] Height: 15
         │
@@ -312,13 +314,19 @@ FText FormatSlotInfo(const FSuspenseCoreSaveHeader& Header)
 
 | Имя | Тип | Обязательный | Описание |
 |-----|-----|--------------|----------|
-| `TitleText` | UTextBlock | **Да** | Заголовок меню |
-| `SlotListScrollBox` | UScrollBox | **Да** | Контейнер для слотов |
+| `SlotsContainer` | UVerticalBox | **Да** | Контейнер для слотов (внутри ScrollBox) |
+| `TitleText` | UTextBlock | Нет | Заголовок меню |
+| `SlotsScrollBox` | UScrollBox | Нет | ScrollBox (опционально) |
 | `StatusText` | UTextBlock | Нет | Статус операции |
-| `CloseButton` | UButton | **Да** | Кнопка закрытия |
+| `CloseButton` | UButton | Нет | Кнопка закрытия |
 | `CloseButtonText` | UTextBlock | Нет | Текст кнопки |
+| `ActionButton` | UButton | Нет | Кнопка Save/Load |
+| `ActionButtonText` | UTextBlock | Нет | Текст кнопки |
+| `DeleteButton` | UButton | Нет | Кнопка удаления |
 | `BackgroundOverlay` | UBorder | Нет | Затемнение фона |
 | `MenuContainer` | UBorder | Нет | Контейнер меню |
+
+**ВАЖНО:** `SlotsContainer` должен быть **UVerticalBox**, не ScrollBox!
 
 ### 4.4 Настройка в Class Defaults (КРИТИЧЕСКИ ВАЖНО!)
 

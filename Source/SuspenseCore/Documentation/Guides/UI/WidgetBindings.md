@@ -153,9 +153,13 @@ UButton* PlayButton;  // Имя: PlayButton
 
 | Имя | Тип | Required | Описание |
 |-----|-----|----------|----------|
-| `TitleText` | `UTextBlock` | **✓** | "SAVE GAME" / "LOAD GAME" |
-| `SlotListScrollBox` | `UScrollBox` | **✓** | Список слотов |
-| `CloseButton` | `UButton` | **✓** | Кнопка закрытия |
+| `SlotsContainer` | `UVerticalBox` | **✓** | Контейнер для слотов (ОБЯЗАТЕЛЬНО!) |
+| `TitleText` | `UTextBlock` | | "SAVE GAME" / "LOAD GAME" |
+| `SlotsScrollBox` | `UScrollBox` | | ScrollBox для скролла |
+| `CloseButton` | `UButton` | | Кнопка закрытия |
+| `ActionButton` | `UButton` | | Кнопка Save/Load |
+| `ActionButtonText` | `UTextBlock` | | Текст кнопки |
+| `DeleteButton` | `UButton` | | Кнопка удаления |
 | `StatusText` | `UTextBlock` | | Статус операции |
 | `CloseButtonText` | `UTextBlock` | | Текст кнопки Close |
 | `BackgroundOverlay` | `UBorder` | | Затемнение фона |
@@ -163,6 +167,8 @@ UButton* PlayButton;  // Имя: PlayButton
 
 **Class Defaults:**
 - `SaveSlotWidgetClass` = `WBP_SaveSlot` (**ОБЯЗАТЕЛЬНО!**)
+
+**ВАЖНО:** `SlotsContainer` - это `UVerticalBox` внутри `SlotsScrollBox`!
 
 ---
 

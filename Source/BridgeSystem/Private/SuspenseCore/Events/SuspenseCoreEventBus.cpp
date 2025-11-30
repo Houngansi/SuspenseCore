@@ -11,7 +11,7 @@ USuspenseCoreEventBus::USuspenseCoreEventBus()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ПУБЛИКАЦИЯ
+// PUBLISHING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreEventBus::Publish(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -53,7 +53,7 @@ void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspen
 {
 	TotalEventsPublished++;
 
-	// Прямые подписчики - копируем под локом, вызываем без лока
+	// Direct subscribers - copy under lock, call without lock
 	TArray<FSuspenseCoreSubscription> DirectSubs;
 	{
 		FScopeLock Lock(&SubscriptionLock);
@@ -68,7 +68,7 @@ void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspen
 		NotifySubscribers(DirectSubs, EventTag, EventData);
 	}
 
-	// Подписчики на родительские теги - собираем под локом
+	// Child tag subscribers - collect under lock
 	TArray<FSuspenseCoreSubscription> ChildSubs;
 	{
 		FScopeLock Lock(&SubscriptionLock);
@@ -99,13 +99,13 @@ void USuspenseCoreEventBus::NotifySubscribers(
 			continue;
 		}
 
-		// Проверка фильтра по источнику
+		// Check source filter
 		if (Sub.SourceFilter.IsValid() && Sub.SourceFilter.Get() != EventData.Source.Get())
 		{
 			continue;
 		}
 
-		// Вызов callback
+		// Call callback
 		if (Sub.bUseNativeCallback)
 		{
 			if (Sub.NativeCallback.IsBound())
@@ -124,7 +124,7 @@ void USuspenseCoreEventBus::NotifySubscribers(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ПОДПИСКА
+// SUBSCRIPTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::Subscribe(
@@ -137,7 +137,7 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::Subscribe(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	// Get object from callback (const_cast needed for TWeakObjectPtr)
 	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
@@ -160,7 +160,7 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::SubscribeToChildren(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	// Get object from callback (const_cast needed for TWeakObjectPtr)
 	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
@@ -184,7 +184,7 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::SubscribeWithFilter(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
-	// Получаем объект из callback (const_cast необходим для TWeakObjectPtr)
+	// Get object from callback (const_cast needed for TWeakObjectPtr)
 	UObject* Subscriber = const_cast<UObject*>(Callback.GetUObject());
 
 	return CreateSubscription(
@@ -265,7 +265,7 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::CreateSubscription(
 	TArray<FSuspenseCoreSubscription>& Subs = TargetMap.FindOrAdd(EventTag);
 	Subs.Add(NewSub);
 
-	// Сортируем по приоритету
+	// Sort by priority
 	SortSubscriptionsByPriority(Subs);
 
 	UE_LOG(LogSuspenseCoreEventBus, Verbose, TEXT("Subscribed to %s (ID: %llu, Children: %d)"),
@@ -275,7 +275,7 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::CreateSubscription(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ОТПИСКА
+// UNSUBSCRIPTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreEventBus::Unsubscribe(FSuspenseCoreSubscriptionHandle Handle)
@@ -289,7 +289,7 @@ void USuspenseCoreEventBus::Unsubscribe(FSuspenseCoreSubscriptionHandle Handle)
 
 	uint64 TargetId = Handle.GetId();
 
-	// Ищем в обычных подписках
+	// Search in regular subscriptions
 	for (auto& Pair : Subscriptions)
 	{
 		Pair.Value.RemoveAll([TargetId](const FSuspenseCoreSubscription& Sub)
@@ -298,7 +298,7 @@ void USuspenseCoreEventBus::Unsubscribe(FSuspenseCoreSubscriptionHandle Handle)
 		});
 	}
 
-	// Ищем в child подписках
+	// Search in child subscriptions
 	for (auto& Pair : ChildSubscriptions)
 	{
 		Pair.Value.RemoveAll([TargetId](const FSuspenseCoreSubscription& Sub)
@@ -339,7 +339,7 @@ void USuspenseCoreEventBus::UnsubscribeAll(UObject* Subscriber)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// УТИЛИТЫ
+// UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreEventBus::ProcessDeferredEvents()
@@ -378,7 +378,7 @@ void USuspenseCoreEventBus::CleanupStaleSubscriptions()
 		});
 	}
 
-	// Удаляем пустые записи
+	// Remove empty entries
 	for (auto It = Subscriptions.CreateIterator(); It; ++It)
 	{
 		if (It.Value().Num() == 0)

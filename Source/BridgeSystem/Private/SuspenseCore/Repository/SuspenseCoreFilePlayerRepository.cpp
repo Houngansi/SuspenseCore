@@ -22,7 +22,7 @@ void USuspenseCoreFilePlayerRepository::Initialize(const FString& InBasePath)
 {
 	if (InBasePath.IsEmpty())
 	{
-		// Дефолтный путь: [Project]/Saved/Players/
+		// Default path: [Project]/Saved/Players/
 		BasePath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Players"));
 	}
 	else
@@ -30,7 +30,7 @@ void USuspenseCoreFilePlayerRepository::Initialize(const FString& InBasePath)
 		BasePath = InBasePath;
 	}
 
-	// Создаём директорию если не существует
+	// Create directory if it doesn't exist
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*BasePath))
 	{
@@ -76,10 +76,10 @@ bool USuspenseCoreFilePlayerRepository::DeletePlayer(const FString& PlayerId)
 
 	FScopeLock Lock(&RepositoryLock);
 
-	// Удаляем из кэша
+	// Remove from cache
 	PlayerCache.Remove(PlayerId);
 
-	// Удаляем файл
+	// Delete file
 	FString FilePath = GetPlayerFilePath(PlayerId);
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -97,7 +97,7 @@ bool USuspenseCoreFilePlayerRepository::DeletePlayer(const FString& PlayerId)
 		}
 	}
 
-	return true; // Файла не было - считаем успехом
+	return true; // File didn't exist - consider success
 }
 
 bool USuspenseCoreFilePlayerRepository::PlayerExists(const FString& PlayerId)
@@ -109,13 +109,13 @@ bool USuspenseCoreFilePlayerRepository::PlayerExists(const FString& PlayerId)
 
 	FScopeLock Lock(&RepositoryLock);
 
-	// Проверяем кэш
+	// Check cache
 	if (PlayerCache.Contains(PlayerId))
 	{
 		return true;
 	}
 
-	// Проверяем файл
+	// Check file
 	FString FilePath = GetPlayerFilePath(PlayerId);
 	return FPlatformFileManager::Get().GetPlatformFile().FileExists(*FilePath);
 }
@@ -140,7 +140,7 @@ void USuspenseCoreFilePlayerRepository::GetAllPlayerIds(TArray<FString>& OutPlay
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-	// Ищем все .json файлы в директории
+	// Find all .json files in directory
 	TArray<FString> FoundFiles;
 	PlatformFile.FindFiles(FoundFiles, *BasePath, TEXT(".json"));
 
@@ -157,7 +157,7 @@ void USuspenseCoreFilePlayerRepository::GetLeaderboard(const FString& Category, 
 {
 	OutLeaderboard.Empty();
 
-	// Загружаем всех игроков
+	// Load all players
 	TArray<FString> PlayerIds;
 	GetAllPlayerIds(PlayerIds);
 
@@ -171,7 +171,7 @@ void USuspenseCoreFilePlayerRepository::GetLeaderboard(const FString& Category, 
 		}
 	}
 
-	// Сортируем по категории
+	// Sort by category
 	if (Category == TEXT("Kills"))
 	{
 		AllPlayers.Sort([](const FSuspenseCorePlayerData& A, const FSuspenseCorePlayerData& B)
@@ -208,7 +208,7 @@ void USuspenseCoreFilePlayerRepository::GetLeaderboard(const FString& Category, 
 		});
 	}
 
-	// Берём топ N
+	// Take top N
 	int32 ResultCount = FMath::Min(Count, AllPlayers.Num());
 	for (int32 i = 0; i < ResultCount; ++i)
 	{
@@ -315,14 +315,14 @@ bool USuspenseCoreFilePlayerRepository::LoadPlayerInternal(const FString& Player
 {
 	FScopeLock Lock(&RepositoryLock);
 
-	// Проверяем кэш
+	// Check cache
 	if (FSuspenseCorePlayerData* Cached = PlayerCache.Find(PlayerId))
 	{
 		OutData = *Cached;
 		return true;
 	}
 
-	// Загружаем из файла
+	// Load from file
 	FString FilePath = GetPlayerFilePath(PlayerId);
 	FString JsonContent;
 
@@ -337,7 +337,7 @@ bool USuspenseCoreFilePlayerRepository::LoadPlayerInternal(const FString& Player
 		return false;
 	}
 
-	// Добавляем в кэш
+	// Add to cache
 	PlayerCache.Add(PlayerId, OutData);
 
 	UE_LOG(LogSuspenseCorePlayerRepository, Verbose, TEXT("Loaded player: %s"), *PlayerId);
@@ -362,7 +362,7 @@ bool USuspenseCoreFilePlayerRepository::SavePlayerInternal(const FSuspenseCorePl
 		return false;
 	}
 
-	// Обновляем кэш
+	// Update cache
 	PlayerCache.Add(Data.PlayerId, Data);
 
 	UE_LOG(LogSuspenseCorePlayerRepository, Verbose, TEXT("Saved player: %s"), *Data.PlayerId);

@@ -11,7 +11,7 @@ USuspenseCoreServiceLocator::USuspenseCoreServiceLocator()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// РЕГИСТРАЦИЯ
+// REGISTRATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreServiceLocator::RegisterServiceByName(FName ServiceName, UObject* ServiceInstance)
@@ -44,7 +44,7 @@ void USuspenseCoreServiceLocator::RegisterServiceByName(FName ServiceName, UObje
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ПОЛУЧЕНИЕ
+// RETRIEVAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
 UObject* USuspenseCoreServiceLocator::GetServiceByName(FName ServiceName) const
@@ -66,7 +66,7 @@ bool USuspenseCoreServiceLocator::HasService(FName ServiceName) const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// УПРАВЛЕНИЕ
+// MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreServiceLocator::UnregisterService(FName ServiceName)

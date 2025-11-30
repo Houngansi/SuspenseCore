@@ -13,7 +13,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreASC, Log, All);
 
 USuspenseCoreAbilitySystemComponent::USuspenseCoreAbilitySystemComponent()
 {
-	// Настройки по умолчанию для сетевой игры
+	// Default settings for networked gameplay
 	SetIsReplicatedByDefault(true);
 	ReplicationMode = EGameplayEffectReplicationMode::Mixed;
 }
@@ -39,7 +39,7 @@ void USuspenseCoreAbilitySystemComponent::BeginPlay()
 
 	SetupEventBusSubscriptions();
 
-	// Публикуем событие инициализации
+	// Publish initialization event
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
 		FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(GetOwner());
@@ -88,7 +88,7 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 		return;
 	}
 
-	// Создаём данные события
+	// Create event data
 	FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(GetOwner());
 	Data.SetString(TEXT("AttributeName"), Attribute.GetName());
 	Data.SetFloat(TEXT("OldValue"), OldValue);
@@ -96,13 +96,13 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	Data.SetFloat(TEXT("Delta"), NewValue - OldValue);
 	Data.SetObject(TEXT("AbilitySystemComponent"), this);
 
-	// Формируем тег события: SuspenseCore.Event.GAS.Attribute.<AttributeName>
+	// Form event tag: SuspenseCore.Event.GAS.Attribute.<AttributeName>
 	FString TagString = FString::Printf(TEXT("SuspenseCore.Event.GAS.Attribute.%s"), *Attribute.GetName());
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
 
 	if (!EventTag.IsValid())
 	{
-		// Используем generic тег если специфичный не зарегистрирован
+		// Use generic tag if specific one is not registered
 		EventTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.GAS.Attribute.Changed")), false);
 	}
 
@@ -141,13 +141,13 @@ void USuspenseCoreAbilitySystemComponent::PublishCriticalEvent(
 
 USuspenseCoreEventBus* USuspenseCoreAbilitySystemComponent::GetEventBus() const
 {
-	// Проверяем кэш
+	// Check cache
 	if (CachedEventBus.IsValid())
 	{
 		return CachedEventBus.Get();
 	}
 
-	// Получаем через EventManager
+	// Get through EventManager
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetOwner());
 	if (Manager)
 	{
@@ -276,12 +276,12 @@ void USuspenseCoreAbilitySystemComponent::RemoveActiveEffectsOfClass(TSubclassOf
 
 void USuspenseCoreAbilitySystemComponent::SetupEventBusSubscriptions()
 {
-	// В базовом классе ничего не делаем
-	// Наследники могут переопределить для подписки на события
+	// Base class does nothing
+	// Subclasses can override to subscribe to events
 }
 
 void USuspenseCoreAbilitySystemComponent::TeardownEventBusSubscriptions()
 {
-	// Очищаем кэш
+	// Clear cache
 	CachedEventBus.Reset();
 }

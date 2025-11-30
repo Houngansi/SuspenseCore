@@ -215,42 +215,253 @@ if (EventManager)
 
 ### 5.1 WBP_SuspenseCoreRegistration
 
+Виджет регистрации персонажа с выбором класса.
+
+**Создание:**
 1. **Content Browser** → Right Click → **User Interface** → **Widget Blueprint**
-2. Parent: `USuspenseCoreRegistrationWidget`
+2. Parent Class: `USuspenseCoreRegistrationWidget`
 3. Назовите: `WBP_SuspenseCoreRegistration`
 
-**Designer разметка:**
+---
+
+#### 5.1.1 Таблица биндингов (BindWidget)
+
+| Имя виджета | Тип | Обязательность | Описание |
+|-------------|-----|----------------|----------|
+| `DisplayNameInput` | UEditableTextBox | **REQUIRED** | Поле ввода имени персонажа |
+| `CreateButton` | UButton | **REQUIRED** | Кнопка создания персонажа |
+| `StatusText` | UTextBlock | Optional | Текст ошибок/успеха |
+| `TitleText` | UTextBlock | Optional | Заголовок формы |
+| `AdditionalFieldsContainer` | UVerticalBox | Optional | Контейнер для доп. полей |
+
+**Выбор класса (все Optional):**
+
+| Имя виджета | Тип | Описание |
+|-------------|-----|----------|
+| `ClassSelectionContainer` | UHorizontalBox | Контейнер кнопок классов |
+| `AssaultClassButton` | UButton | Кнопка класса Штурмовик |
+| `MedicClassButton` | UButton | Кнопка класса Медик |
+| `SniperClassButton` | UButton | Кнопка класса Снайпер |
+| `SelectedClassNameText` | UTextBlock | Название выбранного класса |
+| `SelectedClassDescriptionText` | UTextBlock | Описание выбранного класса |
+
+---
+
+#### 5.1.2 Твоя текущая структура виджета
 
 ```
-[Canvas Panel]
-├── [Vertical Box] (Centered)
-│   ├── [Text Block] "Create Your Character"
-│   │       Font Size: 24
-│   │
-│   ├── [Spacer] Height: 20
-│   │
-│   ├── [Editable Text Box]  ← Name: "DisplayNameInput"
-│   │       Hint Text: "Enter display name..."
-│   │       Is Variable: ✓
-│   │
-│   ├── [Spacer] Height: 10
-│   │
-│   ├── [Button]  ← Name: "CreateButton"
-│   │   │   Is Variable: ✓
-│   │   └── [Text Block] "Create Character"
-│   │
-│   ├── [Spacer] Height: 10
-│   │
-│   └── [Text Block]  ← Name: "StatusText"
-│           Is Variable: ✓
-│           Text: ""
-│           Color: Red/Green (по состоянию)
+WBP_SuspenseCoreRegistration (USuspenseCoreRegistrationWidget)
+├── [Canvas Panel]
+│   └── [Border] ← AdditionalFieldsContainer (опционально)
+│       │
+│       ├── [Text Block] "TitleText"
+│       │       Text: "Create Your Character"
+│       │       Font Size: 24
+│       │
+│       ├── [Spacer] Height: 20
+│       │
+│       ├── [Editable Text Box] "DisplayNameInput" ← REQUIRED
+│       │       Hint Text: "Введите имя персонажа..."
+│       │       Is Variable: ✓
+│       │
+│       ├── [Spacer] Height: 15
+│       │
+│       ├── [Size Box]
+│       │   └── [Button] "CreateButton" ← REQUIRED
+│       │       │   Is Variable: ✓
+│       │       │   Style: Ваш стиль кнопки
+│       │       └── [Text Block] "TextBlock_Create"
+│       │               Text: "CREATE CHARACTER"
+│       │
+│       ├── [Spacer] Height: 10
+│       │
+│       └── [Text Block] "StatusText"
+│               Is Variable: ✓
+│               Text: "" (пустой)
+│               Visibility: Collapsed (по умолчанию)
 ```
 
-**ВАЖНО:** Имена виджетов должны точно совпадать с `BindWidget` в C++:
-- `DisplayNameInput` (UEditableTextBox)
-- `CreateButton` (UButton)
-- `StatusText` (UTextBlock)
+---
+
+#### 5.1.3 Добавление выбора класса персонажа
+
+Чтобы добавить выбор класса, расширь структуру виджета:
+
+```
+WBP_SuspenseCoreRegistration
+├── [Canvas Panel]
+│   └── [Border / Vertical Box]
+│       │
+│       ├── [Text Block] "TitleText"
+│       │       Text: "Создание персонажа"
+│       │
+│       ├── [Spacer] Height: 20
+│       │
+│       ├── [Editable Text Box] "DisplayNameInput"
+│       │       Hint Text: "Введите имя персонажа..."
+│       │
+│       ├── [Spacer] Height: 20
+│       │
+│       │   ╔══════════════════════════════════════════════════════╗
+│       │   ║         СЕКЦИЯ ВЫБОРА КЛАССА (НОВОЕ)                 ║
+│       │   ╚══════════════════════════════════════════════════════╝
+│       │
+│       ├── [Text Block] "Выберите класс:"
+│       │       Font Size: 16
+│       │
+│       ├── [Spacer] Height: 10
+│       │
+│       ├── [Horizontal Box] "ClassSelectionContainer" ← НОВЫЙ
+│       │   │   Is Variable: ✓
+│       │   │
+│       │   ├── [Button] "AssaultClassButton"  ← НОВЫЙ
+│       │   │   │   Is Variable: ✓
+│       │   │   │   Padding: (10, 5)
+│       │   │   └── [Vertical Box]
+│       │   │       ├── [Image] (иконка штурмовика)
+│       │   │       └── [Text Block] "ШТУРМОВИК"
+│       │   │
+│       │   ├── [Spacer] Width: 10
+│       │   │
+│       │   ├── [Button] "MedicClassButton"  ← НОВЫЙ
+│       │   │   │   Is Variable: ✓
+│       │   │   └── [Vertical Box]
+│       │   │       ├── [Image] (иконка медика)
+│       │   │       └── [Text Block] "МЕДИК"
+│       │   │
+│       │   ├── [Spacer] Width: 10
+│       │   │
+│       │   └── [Button] "SniperClassButton"  ← НОВЫЙ
+│       │       │   Is Variable: ✓
+│       │       └── [Vertical Box]
+│       │           ├── [Image] (иконка снайпера)
+│       │           └── [Text Block] "СНАЙПЕР"
+│       │
+│       ├── [Spacer] Height: 15
+│       │
+│       ├── [Border] (панель описания класса)
+│       │   │   Background: (0.05, 0.05, 0.1, 0.8)
+│       │   │   Padding: 15
+│       │   │
+│       │   └── [Vertical Box]
+│       │       ├── [Text Block] "SelectedClassNameText"  ← НОВЫЙ
+│       │       │       Is Variable: ✓
+│       │       │       Font Size: 20
+│       │       │       Text: "Штурмовик" (по умолчанию)
+│       │       │
+│       │       └── [Text Block] "SelectedClassDescriptionText"  ← НОВЫЙ
+│       │               Is Variable: ✓
+│       │               Font Size: 14
+│       │               Text: "Сбалансированный боец..."
+│       │               Auto Wrap Text: ✓
+│       │
+│       │   ╔══════════════════════════════════════════════════════╗
+│       │   ║         КОНЕЦ СЕКЦИИ ВЫБОРА КЛАССА                   ║
+│       │   ╚══════════════════════════════════════════════════════╝
+│       │
+│       ├── [Spacer] Height: 20
+│       │
+│       ├── [Size Box]
+│       │   └── [Button] "CreateButton"
+│       │       └── [Text Block] "CREATE CHARACTER"
+│       │
+│       ├── [Spacer] Height: 10
+│       │
+│       └── [Text Block] "StatusText"
+│               Text: ""
+```
+
+---
+
+#### 5.1.4 Настройка стилей кнопок классов
+
+**Обычное состояние:**
+```
+Background Color: (0.1, 0.1, 0.15, 1.0)
+Border: 2px solid (0.3, 0.3, 0.4, 1.0)
+```
+
+**Выбранное состояние (Hovered/Selected):**
+```
+Background Color: (0.0, 0.4, 0.8, 1.0)  // Синий
+Border: 2px solid (0.2, 0.6, 1.0, 1.0)
+```
+
+**Blueprint логика подсветки:**
+C++ автоматически вызывает `UpdateClassSelectionUI()` при клике на кнопку класса.
+Для визуальной подсветки используй Button Style или меняй цвет в Blueprint.
+
+---
+
+#### 5.1.5 Описания классов
+
+| ClassId | Название | Описание (русский) |
+|---------|----------|-------------------|
+| `Assault` | Штурмовик | Сбалансированный боец передовой линии. +15% к урону, +10% к скорости перезарядки. |
+| `Medic` | Медик | Поддержка команды. +30% регенерация HP, +15% регенерация щита, повышенная мобильность. |
+| `Sniper` | Снайпер | Дальнобойный стрелок. +25% дальность, +20% точность, но низкая выживаемость. |
+
+---
+
+#### 5.1.6 Валидация перед созданием
+
+C++ автоматически проверяет:
+- Имя: 3-32 символа (настраивается в Class Defaults)
+- Разрешённые символы: буквы, цифры, пробелы, `_`, `-`
+- Класс должен быть выбран (если кнопки присутствуют)
+
+При ошибке текст появится в `StatusText` красным цветом.
+
+---
+
+#### 5.1.7 События (Delegates)
+
+Подпишись на события в Blueprint или C++:
+
+```cpp
+// C++ пример
+RegistrationWidget->OnRegistrationComplete.AddDynamic(
+    this, &AMyHUD::HandleRegistrationComplete);
+
+RegistrationWidget->OnRegistrationError.AddDynamic(
+    this, &AMyHUD::HandleRegistrationError);
+```
+
+```
+// Blueprint пример
+Event OnRegistrationComplete (PlayerData)
+    → Show Success Message
+    → Switch to Main Menu Screen
+
+Event OnRegistrationError (ErrorMessage)
+    → Show Error in StatusText
+```
+
+---
+
+#### 5.1.8 Class Defaults (настройки)
+
+В Details панели виджета (Class Defaults):
+
+| Параметр | Значение по умолчанию | Описание |
+|----------|----------------------|----------|
+| Min Display Name Length | 3 | Минимальная длина имени |
+| Max Display Name Length | 32 | Максимальная длина имени |
+| Auto Close On Success | false | Закрыть виджет после успеха |
+| Auto Close Delay | 2.0 | Задержка перед закрытием (сек) |
+
+---
+
+#### 5.1.9 EventBus события
+
+При создании персонажа публикуются:
+
+| Событие | Когда | Данные |
+|---------|-------|--------|
+| `SuspenseCore.Event.UI.Registration.Success` | Успешное создание | PlayerId, DisplayName, ClassId |
+| `SuspenseCore.Event.UI.Registration.Failed` | Ошибка | ErrorMessage |
+
+**ВАЖНО:** Имена виджетов РЕГИСТРОЗАВИСИМЫ и должны совпадать ТОЧНО!
 
 ### 5.2 WBP_SuspenseCorePlayerInfo
 

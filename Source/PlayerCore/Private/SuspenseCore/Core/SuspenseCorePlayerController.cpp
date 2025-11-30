@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
@@ -51,10 +52,11 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 	SetupEnhancedInput();
 
-	// Create pause menu for local player
+	// Create UI widgets for local player
 	if (IsLocalController())
 	{
 		CreatePauseMenu();
+		CreateHUDWidget();
 
 		// Verify input mode
 		UE_LOG(LogTemp, Warning, TEXT("=== Input Mode Check ==="));
@@ -570,6 +572,52 @@ void ASuspenseCorePlayerController::HidePauseMenu()
 bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
 {
 	return PauseMenuWidget && PauseMenuWidget->IsMenuVisible();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HUD WIDGET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::CreateHUDWidget()
+{
+	if (!HUDWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerController: HUDWidgetClass is not set"));
+		return;
+	}
+
+	HUDWidget = CreateWidget<USuspenseCoreHUDWidget>(this, HUDWidgetClass);
+	if (HUDWidget)
+	{
+		HUDWidget->AddToViewport(0); // Low Z-order for HUD (under pause menu)
+		HUDWidget->SetVisibility(ESlateVisibility::Visible);
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerController: HUD widget created and added to viewport"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SuspenseCorePlayerController: Failed to create HUD widget"));
+	}
+}
+
+void ASuspenseCorePlayerController::ShowHUD()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void ASuspenseCorePlayerController::HideHUD()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+bool ASuspenseCorePlayerController::IsHUDVisible() const
+{
+	return HUDWidget && HUDWidget->GetVisibility() == ESlateVisibility::Visible;
 }
 
 void ASuspenseCorePlayerController::QuickSave()

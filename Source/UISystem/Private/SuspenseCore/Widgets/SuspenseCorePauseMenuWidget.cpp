@@ -6,7 +6,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreSaveLoadMenuWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
-#include "SuspenseCore/Core/SuspenseCorePlayerController.h"
+#include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
@@ -136,23 +136,20 @@ void USuspenseCorePauseMenuWidget::ShowPauseMenu()
 	// Focus the widget
 	SetFocus();
 
-	// Use centralized UI mode management for cursor
-	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
+	// Use centralized UI mode management for cursor via interface
+	APlayerController* PC = GetOwningPlayer();
+	if (PC && PC->Implements<USuspenseCoreUIController>())
 	{
-		SuspensePC->PushUIMode(TEXT("PauseMenu"));
+		ISuspenseCoreUIController::Execute_PushUIMode(PC, TEXT("PauseMenu"));
 	}
-	else
+	else if (PC)
 	{
 		// Fallback for non-SuspenseCore controllers
-		APlayerController* PC = GetOwningPlayer();
-		if (PC)
-		{
-			FInputModeUIOnly InputMode;
-			InputMode.SetWidgetToFocus(TakeWidget());
-			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			PC->SetInputMode(InputMode);
-			PC->SetShowMouseCursor(true);
-		}
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(true);
 	}
 
 	OnMenuShown();
@@ -172,21 +169,18 @@ void USuspenseCorePauseMenuWidget::HidePauseMenu()
 	SetVisibility(ESlateVisibility::Collapsed);
 	SetGamePaused(false);
 
-	// Use centralized UI mode management for cursor
-	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
+	// Use centralized UI mode management for cursor via interface
+	APlayerController* PC = GetOwningPlayer();
+	if (PC && PC->Implements<USuspenseCoreUIController>())
 	{
-		SuspensePC->PopUIMode(TEXT("PauseMenu"));
+		ISuspenseCoreUIController::Execute_PopUIMode(PC, TEXT("PauseMenu"));
 	}
-	else
+	else if (PC)
 	{
 		// Fallback for non-SuspenseCore controllers
-		APlayerController* PC = GetOwningPlayer();
-		if (PC)
-		{
-			FInputModeGameOnly InputMode;
-			PC->SetInputMode(InputMode);
-			PC->SetShowMouseCursor(false);
-		}
+		FInputModeGameOnly InputMode;
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(false);
 	}
 
 	OnMenuHidden();

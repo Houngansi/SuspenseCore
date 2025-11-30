@@ -41,14 +41,15 @@ void USuspenseCoreCharacterSelectWidget::NativeConstruct()
 		DeleteButton->OnClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnDeleteButtonClicked);
 	}
 
-	// Update UI
+	// Update UI display (text, etc.)
 	UpdateUIDisplay();
-
-	// Load and display characters
-	RefreshCharacterList();
 
 	// Initial play button state
 	UpdatePlayButtonState();
+
+	// NOTE: RefreshCharacterList() is NOT called here!
+	// Parent widget (MainMenuWidget) should call RefreshCharacterList() AFTER
+	// setting up delegate bindings to ensure proper event flow.
 }
 
 void USuspenseCoreCharacterSelectWidget::NativeDestruct()
@@ -202,6 +203,9 @@ void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& Playe
 				EntryWidget->SetSelected(Pair.Value == PlayerId);
 			}
 		}
+
+		// Broadcast highlight delegate so MainMenu can update PlayerInfo
+		OnCharacterHighlightedDelegate.Broadcast(PlayerId, *FoundEntry);
 	}
 	else
 	{

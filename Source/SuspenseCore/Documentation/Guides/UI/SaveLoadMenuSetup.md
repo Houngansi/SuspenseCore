@@ -118,72 +118,98 @@ Save/Load Menu - это полноценное меню для управлен�
 
 ### 3.2 Designer структура
 
+**КРИТИЧНО:** Вся структура должна быть внутри `SlotButton`!
+
 ```
-[Border] "SlotBorder"                        ← Подсветка при выборе
-│   Brush Color: (0.1, 0.1, 0.1, 0.8)
-│   Padding: 10
+[Button] "SlotButton"                        ← ОБЯЗАТЕЛЬНО! Главная кнопка
+│   Style: Transparent/None
 │   Is Variable: ✓
 │
-└── [Horizontal Box]
+└── [Border] "SlotBorder"                    ← Подсветка при выборе
+    │   Brush Color: (0.1, 0.1, 0.1, 0.8)
+    │   Padding: 10
+    │   Is Variable: ✓
     │
-    ├── [Image] "ThumbnailImage"             ← Превью (опционально)
-    │       Size: 80x60
-    │       Visibility: Collapsed (по умолчанию)
-    │       Is Variable: ✓
-    │
-    ├── [Spacer] Width: 10
-    │
-    ├── [Vertical Box] (Expand: Fill)
-    │   │
-    │   ├── [Horizontal Box]
-    │   │   ├── [Text Block] "SlotNameText"  ← "Slot 1" / "Quick Save"
-    │   │   │       Font Size: 16
-    │   │   │       Font: Bold
-    │   │   │       Is Variable: ✓
-    │   │   │
-    │   │   └── [Text Block] "TimestampText" ← "2025-11-29 14:32"
-    │   │           Font Size: 12
-    │   │           Color: Gray
-    │   │           Alignment: Right
-    │   │           Is Variable: ✓
-    │   │
-    │   ├── [Spacer] Height: 5
-    │   │
-    │   ├── [Text Block] "InfoText"          ← "Lv.15 | Forest | 2:30:45"
-    │   │       Font Size: 14
-    │   │       Color: Light Gray
-    │   │       Is Variable: ✓
-    │   │
-    │   └── [Text Block] "EmptySlotText"     ← "Empty Slot - Click to Save"
-    │           Font Size: 14
-    │           Color: Dark Gray
-    │           Visibility: Collapsed
-    │           Is Variable: ✓
-    │
-    ├── [Spacer] Width: 10
-    │
-    └── [Button] "DeleteButton"              ← Удаление слота
-        │   Style: Minimal/Transparent
-        │   Is Variable: ✓
-        │   Visibility: Collapsed (показать при hover)
+    └── [Horizontal Box]
         │
-        └── [Image]
-                Brush: TrashIcon
-                Size: 24x24
-                Tint: Red
+        ├── [Image] "ThumbnailImage"         ← Превью (опционально)
+        │       Size: 80x60
+        │       Visibility: Collapsed
+        │       Is Variable: ✓
+        │
+        ├── [Spacer] Width: 10
+        │
+        ├── [Vertical Box] (Expand: Fill)
+        │   │
+        │   ├── [Horizontal Box]
+        │   │   │
+        │   │   ├── [Text Block] "SlotNameText"      ← "Slot 1" / "Quick Save"
+        │   │   │       Font Size: 16, Bold
+        │   │   │       Is Variable: ✓
+        │   │   │
+        │   │   └── [Text Block] "TimestampText"     ← "Nov 29, 2025 14:32"
+        │   │           Font Size: 12, Gray
+        │   │           Alignment: Right
+        │   │           Is Variable: ✓
+        │   │
+        │   ├── [Spacer] Height: 5
+        │   │
+        │   ├── [Horizontal Box]                     ← Данные сохранения
+        │   │   │
+        │   │   ├── [Text Block] "CharacterNameText" ← "Player Name"
+        │   │   │       Font Size: 14
+        │   │   │       Is Variable: ✓
+        │   │   │
+        │   │   ├── [Text Block] "LevelText"         ← "Lv. 15"
+        │   │   │       Font Size: 14, Gray
+        │   │   │       Padding Left: 10
+        │   │   │       Is Variable: ✓
+        │   │   │
+        │   │   ├── [Text Block] "LocationText"      ← "Forest"
+        │   │   │       Font Size: 14, Gray
+        │   │   │       Padding Left: 10
+        │   │   │       Is Variable: ✓
+        │   │   │
+        │   │   └── [Text Block] "PlaytimeText"      ← "2h 30m"
+        │   │           Font Size: 14, Gray
+        │   │           Padding Left: 10
+        │   │           Is Variable: ✓
+        │   │
+        │   └── [Text Block] "EmptyText"             ← "- Empty Slot -"
+        │           Font Size: 14
+        │           Color: Dark Gray
+        │           Visibility: Collapsed
+        │           Is Variable: ✓
+        │
+        ├── [Spacer] Width: 10
+        │
+        └── [Button] "DeleteButton"                  ← Удаление слота
+            │   Style: Minimal/Transparent
+            │   Is Variable: ✓
+            │
+            └── [Image]
+                    Brush: TrashIcon (X icon)
+                    Size: 24x24
+                    Tint: Red
 ```
 
 ### 3.3 Обязательные BindWidget имена
 
 | Имя | Тип | Обязательный | Описание |
 |-----|-----|--------------|----------|
-| `SlotBorder` | UBorder | Нет | Рамка для подсветки выбора |
-| `SlotNameText` | UTextBlock | **Да** | Название слота |
-| `InfoText` | UTextBlock | **Да** | Информация (уровень, локация, время) |
+| `SlotButton` | UButton | **ДА!** | Главная кнопка - без неё клики не работают! |
+| `SlotBorder` | UBorder | Нет | Рамка для подсветки |
+| `SlotNameText` | UTextBlock | Нет | "Slot 1" / "Quick Save" / "Auto Save" |
+| `CharacterNameText` | UTextBlock | Нет | Имя персонажа |
+| `LevelText` | UTextBlock | Нет | "Lv. 15" |
+| `LocationText` | UTextBlock | Нет | Название локации |
 | `TimestampText` | UTextBlock | Нет | Дата/время сохранения |
-| `EmptyText` | UTextBlock | Нет | Текст пустого слота |
-| `ThumbnailImage` | UImage | Нет | Превью скриншот |
+| `PlaytimeText` | UTextBlock | Нет | Время игры "2h 30m" |
+| `EmptyText` | UTextBlock | Нет | Текст для пустых слотов |
 | `DeleteButton` | UButton | Нет | Кнопка удаления |
+| `ThumbnailImage` | UImage | Нет | Превью скриншот |
+
+**ВАЖНО:** `InfoText` НЕ существует в C++ коде! Используй отдельные поля.
 
 ### 3.4 Настройка в Class Defaults
 
@@ -201,45 +227,87 @@ Slot Widget | Text:
 └── AutoSaveDisplayText:  "Auto Save"
 ```
 
-### 3.5 Как работает слот
+### 3.5 Как работают события слота
 
 ```cpp
-// Инициализация слота с данными
-void USuspenseCoreSaveSlotWidget::InitializeSlot(
-    int32 InSlotIndex,
-    const FSuspenseCoreSaveHeader& Header,
-    bool bIsEmpty)
+// NativeConstruct привязывает события к кнопкам
+void USuspenseCoreSaveSlotWidget::NativeConstruct()
 {
-    SlotIndex = InSlotIndex;
-    bIsEmptySlot = bIsEmpty;
+    Super::NativeConstruct();
 
-    if (bIsEmpty)
+    // SlotButton - ГЛАВНАЯ КНОПКА для выбора слота!
+    if (SlotButton)
     {
-        // Пустой слот
-        SlotNameText->SetText(FText::Format("Slot {0}", SlotIndex));
-        InfoText->SetVisibility(ESlateVisibility::Collapsed);
-        EmptySlotText->SetVisibility(ESlateVisibility::Visible);
+        SlotButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveSlotWidget::OnSlotButtonClicked);
+        SlotButton->OnHovered.AddDynamic(this, &USuspenseCoreSaveSlotWidget::OnSlotButtonHovered);
+        SlotButton->OnUnhovered.AddDynamic(this, &USuspenseCoreSaveSlotWidget::OnSlotButtonUnhovered);
     }
-    else
+
+    // DeleteButton - кнопка удаления
+    if (DeleteButton)
     {
-        // Занятый слот
-        SlotNameText->SetText(FText::FromString(Header.SlotName));
-        InfoText->SetText(FormatSlotInfo(Header));
-        TimestampText->SetText(FormatTimestamp(Header.SaveTimestamp));
-        EmptySlotText->SetVisibility(ESlateVisibility::Collapsed);
-        InfoText->SetVisibility(ESlateVisibility::Visible);
+        DeleteButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveSlotWidget::OnDeleteButtonClicked);
     }
 }
 
-// Формат информации: "Lv.15 | Forest | 2:30:45"
-FText FormatSlotInfo(const FSuspenseCoreSaveHeader& Header)
+// При клике на слот вызывается делегат
+void USuspenseCoreSaveSlotWidget::OnSlotButtonClicked()
 {
-    return FText::Format(
-        "Lv.{0} | {1} | {2}",
-        Header.CharacterLevel,
-        Header.MapDisplayName,
-        FormatPlayTime(Header.TotalPlayTime)
-    );
+    // Вызывает события для родительского меню
+    OnSlotSelectedEvent(SlotIndex, bIsEmpty);
+    OnSlotSelected.Broadcast(SlotIndex, bIsEmpty);
+}
+
+// При клике на DeleteButton
+void USuspenseCoreSaveSlotWidget::OnDeleteButtonClicked()
+{
+    OnDeleteRequestedEvent(SlotIndex);
+    OnDeleteRequested.Broadcast(SlotIndex);
+}
+```
+
+### 3.6 Логика отображения UpdateDisplay()
+
+```cpp
+void USuspenseCoreSaveSlotWidget::UpdateDisplay()
+{
+    // Имя слота: "Slot 1" / "Quick Save" / "Auto Save"
+    if (SlotNameText)
+    {
+        SlotNameText->SetText(FText::FromString(GetSlotDisplayName(SlotIndex)));
+    }
+
+    if (bIsEmpty)
+    {
+        // Показать текст пустого слота
+        if (EmptyText) EmptyText->SetVisibility(ESlateVisibility::Visible);
+
+        // Скрыть все поля данных
+        if (CharacterNameText) CharacterNameText->SetVisibility(ESlateVisibility::Collapsed);
+        if (LevelText) LevelText->SetVisibility(ESlateVisibility::Collapsed);
+        if (LocationText) LocationText->SetVisibility(ESlateVisibility::Collapsed);
+        if (TimestampText) TimestampText->SetVisibility(ESlateVisibility::Collapsed);
+        if (PlaytimeText) PlaytimeText->SetVisibility(ESlateVisibility::Collapsed);
+        if (DeleteButton) DeleteButton->SetVisibility(ESlateVisibility::Collapsed);
+    }
+    else
+    {
+        // Скрыть текст пустого слота
+        if (EmptyText) EmptyText->SetVisibility(ESlateVisibility::Collapsed);
+
+        // Показать данные сохранения
+        if (CharacterNameText) CharacterNameText->SetText(FText::FromString(CachedHeader.CharacterName));
+        if (LevelText) LevelText->SetText(FText::Format("Lv. {0}", CachedHeader.CharacterLevel));
+        if (LocationText) LocationText->SetText(FText::FromString(CachedHeader.LocationName));
+        if (TimestampText) TimestampText->SetText(FText::FromString(FormatTimestamp(CachedHeader.SaveTimestamp)));
+        if (PlaytimeText) PlaytimeText->SetText(FText::FromString(FormatPlaytime(CachedHeader.TotalPlayTimeSeconds)));
+
+        // Показать кнопку удаления (кроме AutoSave)
+        if (DeleteButton && SlotIndex != AUTOSAVE_SLOT)
+        {
+            DeleteButton->SetVisibility(ESlateVisibility::Visible);
+        }
+    }
 }
 ```
 

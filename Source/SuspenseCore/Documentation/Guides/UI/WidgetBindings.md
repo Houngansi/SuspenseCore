@@ -178,24 +178,29 @@ UButton* PlayButton;  // Имя: PlayButton
 
 | Имя | Тип | Required | Описание |
 |-----|-----|----------|----------|
-| `SlotNameText` | `UTextBlock` | **✓** | Название слота |
-| `InfoText` | `UTextBlock` | **✓** | Информация о сохранении |
-| `SlotBorder` | `UBorder` | | Рамка для подсветки |
-| `TimestampText` | `UTextBlock` | | Дата/время |
-| `EmptyText` | `UTextBlock` | | Текст пустого слота |
-| `ThumbnailImage` | `UImage` | | Превью скриншот |
+| `SlotButton` | `UButton` | **✓** | **ГЛАВНАЯ КНОПКА!** Без неё клики не работают |
+| `SlotBorder` | `UBorder` | | Рамка для подсветки выбора |
+| `SlotNameText` | `UTextBlock` | | "Slot 1" / "Quick Save" / "Auto Save" |
+| `CharacterNameText` | `UTextBlock` | | Имя персонажа |
+| `LevelText` | `UTextBlock` | | "Lv. 15" |
+| `LocationText` | `UTextBlock` | | Название локации |
+| `TimestampText` | `UTextBlock` | | "Nov 29, 2025 14:32" |
+| `PlaytimeText` | `UTextBlock` | | "2h 30m" |
+| `EmptyText` | `UTextBlock` | | "- Empty Slot -" (для пустых слотов) |
 | `DeleteButton` | `UButton` | | Кнопка удаления |
-| `SelectButton` | `UButton` | | Кнопка выбора |
+| `ThumbnailImage` | `UImage` | | Превью скриншот |
+
+**КРИТИЧНО:** `SlotButton` должен оборачивать весь контент слота!
 
 ---
 
 ## Быстрая проверка
 
-### Все Required виджеты
+### Критически важные виджеты
 
 ```
 WBP_MainMenu:
-  ✓ ScreenSwitcher
+  ✓ ScreenSwitcher (UWidgetSwitcher)
   ✓ CharacterSelectWidget
   ✓ RegistrationWidget
   ✓ PlayButton
@@ -223,14 +228,24 @@ WBP_PauseMenu:
   ✓ ExitToLobbyButton
 
 WBP_SaveLoadMenu:
-  ✓ TitleText
-  ✓ SlotListScrollBox
-  ✓ CloseButton
+  ✓ SlotsContainer (UVerticalBox) ← ОБЯЗАТЕЛЬНО!
+  + TitleText (опционально)
+  + CloseButton (опционально)
 
 WBP_SaveSlot:
-  ✓ SlotNameText
-  ✓ InfoText
+  ✓ SlotButton (UButton) ← ОБЯЗАТЕЛЬНО! Главная кнопка
+  + SlotBorder (опционально)
+  + SlotNameText (опционально)
+  + CharacterNameText (опционально)
+  + LevelText (опционально)
+  + LocationText (опционально)
+  + TimestampText (опционально)
+  + PlaytimeText (опционально)
+  + EmptyText (опционально)
+  + DeleteButton (опционально)
 ```
+
+**ВАЖНО:** Без `SlotButton` клики на слоты не будут работать!
 
 ---
 

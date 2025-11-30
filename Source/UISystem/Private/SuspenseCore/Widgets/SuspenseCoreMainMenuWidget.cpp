@@ -224,7 +224,7 @@ void USuspenseCoreMainMenuWidget::TransitionToGame()
 		EventData.SetString(FName("MapName"), GameMapName.ToString());
 
 		Manager->GetEventBus()->Publish(
-			FGameplayTag::RequestGameplayTag(FName("Event.UI.MainMenu.PlayClicked")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.MainMenu.PlayClicked")),
 			EventData
 		);
 	}
@@ -322,7 +322,7 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 
 	// Subscribe to registration success events
 	RegistrationEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.Registration.Success")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Registration.Success")),
 		const_cast<USuspenseCoreMainMenuWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnRegistrationSuccess),
 		ESuspenseCoreEventPriority::Normal
@@ -330,7 +330,7 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 
 	// Subscribe to character select events
 	CharacterSelectEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Selected")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Selected")),
 		const_cast<USuspenseCoreMainMenuWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterSelected),
 		ESuspenseCoreEventPriority::Normal
@@ -338,7 +338,7 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 
 	// Subscribe to create new character events
 	CreateNewCharacterEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.CreateNew")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.CreateNew")),
 		const_cast<USuspenseCoreMainMenuWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCreateNewCharacter),
 		ESuspenseCoreEventPriority::Normal
@@ -346,7 +346,7 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 
 	// Subscribe to character highlighted events (for PlayerInfo updates)
 	CharacterHighlightedEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Highlighted")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted")),
 		const_cast<USuspenseCoreMainMenuWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterHighlighted),
 		ESuspenseCoreEventPriority::Normal
@@ -354,7 +354,7 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 
 	// Subscribe to character deleted events
 	CharacterDeletedEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Deleted")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Deleted")),
 		const_cast<USuspenseCoreMainMenuWidget*>(this),
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnCharacterDeleted),
 		ESuspenseCoreEventPriority::Normal

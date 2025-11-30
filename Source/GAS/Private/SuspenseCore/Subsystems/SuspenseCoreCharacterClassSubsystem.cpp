@@ -499,6 +499,6 @@ void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(AActor* Actor
 	EventData.SetString(FName("ClassID"), ClassData->ClassID.ToString());
 	EventData.SetString(FName("ClassName"), ClassData->DisplayName.ToString());
 
-	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("Event.Player.ClassChanged"));
+	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged"));
 	EventBus->Publish(EventTag, EventData);
 }

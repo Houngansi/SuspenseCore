@@ -10,6 +10,7 @@ This guide covers the core UI widgets for player registration, character creatio
 4. [Blueprint Setup](#blueprint-setup)
 5. [EventBus Integration](#eventbus-integration)
 6. [Customization](#customization)
+7. [USuspenseCoreHUDWidget](#ususpensecorehudwidget)
 
 ---
 
@@ -477,6 +478,200 @@ Style widgets in Blueprint Designer:
 2. Modify **Appearance** section in Details
 3. Use **Style** properties for buttons
 4. Consider creating a **Widget Style** asset for consistency
+
+---
+
+## USuspenseCoreHUDWidget
+
+In-game HUD widget displaying player vital stats (Health, Shield, Stamina).
+
+### Header Location
+
+```
+Source/UISystem/Public/SuspenseCore/Widgets/SuspenseCoreHUDWidget.h
+```
+
+### Features
+
+- Real-time GAS attribute updates via AttributeSet binding
+- Smooth progress bar interpolation
+- Color coding (critical health = red)
+- EventBus integration for attribute changes
+- Auto-bind to local player on construct
+
+### Health Bindings
+
+| Widget Name | Type | Description |
+|-------------|------|-------------|
+| `HealthProgressBar` | `UProgressBar` | Health progress bar |
+| `HealthValueText` | `UTextBlock` | Current health (e.g., "75") |
+| `MaxHealthValueText` | `UTextBlock` | Max health (e.g., "100") |
+| `HealthText` | `UTextBlock` | Combined text (e.g., "75 / 100") |
+| `HealthIcon` | `UImage` | Health icon |
+
+### Shield Bindings
+
+| Widget Name | Type | Description |
+|-------------|------|-------------|
+| `ShieldProgressBar` | `UProgressBar` | Shield progress bar |
+| `ShieldValueText` | `UTextBlock` | Current shield |
+| `MaxShieldValueText` | `UTextBlock` | Max shield |
+| `ShieldText` | `UTextBlock` | Combined text |
+| `ShieldIcon` | `UImage` | Shield icon |
+
+### Stamina Bindings
+
+| Widget Name | Type | Description |
+|-------------|------|-------------|
+| `StaminaProgressBar` | `UProgressBar` | Stamina progress bar |
+| `StaminaValueText` | `UTextBlock` | Current stamina |
+| `MaxStaminaValueText` | `UTextBlock` | Max stamina |
+| `StaminaText` | `UTextBlock` | Combined text |
+| `StaminaIcon` | `UImage` | Stamina icon |
+
+### Blueprint Widget Hierarchy Example
+
+```
+WBP_SuspenseCoreHUD (USuspenseCoreHUDWidget)
+├── CanvasPanel
+│   └── VerticalBox (Bottom-Left Anchor)
+│       │
+│       ├── HorizontalBox (Health Row)
+│       │   ├── HealthIcon [Image] - Heart icon
+│       │   ├── HealthProgressBar [ProgressBar] - Green/Red
+│       │   └── HealthText [TextBlock] - "75 / 100"
+│       │
+│       ├── HorizontalBox (Shield Row)
+│       │   ├── ShieldIcon [Image] - Shield icon
+│       │   ├── ShieldProgressBar [ProgressBar] - Blue
+│       │   └── ShieldText [TextBlock] - "50 / 100"
+│       │
+│       └── HorizontalBox (Stamina Row)
+│           ├── StaminaIcon [Image] - Lightning icon
+│           ├── StaminaProgressBar [ProgressBar] - Yellow
+│           └── StaminaText [TextBlock] - "80 / 100"
+```
+
+### Configuration Properties
+
+```cpp
+// Set in Blueprint Details panel under "SuspenseCore|HUD|Config"
+
+/** Auto-bind to local player on construct (default: true) */
+bool bAutoBindToLocalPlayer = true;
+
+/** Enable smooth progress bar interpolation (default: true) */
+bool bSmoothProgressBars = true;
+
+/** Progress bar interpolation speed (default: 10.0) */
+float ProgressBarInterpSpeed = 10.0f;
+
+/** Threshold for critical health (default: 0.25) */
+float CriticalHealthThreshold = 0.25f;
+
+// Colors
+FLinearColor HealthColorNormal = FLinearColor(0.2f, 0.8f, 0.2f, 1.0f);   // Green
+FLinearColor HealthColorCritical = FLinearColor(0.9f, 0.1f, 0.1f, 1.0f); // Red
+FLinearColor ShieldColor = FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);         // Blue
+FLinearColor StaminaColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);        // Yellow
+```
+
+### Public API
+
+```cpp
+// Bind to specific actor with ASC
+UFUNCTION(BlueprintCallable)
+void BindToActor(AActor* Actor);
+
+// Unbind from current actor
+UFUNCTION(BlueprintCallable)
+void UnbindFromActor();
+
+// Bind to local player's pawn
+UFUNCTION(BlueprintCallable)
+void BindToLocalPlayer();
+
+// Force refresh all values
+UFUNCTION(BlueprintCallable)
+void RefreshAllValues();
+
+// Getters
+float GetCurrentHealth() const;
+float GetMaxHealth() const;
+float GetHealthPercent() const;
+float GetCurrentShield() const;
+float GetMaxShield() const;
+float GetShieldPercent() const;
+float GetCurrentStamina() const;
+float GetMaxStamina() const;
+float GetStaminaPercent() const;
+```
+
+### Blueprint Events
+
+```cpp
+// Called when health changes
+UFUNCTION(BlueprintImplementableEvent)
+void OnHealthChanged(float NewHealth, float MaxHealth, float OldHealth);
+
+// Called when shield changes
+UFUNCTION(BlueprintImplementableEvent)
+void OnShieldChanged(float NewShield, float MaxShield, float OldShield);
+
+// Called when stamina changes
+UFUNCTION(BlueprintImplementableEvent)
+void OnStaminaChanged(float NewStamina, float MaxStamina, float OldStamina);
+
+// Called when health becomes critical (<25%)
+UFUNCTION(BlueprintImplementableEvent)
+void OnHealthCritical();
+
+// Called when shield is broken (reaches 0)
+UFUNCTION(BlueprintImplementableEvent)
+void OnShieldBroken();
+```
+
+### Usage: Adding to PlayerController HUD
+
+```cpp
+// In your PlayerController or HUD Blueprint:
+
+// 1. Create widget
+UUserWidget* Widget = CreateWidget<USuspenseCoreHUDWidget>(
+    this,  // PlayerController
+    WBP_SuspenseCoreHUD_Class
+);
+
+// 2. Widget auto-binds to local player if bAutoBindToLocalPlayer=true
+// Or manually bind:
+USuspenseCoreHUDWidget* HUDWidget = Cast<USuspenseCoreHUDWidget>(Widget);
+HUDWidget->BindToLocalPlayer();
+
+// 3. Add to viewport
+Widget->AddToViewport();
+```
+
+### Blueprint Setup Steps
+
+1. **Create Widget Blueprint**:
+   - Right-click → User Interface → Widget Blueprint
+   - Name: `WBP_SuspenseCoreHUD`
+
+2. **Set Parent Class**:
+   - Graph → Class Settings → Parent Class: `USuspenseCoreHUDWidget`
+
+3. **Add Progress Bars** (Designer):
+   - Add 3 ProgressBars named: `HealthProgressBar`, `ShieldProgressBar`, `StaminaProgressBar`
+   - Set Fill Color for each
+
+4. **Add Text Blocks**:
+   - `HealthText`, `ShieldText`, `StaminaText` for "current / max" display
+
+5. **Configure in Details Panel**:
+   - Set colors, interpolation speed, critical threshold
+
+6. **Assign to HUD**:
+   - In PlayerController BP, add to viewport on BeginPlay
 
 ---
 

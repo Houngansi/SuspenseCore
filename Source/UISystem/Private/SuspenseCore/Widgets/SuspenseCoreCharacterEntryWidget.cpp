@@ -72,7 +72,7 @@ void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayer
 	// Update avatar
 	if (AvatarImage)
 	{
-		UTexture2D* TextureToUse = InAvatarTexture ? InAvatarTexture : DefaultAvatarTexture;
+		UTexture2D* TextureToUse = InAvatarTexture ? InAvatarTexture : DefaultAvatarTexture.Get();
 		if (TextureToUse)
 		{
 			AvatarImage->SetBrushFromTexture(TextureToUse);

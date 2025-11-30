@@ -426,10 +426,51 @@ struct BRIDGESYSTEM_API FSuspenseCorePlayerData
 		Data.CreatedAt = FDateTime::UtcNow();
 		Data.LastLoginAt = FDateTime::UtcNow();
 
+		// Starter currency for new players
+		Data.SoftCurrency = 1000;
+		Data.HardCurrency = 100;
+
 		// Дефолтный loadout
 		FSuspenseCoreLoadout DefaultLoadout;
 		DefaultLoadout.Name = TEXT("Default");
 		Data.Loadouts.Add(DefaultLoadout);
+
+		return Data;
+	}
+
+	/** Создать тестового игрока с данными для отладки */
+	static FSuspenseCorePlayerData CreateTestPlayer(const FString& InDisplayName)
+	{
+		FSuspenseCorePlayerData Data = CreateNew(InDisplayName);
+
+		// Test progression data
+		Data.Level = 25;
+		Data.ExperiencePoints = 15000;
+		Data.PrestigeLevel = 1;
+
+		// Test currency
+		Data.SoftCurrency = 50000;
+		Data.HardCurrency = 500;
+
+		// Test stats
+		Data.Stats.Kills = 342;
+		Data.Stats.Deaths = 198;
+		Data.Stats.Assists = 156;
+		Data.Stats.Headshots = 87;
+		Data.Stats.MatchesPlayed = 48;
+		Data.Stats.Wins = 22;
+		Data.Stats.PlayTimeSeconds = 72000; // 20 hours
+		Data.Stats.DamageDealt = 125000.0f;
+		Data.Stats.DamageTaken = 85000.0f;
+		Data.Stats.ShotsFired = 15000;
+		Data.Stats.ShotsHit = 4500;
+
+		// Test unlocks
+		Data.UnlockedWeapons.Add(TEXT("WPN_AssaultRifle"));
+		Data.UnlockedWeapons.Add(TEXT("WPN_SMG"));
+		Data.UnlockedWeapons.Add(TEXT("WPN_Shotgun"));
+		Data.UnlockedSkins.Add(TEXT("SKIN_Default"));
+		Data.UnlockedSkins.Add(TEXT("SKIN_Tactical"));
 
 		return Data;
 	}

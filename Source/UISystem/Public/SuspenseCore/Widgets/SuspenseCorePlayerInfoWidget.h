@@ -86,6 +86,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|PlayerInfo")
 	bool HasPlayerData() const { return !CurrentPlayerId.IsEmpty(); }
 
+	/**
+	 * Display test player data for UI debugging.
+	 * @param DisplayName - Name to use for test player
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|PlayerInfo|Debug")
+	void DisplayTestPlayerData(const FString& DisplayName = TEXT("TestPlayer"));
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UI BINDINGS

@@ -239,6 +239,12 @@ protected:
 	/** EventBus subscription handle for create new character */
 	FSuspenseCoreSubscriptionHandle CreateNewCharacterEventHandle;
 
+	/** EventBus subscription handle for character highlighted */
+	FSuspenseCoreSubscriptionHandle CharacterHighlightedEventHandle;
+
+	/** EventBus subscription handle for character deleted */
+	FSuspenseCoreSubscriptionHandle CharacterDeletedEventHandle;
+
 	/** Cached EventBus */
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
@@ -250,17 +256,11 @@ protected:
 	/** Setup button click handlers */
 	void SetupButtonBindings();
 
-	/** Subscribe to EventBus events */
+	/** Subscribe to EventBus events (primary inter-widget communication per architecture docs) */
 	void SetupEventSubscriptions();
 
 	/** Unsubscribe from events */
 	void TeardownEventSubscriptions();
-
-	/** Setup direct bindings to CharacterSelectWidget delegates */
-	void SetupCharacterSelectBindings();
-
-	/** Setup direct bindings to RegistrationWidget delegates */
-	void SetupRegistrationWidgetBindings();
 
 	/** Get player repository */
 	ISuspenseCorePlayerRepository* GetRepository();
@@ -271,6 +271,10 @@ protected:
 	/** Update UI elements */
 	void UpdateUIDisplay();
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// EVENTBUS HANDLERS
+	// ═══════════════════════════════════════════════════════════════════════════
+
 	/** Handle registration success event */
 	void OnRegistrationSuccess(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
@@ -280,33 +284,11 @@ protected:
 	/** Handle create new character event */
 	void OnCreateNewCharacter(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// DIRECT DELEGATE HANDLERS (from CharacterSelectWidget)
-	// ═══════════════════════════════════════════════════════════════════════════
+	/** Handle character highlighted event (updates PlayerInfo) */
+	void OnCharacterHighlighted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-	/** Handle character selection - direct from widget delegate */
-	UFUNCTION()
-	void OnCharacterSelectedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry);
-
-	/** Handle create new character - direct from widget delegate */
-	UFUNCTION()
-	void OnCreateNewCharacterDirect();
-
-	/** Handle character deleted - direct from widget delegate */
-	UFUNCTION()
-	void OnCharacterDeletedDirect(const FString& PlayerId);
-
-	/** Handle character highlighted - direct from widget delegate (updates PlayerInfo) */
-	UFUNCTION()
-	void OnCharacterHighlightedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry);
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// DIRECT DELEGATE HANDLERS (from RegistrationWidget)
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Handle registration complete - direct from widget delegate */
-	UFUNCTION()
-	void OnRegistrationCompleteDirect(const FSuspenseCorePlayerData& PlayerData);
+	/** Handle character deleted event */
+	void OnCharacterDeleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

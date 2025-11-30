@@ -29,8 +29,7 @@ public class BridgeSystem : ModuleRules
                 "Slate",
                 "SlateCore",
                 "Json",               // JSON serialization
-                "JsonUtilities",      // JSON utilities
-                "GAS"                 // SuspenseCore AttributeSets for Save/Load
+                "JsonUtilities"       // JSON utilities
             }
         );
     }

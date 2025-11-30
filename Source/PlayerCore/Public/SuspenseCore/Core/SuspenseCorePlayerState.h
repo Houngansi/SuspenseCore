@@ -218,16 +218,32 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Player level for scaling */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SuspenseCore|State")
+	UPROPERTY(ReplicatedUsing = OnRep_PlayerLevel, BlueprintReadOnly, Category = "SuspenseCore|State")
 	int32 PlayerLevel = 1;
 
 	/** Team identifier */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SuspenseCore|State")
+	UPROPERTY(ReplicatedUsing = OnRep_TeamId, BlueprintReadOnly, Category = "SuspenseCore|State")
 	int32 TeamId = 0;
 
 	/** Character class ID (Assault, Medic, Sniper, etc.) */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SuspenseCore|State")
+	UPROPERTY(ReplicatedUsing = OnRep_CharacterClassId, BlueprintReadOnly, Category = "SuspenseCore|State")
 	FName CharacterClassId;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// REPLICATION CALLBACKS
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Called when PlayerLevel replicates to clients */
+	UFUNCTION()
+	void OnRep_PlayerLevel(int32 OldPlayerLevel);
+
+	/** Called when TeamId replicates to clients */
+	UFUNCTION()
+	void OnRep_TeamId(int32 OldTeamId);
+
+	/** Called when CharacterClassId replicates to clients */
+	UFUNCTION()
+	void OnRep_CharacterClassId(FName OldClassId);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS

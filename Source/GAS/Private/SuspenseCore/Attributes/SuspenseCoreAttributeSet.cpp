@@ -15,7 +15,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreAttributes, Log, All);
 
 USuspenseCoreAttributeSet::USuspenseCoreAttributeSet()
 {
-	// Инициализация значений по умолчанию
+	// Initialize default values
 	InitHealth(100.0f);
 	InitMaxHealth(100.0f);
 	InitHealthRegen(0.0f);
@@ -65,12 +65,12 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// Получаем контекст
+	// Get context
 	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
 	AActor* Instigator = Context.GetOriginalInstigator();
 	AActor* Causer = Context.GetEffectCauser();
 
-	// Обработка IncomingDamage
+	// Process IncomingDamage
 	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
 	{
 		const float LocalDamage = GetIncomingDamage();
@@ -78,33 +78,33 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 
 		if (LocalDamage > 0.0f)
 		{
-			// Применяем броню
+			// Apply armor
 			const float DamageAfterArmor = FMath::Max(LocalDamage - GetArmor(), 0.0f);
 
-			// Применяем к здоровью
+			// Apply to health
 			const float OldHealth = GetHealth();
 			const float NewHealth = FMath::Clamp(OldHealth - DamageAfterArmor, 0.0f, GetMaxHealth());
 			SetHealth(NewHealth);
 
-			// Публикуем событие урона
+			// Publish damage event
 			BroadcastAttributeChange(GetHealthAttribute(), OldHealth, NewHealth);
 
 			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("Damage: %.2f -> %.2f (after armor). Health: %.2f -> %.2f"),
 				LocalDamage, DamageAfterArmor, OldHealth, NewHealth);
 
-			// Проверяем смерть
+			// Check for death
 			if (NewHealth <= 0.0f)
 			{
 				HandleDeath(Instigator, Causer);
 			}
-			// Проверяем низкое здоровье
+			// Check for low health
 			else if (GetHealthPercent() <= LowHealthThreshold && !bLowHealthEventPublished)
 			{
 				HandleLowHealth();
 			}
 		}
 	}
-	// Обработка IncomingHealing
+	// Process IncomingHealing
 	else if (Data.EvaluatedData.Attribute == GetIncomingHealingAttribute())
 	{
 		const float LocalHealing = GetIncomingHealing();
@@ -121,22 +121,22 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("Healing: %.2f. Health: %.2f -> %.2f"),
 				LocalHealing, OldHealth, NewHealth);
 
-			// Сбрасываем флаг низкого здоровья если вылечились
+			// Reset low health flag if healed
 			if (GetHealthPercent() > LowHealthThreshold)
 			{
 				bLowHealthEventPublished = false;
 			}
 		}
 	}
-	// Обработка изменения MovementSpeed
+	// Process MovementSpeed change
 	else if (Data.EvaluatedData.Attribute == GetMovementSpeedAttribute())
 	{
-		// Обновляем скорость персонажа
+		// Update character speed
 		if (ACharacter* Character = Cast<ACharacter>(GetOwningActor()))
 		{
 			if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
 			{
-				// MovementSpeed - это множитель базовой скорости (configurable)
+				// MovementSpeed is a multiplier of base speed (configurable)
 				Movement->MaxWalkSpeed = BaseWalkSpeed * GetMovementSpeed();
 			}
 		}
@@ -236,13 +236,13 @@ void USuspenseCoreAttributeSet::BroadcastAttributeChange(
 	float OldValue,
 	float NewValue)
 {
-	// Проверяем что значение реально изменилось
+	// Check if value actually changed
 	if (FMath::IsNearlyEqual(OldValue, NewValue))
 	{
 		return;
 	}
 
-	// Получаем ASC и публикуем через него
+	// Get ASC and publish through it
 	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
 	{
 		ASC->PublishAttributeChangeEvent(Attribute, OldValue, NewValue);
@@ -258,7 +258,7 @@ void USuspenseCoreAttributeSet::HandleDeath(AActor* DamageInstigator, AActor* Da
 
 	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
 	{
-		// Публикуем критическое событие смерти
+		// Publish critical death event
 		ASC->PublishCriticalEvent(
 			FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Player.Died"))),
 			0.0f,
@@ -305,6 +305,6 @@ void USuspenseCoreAttributeSet::ClampAttribute(const FGameplayAttribute& Attribu
 	}
 	else if (Attribute == GetMovementSpeedAttribute())
 	{
-		Value = FMath::Clamp(Value, 0.1f, 3.0f); // От 10% до 300% базовой скорости
+		Value = FMath::Clamp(Value, 0.1f, 3.0f); // 10% to 300% of base speed
 	}
 }

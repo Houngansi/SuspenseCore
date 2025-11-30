@@ -225,9 +225,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|State")
 	bool bHasWeapon = false;
 
-	/** Current weapon actor */
+	/** Current weapon actor (weak reference - weapon can be destroyed) */
 	UPROPERTY(Transient)
-	AActor* CurrentWeaponActor = nullptr;
+	TWeakObjectPtr<AActor> CurrentWeaponActor;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ANIMATION VALUES

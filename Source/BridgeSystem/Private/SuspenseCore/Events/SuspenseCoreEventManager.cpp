@@ -22,10 +22,10 @@ void USuspenseCoreEventManager::Initialize(FSubsystemCollectionBase& Collection)
 
 	CreateSubsystems();
 
-	// Регистрируем Tick для обработки deferred событий
+	// Register Tick for processing deferred events
 	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateUObject(this, &USuspenseCoreEventManager::Tick),
-		0.0f // Каждый кадр
+		0.0f // Every frame
 	);
 
 	PublishSystemInitialized();
@@ -37,20 +37,20 @@ void USuspenseCoreEventManager::Deinitialize()
 {
 	UE_LOG(LogSuspenseCoreEventManager, Log, TEXT("SuspenseCoreEventManager deinitializing..."));
 
-	// Удаляем Tick
+	// Remove Tick
 	if (TickDelegateHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	}
 
-	// Публикуем событие shutdown
+	// Publish shutdown event
 	if (EventBus)
 	{
 		FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(this);
 		EventBus->Publish(SUSPENSE_CORE_TAG(Event.System.Shutdown), Data);
 	}
 
-	// Очищаем сервисы
+	// Clear services
 	if (ServiceLocator)
 	{
 		ServiceLocator->ClearAllServices();
@@ -66,12 +66,12 @@ void USuspenseCoreEventManager::Deinitialize()
 
 bool USuspenseCoreEventManager::ShouldCreateSubsystem(UObject* Outer) const
 {
-	// Создаём всегда
+	// Always create
 	return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// СТАТИЧЕСКИЙ ДОСТУП
+// STATIC ACCESS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 USuspenseCoreEventManager* USuspenseCoreEventManager::Get(const UObject* WorldContextObject)
@@ -97,7 +97,7 @@ USuspenseCoreEventManager* USuspenseCoreEventManager::Get(const UObject* WorldCo
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ХЕЛПЕРЫ
+// HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreEventManager::PublishEvent(FGameplayTag EventTag, UObject* Source)
@@ -160,28 +160,28 @@ void USuspenseCoreEventManager::SetEventLogging(bool bEnabled)
 
 void USuspenseCoreEventManager::CreateSubsystems()
 {
-	// Создаём EventBus
+	// Create EventBus
 	EventBus = NewObject<USuspenseCoreEventBus>(this, TEXT("SuspenseCoreEventBus"));
 	UE_LOG(LogSuspenseCoreEventManager, Log, TEXT("Created EventBus"));
 
-	// Создаём ServiceLocator
+	// Create ServiceLocator
 	ServiceLocator = NewObject<USuspenseCoreServiceLocator>(this, TEXT("SuspenseCoreServiceLocator"));
 	UE_LOG(LogSuspenseCoreEventManager, Log, TEXT("Created ServiceLocator"));
 
-	// Регистрируем EventBus и ServiceLocator как сервисы
+	// Register EventBus and ServiceLocator as services
 	ServiceLocator->RegisterService<USuspenseCoreEventBus>(EventBus);
 	ServiceLocator->RegisterService<USuspenseCoreServiceLocator>(ServiceLocator);
 }
 
 bool USuspenseCoreEventManager::Tick(float DeltaTime)
 {
-	// Обрабатываем отложенные события
+	// Process deferred events
 	if (EventBus)
 	{
 		EventBus->ProcessDeferredEvents();
 	}
 
-	// Периодически чистим невалидные подписки (каждые 10 секунд примерно)
+	// Periodically cleanup stale subscriptions (approximately every 10 seconds)
 	static float CleanupTimer = 0.0f;
 	CleanupTimer += DeltaTime;
 	if (CleanupTimer > 10.0f)
@@ -193,7 +193,7 @@ bool USuspenseCoreEventManager::Tick(float DeltaTime)
 		}
 	}
 
-	return true; // Продолжаем тикать
+	return true; // Continue ticking
 }
 
 void USuspenseCoreEventManager::PublishSystemInitialized()

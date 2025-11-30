@@ -11,7 +11,7 @@
 
 USuspenseCoreShieldAttributeSet::USuspenseCoreShieldAttributeSet()
 {
-	// Инициализация значений по умолчанию
+	// Initialize default values
 	InitShield(0.0f);
 	InitMaxShield(100.0f);
 	InitShieldRegen(10.0f);
@@ -20,8 +20,8 @@ USuspenseCoreShieldAttributeSet::USuspenseCoreShieldAttributeSet()
 	InitShieldBreakCooldown(5.0f);
 	InitShieldBreakRecoveryPercent(0.25f);
 
-	InitShieldDamageReduction(1.0f); // 100% поглощение по умолчанию
-	InitShieldOverflowDamage(0.0f);  // Без overflow по умолчанию
+	InitShieldDamageReduction(1.0f); // 100% absorption by default
+	InitShieldOverflowDamage(0.0f);  // No overflow by default
 
 	InitIncomingShieldDamage(0.0f);
 	InitIncomingShieldHealing(0.0f);
@@ -52,7 +52,7 @@ void USuspenseCoreShieldAttributeSet::PostGameplayEffectExecute(const FGameplayE
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// Получаем контекст
+	// Get context
 	AActor* TargetActor = nullptr;
 	AActor* SourceActor = nullptr;
 
@@ -66,7 +66,7 @@ void USuspenseCoreShieldAttributeSet::PostGameplayEffectExecute(const FGameplayE
 		SourceActor = Data.EffectSpec.GetContext().GetEffectCauser();
 	}
 
-	// Обработка входящего урона по щиту
+	// Process incoming shield damage
 	if (Data.EvaluatedData.Attribute == GetIncomingShieldDamageAttribute())
 	{
 		const float LocalDamage = GetIncomingShieldDamage();
@@ -81,14 +81,14 @@ void USuspenseCoreShieldAttributeSet::PostGameplayEffectExecute(const FGameplayE
 			SetShield(NewShield);
 			BroadcastShieldChange(OldShield, NewShield);
 
-			// Проверка на разрушение щита
+			// Check for shield break
 			if (NewShield <= 0.0f && OldShield > 0.0f)
 			{
 				bShieldBroken = true;
 				HandleShieldBroken(SourceActor, Data.EffectSpec.GetContext().GetEffectCauser());
 			}
 
-			// Проверка на низкий щит
+			// Check for low shield
 			const float ShieldPercent = GetShieldPercent();
 			if (ShieldPercent <= LowShieldThreshold && ShieldPercent > 0.0f && !bLowShieldEventPublished)
 			{
@@ -102,7 +102,7 @@ void USuspenseCoreShieldAttributeSet::PostGameplayEffectExecute(const FGameplayE
 		}
 	}
 
-	// Обработка входящего лечения щита
+	// Process incoming shield healing
 	if (Data.EvaluatedData.Attribute == GetIncomingShieldHealingAttribute())
 	{
 		const float LocalHealing = GetIncomingShieldHealing();
@@ -116,7 +116,7 @@ void USuspenseCoreShieldAttributeSet::PostGameplayEffectExecute(const FGameplayE
 			SetShield(NewShield);
 			BroadcastShieldChange(OldShield, NewShield);
 
-			// Сброс флага разрушения
+			// Reset broken flag
 			if (NewShield > 0.0f && bShieldBroken)
 			{
 				bShieldBroken = false;

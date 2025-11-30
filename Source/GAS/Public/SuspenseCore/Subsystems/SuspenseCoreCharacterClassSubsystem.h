@@ -160,11 +160,11 @@ protected:
 
 	/** Cached class data assets */
 	UPROPERTY()
-	TMap<FName, USuspenseCoreCharacterClassData*> LoadedClasses;
+	TMap<FName, TObjectPtr<USuspenseCoreCharacterClassData>> LoadedClasses;
 
 	/** Actor -> Current Class mapping */
 	UPROPERTY()
-	TMap<TWeakObjectPtr<AActor>, USuspenseCoreCharacterClassData*> ActorClassMap;
+	TMap<TWeakObjectPtr<AActor>, TObjectPtr<USuspenseCoreCharacterClassData>> ActorClassMap;
 
 	/** Streamable manager for async loading */
 	FStreamableManager StreamableManager;

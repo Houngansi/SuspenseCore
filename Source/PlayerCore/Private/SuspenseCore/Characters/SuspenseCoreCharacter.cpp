@@ -283,10 +283,10 @@ void ASuspenseCoreCharacter::SetHasWeapon(bool bNewHasWeapon)
 
 void ASuspenseCoreCharacter::SetCurrentWeaponActor(AActor* WeaponActor)
 {
-	if (CurrentWeaponActor != WeaponActor)
+	if (CurrentWeaponActor.Get() != WeaponActor)
 	{
 		CurrentWeaponActor = WeaponActor;
-		SetHasWeapon(CurrentWeaponActor != nullptr);
+		SetHasWeapon(CurrentWeaponActor.IsValid());
 
 		PublishCharacterEvent(
 			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.WeaponChanged")),

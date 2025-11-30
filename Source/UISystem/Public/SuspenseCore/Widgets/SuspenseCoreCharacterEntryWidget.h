@@ -70,7 +70,7 @@ public:
 
 	/** Default avatar texture when none specified */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Entry|Config")
-	UTexture2D* DefaultAvatarTexture;
+	TObjectPtr<UTexture2D> DefaultAvatarTexture;
 
 	/** Normal border color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Entry|Config")
@@ -124,6 +124,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;

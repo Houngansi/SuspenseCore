@@ -11,34 +11,34 @@
 
 USuspenseCoreMovementAttributeSet::USuspenseCoreMovementAttributeSet()
 {
-	// Базовые скорости (UE5 defaults ~= 600)
+	// Base speeds (UE5 defaults ~= 600)
 	InitWalkSpeed(400.0f);
 	InitSprintSpeed(600.0f);
 	InitCrouchSpeed(200.0f);
 	InitProneSpeed(100.0f);
 	InitAimSpeed(250.0f);
 
-	// Множители направления
+	// Direction multipliers
 	InitBackwardSpeedMultiplier(0.7f);
 	InitStrafeSpeedMultiplier(0.85f);
 
-	// Прыжок
+	// Jump
 	InitJumpHeight(420.0f);
 	InitMaxJumpCount(1.0f);
 	InitAirControl(0.35f);
 
-	// Поворот
+	// Turn rate
 	InitTurnRate(180.0f);
 	InitAimTurnRateMultiplier(0.6f);
 
-	// Ускорение
+	// Acceleration
 	InitGroundAcceleration(2048.0f);
 	InitGroundDeceleration(2048.0f);
 	InitAirAcceleration(512.0f);
 
-	// Вес
+	// Weight
 	InitCurrentWeight(0.0f);
-	InitMaxWeight(50.0f); // 50 кг базовый лимит
+	InitMaxWeight(50.0f); // 50 kg base limit
 	InitWeightSpeedPenalty(0.0f);
 }
 
@@ -76,14 +76,14 @@ void USuspenseCoreMovementAttributeSet::PostGameplayEffectExecute(const FGamepla
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// Пересчитываем штраф от веса при изменении веса
+	// Recalculate weight penalty when weight changes
 	if (Data.EvaluatedData.Attribute == GetCurrentWeightAttribute() ||
 		Data.EvaluatedData.Attribute == GetMaxWeightAttribute())
 	{
 		RecalculateWeightPenalty();
 	}
 
-	// Применяем скорости к CharacterMovement при изменении
+	// Apply speeds to CharacterMovement when changed
 	if (Data.EvaluatedData.Attribute == GetWalkSpeedAttribute() ||
 		Data.EvaluatedData.Attribute == GetSprintSpeedAttribute() ||
 		Data.EvaluatedData.Attribute == GetCrouchSpeedAttribute() ||
@@ -117,7 +117,7 @@ float USuspenseCoreMovementAttributeSet::GetEffectiveWalkSpeed() const
 float USuspenseCoreMovementAttributeSet::GetEffectiveSprintSpeed() const
 {
 	const float Penalty = GetWeightSpeedPenalty();
-	// Спринт страдает больше от веса
+	// Sprint is affected more by weight
 	return GetSprintSpeed() * (1.0f - Penalty * 1.5f);
 }
 
@@ -147,7 +147,7 @@ void USuspenseCoreMovementAttributeSet::ApplySpeedsToCharacter()
 	UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
 	if (!Movement) return;
 
-	// Применяем эффективные скорости
+	// Apply effective speeds
 	Movement->MaxWalkSpeed = GetEffectiveWalkSpeed();
 	Movement->MaxWalkSpeedCrouched = GetCrouchSpeed() * (1.0f - GetWeightSpeedPenalty());
 	Movement->JumpZVelocity = GetJumpHeight();
@@ -268,7 +268,7 @@ void USuspenseCoreMovementAttributeSet::RecalculateWeightPenalty()
 		return;
 	}
 
-	// Штраф начинается после 50% загрузки
+	// Penalty starts after 50% load
 	const float EncumbranceThreshold = 0.5f;
 	const float EncumbrancePercent = Current / Max;
 
@@ -278,25 +278,25 @@ void USuspenseCoreMovementAttributeSet::RecalculateWeightPenalty()
 	}
 	else if (EncumbrancePercent >= 1.0f)
 	{
-		// Максимальный штраф 50% скорости при полной загрузке
-		// Сверх лимита - до 80% штрафа
+		// Max 50% speed penalty at full load
+		// Over limit - up to 80% penalty
 		const float OverWeight = FMath::Min((EncumbrancePercent - 1.0f) * 0.3f, 0.3f);
 		SetWeightSpeedPenalty(0.5f + OverWeight);
 	}
 	else
 	{
-		// Линейный рост от 0% до 50% штрафа между 50% и 100% загрузки
+		// Linear growth from 0% to 50% penalty between 50% and 100% load
 		const float PenaltyPercent = (EncumbrancePercent - EncumbranceThreshold) / (1.0f - EncumbranceThreshold);
 		SetWeightSpeedPenalty(PenaltyPercent * 0.5f);
 	}
 
-	// Применяем обновлённые скорости
+	// Apply updated speeds
 	ApplySpeedsToCharacter();
 }
 
 void USuspenseCoreMovementAttributeSet::ClampAttribute(const FGameplayAttribute& Attribute, float& Value)
 {
-	// Скорости
+	// Speeds
 	if (Attribute == GetWalkSpeedAttribute() ||
 		Attribute == GetSprintSpeedAttribute() ||
 		Attribute == GetCrouchSpeedAttribute() ||
@@ -305,7 +305,7 @@ void USuspenseCoreMovementAttributeSet::ClampAttribute(const FGameplayAttribute&
 	{
 		Value = FMath::Max(0.0f, Value);
 	}
-	// Множители (0-1)
+	// Multipliers (0-1)
 	else if (Attribute == GetBackwardSpeedMultiplierAttribute() ||
 			 Attribute == GetStrafeSpeedMultiplierAttribute() ||
 			 Attribute == GetAirControlAttribute() ||
@@ -313,7 +313,7 @@ void USuspenseCoreMovementAttributeSet::ClampAttribute(const FGameplayAttribute&
 	{
 		Value = FMath::Clamp(Value, 0.0f, 1.0f);
 	}
-	// Прыжок
+	// Jump
 	else if (Attribute == GetJumpHeightAttribute())
 	{
 		Value = FMath::Max(0.0f, Value);
@@ -322,25 +322,25 @@ void USuspenseCoreMovementAttributeSet::ClampAttribute(const FGameplayAttribute&
 	{
 		Value = FMath::Max(1.0f, Value);
 	}
-	// Ускорение
+	// Acceleration
 	else if (Attribute == GetGroundAccelerationAttribute() ||
 			 Attribute == GetGroundDecelerationAttribute() ||
 			 Attribute == GetAirAccelerationAttribute())
 	{
 		Value = FMath::Max(0.0f, Value);
 	}
-	// Вес
+	// Weight
 	else if (Attribute == GetCurrentWeightAttribute())
 	{
 		Value = FMath::Max(0.0f, Value);
 	}
 	else if (Attribute == GetMaxWeightAttribute())
 	{
-		Value = FMath::Max(1.0f, Value); // Минимум 1 кг лимита
+		Value = FMath::Max(1.0f, Value); // Minimum 1 kg limit
 	}
 	else if (Attribute == GetWeightSpeedPenaltyAttribute())
 	{
-		Value = FMath::Clamp(Value, 0.0f, 0.8f); // Максимум 80% штраф
+		Value = FMath::Clamp(Value, 0.0f, 0.8f); // Maximum 80% penalty
 	}
 }
 

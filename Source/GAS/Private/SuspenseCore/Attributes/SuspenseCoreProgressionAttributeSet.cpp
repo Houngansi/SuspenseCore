@@ -18,7 +18,7 @@ USuspenseCoreProgressionAttributeSet::USuspenseCoreProgressionAttributeSet()
 	InitIncomingExperience(0.0f);
 
 	// Reputation
-	InitReputation(50.0f); // Нейтральная репутация
+	InitReputation(50.0f); // Neutral reputation
 	InitReputationMultiplier(1.0f);
 
 	// Currency
@@ -66,7 +66,7 @@ void USuspenseCoreProgressionAttributeSet::PostGameplayEffectExecute(const FGame
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// Обработка входящего опыта
+	// Process incoming experience
 	if (Data.EvaluatedData.Attribute == GetIncomingExperienceAttribute())
 	{
 		const float LocalXP = GetIncomingExperience();
@@ -123,13 +123,13 @@ void USuspenseCoreProgressionAttributeSet::AddExperience(float Amount)
 		return;
 	}
 
-	// Применяем множитель
+	// Apply multiplier
 	const float FinalXP = Amount * GetExperienceMultiplier();
 	const float OldXP = GetExperience();
 	float NewXP = OldXP + FinalXP;
 	const int32 OldLevel = FMath::FloorToInt(GetLevel());
 
-	// Проверяем level up
+	// Check for level up
 	while (NewXP >= GetExperienceToNextLevel() && !IsMaxLevel())
 	{
 		NewXP -= GetExperienceToNextLevel();
@@ -137,17 +137,17 @@ void USuspenseCoreProgressionAttributeSet::AddExperience(float Amount)
 		const float NewLevel = GetLevel() + 1.0f;
 		SetLevel(FMath::Min(NewLevel, GetMaxLevel()));
 
-		// Обновляем требуемый опыт для следующего уровня
+		// Update experience required for next level
 		UpdateExperienceToNextLevel();
 
-		// Даём очки навыков и атрибутов
+		// Grant skill and attribute points
 		SetSkillPoints(GetSkillPoints() + SkillPointsPerLevel);
 		SetAttributePoints(GetAttributePoints() + AttributePointsPerLevel);
 	}
 
 	SetExperience(NewXP);
 
-	// Уведомление о level up
+	// Level up notification
 	const int32 NewLevel = FMath::FloorToInt(GetLevel());
 	if (NewLevel > OldLevel)
 	{
@@ -228,7 +228,7 @@ float USuspenseCoreProgressionAttributeSet::CalculateExperienceForLevel(int32 Ta
 		return 0.0f;
 	}
 
-	// Экспоненциальная формула: BaseXP * (GrowthRate ^ (Level - 2))
+	// Exponential formula: BaseXP * (GrowthRate ^ (Level - 2))
 	return BaseExperienceForLevel2 * FMath::Pow(ExperienceGrowthRate, static_cast<float>(TargetLevel - 2));
 }
 
@@ -380,7 +380,7 @@ void USuspenseCoreProgressionAttributeSet::BroadcastProgressionEvent(FGameplayTa
 	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
 	if (ASC)
 	{
-		// Используем generic attribute change для progression events
+		// Use generic attribute change for progression events
 		ASC->PublishAttributeChangeEvent(
 			GetExperienceAttribute(), // Placeholder
 			OldValue,

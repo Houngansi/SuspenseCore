@@ -5,15 +5,9 @@
 #include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
-#include "SuspenseCore/Attributes/SuspenseCoreShieldAttributeSet.h"
-#include "AbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/Pawn.h"
 
 USuspenseCoreHUDWidget::USuspenseCoreHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -24,24 +18,18 @@ void USuspenseCoreHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// Auto-bind to local player if configured
-	if (bAutoBindToLocalPlayer)
-	{
-		BindToLocalPlayer();
-	}
-
-	// Setup EventBus subscriptions
+	// Setup EventBus subscriptions - the ONLY way to receive attribute updates!
 	SetupEventSubscriptions();
 
-	// Initial refresh
-	RefreshAllValues();
+	// Initial UI update
+	UpdateHealthUI();
+	UpdateShieldUI();
+	UpdateStaminaUI();
 }
 
 void USuspenseCoreHUDWidget::NativeDestruct()
 {
-	UnbindFromActor();
 	TeardownEventSubscriptions();
-
 	Super::NativeDestruct();
 }
 
@@ -54,100 +42,313 @@ void USuspenseCoreHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDel
 	{
 		if (HealthProgressBar)
 		{
-			UpdateProgressBar(HealthProgressBar, DisplayedHealthPercent, TargetHealthPercent, InDeltaTime);
+			UpdateProgressBar(HealthProgressBar.Get(), DisplayedHealthPercent, TargetHealthPercent, InDeltaTime);
 		}
 
 		if (ShieldProgressBar)
 		{
-			UpdateProgressBar(ShieldProgressBar, DisplayedShieldPercent, TargetShieldPercent, InDeltaTime);
+			UpdateProgressBar(ShieldProgressBar.Get(), DisplayedShieldPercent, TargetShieldPercent, InDeltaTime);
 		}
 
 		if (StaminaProgressBar)
 		{
-			UpdateProgressBar(StaminaProgressBar, DisplayedStaminaPercent, TargetStaminaPercent, InDeltaTime);
+			UpdateProgressBar(StaminaProgressBar.Get(), DisplayedStaminaPercent, TargetStaminaPercent, InDeltaTime);
 		}
 	}
 }
 
-void USuspenseCoreHUDWidget::BindToActor(AActor* Actor)
+void USuspenseCoreHUDWidget::SetupEventSubscriptions()
 {
-	if (!Actor)
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreHUDWidget: EventManager not found"));
+		return;
+	}
+
+	CachedEventBus = Manager->GetEventBus();
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreHUDWidget: EventBus not found"));
+		return;
+	}
+
+	// Subscribe to Health attribute events
+	HealthEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Health")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnHealthEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to MaxHealth attribute events
+	MaxHealthEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxHealth")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxHealthEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to Shield attribute events
+	ShieldEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Shield")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnShieldEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to MaxShield attribute events
+	MaxShieldEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxShield")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxShieldEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to Stamina attribute events
+	StaminaEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnStaminaEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to MaxStamina attribute events
+	MaxStaminaEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxStamina")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxStaminaEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to LowHealth event
+	LowHealthEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.LowHealth")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnLowHealthEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to ShieldBroken event
+	ShieldBrokenEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Shield.Broken")),
+		const_cast<USuspenseCoreHUDWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnShieldBrokenEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreHUDWidget: EventBus subscriptions setup complete"));
+}
+
+void USuspenseCoreHUDWidget::TeardownEventSubscriptions()
+{
+	if (!CachedEventBus.IsValid())
 	{
 		return;
 	}
 
-	// Unbind from previous
-	UnbindFromActor();
-
-	// Get ASC from actor
-	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
-	if (!ASC)
+	if (HealthEventHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreHUDWidget: Actor %s has no ASC"), *Actor->GetName());
-		return;
+		CachedEventBus->Unsubscribe(HealthEventHandle);
 	}
-
-	BoundActor = Actor;
-	BoundASC = ASC;
-
-	// Setup attribute change callbacks
-	SetupAttributeCallbacks();
-
-	// Initial refresh
-	RefreshAllValues();
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreHUDWidget: Bound to %s"), *Actor->GetName());
+	if (MaxHealthEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(MaxHealthEventHandle);
+	}
+	if (ShieldEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(ShieldEventHandle);
+	}
+	if (MaxShieldEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(MaxShieldEventHandle);
+	}
+	if (StaminaEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(StaminaEventHandle);
+	}
+	if (MaxStaminaEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(MaxStaminaEventHandle);
+	}
+	if (LowHealthEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(LowHealthEventHandle);
+	}
+	if (ShieldBrokenEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(ShieldBrokenEventHandle);
+	}
 }
 
-void USuspenseCoreHUDWidget::UnbindFromActor()
+// ═══════════════════════════════════════════════════════════════════════════
+// EVENTBUS HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	TeardownAttributeCallbacks();
-	BoundActor.Reset();
-	BoundASC.Reset();
+	float OldHealth = CachedHealth;
+
+	// Extract new value from EventData
+	if (EventData.NumericValue.IsSet())
+	{
+		CachedHealth = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		// Try to extract from payload
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedHealth = *NewValue;
+		}
+	}
+
+	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
+	UpdateHealthUI();
+
+	// Broadcast Blueprint event
+	OnHealthChanged(CachedHealth, CachedMaxHealth, OldHealth);
+
+	// Check for critical health
+	bool bIsCritical = TargetHealthPercent <= CriticalHealthThreshold && CachedHealth > 0.0f;
+	if (bIsCritical && !bWasHealthCritical)
+	{
+		OnHealthCritical();
+	}
+	bWasHealthCritical = bIsCritical;
 }
 
-void USuspenseCoreHUDWidget::BindToLocalPlayer()
+void USuspenseCoreHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	APlayerController* PC = GetOwningPlayer();
-	if (!PC)
+	if (EventData.NumericValue.IsSet())
 	{
-		return;
+		CachedMaxHealth = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedMaxHealth = *NewValue;
+		}
 	}
 
-	APawn* Pawn = PC->GetPawn();
-	if (Pawn)
-	{
-		BindToActor(Pawn);
-	}
+	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
+	UpdateHealthUI();
 }
+
+void USuspenseCoreHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float OldShield = CachedShield;
+
+	if (EventData.NumericValue.IsSet())
+	{
+		CachedShield = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedShield = *NewValue;
+		}
+	}
+
+	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
+	UpdateShieldUI();
+
+	// Broadcast Blueprint event
+	OnShieldChanged(CachedShield, CachedMaxShield, OldShield);
+
+	// Check for shield broken
+	bool bIsBroken = CachedShield <= 0.0f && CachedMaxShield > 0.0f;
+	if (bIsBroken && !bWasShieldBroken)
+	{
+		OnShieldBroken();
+	}
+	bWasShieldBroken = bIsBroken;
+}
+
+void USuspenseCoreHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (EventData.NumericValue.IsSet())
+	{
+		CachedMaxShield = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedMaxShield = *NewValue;
+		}
+	}
+
+	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
+	UpdateShieldUI();
+}
+
+void USuspenseCoreHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float OldStamina = CachedStamina;
+
+	if (EventData.NumericValue.IsSet())
+	{
+		CachedStamina = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedStamina = *NewValue;
+		}
+	}
+
+	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
+	UpdateStaminaUI();
+
+	// Broadcast Blueprint event
+	OnStaminaChanged(CachedStamina, CachedMaxStamina, OldStamina);
+}
+
+void USuspenseCoreHUDWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (EventData.NumericValue.IsSet())
+	{
+		CachedMaxStamina = EventData.NumericValue.GetValue();
+	}
+	else if (EventData.Payload.IsValid())
+	{
+		const float* NewValue = static_cast<const float*>(EventData.Payload.Get());
+		if (NewValue)
+		{
+			CachedMaxStamina = *NewValue;
+		}
+	}
+
+	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
+	UpdateStaminaUI();
+}
+
+void USuspenseCoreHUDWidget::OnLowHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	OnHealthCritical();
+}
+
+void USuspenseCoreHUDWidget::OnShieldBrokenEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	bWasShieldBroken = true;
+	OnShieldBroken();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC API
+// ═══════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreHUDWidget::RefreshAllValues()
 {
-	if (!BoundASC.IsValid())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = BoundASC.Get();
-
-	// Get Health AttributeSet values
-	const USuspenseCoreAttributeSet* HealthSet = ASC->GetSet<USuspenseCoreAttributeSet>();
-	if (HealthSet)
-	{
-		CachedHealth = HealthSet->GetHealth();
-		CachedMaxHealth = HealthSet->GetMaxHealth();
-		CachedStamina = HealthSet->GetStamina();
-		CachedMaxStamina = HealthSet->GetMaxStamina();
-	}
-
-	// Get Shield AttributeSet values
-	const USuspenseCoreShieldAttributeSet* ShieldSet = ASC->GetSet<USuspenseCoreShieldAttributeSet>();
-	if (ShieldSet)
-	{
-		CachedShield = ShieldSet->GetShield();
-		CachedMaxShield = ShieldSet->GetMaxShield();
-	}
-
 	// Calculate target percentages
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
@@ -167,262 +368,39 @@ void USuspenseCoreHUDWidget::RefreshAllValues()
 	UpdateStaminaUI();
 }
 
-void USuspenseCoreHUDWidget::SetupAttributeCallbacks()
-{
-	if (!BoundASC.IsValid())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = BoundASC.Get();
-
-	// Health attribute callbacks
-	HealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreAttributeSet::GetHealthAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-
-	MaxHealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreAttributeSet::GetMaxHealthAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-
-	// Stamina attribute callbacks
-	StaminaChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreAttributeSet::GetStaminaAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-
-	MaxStaminaChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreAttributeSet::GetMaxStaminaAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-
-	// Shield attribute callbacks
-	ShieldChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreShieldAttributeSet::GetShieldAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-
-	MaxShieldChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-		USuspenseCoreShieldAttributeSet::GetMaxShieldAttribute()).AddUObject(
-			this, &USuspenseCoreHUDWidget::OnAttributeValueChanged);
-}
-
-void USuspenseCoreHUDWidget::TeardownAttributeCallbacks()
-{
-	if (!BoundASC.IsValid())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = BoundASC.Get();
-
-	// Remove Health callbacks
-	if (HealthChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreAttributeSet::GetHealthAttribute()).Remove(HealthChangedHandle);
-		HealthChangedHandle.Reset();
-	}
-
-	if (MaxHealthChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreAttributeSet::GetMaxHealthAttribute()).Remove(MaxHealthChangedHandle);
-		MaxHealthChangedHandle.Reset();
-	}
-
-	// Remove Stamina callbacks
-	if (StaminaChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreAttributeSet::GetStaminaAttribute()).Remove(StaminaChangedHandle);
-		StaminaChangedHandle.Reset();
-	}
-
-	if (MaxStaminaChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreAttributeSet::GetMaxStaminaAttribute()).Remove(MaxStaminaChangedHandle);
-		MaxStaminaChangedHandle.Reset();
-	}
-
-	// Remove Shield callbacks
-	if (ShieldChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreShieldAttributeSet::GetShieldAttribute()).Remove(ShieldChangedHandle);
-		ShieldChangedHandle.Reset();
-	}
-
-	if (MaxShieldChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(
-			USuspenseCoreShieldAttributeSet::GetMaxShieldAttribute()).Remove(MaxShieldChangedHandle);
-		MaxShieldChangedHandle.Reset();
-	}
-}
-
-void USuspenseCoreHUDWidget::SetupEventSubscriptions()
-{
-	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
-	if (!Manager)
-	{
-		return;
-	}
-
-	CachedEventBus = Manager->GetEventBus();
-	if (!CachedEventBus.IsValid())
-	{
-		return;
-	}
-
-	// Subscribe to GAS attribute events
-	HealthEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Health")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnAttributeEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-
-	ShieldEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnAttributeEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
-}
-
-void USuspenseCoreHUDWidget::TeardownEventSubscriptions()
-{
-	if (CachedEventBus.IsValid())
-	{
-		if (HealthEventHandle.IsValid())
-		{
-			CachedEventBus->Unsubscribe(HealthEventHandle);
-		}
-		if (ShieldEventHandle.IsValid())
-		{
-			CachedEventBus->Unsubscribe(ShieldEventHandle);
-		}
-		if (StaminaEventHandle.IsValid())
-		{
-			CachedEventBus->Unsubscribe(StaminaEventHandle);
-		}
-	}
-}
-
-USuspenseCoreEventBus* USuspenseCoreHUDWidget::GetEventBus() const
-{
-	return CachedEventBus.Get();
-}
-
-void USuspenseCoreHUDWidget::OnAttributeValueChanged(const FOnAttributeChangeData& Data)
-{
-	// Determine which attribute changed and update accordingly
-	if (Data.Attribute == USuspenseCoreAttributeSet::GetHealthAttribute())
-	{
-		HandleHealthChanged(Data.NewValue);
-	}
-	else if (Data.Attribute == USuspenseCoreAttributeSet::GetMaxHealthAttribute())
-	{
-		HandleMaxHealthChanged(Data.NewValue);
-	}
-	else if (Data.Attribute == USuspenseCoreAttributeSet::GetStaminaAttribute())
-	{
-		HandleStaminaChanged(Data.NewValue);
-	}
-	else if (Data.Attribute == USuspenseCoreAttributeSet::GetMaxStaminaAttribute())
-	{
-		HandleMaxStaminaChanged(Data.NewValue);
-	}
-	else if (Data.Attribute == USuspenseCoreShieldAttributeSet::GetShieldAttribute())
-	{
-		HandleShieldChanged(Data.NewValue);
-	}
-	else if (Data.Attribute == USuspenseCoreShieldAttributeSet::GetMaxShieldAttribute())
-	{
-		HandleMaxShieldChanged(Data.NewValue);
-	}
-}
-
-void USuspenseCoreHUDWidget::HandleHealthChanged(float NewValue)
+void USuspenseCoreHUDWidget::SetHealthValues(float Current, float Max)
 {
 	float OldHealth = CachedHealth;
-	CachedHealth = NewValue;
-
-	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
-
-	UpdateHealthUI();
-
-	// Broadcast events
-	OnHealthChanged(NewValue, CachedMaxHealth, OldHealth);
-
-	// Check for critical health
-	bool bIsCritical = TargetHealthPercent <= CriticalHealthThreshold && CachedHealth > 0.0f;
-	if (bIsCritical && !bWasHealthCritical)
-	{
-		OnHealthCritical();
-	}
-	bWasHealthCritical = bIsCritical;
-}
-
-void USuspenseCoreHUDWidget::HandleMaxHealthChanged(float NewValue)
-{
-	CachedMaxHealth = NewValue;
+	CachedHealth = Current;
+	CachedMaxHealth = Max;
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	UpdateHealthUI();
+	OnHealthChanged(CachedHealth, CachedMaxHealth, OldHealth);
 }
 
-void USuspenseCoreHUDWidget::HandleShieldChanged(float NewValue)
+void USuspenseCoreHUDWidget::SetShieldValues(float Current, float Max)
 {
 	float OldShield = CachedShield;
-	CachedShield = NewValue;
-
-	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
-
-	UpdateShieldUI();
-
-	// Broadcast events
-	OnShieldChanged(NewValue, CachedMaxShield, OldShield);
-
-	// Check for shield broken
-	bool bIsBroken = CachedShield <= 0.0f && CachedMaxShield > 0.0f;
-	if (bIsBroken && !bWasShieldBroken)
-	{
-		OnShieldBroken();
-	}
-	bWasShieldBroken = bIsBroken;
-}
-
-void USuspenseCoreHUDWidget::HandleMaxShieldChanged(float NewValue)
-{
-	CachedMaxShield = NewValue;
+	CachedShield = Current;
+	CachedMaxShield = Max;
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	UpdateShieldUI();
+	OnShieldChanged(CachedShield, CachedMaxShield, OldShield);
 }
 
-void USuspenseCoreHUDWidget::HandleStaminaChanged(float NewValue)
+void USuspenseCoreHUDWidget::SetStaminaValues(float Current, float Max)
 {
 	float OldStamina = CachedStamina;
-	CachedStamina = NewValue;
-
-	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
-
-	UpdateStaminaUI();
-
-	// Broadcast events
-	OnStaminaChanged(NewValue, CachedMaxStamina, OldStamina);
-}
-
-void USuspenseCoreHUDWidget::HandleMaxStaminaChanged(float NewValue)
-{
-	CachedMaxStamina = NewValue;
+	CachedStamina = Current;
+	CachedMaxStamina = Max;
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
 	UpdateStaminaUI();
+	OnStaminaChanged(CachedStamina, CachedMaxStamina, OldStamina);
 }
 
-void USuspenseCoreHUDWidget::OnAttributeEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
-{
-	// Refresh all values when we receive attribute events
-	RefreshAllValues();
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// UI UPDATE METHODS
+// ═══════════════════════════════════════════════════════════════════════════
 
 void USuspenseCoreHUDWidget::UpdateHealthUI()
 {
@@ -553,7 +531,6 @@ void USuspenseCoreHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, float&
 
 	// Smooth interpolation
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
-
 	ProgressBar->SetPercent(DisplayedPercent);
 }
 
@@ -602,53 +579,4 @@ FString USuspenseCoreHUDWidget::FormatValueText(float Current, float Max) const
 	Result = Result.Replace(TEXT("{1}"), *MaxStr);
 
 	return Result;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PUBLIC GETTERS
-// ═══════════════════════════════════════════════════════════════════════════
-
-float USuspenseCoreHUDWidget::GetCurrentHealth() const
-{
-	return CachedHealth;
-}
-
-float USuspenseCoreHUDWidget::GetMaxHealth() const
-{
-	return CachedMaxHealth;
-}
-
-float USuspenseCoreHUDWidget::GetHealthPercent() const
-{
-	return TargetHealthPercent;
-}
-
-float USuspenseCoreHUDWidget::GetCurrentShield() const
-{
-	return CachedShield;
-}
-
-float USuspenseCoreHUDWidget::GetMaxShield() const
-{
-	return CachedMaxShield;
-}
-
-float USuspenseCoreHUDWidget::GetShieldPercent() const
-{
-	return TargetShieldPercent;
-}
-
-float USuspenseCoreHUDWidget::GetCurrentStamina() const
-{
-	return CachedStamina;
-}
-
-float USuspenseCoreHUDWidget::GetMaxStamina() const
-{
-	return CachedMaxStamina;
-}
-
-float USuspenseCoreHUDWidget::GetStaminaPercent() const
-{
-	return TargetStaminaPercent;
 }

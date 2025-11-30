@@ -226,6 +226,8 @@ void USuspenseCoreSaveLoadMenuWidget::RefreshSlots()
 
 void USuspenseCoreSaveLoadMenuWidget::SelectSlot(int32 SlotIndex)
 {
+	UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("SelectSlot called: SlotIndex=%d (previous=%d)"), SlotIndex, SelectedSlotIndex);
+
 	// Deselect previous
 	for (USuspenseCoreSaveSlotWidget* Widget : SlotWidgets)
 	{
@@ -244,6 +246,7 @@ void USuspenseCoreSaveLoadMenuWidget::SelectSlot(int32 SlotIndex)
 		{
 			Widget->SetSelected(true);
 			bSelectedSlotEmpty = Widget->IsSlotEmpty();
+			UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Slot %d selected, isEmpty=%s"), SlotIndex, bSelectedSlotEmpty ? TEXT("true") : TEXT("false"));
 			break;
 		}
 	}
@@ -386,10 +389,15 @@ void USuspenseCoreSaveLoadMenuWidget::ShowConfirmation(EPendingOperation Operati
 	PendingOperation = Operation;
 	PendingOperationSlot = SlotIndex;
 
-	if (ConfirmationOverlay)
+	// If no confirmation overlay - execute immediately without confirmation
+	if (!ConfirmationOverlay)
 	{
-		ConfirmationOverlay->SetVisibility(ESlateVisibility::Visible);
+		UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("No ConfirmationOverlay - executing operation immediately"));
+		ExecutePendingOperation();
+		return;
 	}
+
+	ConfirmationOverlay->SetVisibility(ESlateVisibility::Visible);
 
 	if (ConfirmationText)
 	{
@@ -546,8 +554,14 @@ void USuspenseCoreSaveLoadMenuWidget::RestoreGameInputMode()
 
 void USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked()
 {
+	UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("ActionButton clicked! SelectedSlotIndex=%d, bSelectedSlotEmpty=%s, Mode=%s"),
+		SelectedSlotIndex,
+		bSelectedSlotEmpty ? TEXT("true") : TEXT("false"),
+		CurrentMode == ESuspenseCoreSaveLoadMode::Save ? TEXT("Save") : TEXT("Load"));
+
 	if (SelectedSlotIndex < 0)
 	{
+		UE_LOG(LogSuspenseCoreSaveLoadMenu, Warning, TEXT("No slot selected - ignoring ActionButton click"));
 		return;
 	}
 
@@ -556,15 +570,18 @@ void USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked()
 		// If slot is not empty, confirm overwrite
 		if (!bSelectedSlotEmpty)
 		{
+			UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Save to non-empty slot %d - showing confirmation"), SelectedSlotIndex);
 			ShowConfirmation(EPendingOperation::Save, SelectedSlotIndex);
 		}
 		else
 		{
+			UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Save to empty slot %d - performing immediately"), SelectedSlotIndex);
 			PerformSave(SelectedSlotIndex);
 		}
 	}
 	else // Load mode
 	{
+		UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("Load from slot %d"), SelectedSlotIndex);
 		ShowConfirmation(EPendingOperation::Load, SelectedSlotIndex);
 	}
 }

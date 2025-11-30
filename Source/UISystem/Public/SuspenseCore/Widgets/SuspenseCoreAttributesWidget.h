@@ -205,22 +205,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Attributes|Thresholds", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float CriticalHealthThreshold = 0.25f;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// COLORS
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Attributes|Colors")
-	FLinearColor HealthColorNormal = FLinearColor(0.2f, 0.8f, 0.2f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Attributes|Colors")
-	FLinearColor HealthColorCritical = FLinearColor(0.9f, 0.1f, 0.1f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Attributes|Colors")
-	FLinearColor ShieldColor = FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Attributes|Colors")
-	FLinearColor StaminaColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);
-
 private:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS SUBSCRIPTIONS
@@ -245,7 +229,6 @@ private:
 	void UpdateShieldUI();
 	void UpdateStaminaUI();
 	void UpdateProgressBar(UProgressBar* Bar, float& DisplayedPercent, float TargetPercent, float DeltaTime);
-	void ApplyHealthBarColor();
 	FString FormatValueText(float Current, float Max) const;
 
 	// ═══════════════════════════════════════════════════════════════════════════

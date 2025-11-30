@@ -321,8 +321,6 @@ void USuspenseCoreAttributesWidget::UpdateHealthUI()
 	{
 		HealthText->SetText(FText::FromString(FormatValueText(CachedHealth, CachedMaxHealth)));
 	}
-
-	ApplyHealthBarColor();
 }
 
 void USuspenseCoreAttributesWidget::UpdateShieldUI()
@@ -351,11 +349,6 @@ void USuspenseCoreAttributesWidget::UpdateShieldUI()
 	if (ShieldText)
 	{
 		ShieldText->SetText(FText::FromString(FormatValueText(CachedShield, CachedMaxShield)));
-	}
-
-	if (ShieldBar)
-	{
-		ShieldBar->SetFillColorAndOpacity(ShieldColor);
 	}
 }
 
@@ -386,11 +379,6 @@ void USuspenseCoreAttributesWidget::UpdateStaminaUI()
 	{
 		StaminaText->SetText(FText::FromString(FormatValueText(CachedStamina, CachedMaxStamina)));
 	}
-
-	if (StaminaBar)
-	{
-		StaminaBar->SetFillColorAndOpacity(StaminaColor);
-	}
 }
 
 void USuspenseCoreAttributesWidget::UpdateProgressBar(UProgressBar* Bar, float& DisplayedPercent, float TargetPercent, float DeltaTime)
@@ -402,27 +390,6 @@ void USuspenseCoreAttributesWidget::UpdateProgressBar(UProgressBar* Bar, float& 
 
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
 	Bar->SetPercent(DisplayedPercent);
-}
-
-void USuspenseCoreAttributesWidget::ApplyHealthBarColor()
-{
-	if (!HealthBar)
-	{
-		return;
-	}
-
-	FLinearColor BarColor;
-	if (TargetHealthPercent <= CriticalHealthThreshold)
-	{
-		BarColor = HealthColorCritical;
-	}
-	else
-	{
-		float Alpha = FMath::Clamp((TargetHealthPercent - CriticalHealthThreshold) / (1.0f - CriticalHealthThreshold), 0.0f, 1.0f);
-		BarColor = FLinearColor::LerpUsingHSV(HealthColorCritical, HealthColorNormal, Alpha);
-	}
-
-	HealthBar->SetFillColorAndOpacity(BarColor);
 }
 
 FString USuspenseCoreAttributesWidget::FormatValueText(float Current, float Max) const

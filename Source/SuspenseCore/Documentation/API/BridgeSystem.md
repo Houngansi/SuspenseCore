@@ -575,6 +575,84 @@ if (ItemMgr)
 
 ---
 
+## SuspenseCore Save System
+
+**Файлы:**
+- `Public/SuspenseCore/Save/SuspenseCoreSaveManager.h`
+- `Public/SuspenseCore/Save/SuspenseCoreSaveTypes.h`
+- `Public/SuspenseCore/Save/SuspenseCoreSaveInterfaces.h`
+- `Public/SuspenseCore/Save/SuspenseCoreFileSaveRepository.h`
+
+### USuspenseCoreSaveManager
+
+**Тип:** UGameInstanceSubsystem
+**Назначение:** Централизованное управление сохранениями игры
+
+#### Что сохраняется
+
+| Категория | Данные | Статус |
+|-----------|--------|--------|
+| **Position** | WorldPosition, WorldRotation, CurrentMapName | ✅ |
+| **GAS Attributes** | Health, MaxHealth, Stamina, MaxStamina, Armor, Shield | ✅ |
+| **Active Effects** | EffectId, RemainingDuration, StackCount, Level | ✅ |
+| **Profile Data** | DisplayName, Level, XP, Stats, Settings, Loadouts | ✅ |
+| **Player Stats** | Kills, Deaths, Assists, DamageDealt, Accuracy, PlayTime | ✅ |
+| **Settings** | MouseSensitivity, FOV, Volume, CrosshairColor | ✅ |
+| **Movement State** | bIsCrouching, bIsSprinting | ✅ |
+
+#### API
+
+```cpp
+// Quick Save/Load (F5/F9)
+void QuickSave();
+void QuickLoad();
+bool HasQuickSave() const;
+
+// Slot Management
+void SaveToSlot(int32 SlotIndex, const FString& SlotName = TEXT(""));
+void LoadFromSlot(int32 SlotIndex);
+void DeleteSlot(int32 SlotIndex);
+TArray<FSuspenseCoreSaveHeader> GetAllSlotHeaders();
+
+// Auto-Save
+void SetAutoSaveEnabled(bool bEnabled);
+void SetAutoSaveInterval(float IntervalSeconds);  // Min 30s, default 300s
+void TriggerAutoSave();  // Manual checkpoint trigger
+
+// State Collection (internal)
+FSuspenseCoreSaveData CollectCurrentGameState();
+void ApplyLoadedState(const FSuspenseCoreSaveData& SaveData);
+```
+
+#### Events
+
+```cpp
+FOnSuspenseCoreSaveStarted OnSaveStarted;
+FOnSuspenseCoreSaveCompleted OnSaveCompleted;  // (bool bSuccess, FString ErrorMessage)
+FOnSuspenseCoreLoadStarted OnLoadStarted;
+FOnSuspenseCoreLoadCompleted OnLoadCompleted;  // (bool bSuccess, FString ErrorMessage)
+```
+
+#### Save Data Structure
+
+```cpp
+FSuspenseCoreSaveData
+├── FSuspenseCoreSaveHeader        // Metadata (version, timestamp, playtime, character info)
+├── FSuspenseCorePlayerData        // Profile (ID, DisplayName, Level, XP, Stats, Settings)
+├── FSuspenseCoreCharacterState    // Runtime state (position, attributes, effects)
+├── FSuspenseCoreInventoryState    // Items, Currencies, InventorySize
+└── FSuspenseCoreEquipmentState    // EquippedSlots, Loadout, QuickSlots, WeaponAmmo
+```
+
+#### Integration with GAS
+
+Save system полностью интегрирована с Gameplay Ability System:
+- `CollectCharacterState()` читает атрибуты через `IAbilitySystemInterface`
+- `ApplyLoadedState()` восстанавливает атрибуты через `SetNumericAttributeBase()`
+- Active GameplayEffects сохраняются и восстанавливаются с duration/stack count
+
+---
+
 **Дата создания:** 2025-11-28
 **Автор:** Tech Lead
-**Версия документа:** 1.0
+**Версия документа:** 1.1 (Save System documentation added)

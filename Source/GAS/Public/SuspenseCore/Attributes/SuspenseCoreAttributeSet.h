@@ -214,6 +214,14 @@ protected:
 	 */
 	void ClampAttribute(const FGameplayAttribute& Attribute, float& Value);
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Base walk speed for movement calculations (used with MovementSpeed multiplier) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
+	float BaseWalkSpeed = 600.0f;
+
 private:
 	/** Порог низкого здоровья (процент) */
 	static constexpr float LowHealthThreshold = 0.25f;

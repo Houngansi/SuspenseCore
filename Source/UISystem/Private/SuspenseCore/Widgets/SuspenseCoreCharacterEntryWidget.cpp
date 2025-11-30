@@ -34,6 +34,22 @@ void USuspenseCoreCharacterEntryWidget::NativeConstruct()
 	UpdateVisualState();
 }
 
+void USuspenseCoreCharacterEntryWidget::NativeDestruct()
+{
+	// Unbind button events to prevent dangling delegates
+	if (SelectButton)
+	{
+		SelectButton->OnClicked.RemoveDynamic(this, &USuspenseCoreCharacterEntryWidget::OnButtonClicked);
+	}
+
+	if (EntryButton)
+	{
+		EntryButton->OnClicked.RemoveDynamic(this, &USuspenseCoreCharacterEntryWidget::OnButtonClicked);
+	}
+
+	Super::NativeDestruct();
+}
+
 void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayerId, const FString& InDisplayName, int32 InLevel, UTexture2D* InAvatarTexture)
 {
 	PlayerId = InPlayerId;

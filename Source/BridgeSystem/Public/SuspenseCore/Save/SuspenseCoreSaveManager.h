@@ -258,7 +258,7 @@ protected:
 
 	/** Save repository */
 	UPROPERTY()
-	USuspenseCoreFileSaveRepository* SaveRepository;
+	TObjectPtr<USuspenseCoreFileSaveRepository> SaveRepository;
 
 	/** Auto-save enabled */
 	bool bAutoSaveEnabled = true;

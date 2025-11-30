@@ -1,7 +1,7 @@
 # Main Menu Setup Guide
 
-> Руководство по настройке главного меню: регистрация, выбор персонажа, основное меню
-> Версия: 1.0 | Дата: 2025-11-29
+> Руководство по настройке главного меню: регистрация и основная панель с выбором персонажа
+> Версия: 2.0 | Дата: 2025-11-30
 
 ---
 
@@ -22,9 +22,9 @@
 
 ## 1. Обзор архитектуры
 
-### 1.1 Трёхэкранная структура
+### 1.1 Двухэкранная структура
 
-MainMenu использует `WidgetSwitcher` для переключения между экранами:
+MainMenu использует `WidgetSwitcher` с двумя экранами:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -36,31 +36,28 @@ MainMenu использует `WidgetSwitcher` для переключения �
 │  │         ┌─────────────────┼─────────────────┐                        │    │
 │  │         │ No saves        │ Has saves       │                        │    │
 │  │         ▼                 ▼                 │                        │    │
-│  │  ┌──────────────┐  ┌──────────────────┐     │                        │    │
-│  │  │ Registration │  │ Character Select │     │                        │    │
-│  │  │  (Index 1)   │  │    (Index 0)     │     │                        │    │
-│  │  │              │  │                  │     │                        │    │
-│  │  │ [Name Input] │  │ [Player_1 Lv.5]◄─┼─────┼─ Select                │    │
-│  │  │ [Create]─────┼──│ [Player_2 Lv.2] │     │                        │    │
-│  │  │              │  │ [+ Create New]──┼─────┘                        │    │
-│  │  └──────┬───────┘  └────────┬────────┘                              │    │
-│  │         │ Success           │ Select                                 │    │
-│  │         └─────────┬─────────┘                                        │    │
-│  │                   ▼                                                  │    │
-│  │         ┌─────────────────────────────┐                              │    │
-│  │         │       Main Menu             │                              │    │
-│  │         │        (Index 2)            │                              │    │
-│  │         │  ┌───────────────────────┐  │                              │    │
-│  │         │  │   Player Info Widget  │  │                              │    │
-│  │         │  │   Name: Player_X      │  │                              │    │
-│  │         │  │   Level: 5            │  │                              │    │
-│  │         │  └───────────────────────┘  │                              │    │
-│  │         │                             │                              │    │
-│  │         │  [PLAY] ────────────────────┼────────► GAME MAP            │    │
-│  │         │  [OPERATORS] (disabled)     │                              │    │
-│  │         │  [SETTINGS] (disabled)      │                              │    │
-│  │         │  [QUIT]                     │                              │    │
-│  │         └─────────────────────────────┘                              │    │
+│  │  ┌──────────────┐  ┌───────────────────────────────────────┐        │    │
+│  │  │ Registration │  │         Main Menu Panel               │        │    │
+│  │  │  (Index 0)   │  │           (Index 1)                   │        │    │
+│  │  │              │  │                                       │        │    │
+│  │  │ [Name Input] │  │  ┌─────────────────────────────────┐  │        │    │
+│  │  │ [Create]─────┼──┤  │     Character Select            │  │        │    │
+│  │  │              │  │  │  [Player_1 Lv.5] ◄── Select     │  │        │    │
+│  │  └──────────────┘  │  │  [Player_2 Lv.2]                │  │        │    │
+│  │                    │  │  [+ Create New]─────────────────┼──┘        │    │
+│  │                    │  └─────────────────────────────────┘  │        │    │
+│  │                    │                                       │        │    │
+│  │                    │  ┌─────────────────────────────────┐  │        │    │
+│  │                    │  │       Player Info               │  │        │    │
+│  │                    │  │  Name: Player_X   Level: 5      │  │        │    │
+│  │                    │  │  Kills: 342  K/D: 1.73          │  │        │    │
+│  │                    │  └─────────────────────────────────┘  │        │    │
+│  │                    │                                       │        │    │
+│  │                    │  [PLAY] ──────────────────────────────┼───► GAME│    │
+│  │                    │  [OPERATORS] (disabled)               │        │    │
+│  │                    │  [SETTINGS] (disabled)                │        │    │
+│  │                    │  [QUIT]                               │        │    │
+│  │                    └───────────────────────────────────────┘        │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -69,9 +66,8 @@ MainMenu использует `WidgetSwitcher` для переключения �
 
 | Index | Экран | Назначение |
 |-------|-------|------------|
-| 0 | CharacterSelect | Выбор существующего персонажа |
-| 1 | Registration | Создание нового персонажа |
-| 2 | MainMenu | Основное меню с кнопками |
+| 0 | Registration | Создание нового персонажа |
+| 1 | MainMenuPanel | Выбор персонажа + информация + кнопки |
 
 ### 1.3 Хранение данных
 
@@ -152,44 +148,51 @@ MainMenu использует `WidgetSwitcher` для переключения �
 │   ├── [Widget Switcher] "ScreenSwitcher"    ← Переключатель экранов
 │   │   │   Is Variable: ✓
 │   │   │
-│   │   │── [Index 0] ─ Panel_CharacterSelect
-│   │   │   └── WBP_CharacterSelect           ← "CharacterSelectWidget"
-│   │   │       Is Variable: ✓
-│   │   │
-│   │   │── [Index 1] ─ Panel_Registration
+│   │   │── [Index 0] ─ Panel_Registration
 │   │   │   └── WBP_Registration              ← "RegistrationWidget"
 │   │   │       Is Variable: ✓
 │   │   │
-│   │   └── [Index 2] ─ Panel_MainMenu
+│   │   └── [Index 1] ─ Panel_MainMenu
 │   │       │
-│   │       ├── WBP_PlayerInfo                ← "PlayerInfoWidget"
-│   │       │   Is Variable: ✓
-│   │       │
-│   │       ├── [Spacer] Height: 30
-│   │       │
-│   │       └── [Vertical Box] Menu Buttons
-│   │           │
-│   │           ├── [Button] "PlayButton"
-│   │           │   └── [Text Block] "PlayButtonText" = "PLAY"
-│   │           │       Is Variable: ✓
-│   │           │
-│   │           ├── [Spacer] Height: 10
-│   │           │
-│   │           ├── [Button] "OperatorsButton"
-│   │           │   └── [Text Block] = "OPERATORS"
-│   │           │   Is Enabled: false (future)
-│   │           │
-│   │           ├── [Spacer] Height: 10
-│   │           │
-│   │           ├── [Button] "SettingsButton"
-│   │           │   └── [Text Block] = "SETTINGS"
-│   │           │   Is Enabled: false (future)
-│   │           │
-│   │           ├── [Spacer] Height: 10
-│   │           │
-│   │           └── [Button] "QuitButton"
-│   │               └── [Text Block] "QuitButtonText" = "QUIT"
-│   │               Is Variable: ✓
+│   │       ├── [Horizontal Box] MainContent
+│   │       │   │
+│   │       │   ├── WBP_CharacterSelect       ← "CharacterSelectWidget"
+│   │       │   │   Is Variable: ✓
+│   │       │   │   Size: 350x400
+│   │       │   │
+│   │       │   ├── [Spacer] Width: 30
+│   │       │   │
+│   │       │   └── [Vertical Box] RightPanel
+│   │       │       │
+│   │       │       ├── WBP_PlayerInfo        ← "PlayerInfoWidget"
+│   │       │       │   Is Variable: ✓
+│   │       │       │   Size: 350x250
+│   │       │       │
+│   │       │       ├── [Spacer] Height: 30
+│   │       │       │
+│   │       │       └── [Vertical Box] MenuButtons
+│   │       │           │
+│   │       │           ├── [Button] "PlayButton"
+│   │       │           │   └── [Text Block] "PlayButtonText" = "PLAY"
+│   │       │           │       Is Variable: ✓
+│   │       │           │
+│   │       │           ├── [Spacer] Height: 10
+│   │       │           │
+│   │       │           ├── [Button] "OperatorsButton"
+│   │       │           │   └── [Text Block] = "OPERATORS"
+│   │       │           │   Is Enabled: false (future)
+│   │       │           │
+│   │       │           ├── [Spacer] Height: 10
+│   │       │           │
+│   │       │           ├── [Button] "SettingsButton"
+│   │       │           │   └── [Text Block] = "SETTINGS"
+│   │       │           │   Is Enabled: false (future)
+│   │       │           │
+│   │       │           ├── [Spacer] Height: 10
+│   │       │           │
+│   │       │           └── [Button] "QuitButton"
+│   │       │               └── [Text Block] "QuitButtonText" = "QUIT"
+│   │       │               Is Variable: ✓
 │   │
 │   └── [Spacer] Height: 20
 │
@@ -204,8 +207,8 @@ MainMenu использует `WidgetSwitcher` для переключения �
 | Имя | Тип | Обязательный | Описание |
 |-----|-----|--------------|----------|
 | `ScreenSwitcher` | UWidgetSwitcher | **Да** | Переключатель экранов |
-| `CharacterSelectWidget` | USuspenseCoreCharacterSelectWidget | **Да** | Виджет выбора персонажа |
-| `RegistrationWidget` | USuspenseCoreRegistrationWidget | **Да** | Виджет регистрации |
+| `RegistrationWidget` | USuspenseCoreRegistrationWidget | **Да** | Виджет регистрации (Index 0) |
+| `CharacterSelectWidget` | USuspenseCoreCharacterSelectWidget | **Да** | Виджет выбора (в MainMenu Panel) |
 | `PlayerInfoWidget` | USuspenseCorePlayerInfoWidget | Нет | Информация об игроке |
 | `PlayButton` | UButton | **Да** | Кнопка "Играть" |
 | `PlayButtonText` | UTextBlock | Нет | Текст кнопки |
@@ -218,9 +221,8 @@ MainMenu использует `WidgetSwitcher` для переключения �
 
 ```
 MainMenu | Config:
-├── CharacterSelectScreenIndex: 0
-├── RegistrationScreenIndex:    1
-├── MainMenuScreenIndex:        2
+├── RegistrationScreenIndex:    0
+├── MainMenuScreenIndex:        1
 ├── GameMapName:                "GameMap"
 ├── GameGameModeClass:          BP_SuspenseCoreGameGameMode
 
@@ -325,14 +327,14 @@ static const FRegexPattern NamePattern(TEXT("^[a-zA-Z0-9_-]{3,32}$"));
 
 ```
 [Vertical Box]
-│   Size: 500x400
+│   Size: 350x400
 │
 ├── [Text Block] "TitleText"
 │       Text: "SELECT CHARACTER"
-│       Font Size: 24
+│       Font Size: 20
 │       Is Variable: ✓
 │
-├── [Spacer] Height: 20
+├── [Spacer] Height: 15
 │
 ├── [Scroll Box] "CharacterListScrollBox"     ← Список персонажей
 │   │   Orientation: Vertical
@@ -342,42 +344,32 @@ static const FRegexPattern NamePattern(TEXT("^[a-zA-Z0-9_-]{3,32}$"));
 │   │
 │   └── (Динамически заполняется WBP_CharacterEntry)
 │
-├── [Spacer] Height: 15
+├── [Spacer] Height: 10
 │
 ├── [Text Block] "StatusText"                  ← "No characters found"
 │       Visibility: Collapsed
 │       Is Variable: ✓
 │
-├── [Spacer] Height: 15
+├── [Spacer] Height: 10
 │
-└── [Horizontal Box] Buttons
+└── [Vertical Box] Buttons
     │
-    ├── [Button] "PlayButton"                  ← Играть выбранным
-    │   │   Is Enabled: false (до выбора)
+    ├── [Button] "CreateNewButton"             ← Создать нового
     │   │   Is Variable: ✓
     │   │
-    │   └── [Text Block] "PlayButtonText"
-    │           Text: "PLAY"
+    │   └── [Text Block] "CreateNewButtonText"
+    │           Text: "+ CREATE NEW"
     │           Is Variable: ✓
     │
-    ├── [Spacer] Width: 10
+    ├── [Spacer] Height: 5
     │
-    ├── [Button] "DeleteButton"                ← Удалить выбранного
-    │   │   Is Enabled: false (до выбора)
-    │   │   Style: Danger/Red
-    │   │   Is Variable: ✓
-    │   │
-    │   └── [Text Block] "DeleteButtonText"
-    │           Text: "DELETE"
-    │           Is Variable: ✓
-    │
-    ├── [Spacer] Width: 10
-    │
-    └── [Button] "CreateNewButton"             ← Создать нового
+    └── [Button] "DeleteButton"                ← Удалить выбранного
+        │   Is Enabled: false (до выбора)
+        │   Style: Danger/Red
         │   Is Variable: ✓
         │
-        └── [Text Block] "CreateNewButtonText"
-                Text: "CREATE NEW"
+        └── [Text Block] "DeleteButtonText"
+                Text: "DELETE"
                 Is Variable: ✓
 ```
 
@@ -386,7 +378,6 @@ static const FRegexPattern NamePattern(TEXT("^[a-zA-Z0-9_-]{3,32}$"));
 | Имя | Тип | Обязательный |
 |-----|-----|--------------|
 | `CharacterListScrollBox` | UScrollBox | **Да** |
-| `PlayButton` | UButton | **Да** |
 | `CreateNewButton` | UButton | **Да** |
 | `TitleText` | UTextBlock | Нет |
 | `StatusText` | UTextBlock | Нет |
@@ -424,21 +415,21 @@ CharacterSelect | Config:
     └── [Horizontal Box]
         │
         ├── [Image] "AvatarImage"              ← Аватар (опционально)
-        │       Size: 64x64
+        │       Size: 48x48
         │       Is Variable: ✓
         │
-        ├── [Spacer] Width: 15
+        ├── [Spacer] Width: 10
         │
         └── [Vertical Box]
             │
             ├── [Text Block] "DisplayNameText" ← Имя персонажа
-            │       Font Size: 18
+            │       Font Size: 16
             │       Font: Bold
             │       Is Variable: ✓
             │
             └── [Text Block] "LevelText"       ← Уровень
-                    Text: "Level X"
-                    Font Size: 14
+                    Text: "Lv. X"
+                    Font Size: 12
                     Color: Gray
                     Is Variable: ✓
 ```
@@ -485,14 +476,14 @@ CharacterEntry | Appearance:
 │   │       Is Variable: ✓
 │   │
 │   └── [Text Block] "PlayerIdText"
-│           Font Size: 12
+│           Font Size: 10
 │           Color: Gray
 │           Is Variable: ✓
 │
 ├── [Spacer] Height: 10
 │
 ├── [Text Block] "LevelText"
-│       Text: "Level X"
+│       Text: "Lv. X"
 │       Font Size: 16
 │       Is Variable: ✓
 │
@@ -524,15 +515,14 @@ CharacterEntry | Appearance:
 ├── [Horizontal Box] Stats
 │   ├── [Text Block] "KillsText"
 │   │       Is Variable: ✓
+│   ├── [Spacer] Width: 15
 │   ├── [Text Block] "DeathsText"
 │   │       Is Variable: ✓
+│   ├── [Spacer] Width: 15
 │   └── [Text Block] "KDRatioText"
 │           Is Variable: ✓
 │
-├── [Text Block] "PlaytimeText"
-│       Is Variable: ✓
-│
-└── [Button] "RefreshButton" (опционально)
+└── [Text Block] "PlaytimeText"
         Is Variable: ✓
 ```
 
@@ -548,7 +538,18 @@ CharacterEntry | Appearance:
 | `HardCurrencyText` | UTextBlock | Нет |
 | `KillsText` | UTextBlock | Нет |
 | `DeathsText` | UTextBlock | Нет |
+| `KDRatioText` | UTextBlock | Нет |
 | `PlaytimeText` | UTextBlock | Нет |
+
+### 7.4 Тестирование виджета
+
+Если данные показывают нули - это нормально для нового игрока!
+Для тестирования используйте:
+
+```cpp
+// В Blueprint или C++
+PlayerInfoWidget->DisplayTestPlayerData(TEXT("TestPlayer"));
+```
 
 ---
 
@@ -598,15 +599,10 @@ MainMenuMap                    GameMap
 ### 9.2 Код перехода
 
 ```cpp
-// В MainMenuWidget при нажатии Play
+// При нажатии Play в MainMenuWidget
 void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()
 {
-    if (USuspenseCoreMapTransitionSubsystem* Transition =
-        USuspenseCoreMapTransitionSubsystem::Get(this))
-    {
-        // Передаём PlayerId и имя карты
-        Transition->TransitionToGameMap(CurrentPlayerId, GameMapName, GameGameModeClass);
-    }
+    TransitionToGame();  // Использует CurrentPlayerId
 }
 ```
 
@@ -635,9 +631,8 @@ void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()
 
 **Решение:**
 1. Проверьте индексы в `ScreenSwitcher`
-2. Index 0 = CharacterSelect
-3. Index 1 = Registration
-4. Index 2 = MainMenu
+2. Index 0 = Registration
+3. Index 1 = MainMenuPanel (с CharacterSelect внутри)
 
 ---
 
@@ -659,11 +654,19 @@ void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()
 
 ---
 
+### Проблема: PlayerInfo показывает нули
+
+**Это нормально для нового игрока!** Используйте тестовые данные:
+
+```cpp
+PlayerInfoWidget->DisplayTestPlayerData(TEXT("TestPlayer"));
+```
+
+---
+
 ### Проблема: После перехода нет управления
 
-**Критично!** См. [InputModeHandling.md](InputModeHandling.md)
-
-В `BP_SuspenseCorePlayerController` должен быть код:
+**Критично!** В `BP_SuspenseCorePlayerController`:
 
 ```cpp
 void ASuspenseCorePlayerController::BeginPlay()
@@ -689,7 +692,8 @@ void ASuspenseCorePlayerController::BeginPlay()
 - [ ] Создан `WBP_CharacterSelect` (Parent: `USuspenseCoreCharacterSelectWidget`)
 - [ ] Создан `WBP_CharacterEntry` (Parent: `USuspenseCoreCharacterEntryWidget`)
 - [ ] Создан `WBP_PlayerInfo` (Parent: `USuspenseCorePlayerInfoWidget`)
-- [ ] Виджеты встроены в `ScreenSwitcher` с правильными индексами
+- [ ] ScreenSwitcher: Index 0 = Registration, Index 1 = MainMenuPanel
+- [ ] CharacterSelect и PlayerInfo встроены в MainMenuPanel (Index 1)
 - [ ] `CharacterEntryWidgetClass` установлен в `WBP_CharacterSelect`
 - [ ] `MainMenuWidgetClass` установлен в `BP_MenuGameMode`
 - [ ] Карта `MainMenuMap` создана с правильным GameMode Override
@@ -697,5 +701,5 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 ---
 
-*Документация создана: 2025-11-29*
-*SuspenseCore Clean Architecture*
+*Документация создана: 2025-11-30*
+*SuspenseCore Clean Architecture v2.0*

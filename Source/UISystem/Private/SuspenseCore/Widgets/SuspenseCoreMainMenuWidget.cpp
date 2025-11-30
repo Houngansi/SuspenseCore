@@ -88,8 +88,8 @@ void USuspenseCoreMainMenuWidget::InitializeMenu()
 	// Check if we have existing players
 	if (HasExistingPlayer())
 	{
-		// Show character select screen (player can choose existing or create new)
-		ShowCharacterSelectScreen();
+		// Show main menu panel (CharacterSelect is embedded there)
+		ShowMainMenuPanel();
 	}
 	else
 	{
@@ -136,6 +136,12 @@ bool USuspenseCoreMainMenuWidget::HasExistingPlayer() const
 
 void USuspenseCoreMainMenuWidget::ShowCharacterSelectScreen()
 {
+	// CharacterSelect is now embedded in MainMenuPanel - just show that panel
+	ShowMainMenuPanel();
+}
+
+void USuspenseCoreMainMenuWidget::ShowMainMenuPanel()
+{
 	// Refresh the character list if widget exists
 	if (CharacterSelectWidget)
 	{
@@ -144,11 +150,11 @@ void USuspenseCoreMainMenuWidget::ShowCharacterSelectScreen()
 
 	if (ScreenSwitcher)
 	{
-		ScreenSwitcher->SetActiveWidgetIndex(CharacterSelectScreenIndex);
-		OnScreenChanged(CharacterSelectScreenIndex);
+		ScreenSwitcher->SetActiveWidgetIndex(MainMenuScreenIndex);
+		OnScreenChanged(MainMenuScreenIndex);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Showing character select screen"));
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Showing main menu panel (with CharacterSelect)"));
 }
 
 void USuspenseCoreMainMenuWidget::ShowRegistrationScreen()
@@ -163,6 +169,21 @@ void USuspenseCoreMainMenuWidget::ShowRegistrationScreen()
 }
 
 void USuspenseCoreMainMenuWidget::ShowMainMenuScreen(const FString& PlayerId)
+{
+	// Update current player and display data (screen switch handled separately)
+	SelectPlayer(PlayerId);
+
+	// Ensure we're on the main menu panel
+	if (ScreenSwitcher && ScreenSwitcher->GetActiveWidgetIndex() != MainMenuScreenIndex)
+	{
+		ScreenSwitcher->SetActiveWidgetIndex(MainMenuScreenIndex);
+		OnScreenChanged(MainMenuScreenIndex);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Selected player %s"), *PlayerId);
+}
+
+void USuspenseCoreMainMenuWidget::SelectPlayer(const FString& PlayerId)
 {
 	CurrentPlayerId = PlayerId;
 
@@ -183,15 +204,6 @@ void USuspenseCoreMainMenuWidget::ShowMainMenuScreen(const FString& PlayerId)
 			UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Failed to load player %s"), *PlayerId);
 		}
 	}
-
-	// Switch to main menu screen
-	if (ScreenSwitcher)
-	{
-		ScreenSwitcher->SetActiveWidgetIndex(MainMenuScreenIndex);
-		OnScreenChanged(MainMenuScreenIndex);
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Showing main menu for player %s"), *PlayerId);
 }
 
 void USuspenseCoreMainMenuWidget::TransitionToGame()

@@ -26,17 +26,15 @@ class ISuspenseCorePlayerRepository;
  * USuspenseCoreMainMenuWidget
  *
  * Main menu widget that handles the complete menu flow:
- * - Character Select screen (if players exist)
- * - Registration screen for new players
- * - Main menu with player info and Play button
- * - Transitions between screens via EventBus
+ * - Registration screen for new players (Index 0)
+ * - Main menu panel with character select, player info and Play button (Index 1)
  *
  * Screen Flow:
- * - Start → Has saves? → Character Select (Index 0)
- * - Start → No saves? → Registration (Index 1)
- * - Character Select → Select player → Main Menu (Index 2)
- * - Character Select → Create new → Registration (Index 1)
- * - Registration → Success → Main Menu (Index 2)
+ * - Start → No saves? → Registration (Index 0)
+ * - Start → Has saves? → Main Menu Panel (Index 1)
+ * - Registration → Success → Main Menu Panel (Index 1)
+ * - Main Menu Panel → Character Select embedded
+ * - Main Menu Panel → Play → Game Map
  *
  * Save Location: [Project]/Saved/Players/[PlayerId].json
  *
@@ -68,22 +66,35 @@ public:
 	void InitializeMenu();
 
 	/**
-	 * Show character select screen.
+	 * Show character select screen (legacy - redirects to ShowMainMenuPanel).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
 	void ShowCharacterSelectScreen();
 
 	/**
-	 * Show registration screen.
+	 * Show registration screen (Index 0).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
 	void ShowRegistrationScreen();
 
 	/**
-	 * Show main menu screen with player data.
+	 * Show main menu panel with CharacterSelect + PlayerInfo (Index 1).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
+	void ShowMainMenuPanel();
+
+	/**
+	 * Show main menu screen with player data (legacy - calls SelectPlayer + ShowMainMenuPanel).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
 	void ShowMainMenuScreen(const FString& PlayerId);
+
+	/**
+	 * Select a player and update PlayerInfo display.
+	 * Does not switch screens.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|MainMenu")
+	void SelectPlayer(const FString& PlayerId);
 
 	/**
 	 * Transition to game map.
@@ -125,24 +136,21 @@ protected:
 	UTextBlock* VersionText;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Character Select Screen (Index 0)
+	// UI BINDINGS - Registration Screen (Index 0)
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Character select widget */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	USuspenseCoreCharacterSelectWidget* CharacterSelectWidget;
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Registration Screen (Index 1)
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Registration widget (embedded or referenced) */
+	/** Registration widget for new players */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	USuspenseCoreRegistrationWidget* RegistrationWidget;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Main Menu Screen (Index 2)
+	// UI BINDINGS - Main Menu Panel (Index 1)
+	// Contains: Character Select + Player Info + Buttons
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Character select widget (embedded in Main Menu Panel) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	USuspenseCoreCharacterSelectWidget* CharacterSelectWidget;
 
 	/** Player info widget */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -188,17 +196,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FText VersionString = FText::FromString(TEXT("v0.1.0 Alpha"));
 
-	/** Index of character select screen in WidgetSwitcher */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	int32 CharacterSelectScreenIndex = 0;
-
 	/** Index of registration screen in WidgetSwitcher */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	int32 RegistrationScreenIndex = 1;
+	int32 RegistrationScreenIndex = 0;
 
-	/** Index of main menu screen in WidgetSwitcher */
+	/** Index of main menu panel (with CharacterSelect + PlayerInfo) in WidgetSwitcher */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	int32 MainMenuScreenIndex = 2;
+	int32 MainMenuScreenIndex = 1;
 
 	/**
 	 * GameMode class path for game maps.

@@ -26,9 +26,7 @@ public class UISystem : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore",
-				"PlayerCore",
-				"GAS"
+				"SlateCore"
 			}
 		);
 	}

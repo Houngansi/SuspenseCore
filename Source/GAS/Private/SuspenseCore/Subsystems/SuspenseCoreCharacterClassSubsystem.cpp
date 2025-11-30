@@ -4,15 +4,14 @@
 
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
-#include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreShieldAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreMovementAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "PlayerCore/Public/SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
 #include "Abilities/GameplayAbility.h"
 
@@ -38,7 +37,7 @@ void USuspenseCoreCharacterClassSubsystem::Deinitialize()
 	}
 
 	LoadedClasses.Empty();
-	PlayerClassMap.Empty();
+	ActorClassMap.Empty();
 
 	Super::Deinitialize();
 }
@@ -195,91 +194,142 @@ bool USuspenseCoreCharacterClassSubsystem::ClassExists(FName ClassId) const
 	return LoadedClasses.Contains(ClassId);
 }
 
-bool USuspenseCoreCharacterClassSubsystem::ApplyClassToPlayer(ASuspenseCorePlayerState* PlayerState, FName ClassId)
+bool USuspenseCoreCharacterClassSubsystem::ApplyClassToActor(AActor* Actor, FName ClassId, int32 PlayerLevel)
 {
-	if (!PlayerState)
+	if (!Actor)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToPlayer: Invalid PlayerState"));
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToActor: Invalid Actor"));
 		return false;
 	}
 
 	USuspenseCoreCharacterClassData* ClassData = GetClassById(ClassId);
 	if (!ClassData)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToPlayer: Class '%s' not found"), *ClassId.ToString());
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToActor: Class '%s' not found"), *ClassId.ToString());
 		return false;
 	}
 
-	return ApplyClassDataToPlayer(PlayerState, ClassData);
+	return ApplyClassDataToActor(Actor, ClassData, PlayerLevel);
 }
 
-bool USuspenseCoreCharacterClassSubsystem::ApplyClassDataToPlayer(ASuspenseCorePlayerState* PlayerState, USuspenseCoreCharacterClassData* ClassData)
+bool USuspenseCoreCharacterClassSubsystem::ApplyClassDataToActor(AActor* Actor, USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel)
 {
-	if (!PlayerState || !ClassData)
+	if (!Actor || !ClassData)
 	{
 		return false;
 	}
 
-	USuspenseCoreAbilitySystemComponent* ASC = PlayerState->GetSuspenseCoreASC();
+	// Get ASC via interface
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Actor);
+	if (!ASI)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassDataToActor: Actor does not implement IAbilitySystemInterface"));
+		return false;
+	}
+
+	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
 	if (!ASC)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassDataToPlayer: Player has no ASC"));
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassDataToActor: Actor has no ASC"));
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Applying class '%s' to player %s"),
-		*ClassData->DisplayName.ToString(), *PlayerState->GetPlayerName());
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Applying class '%s' to actor %s"),
+		*ClassData->DisplayName.ToString(), *Actor->GetName());
 
 	// 1. Remove previous class if any
-	RemoveClassFromPlayer(PlayerState);
+	RemoveClassFromActor(Actor);
 
 	// 2. Apply attribute modifiers
 	ApplyAttributeModifiers(ASC, ClassData);
 
 	// 3. Grant class abilities
-	int32 PlayerLevel = PlayerState->GetPlayerLevel();
 	GrantClassAbilities(ASC, ClassData, PlayerLevel);
 
 	// 4. Apply passive effects
 	ApplyPassiveEffects(ASC, ClassData);
 
 	// 5. Store class reference
-	PlayerClassMap.Add(PlayerState, ClassData);
+	ActorClassMap.Add(Actor, ClassData);
 
 	// 6. Add class tag
 	ASC->AddLooseGameplayTag(ClassData->ClassTag);
 
 	// 7. Broadcast events
-	OnClassApplied.Broadcast(PlayerState, ClassData);
-	PublishClassChangeEvent(PlayerState, ClassData);
+	OnClassApplied.Broadcast(Actor, ClassData);
+	PublishClassChangeEvent(Actor, ClassData);
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Class '%s' applied successfully"), *ClassData->ClassID.ToString());
 
 	return true;
 }
 
-void USuspenseCoreCharacterClassSubsystem::RemoveClassFromPlayer(ASuspenseCorePlayerState* PlayerState)
+bool USuspenseCoreCharacterClassSubsystem::ApplyClassToASC(UAbilitySystemComponent* ASC, FName ClassId, int32 PlayerLevel)
 {
-	if (!PlayerState)
+	if (!ASC)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToASC: Invalid ASC"));
+		return false;
+	}
+
+	USuspenseCoreCharacterClassData* ClassData = GetClassById(ClassId);
+	if (!ClassData)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassToASC: Class '%s' not found"), *ClassId.ToString());
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Applying class '%s' directly to ASC"),
+		*ClassData->DisplayName.ToString());
+
+	// Apply attribute modifiers
+	ApplyAttributeModifiers(ASC, ClassData);
+
+	// Grant class abilities
+	GrantClassAbilities(ASC, ClassData, PlayerLevel);
+
+	// Apply passive effects
+	ApplyPassiveEffects(ASC, ClassData);
+
+	// Add class tag
+	ASC->AddLooseGameplayTag(ClassData->ClassTag);
+
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Class '%s' applied to ASC successfully"), *ClassData->ClassID.ToString());
+
+	return true;
+}
+
+void USuspenseCoreCharacterClassSubsystem::RemoveClassFromActor(AActor* Actor)
+{
+	if (!Actor)
 	{
 		return;
 	}
 
-	USuspenseCoreCharacterClassData** CurrentClass = PlayerClassMap.Find(PlayerState);
+	USuspenseCoreCharacterClassData** CurrentClass = ActorClassMap.Find(Actor);
 	if (!CurrentClass || !*CurrentClass)
 	{
 		return;
 	}
 
-	USuspenseCoreAbilitySystemComponent* ASC = PlayerState->GetSuspenseCoreASC();
+	// Get ASC via interface
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Actor);
+	if (!ASI)
+	{
+		ActorClassMap.Remove(Actor);
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
 	if (!ASC)
 	{
+		ActorClassMap.Remove(Actor);
 		return;
 	}
 
 	USuspenseCoreCharacterClassData* OldClass = *CurrentClass;
 
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Removing class '%s' from player"), *OldClass->ClassID.ToString());
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Removing class '%s' from actor"), *OldClass->ClassID.ToString());
 
 	// Remove class tag
 	ASC->RemoveLooseGameplayTag(OldClass->ClassTag);
@@ -300,21 +350,21 @@ void USuspenseCoreCharacterClassSubsystem::RemoveClassFromPlayer(ASuspenseCorePl
 	// Note: Passive effects should be handled by removing effects with class tag
 
 	// Clear mapping
-	PlayerClassMap.Remove(PlayerState);
+	ActorClassMap.Remove(Actor);
 }
 
-USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetPlayerCurrentClass(ASuspenseCorePlayerState* PlayerState) const
+USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetActorCurrentClass(AActor* Actor) const
 {
-	if (!PlayerState)
+	if (!Actor)
 	{
 		return nullptr;
 	}
 
-	USuspenseCoreCharacterClassData* const* Found = PlayerClassMap.Find(PlayerState);
+	USuspenseCoreCharacterClassData* const* Found = ActorClassMap.Find(Actor);
 	return Found ? *Found : nullptr;
 }
 
-void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData)
+void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData)
 {
 	if (!ASC || !ClassData)
 	{
@@ -380,7 +430,7 @@ void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(USuspenseCore
 		CoreAttribs ? CoreAttribs->GetAttackPower() : 0.0f);
 }
 
-void USuspenseCoreCharacterClassSubsystem::GrantClassAbilities(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel)
+void USuspenseCoreCharacterClassSubsystem::GrantClassAbilities(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel)
 {
 	if (!ASC || !ClassData)
 	{
@@ -407,7 +457,7 @@ void USuspenseCoreCharacterClassSubsystem::GrantClassAbilities(USuspenseCoreAbil
 	}
 }
 
-void USuspenseCoreCharacterClassSubsystem::ApplyPassiveEffects(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData)
+void USuspenseCoreCharacterClassSubsystem::ApplyPassiveEffects(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData)
 {
 	if (!ASC || !ClassData)
 	{
@@ -431,9 +481,9 @@ void USuspenseCoreCharacterClassSubsystem::ApplyPassiveEffects(USuspenseCoreAbil
 	}
 }
 
-void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(ASuspenseCorePlayerState* PlayerState, USuspenseCoreCharacterClassData* ClassData)
+void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(AActor* Actor, USuspenseCoreCharacterClassData* ClassData)
 {
-	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(PlayerState);
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(Actor);
 	if (!Manager)
 	{
 		return;
@@ -445,7 +495,7 @@ void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(ASuspenseCore
 		return;
 	}
 
-	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(PlayerState);
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Actor);
 	EventData.SetString(FName("ClassID"), ClassData->ClassID.ToString());
 	EventData.SetString(FName("ClassName"), ClassData->DisplayName.ToString());
 

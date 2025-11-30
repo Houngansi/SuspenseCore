@@ -7,11 +7,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/StreamableManager.h"
+#include "AbilitySystemInterface.h"
 #include "SuspenseCoreCharacterClassSubsystem.generated.h"
 
 class USuspenseCoreCharacterClassData;
-class ASuspenseCorePlayerState;
 class USuspenseCoreAbilitySystemComponent;
+class UAbilitySystemComponent;
 class UGameplayEffect;
 
 /**
@@ -23,9 +24,12 @@ class UGameplayEffect;
  * - Applying class attributes to players
  * - Managing class unlock progression
  *
+ * NOTE: This subsystem works with IAbilitySystemInterface to avoid
+ * circular dependencies between GAS and PlayerCore modules.
+ *
  * Usage:
  *   auto* ClassSystem = GameInstance->GetSubsystem<USuspenseCoreCharacterClassSubsystem>();
- *   ClassSystem->ApplyClassToPlayer(PlayerState, "Assault");
+ *   ClassSystem->ApplyClassToActor(PlayerState, "Assault", PlayerLevel);
  */
 UCLASS()
 class GAS_API USuspenseCoreCharacterClassSubsystem : public UGameInstanceSubsystem
@@ -88,36 +92,43 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Apply a character class to a player
+	 * Apply a character class to an actor that implements IAbilitySystemInterface
 	 * This will:
 	 * - Set attribute modifiers
 	 * - Grant class abilities
 	 * - Apply passive effects
 	 *
-	 * @param PlayerState The player to apply the class to
+	 * @param Actor The actor to apply the class to (must implement IAbilitySystemInterface)
 	 * @param ClassId The class identifier
+	 * @param PlayerLevel The player's current level (for ability unlocks)
 	 * @return True if successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
-	bool ApplyClassToPlayer(ASuspenseCorePlayerState* PlayerState, FName ClassId);
+	bool ApplyClassToActor(AActor* Actor, FName ClassId, int32 PlayerLevel = 1);
 
 	/**
 	 * Apply class using data asset directly
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
-	bool ApplyClassDataToPlayer(ASuspenseCorePlayerState* PlayerState, USuspenseCoreCharacterClassData* ClassData);
+	bool ApplyClassDataToActor(AActor* Actor, USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel = 1);
 
 	/**
-	 * Remove current class from player (reset to defaults)
+	 * Apply class directly to an ASC
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
-	void RemoveClassFromPlayer(ASuspenseCorePlayerState* PlayerState);
+	bool ApplyClassToASC(UAbilitySystemComponent* ASC, FName ClassId, int32 PlayerLevel = 1);
 
 	/**
-	 * Get the currently applied class for a player
+	 * Remove current class from actor (reset to defaults)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
-	USuspenseCoreCharacterClassData* GetPlayerCurrentClass(ASuspenseCorePlayerState* PlayerState) const;
+	void RemoveClassFromActor(AActor* Actor);
+
+	/**
+	 * Get the currently applied class for an actor
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
+	USuspenseCoreCharacterClassData* GetActorCurrentClass(AActor* Actor) const;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTS
@@ -128,8 +139,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Events")
 	FOnClassesLoaded OnClassesLoaded;
 
-	/** Called when a class is applied to a player */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClassApplied, ASuspenseCorePlayerState*, PlayerState, USuspenseCoreCharacterClassData*, ClassData);
+	/** Called when a class is applied to an actor */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClassApplied, AActor*, Actor, USuspenseCoreCharacterClassData*, ClassData);
 	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Events")
 	FOnClassApplied OnClassApplied;
 
@@ -150,9 +161,9 @@ protected:
 	UPROPERTY()
 	TMap<FName, USuspenseCoreCharacterClassData*> LoadedClasses;
 
-	/** Player -> Current Class mapping */
+	/** Actor -> Current Class mapping */
 	UPROPERTY()
-	TMap<TWeakObjectPtr<ASuspenseCorePlayerState>, USuspenseCoreCharacterClassData*> PlayerClassMap;
+	TMap<TWeakObjectPtr<AActor>, USuspenseCoreCharacterClassData*> ActorClassMap;
 
 	/** Streamable manager for async loading */
 	FStreamableManager StreamableManager;
@@ -174,14 +185,14 @@ protected:
 	void OnClassesLoadComplete();
 
 	/** Apply attribute modifiers from class data to ASC */
-	void ApplyAttributeModifiers(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);
+	void ApplyAttributeModifiers(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);
 
 	/** Grant class abilities to ASC */
-	void GrantClassAbilities(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel);
+	void GrantClassAbilities(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData, int32 PlayerLevel);
 
 	/** Apply passive effects */
-	void ApplyPassiveEffects(USuspenseCoreAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);
+	void ApplyPassiveEffects(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);
 
 	/** Publish class change to EventBus */
-	void PublishClassChangeEvent(ASuspenseCorePlayerState* PlayerState, USuspenseCoreCharacterClassData* ClassData);
+	void PublishClassChangeEvent(AActor* Actor, USuspenseCoreCharacterClassData* ClassData);
 };

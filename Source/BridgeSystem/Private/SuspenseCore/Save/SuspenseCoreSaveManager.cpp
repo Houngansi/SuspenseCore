@@ -318,35 +318,28 @@ void USuspenseCoreSaveManager::ApplyLoadedState(const FSuspenseCoreSaveData& Sav
 		{
 			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 			{
-				// Apply attributes via reflection - works without direct AttributeSet include
-				TArray<UAttributeSet*> AttributeSets;
-				ASC->GetAllAttributes(AttributeSets);
+				// Get all attributes and set values by name
+				TArray<FGameplayAttribute> AllAttributes;
+				ASC->GetAllAttributes(AllAttributes);
 
-				for (UAttributeSet* AttrSet : AttributeSets)
+				for (const FGameplayAttribute& Attribute : AllAttributes)
 				{
-					if (!AttrSet) continue;
+					if (!Attribute.IsValid()) continue;
 
-					for (TFieldIterator<FNumericProperty> PropIt(AttrSet->GetClass()); PropIt; ++PropIt)
+					FString PropName = Attribute.GetName();
+					float ValueToSet = 0.0f;
+					bool bShouldSet = false;
+
+					if (PropName == TEXT("Health")) { ValueToSet = SaveData.CharacterState.CurrentHealth; bShouldSet = true; }
+					else if (PropName == TEXT("MaxHealth")) { ValueToSet = SaveData.CharacterState.MaxHealth; bShouldSet = true; }
+					else if (PropName == TEXT("Stamina")) { ValueToSet = SaveData.CharacterState.CurrentStamina; bShouldSet = true; }
+					else if (PropName == TEXT("MaxStamina")) { ValueToSet = SaveData.CharacterState.MaxStamina; bShouldSet = true; }
+					else if (PropName == TEXT("Armor")) { ValueToSet = SaveData.CharacterState.CurrentArmor; bShouldSet = true; }
+					else if (PropName == TEXT("Shield")) { ValueToSet = SaveData.CharacterState.CurrentShield; bShouldSet = true; }
+
+					if (bShouldSet)
 					{
-						FNumericProperty* Property = *PropIt;
-						FString PropName = Property->GetName();
-
-						float ValueToSet = 0.0f;
-						bool bShouldSet = false;
-
-						if (PropName == TEXT("Health")) { ValueToSet = SaveData.CharacterState.CurrentHealth; bShouldSet = true; }
-						else if (PropName == TEXT("MaxHealth")) { ValueToSet = SaveData.CharacterState.MaxHealth; bShouldSet = true; }
-						else if (PropName == TEXT("Stamina")) { ValueToSet = SaveData.CharacterState.CurrentStamina; bShouldSet = true; }
-						else if (PropName == TEXT("MaxStamina")) { ValueToSet = SaveData.CharacterState.MaxStamina; bShouldSet = true; }
-						else if (PropName == TEXT("Armor")) { ValueToSet = SaveData.CharacterState.CurrentArmor; bShouldSet = true; }
-						else if (PropName == TEXT("Shield")) { ValueToSet = SaveData.CharacterState.CurrentShield; bShouldSet = true; }
-
-						if (bShouldSet)
-						{
-							// Create FGameplayAttribute and set via ASC
-							FGameplayAttribute Attribute(Property);
-							ASC->SetNumericAttributeBase(Attribute, ValueToSet);
-						}
+						ASC->SetNumericAttributeBase(Attribute, ValueToSet);
 					}
 				}
 
@@ -564,31 +557,23 @@ FSuspenseCoreCharacterState USuspenseCoreSaveManager::CollectCharacterState()
 		{
 			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 			{
-				// Get attributes via GetNumericAttributeBase - works without direct AttributeSet include
-				// Find any spawned AttributeSet to get attributes
-				TArray<UAttributeSet*> AttributeSets;
-				ASC->GetAllAttributes(AttributeSets);
+				// Get all attributes via GetAllAttributes (returns FGameplayAttribute array)
+				TArray<FGameplayAttribute> AllAttributes;
+				ASC->GetAllAttributes(AllAttributes);
 
-				for (UAttributeSet* AttrSet : AttributeSets)
+				for (const FGameplayAttribute& Attribute : AllAttributes)
 				{
-					if (!AttrSet) continue;
+					if (!Attribute.IsValid()) continue;
 
-					// Try to get Health/MaxHealth/Stamina/MaxStamina/Armor from any AttributeSet
-					for (TFieldIterator<FNumericProperty> PropIt(AttrSet->GetClass()); PropIt; ++PropIt)
-					{
-						FNumericProperty* Property = *PropIt;
-						FString PropName = Property->GetName();
+					FString PropName = Attribute.GetName();
+					float Value = ASC->GetNumericAttribute(Attribute);
 
-						float Value = 0.0f;
-						Property->GetValue_InContainer(AttrSet, &Value);
-
-						if (PropName == TEXT("Health")) State.CurrentHealth = Value;
-						else if (PropName == TEXT("MaxHealth")) State.MaxHealth = Value;
-						else if (PropName == TEXT("Stamina")) State.CurrentStamina = Value;
-						else if (PropName == TEXT("MaxStamina")) State.MaxStamina = Value;
-						else if (PropName == TEXT("Armor")) State.CurrentArmor = Value;
-						else if (PropName == TEXT("Shield")) State.CurrentShield = Value;
-					}
+					if (PropName == TEXT("Health")) State.CurrentHealth = Value;
+					else if (PropName == TEXT("MaxHealth")) State.MaxHealth = Value;
+					else if (PropName == TEXT("Stamina")) State.CurrentStamina = Value;
+					else if (PropName == TEXT("MaxStamina")) State.MaxStamina = Value;
+					else if (PropName == TEXT("Armor")) State.CurrentArmor = Value;
+					else if (PropName == TEXT("Shield")) State.CurrentShield = Value;
 				}
 
 				// Collect active gameplay effects

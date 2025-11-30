@@ -8,6 +8,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/StreamableManager.h"
 #include "AbilitySystemInterface.h"
+#include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "SuspenseCoreCharacterClassSubsystem.generated.h"
 
 class USuspenseCoreCharacterClassData;
@@ -183,6 +184,19 @@ protected:
 
 	/** Called when async load completes */
 	void OnClassesLoadComplete();
+
+	/** Create default starter classes if none are loaded (Assault, Medic, Sniper) */
+	void CreateDefaultClasses();
+
+	/** Create a single class data asset in memory */
+	USuspenseCoreCharacterClassData* CreateClassData(
+		FName ClassId,
+		const FText& DisplayName,
+		const FText& Description,
+		ESuspenseCoreClassRole Role,
+		const FSuspenseCoreAttributeModifier& Modifiers,
+		FLinearColor PrimaryColor
+	);
 
 	/** Apply attribute modifiers from class data to ASC */
 	void ApplyAttributeModifiers(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);

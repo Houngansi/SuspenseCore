@@ -342,6 +342,14 @@ struct BRIDGESYSTEM_API FSuspenseCorePlayerData
 	FDateTime LastLoginAt;
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// CHARACTER CLASS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** ID класса персонажа (Assault, Medic, Sniper, etc.) */
+	UPROPERTY(BlueprintReadWrite, Category = "Class")
+	FString CharacterClassId;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// ПРОГРЕСС
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -418,11 +426,12 @@ struct BRIDGESYSTEM_API FSuspenseCorePlayerData
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Создать нового игрока */
-	static FSuspenseCorePlayerData CreateNew(const FString& InDisplayName)
+	static FSuspenseCorePlayerData CreateNew(const FString& InDisplayName, const FString& InCharacterClassId = TEXT("Assault"))
 	{
 		FSuspenseCorePlayerData Data;
 		Data.PlayerId = FGuid::NewGuid().ToString();
 		Data.DisplayName = InDisplayName;
+		Data.CharacterClassId = InCharacterClassId;
 		Data.CreatedAt = FDateTime::UtcNow();
 		Data.LastLoginAt = FDateTime::UtcNow();
 

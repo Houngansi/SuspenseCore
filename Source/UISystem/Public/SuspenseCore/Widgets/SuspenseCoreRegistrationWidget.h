@@ -13,8 +13,12 @@ class UEditableTextBox;
 class UButton;
 class UTextBlock;
 class UVerticalBox;
+class UHorizontalBox;
+class UImage;
+class UBorder;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
+class USuspenseCoreCharacterClassData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSuspenseCoreOnRegistrationComplete, const FSuspenseCorePlayerData&, PlayerData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSuspenseCoreOnRegistrationError, const FString&, ErrorMessage);
@@ -75,6 +79,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Registration")
 	FString GetEnteredDisplayName() const;
+
+	/**
+	 * Get the selected character class ID.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Registration")
+	FString GetSelectedClassId() const;
+
+	/**
+	 * Select a character class by ID.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Registration")
+	void SelectClass(const FString& ClassId);
 
 	/**
 	 * Clear all input fields.
@@ -139,6 +155,34 @@ protected:
 	UVerticalBox* AdditionalFieldsContainer;
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// CLASS SELECTION UI BINDINGS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Container for class selection buttons */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UHorizontalBox* ClassSelectionContainer;
+
+	/** Assault class button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* AssaultClassButton;
+
+	/** Medic class button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* MedicClassButton;
+
+	/** Sniper class button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* SniperClassButton;
+
+	/** Selected class name display */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* SelectedClassNameText;
+
+	/** Selected class description display */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* SelectedClassDescriptionText;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -170,6 +214,10 @@ protected:
 	UPROPERTY()
 	TScriptInterface<ISuspenseCorePlayerRepository> PlayerRepository;
 
+	/** Currently selected class ID */
+	UPROPERTY()
+	FString SelectedClassId;
+
 	/** Is currently processing registration */
 	bool bIsProcessing = false;
 
@@ -196,6 +244,22 @@ protected:
 	/** Handle input text changed (for validation) */
 	UFUNCTION()
 	void OnDisplayNameChanged(const FText& Text);
+
+	/** Handle class button clicks */
+	UFUNCTION()
+	void OnAssaultClassClicked();
+
+	UFUNCTION()
+	void OnMedicClassClicked();
+
+	UFUNCTION()
+	void OnSniperClassClicked();
+
+	/** Setup class selection buttons */
+	void SetupClassSelectionBindings();
+
+	/** Update class selection UI based on selected class */
+	void UpdateClassSelectionUI();
 
 	/** Update UI state based on validation */
 	void UpdateUIState();

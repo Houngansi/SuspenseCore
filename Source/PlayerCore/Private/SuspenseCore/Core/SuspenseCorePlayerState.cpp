@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
@@ -66,6 +67,7 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
 	DOREPLIFETIME(ASuspenseCorePlayerState, PlayerLevel);
 	DOREPLIFETIME(ASuspenseCorePlayerState, TeamId);
+	DOREPLIFETIME(ASuspenseCorePlayerState, CharacterClassId);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -169,6 +171,53 @@ void ASuspenseCorePlayerState::SetTeamId(int32 NewTeamId)
 			FString::Printf(TEXT("{\"oldTeam\":%d,\"newTeam\":%d}"), OldTeamId, TeamId)
 		);
 	}
+}
+
+bool ASuspenseCorePlayerState::ApplyCharacterClass(FName ClassId)
+{
+	if (!HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: ApplyCharacterClass called on non-authority"));
+		return false;
+	}
+
+	if (ClassId.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: ApplyCharacterClass called with empty ClassId"));
+		return false;
+	}
+
+	// Get the CharacterClassSubsystem
+	USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+	if (!ClassSubsystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: CharacterClassSubsystem not available"));
+		return false;
+	}
+
+	// Apply the class to this actor (PlayerState implements IAbilitySystemInterface)
+	bool bSuccess = ClassSubsystem->ApplyClassToActor(this, ClassId, PlayerLevel);
+
+	if (bSuccess)
+	{
+		CharacterClassId = ClassId;
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Applied class '%s' to player %s"),
+			*ClassId.ToString(), *GetPlayerName());
+
+		// Publish event via EventBus
+		PublishPlayerStateEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged")),
+			FString::Printf(TEXT("{\"classId\":\"%s\"}"), *ClassId.ToString())
+		);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: Failed to apply class '%s'"),
+			*ClassId.ToString());
+	}
+
+	return bSuccess;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

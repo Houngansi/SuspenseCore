@@ -4,6 +4,8 @@
 
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Save/SuspenseCoreFileSaveRepository.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreShieldAttributeSet.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -11,7 +13,6 @@
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "AbilitySystemGlobals.h"
 #include "GameplayEffect.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -317,46 +318,17 @@ void USuspenseCoreSaveManager::ApplyLoadedState(const FSuspenseCoreSaveData& Sav
 		{
 			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 			{
-				// Apply attributes via instant GameplayEffect
-				// Health
-				bool bFound = false;
-				FGameplayAttribute HealthAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Health"), bFound);
-				if (bFound)
-				{
-					ASC->SetNumericAttributeBase(HealthAttr, SaveData.CharacterState.CurrentHealth);
-				}
+				// Apply attributes using static attribute getters
+				ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetHealthAttribute(), SaveData.CharacterState.CurrentHealth);
+				ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxHealthAttribute(), SaveData.CharacterState.MaxHealth);
+				ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaAttribute(), SaveData.CharacterState.CurrentStamina);
+				ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxStaminaAttribute(), SaveData.CharacterState.MaxStamina);
+				ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetArmorAttribute(), SaveData.CharacterState.CurrentArmor);
 
-				FGameplayAttribute MaxHealthAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxHealth"), bFound);
-				if (bFound)
+				// Apply Shield if ShieldAttributeSet exists
+				if (ASC->GetSet<USuspenseCoreShieldAttributeSet>())
 				{
-					ASC->SetNumericAttributeBase(MaxHealthAttr, SaveData.CharacterState.MaxHealth);
-				}
-
-				// Stamina
-				FGameplayAttribute StaminaAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Stamina"), bFound);
-				if (bFound)
-				{
-					ASC->SetNumericAttributeBase(StaminaAttr, SaveData.CharacterState.CurrentStamina);
-				}
-
-				FGameplayAttribute MaxStaminaAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxStamina"), bFound);
-				if (bFound)
-				{
-					ASC->SetNumericAttributeBase(MaxStaminaAttr, SaveData.CharacterState.MaxStamina);
-				}
-
-				// Armor
-				FGameplayAttribute ArmorAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Armor"), bFound);
-				if (bFound)
-				{
-					ASC->SetNumericAttributeBase(ArmorAttr, SaveData.CharacterState.CurrentArmor);
-				}
-
-				// Shield
-				FGameplayAttribute ShieldAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreShieldAttributeSet.Shield"), bFound);
-				if (bFound)
-				{
-					ASC->SetNumericAttributeBase(ShieldAttr, SaveData.CharacterState.CurrentShield);
+					ASC->SetNumericAttributeBase(USuspenseCoreShieldAttributeSet::GetShieldAttribute(), SaveData.CharacterState.CurrentShield);
 				}
 
 				// Re-apply saved active effects
@@ -573,18 +545,23 @@ FSuspenseCoreCharacterState USuspenseCoreSaveManager::CollectCharacterState()
 		{
 			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
 			{
-				// Health attributes
-				bool bFound = false;
-				State.CurrentHealth = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Health"), bFound));
-				State.MaxHealth = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxHealth"), bFound));
+				// Get AttributeSet directly
+				const USuspenseCoreAttributeSet* AttributeSet = ASC->GetSet<USuspenseCoreAttributeSet>();
+				if (AttributeSet)
+				{
+					State.CurrentHealth = AttributeSet->GetHealth();
+					State.MaxHealth = AttributeSet->GetMaxHealth();
+					State.CurrentStamina = AttributeSet->GetStamina();
+					State.MaxStamina = AttributeSet->GetMaxStamina();
+					State.CurrentArmor = AttributeSet->GetArmor();
+				}
 
-				// Stamina attributes
-				State.CurrentStamina = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Stamina"), bFound));
-				State.MaxStamina = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxStamina"), bFound));
-
-				// Armor and Shield from respective attribute sets
-				State.CurrentArmor = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Armor"), bFound));
-				State.CurrentShield = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreShieldAttributeSet.Shield"), bFound));
+				// Get Shield from ShieldAttributeSet
+				const USuspenseCoreShieldAttributeSet* ShieldSet = ASC->GetSet<USuspenseCoreShieldAttributeSet>();
+				if (ShieldSet)
+				{
+					State.CurrentShield = ShieldSet->GetShield();
+				}
 
 				// Collect active gameplay effects
 				const FActiveGameplayEffectsContainer& ActiveEffects = ASC->GetActiveGameplayEffects();

@@ -8,6 +8,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "AbilitySystemGlobals.h"
+#include "GameplayEffect.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
@@ -304,9 +309,91 @@ void USuspenseCoreSaveManager::ApplyLoadedState(const FSuspenseCoreSaveData& Sav
 		SaveData.CharacterState.WorldRotation
 	);
 
-	// TODO: Apply health, effects, etc. through GAS or character interface
+	// Apply GAS attributes (ASC is on PlayerState)
+	APlayerState* PlayerState = PC->GetPlayerState<APlayerState>();
+	if (PlayerState)
+	{
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PlayerState))
+		{
+			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+			{
+				// Apply attributes via instant GameplayEffect
+				// Health
+				bool bFound = false;
+				FGameplayAttribute HealthAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Health"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(HealthAttr, SaveData.CharacterState.CurrentHealth);
+				}
 
-	UE_LOG(LogSuspenseCoreSaveManager, Log, TEXT("Applied loaded state for %s"), *SaveData.ProfileData.DisplayName);
+				FGameplayAttribute MaxHealthAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxHealth"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(MaxHealthAttr, SaveData.CharacterState.MaxHealth);
+				}
+
+				// Stamina
+				FGameplayAttribute StaminaAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Stamina"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(StaminaAttr, SaveData.CharacterState.CurrentStamina);
+				}
+
+				FGameplayAttribute MaxStaminaAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxStamina"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(MaxStaminaAttr, SaveData.CharacterState.MaxStamina);
+				}
+
+				// Armor
+				FGameplayAttribute ArmorAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Armor"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(ArmorAttr, SaveData.CharacterState.CurrentArmor);
+				}
+
+				// Shield
+				FGameplayAttribute ShieldAttr = FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreShieldAttributeSet.Shield"), bFound);
+				if (bFound)
+				{
+					ASC->SetNumericAttributeBase(ShieldAttr, SaveData.CharacterState.CurrentShield);
+				}
+
+				// Re-apply saved active effects
+				for (const FSuspenseCoreActiveEffect& SavedEffect : SaveData.CharacterState.ActiveEffects)
+				{
+					if (!SavedEffect.EffectId.IsEmpty())
+					{
+						UClass* EffectClass = LoadClass<UGameplayEffect>(nullptr, *SavedEffect.EffectId);
+						if (EffectClass)
+						{
+							FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+								EffectClass, SavedEffect.Level, ASC->MakeEffectContext());
+							if (SpecHandle.IsValid())
+							{
+								ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+							}
+						}
+					}
+				}
+
+				UE_LOG(LogSuspenseCoreSaveManager, Log, TEXT("Applied GAS state - Health: %.1f/%.1f, Effects restored: %d"),
+					SaveData.CharacterState.CurrentHealth, SaveData.CharacterState.MaxHealth, SaveData.CharacterState.ActiveEffects.Num());
+			}
+		}
+	}
+
+	// Apply movement state
+	if (ACharacter* Character = Cast<ACharacter>(Pawn))
+	{
+		if (SaveData.CharacterState.bIsCrouching)
+		{
+			Character->Crouch();
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreSaveManager, Log, TEXT("Applied loaded state for %s at %s"),
+		*SaveData.ProfileData.DisplayName, *SaveData.CharacterState.CurrentMapName.ToString());
 }
 
 void USuspenseCoreSaveManager::SetProfileData(const FSuspenseCorePlayerData& ProfileData)
@@ -478,11 +565,63 @@ FSuspenseCoreCharacterState USuspenseCoreSaveManager::CollectCharacterState()
 	State.WorldRotation = Pawn->GetActorRotation();
 	State.CurrentMapName = GetCurrentMapName();
 
-	// TODO: Get health, stamina from GAS AttributeSet
-	// For now use defaults
-	State.CurrentHealth = 100.0f;
-	State.MaxHealth = 100.0f;
-	State.CurrentStamina = 100.0f;
+	// Get attributes from GAS (ASC is on PlayerState)
+	APlayerState* PlayerState = PC->GetPlayerState<APlayerState>();
+	if (PlayerState)
+	{
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(PlayerState))
+		{
+			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+			{
+				// Health attributes
+				bool bFound = false;
+				State.CurrentHealth = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Health"), bFound));
+				State.MaxHealth = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxHealth"), bFound));
+
+				// Stamina attributes
+				State.CurrentStamina = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Stamina"), bFound));
+				State.MaxStamina = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.MaxStamina"), bFound));
+
+				// Armor and Shield from respective attribute sets
+				State.CurrentArmor = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreAttributeSet.Armor"), bFound));
+				State.CurrentShield = ASC->GetNumericAttribute(FGameplayAttribute::GetAttributeFromString(TEXT("USuspenseCoreShieldAttributeSet.Shield"), bFound));
+
+				// Collect active gameplay effects
+				const FActiveGameplayEffectsContainer& ActiveEffects = ASC->GetActiveGameplayEffects();
+				for (const FActiveGameplayEffect& Effect : &ActiveEffects)
+				{
+					if (Effect.Spec.Def)
+					{
+						FSuspenseCoreActiveEffect ActiveEffect;
+						ActiveEffect.EffectId = Effect.Spec.Def->GetPathName();
+						ActiveEffect.RemainingDuration = Effect.GetDuration();
+						ActiveEffect.StackCount = Effect.Spec.GetStackCount();
+						ActiveEffect.Level = Effect.Spec.GetLevel();
+						State.ActiveEffects.Add(ActiveEffect);
+					}
+				}
+
+				UE_LOG(LogSuspenseCoreSaveManager, Log, TEXT("Collected GAS state - Health: %.1f/%.1f, Stamina: %.1f/%.1f, Effects: %d"),
+					State.CurrentHealth, State.MaxHealth, State.CurrentStamina, State.MaxStamina, State.ActiveEffects.Num());
+			}
+		}
+	}
+
+	// Fallback to defaults if ASC not found
+	if (State.MaxHealth <= 0.0f)
+	{
+		UE_LOG(LogSuspenseCoreSaveManager, Warning, TEXT("ASC not found, using default attribute values"));
+		State.CurrentHealth = 100.0f;
+		State.MaxHealth = 100.0f;
+		State.CurrentStamina = 100.0f;
+		State.MaxStamina = 100.0f;
+	}
+
+	// Movement state from Character
+	if (ACharacter* Character = Cast<ACharacter>(Pawn))
+	{
+		State.bIsCrouching = Character->bIsCrouched;
+	}
 
 	return State;
 }

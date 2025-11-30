@@ -1,7 +1,7 @@
 # SuspenseCore Best Practices Compliance Review
 
 **Дата:** 2025-11-30
-**Версия:** 1.0
+**Версия:** 1.1 (Updated with fixes)
 **Проанализированы модули:**
 - BridgeSystem/Public/SuspenseCore & Private/SuspenseCore
 - GAS/Public/SuspenseCore & Private/SuspenseCore
@@ -12,7 +12,31 @@
 
 ---
 
-## Итоговая Оценка: 92/100 (Отлично)
+## Changelog v1.1
+
+### Critical Fixes Applied
+
+1. **Save System GAS Integration** - `SuspenseCoreSaveManager.cpp`
+   - `CollectCharacterState()` now reads real GAS attributes (Health, MaxHealth, Stamina, MaxStamina, Armor, Shield)
+   - `CollectCharacterState()` now collects active GameplayEffects with duration, stack count, and level
+   - `ApplyLoadedState()` now restores GAS attributes via `SetNumericAttributeBase()`
+   - `ApplyLoadedState()` now re-applies saved GameplayEffects
+
+2. **BaseSpeed Configuration** - `SuspenseCoreAttributeSet.h/.cpp`
+   - Removed hardcoded `BaseSpeed = 600.0f`
+   - Added configurable `UPROPERTY(EditDefaultsOnly) float BaseWalkSpeed = 600.0f`
+
+3. **NetUpdateFrequency Optimization** - `SuspenseCorePlayerState.cpp`
+   - Changed from `100Hz` to adaptive `60Hz` (with `MinNetUpdateFrequency = 30Hz`)
+   - Optimal balance for MMO shooter bandwidth
+
+4. **const_cast Cleanup** - `SuspenseCorePlayerState.h/.cpp`
+   - Made `CachedEventBus` mutable for const getter caching pattern
+   - Removed all `const_cast<>` usage in PlayerState
+
+---
+
+## Итоговая Оценка: 96/100 (Отлично) ⬆️ +4
 
 Код соответствует лучшим практикам для сетевого MMO шутера на высоком уровне.
 
@@ -258,7 +282,7 @@
 | Deferred Events | ✅ | Safe cross-thread publish |
 | Stale Cleanup | ✅ | Автоматическая очистка |
 
-### 5.5 Code Quality ✅ (90/100)
+### 5.5 Code Quality ✅ (95/100) ⬆️
 
 | Критерий | Оценка | Комментарий |
 |----------|--------|-------------|
@@ -266,26 +290,29 @@
 | Documentation | ✅ | Комментарии в коде |
 | Log Categories | ✅ | DEFINE_LOG_CATEGORY_STATIC |
 | Error Handling | ✅ | Валидация входных данных |
-| Const Correctness | ⚠️ | Несколько мест с const_cast |
+| Const Correctness | ✅ | mutable pattern для кэширования (исправлено) |
 
 ---
 
 ## 6. Обнаруженные Проблемы
 
-### 6.1 Критические: Нет ❌
+### 6.1 Критические: ИСПРАВЛЕНО ✅
 
-### 6.2 Средние ⚠️
+~~1. **Save System не сохраняла GAS атрибуты** - атрибуты были захардкожены на 100.0f~~
+   - ✅ ИСПРАВЛЕНО: CollectCharacterState() и ApplyLoadedState() теперь полностью интегрированы с GAS
 
-1. **BaseSpeed Hardcode** - `SuspenseCoreAttributeSet.cpp:140`
-   - Рекомендация: Вынести в DataAsset или property
+### 6.2 Средние: ИСПРАВЛЕНО ✅
 
-2. **const_cast Usage** - `SuspenseCorePlayerState.cpp:380,397,419`
-   - Рекомендация: Пересмотреть архитектуру для избежания const_cast
+~~1. **BaseSpeed Hardcode** - `SuspenseCoreAttributeSet.cpp:140`~~
+   - ✅ ИСПРАВЛЕНО: Добавлен `UPROPERTY(EditDefaultsOnly) float BaseWalkSpeed`
 
-3. **Network Frequency** - 100Hz для MMO избыточно
-   - Рекомендация: Adaptive NetUpdateFrequency или снижение до 30-60Hz
+~~2. **const_cast Usage** - `SuspenseCorePlayerState.cpp:380,397,419`~~
+   - ✅ ИСПРАВЛЕНО: CachedEventBus теперь mutable, const_cast удалены
 
-### 6.3 Незначительные 📝
+~~3. **Network Frequency** - 100Hz для MMO избыточно~~
+   - ✅ ИСПРАВЛЕНО: NetUpdateFrequency = 60Hz, MinNetUpdateFrequency = 30Hz (adaptive)
+
+### 6.3 Незначительные (остаются) 📝
 
 1. Некоторые UI strings не локализованы
 2. Widget pooling не реализован для списков

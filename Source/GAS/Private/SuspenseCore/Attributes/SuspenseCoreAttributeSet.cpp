@@ -136,9 +136,8 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 		{
 			if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
 			{
-				// MovementSpeed - это множитель базовой скорости
-				const float BaseSpeed = 600.0f; // Можно вынести в конфиг
-				Movement->MaxWalkSpeed = BaseSpeed * GetMovementSpeed();
+				// MovementSpeed - это множитель базовой скорости (configurable)
+				Movement->MaxWalkSpeed = BaseWalkSpeed * GetMovementSpeed();
 			}
 		}
 	}

@@ -238,9 +238,9 @@ protected:
 	void HandleAttributeChange(const FGameplayTag& AttributeTag, float NewValue, float OldValue);
 
 private:
-	/** Cached EventBus reference */
+	/** Cached EventBus reference (mutable for const getter caching) */
 	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** Get or find EventBus */
 	USuspenseCoreEventBus* GetEventBus() const;

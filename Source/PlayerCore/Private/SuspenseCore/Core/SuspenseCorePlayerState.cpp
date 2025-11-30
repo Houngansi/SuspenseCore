@@ -24,8 +24,11 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Mixed replication mode - server controls gameplay, client predicts
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	// Network settings
-	SetNetUpdateFrequency(100.0f);
+	// Network settings - optimized for MMO scale
+	// 60Hz is optimal balance between responsiveness and bandwidth for shooters
+	// Can be reduced to 30Hz for larger player counts or increased for competitive modes
+	NetUpdateFrequency = 60.0f;
+	MinNetUpdateFrequency = 30.0f;  // Adaptive: reduces when player is idle/not relevant
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -377,7 +380,7 @@ void ASuspenseCorePlayerState::HandleAttributeChange(const FGameplayTag& Attribu
 	// Publish to EventBus
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCorePlayerState*>(this));
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
 		EventData.SetString(FName("Attribute"), AttributeTag.ToString());
 		EventData.SetFloat(FName("NewValue"), NewValue);
 		EventData.SetFloat(FName("OldValue"), OldValue);
@@ -394,7 +397,7 @@ void ASuspenseCorePlayerState::PublishPlayerStateEvent(const FGameplayTag& Event
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCorePlayerState*>(this));
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
 		if (!Payload.IsEmpty())
 		{
 			EventData.SetString(FName("Payload"), Payload);
@@ -410,13 +413,13 @@ USuspenseCoreEventBus* ASuspenseCorePlayerState::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	// Get from EventManager
+	// Get from EventManager (CachedEventBus is mutable for const caching)
 	if (USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this))
 	{
 		USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
 		if (EventBus)
 		{
-			const_cast<ASuspenseCorePlayerState*>(this)->CachedEventBus = EventBus;
+			CachedEventBus = EventBus;
 		}
 		return EventBus;
 	}

@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
+#include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
 #include "SuspenseCorePlayerController.generated.h"
 
 class UInputMappingContext;
@@ -56,7 +57,7 @@ struct FSuspenseCoreInputBinding
  * - UI management coordination
  */
 UCLASS()
-class PLAYERCORE_API ASuspenseCorePlayerController : public APlayerController
+class PLAYERCORE_API ASuspenseCorePlayerController : public APlayerController, public ISuspenseCoreUIController
 {
 	GENERATED_BODY()
 
@@ -143,37 +144,13 @@ public:
 	USuspenseCorePauseMenuWidget* GetPauseMenuWidget() const { return PauseMenuWidget; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - CURSOR/UI MODE MANAGEMENT
+	// ISuspenseCoreUIController Interface
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/**
-	 * Push UI mode - shows cursor and enables UI input.
-	 * Call when opening any UI widget that needs cursor.
-	 * @param Reason - Debug identifier for this UI push (e.g., "PauseMenu", "Inventory")
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
-	void PushUIMode(const FString& Reason = TEXT("UI"));
-
-	/**
-	 * Pop UI mode - potentially hides cursor if no UI is active.
-	 * Call when closing UI widget.
-	 * @param Reason - Must match the reason used in PushUIMode
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
-	void PopUIMode(const FString& Reason = TEXT("UI"));
-
-	/**
-	 * Force set cursor visibility (use sparingly, prefer Push/Pop).
-	 * @param bShowCursor - Whether to show cursor
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
-	void SetCursorVisible(bool bShowCursor);
-
-	/**
-	 * Check if any UI is currently active.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
-	bool IsUIActive() const { return UIModeStack.Num() > 0; }
+	virtual void PushUIMode_Implementation(const FString& Reason) override;
+	virtual void PopUIMode_Implementation(const FString& Reason) override;
+	virtual void SetCursorVisible_Implementation(bool bShowCursor) override;
+	virtual bool IsUIActive_Implementation() const override { return UIModeStack.Num() > 0; }
 
 	/**
 	 * Get count of active UI layers.

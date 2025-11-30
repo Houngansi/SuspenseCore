@@ -5,7 +5,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreSaveLoadMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreSaveSlotWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
-#include "SuspenseCore/Core/SuspenseCorePlayerController.h"
+#include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
@@ -527,43 +527,37 @@ void USuspenseCoreSaveLoadMenuWidget::PerformDelete(int32 SlotIndex)
 
 void USuspenseCoreSaveLoadMenuWidget::SetUIInputMode()
 {
-	// Use centralized UI mode management for cursor
-	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
+	// Use centralized UI mode management for cursor via interface
+	APlayerController* PC = GetOwningPlayer();
+	if (PC && PC->Implements<USuspenseCoreUIController>())
 	{
-		SuspensePC->PushUIMode(TEXT("SaveLoadMenu"));
+		ISuspenseCoreUIController::Execute_PushUIMode(PC, TEXT("SaveLoadMenu"));
 	}
-	else
+	else if (PC)
 	{
 		// Fallback for non-SuspenseCore controllers
-		APlayerController* PC = GetOwningPlayer();
-		if (PC)
-		{
-			FInputModeUIOnly InputMode;
-			InputMode.SetWidgetToFocus(TakeWidget());
-			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			PC->SetInputMode(InputMode);
-			PC->SetShowMouseCursor(true);
-		}
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(true);
 	}
 }
 
 void USuspenseCoreSaveLoadMenuWidget::RestoreGameInputMode()
 {
-	// Use centralized UI mode management for cursor
-	if (ASuspenseCorePlayerController* SuspensePC = Cast<ASuspenseCorePlayerController>(GetOwningPlayer()))
+	// Use centralized UI mode management for cursor via interface
+	APlayerController* PC = GetOwningPlayer();
+	if (PC && PC->Implements<USuspenseCoreUIController>())
 	{
-		SuspensePC->PopUIMode(TEXT("SaveLoadMenu"));
+		ISuspenseCoreUIController::Execute_PopUIMode(PC, TEXT("SaveLoadMenu"));
 	}
-	else
+	else if (PC)
 	{
 		// Fallback for non-SuspenseCore controllers
-		APlayerController* PC = GetOwningPlayer();
-		if (PC)
-		{
-			FInputModeGameOnly InputMode;
-			PC->SetInputMode(InputMode);
-			PC->SetShowMouseCursor(false);
-		}
+		FInputModeGameOnly InputMode;
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(false);
 	}
 }
 

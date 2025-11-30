@@ -629,10 +629,10 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CURSOR/UI MODE MANAGEMENT
+// ISuspenseCoreUIController Interface
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void ASuspenseCorePlayerController::PushUIMode(const FString& Reason)
+void ASuspenseCorePlayerController::PushUIMode_Implementation(const FString& Reason)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: PushUIMode('%s') - Stack size: %d -> %d"),
 		*Reason, UIModeStack.Num(), UIModeStack.Num() + 1);
@@ -641,7 +641,7 @@ void ASuspenseCorePlayerController::PushUIMode(const FString& Reason)
 	ApplyCurrentUIMode();
 }
 
-void ASuspenseCorePlayerController::PopUIMode(const FString& Reason)
+void ASuspenseCorePlayerController::PopUIMode_Implementation(const FString& Reason)
 {
 	int32 Index = UIModeStack.Find(Reason);
 	if (Index != INDEX_NONE)
@@ -658,7 +658,7 @@ void ASuspenseCorePlayerController::PopUIMode(const FString& Reason)
 	ApplyCurrentUIMode();
 }
 
-void ASuspenseCorePlayerController::SetCursorVisible(bool bShowCursor)
+void ASuspenseCorePlayerController::SetCursorVisible_Implementation(bool bShowCursor)
 {
 	bShowMouseCursor = bShowCursor;
 

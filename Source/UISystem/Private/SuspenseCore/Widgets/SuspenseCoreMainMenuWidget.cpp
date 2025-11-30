@@ -69,6 +69,7 @@ void USuspenseCoreMainMenuWidget::NativeConstruct()
 	SetupButtonBindings();
 	SetupEventSubscriptions();
 	SetupCharacterSelectBindings();
+	SetupRegistrationWidgetBindings();
 
 	// Initialize menu flow
 	InitializeMenu();
@@ -392,6 +393,22 @@ void USuspenseCoreMainMenuWidget::SetupCharacterSelectBindings()
 	}
 }
 
+void USuspenseCoreMainMenuWidget::SetupRegistrationWidgetBindings()
+{
+	// Direct delegate binding - more reliable than EventBus
+	if (RegistrationWidget)
+	{
+		RegistrationWidget->OnRegistrationComplete.AddDynamic(
+			this, &USuspenseCoreMainMenuWidget::OnRegistrationCompleteDirect);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Bound to RegistrationWidget delegates"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: RegistrationWidget not found for direct binding"));
+	}
+}
+
 void USuspenseCoreMainMenuWidget::OnCharacterSelectedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character selected (direct): %s"), *PlayerId);
@@ -434,6 +451,36 @@ void USuspenseCoreMainMenuWidget::OnCharacterHighlightedDirect(const FString& Pl
 	if (!PlayerId.IsEmpty())
 	{
 		SelectPlayer(PlayerId);
+	}
+}
+
+void USuspenseCoreMainMenuWidget::OnRegistrationCompleteDirect(const FSuspenseCorePlayerData& PlayerData)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration complete (direct): %s (%s)"),
+		*PlayerData.DisplayName, *PlayerData.PlayerId);
+
+	if (!PlayerData.PlayerId.IsEmpty())
+	{
+		// Notify Blueprint
+		OnRegistrationComplete(PlayerData.PlayerId);
+
+		// CRITICAL: Refresh character list to include the newly created character
+		if (CharacterSelectWidget)
+		{
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Refreshing CharacterSelectWidget for new character"));
+			CharacterSelectWidget->RefreshCharacterList();
+			// Explicitly highlight the new character in the list
+			CharacterSelectWidget->HighlightCharacter(PlayerData.PlayerId);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: CharacterSelectWidget is NULL!"));
+		}
+
+		// Transition to main menu and select the new player
+		ShowMainMenuScreen(PlayerData.PlayerId);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Registration successful for %s, transitioned to main menu"), *PlayerData.PlayerId);
 	}
 }
 

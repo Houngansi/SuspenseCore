@@ -259,6 +259,9 @@ protected:
 	/** Setup direct bindings to CharacterSelectWidget delegates */
 	void SetupCharacterSelectBindings();
 
+	/** Setup direct bindings to RegistrationWidget delegates */
+	void SetupRegistrationWidgetBindings();
+
 	/** Get player repository */
 	ISuspenseCorePlayerRepository* GetRepository();
 
@@ -296,6 +299,14 @@ protected:
 	/** Handle character highlighted - direct from widget delegate (updates PlayerInfo) */
 	UFUNCTION()
 	void OnCharacterHighlightedDirect(const FString& PlayerId, const FSuspenseCoreCharacterEntry& Entry);
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// DIRECT DELEGATE HANDLERS (from RegistrationWidget)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Handle registration complete - direct from widget delegate */
+	UFUNCTION()
+	void OnRegistrationCompleteDirect(const FSuspenseCorePlayerData& PlayerData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

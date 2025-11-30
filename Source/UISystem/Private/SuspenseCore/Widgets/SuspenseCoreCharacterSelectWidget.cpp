@@ -114,9 +114,9 @@ void USuspenseCoreCharacterSelectWidget::SelectCharacter(const FString& PlayerId
 		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Selected character: %s (%s)"),
 			*FoundEntry->DisplayName, *PlayerId);
 
-		// Publish event
+		// Publish event via EventBus (primary inter-widget communication)
 		PublishCharacterSelectEvent(
-			FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Selected")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Selected")),
 			PlayerId
 		);
 
@@ -142,9 +142,9 @@ void USuspenseCoreCharacterSelectWidget::DeleteCharacter(const FString& PlayerId
 	{
 		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Deleted character: %s"), *PlayerId);
 
-		// Publish event
+		// Publish event via EventBus (primary inter-widget communication)
 		PublishCharacterSelectEvent(
-			FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Deleted")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Deleted")),
 			PlayerId
 		);
 
@@ -165,9 +165,9 @@ void USuspenseCoreCharacterSelectWidget::RequestCreateNewCharacter()
 {
 	UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Create new character requested"));
 
-	// Publish event
+	// Publish event via EventBus (primary inter-widget communication)
 	PublishCharacterSelectEvent(
-		FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.CreateNew")),
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.CreateNew")),
 		TEXT("")
 	);
 
@@ -206,7 +206,7 @@ void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& Playe
 
 		// Publish highlight event via EventBus (primary inter-widget communication)
 		PublishCharacterSelectEvent(
-			FGameplayTag::RequestGameplayTag(FName("Event.UI.CharacterSelect.Highlighted")),
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted")),
 			PlayerId
 		);
 

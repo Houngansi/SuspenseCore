@@ -309,8 +309,8 @@ void USuspenseCoreRegistrationWidget::PublishRegistrationEvent(bool bSuccess, co
 	}
 
 	FGameplayTag EventTag = bSuccess
-		? FGameplayTag::RequestGameplayTag(FName("Event.UI.Registration.Success"))
-		: FGameplayTag::RequestGameplayTag(FName("Event.UI.Registration.Failed"));
+		? FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Registration.Success"))
+		: FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Registration.Failed"));
 
 	EventBus->Publish(EventTag, EventData);
 }

@@ -8,6 +8,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreCharacter.generated.h"
 
 class USpringArmComponent;
@@ -358,6 +359,11 @@ protected:
 	void SetupCaptureComponent();
 	void CreateRenderTargetMaterial();
 
+	// EventBus subscription for UI requests
+	void SetupCaptureEventSubscription();
+	void TeardownCaptureEventSubscription();
+	void OnCaptureRequested(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
 private:
 	/** Cached references */
 	UPROPERTY()
@@ -374,4 +380,7 @@ private:
 
 	/** Has render target been initialized */
 	bool bRenderTargetInitialized = false;
+
+	/** EventBus subscription handle for capture requests from UI */
+	FSuspenseCoreSubscriptionHandle CaptureRequestEventHandle;
 };

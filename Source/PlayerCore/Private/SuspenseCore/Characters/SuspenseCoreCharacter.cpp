@@ -126,6 +126,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 	// Initialize render target for character preview
 	InitializeRenderTarget();
 
+	// Subscribe to UI capture requests
+	SetupCaptureEventSubscription();
+
 	PublishCharacterEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Spawned")),
 		TEXT("{}")
@@ -134,6 +137,8 @@ void ASuspenseCoreCharacter::BeginPlay()
 
 void ASuspenseCoreCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	TeardownCaptureEventSubscription();
+
 	CachedEventBus.Reset();
 	CachedPlayerState.Reset();
 
@@ -494,11 +499,16 @@ void ASuspenseCoreCharacter::InitializeRenderTarget()
 
 	bRenderTargetInitialized = true;
 
-	// Publish event for UI systems
-	PublishCharacterEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.RenderTargetReady")),
-		TEXT("{}")
-	);
+	// Publish event for UI systems with render target reference
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+		EventData.SetObject(FName("RenderTarget"), CharacterRenderTarget);
+		EventBus->Publish(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.RenderTargetReady")),
+			EventData
+		);
+	}
 }
 
 void ASuspenseCoreCharacter::SetupCaptureComponent()
@@ -636,4 +646,45 @@ void ASuspenseCoreCharacter::SetCaptureEnabled(bool bEnabled)
 bool ASuspenseCoreCharacter::IsCaptureEnabled() const
 {
 	return bCaptureEnabled;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EVENTBUS SUBSCRIPTION (UI Capture Requests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::SetupCaptureEventSubscription()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	// Subscribe to capture requests from UI
+	CaptureRequestEventHandle = EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestCapture")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacter::OnCaptureRequested),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Subscribed to UI capture requests"));
+}
+
+void ASuspenseCoreCharacter::TeardownCaptureEventSubscription()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus && CaptureRequestEventHandle.IsValid())
+	{
+		EventBus->Unsubscribe(CaptureRequestEventHandle);
+	}
+}
+
+void ASuspenseCoreCharacter::OnCaptureRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	bool bEnable = EventData.GetBool(FName("Enabled"));
+	SetCaptureEnabled(bEnable);
+
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture request received: %s"),
+		bEnable ? TEXT("Enable") : TEXT("Disable"));
 }

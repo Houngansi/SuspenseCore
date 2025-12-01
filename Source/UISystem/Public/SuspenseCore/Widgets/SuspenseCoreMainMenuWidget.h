@@ -24,7 +24,6 @@ class USuspenseCoreRegistrationWidget;
 class USuspenseCoreCharacterSelectWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
-class ASuspenseCoreCharacter;
 
 /**
  * USuspenseCoreMainMenuWidget
@@ -283,9 +282,9 @@ protected:
 	UPROPERTY()
 	UMaterialInstanceDynamic* CharacterPreviewMaterial;
 
-	/** Cached character for render target */
+	/** Cached render target from character (received via EventBus) */
 	UPROPERTY()
-	TWeakObjectPtr<ASuspenseCoreCharacter> CachedCharacter;
+	UTextureRenderTarget2D* CachedRenderTarget;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
@@ -309,10 +308,7 @@ protected:
 	/** Update UI elements */
 	void UpdateUIDisplay();
 
-	/** Setup character preview from player's character */
-	void SetupCharacterPreview();
-
-	/** Update character preview image with render target */
+	/** Update character preview image with render target (received via EventBus) */
 	void UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget);
 
 	/** Clear character preview */

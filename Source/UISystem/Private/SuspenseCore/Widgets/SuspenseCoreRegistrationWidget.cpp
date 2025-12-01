@@ -474,6 +474,14 @@ void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
 	TArray<USuspenseCoreCharacterClassData*> AllClasses = ClassSubsystem->GetAllClasses();
 	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Found %d classes to create buttons for"), AllClasses.Num());
 
+	// Debug: log container info
+	FVector2D ContainerSize = ClassButtonContainer->GetDesiredSize();
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] ClassButtonContainer: Type=%s, Size=%.1f x %.1f, Visibility=%d, ChildCount=%d"),
+		*ClassButtonContainer->GetClass()->GetName(),
+		ContainerSize.X, ContainerSize.Y,
+		(int32)ClassButtonContainer->GetVisibility(),
+		ClassButtonContainer->GetChildrenCount());
+
 	for (USuspenseCoreCharacterClassData* ClassData : AllClasses)
 	{
 		if (!ClassData)
@@ -495,20 +503,23 @@ void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
 		// Bind click event
 		ButtonWidget->OnClassButtonClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnClassButtonClicked);
 
+		// Ensure widget is visible
+		ButtonWidget->SetVisibility(ESlateVisibility::Visible);
+
 		// Add to container and configure slot
 		UPanelSlot* Slot = ClassButtonContainer->AddChild(ButtonWidget);
 
 		// Configure slot based on container type
 		if (UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(Slot))
 		{
-			HSlot->SetPadding(FMargin(8.0f, 0.0f, 8.0f, 0.0f));
+			HSlot->SetPadding(FMargin(8.0f, 4.0f, 8.0f, 4.0f));
 			HSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
-			HSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Center);
+			HSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Fill);
 			HSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		}
 		else if (UVerticalBoxSlot* VSlot = Cast<UVerticalBoxSlot>(Slot))
 		{
-			VSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 8.0f));
+			VSlot->SetPadding(FMargin(4.0f, 8.0f, 4.0f, 8.0f));
 			VSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Fill);
 			VSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Center);
 			VSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
@@ -516,7 +527,10 @@ void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
 
 		CreatedClassButtons.Add(ButtonWidget);
 
-		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created class button for: %s"), *ClassData->ClassID.ToString());
+		// Debug: log widget details
+		FVector2D DesiredSize = ButtonWidget->GetDesiredSize();
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created class button for: %s (DesiredSize: %.1f x %.1f, Visibility: %d)"),
+			*ClassData->ClassID.ToString(), DesiredSize.X, DesiredSize.Y, (int32)ButtonWidget->GetVisibility());
 	}
 
 	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created %d class buttons"), CreatedClassButtons.Num());

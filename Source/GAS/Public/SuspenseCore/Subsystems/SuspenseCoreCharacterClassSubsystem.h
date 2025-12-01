@@ -131,6 +131,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
 	USuspenseCoreCharacterClassData* GetActorCurrentClass(AActor* Actor) const;
 
+	/**
+	 * Register all loaded classes with CharacterSelectionSubsystem.
+	 * This enables the selection subsystem to look up classes by ID.
+	 * Called automatically when classes are loaded, but can be called manually.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
+	void RegisterClassesWithSelectionSubsystem();
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTS
 	// ═══════════════════════════════════════════════════════════════════════════

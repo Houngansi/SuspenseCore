@@ -200,10 +200,11 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 	if (LevelWidget)
 	{
 		// Calculate XP for current and next level (simple exponential curve)
-		int64 XPForCurrentLevel = static_cast<int64>(100 * FMath::Pow(1.15f, Data.Level - 1));
-		int64 XPForNextLevel = static_cast<int64>(100 * FMath::Pow(1.15f, Data.Level));
-		int64 XPInLevel = Data.ExperiencePoints - XPForCurrentLevel;
-		int64 XPNeeded = XPForNextLevel - XPForCurrentLevel;
+		// Level 1 starts at 0 XP, Level 2 starts at 100 XP, etc.
+		int64 XPForCurrentLevel = (Data.Level <= 1) ? 0 : static_cast<int64>(100 * (FMath::Pow(1.15f, Data.Level - 1) - 1.0f) / 0.15f);
+		int64 XPForNextLevel = static_cast<int64>(100 * (FMath::Pow(1.15f, Data.Level) - 1.0f) / 0.15f);
+		int64 XPInLevel = FMath::Max(0LL, Data.ExperiencePoints - XPForCurrentLevel);
+		int64 XPNeeded = FMath::Max(1LL, XPForNextLevel - XPForCurrentLevel);
 
 		LevelWidget->SetLevelAndExperience(Data.Level, XPInLevel, XPNeeded);
 	}

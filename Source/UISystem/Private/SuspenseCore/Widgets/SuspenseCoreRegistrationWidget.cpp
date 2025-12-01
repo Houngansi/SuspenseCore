@@ -37,12 +37,12 @@ void USuspenseCoreRegistrationWidget::NativeConstruct()
 	// Set initial status
 	if (StatusText)
 	{
-		StatusText->SetText(FText::FromString(TEXT("Выберите класс и введите имя персонажа.")));
+		StatusText->SetText(FText::FromString(TEXT("Select a class and enter your character name.")));
 	}
 
 	if (TitleText)
 	{
-		TitleText->SetText(FText::FromString(TEXT("Создание персонажа")));
+		TitleText->SetText(FText::FromString(TEXT("Create Your Character")));
 	}
 }
 
@@ -115,7 +115,7 @@ void USuspenseCoreRegistrationWidget::AttemptCreatePlayer()
 
 	if (bSuccess)
 	{
-		ShowSuccess(FString::Printf(TEXT("Персонаж '%s' создан! Класс: %s"),
+		ShowSuccess(FString::Printf(TEXT("Character '%s' created! Class: %s"),
 			*NewPlayerData.DisplayName, *SelectedClassId));
 
 		// Broadcast event
@@ -136,7 +136,7 @@ void USuspenseCoreRegistrationWidget::AttemptCreatePlayer()
 	}
 	else
 	{
-		ShowError(TEXT("Не удалось сохранить данные. Попробуйте снова."));
+		ShowError(TEXT("Failed to save data. Please try again."));
 		OnRegistrationError.Broadcast(TEXT("Save failed"));
 		PublishRegistrationEvent(false, FSuspenseCorePlayerData(), TEXT("Save failed"));
 	}
@@ -151,7 +151,7 @@ bool USuspenseCoreRegistrationWidget::ValidateInput() const
 	if (SelectedClassId.IsEmpty())
 	{
 		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-			TEXT("Пожалуйста, выберите класс персонажа."));
+			TEXT("Please select a character class."));
 		return false;
 	}
 
@@ -160,14 +160,14 @@ bool USuspenseCoreRegistrationWidget::ValidateInput() const
 	if (DisplayName.Len() < MinDisplayNameLength)
 	{
 		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-			FString::Printf(TEXT("Имя должно содержать минимум %d символа."), MinDisplayNameLength));
+			FString::Printf(TEXT("Name must be at least %d characters."), MinDisplayNameLength));
 		return false;
 	}
 
 	if (DisplayName.Len() > MaxDisplayNameLength)
 	{
 		const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-			FString::Printf(TEXT("Имя не должно превышать %d символов."), MaxDisplayNameLength));
+			FString::Printf(TEXT("Name must not exceed %d characters."), MaxDisplayNameLength));
 		return false;
 	}
 
@@ -177,7 +177,7 @@ bool USuspenseCoreRegistrationWidget::ValidateInput() const
 		if (!FChar::IsAlnum(Char) && Char != '_' && Char != '-' && Char != ' ')
 		{
 			const_cast<USuspenseCoreRegistrationWidget*>(this)->ShowError(
-				TEXT("Имя содержит недопустимые символы. Используйте буквы, цифры, пробелы, _ или -."));
+				TEXT("Name contains invalid characters. Use letters, numbers, spaces, _ or -."));
 			return false;
 		}
 	}
@@ -436,15 +436,15 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 			FText DisplayName;
 			if (SelectedClassId == TEXT("Assault"))
 			{
-				DisplayName = FText::FromString(TEXT("Штурмовик"));
+				DisplayName = FText::FromString(TEXT("Assault"));
 			}
 			else if (SelectedClassId == TEXT("Medic"))
 			{
-				DisplayName = FText::FromString(TEXT("Медик"));
+				DisplayName = FText::FromString(TEXT("Medic"));
 			}
 			else if (SelectedClassId == TEXT("Sniper"))
 			{
-				DisplayName = FText::FromString(TEXT("Снайпер"));
+				DisplayName = FText::FromString(TEXT("Sniper"));
 			}
 			else
 			{
@@ -466,15 +466,15 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 			FText Description;
 			if (SelectedClassId == TEXT("Assault"))
 			{
-				Description = FText::FromString(TEXT("Сбалансированный боец передовой линии. Повышенный урон и скорость перезарядки."));
+				Description = FText::FromString(TEXT("Balanced frontline fighter. Increased damage and reload speed."));
 			}
 			else if (SelectedClassId == TEXT("Medic"))
 			{
-				Description = FText::FromString(TEXT("Поддержка команды. Быстрая регенерация здоровья и щита."));
+				Description = FText::FromString(TEXT("Team support specialist. Fast health and shield regeneration."));
 			}
 			else if (SelectedClassId == TEXT("Sniper"))
 			{
-				Description = FText::FromString(TEXT("Дальнобойный стрелок. Высокий урон и точность."));
+				Description = FText::FromString(TEXT("Long-range marksman. High damage and accuracy."));
 			}
 			SelectedClassDescriptionText->SetText(Description);
 		}

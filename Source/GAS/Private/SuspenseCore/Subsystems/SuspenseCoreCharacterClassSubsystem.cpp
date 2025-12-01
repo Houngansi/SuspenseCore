@@ -9,6 +9,7 @@
 #include "SuspenseCore/Attributes/SuspenseCoreMovementAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -146,6 +147,9 @@ void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 	}
 
 	bClassesLoaded = true;
+
+	// Register all loaded classes with CharacterSelectionSubsystem for menu access
+	RegisterClassesWithSelectionSubsystem();
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes"), LoadedClasses.Num());
 
@@ -640,4 +644,33 @@ void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(AActor* Actor
 
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged"));
 	EventBus->Publish(EventTag, EventData);
+}
+
+void USuspenseCoreCharacterClassSubsystem::RegisterClassesWithSelectionSubsystem()
+{
+	// Get CharacterSelectionSubsystem from GameInstance
+	UGameInstance* GI = GetGameInstance();
+	if (!GI)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("Cannot register classes - GameInstance not available"));
+		return;
+	}
+
+	USuspenseCoreCharacterSelectionSubsystem* SelectionSubsystem = GI->GetSubsystem<USuspenseCoreCharacterSelectionSubsystem>();
+	if (!SelectionSubsystem)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("Cannot register classes - CharacterSelectionSubsystem not available"));
+		return;
+	}
+
+	// Register all loaded classes
+	for (const auto& Pair : LoadedClasses)
+	{
+		if (Pair.Value)
+		{
+			SelectionSubsystem->RegisterClassData(Pair.Value, Pair.Key);
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Registered %d classes with CharacterSelectionSubsystem"), LoadedClasses.Num());
 }

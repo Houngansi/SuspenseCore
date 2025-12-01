@@ -73,9 +73,15 @@ void ASuspenseCoreCharacterPreviewActor::SetCharacterClass(USuspenseCoreCharacte
 
 	CurrentClassData = ClassData;
 
-	// Load and apply skeletal mesh
+	// Load and apply skeletal mesh (third person only - no FirstPersonArmsMesh for preview)
 	if (USkeletalMesh* Mesh = ClassData->CharacterMesh.LoadSynchronous())
 	{
+		// Stop any existing animation before changing mesh
+		PreviewMesh->Stop();
+
+		// Set animation mode to AnimationBlueprint before setting mesh
+		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+
 		PreviewMesh->SetSkeletalMesh(Mesh);
 		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Applied mesh: %s"), *Mesh->GetName());
 	}
@@ -84,27 +90,41 @@ void ASuspenseCoreCharacterPreviewActor::SetCharacterClass(USuspenseCoreCharacte
 		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Failed to load mesh for class: %s"), *ClassData->ClassID.ToString());
 	}
 
-	// Load and apply animation blueprint
-	if (TSubclassOf<UAnimInstance> AnimClass = ClassData->AnimationBlueprint.LoadSynchronous())
+	// Load and apply animation blueprint from ClassData (IMPORTANT: this overrides any mesh default)
+	TSubclassOf<UAnimInstance> AnimClass = ClassData->AnimationBlueprint.LoadSynchronous();
+	if (AnimClass)
 	{
+		// Force set the anim class - this overrides any default from the mesh
 		PreviewMesh->SetAnimInstanceClass(AnimClass);
-		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Applied AnimBP: %s"), *AnimClass->GetName());
+
+		// Reinitialize animation to ensure the new AnimBP takes effect immediately
+		PreviewMesh->InitAnim(true);
+
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Applied AnimBP from ClassData: %s (Class: %s)"),
+			*AnimClass->GetName(), *ClassData->ClassID.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] AnimationBlueprint NOT SET in ClassData for: %s - check your Data Asset!"),
+			*ClassData->ClassID.ToString());
 	}
 
-	// Play idle animation if specified
+	// Play preview idle animation if specified (optional - overrides AnimBP default pose)
 	if (UAnimSequence* IdleAnim = ClassData->PreviewIdleAnimation.LoadSynchronous())
 	{
-		if (PreviewMesh->GetAnimInstance())
-		{
-			// Note: PlayAnimation requires single-mode, better to use AnimBP
-			UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Idle animation available: %s"), *IdleAnim->GetName());
-		}
+		// Switch to animation asset mode to play specific animation
+		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		PreviewMesh->PlayAnimation(IdleAnim, true);
+		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Playing preview idle animation: %s"), *IdleAnim->GetName());
 	}
 
 	// Notify Blueprint
 	OnClassChanged(ClassData);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Character class set: %s"), *ClassData->DisplayName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Character class set: %s (Mesh: %s, AnimBP: %s)"),
+		*ClassData->DisplayName.ToString(),
+		ClassData->CharacterMesh.IsNull() ? TEXT("NULL") : *ClassData->CharacterMesh.GetAssetName(),
+		ClassData->AnimationBlueprint.IsNull() ? TEXT("NULL") : *ClassData->AnimationBlueprint.GetAssetName());
 }
 
 void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)

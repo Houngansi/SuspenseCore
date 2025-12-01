@@ -7,6 +7,7 @@
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
+#include "SuspenseCore/Settings/SuspenseCoreProjectSettings.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
@@ -450,6 +451,21 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 	// Unpause before loading new level
 	SetGamePaused(false);
 
+	// Determine target map: use widget config if set, otherwise use ProjectSettings
+	FName TargetMapName = LobbyMapName;
+	if (TargetMapName == TEXT("MainMenuMap") || TargetMapName.IsNone())
+	{
+		// Use ProjectSettings for the correct ExitToLobby map
+		const USuspenseCoreProjectSettings* Settings = USuspenseCoreProjectSettings::Get();
+		if (Settings)
+		{
+			TargetMapName = Settings->GetExitToLobbyMapName();
+			UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Using ExitToLobbyMap from ProjectSettings: %s"), *TargetMapName.ToString());
+		}
+	}
+
+	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Exit to lobby target map: %s"), *TargetMapName.ToString());
+
 	// Use transition subsystem for proper state handling
 	if (USuspenseCoreMapTransitionSubsystem* TransitionSubsystem = USuspenseCoreMapTransitionSubsystem::Get(this))
 	{
@@ -469,7 +485,7 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 			TransitionSubsystem->SetGameGameModePath(GameGameModePath);
 		}
 
-		TransitionSubsystem->TransitionToMainMenu(LobbyMapName);
+		TransitionSubsystem->TransitionToMainMenu(TargetMapName);
 	}
 	else
 	{
@@ -481,7 +497,7 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 			FString NormalizedPath = NormalizeGameModeClassPath(MenuGameModePath);
 			Options = FString::Printf(TEXT("?game=%s"), *NormalizedPath);
 		}
-		UGameplayStatics::OpenLevel(GetWorld(), LobbyMapName, true, Options);
+		UGameplayStatics::OpenLevel(GetWorld(), TargetMapName, true, Options);
 	}
 }
 

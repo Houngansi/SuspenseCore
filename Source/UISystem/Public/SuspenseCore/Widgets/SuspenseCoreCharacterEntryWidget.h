@@ -52,6 +52,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* DisplayNameText;
 
+	/** Character class text */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* ClassText;
+
 	/** Character level text */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* LevelText;
@@ -90,7 +94,7 @@ public:
 
 	/** Set character data to display */
 	UFUNCTION(BlueprintCallable, Category = "Character Entry")
-	void SetCharacterData(const FString& InPlayerId, const FString& InDisplayName, int32 InLevel, UTexture2D* InAvatarTexture = nullptr);
+	void SetCharacterData(const FString& InPlayerId, const FString& InDisplayName, const FString& InCharacterClassId, int32 InLevel, UTexture2D* InAvatarTexture = nullptr);
 
 	/** Get the player ID this entry represents */
 	UFUNCTION(BlueprintCallable, Category = "Character Entry")
@@ -140,6 +144,10 @@ protected:
 	/** Display name */
 	UPROPERTY()
 	FString DisplayName;
+
+	/** Character class ID */
+	UPROPERTY()
+	FString CharacterClassId;
 
 	/** Level */
 	UPROPERTY()

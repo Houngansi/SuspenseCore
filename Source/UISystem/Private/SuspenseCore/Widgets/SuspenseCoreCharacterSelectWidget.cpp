@@ -352,7 +352,7 @@ void USuspenseCoreCharacterSelectWidget::BuildCharacterListUI()
 			if (EntryWidget)
 			{
 				// Set character data
-				EntryWidget->SetCharacterData(Entry.PlayerId, Entry.DisplayName, Entry.Level, nullptr);
+				EntryWidget->SetCharacterData(Entry.PlayerId, Entry.DisplayName, Entry.CharacterClassId, Entry.Level, nullptr);
 
 				// Bind click event
 				EntryWidget->OnEntryClicked.AddDynamic(this, &USuspenseCoreCharacterSelectWidget::OnEntryWidgetClicked);

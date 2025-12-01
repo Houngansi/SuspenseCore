@@ -13,7 +13,6 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
-#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
@@ -404,10 +403,16 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 		}
 	}
 
-	// Disable character capture when widget is destroyed
-	if (CachedCharacter.IsValid())
+	// Request capture disable via EventBus (no direct dependency on character)
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (Manager && Manager->GetEventBus())
 	{
-		CachedCharacter->SetCaptureEnabled(false);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+		EventData.SetBool(FName("Enabled"), false);
+		Manager->GetEventBus()->Publish(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestCapture")),
+			EventData
+		);
 	}
 }
 
@@ -592,45 +597,8 @@ void USuspenseCoreMainMenuWidget::OnQuitButtonClicked()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CHARACTER PREVIEW (Render Target)
+// CHARACTER PREVIEW (Render Target via EventBus - no direct module dependency)
 // ═══════════════════════════════════════════════════════════════════════════════
-
-void USuspenseCoreMainMenuWidget::SetupCharacterPreview()
-{
-	// Find the player's character
-	APlayerController* PC = GetOwningPlayer();
-	if (!PC)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: No PlayerController for character preview"));
-		return;
-	}
-
-	APawn* Pawn = PC->GetPawn();
-	ASuspenseCoreCharacter* Character = Cast<ASuspenseCoreCharacter>(Pawn);
-
-	if (!Character)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Player pawn is not SuspenseCoreCharacter"));
-		return;
-	}
-
-	// Cache the character reference
-	CachedCharacter = Character;
-
-	// Enable capture for menu display
-	Character->SetCaptureEnabled(true);
-
-	// Get render target from character
-	UTextureRenderTarget2D* RenderTarget = Character->GetCharacterRenderTarget();
-	if (RenderTarget)
-	{
-		UpdateCharacterPreviewImage(RenderTarget);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Character render target not ready yet"));
-	}
-}
 
 void USuspenseCoreMainMenuWidget::UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget)
 {
@@ -638,6 +606,9 @@ void USuspenseCoreMainMenuWidget::UpdateCharacterPreviewImage(UTextureRenderTarg
 	{
 		return;
 	}
+
+	// Cache render target
+	CachedRenderTarget = RenderTarget;
 
 	// Create or update dynamic material instance
 	if (CharacterPreviewBaseMaterial)
@@ -653,45 +624,26 @@ void USuspenseCoreMainMenuWidget::UpdateCharacterPreviewImage(UTextureRenderTarg
 			CharacterPreviewMaterial->SetTextureParameterValue(FName("RenderTargetTexture"), RenderTarget);
 		}
 	}
-	else
-	{
-		// No base material set - try to use character's material if available
-		if (CachedCharacter.IsValid())
-		{
-			UMaterialInstanceDynamic* CharMaterial = CachedCharacter->GetRenderTargetMaterial();
-			if (CharMaterial)
-			{
-				CharacterPreviewMaterial = CharMaterial;
-			}
-		}
-	}
 
-	// Apply material to image widget
+	// Apply material or render target directly to image widget
+	FSlateBrush Brush;
 	if (CharacterPreviewMaterial)
 	{
-		FSlateBrush Brush;
 		Brush.SetResourceObject(CharacterPreviewMaterial);
-		Brush.ImageSize = FVector2D(512.0f, 512.0f); // Match render target size
-		Brush.DrawAs = ESlateBrushDrawType::Image;
-
-		CharacterPreviewImage->SetBrush(Brush);
-		CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target"));
 	}
 	else
 	{
 		// Fallback: Use render target directly as texture
-		FSlateBrush Brush;
 		Brush.SetResourceObject(RenderTarget);
-		Brush.ImageSize = FVector2D(512.0f, 512.0f);
-		Brush.DrawAs = ESlateBrushDrawType::Image;
-
-		CharacterPreviewImage->SetBrush(Brush);
-		CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target (direct)"));
 	}
+
+	Brush.ImageSize = FVector2D(512.0f, 512.0f);
+	Brush.DrawAs = ESlateBrushDrawType::Image;
+
+	CharacterPreviewImage->SetBrush(Brush);
+	CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target"));
 }
 
 void USuspenseCoreMainMenuWidget::ClearCharacterPreview()
@@ -701,14 +653,20 @@ void USuspenseCoreMainMenuWidget::ClearCharacterPreview()
 		CharacterPreviewImage->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	// Disable capture to save performance
-	if (CachedCharacter.IsValid())
+	// Request capture disable via EventBus
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (Manager && Manager->GetEventBus())
 	{
-		CachedCharacter->SetCaptureEnabled(false);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+		EventData.SetBool(FName("Enabled"), false);
+		Manager->GetEventBus()->Publish(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestCapture")),
+			EventData
+		);
 	}
 
 	CharacterPreviewMaterial = nullptr;
-	CachedCharacter.Reset();
+	CachedRenderTarget = nullptr;
 
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview cleared"));
 }
@@ -717,25 +675,16 @@ void USuspenseCoreMainMenuWidget::OnRenderTargetReady(FGameplayTag EventTag, con
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Render target ready event received"));
 
-	// Get the source character from event data
-	UObject* SourceObject = EventData.GetObject(FName("SourceObject"));
-	ASuspenseCoreCharacter* Character = Cast<ASuspenseCoreCharacter>(SourceObject);
+	// Get render target from event data (passed via EventBus, no direct character dependency)
+	UObject* RenderTargetObj = EventData.GetObject(FName("RenderTarget"));
+	UTextureRenderTarget2D* RenderTarget = Cast<UTextureRenderTarget2D>(RenderTargetObj);
 
-	if (Character)
+	if (RenderTarget)
 	{
-		// Cache the character
-		CachedCharacter = Character;
-
-		// Update the preview image
-		UTextureRenderTarget2D* RenderTarget = Character->GetCharacterRenderTarget();
-		if (RenderTarget)
-		{
-			UpdateCharacterPreviewImage(RenderTarget);
-		}
+		UpdateCharacterPreviewImage(RenderTarget);
 	}
 	else
 	{
-		// Try to get character from player controller
-		SetupCharacterPreview();
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: RenderTarget not found in event data"));
 	}
 }

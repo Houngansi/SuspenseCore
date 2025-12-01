@@ -357,27 +357,29 @@ void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 	// Update CharacterSelectionSubsystem (persists across maps and notifies PreviewActor)
 	if (USuspenseCoreCharacterSelectionSubsystem* SelectionSubsystem = USuspenseCoreCharacterSelectionSubsystem::Get(this))
 	{
+		FName ClassIdName = FName(*ClassId);
+
 		// Get class data from CharacterClassSubsystem and register it
 		if (USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this))
 		{
-			USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(FName(*ClassId));
+			USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(ClassIdName);
 			if (ClassData)
 			{
 				// Register class data if not already registered
-				SelectionSubsystem->RegisterClassData(ClassData);
+				SelectionSubsystem->RegisterClassData(ClassData, ClassIdName);
 				// Select the class (publishes CharacterClass.Changed event)
-				SelectionSubsystem->SelectCharacterClass(ClassData);
+				SelectionSubsystem->SelectCharacterClass(ClassData, ClassIdName);
 			}
 			else
 			{
 				// Fallback: select by ID only
-				SelectionSubsystem->SelectCharacterClassById(FName(*ClassId));
+				SelectionSubsystem->SelectCharacterClassById(ClassIdName);
 			}
 		}
 		else
 		{
 			// No class subsystem, just select by ID
-			SelectionSubsystem->SelectCharacterClassById(FName(*ClassId));
+			SelectionSubsystem->SelectCharacterClassById(ClassIdName);
 		}
 	}
 

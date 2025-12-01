@@ -1,6 +1,10 @@
 // SuspenseCoreCharacterSelectionSubsystem.h
 // SuspenseCore - Clean Architecture BridgeSystem
 // Copyright (c) 2025. All Rights Reserved.
+//
+// NOTE: This subsystem uses UObject* instead of USuspenseCoreCharacterClassData*
+// to avoid module dependency on GAS. Cast to concrete type at usage sites:
+//   USuspenseCoreCharacterClassData* ClassData = Cast<USuspenseCoreCharacterClassData>(Subsystem->GetSelectedClass());
 
 #pragma once
 
@@ -9,7 +13,6 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreCharacterSelectionSubsystem.generated.h"
 
-class USuspenseCoreCharacterClassData;
 class USuspenseCoreEventBus;
 
 /**
@@ -25,7 +28,7 @@ class USuspenseCoreEventBus;
  * - Load class data from DataAsset registry
  *
  * USAGE:
- * 1. RegistrationWidget calls SelectCharacterClassById() when user clicks class button
+ * 1. RegistrationWidget calls SelectCharacterClass() when user clicks class button
  * 2. Subsystem publishes CharacterClass.Changed event
  * 3. PreviewActor on map receives event and updates mesh
  * 4. When game loads, Character calls GetSelectedClass() in BeginPlay
@@ -33,7 +36,7 @@ class USuspenseCoreEventBus;
  * ARCHITECTURE:
  * - Lives in BridgeSystem module (accessible from all modules)
  * - Uses EventBus for decoupled communication
- * - No dependencies on PlayerCore or UISystem
+ * - Uses UObject* to avoid GAS dependency (cast at usage sites)
  */
 UCLASS()
 class BRIDGESYSTEM_API USuspenseCoreCharacterSelectionSubsystem : public UGameInstanceSubsystem
@@ -55,25 +58,27 @@ public:
 	/**
 	 * Select character class by data asset reference.
 	 * Publishes CharacterClass.Changed event.
-	 * @param ClassData - Character class data asset
+	 * @param ClassData - Character class data asset (UObject* to avoid GAS dependency)
+	 * @param ClassId - Class identifier (FName)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	void SelectCharacterClass(USuspenseCoreCharacterClassData* ClassData);
+	void SelectCharacterClass(UObject* ClassData, FName ClassId);
 
 	/**
-	 * Select character class by ID (e.g., "Assault", "Medic", "Sniper").
-	 * Loads class data from registry and publishes event.
+	 * Select character class by ID only.
+	 * Loads class data from registry if registered, otherwise stores ID only.
 	 * @param ClassId - Class identifier (FName)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
 	void SelectCharacterClassById(FName ClassId);
 
 	/**
-	 * Get currently selected character class.
+	 * Get currently selected character class data.
+	 * Cast to USuspenseCoreCharacterClassData* at usage site.
 	 * @return Selected class data or nullptr if none selected
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	USuspenseCoreCharacterClassData* GetSelectedClass() const { return SelectedClassData; }
+	UObject* GetSelectedClass() const { return SelectedClassData; }
 
 	/**
 	 * Get currently selected class ID.
@@ -86,7 +91,7 @@ public:
 	 * Check if a class is currently selected.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	bool HasSelectedClass() const { return SelectedClassData != nullptr; }
+	bool HasSelectedClass() const { return SelectedClassData != nullptr || SelectedClassId != NAME_None; }
 
 	/**
 	 * Clear current selection.
@@ -96,24 +101,27 @@ public:
 
 	/**
 	 * Load character class data by ID from the class registry.
+	 * Cast to USuspenseCoreCharacterClassData* at usage site.
 	 * @param ClassId - Class identifier
 	 * @return Loaded class data or nullptr if not found
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	USuspenseCoreCharacterClassData* LoadClassById(FName ClassId);
+	UObject* LoadClassById(FName ClassId);
 
 	/**
 	 * Register a class data asset with the subsystem.
 	 * Called by CharacterClassSubsystem or manually.
+	 * @param ClassData - The class data asset (UObject*)
+	 * @param ClassId - The class identifier
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	void RegisterClassData(USuspenseCoreCharacterClassData* ClassData);
+	void RegisterClassData(UObject* ClassData, FName ClassId);
 
 	/**
-	 * Get all registered class data assets.
+	 * Get all registered class IDs.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterSelection")
-	TArray<USuspenseCoreCharacterClassData*> GetAllRegisteredClasses() const;
+	TArray<FName> GetAllRegisteredClassIds() const;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATIC ACCESSOR
@@ -130,16 +138,16 @@ protected:
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Currently selected class data */
+	/** Currently selected class data (UObject* to avoid GAS dependency) */
 	UPROPERTY()
-	USuspenseCoreCharacterClassData* SelectedClassData;
+	UObject* SelectedClassData;
 
 	/** Currently selected class ID */
 	FName SelectedClassId;
 
-	/** Registry of class data assets (ClassID → DataAsset) */
+	/** Registry of class data assets (ClassID → DataAsset as UObject*) */
 	UPROPERTY()
-	TMap<FName, USuspenseCoreCharacterClassData*> ClassRegistry;
+	TMap<FName, UObject*> ClassRegistry;
 
 	/** Cached EventBus */
 	UPROPERTY()

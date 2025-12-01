@@ -388,7 +388,10 @@ void ASuspenseCoreCharacter::LoadCharacterClassFromSubsystem()
 		return;
 	}
 
-	USuspenseCoreCharacterClassData* ClassData = SelectionSubsystem->GetSelectedClass();
+	// GetSelectedClass returns UObject* (to avoid GAS dependency in BridgeSystem), cast to concrete type
+	UObject* ClassDataObj = SelectionSubsystem->GetSelectedClass();
+	USuspenseCoreCharacterClassData* ClassData = Cast<USuspenseCoreCharacterClassData>(ClassDataObj);
+
 	if (ClassData)
 	{
 		ApplyCharacterClass(ClassData);

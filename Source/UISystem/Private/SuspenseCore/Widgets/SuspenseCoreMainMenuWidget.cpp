@@ -360,6 +360,14 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
+	// Subscribe to back to character select events (from registration screen)
+	BackToSelectEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Registration.BackToSelect")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnBackToCharacterSelect),
+		ESuspenseCoreEventPriority::Normal
+	);
+
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: EventBus subscriptions established"));
 }
 
@@ -386,6 +394,10 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 		if (CharacterDeletedEventHandle.IsValid())
 		{
 			CachedEventBus->Unsubscribe(CharacterDeletedEventHandle);
+		}
+		if (BackToSelectEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(BackToSelectEventHandle);
 		}
 	}
 }
@@ -532,6 +544,14 @@ void USuspenseCoreMainMenuWidget::OnCharacterDeleted(FGameplayTag EventTag, cons
 	}
 
 	// CharacterSelectWidget already refreshes its list via EventBus
+}
+
+void USuspenseCoreMainMenuWidget::OnBackToCharacterSelect(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Back to character select requested"));
+
+	// Switch from registration screen back to main menu panel (which contains character select)
+	ShowMainMenuPanel();
 }
 
 void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()

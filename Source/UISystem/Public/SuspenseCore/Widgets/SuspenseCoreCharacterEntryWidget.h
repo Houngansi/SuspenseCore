@@ -48,6 +48,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UImage* AvatarImage;
 
+	/** Character class icon (from ClassData) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UImage* ClassIconImage;
+
 	/** Character display name */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* DisplayNameText;

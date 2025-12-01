@@ -616,12 +616,19 @@ void ASuspenseCoreCharacter::RefreshCharacterCapture()
 {
 	if (CharacterCaptureComponent && CharacterRenderTarget)
 	{
-		// Ensure third person mesh is visible to capture (temporarily override owner visibility)
 		USkeletalMeshComponent* ThirdPersonMesh = GetMesh();
 		if (ThirdPersonMesh)
 		{
-			// Force capture even if mesh is set to OwnerNoSee
+			// CRITICAL: Temporarily disable OwnerNoSee so SceneCaptureComponent can see the mesh!
+			// SceneCaptureComponent is owned by this character, so it also respects OwnerNoSee
+			bool bWasOwnerNoSee = ThirdPersonMesh->bOwnerNoSee;
+			ThirdPersonMesh->SetOwnerNoSee(false);
+
+			// Force capture
 			CharacterCaptureComponent->CaptureScene();
+
+			// Restore OwnerNoSee for normal gameplay (player shouldn't see their own body)
+			ThirdPersonMesh->SetOwnerNoSee(bWasOwnerNoSee);
 		}
 	}
 }
@@ -635,11 +642,21 @@ void ASuspenseCoreCharacter::SetCaptureEnabled(bool bEnabled)
 
 	bCaptureEnabled = bEnabled;
 
+	// CRITICAL: Toggle OwnerNoSee on the third person mesh!
+	// SceneCaptureComponent is owned by this Character, so it respects OwnerNoSee.
+	// When capture is enabled, we need to disable OwnerNoSee so the mesh is visible to capture.
+	// When capture is disabled, restore OwnerNoSee so player doesn't see their own body in gameplay.
+	if (USkeletalMeshComponent* ThirdPersonMesh = GetMesh())
+	{
+		ThirdPersonMesh->SetOwnerNoSee(!bEnabled);
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Mesh OwnerNoSee set to: %s"),
+			bEnabled ? TEXT("false (visible to capture)") : TEXT("true (hidden from owner)"));
+	}
+
 	if (CharacterCaptureComponent)
 	{
 		CharacterCaptureComponent->SetActive(bEnabled);
 		// IMPORTANT: bCaptureEveryFrame must be TRUE for animation to be visible!
-		// If bContinuousCapture is false, animation will freeze
 		CharacterCaptureComponent->bCaptureEveryFrame = bEnabled;
 
 		if (bEnabled)

@@ -218,6 +218,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
 	bool IsCaptureEnabled() const;
 
+	/**
+	 * Rotate the character preview mesh (for UI rotation with mouse drag).
+	 * @param DeltaYaw - Yaw rotation delta in degrees
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
+	void RotateCharacterPreview(float DeltaYaw);
+
+	/**
+	 * Set character preview rotation (absolute).
+	 * @param Yaw - Absolute yaw rotation in degrees
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
+	void SetCharacterPreviewRotation(float Yaw);
+
+	/** Get current character preview rotation */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
+	float GetCharacterPreviewRotation() const { return CharacterPreviewYaw; }
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// COMPONENTS
@@ -358,11 +376,13 @@ protected:
 	void InitializeRenderTarget();
 	void SetupCaptureComponent();
 	void CreateRenderTargetMaterial();
+	void UpdateCaptureSettings();
 
 	// EventBus subscription for UI requests
 	void SetupCaptureEventSubscription();
 	void TeardownCaptureEventSubscription();
 	void OnCaptureRequested(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+	void OnRotationRequested(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 
 private:
 	/** Cached references */
@@ -383,4 +403,10 @@ private:
 
 	/** EventBus subscription handle for capture requests from UI */
 	FSuspenseCoreSubscriptionHandle CaptureRequestEventHandle;
+
+	/** EventBus subscription handle for rotation requests from UI */
+	FSuspenseCoreSubscriptionHandle RotationRequestEventHandle;
+
+	/** Current character preview yaw rotation */
+	float CharacterPreviewYaw = 0.0f;
 };

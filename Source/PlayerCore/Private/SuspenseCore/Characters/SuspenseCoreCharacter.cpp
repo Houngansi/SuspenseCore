@@ -123,6 +123,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 
 	UpdateMovementSpeed();
 
+	// Update capture camera with UPROPERTY values (not available in constructor)
+	UpdateCaptureSettings();
+
 	// Initialize render target for character preview
 	InitializeRenderTarget();
 
@@ -574,6 +577,25 @@ void ASuspenseCoreCharacter::CreateRenderTargetMaterial()
 	}
 }
 
+void ASuspenseCoreCharacter::UpdateCaptureSettings()
+{
+	// Apply UPROPERTY values to capture components (not available in constructor)
+	if (CaptureCameraBoom)
+	{
+		CaptureCameraBoom->TargetArmLength = CaptureDistance;
+		CaptureCameraBoom->SetRelativeLocation(FVector(0.f, 0.f, CaptureHeightOffset));
+		CaptureCameraBoom->SetRelativeRotation(FRotator(0.f, 180.f, 0.f));
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture settings updated: Distance=%.1f, Height=%.1f, FOV=%.1f"),
+			CaptureDistance, CaptureHeightOffset, CaptureFOV);
+	}
+
+	if (CharacterCaptureComponent)
+	{
+		CharacterCaptureComponent->FOVAngle = CaptureFOV;
+	}
+}
+
 void ASuspenseCoreCharacter::SetCaptureLocation(const FVector& RelativeLocation, const FRotator& RelativeRotation)
 {
 	if (CaptureCameraBoom)
@@ -582,6 +604,43 @@ void ASuspenseCoreCharacter::SetCaptureLocation(const FVector& RelativeLocation,
 		CaptureCameraBoom->SetRelativeRotation(RelativeRotation);
 
 		// Refresh capture if enabled
+		if (bCaptureEnabled)
+		{
+			RefreshCharacterCapture();
+		}
+	}
+}
+
+void ASuspenseCoreCharacter::RotateCharacterPreview(float DeltaYaw)
+{
+	CharacterPreviewYaw += DeltaYaw;
+	CharacterPreviewYaw = FMath::Fmod(CharacterPreviewYaw, 360.0f);
+
+	// Rotate the capture camera boom around the character
+	if (CaptureCameraBoom)
+	{
+		FRotator NewRotation = CaptureCameraBoom->GetRelativeRotation();
+		NewRotation.Yaw = 180.0f + CharacterPreviewYaw; // 180 is default front view
+		CaptureCameraBoom->SetRelativeRotation(NewRotation);
+
+		// Refresh capture to show updated rotation
+		if (bCaptureEnabled)
+		{
+			RefreshCharacterCapture();
+		}
+	}
+}
+
+void ASuspenseCoreCharacter::SetCharacterPreviewRotation(float Yaw)
+{
+	CharacterPreviewYaw = FMath::Fmod(Yaw, 360.0f);
+
+	if (CaptureCameraBoom)
+	{
+		FRotator NewRotation = CaptureCameraBoom->GetRelativeRotation();
+		NewRotation.Yaw = 180.0f + CharacterPreviewYaw;
+		CaptureCameraBoom->SetRelativeRotation(NewRotation);
+
 		if (bCaptureEnabled)
 		{
 			RefreshCharacterCapture();
@@ -668,15 +727,30 @@ void ASuspenseCoreCharacter::SetupCaptureEventSubscription()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Subscribed to UI capture requests"));
+	// Subscribe to rotation requests from UI (mouse drag)
+	RotationRequestEventHandle = EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestRotation")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacter::OnRotationRequested),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Subscribed to UI capture/rotation requests"));
 }
 
 void ASuspenseCoreCharacter::TeardownCaptureEventSubscription()
 {
 	USuspenseCoreEventBus* EventBus = GetEventBus();
-	if (EventBus && CaptureRequestEventHandle.IsValid())
+	if (EventBus)
 	{
-		EventBus->Unsubscribe(CaptureRequestEventHandle);
+		if (CaptureRequestEventHandle.IsValid())
+		{
+			EventBus->Unsubscribe(CaptureRequestEventHandle);
+		}
+		if (RotationRequestEventHandle.IsValid())
+		{
+			EventBus->Unsubscribe(RotationRequestEventHandle);
+		}
 	}
 }
 
@@ -687,4 +761,10 @@ void ASuspenseCoreCharacter::OnCaptureRequested(FGameplayTag EventTag, const FSu
 
 	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture request received: %s"),
 		bEnable ? TEXT("Enable") : TEXT("Disable"));
+}
+
+void ASuspenseCoreCharacter::OnRotationRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float DeltaYaw = EventData.GetFloat(FName("DeltaYaw"));
+	RotateCharacterPreview(DeltaYaw);
 }

@@ -16,9 +16,11 @@ class UVerticalBox;
 class UHorizontalBox;
 class UImage;
 class UBorder;
+class UPanelWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
 class USuspenseCoreCharacterClassData;
+class USuspenseCoreClassSelectionButtonWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSuspenseCoreOnRegistrationComplete, const FSuspenseCorePlayerData&, PlayerData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSuspenseCoreOnRegistrationError, const FString&, ErrorMessage);
@@ -155,24 +157,16 @@ protected:
 	UVerticalBox* AdditionalFieldsContainer;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// CLASS SELECTION UI BINDINGS
+	// CLASS SELECTION UI BINDINGS (Procedural)
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Container for class selection buttons */
+	/** Container for procedurally created class selection buttons (HorizontalBox or VerticalBox) */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UHorizontalBox* ClassSelectionContainer;
+	UPanelWidget* ClassButtonContainer;
 
-	/** Assault class button */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* AssaultClassButton;
-
-	/** Medic class button */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* MedicClassButton;
-
-	/** Sniper class button */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* SniperClassButton;
+	/** Widget class for class selection buttons (set in Blueprint) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	TSubclassOf<USuspenseCoreClassSelectionButtonWidget> ClassButtonWidgetClass;
 
 	/** Selected class name display */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -189,6 +183,26 @@ protected:
 	/** Selected class portrait image (large portrait from ClassData) */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UImage* ClassPortraitImage;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// LEGACY CLASS SELECTION BINDINGS (Deprecated - use ClassButtonContainer)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** @deprecated Use ClassButtonContainer with procedural class buttons */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DeprecatedProperty))
+	UHorizontalBox* ClassSelectionContainer;
+
+	/** @deprecated Use ClassButtonContainer with procedural class buttons */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DeprecatedProperty))
+	UButton* AssaultClassButton;
+
+	/** @deprecated Use ClassButtonContainer with procedural class buttons */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DeprecatedProperty))
+	UButton* MedicClassButton;
+
+	/** @deprecated Use ClassButtonContainer with procedural class buttons */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DeprecatedProperty))
+	UButton* SniperClassButton;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// NAVIGATION UI BINDINGS
@@ -238,6 +252,10 @@ protected:
 	UPROPERTY()
 	FString SelectedClassId;
 
+	/** Created class button widgets (for procedural loading) */
+	UPROPERTY()
+	TArray<USuspenseCoreClassSelectionButtonWidget*> CreatedClassButtons;
+
 	/** Is currently processing registration */
 	bool bIsProcessing = false;
 
@@ -268,25 +286,44 @@ protected:
 	UFUNCTION()
 	void OnDisplayNameChanged(const FText& Text);
 
-	/** Handle class button clicks */
+	/** Handle class button clicked (from procedural buttons) */
 	UFUNCTION()
-	void OnAssaultClassClicked();
-
-	UFUNCTION()
-	void OnMedicClassClicked();
-
-	UFUNCTION()
-	void OnSniperClassClicked();
+	void OnClassButtonClicked(const FString& ClassId);
 
 	/** Handle back button click - return to character select */
 	UFUNCTION()
 	void OnBackButtonClicked();
 
-	/** Setup class selection buttons */
+	/** Setup class selection buttons (procedural or legacy) */
 	void SetupClassSelectionBindings();
+
+	/** Create class buttons procedurally from CharacterClassSubsystem */
+	void CreateProceduralClassButtons();
 
 	/** Update class selection UI based on selected class */
 	void UpdateClassSelectionUI();
+
+	/** Update selection state on all class buttons */
+	void UpdateClassButtonSelectionStates();
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// LEGACY CLASS BUTTON HANDLERS (Deprecated)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** @deprecated Use OnClassButtonClicked instead */
+	UFUNCTION()
+	void OnAssaultClassClicked();
+
+	/** @deprecated Use OnClassButtonClicked instead */
+	UFUNCTION()
+	void OnMedicClassClicked();
+
+	/** @deprecated Use OnClassButtonClicked instead */
+	UFUNCTION()
+	void OnSniperClassClicked();
+
+	/** Setup legacy class button bindings (deprecated) */
+	void SetupLegacyClassBindings();
 
 	/** Update UI state based on validation */
 	void UpdateUIState();

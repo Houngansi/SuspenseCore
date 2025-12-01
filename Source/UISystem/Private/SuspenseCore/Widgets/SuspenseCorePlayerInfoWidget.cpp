@@ -130,7 +130,7 @@ void USuspenseCorePlayerInfoWidget::ClearDisplay()
 	CachedPlayerData = FSuspenseCorePlayerData();
 
 	if (DisplayNameText) DisplayNameText->SetText(FText::FromString(TEXT("---")));
-	if (PlayerIdText) PlayerIdText->SetText(FText::FromString(TEXT("---")));
+	// PlayerIdText intentionally not shown - internal use only
 
 	// Clear LevelWidget if bound
 	if (LevelWidget)
@@ -183,18 +183,13 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 {
 	const FSuspenseCorePlayerData& Data = CachedPlayerData;
 
-	// Basic info
+	// Basic info - display name only (PlayerId is internal, not shown to user)
 	if (DisplayNameText)
 	{
 		DisplayNameText->SetText(FText::FromString(Data.DisplayName));
 	}
 
-	if (PlayerIdText)
-	{
-		// Show first 8 chars of ID
-		FString ShortId = Data.PlayerId.Left(8) + TEXT("...");
-		PlayerIdText->SetText(FText::FromString(ShortId));
-	}
+	// PlayerIdText intentionally not updated - internal identifier should not be displayed
 
 	// Level & XP - use LevelWidget if bound
 	if (LevelWidget)

@@ -9,6 +9,9 @@
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "SuspenseCore/Repository/SuspenseCoreFilePlayerRepository.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
+#include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/ScrollBox.h"
@@ -191,8 +194,8 @@ void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& Playe
 		HighlightedPlayerId = PlayerId;
 		HighlightedEntry = *FoundEntry;
 
-		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Highlighted character: %s (%s)"),
-			*FoundEntry->DisplayName, *PlayerId);
+		UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Highlighted character: %s (%s) Class: %s"),
+			*FoundEntry->DisplayName, *PlayerId, *FoundEntry->CharacterClassId);
 
 		// Update entry widgets visual state
 		for (const auto& Pair : EntryWidgetMap)
@@ -209,6 +212,35 @@ void USuspenseCoreCharacterSelectWidget::HighlightCharacter(const FString& Playe
 			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterSelect.Highlighted")),
 			PlayerId
 		);
+
+		// Update CharacterPreviewActor with the character's class
+		// This triggers CharacterClass.Changed event for animation update
+		if (!FoundEntry->CharacterClassId.IsEmpty())
+		{
+			USuspenseCoreCharacterSelectionSubsystem* SelectionSubsystem = USuspenseCoreCharacterSelectionSubsystem::Get(this);
+			USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+
+			if (SelectionSubsystem && ClassSubsystem)
+			{
+				FName ClassIdName = FName(*FoundEntry->CharacterClassId);
+				USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(ClassIdName);
+
+				if (ClassData)
+				{
+					// Register and select class - this publishes CharacterClass.Changed event
+					SelectionSubsystem->RegisterClassData(ClassData, ClassIdName);
+					SelectionSubsystem->SelectCharacterClass(ClassData, ClassIdName);
+
+					UE_LOG(LogSuspenseCoreCharacterSelect, Log, TEXT("Updated preview to class: %s"),
+						*FoundEntry->CharacterClassId);
+				}
+				else
+				{
+					UE_LOG(LogSuspenseCoreCharacterSelect, Warning, TEXT("ClassData not found for: %s"),
+						*FoundEntry->CharacterClassId);
+				}
+			}
+		}
 
 		// Broadcast delegate for Blueprint events only
 		OnCharacterHighlightedDelegate.Broadcast(PlayerId, *FoundEntry);

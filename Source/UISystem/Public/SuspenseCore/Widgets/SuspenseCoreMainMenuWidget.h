@@ -19,11 +19,14 @@ class UImage;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UTextureRenderTarget2D;
+class USkeletalMesh;
+class UAnimInstance;
 class USuspenseCorePlayerInfoWidget;
 class USuspenseCoreRegistrationWidget;
 class USuspenseCoreCharacterSelectWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
+class ASuspenseCoreCharacterPreviewActor;
 
 /**
  * USuspenseCoreMainMenuWidget
@@ -246,6 +249,33 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
 	UMaterialInterface* CharacterPreviewBaseMaterial;
 
+	/**
+	 * Class of preview actor to spawn.
+	 * Default: ASuspenseCoreCharacterPreviewActor
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
+	TSubclassOf<ASuspenseCoreCharacterPreviewActor> PreviewActorClass;
+
+	/**
+	 * Spawn location for preview actor (should be hidden under map).
+	 * Default: (0, 0, -10000)
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
+	FVector PreviewActorSpawnLocation = FVector(0.0f, 0.0f, -10000.0f);
+
+	/**
+	 * Skeletal mesh to use for preview.
+	 * If not set, will try to copy from player character.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
+	USkeletalMesh* PreviewMesh;
+
+	/**
+	 * Animation blueprint class for preview mesh.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
+	TSubclassOf<UAnimInstance> PreviewAnimClass;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -286,6 +316,10 @@ protected:
 	UPROPERTY()
 	UTextureRenderTarget2D* CachedRenderTarget;
 
+	/** Spawned preview actor */
+	UPROPERTY()
+	TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor> SpawnedPreviewActor;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -313,6 +347,12 @@ protected:
 
 	/** Clear character preview */
 	void ClearCharacterPreview();
+
+	/** Spawn preview actor */
+	void SpawnPreviewActor();
+
+	/** Destroy preview actor */
+	void DestroyPreviewActor();
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS HANDLERS

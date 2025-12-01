@@ -496,7 +496,7 @@ void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
 		ClassButtonContainer->AddChild(ButtonWidget);
 		CreatedClassButtons.Add(ButtonWidget);
 
-		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created class button for: %s"), *ClassData->ClassId.ToString());
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created class button for: %s"), *ClassData->ClassID.ToString());
 	}
 
 	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created %d class buttons"), CreatedClassButtons.Num());

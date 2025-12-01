@@ -51,7 +51,7 @@ void USuspenseCoreClassSelectionButtonWidget::SetClassData(USuspenseCoreCharacte
 	}
 
 	CachedClassData = InClassData;
-	ClassId = InClassData->ClassId.ToString();
+	ClassId = InClassData->ClassID.ToString();
 
 	// Update class name text
 	if (ClassNameText)

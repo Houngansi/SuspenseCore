@@ -53,11 +53,19 @@ void USuspenseCoreClassSelectionButtonWidget::SetClassData(USuspenseCoreCharacte
 	CachedClassData = InClassData;
 	ClassId = InClassData->ClassID.ToString();
 
+	UE_LOG(LogSuspenseCoreClassButton, Log,
+		TEXT("SetClassData: %s - SelectButton=%s, ClassIconImage=%s, ClassNameText=%s"),
+		*ClassId,
+		SelectButton ? TEXT("OK") : TEXT("NULL"),
+		ClassIconImage ? TEXT("OK") : TEXT("NULL"),
+		ClassNameText ? TEXT("OK") : TEXT("NULL"));
+
 	// Update class name text
 	if (ClassNameText)
 	{
 		ClassNameText->SetText(InClassData->DisplayName);
 		ClassNameText->SetColorAndOpacity(FSlateColor(InClassData->PrimaryColor));
+		ClassNameText->SetVisibility(ESlateVisibility::Visible);
 	}
 
 	// Update class icon

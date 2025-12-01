@@ -13,11 +13,10 @@
 
 class USpringArmComponent;
 class UCameraComponent;
-class USceneCaptureComponent2D;
-class UTextureRenderTarget2D;
 class UAbilitySystemComponent;
 class USuspenseCoreEventBus;
 class ASuspenseCorePlayerState;
+class USuspenseCoreCharacterClassData;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -52,6 +51,7 @@ enum class ESuspenseCoreMovementState : uint8
  * - Movement execution (receives commands from Controller)
  * - Animation state for procedural animations
  * - Weapon attachment points
+ * - Character class application (mesh, anim BP from CharacterClassData)
  */
 UCLASS()
 class PLAYERCORE_API ASuspenseCoreCharacter : public ACharacter, public IAbilitySystemInterface
@@ -176,65 +176,22 @@ public:
 	UCameraComponent* GetCameraComponent() const { return CameraComponent; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - RENDER TARGET (Character Preview for UI)
+	// PUBLIC API - CHARACTER CLASS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Get render target for character preview display in UI.
-	 * Use this to display character in main menu, inventory, etc.
+	 * Apply character class data (mesh, animation blueprint, attributes).
+	 * Called on BeginPlay from CharacterSelectionSubsystem or manually.
+	 * @param ClassData - Character class data asset to apply
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	UTextureRenderTarget2D* GetCharacterRenderTarget() const { return CharacterRenderTarget; }
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterClass")
+	void ApplyCharacterClass(USuspenseCoreCharacterClassData* ClassData);
 
 	/**
-	 * Get dynamic material instance created from render target.
-	 * Assign this to UImage widget's brush.
+	 * Get currently applied character class.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	UMaterialInstanceDynamic* GetRenderTargetMaterial() const { return RenderTargetMaterialInstance; }
-
-	/**
-	 * Set capture camera location relative to character.
-	 * @param RelativeLocation - Location offset from character mesh
-	 * @param RelativeRotation - Rotation to look at character
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	void SetCaptureLocation(const FVector& RelativeLocation, const FRotator& RelativeRotation);
-
-	/**
-	 * Refresh the render target capture (force update).
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	void RefreshCharacterCapture();
-
-	/**
-	 * Enable/disable character capture.
-	 * Disable when not in menu to save performance.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	void SetCaptureEnabled(bool bEnabled);
-
-	/** Check if capture is currently enabled */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	bool IsCaptureEnabled() const;
-
-	/**
-	 * Rotate the character preview mesh (for UI rotation with mouse drag).
-	 * @param DeltaYaw - Yaw rotation delta in degrees
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	void RotateCharacterPreview(float DeltaYaw);
-
-	/**
-	 * Set character preview rotation (absolute).
-	 * @param Yaw - Absolute yaw rotation in degrees
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	void SetCharacterPreviewRotation(float Yaw);
-
-	/** Get current character preview rotation */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|RenderTarget")
-	float GetCharacterPreviewRotation() const { return CharacterPreviewYaw; }
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|CharacterClass")
+	USuspenseCoreCharacterClassData* GetAppliedCharacterClass() const { return AppliedClassData; }
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -252,29 +209,6 @@ protected:
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	UCameraComponent* CameraComponent;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// RENDER TARGET COMPONENTS (Character Preview)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Scene capture component for character preview */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|RenderTarget")
-	USceneCaptureComponent2D* CharacterCaptureComponent;
-
-	/** Spring arm for positioning capture camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|RenderTarget")
-	USpringArmComponent* CaptureCameraBoom;
-
-	/**
-	 * Render target texture for character preview.
-	 * ASSIGN THIS MANUALLY in Blueprint! Create a RenderTarget2D asset and assign here.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|RenderTarget")
-	UTextureRenderTarget2D* CharacterRenderTarget;
-
-	/** Dynamic material instance for UI display (optional - assign manually if needed) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|RenderTarget")
-	UMaterialInstanceDynamic* RenderTargetMaterialInstance;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -297,38 +231,6 @@ protected:
 	float AnimationInterpSpeed = 10.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// RENDER TARGET CONFIGURATION
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Render target resolution width */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	int32 RenderTargetWidth = 512;
-
-	/** Render target resolution height */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	int32 RenderTargetHeight = 512;
-
-	/** Distance from character for capture camera */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	float CaptureDistance = 200.0f;
-
-	/** Height offset for capture camera relative to mesh root */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	float CaptureHeightOffset = 80.0f;
-
-	/** Capture camera field of view */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget", meta = (ClampMin = "5.0", ClampMax = "170.0"))
-	float CaptureFOV = 30.0f;
-
-	/** Material to use for render target display (must have TextureParameter named 'RenderTargetTexture') */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	UMaterialInterface* RenderTargetBaseMaterial;
-
-	/** Whether to continuously capture or only on-demand */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|RenderTarget")
-	bool bContinuousCapture = false;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
 	// STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -347,6 +249,10 @@ protected:
 	/** Current weapon actor (weak reference - weapon can be destroyed) */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AActor> CurrentWeaponActor;
+
+	/** Currently applied character class data */
+	UPROPERTY(Transient)
+	USuspenseCoreCharacterClassData* AppliedClassData;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ANIMATION VALUES
@@ -375,17 +281,8 @@ protected:
 	void PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload = TEXT(""));
 	USuspenseCoreEventBus* GetEventBus() const;
 
-	// Render target initialization
-	void InitializeRenderTarget();
-	void SetupCaptureComponent();
-	void CreateRenderTargetMaterial();
-	void UpdateCaptureSettings();
-
-	// EventBus subscription for UI requests
-	void SetupCaptureEventSubscription();
-	void TeardownCaptureEventSubscription();
-	void OnCaptureRequested(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
-	void OnRotationRequested(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+	/** Load and apply character class from CharacterSelectionSubsystem */
+	void LoadCharacterClassFromSubsystem();
 
 private:
 	/** Cached references */
@@ -397,19 +294,4 @@ private:
 
 	/** Movement state tracking */
 	ESuspenseCoreMovementState PreviousMovementState = ESuspenseCoreMovementState::Idle;
-
-	/** Is capture currently enabled */
-	bool bCaptureEnabled = false;
-
-	/** Has render target been initialized */
-	bool bRenderTargetInitialized = false;
-
-	/** EventBus subscription handle for capture requests from UI */
-	FSuspenseCoreSubscriptionHandle CaptureRequestEventHandle;
-
-	/** EventBus subscription handle for rotation requests from UI */
-	FSuspenseCoreSubscriptionHandle RotationRequestEventHandle;
-
-	/** Current character preview yaw rotation */
-	float CharacterPreviewYaw = 0.0f;
 };

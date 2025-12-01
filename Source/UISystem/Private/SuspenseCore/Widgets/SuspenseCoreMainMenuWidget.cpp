@@ -6,7 +6,6 @@
 #include "SuspenseCore/Widgets/SuspenseCoreRegistrationWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCorePlayerInfoWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreCharacterSelectWidget.h"
-#include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -18,11 +17,8 @@
 #include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
 #include "Components/Image.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "GameFramework/Character.h"
 
 namespace
 {
@@ -75,16 +71,12 @@ void USuspenseCoreMainMenuWidget::NativeConstruct()
 	// Setup EventBus subscriptions (primary communication method per architecture docs)
 	SetupEventSubscriptions();
 
-	// Spawn character preview actor
-	SpawnPreviewActor();
-
 	// Initialize menu flow
 	InitializeMenu();
 }
 
 void USuspenseCoreMainMenuWidget::NativeDestruct()
 {
-	DestroyPreviewActor();
 	TeardownEventSubscriptions();
 	Super::NativeDestruct();
 }
@@ -368,14 +360,6 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	// Subscribe to render target ready events for character preview
-	RenderTargetReadyEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.RenderTargetReady")),
-		const_cast<USuspenseCoreMainMenuWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnRenderTargetReady),
-		ESuspenseCoreEventPriority::Normal
-	);
-
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: EventBus subscriptions established"));
 }
 
@@ -403,27 +387,8 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 		{
 			CachedEventBus->Unsubscribe(CharacterDeletedEventHandle);
 		}
-		if (RenderTargetReadyEventHandle.IsValid())
-		{
-			CachedEventBus->Unsubscribe(RenderTargetReadyEventHandle);
-		}
-	}
-
-	// Request capture disable via EventBus (no direct dependency on character)
-	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
-	if (Manager && Manager->GetEventBus())
-	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-		EventData.SetBool(FName("Enabled"), false);
-		Manager->GetEventBus()->Publish(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestCapture")),
-			EventData
-		);
 	}
 }
-
-// NOTE: Direct delegate bindings removed - all widget communication via EventBus per architecture docs
-// See: Source/SuspenseCore/Documentation/Architecture/Planning/EventSystemMigration.md
 
 ISuspenseCorePlayerRepository* USuspenseCoreMainMenuWidget::GetRepository()
 {
@@ -599,169 +564,5 @@ void USuspenseCoreMainMenuWidget::OnQuitButtonClicked()
 	if (PC)
 	{
 		UKismetSystemLibrary::QuitGame(GetWorld(), PC, EQuitPreference::Quit, false);
-	}
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CHARACTER PREVIEW (Render Target via EventBus - no direct module dependency)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-void USuspenseCoreMainMenuWidget::UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget)
-{
-	if (!CharacterPreviewImage || !RenderTarget)
-	{
-		return;
-	}
-
-	// Cache render target
-	CachedRenderTarget = RenderTarget;
-
-	// Create or update dynamic material instance
-	if (CharacterPreviewBaseMaterial)
-	{
-		// Use provided base material
-		if (!CharacterPreviewMaterial || CharacterPreviewMaterial->Parent != CharacterPreviewBaseMaterial)
-		{
-			CharacterPreviewMaterial = UMaterialInstanceDynamic::Create(CharacterPreviewBaseMaterial, this);
-		}
-
-		if (CharacterPreviewMaterial)
-		{
-			CharacterPreviewMaterial->SetTextureParameterValue(FName("RenderTargetTexture"), RenderTarget);
-		}
-	}
-
-	// Apply material or render target directly to image widget
-	FSlateBrush Brush;
-	if (CharacterPreviewMaterial)
-	{
-		Brush.SetResourceObject(CharacterPreviewMaterial);
-	}
-	else
-	{
-		// Fallback: Use render target directly as texture
-		Brush.SetResourceObject(RenderTarget);
-	}
-
-	Brush.ImageSize = FVector2D(512.0f, 512.0f);
-	Brush.DrawAs = ESlateBrushDrawType::Image;
-
-	CharacterPreviewImage->SetBrush(Brush);
-	CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target"));
-}
-
-void USuspenseCoreMainMenuWidget::ClearCharacterPreview()
-{
-	if (CharacterPreviewImage)
-	{
-		CharacterPreviewImage->SetVisibility(ESlateVisibility::Hidden);
-	}
-
-	// Request capture disable via EventBus
-	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
-	if (Manager && Manager->GetEventBus())
-	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-		EventData.SetBool(FName("Enabled"), false);
-		Manager->GetEventBus()->Publish(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.CharacterPreview.RequestCapture")),
-			EventData
-		);
-	}
-
-	CharacterPreviewMaterial = nullptr;
-	CachedRenderTarget = nullptr;
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview cleared"));
-}
-
-void USuspenseCoreMainMenuWidget::OnRenderTargetReady(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
-{
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Render target ready event received"));
-
-	// Get render target from event data (passed via EventBus, no direct character dependency)
-	UTextureRenderTarget2D* RenderTarget = EventData.GetObject<UTextureRenderTarget2D>(FName("RenderTarget"));
-
-	if (RenderTarget)
-	{
-		UpdateCharacterPreviewImage(RenderTarget);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: RenderTarget not found in event data"));
-	}
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CHARACTER PREVIEW ACTOR (Separate Actor approach for UE 5.7+)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-void USuspenseCoreMainMenuWidget::SpawnPreviewActor()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	// Use default class if not set
-	TSubclassOf<ASuspenseCoreCharacterPreviewActor> ActorClass = PreviewActorClass;
-	if (!ActorClass)
-	{
-		ActorClass = ASuspenseCoreCharacterPreviewActor::StaticClass();
-	}
-
-	// Spawn at hidden location
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	ASuspenseCoreCharacterPreviewActor* PreviewActor = World->SpawnActor<ASuspenseCoreCharacterPreviewActor>(
-		ActorClass,
-		PreviewActorSpawnLocation,
-		FRotator::ZeroRotator,
-		SpawnParams
-	);
-
-	if (PreviewActor)
-	{
-		SpawnedPreviewActor = PreviewActor;
-
-		// Set preview mesh if configured
-		if (PreviewMesh)
-		{
-			PreviewActor->SetPreviewMesh(PreviewMesh, PreviewAnimClass);
-		}
-		else
-		{
-			// Try to copy from player character
-			APlayerController* PC = GetOwningPlayer();
-			if (PC)
-			{
-				ACharacter* PlayerChar = Cast<ACharacter>(PC->GetPawn());
-				if (PlayerChar)
-				{
-					PreviewActor->CopyFromCharacter(PlayerChar);
-				}
-			}
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Spawned preview actor at %s"), *PreviewActorSpawnLocation.ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("SuspenseCoreMainMenu: Failed to spawn preview actor"));
-	}
-}
-
-void USuspenseCoreMainMenuWidget::DestroyPreviewActor()
-{
-	if (SpawnedPreviewActor.IsValid())
-	{
-		SpawnedPreviewActor->Destroy();
-		SpawnedPreviewActor.Reset();
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Destroyed preview actor"));
 	}
 }

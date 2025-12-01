@@ -9,6 +9,7 @@
 #include "SuspenseCore/Repository/SuspenseCoreFilePlayerRepository.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Button.h"
@@ -29,10 +30,8 @@ void USuspenseCoreRegistrationWidget::NativeConstruct()
 	SetupButtonBindings();
 	SetupClassSelectionBindings();
 
-	// Set default class selection
-	SelectedClassId = TEXT("Assault");
-	UpdateClassSelectionUI();
-	UpdateUIState();
+	// Set default class selection (also updates CharacterSelectionSubsystem)
+	SelectClass(TEXT("Assault"));
 
 	// Set initial status
 	if (StatusText)
@@ -355,7 +354,34 @@ void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 	UpdateClassSelectionUI();
 	UpdateUIState();
 
-	// Publish ClassPreview event via EventBus for character preview components
+	// Update CharacterSelectionSubsystem (persists across maps and notifies PreviewActor)
+	if (USuspenseCoreCharacterSelectionSubsystem* SelectionSubsystem = USuspenseCoreCharacterSelectionSubsystem::Get(this))
+	{
+		// Get class data from CharacterClassSubsystem and register it
+		if (USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this))
+		{
+			USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(FName(*ClassId));
+			if (ClassData)
+			{
+				// Register class data if not already registered
+				SelectionSubsystem->RegisterClassData(ClassData);
+				// Select the class (publishes CharacterClass.Changed event)
+				SelectionSubsystem->SelectCharacterClass(ClassData);
+			}
+			else
+			{
+				// Fallback: select by ID only
+				SelectionSubsystem->SelectCharacterClassById(FName(*ClassId));
+			}
+		}
+		else
+		{
+			// No class subsystem, just select by ID
+			SelectionSubsystem->SelectCharacterClassById(FName(*ClassId));
+		}
+	}
+
+	// Also publish legacy ClassPreview event for backwards compatibility
 	PublishClassPreviewEvent(ClassId);
 
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCore Registration: Selected class '%s'"), *ClassId);

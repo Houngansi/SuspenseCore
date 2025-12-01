@@ -8,6 +8,8 @@
 #include "GameFramework/PlayerController.h"
 #include "SuspenseCoreMenuPlayerController.generated.h"
 
+class ACameraActor;
+
 /**
  * ASuspenseCoreMenuPlayerController
  *
@@ -18,6 +20,7 @@
  * - UI-only input mode
  * - No pawn control
  * - Handles Escape key for back/quit actions
+ * - Auto-finds and uses CameraActor in level (tag: "MenuCamera")
  */
 UCLASS()
 class PLAYERCORE_API ASuspenseCoreMenuPlayerController : public APlayerController
@@ -56,6 +59,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
 	void ReturnToMainMenu();
 
+	/**
+	 * Find and set view target to camera actor in level.
+	 * Searches for CameraActor with tag "MenuCamera" or first CameraActor found.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
+	void SetViewToLevelCamera();
+
+	/**
+	 * Set view target to specific camera actor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
+	void SetViewToCamera(ACameraActor* CameraActor);
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -73,12 +89,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	bool bUIOnlyModeOnStart = true;
 
+	/** Should auto-find and use level camera on begin play? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	bool bAutoSetLevelCamera = true;
+
+	/** Tag to search for when finding menu camera (default: "MenuCamera") */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	FName MenuCameraTag = TEXT("MenuCamera");
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Handle escape key press */
 	void OnEscapePressed();
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// INTERNAL METHODS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Find camera actor in level by tag or first available */
+	ACameraActor* FindLevelCamera();
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -91,4 +122,8 @@ protected:
 	/** Called when returning to main menu */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Menu")
 	void OnReturnToMainMenu();
+
+	/** Called when camera view target is set */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Menu")
+	void OnCameraSet(ACameraActor* Camera);
 };

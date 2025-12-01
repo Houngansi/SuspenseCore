@@ -481,24 +481,17 @@ void ASuspenseCoreCharacter::InitializeRenderTarget()
 		return;
 	}
 
-	// Create render target texture
-	CharacterRenderTarget = NewObject<UTextureRenderTarget2D>(this, TEXT("CharacterRenderTarget"));
-	if (CharacterRenderTarget)
+	// RenderTarget must be assigned manually in Blueprint!
+	if (!CharacterRenderTarget)
 	{
-		CharacterRenderTarget->InitAutoFormat(RenderTargetWidth, RenderTargetHeight);
-		CharacterRenderTarget->ClearColor = FLinearColor::Transparent;
-		CharacterRenderTarget->bAutoGenerateMips = false;
-		CharacterRenderTarget->UpdateResourceImmediate();
-
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Created render target %dx%d"),
-			RenderTargetWidth, RenderTargetHeight);
+		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] CharacterRenderTarget not assigned! Assign a RenderTarget2D asset in Blueprint."));
+		return;
 	}
 
-	// Setup capture component
-	SetupCaptureComponent();
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Using assigned render target: %s"), *CharacterRenderTarget->GetName());
 
-	// Create material for UI display
-	CreateRenderTargetMaterial();
+	// Setup capture component with the assigned render target
+	SetupCaptureComponent();
 
 	bRenderTargetInitialized = true;
 
@@ -528,53 +521,24 @@ void ASuspenseCoreCharacter::SetupCaptureComponent()
 	CharacterCaptureComponent->FOVAngle = CaptureFOV;
 	CharacterCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
-	// CRITICAL: Configure visibility
-	// The capture camera should ONLY see the third person mesh (GetMesh())
-	// It should NOT see the first person arms (Mesh1P)
-	CharacterCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	CharacterCaptureComponent->ShowOnlyComponents.Empty();
+	// Render all scene primitives (user controls visibility via Blueprint)
+	// NOTE: We don't use ShowOnlyComponents because it breaks animation visibility
+	CharacterCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
 
-	// Add the third person skeletal mesh to the show only list
-	if (GetMesh())
+	// Hide first person arms from capture (they have OnlyOwnerSee anyway)
+	if (Mesh1P)
 	{
-		CharacterCaptureComponent->ShowOnlyComponents.Add(GetMesh());
+		CharacterCaptureComponent->HiddenComponents.Add(Mesh1P);
 	}
 
-	// Post process settings for clean capture
-	CharacterCaptureComponent->PostProcessSettings.bOverride_AmbientOcclusionIntensity = true;
-	CharacterCaptureComponent->PostProcessSettings.AmbientOcclusionIntensity = 0.0f;
-	CharacterCaptureComponent->PostProcessSettings.bOverride_MotionBlurAmount = true;
-	CharacterCaptureComponent->PostProcessSettings.MotionBlurAmount = 0.0f;
-
-	// Set capture to on-demand by default (controlled via SetCaptureEnabled)
-	CharacterCaptureComponent->bCaptureEveryFrame = bContinuousCapture;
-	CharacterCaptureComponent->bCaptureOnMovement = false;
-
-	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture component configured with ShowOnlyComponents"));
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture component configured with RenderTarget: %s"),
+		*CharacterRenderTarget->GetName());
 }
 
 void ASuspenseCoreCharacter::CreateRenderTargetMaterial()
 {
-	if (!CharacterRenderTarget)
-	{
-		return;
-	}
-
-	// Create dynamic material instance if base material is set
-	if (RenderTargetBaseMaterial)
-	{
-		RenderTargetMaterialInstance = UMaterialInstanceDynamic::Create(RenderTargetBaseMaterial, this);
-		if (RenderTargetMaterialInstance)
-		{
-			RenderTargetMaterialInstance->SetTextureParameterValue(FName("RenderTargetTexture"), CharacterRenderTarget);
-			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Created render target material instance"));
-		}
-	}
-	else
-	{
-		// No base material set - UI can use the render target directly
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] No base material set. UI should create material from render target."));
-	}
+	// Material is now assigned manually in Blueprint - this method is kept for compatibility
+	// User should create their own material and assign to RenderTargetMaterialInstance if needed
 }
 
 void ASuspenseCoreCharacter::UpdateCaptureSettings()
@@ -674,7 +638,9 @@ void ASuspenseCoreCharacter::SetCaptureEnabled(bool bEnabled)
 	if (CharacterCaptureComponent)
 	{
 		CharacterCaptureComponent->SetActive(bEnabled);
-		CharacterCaptureComponent->bCaptureEveryFrame = bEnabled && bContinuousCapture;
+		// IMPORTANT: bCaptureEveryFrame must be TRUE for animation to be visible!
+		// If bContinuousCapture is false, animation will freeze
+		CharacterCaptureComponent->bCaptureEveryFrame = bEnabled;
 
 		if (bEnabled)
 		{

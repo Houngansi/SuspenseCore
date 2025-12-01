@@ -16,6 +16,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
+#include "Components/Image.h"
 #include "TimerManager.h"
 
 USuspenseCoreRegistrationWidget::USuspenseCoreRegistrationWidget(const FObjectInitializer& ObjectInitializer)
@@ -66,6 +67,12 @@ void USuspenseCoreRegistrationWidget::SetupButtonBindings()
 	if (DisplayNameInput)
 	{
 		DisplayNameInput->OnTextChanged.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnDisplayNameChanged);
+	}
+
+	if (BackButton)
+	{
+		BackButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnBackButtonClicked);
+		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] BackButton bound"));
 	}
 }
 
@@ -463,6 +470,22 @@ void USuspenseCoreRegistrationWidget::OnSniperClassClicked()
 	SelectClass(TEXT("Sniper"));
 }
 
+void USuspenseCoreRegistrationWidget::OnBackButtonClicked()
+{
+	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] Back button clicked - returning to character select"));
+
+	// Publish navigation event via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+		EventBus->Publish(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Registration.BackToSelect")),
+			EventData
+		);
+	}
+}
+
 void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 {
 	// Get class data from subsystem
@@ -529,6 +552,36 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 				Description = FText::FromString(TEXT("Long-range marksman. High damage and accuracy."));
 			}
 			SelectedClassDescriptionText->SetText(Description);
+		}
+	}
+
+	// Update class icon from ClassData
+	if (ClassIconImage && SelectedClass)
+	{
+		if (UTexture2D* IconTexture = SelectedClass->ClassIcon.LoadSynchronous())
+		{
+			ClassIconImage->SetBrushFromTexture(IconTexture);
+			ClassIconImage->SetVisibility(ESlateVisibility::Visible);
+			UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] ClassIcon set for %s"), *SelectedClassId);
+		}
+		else
+		{
+			ClassIconImage->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	// Update class portrait from ClassData
+	if (ClassPortraitImage && SelectedClass)
+	{
+		if (UTexture2D* PortraitTexture = SelectedClass->ClassPortrait.LoadSynchronous())
+		{
+			ClassPortraitImage->SetBrushFromTexture(PortraitTexture);
+			ClassPortraitImage->SetVisibility(ESlateVisibility::Visible);
+			UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] ClassPortrait set for %s"), *SelectedClassId);
+		}
+		else
+		{
+			ClassPortraitImage->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 

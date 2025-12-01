@@ -3,6 +3,8 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/SuspenseCoreCharacterEntryWidget.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
+#include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
@@ -83,6 +85,28 @@ void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayer
 		if (TextureToUse)
 		{
 			AvatarImage->SetBrushFromTexture(TextureToUse);
+		}
+	}
+
+	// Update class icon from ClassData
+	if (ClassIconImage && !InCharacterClassId.IsEmpty())
+	{
+		USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+		if (ClassSubsystem)
+		{
+			USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(FName(*InCharacterClassId));
+			if (ClassData)
+			{
+				if (UTexture2D* IconTexture = ClassData->ClassIcon.LoadSynchronous())
+				{
+					ClassIconImage->SetBrushFromTexture(IconTexture);
+					ClassIconImage->SetVisibility(ESlateVisibility::Visible);
+				}
+				else
+				{
+					ClassIconImage->SetVisibility(ESlateVisibility::Collapsed);
+				}
+			}
 		}
 	}
 

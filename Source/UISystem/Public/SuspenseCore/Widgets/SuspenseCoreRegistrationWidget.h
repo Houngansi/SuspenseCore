@@ -182,6 +182,26 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* SelectedClassDescriptionText;
 
+	/** Selected class icon image (small icon from ClassData) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UImage* ClassIconImage;
+
+	/** Selected class portrait image (large portrait from ClassData) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UImage* ClassPortraitImage;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// NAVIGATION UI BINDINGS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Back button to return to character select (when characters exist) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UButton* BackButton;
+
+	/** Text for back button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* BackButtonText;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -257,6 +277,10 @@ protected:
 
 	UFUNCTION()
 	void OnSniperClassClicked();
+
+	/** Handle back button click - return to character select */
+	UFUNCTION()
+	void OnBackButtonClicked();
 
 	/** Setup class selection buttons */
 	void SetupClassSelectionBindings();

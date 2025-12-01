@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/SuspenseCoreRegistrationWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreClassSelectionButtonWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -16,8 +17,11 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
+#include "Components/PanelWidget.h"
 #include "Components/Image.h"
 #include "TimerManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreRegistration, Log, All);
 
 USuspenseCoreRegistrationWidget::USuspenseCoreRegistrationWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -72,7 +76,7 @@ void USuspenseCoreRegistrationWidget::SetupButtonBindings()
 	if (BackButton)
 	{
 		BackButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnBackButtonClicked);
-		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] BackButton bound"));
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] BackButton bound"));
 	}
 }
 
@@ -221,7 +225,7 @@ void USuspenseCoreRegistrationWidget::ShowError(const FString& Message)
 		StatusText->SetColorAndOpacity(FSlateColor(FLinearColor::Red));
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("SuspenseCore Registration Error: %s"), *Message);
+	UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("Registration Error: %s"), *Message);
 }
 
 void USuspenseCoreRegistrationWidget::ShowSuccess(const FString& Message)
@@ -232,7 +236,7 @@ void USuspenseCoreRegistrationWidget::ShowSuccess(const FString& Message)
 		StatusText->SetColorAndOpacity(FSlateColor(FLinearColor::Green));
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCore Registration Success: %s"), *Message);
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("Registration Success: %s"), *Message);
 }
 
 void USuspenseCoreRegistrationWidget::SetPlayerRepository(TScriptInterface<ISuspenseCorePlayerRepository> InRepository)
@@ -357,7 +361,7 @@ FString USuspenseCoreRegistrationWidget::GetSelectedClassId() const
 
 void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] SelectClass('%s') called"), *ClassId);
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] SelectClass('%s') called"), *ClassId);
 
 	SelectedClassId = ClassId;
 	UpdateClassSelectionUI();
@@ -367,18 +371,18 @@ void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 	USuspenseCoreCharacterSelectionSubsystem* SelectionSubsystem = USuspenseCoreCharacterSelectionSubsystem::Get(this);
 	if (SelectionSubsystem)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] CharacterSelectionSubsystem found"));
+		UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] CharacterSelectionSubsystem found"));
 		FName ClassIdName = FName(*ClassId);
 
 		// Get class data from CharacterClassSubsystem and register it
 		USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
 		if (ClassSubsystem)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] CharacterClassSubsystem found"));
+			UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] CharacterClassSubsystem found"));
 			USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassById(ClassIdName);
 			if (ClassData)
 			{
-				UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] ClassData found for '%s', registering and selecting"), *ClassId);
+				UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] ClassData found for '%s', registering and selecting"), *ClassId);
 				// Register class data if not already registered
 				SelectionSubsystem->RegisterClassData(ClassData, ClassIdName);
 				// Select the class (publishes CharacterClass.Changed event)
@@ -386,27 +390,27 @@ void USuspenseCoreRegistrationWidget::SelectClass(const FString& ClassId)
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] ClassData NOT found for '%s', selecting by ID only"), *ClassId);
+				UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("[RegistrationWidget] ClassData NOT found for '%s', selecting by ID only"), *ClassId);
 				// Fallback: select by ID only
 				SelectionSubsystem->SelectCharacterClassById(ClassIdName);
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] CharacterClassSubsystem NOT found! Selecting by ID only"));
+			UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("[RegistrationWidget] CharacterClassSubsystem NOT found! Selecting by ID only"));
 			// No class subsystem, just select by ID
 			SelectionSubsystem->SelectCharacterClassById(ClassIdName);
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[RegistrationWidget] CharacterSelectionSubsystem NOT found! Check GameInstance setup."));
+		UE_LOG(LogSuspenseCoreRegistration, Error, TEXT("[RegistrationWidget] CharacterSelectionSubsystem NOT found! Check GameInstance setup."));
 	}
 
 	// Also publish legacy ClassPreview event for backwards compatibility
 	PublishClassPreviewEvent(ClassId);
 
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] SelectClass complete for '%s'"), *ClassId);
+	UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] SelectClass complete for '%s'"), *ClassId);
 }
 
 void USuspenseCoreRegistrationWidget::PublishClassPreviewEvent(const FString& ClassId)
@@ -428,51 +432,138 @@ void USuspenseCoreRegistrationWidget::PublishClassPreviewEvent(const FString& Cl
 
 void USuspenseCoreRegistrationWidget::SetupClassSelectionBindings()
 {
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] SetupClassSelectionBindings called"));
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] AssaultClassButton: %s"), AssaultClassButton ? TEXT("BOUND") : TEXT("NULL - Check widget name in WBP!"));
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] MedicClassButton: %s"), MedicClassButton ? TEXT("BOUND") : TEXT("NULL - Check widget name in WBP!"));
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] SniperClassButton: %s"), SniperClassButton ? TEXT("BOUND") : TEXT("NULL - Check widget name in WBP!"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] SetupClassSelectionBindings called"));
+
+	// Try procedural class button creation first
+	if (ClassButtonContainer && ClassButtonWidgetClass)
+	{
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Using procedural class button creation"));
+		CreateProceduralClassButtons();
+	}
+	else
+	{
+		// Fall back to legacy hardcoded buttons
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Falling back to legacy class buttons"));
+		SetupLegacyClassBindings();
+	}
+}
+
+void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
+{
+	if (!ClassButtonContainer || !ClassButtonWidgetClass)
+	{
+		UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("[RegistrationWidget] Cannot create procedural buttons - missing container or widget class"));
+		return;
+	}
+
+	// Clear existing buttons
+	ClassButtonContainer->ClearChildren();
+	CreatedClassButtons.Empty();
+
+	// Get all available classes from subsystem
+	USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+	if (!ClassSubsystem)
+	{
+		UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("[RegistrationWidget] CharacterClassSubsystem not available"));
+		return;
+	}
+
+	TArray<USuspenseCoreCharacterClassData*> AllClasses = ClassSubsystem->GetAllClasses();
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Found %d classes to create buttons for"), AllClasses.Num());
+
+	for (USuspenseCoreCharacterClassData* ClassData : AllClasses)
+	{
+		if (!ClassData)
+		{
+			continue;
+		}
+
+		// Create button widget
+		USuspenseCoreClassSelectionButtonWidget* ButtonWidget = CreateWidget<USuspenseCoreClassSelectionButtonWidget>(this, ClassButtonWidgetClass);
+		if (!ButtonWidget)
+		{
+			UE_LOG(LogSuspenseCoreRegistration, Warning, TEXT("[RegistrationWidget] Failed to create class button widget"));
+			continue;
+		}
+
+		// Configure button with class data
+		ButtonWidget->SetClassData(ClassData);
+
+		// Bind click event
+		ButtonWidget->OnClassButtonClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnClassButtonClicked);
+
+		// Add to container
+		ClassButtonContainer->AddChild(ButtonWidget);
+		CreatedClassButtons.Add(ButtonWidget);
+
+		UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created class button for: %s"), *ClassData->ClassId.ToString());
+	}
+
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Created %d class buttons"), CreatedClassButtons.Num());
+}
+
+void USuspenseCoreRegistrationWidget::OnClassButtonClicked(const FString& ClassId)
+{
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Class button clicked: %s"), *ClassId);
+	SelectClass(ClassId);
+}
+
+void USuspenseCoreRegistrationWidget::UpdateClassButtonSelectionStates()
+{
+	for (USuspenseCoreClassSelectionButtonWidget* ButtonWidget : CreatedClassButtons)
+	{
+		if (ButtonWidget)
+		{
+			bool bIsSelected = (ButtonWidget->GetClassId() == SelectedClassId);
+			ButtonWidget->SetSelected(bIsSelected);
+		}
+	}
+}
+
+void USuspenseCoreRegistrationWidget::SetupLegacyClassBindings()
+{
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] SetupLegacyClassBindings called (DEPRECATED)"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] AssaultClassButton: %s"), AssaultClassButton ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] MedicClassButton: %s"), MedicClassButton ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] SniperClassButton: %s"), SniperClassButton ? TEXT("BOUND") : TEXT("NULL"));
 
 	if (AssaultClassButton)
 	{
 		AssaultClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnAssaultClassClicked);
-		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] AssaultClassButton OnClicked bound"));
 	}
 
 	if (MedicClassButton)
 	{
 		MedicClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnMedicClassClicked);
-		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] MedicClassButton OnClicked bound"));
 	}
 
 	if (SniperClassButton)
 	{
 		SniperClassButton->OnClicked.AddDynamic(this, &USuspenseCoreRegistrationWidget::OnSniperClassClicked);
-		UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] SniperClassButton OnClicked bound"));
 	}
 }
 
 void USuspenseCoreRegistrationWidget::OnAssaultClassClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] >>> OnAssaultClassClicked FIRED! <<<"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] OnAssaultClassClicked (legacy)"));
 	SelectClass(TEXT("Assault"));
 }
 
 void USuspenseCoreRegistrationWidget::OnMedicClassClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] >>> OnMedicClassClicked FIRED! <<<"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] OnMedicClassClicked (legacy)"));
 	SelectClass(TEXT("Medic"));
 }
 
 void USuspenseCoreRegistrationWidget::OnSniperClassClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[RegistrationWidget] >>> OnSniperClassClicked FIRED! <<<"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] OnSniperClassClicked (legacy)"));
 	SelectClass(TEXT("Sniper"));
 }
 
 void USuspenseCoreRegistrationWidget::OnBackButtonClicked()
 {
-	UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] Back button clicked - returning to character select"));
+	UE_LOG(LogSuspenseCoreRegistration, Log, TEXT("[RegistrationWidget] Back button clicked - returning to character select"));
 
 	// Publish navigation event via EventBus
 	USuspenseCoreEventBus* EventBus = GetEventBus();
@@ -488,6 +579,9 @@ void USuspenseCoreRegistrationWidget::OnBackButtonClicked()
 
 void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 {
+	// Update procedural button selection states
+	UpdateClassButtonSelectionStates();
+
 	// Get class data from subsystem
 	USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
 
@@ -555,14 +649,14 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 		}
 	}
 
-	// Update class icon from ClassData
+	// Update class icon from ClassData (for selected class display panel)
 	if (ClassIconImage && SelectedClass)
 	{
 		if (UTexture2D* IconTexture = SelectedClass->ClassIcon.LoadSynchronous())
 		{
 			ClassIconImage->SetBrushFromTexture(IconTexture);
 			ClassIconImage->SetVisibility(ESlateVisibility::Visible);
-			UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] ClassIcon set for %s"), *SelectedClassId);
+			UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] ClassIcon set for %s"), *SelectedClassId);
 		}
 		else
 		{
@@ -570,14 +664,14 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 		}
 	}
 
-	// Update class portrait from ClassData
+	// Update class portrait from ClassData (for selected class display panel)
 	if (ClassPortraitImage && SelectedClass)
 	{
 		if (UTexture2D* PortraitTexture = SelectedClass->ClassPortrait.LoadSynchronous())
 		{
 			ClassPortraitImage->SetBrushFromTexture(PortraitTexture);
 			ClassPortraitImage->SetVisibility(ESlateVisibility::Visible);
-			UE_LOG(LogTemp, Log, TEXT("[RegistrationWidget] ClassPortrait set for %s"), *SelectedClassId);
+			UE_LOG(LogSuspenseCoreRegistration, Verbose, TEXT("[RegistrationWidget] ClassPortrait set for %s"), *SelectedClassId);
 		}
 		else
 		{
@@ -585,7 +679,8 @@ void USuspenseCoreRegistrationWidget::UpdateClassSelectionUI()
 		}
 	}
 
-	// Update button visual states (highlight selected)
+	// LEGACY: Update button visual states (highlight selected) - for backwards compatibility
+	// New code should use ClassButtonContainer with procedural class buttons
 	auto UpdateButtonStyle = [this](UButton* Button, const FString& ButtonClassId)
 	{
 		if (!Button) return;

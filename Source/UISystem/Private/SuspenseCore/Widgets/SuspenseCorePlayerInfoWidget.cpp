@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/SuspenseCorePlayerInfoWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreLevelWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -130,9 +131,13 @@ void USuspenseCorePlayerInfoWidget::ClearDisplay()
 
 	if (DisplayNameText) DisplayNameText->SetText(FText::FromString(TEXT("---")));
 	if (PlayerIdText) PlayerIdText->SetText(FText::FromString(TEXT("---")));
-	if (LevelText) LevelText->SetText(FText::FromString(TEXT("Lv. 0")));
-	if (XPProgressBar) XPProgressBar->SetPercent(0.0f);
-	if (XPText) XPText->SetText(FText::FromString(TEXT("0 / 0")));
+
+	// Clear LevelWidget if bound
+	if (LevelWidget)
+	{
+		LevelWidget->SetLevelAndExperience(0, 0, 0);
+	}
+
 	if (SoftCurrencyText) SoftCurrencyText->SetText(FText::FromString(TEXT("0")));
 	if (HardCurrencyText) HardCurrencyText->SetText(FText::FromString(TEXT("0")));
 	if (KillsText) KillsText->SetText(FText::FromString(TEXT("0")));
@@ -191,28 +196,16 @@ void USuspenseCorePlayerInfoWidget::UpdateUIFromData()
 		PlayerIdText->SetText(FText::FromString(ShortId));
 	}
 
-	// Level & XP
-	if (LevelText)
+	// Level & XP - use LevelWidget if bound
+	if (LevelWidget)
 	{
-		LevelText->SetText(FText::FromString(FString::Printf(TEXT("Lv. %d"), Data.Level)));
-	}
-
-	if (XPProgressBar)
-	{
-		// Calculate XP progress (simple exponential curve)
-		int64 XPForCurrentLevel = 100 * FMath::Pow(1.15f, Data.Level - 1);
-		int64 XPForNextLevel = 100 * FMath::Pow(1.15f, Data.Level);
+		// Calculate XP for current and next level (simple exponential curve)
+		int64 XPForCurrentLevel = static_cast<int64>(100 * FMath::Pow(1.15f, Data.Level - 1));
+		int64 XPForNextLevel = static_cast<int64>(100 * FMath::Pow(1.15f, Data.Level));
 		int64 XPInLevel = Data.ExperiencePoints - XPForCurrentLevel;
 		int64 XPNeeded = XPForNextLevel - XPForCurrentLevel;
 
-		float Progress = (XPNeeded > 0) ? static_cast<float>(XPInLevel) / XPNeeded : 1.0f;
-		XPProgressBar->SetPercent(FMath::Clamp(Progress, 0.0f, 1.0f));
-	}
-
-	if (XPText)
-	{
-		XPText->SetText(FText::FromString(
-			FString::Printf(TEXT("%s XP"), *FormatLargeNumber(Data.ExperiencePoints))));
+		LevelWidget->SetLevelAndExperience(Data.Level, XPInLevel, XPNeeded);
 	}
 
 	// Currency

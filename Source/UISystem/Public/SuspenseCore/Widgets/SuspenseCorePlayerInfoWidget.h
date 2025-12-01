@@ -17,6 +17,7 @@ class UImage;
 class UButton;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
+class USuspenseCoreLevelWidget;
 
 /**
  * USuspenseCorePlayerInfoWidget
@@ -87,6 +88,12 @@ public:
 	bool HasPlayerData() const { return !CurrentPlayerId.IsEmpty(); }
 
 	/**
+	 * Get the embedded Level widget (if bound).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|PlayerInfo")
+	USuspenseCoreLevelWidget* GetLevelWidget() const { return LevelWidget.Get(); }
+
+	/**
 	 * Display test player data for UI debugging.
 	 * @param DisplayName - Name to use for test player
 	 */
@@ -106,17 +113,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock* PlayerIdText;
 
-	/** Player level */
+	/**
+	 * Optional embedded Level widget (WBP_CharacterLevelPanel).
+	 * If bound, this widget handles Level/XP display with its own EventBus subscriptions.
+	 * Use this for modular design where LevelWidget is a reusable component.
+	 */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* LevelText;
-
-	/** XP progress bar */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* XPProgressBar;
-
-	/** XP text (current/needed) */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* XPText;
+	TObjectPtr<USuspenseCoreLevelWidget> LevelWidget;
 
 	/** Soft currency amount */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))

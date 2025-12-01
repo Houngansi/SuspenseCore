@@ -676,8 +676,7 @@ void USuspenseCoreMainMenuWidget::OnRenderTargetReady(FGameplayTag EventTag, con
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Render target ready event received"));
 
 	// Get render target from event data (passed via EventBus, no direct character dependency)
-	UObject* RenderTargetObj = EventData.GetObject(FName("RenderTarget"));
-	UTextureRenderTarget2D* RenderTarget = Cast<UTextureRenderTarget2D>(RenderTargetObj);
+	UTextureRenderTarget2D* RenderTarget = EventData.GetObject<UTextureRenderTarget2D>(FName("RenderTarget"));
 
 	if (RenderTarget)
 	{

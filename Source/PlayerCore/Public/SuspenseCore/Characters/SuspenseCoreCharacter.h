@@ -265,12 +265,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|RenderTarget")
 	USpringArmComponent* CaptureCameraBoom;
 
-	/** Render target texture for character preview */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "SuspenseCore|RenderTarget")
+	/**
+	 * Render target texture for character preview.
+	 * ASSIGN THIS MANUALLY in Blueprint! Create a RenderTarget2D asset and assign here.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|RenderTarget")
 	UTextureRenderTarget2D* CharacterRenderTarget;
 
-	/** Dynamic material instance for UI display */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "SuspenseCore|RenderTarget")
+	/** Dynamic material instance for UI display (optional - assign manually if needed) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|RenderTarget")
 	UMaterialInstanceDynamic* RenderTargetMaterialInstance;
 
 	// ═══════════════════════════════════════════════════════════════════════════════

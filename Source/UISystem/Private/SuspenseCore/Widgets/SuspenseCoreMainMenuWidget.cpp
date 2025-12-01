@@ -13,10 +13,13 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
 #include "Components/Image.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -360,6 +363,14 @@ void USuspenseCoreMainMenuWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
+	// Subscribe to render target ready events for character preview
+	RenderTargetReadyEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.RenderTargetReady")),
+		const_cast<USuspenseCoreMainMenuWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreMainMenuWidget::OnRenderTargetReady),
+		ESuspenseCoreEventPriority::Normal
+	);
+
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: EventBus subscriptions established"));
 }
 
@@ -387,6 +398,16 @@ void USuspenseCoreMainMenuWidget::TeardownEventSubscriptions()
 		{
 			CachedEventBus->Unsubscribe(CharacterDeletedEventHandle);
 		}
+		if (RenderTargetReadyEventHandle.IsValid())
+		{
+			CachedEventBus->Unsubscribe(RenderTargetReadyEventHandle);
+		}
+	}
+
+	// Disable character capture when widget is destroyed
+	if (CachedCharacter.IsValid())
+	{
+		CachedCharacter->SetCaptureEnabled(false);
 	}
 }
 
@@ -567,5 +588,154 @@ void USuspenseCoreMainMenuWidget::OnQuitButtonClicked()
 	if (PC)
 	{
 		UKismetSystemLibrary::QuitGame(GetWorld(), PC, EQuitPreference::Quit, false);
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHARACTER PREVIEW (Render Target)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreMainMenuWidget::SetupCharacterPreview()
+{
+	// Find the player's character
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: No PlayerController for character preview"));
+		return;
+	}
+
+	APawn* Pawn = PC->GetPawn();
+	ASuspenseCoreCharacter* Character = Cast<ASuspenseCoreCharacter>(Pawn);
+
+	if (!Character)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Player pawn is not SuspenseCoreCharacter"));
+		return;
+	}
+
+	// Cache the character reference
+	CachedCharacter = Character;
+
+	// Enable capture for menu display
+	Character->SetCaptureEnabled(true);
+
+	// Get render target from character
+	UTextureRenderTarget2D* RenderTarget = Character->GetCharacterRenderTarget();
+	if (RenderTarget)
+	{
+		UpdateCharacterPreviewImage(RenderTarget);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: Character render target not ready yet"));
+	}
+}
+
+void USuspenseCoreMainMenuWidget::UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget)
+{
+	if (!CharacterPreviewImage || !RenderTarget)
+	{
+		return;
+	}
+
+	// Create or update dynamic material instance
+	if (CharacterPreviewBaseMaterial)
+	{
+		// Use provided base material
+		if (!CharacterPreviewMaterial || CharacterPreviewMaterial->Parent != CharacterPreviewBaseMaterial)
+		{
+			CharacterPreviewMaterial = UMaterialInstanceDynamic::Create(CharacterPreviewBaseMaterial, this);
+		}
+
+		if (CharacterPreviewMaterial)
+		{
+			CharacterPreviewMaterial->SetTextureParameterValue(FName("RenderTargetTexture"), RenderTarget);
+		}
+	}
+	else
+	{
+		// No base material set - try to use character's material if available
+		if (CachedCharacter.IsValid())
+		{
+			UMaterialInstanceDynamic* CharMaterial = CachedCharacter->GetRenderTargetMaterial();
+			if (CharMaterial)
+			{
+				CharacterPreviewMaterial = CharMaterial;
+			}
+		}
+	}
+
+	// Apply material to image widget
+	if (CharacterPreviewMaterial)
+	{
+		FSlateBrush Brush;
+		Brush.SetResourceObject(CharacterPreviewMaterial);
+		Brush.ImageSize = FVector2D(512.0f, 512.0f); // Match render target size
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+
+		CharacterPreviewImage->SetBrush(Brush);
+		CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target"));
+	}
+	else
+	{
+		// Fallback: Use render target directly as texture
+		FSlateBrush Brush;
+		Brush.SetResourceObject(RenderTarget);
+		Brush.ImageSize = FVector2D(512.0f, 512.0f);
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+
+		CharacterPreviewImage->SetBrush(Brush);
+		CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview updated with render target (direct)"));
+	}
+}
+
+void USuspenseCoreMainMenuWidget::ClearCharacterPreview()
+{
+	if (CharacterPreviewImage)
+	{
+		CharacterPreviewImage->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	// Disable capture to save performance
+	if (CachedCharacter.IsValid())
+	{
+		CachedCharacter->SetCaptureEnabled(false);
+	}
+
+	CharacterPreviewMaterial = nullptr;
+	CachedCharacter.Reset();
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Character preview cleared"));
+}
+
+void USuspenseCoreMainMenuWidget::OnRenderTargetReady(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Render target ready event received"));
+
+	// Get the source character from event data
+	UObject* SourceObject = EventData.GetObject(FName("SourceObject"));
+	ASuspenseCoreCharacter* Character = Cast<ASuspenseCoreCharacter>(SourceObject);
+
+	if (Character)
+	{
+		// Cache the character
+		CachedCharacter = Character;
+
+		// Update the preview image
+		UTextureRenderTarget2D* RenderTarget = Character->GetCharacterRenderTarget();
+		if (RenderTarget)
+		{
+			UpdateCharacterPreviewImage(RenderTarget);
+		}
+	}
+	else
+	{
+		// Try to get character from player controller
+		SetupCharacterPreview();
 	}
 }

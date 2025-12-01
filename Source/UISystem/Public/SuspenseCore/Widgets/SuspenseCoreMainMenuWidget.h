@@ -16,11 +16,15 @@ class UTextBlock;
 class UButton;
 class UWidgetSwitcher;
 class UImage;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UTextureRenderTarget2D;
 class USuspenseCorePlayerInfoWidget;
 class USuspenseCoreRegistrationWidget;
 class USuspenseCoreCharacterSelectWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
+class ASuspenseCoreCharacter;
 
 /**
  * USuspenseCoreMainMenuWidget
@@ -177,6 +181,17 @@ protected:
 	UButton* QuitButton;
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// UI BINDINGS - Character Preview (Render Target)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Image widget for displaying character render target.
+	 * Assign render target material to display the character preview.
+	 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UImage* CharacterPreviewImage;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -221,6 +236,18 @@ protected:
 	FString MenuGameModePath;
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// CHARACTER PREVIEW CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Base material for character preview display.
+	 * Must have a TextureParameter named 'RenderTargetTexture'.
+	 * If not set, will create a simple unlit material.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
+	UMaterialInterface* CharacterPreviewBaseMaterial;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -249,6 +276,17 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
+	/** EventBus subscription handle for render target ready */
+	FSuspenseCoreSubscriptionHandle RenderTargetReadyEventHandle;
+
+	/** Dynamic material instance for character preview */
+	UPROPERTY()
+	UMaterialInstanceDynamic* CharacterPreviewMaterial;
+
+	/** Cached character for render target */
+	UPROPERTY()
+	TWeakObjectPtr<ASuspenseCoreCharacter> CachedCharacter;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -271,6 +309,15 @@ protected:
 	/** Update UI elements */
 	void UpdateUIDisplay();
 
+	/** Setup character preview from player's character */
+	void SetupCharacterPreview();
+
+	/** Update character preview image with render target */
+	void UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget);
+
+	/** Clear character preview */
+	void ClearCharacterPreview();
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -289,6 +336,9 @@ protected:
 
 	/** Handle character deleted event */
 	void OnCharacterDeleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle render target ready event from character */
+	void OnRenderTargetReady(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

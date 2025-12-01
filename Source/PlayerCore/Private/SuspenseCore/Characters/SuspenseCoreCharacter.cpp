@@ -11,6 +11,11 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Kismet/KismetRenderingLibrary.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -19,9 +24,23 @@
 ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Camera boom
+	// Setup capsule size (matching legacy SuspenseCharacter)
+	GetCapsuleComponent()->InitCapsuleSize(34.0f, 96.0f);
+
+	// Configure third person mesh (seen by other players AND by capture camera)
+	GetMesh()->SetOwnerNoSee(true);  // Owner doesn't see this mesh in gameplay
+	GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+
+	// Shadow settings for third person mesh
+	GetMesh()->SetCastShadow(true);
+	GetMesh()->bCastDynamicShadow = true;
+	GetMesh()->bCastStaticShadow = false;
+	GetMesh()->bCastHiddenShadow = true;
+
+	// Camera boom (attached to capsule, not mesh)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetMesh());
+	CameraBoom->SetupAttachment(GetCapsuleComponent());
 	CameraBoom->TargetArmLength = 0.0f;
 	CameraBoom->bUsePawnControlRotation = true;
 	CameraBoom->bDoCollisionTest = false;
@@ -31,15 +50,50 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	CameraComponent->SetupAttachment(CameraBoom);
 	CameraComponent->bUsePawnControlRotation = false;
 
-	// First person mesh
+	// First person mesh (arms) - directly attached to the main mesh (matching legacy)
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh1P"));
-	Mesh1P->SetupAttachment(CameraComponent);
+	Mesh1P->SetupAttachment(GetMesh());
 	Mesh1P->SetOnlyOwnerSee(true);
 	Mesh1P->bCastDynamicShadow = false;
 	Mesh1P->CastShadow = false;
+	Mesh1P->SetCollisionProfileName(FName("NoCollision"));
+	Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));
+	Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
-	// Hide third person mesh for owner
-	GetMesh()->SetOwnerNoSee(true);
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// RENDER TARGET SETUP (Character Preview for UI)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Capture camera boom - positioned to view the character from front
+	CaptureCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CaptureCameraBoom"));
+	CaptureCameraBoom->SetupAttachment(GetMesh());
+	CaptureCameraBoom->TargetArmLength = CaptureDistance;
+	CaptureCameraBoom->bUsePawnControlRotation = false;
+	CaptureCameraBoom->bDoCollisionTest = false;
+	CaptureCameraBoom->bInheritPitch = false;
+	CaptureCameraBoom->bInheritYaw = false;
+	CaptureCameraBoom->bInheritRoll = false;
+	CaptureCameraBoom->SetRelativeLocation(FVector(0.f, 0.f, CaptureHeightOffset));
+	CaptureCameraBoom->SetRelativeRotation(FRotator(0.f, 180.f, 0.f)); // Face the character
+
+	// Scene capture component for render target
+	CharacterCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("CharacterCapture"));
+	CharacterCaptureComponent->SetupAttachment(CaptureCameraBoom, USpringArmComponent::SocketName);
+	CharacterCaptureComponent->FOVAngle = CaptureFOV;
+	CharacterCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	CharacterCaptureComponent->bCaptureEveryFrame = false; // Controlled manually for performance
+	CharacterCaptureComponent->bCaptureOnMovement = false;
+	CharacterCaptureComponent->bAlwaysPersistRenderingState = true;
+	CharacterCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+
+	// Configure what the capture camera should see
+	// CRITICAL: The capture camera needs to see the third person mesh (GetMesh())
+	// but NOT the first person mesh (Mesh1P)
+	CharacterCaptureComponent->ShowOnlyActors.Empty();
+	CharacterCaptureComponent->HiddenActors.Empty();
+
+	// Disable by default for performance (enabled when needed in UI)
+	CharacterCaptureComponent->SetActive(false);
 
 	// Movement settings
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
@@ -48,6 +102,9 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 		CMC->bOrientRotationToMovement = false;
 		CMC->bUseControllerDesiredRotation = true;
 		CMC->NavAgentProps.bCanCrouch = true;
+		CMC->bCanWalkOffLedgesWhenCrouching = true;
+		CMC->SetCrouchedHalfHeight(40.0f);
+		CMC->MaxWalkSpeedCrouched = 150.0f;
 	}
 
 	// Controller rotation
@@ -65,6 +122,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	UpdateMovementSpeed();
+
+	// Initialize render target for character preview
+	InitializeRenderTarget();
 
 	PublishCharacterEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Spawned")),
@@ -400,4 +460,180 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER TARGET (Character Preview for UI)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::InitializeRenderTarget()
+{
+	if (bRenderTargetInitialized)
+	{
+		return;
+	}
+
+	// Create render target texture
+	CharacterRenderTarget = NewObject<UTextureRenderTarget2D>(this, TEXT("CharacterRenderTarget"));
+	if (CharacterRenderTarget)
+	{
+		CharacterRenderTarget->InitAutoFormat(RenderTargetWidth, RenderTargetHeight);
+		CharacterRenderTarget->ClearColor = FLinearColor::Transparent;
+		CharacterRenderTarget->bAutoGenerateMips = false;
+		CharacterRenderTarget->UpdateResourceImmediate();
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Created render target %dx%d"),
+			RenderTargetWidth, RenderTargetHeight);
+	}
+
+	// Setup capture component
+	SetupCaptureComponent();
+
+	// Create material for UI display
+	CreateRenderTargetMaterial();
+
+	bRenderTargetInitialized = true;
+
+	// Publish event for UI systems
+	PublishCharacterEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.RenderTargetReady")),
+		TEXT("{}")
+	);
+}
+
+void ASuspenseCoreCharacter::SetupCaptureComponent()
+{
+	if (!CharacterCaptureComponent || !CharacterRenderTarget)
+	{
+		return;
+	}
+
+	// Assign render target to capture component
+	CharacterCaptureComponent->TextureTarget = CharacterRenderTarget;
+
+	// Configure capture settings for character preview
+	CharacterCaptureComponent->FOVAngle = CaptureFOV;
+	CharacterCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+	// CRITICAL: Configure visibility
+	// The capture camera should ONLY see the third person mesh (GetMesh())
+	// It should NOT see the first person arms (Mesh1P)
+	CharacterCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	CharacterCaptureComponent->ShowOnlyComponents.Empty();
+
+	// Add the third person skeletal mesh to the show only list
+	if (GetMesh())
+	{
+		CharacterCaptureComponent->ShowOnlyComponents.Add(GetMesh());
+	}
+
+	// Post process settings for clean capture
+	CharacterCaptureComponent->PostProcessSettings.bOverride_AmbientOcclusionIntensity = true;
+	CharacterCaptureComponent->PostProcessSettings.AmbientOcclusionIntensity = 0.0f;
+	CharacterCaptureComponent->PostProcessSettings.bOverride_MotionBlurAmount = true;
+	CharacterCaptureComponent->PostProcessSettings.MotionBlurAmount = 0.0f;
+
+	// Set capture to on-demand by default (controlled via SetCaptureEnabled)
+	CharacterCaptureComponent->bCaptureEveryFrame = bContinuousCapture;
+	CharacterCaptureComponent->bCaptureOnMovement = false;
+
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Capture component configured with ShowOnlyComponents"));
+}
+
+void ASuspenseCoreCharacter::CreateRenderTargetMaterial()
+{
+	if (!CharacterRenderTarget)
+	{
+		return;
+	}
+
+	// Create dynamic material instance if base material is set
+	if (RenderTargetBaseMaterial)
+	{
+		RenderTargetMaterialInstance = UMaterialInstanceDynamic::Create(RenderTargetBaseMaterial, this);
+		if (RenderTargetMaterialInstance)
+		{
+			RenderTargetMaterialInstance->SetTextureParameterValue(FName("RenderTargetTexture"), CharacterRenderTarget);
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Created render target material instance"));
+		}
+	}
+	else
+	{
+		// No base material set - UI can use the render target directly
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] No base material set. UI should create material from render target."));
+	}
+}
+
+void ASuspenseCoreCharacter::SetCaptureLocation(const FVector& RelativeLocation, const FRotator& RelativeRotation)
+{
+	if (CaptureCameraBoom)
+	{
+		CaptureCameraBoom->SetRelativeLocation(RelativeLocation);
+		CaptureCameraBoom->SetRelativeRotation(RelativeRotation);
+
+		// Refresh capture if enabled
+		if (bCaptureEnabled)
+		{
+			RefreshCharacterCapture();
+		}
+	}
+}
+
+void ASuspenseCoreCharacter::RefreshCharacterCapture()
+{
+	if (CharacterCaptureComponent && CharacterRenderTarget)
+	{
+		// Ensure third person mesh is visible to capture (temporarily override owner visibility)
+		USkeletalMeshComponent* ThirdPersonMesh = GetMesh();
+		if (ThirdPersonMesh)
+		{
+			// Force capture even if mesh is set to OwnerNoSee
+			CharacterCaptureComponent->CaptureScene();
+		}
+	}
+}
+
+void ASuspenseCoreCharacter::SetCaptureEnabled(bool bEnabled)
+{
+	if (bCaptureEnabled == bEnabled)
+	{
+		return;
+	}
+
+	bCaptureEnabled = bEnabled;
+
+	if (CharacterCaptureComponent)
+	{
+		CharacterCaptureComponent->SetActive(bEnabled);
+		CharacterCaptureComponent->bCaptureEveryFrame = bEnabled && bContinuousCapture;
+
+		if (bEnabled)
+		{
+			// Initialize if not done yet
+			if (!bRenderTargetInitialized)
+			{
+				InitializeRenderTarget();
+			}
+
+			// Immediate capture on enable
+			RefreshCharacterCapture();
+
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Character capture enabled"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Character capture disabled"));
+		}
+	}
+
+	// Publish state change event
+	PublishCharacterEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.CaptureStateChanged")),
+		FString::Printf(TEXT("{\"enabled\":%s}"), bEnabled ? TEXT("true") : TEXT("false"))
+	);
+}
+
+bool ASuspenseCoreCharacter::IsCaptureEnabled() const
+{
+	return bCaptureEnabled;
 }

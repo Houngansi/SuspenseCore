@@ -62,26 +62,67 @@ public:
 	bool bLogClassLoading = true;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// MAPS
+	// MAPS & NAVIGATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Main menu map name.
+	 * Lobby map - main hub for players with existing characters.
+	 * Shows: current character 3D model, progression, Play/Operators/Settings buttons.
+	 * Player returns here after gameplay.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Maps", meta = (AllowedClasses = "/Script/Engine.World"))
-	FSoftObjectPath MainMenuMap;
+	FSoftObjectPath LobbyMap;
 
 	/**
-	 * Character selection map name.
+	 * Character selection map - for creating/switching characters.
+	 * Shows: character preview, class selection, character list.
+	 * New players start here, existing players can access via "Operators" button.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Maps", meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath CharacterSelectMap;
 
 	/**
-	 * Default gameplay map name.
+	 * Default gameplay map.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Maps", meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath DefaultGameMap;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// GAME FLOW
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * If true, new players (no saved characters) go to CharacterSelectMap.
+	 * If false, all players start on LobbyMap.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Game Flow", meta = (
+		DisplayName = "New Players Start at Character Select",
+		ToolTip = "New players without saved characters will be sent to CharacterSelectMap"
+	))
+	bool bNewPlayersToCharacterSelect = true;
+
+	/**
+	 * Map to return to when exiting gameplay (pause menu "Exit to Lobby").
+	 * Usually LobbyMap.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Game Flow", meta = (AllowedClasses = "/Script/Engine.World"))
+	FSoftObjectPath ExitToLobbyMap;
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// HELPER METHODS
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Get lobby map name as FName */
+	FName GetLobbyMapName() const;
+
+	/** Get character select map name as FName */
+	FName GetCharacterSelectMapName() const;
+
+	/** Get default game map name as FName */
+	FName GetDefaultGameMapName() const;
+
+	/** Get exit to lobby map name as FName */
+	FName GetExitToLobbyMapName() const;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATIC ACCESSOR

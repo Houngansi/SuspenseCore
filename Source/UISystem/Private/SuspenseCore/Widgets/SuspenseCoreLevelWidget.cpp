@@ -142,9 +142,10 @@ void USuspenseCoreLevelWidget::SetLevel(int32 NewLevel)
 
 void USuspenseCoreLevelWidget::SetExperience(int64 CurrentExp, int64 MaxExp)
 {
-	CachedCurrentExp = CurrentExp;
-	CachedMaxExp = MaxExp;
-	TargetExpPercent = (CachedMaxExp > 0) ? (static_cast<float>(CachedCurrentExp) / static_cast<float>(CachedMaxExp)) : 0.0f;
+	// Ensure non-negative values
+	CachedCurrentExp = FMath::Max(0LL, CurrentExp);
+	CachedMaxExp = FMath::Max(1LL, MaxExp);
+	TargetExpPercent = FMath::Clamp(static_cast<float>(CachedCurrentExp) / static_cast<float>(CachedMaxExp), 0.0f, 1.0f);
 	UpdateExperienceUI();
 	OnExperienceChanged(CachedCurrentExp, CachedMaxExp, TargetExpPercent);
 }
@@ -152,10 +153,11 @@ void USuspenseCoreLevelWidget::SetExperience(int64 CurrentExp, int64 MaxExp)
 void USuspenseCoreLevelWidget::SetLevelAndExperience(int32 NewLevel, int64 CurrentExp, int64 MaxExp)
 {
 	int32 OldLevel = CachedLevel;
-	CachedLevel = NewLevel;
-	CachedCurrentExp = CurrentExp;
-	CachedMaxExp = MaxExp;
-	TargetExpPercent = (CachedMaxExp > 0) ? (static_cast<float>(CachedCurrentExp) / static_cast<float>(CachedMaxExp)) : 0.0f;
+	CachedLevel = FMath::Max(1, NewLevel);
+	// Ensure non-negative values
+	CachedCurrentExp = FMath::Max(0LL, CurrentExp);
+	CachedMaxExp = FMath::Max(1LL, MaxExp);
+	TargetExpPercent = FMath::Clamp(static_cast<float>(CachedCurrentExp) / static_cast<float>(CachedMaxExp), 0.0f, 1.0f);
 
 	UpdateLevelUI();
 	UpdateExperienceUI();

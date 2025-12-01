@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
 #include "Components/SkeletalMeshComponent.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -140,19 +141,29 @@ void ASuspenseCoreCharacterPreviewActor::SetupEventSubscriptions()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Cannot setup event subscriptions - EventBus not available"));
+		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Cannot setup event subscriptions - EventBus not available! Check EventManager initialization."));
 		return;
 	}
 
 	// Subscribe to character class changed events
+	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.CharacterClass.Changed"));
+	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Subscribing to tag: %s"), *EventTag.ToString());
+
 	ClassChangedEventHandle = EventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.CharacterClass.Changed")),
+		EventTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Subscribed to CharacterClass.Changed events"));
+	if (ClassChangedEventHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Successfully subscribed to CharacterClass.Changed events"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Failed to subscribe to CharacterClass.Changed events!"));
+	}
 }
 
 void ASuspenseCoreCharacterPreviewActor::TeardownEventSubscriptions()
@@ -186,17 +197,42 @@ USuspenseCoreEventBus* ASuspenseCoreCharacterPreviewActor::GetEventBus()
 
 void ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] >>> OnCharacterClassChanged EVENT RECEIVED! Tag: %s <<<"), *EventTag.ToString());
+
 	// Get class data from event
 	USuspenseCoreCharacterClassData* ClassData = EventData.GetObject<USuspenseCoreCharacterClassData>(FName("ClassData"));
 
 	if (ClassData)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] ClassData found in event: %s"), *ClassData->ClassID.ToString());
 		SetCharacterClass(ClassData);
 	}
 	else
 	{
 		// Try to get class ID and load from subsystem
 		FString ClassIdStr = EventData.GetString(FName("ClassId"));
-		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Received CharacterClass.Changed event for: %s (ClassData not in event)"), *ClassIdStr);
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] ClassData NOT in event, ClassId: %s - trying to load from subsystem"), *ClassIdStr);
+
+		// Try to get class data from CharacterClassSubsystem
+		if (!ClassIdStr.IsEmpty())
+		{
+			if (USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this))
+			{
+				USuspenseCoreCharacterClassData* LoadedClassData = ClassSubsystem->GetClassById(FName(*ClassIdStr));
+				if (LoadedClassData)
+				{
+					UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Loaded ClassData from subsystem for: %s"), *ClassIdStr);
+					SetCharacterClass(LoadedClassData);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Failed to load ClassData for: %s"), *ClassIdStr);
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] CharacterClassSubsystem not available!"));
+			}
+		}
 	}
 }

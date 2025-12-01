@@ -70,10 +70,11 @@ void USuspenseCoreCharacterClassSubsystem::LoadAllClasses()
 	UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
 	if (!AssetManager)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("AssetManager not available, using synchronous load"));
-
-		// Fallback: Try to find classes in content
-		// Classes should be at /Game/Data/CharacterClasses/
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("AssetManager not available, creating default classes"));
+		CreateDefaultClasses();
+		bClassesLoaded = true;
+		RegisterClassesWithSelectionSubsystem();
+		OnClassesLoaded.Broadcast(LoadedClasses.Num());
 		return;
 	}
 
@@ -83,8 +84,13 @@ void USuspenseCoreCharacterClassSubsystem::LoadAllClasses()
 
 	if (ClassAssetIds.Num() == 0)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("No CharacterClass assets found. Make sure to configure AssetManager."));
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("No CharacterClass assets found in AssetManager. Creating default classes."));
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("To use Data Assets, configure AssetManager in DefaultGame.ini:"));
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("  PrimaryAssetType=\"CharacterClass\", AssetBaseClass=\"/Script/GAS.SuspenseCoreCharacterClassData\""));
+		CreateDefaultClasses();
 		bClassesLoaded = true;
+		RegisterClassesWithSelectionSubsystem();
+		OnClassesLoaded.Broadcast(LoadedClasses.Num());
 		return;
 	}
 
@@ -110,7 +116,11 @@ void USuspenseCoreCharacterClassSubsystem::LoadAllClasses()
 	}
 	else
 	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("No valid asset paths found, creating default classes"));
+		CreateDefaultClasses();
 		bClassesLoaded = true;
+		RegisterClassesWithSelectionSubsystem();
+		OnClassesLoaded.Broadcast(LoadedClasses.Num());
 	}
 }
 

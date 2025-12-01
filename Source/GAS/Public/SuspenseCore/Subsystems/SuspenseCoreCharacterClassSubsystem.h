@@ -187,24 +187,14 @@ protected:
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Load all class data assets */
+	/** Load all class data assets (tries AssetManager first, then Asset Registry) */
 	void LoadAllClasses();
 
-	/** Called when async load completes */
+	/** Called when async load completes (AssetManager path) */
 	void OnClassesLoadComplete();
 
-	/** Create default starter classes if none are loaded (Assault, Medic, Sniper) */
-	void CreateDefaultClasses();
-
-	/** Create a single class data asset in memory */
-	USuspenseCoreCharacterClassData* CreateClassData(
-		FName ClassId,
-		const FText& DisplayName,
-		const FText& Description,
-		ESuspenseCoreClassRole Role,
-		const FSuspenseCoreAttributeModifier& Modifiers,
-		FLinearColor PrimaryColor
-	);
+	/** Load classes by scanning Asset Registry directly (fallback when AssetManager not configured) */
+	void LoadClassesFromAssetRegistry(const FString& Path);
 
 	/** Apply attribute modifiers from class data to ASC */
 	void ApplyAttributeModifiers(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);

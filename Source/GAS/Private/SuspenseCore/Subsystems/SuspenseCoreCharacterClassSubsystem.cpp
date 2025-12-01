@@ -10,7 +10,9 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
+#include "SuspenseCore/Settings/SuspenseCoreProjectSettings.h"
 #include "Engine/AssetManager.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
@@ -22,9 +24,15 @@ void USuspenseCoreCharacterClassSubsystem::Initialize(FSubsystemCollectionBase& 
 {
 	Super::Initialize(Collection);
 
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem initializing..."));
+	const USuspenseCoreProjectSettings* Settings = USuspenseCoreProjectSettings::Get();
+	if (Settings && Settings->bLogClassLoading)
+	{
+		UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem initializing..."));
+		UE_LOG(LogSuspenseCoreClass, Log, TEXT("  Asset Path: %s"), *Settings->CharacterClassAssetPath.Path);
+		UE_LOG(LogSuspenseCoreClass, Log, TEXT("  Asset Type: %s"), *Settings->CharacterClassAssetType);
+	}
 
-	// Load all class data assets asynchronously
+	// Load all class data assets
 	LoadAllClasses();
 }
 
@@ -67,70 +75,128 @@ USuspenseCoreCharacterClassSubsystem* USuspenseCoreCharacterClassSubsystem::Get(
 
 void USuspenseCoreCharacterClassSubsystem::LoadAllClasses()
 {
+	const USuspenseCoreProjectSettings* Settings = USuspenseCoreProjectSettings::Get();
+	const bool bVerbose = Settings ? Settings->bLogClassLoading : true;
+	const FString AssetPath = Settings ? Settings->CharacterClassAssetPath.Path : TEXT("/Game/Blueprints/Core/Data");
+
+	// First try Asset Manager (preferred for production)
 	UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
-	if (!AssetManager)
+	if (AssetManager)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("AssetManager not available, creating default classes"));
-		CreateDefaultClasses();
-		bClassesLoaded = true;
-		RegisterClassesWithSelectionSubsystem();
-		OnClassesLoaded.Broadcast(LoadedClasses.Num());
-		return;
-	}
+		TArray<FPrimaryAssetId> ClassAssetIds;
+		AssetManager->GetPrimaryAssetIdList(CharacterClassAssetType, ClassAssetIds);
 
-	// Get all primary asset IDs of type CharacterClass
-	TArray<FPrimaryAssetId> ClassAssetIds;
-	AssetManager->GetPrimaryAssetIdList(CharacterClassAssetType, ClassAssetIds);
-
-	if (ClassAssetIds.Num() == 0)
-	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("No CharacterClass assets found in AssetManager. Creating default classes."));
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("To use Data Assets, configure AssetManager in DefaultGame.ini:"));
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("  PrimaryAssetType=\"CharacterClass\", AssetBaseClass=\"/Script/GAS.SuspenseCoreCharacterClassData\""));
-		CreateDefaultClasses();
-		bClassesLoaded = true;
-		RegisterClassesWithSelectionSubsystem();
-		OnClassesLoaded.Broadcast(LoadedClasses.Num());
-		return;
-	}
-
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Found %d CharacterClass assets to load"), ClassAssetIds.Num());
-
-	// Async load all classes
-	TArray<FSoftObjectPath> AssetPaths;
-	for (const FPrimaryAssetId& AssetId : ClassAssetIds)
-	{
-		FSoftObjectPath Path = AssetManager->GetPrimaryAssetPath(AssetId);
-		if (Path.IsValid())
+		if (ClassAssetIds.Num() > 0)
 		{
-			AssetPaths.Add(Path);
+			if (bVerbose)
+			{
+				UE_LOG(LogSuspenseCoreClass, Log, TEXT("Found %d CharacterClass assets via AssetManager"), ClassAssetIds.Num());
+			}
+
+			// Async load all classes
+			TArray<FSoftObjectPath> AssetPaths;
+			for (const FPrimaryAssetId& AssetId : ClassAssetIds)
+			{
+				FSoftObjectPath Path = AssetManager->GetPrimaryAssetPath(AssetId);
+				if (Path.IsValid())
+				{
+					AssetPaths.Add(Path);
+				}
+			}
+
+			if (AssetPaths.Num() > 0)
+			{
+				ClassLoadHandle = StreamableManager.RequestAsyncLoad(
+					AssetPaths,
+					FStreamableDelegate::CreateUObject(this, &USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete)
+				);
+				return;
+			}
 		}
 	}
 
-	if (AssetPaths.Num() > 0)
+	// Fallback: Direct Asset Registry scan (works without AssetManager configuration)
+	if (bVerbose)
 	{
-		ClassLoadHandle = StreamableManager.RequestAsyncLoad(
-			AssetPaths,
-			FStreamableDelegate::CreateUObject(this, &USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete)
-		);
+		UE_LOG(LogSuspenseCoreClass, Log, TEXT("Scanning Asset Registry for CharacterClass assets at: %s"), *AssetPath);
 	}
-	else
+
+	LoadClassesFromAssetRegistry(AssetPath);
+}
+
+void USuspenseCoreCharacterClassSubsystem::LoadClassesFromAssetRegistry(const FString& Path)
+{
+	const USuspenseCoreProjectSettings* Settings = USuspenseCoreProjectSettings::Get();
+	const bool bVerbose = Settings ? Settings->bLogClassLoading : true;
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	// Find all assets of type SuspenseCoreCharacterClassData in the specified path
+	TArray<FAssetData> AssetDataList;
+
+	FARFilter Filter;
+	Filter.ClassPaths.Add(USuspenseCoreCharacterClassData::StaticClass()->GetClassPathName());
+	Filter.PackagePaths.Add(FName(*Path));
+	Filter.bRecursivePaths = true;
+
+	AssetRegistry.GetAssets(Filter, AssetDataList);
+
+	if (AssetDataList.Num() == 0)
 	{
-		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("No valid asset paths found, creating default classes"));
-		CreateDefaultClasses();
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("═══════════════════════════════════════════════════════════════"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  NO CHARACTER CLASS DATA ASSETS FOUND!"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("═══════════════════════════════════════════════════════════════"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  Searched path: %s"), *Path);
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT(""));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  TO FIX:"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  1. Create Data Assets of type 'SuspenseCoreCharacterClassData'"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  2. Place them in: %s"), *Path);
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("  3. OR configure path in Project Settings → Game → SuspenseCore"));
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("═══════════════════════════════════════════════════════════════"));
+
 		bClassesLoaded = true;
-		RegisterClassesWithSelectionSubsystem();
-		OnClassesLoaded.Broadcast(LoadedClasses.Num());
+		OnClassesLoaded.Broadcast(0);
+		return;
 	}
+
+	if (bVerbose)
+	{
+		UE_LOG(LogSuspenseCoreClass, Log, TEXT("Found %d CharacterClass assets in Asset Registry"), AssetDataList.Num());
+	}
+
+	// Load assets synchronously (they should be small Data Assets)
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		USuspenseCoreCharacterClassData* ClassData = Cast<USuspenseCoreCharacterClassData>(AssetData.GetAsset());
+		if (ClassData)
+		{
+			LoadedClasses.Add(ClassData->ClassID, ClassData);
+			if (bVerbose)
+			{
+				UE_LOG(LogSuspenseCoreClass, Log, TEXT("  Loaded: %s (ID: %s)"), *ClassData->DisplayName.ToString(), *ClassData->ClassID.ToString());
+			}
+		}
+	}
+
+	bClassesLoaded = true;
+	RegisterClassesWithSelectionSubsystem();
+
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes"), LoadedClasses.Num());
+	OnClassesLoaded.Broadcast(LoadedClasses.Num());
 }
 
 void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 {
+	const USuspenseCoreProjectSettings* Settings = USuspenseCoreProjectSettings::Get();
+	const bool bVerbose = Settings ? Settings->bLogClassLoading : true;
+
 	UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
 	if (!AssetManager)
 	{
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("AssetManager not available in OnClassesLoadComplete!"));
 		bClassesLoaded = true;
-		CreateDefaultClasses();
+		OnClassesLoaded.Broadcast(0);
 		return;
 	}
 
@@ -145,15 +211,17 @@ void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 		if (ClassData)
 		{
 			LoadedClasses.Add(ClassData->ClassID, ClassData);
-			UE_LOG(LogSuspenseCoreClass, Log, TEXT("Loaded class: %s (%s)"),
-				*ClassData->DisplayName.ToString(), *ClassData->ClassID.ToString());
+			if (bVerbose)
+			{
+				UE_LOG(LogSuspenseCoreClass, Log, TEXT("  Loaded: %s (ID: %s)"),
+					*ClassData->DisplayName.ToString(), *ClassData->ClassID.ToString());
+			}
 		}
 	}
 
-	// If no classes were loaded from assets, create defaults
 	if (LoadedClasses.Num() == 0)
 	{
-		CreateDefaultClasses();
+		UE_LOG(LogSuspenseCoreClass, Error, TEXT("AssetManager async load completed but no classes were loaded!"));
 	}
 
 	bClassesLoaded = true;
@@ -161,136 +229,10 @@ void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 	// Register all loaded classes with CharacterSelectionSubsystem for menu access
 	RegisterClassesWithSelectionSubsystem();
 
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes"), LoadedClasses.Num());
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes via AssetManager"), LoadedClasses.Num());
 
 	// Broadcast event
 	OnClassesLoaded.Broadcast(LoadedClasses.Num());
-}
-
-USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::CreateClassData(
-	FName ClassId,
-	const FText& DisplayName,
-	const FText& Description,
-	ESuspenseCoreClassRole Role,
-	const FSuspenseCoreAttributeModifier& Modifiers,
-	FLinearColor PrimaryColor)
-{
-	USuspenseCoreCharacterClassData* ClassData = NewObject<USuspenseCoreCharacterClassData>(this);
-	ClassData->ClassID = ClassId;
-	ClassData->DisplayName = DisplayName;
-	ClassData->ShortDescription = Description;
-	ClassData->Role = Role;
-	ClassData->AttributeModifiers = Modifiers;
-	ClassData->PrimaryColor = PrimaryColor;
-	ClassData->bIsStarterClass = true;
-	ClassData->ClassTag = FGameplayTag::RequestGameplayTag(FName(*FString::Printf(TEXT("SuspenseCore.Class.%s"), *ClassId.ToString())));
-
-	return ClassData;
-}
-
-void USuspenseCoreCharacterClassSubsystem::CreateDefaultClasses()
-{
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Creating default character classes..."));
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ASSAULT - Balanced frontline damage dealer
-	// ═══════════════════════════════════════════════════════════════════════════
-	{
-		FSuspenseCoreAttributeModifier AssaultMods;
-		AssaultMods.MaxHealthMultiplier = 1.0f;
-		AssaultMods.HealthRegenMultiplier = 1.0f;
-		AssaultMods.MaxShieldMultiplier = 1.0f;
-		AssaultMods.ShieldRegenMultiplier = 1.0f;
-		AssaultMods.AttackPowerMultiplier = 1.15f;  // +15% damage
-		AssaultMods.AccuracyMultiplier = 1.0f;
-		AssaultMods.ReloadSpeedMultiplier = 1.1f;   // +10% reload
-		AssaultMods.MaxStaminaMultiplier = 1.0f;
-		AssaultMods.MovementSpeedMultiplier = 1.0f;
-		AssaultMods.SprintSpeedMultiplier = 1.0f;
-
-		USuspenseCoreCharacterClassData* Assault = CreateClassData(
-			FName("Assault"),
-			NSLOCTEXT("SuspenseCore", "Class_Assault", "Штурмовик"),
-			NSLOCTEXT("SuspenseCore", "Class_Assault_Desc", "Сбалансированный боец передовой линии. Повышенный урон и скорость перезарядки."),
-			ESuspenseCoreClassRole::Assault,
-			AssaultMods,
-			FLinearColor(0.9f, 0.4f, 0.1f, 1.0f)  // Orange
-		);
-		Assault->DifficultyRating = 1;
-		Assault->DefaultPrimaryWeapon = FName("WPN_AssaultRifle");
-		Assault->DefaultSecondaryWeapon = FName("WPN_Pistol");
-
-		LoadedClasses.Add(Assault->ClassID, Assault);
-		UE_LOG(LogSuspenseCoreClass, Log, TEXT("Created default class: Assault"));
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// MEDIC - Support healer with survivability
-	// ═══════════════════════════════════════════════════════════════════════════
-	{
-		FSuspenseCoreAttributeModifier MedicMods;
-		MedicMods.MaxHealthMultiplier = 0.9f;       // -10% health
-		MedicMods.HealthRegenMultiplier = 1.5f;    // +50% health regen
-		MedicMods.MaxShieldMultiplier = 1.1f;      // +10% shield
-		MedicMods.ShieldRegenMultiplier = 1.3f;    // +30% shield regen
-		MedicMods.ShieldRegenDelayMultiplier = 0.8f; // -20% delay (faster)
-		MedicMods.AttackPowerMultiplier = 0.9f;    // -10% damage
-		MedicMods.AccuracyMultiplier = 1.0f;
-		MedicMods.ReloadSpeedMultiplier = 1.0f;
-		MedicMods.MaxStaminaMultiplier = 1.1f;     // +10% stamina
-		MedicMods.StaminaRegenMultiplier = 1.2f;   // +20% stamina regen
-		MedicMods.MovementSpeedMultiplier = 1.05f; // +5% speed
-
-		USuspenseCoreCharacterClassData* Medic = CreateClassData(
-			FName("Medic"),
-			NSLOCTEXT("SuspenseCore", "Class_Medic", "Медик"),
-			NSLOCTEXT("SuspenseCore", "Class_Medic_Desc", "Поддержка команды. Быстрая регенерация здоровья и щита, повышенная мобильность."),
-			ESuspenseCoreClassRole::Support,
-			MedicMods,
-			FLinearColor(0.2f, 0.8f, 0.3f, 1.0f)  // Green
-		);
-		Medic->DifficultyRating = 2;
-		Medic->DefaultPrimaryWeapon = FName("WPN_SMG");
-		Medic->DefaultSecondaryWeapon = FName("WPN_Pistol");
-		Medic->DefaultEquipment.Add(FName("EQP_MedKit"));
-
-		LoadedClasses.Add(Medic->ClassID, Medic);
-		UE_LOG(LogSuspenseCoreClass, Log, TEXT("Created default class: Medic"));
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// SNIPER - Long-range precision with high damage
-	// ═══════════════════════════════════════════════════════════════════════════
-	{
-		FSuspenseCoreAttributeModifier SniperMods;
-		SniperMods.MaxHealthMultiplier = 0.85f;     // -15% health
-		SniperMods.HealthRegenMultiplier = 0.9f;   // -10% health regen
-		SniperMods.MaxShieldMultiplier = 0.9f;     // -10% shield
-		SniperMods.ShieldRegenMultiplier = 1.0f;
-		SniperMods.AttackPowerMultiplier = 1.3f;   // +30% damage
-		SniperMods.AccuracyMultiplier = 1.25f;     // +25% accuracy
-		SniperMods.ReloadSpeedMultiplier = 0.9f;   // -10% reload (slower)
-		SniperMods.MaxStaminaMultiplier = 0.9f;    // -10% stamina
-		SniperMods.StaminaRegenMultiplier = 1.0f;
-		SniperMods.MovementSpeedMultiplier = 0.95f; // -5% speed
-
-		USuspenseCoreCharacterClassData* Sniper = CreateClassData(
-			FName("Sniper"),
-			NSLOCTEXT("SuspenseCore", "Class_Sniper", "Снайпер"),
-			NSLOCTEXT("SuspenseCore", "Class_Sniper_Desc", "Дальнобойный стрелок. Высокий урон и точность, но низкая выживаемость."),
-			ESuspenseCoreClassRole::Recon,
-			SniperMods,
-			FLinearColor(0.3f, 0.5f, 0.9f, 1.0f)  // Blue
-		);
-		Sniper->DifficultyRating = 3;
-		Sniper->DefaultPrimaryWeapon = FName("WPN_SniperRifle");
-		Sniper->DefaultSecondaryWeapon = FName("WPN_Pistol");
-
-		LoadedClasses.Add(Sniper->ClassID, Sniper);
-		UE_LOG(LogSuspenseCoreClass, Log, TEXT("Created default class: Sniper"));
-	}
-
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Created %d default character classes"), LoadedClasses.Num());
 }
 
 TArray<USuspenseCoreCharacterClassData*> USuspenseCoreCharacterClassSubsystem::GetAllClasses() const

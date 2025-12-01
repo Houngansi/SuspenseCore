@@ -6,6 +6,7 @@
 #include "SuspenseCore/Widgets/SuspenseCoreRegistrationWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCorePlayerInfoWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreCharacterSelectWidget.h"
+#include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
@@ -21,6 +22,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "GameFramework/Character.h"
 
 namespace
 {
@@ -73,12 +75,16 @@ void USuspenseCoreMainMenuWidget::NativeConstruct()
 	// Setup EventBus subscriptions (primary communication method per architecture docs)
 	SetupEventSubscriptions();
 
+	// Spawn character preview actor
+	SpawnPreviewActor();
+
 	// Initialize menu flow
 	InitializeMenu();
 }
 
 void USuspenseCoreMainMenuWidget::NativeDestruct()
 {
+	DestroyPreviewActor();
 	TeardownEventSubscriptions();
 	Super::NativeDestruct();
 }
@@ -685,5 +691,77 @@ void USuspenseCoreMainMenuWidget::OnRenderTargetReady(FGameplayTag EventTag, con
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMainMenu: RenderTarget not found in event data"));
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHARACTER PREVIEW ACTOR (Separate Actor approach for UE 5.7+)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreMainMenuWidget::SpawnPreviewActor()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// Use default class if not set
+	TSubclassOf<ASuspenseCoreCharacterPreviewActor> ActorClass = PreviewActorClass;
+	if (!ActorClass)
+	{
+		ActorClass = ASuspenseCoreCharacterPreviewActor::StaticClass();
+	}
+
+	// Spawn at hidden location
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ASuspenseCoreCharacterPreviewActor* PreviewActor = World->SpawnActor<ASuspenseCoreCharacterPreviewActor>(
+		ActorClass,
+		PreviewActorSpawnLocation,
+		FRotator::ZeroRotator,
+		SpawnParams
+	);
+
+	if (PreviewActor)
+	{
+		SpawnedPreviewActor = PreviewActor;
+
+		// Set preview mesh if configured
+		if (PreviewMesh)
+		{
+			PreviewActor->SetPreviewMesh(PreviewMesh, PreviewAnimClass);
+		}
+		else
+		{
+			// Try to copy from player character
+			APlayerController* PC = GetOwningPlayer();
+			if (PC)
+			{
+				ACharacter* PlayerChar = Cast<ACharacter>(PC->GetPawn());
+				if (PlayerChar)
+				{
+					PreviewActor->CopyFromCharacter(PlayerChar);
+				}
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Spawned preview actor at %s"), *PreviewActorSpawnLocation.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SuspenseCoreMainMenu: Failed to spawn preview actor"));
+	}
+}
+
+void USuspenseCoreMainMenuWidget::DestroyPreviewActor()
+{
+	if (SpawnedPreviewActor.IsValid())
+	{
+		SpawnedPreviewActor->Destroy();
+		SpawnedPreviewActor.Reset();
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Destroyed preview actor"));
 	}
 }

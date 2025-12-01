@@ -33,6 +33,9 @@ struct FSuspenseCoreCharacterEntry
 	FString DisplayName;
 
 	UPROPERTY(BlueprintReadOnly)
+	FString CharacterClassId;
+
+	UPROPERTY(BlueprintReadOnly)
 	int32 Level = 1;
 
 	UPROPERTY(BlueprintReadOnly)
@@ -43,6 +46,7 @@ struct FSuspenseCoreCharacterEntry
 	FSuspenseCoreCharacterEntry(const FSuspenseCorePlayerData& PlayerData)
 		: PlayerId(PlayerData.PlayerId)
 		, DisplayName(PlayerData.DisplayName)
+		, CharacterClassId(PlayerData.CharacterClassId)
 		, Level(PlayerData.Level)
 		, LastPlayed(PlayerData.LastLoginAt)
 	{

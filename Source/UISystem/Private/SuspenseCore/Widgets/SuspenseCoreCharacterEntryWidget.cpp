@@ -50,16 +50,23 @@ void USuspenseCoreCharacterEntryWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayerId, const FString& InDisplayName, int32 InLevel, UTexture2D* InAvatarTexture)
+void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayerId, const FString& InDisplayName, const FString& InCharacterClassId, int32 InLevel, UTexture2D* InAvatarTexture)
 {
 	PlayerId = InPlayerId;
 	DisplayName = InDisplayName;
+	CharacterClassId = InCharacterClassId;
 	Level = InLevel;
 
 	// Update display name
 	if (DisplayNameText)
 	{
 		DisplayNameText->SetText(FText::FromString(InDisplayName));
+	}
+
+	// Update class text
+	if (ClassText)
+	{
+		ClassText->SetText(FText::FromString(InCharacterClassId));
 	}
 
 	// Update level text
@@ -80,8 +87,8 @@ void USuspenseCoreCharacterEntryWidget::SetCharacterData(const FString& InPlayer
 	}
 
 	UE_LOG(LogSuspenseCoreCharacterEntry, Verbose,
-		TEXT("Character entry set: %s (Lv.%d) - %s"),
-		*InDisplayName, InLevel, *InPlayerId);
+		TEXT("Character entry set: %s [%s] (Lv.%d) - %s"),
+		*InDisplayName, *InCharacterClassId, InLevel, *InPlayerId);
 }
 
 void USuspenseCoreCharacterEntryWidget::SetSelected(bool bInSelected)

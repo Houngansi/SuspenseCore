@@ -5,7 +5,6 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "Engine/GameInstance.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -64,22 +63,22 @@ USuspenseCoreCharacterSelectionSubsystem* USuspenseCoreCharacterSelectionSubsyst
 // PUBLIC API
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClass(USuspenseCoreCharacterClassData* ClassData)
+void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClass(UObject* ClassData, FName ClassId)
 {
-	if (!ClassData)
+	if (!ClassData || ClassId == NAME_None)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] SelectCharacterClass: ClassData is null"));
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] SelectCharacterClass: Invalid parameters"));
 		return;
 	}
 
 	// Skip if already selected
-	if (SelectedClassData == ClassData)
+	if (SelectedClassData == ClassData && SelectedClassId == ClassId)
 	{
 		return;
 	}
 
 	SelectedClassData = ClassData;
-	SelectedClassId = ClassData->ClassID;
+	SelectedClassId = ClassId;
 
 	// Register if not already registered
 	if (!ClassRegistry.Contains(SelectedClassId))
@@ -102,15 +101,16 @@ void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClassById(FName Cl
 	}
 
 	// Try to find in registry first
-	USuspenseCoreCharacterClassData* ClassData = LoadClassById(ClassId);
+	UObject* ClassData = LoadClassById(ClassId);
 	if (ClassData)
 	{
-		SelectCharacterClass(ClassData);
+		SelectCharacterClass(ClassData, ClassId);
 	}
 	else
 	{
 		// Store the ID even if data not found (will be loaded later)
 		SelectedClassId = ClassId;
+		SelectedClassData = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Class '%s' not found in registry, storing ID only"), *ClassId.ToString());
 
 		// Still publish event so UI can react
@@ -126,7 +126,7 @@ void USuspenseCoreCharacterSelectionSubsystem::ClearSelection()
 	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Selection cleared"));
 }
 
-USuspenseCoreCharacterClassData* USuspenseCoreCharacterSelectionSubsystem::LoadClassById(FName ClassId)
+UObject* USuspenseCoreCharacterSelectionSubsystem::LoadClassById(FName ClassId)
 {
 	if (ClassId == NAME_None)
 	{
@@ -134,7 +134,7 @@ USuspenseCoreCharacterClassData* USuspenseCoreCharacterSelectionSubsystem::LoadC
 	}
 
 	// Check registry
-	if (USuspenseCoreCharacterClassData** FoundClass = ClassRegistry.Find(ClassId))
+	if (UObject** FoundClass = ClassRegistry.Find(ClassId))
 	{
 		return *FoundClass;
 	}
@@ -143,30 +143,23 @@ USuspenseCoreCharacterClassData* USuspenseCoreCharacterSelectionSubsystem::LoadC
 	return nullptr;
 }
 
-void USuspenseCoreCharacterSelectionSubsystem::RegisterClassData(USuspenseCoreCharacterClassData* ClassData)
+void USuspenseCoreCharacterSelectionSubsystem::RegisterClassData(UObject* ClassData, FName ClassId)
 {
-	if (!ClassData)
+	if (!ClassData || ClassId == NAME_None)
 	{
-		return;
-	}
-
-	FName ClassId = ClassData->ClassID;
-	if (ClassId == NAME_None)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Cannot register class with NAME_None ID"));
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Cannot register class with invalid data or NAME_None ID"));
 		return;
 	}
 
 	ClassRegistry.Add(ClassId, ClassData);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Registered class: %s (%s)"),
-		*ClassId.ToString(), *ClassData->DisplayName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Registered class: %s"), *ClassId.ToString());
 }
 
-TArray<USuspenseCoreCharacterClassData*> USuspenseCoreCharacterSelectionSubsystem::GetAllRegisteredClasses() const
+TArray<FName> USuspenseCoreCharacterSelectionSubsystem::GetAllRegisteredClassIds() const
 {
-	TArray<USuspenseCoreCharacterClassData*> Result;
-	ClassRegistry.GenerateValueArray(Result);
+	TArray<FName> Result;
+	ClassRegistry.GetKeys(Result);
 	return Result;
 }
 

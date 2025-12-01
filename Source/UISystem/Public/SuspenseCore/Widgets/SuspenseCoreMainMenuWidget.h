@@ -16,17 +16,11 @@ class UTextBlock;
 class UButton;
 class UWidgetSwitcher;
 class UImage;
-class UMaterialInstanceDynamic;
-class UMaterialInterface;
-class UTextureRenderTarget2D;
-class USkeletalMesh;
-class UAnimInstance;
 class USuspenseCorePlayerInfoWidget;
 class USuspenseCoreRegistrationWidget;
 class USuspenseCoreCharacterSelectWidget;
 class USuspenseCoreEventBus;
 class ISuspenseCorePlayerRepository;
-class ASuspenseCoreCharacterPreviewActor;
 
 /**
  * USuspenseCoreMainMenuWidget
@@ -183,17 +177,6 @@ protected:
 	UButton* QuitButton;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Character Preview (Render Target)
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/**
-	 * Image widget for displaying character render target.
-	 * Assign render target material to display the character preview.
-	 */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UImage* CharacterPreviewImage;
-
-	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -238,45 +221,6 @@ protected:
 	FString MenuGameModePath;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// CHARACTER PREVIEW CONFIGURATION
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/**
-	 * Base material for character preview display.
-	 * Must have a TextureParameter named 'RenderTargetTexture'.
-	 * If not set, will create a simple unlit material.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
-	UMaterialInterface* CharacterPreviewBaseMaterial;
-
-	/**
-	 * Class of preview actor to spawn.
-	 * Default: ASuspenseCoreCharacterPreviewActor
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
-	TSubclassOf<ASuspenseCoreCharacterPreviewActor> PreviewActorClass;
-
-	/**
-	 * Spawn location for preview actor (should be hidden under map).
-	 * Default: (0, 0, -10000)
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
-	FVector PreviewActorSpawnLocation = FVector(0.0f, 0.0f, -10000.0f);
-
-	/**
-	 * Skeletal mesh to use for preview.
-	 * If not set, will try to copy from player character.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
-	USkeletalMesh* PreviewMesh;
-
-	/**
-	 * Animation blueprint class for preview mesh.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config|CharacterPreview")
-	TSubclassOf<UAnimInstance> PreviewAnimClass;
-
-	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -305,21 +249,6 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
-	/** EventBus subscription handle for render target ready */
-	FSuspenseCoreSubscriptionHandle RenderTargetReadyEventHandle;
-
-	/** Dynamic material instance for character preview */
-	UPROPERTY()
-	UMaterialInstanceDynamic* CharacterPreviewMaterial;
-
-	/** Cached render target from character (received via EventBus) */
-	UPROPERTY()
-	UTextureRenderTarget2D* CachedRenderTarget;
-
-	/** Spawned preview actor */
-	UPROPERTY()
-	TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor> SpawnedPreviewActor;
-
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -342,18 +271,6 @@ protected:
 	/** Update UI elements */
 	void UpdateUIDisplay();
 
-	/** Update character preview image with render target (received via EventBus) */
-	void UpdateCharacterPreviewImage(UTextureRenderTarget2D* RenderTarget);
-
-	/** Clear character preview */
-	void ClearCharacterPreview();
-
-	/** Spawn preview actor */
-	void SpawnPreviewActor();
-
-	/** Destroy preview actor */
-	void DestroyPreviewActor();
-
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -372,9 +289,6 @@ protected:
 
 	/** Handle character deleted event */
 	void OnCharacterDeleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-	/** Handle render target ready event from character */
-	void OnRenderTargetReady(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

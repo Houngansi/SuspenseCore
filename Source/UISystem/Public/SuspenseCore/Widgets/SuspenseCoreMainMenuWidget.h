@@ -245,6 +245,9 @@ protected:
 	/** EventBus subscription handle for character deleted */
 	FSuspenseCoreSubscriptionHandle CharacterDeletedEventHandle;
 
+	/** EventBus subscription handle for back to character select (from registration) */
+	FSuspenseCoreSubscriptionHandle BackToSelectEventHandle;
+
 	/** Cached EventBus */
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
@@ -289,6 +292,9 @@ protected:
 
 	/** Handle character deleted event */
 	void OnCharacterDeleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle back to character select event (from registration screen) */
+	void OnBackToCharacterSelect(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BUTTON HANDLERS

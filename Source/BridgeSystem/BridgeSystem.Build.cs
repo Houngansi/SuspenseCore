@@ -14,6 +14,7 @@ public class BridgeSystem : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
+                "DeveloperSettings",  // For USuspenseCoreProjectSettings
                 "GameplayAbilities",
                 "GameplayTags",
                 "GameplayTasks",

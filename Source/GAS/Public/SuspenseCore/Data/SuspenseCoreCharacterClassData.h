@@ -13,9 +13,8 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class UTexture2D;
-class USkeletalMesh;
 class UAnimInstance;
-class UAnimSequence;
+class AActor;
 
 /**
  * ESuspenseCoreClassRole
@@ -229,24 +228,24 @@ public:
 	FLinearColor SecondaryColor = FLinearColor(0.1f, 0.3f, 0.5f, 1.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// VISUALS - CHARACTER MESH
+	// VISUALS - CHARACTER PREVIEW
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Character skeletal mesh for preview and gameplay */
+	/**
+	 * Blueprint Actor class for character preview in selection screen.
+	 * Can be any Actor with SkeletalMeshComponent - MetaHuman, standard Character, etc.
+	 * The actor will be spawned in CharacterSelectMap for 3D preview.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
-	TSoftObjectPtr<USkeletalMesh> CharacterMesh;
+	TSoftClassPtr<AActor> PreviewActorClass;
 
-	/** First person arms mesh (if different from third person) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
-	TSoftObjectPtr<USkeletalMesh> FirstPersonArmsMesh;
-
-	/** Animation Blueprint for the character */
+	/**
+	 * Animation Blueprint for the preview actor.
+	 * Applied to the actor's SkeletalMeshComponent for idle/preview animations.
+	 * If not set, uses the default AnimBP from the PreviewActorClass.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
 	TSoftClassPtr<UAnimInstance> AnimationBlueprint;
-
-	/** Preview animation to play in character selection */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Character")
-	TSoftObjectPtr<UAnimSequence> PreviewIdleAnimation;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// ATTRIBUTES

@@ -16,23 +16,25 @@ class USuspenseCoreEventBus;
 /**
  * ASuspenseCoreCharacterPreviewActor
  *
- * Simple 3D character preview actor for character selection screen.
- * Place this actor on your CharacterSelectMap to display character preview.
+ * 3D character preview controller for character selection screen.
+ * Spawns and manages PreviewActorClass from CharacterClassData.
  *
  * KEY FEATURES:
- * - SkeletalMeshComponent for 3D character display
+ * - Spawns Blueprint Actor (MetaHuman, Character, etc.) from ClassData
  * - EventBus subscription for class changes
- * - Automatic mesh/animation update when class changes
+ * - Automatic actor swap when class changes
  * - Optional rotation support (mouse drag)
+ * - Applies custom AnimBP if specified in ClassData
  *
  * USAGE:
  * 1. Place BP_CharacterPreviewActor on CharacterSelectMap
- * 2. Position camera to view the actor
- * 3. When RegistrationWidget class buttons are clicked, this actor updates automatically
+ * 2. Position camera to view the spawn location
+ * 3. When RegistrationWidget class buttons are clicked, this actor swaps preview automatically
  *
  * ARCHITECTURE:
  * - Receives SuspenseCore.Event.CharacterClass.Changed events
- * - Updates SkeletalMesh and AnimBP from CharacterClassData
+ * - Spawns PreviewActorClass from CharacterClassData
+ * - Manages spawned actor lifecycle (destroy old, spawn new)
  * - No RenderTarget, no SceneCaptureComponent - direct 3D display
  */
 UCLASS()
@@ -88,19 +90,26 @@ public:
 	float GetPreviewRotation() const { return CurrentYaw; }
 
 	/**
-	 * Get the preview mesh component.
+	 * Get the preview mesh component from spawned actor.
+	 * Returns first SkeletalMeshComponent found in the spawned preview actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Preview")
-	USkeletalMeshComponent* GetPreviewMesh() const { return PreviewMesh; }
+	USkeletalMeshComponent* GetPreviewMesh() const;
+
+	/**
+	 * Get the currently spawned preview actor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Preview")
+	AActor* GetSpawnedPreviewActor() const { return SpawnedPreviewActor; }
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// COMPONENTS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Skeletal mesh for character preview */
+	/** Scene root for positioning */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
-	USkeletalMeshComponent* PreviewMesh;
+	USceneComponent* PreviewRoot;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -125,6 +134,10 @@ protected:
 	/** Currently displayed class data */
 	UPROPERTY()
 	USuspenseCoreCharacterClassData* CurrentClassData;
+
+	/** Currently spawned preview actor (MetaHuman, Character, etc.) */
+	UPROPERTY()
+	AActor* SpawnedPreviewActor;
 
 	/** Current yaw rotation */
 	float CurrentYaw = 0.0f;
@@ -151,6 +164,15 @@ protected:
 
 	/** Handle class changed event from EventBus */
 	void OnCharacterClassChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Spawn preview actor from class data */
+	void SpawnPreviewActor(USuspenseCoreCharacterClassData* ClassData);
+
+	/** Destroy current preview actor */
+	void DestroyPreviewActor();
+
+	/** Apply animation blueprint to spawned actor */
+	void ApplyAnimationBlueprint(USuspenseCoreCharacterClassData* ClassData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS

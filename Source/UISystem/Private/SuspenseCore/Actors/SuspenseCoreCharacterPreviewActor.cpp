@@ -8,6 +8,9 @@
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCorePreview, Log, All);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -17,16 +20,11 @@ ASuspenseCoreCharacterPreviewActor::ASuspenseCoreCharacterPreviewActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Create root scene component
-	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	SetRootComponent(Root);
+	// Create root scene component for positioning
+	PreviewRoot = CreateDefaultSubobject<USceneComponent>(TEXT("PreviewRoot"));
+	SetRootComponent(PreviewRoot);
 
-	// Create skeletal mesh component for character preview
-	PreviewMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewMesh"));
-	PreviewMesh->SetupAttachment(Root);
-	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	PreviewMesh->bCastDynamicShadow = true;
-	PreviewMesh->CastShadow = true;
+	SpawnedPreviewActor = nullptr;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -49,12 +47,13 @@ void ASuspenseCoreCharacterPreviewActor::BeginPlay()
 		SetCharacterClass(DefaultClassData);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview"));
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview"));
 }
 
 void ASuspenseCoreCharacterPreviewActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	TeardownEventSubscriptions();
+	DestroyPreviewActor();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -67,64 +66,20 @@ void ASuspenseCoreCharacterPreviewActor::SetCharacterClass(USuspenseCoreCharacte
 {
 	if (!ClassData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] SetCharacterClass: ClassData is null"));
+		UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] SetCharacterClass: ClassData is null"));
 		return;
 	}
 
 	CurrentClassData = ClassData;
 
-	// Load and apply skeletal mesh (third person only - no FirstPersonArmsMesh for preview)
-	if (USkeletalMesh* Mesh = ClassData->CharacterMesh.LoadSynchronous())
-	{
-		// Stop any existing animation before changing mesh
-		PreviewMesh->Stop();
-
-		// Set animation mode to AnimationBlueprint before setting mesh
-		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-
-		PreviewMesh->SetSkeletalMesh(Mesh);
-		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Applied mesh: %s"), *Mesh->GetName());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Failed to load mesh for class: %s"), *ClassData->ClassID.ToString());
-	}
-
-	// Load and apply animation blueprint from ClassData (IMPORTANT: this overrides any mesh default)
-	TSubclassOf<UAnimInstance> AnimClass = ClassData->AnimationBlueprint.LoadSynchronous();
-	if (AnimClass)
-	{
-		// Force set the anim class - this overrides any default from the mesh
-		PreviewMesh->SetAnimInstanceClass(AnimClass);
-
-		// Reinitialize animation to ensure the new AnimBP takes effect immediately
-		PreviewMesh->InitAnim(true);
-
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Applied AnimBP from ClassData: %s (Class: %s)"),
-			*AnimClass->GetName(), *ClassData->ClassID.ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] AnimationBlueprint NOT SET in ClassData for: %s - check your Data Asset!"),
-			*ClassData->ClassID.ToString());
-	}
-
-	// Play preview idle animation if specified (optional - overrides AnimBP default pose)
-	if (UAnimSequence* IdleAnim = ClassData->PreviewIdleAnimation.LoadSynchronous())
-	{
-		// Switch to animation asset mode to play specific animation
-		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		PreviewMesh->PlayAnimation(IdleAnim, true);
-		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Playing preview idle animation: %s"), *IdleAnim->GetName());
-	}
+	// Spawn new preview actor
+	SpawnPreviewActor(ClassData);
 
 	// Notify Blueprint
 	OnClassChanged(ClassData);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Character class set: %s (Mesh: %s, AnimBP: %s)"),
-		*ClassData->DisplayName.ToString(),
-		ClassData->CharacterMesh.IsNull() ? TEXT("NULL") : *ClassData->CharacterMesh.GetAssetName(),
-		ClassData->AnimationBlueprint.IsNull() ? TEXT("NULL") : *ClassData->AnimationBlueprint.GetAssetName());
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Character class set: %s"),
+		*ClassData->DisplayName.ToString());
 }
 
 void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)
@@ -132,11 +87,11 @@ void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)
 	CurrentYaw += DeltaYaw * RotationSpeed;
 	CurrentYaw = FMath::Fmod(CurrentYaw, 360.0f);
 
-	if (PreviewMesh)
+	if (SpawnedPreviewActor)
 	{
-		FRotator NewRotation = PreviewMesh->GetRelativeRotation();
+		FRotator NewRotation = SpawnedPreviewActor->GetActorRotation();
 		NewRotation.Yaw = CurrentYaw;
-		PreviewMesh->SetRelativeRotation(NewRotation);
+		SpawnedPreviewActor->SetActorRotation(NewRotation);
 	}
 }
 
@@ -144,16 +99,122 @@ void ASuspenseCoreCharacterPreviewActor::SetPreviewRotation(float Yaw)
 {
 	CurrentYaw = FMath::Fmod(Yaw, 360.0f);
 
-	if (PreviewMesh)
+	if (SpawnedPreviewActor)
 	{
-		FRotator NewRotation = PreviewMesh->GetRelativeRotation();
+		FRotator NewRotation = SpawnedPreviewActor->GetActorRotation();
 		NewRotation.Yaw = CurrentYaw;
-		PreviewMesh->SetRelativeRotation(NewRotation);
+		SpawnedPreviewActor->SetActorRotation(NewRotation);
+	}
+}
+
+USkeletalMeshComponent* ASuspenseCoreCharacterPreviewActor::GetPreviewMesh() const
+{
+	if (!SpawnedPreviewActor)
+	{
+		return nullptr;
+	}
+
+	// Find first SkeletalMeshComponent in spawned actor
+	return SpawnedPreviewActor->FindComponentByClass<USkeletalMeshComponent>();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PREVIEW ACTOR MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacterPreviewActor::SpawnPreviewActor(USuspenseCoreCharacterClassData* ClassData)
+{
+	if (!ClassData)
+	{
+		return;
+	}
+
+	// Destroy existing preview actor
+	DestroyPreviewActor();
+
+	// Load preview actor class
+	UClass* ActorClass = ClassData->PreviewActorClass.LoadSynchronous();
+	if (!ActorClass)
+	{
+		UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] PreviewActorClass not set for: %s"),
+			*ClassData->ClassID.ToString());
+		return;
+	}
+
+	// Spawn actor at our location
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	FTransform SpawnTransform = GetActorTransform();
+	SpawnTransform.SetRotation(FQuat(FRotator(0.0f, CurrentYaw, 0.0f)));
+
+	SpawnedPreviewActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParams);
+
+	if (SpawnedPreviewActor)
+	{
+		// Disable collision on spawned actor
+		SpawnedPreviewActor->SetActorEnableCollision(false);
+
+		// Apply custom AnimBP if specified
+		ApplyAnimationBlueprint(ClassData);
+
+		UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Spawned preview actor: %s for class: %s"),
+			*ActorClass->GetName(), *ClassData->ClassID.ToString());
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCorePreview, Error, TEXT("[CharacterPreviewActor] Failed to spawn preview actor for: %s"),
+			*ClassData->ClassID.ToString());
+	}
+}
+
+void ASuspenseCoreCharacterPreviewActor::DestroyPreviewActor()
+{
+	if (SpawnedPreviewActor)
+	{
+		SpawnedPreviewActor->Destroy();
+		SpawnedPreviewActor = nullptr;
+	}
+}
+
+void ASuspenseCoreCharacterPreviewActor::ApplyAnimationBlueprint(USuspenseCoreCharacterClassData* ClassData)
+{
+	if (!SpawnedPreviewActor || !ClassData)
+	{
+		return;
+	}
+
+	// Check if custom AnimBP is specified
+	if (ClassData->AnimationBlueprint.IsNull())
+	{
+		UE_LOG(LogSuspenseCorePreview, Verbose, TEXT("[CharacterPreviewActor] No custom AnimBP - using actor's default"));
+		return;
+	}
+
+	// Load AnimBP class
+	TSubclassOf<UAnimInstance> AnimClass = ClassData->AnimationBlueprint.LoadSynchronous();
+	if (!AnimClass)
+	{
+		UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] Failed to load AnimBP for: %s"),
+			*ClassData->ClassID.ToString());
+		return;
+	}
+
+	// Find SkeletalMeshComponent and apply AnimBP
+	USkeletalMeshComponent* MeshComp = GetPreviewMesh();
+	if (MeshComp)
+	{
+		MeshComp->SetAnimInstanceClass(AnimClass);
+		MeshComp->InitAnim(true);
+
+		UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Applied AnimBP: %s"),
+			*AnimClass->GetName());
 	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// INTERNAL METHODS
+// EVENTBUS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void ASuspenseCoreCharacterPreviewActor::SetupEventSubscriptions()
@@ -161,13 +222,12 @@ void ASuspenseCoreCharacterPreviewActor::SetupEventSubscriptions()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Cannot setup event subscriptions - EventBus not available! Check EventManager initialization."));
+		UE_LOG(LogSuspenseCorePreview, Error, TEXT("[CharacterPreviewActor] Cannot setup event subscriptions - EventBus not available!"));
 		return;
 	}
 
 	// Subscribe to character class changed events
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.CharacterClass.Changed"));
-	UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Subscribing to tag: %s"), *EventTag.ToString());
 
 	ClassChangedEventHandle = EventBus->SubscribeNative(
 		EventTag,
@@ -178,11 +238,7 @@ void ASuspenseCoreCharacterPreviewActor::SetupEventSubscriptions()
 
 	if (ClassChangedEventHandle.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] Successfully subscribed to CharacterClass.Changed events"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Failed to subscribe to CharacterClass.Changed events!"));
+		UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Subscribed to CharacterClass.Changed events"));
 	}
 }
 
@@ -217,23 +273,20 @@ USuspenseCoreEventBus* ASuspenseCoreCharacterPreviewActor::GetEventBus()
 
 void ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] >>> OnCharacterClassChanged EVENT RECEIVED! Tag: %s <<<"), *EventTag.ToString());
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] OnCharacterClassChanged event received"));
 
 	// Get class data from event
 	USuspenseCoreCharacterClassData* ClassData = EventData.GetObject<USuspenseCoreCharacterClassData>(FName("ClassData"));
 
 	if (ClassData)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] ClassData found in event: %s"), *ClassData->ClassID.ToString());
 		SetCharacterClass(ClassData);
 	}
 	else
 	{
 		// Try to get class ID and load from subsystem
 		FString ClassIdStr = EventData.GetString(FName("ClassId"));
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] ClassData NOT in event, ClassId: %s - trying to load from subsystem"), *ClassIdStr);
 
-		// Try to get class data from CharacterClassSubsystem
 		if (!ClassIdStr.IsEmpty())
 		{
 			if (USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this))
@@ -241,17 +294,12 @@ void ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged(FGameplayTag Ev
 				USuspenseCoreCharacterClassData* LoadedClassData = ClassSubsystem->GetClassById(FName(*ClassIdStr));
 				if (LoadedClassData)
 				{
-					UE_LOG(LogTemp, Log, TEXT("[CharacterPreviewActor] Loaded ClassData from subsystem for: %s"), *ClassIdStr);
 					SetCharacterClass(LoadedClassData);
 				}
 				else
 				{
-					UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] Failed to load ClassData for: %s"), *ClassIdStr);
+					UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] ClassData not found for: %s"), *ClassIdStr);
 				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("[CharacterPreviewActor] CharacterClassSubsystem not available!"));
 			}
 		}
 	}

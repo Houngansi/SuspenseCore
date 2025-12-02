@@ -227,27 +227,52 @@ void ASuspenseCoreCharacterPreviewActor::SetupEventSubscriptions()
 	}
 
 	// Subscribe to character class changed events
-	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.CharacterClass.Changed"));
-
+	FGameplayTag ClassChangedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.CharacterClass.Changed"));
 	ClassChangedEventHandle = EventBus->SubscribeNative(
-		EventTag,
+		ClassChangedTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	if (ClassChangedEventHandle.IsValid())
-	{
-		UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Subscribed to CharacterClass.Changed events"));
-	}
+	// Subscribe to preview rotation events (from PreviewRotationWidget drag)
+	FGameplayTag RotateTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Preview.Rotate"));
+	RotateEventHandle = EventBus->SubscribeNative(
+		RotateTag,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacterPreviewActor::OnRotatePreviewEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to set rotation events (absolute rotation)
+	FGameplayTag SetRotationTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Preview.SetRotation"));
+	SetRotationEventHandle = EventBus->SubscribeNative(
+		SetRotationTag,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &ASuspenseCoreCharacterPreviewActor::OnSetRotationEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Subscribed to events: CharacterClass.Changed, Preview.Rotate, Preview.SetRotation"));
 }
 
 void ASuspenseCoreCharacterPreviewActor::TeardownEventSubscriptions()
 {
 	USuspenseCoreEventBus* EventBus = GetEventBus();
-	if (EventBus && ClassChangedEventHandle.IsValid())
+	if (EventBus)
 	{
-		EventBus->Unsubscribe(ClassChangedEventHandle);
+		if (ClassChangedEventHandle.IsValid())
+		{
+			EventBus->Unsubscribe(ClassChangedEventHandle);
+		}
+		if (RotateEventHandle.IsValid())
+		{
+			EventBus->Unsubscribe(RotateEventHandle);
+		}
+		if (SetRotationEventHandle.IsValid())
+		{
+			EventBus->Unsubscribe(SetRotationEventHandle);
+		}
 	}
 }
 
@@ -303,4 +328,22 @@ void ASuspenseCoreCharacterPreviewActor::OnCharacterClassChanged(FGameplayTag Ev
 			}
 		}
 	}
+}
+
+void ASuspenseCoreCharacterPreviewActor::OnRotatePreviewEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float DeltaYaw = EventData.GetFloat(FName("DeltaYaw"));
+
+	if (!FMath::IsNearlyZero(DeltaYaw))
+	{
+		RotatePreview(DeltaYaw);
+	}
+}
+
+void ASuspenseCoreCharacterPreviewActor::OnSetRotationEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float Yaw = EventData.GetFloat(FName("Yaw"));
+	SetPreviewRotation(Yaw);
+
+	UE_LOG(LogSuspenseCorePreview, Verbose, TEXT("[CharacterPreviewActor] Rotation set to: %.1f via event"), Yaw);
 }

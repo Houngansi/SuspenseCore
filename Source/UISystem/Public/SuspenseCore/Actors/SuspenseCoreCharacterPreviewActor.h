@@ -146,8 +146,10 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
-	/** EventBus subscription handle */
+	/** EventBus subscription handles */
 	FSuspenseCoreSubscriptionHandle ClassChangedEventHandle;
+	FSuspenseCoreSubscriptionHandle RotateEventHandle;
+	FSuspenseCoreSubscriptionHandle SetRotationEventHandle;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
@@ -164,6 +166,12 @@ protected:
 
 	/** Handle class changed event from EventBus */
 	void OnCharacterClassChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle rotate preview event from EventBus */
+	void OnRotatePreviewEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle set rotation event from EventBus */
+	void OnSetRotationEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Spawn preview actor from class data */
 	void SpawnPreviewActor(USuspenseCoreCharacterClassData* ClassData);

@@ -333,29 +333,9 @@ void ASuspenseCoreCharacter::ApplyCharacterClass(USuspenseCoreCharacterClassData
 
 	AppliedClassData = ClassData;
 
-	// Apply third person mesh
-	if (USkeletalMesh* CharMesh = ClassData->CharacterMesh.LoadSynchronous())
-	{
-		GetMesh()->SetSkeletalMesh(CharMesh);
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Applied mesh: %s"), *CharMesh->GetName());
-	}
-
-	// Apply animation blueprint to third person mesh
-	if (TSubclassOf<UAnimInstance> AnimClass = ClassData->AnimationBlueprint.LoadSynchronous())
-	{
-		GetMesh()->SetAnimInstanceClass(AnimClass);
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Applied AnimBP: %s"), *AnimClass->GetName());
-	}
-
-	// Apply first person arms mesh if specified
-	if (USkeletalMesh* ArmsMesh = ClassData->FirstPersonArmsMesh.LoadSynchronous())
-	{
-		if (Mesh1P)
-		{
-			Mesh1P->SetSkeletalMesh(ArmsMesh);
-			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Applied first person arms mesh: %s"), *ArmsMesh->GetName());
-		}
-	}
+	// NOTE: Visual configuration (mesh, animations) is now handled in the Character Blueprint itself.
+	// Each class has its own BP_Character_[ClassName] with pre-configured visuals.
+	// This function only applies gameplay-related class data (attributes, abilities via events).
 
 	// Publish event for other systems (GAS, UI, etc.)
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())

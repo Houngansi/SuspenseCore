@@ -97,7 +97,13 @@ public:
 	USkeletalMeshComponent* GetPreviewMesh() const;
 
 	/**
-	 * Get the currently spawned preview actor.
+	 * Get the preview actor (spawned actor or this actor if bSpawnsPreviewActor is false).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Preview")
+	AActor* GetPreviewActor() const { return bSpawnsPreviewActor ? SpawnedPreviewActor : const_cast<ASuspenseCoreCharacterPreviewActor*>(this); }
+
+	/**
+	 * Get the currently spawned preview actor (nullptr if bSpawnsPreviewActor is false).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Preview")
 	AActor* GetSpawnedPreviewActor() const { return SpawnedPreviewActor; }

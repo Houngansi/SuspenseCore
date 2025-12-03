@@ -19,7 +19,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCorePreviewRotation, Log, All);
 USuspenseCorePreviewRotationWidget::USuspenseCorePreviewRotationWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Widget needs to be visible for hit testing
 	SetVisibility(ESlateVisibility::Visible);
 }
 
@@ -31,77 +30,50 @@ void USuspenseCorePreviewRotationWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] NativeConstruct CALLED"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Widget: %s"), *GetName());
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Visibility: %d"), (int32)GetVisibility());
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
-
-	// Setup hit test area bindings
 	SetupHitTestArea();
 
 	// Auto-find preview actor in the world
 	if (bAutoFindPreviewActor)
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] bAutoFindPreviewActor=true, searching..."));
-
 		// Try 1: Find by C++ class
 		ASuspenseCoreCharacterPreviewActor* FoundActor = FindPreviewActorInWorld();
 		if (FoundActor)
 		{
 			CachedPreviewActor = FoundActor;
-			UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] SUCCESS: Found PreviewActor by class: %s"), *FoundActor->GetName());
 		}
 		else
 		{
-			UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Class search failed, trying name pattern: '%s'"), *PreviewActorNamePattern);
-
 			// Try 2: Find by name pattern
 			AActor* FoundByName = FindActorByNamePattern(PreviewActorNamePattern);
 			if (FoundByName)
 			{
-				// Check if it's actually a SuspenseCoreCharacterPreviewActor
 				ASuspenseCoreCharacterPreviewActor* AsPreviewActor = Cast<ASuspenseCoreCharacterPreviewActor>(FoundByName);
 				if (AsPreviewActor)
 				{
 					CachedPreviewActor = AsPreviewActor;
-					UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] SUCCESS: Found PreviewActor by name: %s (is SuspenseCoreCharacterPreviewActor)"), *FoundByName->GetName());
 				}
 				else
 				{
 					CachedGenericActor = FoundByName;
-					UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] SUCCESS: Found GENERIC actor by name: %s (will rotate directly)"), *FoundByName->GetName());
 				}
 			}
 			else
 			{
-				UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Name search failed, trying tag: '%s'"), *PreviewActorTag.ToString());
-
 				// Try 3: Find by tag
 				AActor* FoundByTag = FindActorByTag(PreviewActorTag);
 				if (FoundByTag)
 				{
 					CachedGenericActor = FoundByTag;
-					UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] SUCCESS: Found actor by tag: %s"), *FoundByTag->GetName());
 				}
 				else
 				{
-					UE_LOG(LogSuspenseCorePreviewRotation, Error, TEXT("[PreviewRotationWidget] FAILED: No actor found by class, name, or tag!"));
+					UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] No preview actor found by class, name, or tag"));
 				}
 			}
 		}
 	}
-	else
-	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] bAutoFindPreviewActor=false, skipping search"));
-	}
 
-	// Cache EventBus
-	USuspenseCoreEventBus* EventBus = GetEventBus();
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] EventBus: %s"), EventBus ? TEXT("FOUND") : TEXT("NOT FOUND"));
-
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Init complete. Sensitivity: %.2f, bRotationEnabled: %s"),
-		RotationSensitivity, bRotationEnabled ? TEXT("true") : TEXT("false"));
+	GetEventBus();
 }
 
 void USuspenseCorePreviewRotationWidget::NativeDestruct()
@@ -116,34 +88,19 @@ void USuspenseCorePreviewRotationWidget::NativeDestruct()
 
 FReply USuspenseCorePreviewRotationWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("████████████████████████████████████████████████████████████████"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] NativeOnMouseButtonDown CALLED!"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Button: %s"), *InMouseEvent.GetEffectingButton().ToString());
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] bRotationEnabled: %s"), bRotationEnabled ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("████████████████████████████████████████████████████████████████"));
-
 	if (!bRotationEnabled)
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Rotation DISABLED, returning Unhandled"));
 		return FReply::Unhandled();
 	}
 
-	// Only handle left mouse button
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		bIsDragging = true;
 		LastMousePosition = InMouseEvent.GetScreenSpacePosition();
 
-		// Notify
 		OnDragStarted();
 		OnDragStartedDelegate.Broadcast();
 
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] DRAG STARTED at: %.1f, %.1f"),
-			LastMousePosition.X, LastMousePosition.Y);
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] CachedPreviewActor: %s"),
-			CachedPreviewActor.IsValid() ? *CachedPreviewActor->GetName() : TEXT("INVALID/NULL"));
-
-		// Capture mouse to continue receiving events even if cursor leaves widget bounds
 		return FReply::Handled().CaptureMouse(TakeWidget());
 	}
 
@@ -156,14 +113,9 @@ FReply USuspenseCorePreviewRotationWidget::NativeOnMouseButtonUp(const FGeometry
 	{
 		bIsDragging = false;
 
-		// Notify
 		OnDragEnded();
 		OnDragEndedDelegate.Broadcast();
 
-		UE_LOG(LogSuspenseCorePreviewRotation, Log, TEXT("[PreviewRotationWidget] Drag ended. Total rotation: %.1f"),
-			AccumulatedYaw);
-
-		// Release mouse capture
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -177,25 +129,19 @@ FReply USuspenseCorePreviewRotationWidget::NativeOnMouseMove(const FGeometry& In
 		FVector2D CurrentMousePosition = InMouseEvent.GetScreenSpacePosition();
 		float DeltaX = CurrentMousePosition.X - LastMousePosition.X;
 
-		// Apply sensitivity and inversion
 		float DeltaYaw = DeltaX * RotationSensitivity;
 		if (bInvertRotation)
 		{
 			DeltaYaw = -DeltaYaw;
 		}
 
-		// Only apply if there's actual movement
 		if (!FMath::IsNearlyZero(DeltaYaw))
 		{
-			UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] MouseMove DeltaX: %.2f, DeltaYaw: %.2f"), DeltaX, DeltaYaw);
-
 			ApplyRotationDelta(DeltaYaw);
 
-			// Update accumulated rotation
 			AccumulatedYaw += DeltaYaw;
 			AccumulatedYaw = FMath::Fmod(AccumulatedYaw, 360.0f);
 
-			// Notify
 			OnRotationChanged(DeltaYaw, AccumulatedYaw);
 			OnRotationChangedDelegate.Broadcast(DeltaYaw, AccumulatedYaw);
 		}
@@ -210,8 +156,6 @@ FReply USuspenseCorePreviewRotationWidget::NativeOnMouseMove(const FGeometry& In
 
 void USuspenseCorePreviewRotationWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
-	// Don't stop dragging on mouse leave - we capture the mouse
-	// The drag will continue until mouse button is released
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
@@ -222,9 +166,6 @@ void USuspenseCorePreviewRotationWidget::NativeOnMouseLeave(const FPointerEvent&
 void USuspenseCorePreviewRotationWidget::SetPreviewActor(ASuspenseCoreCharacterPreviewActor* InPreviewActor)
 {
 	CachedPreviewActor = InPreviewActor;
-
-	UE_LOG(LogSuspenseCorePreviewRotation, Log, TEXT("[PreviewRotationWidget] Preview actor set: %s"),
-		InPreviewActor ? *InPreviewActor->GetName() : TEXT("None"));
 }
 
 void USuspenseCorePreviewRotationWidget::ResetRotation()
@@ -236,14 +177,12 @@ void USuspenseCorePreviewRotationWidget::SetRotation(float Yaw)
 {
 	AccumulatedYaw = FMath::Fmod(Yaw, 360.0f);
 
-	// Apply via direct reference if available
 	if (CachedPreviewActor.IsValid())
 	{
 		CachedPreviewActor->SetPreviewRotation(Yaw);
 	}
 	else
 	{
-		// Publish set rotation event
 		if (USuspenseCoreEventBus* EventBus = GetEventBus())
 		{
 			FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
@@ -255,8 +194,6 @@ void USuspenseCorePreviewRotationWidget::SetRotation(float Yaw)
 			);
 		}
 	}
-
-	UE_LOG(LogSuspenseCorePreviewRotation, Verbose, TEXT("[PreviewRotationWidget] Rotation set to: %.1f"), Yaw);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -265,59 +202,25 @@ void USuspenseCorePreviewRotationWidget::SetRotation(float Yaw)
 
 void USuspenseCorePreviewRotationWidget::SetupHitTestArea()
 {
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] SetupHitTestArea called"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] HitTestArea (Border): %s"), HitTestArea ? TEXT("BOUND") : TEXT("NULL"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] HitTestImage (Image): %s"), HitTestImage ? TEXT("BOUND") : TEXT("NULL"));
-
-	// Check if HitTestArea (Border) is bound
-	if (HitTestArea)
+	if (HitTestArea || HitTestImage)
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] HitTestArea Visibility: %d"), (int32)HitTestArea->GetVisibility());
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] HitTestArea DesiredSize: %s"), *HitTestArea->GetDesiredSize().ToString());
 		return;
 	}
 
-	// Check if HitTestImage (Image) is bound
-	if (HitTestImage)
-	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] HitTestImage Visibility: %d"), (int32)HitTestImage->GetVisibility());
-		return;
-	}
-
-	// No hit test area bound - warn the user
-	UE_LOG(LogSuspenseCorePreviewRotation, Error,
-		TEXT("[PreviewRotationWidget] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Error,
-		TEXT("[PreviewRotationWidget] NO HIT TEST AREA BOUND!"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Error,
-		TEXT("[PreviewRotationWidget] Add a Border named 'HitTestArea' in UMG Designer!"));
-	UE_LOG(LogSuspenseCorePreviewRotation, Error,
-		TEXT("[PreviewRotationWidget] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
+	UE_LOG(LogSuspenseCorePreviewRotation, Warning,
+		TEXT("[PreviewRotationWidget] No HitTestArea or HitTestImage bound. Add a Border named 'HitTestArea' in UMG Designer."));
 }
 
 ASuspenseCoreCharacterPreviewActor* USuspenseCorePreviewRotationWidget::FindPreviewActorInWorld()
 {
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] FindPreviewActorInWorld called"));
-
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Error, TEXT("[PreviewRotationWidget] GetWorld() returned NULL!"));
 		return nullptr;
 	}
 
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] World: %s"), *World->GetName());
-
-	// Find first CharacterPreviewActor in the world
 	TArray<AActor*> FoundActors;
 	UGameplayStatics::GetAllActorsOfClass(World, ASuspenseCoreCharacterPreviewActor::StaticClass(), FoundActors);
-
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Found %d CharacterPreviewActor(s) in world"), FoundActors.Num());
-
-	for (int32 i = 0; i < FoundActors.Num(); i++)
-	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget]   [%d] %s"), i, *FoundActors[i]->GetName());
-	}
 
 	if (FoundActors.Num() > 0)
 	{
@@ -335,25 +238,14 @@ AActor* USuspenseCorePreviewRotationWidget::FindActorByNamePattern(const FString
 		return nullptr;
 	}
 
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Searching for actors with name containing: '%s'"), *Pattern);
-
-	// Get ALL actors and search by name
 	TArray<AActor*> AllActors;
 	UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), AllActors);
 
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Total actors in world: %d"), AllActors.Num());
-
 	for (AActor* Actor : AllActors)
 	{
-		if (Actor)
+		if (Actor && Actor->GetName().Contains(Pattern))
 		{
-			FString ActorName = Actor->GetName();
-			if (ActorName.Contains(Pattern))
-			{
-				UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] MATCH: %s (class: %s)"),
-					*ActorName, *Actor->GetClass()->GetName());
-				return Actor;
-			}
+			return Actor;
 		}
 	}
 
@@ -370,9 +262,6 @@ AActor* USuspenseCorePreviewRotationWidget::FindActorByTag(FName Tag)
 
 	TArray<AActor*> FoundActors;
 	UGameplayStatics::GetAllActorsWithTag(World, Tag, FoundActors);
-
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Found %d actor(s) with tag '%s'"),
-		FoundActors.Num(), *Tag.ToString());
 
 	if (FoundActors.Num() > 0)
 	{
@@ -404,16 +293,9 @@ USuspenseCoreEventBus* USuspenseCorePreviewRotationWidget::GetEventBus()
 
 void USuspenseCorePreviewRotationWidget::ApplyRotationDelta(float DeltaYaw)
 {
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] ApplyRotationDelta: %.2f"), DeltaYaw);
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] CachedPreviewActor: %s, CachedGenericActor: %s"),
-		CachedPreviewActor.IsValid() ? TEXT("YES") : TEXT("NO"),
-		CachedGenericActor.IsValid() ? TEXT("YES") : TEXT("NO"));
-
-	// Priority 1: SuspenseCoreCharacterPreviewActor - use its RotatePreview method
+	// Priority 1: SuspenseCoreCharacterPreviewActor
 	if (CachedPreviewActor.IsValid())
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Calling RotatePreview on: %s"),
-			*CachedPreviewActor->GetName());
 		CachedPreviewActor->RotatePreview(DeltaYaw);
 		return;
 	}
@@ -424,14 +306,10 @@ void USuspenseCorePreviewRotationWidget::ApplyRotationDelta(float DeltaYaw)
 		FRotator CurrentRotation = CachedGenericActor->GetActorRotation();
 		CurrentRotation.Yaw += DeltaYaw * RotationSensitivity;
 		CachedGenericActor->SetActorRotation(CurrentRotation);
-
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Rotated generic actor: %s, NewYaw: %.2f"),
-			*CachedGenericActor->GetName(), CurrentRotation.Yaw);
 		return;
 	}
 
 	// Fallback to EventBus
-	UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] Using EventBus fallback"));
 	PublishRotationEvent(DeltaYaw);
 }
 
@@ -440,7 +318,6 @@ void USuspenseCorePreviewRotationWidget::PublishRotationEvent(float DeltaYaw)
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogSuspenseCorePreviewRotation, Warning, TEXT("[PreviewRotationWidget] EventBus not available!"));
 		return;
 	}
 

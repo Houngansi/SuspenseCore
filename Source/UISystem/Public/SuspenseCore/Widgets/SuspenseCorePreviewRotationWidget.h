@@ -11,6 +11,8 @@
 
 class USuspenseCoreEventBus;
 class ASuspenseCoreCharacterPreviewActor;
+class UBorder;
+class UImage;
 
 /**
  * USuspenseCorePreviewRotationWidget
@@ -25,10 +27,11 @@ class ASuspenseCoreCharacterPreviewActor;
  * - Publishes SuspenseCore.Event.Preview.Rotate event via EventBus
  *
  * USAGE:
- * 1. Add this widget as overlay in your UI (WBP_CharacterSelect, WBP_Registration)
- * 2. Position/size it to cover the preview area
- * 3. Set RotationSensitivity as needed
- * 4. Optional: Set PreviewActorReference for direct control (bypasses EventBus)
+ * 1. Create WBP_PreviewRotation (Blueprint child of this class)
+ * 2. In Designer: Add a Border or Image named "HitTestArea" that fills the widget
+ * 3. Add WBP_PreviewRotation to your UI (WBP_CharacterSelect, WBP_Registration)
+ * 4. Position/size it to cover the preview area
+ * 5. Set bAutoFindPreviewActor=true OR call SetPreviewActor() from Blueprint
  *
  * ARCHITECTURE:
  * - Publishes: SuspenseCore.Event.Preview.Rotate (DeltaYaw: float)
@@ -43,6 +46,22 @@ public:
 	USuspenseCorePreviewRotationWidget(const FObjectInitializer& ObjectInitializer);
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// WIDGET BINDINGS (Add in UMG Designer)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * REQUIRED: Hit test area - add a Border or Image named "HitTestArea" in UMG Designer.
+	 * This widget captures mouse input. Make it fill the entire area.
+	 * Set brush to transparent if you want invisible input capture.
+	 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UBorder* HitTestArea;
+
+	/** Alternative: Use Image instead of Border for hit testing */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UImage* HitTestImage;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -54,9 +73,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
 	bool bInvertRotation = false;
 
-	/** Optional direct reference to preview actor (bypasses EventBus) */
+	/** Auto-find CharacterPreviewActor in the world on construct */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
-	ASuspenseCoreCharacterPreviewActor* PreviewActorReference;
+	bool bAutoFindPreviewActor = true;
 
 	/** Enable rotation input */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
@@ -141,6 +160,10 @@ protected:
 	/** Accumulated rotation since widget creation */
 	float AccumulatedYaw = 0.0f;
 
+	/** Cached preview actor reference (found automatically or set manually) */
+	UPROPERTY()
+	TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor> CachedPreviewActor;
+
 	/** Cached EventBus */
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
@@ -148,6 +171,12 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Setup hit test area bindings */
+	void SetupHitTestArea();
+
+	/** Find preview actor in the world */
+	ASuspenseCoreCharacterPreviewActor* FindPreviewActorInWorld();
 
 	/** Get EventBus from EventManager */
 	USuspenseCoreEventBus* GetEventBus();

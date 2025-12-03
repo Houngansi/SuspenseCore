@@ -128,11 +128,14 @@ void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)
 	CurrentYaw += DeltaYaw * RotationSpeed;
 	CurrentYaw = FMath::Fmod(CurrentYaw, 360.0f);
 
-	if (SpawnedPreviewActor)
+	// Get the actor to rotate
+	AActor* ActorToRotate = bSpawnsPreviewActor ? SpawnedPreviewActor : this;
+
+	if (ActorToRotate)
 	{
-		FRotator NewRotation = SpawnedPreviewActor->GetActorRotation();
+		FRotator NewRotation = ActorToRotate->GetActorRotation();
 		NewRotation.Yaw = CurrentYaw;
-		SpawnedPreviewActor->SetActorRotation(NewRotation);
+		ActorToRotate->SetActorRotation(NewRotation);
 	}
 }
 
@@ -140,23 +143,29 @@ void ASuspenseCoreCharacterPreviewActor::SetPreviewRotation(float Yaw)
 {
 	CurrentYaw = FMath::Fmod(Yaw, 360.0f);
 
-	if (SpawnedPreviewActor)
+	// Get the actor to rotate
+	AActor* ActorToRotate = bSpawnsPreviewActor ? SpawnedPreviewActor : this;
+
+	if (ActorToRotate)
 	{
-		FRotator NewRotation = SpawnedPreviewActor->GetActorRotation();
+		FRotator NewRotation = ActorToRotate->GetActorRotation();
 		NewRotation.Yaw = CurrentYaw;
-		SpawnedPreviewActor->SetActorRotation(NewRotation);
+		ActorToRotate->SetActorRotation(NewRotation);
 	}
 }
 
 USkeletalMeshComponent* ASuspenseCoreCharacterPreviewActor::GetPreviewMesh() const
 {
-	if (!SpawnedPreviewActor)
+	// Get the actor that is the preview
+	const AActor* PreviewActor = bSpawnsPreviewActor ? SpawnedPreviewActor : this;
+
+	if (!PreviewActor)
 	{
 		return nullptr;
 	}
 
-	// Find first SkeletalMeshComponent in spawned actor
-	return SpawnedPreviewActor->FindComponentByClass<USkeletalMeshComponent>();
+	// Find first SkeletalMeshComponent in preview actor
+	return PreviewActor->FindComponentByClass<USkeletalMeshComponent>();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -127,6 +127,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Config")
 	bool bAutoSubscribeToEvents = true;
 
+	/**
+	 * If true, this actor will ONLY spawn preview actors (not use itself).
+	 * If false, this actor IS the preview and won't spawn anything.
+	 * Use this when you place a MetaHuman directly on the level as preview.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Config")
+	bool bSpawnsPreviewActor = true;
+
+	/**
+	 * Unique ID for this preview actor.
+	 * Only ONE actor with each ID will be active at a time.
+	 * Leave empty to allow multiple instances.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Config")
+	FName PreviewActorId = NAME_None;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL STATE
 	// ═══════════════════════════════════════════════════════════════════════════

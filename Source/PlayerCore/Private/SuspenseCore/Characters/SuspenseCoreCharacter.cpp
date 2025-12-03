@@ -534,7 +534,7 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CAMERA SETTINGS
+// CAMERA ATTACHMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void ASuspenseCoreCharacter::SetupCameraAttachment()
@@ -544,59 +544,186 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		return;
 	}
 
+	USceneComponent* AttachComponent = nullptr;
+	FName SocketToUse = CameraAttachSocketName;
+
 	switch (CameraAttachMode)
 	{
 	case ESuspenseCoreCameraAttachMode::CameraBoom:
-		// Already attached to CameraBoom in constructor - ensure settings
+		// Attach to CameraBoom - stable FPS, no head bob
 		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		Camera->SetRelativeLocation(FVector::ZeroVector);
 		Camera->SetRelativeRotation(FRotator::ZeroRotator);
-		Camera->bUsePawnControlRotation = false; // CameraBoom handles rotation
+		Camera->bUsePawnControlRotation = false;
 		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to CameraBoom (stable FPS mode)"));
+		return;
+
+	case ESuspenseCoreCameraAttachMode::MetaHumanFace:
+		AttachComponent = FindMetaHumanFaceComponent();
+		if (!AttachComponent)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] MetaHuman Face component not found!"));
+		}
+		break;
+
+	case ESuspenseCoreCameraAttachMode::MetaHumanBody:
+		AttachComponent = FindMetaHumanBodyComponent();
+		if (!AttachComponent)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] MetaHuman Body SkeletalMesh not found!"));
+		}
+		break;
+
+	case ESuspenseCoreCameraAttachMode::ComponentByName:
+		AttachComponent = FindComponentByName(CameraAttachComponentName);
+		if (!AttachComponent)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Component with name '%s' not found!"),
+				*CameraAttachComponentName.ToString());
+		}
 		break;
 
 	case ESuspenseCoreCameraAttachMode::ComponentByTag:
+		AttachComponent = FindComponentByTag(CameraAttachComponentTag);
+		if (!AttachComponent)
 		{
-			USceneComponent* AttachComponent = FindCameraAttachComponent();
-			if (AttachComponent)
-			{
-				// Attach to found component's socket
-				Camera->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, CameraAttachSocketName);
-				Camera->SetRelativeLocation(CameraAttachOffset);
-				Camera->SetRelativeRotation(CameraAttachRotation);
-				Camera->bUsePawnControlRotation = true;
-				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to component '%s' socket '%s'"),
-					*AttachComponent->GetName(), *CameraAttachSocketName.ToString());
-			}
-			else
-			{
-				// Fallback to CameraBoom if component not found
-				UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Camera attach component with tag '%s' not found, falling back to CameraBoom"),
-					*CameraAttachComponentTag.ToString());
-				Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-				Camera->bUsePawnControlRotation = false;
-			}
+			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Component with tag '%s' not found!"),
+				*CameraAttachComponentTag.ToString());
 		}
 		break;
 
 	case ESuspenseCoreCameraAttachMode::Mesh1P:
-		// Legacy attachment to first person arms mesh
-		if (Mesh1P)
-		{
-			Camera->AttachToComponent(Mesh1P, FAttachmentTransformRules::SnapToTargetNotIncludingScale, CameraAttachSocketName);
-			Camera->SetRelativeLocation(CameraAttachOffset);
-			Camera->SetRelativeRotation(CameraAttachRotation);
-			Camera->bUsePawnControlRotation = true;
-			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to Mesh1P socket '%s'"),
-				*CameraAttachSocketName.ToString());
-		}
+		AttachComponent = Mesh1P;
 		break;
+	}
+
+	// Attach camera to found component
+	if (AttachComponent)
+	{
+		Camera->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketToUse);
+		Camera->SetRelativeLocation(CameraAttachOffset);
+		Camera->SetRelativeRotation(CameraAttachRotation);
+		Camera->bUsePawnControlRotation = true;
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to '%s' socket '%s'"),
+			*AttachComponent->GetName(), *SocketToUse.ToString());
+	}
+	else
+	{
+		// Fallback to CameraBoom
+		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Falling back to CameraBoom attachment"));
+		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		Camera->SetRelativeLocation(FVector::ZeroVector);
+		Camera->SetRelativeRotation(FRotator::ZeroRotator);
+		Camera->bUsePawnControlRotation = false;
 	}
 }
 
-USceneComponent* ASuspenseCoreCharacter::FindCameraAttachComponent() const
+USceneComponent* ASuspenseCoreCharacter::FindMetaHumanFaceComponent() const
 {
-	// Search for component with matching tag
+	// MetaHuman Face component is named "Face" and is a SkeletalMeshComponent
+	// Hierarchy: Root > Body > Face
+	TArray<UActorComponent*> Components;
+	GetComponents(USkeletalMeshComponent::StaticClass(), Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		FString CompName = Component->GetName();
+		// Check for "Face" in component name
+		if (CompName.Contains(TEXT("Face")))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Found MetaHuman Face: %s"), *CompName);
+			return Cast<USceneComponent>(Component);
+		}
+	}
+
+	// Also search in hierarchy with partial name match
+	for (UActorComponent* Component : Components)
+	{
+		if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+		{
+			// Check parent hierarchy for "Face"
+			USceneComponent* Parent = SceneComp->GetAttachParent();
+			while (Parent)
+			{
+				if (Parent->GetName().Contains(TEXT("Face")))
+				{
+					return SceneComp;
+				}
+				Parent = Parent->GetAttachParent();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+USceneComponent* ASuspenseCoreCharacter::FindMetaHumanBodyComponent() const
+{
+	// MetaHuman Body has a SkeletalMesh child
+	// Hierarchy: Root > Body > SkeletalMesh (this has the skeleton with "head" bone)
+	TArray<UActorComponent*> Components;
+	GetComponents(USkeletalMeshComponent::StaticClass(), Components);
+
+	// First look for "SkeletalMesh" under "Body"
+	for (UActorComponent* Component : Components)
+	{
+		if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+		{
+			FString CompName = Component->GetName();
+			USceneComponent* Parent = SceneComp->GetAttachParent();
+
+			// Check if parent is "Body"
+			if (Parent && Parent->GetName().Contains(TEXT("Body")))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Found MetaHuman Body SkeletalMesh: %s (parent: %s)"),
+					*CompName, *Parent->GetName());
+				return SceneComp;
+			}
+		}
+	}
+
+	// Fallback: look for any SkeletalMesh with "head" bone
+	for (UActorComponent* Component : Components)
+	{
+		if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(Component))
+		{
+			if (SkelMesh->DoesSocketExist(FName("head")))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Found SkeletalMesh with 'head' socket: %s"),
+					*Component->GetName());
+				return SkelMesh;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+USceneComponent* ASuspenseCoreCharacter::FindComponentByName(FName ComponentName) const
+{
+	TArray<UActorComponent*> Components;
+	GetComponents(Components);
+
+	FString SearchName = ComponentName.ToString();
+
+	for (UActorComponent* Component : Components)
+	{
+		if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+		{
+			if (SceneComp->GetName().Contains(SearchName))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Found component by name: %s"), *SceneComp->GetName());
+				return SceneComp;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+USceneComponent* ASuspenseCoreCharacter::FindComponentByTag(FName Tag) const
+{
 	TArray<UActorComponent*> Components;
 	GetComponents(Components);
 
@@ -604,33 +731,9 @@ USceneComponent* ASuspenseCoreCharacter::FindCameraAttachComponent() const
 	{
 		if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
 		{
-			if (SceneComp->ComponentHasTag(CameraAttachComponentTag))
+			if (SceneComp->ComponentHasTag(Tag))
 			{
 				return SceneComp;
-			}
-		}
-	}
-
-	// Also check child actors (MetaHuman components might be in child actors)
-	TArray<AActor*> ChildActors;
-	GetAllChildActors(ChildActors, true);
-
-	for (AActor* ChildActor : ChildActors)
-	{
-		if (ChildActor)
-		{
-			TArray<UActorComponent*> ChildComponents;
-			ChildActor->GetComponents(ChildComponents);
-
-			for (UActorComponent* Component : ChildComponents)
-			{
-				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
-				{
-					if (SceneComp->ComponentHasTag(CameraAttachComponentTag))
-					{
-						return SceneComp;
-					}
-				}
 			}
 		}
 	}

@@ -43,7 +43,16 @@ enum class ESuspenseCoreCameraAttachMode : uint8
 	/** Attach to CameraBoom - stable FPS, no head bob */
 	CameraBoom		UMETA(DisplayName = "Camera Boom (Stable)"),
 
-	/** Attach to component found by tag - for MetaHuman Body "head" bone */
+	/** Attach to MetaHuman Face component by name */
+	MetaHumanFace	UMETA(DisplayName = "MetaHuman Face"),
+
+	/** Attach to MetaHuman Body SkeletalMesh by name */
+	MetaHumanBody	UMETA(DisplayName = "MetaHuman Body"),
+
+	/** Attach to component found by name */
+	ComponentByName	UMETA(DisplayName = "Component By Name"),
+
+	/** Attach to component found by tag */
 	ComponentByTag	UMETA(DisplayName = "Component By Tag"),
 
 	/** Attach to Mesh1P (legacy first person arms) */
@@ -262,15 +271,26 @@ protected:
 	/**
 	 * Camera attachment mode:
 	 * - CameraBoom: Stable FPS, no head bob (default)
-	 * - ComponentByTag: Attach to component with specified tag (e.g., MetaHuman Body)
+	 * - MetaHumanFace: Auto-find MetaHuman Face component and attach to "head" bone
+	 * - MetaHumanBody: Auto-find MetaHuman Body SkeletalMesh and attach to "head" bone
+	 * - ComponentByName: Search component by name (CameraAttachComponentName)
+	 * - ComponentByTag: Search component by tag (CameraAttachComponentTag)
 	 * - Mesh1P: Legacy attachment to first person arms mesh
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
 	ESuspenseCoreCameraAttachMode CameraAttachMode = ESuspenseCoreCameraAttachMode::CameraBoom;
 
 	/**
+	 * Component name to search for when CameraAttachMode is ComponentByName.
+	 * For MetaHuman, typical names: "Face", "Body", "SkeletalMesh"
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+		meta = (EditCondition = "CameraAttachMode == ESuspenseCoreCameraAttachMode::ComponentByName"))
+	FName CameraAttachComponentName = FName("Face");
+
+	/**
 	 * Component tag to search for when CameraAttachMode is ComponentByTag.
-	 * Add this tag to your MetaHuman Body SkeletalMesh component in Blueprint.
+	 * Add this tag to your component in Blueprint.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
 		meta = (EditCondition = "CameraAttachMode == ESuspenseCoreCameraAttachMode::ComponentByTag"))
@@ -278,7 +298,7 @@ protected:
 
 	/**
 	 * Socket/bone name to attach camera to on the target component.
-	 * For MetaHuman Body, use "head" bone.
+	 * For MetaHuman, use "head" bone.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
 		meta = (EditCondition = "CameraAttachMode != ESuspenseCoreCameraAttachMode::CameraBoom"))
@@ -414,8 +434,17 @@ protected:
 	void ApplyCameraLagSettings();
 	void ApplyCinematicCameraSettings();
 
+	/** Find MetaHuman Face component (searches by name "Face") */
+	USceneComponent* FindMetaHumanFaceComponent() const;
+
+	/** Find MetaHuman Body SkeletalMesh component */
+	USceneComponent* FindMetaHumanBodyComponent() const;
+
+	/** Find component by name for camera attachment */
+	USceneComponent* FindComponentByName(FName ComponentName) const;
+
 	/** Find component by tag for camera attachment */
-	USceneComponent* FindCameraAttachComponent() const;
+	USceneComponent* FindComponentByTag(FName Tag) const;
 
 	void PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload = TEXT(""));
 	void PublishCameraEvent(const FGameplayTag& EventTag, float Value = 0.0f);

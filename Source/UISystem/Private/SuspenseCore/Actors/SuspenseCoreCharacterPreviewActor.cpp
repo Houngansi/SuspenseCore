@@ -66,14 +66,23 @@ void ASuspenseCoreCharacterPreviewActor::BeginPlay()
 		SetupEventSubscriptions();
 	}
 
+	// Initialize CurrentYaw from actor's actual rotation
+	// This is critical for bSpawnsPreviewActor=false mode where the actor IS the preview
+	// Without this, first rotation would reset to 0 instead of using placed rotation
+	if (!bSpawnsPreviewActor)
+	{
+		CurrentYaw = GetActorRotation().Yaw;
+		UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] Initialized CurrentYaw from actor rotation: %.1f"), CurrentYaw);
+	}
+
 	// Apply default class if set (only if we spawn actors)
 	if (bSpawnsPreviewActor && DefaultClassData)
 	{
 		SetCharacterClass(DefaultClassData);
 	}
 
-	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview (SpawnsActor: %s)"),
-		bSpawnsPreviewActor ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview (SpawnsActor: %s, CurrentYaw: %.1f)"),
+		bSpawnsPreviewActor ? TEXT("true") : TEXT("false"), CurrentYaw);
 }
 
 void ASuspenseCoreCharacterPreviewActor::EndPlay(const EEndPlayReason::Type EndPlayReason)

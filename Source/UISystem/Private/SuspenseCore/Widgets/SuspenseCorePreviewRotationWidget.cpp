@@ -71,6 +71,19 @@ void USuspenseCorePreviewRotationWidget::NativeConstruct()
 				}
 			}
 		}
+
+		// Sync AccumulatedYaw with preview actor's current rotation
+		// This prevents first-click rotation from resetting to 0
+		if (CachedPreviewActor.IsValid())
+		{
+			AccumulatedYaw = CachedPreviewActor->GetPreviewRotation();
+			UE_LOG(LogSuspenseCorePreviewRotation, Log, TEXT("[PreviewRotationWidget] Synced AccumulatedYaw from preview actor: %.1f"), AccumulatedYaw);
+		}
+		else if (CachedGenericActor.IsValid())
+		{
+			AccumulatedYaw = CachedGenericActor->GetActorRotation().Yaw;
+			UE_LOG(LogSuspenseCorePreviewRotation, Log, TEXT("[PreviewRotationWidget] Synced AccumulatedYaw from generic actor: %.1f"), AccumulatedYaw);
+		}
 	}
 
 	GetEventBus();
@@ -166,6 +179,12 @@ void USuspenseCorePreviewRotationWidget::NativeOnMouseLeave(const FPointerEvent&
 void USuspenseCorePreviewRotationWidget::SetPreviewActor(ASuspenseCoreCharacterPreviewActor* InPreviewActor)
 {
 	CachedPreviewActor = InPreviewActor;
+
+	// Sync AccumulatedYaw with preview actor's current rotation
+	if (CachedPreviewActor.IsValid())
+	{
+		AccumulatedYaw = CachedPreviewActor->GetPreviewRotation();
+	}
 }
 
 void USuspenseCorePreviewRotationWidget::ResetRotation()

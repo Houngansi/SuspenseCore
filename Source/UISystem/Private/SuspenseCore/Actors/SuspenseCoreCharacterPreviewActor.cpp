@@ -84,6 +84,10 @@ void ASuspenseCoreCharacterPreviewActor::SetCharacterClass(USuspenseCoreCharacte
 
 void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)
 {
+	UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] RotatePreview called with DeltaYaw: %.2f"), DeltaYaw);
+	UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] SpawnedPreviewActor: %s"),
+		SpawnedPreviewActor ? *SpawnedPreviewActor->GetName() : TEXT("NULL"));
+
 	CurrentYaw += DeltaYaw * RotationSpeed;
 	CurrentYaw = FMath::Fmod(CurrentYaw, 360.0f);
 
@@ -92,6 +96,11 @@ void ASuspenseCoreCharacterPreviewActor::RotatePreview(float DeltaYaw)
 		FRotator NewRotation = SpawnedPreviewActor->GetActorRotation();
 		NewRotation.Yaw = CurrentYaw;
 		SpawnedPreviewActor->SetActorRotation(NewRotation);
+		UE_LOG(LogSuspenseCorePreview, Warning, TEXT("[CharacterPreviewActor] New rotation: Yaw=%.2f"), CurrentYaw);
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCorePreview, Error, TEXT("[CharacterPreviewActor] Cannot rotate - SpawnedPreviewActor is NULL!"));
 	}
 }
 

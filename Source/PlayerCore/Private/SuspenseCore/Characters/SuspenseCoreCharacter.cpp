@@ -36,7 +36,7 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	GetMesh()->bCastStaticShadow = false;
 	GetMesh()->bCastHiddenShadow = true;
 
-	// First person mesh (arms) - directly attached to the main mesh (matching legacy)
+	// First person mesh (arms) - directly attached to the main mesh (optional for MetaHuman)
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh1P"));
 	Mesh1P->SetupAttachment(GetMesh());
 	Mesh1P->SetOnlyOwnerSee(true);
@@ -46,11 +46,23 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));
 	Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
-	// Create cinematic camera attached to first person mesh "head" bone
+	// Camera boom for optional camera lag/smoothing (attached to capsule)
+	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(GetCapsuleComponent());
+	CameraBoom->TargetArmLength = 0.0f;
+	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bDoCollisionTest = false;
+	CameraBoom->bEnableCameraLag = bEnableCameraLag;
+	CameraBoom->CameraLagSpeed = CameraLagSpeed;
+	CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;
+	CameraBoom->bEnableCameraRotationLag = bEnableCameraRotationLag;
+	CameraBoom->CameraRotationLagSpeed = CameraRotationLagSpeed;
+
+	// Create cinematic camera - attached to CameraBoom by default (stable FPS)
+	// Attachment can be changed in BeginPlay based on CameraAttachMode
 	Camera = CreateDefaultSubobject<UCineCameraComponent>(TEXT("FirstPersonCamera"));
-	Camera->SetupAttachment(Mesh1P, FName("head"));
-	Camera->SetRelativeLocationAndRotation(FVector(-2.8f, 5.89f, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
-	Camera->bUsePawnControlRotation = true;
+	Camera->SetupAttachment(CameraBoom);
+	Camera->bUsePawnControlRotation = false; // CameraBoom handles rotation
 
 	// Configure cinematic camera settings
 	Camera->SetFieldOfView(CinematicFieldOfView);
@@ -85,18 +97,6 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	// Initialize focus distance
 	Camera->CurrentFocusDistance = ManualFocusDistance;
 
-	// Camera boom for optional camera lag/smoothing (attached to capsule)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetCapsuleComponent());
-	CameraBoom->TargetArmLength = 0.0f;
-	CameraBoom->bUsePawnControlRotation = true;
-	CameraBoom->bDoCollisionTest = false;
-	CameraBoom->bEnableCameraLag = bEnableCameraLag;
-	CameraBoom->CameraLagSpeed = CameraLagSpeed;
-	CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;
-	CameraBoom->bEnableCameraRotationLag = bEnableCameraRotationLag;
-	CameraBoom->CameraRotationLagSpeed = CameraRotationLagSpeed;
-
 	// Movement settings
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{
@@ -124,6 +124,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	UpdateMovementSpeed();
+
+	// Setup camera attachment based on mode (MetaHuman support)
+	SetupCameraAttachment();
 
 	// Setup camera settings
 	SetupCameraSettings();
@@ -533,6 +536,107 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 // ═══════════════════════════════════════════════════════════════════════════════
 // CAMERA SETTINGS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::SetupCameraAttachment()
+{
+	if (!Camera)
+	{
+		return;
+	}
+
+	switch (CameraAttachMode)
+	{
+	case ESuspenseCoreCameraAttachMode::CameraBoom:
+		// Already attached to CameraBoom in constructor - ensure settings
+		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		Camera->SetRelativeLocation(FVector::ZeroVector);
+		Camera->SetRelativeRotation(FRotator::ZeroRotator);
+		Camera->bUsePawnControlRotation = false; // CameraBoom handles rotation
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to CameraBoom (stable FPS mode)"));
+		break;
+
+	case ESuspenseCoreCameraAttachMode::ComponentByTag:
+		{
+			USceneComponent* AttachComponent = FindCameraAttachComponent();
+			if (AttachComponent)
+			{
+				// Attach to found component's socket
+				Camera->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, CameraAttachSocketName);
+				Camera->SetRelativeLocation(CameraAttachOffset);
+				Camera->SetRelativeRotation(CameraAttachRotation);
+				Camera->bUsePawnControlRotation = true;
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to component '%s' socket '%s'"),
+					*AttachComponent->GetName(), *CameraAttachSocketName.ToString());
+			}
+			else
+			{
+				// Fallback to CameraBoom if component not found
+				UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Camera attach component with tag '%s' not found, falling back to CameraBoom"),
+					*CameraAttachComponentTag.ToString());
+				Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+				Camera->bUsePawnControlRotation = false;
+			}
+		}
+		break;
+
+	case ESuspenseCoreCameraAttachMode::Mesh1P:
+		// Legacy attachment to first person arms mesh
+		if (Mesh1P)
+		{
+			Camera->AttachToComponent(Mesh1P, FAttachmentTransformRules::SnapToTargetNotIncludingScale, CameraAttachSocketName);
+			Camera->SetRelativeLocation(CameraAttachOffset);
+			Camera->SetRelativeRotation(CameraAttachRotation);
+			Camera->bUsePawnControlRotation = true;
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to Mesh1P socket '%s'"),
+				*CameraAttachSocketName.ToString());
+		}
+		break;
+	}
+}
+
+USceneComponent* ASuspenseCoreCharacter::FindCameraAttachComponent() const
+{
+	// Search for component with matching tag
+	TArray<UActorComponent*> Components;
+	GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+		{
+			if (SceneComp->ComponentHasTag(CameraAttachComponentTag))
+			{
+				return SceneComp;
+			}
+		}
+	}
+
+	// Also check child actors (MetaHuman components might be in child actors)
+	TArray<AActor*> ChildActors;
+	GetAllChildActors(ChildActors, true);
+
+	for (AActor* ChildActor : ChildActors)
+	{
+		if (ChildActor)
+		{
+			TArray<UActorComponent*> ChildComponents;
+			ChildActor->GetComponents(ChildComponents);
+
+			for (UActorComponent* Component : ChildComponents)
+			{
+				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+				{
+					if (SceneComp->ComponentHasTag(CameraAttachComponentTag))
+					{
+						return SceneComp;
+					}
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
 
 void ASuspenseCoreCharacter::SetupCameraSettings()
 {

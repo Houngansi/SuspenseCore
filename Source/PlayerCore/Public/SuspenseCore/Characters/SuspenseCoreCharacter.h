@@ -34,6 +34,23 @@ enum class ESuspenseCoreMovementState : uint8
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CAMERA ATTACHMENT MODE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+UENUM(BlueprintType)
+enum class ESuspenseCoreCameraAttachMode : uint8
+{
+	/** Attach to CameraBoom - stable FPS, no head bob */
+	CameraBoom		UMETA(DisplayName = "Camera Boom (Stable)"),
+
+	/** Attach to component found by tag - for MetaHuman Body "head" bone */
+	ComponentByTag	UMETA(DisplayName = "Component By Tag"),
+
+	/** Attach to Mesh1P (legacy first person arms) */
+	Mesh1P			UMETA(DisplayName = "Mesh1P (Legacy)")
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CHARACTER
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -239,6 +256,48 @@ protected:
 	float AnimationInterpSpeed = 10.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// CONFIGURATION - CAMERA ATTACHMENT (MetaHuman Support)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Camera attachment mode:
+	 * - CameraBoom: Stable FPS, no head bob (default)
+	 * - ComponentByTag: Attach to component with specified tag (e.g., MetaHuman Body)
+	 * - Mesh1P: Legacy attachment to first person arms mesh
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	ESuspenseCoreCameraAttachMode CameraAttachMode = ESuspenseCoreCameraAttachMode::CameraBoom;
+
+	/**
+	 * Component tag to search for when CameraAttachMode is ComponentByTag.
+	 * Add this tag to your MetaHuman Body SkeletalMesh component in Blueprint.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+		meta = (EditCondition = "CameraAttachMode == ESuspenseCoreCameraAttachMode::ComponentByTag"))
+	FName CameraAttachComponentTag = FName("CameraAttach");
+
+	/**
+	 * Socket/bone name to attach camera to on the target component.
+	 * For MetaHuman Body, use "head" bone.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+		meta = (EditCondition = "CameraAttachMode != ESuspenseCoreCameraAttachMode::CameraBoom"))
+	FName CameraAttachSocketName = FName("head");
+
+	/**
+	 * Camera offset from attachment point.
+	 * Adjust for proper eye-level positioning.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	FVector CameraAttachOffset = FVector(-2.8f, 5.89f, 0.0f);
+
+	/**
+	 * Camera rotation offset from attachment point.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	FRotator CameraAttachRotation = FRotator(0.0f, 90.0f, -90.0f);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - CAMERA LAG
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -351,8 +410,12 @@ protected:
 	void UpdateMovementSpeed();
 
 	void SetupCameraSettings();
+	void SetupCameraAttachment();
 	void ApplyCameraLagSettings();
 	void ApplyCinematicCameraSettings();
+
+	/** Find component by tag for camera attachment */
+	USceneComponent* FindCameraAttachComponent() const;
 
 	void PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload = TEXT(""));
 	void PublishCameraEvent(const FGameplayTag& EventTag, float Value = 0.0f);

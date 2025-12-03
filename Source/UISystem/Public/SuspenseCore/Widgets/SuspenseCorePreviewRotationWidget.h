@@ -77,6 +77,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
 	bool bAutoFindPreviewActor = true;
 
+	/** Actor name to search for (partial match). Used if auto-find by class fails. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
+	FString PreviewActorNamePattern = TEXT("Preview");
+
+	/** Actor tag to search for. Used if auto-find by class and name fails. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
+	FName PreviewActorTag = FName("PreviewActor");
+
 	/** Enable rotation input */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Preview Rotation")
 	bool bRotationEnabled = true;
@@ -164,6 +172,10 @@ protected:
 	UPROPERTY()
 	TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor> CachedPreviewActor;
 
+	/** Cached generic actor for rotation (fallback if not SuspenseCoreCharacterPreviewActor) */
+	UPROPERTY()
+	TWeakObjectPtr<AActor> CachedGenericActor;
+
 	/** Cached EventBus */
 	UPROPERTY()
 	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
@@ -175,8 +187,14 @@ protected:
 	/** Setup hit test area bindings */
 	void SetupHitTestArea();
 
-	/** Find preview actor in the world */
+	/** Find preview actor in the world (by class, name, or tag) */
 	ASuspenseCoreCharacterPreviewActor* FindPreviewActorInWorld();
+
+	/** Find any actor by name pattern (fallback if class search fails) */
+	AActor* FindActorByNamePattern(const FString& Pattern);
+
+	/** Find any actor by tag (fallback) */
+	AActor* FindActorByTag(FName Tag);
 
 	/** Get EventBus from EventManager */
 	USuspenseCoreEventBus* GetEventBus();

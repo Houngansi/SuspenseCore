@@ -11,7 +11,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Camera/CameraComponent.h"
+#include "CineCameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -36,18 +36,6 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	GetMesh()->bCastStaticShadow = false;
 	GetMesh()->bCastHiddenShadow = true;
 
-	// Camera boom (attached to capsule, not mesh)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetCapsuleComponent());
-	CameraBoom->TargetArmLength = 0.0f;
-	CameraBoom->bUsePawnControlRotation = true;
-	CameraBoom->bDoCollisionTest = false;
-
-	// Camera
-	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	CameraComponent->SetupAttachment(CameraBoom);
-	CameraComponent->bUsePawnControlRotation = false;
-
 	// First person mesh (arms) - directly attached to the main mesh (matching legacy)
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh1P"));
 	Mesh1P->SetupAttachment(GetMesh());
@@ -57,6 +45,57 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	Mesh1P->SetCollisionProfileName(FName("NoCollision"));
 	Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));
 	Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+
+	// Create cinematic camera attached to first person mesh "head" bone
+	Camera = CreateDefaultSubobject<UCineCameraComponent>(TEXT("FirstPersonCamera"));
+	Camera->SetupAttachment(Mesh1P, FName("head"));
+	Camera->SetRelativeLocationAndRotation(FVector(-2.8f, 5.89f, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
+	Camera->bUsePawnControlRotation = true;
+
+	// Configure cinematic camera settings
+	Camera->SetFieldOfView(CinematicFieldOfView);
+	Camera->SetCurrentFocalLength(CurrentFocalLength);
+	Camera->SetCurrentAperture(CurrentAperture);
+
+	// Setup lens settings
+	Camera->LensSettings.MaxFocalLength = 1000.0f;
+	Camera->LensSettings.MinFocalLength = 4.0f;
+	Camera->LensSettings.MaxFStop = 32.0f;
+	Camera->LensSettings.MinFStop = 0.7f;
+	Camera->LensSettings.DiaphragmBladeCount = DiaphragmBladeCount;
+
+	// Configure depth of field
+	Camera->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
+	Camera->FocusSettings.ManualFocusDistance = ManualFocusDistance;
+	Camera->FocusSettings.bDrawDebugFocusPlane = false;
+	Camera->FocusSettings.bSmoothFocusChanges = bSmoothFocusChanges;
+	Camera->FocusSettings.FocusSmoothingInterpSpeed = FocusSmoothingSpeed;
+
+	// Filmback settings for sensor size (affects FOV and DOF)
+	Camera->Filmback.SensorWidth = SensorWidth;
+	Camera->Filmback.SensorHeight = SensorHeight;
+	Camera->Filmback.SensorAspectRatio = SensorWidth / SensorHeight;
+
+	// Post process settings for FPS games
+	Camera->PostProcessSettings.bOverride_MotionBlurAmount = true;
+	Camera->PostProcessSettings.MotionBlurAmount = 0.1f;
+	Camera->PostProcessSettings.bOverride_SceneFringeIntensity = true;
+	Camera->PostProcessSettings.SceneFringeIntensity = 0.0f;
+
+	// Initialize focus distance
+	Camera->CurrentFocusDistance = ManualFocusDistance;
+
+	// Camera boom for optional camera lag/smoothing (attached to capsule)
+	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(GetCapsuleComponent());
+	CameraBoom->TargetArmLength = 0.0f;
+	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bDoCollisionTest = false;
+	CameraBoom->bEnableCameraLag = bEnableCameraLag;
+	CameraBoom->CameraLagSpeed = CameraLagSpeed;
+	CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;
+	CameraBoom->bEnableCameraRotationLag = bEnableCameraRotationLag;
+	CameraBoom->CameraRotationLagSpeed = CameraRotationLagSpeed;
 
 	// Movement settings
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
@@ -85,6 +124,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	UpdateMovementSpeed();
+
+	// Setup camera settings
+	SetupCameraSettings();
 
 	// Load character class from subsystem (selected in menu)
 	LoadCharacterClassFromSubsystem();
@@ -486,4 +528,210 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CAMERA SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::SetupCameraSettings()
+{
+	ApplyCameraLagSettings();
+	ApplyCinematicCameraSettings();
+}
+
+void ASuspenseCoreCharacter::ApplyCameraLagSettings()
+{
+	if (CameraBoom)
+	{
+		CameraBoom->bEnableCameraLag = bEnableCameraLag;
+		CameraBoom->CameraLagSpeed = CameraLagSpeed;
+		CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;
+		CameraBoom->bEnableCameraRotationLag = bEnableCameraRotationLag;
+		CameraBoom->CameraRotationLagSpeed = CameraRotationLagSpeed;
+	}
+}
+
+void ASuspenseCoreCharacter::ApplyCinematicCameraSettings()
+{
+	if (Camera)
+	{
+		// Apply DOF settings via post process
+		Camera->PostProcessSettings.bOverride_DepthOfFieldFstop = bEnableDepthOfField;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = bEnableDepthOfField;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurAmount = bEnableDepthOfField;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurRadius = bEnableDepthOfField;
+
+		if (bEnableDepthOfField)
+		{
+			Camera->PostProcessSettings.DepthOfFieldFstop = CurrentAperture;
+			Camera->PostProcessSettings.DepthOfFieldFocalDistance = ManualFocusDistance;
+		}
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CINEMATIC CAMERA CONTROL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::SetCameraFOV(float NewFOV)
+{
+	if (Camera)
+	{
+		float ClampedFOV = FMath::Clamp(NewFOV, 5.0f, 170.0f);
+		Camera->SetFieldOfView(ClampedFOV);
+
+		PublishCameraEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.FOVChanged")),
+			ClampedFOV
+		);
+	}
+}
+
+void ASuspenseCoreCharacter::SetCameraFocalLength(float NewFocalLength)
+{
+	if (Camera)
+	{
+		float ClampedFocalLength = FMath::Clamp(NewFocalLength,
+			Camera->LensSettings.MinFocalLength,
+			Camera->LensSettings.MaxFocalLength);
+
+		Camera->SetCurrentFocalLength(ClampedFocalLength);
+		CurrentFocalLength = ClampedFocalLength;
+
+		PublishCameraEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.FocalLengthChanged")),
+			ClampedFocalLength
+		);
+	}
+}
+
+void ASuspenseCoreCharacter::SetCameraAperture(float NewAperture)
+{
+	if (Camera)
+	{
+		float ClampedAperture = FMath::Clamp(NewAperture,
+			Camera->LensSettings.MinFStop,
+			Camera->LensSettings.MaxFStop);
+
+		Camera->SetCurrentAperture(ClampedAperture);
+
+		if (bEnableDepthOfField)
+		{
+			Camera->PostProcessSettings.DepthOfFieldFstop = ClampedAperture;
+		}
+
+		CurrentAperture = ClampedAperture;
+
+		PublishCameraEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.ApertureChanged")),
+			ClampedAperture
+		);
+	}
+}
+
+void ASuspenseCoreCharacter::SetDepthOfFieldEnabled(bool bEnabled)
+{
+	if (Camera)
+	{
+		bEnableDepthOfField = bEnabled;
+
+		Camera->PostProcessSettings.bOverride_DepthOfFieldFstop = bEnabled;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = bEnabled;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurAmount = bEnabled;
+		Camera->PostProcessSettings.bOverride_DepthOfFieldDepthBlurRadius = bEnabled;
+
+		if (bEnabled)
+		{
+			Camera->PostProcessSettings.DepthOfFieldFstop = CurrentAperture;
+			Camera->PostProcessSettings.DepthOfFieldFocalDistance = ManualFocusDistance;
+		}
+
+		PublishCameraEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.DOFChanged")),
+			bEnabled ? 1.0f : 0.0f
+		);
+	}
+}
+
+void ASuspenseCoreCharacter::SetCameraFocusDistance(float Distance)
+{
+	if (Camera)
+	{
+		ManualFocusDistance = Distance;
+		Camera->FocusSettings.ManualFocusDistance = Distance;
+		Camera->PostProcessSettings.DepthOfFieldFocalDistance = Distance;
+
+		PublishCameraEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.FocusDistanceChanged")),
+			Distance
+		);
+	}
+}
+
+void ASuspenseCoreCharacter::ApplyCinematicPreset(bool bEnableDOF, float Aperture, float FocusDistance)
+{
+	SetDepthOfFieldEnabled(bEnableDOF);
+	SetCameraAperture(Aperture);
+	SetCameraFocusDistance(FocusDistance);
+
+	if (Camera && bEnableDOF)
+	{
+		// Enhanced cinematic settings
+		Camera->PostProcessSettings.bOverride_MotionBlurAmount = true;
+		Camera->PostProcessSettings.MotionBlurAmount = 0.5f;
+
+		Camera->PostProcessSettings.bOverride_VignetteIntensity = true;
+		Camera->PostProcessSettings.VignetteIntensity = 0.4f;
+	}
+
+	PublishCharacterEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.PresetApplied")),
+		FString::Printf(TEXT("{\"dof\":%s,\"aperture\":%.2f,\"focus\":%.2f}"),
+			bEnableDOF ? TEXT("true") : TEXT("false"), Aperture, FocusDistance)
+	);
+}
+
+void ASuspenseCoreCharacter::ResetCameraToDefaults()
+{
+	if (Camera)
+	{
+		// Reset FOV
+		Camera->SetFieldOfView(CinematicFieldOfView);
+
+		// Reset focal length and aperture
+		Camera->SetCurrentFocalLength(35.0f);
+		Camera->SetCurrentAperture(2.8f);
+		CurrentFocalLength = 35.0f;
+		CurrentAperture = 2.8f;
+
+		// Reset focus settings
+		ManualFocusDistance = 1000.0f;
+		Camera->FocusSettings.ManualFocusDistance = ManualFocusDistance;
+
+		// Disable DOF
+		SetDepthOfFieldEnabled(false);
+
+		// Reset post process
+		Camera->PostProcessSettings.bOverride_MotionBlurAmount = true;
+		Camera->PostProcessSettings.MotionBlurAmount = 0.1f;
+		Camera->PostProcessSettings.bOverride_VignetteIntensity = false;
+		Camera->PostProcessSettings.bOverride_SceneFringeIntensity = true;
+		Camera->PostProcessSettings.SceneFringeIntensity = 0.0f;
+	}
+
+	PublishCharacterEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.Reset")),
+		TEXT("{}")
+	);
+}
+
+void ASuspenseCoreCharacter::PublishCameraEvent(const FGameplayTag& EventTag, float Value)
+{
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCoreCharacter*>(this));
+		EventData.SetFloat(FName("Value"), Value);
+		EventBus->Publish(EventTag, EventData);
+	}
 }

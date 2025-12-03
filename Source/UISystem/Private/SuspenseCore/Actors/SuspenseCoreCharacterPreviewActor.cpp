@@ -12,6 +12,9 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCorePreview, Log, All);
 
+// Static map to track active preview actors by ID (prevents duplicates)
+static TMap<FName, TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor>> ActivePreviewActors;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -35,23 +38,61 @@ void ASuspenseCoreCharacterPreviewActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Check for duplicate preview actors with same ID
+	if (!PreviewActorId.IsNone())
+	{
+		if (TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor>* ExistingActor = ActivePreviewActors.Find(PreviewActorId))
+		{
+			if (ExistingActor->IsValid() && ExistingActor->Get() != this)
+			{
+				UE_LOG(LogSuspenseCorePreview, Warning,
+					TEXT("[CharacterPreviewActor] Duplicate preview actor with ID '%s' detected! Disabling this instance: %s"),
+					*PreviewActorId.ToString(), *GetName());
+				// Don't setup subscriptions or spawn for this duplicate
+				return;
+			}
+		}
+
+		// Register this actor as active
+		ActivePreviewActors.Add(PreviewActorId, this);
+		UE_LOG(LogSuspenseCorePreview, Log,
+			TEXT("[CharacterPreviewActor] Registered preview actor with ID '%s': %s"),
+			*PreviewActorId.ToString(), *GetName());
+	}
+
 	// Subscribe to EventBus events
 	if (bAutoSubscribeToEvents)
 	{
 		SetupEventSubscriptions();
 	}
 
-	// Apply default class if set
-	if (DefaultClassData)
+	// Apply default class if set (only if we spawn actors)
+	if (bSpawnsPreviewActor && DefaultClassData)
 	{
 		SetCharacterClass(DefaultClassData);
 	}
 
-	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview"));
+	UE_LOG(LogSuspenseCorePreview, Log, TEXT("[CharacterPreviewActor] BeginPlay - Ready for character preview (SpawnsActor: %s)"),
+		bSpawnsPreviewActor ? TEXT("true") : TEXT("false"));
 }
 
 void ASuspenseCoreCharacterPreviewActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// Unregister from active preview actors
+	if (!PreviewActorId.IsNone())
+	{
+		if (TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor>* ExistingActor = ActivePreviewActors.Find(PreviewActorId))
+		{
+			if (ExistingActor->Get() == this)
+			{
+				ActivePreviewActors.Remove(PreviewActorId);
+				UE_LOG(LogSuspenseCorePreview, Log,
+					TEXT("[CharacterPreviewActor] Unregistered preview actor with ID '%s'"),
+					*PreviewActorId.ToString());
+			}
+		}
+	}
+
 	TeardownEventSubscriptions();
 	DestroyPreviewActor();
 
@@ -126,6 +167,14 @@ void ASuspenseCoreCharacterPreviewActor::SpawnPreviewActor(USuspenseCoreCharacte
 {
 	if (!ClassData)
 	{
+		return;
+	}
+
+	// If bSpawnsPreviewActor is false, this actor doesn't spawn - it IS the preview
+	if (!bSpawnsPreviewActor)
+	{
+		UE_LOG(LogSuspenseCorePreview, Verbose,
+			TEXT("[CharacterPreviewActor] Skipping spawn - bSpawnsPreviewActor is false (this actor IS the preview)"));
 		return;
 	}
 

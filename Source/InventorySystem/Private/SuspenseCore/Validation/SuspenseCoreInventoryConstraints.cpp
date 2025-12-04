@@ -350,8 +350,7 @@ int32 USuspenseCoreInventoryConstraints::GetMaxAddableQuantity(
 	if (Rules.MaxTotalQuantity > 0)
 	{
 		int32 CurrentTotal = 0;
-		TArray<FSuspenseCoreItemInstance> Items;
-		Inventory->Execute_GetAllItems(Inventory, Items);
+		TArray<FSuspenseCoreItemInstance> Items = Inventory->GetAllItemInstances();
 		for (const FSuspenseCoreItemInstance& Item : Items)
 		{
 			CurrentTotal += Item.Quantity;
@@ -608,8 +607,7 @@ bool USuspenseCoreInventoryConstraints::ValidateQuantityLimits(
 	// Check max unique items
 	if (Rules.MaxUniqueItems > 0)
 	{
-		TArray<FSuspenseCoreItemInstance> CurrentItems;
-		Inventory->Execute_GetAllItems(Inventory, CurrentItems);
+		TArray<FSuspenseCoreItemInstance> CurrentItems = Inventory->GetAllItemInstances();
 
 		TSet<FName> UniqueItemIDs;
 		for (const FSuspenseCoreItemInstance& CurrentItem : CurrentItems)
@@ -634,8 +632,7 @@ bool USuspenseCoreInventoryConstraints::ValidateQuantityLimits(
 	// Check max total quantity
 	if (Rules.MaxTotalQuantity > 0)
 	{
-		TArray<FSuspenseCoreItemInstance> CurrentItems;
-		Inventory->Execute_GetAllItems(Inventory, CurrentItems);
+		TArray<FSuspenseCoreItemInstance> CurrentItems = Inventory->GetAllItemInstances();
 
 		int32 TotalQuantity = Item.Quantity;
 		for (const FSuspenseCoreItemInstance& CurrentItem : CurrentItems)

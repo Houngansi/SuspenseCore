@@ -9,6 +9,7 @@
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+#include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
 #include "SuspenseCoreInventoryComponent.generated.h"
 
 // Forward declarations
@@ -16,9 +17,6 @@ class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
 class USuspenseCoreInventoryStorage;
 class USuspenseCoreInventoryValidator;
-
-// Log category
-INVENTORYSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreInventory, Log, All);
 
 /**
  * USuspenseCoreInventoryComponent
@@ -165,11 +163,11 @@ public:
 
 	/** Get grid width */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
-	int32 GetGridWidth() const { return Config.GridSize.X; }
+	int32 GetGridWidth() const { return Config.GridWidth; }
 
 	/** Get grid height */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
-	int32 GetGridHeight() const { return Config.GridSize.Y; }
+	int32 GetGridHeight() const { return Config.GridHeight; }
 
 	/** Check if slot is empty */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")

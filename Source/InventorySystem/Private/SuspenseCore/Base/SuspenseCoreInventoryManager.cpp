@@ -613,7 +613,7 @@ void USuspenseCoreInventoryManager::BroadcastGlobalEvent(FGameplayTag EventTag, 
 		return;
 	}
 
-	USuspenseCoreEventBus* EventBus = EventMgr->GetGlobalEventBus();
+	USuspenseCoreEventBus* EventBus = EventMgr->GetEventBus();
 	if (EventBus)
 	{
 		EventBus->Publish(EventTag, Payload);

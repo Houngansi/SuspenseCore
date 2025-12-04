@@ -6,8 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interfaces/Interaction/ISuspensePickup.h"
-#include "Interfaces/Interaction/ISuspenseInteract.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreInteractable.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCorePickup.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
@@ -22,6 +22,7 @@ class UDataTable;
 class USuspenseCoreEventBus;
 class UNiagaraComponent;
 class UAudioComponent;
+class APlayerController;
 
 /**
  * FSuspenseCorePresetProperty
@@ -84,8 +85,8 @@ struct FSuspenseCorePresetProperty
 UCLASS(Blueprintable)
 class INTERACTIONSYSTEM_API ASuspenseCorePickupItem
 	: public AActor
-	, public ISuspenseInteract
-	, public ISuspensePickup
+	, public ISuspenseCoreInteractable
+	, public ISuspenseCorePickup
 	, public ISuspenseCoreEventEmitter
 {
 	GENERATED_BODY()
@@ -110,38 +111,48 @@ public:
 	virtual USuspenseCoreEventBus* GetEventBus() const override;
 
 	//==================================================================
-	// ISuspenseInteract Interface
+	// ISuspenseCoreInteractable Interface
 	//==================================================================
 
 	virtual bool CanInteract_Implementation(APlayerController* InstigatingController) const override;
 	virtual bool Interact_Implementation(APlayerController* InstigatingController) override;
 	virtual FGameplayTag GetInteractionType_Implementation() const override;
-	virtual FText GetInteractionText_Implementation() const override;
+	virtual FText GetInteractionPrompt_Implementation() const override;
 	virtual int32 GetInteractionPriority_Implementation() const override;
 	virtual float GetInteractionDistance_Implementation() const override;
-	virtual void OnInteractionFocusGained_Implementation(APlayerController* InstigatingController) override;
-	virtual void OnInteractionFocusLost_Implementation(APlayerController* InstigatingController) override;
+	virtual void OnFocusGained_Implementation(APlayerController* InstigatingController) override;
+	virtual void OnFocusLost_Implementation(APlayerController* InstigatingController) override;
 
 	//==================================================================
-	// ISuspensePickup Interface
+	// ISuspenseCorePickup Interface
 	//==================================================================
 
 	virtual FName GetItemID_Implementation() const override;
 	virtual void SetItemID_Implementation(FName NewItemID) override;
-	virtual bool GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutItemData) const override;
-	virtual int32 GetItemAmount_Implementation() const override;
-	virtual void SetAmount_Implementation(int32 NewAmount) override;
-	virtual bool HasSavedAmmoState_Implementation() const override;
-	virtual bool GetSavedAmmoState_Implementation(float& OutCurrentAmmo, float& OutRemainingAmmo) const override;
-	virtual void SetSavedAmmoState_Implementation(float CurrentAmmo, float RemainingAmmo) override;
-	virtual bool HandlePickedUp_Implementation(AActor* InstigatorActor) override;
-	virtual bool CanBePickedUpBy_Implementation(AActor* InstigatorActor) const override;
+	virtual int32 GetQuantity_Implementation() const override;
+	virtual void SetQuantity_Implementation(int32 NewQuantity) override;
+	virtual bool CanPickup_Implementation(AActor* InstigatorActor) const override;
+	virtual bool ExecutePickup_Implementation(AActor* InstigatorActor) override;
+	virtual bool CreateInventoryInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const override;
+	virtual bool HasAmmoState_Implementation() const override;
+	virtual bool GetAmmoState_Implementation(float& OutCurrentAmmo, float& OutReserveAmmo) const override;
+	virtual void SetAmmoState_Implementation(float CurrentAmmo, float ReserveAmmo) override;
 	virtual FGameplayTag GetItemType_Implementation() const override;
-	virtual bool CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const override;
 	virtual FGameplayTag GetItemRarity_Implementation() const override;
 	virtual FText GetDisplayName_Implementation() const override;
 	virtual bool IsStackable_Implementation() const override;
-	virtual float GetItemWeight_Implementation() const override;
+	virtual float GetWeight_Implementation() const override;
+
+	//==================================================================
+	// Legacy Compatibility (Temporary - for transition period)
+	//==================================================================
+
+	/** @deprecated Use GetQuantity instead */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup|Legacy", meta = (DeprecatedFunction, DeprecationMessage = "Use GetQuantity instead"))
+	int32 GetItemAmount() const { return GetQuantity_Implementation(); }
+
+	/** @deprecated Use CreateInventoryInstance instead */
+	bool GetUnifiedItemData(FSuspenseUnifiedItemData& OutItemData) const;
 
 	//==================================================================
 	// Component Access
@@ -417,6 +428,26 @@ protected:
 	//==================================================================
 	// EventBus Broadcasting
 	//==================================================================
+
+	/**
+	 * Broadcast interaction started event through EventBus.
+	 * @param InstigatingController Controller that started interaction
+	 */
+	void BroadcastInteractionStarted(APlayerController* InstigatingController);
+
+	/**
+	 * Broadcast interaction completed event through EventBus.
+	 * @param InstigatingController Controller that completed interaction
+	 * @param bSuccess Whether interaction was successful
+	 */
+	void BroadcastInteractionCompleted(APlayerController* InstigatingController, bool bSuccess);
+
+	/**
+	 * Broadcast focus changed event through EventBus.
+	 * @param InstigatingController Controller whose focus changed
+	 * @param bGainedFocus True if focus gained, false if lost
+	 */
+	void BroadcastFocusChanged(APlayerController* InstigatingController, bool bGainedFocus);
 
 	/** Broadcast pickup spawned event */
 	void BroadcastPickupSpawned();

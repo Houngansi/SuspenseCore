@@ -2,11 +2,11 @@
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Abilities/SuspenseCoreCharacterSprintAbility.h"
+#include "SuspenseCore/Abilities/Movement/SuspenseCoreCharacterSprintAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -26,8 +26,9 @@ USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = false;
 
-	// Ability tags
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Sprint")));
+	// Ability tags - use SetAssetTags for proper API
+	FGameplayTag SprintTag = FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Sprint"));
+	SetAssetTags(FGameplayTagContainer(SprintTag));
 
 	// Applied tag while sprinting
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Sprinting")));
@@ -68,16 +69,14 @@ bool USuspenseCoreCharacterSprintAbility::CanActivateAbility(
 		return false;
 	}
 
-	// Check stamina
+	// Check stamina via SuspenseCore AttributeSet
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (ASC && MinimumStaminaToSprint > 0.0f)
 	{
-		static FGameplayAttribute StaminaAttribute =
-			UAbilitySystemGlobals::Get().GetGameplayAttributeFromName(TEXT("Stamina"));
-
-		if (StaminaAttribute.IsValid())
+		const USuspenseCoreAttributeSet* Attributes = ASC->GetSet<USuspenseCoreAttributeSet>();
+		if (Attributes)
 		{
-			float CurrentStamina = ASC->GetNumericAttribute(StaminaAttribute);
+			float CurrentStamina = Attributes->GetStamina();
 			if (CurrentStamina < MinimumStaminaToSprint)
 			{
 				return false;
@@ -253,13 +252,11 @@ void USuspenseCoreCharacterSprintAbility::CheckStaminaDepletion()
 		return;
 	}
 
-	// Check stamina
-	static FGameplayAttribute StaminaAttribute =
-		UAbilitySystemGlobals::Get().GetGameplayAttributeFromName(TEXT("Stamina"));
-
-	if (StaminaAttribute.IsValid())
+	// Check stamina via SuspenseCore AttributeSet
+	const USuspenseCoreAttributeSet* Attributes = ASC->GetSet<USuspenseCoreAttributeSet>();
+	if (Attributes)
 	{
-		float CurrentStamina = ASC->GetNumericAttribute(StaminaAttribute);
+		float CurrentStamina = Attributes->GetStamina();
 		if (CurrentStamina <= StaminaExhaustionThreshold)
 		{
 			LogAbilityDebug(TEXT("Stamina depleted, ending sprint"));

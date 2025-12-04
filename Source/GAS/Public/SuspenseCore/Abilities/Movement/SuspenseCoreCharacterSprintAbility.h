@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Abilities/SuspenseCoreAbility.h"
+#include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "GameplayEffectTypes.h"
 #include "SuspenseCoreCharacterSprintAbility.generated.h"
 

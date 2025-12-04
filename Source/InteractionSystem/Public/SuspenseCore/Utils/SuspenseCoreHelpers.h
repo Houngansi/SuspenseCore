@@ -7,16 +7,13 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GameFramework/PlayerState.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCoreHelpers.generated.h"
 
 // Forward declarations
-class USuspenseItemManager;
 class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
-struct FSuspenseCoreItemData;
-struct FSuspenseInventoryItemInstance;
 
 // Log categories
 INTERACTIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreInteraction, Log, All);
@@ -100,7 +97,7 @@ public:
 	/**
 	 * Check if object implements inventory interface.
 	 * @param Object Object to check
-	 * @return true if object implements ISuspenseInventory
+	 * @return true if object is an inventory component
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Interaction")
 	static bool ImplementsInventoryInterface(UObject* Object);
@@ -130,7 +127,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Interaction")
 	static bool AddItemInstanceToInventory(
 		UObject* InventoryComponent,
-		const FSuspenseInventoryItemInstance& ItemInstance
+		const FSuspenseCoreItemInstance& ItemInstance
 	);
 
 	/**
@@ -147,24 +144,21 @@ public:
 
 	/**
 	 * Create item instance from ItemID.
-	 * @deprecated Uses legacy FSuspenseInventoryItemInstance. Will be replaced with SuspenseCore types.
-	 *
-	 * TODO: Replace with SuspenseCore native implementation using FSuspenseCoreItemInstance
+	 * Uses SuspenseCore DataManager for instance creation.
 	 *
 	 * @param WorldContextObject Any object with world context
 	 * @param ItemID Item identifier from DataTable
 	 * @param Quantity Amount for the instance
-	 * @param OutInstance Output item instance (LEGACY TYPE)
+	 * @param OutInstance Output item instance
 	 * @return true if instance created successfully
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Interaction",
-		meta = (WorldContext = "WorldContextObject", DeprecatedFunction,
-				DeprecationMessage = "Uses legacy types. Will be replaced with SuspenseCore native FSuspenseCoreItemInstance"))
+		meta = (WorldContext = "WorldContextObject"))
 	static bool CreateItemInstance(
 		const UObject* WorldContextObject,
 		FName ItemID,
 		int32 Quantity,
-		FSuspenseInventoryItemInstance& OutInstance
+		FSuspenseCoreItemInstance& OutInstance
 	);
 
 	//==================================================================
@@ -229,17 +223,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Subsystems",
 		meta = (WorldContext = "WorldContextObject", DisplayName = "Get Data Manager"))
 	static USuspenseCoreDataManager* GetDataManager(const UObject* WorldContextObject);
-
-	/**
-	 * Get ItemManager subsystem.
-	 * @deprecated Use GetDataManager() instead for SuspenseCore architecture.
-	 * @param WorldContextObject Any object with world context
-	 * @return ItemManager or nullptr (legacy bridge)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Subsystems",
-		meta = (WorldContext = "WorldContextObject", DeprecatedFunction,
-				DeprecationMessage = "Use GetDataManager() instead"))
-	static USuspenseItemManager* GetItemManager(const UObject* WorldContextObject);
 
 	//==================================================================
 	// Inventory Validation

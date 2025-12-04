@@ -710,9 +710,9 @@ bool ASuspenseCorePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
 	}
 
 	// Play collect VFX
-	if (bDataCached && !CachedItemData.Visuals.PickupCollectVFX.IsNull())
+	if (bDataCached && !CachedItemData.Visuals.PickupVFX.IsNull())
 	{
-		UNiagaraSystem* CollectVFX = CachedItemData.Visuals.PickupCollectVFX.LoadSynchronous();
+		UNiagaraSystem* CollectVFX = CachedItemData.Visuals.PickupVFX.LoadSynchronous();
 		if (CollectVFX)
 		{
 			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -811,12 +811,12 @@ void ASuspenseCorePickupItem::ApplyItemVFX()
 		return;
 	}
 
-	if (!CachedItemData.Visuals.PickupSpawnVFX.IsNull())
+	if (!CachedItemData.Visuals.SpawnVFX.IsNull())
 	{
-		UNiagaraSystem* SpawnVFX = CachedItemData.Visuals.PickupSpawnVFX.LoadSynchronous();
-		if (SpawnVFX)
+		UNiagaraSystem* SpawnEffect = CachedItemData.Visuals.SpawnVFX.LoadSynchronous();
+		if (SpawnEffect)
 		{
-			SpawnVFXComponent->SetAsset(SpawnVFX);
+			SpawnVFXComponent->SetAsset(SpawnEffect);
 			SpawnVFXComponent->Activate();
 		}
 	}

@@ -8,13 +8,12 @@
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+#include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Character.h"
 #include "Components/ActorComponent.h"
-#include "ItemSystem/SuspenseItemManager.h"
-#include "Interfaces/Inventory/ISuspenseInventory.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -185,7 +184,15 @@ bool USuspenseCoreHelpers::ImplementsInventoryInterface(UObject* Object)
 		return false;
 	}
 
-	return Object->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass());
+	// TODO: Replace with ISuspenseCoreInventory when created
+	// For now, check for inventory component by name pattern
+	if (UActorComponent* Component = Cast<UActorComponent>(Object))
+	{
+		FString ComponentName = Component->GetClass()->GetName();
+		return ComponentName.Contains(TEXT("Inventory"));
+	}
+
+	return false;
 }
 
 //==================================================================
@@ -197,7 +204,10 @@ bool USuspenseCoreHelpers::AddItemToInventoryByID(
 	FName ItemID,
 	int32 Quantity)
 {
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	// TODO: Implement with ISuspenseCoreInventory when created
+	// For now, broadcast event for inventory systems to handle
+
+	if (!InventoryComponent)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("AddItemToInventoryByID: Invalid inventory component"));
@@ -211,30 +221,38 @@ bool USuspenseCoreHelpers::AddItemToInventoryByID(
 		return false;
 	}
 
-	// Use the interface method directly
-	bool bResult = ISuspenseInventory::Execute_AddItemByID(InventoryComponent, ItemID, Quantity);
-
-	if (bResult)
+	// Broadcast add item request via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus(InventoryComponent);
+	if (EventBus)
 	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(InventoryComponent);
+		EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+		EventData.SetInt(TEXT("Quantity"), Quantity);
+		EventData.SetObject(TEXT("InventoryComponent"), InventoryComponent);
+
+		static const FGameplayTag AddItemTag =
+			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.AddItemRequest"));
+		EventBus->Publish(AddItemTag, EventData);
+
 		UE_LOG(LogSuspenseCoreInteraction, Log,
-			TEXT("AddItemToInventoryByID: Successfully added %s x%d"),
+			TEXT("AddItemToInventoryByID: Broadcast add request for %s x%d"),
 			*ItemID.ToString(), Quantity);
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreInteraction, Warning,
-			TEXT("AddItemToInventoryByID: Failed to add %s x%d"),
-			*ItemID.ToString(), Quantity);
+		return true;
 	}
 
-	return bResult;
+	UE_LOG(LogSuspenseCoreInteraction, Warning,
+		TEXT("AddItemToInventoryByID: No EventBus available"));
+	return false;
 }
 
 bool USuspenseCoreHelpers::AddItemInstanceToInventory(
 	UObject* InventoryComponent,
-	const FSuspenseInventoryItemInstance& ItemInstance)
+	const FSuspenseCoreItemInstance& ItemInstance)
 {
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	// TODO: Implement with ISuspenseCoreInventory when created
+	// For now, broadcast event for inventory systems to handle
+
+	if (!InventoryComponent)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("AddItemInstanceToInventory: Invalid inventory component"));
@@ -248,32 +266,29 @@ bool USuspenseCoreHelpers::AddItemInstanceToInventory(
 		return false;
 	}
 
-	// Get the interface implementation
-	ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
-	if (!InventoryInterface)
+	// Broadcast add instance request via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus(InventoryComponent);
+	if (EventBus)
 	{
-		UE_LOG(LogSuspenseCoreInteraction, Error,
-			TEXT("AddItemInstanceToInventory: Failed to cast to interface"));
-		return false;
-	}
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(InventoryComponent);
+		EventData.SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString());
+		EventData.SetInt(TEXT("Quantity"), ItemInstance.Quantity);
+		EventData.SetString(TEXT("InstanceID"), ItemInstance.UniqueInstanceID.ToString());
+		EventData.SetObject(TEXT("InventoryComponent"), InventoryComponent);
 
-	// Add the instance
-	FSuspenseInventoryOperationResult Result = InventoryInterface->AddItemInstance(ItemInstance);
+		static const FGameplayTag AddInstanceTag =
+			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.AddInstanceRequest"));
+		EventBus->Publish(AddInstanceTag, EventData);
 
-	if (Result.bSuccess)
-	{
 		UE_LOG(LogSuspenseCoreInteraction, Log,
-			TEXT("AddItemInstanceToInventory: Successfully added instance %s"),
-			*ItemInstance.GetShortDebugString());
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreInteraction, Warning,
-			TEXT("AddItemInstanceToInventory: Failed with error %s"),
-			*Result.ErrorMessage.ToString());
+			TEXT("AddItemInstanceToInventory: Broadcast add instance request for %s"),
+			*ItemInstance.ItemID.ToString());
+		return true;
 	}
 
-	return Result.bSuccess;
+	UE_LOG(LogSuspenseCoreInteraction, Warning,
+		TEXT("AddItemInstanceToInventory: No EventBus available"));
+	return false;
 }
 
 bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Quantity)
@@ -283,19 +298,6 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("CanActorPickupItem: Invalid parameters - Actor:%s, ItemID:%s, Quantity:%d"),
 			*GetNameSafe(Actor), *ItemID.ToString(), Quantity);
-		return false;
-	}
-
-	// Get inventory component
-	UObject* InventoryComponent = FindInventoryComponent(Actor);
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
-	{
-		UE_LOG(LogSuspenseCoreInteraction, Warning,
-			TEXT("CanActorPickupItem: No valid inventory component found for actor %s"),
-			*Actor->GetName());
-
-		// Broadcast validation failure through EventBus
-		BroadcastValidationFailed(Actor, Actor, ItemID, TEXT("No inventory component"));
 		return false;
 	}
 
@@ -331,65 +333,25 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 		return false;
 	}
 
-	// Check if inventory can receive item using ItemID
-	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItemByID(
-		InventoryComponent,
-		ItemID,
-		Quantity
-	);
+	// TODO: Implement inventory capacity check via ISuspenseCoreInventory when created
+	// For now, validation passes if item exists in DataTable
+	UE_LOG(LogSuspenseCoreInteraction, Log,
+		TEXT("CanActorPickupItem: Item %s validated (inventory check pending ISuspenseCoreInventory)"),
+		*ItemID.ToString());
 
-	if (!bCanReceive)
-	{
-		// Determine specific reason and broadcast
-		float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
-		float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
-		float RequiredWeight = ItemData.InventoryProps.Weight * Quantity;
-
-		FString Reason;
-		if (CurrentWeight + RequiredWeight > MaxWeight)
-		{
-			Reason = TEXT("Weight limit exceeded");
-		}
-		else
-		{
-			Reason = TEXT("No space or type not allowed");
-		}
-
-		UE_LOG(LogSuspenseCoreInteraction, Warning,
-			TEXT("CanActorPickupItem: Inventory cannot receive item %s - %s"),
-			*ItemID.ToString(), *Reason);
-
-		BroadcastValidationFailed(Actor, Actor, ItemID, Reason);
-	}
-
-	return bCanReceive;
+	return true;
 }
 
 //==================================================================
-// TODO: Item Instance Creation (Future SuspenseCore Implementation)
-//==================================================================
-//
-// CreateItemInstance() is DEPRECATED in SuspenseCore architecture.
-// Currently uses legacy FSuspenseInventoryItemInstance from BridgeSystem.
-//
-// Future implementation should:
-// 1. Use FSuspenseCoreItemInstance (new SuspenseCore type)
-// 2. Broadcast SuspenseCore.Event.Item.InstanceCreated
-// 3. Initialize runtime properties via EventBus
-//
-// For now, use legacy USuspenseItemManager::CreateItemInstance() if needed.
-//
+// Item Instance Creation - SuspenseCore Native
 //==================================================================
 
 bool USuspenseCoreHelpers::CreateItemInstance(
 	const UObject* WorldContextObject,
 	FName ItemID,
 	int32 Quantity,
-	FSuspenseInventoryItemInstance& OutInstance)
+	FSuspenseCoreItemInstance& OutInstance)
 {
-	// LEGACY BRIDGE: Temporarily uses legacy ItemManager
-	// TODO: Replace with SuspenseCore native implementation
-
 	if (ItemID.IsNone() || Quantity <= 0)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
@@ -397,16 +359,15 @@ bool USuspenseCoreHelpers::CreateItemInstance(
 		return false;
 	}
 
-	USuspenseItemManager* LegacyItemManager = GetItemManager(WorldContextObject);
-	if (!LegacyItemManager)
+	USuspenseCoreDataManager* DataManager = GetDataManager(WorldContextObject);
+	if (!DataManager)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Error,
-			TEXT("CreateItemInstance: Legacy ItemManager not found. "
-			     "This function requires migration to SuspenseCore types."));
+			TEXT("CreateItemInstance: DataManager not found"));
 		return false;
 	}
 
-	return LegacyItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
+	return DataManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
 //==================================================================
@@ -475,29 +436,6 @@ USuspenseCoreDataManager* USuspenseCoreHelpers::GetDataManager(const UObject* Wo
 	return USuspenseCoreDataManager::Get(WorldContextObject);
 }
 
-USuspenseItemManager* USuspenseCoreHelpers::GetItemManager(const UObject* WorldContextObject)
-{
-	// Legacy bridge - deprecated, use GetDataManager() instead
-	if (!WorldContextObject)
-	{
-		return nullptr;
-	}
-
-	UWorld* World = WorldContextObject->GetWorld();
-	if (!World)
-	{
-		return nullptr;
-	}
-
-	UGameInstance* GameInstance = World->GetGameInstance();
-	if (!GameInstance)
-	{
-		return nullptr;
-	}
-
-	return GameInstance->GetSubsystem<USuspenseItemManager>();
-}
-
 //==================================================================
 // Inventory Validation Implementation
 //==================================================================
@@ -510,13 +448,13 @@ bool USuspenseCoreHelpers::ValidateInventorySpace(
 {
 	OutErrorMessage.Empty();
 
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	if (!InventoryComponent)
 	{
 		OutErrorMessage = TEXT("Invalid inventory component");
 		return false;
 	}
 
-	// Get item data
+	// Get item data to validate item exists
 	FSuspenseCoreItemData ItemData;
 	AActor* Owner = Cast<AActor>(InventoryComponent->GetOuter());
 	if (!GetItemData(Owner, ItemID, ItemData))
@@ -525,16 +463,13 @@ bool USuspenseCoreHelpers::ValidateInventorySpace(
 		return false;
 	}
 
-	// Check if inventory can receive item
-	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItemByID(
-		InventoryComponent, ItemID, Quantity);
+	// TODO: Implement inventory space check via ISuspenseCoreInventory when created
+	// For now, validation passes if item exists
+	UE_LOG(LogSuspenseCoreInteraction, Log,
+		TEXT("ValidateInventorySpace: Item %s exists (space check pending ISuspenseCoreInventory)"),
+		*ItemID.ToString());
 
-	if (!bCanReceive)
-	{
-		OutErrorMessage = TEXT("Insufficient space or item type not allowed");
-	}
-
-	return bCanReceive;
+	return true;
 }
 
 bool USuspenseCoreHelpers::ValidateWeightCapacity(
@@ -545,7 +480,7 @@ bool USuspenseCoreHelpers::ValidateWeightCapacity(
 {
 	OutRemainingCapacity = 0.0f;
 
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	if (!InventoryComponent)
 	{
 		return false;
 	}
@@ -555,14 +490,15 @@ bool USuspenseCoreHelpers::ValidateWeightCapacity(
 	float ItemWeight = GetItemWeight(Owner, ItemID);
 	float TotalWeight = ItemWeight * Quantity;
 
-	// Get inventory weight capacity
-	float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
-	float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
-	float RemainingWeight = MaxWeight - CurrentWeight;
+	// TODO: Implement weight capacity check via ISuspenseCoreInventory when created
+	// For now, assume unlimited capacity
+	OutRemainingCapacity = FLT_MAX;
 
-	OutRemainingCapacity = RemainingWeight;
+	UE_LOG(LogSuspenseCoreInteraction, Log,
+		TEXT("ValidateWeightCapacity: Item %s weight=%.2f (capacity check pending ISuspenseCoreInventory)"),
+		*ItemID.ToString(), TotalWeight);
 
-	return RemainingWeight >= TotalWeight;
+	return true;
 }
 
 //==================================================================
@@ -579,93 +515,33 @@ void USuspenseCoreHelpers::GetInventoryStatistics(
 	OutTotalWeight = 0.0f;
 	OutUsedSlots = 0;
 
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	if (!InventoryComponent)
 	{
+		UE_LOG(LogSuspenseCoreInteraction, Warning,
+			TEXT("GetInventoryStatistics: Invalid inventory component"));
 		return;
 	}
 
-	// Get interface implementation
-	ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
-	if (!InventoryInterface)
-	{
-		return;
-	}
-
-	// Get all items
-	TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
-
-	OutUsedSlots = AllInstances.Num();
-
-	AActor* Owner = Cast<AActor>(InventoryComponent->GetOuter());
-
-	for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
-	{
-		OutTotalItems += Instance.Quantity;
-
-		// Get item weight from DataTable
-		FSuspenseCoreItemData ItemData;
-		if (GetItemData(Owner, Instance.ItemID, ItemData))
-		{
-			OutTotalWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
-		}
-	}
-
+	// TODO: Implement via ISuspenseCoreInventory when created
+	// For now, return zeros and log warning
 	UE_LOG(LogSuspenseCoreInteraction, Log,
-		TEXT("Inventory Statistics: %d items, %.2f weight, %d slots used"),
-		OutTotalItems, OutTotalWeight, OutUsedSlots);
+		TEXT("GetInventoryStatistics: Pending ISuspenseCoreInventory implementation"));
 }
 
 void USuspenseCoreHelpers::LogInventoryContents(
 	UObject* InventoryComponent,
 	const FString& LogCategory)
 {
-	if (!InventoryComponent || !ImplementsInventoryInterface(InventoryComponent))
+	if (!InventoryComponent)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("LogInventoryContents: Invalid inventory component"));
 		return;
 	}
 
-	// Get interface implementation
-	ISuspenseInventory* InventoryInterface = Cast<ISuspenseInventory>(InventoryComponent);
-	if (!InventoryInterface)
-	{
-		return;
-	}
-
-	AActor* Owner = Cast<AActor>(InventoryComponent->GetOuter());
-
-	// Get all items
-	TArray<FSuspenseInventoryItemInstance> AllInstances = InventoryInterface->GetAllItemInstances();
-
+	// TODO: Implement via ISuspenseCoreInventory when created
 	UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("=== Inventory Contents (%s) ==="), *LogCategory);
-	UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("Total slots used: %d"), AllInstances.Num());
-
-	for (const FSuspenseInventoryItemInstance& Instance : AllInstances)
-	{
-		FString ItemName = Instance.ItemID.ToString();
-		FText DisplayName = GetItemDisplayName(Owner, Instance.ItemID);
-
-		UE_LOG(LogSuspenseCoreInteraction, Log,
-			TEXT("  - %s (%s) x%d [Slot: %d, Rotated: %s]"),
-			*DisplayName.ToString(),
-			*ItemName,
-			Instance.Quantity,
-			Instance.AnchorIndex,
-			Instance.bIsRotated ? TEXT("Yes") : TEXT("No"));
-
-		// Log runtime properties if any
-		if (Instance.RuntimeProperties.Num() > 0)
-		{
-			UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("    Runtime Properties:"));
-			for (const auto& PropPair : Instance.RuntimeProperties)
-			{
-				UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("      %s: %.2f"),
-					*PropPair.Key.ToString(), PropPair.Value);
-			}
-		}
-	}
-
+	UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("(Pending ISuspenseCoreInventory implementation)"));
 	UE_LOG(LogSuspenseCoreInteraction, Log, TEXT("=== End Inventory Contents ==="));
 }
 

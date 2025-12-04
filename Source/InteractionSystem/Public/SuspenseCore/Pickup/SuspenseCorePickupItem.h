@@ -182,13 +182,13 @@ public:
 	void InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData);
 
 	/**
-	 * Set ammo state for weapon pickups.
+	 * Set ammo state for weapon pickups (internal use).
 	 * @param bHasState Whether ammo state is set
 	 * @param CurrentAmmo Ammo in magazine
 	 * @param RemainingAmmo Reserve ammo
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup|Weapon")
-	void SetAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo);
+	void SetPickupAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo);
 
 	//==================================================================
 	// Preset Property Management

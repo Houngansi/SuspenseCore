@@ -321,7 +321,7 @@ void USuspenseCoreItemFactory::ConfigureWeaponPickup(
 	ASuspenseCorePickupItem* CorePickup = Cast<ASuspenseCorePickupItem>(PickupActor);
 	if (CorePickup && bWithAmmoState)
 	{
-		CorePickup->SetAmmoState(true, CurrentAmmo, RemainingAmmo);
+		CorePickup->SetPickupAmmoState(true, CurrentAmmo, RemainingAmmo);
 	}
 }
 

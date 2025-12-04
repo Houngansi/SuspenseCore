@@ -204,12 +204,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTemplate : public FTableRowBase
 };
 
 /**
- * FSuspenseCoreLoadoutSlot
+ * FSuspenseCoreTemplateLoadoutSlot
  *
- * Equipment slot in a loadout.
+ * Equipment slot in an inventory template loadout.
+ * Note: Different from FSuspenseCoreLoadoutSlot in SuspenseCorePlayerData.h
+ * which is used for player save data.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreLoadoutSlot
+struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadoutSlot
 {
 	GENERATED_BODY()
 
@@ -225,7 +227,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadoutSlot
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
 	TArray<FName> AttachmentIDs;
 
-	FSuspenseCoreLoadoutSlot()
+	FSuspenseCoreTemplateLoadoutSlot()
 		: SlotName(NAME_None)
 		, ItemID(NAME_None)
 	{
@@ -235,12 +237,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadoutSlot
 };
 
 /**
- * FSuspenseCoreLoadout
+ * FSuspenseCoreTemplateLoadout
  *
- * Complete loadout definition.
+ * Complete loadout definition for inventory templates.
+ * Note: Different from FSuspenseCoreLoadout in SuspenseCorePlayerData.h
+ * which is used for player save data.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreLoadout : public FTableRowBase
+struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadout : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -260,7 +264,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadout : public FTableRowBase
 	/** Equipment slots */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout",
 		meta = (TitleProperty = "SlotName"))
-	TArray<FSuspenseCoreLoadoutSlot> EquipmentSlots;
+	TArray<FSuspenseCoreTemplateLoadoutSlot> EquipmentSlots;
 
 	/** Inventory template to apply */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
@@ -274,7 +278,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadout : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
 	FGameplayTagContainer LoadoutTags;
 
-	FSuspenseCoreLoadout()
+	FSuspenseCoreTemplateLoadout()
 		: LoadoutID(NAME_None)
 		, InventoryTemplateID(NAME_None)
 		, bIsDefault(false)

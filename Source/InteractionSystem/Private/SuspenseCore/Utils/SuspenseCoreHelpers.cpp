@@ -9,6 +9,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -184,15 +185,8 @@ bool USuspenseCoreHelpers::ImplementsInventoryInterface(UObject* Object)
 		return false;
 	}
 
-	// TODO: Replace with ISuspenseCoreInventory when created
-	// For now, check for inventory component by name pattern
-	if (UActorComponent* Component = Cast<UActorComponent>(Object))
-	{
-		FString ComponentName = Component->GetClass()->GetName();
-		return ComponentName.Contains(TEXT("Inventory"));
-	}
-
-	return false;
+	// Check for ISuspenseCoreInventory interface
+	return Object->GetClass()->ImplementsInterface(USuspenseCoreInventory::StaticClass());
 }
 
 //==================================================================
@@ -204,9 +198,6 @@ bool USuspenseCoreHelpers::AddItemToInventoryByID(
 	FName ItemID,
 	int32 Quantity)
 {
-	// TODO: Implement with ISuspenseCoreInventory when created
-	// For now, broadcast event for inventory systems to handle
-
 	if (!InventoryComponent)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
@@ -221,37 +212,37 @@ bool USuspenseCoreHelpers::AddItemToInventoryByID(
 		return false;
 	}
 
-	// Broadcast add item request via EventBus
-	USuspenseCoreEventBus* EventBus = GetEventBus(InventoryComponent);
-	if (EventBus)
+	// Check for ISuspenseCoreInventory interface
+	if (!ImplementsInventoryInterface(InventoryComponent))
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(InventoryComponent);
-		EventData.SetString(TEXT("ItemID"), ItemID.ToString());
-		EventData.SetInt(TEXT("Quantity"), Quantity);
-		EventData.SetObject(TEXT("InventoryComponent"), InventoryComponent);
-
-		static const FGameplayTag AddItemTag =
-			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.AddItemRequest"));
-		EventBus->Publish(AddItemTag, EventData);
-
-		UE_LOG(LogSuspenseCoreInteraction, Log,
-			TEXT("AddItemToInventoryByID: Broadcast add request for %s x%d"),
-			*ItemID.ToString(), Quantity);
-		return true;
+		UE_LOG(LogSuspenseCoreInteraction, Warning,
+			TEXT("AddItemToInventoryByID: Component doesn't implement ISuspenseCoreInventory"));
+		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreInteraction, Warning,
-		TEXT("AddItemToInventoryByID: No EventBus available"));
-	return false;
+	// Call interface method directly
+	bool bSuccess = ISuspenseCoreInventory::Execute_AddItemByID(InventoryComponent, ItemID, Quantity);
+
+	if (bSuccess)
+	{
+		UE_LOG(LogSuspenseCoreInteraction, Log,
+			TEXT("AddItemToInventoryByID: Successfully added %s x%d"),
+			*ItemID.ToString(), Quantity);
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreInteraction, Warning,
+			TEXT("AddItemToInventoryByID: Failed to add %s x%d"),
+			*ItemID.ToString(), Quantity);
+	}
+
+	return bSuccess;
 }
 
 bool USuspenseCoreHelpers::AddItemInstanceToInventory(
 	UObject* InventoryComponent,
 	const FSuspenseCoreItemInstance& ItemInstance)
 {
-	// TODO: Implement with ISuspenseCoreInventory when created
-	// For now, broadcast event for inventory systems to handle
-
 	if (!InventoryComponent)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
@@ -266,29 +257,31 @@ bool USuspenseCoreHelpers::AddItemInstanceToInventory(
 		return false;
 	}
 
-	// Broadcast add instance request via EventBus
-	USuspenseCoreEventBus* EventBus = GetEventBus(InventoryComponent);
-	if (EventBus)
+	// Check for ISuspenseCoreInventory interface
+	if (!ImplementsInventoryInterface(InventoryComponent))
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(InventoryComponent);
-		EventData.SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString());
-		EventData.SetInt(TEXT("Quantity"), ItemInstance.Quantity);
-		EventData.SetString(TEXT("InstanceID"), ItemInstance.UniqueInstanceID.ToString());
-		EventData.SetObject(TEXT("InventoryComponent"), InventoryComponent);
-
-		static const FGameplayTag AddInstanceTag =
-			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.AddInstanceRequest"));
-		EventBus->Publish(AddInstanceTag, EventData);
-
-		UE_LOG(LogSuspenseCoreInteraction, Log,
-			TEXT("AddItemInstanceToInventory: Broadcast add instance request for %s"),
-			*ItemInstance.ItemID.ToString());
-		return true;
+		UE_LOG(LogSuspenseCoreInteraction, Warning,
+			TEXT("AddItemInstanceToInventory: Component doesn't implement ISuspenseCoreInventory"));
+		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreInteraction, Warning,
-		TEXT("AddItemInstanceToInventory: No EventBus available"));
-	return false;
+	// Call interface method directly
+	bool bSuccess = ISuspenseCoreInventory::Execute_AddItemInstance(InventoryComponent, ItemInstance);
+
+	if (bSuccess)
+	{
+		UE_LOG(LogSuspenseCoreInteraction, Log,
+			TEXT("AddItemInstanceToInventory: Successfully added instance %s"),
+			*ItemInstance.ItemID.ToString());
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreInteraction, Warning,
+			TEXT("AddItemInstanceToInventory: Failed to add instance %s"),
+			*ItemInstance.ItemID.ToString());
+	}
+
+	return bSuccess;
 }
 
 bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32 Quantity)

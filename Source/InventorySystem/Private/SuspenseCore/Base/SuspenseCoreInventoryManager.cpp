@@ -616,13 +616,16 @@ void USuspenseCoreInventoryManager::BroadcastGlobalEvent(FGameplayTag EventTag, 
 	USuspenseCoreEventBus* EventBus = EventMgr->GetEventBus();
 	if (EventBus)
 	{
-		EventBus->Publish(EventTag, Payload);
+		FSuspenseCoreEventData EventData;
+		EventData.Source = const_cast<USuspenseCoreInventoryManager*>(this);
+		EventData.Metadata = Payload;
+		EventBus->Publish(EventTag, EventData);
 	}
 }
 
 FString USuspenseCoreInventoryManager::GetStatistics() const
 {
-	CleanupStaleReferences();
+	const_cast<USuspenseCoreInventoryManager*>(this)->CleanupStaleReferences();
 
 	FString Stats = FString::Printf(TEXT("SuspenseCoreInventoryManager Statistics:\n"));
 	Stats += FString::Printf(TEXT("  Registered Inventories: %d\n"), RegisteredInventories.Num());

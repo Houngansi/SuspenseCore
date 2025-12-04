@@ -98,7 +98,8 @@ FSuspenseCoreValidationResult USuspenseCoreInventoryConstraints::ValidateOperati
 		}
 		break;
 
-	case ESuspenseCoreOperationType::Stack:
+	case ESuspenseCoreOperationType::SplitStack:
+	case ESuspenseCoreOperationType::MergeStack:
 		if (!Rules.bAllowStacking)
 		{
 			Result.AddViolation(FName("StackingDisabled"),
@@ -221,13 +222,13 @@ bool USuspenseCoreInventoryConstraints::CanAcceptItemType(
 	}
 
 	// Check blocked types
-	if (!Rules.BlockedItemTypes.IsEmpty() && Rules.BlockedItemTypes.HasAny(ItemData.Identity.ItemTags))
+	if (!Rules.BlockedItemTypes.IsEmpty() && Rules.BlockedItemTypes.HasAny(ItemData.Classification.ItemTags))
 	{
 		return false;
 	}
 
 	// Check allowed types
-	if (!Rules.AllowedItemTypes.IsEmpty() && !Rules.AllowedItemTypes.HasAny(ItemData.Identity.ItemTags))
+	if (!Rules.AllowedItemTypes.IsEmpty() && !Rules.AllowedItemTypes.HasAny(ItemData.Classification.ItemTags))
 	{
 		return false;
 	}
@@ -272,7 +273,7 @@ bool USuspenseCoreInventoryConstraints::CanSlotAcceptItem(
 	FSuspenseCoreItemData ItemData;
 	if (GetItemDataForValidation(Item.ItemID, ItemData))
 	{
-		if (!SlotConstraint->AllowsItemType(ItemData.Identity.ItemTags))
+		if (!SlotConstraint->AllowsItemType(ItemData.Classification.ItemTags))
 		{
 			return false;
 		}
@@ -463,7 +464,7 @@ bool USuspenseCoreInventoryConstraints::ValidateItemType(
 	// Check blocked types first
 	if (!Rules.BlockedItemTypes.IsEmpty())
 	{
-		if (Rules.BlockedItemTypes.HasAny(ItemData.Identity.ItemTags))
+		if (Rules.BlockedItemTypes.HasAny(ItemData.Classification.ItemTags))
 		{
 			Result.AddViolation(FName("BlockedItemType"),
 				FText::Format(NSLOCTEXT("SuspenseCore", "BlockedItemType",
@@ -476,7 +477,7 @@ bool USuspenseCoreInventoryConstraints::ValidateItemType(
 	// Check allowed types
 	if (!Rules.AllowedItemTypes.IsEmpty())
 	{
-		if (!Rules.AllowedItemTypes.HasAny(ItemData.Identity.ItemTags))
+		if (!Rules.AllowedItemTypes.HasAny(ItemData.Classification.ItemTags))
 		{
 			Result.AddViolation(FName("ItemTypeNotAllowed"),
 				FText::Format(NSLOCTEXT("SuspenseCore", "ItemTypeNotAllowed",
@@ -489,7 +490,7 @@ bool USuspenseCoreInventoryConstraints::ValidateItemType(
 	// Check required tags
 	if (!Rules.RequiredTagsForAdd.IsEmpty())
 	{
-		if (!ItemData.Identity.ItemTags.HasAll(Rules.RequiredTagsForAdd))
+		if (!ItemData.Classification.ItemTags.HasAll(Rules.RequiredTagsForAdd))
 		{
 			Result.AddViolation(FName("MissingRequiredTags"),
 				NSLOCTEXT("SuspenseCore", "MissingRequiredTags",
@@ -524,7 +525,7 @@ bool USuspenseCoreInventoryConstraints::ValidateSlotConstraints(
 	}
 
 	// Check type constraints
-	if (!SlotConstraint->AllowsItemType(ItemData.Identity.ItemTags))
+	if (!SlotConstraint->AllowsItemType(ItemData.Classification.ItemTags))
 	{
 		Result.AddViolation(FName("SlotTypeRestriction"),
 			FText::Format(NSLOCTEXT("SuspenseCore", "SlotTypeRestriction",

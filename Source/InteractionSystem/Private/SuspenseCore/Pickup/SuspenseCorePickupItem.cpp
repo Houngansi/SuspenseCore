@@ -12,7 +12,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"
 #include "Components/AudioComponent.h"
-#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -863,30 +863,40 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 	}
 
 	// Check interface implementation
-	if (!InventoryComponent->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()))
+	if (!InventoryComponent->GetClass()->ImplementsInterface(USuspenseCoreInventory::StaticClass()))
 	{
-		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("TryAddToInventory: Inventory doesn't implement interface"));
+		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("TryAddToInventory: Inventory doesn't implement ISuspenseCoreInventory"));
 		return false;
 	}
 
 	// Add to inventory directly by ID (let inventory handle validation)
-	UE_LOG(LogSuspenseCorePickup, Log, TEXT("TryAddToInventory: Adding item through interface..."));
+	UE_LOG(LogSuspenseCorePickup, Log, TEXT("TryAddToInventory: Adding item through ISuspenseCoreInventory interface..."));
 
-	bool bAdded = ISuspenseInventory::Execute_AddItemByID(InventoryComponent, ItemID, Amount);
+	bool bAdded = ISuspenseCoreInventory::Execute_AddItemByID(InventoryComponent, ItemID, Amount);
 
 	if (bAdded)
 	{
 		UE_LOG(LogSuspenseCorePickup, Log, TEXT("Successfully added %s to inventory"), *ItemID.ToString());
+
+		// Broadcast pickup collected event via EventBus
+		BroadcastPickupCollected(Cast<AActor>(InventoryComponent->GetOuter()));
 	}
 	else
 	{
 		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("Failed to add %s to inventory"), *ItemID.ToString());
 
-		ISuspenseInventory::BroadcastInventoryError(
-			InventoryComponent,
-			ESuspenseInventoryErrorCode::NoSpace,
-			TEXT("Pickup failed")
-		);
+		// Broadcast error via EventBus (not legacy delegate)
+		USuspenseCoreEventBus* EventBus = GetEventBus();
+		if (EventBus)
+		{
+			FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+			EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+			EventData.SetString(TEXT("Error"), TEXT("Failed to add item to inventory"));
+
+			static const FGameplayTag OperationFailedTag =
+				FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.OperationFailed"));
+			EventBus->Publish(OperationFailedTag, EventData);
+		}
 	}
 
 	return bAdded;

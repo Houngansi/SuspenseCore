@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCoreDataManager.generated.h"
 
 class UDataTable;
@@ -51,7 +51,7 @@ struct FSuspenseCoreEventData;
  *   USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(WorldContextObject);
  *   if (DataManager)
  *   {
- *       FSuspenseUnifiedItemData ItemData;
+ *       FSuspenseCoreItemData ItemData;
  *       if (DataManager->GetItemData(ItemID, ItemData))
  *       {
  *           // Use item data
@@ -107,7 +107,7 @@ public:
 	//========================================================================
 
 	/**
-	 * Get unified item data by ID
+	 * Get item data by ID
 	 * Broadcasts SuspenseCore.Event.Data.ItemLoaded or ItemNotFound
 	 *
 	 * @param ItemID The item identifier
@@ -115,7 +115,7 @@ public:
 	 * @return true if item was found
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data")
-	bool GetItemData(FName ItemID, FSuspenseUnifiedItemData& OutItemData) const;
+	bool GetItemData(FName ItemID, FSuspenseCoreItemData& OutItemData) const;
 
 	/**
 	 * Check if item exists in database
@@ -140,19 +140,18 @@ public:
 	int32 GetCachedItemCount() const { return ItemCache.Num(); }
 
 	//========================================================================
-	// TODO: Item Instance Creation (Future Implementation)
+	// Item Instance Creation
 	//========================================================================
-	//
-	// When SuspenseCore gets its own inventory types, implement:
-	//
-	// bool CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseCoreItemInstance& OutInstance) const;
-	//
-	// Requirements:
-	// 1. Create FSuspenseCoreItemInstance in SuspenseCore/Types/
-	// 2. Use EventBus to broadcast SuspenseCore.Event.Item.InstanceCreated
-	// 3. No dependency on legacy FSuspenseInventoryItemInstance
-	//
-	//========================================================================
+
+	/**
+	 * Create runtime item instance from ItemID
+	 * @param ItemID Item identifier
+	 * @param Quantity Stack quantity
+	 * @param OutInstance Output runtime instance
+	 * @return true if instance created successfully
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data")
+	bool CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseCoreItemInstance& OutInstance) const;
 
 	//========================================================================
 	// Item Validation
@@ -246,7 +245,7 @@ protected:
 	void BroadcastInitialized();
 
 	/** Broadcast item loaded event */
-	void BroadcastItemLoaded(FName ItemID, const FSuspenseUnifiedItemData& ItemData) const;
+	void BroadcastItemLoaded(FName ItemID, const FSuspenseCoreItemData& ItemData) const;
 
 	/** Broadcast item not found event */
 	void BroadcastItemNotFound(FName ItemID) const;
@@ -259,9 +258,9 @@ private:
 	// Cached Data
 	//========================================================================
 
-	/** Item data cache: ItemID -> UnifiedItemData */
+	/** Item data cache: ItemID -> SuspenseCoreItemData */
 	UPROPERTY()
-	TMap<FName, FSuspenseUnifiedItemData> ItemCache;
+	TMap<FName, FSuspenseCoreItemData> ItemCache;
 
 	/** Loaded item DataTable reference */
 	UPROPERTY()

@@ -10,6 +10,7 @@
 #include "GameplayTagContainer.h"
 #include "CineCameraComponent.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "SuspenseCoreCharacter.generated.h"
 
 class USpringArmComponent;
@@ -84,9 +85,13 @@ enum class ESuspenseCoreCameraAttachMode : uint8
  * - Animation state for procedural animations
  * - Weapon attachment points
  * - Character class application
+ * - Event publishing via ISuspenseCoreEventEmitter
  */
 UCLASS()
-class PLAYERCORE_API ASuspenseCoreCharacter : public ACharacter, public IAbilitySystemInterface
+class PLAYERCORE_API ASuspenseCoreCharacter
+	: public ACharacter
+	, public IAbilitySystemInterface
+	, public ISuspenseCoreEventEmitter
 {
 	GENERATED_BODY()
 
@@ -109,6 +114,13 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ISUSPENSECOREEVENTEMITTER INTERFACE
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	virtual void EmitEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& Data) override;
+	virtual USuspenseCoreEventBus* GetEventBus() const override;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - MOVEMENT
@@ -456,7 +468,6 @@ protected:
 
 	void PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload = TEXT(""));
 	void PublishCameraEvent(const FGameplayTag& EventTag, float Value = 0.0f);
-	USuspenseCoreEventBus* GetEventBus() const;
 
 	void LoadCharacterClassFromSubsystem();
 

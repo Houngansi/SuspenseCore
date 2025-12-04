@@ -479,3 +479,309 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemData : public FTableRowBase
 	bool IsValid() const { return Identity.IsValid(); }
 	bool IsStackable() const { return InventoryProps.IsStackable(); }
 };
+
+/**
+ * FSuspenseCoreRuntimeProperty
+ *
+ * Key-value pair for runtime item properties.
+ * Replicated as TArray since TMap doesn't support network replication.
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreRuntimeProperty
+{
+	GENERATED_BODY()
+
+	/** Property name (e.g., "Durability", "Charge", "Temperature") */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Runtime")
+	FName PropertyName;
+
+	/** Property value */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Runtime")
+	float Value;
+
+	FSuspenseCoreRuntimeProperty()
+		: PropertyName(NAME_None)
+		, Value(0.0f)
+	{
+	}
+
+	FSuspenseCoreRuntimeProperty(FName InName, float InValue)
+		: PropertyName(InName)
+		, Value(InValue)
+	{
+	}
+
+	bool operator==(const FSuspenseCoreRuntimeProperty& Other) const
+	{
+		return PropertyName == Other.PropertyName;
+	}
+};
+
+/**
+ * FSuspenseCoreWeaponState
+ *
+ * Weapon-specific runtime state.
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreWeaponState
+{
+	GENERATED_BODY()
+
+	/** Whether weapon state is set */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	bool bHasState;
+
+	/** Current ammo in magazine */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon",
+		meta = (EditCondition = "bHasState"))
+	float CurrentAmmo;
+
+	/** Reserve ammo */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon",
+		meta = (EditCondition = "bHasState"))
+	float ReserveAmmo;
+
+	/** Current fire mode index */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon",
+		meta = (EditCondition = "bHasState"))
+	int32 FireModeIndex;
+
+	FSuspenseCoreWeaponState()
+		: bHasState(false)
+		, CurrentAmmo(0.0f)
+		, ReserveAmmo(0.0f)
+		, FireModeIndex(0)
+	{
+	}
+
+	void SetAmmoState(float InCurrent, float InReserve)
+	{
+		bHasState = true;
+		CurrentAmmo = InCurrent;
+		ReserveAmmo = InReserve;
+	}
+
+	void Clear()
+	{
+		bHasState = false;
+		CurrentAmmo = 0.0f;
+		ReserveAmmo = 0.0f;
+		FireModeIndex = 0;
+	}
+};
+
+/**
+ * FSuspenseCoreItemInstance
+ *
+ * Runtime item instance for SuspenseCore.
+ * Contains all runtime state for an item in inventory/world.
+ *
+ * ARCHITECTURE:
+ * - ItemID references static data in FSuspenseCoreItemData (DataTable)
+ * - RuntimeProperties stores dynamic state (durability, modifications)
+ * - WeaponState stores weapon-specific runtime data
+ * - Supports network replication via TArray instead of TMap
+ * - UniqueInstanceID for tracking across save/load
+ *
+ * USAGE:
+ * - Created by SuspenseCoreDataManager::CreateItemInstance()
+ * - Used in inventory, equipment, and pickup systems
+ * - Broadcasts SuspenseCore.Event.Item.* events
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
+{
+	GENERATED_BODY()
+
+	//==================================================================
+	// Identification
+	//==================================================================
+
+	/** Unique runtime instance ID (for tracking across save/load) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Instance")
+	FGuid UniqueInstanceID;
+
+	/** Item ID for DataTable lookup */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Instance")
+	FName ItemID;
+
+	//==================================================================
+	// Stack Data
+	//==================================================================
+
+	/** Current quantity in stack */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stack",
+		meta = (ClampMin = "1"))
+	int32 Quantity;
+
+	//==================================================================
+	// Runtime State
+	//==================================================================
+
+	/** Runtime properties (durability, charge, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Runtime",
+		meta = (TitleProperty = "PropertyName"))
+	TArray<FSuspenseCoreRuntimeProperty> RuntimeProperties;
+
+	/** Weapon-specific state */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	FSuspenseCoreWeaponState WeaponState;
+
+	//==================================================================
+	// Inventory Position (Optional)
+	//==================================================================
+
+	/** Slot index in inventory (-1 = not in inventory) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 SlotIndex;
+
+	/** Grid position for grid-based inventory */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	FIntPoint GridPosition;
+
+	/** Rotation state for grid inventory (0, 90, 180, 270) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 Rotation;
+
+	//==================================================================
+	// Constructor
+	//==================================================================
+
+	FSuspenseCoreItemInstance()
+		: UniqueInstanceID(FGuid())
+		, ItemID(NAME_None)
+		, Quantity(1)
+		, SlotIndex(-1)
+		, GridPosition(FIntPoint::NoneValue)
+		, Rotation(0)
+	{
+	}
+
+	FSuspenseCoreItemInstance(FName InItemID, int32 InQuantity = 1)
+		: UniqueInstanceID(FGuid::NewGuid())
+		, ItemID(InItemID)
+		, Quantity(InQuantity)
+		, SlotIndex(-1)
+		, GridPosition(FIntPoint::NoneValue)
+		, Rotation(0)
+	{
+	}
+
+	//==================================================================
+	// Validation
+	//==================================================================
+
+	bool IsValid() const { return !ItemID.IsNone() && Quantity > 0; }
+
+	//==================================================================
+	// Runtime Property Helpers
+	//==================================================================
+
+	/** Get runtime property value */
+	float GetProperty(FName PropertyName, float DefaultValue = 0.0f) const
+	{
+		for (const FSuspenseCoreRuntimeProperty& Prop : RuntimeProperties)
+		{
+			if (Prop.PropertyName == PropertyName)
+			{
+				return Prop.Value;
+			}
+		}
+		return DefaultValue;
+	}
+
+	/** Set runtime property value */
+	void SetProperty(FName PropertyName, float Value)
+	{
+		for (FSuspenseCoreRuntimeProperty& Prop : RuntimeProperties)
+		{
+			if (Prop.PropertyName == PropertyName)
+			{
+				Prop.Value = Value;
+				return;
+			}
+		}
+		RuntimeProperties.Add(FSuspenseCoreRuntimeProperty(PropertyName, Value));
+	}
+
+	/** Check if property exists */
+	bool HasProperty(FName PropertyName) const
+	{
+		for (const FSuspenseCoreRuntimeProperty& Prop : RuntimeProperties)
+		{
+			if (Prop.PropertyName == PropertyName)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Remove property */
+	bool RemoveProperty(FName PropertyName)
+	{
+		return RuntimeProperties.RemoveAll([PropertyName](const FSuspenseCoreRuntimeProperty& Prop)
+		{
+			return Prop.PropertyName == PropertyName;
+		}) > 0;
+	}
+
+	/** Convert properties to TMap (for convenience, not for replication) */
+	TMap<FName, float> GetPropertiesAsMap() const
+	{
+		TMap<FName, float> Result;
+		for (const FSuspenseCoreRuntimeProperty& Prop : RuntimeProperties)
+		{
+			Result.Add(Prop.PropertyName, Prop.Value);
+		}
+		return Result;
+	}
+
+	/** Set properties from TMap */
+	void SetPropertiesFromMap(const TMap<FName, float>& Properties)
+	{
+		RuntimeProperties.Empty();
+		for (const auto& Pair : Properties)
+		{
+			RuntimeProperties.Add(FSuspenseCoreRuntimeProperty(Pair.Key, Pair.Value));
+		}
+	}
+
+	//==================================================================
+	// Comparison
+	//==================================================================
+
+	bool operator==(const FSuspenseCoreItemInstance& Other) const
+	{
+		return UniqueInstanceID == Other.UniqueInstanceID;
+	}
+
+	bool operator!=(const FSuspenseCoreItemInstance& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	/** Check if can stack with another instance (same ItemID, no unique properties) */
+	bool CanStackWith(const FSuspenseCoreItemInstance& Other) const
+	{
+		// Same item type
+		if (ItemID != Other.ItemID)
+		{
+			return false;
+		}
+
+		// Weapons don't stack (they have unique state)
+		if (WeaponState.bHasState || Other.WeaponState.bHasState)
+		{
+			return false;
+		}
+
+		// Items with runtime properties don't stack
+		if (RuntimeProperties.Num() > 0 || Other.RuntimeProperties.Num() > 0)
+		{
+			return false;
+		}
+
+		return true;
+	}
+};

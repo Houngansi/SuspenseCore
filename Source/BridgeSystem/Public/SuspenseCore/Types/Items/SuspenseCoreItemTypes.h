@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
+#include "AttributeSet.h"
 #include "SuspenseCoreItemTypes.generated.h"
 
 // Forward declarations
@@ -15,7 +16,6 @@ class UNiagaraSystem;
 class USoundBase;
 class UTexture2D;
 class UGameplayEffect;
-class UAttributeSet;
 class UGameplayAbility;
 
 /**

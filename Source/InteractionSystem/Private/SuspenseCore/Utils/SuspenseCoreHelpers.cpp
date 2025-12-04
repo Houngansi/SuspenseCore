@@ -5,6 +5,7 @@
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
@@ -298,19 +299,19 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 		return false;
 	}
 
-	// Get item manager
-	USuspenseItemManager* ItemManager = GetItemManager(Actor);
-	if (!ItemManager)
+	// Get DataManager (SuspenseCore architecture)
+	USuspenseCoreDataManager* DataManager = GetDataManager(Actor);
+	if (!DataManager)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
-			TEXT("CanActorPickupItem: ItemManager not found"));
-		BroadcastValidationFailed(Actor, Actor, ItemID, TEXT("ItemManager not found"));
+			TEXT("CanActorPickupItem: DataManager not found"));
+		BroadcastValidationFailed(Actor, Actor, ItemID, TEXT("DataManager not found"));
 		return false;
 	}
 
 	// Get unified item data
 	FSuspenseUnifiedItemData UnifiedData;
-	if (!ItemManager->GetUnifiedItemData(ItemID, UnifiedData))
+	if (!DataManager->GetItemData(ItemID, UnifiedData))
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("CanActorPickupItem: Item %s not found in DataTable"),
@@ -377,15 +378,16 @@ bool USuspenseCoreHelpers::CreateItemInstance(
 		return false;
 	}
 
-	USuspenseItemManager* ItemManager = GetItemManager(WorldContextObject);
-	if (!ItemManager)
+	// Use DataManager (SuspenseCore architecture)
+	USuspenseCoreDataManager* DataManager = GetDataManager(WorldContextObject);
+	if (!DataManager)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Error,
-			TEXT("CreateItemInstance: ItemManager not found"));
+			TEXT("CreateItemInstance: DataManager not found"));
 		return false;
 	}
 
-	return ItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
+	return DataManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
 //==================================================================
@@ -402,13 +404,14 @@ bool USuspenseCoreHelpers::GetUnifiedItemData(
 		return false;
 	}
 
-	USuspenseItemManager* ItemManager = GetItemManager(WorldContextObject);
-	if (!ItemManager)
+	// Use DataManager (SuspenseCore architecture)
+	USuspenseCoreDataManager* DataManager = GetDataManager(WorldContextObject);
+	if (!DataManager)
 	{
 		return false;
 	}
 
-	return ItemManager->GetUnifiedItemData(ItemID, OutItemData);
+	return DataManager->GetItemData(ItemID, OutItemData);
 }
 
 FText USuspenseCoreHelpers::GetItemDisplayName(const UObject* WorldContextObject, FName ItemID)
@@ -448,8 +451,14 @@ bool USuspenseCoreHelpers::IsItemStackable(const UObject* WorldContextObject, FN
 // Subsystem Access Implementation
 //==================================================================
 
+USuspenseCoreDataManager* USuspenseCoreHelpers::GetDataManager(const UObject* WorldContextObject)
+{
+	return USuspenseCoreDataManager::Get(WorldContextObject);
+}
+
 USuspenseItemManager* USuspenseCoreHelpers::GetItemManager(const UObject* WorldContextObject)
 {
+	// Legacy bridge - deprecated, use GetDataManager() instead
 	if (!WorldContextObject)
 	{
 		return nullptr;

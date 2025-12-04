@@ -14,6 +14,7 @@
 // Forward declarations
 class USuspenseItemManager;
 class USuspenseCoreEventBus;
+class USuspenseCoreDataManager;
 struct FSuspenseUnifiedItemData;
 struct FSuspenseInventoryItemInstance;
 
@@ -216,12 +217,24 @@ public:
 	//==================================================================
 
 	/**
-	 * Get ItemManager subsystem.
+	 * Get SuspenseCore DataManager subsystem.
+	 * This is the PRIMARY method for accessing item and game data.
 	 * @param WorldContextObject Any object with world context
-	 * @return ItemManager or nullptr
+	 * @return DataManager or nullptr
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Subsystems",
-		meta = (WorldContext = "WorldContextObject"))
+		meta = (WorldContext = "WorldContextObject", DisplayName = "Get Data Manager"))
+	static USuspenseCoreDataManager* GetDataManager(const UObject* WorldContextObject);
+
+	/**
+	 * Get ItemManager subsystem.
+	 * @deprecated Use GetDataManager() instead for SuspenseCore architecture.
+	 * @param WorldContextObject Any object with world context
+	 * @return ItemManager or nullptr (legacy bridge)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Subsystems",
+		meta = (WorldContext = "WorldContextObject", DeprecatedFunction,
+				DeprecationMessage = "Use GetDataManager() instead"))
 	static USuspenseItemManager* GetItemManager(const UObject* WorldContextObject);
 
 	//==================================================================

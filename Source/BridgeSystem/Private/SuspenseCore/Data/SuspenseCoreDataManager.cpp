@@ -389,30 +389,20 @@ TArray<FName> USuspenseCoreDataManager::GetAllItemIDs() const
 	return ItemIDs;
 }
 
-bool USuspenseCoreDataManager::CreateItemInstance(
-	FName ItemID,
-	int32 Quantity,
-	FSuspenseInventoryItemInstance& OutInstance) const
-{
-	if (ItemID.IsNone() || Quantity <= 0)
-	{
-		return false;
-	}
-
-	FSuspenseUnifiedItemData ItemData;
-	if (!GetItemData(ItemID, ItemData))
-	{
-		return false;
-	}
-
-	// Create instance
-	OutInstance = FSuspenseInventoryItemInstance();
-	OutInstance.ItemID = ItemID;
-	OutInstance.Quantity = FMath::Clamp(Quantity, 1, ItemData.MaxStackSize);
-	OutInstance.InstanceID = FGuid::NewGuid();
-
-	return true;
-}
+//========================================================================
+// TODO: Item Instance Creation (Future Implementation)
+//========================================================================
+//
+// CreateItemInstance() will be implemented when SuspenseCore has its own
+// inventory types (FSuspenseCoreItemInstance). Currently removed to avoid
+// legacy dependency on FSuspenseInventoryItemInstance from BridgeSystem.
+//
+// Implementation requirements:
+// 1. Create FSuspenseCoreItemInstance in SuspenseCore/Types/SuspenseCoreInventoryTypes.h
+// 2. Broadcast SuspenseCore.Event.Item.InstanceCreated via EventBus
+// 3. Include proper runtime properties initialization
+//
+//========================================================================
 
 //========================================================================
 // Item Validation

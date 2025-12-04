@@ -147,15 +147,19 @@ public:
 
 	/**
 	 * Create item instance from ItemID.
-	 * Convenience method for creating properly initialized instances.
+	 * @deprecated Uses legacy FSuspenseInventoryItemInstance. Will be replaced with SuspenseCore types.
+	 *
+	 * TODO: Replace with SuspenseCore native implementation using FSuspenseCoreItemInstance
+	 *
 	 * @param WorldContextObject Any object with world context
 	 * @param ItemID Item identifier from DataTable
 	 * @param Quantity Amount for the instance
-	 * @param OutInstance Output item instance
+	 * @param OutInstance Output item instance (LEGACY TYPE)
 	 * @return true if instance created successfully
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Interaction",
-		meta = (WorldContext = "WorldContextObject"))
+		meta = (WorldContext = "WorldContextObject", DeprecatedFunction,
+				DeprecationMessage = "Uses legacy types. Will be replaced with SuspenseCore native FSuspenseCoreItemInstance"))
 	static bool CreateItemInstance(
 		const UObject* WorldContextObject,
 		FName ItemID,

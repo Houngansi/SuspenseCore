@@ -365,12 +365,31 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 	return bCanReceive;
 }
 
+//==================================================================
+// TODO: Item Instance Creation (Future SuspenseCore Implementation)
+//==================================================================
+//
+// CreateItemInstance() is DEPRECATED in SuspenseCore architecture.
+// Currently uses legacy FSuspenseInventoryItemInstance from BridgeSystem.
+//
+// Future implementation should:
+// 1. Use FSuspenseCoreItemInstance (new SuspenseCore type)
+// 2. Broadcast SuspenseCore.Event.Item.InstanceCreated
+// 3. Initialize runtime properties via EventBus
+//
+// For now, use legacy USuspenseItemManager::CreateItemInstance() if needed.
+//
+//==================================================================
+
 bool USuspenseCoreHelpers::CreateItemInstance(
 	const UObject* WorldContextObject,
 	FName ItemID,
 	int32 Quantity,
 	FSuspenseInventoryItemInstance& OutInstance)
 {
+	// LEGACY BRIDGE: Temporarily uses legacy ItemManager
+	// TODO: Replace with SuspenseCore native implementation
+
 	if (ItemID.IsNone() || Quantity <= 0)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
@@ -378,16 +397,16 @@ bool USuspenseCoreHelpers::CreateItemInstance(
 		return false;
 	}
 
-	// Use DataManager (SuspenseCore architecture)
-	USuspenseCoreDataManager* DataManager = GetDataManager(WorldContextObject);
-	if (!DataManager)
+	USuspenseItemManager* LegacyItemManager = GetItemManager(WorldContextObject);
+	if (!LegacyItemManager)
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Error,
-			TEXT("CreateItemInstance: DataManager not found"));
+			TEXT("CreateItemInstance: Legacy ItemManager not found. "
+			     "This function requires migration to SuspenseCore types."));
 		return false;
 	}
 
-	return DataManager->CreateItemInstance(ItemID, Quantity, OutInstance);
+	return LegacyItemManager->CreateItemInstance(ItemID, Quantity, OutInstance);
 }
 
 //==================================================================

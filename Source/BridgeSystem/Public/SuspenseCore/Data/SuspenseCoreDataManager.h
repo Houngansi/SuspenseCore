@@ -139,15 +139,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data")
 	int32 GetCachedItemCount() const { return ItemCache.Num(); }
 
-	/**
-	 * Create inventory item instance from item ID
-	 * @param ItemID The item identifier
-	 * @param Quantity Number of items
-	 * @param OutInstance Output inventory instance
-	 * @return true if instance created successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data")
-	bool CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const;
+	//========================================================================
+	// TODO: Item Instance Creation (Future Implementation)
+	//========================================================================
+	//
+	// When SuspenseCore gets its own inventory types, implement:
+	//
+	// bool CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseCoreItemInstance& OutInstance) const;
+	//
+	// Requirements:
+	// 1. Create FSuspenseCoreItemInstance in SuspenseCore/Types/
+	// 2. Use EventBus to broadcast SuspenseCore.Event.Item.InstanceCreated
+	// 3. No dependency on legacy FSuspenseInventoryItemInstance
+	//
+	//========================================================================
 
 	//========================================================================
 	// Item Validation

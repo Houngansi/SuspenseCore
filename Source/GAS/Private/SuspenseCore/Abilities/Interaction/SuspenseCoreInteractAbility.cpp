@@ -34,9 +34,12 @@ USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 	InteractCooldownTag = FGameplayTag::RequestGameplayTag(FName("Ability.Cooldown.Interact"));
 	InteractingTag = FGameplayTag::RequestGameplayTag(FName("State.Interacting"));
 
-	// Ability tags - use SetAssetTags for proper API
-	FGameplayTag InteractTag = FGameplayTag::RequestGameplayTag(FName("Ability.Interaction"));
-	SetAssetTags(FGameplayTagContainer(InteractTag));
+	// AbilityTags - CRITICAL: TryActivateAbilitiesByTag uses AbilityTags, NOT AssetTags!
+	// This tag must match what PlayerController passes to ActivateAbilityByTag()
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")));
+
+	// Also add general interaction tag for categorization
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Interaction")));
 
 	// Applied while interacting
 	ActivationOwnedTags.AddTag(InteractingTag);
@@ -82,11 +85,16 @@ void USuspenseCoreInteractAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== USuspenseCoreInteractAbility::ActivateAbility ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  Avatar: %s"), *GetNameSafe(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr));
+	UE_LOG(LogTemp, Warning, TEXT("  IsNetAuthority: %s"), ActorInfo && ActorInfo->IsNetAuthority() ? TEXT("Yes") : TEXT("No"));
+
 	// Store prediction key for networking
 	CurrentPredictionKey = ActivationInfo.GetActivationPredictionKey();
 
 	// Perform trace to find target
 	AActor* TargetActor = PerformInteractionTrace(ActorInfo);
+	UE_LOG(LogTemp, Warning, TEXT("  Trace result: %s"), TargetActor ? *TargetActor->GetName() : TEXT("NO TARGET"));
 
 	if (!TargetActor)
 	{

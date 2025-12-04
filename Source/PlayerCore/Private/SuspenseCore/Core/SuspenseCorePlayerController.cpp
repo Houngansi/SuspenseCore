@@ -119,9 +119,15 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 		}
 
 		// Interact
+		UE_LOG(LogTemp, Warning, TEXT("  IA_Interact: %s"), IA_Interact ? *IA_Interact->GetName() : TEXT("NULL!"));
 		if (IA_Interact)
 		{
 			EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleInteract);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Interact -> HandleInteract (ETriggerEvent::Started)"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  ERROR: IA_Interact is NULL! Interact input will NOT work!"));
 		}
 
 		// UI Inputs
@@ -313,6 +319,7 @@ void ASuspenseCorePlayerController::HandleCrouchReleased(const FInputActionValue
 
 void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleInteract CALLED ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")), true);
 }
 
@@ -322,22 +329,69 @@ void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Valu
 
 void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& AbilityTag, bool bPressed)
 {
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	UE_LOG(LogTemp, Warning, TEXT("=== ActivateAbilityByTag ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  AbilityTag: %s"), *AbilityTag.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("  bPressed: %s"), bPressed ? TEXT("true") : TEXT("false"));
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
 	{
-		if (bPressed)
+		UE_LOG(LogTemp, Error, TEXT("  ERROR: ASC is NULL! Cannot activate ability."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("  ASC: %s (Owner: %s)"), *ASC->GetName(), *GetNameSafe(ASC->GetOwner()));
+
+	if (bPressed)
+	{
+		// Try to activate ability with tag
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(AbilityTag);
+
+		// Log available abilities and their tags
+		UE_LOG(LogTemp, Warning, TEXT("  === Checking activatable abilities with tag %s ==="), *AbilityTag.ToString());
+
+		TArray<FGameplayAbilitySpec*> MatchingAbilities;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingAbilities);
+
+		UE_LOG(LogTemp, Warning, TEXT("  Found %d matching abilities"), MatchingAbilities.Num());
+
+		for (FGameplayAbilitySpec* Spec : MatchingAbilities)
 		{
-			// Try to activate ability with tag
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(AbilityTag);
-			ASC->TryActivateAbilitiesByTag(TagContainer);
+			if (Spec && Spec->Ability)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("    - Ability: %s"), *Spec->Ability->GetName());
+				UE_LOG(LogTemp, Warning, TEXT("      AbilityTags: %s"), *Spec->Ability->AbilityTags.ToString());
+				UE_LOG(LogTemp, Warning, TEXT("      IsActive: %s"), Spec->IsActive() ? TEXT("Yes") : TEXT("No"));
+			}
 		}
-		else
+
+		// Try to activate
+		bool bActivated = ASC->TryActivateAbilitiesByTag(TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("  TryActivateAbilitiesByTag result: %s"), bActivated ? TEXT("SUCCESS") : TEXT("FAILED"));
+
+		if (!bActivated)
 		{
-			// Cancel ability with tag if it's active
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(AbilityTag);
-			ASC->CancelAbilities(&TagContainer);
+			// Log all granted abilities for debugging
+			UE_LOG(LogTemp, Warning, TEXT("  === All granted abilities ==="));
+			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+			{
+				if (Spec.Ability)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("    - %s (Tags: %s)"),
+						*Spec.Ability->GetName(),
+						*Spec.Ability->AbilityTags.ToString());
+				}
+			}
 		}
+	}
+	else
+	{
+		// Cancel ability with tag if it's active
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(AbilityTag);
+		ASC->CancelAbilities(&TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("  CancelAbilities called"));
 	}
 
 	// Also publish input event for UI/other systems

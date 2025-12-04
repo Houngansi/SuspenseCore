@@ -11,7 +11,7 @@
 
 // Forward declarations
 class AActor;
-struct FSuspenseInventoryItemInstance;
+struct FSuspenseCoreItemInstance;
 
 /**
  * USuspenseCorePickup
@@ -42,16 +42,17 @@ class USuspenseCorePickup : public UInterface
  * DATA FLOW:
  * 1. Pickup stores ItemID (reference to DataTable row)
  * 2. Runtime properties stored in PresetProperties
- * 3. On pickup, creates FSuspenseInventoryItemInstance for inventory
- * 4. Item data loaded on-demand through ItemManager
+ * 3. On pickup, creates FSuspenseCoreItemInstance for inventory
+ * 4. Item data loaded on-demand through DataManager
  *
  * MIGRATION FROM LEGACY:
  * - Replace ISuspensePickup with ISuspenseCorePickup
- * - Remove GetUnifiedItemData() - use ItemManager::GetItemData(ItemID)
+ * - Remove GetUnifiedItemData() - use DataManager::GetItemData(ItemID)
+ * - Use FSuspenseCoreItemInstance instead of FSuspenseInventoryItemInstance
  * - Use EventBus for pickup events
  *
  * @see ISuspensePickup (Legacy - DO NOT USE in new code)
- * @see USuspenseItemManager
+ * @see USuspenseCoreDataManager
  */
 class BRIDGESYSTEM_API ISuspenseCorePickup
 {
@@ -125,11 +126,11 @@ public:
 	/**
 	 * Create runtime item instance for inventory system.
 	 * Combines ItemID reference with runtime state.
-	 * @param OutInstance Output inventory item instance
+	 * @param OutInstance Output SuspenseCore item instance
 	 * @return true if instance created successfully
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Pickup")
-	bool CreateInventoryInstance(FSuspenseInventoryItemInstance& OutInstance) const;
+	bool CreateInventoryInstance(FSuspenseCoreItemInstance& OutInstance) const;
 
 	//==================================================================
 	// Weapon State (Optional)

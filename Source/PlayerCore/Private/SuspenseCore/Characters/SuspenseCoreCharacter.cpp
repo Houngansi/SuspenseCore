@@ -504,16 +504,15 @@ void ASuspenseCoreCharacter::UpdateMovementSpeed()
 	}
 }
 
-void ASuspenseCoreCharacter::PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload)
+// ═══════════════════════════════════════════════════════════════════════════════
+// ISUSPENSECOREEVENTEMITTER INTERFACE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::EmitEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& Data)
 {
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCoreCharacter*>(this));
-		if (!Payload.IsEmpty())
-		{
-			EventData.SetString(FName("Payload"), Payload);
-		}
-		EventBus->Publish(EventTag, EventData);
+		EventBus->Publish(EventTag, Data);
 	}
 }
 
@@ -535,6 +534,19 @@ USuspenseCoreEventBus* ASuspenseCoreCharacter::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+void ASuspenseCoreCharacter::PublishCharacterEvent(const FGameplayTag& EventTag, const FString& Payload)
+{
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCoreCharacter*>(this));
+		if (!Payload.IsEmpty())
+		{
+			EventData.SetString(FName("Payload"), Payload);
+		}
+		EventBus->Publish(EventTag, EventData);
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

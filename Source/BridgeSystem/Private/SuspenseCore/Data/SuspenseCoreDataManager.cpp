@@ -264,15 +264,15 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 
 	for (const FName& RowName : RowNames)
 	{
-		// Try to get as FSuspenseUnifiedItemData
-		FSuspenseUnifiedItemData* RowData = DataTable->FindRow<FSuspenseUnifiedItemData>(RowName, TEXT(""));
+		// Try to get as FSuspenseCoreItemData (SuspenseCore native type)
+		FSuspenseCoreItemData* RowData = DataTable->FindRow<FSuspenseCoreItemData>(RowName, TEXT(""));
 
 		if (RowData)
 		{
 			// Use RowName as ItemID if not set
-			if (RowData->ItemID.IsNone())
+			if (RowData->Identity.ItemID.IsNone())
 			{
-				RowData->ItemID = RowName;
+				RowData->Identity.ItemID = RowName;
 			}
 
 			ItemCache.Add(RowName, *RowData);
@@ -281,7 +281,7 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 			if (bVerbose)
 			{
 				UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached: %s (%s)"),
-					*RowName.ToString(), *RowData->DisplayName.ToString());
+					*RowName.ToString(), *RowData->Identity.DisplayName.ToString());
 			}
 		}
 		else
@@ -357,14 +357,14 @@ bool USuspenseCoreDataManager::InitializeLoadoutSystem()
 // Item Data Access
 //========================================================================
 
-bool USuspenseCoreDataManager::GetItemData(FName ItemID, FSuspenseUnifiedItemData& OutItemData) const
+bool USuspenseCoreDataManager::GetItemData(FName ItemID, FSuspenseCoreItemData& OutItemData) const
 {
 	if (ItemID.IsNone())
 	{
 		return false;
 	}
 
-	const FSuspenseUnifiedItemData* Found = ItemCache.Find(ItemID);
+	const FSuspenseCoreItemData* Found = ItemCache.Find(ItemID);
 
 	if (Found)
 	{
@@ -390,19 +390,63 @@ TArray<FName> USuspenseCoreDataManager::GetAllItemIDs() const
 }
 
 //========================================================================
-// TODO: Item Instance Creation (Future Implementation)
+// Item Instance Creation
 //========================================================================
-//
-// CreateItemInstance() will be implemented when SuspenseCore has its own
-// inventory types (FSuspenseCoreItemInstance). Currently removed to avoid
-// legacy dependency on FSuspenseInventoryItemInstance from BridgeSystem.
-//
-// Implementation requirements:
-// 1. Create FSuspenseCoreItemInstance in SuspenseCore/Types/SuspenseCoreInventoryTypes.h
-// 2. Broadcast SuspenseCore.Event.Item.InstanceCreated via EventBus
-// 3. Include proper runtime properties initialization
-//
-//========================================================================
+
+bool USuspenseCoreDataManager::CreateItemInstance(FName ItemID, int32 Quantity, FSuspenseCoreItemInstance& OutInstance) const
+{
+	// Get item data
+	FSuspenseCoreItemData ItemData;
+	if (!GetItemData(ItemID, ItemData))
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("CreateItemInstance: Item '%s' not found"), *ItemID.ToString());
+		return false;
+	}
+
+	// Create instance
+	OutInstance = FSuspenseCoreItemInstance(ItemID, FMath::Max(1, Quantity));
+
+	// Initialize default runtime properties based on item type
+	if (ItemData.bIsWeapon)
+	{
+		// Initialize weapon state with full ammo
+		OutInstance.WeaponState.bHasState = true;
+		OutInstance.WeaponState.CurrentAmmo = ItemData.WeaponConfig.MagazineSize;
+		OutInstance.WeaponState.ReserveAmmo = 0.0f; // No reserve by default
+		OutInstance.WeaponState.FireModeIndex = 0;
+	}
+
+	if (ItemData.bIsArmor)
+	{
+		// Initialize durability
+		OutInstance.SetProperty(FName("Durability"), ItemData.ArmorConfig.MaxDurability);
+		OutInstance.SetProperty(FName("MaxDurability"), ItemData.ArmorConfig.MaxDurability);
+	}
+
+	// Broadcast event
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(
+			const_cast<USuspenseCoreDataManager*>(this),
+			ESuspenseCoreEventPriority::Normal
+		);
+
+		EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+		EventData.SetInt(TEXT("Quantity"), Quantity);
+		EventData.SetString(TEXT("InstanceID"), OutInstance.UniqueInstanceID.ToString());
+
+		static const FGameplayTag InstanceCreatedTag =
+			FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Item.InstanceCreated"));
+
+		EventBus->Publish(InstanceCreatedTag, EventData);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("CreateItemInstance: Created %s x%d (ID: %s)"),
+		*ItemID.ToString(), Quantity, *OutInstance.UniqueInstanceID.ToString());
+
+	return true;
+}
 
 //========================================================================
 // Item Validation
@@ -412,7 +456,7 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 {
 	OutErrors.Empty();
 
-	const FSuspenseUnifiedItemData* ItemData = ItemCache.Find(ItemID);
+	const FSuspenseCoreItemData* ItemData = ItemCache.Find(ItemID);
 	if (!ItemData)
 	{
 		OutErrors.Add(FString::Printf(TEXT("Item '%s' not found in cache"), *ItemID.ToString()));
@@ -422,14 +466,14 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 	bool bIsValid = true;
 
 	// Validate display name
-	if (ItemData->DisplayName.IsEmpty())
+	if (ItemData->Identity.DisplayName.IsEmpty())
 	{
 		OutErrors.Add(FString::Printf(TEXT("[%s] DisplayName is empty"), *ItemID.ToString()));
 		bIsValid = false;
 	}
 
 	// Validate item type
-	if (!ItemData->ItemType.IsValid())
+	if (!ItemData->Classification.ItemType.IsValid())
 	{
 		OutErrors.Add(FString::Printf(TEXT("[%s] ItemType tag is invalid"), *ItemID.ToString()));
 		bIsValid = false;
@@ -438,10 +482,10 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 	{
 		// Must be in Item.* hierarchy
 		static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"), false);
-		if (BaseItemTag.IsValid() && !ItemData->ItemType.MatchesTag(BaseItemTag))
+		if (BaseItemTag.IsValid() && !ItemData->Classification.ItemType.MatchesTag(BaseItemTag))
 		{
 			OutErrors.Add(FString::Printf(TEXT("[%s] ItemType '%s' is not in Item.* hierarchy"),
-				*ItemID.ToString(), *ItemData->ItemType.ToString()));
+				*ItemID.ToString(), *ItemData->Classification.ItemType.ToString()));
 			bIsValid = false;
 		}
 	}
@@ -449,25 +493,25 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 	// Validate weapon-specific
 	if (ItemData->bIsWeapon)
 	{
-		if (ItemData->FireModes.Num() == 0)
+		if (!ItemData->WeaponConfig.WeaponArchetype.IsValid())
 		{
-			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon has no fire modes"), *ItemID.ToString()));
+			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon has no archetype"), *ItemID.ToString()));
 			bIsValid = false;
 		}
 
-		if (!ItemData->WeaponInitialization.WeaponAttributeSetClass)
+		if (!ItemData->GASConfig.AttributeSetClass)
 		{
-			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon missing WeaponAttributeSetClass"),
+			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon missing AttributeSetClass"),
 				*ItemID.ToString()));
 			bIsValid = false;
 		}
 	}
 
 	// Validate stack size
-	if (ItemData->MaxStackSize <= 0)
+	if (ItemData->InventoryProps.MaxStackSize <= 0)
 	{
 		OutErrors.Add(FString::Printf(TEXT("[%s] Invalid MaxStackSize: %d"),
-			*ItemID.ToString(), ItemData->MaxStackSize));
+			*ItemID.ToString(), ItemData->InventoryProps.MaxStackSize));
 		bIsValid = false;
 	}
 
@@ -574,7 +618,7 @@ void USuspenseCoreDataManager::BroadcastInitialized()
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("Broadcast: Data.Initialized (Items: %d)"), ItemCache.Num());
 }
 
-void USuspenseCoreDataManager::BroadcastItemLoaded(FName ItemID, const FSuspenseUnifiedItemData& ItemData) const
+void USuspenseCoreDataManager::BroadcastItemLoaded(FName ItemID, const FSuspenseCoreItemData& ItemData) const
 {
 	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
 	if (!Settings || !Settings->bLogItemOperations)
@@ -594,8 +638,8 @@ void USuspenseCoreDataManager::BroadcastItemLoaded(FName ItemID, const FSuspense
 	);
 
 	EventData.SetString(TEXT("ItemID"), ItemID.ToString());
-	EventData.SetString(TEXT("DisplayName"), ItemData.DisplayName.ToString());
-	EventData.SetString(TEXT("ItemType"), ItemData.ItemType.ToString());
+	EventData.SetString(TEXT("DisplayName"), ItemData.Identity.DisplayName.ToString());
+	EventData.SetString(TEXT("ItemType"), ItemData.Classification.ItemType.ToString());
 
 	static const FGameplayTag ItemLoadedTag =
 		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Data.ItemLoaded"));

@@ -8,8 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreInteractable.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCorePickup.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCorePickupItem.generated.h"
@@ -17,7 +16,7 @@
 // Forward declarations
 class USphereComponent;
 class UStaticMeshComponent;
-class USuspenseItemManager;
+class USuspenseCoreDataManager;
 class UDataTable;
 class USuspenseCoreEventBus;
 class UNiagaraComponent;
@@ -74,13 +73,12 @@ struct FSuspenseCorePresetProperty
  * - Uses FSuspenseCoreEventData for typed payloads
  *
  * ARCHITECTURE:
- * - Single source of truth: FSuspenseUnifiedItemData in DataTable
+ * - Single source of truth: FSuspenseCoreItemData in DataTable
  * - ItemID is the only reference to static data
- * - Runtime state stored separately (quantity, ammo state)
+ * - Runtime state stored as FSuspenseCoreItemInstance
  * - Preset properties applied to created item instance
  * - Uses TArray for replication instead of TMap
- *
- * @see ASuspensePickupItem (Legacy reference)
+ * - NO dependency on legacy types (FSuspenseInventoryItemInstance)
  */
 UCLASS(Blueprintable)
 class INTERACTIONSYSTEM_API ASuspenseCorePickupItem
@@ -133,7 +131,7 @@ public:
 	virtual void SetQuantity_Implementation(int32 NewQuantity) override;
 	virtual bool CanPickup_Implementation(AActor* InstigatorActor) const override;
 	virtual bool ExecutePickup_Implementation(AActor* InstigatorActor) override;
-	virtual bool CreateInventoryInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const override;
+	virtual bool CreateInventoryInstance_Implementation(FSuspenseCoreItemInstance& OutInstance) const override;
 	virtual bool HasAmmoState_Implementation() const override;
 	virtual bool GetAmmoState_Implementation(float& OutCurrentAmmo, float& OutReserveAmmo) const override;
 	virtual void SetAmmoState_Implementation(float CurrentAmmo, float ReserveAmmo) override;
@@ -144,15 +142,12 @@ public:
 	virtual float GetWeight_Implementation() const override;
 
 	//==================================================================
-	// Legacy Compatibility (Temporary - for transition period)
+	// Data Access
 	//==================================================================
 
-	/** @deprecated Use GetQuantity instead */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup|Legacy", meta = (DeprecatedFunction, DeprecationMessage = "Use GetQuantity instead"))
-	int32 GetItemAmount() const { return GetQuantity_Implementation(); }
-
-	/** @deprecated Use CreateInventoryInstance instead */
-	bool GetUnifiedItemData(FSuspenseUnifiedItemData& OutItemData) const;
+	/** Get item data from DataManager cache */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup")
+	bool GetItemData(FSuspenseCoreItemData& OutItemData) const;
 
 	//==================================================================
 	// Component Access
@@ -172,14 +167,15 @@ public:
 	 * @param Instance Runtime item instance with all properties
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup")
-	void InitializeFromInstance(const FSuspenseInventoryItemInstance& Instance);
+	void InitializeFromInstance(const FSuspenseCoreItemInstance& Instance);
 
 	/**
-	 * Initialize pickup from spawn data.
-	 * @param SpawnData Spawn configuration with preset properties
+	 * Initialize pickup from ItemID and quantity.
+	 * @param InItemID Item identifier
+	 * @param InQuantity Item quantity
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup")
-	void InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData);
+	void InitializeFromItemID(FName InItemID, int32 InQuantity = 1);
 
 	/**
 	 * Set ammo state for weapon pickups (internal use).
@@ -282,10 +278,10 @@ protected:
 	/**
 	 * Complete runtime instance data.
 	 * Used when pickup represents dropped equipped item with full state.
-	 * NOTE: Not replicated due to TMap limitation. State is reconstructed from PresetRuntimeProperties.
+	 * NOTE: RuntimeProperties replicated via PresetRuntimeProperties (TArray).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Pickup|Runtime")
-	FSuspenseInventoryItemInstance RuntimeInstance;
+	FSuspenseCoreItemInstance RuntimeInstance;
 
 	/**
 	 * Whether this pickup uses full runtime instance.
@@ -340,9 +336,9 @@ protected:
 	// Runtime Cache
 	//==================================================================
 
-	/** Cached unified item data from DataTable */
+	/** Cached item data from DataManager */
 	UPROPERTY(Transient)
-	mutable FSuspenseUnifiedItemData CachedItemData;
+	mutable FSuspenseCoreItemData CachedItemData;
 
 	/** Whether item data has been loaded */
 	UPROPERTY(Transient)
@@ -416,11 +412,11 @@ protected:
 	bool TryAddToInventory(AActor* InstigatorActor);
 
 	/**
-	 * Get item manager subsystem.
-	 * @return Item manager or nullptr
+	 * Get data manager subsystem.
+	 * @return DataManager or nullptr
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Pickup")
-	USuspenseItemManager* GetItemManager() const;
+	USuspenseCoreDataManager* GetDataManager() const;
 
 	/** Handle visual feedback for interaction focus */
 	virtual void HandleInteractionFeedback(bool bGainedFocus);

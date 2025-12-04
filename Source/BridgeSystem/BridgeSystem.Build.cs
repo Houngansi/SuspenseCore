@@ -20,7 +20,8 @@ public class BridgeSystem : ModuleRules
                 "GameplayTasks",
                 "Niagara",
                 "UMG",
-                "PhysicsCore"
+                "PhysicsCore",
+                "NetCore"             // For FFastArraySerializer
             }
         );
 

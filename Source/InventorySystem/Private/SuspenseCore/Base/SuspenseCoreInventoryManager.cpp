@@ -177,9 +177,9 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	BroadcastGlobalEvent(
 		SUSPENSE_INV_EVENT_UPDATED,
 		{
-			{TEXT("Action"), TEXT("Transfer")},
-			{TEXT("ItemID"), ItemID.ToString()},
-			{TEXT("Quantity"), FString::FromInt(Quantity)}
+			{FName(TEXT("Action")), TEXT("Transfer")},
+			{FName(TEXT("ItemID")), ItemID.ToString()},
+			{FName(TEXT("Quantity")), FString::FromInt(Quantity)}
 		}
 	);
 
@@ -258,11 +258,22 @@ bool USuspenseCoreInventoryManager::ExecuteTransfer(
 		return false;
 	}
 
+	USuspenseCoreInventoryComponent* SourceComp = Cast<USuspenseCoreInventoryComponent>(Context.SourceInventory.Get());
+	USuspenseCoreInventoryComponent* TargetComp = Cast<USuspenseCoreInventoryComponent>(Context.TargetInventory.Get());
+
+	if (!SourceComp || !TargetComp)
+	{
+		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+			ESuspenseCoreInventoryResult::NotInitialized,
+			TEXT("Invalid inventory component cast"));
+		return false;
+	}
+
 	if (Operation.InstanceID.IsValid())
 	{
 		return TransferItemInstance(
-			Context.SourceInventory.Get(),
-			Context.TargetInventory.Get(),
+			SourceComp,
+			TargetComp,
 			Operation.InstanceID,
 			Operation.TargetSlot,
 			OutResult
@@ -271,8 +282,8 @@ bool USuspenseCoreInventoryManager::ExecuteTransfer(
 	else
 	{
 		return TransferItem(
-			Context.SourceInventory.Get(),
-			Context.TargetInventory.Get(),
+			SourceComp,
+			TargetComp,
 			Operation.ItemID,
 			Operation.Quantity,
 			OutResult
@@ -291,10 +302,13 @@ bool USuspenseCoreInventoryManager::ExecuteBatchOperation(
 
 	Batch.Results.Empty();
 
+	USuspenseCoreInventoryComponent* SourceComp = Context.SourceInventory.IsValid() ?
+		Cast<USuspenseCoreInventoryComponent>(Context.SourceInventory.Get()) : nullptr;
+
 	// If atomic, we need transaction support
-	if (Batch.bAtomic && Context.SourceInventory.IsValid())
+	if (Batch.bAtomic && SourceComp)
 	{
-		Context.SourceInventory->BeginTransaction();
+		SourceComp->BeginTransaction();
 	}
 
 	bool bAllSucceeded = true;
@@ -308,10 +322,9 @@ bool USuspenseCoreInventoryManager::ExecuteBatchOperation(
 		Record.PreviousSlot = MoveOp.FromSlot;
 		Record.NewSlot = MoveOp.ToSlot;
 
-		if (Context.SourceInventory.IsValid())
+		if (SourceComp)
 		{
-			Record.bSuccess = Context.SourceInventory->Execute_MoveItem(
-				Context.SourceInventory.Get(), MoveOp.FromSlot, MoveOp.ToSlot);
+			Record.bSuccess = SourceComp->Execute_MoveItem(SourceComp, MoveOp.FromSlot, MoveOp.ToSlot);
 			Record.ResultCode = Record.bSuccess ?
 				ESuspenseCoreInventoryResult::Success :
 				ESuspenseCoreInventoryResult::Unknown;
@@ -339,9 +352,9 @@ bool USuspenseCoreInventoryManager::ExecuteBatchOperation(
 		Record.PreviousSlot = SwapOp.Slot1;
 		Record.NewSlot = SwapOp.Slot2;
 
-		if (Context.SourceInventory.IsValid())
+		if (SourceComp)
 		{
-			Record.bSuccess = Context.SourceInventory->SwapItems(SwapOp.Slot1, SwapOp.Slot2);
+			Record.bSuccess = SourceComp->SwapItems(SwapOp.Slot1, SwapOp.Slot2);
 			Record.ResultCode = Record.bSuccess ?
 				ESuspenseCoreInventoryResult::Success :
 				ESuspenseCoreInventoryResult::Unknown;
@@ -360,15 +373,15 @@ bool USuspenseCoreInventoryManager::ExecuteBatchOperation(
 	}
 
 	// Handle atomic transaction result
-	if (Batch.bAtomic && Context.SourceInventory.IsValid())
+	if (Batch.bAtomic && SourceComp)
 	{
 		if (bAllSucceeded)
 		{
-			Context.SourceInventory->CommitTransaction();
+			SourceComp->CommitTransaction();
 		}
 		else
 		{
-			Context.SourceInventory->RollbackTransaction();
+			SourceComp->RollbackTransaction();
 		}
 	}
 
@@ -605,7 +618,7 @@ USuspenseCoreDataManager* USuspenseCoreInventoryManager::GetDataManager() const
 	return nullptr;
 }
 
-void USuspenseCoreInventoryManager::BroadcastGlobalEvent(FGameplayTag EventTag, const TMap<FString, FString>& Payload)
+void USuspenseCoreInventoryManager::BroadcastGlobalEvent(FGameplayTag EventTag, const TMap<FName, FString>& Payload)
 {
 	USuspenseCoreEventManager* EventMgr = GetEventManager();
 	if (!EventMgr)
@@ -618,7 +631,7 @@ void USuspenseCoreInventoryManager::BroadcastGlobalEvent(FGameplayTag EventTag, 
 	{
 		FSuspenseCoreEventData EventData;
 		EventData.Source = const_cast<USuspenseCoreInventoryManager*>(this);
-		EventData.Metadata = Payload;
+		EventData.StringPayload = Payload;
 		EventBus->Publish(EventTag, EventData);
 	}
 }

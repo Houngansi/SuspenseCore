@@ -272,7 +272,7 @@ public:
 	 * @param EventTag Event tag
 	 * @param Payload Event data
 	 */
-	void BroadcastGlobalEvent(FGameplayTag EventTag, const TMap<FString, FString>& Payload);
+	void BroadcastGlobalEvent(FGameplayTag EventTag, const TMap<FName, FString>& Payload);
 
 	//==================================================================
 	// Statistics

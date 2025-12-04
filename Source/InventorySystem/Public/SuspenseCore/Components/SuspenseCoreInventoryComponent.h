@@ -6,8 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreInventory.h"
-#include "SuspenseCore/Types/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCoreInventoryComponent.generated.h"
 

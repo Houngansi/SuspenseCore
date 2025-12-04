@@ -5,7 +5,7 @@
 #include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
 #include "SuspenseCore/Storage/SuspenseCoreInventoryStorage.h"
 #include "SuspenseCore/Validation/SuspenseCoreInventoryValidator.h"
-#include "SuspenseCore/Events/SuspenseCoreInventoryEvents.h"
+#include "SuspenseCore/Events/Inventory/SuspenseCoreInventoryEvents.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"

@@ -52,7 +52,7 @@ class USuspenseCoreInventory : public UInterface
  * @see FSuspenseCoreItemInstance
  * @see USuspenseCoreEventBus
  */
-class INVENTORYSYSTEM_API ISuspenseCoreInventory
+class BRIDGESYSTEM_API ISuspenseCoreInventory
 {
 	GENERATED_BODY()
 

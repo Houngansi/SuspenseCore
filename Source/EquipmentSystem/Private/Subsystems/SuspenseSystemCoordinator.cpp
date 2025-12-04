@@ -78,28 +78,23 @@ void USuspenseSystemCoordinator::Initialize(FSubsystemCollectionBase& Collection
     UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Initialize subsystem"));
     check(IsInGameThread());
 
-    // 1) Получаем локатор (через мир, затем fallback на GI)
-    if (UWorld* InitialWorld = TryGetCurrentWorldSafe())
+    // 1) Получаем локатор (ServiceLocator is also a GI Subsystem)
+    if (UGameInstance* GI = GetGameInstance())
     {
-        ServiceLocator = USuspenseEquipmentServiceLocator::Get(InitialWorld);
+        ServiceLocator = GI->GetSubsystem<USuspenseEquipmentServiceLocator>();
     }
+
     if (!ServiceLocator)
     {
-        UObject* Outer = GetGameInstance();
-        ServiceLocator = NewObject<USuspenseEquipmentServiceLocator>(Outer);
-        check(ServiceLocator);
-        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ServiceLocator created with GI outer"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Error,
+            TEXT("ServiceLocator subsystem not found! Ensure USuspenseEquipmentServiceLocator is properly configured."));
     }
-
-    // 2) Создаём долговечный координатор (Outer = эта подсистема)
-    if (!Coordinator)
+    else
     {
-        Coordinator = NewObject<USuspenseSystemCoordinator>(this);
-        check(Coordinator);
-        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator created and owned"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ServiceLocator acquired from GameInstance"));
     }
 
-    // 3) Регистрация/прогрев/валидация
+    // 2) Регистрация/прогрев/валидация (this IS the coordinator)
     EnsureServicesRegistered(TryGetCurrentWorldSafe());
     ValidateAndLog();
 
@@ -130,11 +125,8 @@ void USuspenseSystemCoordinator::Deinitialize()
         PostLoadMapHandle.Reset();
     }
 
-    if (Coordinator)
-    {
-        Coordinator->Shutdown(); // явная очистка подписок/таймеров
-        Coordinator = nullptr;
-    }
+    // Shutdown services
+    Shutdown();
 
     ServiceLocator = nullptr;
     bServicesRegistered = false;
@@ -182,17 +174,17 @@ void USuspenseSystemCoordinator::EnsureServicesRegistered(UWorld* ForWorld)
 {
     check(IsInGameThread());
 
-    if (!ServiceLocator || !Coordinator)
+    if (!ServiceLocator)
     {
-        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("EnsureServicesRegistered: missing dependencies"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("EnsureServicesRegistered: ServiceLocator is null"));
         return;
     }
 
     if (!bServicesRegistered)
     {
         UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("=== RegisterCoreServices BEGIN ==="));
-        Coordinator->RegisterCoreServices();   // строгие теги, без CDO
-        Coordinator->WarmUpServices();         // прогрев кешей/подписок
+        RegisterCoreServices();   // Call directly on this subsystem
+        WarmUpServices();         // Warm up caches/subscriptions
         bServicesRegistered = true;
     }
 
@@ -272,14 +264,14 @@ void USuspenseSystemCoordinator::ValidateAndLog()
     check(IsInGameThread());
     bServicesReady = false;
 
-    if (!ServiceLocator || !Coordinator)
+    if (!ServiceLocator)
     {
-        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: Locator or Coordinator is null"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: ServiceLocator is null"));
         return;
     }
 
     TArray<FText> Errors;
-    const bool bOk = Coordinator->ValidateServices(Errors);
+    const bool bOk = ValidateServices(Errors);
 
     if (bOk && Errors.Num() == 0)
     {

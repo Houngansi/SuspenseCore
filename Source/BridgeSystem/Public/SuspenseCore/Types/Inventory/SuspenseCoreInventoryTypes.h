@@ -294,9 +294,20 @@ struct BRIDGESYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerialize
 		return Instance;
 	}
 
-	void PreReplicatedRemove(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
-	void PostReplicatedAdd(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
-	void PostReplicatedChange(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
+	void PreReplicatedRemove(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
+	{
+		// Called on clients before item is removed from replicated array
+	}
+
+	void PostReplicatedAdd(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
+	{
+		// Called on clients after item is added to replicated array
+	}
+
+	void PostReplicatedChange(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
+	{
+		// Called on clients after item properties change
+	}
 };
 
 /**

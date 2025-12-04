@@ -10,11 +10,10 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
-
-DEFINE_LOG_CATEGORY(LogSuspenseCoreInventory);
 
 USuspenseCoreInventoryComponent::USuspenseCoreInventoryComponent()
 	: CurrentWeight(0.0f)

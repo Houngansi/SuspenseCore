@@ -62,7 +62,7 @@ public:
     //========================================
 
     /**
-     * Check if global services are registered and ready
+     * Check if global services are ready
      * @return true if services passed validation and are operational
      */
     UFUNCTION(BlueprintPure, Category="MedCom|Services")
@@ -74,13 +74,6 @@ public:
      */
     UFUNCTION(BlueprintPure, Category="MedCom|Services")
     USuspenseEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
-
-    /**
-     * Get Coordinator instance (read-only)
-     * @return Coordinator or nullptr if not initialized
-     */
-    UFUNCTION(BlueprintPure, Category="MedCom|Services")
-    USuspenseSystemCoordinator* GetCoordinator() const { return Coordinator; }
 
     //========================================
     // Manual Control (for edge cases/tests)
@@ -189,13 +182,6 @@ private:
     //========================================
     // Owned Objects
     //========================================
-
-    /**
-     * Persistent coordinator instance - owns service registration logic
-     * CRITICAL: This must NOT be temporary object
-     */
-    UPROPERTY(Transient)
-    TObjectPtr<USuspenseSystemCoordinator> Coordinator = nullptr;
 
     /**
      * ServiceLocator instance - registry of all services

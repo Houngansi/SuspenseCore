@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Abilities/SuspenseCoreAbility.h"
+#include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreInteractAbility.generated.h"
 

@@ -2,7 +2,7 @@
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Abilities/SuspenseCoreAbility.h"
+#include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"

@@ -2,12 +2,11 @@
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Abilities/SuspenseCoreInteractAbility.h"
+#include "SuspenseCore/Abilities/Interaction/SuspenseCoreInteractAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreInteractable.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/CameraComponent.h"
@@ -35,8 +34,9 @@ USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 	InteractCooldownTag = FGameplayTag::RequestGameplayTag(FName("Ability.Cooldown.Interact"));
 	InteractingTag = FGameplayTag::RequestGameplayTag(FName("State.Interacting"));
 
-	// Ability tags
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Interaction")));
+	// Ability tags - use SetAssetTags for proper API
+	FGameplayTag InteractTag = FGameplayTag::RequestGameplayTag(FName("Ability.Interaction"));
+	SetAssetTags(FGameplayTagContainer(InteractTag));
 
 	// Applied while interacting
 	ActivationOwnedTags.AddTag(InteractingTag);

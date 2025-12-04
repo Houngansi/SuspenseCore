@@ -2,7 +2,7 @@
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Abilities/SuspenseCoreCharacterCrouchAbility.h"
+#include "SuspenseCore/Abilities/Movement/SuspenseCoreCharacterCrouchAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
@@ -25,8 +25,9 @@ USuspenseCoreCharacterCrouchAbility::USuspenseCoreCharacterCrouchAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = true; // Allow toggle behavior
 
-	// Ability tags
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Crouch")));
+	// Ability tags - use SetAssetTags for proper API
+	FGameplayTag CrouchTag = FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Crouch"));
+	SetAssetTags(FGameplayTagContainer(CrouchTag));
 
 	// Applied tag while crouching
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Crouching")));

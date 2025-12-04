@@ -2,11 +2,11 @@
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Abilities/SuspenseCoreCharacterJumpAbility.h"
+#include "SuspenseCore/Abilities/Movement/SuspenseCoreCharacterJumpAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
@@ -28,8 +28,9 @@ USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 	// Allow activation while airborne for multi-jump
 	bRetriggerInstancedAbility = false;
 
-	// Ability tags
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Jump")));
+	// Ability tags - use SetAssetTags for proper API
+	FGameplayTag JumpTag = FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Jump"));
+	SetAssetTags(FGameplayTagContainer(JumpTag));
 
 	// Block tags
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
@@ -72,17 +73,14 @@ bool USuspenseCoreCharacterJumpAbility::CanActivateAbility(
 		}
 	}
 
-	// Check stamina if ASC available
+	// Check stamina via SuspenseCore AttributeSet
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (ASC && MinimumStaminaToJump > 0.0f)
 	{
-		// Check stamina attribute
-		static FGameplayAttribute StaminaAttribute =
-			UAbilitySystemGlobals::Get().GetGameplayAttributeFromName(TEXT("Stamina"));
-
-		if (StaminaAttribute.IsValid())
+		const USuspenseCoreAttributeSet* Attributes = ASC->GetSet<USuspenseCoreAttributeSet>();
+		if (Attributes)
 		{
-			float CurrentStamina = ASC->GetNumericAttribute(StaminaAttribute);
+			float CurrentStamina = Attributes->GetStamina();
 			if (CurrentStamina < MinimumStaminaToJump)
 			{
 				return false;

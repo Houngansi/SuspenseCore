@@ -466,7 +466,7 @@ void USuspenseCoreInteractionComponent::HandleInteractionSuccess(const FGameplay
 
 	if (Payload.Target)
 	{
-		TargetActor = Cast<AActor>(Payload.Target.Get());
+		TargetActor = const_cast<AActor*>(Cast<const AActor>(Payload.Target.Get()));
 	}
 
 	if (!TargetActor)
@@ -497,7 +497,7 @@ void USuspenseCoreInteractionComponent::HandleInteractionFailure(const FGameplay
 
 	if (Payload.Target)
 	{
-		TargetActor = Cast<AActor>(Payload.Target.Get());
+		TargetActor = const_cast<AActor*>(Cast<const AActor>(Payload.Target.Get()));
 	}
 
 	// Fire Blueprint delegate

@@ -612,7 +612,7 @@ void ASuspenseCorePickupItem::InitializeFromSpawnData(const FSuspensePickupSpawn
 		*ItemID.ToString());
 }
 
-void ASuspenseCorePickupItem::SetAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo)
+void ASuspenseCorePickupItem::SetPickupAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo)
 {
 	bHasSavedAmmoState = bHasState;
 	SavedCurrentAmmo = CurrentAmmo;

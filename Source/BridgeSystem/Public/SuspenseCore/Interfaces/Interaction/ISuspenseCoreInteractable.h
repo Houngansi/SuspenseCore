@@ -20,7 +20,7 @@ class APlayerController;
  * IMPORTANT: This is a SuspenseCore interface.
  * DO NOT use legacy ISuspenseInteract in new SuspenseCore code!
  */
-UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+UINTERFACE(MinimalAPI, Blueprintable)
 class USuspenseCoreInteractable : public UInterface
 {
 	GENERATED_BODY()

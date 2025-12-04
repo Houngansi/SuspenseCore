@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreItemTypes.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryOperationTypes.h"
 #include "SuspenseCoreInventoryConstraints.generated.h"
 

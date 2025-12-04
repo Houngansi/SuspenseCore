@@ -148,7 +148,7 @@ bool USuspenseCoreInventoryTemplateManager::ApplyLoadout(
 	USuspenseCoreInventoryComponent* Inventory,
 	FName LoadoutID)
 {
-	FSuspenseCoreLoadout Loadout;
+	FSuspenseCoreTemplateLoadout Loadout;
 	if (!GetLoadout(LoadoutID, Loadout))
 	{
 		return false;
@@ -168,7 +168,7 @@ bool USuspenseCoreInventoryTemplateManager::ApplyLoadout(
 
 bool USuspenseCoreInventoryTemplateManager::GetDefaultLoadout(
 	FGameplayTag CharacterClass,
-	FSuspenseCoreLoadout& OutLoadout) const
+	FSuspenseCoreTemplateLoadout& OutLoadout) const
 {
 	for (const auto& Pair : CachedLoadouts)
 	{
@@ -181,10 +181,10 @@ bool USuspenseCoreInventoryTemplateManager::GetDefaultLoadout(
 	return false;
 }
 
-TArray<FSuspenseCoreLoadout> USuspenseCoreInventoryTemplateManager::GetLoadoutsForClass(
+TArray<FSuspenseCoreTemplateLoadout> USuspenseCoreInventoryTemplateManager::GetLoadoutsForClass(
 	FGameplayTag CharacterClass) const
 {
-	TArray<FSuspenseCoreLoadout> Result;
+	TArray<FSuspenseCoreTemplateLoadout> Result;
 	for (const auto& Pair : CachedLoadouts)
 	{
 		if (Pair.Value.CharacterClass == CharacterClass)
@@ -210,9 +210,9 @@ bool USuspenseCoreInventoryTemplateManager::GetTemplate(
 
 bool USuspenseCoreInventoryTemplateManager::GetLoadout(
 	FName LoadoutID,
-	FSuspenseCoreLoadout& OutLoadout) const
+	FSuspenseCoreTemplateLoadout& OutLoadout) const
 {
-	const FSuspenseCoreLoadout* Found = CachedLoadouts.Find(LoadoutID);
+	const FSuspenseCoreTemplateLoadout* Found = CachedLoadouts.Find(LoadoutID);
 	if (Found)
 	{
 		OutLoadout = *Found;
@@ -372,10 +372,10 @@ void USuspenseCoreInventoryTemplateManager::LoadLoadouts()
 		return;
 	}
 
-	TArray<FSuspenseCoreLoadout*> Rows;
-	LoadoutTableRef->GetAllRows<FSuspenseCoreLoadout>(TEXT("LoadLoadouts"), Rows);
+	TArray<FSuspenseCoreTemplateLoadout*> Rows;
+	LoadoutTableRef->GetAllRows<FSuspenseCoreTemplateLoadout>(TEXT("LoadLoadouts"), Rows);
 
-	for (FSuspenseCoreLoadout* Row : Rows)
+	for (FSuspenseCoreTemplateLoadout* Row : Rows)
 	{
 		if (Row && Row->IsValid())
 		{

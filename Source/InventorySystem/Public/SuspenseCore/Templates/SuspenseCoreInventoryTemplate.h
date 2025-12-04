@@ -45,7 +45,7 @@ public:
 	/**
 	 * Initialize with template DataTable.
 	 * @param TemplateTable DataTable with FSuspenseCoreInventoryTemplate rows
-	 * @param LoadoutTable Optional DataTable with FSuspenseCoreLoadout rows
+	 * @param LoadoutTable Optional DataTable with FSuspenseCoreTemplateLoadout rows
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Templates")
 	void Initialize(UDataTable* TemplateTable, UDataTable* LoadoutTable = nullptr);
@@ -126,7 +126,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Templates")
 	bool GetDefaultLoadout(
 		FGameplayTag CharacterClass,
-		FSuspenseCoreLoadout& OutLoadout
+		FSuspenseCoreTemplateLoadout& OutLoadout
 	) const;
 
 	/**
@@ -135,7 +135,7 @@ public:
 	 * @return Array of matching loadouts
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Templates")
-	TArray<FSuspenseCoreLoadout> GetLoadoutsForClass(FGameplayTag CharacterClass) const;
+	TArray<FSuspenseCoreTemplateLoadout> GetLoadoutsForClass(FGameplayTag CharacterClass) const;
 
 	//==================================================================
 	// Template Query
@@ -157,7 +157,7 @@ public:
 	 * @return true if found
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Templates")
-	bool GetLoadout(FName LoadoutID, FSuspenseCoreLoadout& OutLoadout) const;
+	bool GetLoadout(FName LoadoutID, FSuspenseCoreTemplateLoadout& OutLoadout) const;
 
 	/**
 	 * Get all templates of type.
@@ -225,7 +225,7 @@ protected:
 
 	/** Cached loadouts from DataTable */
 	UPROPERTY()
-	TMap<FName, FSuspenseCoreLoadout> CachedLoadouts;
+	TMap<FName, FSuspenseCoreTemplateLoadout> CachedLoadouts;
 
 	/** Data manager reference */
 	UPROPERTY()

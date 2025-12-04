@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Containers/BitArray.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreInventoryStorage.generated.h"
 
@@ -260,8 +261,7 @@ private:
 	UPROPERTY()
 	TArray<FSuspenseCoreInventorySlot> Slots;
 
-	/** Free slot bitmap for fast queries */
-	UPROPERTY()
+	/** Free slot bitmap for fast queries (not UPROPERTY - TBitArray not supported) */
 	TBitArray<> FreeSlotBitmap;
 
 	/** Is initialized */

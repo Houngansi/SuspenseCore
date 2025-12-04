@@ -15,7 +15,7 @@
 class USuspenseItemManager;
 class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreItemData;
 struct FSuspenseInventoryItemInstance;
 
 // Log categories
@@ -172,18 +172,18 @@ public:
 	//==================================================================
 
 	/**
-	 * Get unified item data from DataTable.
+	 * Get item data from DataTable.
 	 * @param WorldContextObject Any object with world context
 	 * @param ItemID Item identifier
-	 * @param OutItemData Output unified data structure
+	 * @param OutItemData Output item data structure
 	 * @return true if data found
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Items",
 		meta = (WorldContext = "WorldContextObject"))
-	static bool GetUnifiedItemData(
+	static bool GetItemData(
 		const UObject* WorldContextObject,
 		FName ItemID,
-		FSuspenseUnifiedItemData& OutItemData
+		FSuspenseCoreItemData& OutItemData
 	);
 
 	/**

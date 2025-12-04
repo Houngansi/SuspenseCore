@@ -7,12 +7,12 @@
 #include "SuspenseCore/Utils/SuspenseCoreInteractionSettings.h"
 #include "SuspenseCore/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"
 #include "Components/AudioComponent.h"
 #include "Interfaces/Inventory/ISuspenseInventory.h"
-#include "ItemSystem/SuspenseItemManager.h"
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -258,7 +258,7 @@ FText ASuspenseCorePickupItem::GetInteractionPrompt_Implementation() const
 
 	if (bDataCached)
 	{
-		return FText::Format(FText::FromString(TEXT("Pick up {0}")), CachedItemData.DisplayName);
+		return FText::Format(FText::FromString(TEXT("Pick up {0}")), CachedItemData.Identity.DisplayName);
 	}
 
 	return FText::FromString(TEXT("Pick up"));
@@ -351,11 +351,11 @@ bool ASuspenseCorePickupItem::CanPickup_Implementation(AActor* InstigatorActor) 
 
 	// Validate item type hierarchy
 	static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
-	if (!CachedItemData.ItemType.MatchesTag(BaseItemTag))
+	if (!CachedItemData.Classification.ItemType.MatchesTag(BaseItemTag))
 	{
 		UE_LOG(LogSuspenseCorePickup, Error,
 			TEXT("CanPickup: Item type %s is not in Item.* hierarchy!"),
-			*CachedItemData.ItemType.ToString());
+			*CachedItemData.Classification.ItemType.ToString());
 		return false;
 	}
 
@@ -424,7 +424,7 @@ FGameplayTag ASuspenseCorePickupItem::GetItemType_Implementation() const
 	return FGameplayTag::RequestGameplayTag(TEXT("Item.Generic"));
 }
 
-bool ASuspenseCorePickupItem::CreateInventoryInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const
+bool ASuspenseCorePickupItem::CreateInventoryInstance_Implementation(FSuspenseCoreItemInstance& OutInstance) const
 {
 	// Use full runtime instance if available
 	if (bUseRuntimeInstance && RuntimeInstance.IsValid())
@@ -447,13 +447,13 @@ bool ASuspenseCorePickupItem::CreateInventoryInstance_Implementation(FSuspenseIn
 		return false;
 	}
 
-	USuspenseItemManager* ItemManager = GetItemManager();
-	if (!ItemManager)
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
 	{
 		return false;
 	}
 
-	if (!ItemManager->CreateItemInstance(ItemID, Amount, OutInstance))
+	if (!DataManager->CreateItemInstance(ItemID, Amount, OutInstance))
 	{
 		return false;
 	}
@@ -461,14 +461,15 @@ bool ASuspenseCorePickupItem::CreateInventoryInstance_Implementation(FSuspenseIn
 	// Apply preset properties
 	for (const FSuspenseCorePresetProperty& PropertyPair : PresetRuntimeProperties)
 	{
-		OutInstance.SetRuntimeProperty(PropertyPair.PropertyName, PropertyPair.PropertyValue);
+		OutInstance.SetProperty(PropertyPair.PropertyName, PropertyPair.PropertyValue);
 	}
 
 	// Apply ammo state for weapons
 	if (CachedItemData.bIsWeapon && bHasSavedAmmoState)
 	{
-		OutInstance.SetRuntimeProperty(TEXT("Ammo"), SavedCurrentAmmo);
-		OutInstance.SetRuntimeProperty(TEXT("RemainingAmmo"), SavedRemainingAmmo);
+		OutInstance.WeaponState.bHasState = true;
+		OutInstance.WeaponState.CurrentAmmo = SavedCurrentAmmo;
+		OutInstance.WeaponState.ReserveAmmo = SavedRemainingAmmo;
 	}
 
 	return true;
@@ -481,7 +482,7 @@ FGameplayTag ASuspenseCorePickupItem::GetItemRarity_Implementation() const
 		LoadItemData();
 	}
 
-	return bDataCached ? CachedItemData.Rarity : FGameplayTag();
+	return bDataCached ? CachedItemData.Classification.Rarity : FGameplayTag();
 }
 
 FText ASuspenseCorePickupItem::GetDisplayName_Implementation() const
@@ -491,7 +492,7 @@ FText ASuspenseCorePickupItem::GetDisplayName_Implementation() const
 		LoadItemData();
 	}
 
-	return bDataCached ? CachedItemData.DisplayName : FText::FromString(ItemID.ToString());
+	return bDataCached ? CachedItemData.Identity.DisplayName : FText::FromString(ItemID.ToString());
 }
 
 bool ASuspenseCorePickupItem::IsStackable_Implementation() const
@@ -501,7 +502,7 @@ bool ASuspenseCorePickupItem::IsStackable_Implementation() const
 		LoadItemData();
 	}
 
-	return bDataCached && CachedItemData.MaxStackSize > 1;
+	return bDataCached && CachedItemData.InventoryProps.MaxStackSize > 1;
 }
 
 float ASuspenseCorePickupItem::GetWeight_Implementation() const
@@ -511,14 +512,14 @@ float ASuspenseCorePickupItem::GetWeight_Implementation() const
 		LoadItemData();
 	}
 
-	return bDataCached ? CachedItemData.Weight : 1.0f;
+	return bDataCached ? CachedItemData.InventoryProps.Weight : 1.0f;
 }
 
 //==================================================================
-// Legacy Compatibility
+// Data Access
 //==================================================================
 
-bool ASuspenseCorePickupItem::GetUnifiedItemData(FSuspenseUnifiedItemData& OutItemData) const
+bool ASuspenseCorePickupItem::GetItemData(FSuspenseCoreItemData& OutItemData) const
 {
 	if (!bDataCached)
 	{
@@ -538,7 +539,7 @@ bool ASuspenseCorePickupItem::GetUnifiedItemData(FSuspenseUnifiedItemData& OutIt
 // Initialization
 //==================================================================
 
-void ASuspenseCorePickupItem::InitializeFromInstance(const FSuspenseInventoryItemInstance& Instance)
+void ASuspenseCorePickupItem::InitializeFromInstance(const FSuspenseCoreItemInstance& Instance)
 {
 	if (!Instance.IsValid())
 	{
@@ -553,11 +554,11 @@ void ASuspenseCorePickupItem::InitializeFromInstance(const FSuspenseInventoryIte
 	Amount = Instance.Quantity;
 
 	// Handle weapon ammo state
-	if (Instance.HasRuntimeProperty(TEXT("Ammo")))
+	if (Instance.WeaponState.bHasState)
 	{
 		bHasSavedAmmoState = true;
-		SavedCurrentAmmo = Instance.GetRuntimeProperty(TEXT("Ammo"), 0.0f);
-		SavedRemainingAmmo = Instance.GetRuntimeProperty(TEXT("RemainingAmmo"), 0.0f);
+		SavedCurrentAmmo = Instance.WeaponState.CurrentAmmo;
+		SavedRemainingAmmo = Instance.WeaponState.ReserveAmmo;
 	}
 
 	if (LoadItemData())
@@ -572,33 +573,18 @@ void ASuspenseCorePickupItem::InitializeFromInstance(const FSuspenseInventoryIte
 		*ItemID.ToString());
 }
 
-void ASuspenseCorePickupItem::InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData)
+void ASuspenseCorePickupItem::InitializeFromItemID(FName InItemID, int32 InQuantity)
 {
-	if (!SpawnData.IsValid())
+	if (InItemID.IsNone())
 	{
 		UE_LOG(LogSuspenseCorePickup, Warning,
-			TEXT("InitializeFromSpawnData: Invalid spawn data provided"));
+			TEXT("InitializeFromItemID: Invalid ItemID provided"));
 		return;
 	}
 
-	ItemID = SpawnData.ItemID;
-	Amount = SpawnData.Quantity;
-
-	// Convert TMap to TArray for replication
-	SetPresetPropertiesFromMap(SpawnData.PresetRuntimeProperties);
-
+	ItemID = InItemID;
+	Amount = FMath::Max(1, InQuantity);
 	bUseRuntimeInstance = false;
-
-	// Check for ammo in preset properties
-	float AmmoValue = GetPresetProperty(TEXT("Ammo"), -1.0f);
-	float RemainingAmmoValue = GetPresetProperty(TEXT("RemainingAmmo"), -1.0f);
-
-	if (AmmoValue >= 0.0f && RemainingAmmoValue >= 0.0f)
-	{
-		bHasSavedAmmoState = true;
-		SavedCurrentAmmo = AmmoValue;
-		SavedRemainingAmmo = RemainingAmmoValue;
-	}
 
 	if (LoadItemData())
 	{
@@ -608,8 +594,8 @@ void ASuspenseCorePickupItem::InitializeFromSpawnData(const FSuspensePickupSpawn
 	}
 
 	UE_LOG(LogSuspenseCorePickup, Log,
-		TEXT("InitializeFromSpawnData: Initialized pickup for %s from spawn data"),
-		*ItemID.ToString());
+		TEXT("InitializeFromItemID: Initialized pickup for %s x%d"),
+		*ItemID.ToString(), Amount);
 }
 
 void ASuspenseCorePickupItem::SetPickupAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo)
@@ -724,9 +710,9 @@ bool ASuspenseCorePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
 	}
 
 	// Play collect VFX
-	if (bDataCached && !CachedItemData.PickupCollectVFX.IsNull())
+	if (bDataCached && !CachedItemData.Visuals.PickupCollectVFX.IsNull())
 	{
-		UNiagaraSystem* CollectVFX = CachedItemData.PickupCollectVFX.LoadSynchronous();
+		UNiagaraSystem* CollectVFX = CachedItemData.Visuals.PickupCollectVFX.LoadSynchronous();
 		if (CollectVFX)
 		{
 			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -739,9 +725,9 @@ bool ASuspenseCorePickupItem::OnPickedUp_Implementation(AActor* InstigatorActor)
 	}
 
 	// Play pickup sound
-	if (bDataCached && !CachedItemData.PickupSound.IsNull())
+	if (bDataCached && !CachedItemData.Audio.PickupSound.IsNull())
 	{
-		USoundBase* Sound = CachedItemData.PickupSound.LoadSynchronous();
+		USoundBase* Sound = CachedItemData.Audio.PickupSound.LoadSynchronous();
 		if (Sound)
 		{
 			UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
@@ -763,14 +749,14 @@ bool ASuspenseCorePickupItem::LoadItemData() const
 		return false;
 	}
 
-	USuspenseItemManager* ItemManager = GetItemManager();
-	if (!ItemManager)
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
 	{
-		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("LoadItemData: ItemManager not found"));
+		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("LoadItemData: DataManager not found"));
 		return false;
 	}
 
-	if (ItemManager->GetUnifiedItemData(ItemID, CachedItemData))
+	if (DataManager->GetItemData(ItemID, CachedItemData))
 	{
 		bDataCached = true;
 
@@ -800,9 +786,9 @@ void ASuspenseCorePickupItem::ApplyItemVisuals()
 		return;
 	}
 
-	if (!CachedItemData.WorldMesh.IsNull())
+	if (!CachedItemData.Visuals.WorldMesh.IsNull())
 	{
-		UStaticMesh* Mesh = CachedItemData.WorldMesh.LoadSynchronous();
+		UStaticMesh* Mesh = CachedItemData.Visuals.WorldMesh.LoadSynchronous();
 		if (Mesh)
 		{
 			MeshComponent->SetStaticMesh(Mesh);
@@ -825,9 +811,9 @@ void ASuspenseCorePickupItem::ApplyItemVFX()
 		return;
 	}
 
-	if (!CachedItemData.PickupSpawnVFX.IsNull())
+	if (!CachedItemData.Visuals.PickupSpawnVFX.IsNull())
 	{
-		UNiagaraSystem* SpawnVFX = CachedItemData.PickupSpawnVFX.LoadSynchronous();
+		UNiagaraSystem* SpawnVFX = CachedItemData.Visuals.PickupSpawnVFX.LoadSynchronous();
 		if (SpawnVFX)
 		{
 			SpawnVFXComponent->SetAsset(SpawnVFX);
@@ -852,16 +838,16 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 
 	// Validate item type hierarchy
 	static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
-	if (!CachedItemData.ItemType.MatchesTag(BaseItemTag))
+	if (!CachedItemData.Classification.ItemType.MatchesTag(BaseItemTag))
 	{
 		UE_LOG(LogSuspenseCorePickup, Error,
 			TEXT("TryAddToInventory: Item type %s is not in Item.* hierarchy!"),
-			*CachedItemData.ItemType.ToString());
+			*CachedItemData.Classification.ItemType.ToString());
 		return false;
 	}
 
 	// Create item instance
-	FSuspenseInventoryItemInstance ItemInstance;
+	FSuspenseCoreItemInstance ItemInstance;
 	if (!CreateInventoryInstance_Implementation(ItemInstance))
 	{
 		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("TryAddToInventory: Failed to create item instance"));
@@ -883,44 +869,7 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 		return false;
 	}
 
-	// Validate through interface
-	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
-		InventoryComponent,
-		CachedItemData,
-		Amount
-	);
-
-	if (!bCanReceive)
-	{
-		UE_LOG(LogSuspenseCorePickup, Warning,
-			TEXT("TryAddToInventory: Inventory cannot receive item"));
-
-		// Determine reason and broadcast through EventBus
-		float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
-		float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
-		float RequiredWeight = CachedItemData.Weight * Amount;
-
-		if (CurrentWeight + RequiredWeight > MaxWeight)
-		{
-			ISuspenseInventory::BroadcastInventoryError(
-				InventoryComponent,
-				ESuspenseInventoryErrorCode::WeightLimit,
-				TEXT("Weight limit exceeded")
-			);
-		}
-		else
-		{
-			ISuspenseInventory::BroadcastInventoryError(
-				InventoryComponent,
-				ESuspenseInventoryErrorCode::NoSpace,
-				TEXT("Cannot add item to inventory")
-			);
-		}
-
-		return false;
-	}
-
-	// Add to inventory
+	// Add to inventory directly by ID (let inventory handle validation)
 	UE_LOG(LogSuspenseCorePickup, Log, TEXT("TryAddToInventory: Adding item through interface..."));
 
 	bool bAdded = ISuspenseInventory::Execute_AddItemByID(InventoryComponent, ItemID, Amount);
@@ -928,12 +877,6 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 	if (bAdded)
 	{
 		UE_LOG(LogSuspenseCorePickup, Log, TEXT("Successfully added %s to inventory"), *ItemID.ToString());
-
-		ISuspenseInventory::BroadcastItemAdded(
-			InventoryComponent,
-			ItemInstance,
-			INDEX_NONE
-		);
 	}
 	else
 	{
@@ -949,9 +892,9 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 	return bAdded;
 }
 
-USuspenseItemManager* ASuspenseCorePickupItem::GetItemManager() const
+USuspenseCoreDataManager* ASuspenseCorePickupItem::GetDataManager() const
 {
-	return USuspenseCoreHelpers::GetItemManager(this);
+	return USuspenseCoreDataManager::Get(this);
 }
 
 void ASuspenseCorePickupItem::HandleInteractionFeedback(bool bGainedFocus)

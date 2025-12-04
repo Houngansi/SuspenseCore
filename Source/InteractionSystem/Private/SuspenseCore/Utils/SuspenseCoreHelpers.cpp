@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -14,7 +15,6 @@
 #include "Components/ActorComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Interfaces/Inventory/ISuspenseInventory.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -309,9 +309,9 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 		return false;
 	}
 
-	// Get unified item data
-	FSuspenseUnifiedItemData UnifiedData;
-	if (!DataManager->GetItemData(ItemID, UnifiedData))
+	// Get item data
+	FSuspenseCoreItemData ItemData;
+	if (!DataManager->GetItemData(ItemID, ItemData))
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Warning,
 			TEXT("CanActorPickupItem: Item %s not found in DataTable"),
@@ -322,19 +322,19 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 
 	// Validate item type hierarchy
 	static const FGameplayTag BaseItemTag = FGameplayTag::RequestGameplayTag(TEXT("Item"));
-	if (!UnifiedData.ItemType.MatchesTag(BaseItemTag))
+	if (!ItemData.Classification.ItemType.MatchesTag(BaseItemTag))
 	{
 		UE_LOG(LogSuspenseCoreInteraction, Error,
 			TEXT("CanActorPickupItem: Item type %s is not in Item.* hierarchy!"),
-			*UnifiedData.ItemType.ToString());
+			*ItemData.Classification.ItemType.ToString());
 		BroadcastValidationFailed(Actor, Actor, ItemID, TEXT("Invalid item type hierarchy"));
 		return false;
 	}
 
-	// Check if inventory can receive item
-	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
+	// Check if inventory can receive item using ItemID
+	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItemByID(
 		InventoryComponent,
-		UnifiedData,
+		ItemID,
 		Quantity
 	);
 
@@ -343,7 +343,7 @@ bool USuspenseCoreHelpers::CanActorPickupItem(AActor* Actor, FName ItemID, int32
 		// Determine specific reason and broadcast
 		float CurrentWeight = ISuspenseInventory::Execute_GetCurrentWeight(InventoryComponent);
 		float MaxWeight = ISuspenseInventory::Execute_GetMaxWeight(InventoryComponent);
-		float RequiredWeight = UnifiedData.Weight * Quantity;
+		float RequiredWeight = ItemData.InventoryProps.Weight * Quantity;
 
 		FString Reason;
 		if (CurrentWeight + RequiredWeight > MaxWeight)
@@ -413,10 +413,10 @@ bool USuspenseCoreHelpers::CreateItemInstance(
 // Item Information Implementation
 //==================================================================
 
-bool USuspenseCoreHelpers::GetUnifiedItemData(
+bool USuspenseCoreHelpers::GetItemData(
 	const UObject* WorldContextObject,
 	FName ItemID,
-	FSuspenseUnifiedItemData& OutItemData)
+	FSuspenseCoreItemData& OutItemData)
 {
 	if (ItemID.IsNone())
 	{
@@ -435,10 +435,10 @@ bool USuspenseCoreHelpers::GetUnifiedItemData(
 
 FText USuspenseCoreHelpers::GetItemDisplayName(const UObject* WorldContextObject, FName ItemID)
 {
-	FSuspenseUnifiedItemData ItemData;
-	if (GetUnifiedItemData(WorldContextObject, ItemID, ItemData))
+	FSuspenseCoreItemData ItemData;
+	if (GetItemData(WorldContextObject, ItemID, ItemData))
 	{
-		return ItemData.DisplayName;
+		return ItemData.Identity.DisplayName;
 	}
 
 	return FText::FromString(ItemID.ToString());
@@ -446,10 +446,10 @@ FText USuspenseCoreHelpers::GetItemDisplayName(const UObject* WorldContextObject
 
 float USuspenseCoreHelpers::GetItemWeight(const UObject* WorldContextObject, FName ItemID)
 {
-	FSuspenseUnifiedItemData ItemData;
-	if (GetUnifiedItemData(WorldContextObject, ItemID, ItemData))
+	FSuspenseCoreItemData ItemData;
+	if (GetItemData(WorldContextObject, ItemID, ItemData))
 	{
-		return ItemData.Weight;
+		return ItemData.InventoryProps.Weight;
 	}
 
 	return 0.0f;
@@ -457,10 +457,10 @@ float USuspenseCoreHelpers::GetItemWeight(const UObject* WorldContextObject, FNa
 
 bool USuspenseCoreHelpers::IsItemStackable(const UObject* WorldContextObject, FName ItemID)
 {
-	FSuspenseUnifiedItemData ItemData;
-	if (GetUnifiedItemData(WorldContextObject, ItemID, ItemData))
+	FSuspenseCoreItemData ItemData;
+	if (GetItemData(WorldContextObject, ItemID, ItemData))
 	{
-		return ItemData.MaxStackSize > 1;
+		return ItemData.InventoryProps.MaxStackSize > 1;
 	}
 
 	return false;
@@ -517,17 +517,17 @@ bool USuspenseCoreHelpers::ValidateInventorySpace(
 	}
 
 	// Get item data
-	FSuspenseUnifiedItemData ItemData;
+	FSuspenseCoreItemData ItemData;
 	AActor* Owner = Cast<AActor>(InventoryComponent->GetOuter());
-	if (!GetUnifiedItemData(Owner, ItemID, ItemData))
+	if (!GetItemData(Owner, ItemID, ItemData))
 	{
 		OutErrorMessage = FString::Printf(TEXT("Item %s not found"), *ItemID.ToString());
 		return false;
 	}
 
 	// Check if inventory can receive item
-	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItem(
-		InventoryComponent, ItemData, Quantity);
+	bool bCanReceive = ISuspenseInventory::Execute_CanReceiveItemByID(
+		InventoryComponent, ItemID, Quantity);
 
 	if (!bCanReceive)
 	{
@@ -603,10 +603,10 @@ void USuspenseCoreHelpers::GetInventoryStatistics(
 		OutTotalItems += Instance.Quantity;
 
 		// Get item weight from DataTable
-		FSuspenseUnifiedItemData ItemData;
-		if (GetUnifiedItemData(Owner, Instance.ItemID, ItemData))
+		FSuspenseCoreItemData ItemData;
+		if (GetItemData(Owner, Instance.ItemID, ItemData))
 		{
-			OutTotalWeight += ItemData.Weight * Instance.Quantity;
+			OutTotalWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
 		}
 	}
 

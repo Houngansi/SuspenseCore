@@ -5,8 +5,9 @@
 #include "SuspenseCore/Components/SuspenseCoreInteractionComponent.h"
 #include "SuspenseCore/Utils/SuspenseCoreInteractionSettings.h"
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreInteractable.h"
 #include "Interfaces/Interaction/ISuspenseInteract.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
@@ -170,12 +171,13 @@ void USuspenseCoreInteractionComponent::SetupEventSubscriptions(USuspenseCoreEve
 		return;
 	}
 
-	// Subscribe to settings change events
+	// Subscribe to settings change events using native callback
 	static const FGameplayTag SettingsChangedTag =
 		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Settings.InteractionChanged"));
 
-	FSuspenseCoreSubscriptionHandle Handle = EventBus->Subscribe(
+	FSuspenseCoreSubscriptionHandle Handle = EventBus->SubscribeNative(
 		SettingsChangedTag,
+		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(
 			this, &USuspenseCoreInteractionComponent::HandleSettingsChanged),
 		ESuspenseCoreEventPriority::Normal

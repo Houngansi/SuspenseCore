@@ -3,7 +3,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Utils/SuspenseCoreInteractionSettings.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
@@ -93,20 +94,20 @@ USuspenseCoreEventBus* USuspenseCoreInteractionSettings::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	// Try to get from GameInstance
+	// Try to get from GameInstance via EventManager
 	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(GEngine, EGetWorldErrorMode::ReturnNull) : nullptr;
 	if (!World)
 	{
 		return nullptr;
 	}
 
-	UGameInstance* GameInstance = World->GetGameInstance();
-	if (!GameInstance)
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(World);
+	if (!Manager)
 	{
 		return nullptr;
 	}
 
-	USuspenseCoreEventBus* EventBus = GameInstance->GetSubsystem<USuspenseCoreEventBus>();
+	USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
 	if (EventBus)
 	{
 		CachedEventBus = EventBus;

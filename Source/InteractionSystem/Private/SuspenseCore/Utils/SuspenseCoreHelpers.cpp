@@ -3,7 +3,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
@@ -31,19 +32,13 @@ USuspenseCoreEventBus* USuspenseCoreHelpers::GetEventBus(const UObject* WorldCon
 		return nullptr;
 	}
 
-	UWorld* World = WorldContextObject->GetWorld();
-	if (!World)
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(WorldContextObject);
+	if (!Manager)
 	{
 		return nullptr;
 	}
 
-	UGameInstance* GameInstance = World->GetGameInstance();
-	if (!GameInstance)
-	{
-		return nullptr;
-	}
-
-	return GameInstance->GetSubsystem<USuspenseCoreEventBus>();
+	return Manager->GetEventBus();
 }
 
 bool USuspenseCoreHelpers::BroadcastSimpleEvent(

@@ -160,16 +160,20 @@ public:
 	virtual void LogContents() const override;
 
 	//==================================================================
-	// Blueprint Events
+	// Accessors
 	//==================================================================
 
-	/** Called when inventory is initialized */
-	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Inventory|Events")
-	FSimpleMulticastDelegate OnInventoryInitialized;
+	/** Get grid width */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
+	int32 GetGridWidth() const { return Config.GridSize.X; }
 
-	/** Called when inventory contents change */
-	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Inventory|Events")
-	FSimpleMulticastDelegate OnInventoryUpdated;
+	/** Get grid height */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
+	int32 GetGridHeight() const { return Config.GridSize.Y; }
+
+	/** Check if slot is empty */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
+	bool IsSlotEmpty(int32 SlotIndex) const { return !IsSlotOccupied(SlotIndex); }
 
 protected:
 	//==================================================================

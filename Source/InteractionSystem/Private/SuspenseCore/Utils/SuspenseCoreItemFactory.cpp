@@ -7,8 +7,8 @@
 #include "SuspenseCore/Pickup/SuspenseCorePickupItem.h"
 #include "SuspenseCore/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCorePickup.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Interfaces/Interaction/ISuspensePickup.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -274,12 +274,12 @@ void USuspenseCoreItemFactory::ConfigurePickup(
 		return;
 	}
 
-	// Configure through pickup interface
-	if (PickupActor->GetClass()->ImplementsInterface(USuspensePickup::StaticClass()))
+	// Configure through SuspenseCore pickup interface
+	if (PickupActor->GetClass()->ImplementsInterface(USuspenseCorePickup::StaticClass()))
 	{
 		// Set item ID and quantity
-		ISuspensePickup::Execute_SetItemID(PickupActor, ItemData.ItemID);
-		ISuspensePickup::Execute_SetAmount(PickupActor, Quantity);
+		ISuspenseCorePickup::Execute_SetItemID(PickupActor, ItemData.ItemID);
+		ISuspenseCorePickup::Execute_SetQuantity(PickupActor, Quantity);
 
 		// If it's our SuspenseCorePickupItem, we can set more properties
 		ASuspenseCorePickupItem* CorePickup = Cast<ASuspenseCorePickupItem>(PickupActor);
@@ -292,7 +292,7 @@ void USuspenseCoreItemFactory::ConfigurePickup(
 	else
 	{
 		UE_LOG(LogSuspenseCoreFactory, Warning,
-			TEXT("ConfigurePickup: Actor doesn't implement pickup interface"));
+			TEXT("ConfigurePickup: Actor doesn't implement ISuspenseCorePickup interface"));
 	}
 }
 
@@ -308,12 +308,12 @@ void USuspenseCoreItemFactory::ConfigureWeaponPickup(
 		return;
 	}
 
-	// Configure ammo state through interface
-	if (PickupActor->GetClass()->ImplementsInterface(USuspensePickup::StaticClass()))
+	// Configure ammo state through SuspenseCore interface
+	if (PickupActor->GetClass()->ImplementsInterface(USuspenseCorePickup::StaticClass()))
 	{
 		if (bWithAmmoState)
 		{
-			ISuspensePickup::Execute_SetSavedAmmoState(PickupActor, CurrentAmmo, RemainingAmmo);
+			ISuspenseCorePickup::Execute_SetAmmoState(PickupActor, CurrentAmmo, RemainingAmmo);
 		}
 	}
 

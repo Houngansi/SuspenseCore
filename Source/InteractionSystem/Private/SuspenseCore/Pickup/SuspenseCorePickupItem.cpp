@@ -171,7 +171,7 @@ USuspenseCoreEventBus* ASuspenseCorePickupItem::GetEventBus() const
 }
 
 //==================================================================
-// ISuspenseInteract Interface
+// ISuspenseCoreInteractable Interface
 //==================================================================
 
 bool ASuspenseCorePickupItem::CanInteract_Implementation(APlayerController* InstigatingController) const
@@ -200,7 +200,7 @@ bool ASuspenseCorePickupItem::CanInteract_Implementation(APlayerController* Inst
 	}
 
 	// Check if can be picked up
-	return CanBePickedUpBy_Implementation(InstigatingController->GetPawn());
+	return CanPickup_Implementation(InstigatingController->GetPawn());
 }
 
 bool ASuspenseCorePickupItem::Interact_Implementation(APlayerController* InstigatingController)
@@ -218,13 +218,13 @@ bool ASuspenseCorePickupItem::Interact_Implementation(APlayerController* Instiga
 
 	AActor* Pawn = InstigatingController->GetPawn();
 
-	// Broadcast interaction started
-	ISuspenseInteract::BroadcastInteractionStarted(this, InstigatingController, GetInteractionType_Implementation());
+	// Broadcast interaction started through EventBus
+	BroadcastInteractionStarted(InstigatingController);
 
-	bool bSuccess = HandlePickedUp_Implementation(Pawn);
+	bool bSuccess = ExecutePickup_Implementation(Pawn);
 
-	// Broadcast interaction completed
-	ISuspenseInteract::BroadcastInteractionCompleted(this, InstigatingController, bSuccess);
+	// Broadcast interaction completed through EventBus
+	BroadcastInteractionCompleted(InstigatingController, bSuccess);
 
 	return bSuccess;
 }
@@ -249,7 +249,7 @@ FGameplayTag ASuspenseCorePickupItem::GetInteractionType_Implementation() const
 	return FGameplayTag::RequestGameplayTag(TEXT("Interaction.Type.Pickup"));
 }
 
-FText ASuspenseCorePickupItem::GetInteractionText_Implementation() const
+FText ASuspenseCorePickupItem::GetInteractionPrompt_Implementation() const
 {
 	if (!bDataCached)
 	{
@@ -280,20 +280,20 @@ float ASuspenseCorePickupItem::GetInteractionDistance_Implementation() const
 	return Settings ? Settings->DefaultTraceDistance : 300.0f;
 }
 
-void ASuspenseCorePickupItem::OnInteractionFocusGained_Implementation(APlayerController* InstigatingController)
+void ASuspenseCorePickupItem::OnFocusGained_Implementation(APlayerController* InstigatingController)
 {
-	ISuspenseInteract::BroadcastInteractionFocusChanged(this, InstigatingController, true);
+	BroadcastFocusChanged(InstigatingController, true);
 	HandleInteractionFeedback(true);
 }
 
-void ASuspenseCorePickupItem::OnInteractionFocusLost_Implementation(APlayerController* InstigatingController)
+void ASuspenseCorePickupItem::OnFocusLost_Implementation(APlayerController* InstigatingController)
 {
-	ISuspenseInteract::BroadcastInteractionFocusChanged(this, InstigatingController, false);
+	BroadcastFocusChanged(InstigatingController, false);
 	HandleInteractionFeedback(false);
 }
 
 //==================================================================
-// ISuspensePickup Interface
+// ISuspenseCorePickup Interface
 //==================================================================
 
 FName ASuspenseCorePickupItem::GetItemID_Implementation() const
@@ -315,82 +315,20 @@ void ASuspenseCorePickupItem::SetItemID_Implementation(FName NewItemID)
 	}
 }
 
-bool ASuspenseCorePickupItem::GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutItemData) const
-{
-	if (!bDataCached)
-	{
-		LoadItemData();
-	}
-
-	if (bDataCached)
-	{
-		OutItemData = CachedItemData;
-		return true;
-	}
-
-	return false;
-}
-
-int32 ASuspenseCorePickupItem::GetItemAmount_Implementation() const
+int32 ASuspenseCorePickupItem::GetQuantity_Implementation() const
 {
 	return Amount;
 }
 
-void ASuspenseCorePickupItem::SetAmount_Implementation(int32 NewAmount)
+void ASuspenseCorePickupItem::SetQuantity_Implementation(int32 NewQuantity)
 {
-	Amount = FMath::Max(1, NewAmount);
+	Amount = FMath::Max(1, NewQuantity);
 }
 
-bool ASuspenseCorePickupItem::HasSavedAmmoState_Implementation() const
-{
-	return bHasSavedAmmoState;
-}
-
-bool ASuspenseCorePickupItem::GetSavedAmmoState_Implementation(float& OutCurrentAmmo, float& OutRemainingAmmo) const
-{
-	if (bHasSavedAmmoState)
-	{
-		OutCurrentAmmo = SavedCurrentAmmo;
-		OutRemainingAmmo = SavedRemainingAmmo;
-		return true;
-	}
-
-	return false;
-}
-
-void ASuspenseCorePickupItem::SetSavedAmmoState_Implementation(float CurrentAmmo, float RemainingAmmo)
-{
-	bHasSavedAmmoState = true;
-	SavedCurrentAmmo = CurrentAmmo;
-	SavedRemainingAmmo = RemainingAmmo;
-}
-
-bool ASuspenseCorePickupItem::HandlePickedUp_Implementation(AActor* InstigatorActor)
-{
-	if (!HasAuthority() || !InstigatorActor)
-	{
-		return false;
-	}
-
-	if (!CanBePickedUpBy_Implementation(InstigatorActor))
-	{
-		return false;
-	}
-
-	// Try to add to inventory
-	if (TryAddToInventory(InstigatorActor))
-	{
-		OnPickedUp(InstigatorActor);
-		return true;
-	}
-
-	return false;
-}
-
-bool ASuspenseCorePickupItem::CanBePickedUpBy_Implementation(AActor* InstigatorActor) const
+bool ASuspenseCorePickupItem::CanPickup_Implementation(AActor* InstigatorActor) const
 {
 	UE_LOG(LogSuspenseCorePickup, Log,
-		TEXT("CanBePickedUpBy: Checking pickup %s for actor %s"),
+		TEXT("CanPickup: Checking pickup %s for actor %s"),
 		*GetName(), *GetNameSafe(InstigatorActor));
 
 	if (!InstigatorActor)
@@ -406,7 +344,7 @@ bool ASuspenseCorePickupItem::CanBePickedUpBy_Implementation(AActor* InstigatorA
 	if (!bDataCached)
 	{
 		UE_LOG(LogSuspenseCorePickup, Warning,
-			TEXT("CanBePickedUpBy: Failed to load item data for %s"),
+			TEXT("CanPickup: Failed to load item data for %s"),
 			*GetName());
 		return false;
 	}
@@ -416,13 +354,59 @@ bool ASuspenseCorePickupItem::CanBePickedUpBy_Implementation(AActor* InstigatorA
 	if (!CachedItemData.ItemType.MatchesTag(BaseItemTag))
 	{
 		UE_LOG(LogSuspenseCorePickup, Error,
-			TEXT("CanBePickedUpBy: Item type %s is not in Item.* hierarchy!"),
+			TEXT("CanPickup: Item type %s is not in Item.* hierarchy!"),
 			*CachedItemData.ItemType.ToString());
 		return false;
 	}
 
 	// Check through helper with EventBus integration
 	return USuspenseCoreHelpers::CanActorPickupItem(InstigatorActor, ItemID, Amount);
+}
+
+bool ASuspenseCorePickupItem::ExecutePickup_Implementation(AActor* InstigatorActor)
+{
+	if (!HasAuthority() || !InstigatorActor)
+	{
+		return false;
+	}
+
+	if (!CanPickup_Implementation(InstigatorActor))
+	{
+		return false;
+	}
+
+	// Try to add to inventory
+	if (TryAddToInventory(InstigatorActor))
+	{
+		OnPickedUp(InstigatorActor);
+		return true;
+	}
+
+	return false;
+}
+
+bool ASuspenseCorePickupItem::HasAmmoState_Implementation() const
+{
+	return bHasSavedAmmoState;
+}
+
+bool ASuspenseCorePickupItem::GetAmmoState_Implementation(float& OutCurrentAmmo, float& OutReserveAmmo) const
+{
+	if (bHasSavedAmmoState)
+	{
+		OutCurrentAmmo = SavedCurrentAmmo;
+		OutReserveAmmo = SavedRemainingAmmo;
+		return true;
+	}
+
+	return false;
+}
+
+void ASuspenseCorePickupItem::SetAmmoState_Implementation(float CurrentAmmo, float ReserveAmmo)
+{
+	bHasSavedAmmoState = true;
+	SavedCurrentAmmo = CurrentAmmo;
+	SavedRemainingAmmo = ReserveAmmo;
 }
 
 FGameplayTag ASuspenseCorePickupItem::GetItemType_Implementation() const
@@ -440,14 +424,14 @@ FGameplayTag ASuspenseCorePickupItem::GetItemType_Implementation() const
 	return FGameplayTag::RequestGameplayTag(TEXT("Item.Generic"));
 }
 
-bool ASuspenseCorePickupItem::CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const
+bool ASuspenseCorePickupItem::CreateInventoryInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const
 {
 	// Use full runtime instance if available
 	if (bUseRuntimeInstance && RuntimeInstance.IsValid())
 	{
 		OutInstance = RuntimeInstance;
 		UE_LOG(LogSuspenseCorePickup, Log,
-			TEXT("CreateItemInstance: Using full runtime instance for %s"),
+			TEXT("CreateInventoryInstance: Using full runtime instance for %s"),
 			*ItemID.ToString());
 		return true;
 	}
@@ -520,7 +504,7 @@ bool ASuspenseCorePickupItem::IsStackable_Implementation() const
 	return bDataCached && CachedItemData.MaxStackSize > 1;
 }
 
-float ASuspenseCorePickupItem::GetItemWeight_Implementation() const
+float ASuspenseCorePickupItem::GetWeight_Implementation() const
 {
 	if (!bDataCached)
 	{
@@ -528,6 +512,26 @@ float ASuspenseCorePickupItem::GetItemWeight_Implementation() const
 	}
 
 	return bDataCached ? CachedItemData.Weight : 1.0f;
+}
+
+//==================================================================
+// Legacy Compatibility
+//==================================================================
+
+bool ASuspenseCorePickupItem::GetUnifiedItemData(FSuspenseUnifiedItemData& OutItemData) const
+{
+	if (!bDataCached)
+	{
+		LoadItemData();
+	}
+
+	if (bDataCached)
+	{
+		OutItemData = CachedItemData;
+		return true;
+	}
+
+	return false;
 }
 
 //==================================================================
@@ -858,7 +862,7 @@ bool ASuspenseCorePickupItem::TryAddToInventory(AActor* InstigatorActor)
 
 	// Create item instance
 	FSuspenseInventoryItemInstance ItemInstance;
-	if (!CreateItemInstance_Implementation(ItemInstance))
+	if (!CreateInventoryInstance_Implementation(ItemInstance))
 	{
 		UE_LOG(LogSuspenseCorePickup, Warning, TEXT("TryAddToInventory: Failed to create item instance"));
 		return false;
@@ -959,6 +963,88 @@ void ASuspenseCorePickupItem::HandleInteractionFeedback(bool bGainedFocus)
 //==================================================================
 // EventBus Broadcasting
 //==================================================================
+
+void ASuspenseCorePickupItem::BroadcastInteractionStarted(APlayerController* InstigatingController)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus || !InstigatingController)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(
+		this,
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	EventData.SetObject(TEXT("Interactable"), const_cast<ASuspenseCorePickupItem*>(this));
+	EventData.SetObject(TEXT("Instigator"), InstigatingController);
+	EventData.SetString(TEXT("InteractionType"), GetInteractionType_Implementation().ToString());
+	EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+
+	static const FGameplayTag InteractionStartedTag =
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Interaction.Started"));
+
+	EmitEvent(InteractionStartedTag, EventData);
+
+	UE_LOG(LogSuspenseCorePickup, Log,
+		TEXT("Broadcast InteractionStarted: %s by %s"),
+		*GetName(), *InstigatingController->GetName());
+}
+
+void ASuspenseCorePickupItem::BroadcastInteractionCompleted(APlayerController* InstigatingController, bool bSuccess)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus || !InstigatingController)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(
+		this,
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	EventData.SetObject(TEXT("Interactable"), const_cast<ASuspenseCorePickupItem*>(this));
+	EventData.SetObject(TEXT("Instigator"), InstigatingController);
+	EventData.SetBool(TEXT("Success"), bSuccess);
+	EventData.SetString(TEXT("InteractionType"), GetInteractionType_Implementation().ToString());
+	EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+
+	static const FGameplayTag InteractionCompletedTag =
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Interaction.Completed"));
+
+	EmitEvent(InteractionCompletedTag, EventData);
+
+	UE_LOG(LogSuspenseCorePickup, Log,
+		TEXT("Broadcast InteractionCompleted: %s by %s, Success=%d"),
+		*GetName(), *InstigatingController->GetName(), bSuccess);
+}
+
+void ASuspenseCorePickupItem::BroadcastFocusChanged(APlayerController* InstigatingController, bool bGainedFocus)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus || !InstigatingController)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(
+		this,
+		ESuspenseCoreEventPriority::Low
+	);
+
+	EventData.SetObject(TEXT("Interactable"), const_cast<ASuspenseCorePickupItem*>(this));
+	EventData.SetObject(TEXT("Instigator"), InstigatingController);
+	EventData.SetBool(TEXT("GainedFocus"), bGainedFocus);
+	EventData.SetString(TEXT("InteractionType"), GetInteractionType_Implementation().ToString());
+	EventData.SetString(TEXT("ItemID"), ItemID.ToString());
+
+	static const FGameplayTag FocusChangedTag =
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Interaction.FocusChanged"));
+
+	EmitEvent(FocusChangedTag, EventData);
+}
 
 void ASuspenseCorePickupItem::BroadcastPickupSpawned()
 {

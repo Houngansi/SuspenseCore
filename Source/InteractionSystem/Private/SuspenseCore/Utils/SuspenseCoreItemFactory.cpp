@@ -5,7 +5,8 @@
 #include "SuspenseCore/Utils/SuspenseCoreItemFactory.h"
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
 #include "SuspenseCore/Pickup/SuspenseCorePickupItem.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCorePickup.h"
 #include "ItemSystem/SuspenseItemManager.h"
@@ -76,7 +77,14 @@ USuspenseCoreEventBus* USuspenseCoreItemFactory::GetEventBus() const
 		return nullptr;
 	}
 
-	USuspenseCoreEventBus* EventBus = GameInstance->GetSubsystem<USuspenseCoreEventBus>();
+	// Get EventBus through EventManager (EventBus is not a subsystem)
+	USuspenseCoreEventManager* Manager = GameInstance->GetSubsystem<USuspenseCoreEventManager>();
+	if (!Manager)
+	{
+		return nullptr;
+	}
+
+	USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
 	if (EventBus)
 	{
 		CachedEventBus = EventBus;

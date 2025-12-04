@@ -38,7 +38,7 @@
  * Use these instead of hardcoding tag strings.
  */
 UCLASS()
-class INVENTORYSYSTEM_API USuspenseCoreInventoryEventTags : public UObject
+class BRIDGESYSTEM_API USuspenseCoreInventoryEventTags : public UObject
 {
 	GENERATED_BODY()
 

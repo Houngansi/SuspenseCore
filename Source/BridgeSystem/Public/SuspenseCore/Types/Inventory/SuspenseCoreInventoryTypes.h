@@ -10,6 +10,9 @@
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCoreInventoryTypes.generated.h"
 
+// Forward declaration
+class USuspenseCoreInventoryComponent;
+
 /**
  * ESuspenseCoreInventoryResult
  *
@@ -39,7 +42,7 @@ enum class ESuspenseCoreInventoryResult : uint8
  * Detailed result of an inventory operation.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreInventoryOperationResult
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
 {
 	GENERATED_BODY()
 
@@ -102,7 +105,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreInventoryOperationResult
  * Configuration for inventory initialization.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreInventoryConfig
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryConfig
 {
 	GENERATED_BODY()
 
@@ -155,7 +158,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreInventoryConfig
  * Single inventory grid slot data.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreInventorySlot
+struct BRIDGESYSTEM_API FSuspenseCoreInventorySlot
 {
 	GENERATED_BODY()
 
@@ -193,7 +196,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreInventorySlot
  * Optimized for bandwidth with packed data.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerializerItem
+struct BRIDGESYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerializerItem
 {
 	GENERATED_BODY()
 
@@ -303,7 +306,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerial
  * Provides efficient delta replication of inventory state.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreReplicatedInventory : public FFastArraySerializer
+struct BRIDGESYSTEM_API FSuspenseCoreReplicatedInventory : public FFastArraySerializer
 {
 	GENERATED_BODY()
 
@@ -323,7 +326,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreReplicatedInventory : public FFastArrayS
 
 	/** Owner component (not replicated, set locally) */
 	UPROPERTY(NotReplicated)
-	TWeakObjectPtr<class USuspenseCoreInventoryComponent> OwnerComponent;
+	TWeakObjectPtr<UActorComponent> OwnerComponent;
 
 	FSuspenseCoreReplicatedInventory()
 		: GridWidth(10)
@@ -409,7 +412,7 @@ struct TStructOpsTypeTraits<FSuspenseCoreReplicatedInventory> : public TStructOp
  * Complete snapshot of inventory state for transactions.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreInventorySnapshot
+struct BRIDGESYSTEM_API FSuspenseCoreInventorySnapshot
 {
 	GENERATED_BODY()
 
@@ -442,7 +445,7 @@ struct INVENTORYSYSTEM_API FSuspenseCoreInventorySnapshot
  * Single inventory change for history tracking.
  */
 USTRUCT(BlueprintType)
-struct INVENTORYSYSTEM_API FSuspenseCoreInventoryChange
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryChange
 {
 	GENERATED_BODY()
 

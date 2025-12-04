@@ -3,7 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Storage/SuspenseCoreInventoryStorage.h"
-#include "Base/SuspenseInventoryLogs.h"
+#include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
 
 USuspenseCoreInventoryStorage::USuspenseCoreInventoryStorage()
 	: GridWidth(0)
@@ -30,7 +30,7 @@ void USuspenseCoreInventoryStorage::Initialize(int32 InGridWidth, int32 InGridHe
 
 	bIsInitialized = true;
 
-	UE_LOG(LogSuspenseInventory, Log, TEXT("Storage initialized: %dx%d (%d slots)"),
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Storage initialized: %dx%d (%d slots)"),
 		GridWidth, GridHeight, TotalSlots);
 }
 
@@ -355,7 +355,7 @@ FString USuspenseCoreInventoryStorage::GetDebugGridString() const
 
 void USuspenseCoreInventoryStorage::LogGridState() const
 {
-	UE_LOG(LogSuspenseInventory, Log, TEXT("%s"), *GetDebugGridString());
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("%s"), *GetDebugGridString());
 }
 
 FIntPoint USuspenseCoreInventoryStorage::GetEffectiveSize(FIntPoint ItemSize, bool bRotated) const

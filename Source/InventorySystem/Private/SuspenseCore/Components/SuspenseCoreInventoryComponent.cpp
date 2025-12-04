@@ -843,8 +843,6 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 		EventBus->Publish(SUSPENSE_INV_EVENT_INITIALIZED, EventData);
 	}
 
-	OnInventoryInitialized.Broadcast();
-
 	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Inventory initialized: %dx%d grid, %.1f max weight"),
 		Config.GridWidth, Config.GridHeight, Config.MaxWeight);
 }
@@ -891,8 +889,6 @@ void USuspenseCoreInventoryComponent::BroadcastInventoryUpdated()
 		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
 		EventBus->Publish(SUSPENSE_INV_EVENT_UPDATED, EventData);
 	}
-
-	OnInventoryUpdated.Broadcast();
 }
 
 //==================================================================

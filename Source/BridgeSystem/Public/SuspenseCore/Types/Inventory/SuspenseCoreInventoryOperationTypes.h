@@ -44,13 +44,11 @@ struct BRIDGESYSTEM_API FSuspenseCoreOperationContext
 {
 	GENERATED_BODY()
 
-	/** Source inventory component */
-	UPROPERTY(BlueprintReadWrite, Category = "Context")
-	TWeakObjectPtr<class USuspenseCoreInventoryComponent> SourceInventory;
+	/** Source inventory component (raw pointer, not UPROPERTY due to cross-module) */
+	TWeakObjectPtr<UObject> SourceInventory;
 
 	/** Target inventory component (for transfers) */
-	UPROPERTY(BlueprintReadWrite, Category = "Context")
-	TWeakObjectPtr<class USuspenseCoreInventoryComponent> TargetInventory;
+	TWeakObjectPtr<UObject> TargetInventory;
 
 	/** Actor who initiated the operation */
 	UPROPERTY(BlueprintReadWrite, Category = "Context")

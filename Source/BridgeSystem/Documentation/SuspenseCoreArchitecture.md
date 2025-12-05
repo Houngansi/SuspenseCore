@@ -9,6 +9,7 @@ SuspenseCore is an EventBus-driven architecture for Unreal Engine that provides:
 - Full GAS (Gameplay Ability System) integration
 - **Dependency Injection via ServiceProvider** (NEW)
 - **MMO-scale Replication Graph for 100+ players** (NEW)
+- **Centralized Security Validator with AAA-standard anti-cheat** (NEW)
 
 ---
 
@@ -414,6 +415,7 @@ To add a new data type (e.g., Quests):
 | 1.0 | 2025-12-01 | Initial SuspenseCore architecture |
 | 1.1 | 2025-12-02 | Added USuspenseCoreSettings, USuspenseCoreDataManager |
 | 2.0 | 2025-12-05 | **MMO Scalability Update**: ServiceProvider DI, ReplicationGraph |
+| 2.1 | 2025-12-05 | **Security Update (Phase 6)**: SecurityValidator, Server RPCs, Rate Limiting |
 
 ---
 
@@ -440,3 +442,104 @@ To add a new data type (e.g., Quests):
 - `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_OwnerOnly.h`
 - `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_Dormancy.h`
 - `BridgeSystem/Public/SuspenseCore/Replication/README_ReplicationGraph.md`
+
+### Security Validator (Phase 6) — NEW
+- `BridgeSystem/Public/SuspenseCore/Security/SuspenseCoreSecurityValidator.h`
+- `BridgeSystem/Public/SuspenseCore/Security/SuspenseCoreSecurityTypes.h`
+- `BridgeSystem/Public/SuspenseCore/Security/SuspenseCoreSecurityMacros.h`
+- `BridgeSystem/Private/SuspenseCore/Security/SuspenseCoreSecurityValidator.cpp`
+
+---
+
+## Security Architecture (Phase 6)
+
+### USuspenseCoreSecurityValidator (GameInstanceSubsystem)
+
+**Location:** `BridgeSystem/Public/SuspenseCore/Security/SuspenseCoreSecurityValidator.h`
+
+Centralized security validation for all SuspenseCore operations.
+
+```cpp
+// C++ Access
+USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(WorldContextObject);
+
+// Authority Check
+if (!Security->CheckAuthority(GetOwner(), TEXT("AddItem")))
+{
+    // Client has no authority - redirect to Server RPC
+    return;
+}
+
+// Rate Limiting
+if (!Security->CheckRateLimit(GetOwner(), TEXT("AddItem"), 10.0f))
+{
+    // Rate limited - operation blocked
+    return;
+}
+```
+
+**Using Macros:**
+```cpp
+#include "SuspenseCore/Security/SuspenseCoreSecurityMacros.h"
+
+bool UMyComponent::DoOperation()
+{
+    SUSPENSE_CHECK_COMPONENT_AUTHORITY(this, DoOperation);
+    SUSPENSE_CHECK_RATE_LIMIT(GetOwner(), DoOperation, 10.0f);
+
+    // Rest of implementation (only runs on server)
+    return true;
+}
+```
+
+**Security Features:**
+| Feature | Description |
+|---------|-------------|
+| Authority Check | Blocks client-side execution of server operations |
+| Rate Limiting | Prevents spam/DoS (configurable per-operation) |
+| RPC Validation | Validates all Server RPC parameters |
+| Suspicious Activity | Detects abnormal patterns |
+| Violation Logging | Records all security violations |
+| Auto-kick | Kicks players after max violations |
+
+**EventBus Events:**
+| Tag | Description |
+|-----|-------------|
+| `SuspenseCore.Event.Security.ViolationDetected` | Security violation detected |
+| `SuspenseCore.Event.Security.RateLimitExceeded` | Rate limit exceeded |
+| `SuspenseCore.Event.Security.SuspiciousActivity` | Suspicious pattern detected |
+| `SuspenseCore.Event.Security.AuthorityDenied` | Authority check failed |
+| `SuspenseCore.Event.Security.PlayerKicked` | Player kicked for violations |
+
+### Server RPC Pattern
+
+All modifying operations in SuspenseCore follow this pattern:
+
+```cpp
+// 1. Public API - checks authority, redirects to RPC if client
+bool UInventoryComponent::AddItem(FName ItemID, int32 Quantity)
+{
+    if (!CheckInventoryAuthority(TEXT("AddItem")))
+    {
+        Server_AddItem(ItemID, Quantity);
+        return false; // Client returns false
+    }
+
+    return AddItemInternal(ItemID, Quantity);
+}
+
+// 2. Server RPC with validation
+UFUNCTION(Server, Reliable, WithValidation)
+void Server_AddItem(FName ItemID, int32 Quantity);
+
+bool Server_AddItem_Validate(FName ItemID, int32 Quantity)
+{
+    // Parameter validation + rate limiting
+    return SUSPENSE_VALIDATE_ITEM_RPC(ItemID, Quantity);
+}
+
+void Server_AddItem_Implementation(FName ItemID, int32 Quantity)
+{
+    AddItemInternal(ItemID, Quantity);
+}
+```

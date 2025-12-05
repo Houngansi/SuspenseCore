@@ -11,6 +11,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
+#include "SuspenseCore/Security/SuspenseCoreSecurityValidator.h"
+#include "SuspenseCore/Security/SuspenseCoreSecurityMacros.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
@@ -71,6 +73,13 @@ void USuspenseCoreInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetim
 bool USuspenseCoreInventoryComponent::AddItemByID_Implementation(FName ItemID, int32 Quantity)
 {
 	check(IsInGameThread());
+
+	// Security: Check authority - redirect to Server RPC if client
+	if (!CheckInventoryAuthority(TEXT("AddItemByID")))
+	{
+		Server_AddItemByID(ItemID, Quantity);
+		return false; // Client returns false, server will process
+	}
 
 	if (!bIsInitialized)
 	{
@@ -244,6 +253,13 @@ bool USuspenseCoreInventoryComponent::RemoveItemByID_Implementation(FName ItemID
 {
 	check(IsInGameThread());
 
+	// Security: Check authority - redirect to Server RPC if client
+	if (!CheckInventoryAuthority(TEXT("RemoveItemByID")))
+	{
+		Server_RemoveItemByID(ItemID, Quantity);
+		return false;
+	}
+
 	if (!bIsInitialized || ItemID.IsNone() || Quantity <= 0)
 	{
 		return false;
@@ -392,6 +408,13 @@ FIntPoint USuspenseCoreInventoryComponent::GetGridSize_Implementation() const
 
 bool USuspenseCoreInventoryComponent::MoveItem_Implementation(int32 FromSlot, int32 ToSlot)
 {
+	// Security: Check authority - redirect to Server RPC if client
+	if (!CheckInventoryAuthority(TEXT("MoveItem")))
+	{
+		Server_MoveItem(FromSlot, ToSlot);
+		return false;
+	}
+
 	if (!bIsInitialized || FromSlot == ToSlot)
 	{
 		return false;
@@ -438,6 +461,13 @@ bool USuspenseCoreInventoryComponent::MoveItem_Implementation(int32 FromSlot, in
 
 bool USuspenseCoreInventoryComponent::SwapItems(int32 Slot1, int32 Slot2)
 {
+	// Security: Check authority - redirect to Server RPC if client
+	if (!CheckInventoryAuthority(TEXT("SwapItems")))
+	{
+		Server_SwapItems(Slot1, Slot2);
+		return false;
+	}
+
 	if (!bIsInitialized || Slot1 == Slot2)
 	{
 		return false;
@@ -763,6 +793,13 @@ bool USuspenseCoreInventoryComponent::IsTransactionActive() const
 
 bool USuspenseCoreInventoryComponent::SplitStack(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot)
 {
+	// Security: Check authority - redirect to Server RPC if client
+	if (!CheckInventoryAuthority(TEXT("SplitStack")))
+	{
+		Server_SplitStack(SourceSlot, SplitQuantity, TargetSlot);
+		return false;
+	}
+
 	FSuspenseCoreItemInstance SourceInstance;
 	if (!GetItemInstanceAtSlot(SourceSlot, SourceInstance))
 	{
@@ -1175,4 +1212,352 @@ const FSuspenseCoreItemInstance* USuspenseCoreInventoryComponent::FindItemInstan
 	{
 		return Instance.UniqueInstanceID == InstanceID;
 	});
+}
+
+//==================================================================
+// Security Helpers (Phase 6)
+//==================================================================
+
+bool USuspenseCoreInventoryComponent::CheckInventoryAuthority(const FString& FunctionName) const
+{
+	AActor* Owner = GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Verbose, TEXT("%s: No owner"), *FunctionName);
+		return false;
+	}
+
+	if (!Owner->HasAuthority())
+	{
+		UE_LOG(LogSuspenseCoreInventory, Verbose, TEXT("%s: Client has no authority on %s"),
+			*FunctionName, *Owner->GetName());
+		return false;
+	}
+
+	return true;
+}
+
+//==================================================================
+// Server RPCs - Validation (Phase 6)
+//==================================================================
+
+bool USuspenseCoreInventoryComponent::Server_AddItemByID_Validate(FName ItemID, int32 Quantity)
+{
+	// Basic parameter validation
+	if (ItemID.IsNone())
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("Server_AddItemByID_Validate: ItemID is None"));
+		return false;
+	}
+
+	if (Quantity <= 0 || Quantity > 9999)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("Server_AddItemByID_Validate: Invalid quantity %d"), Quantity);
+		return false;
+	}
+
+	// Rate limiting
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("AddItem"), 10.0f))
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("Server_AddItemByID_Validate: Rate limited"));
+		return false;
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::Server_RemoveItemByID_Validate(FName ItemID, int32 Quantity)
+{
+	if (ItemID.IsNone())
+	{
+		return false;
+	}
+
+	if (Quantity <= 0 || Quantity > 9999)
+	{
+		return false;
+	}
+
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("RemoveItem"), 10.0f))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::Server_MoveItem_Validate(int32 FromSlot, int32 ToSlot)
+{
+	const int32 MaxSlots = GetMaxSlots();
+
+	if (FromSlot < 0 || FromSlot >= MaxSlots)
+	{
+		return false;
+	}
+
+	if (ToSlot < 0 || ToSlot >= MaxSlots)
+	{
+		return false;
+	}
+
+	if (FromSlot == ToSlot)
+	{
+		return false;
+	}
+
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("MoveItem"), 20.0f))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::Server_SwapItems_Validate(int32 Slot1, int32 Slot2)
+{
+	const int32 MaxSlots = GetMaxSlots();
+
+	if (Slot1 < 0 || Slot1 >= MaxSlots || Slot2 < 0 || Slot2 >= MaxSlots)
+	{
+		return false;
+	}
+
+	if (Slot1 == Slot2)
+	{
+		return false;
+	}
+
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("SwapItems"), 20.0f))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::Server_SplitStack_Validate(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot)
+{
+	const int32 MaxSlots = GetMaxSlots();
+
+	if (SourceSlot < 0 || SourceSlot >= MaxSlots)
+	{
+		return false;
+	}
+
+	if (TargetSlot != INDEX_NONE && (TargetSlot < 0 || TargetSlot >= MaxSlots))
+	{
+		return false;
+	}
+
+	if (SplitQuantity <= 0 || SplitQuantity > 9999)
+	{
+		return false;
+	}
+
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("SplitStack"), 10.0f))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::Server_RemoveItemFromSlot_Validate(int32 SlotIndex)
+{
+	const int32 MaxSlots = GetMaxSlots();
+
+	if (SlotIndex < 0 || SlotIndex >= MaxSlots)
+	{
+		return false;
+	}
+
+	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("RemoveFromSlot"), 10.0f))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+//==================================================================
+// Server RPCs - Implementation (Phase 6)
+//==================================================================
+
+void USuspenseCoreInventoryComponent::Server_AddItemByID_Implementation(FName ItemID, int32 Quantity)
+{
+	// Execute on server
+	FSuspenseCoreItemInstance NewInstance;
+	if (CreateItemInstance(ItemID, Quantity, NewInstance))
+	{
+		AddItemInstance_Implementation(NewInstance);
+	}
+}
+
+void USuspenseCoreInventoryComponent::Server_RemoveItemByID_Implementation(FName ItemID, int32 Quantity)
+{
+	// Execute on server - call internal logic directly (already validated)
+	if (!bIsInitialized || ItemID.IsNone() || Quantity <= 0)
+	{
+		return;
+	}
+
+	int32 RemainingToRemove = Quantity;
+
+	for (int32 i = ItemInstances.Num() - 1; i >= 0 && RemainingToRemove > 0; --i)
+	{
+		FSuspenseCoreItemInstance& Instance = ItemInstances[i];
+		if (Instance.ItemID == ItemID)
+		{
+			if (Instance.Quantity <= RemainingToRemove)
+			{
+				RemainingToRemove -= Instance.Quantity;
+				FSuspenseCoreItemInstance RemovedInstance;
+				RemoveItemInternal(Instance.UniqueInstanceID, RemovedInstance);
+			}
+			else
+			{
+				Instance.Quantity -= RemainingToRemove;
+				ReplicatedInventory.UpdateItem(Instance);
+				BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_QTY_CHANGED, Instance, Instance.SlotIndex);
+				RemainingToRemove = 0;
+			}
+		}
+	}
+
+	RecalculateWeight();
+	BroadcastInventoryUpdated();
+}
+
+void USuspenseCoreInventoryComponent::Server_MoveItem_Implementation(int32 FromSlot, int32 ToSlot)
+{
+	// Internal move logic
+	if (!bIsInitialized || FromSlot == ToSlot)
+	{
+		return;
+	}
+
+	FSuspenseCoreItemInstance Instance;
+	if (!GetItemInstanceAtSlot(FromSlot, Instance))
+	{
+		return;
+	}
+
+	FSuspenseCoreItemData ItemData;
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager || !DataManager->GetItemData(Instance.ItemID, ItemData))
+	{
+		return;
+	}
+
+	bool bRotated = Instance.Rotation != 0;
+	if (!CanPlaceItemAtSlot(ItemData.InventoryProps.GridSize, ToSlot, bRotated))
+	{
+		return;
+	}
+
+	UpdateGridSlots(Instance, false);
+
+	FSuspenseCoreItemInstance* InstancePtr = FindItemInstanceInternal(Instance.UniqueInstanceID);
+	if (InstancePtr)
+	{
+		InstancePtr->SlotIndex = ToSlot;
+		InstancePtr->GridPosition = SlotToGridCoords(ToSlot);
+		UpdateGridSlots(*InstancePtr, true);
+		ReplicatedInventory.UpdateItem(*InstancePtr);
+		BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_MOVED, *InstancePtr, ToSlot);
+	}
+
+	BroadcastInventoryUpdated();
+}
+
+void USuspenseCoreInventoryComponent::Server_SwapItems_Implementation(int32 Slot1, int32 Slot2)
+{
+	if (!bIsInitialized || Slot1 == Slot2)
+	{
+		return;
+	}
+
+	FSuspenseCoreItemInstance Instance1, Instance2;
+	bool bHas1 = GetItemInstanceAtSlot(Slot1, Instance1);
+	bool bHas2 = GetItemInstanceAtSlot(Slot2, Instance2);
+
+	if (!bHas1 && !bHas2)
+	{
+		return;
+	}
+
+	if (bHas1) UpdateGridSlots(Instance1, false);
+	if (bHas2) UpdateGridSlots(Instance2, false);
+
+	if (bHas1)
+	{
+		FSuspenseCoreItemInstance* Ptr1 = FindItemInstanceInternal(Instance1.UniqueInstanceID);
+		if (Ptr1)
+		{
+			Ptr1->SlotIndex = Slot2;
+			Ptr1->GridPosition = SlotToGridCoords(Slot2);
+			UpdateGridSlots(*Ptr1, true);
+			ReplicatedInventory.UpdateItem(*Ptr1);
+		}
+	}
+
+	if (bHas2)
+	{
+		FSuspenseCoreItemInstance* Ptr2 = FindItemInstanceInternal(Instance2.UniqueInstanceID);
+		if (Ptr2)
+		{
+			Ptr2->SlotIndex = Slot1;
+			Ptr2->GridPosition = SlotToGridCoords(Slot1);
+			UpdateGridSlots(*Ptr2, true);
+			ReplicatedInventory.UpdateItem(*Ptr2);
+		}
+	}
+
+	BroadcastInventoryUpdated();
+}
+
+void USuspenseCoreInventoryComponent::Server_SplitStack_Implementation(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot)
+{
+	FSuspenseCoreItemInstance SourceInstance;
+	if (!GetItemInstanceAtSlot(SourceSlot, SourceInstance))
+	{
+		return;
+	}
+
+	if (SplitQuantity <= 0 || SplitQuantity >= SourceInstance.Quantity)
+	{
+		return;
+	}
+
+	FSuspenseCoreItemInstance* SourcePtr = FindItemInstanceInternal(SourceInstance.UniqueInstanceID);
+	if (!SourcePtr)
+	{
+		return;
+	}
+
+	SourcePtr->Quantity -= SplitQuantity;
+	ReplicatedInventory.UpdateItem(*SourcePtr);
+
+	FSuspenseCoreItemInstance NewStack = SourceInstance;
+	NewStack.UniqueInstanceID = FGuid::NewGuid();
+	NewStack.Quantity = SplitQuantity;
+	NewStack.SlotIndex = -1;
+
+	AddItemInstanceToSlot(NewStack, TargetSlot);
+}
+
+void USuspenseCoreInventoryComponent::Server_RemoveItemFromSlot_Implementation(int32 SlotIndex)
+{
+	FSuspenseCoreItemInstance RemovedInstance;
+	if (IsSlotOccupied(SlotIndex))
+	{
+		FGuid InstanceID = GridSlots[SlotIndex].InstanceID;
+		RemoveItemInternal(InstanceID, RemovedInstance);
+	}
 }

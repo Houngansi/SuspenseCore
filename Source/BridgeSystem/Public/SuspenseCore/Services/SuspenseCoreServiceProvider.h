@@ -135,7 +135,7 @@ public:
 	{
 		if (CachedServiceLocator.IsValid())
 		{
-			return CachedServiceLocator->GetService<T>();
+			return CachedServiceLocator->template GetService<T>();
 		}
 		return nullptr;
 	}
@@ -152,7 +152,7 @@ public:
 	{
 		if (CachedServiceLocator.IsValid())
 		{
-			return CachedServiceLocator->GetServiceAs<T>(InterfaceName);
+			return CachedServiceLocator->template GetServiceAs<T>(InterfaceName);
 		}
 		return nullptr;
 	}
@@ -171,7 +171,7 @@ public:
 	{
 		if (CachedServiceLocator.IsValid())
 		{
-			CachedServiceLocator->RegisterService<T>(ServiceInstance);
+			CachedServiceLocator->template RegisterService<T>(ServiceInstance);
 			BroadcastServiceRegistered(T::StaticClass()->GetFName());
 		}
 	}

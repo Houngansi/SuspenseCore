@@ -46,32 +46,47 @@ bool USuspenseCoreRepNode_OwnerOnly::NotifyRemoveNetworkActor(const FNewReplicat
 void USuspenseCoreRepNode_OwnerOnly::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
 	// Only add actors if this is the owning connection
-	if (!OwningConnection.IsValid())
+	if (!OwningConnection.IsValid() || !IsOwningConnection(Params))
 	{
 		return;
 	}
 
-	// Check if current connection matches our owner
-	bool bIsOwner = false;
-	if (Params.ConnectionManager.ConnectionOrderNum < Params.ReplicationGraph->Connections.Num())
-	{
-		UNetReplicationGraphConnection* CurrentConnection = Params.ReplicationGraph->Connections[Params.ConnectionManager.ConnectionOrderNum];
-		bIsOwner = (CurrentConnection == OwningConnection.Get());
-	}
+	// Build replication list with valid actors
+	ReplicationActorList.Reset();
 
-	if (!bIsOwner)
-	{
-		return;
-	}
-
-	// Add all owner actors to the replication list
 	for (TObjectPtr<AActor>& Actor : OwnerActors)
 	{
 		if (Actor && IsValid(Actor))
 		{
-			Params.OutGatheredReplicationLists.AddActor(Actor, Params.ConnectionManager);
+			ReplicationActorList.Add(Actor);
 		}
 	}
+
+	// Add to gathered lists if we have actors
+	if (ReplicationActorList.Num() > 0)
+	{
+		Params.OutGatheredReplicationLists.AddReplicationActorInfo(ReplicationActorList);
+	}
+}
+
+bool USuspenseCoreRepNode_OwnerOnly::IsOwningConnection(const FConnectionGatherActorListParameters& Params) const
+{
+	if (!OwningConnection.IsValid())
+	{
+		return false;
+	}
+
+	// Check viewers to identify connection
+	if (Params.Viewers.Num() > 0)
+	{
+		const FNetViewer& Viewer = Params.Viewers[0];
+		if (Viewer.Connection && OwningConnection.IsValid())
+		{
+			return Viewer.Connection == OwningConnection->NetConnection;
+		}
+	}
+
+	return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

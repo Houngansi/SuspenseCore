@@ -58,17 +58,10 @@ void USuspenseCoreRepNode_PlayerStateFrequency::GatherActorListsForConnection(co
 	FVector ViewerLocation = GetViewerLocation(Params);
 
 	// Get the connection's own PlayerState - always replicate at full frequency
-	APlayerState* ConnectionPlayerState = nullptr;
-	if (Params.ConnectionManager.ConnectionOrderNum < Params.ReplicationGraph->Connections.Num())
-	{
-		if (UNetReplicationGraphConnection* GraphConnection = Params.ReplicationGraph->Connections[Params.ConnectionManager.ConnectionOrderNum])
-		{
-			if (APlayerController* PC = Cast<APlayerController>(GraphConnection->NetConnection->OwningActor))
-			{
-				ConnectionPlayerState = PC->PlayerState;
-			}
-		}
-	}
+	APlayerState* ConnectionPlayerState = GetConnectionPlayerState(Params);
+
+	// Build replication list
+	ReplicationActorList.Reset();
 
 	// Iterate through all tracked PlayerStates
 	for (TObjectPtr<APlayerState>& PlayerState : AllPlayerStates)
@@ -81,16 +74,12 @@ void USuspenseCoreRepNode_PlayerStateFrequency::GatherActorListsForConnection(co
 		// Own PlayerState - always replicate
 		if (PlayerState == ConnectionPlayerState)
 		{
-			Params.OutGatheredReplicationLists.AddActor(PlayerState, Params.ConnectionManager);
+			ReplicationActorList.Add(PlayerState);
 			continue;
 		}
 
-		// Get PlayerState location (use pawn location if available)
-		FVector PlayerStateLocation = PlayerState->GetActorLocation();
-		if (APawn* Pawn = PlayerState->GetPawn())
-		{
-			PlayerStateLocation = Pawn->GetActorLocation();
-		}
+		// Get PlayerState location (use pawn location)
+		FVector PlayerStateLocation = GetPlayerStateLocation(PlayerState);
 
 		// Calculate distance squared
 		float DistSq = FVector::DistSquared(ViewerLocation, PlayerStateLocation);
@@ -121,8 +110,14 @@ void USuspenseCoreRepNode_PlayerStateFrequency::GatherActorListsForConnection(co
 
 		if (bShouldReplicate)
 		{
-			Params.OutGatheredReplicationLists.AddActor(PlayerState, Params.ConnectionManager);
+			ReplicationActorList.Add(PlayerState);
 		}
+	}
+
+	// Add to gathered lists if we have actors
+	if (ReplicationActorList.Num() > 0)
+	{
+		Params.OutGatheredReplicationLists.AddReplicationActorInfo(ReplicationActorList);
 	}
 }
 
@@ -168,24 +163,48 @@ void USuspenseCoreRepNode_PlayerStateFrequency::SetReplicationPeriods(int32 Near
 
 FVector USuspenseCoreRepNode_PlayerStateFrequency::GetViewerLocation(const FConnectionGatherActorListParameters& Params) const
 {
-	// Try to get viewer location from connection
-	if (Params.ConnectionManager.ConnectionOrderNum < Params.ReplicationGraph->Connections.Num())
+	// Use Viewers array to get view location
+	if (Params.Viewers.Num() > 0)
 	{
-		if (UNetReplicationGraphConnection* GraphConnection = Params.ReplicationGraph->Connections[Params.ConnectionManager.ConnectionOrderNum])
-		{
-			if (APlayerController* PC = Cast<APlayerController>(GraphConnection->NetConnection->OwningActor))
-			{
-				if (APawn* ViewerPawn = PC->GetPawn())
-				{
-					return ViewerPawn->GetActorLocation();
-				}
+		return Params.Viewers[0].ViewLocation;
+	}
 
-				// Fallback to PlayerController location
-				return PC->GetActorLocation();
+	// Fallback - world origin
+	return FVector::ZeroVector;
+}
+
+FVector USuspenseCoreRepNode_PlayerStateFrequency::GetPlayerStateLocation(APlayerState* PlayerState) const
+{
+	if (!PlayerState)
+	{
+		return FVector::ZeroVector;
+	}
+
+	// Use pawn location if available (PlayerState doesn't have accessible location)
+	if (APawn* Pawn = PlayerState->GetPawn())
+	{
+		return Pawn->GetActorLocation();
+	}
+
+	// Fallback - zero vector (can't get location without pawn)
+	return FVector::ZeroVector;
+}
+
+APlayerState* USuspenseCoreRepNode_PlayerStateFrequency::GetConnectionPlayerState(const FConnectionGatherActorListParameters& Params) const
+{
+	// Get PlayerState from viewer
+	if (Params.Viewers.Num() > 0)
+	{
+		const FNetViewer& Viewer = Params.Viewers[0];
+		if (Viewer.InViewer)
+		{
+			// InViewer is typically the PlayerController
+			if (APlayerController* PC = Cast<APlayerController>(Viewer.InViewer))
+			{
+				return PC->PlayerState;
 			}
 		}
 	}
 
-	// Last fallback - world origin
-	return FVector::ZeroVector;
+	return nullptr;
 }

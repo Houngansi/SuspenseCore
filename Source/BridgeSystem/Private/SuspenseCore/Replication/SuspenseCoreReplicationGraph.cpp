@@ -111,36 +111,31 @@ void USuspenseCoreReplicationGraph::InitGlobalGraphNodes()
 
 void USuspenseCoreReplicationGraph::InitConnectionGraphNodes(UNetReplicationGraphConnection* RepGraphConnection)
 {
+	// Base class adds all GlobalGraphNodes to the connection automatically
 	Super::InitConnectionGraphNodes(RepGraphConnection);
 
 	UE_LOG(LogSuspenseCoreReplicationGraph, Log,
 		TEXT("InitConnectionGraphNodes for %s"),
 		*GetNameSafe(RepGraphConnection->NetConnection->OwningActor));
 
-	// Add always relevant node for all connections
-	RepGraphConnection->AddConnectionGraphNode(AlwaysRelevantNode);
-
-	// Add PlayerState frequency node
-	RepGraphConnection->AddConnectionGraphNode(PlayerStateNode);
-
-	// Add spatial grid node
-	RepGraphConnection->AddConnectionGraphNode(SpatialGridNode);
-
-	// Add equipment dormancy node if enabled
-	if (EquipmentDormancyNode)
-	{
-		RepGraphConnection->AddConnectionGraphNode(EquipmentDormancyNode);
-	}
+	// Note: Global nodes (AlwaysRelevantNode, PlayerStateNode, SpatialGridNode, EquipmentDormancyNode)
+	// are added automatically by Super::InitConnectionGraphNodes() since they were added via AddGlobalGraphNode()
+	// No need to call AddConnectionGraphNode() here.
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// Create Per-Connection Owner-Only Node
 	// ═══════════════════════════════════════════════════════════════════════════
+	// Owner-only nodes are stored per-connection for actor routing.
+	// They filter actors in GatherActorListsForConnection based on ownership.
 	const USuspenseCoreReplicationGraphSettings* Settings = GetSuspenseCoreSettings();
 	if (Settings && Settings->bInventoryOwnerOnly)
 	{
 		USuspenseCoreRepNode_OwnerOnly* OwnerOnlyNode = CreateNewNode<USuspenseCoreRepNode_OwnerOnly>();
 		OwnerOnlyNode->SetOwningConnection(RepGraphConnection);
-		RepGraphConnection->AddConnectionGraphNode(OwnerOnlyNode);
+
+		// Add to global nodes so it gets called for all connections
+		// The node itself filters to only return actors for its owning connection
+		AddGlobalGraphNode(OwnerOnlyNode);
 		ConnectionOwnerOnlyNodes.Add(RepGraphConnection, OwnerOnlyNode);
 
 		UE_LOG(LogSuspenseCoreReplicationGraph, Log,

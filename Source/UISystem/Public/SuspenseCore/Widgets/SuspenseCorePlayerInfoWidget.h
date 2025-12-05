@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCorePlayerInfoWidget.generated.h"
 

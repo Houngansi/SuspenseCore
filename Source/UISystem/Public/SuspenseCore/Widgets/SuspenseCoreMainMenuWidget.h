@@ -8,7 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCoreCharacterSelectWidget.h"
 #include "SuspenseCoreMainMenuWidget.generated.h"
 

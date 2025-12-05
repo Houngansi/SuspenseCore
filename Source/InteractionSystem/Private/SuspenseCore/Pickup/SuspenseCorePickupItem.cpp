@@ -5,7 +5,7 @@
 #include "SuspenseCore/Pickup/SuspenseCorePickupItem.h"
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
 #include "SuspenseCore/Utils/SuspenseCoreInteractionSettings.h"
-#include "SuspenseCore/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Components/SphereComponent.h"

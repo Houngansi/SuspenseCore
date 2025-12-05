@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCoreInterfaces.generated.h"
 
 // Forward declarations

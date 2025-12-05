@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCoreSaveTypes.generated.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════

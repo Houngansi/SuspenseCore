@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCoreRegistrationWidget.generated.h"
 
 class UEditableTextBox;

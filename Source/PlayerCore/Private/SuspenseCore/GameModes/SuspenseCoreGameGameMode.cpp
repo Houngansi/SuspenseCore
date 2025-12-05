@@ -5,7 +5,7 @@
 #include "SuspenseCore/GameModes/SuspenseCoreGameGameMode.h"
 #include "SuspenseCore/Core/SuspenseCorePlayerController.h"
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
-#include "SuspenseCore/Core/SuspenseCoreCharacter.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "Kismet/GameplayStatics.h"

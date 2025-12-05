@@ -507,17 +507,17 @@ void USuspenseCoreRegistrationWidget::CreateProceduralClassButtons()
 		ButtonWidget->SetVisibility(ESlateVisibility::Visible);
 
 		// Add to container and configure slot
-		UPanelSlot* Slot = ClassButtonContainer->AddChild(ButtonWidget);
+		UPanelSlot* lSlot = ClassButtonContainer->AddChild(ButtonWidget);
 
 		// Configure slot based on container type
-		if (UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(Slot))
+		if (UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(lSlot))
 		{
 			HSlot->SetPadding(FMargin(8.0f, 4.0f, 8.0f, 4.0f));
 			HSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
 			HSlot->SetVerticalAlignment(EVerticalAlignment::VAlign_Fill);
 			HSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		}
-		else if (UVerticalBoxSlot* VSlot = Cast<UVerticalBoxSlot>(Slot))
+		else if (UVerticalBoxSlot* VSlot = Cast<UVerticalBoxSlot>(lSlot))
 		{
 			VSlot->SetPadding(FMargin(4.0f, 8.0f, 4.0f, 8.0f));
 			VSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Fill);

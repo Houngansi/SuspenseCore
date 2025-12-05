@@ -120,7 +120,7 @@ void USuspenseCoreSaveSlotWidget::UpdateDisplay()
 		if (EmptyText)
 		{
 			EmptyText->SetVisibility(ESlateVisibility::Visible);
-			EmptyText->SetText(EmptySlotText);
+			EmptyText->SetText(EmptySaveSlot);
 		}
 
 		// Hide data fields

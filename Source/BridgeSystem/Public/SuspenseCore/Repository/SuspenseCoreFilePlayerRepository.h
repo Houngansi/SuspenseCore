@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
-#include "SuspenseCore/SuspenseCorePlayerData.h"
+#include "SuspenseCore/Data/SuspenseCorePlayerData.h"
 #include "SuspenseCoreFilePlayerRepository.generated.h"
 
 /**

@@ -168,7 +168,7 @@ protected:
 
 	/** Text shown for empty slots */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")
-	FText EmptySlotText = FText::FromString(TEXT("- Empty Slot -"));
+	FText EmptySaveSlot = FText::FromString(TEXT("- Empty Slot -"));
 
 	/** Text format for slot name */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config")

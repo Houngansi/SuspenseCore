@@ -78,7 +78,7 @@ protected:
 	TArray<TObjectPtr<APlayerState>> AllPlayerStates;
 
 	/** Replication actor list for gathering */
-	FActorRepListType ReplicationActorList;
+	FActorRepListRefView ReplicationActorList;
 
 	/** Distance thresholds squared (for fast comparison) */
 	float NearDistanceSq;

@@ -66,7 +66,7 @@ protected:
 	TArray<TObjectPtr<AActor>> OwnerActors;
 
 	/** Replication actor list for gathering */
-	FActorRepListType ReplicationActorList;
+	FActorRepListRefView ReplicationActorList;
 
 	/** The owning connection */
 	UPROPERTY()

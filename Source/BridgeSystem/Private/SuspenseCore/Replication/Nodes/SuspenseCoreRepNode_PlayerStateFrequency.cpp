@@ -117,7 +117,7 @@ void USuspenseCoreRepNode_PlayerStateFrequency::GatherActorListsForConnection(co
 	// Add to gathered lists if we have actors
 	if (ReplicationActorList.Num() > 0)
 	{
-		Params.OutGatheredReplicationLists.AddReplicationActorInfo(ReplicationActorList);
+		Params.OutGatheredReplicationLists.AddReplicationActorList(ReplicationActorList);
 	}
 }
 

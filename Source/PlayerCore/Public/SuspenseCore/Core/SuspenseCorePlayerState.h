@@ -18,6 +18,19 @@ class USuspenseCoreInventoryComponent;
 class UGameplayAbility;
 class UGameplayEffect;
 
+// Equipment module forward declarations
+class USuspenseEquipmentDataStore;
+class USuspenseEquipmentTransactionProcessor;
+class USuspenseEquipmentReplicationManager;
+class USuspenseEquipmentPredictionSystem;
+class USuspenseWeaponStateManager;
+class USuspenseEquipmentNetworkDispatcher;
+class USuspenseEquipmentInventoryBridge;
+class USuspenseEquipmentEventDispatcher;
+class USuspenseEquipmentOperationExecutor;
+class USuspenseEquipmentSlotValidator;
+class USuspenseLoadoutManager;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELEGATES (Internal use only - EventBus preferred for external communication)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -117,6 +130,34 @@ public:
 	USuspenseCoreInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - EQUIPMENT
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Get the equipment data store (core equipment state) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
+
+	/** Get the equipment transaction processor (atomic operations) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
+
+	/** Get the equipment operation executor (validated operations) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
+
+	/** Get the equipment prediction system (client-side prediction) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseEquipmentPredictionSystem* GetEquipmentPrediction() const { return EquipmentPrediction; }
+
+	/** Get the equipment inventory bridge (connects equipment to inventory) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseEquipmentInventoryBridge* GetEquipmentInventoryBridge() const { return EquipmentInventoryBridge; }
+
+	/** Get the weapon state manager (weapon FSM) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	USuspenseWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -207,6 +248,50 @@ protected:
 	USuspenseCoreAttributeSet* AttributeSet = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// EQUIPMENT MODULE COMPONENTS (Per-Player)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Core data store for equipment state (Server authoritative, replicated) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
+	USuspenseEquipmentDataStore* EquipmentDataStore = nullptr;
+
+	/** Transaction processor for atomic equipment changes */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
+	USuspenseEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
+
+	/** Operation executor (deterministic, validated) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
+	USuspenseEquipmentOperationExecutor* EquipmentOps = nullptr;
+
+	/** Prediction system (client owning) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
+	USuspenseEquipmentPredictionSystem* EquipmentPrediction = nullptr;
+
+	/** Replication manager (delta-based replication) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
+	USuspenseEquipmentReplicationManager* EquipmentReplication = nullptr;
+
+	/** Network dispatcher (RPC/request queue) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
+	USuspenseEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
+
+	/** Event dispatcher / equipment event bus (local) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Events")
+	USuspenseEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
+
+	/** Weapon state manager (FSM) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Weapon")
+	USuspenseWeaponStateManager* WeaponStateManager = nullptr;
+
+	/** Inventory bridge (connects equipment to existing inventory) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Inventory")
+	USuspenseEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
+
+	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
+	UPROPERTY()
+	USuspenseEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -283,6 +368,29 @@ protected:
 	/** Handle attribute change and forward to EventBus */
 	void HandleAttributeChange(const FGameplayTag& AttributeTag, float NewValue, float OldValue);
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// EQUIPMENT MODULE WIRING
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Wire up per-player equipment components with global services.
+	 * CRITICAL: Called AFTER loadout application to ensure slots are configured.
+	 * @param LoadoutManager - Manager containing loadout configuration (can be null for defaults)
+	 * @param AppliedLoadoutID - ID of loadout that was just applied (can be NAME_None)
+	 * @return true if wiring succeeded, false otherwise
+	 */
+	bool WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager = nullptr, const FName& AppliedLoadoutID = NAME_None);
+
+	/**
+	 * Attempt to wire equipment module once.
+	 * Checks if global services are ready and wires if so.
+	 * @return true if successfully wired, false if needs retry
+	 */
+	bool TryWireEquipmentModuleOnce();
+
+	/** Initialize all equipment module components */
+	void InitializeEquipmentComponents();
+
 private:
 	/** Cached EventBus reference (mutable for const getter caching) */
 	UPROPERTY()
@@ -296,4 +404,23 @@ private:
 
 	/** Flag for initialization state */
 	bool bAbilitySystemInitialized = false;
+
+	/** Flag for equipment module initialization state */
+	bool bEquipmentModuleInitialized = false;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// EQUIPMENT WIRING RETRY (Server-side)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Current retry count for equipment module wiring */
+	int32 EquipmentWireRetryCount = 0;
+
+	/** Timer handle for retry */
+	FTimerHandle EquipmentWireRetryHandle;
+
+	/** Maximum retry attempts (20 × 50ms = 1 second) */
+	static constexpr int32 MaxEquipmentWireRetries = 20;
+
+	/** Interval between retry attempts (50 milliseconds) */
+	static constexpr float EquipmentWireRetryInterval = 0.05f;
 };

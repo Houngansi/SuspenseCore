@@ -18,12 +18,11 @@ UCharacterCrouchAbility::UCharacterCrouchAbility()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-    // Установка тегов способности
-    FGameplayTag CrouchTag = FGameplayTag::RequestGameplayTag("Ability.Input.Crouch");
-    SetAssetTags(FGameplayTagContainer(CrouchTag));
-
-    // ВАЖНО: Устанавливаем AbilityTags для проверки активности
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Crouch"));
+    // Установка тегов способности - using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+    FGameplayTagContainer AbilityTagContainer;
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Input.Crouch"));
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Crouch"));
+    SetAssetTags(AbilityTagContainer);
 
     // Блокирующие теги
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Dead"));

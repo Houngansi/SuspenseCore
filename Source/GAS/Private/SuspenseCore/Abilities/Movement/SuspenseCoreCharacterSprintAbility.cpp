@@ -26,12 +26,12 @@ USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = false;
 
-	// AbilityTags - CRITICAL: TryActivateAbilitiesByTag uses AbilityTags, NOT AssetTags!
-	// This tag must match what PlayerController passes to ActivateAbilityByTag()
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")));
-
-	// Also add general movement tag for categorization
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Sprint")));
+	// AbilityTags (AssetTags) - used by TryActivateAbilitiesByTag to find matching abilities
+	// Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+	FGameplayTagContainer AbilityTagContainer;
+	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")));
+	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Sprint")));
+	SetAssetTags(AbilityTagContainer);
 
 	// Applied tag while sprinting
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Sprinting")));

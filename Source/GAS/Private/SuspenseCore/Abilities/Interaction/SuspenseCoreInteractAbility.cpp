@@ -34,12 +34,12 @@ USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 	InteractCooldownTag = FGameplayTag::RequestGameplayTag(FName("Ability.Cooldown.Interact"));
 	InteractingTag = FGameplayTag::RequestGameplayTag(FName("State.Interacting"));
 
-	// AbilityTags - CRITICAL: TryActivateAbilitiesByTag uses AbilityTags, NOT AssetTags!
-	// This tag must match what PlayerController passes to ActivateAbilityByTag()
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")));
-
-	// Also add general interaction tag for categorization
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Interaction")));
+	// AbilityTags (AssetTags) - used by TryActivateAbilitiesByTag to find matching abilities
+	// Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+	FGameplayTagContainer AbilityTagContainer;
+	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")));
+	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Interaction")));
+	SetAssetTags(AbilityTagContainer);
 
 	// Applied while interacting
 	ActivationOwnedTags.AddTag(InteractingTag);

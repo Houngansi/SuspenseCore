@@ -6,9 +6,9 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
 #include "SuspenseCoreServiceProvider.generated.h"
 
-class USuspenseCoreServiceLocator;
 class USuspenseCoreEventBus;
 class USuspenseCoreEventManager;
 class USuspenseCoreDataManager;

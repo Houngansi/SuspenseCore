@@ -119,7 +119,7 @@ protected:
 	TMap<TObjectPtr<AActor>, FSuspenseCoreDormancyInfo> TrackedActors;
 
 	/** Replication actor list for gathering */
-	FActorRepListType ReplicationActorList;
+	FActorRepListRefView ReplicationActorList;
 
 	/** Dormancy timeout in seconds */
 	float DormancyTimeout;

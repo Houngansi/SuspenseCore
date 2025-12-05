@@ -1012,7 +1012,184 @@ SuspenseCore.Event
 │
 ├── UI / GAS / Weapon / Inventory / Equipment / Interaction
 │   └── ...
+│
+├── Security (NEW)
+│   ├── ViolationDetected
+│   ├── RateLimitExceeded
+│   ├── SuspiciousActivity
+│   ├── AuthorityDenied
+│   └── PlayerKicked
 ```
+
+---
+
+## 13. Security Patterns (Server Authority) — NEW
+
+### ✅ DO: Используйте централизованный SecurityValidator
+
+```cpp
+// ✅ ПРАВИЛЬНО: Используем SecurityValidator
+#include "SuspenseCore/Security/SuspenseCoreSecurityMacros.h"
+
+bool USuspenseCoreInventoryComponent::AddItem(FName ItemID, int32 Quantity)
+{
+    // Проверка authority - клиент получит false
+    SUSPENSE_CHECK_COMPONENT_AUTHORITY(this, AddItem);
+
+    // Rate limiting
+    SUSPENSE_CHECK_RATE_LIMIT(GetOwner(), AddItem, 10.0f);
+
+    // Остальная логика выполняется только на сервере
+    return AddItemInternal(ItemID, Quantity);
+}
+```
+
+```cpp
+// ❌ ПЛОХО: Прямая модификация без проверки authority
+bool USuspenseCoreInventoryComponent::AddItem(FName ItemID, int32 Quantity)
+{
+    // НЕТ проверки! Клиент может читерить!
+    ItemInstances.Add(CreateItem(ItemID, Quantity));
+    return true;
+}
+```
+
+---
+
+### ✅ DO: Используйте Server RPCs с WithValidation
+
+```cpp
+// Header
+UFUNCTION(Server, Reliable, WithValidation)
+void Server_AddItem(FName ItemID, int32 Quantity);
+
+// Implementation - Validation (runs BEFORE the function)
+bool UMyComponent::Server_AddItem_Validate(FName ItemID, int32 Quantity)
+{
+    // Базовая валидация параметров
+    return SUSPENSE_VALIDATE_ITEM_RPC(ItemID, Quantity);
+}
+
+// Implementation - Actual logic (runs only if validation passes)
+void UMyComponent::Server_AddItem_Implementation(FName ItemID, int32 Quantity)
+{
+    // Это выполняется ТОЛЬКО на сервере
+    AddItemInternal(ItemID, Quantity);
+}
+```
+
+```cpp
+// ❌ ПЛОХО: Server RPC без validation
+UFUNCTION(Server, Reliable) // Нет WithValidation!
+void Server_AddItem(FName ItemID, int32 Quantity);
+// Клиент может отправить ItemID = "SuperWeapon", Quantity = 999999
+```
+
+---
+
+### ✅ DO: Паттерн "Client calls RPC, Server executes"
+
+```cpp
+// Публичный API
+bool UInventoryComponent::AddItem(FName ItemID, int32 Quantity)
+{
+    // Клиент: вызывает RPC и возвращает false
+    // Сервер: выполняет логику
+    if (!GetOwner()->HasAuthority())
+    {
+        Server_AddItem(ItemID, Quantity);
+        return false; // Клиент возвращает false, сервер обработает
+    }
+
+    // Серверная логика
+    return AddItemInternal(ItemID, Quantity);
+}
+
+// Server RPC
+void UInventoryComponent::Server_AddItem_Implementation(FName ItemID, int32 Quantity)
+{
+    AddItemInternal(ItemID, Quantity);
+    // Результат реплицируется клиенту через ReplicatedUsing
+}
+```
+
+---
+
+### ✅ DO: Валидируйте ВСЕ параметры в _Validate функциях
+
+```cpp
+bool UInventoryComponent::Server_MoveItem_Validate(int32 FromSlot, int32 ToSlot)
+{
+    const int32 MaxSlots = GetGridWidth() * GetGridHeight();
+
+    // 1. Проверка диапазона
+    if (!SUSPENSE_VALIDATE_SLOTS(FromSlot, ToSlot, MaxSlots))
+    {
+        return false;
+    }
+
+    // 2. Rate limiting
+    USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
+    if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("MoveItem"), 20.0f))
+    {
+        return false;
+    }
+
+    return true;
+}
+```
+
+---
+
+### ✅ DO: Используйте Rate Limiting для всех операций
+
+```cpp
+// Разные операции имеют разные лимиты
+SUSPENSE_CHECK_RATE_LIMIT(GetOwner(), AddItem, 10.0f);      // 10/сек для добавления
+SUSPENSE_CHECK_RATE_LIMIT(GetOwner(), MoveItem, 20.0f);     // 20/сек для перемещения
+SUSPENSE_CHECK_RATE_LIMIT(GetOwner(), TradeItem, 2.0f);     // 2/сек для торговли (High security)
+```
+
+---
+
+### ❌ DON'T: Доверяйте клиенту
+
+```cpp
+// ❌ НИКОГДА не делайте так!
+void UInventoryComponent::Client_AddItem(FName ItemID, int32 Quantity)
+{
+    // Клиент сам добавляет предметы - ЭТО ЧИТ!
+    ItemInstances.Add(CreateItem(ItemID, Quantity));
+}
+
+// ❌ НИКОГДА не доверяйте Client RPC для изменения данных
+UFUNCTION(Client, Reliable)
+void Client_GiveCurrency(int32 Amount); // Читер отправит 999999999
+```
+
+---
+
+### Security Checklist для Code Review
+
+- [ ] Все операции изменения данных имеют Server RPC
+- [ ] Все Server RPC имеют WithValidation
+- [ ] _Validate функции проверяют ВСЕ параметры
+- [ ] Rate limiting используется для предотвращения спама
+- [ ] Нет прямых модификаций данных на клиенте
+- [ ] CheckAuthority вызывается перед операциями
+- [ ] Sensitive операции логируются
+- [ ] Нет Client RPC для изменения серверных данных
+
+---
+
+### Иерархия уровней безопасности
+
+| Уровень | Операции | Rate Limit | Kick после |
+|---------|----------|------------|-----------|
+| Low | Запросы, UI | 30/сек | Никогда |
+| Normal | Inventory, Move | 10/сек | 10 нарушений |
+| High | Trade, Currency | 2/сек | 5 нарушений |
+| Critical | Admin, Ban | 1/сек | 2 нарушения |
 
 ---
 

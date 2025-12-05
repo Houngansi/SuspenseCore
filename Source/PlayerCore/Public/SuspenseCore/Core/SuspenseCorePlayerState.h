@@ -14,6 +14,7 @@
 class USuspenseCoreAbilitySystemComponent;
 class USuspenseCoreAttributeSet;
 class USuspenseCoreEventBus;
+class USuspenseCoreInventoryComponent;
 class UGameplayAbility;
 class UGameplayEffect;
 
@@ -108,6 +109,14 @@ public:
 	bool ApplyEffect(TSubclassOf<UGameplayEffect> EffectClass, float Level = 1.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - INVENTORY
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Get the inventory component */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory")
+	USuspenseCoreInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -188,6 +197,10 @@ protected:
 	/** Ability System Component - created in constructor */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
 	USuspenseCoreAbilitySystemComponent* AbilitySystemComponent = nullptr;
+
+	/** Inventory Component - created in constructor, persists across respawns */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
+	USuspenseCoreInventoryComponent* InventoryComponent = nullptr;
 
 	/** Attribute Set - spawned by ASC */
 	UPROPERTY()

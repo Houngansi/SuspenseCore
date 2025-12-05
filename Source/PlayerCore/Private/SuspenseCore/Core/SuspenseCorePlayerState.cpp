@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -24,6 +25,11 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 
 	// Mixed replication mode - server controls gameplay, client predicts
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	// Create Inventory Component - lives on PlayerState for persistence across respawns
+	// Uses EventBus for all notifications (SuspenseCore.Event.Inventory.*)
+	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
+	InventoryComponent->SetIsReplicatedByDefault(true);
 
 	// Network settings - optimized for MMO scale
 	// 60Hz is optimal balance between responsiveness and bandwidth for shooters
@@ -64,7 +70,11 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	// Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
+	DOREPLIFETIME(ASuspenseCorePlayerState, InventoryComponent);
+
+	// State
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, PlayerLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, TeamId, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, CharacterClassId, COND_None, REPNOTIFY_Always);

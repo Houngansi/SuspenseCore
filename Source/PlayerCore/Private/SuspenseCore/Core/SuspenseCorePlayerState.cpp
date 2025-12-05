@@ -43,7 +43,7 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Create Inventory Component - lives on PlayerState for persistence across respawns
 	// Uses EventBus for all notifications (SuspenseCore.Event.Inventory.*)
 	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
-	InventoryComponent->SetIsReplicatedByDefault(true);
+	InventoryComponent->SetIsReplicated(true);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// EQUIPMENT MODULE COMPONENTS

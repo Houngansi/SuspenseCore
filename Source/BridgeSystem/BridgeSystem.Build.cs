@@ -21,7 +21,8 @@ public class BridgeSystem : ModuleRules
                 "Niagara",
                 "UMG",
                 "PhysicsCore",
-                "NetCore"             // For FFastArraySerializer
+                "NetCore",            // For FFastArraySerializer
+                "ReplicationGraph"    // For USuspenseCoreReplicationGraph
             }
         );
 

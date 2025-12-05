@@ -7,6 +7,8 @@ SuspenseCore is an EventBus-driven architecture for Unreal Engine that provides:
 - Centralized data management
 - Project Settings configuration (no Blueprint GameInstance required)
 - Full GAS (Gameplay Ability System) integration
+- **Dependency Injection via ServiceProvider** (NEW)
+- **MMO-scale Replication Graph for 100+ players** (NEW)
 
 ---
 
@@ -114,6 +116,100 @@ EventBus->Unsubscribe(EventTag, Handle);
 
 ---
 
+### 5. USuspenseCoreServiceProvider (GameInstanceSubsystem) — NEW
+
+**Location:** `BridgeSystem/Public/SuspenseCore/Services/SuspenseCoreServiceProvider.h`
+
+Centralized Dependency Injection for all SuspenseCore services.
+
+```cpp
+// Static Access (recommended)
+USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(WorldContextObject);
+
+// Service Access
+USuspenseCoreEventBus* EventBus = Provider->GetEventBus();
+USuspenseCoreDataManager* DataManager = Provider->GetDataManager();
+USuspenseCoreEventManager* EventManager = Provider->GetEventManager();
+
+// Generic Service Access
+template<typename T>
+T* Provider->GetService() const;
+
+// Using Macros (convenience)
+SUSPENSE_GET_EVENTBUS(WorldContextObject, EventBus);
+SUSPENSE_GET_DATAMANAGER(WorldContextObject, DataManager);
+SUSPENSE_PUBLISH_EVENT(WorldContextObject, EventTag, EventData);
+```
+
+**Lifecycle:**
+1. GameInstance creates subsystem
+2. `Initialize()` initializes core services in correct order
+3. Broadcasts `SuspenseCore.Event.Services.Initialized`
+4. Provides service access throughout session
+
+**EventBus Events:**
+| Tag | Description |
+|-----|-------------|
+| `SuspenseCore.Event.Services.Initialized` | ServiceProvider ready |
+| `SuspenseCore.Event.Services.ServiceRegistered` | New service registered |
+| `SuspenseCore.Event.Services.ServiceMissing` | Required service not found |
+
+---
+
+### 6. USuspenseCoreReplicationGraph — NEW
+
+**Location:** `BridgeSystem/Public/SuspenseCore/Replication/SuspenseCoreReplicationGraph.h`
+
+Custom Replication Graph for MMO-scale networking (100+ concurrent players).
+
+```cpp
+// Enable in DefaultEngine.ini:
+[/Script/OnlineSubsystemUtils.IpNetDriver]
+ReplicationDriverClassName="/Script/BridgeSystem.SuspenseCoreReplicationGraph"
+
+// Configuration in Project Settings → Game → SuspenseCore Replication
+```
+
+**Node Architecture:**
+| Node | Purpose | Bandwidth Reduction |
+|------|---------|-------------------|
+| AlwaysRelevantNode | GameState, GameMode | N/A |
+| PlayerStateFrequencyNode | Distance-based PlayerState | ~80% |
+| SpatialGridNode | Characters, Pickups | Distance-based |
+| EquipmentDormancyNode | Equipment with dormancy | ~80% |
+| OwnerOnlyNode | Inventory (per-connection) | ~99% |
+
+**Configuration (USuspenseCoreReplicationGraphSettings):**
+```cpp
+// Spatial Grid
+float SpatialGridCellSize = 10000.0f;    // 100m cells
+float SpatialGridExtent = 500000.0f;     // 5km world radius
+
+// Cull Distances
+float CharacterCullDistance = 15000.0f;  // 150m
+float PickupCullDistance = 5000.0f;      // 50m
+float ProjectileCullDistance = 20000.0f; // 200m
+
+// Frequency Buckets
+float NearDistanceThreshold = 2000.0f;   // 20m
+float MidDistanceThreshold = 5000.0f;    // 50m
+float FarDistanceThreshold = 10000.0f;   // 100m
+int32 NearReplicationPeriod = 1;         // Every frame
+int32 FarReplicationPeriod = 5;          // Every 5th frame
+
+// Dormancy
+float EquipmentDormancyTimeout = 5.0f;   // 5 seconds
+```
+
+**EventBus Events:**
+| Tag | Description |
+|-----|-------------|
+| `SuspenseCore.Event.Replication.Initialized` | ReplicationGraph ready |
+| `SuspenseCore.Event.Replication.ActorAdded` | Actor added to replication |
+| `SuspenseCore.Event.Replication.DormancyChanged` | Dormancy state changed |
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -149,6 +245,45 @@ EventBus->Unsubscribe(EventTag, Handle);
 │  events     │  to events   │  to events   │  ability events         │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+### Extended Architecture (with MMO Scalability)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PROJECT SETTINGS                                     │
+├───────────────────────────────────┬─────────────────────────────────────────┤
+│  USuspenseCoreSettings            │  USuspenseCoreReplicationGraphSettings  │
+│  ├── ItemDataTable                │  ├── SpatialGridCellSize               │
+│  ├── CharacterClassesDataAsset    │  ├── CullDistances                     │
+│  └── LoadoutDataTable             │  └── DormancyTimeouts                  │
+└───────────────────────────────────┴─────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 USuspenseCoreServiceProvider (DI Hub)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐                 │
+│  │ DataManager    │  │ EventManager   │  │ EventBus       │                 │
+│  │ GetItemData()  │  │ GetEventBus()  │  │ Publish()      │                 │
+│  └────────────────┘  └────────────────┘  └────────────────┘                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 USuspenseCoreReplicationGraph (Network)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  AlwaysRelevant → PlayerStateFrequency → SpatialGrid → Dormancy → OwnerOnly │
+│  (GameState)      (distance buckets)    (Characters)   (Equipment) (Inventory)│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bandwidth Optimization Impact (100 Players)
+
+| Feature | Without Optimization | With Optimization | Reduction |
+|---------|---------------------|-------------------|-----------|
+| PlayerState | 9,900/frame | ~50/frame | 99.5% |
+| Inventory | 495,000/frame | 5,000/frame | 99% |
+| Equipment | 36,000/sec | ~7,300/sec | 80% |
 
 ---
 
@@ -276,16 +411,32 @@ To add a new data type (e.g., Quests):
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2025-12 | Initial SuspenseCore architecture |
-| 1.1 | 2025-12 | Added USuspenseCoreSettings, USuspenseCoreDataManager |
+| 1.0 | 2025-12-01 | Initial SuspenseCore architecture |
+| 1.1 | 2025-12-02 | Added USuspenseCoreSettings, USuspenseCoreDataManager |
+| 2.0 | 2025-12-05 | **MMO Scalability Update**: ServiceProvider DI, ReplicationGraph |
 
 ---
 
 ## Related Files
 
+### Core Services
 - `Config/DefaultGameplayTags.ini` - All GameplayTag definitions
 - `BridgeSystem/Public/SuspenseCore/Settings/SuspenseCoreSettings.h`
 - `BridgeSystem/Public/SuspenseCore/Data/SuspenseCoreDataManager.h`
 - `BridgeSystem/Public/SuspenseCore/Events/SuspenseCoreEventManager.h`
 - `BridgeSystem/Public/SuspenseCore/Events/SuspenseCoreEventBus.h`
 - `InteractionSystem/Public/SuspenseCore/Utils/SuspenseCoreHelpers.h`
+
+### ServiceProvider (DI System) — NEW
+- `BridgeSystem/Public/SuspenseCore/Services/SuspenseCoreServiceProvider.h`
+- `BridgeSystem/Public/SuspenseCore/Services/SuspenseCoreServiceInterfaces.h`
+- `BridgeSystem/Public/SuspenseCore/Services/SuspenseCoreServiceMacros.h`
+
+### ReplicationGraph (MMO Scalability) — NEW
+- `BridgeSystem/Public/SuspenseCore/Replication/SuspenseCoreReplicationGraph.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/SuspenseCoreReplicationGraphSettings.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_AlwaysRelevant.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_PlayerStateFrequency.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_OwnerOnly.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/Nodes/SuspenseCoreRepNode_Dormancy.h`
+- `BridgeSystem/Public/SuspenseCore/Replication/README_ReplicationGraph.md`

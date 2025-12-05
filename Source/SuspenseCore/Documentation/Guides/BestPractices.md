@@ -821,4 +821,199 @@ SuspenseCore.Event
 
 ---
 
-**Последнее обновление:** 2025-11-30
+---
+
+## 11. ServiceProvider (Dependency Injection) — NEW
+
+### ✅ DO: Используйте ServiceProvider для доступа к сервисам
+
+```cpp
+// ✅ ПРАВИЛЬНО: Через ServiceProvider
+USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(WorldContextObject);
+if (Provider)
+{
+    USuspenseCoreEventBus* EventBus = Provider->GetEventBus();
+    USuspenseCoreDataManager* DataManager = Provider->GetDataManager();
+}
+
+// Или используя макросы
+SUSPENSE_GET_EVENTBUS(WorldContextObject, EventBus);
+SUSPENSE_GET_DATAMANAGER(WorldContextObject, DataManager);
+```
+
+```cpp
+// ❌ ПЛОХО: Прямой доступ к подсистемам
+UGameInstance* GI = GetGameInstance();
+USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>();
+```
+
+**Почему:** ServiceProvider обеспечивает правильный порядок инициализации и упрощает тестирование.
+
+---
+
+### ✅ DO: Используйте макросы для публикации событий
+
+```cpp
+// Быстрая публикация через макрос
+SUSPENSE_PUBLISH_EVENT(WorldContextObject,
+    FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Player.Died")),
+    EventData);
+
+// Простое событие без данных
+SUSPENSE_PUBLISH_SIMPLE_EVENT(WorldContextObject,
+    FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.System.Ready")));
+```
+
+---
+
+### ✅ DO: Реализуйте ISuspenseCoreServiceConsumer для автоинъекции
+
+```cpp
+// Компонент с автоматической инъекцией сервисов
+UCLASS()
+class UMyComponent : public UActorComponent, public ISuspenseCoreServiceConsumer
+{
+    GENERATED_BODY()
+
+public:
+    // ISuspenseCoreServiceConsumer
+    virtual void OnServicesReady(USuspenseCoreServiceProvider* Provider) override
+    {
+        // Сервисы готовы к использованию
+        EventBus = Provider->GetEventBus();
+        DataManager = Provider->GetDataManager();
+    }
+
+private:
+    UPROPERTY()
+    TObjectPtr<USuspenseCoreEventBus> EventBus;
+
+    UPROPERTY()
+    TObjectPtr<USuspenseCoreDataManager> DataManager;
+};
+```
+
+---
+
+## 12. ReplicationGraph (MMO Scalability) — NEW
+
+### ✅ DO: Используйте правильные Replication Conditions с ReplicationGraph
+
+```cpp
+// Инвентарь - только владельцу (OwnerOnly node)
+DOREPLIFETIME_CONDITION(APlayerCharacter, InventoryComponent, COND_OwnerOnly);
+
+// Оружие - всем в зоне видимости (SpatialGrid)
+DOREPLIFETIME(APlayerCharacter, CurrentWeapon);
+
+// Приватные данные - никому кроме владельца
+DOREPLIFETIME_CONDITION(APlayerCharacter, Currency, COND_OwnerOnly);
+```
+
+---
+
+### ✅ DO: Поддерживайте Dormancy для оборудования
+
+```cpp
+// Equipment Actor с поддержкой Dormancy
+void ASuspenseEquipmentActor::OnEquipped()
+{
+    // Пробудить от Dormancy - началась активность
+    FlushNetDormancy();
+    SetNetDormancy(DORM_Awake);
+}
+
+void ASuspenseEquipmentActor::OnHolstered()
+{
+    // Разрешить уйти в Dormancy - нет активности
+    SetNetDormancy(DORM_DormantAll);
+}
+```
+
+---
+
+### ✅ DO: Проектируйте классы с учётом ReplicationGraph
+
+```cpp
+// ✅ ХОРОШО: Pickup с правильным cull distance
+UCLASS()
+class ASuspenseCorePickupItem : public AActor
+{
+    // Подберётся SpatialGrid с PickupCullDistance (50m default)
+    // Не будет реплицироваться далёким игрокам
+};
+```
+
+```cpp
+// ❌ ПЛОХО: Pickup, реплицирующийся всем
+UCLASS()
+class ABadPickupItem : public AActor
+{
+    virtual bool IsNetRelevantFor(...) override
+    {
+        return true; // Всем 100 игрокам? Bandwidth disaster!
+    }
+};
+```
+
+---
+
+### ✅ DO: Настройте Project Settings для ReplicationGraph
+
+```ini
+; DefaultEngine.ini в игровом проекте
+[/Script/OnlineSubsystemUtils.IpNetDriver]
+ReplicationDriverClassName="/Script/BridgeSystem.SuspenseCoreReplicationGraph"
+```
+
+**Настройки в Project Settings → Game → SuspenseCore Replication:**
+- SpatialGridCellSize: 10000 (100m) для outdoor maps
+- CharacterCullDistance: 15000 (150m)
+- EquipmentDormancyTimeout: 5.0s
+
+---
+
+### Типичные ошибки ReplicationGraph
+
+| Ошибка | Проблема | Решение |
+|--------|----------|---------|
+| Inventory реплицируется всем | Bandwidth explosion | COND_OwnerOnly + OwnerOnlyNode |
+| Equipment никогда не dormant | Постоянная нагрузка | Вызвать SetNetDormancy при holster |
+| Pickup виден за 1км | Лишний трафик | Настроить PickupCullDistance |
+| PlayerState обновляется 60Hz всем | O(n²) complexity | PlayerStateFrequency buckets |
+
+---
+
+## Иерархия тегов событий (обновлённая)
+
+```
+SuspenseCore.Event
+├── System
+│   ├── Initialized
+│   ├── Shutdown
+│   └── Error
+│
+├── Services (NEW)
+│   ├── Initialized
+│   ├── ServiceRegistered
+│   └── ServiceMissing
+│
+├── Replication (NEW)
+│   ├── Initialized
+│   ├── ActorAdded
+│   ├── ActorRemoved
+│   ├── DormancyChanged
+│   └── FrequencyBucketChanged
+│
+├── Player
+│   ├── Spawned
+│   ├── Died
+│   └── ...
+│
+├── UI / GAS / Weapon / Inventory / Equipment / Interaction
+│   └── ...
+```
+
+---
+
+**Последнее обновление:** 2025-12-05

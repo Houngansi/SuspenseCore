@@ -355,10 +355,122 @@ void USuspenseCoreReplicationGraph::SetupBaseClassRouting()
 
 void USuspenseCoreReplicationGraph::SetupSuspenseCoreClassRouting()
 {
-	// SuspenseCore classes will be added dynamically when they register
-	// This allows modules to register their classes at runtime
+	const USuspenseCoreReplicationGraphSettings* Settings = GetSuspenseCoreSettings();
 
-	UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("SetupSuspenseCoreClassRouting: Ready for dynamic registration"));
+	// ═══════════════════════════════════════════════════════════════════════════
+	// SuspenseCore PlayerState - Frequency-based replication
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ASuspenseCorePlayerState inherits from APlayerState, already handled by base
+	// But we configure specific replication info
+
+	FClassReplicationInfo SuspensePlayerStateInfo;
+	SuspensePlayerStateInfo.ReplicationPeriodFrame = 1; // Start with full frequency
+
+	// Try to find ASuspenseCorePlayerState class
+	if (UClass* PlayerStateClass = FindObject<UClass>(nullptr, TEXT("/Script/PlayerCore.SuspenseCorePlayerState")))
+	{
+		GlobalActorReplicationInfoMap.SetClassInfo(PlayerStateClass, SuspensePlayerStateInfo);
+		PlayerStateClasses.Add(PlayerStateClass);
+		UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCorePlayerState"));
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// SuspenseCore Character - Spatial Grid with cull distance
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (Settings && Settings->bUseSpatialGridForCharacters)
+	{
+		FClassReplicationInfo SuspenseCharacterInfo;
+		SuspenseCharacterInfo.SetCullDistanceSquared(FMath::Square(Settings->CharacterCullDistance));
+
+		if (UClass* CharacterClass = FindObject<UClass>(nullptr, TEXT("/Script/PlayerCore.SuspenseCoreCharacter")))
+		{
+			GlobalActorReplicationInfoMap.SetClassInfo(CharacterClass, SuspenseCharacterInfo);
+			SpatializedClasses.Add(CharacterClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCoreCharacter (CullDist=%.0f)"),
+				Settings->CharacterCullDistance);
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// SuspenseCore Pickup Items - Spatial Grid with pickup cull distance
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (Settings)
+	{
+		FClassReplicationInfo PickupInfo;
+		PickupInfo.SetCullDistanceSquared(FMath::Square(Settings->PickupCullDistance));
+
+		// SuspenseCorePickupItem
+		if (UClass* PickupClass = FindObject<UClass>(nullptr, TEXT("/Script/InteractionSystem.SuspenseCorePickupItem")))
+		{
+			GlobalActorReplicationInfoMap.SetClassInfo(PickupClass, PickupInfo);
+			SpatializedClasses.Add(PickupClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCorePickupItem (CullDist=%.0f)"),
+				Settings->PickupCullDistance);
+		}
+
+		// Legacy SuspensePickupItem
+		if (UClass* LegacyPickupClass = FindObject<UClass>(nullptr, TEXT("/Script/InteractionSystem.SuspensePickupItem")))
+		{
+			GlobalActorReplicationInfoMap.SetClassInfo(LegacyPickupClass, PickupInfo);
+			SpatializedClasses.Add(LegacyPickupClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspensePickupItem (legacy)"));
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Equipment Actors - Dormancy-based replication
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (Settings && Settings->bEnableEquipmentDormancy)
+	{
+		FClassReplicationInfo EquipmentInfo;
+		EquipmentInfo.SetCullDistanceSquared(FMath::Square(Settings->CharacterCullDistance)); // Same as character
+
+		// SuspenseEquipmentActor
+		if (UClass* EquipmentClass = FindObject<UClass>(nullptr, TEXT("/Script/EquipmentSystem.SuspenseEquipmentActor")))
+		{
+			GlobalActorReplicationInfoMap.SetClassInfo(EquipmentClass, EquipmentInfo);
+			DormancyClasses.Add(EquipmentClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseEquipmentActor (Dormancy)"));
+		}
+
+		// SuspenseWeaponActor
+		if (UClass* WeaponClass = FindObject<UClass>(nullptr, TEXT("/Script/EquipmentSystem.SuspenseWeaponActor")))
+		{
+			GlobalActorReplicationInfoMap.SetClassInfo(WeaponClass, EquipmentInfo);
+			DormancyClasses.Add(WeaponClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseWeaponActor (Dormancy)"));
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Inventory Items - Owner-only replication
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (Settings && Settings->bInventoryOwnerOnly)
+	{
+		// SuspenseInventoryItem
+		if (UClass* InventoryClass = FindObject<UClass>(nullptr, TEXT("/Script/InventorySystem.SuspenseInventoryItem")))
+		{
+			OwnerOnlyClasses.Add(InventoryClass);
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseInventoryItem (OwnerOnly)"));
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// GameModes - Always Relevant
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (UClass* GameModeClass = FindObject<UClass>(nullptr, TEXT("/Script/PlayerCore.SuspenseCoreGameGameMode")))
+	{
+		AlwaysRelevantClasses.Add(GameModeClass);
+		UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCoreGameGameMode (AlwaysRelevant)"));
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Summary
+	// ═══════════════════════════════════════════════════════════════════════════
+	UE_LOG(LogSuspenseCoreReplicationGraph, Log,
+		TEXT("SetupSuspenseCoreClassRouting complete: Spatialized=%d, Dormancy=%d, OwnerOnly=%d, AlwaysRelevant=%d, PlayerState=%d"),
+		SpatializedClasses.Num(), DormancyClasses.Num(), OwnerOnlyClasses.Num(),
+		AlwaysRelevantClasses.Num(), PlayerStateClasses.Num());
 }
 
 float USuspenseCoreReplicationGraph::GetCullDistanceSquaredForClass(UClass* ActorClass) const
@@ -369,7 +481,32 @@ float USuspenseCoreReplicationGraph::GetCullDistanceSquaredForClass(UClass* Acto
 		return FMath::Square(15000.0f); // Default 150m
 	}
 
-	if (ActorClass->IsChildOf(ACharacter::StaticClass()))
+	// Check SuspenseCore classes first (by name since we may not have direct references)
+	FString ClassName = ActorClass->GetName();
+
+	// Characters
+	if (ActorClass->IsChildOf(ACharacter::StaticClass()) ||
+		ClassName.Contains(TEXT("Character")))
+	{
+		return FMath::Square(Settings->CharacterCullDistance);
+	}
+
+	// Pickups
+	if (ClassName.Contains(TEXT("Pickup")) ||
+		ClassName.Contains(TEXT("PickupItem")))
+	{
+		return FMath::Square(Settings->PickupCullDistance);
+	}
+
+	// Projectiles
+	if (ClassName.Contains(TEXT("Projectile")))
+	{
+		return FMath::Square(Settings->ProjectileCullDistance);
+	}
+
+	// Equipment/Weapons - same as characters (attached to them)
+	if (ClassName.Contains(TEXT("Equipment")) ||
+		ClassName.Contains(TEXT("Weapon")))
 	{
 		return FMath::Square(Settings->CharacterCullDistance);
 	}

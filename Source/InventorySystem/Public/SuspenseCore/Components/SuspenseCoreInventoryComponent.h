@@ -17,6 +17,7 @@ class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
 class USuspenseCoreInventoryStorage;
 class USuspenseCoreInventoryValidator;
+class USuspenseCoreSecurityValidator;
 
 /**
  * USuspenseCoreInventoryComponent
@@ -208,6 +209,56 @@ protected:
 
 	/** Handle add item request event */
 	void OnAddItemRequestEvent(const struct FSuspenseCoreEventData& EventData);
+
+	//==================================================================
+	// Server RPCs - Security Layer (Phase 6)
+	//==================================================================
+
+	/** Server: Add item by ID */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_AddItemByID(FName ItemID, int32 Quantity);
+	bool Server_AddItemByID_Validate(FName ItemID, int32 Quantity);
+	void Server_AddItemByID_Implementation(FName ItemID, int32 Quantity);
+
+	/** Server: Remove item by ID */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_RemoveItemByID(FName ItemID, int32 Quantity);
+	bool Server_RemoveItemByID_Validate(FName ItemID, int32 Quantity);
+	void Server_RemoveItemByID_Implementation(FName ItemID, int32 Quantity);
+
+	/** Server: Move item between slots */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_MoveItem(int32 FromSlot, int32 ToSlot);
+	bool Server_MoveItem_Validate(int32 FromSlot, int32 ToSlot);
+	void Server_MoveItem_Implementation(int32 FromSlot, int32 ToSlot);
+
+	/** Server: Swap items between slots */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SwapItems(int32 Slot1, int32 Slot2);
+	bool Server_SwapItems_Validate(int32 Slot1, int32 Slot2);
+	void Server_SwapItems_Implementation(int32 Slot1, int32 Slot2);
+
+	/** Server: Split stack */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SplitStack(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot);
+	bool Server_SplitStack_Validate(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot);
+	void Server_SplitStack_Implementation(int32 SourceSlot, int32 SplitQuantity, int32 TargetSlot);
+
+	/** Server: Remove item from slot */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_RemoveItemFromSlot(int32 SlotIndex);
+	bool Server_RemoveItemFromSlot_Validate(int32 SlotIndex);
+	void Server_RemoveItemFromSlot_Implementation(int32 SlotIndex);
+
+	//==================================================================
+	// Security Helpers
+	//==================================================================
+
+	/** Check if component owner has server authority */
+	bool CheckInventoryAuthority(const FString& FunctionName) const;
+
+	/** Get max slots for validation */
+	int32 GetMaxSlots() const { return Config.GridWidth * Config.GridHeight; }
 
 private:
 	//==================================================================

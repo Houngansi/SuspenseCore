@@ -22,7 +22,7 @@
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
 #include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
-#include "Components/Weapon/SuspenseWeaponStateManager.h"
+#include "Components/Core/SuspenseWeaponStateManager.h"
 #include "Components/Core/SuspenseEquipmentInventoryBridge.h"
 #include "Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "Types/Loadout/SuspenseLoadoutManager.h"

@@ -28,9 +28,12 @@ USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 	// Allow activation while airborne for multi-jump
 	bRetriggerInstancedAbility = false;
 
-	// Ability tags - use SetAssetTags for proper API
-	FGameplayTag JumpTag = FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Jump"));
-	SetAssetTags(FGameplayTagContainer(JumpTag));
+	// AbilityTags - CRITICAL: TryActivateAbilitiesByTag uses AbilityTags, NOT AssetTags!
+	// This tag must match what PlayerController passes to ActivateAbilityByTag()
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Jump")));
+
+	// Also add general movement tag for categorization
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Jump")));
 
 	// Block tags
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));

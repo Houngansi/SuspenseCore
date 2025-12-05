@@ -25,9 +25,12 @@ USuspenseCoreCharacterCrouchAbility::USuspenseCoreCharacterCrouchAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = true; // Allow toggle behavior
 
-	// Ability tags - use SetAssetTags for proper API
-	FGameplayTag CrouchTag = FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Crouch"));
-	SetAssetTags(FGameplayTagContainer(CrouchTag));
+	// AbilityTags - CRITICAL: TryActivateAbilitiesByTag uses AbilityTags, NOT AssetTags!
+	// This tag must match what PlayerController passes to ActivateAbilityByTag()
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Crouch")));
+
+	// Also add general movement tag for categorization
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Crouch")));
 
 	// Applied tag while crouching
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Crouching")));

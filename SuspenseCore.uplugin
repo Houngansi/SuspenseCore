@@ -14,11 +14,10 @@
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
-
 		{
-			"Name": "PlayerCore",
+			"Name": "BridgeSystem",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "GAS",
@@ -26,14 +25,14 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
-			"Name": "BridgeSystem",
+			"Name": "SuspenseCore",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
 		},
 		{
-			"Name": "SuspenseCore",
+			"Name": "PlayerCore",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "InteractionSystem",
@@ -63,6 +62,10 @@
 		},
 		{
 			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "ReplicationGraph",
 			"Enabled": true
 		}
 	]

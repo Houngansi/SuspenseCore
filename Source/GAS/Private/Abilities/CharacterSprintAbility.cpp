@@ -16,12 +16,11 @@ UCharacterSprintAbility::UCharacterSprintAbility()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-    // Ability tags
-    FGameplayTag SprintTag = FGameplayTag::RequestGameplayTag("Ability.Input.Sprint");
-    SetAssetTags(FGameplayTagContainer(SprintTag));
-
-    // Important! Set AbilityTags for activity check
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Sprint"));
+    // Ability tags - using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+    FGameplayTagContainer AbilityTagContainer;
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Input.Sprint"));
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Sprint"));
+    SetAssetTags(AbilityTagContainer);
 
     // Blocking tags
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Dead"));

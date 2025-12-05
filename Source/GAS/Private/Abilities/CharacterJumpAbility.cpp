@@ -19,9 +19,11 @@ UCharacterJumpAbility::UCharacterJumpAbility()
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
     // Устанавливаем теги способности
-    FGameplayTag JumpTag = FGameplayTag::RequestGameplayTag("Ability.Input.Jump");
-    SetAssetTags(FGameplayTagContainer(JumpTag));
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Jump"));
+    // Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+    FGameplayTagContainer AbilityTagContainer;
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Input.Jump"));
+    AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Active.Jump"));
+    SetAssetTags(AbilityTagContainer);
 
     // Блокирующие теги
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Dead"));

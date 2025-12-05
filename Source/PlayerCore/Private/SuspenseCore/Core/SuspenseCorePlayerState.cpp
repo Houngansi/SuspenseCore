@@ -53,39 +53,39 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 
 	// Core data store - server authoritative source of truth for equipment state
 	EquipmentDataStore = CreateDefaultSubobject<USuspenseEquipmentDataStore>(TEXT("EquipmentDataStore"));
-	EquipmentDataStore->SetIsReplicatedByDefault(true);
+	EquipmentDataStore->SetIsReplicated(true);
 
 	// Transaction processor - handles atomic equipment operations (equip/unequip/swap)
 	EquipmentTxnProcessor = CreateDefaultSubobject<USuspenseEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
-	EquipmentTxnProcessor->SetIsReplicatedByDefault(true);
+	EquipmentTxnProcessor->SetIsReplicated(true);
 
 	// Operation executor - validates and executes equipment operations
 	EquipmentOps = CreateDefaultSubobject<USuspenseEquipmentOperationExecutor>(TEXT("EquipmentOps"));
-	EquipmentOps->SetIsReplicatedByDefault(true);
+	EquipmentOps->SetIsReplicated(true);
 
 	// Client prediction system - handles optimistic updates for responsive UI
 	EquipmentPrediction = CreateDefaultSubobject<USuspenseEquipmentPredictionSystem>(TEXT("EquipmentPrediction"));
-	EquipmentPrediction->SetIsReplicatedByDefault(true);
+	EquipmentPrediction->SetIsReplicated(true);
 
 	// Replication manager - delta-based replication for bandwidth efficiency
 	EquipmentReplication = CreateDefaultSubobject<USuspenseEquipmentReplicationManager>(TEXT("EquipmentReplication"));
-	EquipmentReplication->SetIsReplicatedByDefault(true);
+	EquipmentReplication->SetIsReplicated(true);
 
 	// Network dispatcher - RPC queue and request management
 	EquipmentNetworkDispatcher = CreateDefaultSubobject<USuspenseEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
-	EquipmentNetworkDispatcher->SetIsReplicatedByDefault(true);
+	EquipmentNetworkDispatcher->SetIsReplicated(true);
 
 	// Event dispatcher - local event bus for equipment events
 	EquipmentEventDispatcher = CreateDefaultSubobject<USuspenseEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
-	EquipmentEventDispatcher->SetIsReplicatedByDefault(true);
+	EquipmentEventDispatcher->SetIsReplicated(true);
 
 	// Weapon state manager - finite state machine for weapon states (idle, firing, reloading, etc.)
 	WeaponStateManager = CreateDefaultSubobject<USuspenseWeaponStateManager>(TEXT("WeaponStateManager"));
-	WeaponStateManager->SetIsReplicatedByDefault(true);
+	WeaponStateManager->SetIsReplicated(true);
 
 	// Inventory bridge - connects equipment system to inventory component
 	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
-	EquipmentInventoryBridge->SetIsReplicatedByDefault(true);
+	EquipmentInventoryBridge->SetIsReplicated(true);
 
 	// Network settings - optimized for MMO scale
 	// 60Hz is optimal balance between responsiveness and bandwidth for shooters

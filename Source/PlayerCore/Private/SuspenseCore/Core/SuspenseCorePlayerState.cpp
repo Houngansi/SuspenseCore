@@ -31,11 +31,9 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
 	InventoryComponent->SetIsReplicated(true);
 
-	// Network settings - optimized for MMO scale
-	// 60Hz is optimal balance between responsiveness and bandwidth for shooters
-	// Can be reduced to 30Hz for larger player counts or increased for competitive modes
+	// Network settings
 	SetNetUpdateFrequency(60.0f);
-	SetMinNetUpdateFrequency(30.0f);  // Adaptive: reduces when player is idle/not relevant
+	SetMinNetUpdateFrequency(30.0f);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

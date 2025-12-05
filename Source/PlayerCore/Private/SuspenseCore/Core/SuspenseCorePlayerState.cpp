@@ -29,7 +29,7 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Create Inventory Component - lives on PlayerState for persistence across respawns
 	// Uses EventBus for all notifications (SuspenseCore.Event.Inventory.*)
 	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
-	InventoryComponent->SetIsReplicatedByDefault(true);
+	InventoryComponent->SetIsReplicated(true);
 
 	// Network settings - optimized for MMO scale
 	// 60Hz is optimal balance between responsiveness and bandwidth for shooters

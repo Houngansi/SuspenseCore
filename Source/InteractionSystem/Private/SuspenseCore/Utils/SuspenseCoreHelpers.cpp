@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
@@ -23,6 +24,15 @@
 DEFINE_LOG_CATEGORY(LogSuspenseCoreInteraction);
 
 //==================================================================
+// ServiceProvider Access Implementation (NEW - Preferred)
+//==================================================================
+
+USuspenseCoreServiceProvider* USuspenseCoreHelpers::GetServiceProvider(const UObject* WorldContextObject)
+{
+	return USuspenseCoreServiceProvider::Get(WorldContextObject);
+}
+
+//==================================================================
 // EventBus Access Implementation
 //==================================================================
 
@@ -33,6 +43,13 @@ USuspenseCoreEventBus* USuspenseCoreHelpers::GetEventBus(const UObject* WorldCon
 		return nullptr;
 	}
 
+	// Prefer ServiceProvider for centralized access
+	if (USuspenseCoreServiceProvider* Provider = GetServiceProvider(WorldContextObject))
+	{
+		return Provider->GetEventBus();
+	}
+
+	// Fallback to EventManager (for backwards compatibility during migration)
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(WorldContextObject);
 	if (!Manager)
 	{
@@ -426,6 +443,13 @@ bool USuspenseCoreHelpers::IsItemStackable(const UObject* WorldContextObject, FN
 
 USuspenseCoreDataManager* USuspenseCoreHelpers::GetDataManager(const UObject* WorldContextObject)
 {
+	// Prefer ServiceProvider for centralized access
+	if (USuspenseCoreServiceProvider* Provider = GetServiceProvider(WorldContextObject))
+	{
+		return Provider->GetDataManager();
+	}
+
+	// Fallback to direct access (for backwards compatibility)
 	return USuspenseCoreDataManager::Get(WorldContextObject);
 }
 

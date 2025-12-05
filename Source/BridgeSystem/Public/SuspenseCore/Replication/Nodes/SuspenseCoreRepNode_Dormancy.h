@@ -118,6 +118,9 @@ protected:
 	UPROPERTY()
 	TMap<TObjectPtr<AActor>, FSuspenseCoreDormancyInfo> TrackedActors;
 
+	/** Replication actor list for gathering */
+	FActorRepListType ReplicationActorList;
+
 	/** Dormancy timeout in seconds */
 	float DormancyTimeout;
 
@@ -138,4 +141,7 @@ protected:
 
 	/** Check if dormant actor should replicate this frame */
 	bool ShouldReplicateDormantActor(const FSuspenseCoreDormancyInfo& Info) const;
+
+	/** Get viewer location from params */
+	FVector GetViewerLocation(const FConnectionGatherActorListParameters& Params) const;
 };

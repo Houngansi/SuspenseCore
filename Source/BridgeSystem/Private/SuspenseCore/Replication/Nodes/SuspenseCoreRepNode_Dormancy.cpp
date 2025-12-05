@@ -55,20 +55,10 @@ bool USuspenseCoreRepNode_Dormancy::NotifyRemoveNetworkActor(const FNewReplicate
 void USuspenseCoreRepNode_Dormancy::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
 	// Get viewer location for distance checks
-	FVector ViewerLocation = FVector::ZeroVector;
-	if (Params.ConnectionManager.ConnectionOrderNum < Params.ReplicationGraph->Connections.Num())
-	{
-		if (UNetReplicationGraphConnection* GraphConnection = Params.ReplicationGraph->Connections[Params.ConnectionManager.ConnectionOrderNum])
-		{
-			if (APlayerController* PC = Cast<APlayerController>(GraphConnection->NetConnection->OwningActor))
-			{
-				if (APawn* ViewerPawn = PC->GetPawn())
-				{
-					ViewerLocation = ViewerPawn->GetActorLocation();
-				}
-			}
-		}
-	}
+	FVector ViewerLocation = GetViewerLocation(Params);
+
+	// Build replication list
+	ReplicationActorList.Reset();
 
 	// Iterate tracked actors
 	for (auto& Pair : TrackedActors)
@@ -100,8 +90,14 @@ void USuspenseCoreRepNode_Dormancy::GatherActorListsForConnection(const FConnect
 		}
 
 		// Add to replication list
-		Params.OutGatheredReplicationLists.AddActor(Actor, Params.ConnectionManager);
+		ReplicationActorList.Add(Actor);
 		Info.FramesSinceReplication = 0;
+	}
+
+	// Add to gathered lists if we have actors
+	if (ReplicationActorList.Num() > 0)
+	{
+		Params.OutGatheredReplicationLists.AddReplicationActorInfo(ReplicationActorList);
 	}
 }
 
@@ -242,4 +238,15 @@ bool USuspenseCoreRepNode_Dormancy::ShouldReplicateDormantActor(const FSuspenseC
 	// Use frame counter to determine if this is a heartbeat frame for dormant actors
 	// Offset by FramesSinceReplication to avoid all dormant actors replicating same frame
 	return Info.FramesSinceReplication >= DormantReplicationPeriod;
+}
+
+FVector USuspenseCoreRepNode_Dormancy::GetViewerLocation(const FConnectionGatherActorListParameters& Params) const
+{
+	// Use Viewers array to get view location
+	if (Params.Viewers.Num() > 0)
+	{
+		return Params.Viewers[0].ViewLocation;
+	}
+
+	return FVector::ZeroVector;
 }

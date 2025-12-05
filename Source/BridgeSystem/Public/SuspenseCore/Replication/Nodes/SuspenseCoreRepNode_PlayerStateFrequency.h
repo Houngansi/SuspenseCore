@@ -77,6 +77,9 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<APlayerState>> AllPlayerStates;
 
+	/** Replication actor list for gathering */
+	FActorRepListType ReplicationActorList;
+
 	/** Distance thresholds squared (for fast comparison) */
 	float NearDistanceSq;
 	float MidDistanceSq;
@@ -99,4 +102,10 @@ protected:
 
 	/** Get viewer location for connection */
 	FVector GetViewerLocation(const FConnectionGatherActorListParameters& Params) const;
+
+	/** Get PlayerState location (uses pawn location if available) */
+	FVector GetPlayerStateLocation(APlayerState* PlayerState) const;
+
+	/** Get owning PlayerState for this connection */
+	APlayerState* GetConnectionPlayerState(const FConnectionGatherActorListParameters& Params) const;
 };

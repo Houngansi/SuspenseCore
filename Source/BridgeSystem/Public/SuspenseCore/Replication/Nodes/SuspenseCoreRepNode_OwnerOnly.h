@@ -65,10 +65,16 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> OwnerActors;
 
+	/** Replication actor list for gathering */
+	FActorRepListType ReplicationActorList;
+
 	/** The owning connection */
 	UPROPERTY()
 	TWeakObjectPtr<UNetReplicationGraphConnection> OwningConnection;
 
 	/** Check if actor belongs to this connection's owner */
 	bool IsActorOwnedByConnection(AActor* Actor) const;
+
+	/** Check if this is our owning connection */
+	bool IsOwningConnection(const FConnectionGatherActorListParameters& Params) const;
 };

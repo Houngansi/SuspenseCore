@@ -14,6 +14,7 @@
 // Forward declarations
 class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
+class USuspenseCoreServiceProvider;
 
 // Log categories
 INTERACTIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreInteraction, Log, All);
@@ -44,11 +45,26 @@ class INTERACTIONSYSTEM_API USuspenseCoreHelpers : public UBlueprintFunctionLibr
 
 public:
 	//==================================================================
+	// ServiceProvider Access (NEW - Preferred)
+	//==================================================================
+
+	/**
+	 * Get ServiceProvider (central access point for all services).
+	 * This is the PRIMARY method for accessing SuspenseCore services.
+	 * @param WorldContextObject Any object with world context
+	 * @return ServiceProvider or nullptr
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Services",
+		meta = (WorldContext = "WorldContextObject", DisplayName = "Get Service Provider"))
+	static USuspenseCoreServiceProvider* GetServiceProvider(const UObject* WorldContextObject);
+
+	//==================================================================
 	// EventBus Access
 	//==================================================================
 
 	/**
 	 * Get EventBus subsystem.
+	 * Delegates to ServiceProvider for centralized access.
 	 * @param WorldContextObject Any object with world context
 	 * @return EventBus or nullptr
 	 */

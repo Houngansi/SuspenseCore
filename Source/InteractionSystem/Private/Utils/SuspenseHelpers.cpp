@@ -8,6 +8,7 @@
 #include "Components/ActorComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Kismet/GameplayStatics.h"
@@ -138,8 +139,10 @@ bool USuspenseHelpers::ImplementsInventoryInterface(UObject* Object)
     {
         return false;
     }
-    
-    return Object->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass());
+
+    // Check for both legacy ISuspenseInventory and new ISuspenseCoreInventory interfaces
+    return Object->GetClass()->ImplementsInterface(USuspenseInventory::StaticClass()) ||
+           Object->GetClass()->ImplementsInterface(USuspenseCoreInventory::StaticClass());
 }
 
 //==================================================================

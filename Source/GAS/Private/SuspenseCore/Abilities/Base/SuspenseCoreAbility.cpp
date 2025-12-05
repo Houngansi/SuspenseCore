@@ -160,7 +160,12 @@ void USuspenseCoreAbility::BroadcastAbilityActivated()
 	EventData.SetString(TEXT("AbilityClass"), GetClass()->GetName());
 
 	FGameplayTag EventTag = GetAbilitySpecificTag(TEXT("Activated"));
-	EventBus->Publish(EventTag, EventData);
+
+	// Only publish if the tag is valid (exists in config)
+	if (EventTag.IsValid())
+	{
+		EventBus->Publish(EventTag, EventData);
+	}
 }
 
 void USuspenseCoreAbility::BroadcastAbilityEnded(bool bWasCancelled)
@@ -190,7 +195,11 @@ void USuspenseCoreAbility::BroadcastAbilityEnded(bool bWasCancelled)
 		? GetAbilitySpecificTag(TEXT("Cancelled"))
 		: GetAbilitySpecificTag(TEXT("Ended"));
 
-	EventBus->Publish(EventTag, EventData);
+	// Only publish if the tag is valid (exists in config)
+	if (EventTag.IsValid())
+	{
+		EventBus->Publish(EventTag, EventData);
+	}
 }
 
 //==================================================================

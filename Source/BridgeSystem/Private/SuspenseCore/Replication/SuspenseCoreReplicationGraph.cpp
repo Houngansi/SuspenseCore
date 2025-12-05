@@ -16,6 +16,7 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreReplicationGraph);
@@ -82,10 +83,12 @@ void USuspenseCoreReplicationGraph::InitGlobalGraphNodes()
 	// ═══════════════════════════════════════════════════════════════════════════
 	// Create Spatial Grid Node
 	// ═══════════════════════════════════════════════════════════════════════════
+	// NOTE: SpatialGridNode is NOT added to GlobalGraphNodes because
+	// GridSpatialization2D requires AddActor_Dormancy(), not NotifyAddNetworkActor()
 	SpatialGridNode = CreateNewNode<UReplicationGraphNode_GridSpatialization2D>();
 	SpatialGridNode->CellSize = Settings->SpatialGridCellSize;
 	SpatialGridNode->SpatialBias = FVector2D(Settings->SpatialGridExtent, Settings->SpatialGridExtent);
-	AddGlobalGraphNode(SpatialGridNode);
+	// Do NOT call AddGlobalGraphNode - spatial grid is managed via AddActor_Dormancy in routing
 	UE_LOG(LogSuspenseCoreReplicationGraph, Log,
 		TEXT("  Created SpatialGridNode (CellSize=%.0f, Extent=%.0f)"),
 		Settings->SpatialGridCellSize, Settings->SpatialGridExtent);
@@ -118,9 +121,9 @@ void USuspenseCoreReplicationGraph::InitConnectionGraphNodes(UNetReplicationGrap
 		TEXT("InitConnectionGraphNodes for %s"),
 		*GetNameSafe(RepGraphConnection->NetConnection->OwningActor));
 
-	// Note: Global nodes (AlwaysRelevantNode, PlayerStateNode, SpatialGridNode, EquipmentDormancyNode)
+	// Note: Global nodes (AlwaysRelevantNode, PlayerStateNode, EquipmentDormancyNode)
 	// are added automatically by Super::InitConnectionGraphNodes() since they were added via AddGlobalGraphNode()
-	// No need to call AddConnectionGraphNode() here.
+	// SpatialGridNode is NOT a global node - it's managed separately via PrepareForReplication.
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// Create Per-Connection Owner-Only Node
@@ -227,21 +230,32 @@ void USuspenseCoreReplicationGraph::RouteAddNetworkActorToNodes(
 		return;
 	}
 
-	// Default: route to spatial grid for Characters
-	if (Actor->IsA(ACharacter::StaticClass()))
+	// Default: route to spatial grid for Characters and Pawns
+	if (Actor->IsA(ACharacter::StaticClass()) || Actor->IsA(APawn::StaticClass()))
 	{
 		SpatialGridNode->AddActor_Dormancy(ActorInfo, GlobalInfo);
 
 		if (CachedSettings && CachedSettings->bLogReplicationDecisions)
 		{
 			UE_LOG(LogSuspenseCoreReplicationGraph, Verbose,
-				TEXT("Routed Character %s to SpatialGridNode (default)"), *Actor->GetName());
+				TEXT("Routed Character/Pawn %s to SpatialGridNode (default)"), *Actor->GetName());
 		}
 		return;
 	}
 
-	// Fallback: let parent handle it
-	Super::RouteAddNetworkActorToNodes(ActorInfo, GlobalInfo);
+	// Fallback: route all other replicated actors to spatial grid
+	// Do NOT call Super::RouteAddNetworkActorToNodes - it would call NotifyAddNetworkActor on all global nodes
+	// which is not allowed for GridSpatialization2D
+	if (SpatialGridNode)
+	{
+		SpatialGridNode->AddActor_Dormancy(ActorInfo, GlobalInfo);
+
+		if (CachedSettings && CachedSettings->bLogReplicationDecisions)
+		{
+			UE_LOG(LogSuspenseCoreReplicationGraph, Verbose,
+				TEXT("Routed %s to SpatialGridNode (fallback)"), *Actor->GetName());
+		}
+	}
 }
 
 void USuspenseCoreReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo)
@@ -280,13 +294,12 @@ void USuspenseCoreReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewRep
 		return;
 	}
 
-	if (SpatializedClasses.Contains(ActorClass) || Actor->IsA(ACharacter::StaticClass()))
+	// Default: try to remove from spatial grid
+	// This handles SpatializedClasses, Characters, Pawns, and fallback
+	if (SpatialGridNode)
 	{
 		SpatialGridNode->RemoveActor_Dormancy(ActorInfo);
-		return;
 	}
-
-	Super::RouteRemoveNetworkActorToNodes(ActorInfo);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

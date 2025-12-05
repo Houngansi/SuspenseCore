@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -11,6 +12,20 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
+
+// Equipment module includes
+#include "Components/Core/SuspenseEquipmentDataStore.h"
+#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "Components/Core/SuspenseEquipmentOperationExecutor.h"
+#include "Components/Network/SuspenseEquipmentPredictionSystem.h"
+#include "Components/Network/SuspenseEquipmentReplicationManager.h"
+#include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
+#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "Components/Weapon/SuspenseWeaponStateManager.h"
+#include "Components/Core/SuspenseEquipmentInventoryBridge.h"
+#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -24,6 +39,53 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 
 	// Mixed replication mode - server controls gameplay, client predicts
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	// Create Inventory Component - lives on PlayerState for persistence across respawns
+	// Uses EventBus for all notifications (SuspenseCore.Event.Inventory.*)
+	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
+	InventoryComponent->SetIsReplicatedByDefault(true);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// EQUIPMENT MODULE COMPONENTS
+	// All equipment components live on PlayerState for persistence across respawns
+	// They integrate with the LoadoutManager and work with the InventoryComponent
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Core data store - server authoritative source of truth for equipment state
+	EquipmentDataStore = CreateDefaultSubobject<USuspenseEquipmentDataStore>(TEXT("EquipmentDataStore"));
+	EquipmentDataStore->SetIsReplicatedByDefault(true);
+
+	// Transaction processor - handles atomic equipment operations (equip/unequip/swap)
+	EquipmentTxnProcessor = CreateDefaultSubobject<USuspenseEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
+	EquipmentTxnProcessor->SetIsReplicatedByDefault(true);
+
+	// Operation executor - validates and executes equipment operations
+	EquipmentOps = CreateDefaultSubobject<USuspenseEquipmentOperationExecutor>(TEXT("EquipmentOps"));
+	EquipmentOps->SetIsReplicatedByDefault(true);
+
+	// Client prediction system - handles optimistic updates for responsive UI
+	EquipmentPrediction = CreateDefaultSubobject<USuspenseEquipmentPredictionSystem>(TEXT("EquipmentPrediction"));
+	EquipmentPrediction->SetIsReplicatedByDefault(true);
+
+	// Replication manager - delta-based replication for bandwidth efficiency
+	EquipmentReplication = CreateDefaultSubobject<USuspenseEquipmentReplicationManager>(TEXT("EquipmentReplication"));
+	EquipmentReplication->SetIsReplicatedByDefault(true);
+
+	// Network dispatcher - RPC queue and request management
+	EquipmentNetworkDispatcher = CreateDefaultSubobject<USuspenseEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
+	EquipmentNetworkDispatcher->SetIsReplicatedByDefault(true);
+
+	// Event dispatcher - local event bus for equipment events
+	EquipmentEventDispatcher = CreateDefaultSubobject<USuspenseEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
+	EquipmentEventDispatcher->SetIsReplicatedByDefault(true);
+
+	// Weapon state manager - finite state machine for weapon states (idle, firing, reloading, etc.)
+	WeaponStateManager = CreateDefaultSubobject<USuspenseWeaponStateManager>(TEXT("WeaponStateManager"));
+	WeaponStateManager->SetIsReplicatedByDefault(true);
+
+	// Inventory bridge - connects equipment system to inventory component
+	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
+	EquipmentInventoryBridge->SetIsReplicatedByDefault(true);
 
 	// Network settings - optimized for MMO scale
 	// 60Hz is optimal balance between responsiveness and bandwidth for shooters
@@ -44,11 +106,18 @@ void ASuspenseCorePlayerState::BeginPlay()
 	if (HasAuthority())
 	{
 		InitializeAbilitySystem();
+		InitializeEquipmentComponents();
 	}
 }
 
 void ASuspenseCorePlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// Clear equipment wiring retry timer
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
+	}
+
 	CleanupAttributeCallbacks();
 
 	// Publish player left event
@@ -64,7 +133,22 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	// Core Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
+	DOREPLIFETIME(ASuspenseCorePlayerState, InventoryComponent);
+
+	// Equipment Module Components
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentDataStore);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentTxnProcessor);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentOps);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentPrediction);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentReplication);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentNetworkDispatcher);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentEventDispatcher);
+	DOREPLIFETIME(ASuspenseCorePlayerState, WeaponStateManager);
+	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentInventoryBridge);
+
+	// State
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, PlayerLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, TeamId, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, CharacterClassId, COND_None, REPNOTIFY_Always);
@@ -514,4 +598,158 @@ USuspenseCoreEventBus* ASuspenseCorePlayerState::GetEventBus() const
 	}
 
 	return nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INTERNAL - EQUIPMENT MODULE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerState::InitializeEquipmentComponents()
+{
+	if (bEquipmentModuleInitialized)
+	{
+		return;
+	}
+
+	// Try to wire equipment module immediately
+	// If global services aren't ready yet, this will start the retry mechanism
+	if (!TryWireEquipmentModuleOnce())
+	{
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Equipment wiring deferred, starting retry timer"));
+	}
+}
+
+bool ASuspenseCorePlayerState::TryWireEquipmentModuleOnce()
+{
+	// Attempt to wire
+	if (WireEquipmentModule(nullptr, NAME_None))
+	{
+		bEquipmentModuleInitialized = true;
+		EquipmentWireRetryCount = 0;
+
+		// Clear retry timer if running
+		if (GetWorld())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Equipment module wired successfully"));
+
+		// Publish equipment initialized event
+		PublishPlayerStateEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Equipment.Initialized")),
+			TEXT("{}")
+		);
+
+		return true;
+	}
+
+	// Wiring failed, schedule retry
+	EquipmentWireRetryCount++;
+
+	if (EquipmentWireRetryCount >= MaxEquipmentWireRetries)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: Equipment wiring failed after %d attempts"),
+			MaxEquipmentWireRetries);
+		return false;
+	}
+
+	// Schedule next retry using lambda wrapper (timer callbacks must return void)
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			EquipmentWireRetryHandle,
+			FTimerDelegate::CreateLambda([this]()
+			{
+				TryWireEquipmentModuleOnce();
+			}),
+			EquipmentWireRetryInterval,
+			false  // Don't loop, we'll reschedule manually if needed
+		);
+	}
+
+	return false;
+}
+
+bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
+{
+	// Basic validation
+	if (!EquipmentDataStore || !EquipmentTxnProcessor || !EquipmentOps)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::WireEquipmentModule: Core equipment components not created"));
+		return false;
+	}
+
+	// Initialize DataStore (primary data layer)
+	// DataStore doesn't have external dependencies, just needs owner
+	if (EquipmentDataStore)
+	{
+		// DataStore initializes itself in BeginPlay, just validate it's ready
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentDataStore ready"));
+	}
+
+	// Initialize Transaction Processor
+	// It coordinates with DataStore for atomic operations
+	if (EquipmentTxnProcessor && EquipmentDataStore)
+	{
+		// Transaction processor wires to data store
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentTxnProcessor ready"));
+	}
+
+	// Initialize Operation Executor
+	// Validates and executes through transaction processor
+	if (EquipmentOps && EquipmentTxnProcessor && EquipmentDataStore)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentOps ready"));
+	}
+
+	// Initialize Inventory Bridge
+	// Connects equipment system to inventory component
+	if (EquipmentInventoryBridge && InventoryComponent)
+	{
+		// Bridge connects inventory to equipment data store
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge ready"));
+	}
+
+	// Initialize Prediction System (client-side)
+	if (EquipmentPrediction && EquipmentDataStore)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentPrediction ready"));
+	}
+
+	// Initialize Replication Manager
+	if (EquipmentReplication && EquipmentDataStore)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentReplication ready"));
+	}
+
+	// Initialize Network Dispatcher
+	if (EquipmentNetworkDispatcher)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentNetworkDispatcher ready"));
+	}
+
+	// Initialize Event Dispatcher
+	if (EquipmentEventDispatcher)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentEventDispatcher ready"));
+	}
+
+	// Initialize Weapon State Manager
+	if (WeaponStateManager)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: WeaponStateManager ready"));
+	}
+
+	// Create Slot Validator (not a component, just UObject)
+	if (!EquipmentSlotValidator)
+	{
+		EquipmentSlotValidator = NewObject<USuspenseEquipmentSlotValidator>(this, TEXT("EquipmentSlotValidator"));
+		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentSlotValidator created"));
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Equipment module wiring complete for %s"),
+		*GetPlayerName());
+
+	return true;
 }

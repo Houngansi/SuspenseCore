@@ -1875,13 +1875,13 @@ TArray<FGameplayTag> USuspenseCoreInventoryComponent::GetItemContextActions(int3
 	Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Examine"))));
 
 	// Use if usable
-	if (ItemData.Classification.bIsConsumable)
+	if (ItemData.Behavior.bIsConsumable)
 	{
 		Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Use"))));
 	}
 
 	// Equip if equippable
-	if (ItemData.Classification.bIsEquippable)
+	if (ItemData.Behavior.bIsEquippable)
 	{
 		Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Equip"))));
 	}
@@ -1998,21 +1998,20 @@ FSuspenseCoreItemUIData USuspenseCoreInventoryComponent::ConvertToUIData(const F
 		FSuspenseCoreItemData ItemData;
 		if (DataManager->GetItemData(Instance.ItemID, ItemData))
 		{
-			UIData.DisplayName = ItemData.DisplayInfo.DisplayName;
-			UIData.Description = ItemData.DisplayInfo.Description;
-			UIData.IconPath = ItemData.DisplayInfo.Icon.ToSoftObjectPath();
+			UIData.DisplayName = ItemData.Identity.DisplayName;
+			UIData.Description = ItemData.Identity.Description;
+			UIData.IconPath = ItemData.Identity.Icon.ToSoftObjectPath();
 			UIData.ItemType = ItemData.Classification.ItemType;
-			UIData.RarityTag = ItemData.Classification.RarityTag;
+			UIData.RarityTag = ItemData.Classification.Rarity;
 			UIData.GridSize = ItemData.InventoryProps.GridSize;
 			UIData.MaxStackSize = ItemData.InventoryProps.MaxStackSize;
 			UIData.bIsStackable = ItemData.InventoryProps.IsStackable();
 			UIData.UnitWeight = ItemData.InventoryProps.Weight;
 			UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
-			UIData.bIsEquippable = ItemData.Classification.bIsEquippable;
-			UIData.bIsUsable = ItemData.Classification.bIsConsumable;
-			UIData.bIsDroppable = !ItemData.Classification.bIsQuestItem;
-			UIData.bIsTradeable = !ItemData.Classification.bIsQuestItem;
-			UIData.EquipmentSlotType = ItemData.Classification.EquipmentSlotType;
+			UIData.bIsEquippable = ItemData.Behavior.bIsEquippable;
+			UIData.bIsUsable = ItemData.Behavior.bIsConsumable;
+			UIData.bIsDroppable = ItemData.Behavior.bCanDrop;
+			UIData.bIsTradeable = ItemData.Behavior.bCanTrade;
 		}
 	}
 

@@ -184,14 +184,14 @@ FVector2D USuspenseCoreTooltipWidget::CalculateBestPosition_Implementation(const
 	FVector2D Result = DesiredPosition;
 
 	// Get viewport size
+	FVector2D ViewportSize = FVector2D::ZeroVector;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+	}
+
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		FVector2D ViewportSize;
-		if (GEngine && GEngine->GameViewport)
-		{
-			GEngine->GameViewport->GetViewportSize(ViewportSize);
-		}
-
 		// Get tooltip size
 		FVector2D TooltipSize = GetDesiredSize();
 

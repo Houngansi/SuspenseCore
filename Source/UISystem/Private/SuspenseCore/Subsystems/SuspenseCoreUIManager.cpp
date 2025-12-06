@@ -92,9 +92,14 @@ bool USuspenseCoreUIManager::ShouldCreateSubsystem(UObject* Outer) const
 
 void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 {
+	// Static tags - use RequestGameplayTag for cross-module compatibility
+	static const FGameplayTag PanelInventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Inventory"));
+	static const FGameplayTag PanelStashTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Stash"));
+	static const FGameplayTag PanelTraderTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Trader"));
+
 	// Inventory panel
 	FSuspenseCorePanelConfig InventoryPanel;
-	InventoryPanel.PanelTag = TAG_SuspenseCore_Event_UIPanel_Inventory;
+	InventoryPanel.PanelTag = PanelInventoryTag;
 	InventoryPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Inventory", "INVENTORY");
 	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
 	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Equipment);
@@ -104,7 +109,7 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 
 	// Stash panel
 	FSuspenseCorePanelConfig StashPanel;
-	StashPanel.PanelTag = TAG_SuspenseCore_Event_UIPanel_Stash;
+	StashPanel.PanelTag = PanelStashTag;
 	StashPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Stash", "STASH");
 	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
 	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Stash);
@@ -114,7 +119,7 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 
 	// Trader panel
 	FSuspenseCorePanelConfig TraderPanel;
-	TraderPanel.PanelTag = TAG_SuspenseCore_Event_UIPanel_Trader;
+	TraderPanel.PanelTag = PanelTraderTag;
 	TraderPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Trader", "TRADER");
 	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
 	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Trader);
@@ -122,7 +127,7 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 	TraderPanel.bIsEnabled = true;
 	ScreenConfig.Panels.Add(TraderPanel);
 
-	ScreenConfig.DefaultPanelTag = TAG_SuspenseCore_Event_UIPanel_Inventory;
+	ScreenConfig.DefaultPanelTag = PanelInventoryTag;
 	ScreenConfig.bAllowCrossPanelDrag = true;
 	ScreenConfig.bShowWeight = true;
 	ScreenConfig.bShowCurrency = true;
@@ -183,9 +188,10 @@ bool USuspenseCoreUIManager::ShowContainerScreenMulti(
 	// Broadcast via EventBus
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
+		static const FGameplayTag ContainerOpenedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.Opened"));
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_Opened, EventData);
+		EventBus->Publish(ContainerOpenedTag, EventData);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("Container screen shown"));
@@ -220,9 +226,10 @@ void USuspenseCoreUIManager::HideContainerScreen()
 	// Broadcast via EventBus
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
+		static const FGameplayTag ContainerClosedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.Closed"));
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_Closed, EventData);
+		EventBus->Publish(ContainerClosedTag, EventData);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("Container screen hidden"));
@@ -493,12 +500,13 @@ bool USuspenseCoreUIManager::StartDragOperation(const FSuspenseCoreDragData& Dra
 	// Broadcast drag started event
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
+		static const FGameplayTag DragStartedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.DragStarted"));
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
 		EventData.SetString(FName("ItemInstanceID"), DragData.Item.InstanceID.ToString());
 		EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
 
-		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_DragStarted, EventData);
+		EventBus->Publish(DragStartedTag, EventData);
 	}
 
 	UE_LOG(LogTemp, Verbose, TEXT("Drag started: %s from slot %d"),
@@ -517,11 +525,12 @@ void USuspenseCoreUIManager::CancelDragOperation()
 	// Broadcast drag ended event
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
+		static const FGameplayTag DragEndedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.DragEnded"));
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
 		EventData.SetBool(FName("Cancelled"), true);
 
-		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_DragEnded, EventData);
+		EventBus->Publish(DragEndedTag, EventData);
 	}
 
 	CurrentDragData = FSuspenseCoreDragData();

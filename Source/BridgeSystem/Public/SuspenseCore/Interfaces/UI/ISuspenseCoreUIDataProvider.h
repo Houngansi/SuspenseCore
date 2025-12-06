@@ -243,6 +243,51 @@ public:
 	virtual int32 FindBestSlotForItem(FIntPoint ItemSize, bool bAllowRotation = true) const = 0;
 
 	//==================================================================
+	// Grid Position Calculations (moved from UI widget)
+	//==================================================================
+
+	/**
+	 * Calculate slot index from local position within the grid
+	 * Used by UI widgets to convert mouse position to slot index.
+	 * NOTE: This is a UI-assisting method - calculations stay in provider as single source of truth.
+	 *
+	 * @param LocalPos Position in local widget space
+	 * @param CellSize Size of each cell in pixels
+	 * @param CellGap Gap between cells in pixels
+	 * @return Slot index at position, or INDEX_NONE if outside grid
+	 */
+	virtual int32 GetSlotAtLocalPosition(const FVector2D& LocalPos, float CellSize, float CellGap) const = 0;
+
+	/**
+	 * Get all slots occupied by an item instance
+	 * For multi-cell items, returns the anchor slot plus all additional cells.
+	 *
+	 * @param ItemInstanceID The item instance GUID
+	 * @return Array of all slot indices occupied by this item
+	 */
+	virtual TArray<int32> GetOccupiedSlotsForItem(const FGuid& ItemInstanceID) const = 0;
+
+	/**
+	 * Get the anchor slot for any slot that might be part of a multi-cell item
+	 * If slot is empty or is the anchor, returns the same slot index.
+	 *
+	 * @param AnySlotIndex Any slot index that might be part of a multi-cell item
+	 * @return The anchor slot index, or the same index if empty/is anchor
+	 */
+	virtual int32 GetAnchorSlotForPosition(int32 AnySlotIndex) const = 0;
+
+	/**
+	 * Check if an item can be placed at a specific slot
+	 * Validates bounds, occupancy, and rotation.
+	 *
+	 * @param ItemID The item's instance ID (or empty GUID for new items)
+	 * @param SlotIndex Target anchor slot
+	 * @param bRotated Whether item would be rotated
+	 * @return true if placement is valid
+	 */
+	virtual bool CanPlaceItemAtSlot(const FGuid& ItemID, int32 SlotIndex, bool bRotated) const = 0;
+
+	//==================================================================
 	// Operations (via EventBus)
 	//==================================================================
 

@@ -18,7 +18,7 @@
 
 USuspenseCoreInventoryWidget::USuspenseCoreInventoryWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, GridSize(10, 5)
+	, GridSize(0, 0) // CRITICAL: Do not hardcode - get from provider via CachedContainerData.GridSize
 	, SlotSizePixels(64.0f)
 	, SlotGapPixels(2.0f)
 	, RotateKey(EKeys::R)
@@ -370,9 +370,11 @@ bool USuspenseCoreInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, con
 
 void USuspenseCoreInventoryWidget::SetGridSize(const FIntPoint& InGridSize)
 {
-	if (GridSize != InGridSize)
+	// Update both local cache and CachedContainerData for consistency
+	if (CachedContainerData.GridSize != InGridSize)
 	{
-		GridSize = InGridSize;
+		CachedContainerData.GridSize = InGridSize;
+		GridSize = InGridSize; // Keep local copy for backwards compatibility
 
 		// Recreate slot widgets
 		ClearSlotWidgets();
@@ -392,6 +394,15 @@ void USuspenseCoreInventoryWidget::SetSlotSizePixels(float InSize)
 //==================================================================
 // ISuspenseCoreUIContainer Overrides
 //==================================================================
+
+void USuspenseCoreInventoryWidget::RefreshFromProvider()
+{
+	// Call base implementation to refresh container data and slot widgets
+	Super::RefreshFromProvider();
+
+	// Update slot-to-anchor map for multi-cell item support
+	UpdateSlotToAnchorMap();
+}
 
 UWidget* USuspenseCoreInventoryWidget::GetSlotWidget(int32 SlotIndex) const
 {
@@ -458,13 +469,16 @@ void USuspenseCoreInventoryWidget::SetSlotHighlight(int32 SlotIndex, ESuspenseCo
 
 FIntPoint USuspenseCoreInventoryWidget::SlotIndexToGridPos(int32 SlotIndex) const
 {
-	if (SlotIndex < 0 || GridSize.X <= 0)
+	// Use provider's grid size as single source of truth
+	const FIntPoint& EffectiveGridSize = CachedContainerData.GridSize;
+
+	if (SlotIndex < 0 || EffectiveGridSize.X <= 0)
 	{
 		return FIntPoint(-1, -1);
 	}
 
-	int32 Column = SlotIndex % GridSize.X;
-	int32 Row = SlotIndex / GridSize.X;
+	int32 Column = SlotIndex % EffectiveGridSize.X;
+	int32 Row = SlotIndex / EffectiveGridSize.X;
 
 	return FIntPoint(Column, Row);
 }
@@ -476,13 +490,17 @@ int32 USuspenseCoreInventoryWidget::GridPosToSlotIndex(const FIntPoint& GridPos)
 		return INDEX_NONE;
 	}
 
-	return GridPos.Y * GridSize.X + GridPos.X;
+	// Use provider's grid size as single source of truth
+	const FIntPoint& EffectiveGridSize = CachedContainerData.GridSize;
+	return GridPos.Y * EffectiveGridSize.X + GridPos.X;
 }
 
 bool USuspenseCoreInventoryWidget::IsValidGridPos(const FIntPoint& GridPos) const
 {
-	return GridPos.X >= 0 && GridPos.X < GridSize.X &&
-		   GridPos.Y >= 0 && GridPos.Y < GridSize.Y;
+	// Use provider's grid size as single source of truth
+	const FIntPoint& EffectiveGridSize = CachedContainerData.GridSize;
+	return GridPos.X >= 0 && GridPos.X < EffectiveGridSize.X &&
+		   GridPos.Y >= 0 && GridPos.Y < EffectiveGridSize.Y;
 }
 
 TArray<int32> USuspenseCoreInventoryWidget::GetOccupiedSlots(const FIntPoint& GridPos, const FIntPoint& ItemSize) const
@@ -594,6 +612,9 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Created %d slot widgets"), SlotWidgets.Num());
+
+	// Update the slot-to-anchor map for multi-cell items
+	UpdateSlotToAnchorMap();
 }
 
 void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
@@ -642,26 +663,94 @@ void USuspenseCoreInventoryWidget::ClearSlotWidgets_Implementation()
 
 void USuspenseCoreInventoryWidget::HandleSlotClicked(int32 SlotIndex, bool bRightClick)
 {
-	// Select the slot
-	SetSelectedSlot(SlotIndex);
+	// Resolve to anchor slot for multi-cell items
+	int32 AnchorSlot = SlotToAnchorMap.Contains(SlotIndex)
+		? SlotToAnchorMap[SlotIndex]
+		: SlotIndex;
 
-	// Notify Blueprint
-	K2_OnSlotClicked(SlotIndex, bRightClick);
+	// Select the anchor slot
+	SetSelectedSlot(AnchorSlot);
+
+	// Notify Blueprint with anchor slot
+	K2_OnSlotClicked(AnchorSlot, bRightClick);
 
 	// If right click, show context menu
 	if (bRightClick)
 	{
-		ShowContextMenu(SlotIndex, FVector2D::ZeroVector); // Screen position would need to be passed
+		ShowContextMenu(AnchorSlot, FVector2D::ZeroVector); // Screen position would need to be passed
 	}
 }
 
 void USuspenseCoreInventoryWidget::HandleSlotHovered(int32 HoveredIndex)
 {
-	// Set hover highlight
-	SetSlotHighlight(HoveredIndex, ESuspenseCoreUISlotState::Highlighted);
+	// Resolve to anchor slot for multi-cell items
+	int32 AnchorSlot = SlotToAnchorMap.Contains(HoveredIndex)
+		? SlotToAnchorMap[HoveredIndex]
+		: HoveredIndex;
 
-	// Show tooltip for slot content
-	ShowSlotTooltip(HoveredIndex);
+	// Highlight all slots occupied by the item (if any)
+	if (IsBoundToProvider() && SlotToAnchorMap.Contains(HoveredIndex))
+	{
+		ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+		if (ProviderInterface)
+		{
+			// Get the item's instance ID at the anchor slot
+			FSuspenseCoreItemUIData ItemData;
+			if (ProviderInterface->GetItemUIDataAtSlot(AnchorSlot, ItemData))
+			{
+				// Get all occupied slots for this item
+				TArray<int32> OccupiedSlots = ProviderInterface->GetOccupiedSlotsForItem(ItemData.InstanceID);
+				for (int32 Slot : OccupiedSlots)
+				{
+					SetSlotHighlight(Slot, ESuspenseCoreUISlotState::Highlighted);
+				}
+			}
+		}
+	}
+	else
+	{
+		// Single slot highlight
+		SetSlotHighlight(HoveredIndex, ESuspenseCoreUISlotState::Highlighted);
+	}
+
+	// Show tooltip for anchor slot content
+	ShowSlotTooltip(AnchorSlot);
+}
+
+void USuspenseCoreInventoryWidget::UpdateSlotToAnchorMap()
+{
+	SlotToAnchorMap.Empty();
+
+	if (!IsBoundToProvider())
+	{
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return;
+	}
+
+	// Iterate through all items and map their occupied slots to anchors
+	TArray<FSuspenseCoreItemUIData> Items = ProviderInterface->GetAllItemUIData();
+	for (const FSuspenseCoreItemUIData& Item : Items)
+	{
+		if (!Item.InstanceID.IsValid())
+		{
+			continue;
+		}
+
+		int32 AnchorSlot = Item.AnchorSlot;
+		TArray<int32> OccupiedSlots = ProviderInterface->GetOccupiedSlotsForItem(Item.InstanceID);
+
+		for (int32 Slot : OccupiedSlots)
+		{
+			SlotToAnchorMap.Add(Slot, AnchorSlot);
+		}
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("UpdateSlotToAnchorMap: Mapped %d slots to anchors"), SlotToAnchorMap.Num());
 }
 
 void USuspenseCoreInventoryWidget::HandleRotationInput()
@@ -674,4 +763,116 @@ void USuspenseCoreInventoryWidget::HandleRotationInput()
 		// This would need access to modify the drag data
 		K2_OnRotationToggled(true);
 	}
+}
+
+//==================================================================
+// Batch Update System
+//==================================================================
+
+void USuspenseCoreInventoryWidget::BeginBatchUpdate()
+{
+	if (!bIsBatchingUpdates)
+	{
+		bIsBatchingUpdates = true;
+		PendingBatch.Clear();
+	}
+}
+
+void USuspenseCoreInventoryWidget::CommitBatchUpdate()
+{
+	if (bIsBatchingUpdates)
+	{
+		bIsBatchingUpdates = false;
+
+		if (PendingBatch.HasUpdates())
+		{
+			ApplyBatchUpdate(PendingBatch);
+			PendingBatch.Clear();
+		}
+	}
+}
+
+void USuspenseCoreInventoryWidget::ApplyBatchUpdate(const FSuspenseCoreGridUpdateBatch& Batch)
+{
+	// If full refresh is needed, just call RefreshFromProvider
+	if (Batch.bNeedsFullRefresh)
+	{
+		RefreshFromProvider();
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = nullptr;
+	if (IsBoundToProvider())
+	{
+		ProviderInterface = GetBoundProvider().GetInterface();
+	}
+
+	// Apply visibility updates
+	for (const auto& VisibilityPair : Batch.SlotVisibilityUpdates)
+	{
+		int32 SlotIndex = VisibilityPair.Key;
+		bool bVisible = VisibilityPair.Value;
+
+		if (SlotIndex >= 0 && SlotIndex < SlotWidgets.Num() && SlotWidgets[SlotIndex])
+		{
+			SlotWidgets[SlotIndex]->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		}
+	}
+
+	// Apply span updates (for multi-cell items)
+	for (const auto& SpanPair : Batch.SlotSpanUpdates)
+	{
+		int32 SlotIndex = SpanPair.Key;
+		const FIntPoint& Span = SpanPair.Value;
+
+		// For UniformGridPanel, we can't actually span cells
+		// This would need a CanvasPanel implementation for true multi-cell rendering
+		// For now, log that a span update was requested
+		UE_LOG(LogTemp, Verbose, TEXT("ApplyBatchUpdate: Slot %d requested span %dx%d (requires CanvasPanel implementation)"),
+			SlotIndex, Span.X, Span.Y);
+	}
+
+	// Apply slot content refreshes
+	for (int32 SlotIndex : Batch.SlotsToRefresh)
+	{
+		if (SlotIndex >= 0 && SlotIndex < SlotWidgets.Num())
+		{
+			// Get slot and item data
+			FSuspenseCoreSlotUIData SlotData;
+			SlotData.SlotIndex = SlotIndex;
+
+			FSuspenseCoreItemUIData ItemData;
+			if (ProviderInterface)
+			{
+				ProviderInterface->GetItemUIDataAtSlot(SlotIndex, ItemData);
+				SlotData.State = ItemData.InstanceID.IsValid()
+					? ESuspenseCoreUISlotState::Occupied
+					: ESuspenseCoreUISlotState::Empty;
+			}
+
+			// Update the slot widget
+			UpdateSlotWidget(SlotIndex, SlotData, ItemData);
+		}
+	}
+
+	// Apply highlight state updates
+	for (const auto& HighlightPair : Batch.SlotHighlightUpdates)
+	{
+		int32 SlotIndex = HighlightPair.Key;
+		ESuspenseCoreUISlotState State = HighlightPair.Value;
+
+		SetSlotHighlight(SlotIndex, State);
+	}
+
+	// Update slot-to-anchor map if any content changed
+	if (Batch.SlotsToRefresh.Num() > 0)
+	{
+		UpdateSlotToAnchorMap();
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("ApplyBatchUpdate: Applied %d visibility, %d span, %d refresh, %d highlight updates"),
+		Batch.SlotVisibilityUpdates.Num(),
+		Batch.SlotSpanUpdates.Num(),
+		Batch.SlotsToRefresh.Num(),
+		Batch.SlotHighlightUpdates.Num());
 }

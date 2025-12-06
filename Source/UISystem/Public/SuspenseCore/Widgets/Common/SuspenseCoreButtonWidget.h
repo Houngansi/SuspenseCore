@@ -247,9 +247,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FGameplayTag ActionTag;
 
-	/** Optional tooltip text */
+	/** Optional button tooltip text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
-	FText TooltipText;
+	FText ButtonTooltipText;
 
 	//==================================================================
 	// Audio

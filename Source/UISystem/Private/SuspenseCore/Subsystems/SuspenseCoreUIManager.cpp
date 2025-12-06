@@ -9,6 +9,7 @@
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -133,6 +134,69 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 	ScreenConfig.bShowCurrency = true;
 }
 
+void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
+{
+	if (!ContainerScreen || !PC)
+	{
+		return;
+	}
+
+	// Get player's pawn
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No pawn"));
+		return;
+	}
+
+	// Find all providers on player
+	TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> AllProviders = FindAllProvidersOnActor(Pawn);
+
+	// Also check PlayerState for providers
+	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+	{
+		TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> StateProviders = FindAllProvidersOnActor(PS);
+		AllProviders.Append(StateProviders);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers"), AllProviders.Num());
+
+	// Bind providers to panels based on container type
+	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
+	{
+		USuspenseCorePanelWidget* Panel = ContainerScreen->GetPanelByTag(PanelConfig.PanelTag);
+		if (!Panel)
+		{
+			continue;
+		}
+
+		// Find providers matching this panel's container types
+		for (const TScriptInterface<ISuspenseCoreUIDataProvider>& Provider : AllProviders)
+		{
+			if (!Provider)
+			{
+				continue;
+			}
+
+			ISuspenseCoreUIDataProvider* ProviderInterface = Provider.GetInterface();
+			if (!ProviderInterface)
+			{
+				continue;
+			}
+
+			// Check if provider type matches any of panel's container types
+			ESuspenseCoreContainerType ProviderType = ProviderInterface->GetContainerType();
+			if (PanelConfig.ContainerTypes.Contains(ProviderType))
+			{
+				// Bind provider to panel's container widget by type
+				Panel->BindContainerToProvider(ProviderType, Provider);
+				UE_LOG(LogTemp, Log, TEXT("  Bound provider type %d to panel %s"),
+					static_cast<int32>(ProviderType), *PanelConfig.PanelTag.ToString());
+			}
+		}
+	}
+}
+
 //==================================================================
 // Container Screen Management
 //==================================================================
@@ -168,13 +232,17 @@ bool USuspenseCoreUIManager::ShowContainerScreenMulti(
 
 	OwningPC = PC;
 
-	// Find player's inventory provider
-	TScriptInterface<ISuspenseCoreUIDataProvider> InventoryProvider = GetPlayerInventoryProvider(PC);
+	// Initialize screen with config
+	ContainerScreen->InitializeScreen(ScreenConfig);
 
-	// Configure and show screen
-	// ContainerScreen->SetEnabledPanels(PanelTags);
-	// ContainerScreen->SetActivePanel(DefaultPanel);
-	// ContainerScreen->BindToProvider(InventoryProvider);
+	// Find providers and bind to panels
+	BindProvidersToScreen(PC);
+
+	// Switch to requested panel
+	if (DefaultPanel.IsValid())
+	{
+		ContainerScreen->SwitchToPanel(DefaultPanel);
+	}
 
 	ContainerScreen->AddToViewport(100);
 	bIsContainerScreenVisible = true;

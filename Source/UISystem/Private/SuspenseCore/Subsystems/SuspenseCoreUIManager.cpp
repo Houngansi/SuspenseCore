@@ -531,7 +531,7 @@ void USuspenseCoreUIManager::CancelDragOperation()
 // Configuration
 //==================================================================
 
-void USuspenseCoreUIManager::SetScreenConfig(const FSuspenseCoreContainerScreenConfig& NewConfig)
+void USuspenseCoreUIManager::SetScreenConfig(const FSuspenseCoreScreenConfig& NewConfig)
 {
 	ScreenConfig = NewConfig;
 }

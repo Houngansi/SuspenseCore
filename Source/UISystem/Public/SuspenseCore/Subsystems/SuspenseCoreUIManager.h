@@ -290,14 +290,14 @@ public:
 	 * @return Current screen config
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Config")
-	const FSuspenseCoreContainerScreenConfig& GetScreenConfig() const { return ScreenConfig; }
+	const FSuspenseCoreScreenConfig& GetScreenConfig() const { return ScreenConfig; }
 
 	/**
 	 * Set screen configuration
 	 * @param NewConfig New configuration
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Config")
-	void SetScreenConfig(const FSuspenseCoreContainerScreenConfig& NewConfig);
+	void SetScreenConfig(const FSuspenseCoreScreenConfig& NewConfig);
 
 	//==================================================================
 	// Events
@@ -373,7 +373,7 @@ private:
 
 	/** Screen configuration */
 	UPROPERTY()
-	FSuspenseCoreContainerScreenConfig ScreenConfig;
+	FSuspenseCoreScreenConfig ScreenConfig;
 
 	/** Container screen widget class */
 	UPROPERTY()

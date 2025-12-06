@@ -59,6 +59,21 @@ void ASuspenseCorePlayerController::BeginPlay()
 		CreatePauseMenu();
 		CreateHUDWidget();
 
+		// Configure UIManager with widget classes
+		if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+		{
+			if (ContainerScreenWidgetClass)
+			{
+				UIManager->ContainerScreenClass = ContainerScreenWidgetClass;
+				UE_LOG(LogTemp, Warning, TEXT("  UIManager: ContainerScreenClass set to %s"), *ContainerScreenWidgetClass->GetName());
+			}
+			if (TooltipWidgetClass)
+			{
+				UIManager->TooltipWidgetClass = TooltipWidgetClass;
+				UE_LOG(LogTemp, Warning, TEXT("  UIManager: TooltipWidgetClass set to %s"), *TooltipWidgetClass->GetName());
+			}
+		}
+
 		// Verify input mode
 		UE_LOG(LogTemp, Warning, TEXT("=== Input Mode Check ==="));
 		UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));

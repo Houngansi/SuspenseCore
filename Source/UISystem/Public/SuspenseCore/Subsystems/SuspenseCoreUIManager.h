@@ -285,6 +285,14 @@ public:
 	// Configuration
 	//==================================================================
 
+	/** Container screen widget class - set in Blueprint or Data Asset */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
+	TSubclassOf<USuspenseCoreContainerScreenWidget> ContainerScreenClass;
+
+	/** Tooltip widget class */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
+	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
+
 	/**
 	 * Get screen configuration
 	 * @return Current screen config
@@ -377,14 +385,6 @@ private:
 	/** Screen configuration */
 	UPROPERTY()
 	FSuspenseCoreScreenConfig ScreenConfig;
-
-	/** Container screen widget class */
-	UPROPERTY()
-	TSubclassOf<USuspenseCoreContainerScreenWidget> ContainerScreenClass;
-
-	/** Tooltip widget class */
-	UPROPERTY()
-	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
 
 	//==================================================================
 	// State

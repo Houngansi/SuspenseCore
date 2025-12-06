@@ -700,9 +700,9 @@ void USuspenseCoreInventoryWidget::HandleSlotHovered(int32 HoveredIndex)
 			{
 				// Get all occupied slots for this item
 				TArray<int32> OccupiedSlots = ProviderInterface->GetOccupiedSlotsForItem(ItemData.InstanceID);
-				for (int32 Slot : OccupiedSlots)
+				for (int32 OccupiedSlotIdx : OccupiedSlots)
 				{
-					SetSlotHighlight(Slot, ESuspenseCoreUISlotState::Highlighted);
+					SetSlotHighlight(OccupiedSlotIdx, ESuspenseCoreUISlotState::Highlighted);
 				}
 			}
 		}
@@ -744,9 +744,9 @@ void USuspenseCoreInventoryWidget::UpdateSlotToAnchorMap()
 		int32 AnchorSlot = Item.AnchorSlot;
 		TArray<int32> OccupiedSlots = ProviderInterface->GetOccupiedSlotsForItem(Item.InstanceID);
 
-		for (int32 Slot : OccupiedSlots)
+		for (int32 OccupiedSlotIdx : OccupiedSlots)
 		{
-			SlotToAnchorMap.Add(Slot, AnchorSlot);
+			SlotToAnchorMap.Add(OccupiedSlotIdx, AnchorSlot);
 		}
 	}
 

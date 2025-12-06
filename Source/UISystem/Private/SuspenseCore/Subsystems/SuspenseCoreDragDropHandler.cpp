@@ -9,6 +9,7 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -492,7 +493,7 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::ExecuteDrop(const FSuspens
 
 	if (!Validation.bIsValid)
 	{
-		return FSuspenseCoreDropResult::Failure(Validation.Message);
+		return FSuspenseCoreDropResult::Failure(Validation.Reason);
 	}
 
 	// Execute the transfer

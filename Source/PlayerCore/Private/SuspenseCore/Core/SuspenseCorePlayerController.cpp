@@ -9,6 +9,8 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "AbilitySystemComponent.h"

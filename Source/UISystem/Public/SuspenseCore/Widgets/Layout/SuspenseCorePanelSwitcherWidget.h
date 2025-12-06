@@ -188,9 +188,8 @@ protected:
 	void UpdateTabVisual(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 	virtual void UpdateTabVisual_Implementation(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 
-	/** Handle tab button clicked - no parameters version for dynamic delegate */
-	UFUNCTION()
-	void HandleTabButtonClicked();
+	/** Handle tab button clicked with index - allows reliable identification */
+	void HandleTabClickedByIndex(int32 TabIndex);
 
 	/** Handle tab button clicked with tag */
 	void OnTabButtonClicked(FGameplayTag PanelTag);

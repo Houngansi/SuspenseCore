@@ -124,7 +124,8 @@ void USuspenseCorePanelSwitcherWidget::RemoveTab(const FGameplayTag& PanelTag)
 		// Remove button from container and clean up
 		if (Tab.TabButton)
 		{
-			Tab.TabButton->OnClicked.RemoveAll(this);
+			// Clear all click bindings (including lambdas)
+			Tab.TabButton->OnClicked.Clear();
 			ButtonToTagMap.Remove(Tab.TabButton);
 			Tab.TabButton->RemoveFromParent();
 		}
@@ -151,7 +152,8 @@ void USuspenseCorePanelSwitcherWidget::ClearTabs()
 	{
 		if (Tab.TabButton)
 		{
-			Tab.TabButton->OnClicked.RemoveAll(this);
+			// Clear all click bindings (including lambdas)
+			Tab.TabButton->OnClicked.Clear();
 			Tab.TabButton->RemoveFromParent();
 		}
 	}
@@ -276,16 +278,16 @@ UButton* USuspenseCorePanelSwitcherWidget::CreateTabButton_Implementation(const 
 		Button->AddChild(Text);
 	}
 
-	// Store text reference in tab data (we'll update it in the array after adding)
-	// This is a bit awkward due to const, but we handle it
+	// CRITICAL FIX: Use lambda with captured tab index for reliable click handling
+	// The tab index is captured at creation time, ensuring correct button identification
+	int32 TabIndex = Tabs.Num(); // This will be the index when added
+	FGameplayTag CapturedTag = TabData.PanelTag;
 
-	// Bind click event - using a simple click handler that finds the button
-	Button->OnClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
-
-	// We need a way to pass the tag to the click handler
-	// Since we can't easily pass parameters with dynamic delegates,
-	// we'll use a lambda with the widget switcher approach
-	// For now, we'll use a workaround with the button's user data
+	Button->OnClicked.AddWeakLambda(this, [this, CapturedTag]()
+	{
+		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked via lambda - %s"), *CapturedTag.ToString());
+		PanelSelectedDelegate.Broadcast(CapturedTag);
+	});
 
 	return Button;
 }
@@ -314,34 +316,18 @@ void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(const FSus
 	}
 }
 
-void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
+void USuspenseCorePanelSwitcherWidget::HandleTabClickedByIndex(int32 TabIndex)
 {
-	// Use ButtonToTagMap for reliable click detection
-	// Check which button triggered this event by focus/pressed state
-	for (const auto& Pair : ButtonToTagMap)
+	if (TabIndex >= 0 && TabIndex < Tabs.Num())
 	{
-		UButton* Button = Pair.Key.Get();
-		if (Button && (Button->HasKeyboardFocus() || Button->IsPressed()))
-		{
-			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked - %s"), *Pair.Value.ToString());
-			PanelSelectedDelegate.Broadcast(Pair.Value);
-			return;
-		}
+		const FGameplayTag& PanelTag = Tabs[TabIndex].PanelTag;
+		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked by index %d - %s"), TabIndex, *PanelTag.ToString());
+		PanelSelectedDelegate.Broadcast(PanelTag);
 	}
-
-	// Fallback: If no button found by focus/pressed, use the first focused widget in visual tree
-	// This handles edge cases where focus changed during the click processing
-	for (const FSuspenseCorePanelTab& Tab : Tabs)
+	else
 	{
-		if (Tab.TabButton && Tab.TabButton->HasUserFocus(GetOwningPlayer()))
-		{
-			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked (fallback) - %s"), *Tab.PanelTag.ToString());
-			PanelSelectedDelegate.Broadcast(Tab.PanelTag);
-			return;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabClickedByIndex called with invalid index %d"), TabIndex);
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabButtonClicked called but couldn't identify which button"));
 }
 
 void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)

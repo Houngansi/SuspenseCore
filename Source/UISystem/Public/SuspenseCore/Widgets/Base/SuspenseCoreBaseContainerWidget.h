@@ -192,6 +192,13 @@ protected:
 	void ClearSlotWidgets();
 	virtual void ClearSlotWidgets_Implementation() {}
 
+	//==================================================================
+	// Protected State (accessible to derived classes)
+	//==================================================================
+
+	/** Cached container data from provider - use in CreateSlotWidgets to get grid size */
+	FSuspenseCoreContainerUIData CachedContainerData;
+
 private:
 	//==================================================================
 	// Provider Binding
@@ -200,9 +207,6 @@ private:
 	/** Current bound provider */
 	UPROPERTY(Transient)
 	TScriptInterface<ISuspenseCoreUIDataProvider> BoundProvider;
-
-	/** Cached container data */
-	FSuspenseCoreContainerUIData CachedContainerData;
 
 	//==================================================================
 	// State

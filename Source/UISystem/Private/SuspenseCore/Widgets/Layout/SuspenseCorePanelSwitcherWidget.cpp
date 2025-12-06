@@ -61,12 +61,14 @@ void USuspenseCorePanelSwitcherWidget::AddTab(const FGameplayTag& PanelTag, cons
 {
 	if (!PanelTag.IsValid() || !TabContainer)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AddTab: Invalid tag or TabContainer is null"));
 		return;
 	}
 
 	// Check if tab already exists
 	if (TabIndexByTag.Contains(PanelTag))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AddTab: Tab '%s' already exists"), *PanelTag.ToString());
 		return;
 	}
 
@@ -77,21 +79,27 @@ void USuspenseCorePanelSwitcherWidget::AddTab(const FGameplayTag& PanelTag, cons
 	TabData.TabButton = CreateTabButton(TabData);
 	if (!TabData.TabButton)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AddTab: Failed to create button for '%s'"), *PanelTag.ToString());
 		return;
 	}
+
+	// Add button-to-tag mapping for click handling
+	ButtonToTagMap.Add(TabData.TabButton, PanelTag);
 
 	// Add to container
 	if (UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(TabData.TabButton))
 	{
 		TabSlot->SetHorizontalAlignment(HAlign_Fill);
 		TabSlot->SetVerticalAlignment(VAlign_Fill);
-		TabSlot->SetPadding(FMargin(2.0f, 0.0f));
+		TabSlot->SetPadding(FMargin(4.0f, 0.0f));
 	}
 
 	// Track tab
 	int32 TabIndex = Tabs.Num();
 	Tabs.Add(TabData);
 	TabIndexByTag.Add(PanelTag, TabIndex);
+
+	UE_LOG(LogTemp, Log, TEXT("AddTab: Created tab '%s' at index %d"), *PanelTag.ToString(), TabIndex);
 
 	// Notify Blueprint
 	K2_OnTabCreated(TabData);
@@ -113,9 +121,11 @@ void USuspenseCorePanelSwitcherWidget::RemoveTab(const FGameplayTag& PanelTag)
 	{
 		FSuspenseCorePanelTab& Tab = Tabs[TabIndex];
 
-		// Remove button from container
+		// Remove button from container and clean up
 		if (Tab.TabButton)
 		{
+			Tab.TabButton->OnClicked.RemoveAll(this);
+			ButtonToTagMap.Remove(Tab.TabButton);
 			Tab.TabButton->RemoveFromParent();
 		}
 
@@ -141,12 +151,14 @@ void USuspenseCorePanelSwitcherWidget::ClearTabs()
 	{
 		if (Tab.TabButton)
 		{
+			Tab.TabButton->OnClicked.RemoveAll(this);
 			Tab.TabButton->RemoveFromParent();
 		}
 	}
 
 	Tabs.Empty();
 	TabIndexByTag.Empty();
+	ButtonToTagMap.Empty();
 	ActivePanelTag = FGameplayTag();
 
 	if (TabContainer)
@@ -304,15 +316,32 @@ void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(const FSus
 
 void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 {
-	// Find which button was clicked by checking pressed/focused state
+	// Use ButtonToTagMap for reliable click detection
+	// Check which button triggered this event by focus/pressed state
+	for (const auto& Pair : ButtonToTagMap)
+	{
+		UButton* Button = Pair.Key.Get();
+		if (Button && (Button->HasKeyboardFocus() || Button->IsPressed()))
+		{
+			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked - %s"), *Pair.Value.ToString());
+			PanelSelectedDelegate.Broadcast(Pair.Value);
+			return;
+		}
+	}
+
+	// Fallback: If no button found by focus/pressed, use the first focused widget in visual tree
+	// This handles edge cases where focus changed during the click processing
 	for (const FSuspenseCorePanelTab& Tab : Tabs)
 	{
-		if (Tab.TabButton && (Tab.TabButton->HasKeyboardFocus() || Tab.TabButton->IsPressed()))
+		if (Tab.TabButton && Tab.TabButton->HasUserFocus(GetOwningPlayer()))
 		{
+			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked (fallback) - %s"), *Tab.PanelTag.ToString());
 			PanelSelectedDelegate.Broadcast(Tab.PanelTag);
 			return;
 		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabButtonClicked called but couldn't identify which button"));
 }
 
 void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)

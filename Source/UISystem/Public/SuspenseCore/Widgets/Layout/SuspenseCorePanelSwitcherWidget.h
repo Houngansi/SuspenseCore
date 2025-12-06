@@ -240,4 +240,7 @@ private:
 
 	/** Map of panel tags to tab indices */
 	TMap<FGameplayTag, int32> TabIndexByTag;
+
+	/** Map of buttons to panel tags (for click handling) */
+	TMap<TObjectPtr<UButton>, FGameplayTag> ButtonToTagMap;
 };

@@ -8,8 +8,8 @@
 #include "Blueprint/UserWidget.h"
 #include "SuspenseCorePauseMenuWidget.generated.h"
 
-class UButton;
 class UTextBlock;
+class USuspenseCoreButtonWidget;
 class UWidgetSwitcher;
 class USuspenseCoreSaveManager;
 class USuspenseCoreSaveLoadMenuWidget;
@@ -45,38 +45,23 @@ public:
 
 	/** Continue/Resume button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* ContinueButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ContinueButtonText;
+	USuspenseCoreButtonWidget* ContinueButton;
 
 	/** Save button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* SaveButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* SaveButtonText;
+	USuspenseCoreButtonWidget* SaveButton;
 
 	/** Load button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* LoadButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* LoadButtonText;
+	USuspenseCoreButtonWidget* LoadButton;
 
 	/** Exit to Lobby button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* ExitToLobbyButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ExitToLobbyButtonText;
+	USuspenseCoreButtonWidget* ExitToLobbyButton;
 
 	/** Quit Game button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* QuitButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* QuitButtonText;
+	USuspenseCoreButtonWidget* QuitButton;
 
 	/** Save status text (shows "Saving..." or "Saved!") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -266,19 +251,19 @@ protected:
 	// ═══════════════════════════════════════════════════════════════
 
 	UFUNCTION()
-	void OnContinueButtonClicked();
+	void OnContinueButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnSaveButtonClicked();
+	void OnSaveButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnLoadButtonClicked();
+	void OnLoadButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnExitToLobbyButtonClicked();
+	void OnExitToLobbyButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnQuitButtonClicked();
+	void OnQuitButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	// ═══════════════════════════════════════════════════════════════
 	// SAVE CALLBACKS

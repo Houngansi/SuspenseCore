@@ -14,8 +14,8 @@
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "Components/TextBlock.h"
-#include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
+#include "SuspenseCore/Widgets/Common/SuspenseCoreButtonWidget.h"
 #include "Components/Image.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -283,26 +283,26 @@ void USuspenseCoreMainMenuWidget::SetupButtonBindings()
 {
 	if (PlayButton)
 	{
-		PlayButton->OnClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnPlayButtonClicked);
+		PlayButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnPlayButtonClicked);
 	}
 
 	if (OperatorsButton)
 	{
-		OperatorsButton->OnClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnOperatorsButtonClicked);
+		OperatorsButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnOperatorsButtonClicked);
 		// Disable for now - future feature
-		OperatorsButton->SetIsEnabled(false);
+		OperatorsButton->SetButtonEnabled(false);
 	}
 
 	if (SettingsButton)
 	{
-		SettingsButton->OnClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnSettingsButtonClicked);
+		SettingsButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnSettingsButtonClicked);
 		// Disable for now - future feature
-		SettingsButton->SetIsEnabled(false);
+		SettingsButton->SetButtonEnabled(false);
 	}
 
 	if (QuitButton)
 	{
-		QuitButton->OnClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnQuitButtonClicked);
+		QuitButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreMainMenuWidget::OnQuitButtonClicked);
 	}
 }
 
@@ -459,10 +459,7 @@ void USuspenseCoreMainMenuWidget::UpdateUIDisplay()
 		VersionText->SetText(VersionString);
 	}
 
-	if (PlayButtonText)
-	{
-		PlayButtonText->SetText(FText::FromString(TEXT("PLAY")));
-	}
+	// Button text is configured via ButtonText property in USuspenseCoreButtonWidget
 }
 
 void USuspenseCoreMainMenuWidget::OnRegistrationSuccess(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -554,13 +551,13 @@ void USuspenseCoreMainMenuWidget::OnBackToCharacterSelect(FGameplayTag EventTag,
 	ShowMainMenuPanel();
 }
 
-void USuspenseCoreMainMenuWidget::OnPlayButtonClicked()
+void USuspenseCoreMainMenuWidget::OnPlayButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Play button clicked"));
 	TransitionToGame();
 }
 
-void USuspenseCoreMainMenuWidget::OnOperatorsButtonClicked()
+void USuspenseCoreMainMenuWidget::OnOperatorsButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Operators button clicked (not implemented)"));
 
@@ -568,14 +565,14 @@ void USuspenseCoreMainMenuWidget::OnOperatorsButtonClicked()
 	// UGameplayStatics::OpenLevel(GetWorld(), CharacterSelectMapName);
 }
 
-void USuspenseCoreMainMenuWidget::OnSettingsButtonClicked()
+void USuspenseCoreMainMenuWidget::OnSettingsButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Settings button clicked (not implemented)"));
 
 	// Future: Show settings panel
 }
 
-void USuspenseCoreMainMenuWidget::OnQuitButtonClicked()
+void USuspenseCoreMainMenuWidget::OnQuitButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMainMenu: Quit button clicked"));
 

@@ -7,8 +7,8 @@
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
 #include "Components/TextBlock.h"
-#include "Components/Button.h"
 #include "Components/ScrollBox.h"
+#include "SuspenseCore/Widgets/Common/SuspenseCoreButtonWidget.h"
 #include "Components/VerticalBox.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
@@ -260,27 +260,27 @@ void USuspenseCoreSaveLoadMenuWidget::SetupButtonBindings()
 {
 	if (ActionButton)
 	{
-		ActionButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked);
+		ActionButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked);
 	}
 
 	if (DeleteButton)
 	{
-		DeleteButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnDeleteButtonClicked);
+		DeleteButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnDeleteButtonClicked);
 	}
 
 	if (CloseButton)
 	{
-		CloseButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnCloseButtonClicked);
+		CloseButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnCloseButtonClicked);
 	}
 
 	if (ConfirmButton)
 	{
-		ConfirmButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnConfirmButtonClicked);
+		ConfirmButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnConfirmButtonClicked);
 	}
 
 	if (CancelButton)
 	{
-		CancelButton->OnClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnCancelButtonClicked);
+		CancelButton->OnButtonClicked.AddDynamic(this, &USuspenseCoreSaveLoadMenuWidget::OnCancelButtonClicked);
 	}
 }
 
@@ -565,7 +565,7 @@ void USuspenseCoreSaveLoadMenuWidget::RestoreGameInputMode()
 // BUTTON HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-void USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked()
+void USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCoreSaveLoadMenu, Log, TEXT("ActionButton clicked! SelectedSlotIndex=%d, bSelectedSlotEmpty=%s, Mode=%s"),
 		SelectedSlotIndex,
@@ -599,7 +599,7 @@ void USuspenseCoreSaveLoadMenuWidget::OnActionButtonClicked()
 	}
 }
 
-void USuspenseCoreSaveLoadMenuWidget::OnDeleteButtonClicked()
+void USuspenseCoreSaveLoadMenuWidget::OnDeleteButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	if (SelectedSlotIndex >= 0 && !bSelectedSlotEmpty)
 	{
@@ -607,17 +607,17 @@ void USuspenseCoreSaveLoadMenuWidget::OnDeleteButtonClicked()
 	}
 }
 
-void USuspenseCoreSaveLoadMenuWidget::OnCloseButtonClicked()
+void USuspenseCoreSaveLoadMenuWidget::OnCloseButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	HideMenu();
 }
 
-void USuspenseCoreSaveLoadMenuWidget::OnConfirmButtonClicked()
+void USuspenseCoreSaveLoadMenuWidget::OnConfirmButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	ExecutePendingOperation();
 }
 
-void USuspenseCoreSaveLoadMenuWidget::OnCancelButtonClicked()
+void USuspenseCoreSaveLoadMenuWidget::OnCancelButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	HideConfirmation();
 }

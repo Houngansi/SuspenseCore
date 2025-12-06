@@ -10,8 +10,8 @@
 #include "SuspenseCoreSaveLoadMenuWidget.generated.h"
 
 class UTextBlock;
-class UButton;
 class UScrollBox;
+class USuspenseCoreButtonWidget;
 class UVerticalBox;
 class USuspenseCoreSaveSlotWidget;
 class USuspenseCoreSaveManager;
@@ -145,19 +145,15 @@ protected:
 
 	/** Action button (Save/Load based on mode) */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* ActionButton;
-
-	/** Action button text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ActionButtonText;
+	USuspenseCoreButtonWidget* ActionButton;
 
 	/** Delete selected slot button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* DeleteButton;
+	USuspenseCoreButtonWidget* DeleteButton;
 
 	/** Close/Back button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* CloseButton;
+	USuspenseCoreButtonWidget* CloseButton;
 
 	/** Status message text */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -173,11 +169,11 @@ protected:
 
 	/** Confirm button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* ConfirmButton;
+	USuspenseCoreButtonWidget* ConfirmButton;
 
 	/** Cancel button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* CancelButton;
+	USuspenseCoreButtonWidget* CancelButton;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -343,19 +339,19 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	UFUNCTION()
-	void OnActionButtonClicked();
+	void OnActionButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnDeleteButtonClicked();
+	void OnDeleteButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnCloseButtonClicked();
+	void OnCloseButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnConfirmButtonClicked();
+	void OnConfirmButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnCancelButtonClicked();
+	void OnCancelButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// SLOT WIDGET CALLBACKS

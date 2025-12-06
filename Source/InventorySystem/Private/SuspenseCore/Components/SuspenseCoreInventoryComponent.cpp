@@ -920,6 +920,11 @@ USuspenseCoreEventBus* USuspenseCoreInventoryComponent::GetEventBus() const
 
 void USuspenseCoreInventoryComponent::BroadcastInventoryUpdated()
 {
+	// Broadcast UI data changed for widget refresh
+	static const FGameplayTag FullRefreshTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIProvider.DataChanged.Full"));
+	BroadcastUIDataChanged(FullRefreshTag, FGuid());
+
+	// Also broadcast via EventBus
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
 		FSuspenseCoreEventData EventData;

@@ -394,9 +394,15 @@ void USuspenseCoreContainerScreenWidget::CreatePanels_Implementation()
 	Panels.Empty();
 	PanelsByTag.Empty();
 
-	// Create panel for each config
+	// Create panel for each ENABLED config
 	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
 	{
+		// Skip disabled panels
+		if (!PanelConfig.bIsEnabled)
+		{
+			continue;
+		}
+
 		USuspenseCorePanelWidget* Panel = CreateWidget<USuspenseCorePanelWidget>(GetOwningPlayer(), PanelWidgetClass);
 		if (!Panel)
 		{
@@ -425,9 +431,13 @@ void USuspenseCoreContainerScreenWidget::SetupPanelSwitcher_Implementation()
 	// Clear existing tabs
 	PanelSwitcher->ClearTabs();
 
-	// Add tab for each panel
+	// Add tab for each ENABLED panel
 	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
 	{
+		if (!PanelConfig.bIsEnabled)
+		{
+			continue;
+		}
 		PanelSwitcher->AddTab(PanelConfig.PanelTag, PanelConfig.DisplayName);
 	}
 

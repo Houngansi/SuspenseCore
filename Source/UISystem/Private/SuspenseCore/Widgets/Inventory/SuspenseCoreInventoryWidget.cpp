@@ -11,6 +11,8 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/CanvasPanel.h"
+#include "Components/TextBlock.h"
+#include "Framework/Application/SlateApplication.h"
 
 //==================================================================
 // Constructor
@@ -170,6 +172,9 @@ void USuspenseCoreInventoryWidget::NativeOnMouseLeave(const FPointerEvent& InMou
 		SetSlotHighlight(HoveredSlotIndex, ESuspenseCoreUISlotState::Empty);
 		HoveredSlotIndex = INDEX_NONE;
 	}
+
+	// Hide tooltip when leaving widget
+	HideTooltip();
 
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
@@ -406,6 +411,43 @@ void USuspenseCoreInventoryWidget::RefreshFromProvider()
 
 	// Update slot-to-anchor map for multi-cell item support
 	UpdateSlotToAnchorMap();
+
+	// Update weight display
+	if (WeightText)
+	{
+		if (CachedContainerData.bHasWeightLimit && CachedContainerData.MaxWeight > 0.0f)
+		{
+			FNumberFormattingOptions FormatOptions;
+			FormatOptions.MinimumFractionalDigits = 1;
+			FormatOptions.MaximumFractionalDigits = 1;
+
+			FText WeightFormatText = FText::Format(
+				NSLOCTEXT("SuspenseCore", "WeightFormat", "{0} / {1} kg"),
+				FText::AsNumber(CachedContainerData.CurrentWeight, &FormatOptions),
+				FText::AsNumber(CachedContainerData.MaxWeight, &FormatOptions)
+			);
+			WeightText->SetText(WeightFormatText);
+			WeightText->SetVisibility(ESlateVisibility::Visible);
+
+			UE_LOG(LogTemp, Log, TEXT("WeightText updated: %.1f / %.1f kg"),
+				CachedContainerData.CurrentWeight, CachedContainerData.MaxWeight);
+		}
+		else
+		{
+			WeightText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	// Update slot count display
+	if (SlotCountText)
+	{
+		FText SlotCountFormatText = FText::Format(
+			NSLOCTEXT("SuspenseCore", "SlotCountFormat", "{0} / {1}"),
+			FText::AsNumber(CachedContainerData.OccupiedSlots),
+			FText::AsNumber(CachedContainerData.TotalSlots)
+		);
+		SlotCountText->SetText(SlotCountFormatText);
+	}
 }
 
 UWidget* USuspenseCoreInventoryWidget::GetSlotWidget(int32 SlotIndex) const
@@ -883,4 +925,58 @@ void USuspenseCoreInventoryWidget::ApplyBatchUpdate(const FSuspenseCoreGridUpdat
 		Batch.SlotSpanUpdates.Num(),
 		Batch.SlotsToRefresh.Num(),
 		Batch.SlotHighlightUpdates.Num());
+}
+
+//==================================================================
+// Tooltip Support
+//==================================================================
+
+void USuspenseCoreInventoryWidget::ShowSlotTooltip(int32 SlotIndex)
+{
+	if (!IsBoundToProvider())
+	{
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return;
+	}
+
+	// Get item data at slot
+	FSuspenseCoreItemUIData ItemData;
+	if (!ProviderInterface->GetItemUIDataAtSlot(SlotIndex, ItemData))
+	{
+		// No item at this slot
+		HideTooltip();
+		return;
+	}
+
+	// Check if item is valid
+	if (!ItemData.InstanceID.IsValid() || ItemData.ItemID.IsNone())
+	{
+		HideTooltip();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("ShowSlotTooltip: Slot %d, Item=%s"), SlotIndex, *ItemData.ItemID.ToString());
+
+	// Request tooltip from UIManager
+	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+	{
+		// Get mouse position for tooltip placement
+		FVector2D MousePosition = FSlateApplication::Get().GetCursorPos();
+
+		// Show tooltip through UIManager
+		UIManager->ShowItemTooltip(ItemData, MousePosition);
+	}
+}
+
+void USuspenseCoreInventoryWidget::HideTooltip()
+{
+	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+	{
+		UIManager->HideTooltip();
+	}
 }

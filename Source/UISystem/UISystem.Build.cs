@@ -12,12 +12,9 @@ public class UISystem : ModuleRules
 				"Core",
 				"GameplayTags",
 				"GameplayAbilities",
-				"BridgeSystem",
+				"BridgeSystem",   // SuspenseCore UI architecture hub
 				"InputCore",
-				"UMG",
-				"EquipmentSystem",
-				"InventorySystem",
-				"GAS"
+				"UMG"
 			}
 		);
 
@@ -30,5 +27,9 @@ public class UISystem : ModuleRules
 				"SlateCore"
 			}
 		);
+
+		// NOTE: SuspenseCore/ widgets do NOT depend on InventorySystem, EquipmentSystem, GAS directly
+		// They use ISuspenseCoreUIDataProvider interface from BridgeSystem
+		// Legacy widgets in Widgets/ folder may still need these (to be removed later)
 	}
 }

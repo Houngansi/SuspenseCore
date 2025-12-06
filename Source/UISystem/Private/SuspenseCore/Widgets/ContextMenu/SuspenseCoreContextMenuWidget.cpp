@@ -263,19 +263,19 @@ void USuspenseCoreContextMenuWidget::CreateActionButtons_Implementation(const TA
 
 FText USuspenseCoreContextMenuWidget::GetActionDisplayText_Implementation(const FGameplayTag& ActionTag)
 {
-	// Map action tags to display text
+	// Map action tags to display text - use RequestGameplayTag for cross-module compatibility
 	static TMap<FGameplayTag, FText> ActionTextMap;
 	if (ActionTextMap.Num() == 0)
 	{
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Use, NSLOCTEXT("SuspenseCore", "ActionUse", "Use"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Equip, NSLOCTEXT("SuspenseCore", "ActionEquip", "Equip"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Unequip, NSLOCTEXT("SuspenseCore", "ActionUnequip", "Unequip"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Drop, NSLOCTEXT("SuspenseCore", "ActionDrop", "Drop"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Split, NSLOCTEXT("SuspenseCore", "ActionSplit", "Split Stack"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Examine, NSLOCTEXT("SuspenseCore", "ActionExamine", "Examine"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Discard, NSLOCTEXT("SuspenseCore", "ActionDiscard", "Discard"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Sell, NSLOCTEXT("SuspenseCore", "ActionSell", "Sell"));
-		ActionTextMap.Add(TAG_SuspenseCore_UIAction_Buy, NSLOCTEXT("SuspenseCore", "ActionBuy", "Buy"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Use")), NSLOCTEXT("SuspenseCore", "ActionUse", "Use"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Equip")), NSLOCTEXT("SuspenseCore", "ActionEquip", "Equip"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Unequip")), NSLOCTEXT("SuspenseCore", "ActionUnequip", "Unequip"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Drop")), NSLOCTEXT("SuspenseCore", "ActionDrop", "Drop"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Split")), NSLOCTEXT("SuspenseCore", "ActionSplit", "Split Stack"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Examine")), NSLOCTEXT("SuspenseCore", "ActionExamine", "Examine"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Discard")), NSLOCTEXT("SuspenseCore", "ActionDiscard", "Discard"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Sell")), NSLOCTEXT("SuspenseCore", "ActionSell", "Sell"));
+		ActionTextMap.Add(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIAction.Buy")), NSLOCTEXT("SuspenseCore", "ActionBuy", "Buy"));
 	}
 
 	const FText* Found = ActionTextMap.Find(ActionTag);

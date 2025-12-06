@@ -14,4 +14,4 @@ void FUISystemModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 
-IMPLEMENT_MODULE(FUISystemModule, SuspenseUI)
+IMPLEMENT_MODULE(FUISystemModule, UISystem)

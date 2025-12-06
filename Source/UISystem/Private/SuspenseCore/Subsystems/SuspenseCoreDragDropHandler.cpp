@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Subsystems/SuspenseCoreDragDropHandler.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
@@ -518,10 +519,14 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::ExecuteDrop(const FSuspens
 TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreDragDropHandler::FindProviderByID(
 	const FGuid& ProviderID) const
 {
-	// TODO: Implement provider registry lookup
-	// For now, this needs to be done through UIManager or direct lookup
-	// This is a placeholder that would need integration with the provider registry
+	// Delegate to UIManager which maintains the provider registry
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (UIManager)
+	{
+		return UIManager->FindProviderByID(ProviderID);
+	}
 
+	UE_LOG(LogTemp, Warning, TEXT("FindProviderByID: UIManager not available"));
 	return TScriptInterface<ISuspenseCoreUIDataProvider>();
 }
 

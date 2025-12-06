@@ -13,6 +13,7 @@ class USuspenseCoreInventorySlotWidget;
 class UGridPanel;
 class UUniformGridPanel;
 class UCanvasPanel;
+class UTextBlock;
 
 /**
  * FSuspenseCoreGridUpdateBatch
@@ -183,6 +184,8 @@ public:
 	virtual TArray<UWidget*> GetAllSlotWidgets() const override;
 	virtual int32 GetSlotAtLocalPosition(const FVector2D& LocalPosition) const override;
 	virtual void SetSlotHighlight(int32 SlotIndex, ESuspenseCoreUISlotState State) override;
+	virtual void ShowSlotTooltip(int32 SlotIndex) override;
+	virtual void HideTooltip() override;
 
 	//==================================================================
 	// Grid Utilities
@@ -288,6 +291,14 @@ protected:
 	/** Canvas for item overlays */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UCanvasPanel> ItemOverlayCanvas;
+
+	/** Weight display text (format: "X.X / Y.Y kg") */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	TObjectPtr<UTextBlock> WeightText;
+
+	/** Slot count display text (format: "X / Y") */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	TObjectPtr<UTextBlock> SlotCountText;
 
 	//==================================================================
 	// Configuration

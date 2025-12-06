@@ -9,6 +9,8 @@
 #include "Components/TextBlock.h"
 #include "Components/PanelWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 
 //==================================================================
 // Constructor
@@ -28,6 +30,9 @@ USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObject
 void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// Setup EventBus subscriptions
+	SetupEventSubscriptions();
 
 	// FALLBACK: If TabContainer is not bound in Blueprint, create it dynamically
 	if (!TabContainer)
@@ -52,6 +57,9 @@ void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 
 void USuspenseCorePanelSwitcherWidget::NativeDestruct()
 {
+	// Teardown EventBus subscriptions
+	TeardownEventSubscriptions();
+
 	// Clear all tabs
 	ClearTabs();
 
@@ -249,8 +257,8 @@ void USuspenseCorePanelSwitcherWidget::SelectNextTab()
 	int32 NextIndex = (CurrentIndex + 1) % Tabs.Num();
 	FGameplayTag NextTag = Tabs[NextIndex].PanelTag;
 
-	// Broadcast selection
-	PanelSelectedDelegate.Broadcast(NextTag);
+	// Publish via EventBus
+	PublishPanelSelected(NextTag);
 }
 
 void USuspenseCorePanelSwitcherWidget::SelectPreviousTab()
@@ -274,8 +282,8 @@ void USuspenseCorePanelSwitcherWidget::SelectPreviousTab()
 	int32 PrevIndex = (CurrentIndex - 1 + Tabs.Num()) % Tabs.Num();
 	FGameplayTag PrevTag = Tabs[PrevIndex].PanelTag;
 
-	// Broadcast selection
-	PanelSelectedDelegate.Broadcast(PrevTag);
+	// Publish via EventBus
+	PublishPanelSelected(PrevTag);
 }
 
 //==================================================================
@@ -362,7 +370,7 @@ void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 				if (CurrentWidget == ButtonSlateWidget)
 				{
 					UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked - %s"), *Pair.Value.ToString());
-					PanelSelectedDelegate.Broadcast(Pair.Value);
+					PublishPanelSelected(Pair.Value);
 					return;
 				}
 				CurrentWidget = CurrentWidget->GetParentWidget();
@@ -377,7 +385,7 @@ void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 		if (Button && Button->HasKeyboardFocus())
 		{
 			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked (fallback) - %s"), *Pair.Value.ToString());
-			PanelSelectedDelegate.Broadcast(Pair.Value);
+			PublishPanelSelected(Pair.Value);
 			return;
 		}
 	}
@@ -385,7 +393,51 @@ void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabButtonClicked - could not identify which button"));
 }
 
-void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)
+//==================================================================
+// EventBus
+//==================================================================
+
+void USuspenseCorePanelSwitcherWidget::SetupEventSubscriptions()
 {
-	PanelSelectedDelegate.Broadcast(PanelTag);
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: EventManager not available"));
+		return;
+	}
+
+	CachedEventBus = Manager->GetEventBus();
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: EventBus not available"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: EventBus subscriptions established"));
+}
+
+void USuspenseCorePanelSwitcherWidget::TeardownEventSubscriptions()
+{
+	CachedEventBus.Reset();
+}
+
+void USuspenseCorePanelSwitcherWidget::PublishPanelSelected(const FGameplayTag& PanelTag)
+{
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Cannot publish - EventBus not available"));
+		return;
+	}
+
+	// Create event data with panel tag
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetTag(FName("PanelTag"), PanelTag);
+
+	// Publish event via EventBus (SuspenseCore.Event.UI.Panel.Selected)
+	CachedEventBus->Publish(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
+		EventData
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Published panel selected event - %s"), *PanelTag.ToString());
 }

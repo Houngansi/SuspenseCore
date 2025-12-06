@@ -8,6 +8,8 @@
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/ContextMenu/SuspenseCoreContextMenuWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Components/WidgetSwitcher.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -556,19 +558,57 @@ void USuspenseCoreContainerScreenWidget::SetupPanelSwitcher_Implementation()
 		PanelSwitcher->AddTab(PanelConfig.PanelTag, PanelConfig.DisplayName);
 	}
 
-	// Bind panel switcher selection event
-	PanelSwitcher->OnPanelSelected().AddWeakLambda(this, [this](const FGameplayTag& PanelTag)
-	{
-		SwitchToPanel(PanelTag);
-	});
+	// NOTE: Panel selection now handled via EventBus (SuspenseCore.Event.UI.Panel.Selected)
+	// See BindToUIManager() for subscription setup
 }
 
 void USuspenseCoreContainerScreenWidget::BindToUIManager()
 {
-	// UIManager binding would be done here if needed
+	// Get EventBus
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: EventManager not available"));
+		return;
+	}
+
+	CachedEventBus = Manager->GetEventBus();
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: EventBus not available"));
+		return;
+	}
+
+	// Subscribe to panel selected events via EventBus
+	PanelSelectedEventHandle = CachedEventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
+		const_cast<USuspenseCoreContainerScreenWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("ContainerScreen: EventBus subscriptions established"));
 }
 
 void USuspenseCoreContainerScreenWidget::UnbindFromUIManager()
 {
-	// UIManager unbinding would be done here if needed
+	// Unsubscribe from EventBus
+	if (CachedEventBus.IsValid() && PanelSelectedEventHandle.IsValid())
+	{
+		CachedEventBus->Unsubscribe(PanelSelectedEventHandle);
+		PanelSelectedEventHandle = FSuspenseCoreSubscriptionHandle();
+	}
+
+	CachedEventBus.Reset();
+}
+
+void USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get panel tag from event data
+	FGameplayTag PanelTag = EventData.GetTag(FName("PanelTag"));
+	if (PanelTag.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Received panel selected event - %s"), *PanelTag.ToString());
+		SwitchToPanel(PanelTag);
+	}
 }

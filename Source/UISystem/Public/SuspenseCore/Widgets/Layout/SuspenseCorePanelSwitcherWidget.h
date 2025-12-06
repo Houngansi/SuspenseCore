@@ -188,10 +188,11 @@ protected:
 	void UpdateTabVisual(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 	virtual void UpdateTabVisual_Implementation(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 
-	/** Handle tab button clicked with index - allows reliable identification */
-	void HandleTabClickedByIndex(int32 TabIndex);
+	/** Handle tab button clicked - uses FSlateApplication to identify clicked button */
+	UFUNCTION()
+	void HandleTabButtonClicked();
 
-	/** Handle tab button clicked with tag */
+	/** Handle tab button clicked with tag (direct call) */
 	void OnTabButtonClicked(FGameplayTag PanelTag);
 
 	//==================================================================

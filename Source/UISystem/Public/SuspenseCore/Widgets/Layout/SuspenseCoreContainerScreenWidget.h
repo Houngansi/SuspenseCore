@@ -290,7 +290,7 @@ protected:
 
 	/** Widget class to use for tooltip */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
-	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
+	TSubclassOf<USuspenseCoreTooltipWidget> ItemTooltipWidgetClass;
 
 	/** Widget class to use for context menu */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")

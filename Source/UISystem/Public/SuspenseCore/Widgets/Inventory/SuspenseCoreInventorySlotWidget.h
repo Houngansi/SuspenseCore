@@ -124,13 +124,13 @@ public:
 	 * Is slot empty
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
-	bool IsEmpty() const { return CachedSlotData.bIsEmpty; }
+	bool IsEmpty() const { return !CachedSlotData.IsOccupied(); }
 
 	/**
-	 * Is this the primary slot for an item
+	 * Is this the anchor/primary slot for an item
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
-	bool IsPrimarySlot() const { return CachedSlotData.bIsPrimarySlot; }
+	bool IsAnchorSlot() const { return CachedSlotData.bIsAnchor; }
 
 	//==================================================================
 	// Highlight State

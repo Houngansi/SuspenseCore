@@ -5,7 +5,7 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
-#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreItemTooltipWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/ContextMenu/SuspenseCoreContextMenuWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "Components/WidgetSwitcher.h"
@@ -219,7 +219,7 @@ void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIDa
 	// Create tooltip widget if needed
 	if (!ItemTooltipWidget && ItemTooltipWidgetClass)
 	{
-		ItemTooltipWidget = CreateWidget<USuspenseCoreItemTooltipWidget>(GetOwningPlayer(), ItemTooltipWidgetClass);
+		ItemTooltipWidget = CreateWidget<USuspenseCoreTooltipWidget>(GetOwningPlayer(), ItemTooltipWidgetClass);
 		if (ItemTooltipWidget && OverlayLayer)
 		{
 			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(ItemTooltipWidget);

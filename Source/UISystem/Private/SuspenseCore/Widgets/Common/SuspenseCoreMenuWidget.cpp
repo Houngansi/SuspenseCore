@@ -123,7 +123,7 @@ USuspenseCoreButtonWidget* USuspenseCoreMenuWidget::CreateButton(const FSuspense
 
 	if (!Config.Tooltip.IsEmpty())
 	{
-		Button->SetTooltipText(Config.Tooltip);
+		Button->SetButtonTooltip(Config.Tooltip);
 	}
 
 	// Bind click event

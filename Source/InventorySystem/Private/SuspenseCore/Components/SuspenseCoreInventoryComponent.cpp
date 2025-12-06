@@ -7,6 +7,7 @@
 #include "SuspenseCore/Validation/SuspenseCoreInventoryValidator.h"
 #include "SuspenseCore/Events/Inventory/SuspenseCoreInventoryEvents.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTemplateTypes.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -845,8 +846,56 @@ int32 USuspenseCoreInventoryComponent::ConsolidateStacks(FName ItemID)
 
 bool USuspenseCoreInventoryComponent::InitializeFromLoadout(FName LoadoutID)
 {
-	// TODO: Load from loadout DataTable
-	Initialize(Config.GridWidth, Config.GridHeight, Config.MaxWeight);
+	// Get DataManager
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Error, TEXT("InitializeFromLoadout: DataManager not available"));
+		// Fallback to default config
+		Initialize(Config.GridWidth, Config.GridHeight, Config.MaxWeight);
+		return false;
+	}
+
+	// Get loadout DataTable
+	UDataTable* LoadoutTable = DataManager->GetLoadoutDataTable();
+	if (!LoadoutTable)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("InitializeFromLoadout: LoadoutDataTable not configured"));
+		// Fallback to default config
+		Initialize(Config.GridWidth, Config.GridHeight, Config.MaxWeight);
+		return false;
+	}
+
+	// Find loadout row
+	static const FString ContextString(TEXT("InitializeFromLoadout"));
+	FSuspenseCoreTemplateLoadout* LoadoutRow = LoadoutTable->FindRow<FSuspenseCoreTemplateLoadout>(LoadoutID, ContextString);
+
+	if (!LoadoutRow)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("InitializeFromLoadout: Loadout '%s' not found in DataTable"), *LoadoutID.ToString());
+		// Fallback to default config
+		Initialize(Config.GridWidth, Config.GridHeight, Config.MaxWeight);
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("InitializeFromLoadout: Loading '%s' (Grid: %dx%d, MaxWeight: %.1f)"),
+		*LoadoutID.ToString(),
+		LoadoutRow->InventoryWidth,
+		LoadoutRow->InventoryHeight,
+		LoadoutRow->MaxWeight);
+
+	// Initialize with loadout configuration
+	Initialize(LoadoutRow->InventoryWidth, LoadoutRow->InventoryHeight, LoadoutRow->MaxWeight);
+
+	// TODO: Add starting items from loadout
+	// for (const FSuspenseCoreTemplateLoadoutSlot& Slot : LoadoutRow->EquipmentSlots)
+	// {
+	//     if (!Slot.ItemID.IsNone())
+	//     {
+	//         AddItemByID(Slot.ItemID, 1);
+	//     }
+	// }
+
 	return true;
 }
 

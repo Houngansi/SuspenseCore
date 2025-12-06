@@ -266,9 +266,28 @@ struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadout : public FTableRowBase
 		meta = (TitleProperty = "SlotName"))
 	TArray<FSuspenseCoreTemplateLoadoutSlot> EquipmentSlots;
 
-	/** Inventory template to apply */
+	/** Inventory template to apply (optional) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
 	FName InventoryTemplateID;
+
+	//========================================================================
+	// Inventory Configuration (Direct - Single Source of Truth)
+	//========================================================================
+
+	/** Inventory grid width */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory",
+		meta = (ClampMin = "1", ClampMax = "20"))
+	int32 InventoryWidth = 10;
+
+	/** Inventory grid height */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory",
+		meta = (ClampMin = "1", ClampMax = "20"))
+	int32 InventoryHeight = 6;
+
+	/** Maximum inventory weight */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory",
+		meta = (ClampMin = "0.0"))
+	float MaxWeight = 50.0f;
 
 	/** Is default loadout for class */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout")
@@ -281,6 +300,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadout : public FTableRowBase
 	FSuspenseCoreTemplateLoadout()
 		: LoadoutID(NAME_None)
 		, InventoryTemplateID(NAME_None)
+		, InventoryWidth(10)
+		, InventoryHeight(6)
+		, MaxWeight(50.0f)
 		, bIsDefault(false)
 	{
 	}

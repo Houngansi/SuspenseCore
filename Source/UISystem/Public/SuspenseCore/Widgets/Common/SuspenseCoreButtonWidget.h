@@ -222,10 +222,10 @@ public:
 	FGameplayTag GetActionTag() const { return ActionTag; }
 
 	/**
-	 * Set tooltip text
+	 * Set button tooltip text
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Button")
-	void SetTooltipText(const FText& NewTooltip) { ButtonTooltipText = NewTooltip; }
+	void SetButtonTooltip(const FText& NewTooltip) { ButtonTooltipText = NewTooltip; }
 
 protected:
 	//==================================================================

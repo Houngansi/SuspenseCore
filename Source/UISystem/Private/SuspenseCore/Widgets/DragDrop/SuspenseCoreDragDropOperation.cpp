@@ -143,7 +143,7 @@ void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointer
 	}
 
 	// Broadcast event
-	OnDragCancelled.Broadcast(DragData);
+	OnSuspenseCoreDragCancelled.Broadcast(DragData);
 
 	UE_LOG(LogTemp, Verbose, TEXT("Drag cancelled for item: %s"), *DragData.Item.DisplayName.ToString());
 }

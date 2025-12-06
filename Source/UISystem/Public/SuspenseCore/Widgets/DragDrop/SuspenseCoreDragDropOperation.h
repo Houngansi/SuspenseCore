@@ -142,7 +142,7 @@ public:
 
 	/** Fired when drag ends (cancelled or dropped) */
 	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|UI|DragDrop")
-	FOnSuspenseCoreDragEvent OnDragCancelled;
+	FOnSuspenseCoreDragEvent OnSuspenseCoreDragCancelled;
 
 	/** Fired when drop completes */
 	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|UI|DragDrop")

@@ -270,7 +270,7 @@ protected:
 
 	/** Tooltip widget */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
-	TObjectPtr<USuspenseCoreTooltipWidget> TooltipWidget;
+	TObjectPtr<USuspenseCoreTooltipWidget> ItemTooltipWidget;
 
 	/** Context menu widget */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")

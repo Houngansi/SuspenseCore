@@ -98,34 +98,32 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 	static const FGameplayTag PanelStashTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Stash"));
 	static const FGameplayTag PanelTraderTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Trader"));
 
-	// Inventory panel
+	// Inventory panel - ONLY shows player inventory
+	// Equipment slots should be a separate widget overlay or sidebar
 	FSuspenseCorePanelConfig InventoryPanel;
 	InventoryPanel.PanelTag = PanelInventoryTag;
 	InventoryPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Inventory", "INVENTORY");
 	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
-	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Equipment);
 	InventoryPanel.SortOrder = 0;
 	InventoryPanel.bIsEnabled = true;
 	ScreenConfig.Panels.Add(InventoryPanel);
 
-	// Stash panel
+	// Stash panel - shows stash container (only when near a stash)
 	FSuspenseCorePanelConfig StashPanel;
 	StashPanel.PanelTag = PanelStashTag;
 	StashPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Stash", "STASH");
-	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
 	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Stash);
 	StashPanel.SortOrder = 1;
-	StashPanel.bIsEnabled = true;
+	StashPanel.bIsEnabled = false; // Disabled by default, enabled when near stash
 	ScreenConfig.Panels.Add(StashPanel);
 
-	// Trader panel
+	// Trader panel - shows trader inventory (only when trading)
 	FSuspenseCorePanelConfig TraderPanel;
 	TraderPanel.PanelTag = PanelTraderTag;
 	TraderPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Trader", "TRADER");
-	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
 	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Trader);
 	TraderPanel.SortOrder = 2;
-	TraderPanel.bIsEnabled = true;
+	TraderPanel.bIsEnabled = false; // Disabled by default, enabled when trading
 	ScreenConfig.Panels.Add(TraderPanel);
 
 	ScreenConfig.DefaultPanelTag = PanelInventoryTag;
@@ -161,9 +159,15 @@ void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 
 	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers"), AllProviders.Num());
 
-	// Bind providers to panels based on container type
+	// Bind providers to ENABLED panels based on container type
 	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
 	{
+		// Skip disabled panels
+		if (!PanelConfig.bIsEnabled)
+		{
+			continue;
+		}
+
 		USuspenseCorePanelWidget* Panel = ContainerScreen->GetPanelByTag(PanelConfig.PanelTag);
 		if (!Panel)
 		{

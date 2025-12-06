@@ -5,6 +5,9 @@
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventoryWidget.h"
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventorySlotWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/CanvasPanel.h"
@@ -24,6 +27,7 @@ USuspenseCoreInventoryWidget::USuspenseCoreInventoryWidget(const FObjectInitiali
 	, HoveredSlotIndex(INDEX_NONE)
 	, LastClickTime(0.0)
 	, LastClickedSlot(INDEX_NONE)
+	, DragSourceSlot(INDEX_NONE)
 {
 }
 
@@ -78,6 +82,7 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseButtonDown(const FGeometry& In
 	if (SlotIndex != INDEX_NONE)
 	{
 		bool bRightClick = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
+		bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
 
 		// Check for double click
 		double CurrentTime = FPlatformTime::Seconds();
@@ -85,17 +90,36 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseButtonDown(const FGeometry& In
 		{
 			K2_OnSlotDoubleClicked(SlotIndex);
 			LastClickedSlot = INDEX_NONE;
+			DragSourceSlot = INDEX_NONE;
+			return FReply::Handled();
 		}
-		else
+
+		HandleSlotClicked(SlotIndex, bRightClick);
+		LastClickedSlot = SlotIndex;
+		LastClickTime = CurrentTime;
+
+		// Left click on slot - check if item exists for potential drag
+		if (bLeftClick && !IsReadOnly())
 		{
-			HandleSlotClicked(SlotIndex, bRightClick);
-			LastClickedSlot = SlotIndex;
-			LastClickTime = CurrentTime;
+			// Check if slot has an item that can be dragged
+			if (SlotIndex >= 0 && SlotIndex < SlotWidgets.Num())
+			{
+				USuspenseCoreInventorySlotWidget* SlotWidget = SlotWidgets[SlotIndex];
+				if (SlotWidget && !SlotWidget->IsEmpty())
+				{
+					// Store source slot for drag detection
+					DragSourceSlot = SlotIndex;
+
+					// Return with DetectDrag to enable drag detection
+					return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+				}
+			}
 		}
 
 		return FReply::Handled();
 	}
 
+	DragSourceSlot = INDEX_NONE;
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
@@ -144,6 +168,200 @@ void USuspenseCoreInventoryWidget::NativeOnMouseLeave(const FPointerEvent& InMou
 	}
 
 	Super::NativeOnMouseLeave(InMouseEvent);
+}
+
+void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	// Check if we have a valid drag source slot
+	if (DragSourceSlot == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("NativeOnDragDetected: No drag source slot"));
+		return;
+	}
+
+	// Get the item data from the source slot
+	if (!IsBoundToProvider())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NativeOnDragDetected: No bound provider"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NativeOnDragDetected: Provider interface is null"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Get item data at the drag source slot
+	FSuspenseCoreItemUIData ItemData;
+	ProviderInterface->GetItemUIDataAtSlot(DragSourceSlot, ItemData);
+
+	if (!ItemData.InstanceID.IsValid())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("NativeOnDragDetected: No item at slot %d"), DragSourceSlot);
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Create drag data
+	FSuspenseCoreDragData DragData = FSuspenseCoreDragData::Create(
+		ItemData,
+		ProviderInterface->GetContainerType(),
+		ProviderInterface->GetContainerTypeTag(),
+		ProviderInterface->GetProviderID(),
+		DragSourceSlot
+	);
+
+	if (!DragData.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NativeOnDragDetected: Failed to create drag data"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Calculate drag offset from cursor
+	FVector2D LocalPos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+	FIntPoint GridPos = SlotIndexToGridPos(DragSourceSlot);
+	float TotalSlotSize = SlotSizePixels + SlotGapPixels;
+	FVector2D SlotTopLeft(GridPos.X * TotalSlotSize, GridPos.Y * TotalSlotSize);
+	DragData.DragOffset = SlotTopLeft - LocalPos;
+
+	// Create the drag-drop operation
+	USuspenseCoreDragDropOperation* DragOperation = USuspenseCoreDragDropOperation::CreateDrag(
+		GetOwningPlayer(),
+		DragData,
+		nullptr // Use default visual widget class
+	);
+
+	if (DragOperation)
+	{
+		OutOperation = DragOperation;
+		UE_LOG(LogTemp, Log, TEXT("NativeOnDragDetected: Started drag for item '%s' from slot %d"),
+			*ItemData.DisplayName.ToString(), DragSourceSlot);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NativeOnDragDetected: Failed to create drag operation"));
+	}
+
+	// Clear drag source (operation will handle the rest)
+	DragSourceSlot = INDEX_NONE;
+}
+
+void USuspenseCoreInventoryWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+
+	// Cast to our drag operation type
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("NativeOnDragEnter: Drag entered inventory widget"));
+}
+
+void USuspenseCoreInventoryWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+
+	// Cast to our drag operation type
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		return;
+	}
+
+	// Clear hover target when leaving
+	DragOp->SetHoverTarget(nullptr, INDEX_NONE);
+
+	// Clear all highlights
+	ClearHighlights();
+
+	UE_LOG(LogTemp, Verbose, TEXT("NativeOnDragLeave: Drag left inventory widget"));
+}
+
+bool USuspenseCoreInventoryWidget::NativeOnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, UDragDropOperation* Operation)
+{
+	// Cast to our drag operation type
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(Operation);
+	if (!DragOp)
+	{
+		return Super::NativeOnDragOver(MyGeometry, DragDropEvent, Operation);
+	}
+
+	// Get slot under cursor
+	FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+	int32 SlotIndex = GetSlotAtLocalPosition(LocalPos);
+
+	// Update hover target if changed
+	if (SlotIndex != DragOp->GetHoverSlot())
+	{
+		// Set hover target on the drag operation
+		TScriptInterface<ISuspenseCoreUIContainer> ContainerInterface;
+		ContainerInterface.SetObject(this);
+		ContainerInterface.SetInterface(this);
+		DragOp->SetHoverTarget(ContainerInterface, SlotIndex);
+
+		// Validate drop and highlight appropriately
+		if (SlotIndex != INDEX_NONE && IsBoundToProvider())
+		{
+			ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+			if (ProviderInterface)
+			{
+				const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+				FSuspenseCoreDropValidation Validation = ProviderInterface->ValidateDrop(DragData, SlotIndex, DragData.bIsRotatedDuringDrag);
+
+				// Update visual validity indicator
+				DragOp->UpdateDropValidity(Validation.bIsValid);
+
+				// Highlight multi-cell drop target
+				HighlightDropSlots(DragData.Item.GetEffectiveSize(), SlotIndex, Validation.bIsValid);
+			}
+		}
+	}
+
+	return true; // We handle the drag
+}
+
+bool USuspenseCoreInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Cast to our drag operation type
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NativeOnDrop: Invalid drag operation type"));
+		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	// Get slot under cursor
+	FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
+	int32 SlotIndex = GetSlotAtLocalPosition(LocalPos);
+
+	if (SlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("NativeOnDrop: Drop outside valid slot"));
+		ClearHighlights();
+		return false;
+	}
+
+	// Handle the drop through base class
+	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+	bool bSuccess = HandleDrop(DragData, SlotIndex);
+
+	// Clear highlights
+	ClearHighlights();
+
+	UE_LOG(LogTemp, Log, TEXT("NativeOnDrop: Drop %s at slot %d"),
+		bSuccess ? TEXT("succeeded") : TEXT("failed"), SlotIndex);
+
+	return bSuccess;
 }
 
 //==================================================================
@@ -196,15 +414,31 @@ TArray<UWidget*> USuspenseCoreInventoryWidget::GetAllSlotWidgets() const
 
 int32 USuspenseCoreInventoryWidget::GetSlotAtLocalPosition(const FVector2D& LocalPosition) const
 {
-	if (LocalPosition.X < 0 || LocalPosition.Y < 0)
+	if (!SlotGrid || SlotWidgets.Num() == 0)
 	{
 		return INDEX_NONE;
 	}
 
-	// Calculate grid position from local coordinates
+	// Transform local position from widget space to SlotGrid space
+	// Get SlotGrid's position within the inventory widget hierarchy
+	const FGeometry& WidgetGeometry = GetCachedGeometry();
+	const FGeometry& GridGeometry = SlotGrid->GetCachedGeometry();
+
+	// Transform from inventory widget space to grid space
+	// The grid might be offset due to padding, borders, or other layout elements
+	FVector2D GridLocalPos = GridGeometry.AbsoluteToLocal(
+		WidgetGeometry.LocalToAbsolute(LocalPosition)
+	);
+
+	if (GridLocalPos.X < 0 || GridLocalPos.Y < 0)
+	{
+		return INDEX_NONE;
+	}
+
+	// Calculate grid position from grid-local coordinates
 	float TotalSlotSize = SlotSizePixels + SlotGapPixels;
-	int32 Column = FMath::FloorToInt(LocalPosition.X / TotalSlotSize);
-	int32 Row = FMath::FloorToInt(LocalPosition.Y / TotalSlotSize);
+	int32 Column = FMath::FloorToInt(GridLocalPos.X / TotalSlotSize);
+	int32 Row = FMath::FloorToInt(GridLocalPos.Y / TotalSlotSize);
 
 	FIntPoint GridPos(Column, Row);
 	return GridPosToSlotIndex(GridPos);

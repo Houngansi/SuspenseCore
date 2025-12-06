@@ -226,6 +226,15 @@ void USuspenseCoreUIManager::HideContainerScreen()
 	UE_LOG(LogTemp, Log, TEXT("Container screen hidden"));
 }
 
+void USuspenseCoreUIManager::CloseContainerScreen(APlayerController* PC)
+{
+	// Verify this is the owning player
+	if (PC && OwningPC.Get() == PC)
+	{
+		HideContainerScreen();
+	}
+}
+
 bool USuspenseCoreUIManager::ToggleContainerScreen(APlayerController* PC, const FGameplayTag& PanelTag)
 {
 	if (bIsContainerScreenVisible)
@@ -369,6 +378,33 @@ TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::GetPlayerI
 	if (APawn* Pawn = PC->GetPawn())
 	{
 		return FindProviderOnActor(Pawn, ESuspenseCoreContainerType::Inventory);
+	}
+
+	return nullptr;
+}
+
+TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::GetPlayerEquipmentProvider(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	// Try Pawn first for equipment (typically on character)
+	if (APawn* Pawn = PC->GetPawn())
+	{
+		TScriptInterface<ISuspenseCoreUIDataProvider> Provider = FindProviderOnActor(
+			Pawn, ESuspenseCoreContainerType::Equipment);
+		if (Provider)
+		{
+			return Provider;
+		}
+	}
+
+	// Try PlayerState
+	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+	{
+		return FindProviderOnActor(PS, ESuspenseCoreContainerType::Equipment);
 	}
 
 	return nullptr;

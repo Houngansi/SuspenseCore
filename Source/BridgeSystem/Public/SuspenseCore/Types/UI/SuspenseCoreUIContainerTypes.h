@@ -277,6 +277,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreDragData
 	{
 	}
 
+	/** Get item instance ID */
+	FGuid GetItemInstanceID() const { return Item.ItemInstanceID; }
+
+	/** Convenience accessors */
+	const FGuid& ItemInstanceID() const { return Item.ItemInstanceID; }
+	int32 Quantity() const { return DragQuantity; }
+	bool bIsRotated() const { return bIsRotatedDuringDrag; }
+
 	/** Create validated drag data */
 	static FSuspenseCoreDragData Create(
 		const FSuspenseCoreItemUIData& InItem,
@@ -375,20 +383,28 @@ struct BRIDGESYSTEM_API FSuspenseCorePanelConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Panel")
 	FKey ShortcutKey;
 
+	/** Horizontal or vertical layout for containers */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Panel")
+	bool bHorizontalLayout;
+
 	FSuspenseCorePanelConfig()
 		: DisplayName(FText::GetEmpty())
 		, SortOrder(0)
 		, bIsEnabled(true)
+		, bHorizontalLayout(true)
 	{
 	}
+
+	/** Alias for DisplayName for clarity */
+	const FText& GetPanelDisplayName() const { return DisplayName; }
 };
 
 /**
- * FSuspenseCoreContainerScreenConfig
+ * FSuspenseCoreContainerScreenConfig / FSuspenseCoreScreenConfig
  * Configuration for the entire container screen
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreContainerScreenConfig
+struct BRIDGESYSTEM_API FSuspenseCoreScreenConfig
 {
 	GENERATED_BODY()
 
@@ -485,3 +501,8 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlotConfig
 	{
 	}
 };
+
+/**
+ * Type alias for backwards compatibility
+ */
+using FSuspenseCoreContainerScreenConfig = FSuspenseCoreScreenConfig;

@@ -120,6 +120,13 @@ public:
 	void HideContainerScreen();
 
 	/**
+	 * Close container screen for player (called from widget)
+	 * @param PC Player controller
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void CloseContainerScreen(APlayerController* PC);
+
+	/**
 	 * Toggle container screen
 	 * @param PC Owning player controller
 	 * @param PanelTag Panel to toggle
@@ -180,6 +187,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
 	TScriptInterface<ISuspenseCoreUIDataProvider> GetPlayerInventoryProvider(APlayerController* PC);
+
+	/**
+	 * Get player's equipment provider
+	 * Convenience method to get equipment from local player's Pawn
+	 * @param PC Player controller
+	 * @return Equipment provider or nullptr
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	TScriptInterface<ISuspenseCoreUIDataProvider> GetPlayerEquipmentProvider(APlayerController* PC);
 
 	//==================================================================
 	// Notifications

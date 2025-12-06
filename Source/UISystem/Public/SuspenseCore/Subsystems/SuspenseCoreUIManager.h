@@ -350,6 +350,9 @@ protected:
 	/** Setup default screen configuration */
 	void SetupDefaultScreenConfig();
 
+	/** Bind providers to container screen panels */
+	void BindProvidersToScreen(APlayerController* PC);
+
 private:
 	//==================================================================
 	// Widget Instances

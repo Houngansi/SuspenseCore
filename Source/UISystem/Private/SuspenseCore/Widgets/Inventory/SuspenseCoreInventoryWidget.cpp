@@ -42,8 +42,9 @@ void USuspenseCoreInventoryWidget::NativeConstruct()
 	// Make widget focusable for mouse/keyboard input
 	SetIsFocusable(true);
 
-	// Create initial slot widgets if we have a bound provider
-	if (IsBoundToProvider())
+	// Create initial slot widgets if we have a bound provider AND slots don't exist yet
+	// IMPORTANT: Don't recreate if RefreshFromProvider already created them!
+	if (IsBoundToProvider() && SlotWidgets.Num() == 0)
 	{
 		CreateSlotWidgets();
 	}
@@ -423,6 +424,7 @@ TArray<UWidget*> USuspenseCoreInventoryWidget::GetAllSlotWidgets() const
 	{
 		Result.Add(SlotWidget);
 	}
+	UE_LOG(LogTemp, Verbose, TEXT("GetAllSlotWidgets [%s]: returning %d widgets"), *GetName(), Result.Num());
 	return Result;
 }
 
@@ -561,6 +563,9 @@ void USuspenseCoreInventoryWidget::HighlightDropSlots(const FIntPoint& ItemSize,
 
 void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 {
+	UE_LOG(LogTemp, Warning, TEXT("=== CreateSlotWidgets [%s] START === Existing=%d"),
+		*GetName(), SlotWidgets.Num());
+
 	if (!SlotGrid || !SlotWidgetClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: Missing SlotGrid or SlotWidgetClass!"));

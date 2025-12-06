@@ -426,8 +426,8 @@ void USuspenseCoreUIManager::ShowNotification(const FSuspenseCoreUINotification&
 
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventData.SetString(TEXT("Message"), Notification.Message.ToString());
-		EventData.SetInt(TEXT("FeedbackType"), static_cast<int32>(Notification.Type));
+		EventData.SetString(FName("Message"), Notification.Message.ToString());
+		EventData.SetInt(FName("FeedbackType"), static_cast<int32>(Notification.Type));
 
 		EventBus->Publish(FeedbackTag, EventData);
 	}
@@ -493,8 +493,8 @@ bool USuspenseCoreUIManager::StartDragOperation(const FSuspenseCoreDragData& Dra
 	{
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventData.SetGuid(TEXT("ItemInstanceID"), DragData.Item.InstanceID);
-		EventData.SetInt(TEXT("SourceSlot"), DragData.SourceSlot);
+		EventData.SetString(FName("ItemInstanceID"), DragData.Item.InstanceID.ToString());
+		EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
 
 		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_DragStarted, EventData);
 	}
@@ -517,7 +517,7 @@ void USuspenseCoreUIManager::CancelDragOperation()
 	{
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventData.SetBool(TEXT("Cancelled"), true);
+		EventData.SetBool(FName("Cancelled"), true);
 
 		EventBus->Publish(TAG_SuspenseCore_Event_UIContainer_DragEnded, EventData);
 	}
@@ -570,8 +570,8 @@ void USuspenseCoreUIManager::UnsubscribeFromEvents()
 void USuspenseCoreUIManager::OnUIFeedbackEvent(const FSuspenseCoreEventData& EventData)
 {
 	// Handle feedback from game systems
-	FString Message = EventData.GetString(TEXT("Message"));
-	int32 FeedbackType = EventData.GetInt(TEXT("FeedbackType"));
+	FString Message = EventData.GetString(FName("Message"));
+	int32 FeedbackType = EventData.GetInt(FName("FeedbackType"));
 
 	ShowSimpleNotification(
 		static_cast<ESuspenseCoreUIFeedbackType>(FeedbackType),

@@ -187,9 +187,9 @@ UWidget* USuspenseCoreInventoryWidget::GetSlotWidget(int32 SlotIndex) const
 TArray<UWidget*> USuspenseCoreInventoryWidget::GetAllSlotWidgets() const
 {
 	TArray<UWidget*> Result;
-	for (USuspenseCoreInventorySlotWidget* Slot : SlotWidgets)
+	for (USuspenseCoreInventorySlotWidget* SlotWidget : SlotWidgets)
 	{
-		Result.Add(Slot);
+		Result.Add(SlotWidget);
 	}
 	return Result;
 }

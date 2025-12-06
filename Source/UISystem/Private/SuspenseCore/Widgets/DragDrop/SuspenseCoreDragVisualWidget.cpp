@@ -7,6 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
+#include "Engine/Texture2D.h"
 
 //==================================================================
 // Constructor
@@ -144,10 +145,17 @@ void USuspenseCoreDragVisualWidget::UpdateVisuals_Implementation()
 	// Update icon
 	if (ItemIcon)
 	{
-		if (CurrentDragData.Item.Icon)
+		if (CurrentDragData.Item.IconPath.IsValid())
 		{
-			ItemIcon->SetBrushFromTexture(CurrentDragData.Item.Icon);
-			ItemIcon->SetVisibility(ESlateVisibility::Visible);
+			if (UTexture2D* IconTexture = Cast<UTexture2D>(CurrentDragData.Item.IconPath.TryLoad()))
+			{
+				ItemIcon->SetBrushFromTexture(IconTexture);
+				ItemIcon->SetVisibility(ESlateVisibility::Visible);
+			}
+			else
+			{
+				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+			}
 		}
 		else
 		{

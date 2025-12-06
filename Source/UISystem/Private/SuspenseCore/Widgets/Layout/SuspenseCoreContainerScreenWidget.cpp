@@ -222,11 +222,11 @@ void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIDa
 		ItemTooltipWidget = CreateWidget<USuspenseCoreTooltipWidget>(GetOwningPlayer(), ItemTooltipWidgetClass);
 		if (ItemTooltipWidget && OverlayLayer)
 		{
-			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(ItemTooltipWidget);
-			if (Slot)
+			UOverlaySlot* OverlaySlotRef = OverlayLayer->AddChildToOverlay(ItemTooltipWidget);
+			if (OverlaySlotRef)
 			{
-				Slot->SetHorizontalAlignment(HAlign_Left);
-				Slot->SetVerticalAlignment(VAlign_Top);
+				OverlaySlotRef->SetHorizontalAlignment(HAlign_Left);
+				OverlaySlotRef->SetVerticalAlignment(VAlign_Top);
 			}
 		}
 	}
@@ -270,11 +270,11 @@ void USuspenseCoreContainerScreenWidget::ShowContextMenu(
 		ContextMenuWidget = CreateWidget<USuspenseCoreContextMenuWidget>(GetOwningPlayer(), ContextMenuWidgetClass);
 		if (ContextMenuWidget && OverlayLayer)
 		{
-			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(ContextMenuWidget);
-			if (Slot)
+			UOverlaySlot* OverlaySlotRef = OverlayLayer->AddChildToOverlay(ContextMenuWidget);
+			if (OverlaySlotRef)
 			{
-				Slot->SetHorizontalAlignment(HAlign_Left);
-				Slot->SetVerticalAlignment(VAlign_Top);
+				OverlaySlotRef->SetHorizontalAlignment(HAlign_Left);
+				OverlaySlotRef->SetVerticalAlignment(VAlign_Top);
 			}
 		}
 	}
@@ -312,11 +312,11 @@ void USuspenseCoreContainerScreenWidget::ShowDragGhost(const FSuspenseCoreItemUI
 		DragGhostWidget = CreateWidget<UUserWidget>(GetOwningPlayer(), DragGhostWidgetClass);
 		if (DragGhostWidget && OverlayLayer)
 		{
-			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(DragGhostWidget);
-			if (Slot)
+			UOverlaySlot* OverlaySlotRef = OverlayLayer->AddChildToOverlay(DragGhostWidget);
+			if (OverlaySlotRef)
 			{
-				Slot->SetHorizontalAlignment(HAlign_Left);
-				Slot->SetVerticalAlignment(VAlign_Top);
+				OverlaySlotRef->SetHorizontalAlignment(HAlign_Left);
+				OverlaySlotRef->SetVerticalAlignment(VAlign_Top);
 			}
 		}
 	}

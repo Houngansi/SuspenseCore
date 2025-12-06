@@ -13,6 +13,7 @@
 
 // Forward declarations
 class ISuspenseCoreUIDataProvider;
+class UWidget;
 
 /**
  * Delegate for container events

@@ -169,13 +169,13 @@ void USuspenseCoreUIEventHelpers::BroadcastUIRequest(
 
 	// Create event data from payload
 	FSuspenseCoreEventData EventData;
-	EventData.SetGuid(TEXT("SourceContainerID"), Payload.SourceContainerID);
-	EventData.SetInt(TEXT("SourceSlot"), Payload.SourceSlot);
-	EventData.SetGuid(TEXT("TargetContainerID"), Payload.TargetContainerID);
-	EventData.SetInt(TEXT("TargetSlot"), Payload.TargetSlot);
-	EventData.SetGuid(TEXT("ItemInstanceID"), Payload.ItemInstanceID);
-	EventData.SetInt(TEXT("Quantity"), Payload.Quantity);
-	EventData.SetBool(TEXT("IsRotated"), Payload.bIsRotated);
+	EventData.SetString(FName("SourceContainerID"), Payload.SourceContainerID.ToString());
+	EventData.SetInt(FName("SourceSlot"), Payload.SourceSlot);
+	EventData.SetString(FName("TargetContainerID"), Payload.TargetContainerID.ToString());
+	EventData.SetInt(FName("TargetSlot"), Payload.TargetSlot);
+	EventData.SetString(FName("ItemInstanceID"), Payload.ItemInstanceID.ToString());
+	EventData.SetInt(FName("Quantity"), Payload.Quantity);
+	EventData.SetBool(FName("IsRotated"), Payload.bIsRotated);
 
 	EventBus->Publish(RequestTag, EventData);
 }
@@ -206,9 +206,9 @@ void USuspenseCoreUIEventHelpers::BroadcastUIFeedback(
 	FGameplayTag FeedbackTag = GetFeedbackTypeTag(FeedbackType);
 
 	FSuspenseCoreEventData EventData;
-	EventData.SetString(TEXT("Message"), Message.ToString());
-	EventData.SetGuid(TEXT("ItemInstanceID"), RelatedItemID);
-	EventData.SetInt(TEXT("FeedbackType"), static_cast<int32>(FeedbackType));
+	EventData.SetString(FName("Message"), Message.ToString());
+	EventData.SetString(FName("ItemInstanceID"), RelatedItemID.ToString());
+	EventData.SetInt(FName("FeedbackType"), static_cast<int32>(FeedbackType));
 
 	EventBus->Publish(FeedbackTag, EventData);
 }

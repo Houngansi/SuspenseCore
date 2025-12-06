@@ -268,22 +268,22 @@ void USuspenseCorePanelWidget::CreateContainers_Implementation()
 		// Add to layout
 		if (HorizontalContainerBox && PanelConfig.bHorizontalLayout)
 		{
-			UHorizontalBoxSlot* Slot = HorizontalContainerBox->AddChildToHorizontalBox(Container);
-			if (Slot)
+			UHorizontalBoxSlot* HBoxSlot = HorizontalContainerBox->AddChildToHorizontalBox(Container);
+			if (HBoxSlot)
 			{
-				Slot->SetHorizontalAlignment(HAlign_Fill);
-				Slot->SetVerticalAlignment(VAlign_Fill);
-				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				HBoxSlot->SetHorizontalAlignment(HAlign_Fill);
+				HBoxSlot->SetVerticalAlignment(VAlign_Fill);
+				HBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			}
 		}
 		else if (VerticalContainerBox)
 		{
-			UVerticalBoxSlot* Slot = VerticalContainerBox->AddChildToVerticalBox(Container);
-			if (Slot)
+			UVerticalBoxSlot* VBoxSlot = VerticalContainerBox->AddChildToVerticalBox(Container);
+			if (VBoxSlot)
 			{
-				Slot->SetHorizontalAlignment(HAlign_Fill);
-				Slot->SetVerticalAlignment(VAlign_Fill);
-				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				VBoxSlot->SetHorizontalAlignment(HAlign_Fill);
+				VBoxSlot->SetVerticalAlignment(VAlign_Fill);
+				VBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			}
 		}
 

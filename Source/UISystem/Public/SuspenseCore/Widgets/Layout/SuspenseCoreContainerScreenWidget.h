@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
 #include "SuspenseCoreContainerScreenWidget.generated.h"
 
 // Forward declarations
@@ -329,6 +330,16 @@ private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USuspenseCoreUIManager> CachedUIManager;
 
+	/** Cached EventBus reference */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<class USuspenseCoreEventBus> CachedEventBus;
+
+	/** EventBus subscription handle for panel selection */
+	FSuspenseCoreSubscriptionHandle PanelSelectedEventHandle;
+
 	/** Drag ghost offset from cursor */
 	FVector2D DragGhostOffset;
+
+	/** Handle panel selected event from EventBus */
+	void OnPanelSelectedEvent(const FGameplayTag& EventTag, const struct FSuspenseCoreEventData& EventData);
 };

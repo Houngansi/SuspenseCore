@@ -8,6 +8,9 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/PanelWidget.h"
+#include "Framework/Application/SlateApplication.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 
 //==================================================================
 // Constructor
@@ -27,6 +30,9 @@ USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObject
 void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// Setup EventBus subscriptions
+	SetupEventSubscriptions();
 
 	// FALLBACK: If TabContainer is not bound in Blueprint, create it dynamically
 	if (!TabContainer)
@@ -51,6 +57,9 @@ void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 
 void USuspenseCorePanelSwitcherWidget::NativeDestruct()
 {
+	// Teardown EventBus subscriptions
+	TeardownEventSubscriptions();
+
 	// Clear all tabs
 	ClearTabs();
 
@@ -145,8 +154,8 @@ void USuspenseCorePanelSwitcherWidget::RemoveTab(const FGameplayTag& PanelTag)
 		// Remove button from container and clean up
 		if (Tab.TabButton)
 		{
-			// Clear all click bindings (including lambdas)
-			Tab.TabButton->OnClicked.Clear();
+			// Remove dynamic delegate binding
+			Tab.TabButton->OnClicked.RemoveDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
 			ButtonToTagMap.Remove(Tab.TabButton);
 			Tab.TabButton->RemoveFromParent();
 		}
@@ -173,8 +182,8 @@ void USuspenseCorePanelSwitcherWidget::ClearTabs()
 	{
 		if (Tab.TabButton)
 		{
-			// Clear all click bindings (including lambdas)
-			Tab.TabButton->OnClicked.Clear();
+			// Remove dynamic delegate binding
+			Tab.TabButton->OnClicked.RemoveDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
 			Tab.TabButton->RemoveFromParent();
 		}
 	}
@@ -248,8 +257,8 @@ void USuspenseCorePanelSwitcherWidget::SelectNextTab()
 	int32 NextIndex = (CurrentIndex + 1) % Tabs.Num();
 	FGameplayTag NextTag = Tabs[NextIndex].PanelTag;
 
-	// Broadcast selection
-	PanelSelectedDelegate.Broadcast(NextTag);
+	// Publish via EventBus
+	PublishPanelSelected(NextTag);
 }
 
 void USuspenseCorePanelSwitcherWidget::SelectPreviousTab()
@@ -273,8 +282,8 @@ void USuspenseCorePanelSwitcherWidget::SelectPreviousTab()
 	int32 PrevIndex = (CurrentIndex - 1 + Tabs.Num()) % Tabs.Num();
 	FGameplayTag PrevTag = Tabs[PrevIndex].PanelTag;
 
-	// Broadcast selection
-	PanelSelectedDelegate.Broadcast(PrevTag);
+	// Publish via EventBus
+	PublishPanelSelected(PrevTag);
 }
 
 //==================================================================
@@ -299,16 +308,12 @@ UButton* USuspenseCorePanelSwitcherWidget::CreateTabButton_Implementation(const 
 		Button->AddChild(Text);
 	}
 
-	// CRITICAL FIX: Use lambda with captured tab index for reliable click handling
-	// The tab index is captured at creation time, ensuring correct button identification
-	int32 TabIndex = Tabs.Num(); // This will be the index when added
-	FGameplayTag CapturedTag = TabData.PanelTag;
+	// CRITICAL: Store button->tag mapping BEFORE binding click event
+	// This is used in HandleTabButtonClicked to identify which button was clicked
+	ButtonToTagMap.Add(Button, TabData.PanelTag);
 
-	Button->OnClicked.AddWeakLambda(this, [this, CapturedTag]()
-	{
-		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked via lambda - %s"), *CapturedTag.ToString());
-		PanelSelectedDelegate.Broadcast(CapturedTag);
-	});
+	// Bind click event - HandleTabButtonClicked will use ButtonToTagMap to find the tag
+	Button->OnClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
 
 	return Button;
 }
@@ -337,21 +342,102 @@ void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(const FSus
 	}
 }
 
-void USuspenseCorePanelSwitcherWidget::HandleTabClickedByIndex(int32 TabIndex)
+void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 {
-	if (TabIndex >= 0 && TabIndex < Tabs.Num())
+	// Find which button was clicked using FSlateApplication focused widget
+	if (FSlateApplication::IsInitialized())
 	{
-		const FGameplayTag& PanelTag = Tabs[TabIndex].PanelTag;
-		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked by index %d - %s"), TabIndex, *PanelTag.ToString());
-		PanelSelectedDelegate.Broadcast(PanelTag);
+		TSharedPtr<SWidget> FocusedWidget = FSlateApplication::Get().GetUserFocusedWidget(0);
+
+		for (const auto& Pair : ButtonToTagMap)
+		{
+			UButton* Button = Pair.Key.Get();
+			if (!Button)
+			{
+				continue;
+			}
+
+			TSharedPtr<SWidget> ButtonSlateWidget = Button->GetCachedWidget();
+			if (!ButtonSlateWidget.IsValid())
+			{
+				continue;
+			}
+
+			// Check if focused widget is this button or its child
+			TSharedPtr<SWidget> CurrentWidget = FocusedWidget;
+			while (CurrentWidget.IsValid())
+			{
+				if (CurrentWidget == ButtonSlateWidget)
+				{
+					UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked - %s"), *Pair.Value.ToString());
+					PublishPanelSelected(Pair.Value);
+					return;
+				}
+				CurrentWidget = CurrentWidget->GetParentWidget();
+			}
+		}
 	}
-	else
+
+	// Fallback: Check which button has keyboard focus (UMG level)
+	for (const auto& Pair : ButtonToTagMap)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabClickedByIndex called with invalid index %d"), TabIndex);
+		UButton* Button = Pair.Key.Get();
+		if (Button && Button->HasKeyboardFocus())
+		{
+			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked (fallback) - %s"), *Pair.Value.ToString());
+			PublishPanelSelected(Pair.Value);
+			return;
+		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabButtonClicked - could not identify which button"));
 }
 
-void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)
+//==================================================================
+// EventBus
+//==================================================================
+
+void USuspenseCorePanelSwitcherWidget::SetupEventSubscriptions()
 {
-	PanelSelectedDelegate.Broadcast(PanelTag);
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
+	if (!Manager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: EventManager not available"));
+		return;
+	}
+
+	CachedEventBus = Manager->GetEventBus();
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: EventBus not available"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: EventBus subscriptions established"));
+}
+
+void USuspenseCorePanelSwitcherWidget::TeardownEventSubscriptions()
+{
+	CachedEventBus.Reset();
+}
+
+void USuspenseCorePanelSwitcherWidget::PublishPanelSelected(const FGameplayTag& PanelTag)
+{
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Cannot publish - EventBus not available"));
+		return;
+	}
+
+	// Create event data with panel tag
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetTag(FName("PanelTag"), PanelTag);
+
+	// Publish event via EventBus (SuspenseCore.Event.UI.Panel.Selected)
+	CachedEventBus->Publish(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
+		EventData
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Published panel selected event - %s"), *PanelTag.ToString());
 }

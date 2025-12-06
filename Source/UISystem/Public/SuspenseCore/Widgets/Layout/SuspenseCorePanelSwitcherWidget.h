@@ -7,17 +7,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
 #include "SuspenseCorePanelSwitcherWidget.generated.h"
 
 // Forward declarations
 class UHorizontalBox;
 class UButton;
 class UTextBlock;
-
-/**
- * Delegate for panel selection
- */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSuspenseCorePanelSelected, const FGameplayTag&);
+class USuspenseCoreEventBus;
 
 /**
  * FSuspenseCorePanelTab
@@ -153,13 +150,24 @@ public:
 	void SelectPreviousTab();
 
 	//==================================================================
-	// Events
+	// EventBus
 	//==================================================================
 
 	/**
-	 * Get panel selected delegate
+	 * Setup EventBus subscriptions
 	 */
-	FOnSuspenseCorePanelSelected& OnPanelSelected() { return PanelSelectedDelegate; }
+	void SetupEventSubscriptions();
+
+	/**
+	 * Teardown EventBus subscriptions
+	 */
+	void TeardownEventSubscriptions();
+
+	/**
+	 * Publish panel selected event via EventBus
+	 * @param PanelTag Selected panel tag
+	 */
+	void PublishPanelSelected(const FGameplayTag& PanelTag);
 
 	//==================================================================
 	// Blueprint Events
@@ -188,10 +196,11 @@ protected:
 	void UpdateTabVisual(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 	virtual void UpdateTabVisual_Implementation(const FSuspenseCorePanelTab& Tab, bool bIsSelected);
 
-	/** Handle tab button clicked with index - allows reliable identification */
-	void HandleTabClickedByIndex(int32 TabIndex);
+	/** Handle tab button clicked - uses FSlateApplication to identify clicked button */
+	UFUNCTION()
+	void HandleTabButtonClicked();
 
-	/** Handle tab button clicked with tag */
+	/** Handle tab button clicked with tag (direct call) */
 	void OnTabButtonClicked(FGameplayTag PanelTag);
 
 	//==================================================================
@@ -234,8 +243,9 @@ private:
 	/** Currently active panel tag */
 	FGameplayTag ActivePanelTag;
 
-	/** Panel selected delegate */
-	FOnSuspenseCorePanelSelected PanelSelectedDelegate;
+	/** Cached EventBus reference */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** Map of panel tags to tab indices */
 	TMap<FGameplayTag, int32> TabIndexByTag;

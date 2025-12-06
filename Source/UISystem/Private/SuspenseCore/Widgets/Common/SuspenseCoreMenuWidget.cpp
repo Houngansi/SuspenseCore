@@ -114,7 +114,7 @@ USuspenseCoreButtonWidget* USuspenseCoreMenuWidget::CreateButton(const FSuspense
 	Button->SetButtonText(Config.ButtonText);
 	Button->SetButtonStyle(Config.Style);
 	Button->SetButtonEnabled(Config.bEnabled);
-	Button->ActionTag = Config.ActionTag;
+	Button->SetActionTag(Config.ActionTag);
 
 	if (Config.Icon)
 	{
@@ -123,7 +123,7 @@ USuspenseCoreButtonWidget* USuspenseCoreMenuWidget::CreateButton(const FSuspense
 
 	if (!Config.Tooltip.IsEmpty())
 	{
-		Button->ButtonTooltipText = Config.Tooltip;
+		Button->SetTooltipText(Config.Tooltip);
 	}
 
 	// Bind click event
@@ -135,18 +135,18 @@ USuspenseCoreButtonWidget* USuspenseCoreMenuWidget::CreateButton(const FSuspense
 	// Add to container with spacing
 	if (UVerticalBox* VBox = Cast<UVerticalBox>(ButtonContainer))
 	{
-		UVerticalBoxSlot* Slot = VBox->AddChildToVerticalBox(Button);
-		if (Slot)
+		UVerticalBoxSlot* ButtonSlot = VBox->AddChildToVerticalBox(Button);
+		if (ButtonSlot)
 		{
-			Slot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, ButtonSpacing));
+			ButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, ButtonSpacing));
 		}
 	}
 	else if (UHorizontalBox* HBox = Cast<UHorizontalBox>(ButtonContainer))
 	{
-		UHorizontalBoxSlot* Slot = HBox->AddChildToHorizontalBox(Button);
-		if (Slot)
+		UHorizontalBoxSlot* ButtonSlot = HBox->AddChildToHorizontalBox(Button);
+		if (ButtonSlot)
 		{
-			Slot->SetPadding(FMargin(0.0f, 0.0f, ButtonSpacing, 0.0f));
+			ButtonSlot->SetPadding(FMargin(0.0f, 0.0f, ButtonSpacing, 0.0f));
 		}
 	}
 	else
@@ -180,7 +180,7 @@ void USuspenseCoreMenuWidget::OnButtonClicked(USuspenseCoreButtonWidget* Button)
 		return;
 	}
 
-	FGameplayTag ActionTag = Button->ActionTag;
+	FGameplayTag ActionTag = Button->GetActionTag();
 
 	// Call handler (can be overridden)
 	HandleButtonAction(ActionTag, Button);

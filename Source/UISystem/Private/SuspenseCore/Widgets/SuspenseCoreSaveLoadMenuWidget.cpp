@@ -341,9 +341,10 @@ void USuspenseCoreSaveLoadMenuWidget::UpdateModeDisplay()
 		TitleText->SetText(CurrentMode == ESuspenseCoreSaveLoadMode::Save ? SaveModeTitle : LoadModeTitle);
 	}
 
-	if (ActionButtonText)
+	// Update action button text via widget's SetButtonText
+	if (ActionButton)
 	{
-		ActionButtonText->SetText(CurrentMode == ESuspenseCoreSaveLoadMode::Save ? SaveButtonText : LoadButtonText);
+		ActionButton->SetButtonText(CurrentMode == ESuspenseCoreSaveLoadMode::Save ? SaveButtonText : LoadButtonText);
 	}
 
 	// Delete button only in Load mode or when slot has data
@@ -374,14 +375,14 @@ void USuspenseCoreSaveLoadMenuWidget::UpdateActionButtonState()
 		bCanAct = SelectedSlotIndex >= 0 && !bSelectedSlotEmpty;
 	}
 
-	ActionButton->SetIsEnabled(bCanAct);
+	ActionButton->SetButtonEnabled(bCanAct);
 
 	// Update delete button
 	if (DeleteButton)
 	{
 		bool bCanDelete = SelectedSlotIndex >= 0 && !bSelectedSlotEmpty && SelectedSlotIndex != AUTOSAVE_SLOT;
 		DeleteButton->SetVisibility(bCanDelete ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-		DeleteButton->SetIsEnabled(bCanDelete);
+		DeleteButton->SetButtonEnabled(bCanDelete);
 	}
 }
 

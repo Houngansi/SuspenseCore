@@ -209,6 +209,24 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Button", meta = (DisplayName = "On Focus Changed"))
 	void K2_OnFocusChanged(bool bHasFocus);
 
+	/**
+	 * Set action tag for identification
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Button")
+	void SetActionTag(FGameplayTag NewTag) { ActionTag = NewTag; }
+
+	/**
+	 * Get action tag
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Button")
+	FGameplayTag GetActionTag() const { return ActionTag; }
+
+	/**
+	 * Set tooltip text
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Button")
+	void SetTooltipText(const FText& NewTooltip) { ButtonTooltipText = NewTooltip; }
+
 protected:
 	//==================================================================
 	// Widget Bindings (set in Blueprint)

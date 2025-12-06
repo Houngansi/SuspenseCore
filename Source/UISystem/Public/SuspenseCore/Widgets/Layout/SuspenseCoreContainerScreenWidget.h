@@ -252,6 +252,9 @@ protected:
 	/** Unbind from UIManager events */
 	void UnbindFromUIManager();
 
+	/** Create default layout structure if widgets are not bound in Blueprint */
+	void CreateDefaultLayoutIfNeeded();
+
 	//==================================================================
 	// Widget References (Bind in Blueprint)
 	//==================================================================

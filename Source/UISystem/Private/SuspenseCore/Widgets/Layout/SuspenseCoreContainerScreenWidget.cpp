@@ -11,6 +11,11 @@
 #include "Components/WidgetSwitcher.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Blueprint/WidgetTree.h"
 
 //==================================================================
 // Constructor
@@ -34,6 +39,9 @@ void USuspenseCoreContainerScreenWidget::NativeConstruct()
 	// Make widget focusable for mouse/keyboard input
 	SetIsFocusable(true);
 
+	// CRITICAL: Create default layout if widgets are not bound
+	CreateDefaultLayoutIfNeeded();
+
 	// Cache UIManager reference
 	CachedUIManager = USuspenseCoreUIManager::Get(this);
 
@@ -48,6 +56,110 @@ void USuspenseCoreContainerScreenWidget::NativeConstruct()
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(InputMode);
 		PC->bShowMouseCursor = true;
+	}
+}
+
+void USuspenseCoreContainerScreenWidget::CreateDefaultLayoutIfNeeded()
+{
+	// Check if we need to create layout dynamically
+	bool bNeedsLayout = !PanelSwitcher || !PanelContainer || !OverlayLayer;
+
+	if (!bNeedsLayout)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: Creating default layout. PanelSwitcher=%s, PanelContainer=%s, OverlayLayer=%s"),
+		PanelSwitcher ? TEXT("OK") : TEXT("NULL"),
+		PanelContainer ? TEXT("OK") : TEXT("NULL"),
+		OverlayLayer ? TEXT("OK") : TEXT("NULL"));
+
+	// Get or create root widget
+	UWidget* RootWidget = GetRootWidget();
+	UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(RootWidget);
+
+	if (!RootCanvas && WidgetTree)
+	{
+		// Create root canvas if not present
+		RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
+		if (RootCanvas)
+		{
+			WidgetTree->RootWidget = RootCanvas;
+		}
+	}
+
+	if (!RootCanvas)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ContainerScreen: Cannot create layout - no root canvas!"));
+		return;
+	}
+
+	// Create main vertical container
+	UVerticalBox* MainContainer = WidgetTree ?
+		WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainContainer")) :
+		NewObject<UVerticalBox>(this, TEXT("MainContainer"));
+
+	if (MainContainer)
+	{
+		UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainContainer);
+		if (MainSlot)
+		{
+			MainSlot->SetAnchors(FAnchors(0.1f, 0.1f, 0.9f, 0.9f));
+			MainSlot->SetOffsets(FMargin(0.0f));
+		}
+	}
+
+	// Create PanelSwitcher if not bound
+	if (!PanelSwitcher && MainContainer)
+	{
+		PanelSwitcher = CreateWidget<USuspenseCorePanelSwitcherWidget>(GetOwningPlayer(), USuspenseCorePanelSwitcherWidget::StaticClass());
+		if (PanelSwitcher)
+		{
+			UVerticalBoxSlot* SwitcherSlot = MainContainer->AddChildToVerticalBox(PanelSwitcher);
+			if (SwitcherSlot)
+			{
+				SwitcherSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+				SwitcherSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+			}
+			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default PanelSwitcher"));
+		}
+	}
+
+	// Create PanelContainer (WidgetSwitcher) if not bound
+	if (!PanelContainer && MainContainer)
+	{
+		PanelContainer = WidgetTree ?
+			WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass(), TEXT("PanelContainer")) :
+			NewObject<UWidgetSwitcher>(this, TEXT("PanelContainer"));
+
+		if (PanelContainer)
+		{
+			UVerticalBoxSlot* ContainerSlot = MainContainer->AddChildToVerticalBox(PanelContainer);
+			if (ContainerSlot)
+			{
+				ContainerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			}
+			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default PanelContainer"));
+		}
+	}
+
+	// Create OverlayLayer if not bound
+	if (!OverlayLayer)
+	{
+		OverlayLayer = WidgetTree ?
+			WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("OverlayLayer")) :
+			NewObject<UOverlay>(this, TEXT("OverlayLayer"));
+
+		if (OverlayLayer)
+		{
+			UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(OverlayLayer);
+			if (OverlaySlot)
+			{
+				OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+				OverlaySlot->SetOffsets(FMargin(0.0f));
+			}
+			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default OverlayLayer"));
+		}
 	}
 }
 

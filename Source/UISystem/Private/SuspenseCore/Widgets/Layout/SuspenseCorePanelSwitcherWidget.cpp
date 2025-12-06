@@ -7,6 +7,7 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Components/PanelWidget.h"
 
 //==================================================================
 // Constructor
@@ -26,6 +27,26 @@ USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObject
 void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// FALLBACK: If TabContainer is not bound in Blueprint, create it dynamically
+	if (!TabContainer)
+	{
+		TabContainer = NewObject<UHorizontalBox>(this, TEXT("TabContainer"));
+		if (TabContainer)
+		{
+			// Get root widget and add TabContainer to it
+			UWidget* RootWidget = GetRootWidget();
+			if (UPanelWidget* RootPanel = Cast<UPanelWidget>(RootWidget))
+			{
+				RootPanel->AddChild(TabContainer);
+				UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: TabContainer was not bound! Created dynamically. Please bind TabContainer in Blueprint for proper styling."));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("PanelSwitcher: Could not create TabContainer - root widget is not a panel!"));
+			}
+		}
+	}
 }
 
 void USuspenseCorePanelSwitcherWidget::NativeDestruct()

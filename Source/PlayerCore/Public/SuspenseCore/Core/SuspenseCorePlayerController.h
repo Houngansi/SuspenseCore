@@ -19,6 +19,8 @@ class ASuspenseCorePlayerState;
 class ASuspenseCoreCharacter;
 class USuspenseCorePauseMenuWidget;
 class USuspenseCoreHUDWidget;
+class USuspenseCoreContainerScreenWidget;
+class USuspenseCoreTooltipWidget;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INPUT CONFIGURATION
@@ -292,11 +294,11 @@ protected:
 
 	/** Container screen widget class (inventory, equipment, stash) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
-	TSubclassOf<class USuspenseCoreContainerScreenWidget> ContainerScreenWidgetClass;
+	TSubclassOf<USuspenseCoreContainerScreenWidget> ContainerScreenWidgetClass;
 
 	/** Tooltip widget class for items */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
-	TSubclassOf<class USuspenseCoreTooltipWidget> TooltipWidgetClass;
+	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS

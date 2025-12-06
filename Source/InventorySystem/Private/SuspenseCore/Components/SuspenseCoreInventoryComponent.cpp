@@ -21,6 +21,7 @@ USuspenseCoreInventoryComponent::USuspenseCoreInventoryComponent()
 	: CurrentWeight(0.0f)
 	, bIsInitialized(false)
 	, bTransactionActive(false)
+	, ProviderID(FGuid::NewGuid())
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
@@ -1559,5 +1560,507 @@ void USuspenseCoreInventoryComponent::Server_RemoveItemFromSlot_Implementation(i
 	{
 		FGuid InstanceID = GridSlots[SlotIndex].InstanceID;
 		RemoveItemInternal(InstanceID, RemovedInstance);
+	}
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider - Implementation
+//==================================================================
+
+FGameplayTag USuspenseCoreInventoryComponent::GetContainerTypeTag() const
+{
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIProvider.Type.Inventory")));
+}
+
+FSuspenseCoreContainerUIData USuspenseCoreInventoryComponent::GetContainerUIData() const
+{
+	FSuspenseCoreContainerUIData Data;
+
+	Data.ContainerID = ProviderID;
+	Data.ContainerType = ESuspenseCoreContainerType::Inventory;
+	Data.ContainerTypeTag = GetContainerTypeTag();
+	Data.DisplayName = NSLOCTEXT("SuspenseCore", "Inventory", "INVENTORY");
+	Data.LayoutType = ESuspenseCoreSlotLayoutType::Grid;
+	Data.GridSize = FIntPoint(Config.GridWidth, Config.GridHeight);
+	Data.TotalSlots = Config.GridWidth * Config.GridHeight;
+	Data.OccupiedSlots = ItemInstances.Num();
+	Data.bHasWeightLimit = Config.MaxWeight > 0.0f;
+	Data.CurrentWeight = CurrentWeight;
+	Data.MaxWeight = Config.MaxWeight;
+	Data.WeightPercent = Config.MaxWeight > 0.0f ? CurrentWeight / Config.MaxWeight : 0.0f;
+	Data.AllowedItemTypes = Config.AllowedItemTypes;
+	Data.bIsLocked = false;
+	Data.bIsReadOnly = false;
+
+	// Fill slots data
+	Data.Slots = GetAllSlotUIData();
+
+	// Fill items data
+	Data.Items = GetAllItemUIData();
+
+	return Data;
+}
+
+TArray<FSuspenseCoreSlotUIData> USuspenseCoreInventoryComponent::GetAllSlotUIData() const
+{
+	TArray<FSuspenseCoreSlotUIData> Result;
+	Result.Reserve(GridSlots.Num());
+
+	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	{
+		Result.Add(ConvertSlotToUIData(i));
+	}
+
+	return Result;
+}
+
+FSuspenseCoreSlotUIData USuspenseCoreInventoryComponent::GetSlotUIData(int32 SlotIndex) const
+{
+	if (!IsSlotValid(SlotIndex))
+	{
+		return FSuspenseCoreSlotUIData();
+	}
+
+	return ConvertSlotToUIData(SlotIndex);
+}
+
+bool USuspenseCoreInventoryComponent::IsSlotValid(int32 SlotIndex) const
+{
+	return SlotIndex >= 0 && SlotIndex < GridSlots.Num();
+}
+
+TArray<FSuspenseCoreItemUIData> USuspenseCoreInventoryComponent::GetAllItemUIData() const
+{
+	TArray<FSuspenseCoreItemUIData> Result;
+	Result.Reserve(ItemInstances.Num());
+
+	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+	{
+		Result.Add(ConvertToUIData(Instance));
+	}
+
+	return Result;
+}
+
+bool USuspenseCoreInventoryComponent::GetItemUIDataAtSlot(int32 SlotIndex, FSuspenseCoreItemUIData& OutItem) const
+{
+	if (!IsSlotOccupied(SlotIndex))
+	{
+		return false;
+	}
+
+	const FGuid& InstanceID = GridSlots[SlotIndex].InstanceID;
+	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
+	if (!Instance)
+	{
+		return false;
+	}
+
+	OutItem = ConvertToUIData(*Instance);
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::FindItemUIData(const FGuid& InstanceID, FSuspenseCoreItemUIData& OutItem) const
+{
+	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
+	if (!Instance)
+	{
+		return false;
+	}
+
+	OutItem = ConvertToUIData(*Instance);
+	return true;
+}
+
+FSuspenseCoreDropValidation USuspenseCoreInventoryComponent::ValidateDrop(
+	const FSuspenseCoreDragData& DragData,
+	int32 TargetSlot,
+	bool bRotated) const
+{
+	// Check if slot is valid
+	if (!IsSlotValid(TargetSlot))
+	{
+		return FSuspenseCoreDropValidation::Invalid(
+			NSLOCTEXT("SuspenseCore", "InvalidSlot", "Invalid slot"));
+	}
+
+	// Get item size
+	FIntPoint ItemSize = DragData.Item.GetEffectiveSize();
+	if (bRotated)
+	{
+		ItemSize = FIntPoint(ItemSize.Y, ItemSize.X);
+	}
+
+	// Check if can place
+	if (!CanPlaceItemAtSlot(ItemSize, TargetSlot, bRotated))
+	{
+		// Check if this is from same container and same slot - allow rotation in place
+		if (DragData.SourceContainerType == ESuspenseCoreContainerType::Inventory &&
+			DragData.SourceSlot == TargetSlot)
+		{
+			return FSuspenseCoreDropValidation::Valid();
+		}
+
+		return FSuspenseCoreDropValidation::Invalid(
+			NSLOCTEXT("SuspenseCore", "NoSpace", "Not enough space"));
+	}
+
+	// Check weight
+	if (HasWeightLimit())
+	{
+		float ItemWeight = DragData.Item.TotalWeight;
+		// If from same container, weight is already counted
+		if (DragData.SourceContainerType != ESuspenseCoreContainerType::Inventory)
+		{
+			if (CurrentWeight + ItemWeight > Config.MaxWeight)
+			{
+				return FSuspenseCoreDropValidation::Invalid(
+					NSLOCTEXT("SuspenseCore", "WeightLimit", "Weight limit exceeded"));
+			}
+		}
+	}
+
+	// Check item type restrictions
+	if (!CanAcceptItemType(DragData.Item.ItemType))
+	{
+		return FSuspenseCoreDropValidation::Invalid(
+			NSLOCTEXT("SuspenseCore", "TypeNotAllowed", "Item type not allowed"));
+	}
+
+	return FSuspenseCoreDropValidation::Valid();
+}
+
+bool USuspenseCoreInventoryComponent::CanAcceptItemType(const FGameplayTag& ItemType) const
+{
+	if (Config.AllowedItemTypes.Num() > 0)
+	{
+		if (!Config.AllowedItemTypes.HasTag(ItemType))
+		{
+			return false;
+		}
+	}
+
+	if (Config.DisallowedItemTypes.HasTag(ItemType))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+int32 USuspenseCoreInventoryComponent::FindBestSlotForItem(FIntPoint ItemSize, bool bAllowRotation) const
+{
+	return FindFreeSlot(ItemSize, bAllowRotation);
+}
+
+bool USuspenseCoreInventoryComponent::RequestMoveItem(int32 FromSlot, int32 ToSlot, bool bRotate)
+{
+	// Use existing MoveItem which handles server RPC
+	return MoveItem_Implementation(FromSlot, ToSlot);
+}
+
+bool USuspenseCoreInventoryComponent::RequestRotateItem(int32 SlotIndex)
+{
+	return RotateItemAtSlot(SlotIndex);
+}
+
+bool USuspenseCoreInventoryComponent::RequestUseItem(int32 SlotIndex)
+{
+	// TODO: Implement use item via EventBus
+	FSuspenseCoreItemInstance Instance;
+	if (!GetItemInstanceAtSlot(SlotIndex, Instance))
+	{
+		return false;
+	}
+
+	// Broadcast use item request via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+		EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
+		EventData.SetString(TEXT("ItemID"), Instance.ItemID.ToString());
+		EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIRequest.UseItem"))), EventData);
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::RequestDropItem(int32 SlotIndex, int32 Quantity)
+{
+	// TODO: Implement drop item via EventBus
+	FSuspenseCoreItemInstance Instance;
+	if (!GetItemInstanceAtSlot(SlotIndex, Instance))
+	{
+		return false;
+	}
+
+	// Broadcast drop item request
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+		EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
+		EventData.SetString(TEXT("ItemID"), Instance.ItemID.ToString());
+		EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+		EventData.SetInt(TEXT("Quantity"), Quantity > 0 ? Quantity : Instance.Quantity);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIRequest.DropItem"))), EventData);
+	}
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::RequestSplitStack(int32 SlotIndex, int32 SplitQuantity, int32 TargetSlot)
+{
+	return SplitStack(SlotIndex, SplitQuantity, TargetSlot);
+}
+
+bool USuspenseCoreInventoryComponent::RequestTransferItem(
+	int32 SlotIndex,
+	const FGuid& TargetProviderID,
+	int32 TargetSlot,
+	int32 Quantity)
+{
+	// Broadcast transfer request via EventBus
+	FSuspenseCoreItemInstance Instance;
+	if (!GetItemInstanceAtSlot(SlotIndex, Instance))
+	{
+		return false;
+	}
+
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+		EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
+		EventData.SetString(TEXT("ItemID"), Instance.ItemID.ToString());
+		EventData.SetInt(TEXT("SourceSlot"), SlotIndex);
+		EventData.SetGuid(TEXT("TargetProviderID"), TargetProviderID);
+		EventData.SetInt(TEXT("TargetSlot"), TargetSlot);
+		EventData.SetInt(TEXT("Quantity"), Quantity > 0 ? Quantity : Instance.Quantity);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIRequest.TransferItem"))), EventData);
+	}
+
+	return true;
+}
+
+TArray<FGameplayTag> USuspenseCoreInventoryComponent::GetItemContextActions(int32 SlotIndex) const
+{
+	TArray<FGameplayTag> Actions;
+
+	FSuspenseCoreItemInstance Instance;
+	if (!GetItemInstanceAtSlot(SlotIndex, Instance))
+	{
+		return Actions;
+	}
+
+	// Get item data for capabilities
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
+	{
+		return Actions;
+	}
+
+	FSuspenseCoreItemData ItemData;
+	if (!DataManager->GetItemData(Instance.ItemID, ItemData))
+	{
+		return Actions;
+	}
+
+	// Always available
+	Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Examine"))));
+
+	// Use if usable
+	if (ItemData.Classification.bIsConsumable)
+	{
+		Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Use"))));
+	}
+
+	// Equip if equippable
+	if (ItemData.Classification.bIsEquippable)
+	{
+		Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Equip"))));
+	}
+
+	// Split if stackable and quantity > 1
+	if (ItemData.InventoryProps.IsStackable() && Instance.Quantity > 1)
+	{
+		Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Split"))));
+	}
+
+	// Drop
+	Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Drop"))));
+
+	// Discard
+	Actions.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Discard"))));
+
+	return Actions;
+}
+
+bool USuspenseCoreInventoryComponent::ExecuteContextAction(int32 SlotIndex, const FGameplayTag& ActionTag)
+{
+	static const FGameplayTag UseTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Use")));
+	static const FGameplayTag EquipTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Equip")));
+	static const FGameplayTag DropTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Drop")));
+	static const FGameplayTag SplitTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Split")));
+	static const FGameplayTag DiscardTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Discard")));
+	static const FGameplayTag ExamineTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Examine")));
+
+	if (ActionTag == UseTag)
+	{
+		return RequestUseItem(SlotIndex);
+	}
+	else if (ActionTag == EquipTag)
+	{
+		// Broadcast equip request
+		FSuspenseCoreItemInstance Instance;
+		if (GetItemInstanceAtSlot(SlotIndex, Instance))
+		{
+			USuspenseCoreEventBus* EventBus = GetEventBus();
+			if (EventBus)
+			{
+				FSuspenseCoreEventData EventData;
+				EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+				EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
+				EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+				EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIRequest.EquipItem"))), EventData);
+			}
+			return true;
+		}
+		return false;
+	}
+	else if (ActionTag == DropTag)
+	{
+		return RequestDropItem(SlotIndex, 0);
+	}
+	else if (ActionTag == SplitTag)
+	{
+		// Split half the stack to next available slot
+		FSuspenseCoreItemInstance Instance;
+		if (GetItemInstanceAtSlot(SlotIndex, Instance) && Instance.Quantity > 1)
+		{
+			int32 SplitQty = Instance.Quantity / 2;
+			return RequestSplitStack(SlotIndex, SplitQty, INDEX_NONE);
+		}
+		return false;
+	}
+	else if (ActionTag == DiscardTag)
+	{
+		// Remove without dropping
+		FSuspenseCoreItemInstance RemovedInstance;
+		return RemoveItemFromSlot(SlotIndex, RemovedInstance);
+	}
+	else if (ActionTag == ExamineTag)
+	{
+		// Broadcast examine event for UI to show details
+		FSuspenseCoreItemInstance Instance;
+		if (GetItemInstanceAtSlot(SlotIndex, Instance))
+		{
+			USuspenseCoreEventBus* EventBus = GetEventBus();
+			if (EventBus)
+			{
+				FSuspenseCoreEventData EventData;
+				EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+				EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
+				EventData.SetString(TEXT("ItemID"), Instance.ItemID.ToString());
+				EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.UIAction.Examine"))), EventData);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	return false;
+}
+
+//==================================================================
+// UI Data Provider - Conversion Helpers
+//==================================================================
+
+FSuspenseCoreItemUIData USuspenseCoreInventoryComponent::ConvertToUIData(const FSuspenseCoreItemInstance& Instance) const
+{
+	FSuspenseCoreItemUIData UIData;
+
+	UIData.InstanceID = Instance.UniqueInstanceID;
+	UIData.ItemID = Instance.ItemID;
+	UIData.AnchorSlot = Instance.SlotIndex;
+	UIData.Quantity = Instance.Quantity;
+	UIData.bIsRotated = Instance.Rotation != 0;
+
+	// Get static data from DataManager
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (DataManager->GetItemData(Instance.ItemID, ItemData))
+		{
+			UIData.DisplayName = ItemData.DisplayInfo.DisplayName;
+			UIData.Description = ItemData.DisplayInfo.Description;
+			UIData.IconPath = ItemData.DisplayInfo.Icon.ToSoftObjectPath();
+			UIData.ItemType = ItemData.Classification.ItemType;
+			UIData.RarityTag = ItemData.Classification.RarityTag;
+			UIData.GridSize = ItemData.InventoryProps.GridSize;
+			UIData.MaxStackSize = ItemData.InventoryProps.MaxStackSize;
+			UIData.bIsStackable = ItemData.InventoryProps.IsStackable();
+			UIData.UnitWeight = ItemData.InventoryProps.Weight;
+			UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
+			UIData.bIsEquippable = ItemData.Classification.bIsEquippable;
+			UIData.bIsUsable = ItemData.Classification.bIsConsumable;
+			UIData.bIsDroppable = !ItemData.Classification.bIsQuestItem;
+			UIData.bIsTradeable = !ItemData.Classification.bIsQuestItem;
+			UIData.EquipmentSlotType = ItemData.Classification.EquipmentSlotType;
+		}
+	}
+
+	return UIData;
+}
+
+FSuspenseCoreSlotUIData USuspenseCoreInventoryComponent::ConvertSlotToUIData(int32 SlotIndex) const
+{
+	FSuspenseCoreSlotUIData SlotData;
+	SlotData.SlotIndex = SlotIndex;
+	SlotData.GridPosition = SlotToGridCoords(SlotIndex);
+
+	if (SlotIndex >= 0 && SlotIndex < GridSlots.Num())
+	{
+		const FSuspenseCoreInventorySlot& Slot = GridSlots[SlotIndex];
+		SlotData.bIsAnchor = Slot.bIsAnchor;
+		SlotData.bIsPartOfItem = !Slot.IsEmpty() && !Slot.bIsAnchor;
+		SlotData.OccupyingItemID = Slot.InstanceID;
+
+		if (Slot.IsEmpty())
+		{
+			SlotData.State = ESuspenseCoreUISlotState::Empty;
+		}
+		else
+		{
+			SlotData.State = ESuspenseCoreUISlotState::Occupied;
+		}
+	}
+	else
+	{
+		SlotData.State = ESuspenseCoreUISlotState::Invalid;
+	}
+
+	return SlotData;
+}
+
+void USuspenseCoreInventoryComponent::BroadcastUIDataChanged(const FGameplayTag& ChangeType, const FGuid& AffectedItemID)
+{
+	UIDataChangedDelegate.Broadcast(ChangeType, AffectedItemID);
+
+	// Also broadcast via EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		FSuspenseCoreEventData EventData;
+		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
+		EventData.SetGuid(TEXT("ProviderID"), ProviderID);
+		EventData.SetGuid(TEXT("AffectedItemID"), AffectedItemID);
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIProvider.DataChanged"))), EventData);
 	}
 }

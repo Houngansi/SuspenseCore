@@ -10,6 +10,7 @@
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -154,6 +155,14 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 		{
 			EnhancedInput->BindAction(IA_QuickLoad, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickLoad);
 			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_QuickLoad -> HandleQuickLoad"));
+		}
+
+		// Inventory toggle
+		UE_LOG(LogTemp, Warning, TEXT("  IA_ToggleInventory: %s"), IA_ToggleInventory ? *IA_ToggleInventory->GetName() : TEXT("NULL!"));
+		if (IA_ToggleInventory)
+		{
+			EnhancedInput->BindAction(IA_ToggleInventory, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleToggleInventory);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_ToggleInventory -> HandleToggleInventory"));
 		}
 
 		// Bind additional ability inputs
@@ -801,4 +810,81 @@ void ASuspenseCorePlayerController::ApplyCurrentUIMode()
 
 		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: UI Mode INACTIVE - Cursor OFF, Mode: GameOnly"));
 	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVENTORY / CONTAINER SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::HandleToggleInventory(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleToggleInventory called! ==="));
+	ToggleInventory();
+}
+
+void ASuspenseCorePlayerController::ToggleInventory()
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== ToggleInventory ==="));
+
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
+		return;
+	}
+
+	if (UIManager->IsContainerScreenVisible())
+	{
+		HideInventory();
+	}
+	else
+	{
+		ShowInventory();
+	}
+}
+
+void ASuspenseCorePlayerController::ShowInventory()
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== ShowInventory ==="));
+
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
+		return;
+	}
+
+	// Default to inventory panel
+	static const FGameplayTag InventoryPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Inventory"));
+
+	if (UIManager->ShowContainerScreen(this, InventoryPanelTag))
+	{
+		// Push UI mode for cursor management
+		ISuspenseCoreUIController::Execute_PushUIMode(this, TEXT("Inventory"));
+		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen shown"));
+	}
+}
+
+void ASuspenseCorePlayerController::HideInventory()
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HideInventory ==="));
+
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
+		return;
+	}
+
+	UIManager->HideContainerScreen();
+
+	// Pop UI mode
+	ISuspenseCoreUIController::Execute_PopUIMode(this, TEXT("Inventory"));
+	UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen hidden"));
+}
+
+bool ASuspenseCorePlayerController::IsInventoryVisible() const
+{
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	return UIManager && UIManager->IsContainerScreenVisible();
 }

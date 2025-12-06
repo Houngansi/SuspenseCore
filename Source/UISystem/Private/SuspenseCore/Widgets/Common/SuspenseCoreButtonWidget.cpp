@@ -23,6 +23,14 @@ void USuspenseCoreButtonWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// Debug: Log binding status
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreButton[%s]: MainButton=%s, ButtonTextBlock=%s, ButtonIcon=%s, ButtonText='%s'"),
+		*GetName(),
+		MainButton ? TEXT("BOUND") : TEXT("NULL"),
+		ButtonTextBlock ? TEXT("BOUND") : TEXT("NULL"),
+		ButtonIcon ? TEXT("BOUND") : TEXT("NULL"),
+		*ButtonText.ToString());
+
 	// Bind button events if MainButton is valid
 	if (MainButton)
 	{
@@ -32,11 +40,22 @@ void USuspenseCoreButtonWidget::NativeConstruct()
 		MainButton->OnPressed.AddDynamic(this, &USuspenseCoreButtonWidget::OnMainButtonPressed);
 		MainButton->OnReleased.AddDynamic(this, &USuspenseCoreButtonWidget::OnMainButtonReleased);
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreButton[%s]: MainButton not bound - Blueprint widget must have UButton named 'MainButton'!"), *GetName());
+	}
 
 	// Apply initial text
-	if (ButtonTextBlock && !ButtonText.IsEmpty())
+	if (ButtonTextBlock)
 	{
-		ButtonTextBlock->SetText(ButtonText);
+		if (!ButtonText.IsEmpty())
+		{
+			ButtonTextBlock->SetText(ButtonText);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreButton[%s]: ButtonTextBlock not bound - Blueprint widget must have UTextBlock named 'ButtonTextBlock'!"), *GetName());
 	}
 
 	// Apply initial style

@@ -391,6 +391,24 @@ protected:
 	/** Initialize all equipment module components */
 	void InitializeEquipmentComponents();
 
+	/** Initialize inventory component from loadout configuration */
+	void InitializeInventoryFromLoadout();
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Default loadout ID for this player.
+	 * References row in SuspenseCoreDataManager's LoadoutDataTable.
+	 * LoadoutDataTable row (FSuspenseCoreTemplateLoadout) contains:
+	 * - InventoryWidth, InventoryHeight, MaxWeight for inventory config
+	 * - Equipment slots configuration
+	 * - Initial items
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Loadout")
+	FName DefaultLoadoutID = TEXT("Default_Soldier");
+
 private:
 	/** Cached EventBus reference (mutable for const getter caching) */
 	UPROPERTY()

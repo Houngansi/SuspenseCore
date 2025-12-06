@@ -8,6 +8,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"

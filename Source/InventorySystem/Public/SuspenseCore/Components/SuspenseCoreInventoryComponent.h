@@ -218,6 +218,15 @@ public:
 	virtual int32 FindBestSlotForItem(FIntPoint ItemSize, bool bAllowRotation = true) const override;
 
 	//==================================================================
+	// ISuspenseCoreUIDataProvider - Grid Position Calculations
+	//==================================================================
+
+	virtual int32 GetSlotAtLocalPosition(const FVector2D& LocalPos, float CellSize, float CellGap) const override;
+	virtual TArray<int32> GetOccupiedSlotsForItem(const FGuid& ItemInstanceID) const override;
+	virtual int32 GetAnchorSlotForPosition(int32 AnySlotIndex) const override;
+	virtual bool CanPlaceItemAtSlot(const FGuid& ItemID, int32 SlotIndex, bool bRotated) const override;
+
+	//==================================================================
 	// ISuspenseCoreUIDataProvider - Operations
 	//==================================================================
 

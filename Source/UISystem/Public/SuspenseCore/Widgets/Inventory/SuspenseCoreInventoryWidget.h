@@ -15,6 +15,88 @@ class UUniformGridPanel;
 class UCanvasPanel;
 
 /**
+ * FSuspenseCoreGridUpdateBatch
+ * Batch structure for efficient grid updates.
+ * Collects multiple slot changes and applies them in a single pass.
+ */
+USTRUCT(BlueprintType)
+struct UISYSTEM_API FSuspenseCoreGridUpdateBatch
+{
+	GENERATED_BODY()
+
+	/** Slots that need visibility updates */
+	UPROPERTY(BlueprintReadWrite, Category = "Batch")
+	TMap<int32, bool> SlotVisibilityUpdates;
+
+	/** Slots that need span/size updates (for multi-cell items) */
+	UPROPERTY(BlueprintReadWrite, Category = "Batch")
+	TMap<int32, FIntPoint> SlotSpanUpdates;
+
+	/** Slots that need full content refresh */
+	UPROPERTY(BlueprintReadWrite, Category = "Batch")
+	TArray<int32> SlotsToRefresh;
+
+	/** Slots with highlight state changes */
+	UPROPERTY(BlueprintReadWrite, Category = "Batch")
+	TMap<int32, ESuspenseCoreUISlotState> SlotHighlightUpdates;
+
+	/** If true, skip individual updates and do full refresh */
+	UPROPERTY(BlueprintReadWrite, Category = "Batch")
+	bool bNeedsFullRefresh = false;
+
+	/** Clear all pending updates */
+	void Clear()
+	{
+		SlotVisibilityUpdates.Empty();
+		SlotSpanUpdates.Empty();
+		SlotsToRefresh.Empty();
+		SlotHighlightUpdates.Empty();
+		bNeedsFullRefresh = false;
+	}
+
+	/** Check if there are any pending updates */
+	bool HasUpdates() const
+	{
+		return bNeedsFullRefresh ||
+			SlotVisibilityUpdates.Num() > 0 ||
+			SlotSpanUpdates.Num() > 0 ||
+			SlotsToRefresh.Num() > 0 ||
+			SlotHighlightUpdates.Num() > 0;
+	}
+
+	/** Get total number of updates */
+	int32 GetUpdateCount() const
+	{
+		return SlotVisibilityUpdates.Num() + SlotSpanUpdates.Num() +
+			SlotsToRefresh.Num() + SlotHighlightUpdates.Num();
+	}
+
+	/** Add a slot to refresh */
+	void AddSlotToRefresh(int32 SlotIndex)
+	{
+		SlotsToRefresh.AddUnique(SlotIndex);
+	}
+
+	/** Set visibility for a slot */
+	void SetSlotVisibility(int32 SlotIndex, bool bVisible)
+	{
+		SlotVisibilityUpdates.Add(SlotIndex, bVisible);
+	}
+
+	/** Set span/size for a slot (multi-cell items) */
+	void SetSlotSpan(int32 SlotIndex, const FIntPoint& Span)
+	{
+		SlotSpanUpdates.Add(SlotIndex, Span);
+	}
+
+	/** Set highlight state for a slot */
+	void SetSlotHighlightState(int32 SlotIndex, ESuspenseCoreUISlotState State)
+	{
+		SlotHighlightUpdates.Add(SlotIndex, State);
+	}
+};
+
+/**
  * USuspenseCoreInventoryWidget
  *
  * Grid-based inventory container widget for Tarkov/Destiny-style inventory.
@@ -73,10 +155,11 @@ public:
 	void SetGridSize(const FIntPoint& InGridSize);
 
 	/**
-	 * Get grid dimensions
+	 * Get grid dimensions from provider (CachedContainerData)
+	 * NOTE: Always returns provider's grid size as single source of truth
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Inventory")
-	FIntPoint GetGridSize() const { return GridSize; }
+	FIntPoint GetGridSize() const { return CachedContainerData.GridSize; }
 
 	/**
 	 * Get slot size in pixels
@@ -95,6 +178,7 @@ public:
 	// ISuspenseCoreUIContainer Overrides
 	//==================================================================
 
+	virtual void RefreshFromProvider() override;
 	virtual UWidget* GetSlotWidget(int32 SlotIndex) const override;
 	virtual TArray<UWidget*> GetAllSlotWidgets() const override;
 	virtual int32 GetSlotAtLocalPosition(const FVector2D& LocalPosition) const override;
@@ -209,8 +293,13 @@ protected:
 	// Configuration
 	//==================================================================
 
-	/** Grid dimensions (columns x rows) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
+	/**
+	 * Grid dimensions (columns x rows)
+	 * @deprecated Use CachedContainerData.GridSize instead - this is only kept for BP backwards compatibility
+	 * The actual grid size should come from the provider (ISuspenseCoreUIDataProvider)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration",
+		meta = (DeprecatedProperty, DeprecationMessage = "Use provider's GridSize via CachedContainerData.GridSize"))
 	FIntPoint GridSize;
 
 	/** Size of each slot in pixels */
@@ -245,6 +334,56 @@ private:
 	/** Array of slot widgets */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USuspenseCoreInventorySlotWidget>> SlotWidgets;
+
+	//==================================================================
+	// Slot-to-Anchor Map (for multi-cell items)
+	//==================================================================
+
+	/**
+	 * Map from any occupied slot to the anchor slot of the item.
+	 * For single-cell items, the slot maps to itself.
+	 * For multi-cell items, all occupied slots map to the top-left anchor slot.
+	 *
+	 * Example: 2x2 item at slot 0
+	 * - SlotToAnchorMap[0] = 0 (anchor)
+	 * - SlotToAnchorMap[1] = 0 (maps to anchor)
+	 * - SlotToAnchorMap[10] = 0 (maps to anchor, next row)
+	 * - SlotToAnchorMap[11] = 0 (maps to anchor, next row)
+	 *
+	 * Usage: When clicking any slot, look up anchor to find the actual item.
+	 */
+	TMap<int32, int32> SlotToAnchorMap;
+
+	/** Update the slot-to-anchor map when inventory content changes */
+	void UpdateSlotToAnchorMap();
+
+	//==================================================================
+	// Batch Update System
+	//==================================================================
+
+	/** Pending batch of updates to apply */
+	FSuspenseCoreGridUpdateBatch PendingBatch;
+
+	/**
+	 * Apply a batch of slot updates efficiently
+	 * Minimizes individual widget updates by processing all changes at once.
+	 * @param Batch The batch of updates to apply
+	 */
+	void ApplyBatchUpdate(const FSuspenseCoreGridUpdateBatch& Batch);
+
+	/**
+	 * Begin collecting updates into a batch
+	 * Defers slot updates until CommitBatchUpdate is called.
+	 */
+	void BeginBatchUpdate();
+
+	/**
+	 * Commit and apply the pending batch of updates
+	 */
+	void CommitBatchUpdate();
+
+	/** Whether we're currently batching updates */
+	bool bIsBatchingUpdates = false;
 
 	//==================================================================
 	// State

@@ -1758,6 +1758,148 @@ int32 USuspenseCoreInventoryComponent::FindBestSlotForItem(FIntPoint ItemSize, b
 	return FindFreeSlot(ItemSize, bAllowRotation);
 }
 
+//==================================================================
+// ISuspenseCoreUIDataProvider - Grid Position Calculations
+//==================================================================
+
+int32 USuspenseCoreInventoryComponent::GetSlotAtLocalPosition(const FVector2D& LocalPos, float CellSize, float CellGap) const
+{
+	if (LocalPos.X < 0 || LocalPos.Y < 0)
+	{
+		return INDEX_NONE;
+	}
+
+	// Calculate which cell the position falls into
+	float TotalCellSize = CellSize + CellGap;
+	int32 Column = FMath::FloorToInt(LocalPos.X / TotalCellSize);
+	int32 Row = FMath::FloorToInt(LocalPos.Y / TotalCellSize);
+
+	// Validate bounds
+	if (Column < 0 || Column >= Config.GridWidth || Row < 0 || Row >= Config.GridHeight)
+	{
+		return INDEX_NONE;
+	}
+
+	return GridCoordsToSlot(FIntPoint(Column, Row));
+}
+
+TArray<int32> USuspenseCoreInventoryComponent::GetOccupiedSlotsForItem(const FGuid& ItemInstanceID) const
+{
+	TArray<int32> Result;
+
+	if (!ItemInstanceID.IsValid())
+	{
+		return Result;
+	}
+
+	// Find the item instance
+	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(ItemInstanceID);
+	if (!Instance)
+	{
+		return Result;
+	}
+
+	// Get item data for size
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
+	{
+		Result.Add(Instance->SlotIndex);
+		return Result;
+	}
+
+	FSuspenseCoreItemData ItemData;
+	if (!DataManager->GetItemData(Instance->ItemID, ItemData))
+	{
+		Result.Add(Instance->SlotIndex);
+		return Result;
+	}
+
+	// Calculate effective size (considering rotation)
+	FIntPoint ItemSize = ItemData.InventoryProps.GridSize;
+	bool bRotated = Instance->Rotation != 0;
+	FIntPoint EffectiveSize = bRotated ? FIntPoint(ItemSize.Y, ItemSize.X) : ItemSize;
+	FIntPoint StartCoords = SlotToGridCoords(Instance->SlotIndex);
+
+	// Collect all occupied slots
+	for (int32 Y = 0; Y < EffectiveSize.Y; ++Y)
+	{
+		for (int32 X = 0; X < EffectiveSize.X; ++X)
+		{
+			int32 SlotIdx = GridCoordsToSlot(FIntPoint(StartCoords.X + X, StartCoords.Y + Y));
+			if (SlotIdx != INDEX_NONE)
+			{
+				Result.Add(SlotIdx);
+			}
+		}
+	}
+
+	return Result;
+}
+
+int32 USuspenseCoreInventoryComponent::GetAnchorSlotForPosition(int32 AnySlotIndex) const
+{
+	if (!IsSlotValid(AnySlotIndex))
+	{
+		return INDEX_NONE;
+	}
+
+	if (!IsSlotOccupied(AnySlotIndex))
+	{
+		return AnySlotIndex; // Empty slot - return as-is
+	}
+
+	// Get the instance ID at this slot
+	const FGuid& InstanceID = GridSlots[AnySlotIndex].InstanceID;
+
+	// Find the instance to get its anchor slot
+	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
+	if (Instance)
+	{
+		return Instance->SlotIndex; // SlotIndex is always the anchor slot
+	}
+
+	return AnySlotIndex;
+}
+
+bool USuspenseCoreInventoryComponent::CanPlaceItemAtSlot(const FGuid& ItemID, int32 SlotIndex, bool bRotated) const
+{
+	if (!bIsInitialized || !IsSlotValid(SlotIndex))
+	{
+		return false;
+	}
+
+	// If no item ID specified, just check if slot is empty
+	if (!ItemID.IsValid())
+	{
+		return !IsSlotOccupied(SlotIndex);
+	}
+
+	// Find the item to get its size
+	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(ItemID);
+	if (!Instance)
+	{
+		return false;
+	}
+
+	// Get item data for size
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
+	{
+		return false;
+	}
+
+	FSuspenseCoreItemData ItemData;
+	if (!DataManager->GetItemData(Instance->ItemID, ItemData))
+	{
+		return false;
+	}
+
+	FIntPoint ItemSize = ItemData.InventoryProps.GridSize;
+
+	// Check placement using existing method
+	return CanPlaceItemAtSlot(ItemSize, SlotIndex, bRotated);
+}
+
 bool USuspenseCoreInventoryComponent::RequestMoveItem(int32 FromSlot, int32 ToSlot, bool bRotate)
 {
 	// Use existing MoveItem which handles server RPC

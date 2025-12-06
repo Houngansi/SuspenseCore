@@ -39,6 +39,9 @@ void USuspenseCoreInventoryWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// Make widget focusable for mouse/keyboard input
+	SetIsFocusable(true);
+
 	// Create initial slot widgets if we have a bound provider
 	if (IsBoundToProvider())
 	{

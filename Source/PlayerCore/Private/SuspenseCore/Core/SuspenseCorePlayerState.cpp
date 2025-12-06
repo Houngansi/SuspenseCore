@@ -106,7 +106,34 @@ void ASuspenseCorePlayerState::BeginPlay()
 	if (HasAuthority())
 	{
 		InitializeAbilitySystem();
+		InitializeInventoryFromLoadout();
 		InitializeEquipmentComponents();
+	}
+}
+
+void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
+{
+	if (!InventoryComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::InitializeInventoryFromLoadout: InventoryComponent is null"));
+		return;
+	}
+
+	if (DefaultLoadoutID.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::InitializeInventoryFromLoadout: DefaultLoadoutID not set, using component defaults"));
+		return;
+	}
+
+	// Initialize inventory from loadout DataTable
+	// This reads InventoryWidth, InventoryHeight, MaxWeight from FSuspenseCoreTemplateLoadout
+	if (InventoryComponent->InitializeFromLoadout(DefaultLoadoutID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Inventory initialized from loadout '%s'"), *DefaultLoadoutID.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: Failed to initialize inventory from loadout '%s'"), *DefaultLoadoutID.ToString());
 	}
 }
 

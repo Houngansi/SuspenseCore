@@ -8,6 +8,8 @@
 #include "Components/Border.h"
 #include "Components/SizeBox.h"
 #include "Engine/Texture2D.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
 
 //==================================================================
 // Constructor
@@ -141,11 +143,14 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 		// Only show icon on anchor slot (primary slot for multi-cell items)
 		if (CachedSlotData.bIsAnchor && CachedItemData.IconPath.IsValid())
 		{
-			// Load texture from soft path
+			UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Loading icon from path: %s"), SlotIndex, *CachedItemData.IconPath.ToString());
+
+			// First try synchronous load (works if asset is already in memory)
 			if (UTexture2D* IconTexture = Cast<UTexture2D>(CachedItemData.IconPath.TryLoad()))
 			{
+				UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Icon loaded synchronously"), SlotIndex);
 				ItemIcon->SetBrushFromTexture(IconTexture);
-				ItemIcon->SetVisibility(ESlateVisibility::Visible);
+				ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 				// Handle rotation
 				if (CachedItemData.bIsRotated)
@@ -159,6 +164,44 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 			}
 			else
 			{
+				// Async load using StreamableManager
+				UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Starting async icon load"), SlotIndex);
+
+				FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+				TWeakObjectPtr<UImage> WeakIcon(ItemIcon);
+				FSoftObjectPath IconPath = CachedItemData.IconPath;
+				bool bIsRotated = CachedItemData.bIsRotated;
+
+				StreamableManager.RequestAsyncLoad(
+					IconPath,
+					FStreamableDelegate::CreateLambda([WeakIcon, IconPath, bIsRotated]()
+					{
+						if (UImage* Icon = WeakIcon.Get())
+						{
+							if (UTexture2D* LoadedTexture = Cast<UTexture2D>(IconPath.ResolveObject()))
+							{
+								UE_LOG(LogTemp, Log, TEXT("SlotWidget: Icon loaded async successfully"));
+								Icon->SetBrushFromTexture(LoadedTexture);
+								Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+								if (bIsRotated)
+								{
+									Icon->SetRenderTransformAngle(90.0f);
+								}
+								else
+								{
+									Icon->SetRenderTransformAngle(0.0f);
+								}
+							}
+							else
+							{
+								UE_LOG(LogTemp, Warning, TEXT("SlotWidget: Failed to resolve icon after async load"));
+							}
+						}
+					}),
+					FStreamableManager::AsyncLoadHighPriority
+				);
+
+				// Show loading state or hide until loaded
 				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
 			}
 		}
@@ -166,6 +209,10 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 		{
 			ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SlotWidget[%d]: ItemIcon is NULL - Blueprint binding missing!"), SlotIndex);
 	}
 
 	// Update stack count

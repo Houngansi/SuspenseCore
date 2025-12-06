@@ -13,8 +13,8 @@
 #include "SuspenseCoreMainMenuWidget.generated.h"
 
 class UTextBlock;
-class UButton;
 class UWidgetSwitcher;
+class USuspenseCoreButtonWidget;
 class UImage;
 class USuspenseCorePlayerInfoWidget;
 class USuspenseCoreRegistrationWidget;
@@ -158,23 +158,19 @@ protected:
 
 	/** Play button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* PlayButton;
-
-	/** Play button text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* PlayButtonText;
+	USuspenseCoreButtonWidget* PlayButton;
 
 	/** Operators button (future - character select) */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* OperatorsButton;
+	USuspenseCoreButtonWidget* OperatorsButton;
 
 	/** Settings button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* SettingsButton;
+	USuspenseCoreButtonWidget* SettingsButton;
 
 	/** Quit button */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UButton* QuitButton;
+	USuspenseCoreButtonWidget* QuitButton;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -301,16 +297,16 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	UFUNCTION()
-	void OnPlayButtonClicked();
+	void OnPlayButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnOperatorsButtonClicked();
+	void OnOperatorsButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnSettingsButtonClicked();
+	void OnSettingsButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	UFUNCTION()
-	void OnQuitButtonClicked();
+	void OnQuitButtonClicked(USuspenseCoreButtonWidget* Button);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS

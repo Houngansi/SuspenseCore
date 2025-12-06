@@ -8,8 +8,8 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreMapTransitionSubsystem.h"
 #include "SuspenseCore/Interfaces/SuspenseCoreUIController.h"
 #include "SuspenseCore/Settings/SuspenseCoreProjectSettings.h"
-#include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "SuspenseCore/Widgets/Common/SuspenseCoreButtonWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerController.h"
@@ -233,27 +233,27 @@ void USuspenseCorePauseMenuWidget::SetupButtonBindings()
 {
 	if (ContinueButton)
 	{
-		ContinueButton->OnClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnContinueButtonClicked);
+		ContinueButton->OnButtonClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnContinueButtonClicked);
 	}
 
 	if (SaveButton)
 	{
-		SaveButton->OnClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnSaveButtonClicked);
+		SaveButton->OnButtonClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnSaveButtonClicked);
 	}
 
 	if (LoadButton)
 	{
-		LoadButton->OnClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnLoadButtonClicked);
+		LoadButton->OnButtonClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnLoadButtonClicked);
 	}
 
 	if (ExitToLobbyButton)
 	{
-		ExitToLobbyButton->OnClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked);
+		ExitToLobbyButton->OnButtonClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked);
 	}
 
 	if (QuitButton)
 	{
-		QuitButton->OnClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnQuitButtonClicked);
+		QuitButton->OnButtonClicked.AddDynamic(this, &USuspenseCorePauseMenuWidget::OnQuitButtonClicked);
 	}
 }
 
@@ -264,30 +264,7 @@ void USuspenseCorePauseMenuWidget::UpdateUIDisplay()
 		TitleText->SetText(Title);
 	}
 
-	if (ContinueButtonText)
-	{
-		ContinueButtonText->SetText(ContinueText);
-	}
-
-	if (SaveButtonText)
-	{
-		SaveButtonText->SetText(SaveText);
-	}
-
-	if (LoadButtonText)
-	{
-		LoadButtonText->SetText(LoadText);
-	}
-
-	if (ExitToLobbyButtonText)
-	{
-		ExitToLobbyButtonText->SetText(ExitToLobbyText);
-	}
-
-	if (QuitButtonText)
-	{
-		QuitButtonText->SetText(QuitText);
-	}
+	// Button text is configured via ButtonText property in USuspenseCoreButtonWidget
 
 	// Hide status initially
 	if (SaveStatusText)
@@ -388,13 +365,13 @@ void USuspenseCorePauseMenuWidget::OnSaveLoadMenuClosed()
 // BUTTON HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void USuspenseCorePauseMenuWidget::OnContinueButtonClicked()
+void USuspenseCorePauseMenuWidget::OnContinueButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Continue clicked"));
 	HidePauseMenu();
 }
 
-void USuspenseCorePauseMenuWidget::OnSaveButtonClicked()
+void USuspenseCorePauseMenuWidget::OnSaveButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Save clicked"));
 
@@ -410,7 +387,7 @@ void USuspenseCorePauseMenuWidget::OnSaveButtonClicked()
 	}
 }
 
-void USuspenseCorePauseMenuWidget::OnLoadButtonClicked()
+void USuspenseCorePauseMenuWidget::OnLoadButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Load clicked"));
 
@@ -436,7 +413,7 @@ void USuspenseCorePauseMenuWidget::OnLoadButtonClicked()
 	}
 }
 
-void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
+void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Exit to lobby clicked"));
 
@@ -501,7 +478,7 @@ void USuspenseCorePauseMenuWidget::OnExitToLobbyButtonClicked()
 	}
 }
 
-void USuspenseCorePauseMenuWidget::OnQuitButtonClicked()
+void USuspenseCorePauseMenuWidget::OnQuitButtonClicked(USuspenseCoreButtonWidget* Button)
 {
 	UE_LOG(LogSuspenseCorePauseMenu, Log, TEXT("Quit clicked"));
 

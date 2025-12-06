@@ -428,7 +428,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreScreenConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen")
 	bool bShowCurrency;
 
-	FSuspenseCoreContainerScreenConfig()
+	FSuspenseCoreScreenConfig()
 		: bAllowCrossPanelDrag(true)
 		, bShowWeight(true)
 		, bShowCurrency(true)

@@ -15,7 +15,7 @@
 USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, NextTabKey(EKeys::Tab)
-	, PreviousTabKey(EKeys::None)
+	, PreviousTabKey(EKeys::LeftShift) // Shift+Tab handled separately
 {
 }
 
@@ -81,11 +81,11 @@ void USuspenseCorePanelSwitcherWidget::AddTab(const FGameplayTag& PanelTag, cons
 	}
 
 	// Add to container
-	if (UHorizontalBoxSlot* Slot = TabContainer->AddChildToHorizontalBox(TabData.TabButton))
+	if (UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(TabData.TabButton))
 	{
-		Slot->SetHorizontalAlignment(HAlign_Fill);
-		Slot->SetVerticalAlignment(VAlign_Fill);
-		Slot->SetPadding(FMargin(2.0f, 0.0f));
+		TabSlot->SetHorizontalAlignment(HAlign_Fill);
+		TabSlot->SetVerticalAlignment(VAlign_Fill);
+		TabSlot->SetPadding(FMargin(2.0f, 0.0f));
 	}
 
 	// Track tab
@@ -267,9 +267,8 @@ UButton* USuspenseCorePanelSwitcherWidget::CreateTabButton_Implementation(const 
 	// Store text reference in tab data (we'll update it in the array after adding)
 	// This is a bit awkward due to const, but we handle it
 
-	// Bind click event
-	FGameplayTag PanelTag = TabData.PanelTag;
-	Button->OnClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::OnTabButtonClicked);
+	// Bind click event - using a simple click handler that finds the button
+	Button->OnClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
 
 	// We need a way to pass the tag to the click handler
 	// Since we can't easily pass parameters with dynamic delegates,
@@ -303,18 +302,20 @@ void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(const FSus
 	}
 }
 
-void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)
+void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
 {
-	// This is a workaround since dynamic delegates don't support parameters well
-	// In practice, we'll use the button's index or look up which button was clicked
-
-	// For now, find which button was clicked by checking focus/pressed state
+	// Find which button was clicked by checking pressed/focused state
 	for (const FSuspenseCorePanelTab& Tab : Tabs)
 	{
-		if (Tab.TabButton && Tab.TabButton->HasKeyboardFocus())
+		if (Tab.TabButton && (Tab.TabButton->HasKeyboardFocus() || Tab.TabButton->IsPressed()))
 		{
 			PanelSelectedDelegate.Broadcast(Tab.PanelTag);
 			return;
 		}
 	}
+}
+
+void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(FGameplayTag PanelTag)
+{
+	PanelSelectedDelegate.Broadcast(PanelTag);
 }

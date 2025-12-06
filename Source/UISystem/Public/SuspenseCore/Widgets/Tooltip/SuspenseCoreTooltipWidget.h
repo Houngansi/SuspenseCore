@@ -91,7 +91,7 @@ public:
 
 	/** Called when comparison mode changes */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Tooltip", meta = (DisplayName = "On Comparison Changed"))
-	void K2_OnComparisonChanged(bool bHasComparison, const FSuspenseCoreItemUIData& CompareItemData);
+	void K2_OnComparisonChanged(bool bInHasComparison, const FSuspenseCoreItemUIData& CompareItemData);
 
 protected:
 	//==================================================================

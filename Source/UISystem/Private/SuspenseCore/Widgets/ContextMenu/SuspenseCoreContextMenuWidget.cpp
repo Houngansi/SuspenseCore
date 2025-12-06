@@ -247,10 +247,10 @@ void USuspenseCoreContextMenuWidget::CreateActionButtons_Implementation(const TA
 		if (Action.ActionButton)
 		{
 			// Add to container
-			UVerticalBoxSlot* Slot = ActionContainer->AddChildToVerticalBox(Action.ActionButton);
-			if (Slot)
+			UVerticalBoxSlot* VBoxSlot = ActionContainer->AddChildToVerticalBox(Action.ActionButton);
+			if (VBoxSlot)
 			{
-				Slot->SetPadding(FMargin(2.0f));
+				VBoxSlot->SetPadding(FMargin(2.0f));
 			}
 
 			// Bind click - we use a workaround since dynamic delegates don't pass parameters easily

@@ -1839,7 +1839,7 @@ bool USuspenseCoreInventoryComponent::RequestTransferItem(
 		EventData.SetString(TEXT("InstanceID"), Instance.UniqueInstanceID.ToString());
 		EventData.SetString(TEXT("ItemID"), Instance.ItemID.ToString());
 		EventData.SetInt(TEXT("SourceSlot"), SlotIndex);
-		EventData.SetGuid(TEXT("TargetProviderID"), TargetProviderID);
+		EventData.SetString(TEXT("TargetProviderID"), TargetProviderID.ToString());
 		EventData.SetInt(TEXT("TargetSlot"), TargetSlot);
 		EventData.SetInt(TEXT("Quantity"), Quantity > 0 ? Quantity : Instance.Quantity);
 		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIRequest.TransferItem"))), EventData);
@@ -2059,8 +2059,8 @@ void USuspenseCoreInventoryComponent::BroadcastUIDataChanged(const FGameplayTag&
 	{
 		FSuspenseCoreEventData EventData;
 		EventData.Source = const_cast<USuspenseCoreInventoryComponent*>(this);
-		EventData.SetGuid(TEXT("ProviderID"), ProviderID);
-		EventData.SetGuid(TEXT("AffectedItemID"), AffectedItemID);
+		EventData.SetString(TEXT("ProviderID"), ProviderID.ToString());
+		EventData.SetString(TEXT("AffectedItemID"), AffectedItemID.ToString());
 		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIProvider.DataChanged"))), EventData);
 	}
 }

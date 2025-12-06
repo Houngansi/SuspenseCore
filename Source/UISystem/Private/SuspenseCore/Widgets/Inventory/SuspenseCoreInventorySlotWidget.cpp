@@ -148,9 +148,22 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 			// First try synchronous load (works if asset is already in memory)
 			if (UTexture2D* IconTexture = Cast<UTexture2D>(CachedItemData.IconPath.TryLoad()))
 			{
-				UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Icon loaded synchronously"), SlotIndex);
+				UE_LOG(LogTemp, Warning, TEXT("SlotWidget[%d]: Icon loaded! Texture=%s, Size=%dx%d"),
+					SlotIndex,
+					*IconTexture->GetName(),
+					IconTexture->GetSizeX(),
+					IconTexture->GetSizeY());
+
 				ItemIcon->SetBrushFromTexture(IconTexture);
 				ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+				// Debug: Check ItemIcon state after setting
+				FVector2D DesiredSize = ItemIcon->GetDesiredSize();
+				UE_LOG(LogTemp, Warning, TEXT("SlotWidget[%d]: ItemIcon DesiredSize=%.1fx%.1f, Visibility=%d, IsVisible=%d"),
+					SlotIndex,
+					DesiredSize.X, DesiredSize.Y,
+					(int32)ItemIcon->GetVisibility(),
+					ItemIcon->IsVisible() ? 1 : 0);
 
 				// Handle rotation
 				if (CachedItemData.bIsRotated)

@@ -31,6 +31,9 @@ void USuspenseCoreContainerScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// Make widget focusable for mouse/keyboard input
+	SetIsFocusable(true);
+
 	// Cache UIManager reference
 	CachedUIManager = USuspenseCoreUIManager::Get(this);
 

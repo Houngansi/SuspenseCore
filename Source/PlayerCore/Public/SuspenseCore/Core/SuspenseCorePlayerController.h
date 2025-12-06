@@ -287,6 +287,18 @@ protected:
 	USuspenseCoreHUDWidget* HUDWidget;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// CONTAINER SCREEN CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Container screen widget class (inventory, equipment, stash) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<class USuspenseCoreContainerScreenWidget> ContainerScreenWidgetClass;
+
+	/** Tooltip widget class for items */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<class USuspenseCoreTooltipWidget> TooltipWidgetClass;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════════
 

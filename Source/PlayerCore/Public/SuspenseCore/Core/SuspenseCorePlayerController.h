@@ -165,6 +165,26 @@ public:
 	bool IsHUDVisible() const;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - INVENTORY/CONTAINER SCREEN
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Toggle inventory screen visibility */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void ToggleInventory();
+
+	/** Show inventory screen */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void ShowInventory();
+
+	/** Hide inventory screen */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void HideInventory();
+
+	/** Check if inventory screen is visible */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	bool IsInventoryVisible() const;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// ISuspenseCoreUIController Interface
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -230,6 +250,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
 	UInputAction* IA_QuickLoad;
 
+	/** Toggle inventory (Tab or I) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|UI")
+	UInputAction* IA_ToggleInventory;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY INPUT BINDINGS
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -281,6 +305,7 @@ protected:
 	void HandlePauseGameTriggered(const FInputActionValue& Value);  // Debug handler
 	void HandleQuickSave(const FInputActionValue& Value);
 	void HandleQuickLoad(const FInputActionValue& Value);
+	void HandleToggleInventory(const FInputActionValue& Value);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY ACTIVATION

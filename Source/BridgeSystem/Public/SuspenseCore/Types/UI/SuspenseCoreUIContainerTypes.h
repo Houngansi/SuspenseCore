@@ -278,12 +278,12 @@ struct BRIDGESYSTEM_API FSuspenseCoreDragData
 	}
 
 	/** Get item instance ID */
-	FGuid GetItemInstanceID() const { return Item.ItemInstanceID; }
+	FGuid GetItemInstanceID() const { return Item.InstanceID; }
 
 	/** Convenience accessors */
-	const FGuid& ItemInstanceID() const { return Item.ItemInstanceID; }
-	int32 Quantity() const { return DragQuantity; }
-	bool bIsRotated() const { return bIsRotatedDuringDrag; }
+	const FGuid& GetItemID() const { return Item.InstanceID; }
+	int32 GetDragQuantity() const { return DragQuantity; }
+	bool IsRotated() const { return bIsRotatedDuringDrag; }
 
 	/** Create validated drag data */
 	static FSuspenseCoreDragData Create(

@@ -145,47 +145,47 @@ void USuspenseCoreBaseContainerWidget::RefreshFromProvider()
 	// Get all item data
 	TArray<FSuspenseCoreItemUIData> ItemsData = ProviderInterface->GetAllItemUIData();
 
-	// Create lookup map for items by slot
+	// Create lookup map for items by anchor slot
 	TMap<int32, FSuspenseCoreItemUIData> ItemsBySlot;
 	for (const FSuspenseCoreItemUIData& ItemData : ItemsData)
 	{
-		// For grid items, they may occupy multiple slots - store in primary slot
-		ItemsBySlot.Add(ItemData.SlotIndex, ItemData);
+		// For grid items, they may occupy multiple slots - store in anchor slot
+		ItemsBySlot.Add(ItemData.AnchorSlot, ItemData);
 	}
 
 	// Update each slot
-	for (int32 SlotIndex = 0; SlotIndex < CachedContainerData.TotalSlots; ++SlotIndex)
+	for (int32 CurrentSlotIndex = 0; CurrentSlotIndex < CachedContainerData.TotalSlots; ++CurrentSlotIndex)
 	{
 		// Find slot data
 		FSuspenseCoreSlotUIData SlotData;
 		if (const FSuspenseCoreSlotUIData* FoundSlot = CachedContainerData.Slots.FindByPredicate(
-			[SlotIndex](const FSuspenseCoreSlotUIData& Slot) { return Slot.SlotIndex == SlotIndex; }))
+			[CurrentSlotIndex](const FSuspenseCoreSlotUIData& SlotEntry) { return SlotEntry.SlotIndex == CurrentSlotIndex; }))
 		{
 			SlotData = *FoundSlot;
 		}
 		else
 		{
-			SlotData.SlotIndex = SlotIndex;
-			SlotData.bIsEmpty = true;
+			SlotData.SlotIndex = CurrentSlotIndex;
+			SlotData.State = ESuspenseCoreUISlotState::Empty;
 		}
 
 		// Find item data if slot is occupied
 		FSuspenseCoreItemUIData ItemData;
-		if (const FSuspenseCoreItemUIData* FoundItem = ItemsBySlot.Find(SlotIndex))
+		if (const FSuspenseCoreItemUIData* FoundItem = ItemsBySlot.Find(CurrentSlotIndex))
 		{
 			ItemData = *FoundItem;
 		}
 
-		UpdateSlotWidget(SlotIndex, SlotData, ItemData);
+		UpdateSlotWidget(CurrentSlotIndex, SlotData, ItemData);
 	}
 
 	// Notify Blueprint
 	K2_OnRefresh();
 }
 
-void USuspenseCoreBaseContainerWidget::RefreshSlot(int32 SlotIndex)
+void USuspenseCoreBaseContainerWidget::RefreshSlot(int32 TargetSlotIndex)
 {
-	if (!BoundProvider || SlotIndex < 0 || SlotIndex >= CachedContainerData.TotalSlots)
+	if (!BoundProvider || TargetSlotIndex < 0 || TargetSlotIndex >= CachedContainerData.TotalSlots)
 	{
 		return;
 	}
@@ -197,27 +197,28 @@ void USuspenseCoreBaseContainerWidget::RefreshSlot(int32 SlotIndex)
 	}
 
 	// Get specific item data from provider
-	FSuspenseCoreItemUIData ItemData = ProviderInterface->GetItemUIData(SlotIndex);
+	FSuspenseCoreItemUIData ItemData;
+	ProviderInterface->GetItemUIDataAtSlot(TargetSlotIndex, ItemData);
 
 	// Get slot data
 	FSuspenseCoreSlotUIData SlotData;
 	if (const FSuspenseCoreSlotUIData* FoundSlot = CachedContainerData.Slots.FindByPredicate(
-		[SlotIndex](const FSuspenseCoreSlotUIData& Slot) { return Slot.SlotIndex == SlotIndex; }))
+		[TargetSlotIndex](const FSuspenseCoreSlotUIData& SlotEntry) { return SlotEntry.SlotIndex == TargetSlotIndex; }))
 	{
 		SlotData = *FoundSlot;
 	}
 	else
 	{
-		SlotData.SlotIndex = SlotIndex;
-		SlotData.bIsEmpty = !ItemData.ItemInstanceID.IsValid();
+		SlotData.SlotIndex = TargetSlotIndex;
+		SlotData.State = ItemData.InstanceID.IsValid() ? ESuspenseCoreUISlotState::Occupied : ESuspenseCoreUISlotState::Empty;
 	}
 
-	UpdateSlotWidget(SlotIndex, SlotData, ItemData);
+	UpdateSlotWidget(TargetSlotIndex, SlotData, ItemData);
 }
 
-void USuspenseCoreBaseContainerWidget::RefreshItem(const FGuid& InstanceID)
+void USuspenseCoreBaseContainerWidget::RefreshItem(const FGuid& ItemInstanceID)
 {
-	if (!BoundProvider || !InstanceID.IsValid())
+	if (!BoundProvider || !ItemInstanceID.IsValid())
 	{
 		return;
 	}
@@ -231,11 +232,11 @@ void USuspenseCoreBaseContainerWidget::RefreshItem(const FGuid& InstanceID)
 	// Find item by instance ID
 	TArray<FSuspenseCoreItemUIData> AllItems = ProviderInterface->GetAllItemUIData();
 	const FSuspenseCoreItemUIData* FoundItem = AllItems.FindByPredicate(
-		[&InstanceID](const FSuspenseCoreItemUIData& Item) { return Item.ItemInstanceID == InstanceID; });
+		[&ItemInstanceID](const FSuspenseCoreItemUIData& Item) { return Item.InstanceID == ItemInstanceID; });
 
 	if (FoundItem)
 	{
-		RefreshSlot(FoundItem->SlotIndex);
+		RefreshSlot(FoundItem->AnchorSlot);
 	}
 }
 
@@ -277,9 +278,9 @@ int32 USuspenseCoreBaseContainerWidget::GetSlotAtLocalPosition(const FVector2D& 
 // ISuspenseCoreUIContainer - Selection
 //==================================================================
 
-void USuspenseCoreBaseContainerWidget::SetSelectedSlot(int32 SlotIndex)
+void USuspenseCoreBaseContainerWidget::SetSelectedSlot(int32 NewSelectedSlot)
 {
-	if (SelectedSlotIndex == SlotIndex)
+	if (SelectedSlotIndex == NewSelectedSlot)
 	{
 		return;
 	}
@@ -287,10 +288,10 @@ void USuspenseCoreBaseContainerWidget::SetSelectedSlot(int32 SlotIndex)
 	// Clear previous selection highlight
 	if (SelectedSlotIndex != INDEX_NONE)
 	{
-		SetSlotHighlight(SelectedSlotIndex, ESuspenseCoreUISlotState::Normal);
+		SetSlotHighlight(SelectedSlotIndex, ESuspenseCoreUISlotState::Empty);
 	}
 
-	SelectedSlotIndex = SlotIndex;
+	SelectedSlotIndex = NewSelectedSlot;
 
 	// Apply new selection highlight
 	if (SelectedSlotIndex != INDEX_NONE)
@@ -299,7 +300,7 @@ void USuspenseCoreBaseContainerWidget::SetSelectedSlot(int32 SlotIndex)
 	}
 
 	// Notify Blueprint
-	K2_OnSlotSelected(SlotIndex);
+	K2_OnSlotSelected(NewSelectedSlot);
 }
 
 int32 USuspenseCoreBaseContainerWidget::GetSelectedSlot() const
@@ -343,28 +344,26 @@ void USuspenseCoreBaseContainerWidget::HighlightDropTarget(const FSuspenseCoreDr
 	}
 
 	// Validate drop at this position
-	FSuspenseCoreDropValidation Validation = ProviderInterface->ValidateDrop(DragData, HoverSlot, DragData.bIsRotated);
+	FSuspenseCoreDropValidation Validation = ProviderInterface->ValidateDrop(DragData, HoverSlot, DragData.bIsRotatedDuringDrag);
 
 	// Set appropriate highlight based on validation
-	ESuspenseCoreUISlotState HighlightState = Validation.bCanDrop ?
-		ESuspenseCoreUISlotState::ValidDrop : ESuspenseCoreUISlotState::InvalidDrop;
+	ESuspenseCoreUISlotState HighlightState = Validation.bIsValid ?
+		ESuspenseCoreUISlotState::DropTargetValid : ESuspenseCoreUISlotState::DropTargetInvalid;
 
-	// Highlight target slots
-	for (int32 SlotIndex : Validation.AffectedSlots)
-	{
-		SetSlotHighlight(SlotIndex, HighlightState);
-	}
+	// Highlight target slot (for simple containers, just highlight the hover slot)
+	// Subclasses can override to highlight multi-cell items
+	SetSlotHighlight(HoverSlot, HighlightState);
 }
 
 void USuspenseCoreBaseContainerWidget::ClearHighlights()
 {
-	// Reset all slots to normal state (except selected)
+	// Reset all slots to empty/default state (except selected)
 	TArray<UWidget*> AllSlots = GetAllSlotWidgets();
-	for (int32 i = 0; i < AllSlots.Num(); ++i)
+	for (int32 SlotIdx = 0; SlotIdx < AllSlots.Num(); ++SlotIdx)
 	{
-		if (i != SelectedSlotIndex)
+		if (SlotIdx != SelectedSlotIndex)
 		{
-			SetSlotHighlight(i, ESuspenseCoreUISlotState::Normal);
+			SetSlotHighlight(SlotIdx, ESuspenseCoreUISlotState::Empty);
 		}
 	}
 }
@@ -378,7 +377,7 @@ bool USuspenseCoreBaseContainerWidget::AcceptsDrop() const
 	return !bIsReadOnly;
 }
 
-bool USuspenseCoreBaseContainerWidget::StartDragFromSlot(int32 SlotIndex, bool bSplitStack)
+bool USuspenseCoreBaseContainerWidget::StartDragFromSlot(int32 DragSlotIndex, bool bSplitStack)
 {
 	if (bIsReadOnly || !BoundProvider)
 	{
@@ -392,8 +391,9 @@ bool USuspenseCoreBaseContainerWidget::StartDragFromSlot(int32 SlotIndex, bool b
 	}
 
 	// Get item data at slot
-	FSuspenseCoreItemUIData ItemData = ProviderInterface->GetItemUIData(SlotIndex);
-	if (!ItemData.ItemInstanceID.IsValid())
+	FSuspenseCoreItemUIData ItemData;
+	ProviderInterface->GetItemUIDataAtSlot(DragSlotIndex, ItemData);
+	if (!ItemData.InstanceID.IsValid())
 	{
 		return false;
 	}
@@ -419,8 +419,8 @@ bool USuspenseCoreBaseContainerWidget::HandleDrop(const FSuspenseCoreDragData& D
 	}
 
 	// Validate the drop first
-	FSuspenseCoreDropValidation Validation = ProviderInterface->ValidateDrop(DragData, TargetSlot, DragData.bIsRotated);
-	if (!Validation.bCanDrop)
+	FSuspenseCoreDropValidation Validation = ProviderInterface->ValidateDrop(DragData, TargetSlot, DragData.bIsRotatedDuringDrag);
+	if (!Validation.bIsValid)
 	{
 		K2_OnDropReceived(DragData, TargetSlot, false);
 		return false;
@@ -431,7 +431,7 @@ bool USuspenseCoreBaseContainerWidget::HandleDrop(const FSuspenseCoreDragData& D
 	if (DragData.SourceContainerID == ProviderInterface->GetProviderID())
 	{
 		// Same container - move item
-		bSuccess = ProviderInterface->RequestMoveItem(DragData.SourceSlot, TargetSlot, DragData.bIsRotated());
+		bSuccess = ProviderInterface->RequestMoveItem(DragData.SourceSlot, TargetSlot, DragData.bIsRotatedDuringDrag);
 	}
 	else
 	{
@@ -440,13 +440,13 @@ bool USuspenseCoreBaseContainerWidget::HandleDrop(const FSuspenseCoreDragData& D
 		if (USuspenseCoreEventBus* EventBus = GetEventBus())
 		{
 			FSuspenseCoreEventData EventData;
-			EventData.SetGuid(TEXT("SourceContainerID"), DragData.SourceContainerID);
-			EventData.SetInt(TEXT("SourceSlot"), DragData.SourceSlot);
-			EventData.SetGuid(TEXT("TargetContainerID"), ProviderInterface->GetProviderID());
-			EventData.SetInt(TEXT("TargetSlot"), TargetSlot);
-			EventData.SetGuid(TEXT("ItemInstanceID"), DragData.ItemInstanceID());
-			EventData.SetInt(TEXT("Quantity"), DragData.Quantity());
-			EventData.SetBool(TEXT("IsRotated"), DragData.bIsRotated());
+			EventData.SetString(FName("SourceContainerID"), DragData.SourceContainerID.ToString());
+			EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
+			EventData.SetString(FName("TargetContainerID"), ProviderInterface->GetProviderID().ToString());
+			EventData.SetInt(FName("TargetSlot"), TargetSlot);
+			EventData.SetString(FName("ItemInstanceID"), DragData.Item.InstanceID.ToString());
+			EventData.SetInt(FName("Quantity"), DragData.DragQuantity);
+			EventData.SetBool(FName("IsRotated"), DragData.bIsRotatedDuringDrag);
 
 			EventBus->Publish(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.TransferItem")), EventData);
 			bSuccess = true; // Assume success - actual result comes async

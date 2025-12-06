@@ -7,6 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
 #include "Components/SizeBox.h"
+#include "Engine/Texture2D.h"
 
 //==================================================================
 // Constructor
@@ -25,7 +26,7 @@ USuspenseCoreInventorySlotWidget::USuspenseCoreInventorySlotWidget(const FObject
 	, StackCountDisplayThreshold(1)
 	, SlotIndex(INDEX_NONE)
 	, GridPosition(FIntPoint::ZeroValue)
-	, CurrentHighlightState(ESuspenseCoreUISlotState::Normal)
+	, CurrentHighlightState(ESuspenseCoreUISlotState::Empty)
 {
 }
 
@@ -39,7 +40,7 @@ void USuspenseCoreInventorySlotWidget::NativeConstruct()
 
 	// Initialize visual state
 	UpdateVisuals();
-	UpdateHighlightVisual(ESuspenseCoreUISlotState::Normal);
+	UpdateHighlightVisual(ESuspenseCoreUISlotState::Empty);
 }
 
 void USuspenseCoreInventorySlotWidget::NativePreConstruct()
@@ -91,7 +92,7 @@ void USuspenseCoreInventorySlotWidget::ClearSlot()
 {
 	CachedSlotData = FSuspenseCoreSlotUIData();
 	CachedSlotData.SlotIndex = SlotIndex;
-	CachedSlotData.bIsEmpty = true;
+	CachedSlotData.State = ESuspenseCoreUISlotState::Empty;
 	CachedItemData = FSuspenseCoreItemUIData();
 
 	UpdateVisuals();
@@ -122,11 +123,11 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 	{
 		FLinearColor BgColor = EmptySlotColor;
 
-		if (CachedSlotData.bIsLocked)
+		if (CachedSlotData.State == ESuspenseCoreUISlotState::Locked)
 		{
 			BgColor = LockedSlotColor;
 		}
-		else if (!CachedSlotData.bIsEmpty)
+		else if (CachedSlotData.IsOccupied())
 		{
 			BgColor = OccupiedSlotColor;
 		}
@@ -137,19 +138,28 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 	// Update item icon
 	if (ItemIcon)
 	{
-		if (CachedSlotData.bIsPrimarySlot && CachedItemData.Icon)
+		// Only show icon on anchor slot (primary slot for multi-cell items)
+		if (CachedSlotData.bIsAnchor && CachedItemData.IconPath.IsValid())
 		{
-			ItemIcon->SetBrushFromTexture(CachedItemData.Icon);
-			ItemIcon->SetVisibility(ESlateVisibility::Visible);
-
-			// Handle rotation
-			if (CachedItemData.bIsRotated)
+			// Load texture from soft path
+			if (UTexture2D* IconTexture = Cast<UTexture2D>(CachedItemData.IconPath.TryLoad()))
 			{
-				ItemIcon->SetRenderTransformAngle(90.0f);
+				ItemIcon->SetBrushFromTexture(IconTexture);
+				ItemIcon->SetVisibility(ESlateVisibility::Visible);
+
+				// Handle rotation
+				if (CachedItemData.bIsRotated)
+				{
+					ItemIcon->SetRenderTransformAngle(90.0f);
+				}
+				else
+				{
+					ItemIcon->SetRenderTransformAngle(0.0f);
+				}
 			}
 			else
 			{
-				ItemIcon->SetRenderTransformAngle(0.0f);
+				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
 			}
 		}
 		else
@@ -161,7 +171,7 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 	// Update stack count
 	if (StackCountText)
 	{
-		if (CachedSlotData.bIsPrimarySlot && CachedItemData.Quantity > StackCountDisplayThreshold)
+		if (CachedSlotData.bIsAnchor && CachedItemData.Quantity > StackCountDisplayThreshold)
 		{
 			StackCountText->SetText(FText::AsNumber(CachedItemData.Quantity));
 			StackCountText->SetVisibility(ESlateVisibility::Visible);
@@ -172,16 +182,16 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 		}
 	}
 
-	// Update condition indicator
+	// Update condition/durability indicator
 	if (ConditionIndicator)
 	{
-		if (CachedSlotData.bIsPrimarySlot && CachedItemData.bShowCondition)
+		if (CachedSlotData.bIsAnchor && CachedItemData.bHasDurability)
 		{
-			// Color based on condition percentage
+			// Color based on durability percentage
 			FLinearColor ConditionColor = FLinearColor::LerpUsingHSV(
 				FLinearColor::Red,
 				FLinearColor::Green,
-				CachedItemData.ConditionPercent);
+				CachedItemData.DurabilityPercent);
 			ConditionIndicator->SetColorAndOpacity(ConditionColor);
 			ConditionIndicator->SetVisibility(ESlateVisibility::Visible);
 		}
@@ -207,22 +217,23 @@ FLinearColor USuspenseCoreInventorySlotWidget::GetHighlightColor_Implementation(
 {
 	switch (State)
 	{
-	case ESuspenseCoreUISlotState::Normal:
+	case ESuspenseCoreUISlotState::Empty:
 		return NormalHighlightColor;
 
-	case ESuspenseCoreUISlotState::Hovered:
+	case ESuspenseCoreUISlotState::Highlighted:
 		return HoveredHighlightColor;
 
 	case ESuspenseCoreUISlotState::Selected:
 		return SelectedHighlightColor;
 
-	case ESuspenseCoreUISlotState::ValidDrop:
+	case ESuspenseCoreUISlotState::DropTargetValid:
 		return ValidDropColor;
 
-	case ESuspenseCoreUISlotState::InvalidDrop:
+	case ESuspenseCoreUISlotState::DropTargetInvalid:
 		return InvalidDropColor;
 
-	case ESuspenseCoreUISlotState::Disabled:
+	case ESuspenseCoreUISlotState::Locked:
+	case ESuspenseCoreUISlotState::Invalid:
 		return LockedSlotColor;
 
 	default:

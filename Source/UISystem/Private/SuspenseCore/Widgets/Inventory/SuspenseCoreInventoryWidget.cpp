@@ -114,7 +114,7 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseMove(const FGeometry& InGeomet
 		// Clear previous hover
 		if (HoveredSlotIndex != INDEX_NONE)
 		{
-			SetSlotHighlight(HoveredSlotIndex, ESuspenseCoreUISlotState::Normal);
+			SetSlotHighlight(HoveredSlotIndex, ESuspenseCoreUISlotState::Empty);
 		}
 
 		HoveredSlotIndex = SlotIndex;
@@ -139,7 +139,7 @@ void USuspenseCoreInventoryWidget::NativeOnMouseLeave(const FPointerEvent& InMou
 	// Clear hover state
 	if (HoveredSlotIndex != INDEX_NONE)
 	{
-		SetSlotHighlight(HoveredSlotIndex, ESuspenseCoreUISlotState::Normal);
+		SetSlotHighlight(HoveredSlotIndex, ESuspenseCoreUISlotState::Empty);
 		HoveredSlotIndex = INDEX_NONE;
 	}
 
@@ -289,14 +289,14 @@ void USuspenseCoreInventoryWidget::HighlightDropSlots(const FIntPoint& ItemSize,
 	FIntPoint GridPos = SlotIndexToGridPos(TargetSlot);
 
 	// Get all slots that would be occupied
-	TArray<int32> OccupiedSlots = GetOccupiedSlots(GridPos, ItemSize);
+	TArray<int32> AffectedSlots = GetOccupiedSlots(GridPos, ItemSize);
 
 	// Set highlight state
-	ESuspenseCoreUISlotState State = bIsValid ? ESuspenseCoreUISlotState::ValidDrop : ESuspenseCoreUISlotState::InvalidDrop;
+	ESuspenseCoreUISlotState State = bIsValid ? ESuspenseCoreUISlotState::DropTargetValid : ESuspenseCoreUISlotState::DropTargetInvalid;
 
-	for (int32 SlotIndex : OccupiedSlots)
+	for (int32 AffectedSlotIndex : AffectedSlots)
 	{
-		SetSlotHighlight(SlotIndex, State);
+		SetSlotHighlight(AffectedSlotIndex, State);
 	}
 }
 
@@ -394,13 +394,13 @@ void USuspenseCoreInventoryWidget::HandleSlotClicked(int32 SlotIndex, bool bRigh
 	}
 }
 
-void USuspenseCoreInventoryWidget::HandleSlotHovered(int32 SlotIndex)
+void USuspenseCoreInventoryWidget::HandleSlotHovered(int32 HoveredIndex)
 {
 	// Set hover highlight
-	SetSlotHighlight(SlotIndex, ESuspenseCoreUISlotState::Hovered);
+	SetSlotHighlight(HoveredIndex, ESuspenseCoreUISlotState::Highlighted);
 
 	// Show tooltip for slot content
-	ShowSlotTooltip(SlotIndex);
+	ShowSlotTooltip(HoveredIndex);
 }
 
 void USuspenseCoreInventoryWidget::HandleRotationInput()

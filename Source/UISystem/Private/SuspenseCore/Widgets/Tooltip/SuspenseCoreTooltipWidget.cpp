@@ -7,6 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Engine/Texture2D.h"
 
 //==================================================================
 // Constructor
@@ -111,7 +112,7 @@ void USuspenseCoreTooltipWidget::Hide()
 void USuspenseCoreTooltipWidget::SetComparisonItem(const FSuspenseCoreItemUIData& CompareItemData)
 {
 	ComparisonItemData = CompareItemData;
-	bHasComparison = CompareItemData.ItemInstanceID.IsValid();
+	bHasComparison = CompareItemData.InstanceID.IsValid();
 
 	// Notify Blueprint
 	K2_OnComparisonChanged(bHasComparison, ComparisonItemData);
@@ -145,10 +146,17 @@ void USuspenseCoreTooltipWidget::ClearComparison()
 void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseCoreItemUIData& ItemData)
 {
 	// Set icon
-	if (ItemIcon && ItemData.Icon)
+	if (ItemIcon && ItemData.IconPath.IsValid())
 	{
-		ItemIcon->SetBrushFromTexture(ItemData.Icon);
-		ItemIcon->SetVisibility(ESlateVisibility::Visible);
+		if (UTexture2D* IconTexture = Cast<UTexture2D>(ItemData.IconPath.TryLoad()))
+		{
+			ItemIcon->SetBrushFromTexture(IconTexture);
+			ItemIcon->SetVisibility(ESlateVisibility::Visible);
+		}
+		else
+		{
+			ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 	else if (ItemIcon)
 	{

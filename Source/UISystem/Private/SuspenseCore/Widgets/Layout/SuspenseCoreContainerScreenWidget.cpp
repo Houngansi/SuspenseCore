@@ -5,7 +5,7 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
-#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreItemTooltipWidget.h"
 #include "SuspenseCore/Widgets/ContextMenu/SuspenseCoreContextMenuWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "Components/WidgetSwitcher.h"
@@ -65,10 +65,10 @@ void USuspenseCoreContainerScreenWidget::NativeDestruct()
 	PanelsByTag.Empty();
 
 	// Clean up overlay widgets
-	if (TooltipWidget)
+	if (ItemTooltipWidget)
 	{
-		TooltipWidget->RemoveFromParent();
-		TooltipWidget = nullptr;
+		ItemTooltipWidget->RemoveFromParent();
+		ItemTooltipWidget = nullptr;
 	}
 	if (ContextMenuWidget)
 	{
@@ -217,12 +217,12 @@ USuspenseCorePanelWidget* USuspenseCoreContainerScreenWidget::GetPanelByTag(cons
 void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIData& ItemData, const FVector2D& ScreenPosition)
 {
 	// Create tooltip widget if needed
-	if (!TooltipWidget && TooltipWidgetClass)
+	if (!ItemTooltipWidget && ItemTooltipWidgetClass)
 	{
-		TooltipWidget = CreateWidget<USuspenseCoreTooltipWidget>(GetOwningPlayer(), TooltipWidgetClass);
-		if (TooltipWidget && OverlayLayer)
+		ItemTooltipWidget = CreateWidget<USuspenseCoreItemTooltipWidget>(GetOwningPlayer(), ItemTooltipWidgetClass);
+		if (ItemTooltipWidget && OverlayLayer)
 		{
-			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(TooltipWidget);
+			UOverlaySlot* Slot = OverlayLayer->AddChildToOverlay(ItemTooltipWidget);
 			if (Slot)
 			{
 				Slot->SetHorizontalAlignment(HAlign_Left);
@@ -231,23 +231,23 @@ void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIDa
 		}
 	}
 
-	if (TooltipWidget)
+	if (ItemTooltipWidget)
 	{
-		TooltipWidget->ShowForItem(ItemData, ScreenPosition);
+		ItemTooltipWidget->ShowForItem(ItemData, ScreenPosition);
 	}
 }
 
 void USuspenseCoreContainerScreenWidget::HideTooltip()
 {
-	if (TooltipWidget)
+	if (ItemTooltipWidget)
 	{
-		TooltipWidget->Hide();
+		ItemTooltipWidget->Hide();
 	}
 }
 
 bool USuspenseCoreContainerScreenWidget::IsTooltipVisible() const
 {
-	return TooltipWidget && TooltipWidget->IsVisible();
+	return ItemTooltipWidget && ItemTooltipWidget->IsVisible();
 }
 
 //==================================================================

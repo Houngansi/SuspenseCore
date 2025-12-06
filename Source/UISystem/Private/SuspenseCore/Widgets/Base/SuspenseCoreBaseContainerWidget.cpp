@@ -122,28 +122,38 @@ void USuspenseCoreBaseContainerWidget::RefreshFromProvider()
 {
 	if (!BoundProvider)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("RefreshFromProvider: No bound provider!"));
 		return;
 	}
 
 	ISuspenseCoreUIDataProvider* ProviderInterface = BoundProvider.GetInterface();
 	if (!ProviderInterface)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("RefreshFromProvider: Provider interface is null!"));
 		return;
 	}
 
 	// Get container data from provider
 	CachedContainerData = ProviderInterface->GetContainerUIData();
+	UE_LOG(LogTemp, Log, TEXT("RefreshFromProvider: GridSize=%dx%d, TotalSlots=%d, SlotsData=%d, Items=%d"),
+		CachedContainerData.GridSize.X, CachedContainerData.GridSize.Y,
+		CachedContainerData.TotalSlots,
+		CachedContainerData.Slots.Num(),
+		CachedContainerData.Items.Num());
 
 	// Clear and recreate slot widgets if slot count changed
 	TArray<UWidget*> CurrentSlots = GetAllSlotWidgets();
 	if (CurrentSlots.Num() != CachedContainerData.TotalSlots)
 	{
+		UE_LOG(LogTemp, Log, TEXT("RefreshFromProvider: Recreating slots (current=%d, needed=%d)"),
+			CurrentSlots.Num(), CachedContainerData.TotalSlots);
 		ClearSlotWidgets();
 		CreateSlotWidgets();
 	}
 
 	// Get all item data
 	TArray<FSuspenseCoreItemUIData> ItemsData = ProviderInterface->GetAllItemUIData();
+	UE_LOG(LogTemp, Log, TEXT("RefreshFromProvider: Got %d items from provider"), ItemsData.Num());
 
 	// Create lookup map for items by anchor slot
 	TMap<int32, FSuspenseCoreItemUIData> ItemsBySlot;
@@ -151,6 +161,8 @@ void USuspenseCoreBaseContainerWidget::RefreshFromProvider()
 	{
 		// For grid items, they may occupy multiple slots - store in anchor slot
 		ItemsBySlot.Add(ItemData.AnchorSlot, ItemData);
+		UE_LOG(LogTemp, Log, TEXT("  Item '%s' at anchor slot %d, IconPath: %s"),
+			*ItemData.ItemID.ToString(), ItemData.AnchorSlot, *ItemData.IconPath.ToString());
 	}
 
 	// Update each slot

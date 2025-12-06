@@ -308,7 +308,19 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 {
 	if (!SlotGrid || !SlotWidgetClass)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: Missing SlotGrid or SlotWidgetClass!"));
 		return;
+	}
+
+	// CRITICAL: Use grid size from cached container data (provider), not widget default
+	if (CachedContainerData.GridSize.X > 0 && CachedContainerData.GridSize.Y > 0)
+	{
+		GridSize = CachedContainerData.GridSize;
+		UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Using provider grid size %dx%d"), GridSize.X, GridSize.Y);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: Provider grid size invalid, using widget default %dx%d"), GridSize.X, GridSize.Y);
 	}
 
 	// Clear existing
@@ -317,6 +329,8 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 
 	int32 TotalSlots = GridSize.X * GridSize.Y;
 	SlotWidgets.Reserve(TotalSlots);
+
+	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Creating %d slots"), TotalSlots);
 
 	// Create slot widget for each grid cell
 	for (int32 SlotIndex = 0; SlotIndex < TotalSlots; ++SlotIndex)
@@ -344,6 +358,8 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 
 		SlotWidgets.Add(SlotWidget);
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Created %d slot widgets"), SlotWidgets.Num());
 }
 
 void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
@@ -353,6 +369,7 @@ void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
 {
 	if (SlotIndex < 0 || SlotIndex >= SlotWidgets.Num())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdateSlotWidget: SlotIndex %d out of range (0-%d)"), SlotIndex, SlotWidgets.Num() - 1);
 		return;
 	}
 
@@ -360,6 +377,16 @@ void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
 	if (!SlotWidget)
 	{
 		return;
+	}
+
+	// Debug logging for first few slots or if item exists
+	if (SlotIndex < 3 || ItemData.InstanceID.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("UpdateSlotWidget[%d]: bIsAnchor=%d, ItemID=%s, IconPath=%s"),
+			SlotIndex,
+			SlotData.bIsAnchor ? 1 : 0,
+			*ItemData.ItemID.ToString(),
+			*ItemData.IconPath.ToString());
 	}
 
 	// Update slot with data

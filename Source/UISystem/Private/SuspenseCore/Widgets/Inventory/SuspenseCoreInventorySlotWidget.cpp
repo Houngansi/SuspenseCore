@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
+#include "Styling/SlateBrush.h"
 
 //==================================================================
 // Constructor
@@ -148,27 +149,35 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 			// First try synchronous load (works if asset is already in memory)
 			if (UTexture2D* IconTexture = Cast<UTexture2D>(CachedItemData.IconPath.TryLoad()))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("SlotWidget[%d]: Icon loaded! Texture=%s, Size=%dx%d"),
+				UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Icon loaded! Texture=%s, Size=%dx%d"),
 					SlotIndex,
 					*IconTexture->GetName(),
 					IconTexture->GetSizeX(),
 					IconTexture->GetSizeY());
 
-				ItemIcon->SetBrushFromTexture(IconTexture);
+				// Create brush with multi-cell sizing
+				FVector2D IconSize = CalculateMultiCellIconSize();
+
+				FSlateBrush Brush;
+				Brush.SetResourceObject(IconTexture);
+				Brush.ImageSize = IconSize;
+				Brush.DrawAs = ESlateBrushDrawType::Image;
+				Brush.Tiling = ESlateBrushTileType::NoTile;
+
+				ItemIcon->SetBrush(Brush);
 				ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-				// Debug: Check ItemIcon state after setting
-				FVector2D DesiredSize = ItemIcon->GetDesiredSize();
-				UE_LOG(LogTemp, Warning, TEXT("SlotWidget[%d]: ItemIcon DesiredSize=%.1fx%.1f, Visibility=%d, IsVisible=%d"),
+				UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Icon set with size %.1fx%.1f (ItemSize=%dx%d, Cell=%.0f)"),
 					SlotIndex,
-					DesiredSize.X, DesiredSize.Y,
-					(int32)ItemIcon->GetVisibility(),
-					ItemIcon->IsVisible() ? 1 : 0);
+					IconSize.X, IconSize.Y,
+					MultiCellItemSize.X, MultiCellItemSize.Y,
+					CellSizePixels);
 
 				// Handle rotation
 				if (CachedItemData.bIsRotated)
 				{
 					ItemIcon->SetRenderTransformAngle(90.0f);
+					ItemIcon->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 				}
 				else
 				{
@@ -182,23 +191,39 @@ void USuspenseCoreInventorySlotWidget::UpdateVisuals_Implementation()
 
 				FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 				TWeakObjectPtr<UImage> WeakIcon(ItemIcon);
+				TWeakObjectPtr<USuspenseCoreInventorySlotWidget> WeakThis(this);
 				FSoftObjectPath IconPath = CachedItemData.IconPath;
 				bool bIsRotated = CachedItemData.bIsRotated;
 
 				StreamableManager.RequestAsyncLoad(
 					IconPath,
-					FStreamableDelegate::CreateLambda([WeakIcon, IconPath, bIsRotated]()
+					FStreamableDelegate::CreateLambda([WeakIcon, WeakThis, IconPath, bIsRotated]()
 					{
-						if (UImage* Icon = WeakIcon.Get())
+						USuspenseCoreInventorySlotWidget* This = WeakThis.Get();
+						UImage* Icon = WeakIcon.Get();
+
+						if (Icon && This)
 						{
 							if (UTexture2D* LoadedTexture = Cast<UTexture2D>(IconPath.ResolveObject()))
 							{
 								UE_LOG(LogTemp, Log, TEXT("SlotWidget: Icon loaded async successfully"));
-								Icon->SetBrushFromTexture(LoadedTexture);
+
+								// Create brush with multi-cell sizing
+								FVector2D IconSize = This->CalculateMultiCellIconSize();
+
+								FSlateBrush Brush;
+								Brush.SetResourceObject(LoadedTexture);
+								Brush.ImageSize = IconSize;
+								Brush.DrawAs = ESlateBrushDrawType::Image;
+								Brush.Tiling = ESlateBrushTileType::NoTile;
+
+								Icon->SetBrush(Brush);
 								Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
 								if (bIsRotated)
 								{
 									Icon->SetRenderTransformAngle(90.0f);
+									Icon->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 								}
 								else
 								{
@@ -299,4 +324,41 @@ FLinearColor USuspenseCoreInventorySlotWidget::GetHighlightColor_Implementation(
 	default:
 		return NormalHighlightColor;
 	}
+}
+
+//==================================================================
+// Multi-Cell Support
+//==================================================================
+
+void USuspenseCoreInventorySlotWidget::SetMultiCellItemSize(const FIntPoint& InSize)
+{
+	MultiCellItemSize = InSize;
+
+	// Ensure minimum 1x1
+	if (MultiCellItemSize.X < 1) MultiCellItemSize.X = 1;
+	if (MultiCellItemSize.Y < 1) MultiCellItemSize.Y = 1;
+
+	// Update icon size if we have an item displayed
+	if (ItemIcon && CachedSlotData.bIsAnchor && CachedItemData.InstanceID.IsValid())
+	{
+		FVector2D IconSize = CalculateMultiCellIconSize();
+
+		// Create brush with proper sizing
+		FSlateBrush Brush = ItemIcon->GetBrush();
+		Brush.ImageSize = IconSize;
+		ItemIcon->SetBrush(Brush);
+
+		UE_LOG(LogTemp, Log, TEXT("SlotWidget[%d]: Multi-cell icon size set to %.1fx%.1f (item size %dx%d)"),
+			SlotIndex, IconSize.X, IconSize.Y, MultiCellItemSize.X, MultiCellItemSize.Y);
+	}
+}
+
+FVector2D USuspenseCoreInventorySlotWidget::CalculateMultiCellIconSize() const
+{
+	// Calculate icon size based on item grid size and cell size
+	// For a 2x3 item with 64px cells: (2*64*0.85, 3*64*0.85) = (108.8, 163.2)
+	float IconWidth = MultiCellItemSize.X * CellSizePixels * MultiCellIconScale;
+	float IconHeight = MultiCellItemSize.Y * CellSizePixels * MultiCellIconScale;
+
+	return FVector2D(IconWidth, IconHeight);
 }

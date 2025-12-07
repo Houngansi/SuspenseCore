@@ -90,6 +90,40 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Slot")
 	void SetSlotSize(const FVector2D& InSize);
 
+	/**
+	 * Set base cell size (for multi-cell icon calculations)
+	 * @param InSize Cell size in pixels
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Slot")
+	void SetCellSize(float InSize) { CellSizePixels = InSize; }
+
+	/**
+	 * Get base cell size
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
+	float GetCellSize() const { return CellSizePixels; }
+
+	/**
+	 * Set multi-cell item size (for anchor slots)
+	 * When this is > 1x1, the icon will be scaled to fit the entire item area.
+	 * @param InSize Item size in grid cells
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Slot")
+	void SetMultiCellItemSize(const FIntPoint& InSize);
+
+	/**
+	 * Get current multi-cell item size
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
+	FIntPoint GetMultiCellItemSize() const { return MultiCellItemSize; }
+
+	/**
+	 * Calculate icon size for multi-cell item
+	 * @return Icon size in pixels based on cell size and item grid size
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
+	FVector2D CalculateMultiCellIconSize() const;
+
 	//==================================================================
 	// Slot Data
 	//==================================================================
@@ -268,4 +302,17 @@ private:
 
 	/** Current highlight state */
 	ESuspenseCoreUISlotState CurrentHighlightState;
+
+	//==================================================================
+	// Multi-Cell Support
+	//==================================================================
+
+	/** Base cell size in pixels */
+	float CellSizePixels = 64.0f;
+
+	/** Multi-cell item size (for anchor slots with items spanning multiple cells) */
+	FIntPoint MultiCellItemSize = FIntPoint(1, 1);
+
+	/** Icon scale factor for multi-cell items (0.85 = 85% of area) */
+	static constexpr float MultiCellIconScale = 0.85f;
 };

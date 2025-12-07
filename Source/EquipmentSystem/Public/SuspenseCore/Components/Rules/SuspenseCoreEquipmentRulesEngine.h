@@ -50,11 +50,11 @@ struct FSuspenseCoreRuleViolation
 
     /** Rule that was violated */
     UPROPERTY()
-    FEquipmentRule ViolatedRule;
+    FSuspenseCoreEquipmentRule ViolatedRule;
 
     /** Violation details */
     UPROPERTY()
-    FRuleEvaluationResult EvaluationResult;
+    FSuspenseCoreRuleResult EvaluationResult;
 
     /** When violation occurred */
     UPROPERTY()
@@ -192,24 +192,24 @@ public:
     // ISuspenseCoreEquipmentRules Implementation (DEV FALLBACK)
     //========================================
 
-    virtual FRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
-    virtual FRuleEvaluationResult EvaluateRulesWithContext(
+    virtual FSuspenseCoreRuleResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
+    virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
         const FSuspenseRuleContext& Context) const override;
-    virtual FRuleEvaluationResult CheckItemCompatibility(
+    virtual FSuspenseCoreRuleResult CheckItemCompatibility(
         const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
-    virtual FRuleEvaluationResult CheckCharacterRequirements(
+    virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseInventoryItemInstance& ItemInstance) const override;
-    virtual FRuleEvaluationResult CheckWeightLimit(
+    virtual FSuspenseCoreRuleResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
-    virtual FRuleEvaluationResult CheckConflictingEquipment(
+    virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
         const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
         const FSuspenseInventoryItemInstance& NewItem) const override;
-    virtual TArray<FEquipmentRule> GetActiveRules() const override;
-    virtual bool RegisterRule(const FEquipmentRule& Rule) override;
+    virtual TArray<FSuspenseCoreEquipmentRule> GetActiveRules() const override;
+    virtual bool RegisterRule(const FSuspenseCoreEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
     virtual bool SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
     virtual FString GenerateComplianceReport(const FEquipmentStateSnapshot& CurrentState) const override;
@@ -241,7 +241,7 @@ public:
      * @return Evaluation result
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Rules")
-    FRuleEvaluationResult EvaluateSpecificRule(const FGameplayTag& RuleTag, const FSuspenseCoreRuleExecutionContext& Context) const;
+    FSuspenseCoreRuleResult EvaluateSpecificRule(const FGameplayTag& RuleTag, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Batch evaluate rules
@@ -250,7 +250,7 @@ public:
      * @return Array of results
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Rules")
-    TArray<FRuleEvaluationResult> BatchEvaluateRules(const TArray<FGameplayTag>& RuleTags, const FSuspenseCoreRuleExecutionContext& Context) const;
+    TArray<FSuspenseCoreRuleResult> BatchEvaluateRules(const TArray<FGameplayTag>& RuleTags, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Clear all rules
@@ -292,7 +292,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FRuleEvaluationResult CheckItemDurability(const FSuspenseInventoryItemInstance& ItemInstance) const;
+    FSuspenseCoreRuleResult CheckItemDurability(const FSuspenseInventoryItemInstance& ItemInstance) const;
 
     /**
      * Check ammunition compatibility
@@ -301,7 +301,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FRuleEvaluationResult CheckAmmoCompatibility(
+    FSuspenseCoreRuleResult CheckAmmoCompatibility(
         const FSuspenseInventoryItemInstance& WeaponInstance,
         const FSuspenseInventoryItemInstance& AmmoInstance) const;
 
@@ -312,7 +312,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FRuleEvaluationResult CheckModificationCompatibility(
+    FSuspenseCoreRuleResult CheckModificationCompatibility(
         const FSuspenseInventoryItemInstance& BaseItem,
         const FSuspenseInventoryItemInstance& Modification) const;
 
@@ -322,7 +322,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FRuleEvaluationResult ValidateLoadout(const TArray<FSuspenseInventoryItemInstance>& LoadoutItems) const;
+    FSuspenseCoreRuleResult ValidateLoadout(const TArray<FSuspenseInventoryItemInstance>& LoadoutItems) const;
 
     //========================================
     // Character Requirements (DEV MODE)
@@ -343,7 +343,7 @@ public:
      * @return Evaluation result
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Requirements")
-    FRuleEvaluationResult CheckCharacterMeetsRequirements(
+    FSuspenseCoreRuleResult CheckCharacterMeetsRequirements(
         const AActor* Character,
         const FSuspenseCoreCharacterRequirements& Requirements) const;
 
@@ -437,7 +437,7 @@ protected:
      * @param MethodName Method that was called
      * @return Disabled result
      */
-    FRuleEvaluationResult CreateDisabledResult(const FString& MethodName) const;
+    FSuspenseCoreRuleResult CreateDisabledResult(const FString& MethodName) const;
 
     /**
      * Evaluate rule expression
@@ -461,7 +461,7 @@ protected:
      * @param Context Execution context
      * @return Evaluation result
      */
-    FRuleEvaluationResult ExecuteRule(const FEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
+    FSuspenseCoreRuleResult ExecuteRule(const FSuspenseCoreEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Check rule preconditions
@@ -469,21 +469,21 @@ protected:
      * @param Context Execution context
      * @return True if preconditions met
      */
-    bool CheckPreconditions(const FEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
+    bool CheckPreconditions(const FSuspenseCoreEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Apply rule priority
      * @param Rules Rules to prioritize
      * @return Sorted rules
      */
-    TArray<FEquipmentRule> PrioritizeRules(const TArray<FEquipmentRule>& Rules) const;
+    TArray<FSuspenseCoreEquipmentRule> PrioritizeRules(const TArray<FSuspenseCoreEquipmentRule>& Rules) const;
 
     /**
      * Cache rule result
      * @param RuleTag Rule tag
      * @param Result Result to cache
      */
-    void CacheRuleResult(const FGameplayTag& RuleTag, const FRuleEvaluationResult& Result) const;
+    void CacheRuleResult(const FGameplayTag& RuleTag, const FSuspenseCoreRuleResult& Result) const;
 
     /**
      * Get cached rule result
@@ -491,7 +491,7 @@ protected:
      * @param OutResult Output result
      * @return True if found in cache
      */
-    bool GetCachedResult(const FGameplayTag& RuleTag, FRuleEvaluationResult& OutResult) const;
+    bool GetCachedResult(const FGameplayTag& RuleTag, FSuspenseCoreRuleResult& OutResult) const;
 
     //========================================
     // Helper Methods
@@ -554,7 +554,7 @@ private:
 
     /** All registered rules */
     UPROPERTY()
-    TMap<FGameplayTag, FEquipmentRule> RegisteredRules;
+    TMap<FGameplayTag, FSuspenseCoreEquipmentRule> RegisteredRules;
 
     /** Enabled rules */
     UPROPERTY()
@@ -616,7 +616,7 @@ private:
     mutable TMap<FGameplayTag, FSuspenseCoreRuleStatistics> RuleStats;
 
     /** Result cache */
-    mutable TMap<uint32, FRuleEvaluationResult> ResultCache;
+    mutable TMap<uint32, FSuspenseCoreRuleResult> ResultCache;
 
     /** Cache timestamps */
     mutable TMap<uint32, float> CacheTimestamps;

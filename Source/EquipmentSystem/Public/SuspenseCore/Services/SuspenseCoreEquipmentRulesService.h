@@ -95,7 +95,7 @@ struct EQUIPMENTSYSTEM_API FRulesServiceMetrics
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentRulesService : public UObject,
-    public IEquipmentService,
+    public ISuspenseCoreEquipmentService,
     public ISuspenseCoreEquipmentRules
 {
     GENERATED_BODY()
@@ -105,7 +105,7 @@ public:
     virtual ~USuspenseCoreEquipmentRulesService();
 
     //~ Begin IEquipmentService Interface
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
     virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
     virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
@@ -117,24 +117,24 @@ public:
     //~ End IEquipmentService Interface
 
     //~ Begin ISuspenseCoreEquipmentRules Interface (delegated to RulesCoordinator)
-    virtual FRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
-    virtual FRuleEvaluationResult EvaluateRulesWithContext(
+    virtual FSuspenseCoreRuleResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
+    virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
         const FSuspenseRuleContext& Context) const override;
-    virtual FRuleEvaluationResult CheckItemCompatibility(
+    virtual FSuspenseCoreRuleResult CheckItemCompatibility(
         const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
-    virtual FRuleEvaluationResult CheckCharacterRequirements(
+    virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseInventoryItemInstance& ItemInstance) const override;
-    virtual FRuleEvaluationResult CheckWeightLimit(
+    virtual FSuspenseCoreRuleResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
-    virtual FRuleEvaluationResult CheckConflictingEquipment(
+    virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
         const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
         const FSuspenseInventoryItemInstance& NewItem) const override;
-    virtual TArray<FEquipmentRule> GetActiveRules() const override;
-    virtual bool RegisterRule(const FEquipmentRule& Rule) override;
+    virtual TArray<FSuspenseCoreEquipmentRule> GetActiveRules() const override;
+    virtual bool RegisterRule(const FSuspenseCoreEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
     virtual bool SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
     virtual FString GenerateComplianceReport(const FEquipmentStateSnapshot& CurrentState) const override;
@@ -159,7 +159,7 @@ public:
 protected:
     // Service state
     EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
-    FServiceInitParams ServiceParams;
+    FSuspenseCoreServiceInitParams ServiceParams;
 
     // Configuration
     FRulesServiceConfig Config;
@@ -180,7 +180,7 @@ protected:
     // Validation result cache
     struct FCachedResult
     {
-        FRuleEvaluationResult Result;
+        FSuspenseCoreRuleResult Result;
         double CacheTime;
         uint32 RequestHash;
     };
@@ -189,20 +189,20 @@ protected:
 
     // Metrics
     mutable FRulesServiceMetrics Metrics;
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
 private:
     // Cache helpers
     uint32 ComputeRequestHash(const FEquipmentOperationRequest& Request) const;
-    bool TryGetCachedResult(uint32 Hash, FRuleEvaluationResult& OutResult) const;
-    void CacheResult(uint32 Hash, const FRuleEvaluationResult& Result) const;
+    bool TryGetCachedResult(uint32 Hash, FSuspenseCoreRuleResult& OutResult) const;
+    void CacheResult(uint32 Hash, const FSuspenseCoreRuleResult& Result) const;
     void CleanupExpiredCache() const;
 
     // EventBus helpers
     void SetupEventBus();
     void TeardownEventBus();
     void BroadcastValidationStarted(const FEquipmentOperationRequest& Request) const;
-    void BroadcastValidationResult(const FEquipmentOperationRequest& Request, const FRuleEvaluationResult& Result) const;
+    void BroadcastValidationResult(const FEquipmentOperationRequest& Request, const FSuspenseCoreRuleResult& Result) const;
 
     // Metrics
     void UpdateMetrics(double EvaluationStartTime, bool bPassed) const;

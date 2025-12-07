@@ -149,47 +149,89 @@ FString FSuspenseSecureKeyStorage::GenerateHMAC(const FString& Data) const
         return FString();
     }
 
-    // HMAC using double SHA-1 (similar to HMAC construction)
-    // HMAC(key, data) = SHA1(key ^ opad || SHA1(key ^ ipad || data))
-    FString CombinedData = Key + TEXT(":") + Data + TEXT(":") + Key;
+    // ========================================
+    // RFC 2104 HMAC-SHA256 Implementation
+    // HMAC(K, m) = H((K' ⊕ opad) || H((K' ⊕ ipad) || m))
+    // ========================================
 
-    uint8 Hash[20];
-    FSHA1 Sha1;
-    Sha1.Update((const uint8*)TCHAR_TO_UTF8(*CombinedData), CombinedData.Len());
-    Sha1.Final();
-    Sha1.GetHash(Hash);
+    constexpr int32 BlockSize = 64;  // SHA-256 block size in bytes
+    constexpr int32 HashSize = 32;   // SHA-256 output size in bytes
+    constexpr uint8 IPAD = 0x36;
+    constexpr uint8 OPAD = 0x5C;
 
-    // Second pass with key for additional security
-    FString SecondInput = Key;
-    for (int32 i = 0; i < 20; ++i)
+    // Convert key to bytes
+    TArray<uint8> KeyBytes;
+    KeyBytes.SetNumUninitialized(Key.Len());
+    for (int32 i = 0; i < Key.Len(); ++i)
     {
-        SecondInput += FString::Printf(TEXT("%02x"), Hash[i]);
+        KeyBytes[i] = static_cast<uint8>(Key[i] & 0xFF);
     }
 
-    FSHA1 Sha1_2;
-    Sha1_2.Update((const uint8*)TCHAR_TO_UTF8(*SecondInput), SecondInput.Len());
-    Sha1_2.Final();
-    Sha1_2.GetHash(Hash);
+    // Convert data to UTF-8
+    const FTCHARToUTF8 Utf8Converter(*Data);
+    const uint8* MessageData = reinterpret_cast<const uint8*>(Utf8Converter.Get());
+    const int32 MessageLen = Utf8Converter.Length();
 
-    // Convert to hex string (40 chars for SHA-1)
+    // Step 1: Prepare the key (K')
+    TArray<uint8> KeyPrime;
+    KeyPrime.SetNumZeroed(BlockSize);
+
+    if (KeyBytes.Num() > BlockSize)
+    {
+        // Hash the key if too long
+        FSHA256Signature KeyHash;
+        FSHA256::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash.Signature);
+        FMemory::Memcpy(KeyPrime.GetData(), KeyHash.Signature, HashSize);
+    }
+    else
+    {
+        FMemory::Memcpy(KeyPrime.GetData(), KeyBytes.GetData(), KeyBytes.Num());
+    }
+
+    // Step 2: Compute inner hash: H((K' ⊕ ipad) || message)
+    TArray<uint8> InnerData;
+    InnerData.SetNumUninitialized(BlockSize + MessageLen);
+
+    for (int32 i = 0; i < BlockSize; ++i)
+    {
+        InnerData[i] = KeyPrime[i] ^ IPAD;
+    }
+    FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+
+    FSHA256Signature InnerHash;
+    FSHA256::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash.Signature);
+
+    // Step 3: Compute outer hash: H((K' ⊕ opad) || inner_hash)
+    TArray<uint8> OuterData;
+    OuterData.SetNumUninitialized(BlockSize + HashSize);
+
+    for (int32 i = 0; i < BlockSize; ++i)
+    {
+        OuterData[i] = KeyPrime[i] ^ OPAD;
+    }
+    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash.Signature, HashSize);
+
+    FSHA256Signature FinalHash;
+    FSHA256::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash.Signature);
+
+    // Convert to hex string (64 chars for SHA-256)
     FString Result;
-    for (int32 i = 0; i < 20; ++i)
+    Result.Reserve(HashSize * 2);
+    for (int32 i = 0; i < HashSize; ++i)
     {
-        Result += FString::Printf(TEXT("%02x"), Hash[i]);
+        Result += FString::Printf(TEXT("%02x"), FinalHash.Signature[i]);
     }
 
-    // Zero local copies (best effort - string internals may persist)
+    // Secure cleanup
+    FMemory::Memzero(KeyBytes.GetData(), KeyBytes.Num());
+    FMemory::Memzero(KeyPrime.GetData(), KeyPrime.Num());
+    FMemory::Memzero(InnerData.GetData(), InnerData.Num());
+    FMemory::Memzero(OuterData.GetData(), OuterData.Num());
+
+    // Zero key string (best effort)
     for (int32 i = 0; i < Key.Len(); ++i)
     {
         const_cast<TCHAR*>(*Key)[i] = 0;
-    }
-    for (int32 i = 0; i < CombinedData.Len(); ++i)
-    {
-        const_cast<TCHAR*>(*CombinedData)[i] = 0;
-    }
-    for (int32 i = 0; i < SecondInput.Len(); ++i)
-    {
-        const_cast<TCHAR*>(*SecondInput)[i] = 0;
     }
 
     return Result;
@@ -351,21 +393,35 @@ void FSuspenseSecureKeyStorage::GenerateRandomBytes(TArray<uint8>& OutBytes, int
 {
     OutBytes.SetNumUninitialized(NumBytes);
 
-    // Use multiple entropy sources for randomness
+    // SECURITY: Use platform CSPRNG via FGuid::NewGuid() which internally uses:
+    // - Windows: UuidCreate (RPC) backed by CryptGenRandom
+    // - Linux: /dev/urandom or getrandom() syscall
+    // - Mac: arc4random()
+    //
+    // Generate enough GUIDs to fill the requested bytes
+    const int32 GuidSize = 16; // 128 bits per GUID
+    const int32 NumGuids = (NumBytes + GuidSize - 1) / GuidSize;
+
+    int32 ByteIndex = 0;
+    for (int32 g = 0; g < NumGuids && ByteIndex < NumBytes; ++g)
+    {
+        // Each GUID provides 128 bits of platform CSPRNG entropy
+        FGuid Guid = FGuid::NewGuid();
+
+        // Extract all 16 bytes from GUID components (A, B, C, D)
+        const uint8* GuidBytes = reinterpret_cast<const uint8*>(&Guid);
+        for (int32 b = 0; b < GuidSize && ByteIndex < NumBytes; ++b)
+        {
+            OutBytes[ByteIndex++] = GuidBytes[b];
+        }
+    }
+
+    // Additional mixing pass with cycle counter for extra entropy
+    // This doesn't weaken the CSPRNG output, only adds entropy
+    const uint64 TimeEntropy = FPlatformTime::Cycles64();
     for (int32 i = 0; i < NumBytes; ++i)
     {
-        uint64 Entropy = FPlatformTime::Cycles64();
-        Entropy ^= ((uint64)FPlatformTLS::GetCurrentThreadId() << 32);
-        Entropy ^= (uint64)i * 0x5DEECE66DULL;
-
-        // Mix with GUID randomness
-        if ((i % 16) == 0)
-        {
-            FGuid Guid = FGuid::NewGuid();
-            Entropy ^= ((uint64)Guid.A << 32) | Guid.B;
-        }
-
-        OutBytes[i] = static_cast<uint8>((Entropy >> ((i % 8) * 8)) & 0xFF);
+        OutBytes[i] ^= static_cast<uint8>((TimeEntropy >> ((i % 8) * 8)) & 0xFF);
     }
 }
 

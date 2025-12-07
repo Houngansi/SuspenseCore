@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreNetworkInterfaces.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentOperations.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"

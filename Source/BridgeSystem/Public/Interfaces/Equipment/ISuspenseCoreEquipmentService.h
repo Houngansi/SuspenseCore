@@ -25,7 +25,7 @@ enum class EServiceLifecycleState : uint8
  * Service initialization parameters - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FServiceInitParams
+struct BRIDGESYSTEM_API FServiceInitParams
 {
     GENERATED_BODY()
 
@@ -62,7 +62,7 @@ class USuspenseCoreEquipmentService : public UInterface
  *
  * This is the SuspenseCore version that replaces the legacy ISuspenseEquipmentService.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentService
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -148,7 +148,7 @@ class USuspenseCoreEquipmentDataService : public USuspenseCoreEquipmentService
     GENERATED_BODY()
 };
 
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentDataService : public ISuspenseCoreEquipmentService
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentDataService : public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -188,7 +188,7 @@ class USuspenseCoreEquipmentNetworkService : public USuspenseCoreEquipmentServic
     GENERATED_BODY()
 };
 
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentNetworkService : public ISuspenseCoreEquipmentService
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentNetworkService : public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 

@@ -26,7 +26,7 @@ class USuspenseCoreNetworkDispatcher : public UInterface
  * Central point for all network operations.
  * Handles RPC calls, batching, and reliability.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreNetworkDispatcher
+class BRIDGESYSTEM_API ISuspenseCoreNetworkDispatcher
 {
     GENERATED_BODY()
 
@@ -75,7 +75,7 @@ public:
  * Prediction data - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCorePrediction
+struct BRIDGESYSTEM_API FSuspenseCorePrediction
 {
     GENERATED_BODY()
 
@@ -113,7 +113,7 @@ class USuspenseCorePredictionManager : public UInterface
  * Provides responsive UI through client-side prediction.
  * Handles rollback and reconciliation with server.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCorePredictionManager
+class BRIDGESYSTEM_API ISuspenseCorePredictionManager
 {
     GENERATED_BODY()
 
@@ -174,7 +174,7 @@ enum class ESuspenseCoreReplicationPolicy : uint8
  * Replicated equipment data - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreReplicatedData
+struct BRIDGESYSTEM_API FSuspenseCoreReplicatedData
 {
     GENERATED_BODY()
 
@@ -206,7 +206,7 @@ class USuspenseCoreReplicationProvider : public UInterface
  * Manages state synchronization across network.
  * Optimizes bandwidth and ensures consistency.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreReplicationProvider
+class BRIDGESYSTEM_API ISuspenseCoreReplicationProvider
 {
     GENERATED_BODY()
 

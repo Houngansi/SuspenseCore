@@ -28,7 +28,7 @@ class USuspenseCoreEquipmentOperations : public UInterface
  * - Validation: Pre-check operations before execution
  * - History: Track operations for undo/redo
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentOperations
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentOperations
 {
     GENERATED_BODY()
 

@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreTransactionManager.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"

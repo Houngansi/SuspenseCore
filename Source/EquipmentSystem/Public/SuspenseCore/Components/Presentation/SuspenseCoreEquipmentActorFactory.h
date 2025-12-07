@@ -12,6 +12,7 @@
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/StreamableManager.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "SuspenseCoreEquipmentActorFactory.generated.h"
 
 /**

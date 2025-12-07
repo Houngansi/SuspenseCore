@@ -5,15 +5,16 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Delegates/Delegate.h"
+#include "Types/Events/SuspenseEquipmentEventData.h"
 #include "SuspenseCoreEquipmentDataService.generated.h"
 
 // Forward declarations

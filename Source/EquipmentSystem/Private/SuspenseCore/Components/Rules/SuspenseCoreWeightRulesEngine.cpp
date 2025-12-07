@@ -4,6 +4,8 @@
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagAssetInterface.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWeightRules, Log, All);
 
@@ -17,7 +19,7 @@ USuspenseCoreWeightRulesEngine::USuspenseCoreWeightRulesEngine()
 void USuspenseCoreWeightRulesEngine::Initialize(const FMedComWeightConfig& InConfig)
 {
     Configuration = InConfig;
-    UE_LOG(LogWeightRules, Log, TEXT("WeightRulesEngine initialized: BaseCapacity=%.2f, CapacityPerStrength=%.2f"), 
+    UE_LOG(LogWeightRules, Log, TEXT("WeightRulesEngine initialized: BaseCapacity=%.2f, CapacityPerStrength=%.2f"),
         Configuration.BaseCarryCapacity, Configuration.CapacityPerStrength);
 }
 
@@ -80,7 +82,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreWeightRulesEngine::CheckWeightLimit(fl
 
     // Over capacity - check if overweight is allowed
     const float MaxAllowedWeight = MaxCapacity * FMath::Max(1.0f, Configuration.MaxOverweightRatio);
-    
+
     if (!Configuration.bAllowOverweight || NewTotal > MaxAllowedWeight)
     {
         FSuspenseCoreRuleCheckResult R = FSuspenseCoreRuleCheckResult::Failure(
@@ -176,10 +178,10 @@ float USuspenseCoreWeightRulesEngine::CalculateItemWeight(const FSuspenseCoreInv
     // Weight is read directly from runtime property on item instance
     // No external data sources - engine doesn't fetch item data from world/managers
     const float BaseWeight = GetItemRuntimeWeight(Item);
-    
+
     // Apply quantity multiplier
     const int32 Quantity = FMath::Max(1, Item.Quantity);
-    
+
     // Note: Weight modifiers are applied externally via ApplyWeightModifiers() if tags are provided
     // This engine doesn't fetch item tags from external sources
     return FMath::Max(0.0f, BaseWeight * Quantity);
@@ -204,22 +206,22 @@ float USuspenseCoreWeightRulesEngine::ApplyWeightModifiers(float BaseWeight, con
     }
 
     float ModifiedWeight = BaseWeight;
-    
+
     // Apply all matching tag-based modifiers
     for (const TPair<FGameplayTag, float>& Pair : Configuration.WeightModifiers)
     {
         const FGameplayTag& ModifierTag = Pair.Key;
         const float Multiplier = Pair.Value;
-        
+
         if (ModifierTag.IsValid() && ItemTags.HasTag(ModifierTag))
         {
             ModifiedWeight *= FMath::Max(0.0f, Multiplier);
-            
+
             UE_LOG(LogWeightRules, Verbose, TEXT("Applied weight modifier %s: %.2f -> %.2f"),
                 *ModifierTag.ToString(), BaseWeight, ModifiedWeight);
         }
     }
-    
+
     return FMath::Max(0.0f, ModifiedWeight);
 }
 
@@ -263,31 +265,31 @@ TMap<FGameplayTag, float> USuspenseCoreWeightRulesEngine::AnalyzeWeightDistribut
 TArray<int32> USuspenseCoreWeightRulesEngine::FindHeaviestItems(const TArray<FSuspenseCoreInventoryItemInstance>& Items, int32 TopN) const
 {
     struct FIndexedWeight { int32 Index; float Weight; };
-    
+
     TArray<FIndexedWeight> IndexedWeights;
     IndexedWeights.Reserve(Items.Num());
-    
+
     for (int32 i = 0; i < Items.Num(); ++i)
     {
         IndexedWeights.Add({i, CalculateItemWeight(Items[i])});
     }
-    
+
     // Sort by weight descending
     IndexedWeights.Sort([](const FIndexedWeight& A, const FIndexedWeight& B)
     {
         return A.Weight > B.Weight;
     });
-    
+
     // Extract top N indices
     TopN = FMath::Clamp(TopN, 0, IndexedWeights.Num());
     TArray<int32> Result;
     Result.Reserve(TopN);
-    
+
     for (int32 i = 0; i < TopN; ++i)
     {
         Result.Add(IndexedWeights[i].Index);
     }
-    
+
     return Result;
 }
 
@@ -315,20 +317,20 @@ float USuspenseCoreWeightRulesEngine::GetCharacterStrength(const AActor* Charact
     if (!ASC) { return 0.0f; }
 
     // Try common strength attribute names
-    static const FName StrengthNames[] = { 
-        FName(TEXT("Strength")), 
+    static const FName StrengthNames[] = {
+        FName(TEXT("Strength")),
         FName(TEXT("STR")),
         FName(TEXT("Str"))
     };
 
     const TArray<UAttributeSet*>& Sets = ASC->GetSpawnedAttributes();
-    
+
     for (const FName& Name : StrengthNames)
     {
         for (const UAttributeSet* Set : Sets)
         {
             if (!Set) { continue; }
-            
+
             if (FProperty* Prop = Set->GetClass()->FindPropertyByName(Name))
             {
                 if (const FFloatProperty* FP = CastField<FFloatProperty>(Prop))
@@ -346,7 +348,7 @@ float USuspenseCoreWeightRulesEngine::GetCharacterStrength(const AActor* Charact
             }
         }
     }
-    
+
     // No strength attribute found - return 0 (base capacity will still apply)
     return 0.0f;
 }

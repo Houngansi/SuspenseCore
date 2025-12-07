@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "SuspenseCoreSystemCoordinatorComponent.generated.h"
 
@@ -45,7 +45,7 @@ public:
     /** PUBLIC: warm up services (initialize caches, subscriptions) */
     UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Coordinator")
     void WarmUpServices();
-    
+
     /**
      * Explicit shutdown - clean up subscriptions, timers, references
      * Called by SystemCoordinatorSubsystem on Deinitialize
@@ -67,10 +67,10 @@ private:
     UPROPERTY(Transient) FGameplayTag OperationServiceTag;
     UPROPERTY(Transient) FGameplayTag VisualizationServiceTag;
     UPROPERTY(Transient) FGameplayTag AbilityServiceTag;
-    
+
     UPROPERTY()
     USuspenseCoreEquipmentSlotValidator* SlotValidator = nullptr;
 
-    UPROPERTY(Transient) 
+    UPROPERTY(Transient)
     bool bBootstrapped = false;
 };

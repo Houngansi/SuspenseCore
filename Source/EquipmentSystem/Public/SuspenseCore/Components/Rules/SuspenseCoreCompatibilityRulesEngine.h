@@ -9,7 +9,7 @@
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCoreCompatibilityRulesEngine.generated.h"
 
 // Forward declarations

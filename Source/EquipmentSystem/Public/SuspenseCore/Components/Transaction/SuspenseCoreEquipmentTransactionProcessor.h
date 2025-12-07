@@ -5,8 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Types/Transaction/SuspenseTransactionTypes.h"

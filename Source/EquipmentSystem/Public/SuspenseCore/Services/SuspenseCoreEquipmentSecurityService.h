@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Security/SuspenseSecureKeyStorage.h"
 #include "SuspenseCore/Security/SuspenseNonceLRUCache.h"

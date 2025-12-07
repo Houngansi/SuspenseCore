@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCoreEquipmentRulesService.generated.h"

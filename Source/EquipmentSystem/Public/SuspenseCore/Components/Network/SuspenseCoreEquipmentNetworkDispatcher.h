@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Delegates/Delegate.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "SuspenseCoreEquipmentNetworkDispatcher.generated.h"

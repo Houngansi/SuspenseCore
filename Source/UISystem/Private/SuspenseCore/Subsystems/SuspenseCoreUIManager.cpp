@@ -134,6 +134,11 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 
 void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 {
+	// TODO: Provider binding now handled differently
+	// PanelSwitcher creates content widgets via TabConfigs.ContentWidgetClass
+	// Content widgets should implement ISuspenseCoreUIDataProvider interface
+	// and bind themselves in NativeConstruct via EventBus
+
 	if (!ContainerScreen || !PC)
 	{
 		return;
@@ -157,48 +162,12 @@ void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 		AllProviders.Append(StateProviders);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers"), AllProviders.Num());
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers (binding via EventBus)"), AllProviders.Num());
 
-	// Bind providers to ENABLED panels based on container type
-	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
-	{
-		// Skip disabled panels
-		if (!PanelConfig.bIsEnabled)
-		{
-			continue;
-		}
-
-		USuspenseCorePanelWidget* Panel = ContainerScreen->GetPanelByTag(PanelConfig.PanelTag);
-		if (!Panel)
-		{
-			continue;
-		}
-
-		// Find providers matching this panel's container types
-		for (const TScriptInterface<ISuspenseCoreUIDataProvider>& Provider : AllProviders)
-		{
-			if (!Provider)
-			{
-				continue;
-			}
-
-			ISuspenseCoreUIDataProvider* ProviderInterface = Provider.GetInterface();
-			if (!ProviderInterface)
-			{
-				continue;
-			}
-
-			// Check if provider type matches any of panel's container types
-			ESuspenseCoreContainerType ProviderType = ProviderInterface->GetContainerType();
-			if (PanelConfig.ContainerTypes.Contains(ProviderType))
-			{
-				// Bind provider to panel's container widget by type
-				Panel->BindContainerToProvider(ProviderType, Provider);
-				UE_LOG(LogTemp, Log, TEXT("  Bound provider type %d to panel %s"),
-					static_cast<int32>(ProviderType), *PanelConfig.PanelTag.ToString());
-			}
-		}
-	}
+	// NEW ARCHITECTURE: Publish providers via EventBus
+	// Content widgets subscribe to SuspenseCore.Event.UIProvider.DataChanged
+	// and request data from providers
+	// This is more decoupled than direct panel binding
 }
 
 //==================================================================
@@ -236,23 +205,25 @@ bool USuspenseCoreUIManager::ShowContainerScreenMulti(
 
 	OwningPC = PC;
 
-	// Initialize screen with config
-	ContainerScreen->InitializeScreen(ScreenConfig);
+	// NEW ARCHITECTURE: Screen is configured via Blueprint (PanelSwitcher.TabConfigs)
+	// No need to call InitializeScreen() - PanelSwitcher handles everything
 
-	// Find providers and bind to panels
+	// Find providers and bind via EventBus
 	BindProvidersToScreen(PC);
 
-	// Switch to requested panel
+	// Add to viewport first
+	ContainerScreen->AddToViewport(100);
+
+	// Activate screen (sets input mode, opens default/remembered panel)
+	ContainerScreen->ActivateScreen();
+
+	// Override with requested panel if specified
 	if (DefaultPanel.IsValid())
 	{
-		ContainerScreen->SwitchToPanel(DefaultPanel);
+		ContainerScreen->OpenPanelByTag(DefaultPanel);
 	}
 
-	ContainerScreen->AddToViewport(100);
 	bIsContainerScreenVisible = true;
-
-	// Update input mode
-	UpdateInputMode(PC, true);
 
 	// Broadcast event
 	OnContainerScreenVisibilityChanged.Broadcast(true);

@@ -172,6 +172,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
 	int32 GetSelectedTabIndex() const { return CurrentTabIndex; }
 
+	/** Get currently selected tab tag (alias for GetActivePanel) */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
+	FGameplayTag GetSelectedTabTag() const { return GetActivePanel(); }
+
 	/** Get currently active panel tag */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
 	FGameplayTag GetActivePanel() const;

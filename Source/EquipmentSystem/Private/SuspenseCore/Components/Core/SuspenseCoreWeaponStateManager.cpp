@@ -17,56 +17,56 @@ USuspenseCoreWeaponStateManager::USuspenseCoreWeaponStateManager()
     DefaultHolsteredState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
 
     // Setup default transitions
-    FStateTransitionDef DrawTransition;
+    FSuspenseCoreStateTransitionDef DrawTransition;
     DrawTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
     DrawTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
     DrawTransition.Duration = 0.5f;
     DrawTransition.bInterruptible = false;
     TransitionDefinitions.Add(DrawTransition);
 
-    FStateTransitionDef DrawCompleteTransition;
+    FSuspenseCoreStateTransitionDef DrawCompleteTransition;
     DrawCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
     DrawCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     DrawCompleteTransition.Duration = 0.1f;
     DrawCompleteTransition.bInterruptible = false;
     TransitionDefinitions.Add(DrawCompleteTransition);
 
-    FStateTransitionDef HolsterTransition;
+    FSuspenseCoreStateTransitionDef HolsterTransition;
     HolsterTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     HolsterTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
     HolsterTransition.Duration = 0.4f;
     HolsterTransition.bInterruptible = true;
     TransitionDefinitions.Add(HolsterTransition);
 
-    FStateTransitionDef HolsterCompleteTransition;
+    FSuspenseCoreStateTransitionDef HolsterCompleteTransition;
     HolsterCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
     HolsterCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
     HolsterCompleteTransition.Duration = 0.1f;
     HolsterCompleteTransition.bInterruptible = false;
     TransitionDefinitions.Add(HolsterCompleteTransition);
 
-    FStateTransitionDef FireTransition;
+    FSuspenseCoreStateTransitionDef FireTransition;
     FireTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     FireTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
     FireTransition.Duration = 0.0f; // Instant
     FireTransition.bInterruptible = true;
     TransitionDefinitions.Add(FireTransition);
 
-    FStateTransitionDef FireEndTransition;
+    FSuspenseCoreStateTransitionDef FireEndTransition;
     FireEndTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
     FireEndTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     FireEndTransition.Duration = 0.1f;
     FireEndTransition.bInterruptible = true;
     TransitionDefinitions.Add(FireEndTransition);
 
-    FStateTransitionDef ReloadTransition;
+    FSuspenseCoreStateTransitionDef ReloadTransition;
     ReloadTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     ReloadTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
     ReloadTransition.Duration = 2.0f;
     ReloadTransition.bInterruptible = false;
     TransitionDefinitions.Add(ReloadTransition);
 
-    FStateTransitionDef ReloadCompleteTransition;
+    FSuspenseCoreStateTransitionDef ReloadCompleteTransition;
     ReloadCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
     ReloadCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
     ReloadCompleteTransition.Duration = 0.2f;
@@ -129,7 +129,7 @@ bool USuspenseCoreWeaponStateManager::Initialize(
 
         if (bIsWeaponSlot)
         {
-            FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(i);
+            FSuspenseCoreWeaponStateMachine& StateMachine = GetOrCreateStateMachine(i);
             StateMachine.CurrentState  = DefaultHolsteredState;
             StateMachine.PreviousState = DefaultHolsteredState;
         }
@@ -153,8 +153,8 @@ FGameplayTag USuspenseCoreWeaponStateManager::GetWeaponState(int32 SlotIndex) co
         return FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.None"));
     }
 
-    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
-        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    const FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     if (StateMachine)
     {
@@ -183,12 +183,12 @@ FWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransi
         return Result;
     }
 
-    FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
+    FSuspenseCoreWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
 
     // Check if already transitioning
     if (StateMachine.bIsTransitioning && !Request.bForceTransition)
     {
-        const FStateTransitionDef* CurrentTransition = FindTransitionDef(
+        const FSuspenseCoreStateTransitionDef* CurrentTransition = FindTransitionDef(
             StateMachine.ActiveTransition.FromState,
             StateMachine.ActiveTransition.ToState);
 
@@ -207,7 +207,7 @@ FWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransi
     }
 
     // Find transition definition
-    const FStateTransitionDef* TransitionDef = FindTransitionDef(
+    const FSuspenseCoreStateTransitionDef* TransitionDef = FindTransitionDef(
         Request.FromState.IsValid() ? Request.FromState : StateMachine.CurrentState,
         Request.ToState);
 
@@ -243,7 +243,7 @@ FWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransi
 bool USuspenseCoreWeaponStateManager::CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
     // Check if transition is defined
-    const FStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
+    const FSuspenseCoreStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
     return TransitionDef != nullptr;
 }
 
@@ -251,7 +251,7 @@ TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetValidTransitions(const 
 {
     TArray<FGameplayTag> ValidTransitions;
 
-    for (const FStateTransitionDef& Transition : TransitionDefinitions)
+    for (const FSuspenseCoreStateTransitionDef& Transition : TransitionDefinitions)
     {
         if (Transition.FromState == CurrentState)
         {
@@ -276,7 +276,7 @@ bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, i
         return false;
     }
 
-    FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
+    FSuspenseCoreWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
 
     // Force state without validation
     StateMachine.PreviousState = StateMachine.CurrentState;
@@ -297,7 +297,7 @@ bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, i
 
 float USuspenseCoreWeaponStateManager::GetTransitionDuration(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
-    const FStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
+    const FSuspenseCoreStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
     if (TransitionDef)
     {
         return TransitionDef->Duration;
@@ -337,7 +337,7 @@ bool USuspenseCoreWeaponStateManager::IsTransitioning(int32 SlotIndex) const
     if (SlotIndex == -1)
     {
         // Check if any weapon is transitioning
-        for (const FWeaponStateMachine& StateMachine : StateMachines)
+        for (const FSuspenseCoreWeaponStateMachine& StateMachine : StateMachines)
         {
             if (StateMachine.bIsTransitioning)
             {
@@ -347,8 +347,8 @@ bool USuspenseCoreWeaponStateManager::IsTransitioning(int32 SlotIndex) const
         return false;
     }
 
-    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
-        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    const FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     return StateMachine ? StateMachine->bIsTransitioning : false;
 }
@@ -362,8 +362,8 @@ float USuspenseCoreWeaponStateManager::GetTransitionProgress(int32 SlotIndex) co
         SlotIndex = ActiveWeaponSlot;
     }
 
-    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
-        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    const FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     if (!StateMachine || !StateMachine->bIsTransitioning || !GetWorld())
     {
@@ -383,8 +383,8 @@ bool USuspenseCoreWeaponStateManager::AbortTransition(int32 SlotIndex)
         SlotIndex = ActiveWeaponSlot;
     }
 
-    FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
-        [SlotIndex](FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     if (!StateMachine || !StateMachine->bIsTransitioning)
     {
@@ -392,7 +392,7 @@ bool USuspenseCoreWeaponStateManager::AbortTransition(int32 SlotIndex)
     }
 
     // Check if transition is interruptible
-    const FStateTransitionDef* TransitionDef = FindTransitionDef(
+    const FSuspenseCoreStateTransitionDef* TransitionDef = FindTransitionDef(
         StateMachine->ActiveTransition.FromState,
         StateMachine->ActiveTransition.ToState);
 
@@ -425,19 +425,19 @@ TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetStateHistory(int32 MaxC
     const int32 StartIndex = FMath::Max(0, StateHistory.Num() - MaxCount);
     for (int32 i = StartIndex; i < StateHistory.Num(); ++i)
     {
-        // В вашей структуре FWeaponStateHistoryEntry поля называются State/TimeSeconds
+        // В вашей структуре FSuspenseCoreWeaponStateHistoryEntry поля называются State/TimeSeconds
         History.Add(StateHistory[i].State);
     }
 
     return History;
 }
 
-void USuspenseCoreWeaponStateManager::RegisterTransition(const FStateTransitionDef& Transition)
+void USuspenseCoreWeaponStateManager::RegisterTransition(const FSuspenseCoreStateTransitionDef& Transition)
 {
     FScopeLock Lock(&StateMachineLock);
 
     // Remove existing transition if present
-    TransitionDefinitions.RemoveAll([&Transition](const FStateTransitionDef& Def)
+    TransitionDefinitions.RemoveAll([&Transition](const FSuspenseCoreStateTransitionDef& Def)
     {
         return Def.FromState == Transition.FromState && Def.ToState == Transition.ToState;
     });
@@ -460,7 +460,7 @@ void USuspenseCoreWeaponStateManager::UpdateTransitions(float DeltaTime)
 
     float CurrentTime = GetWorld()->GetTimeSeconds();
 
-    for (FWeaponStateMachine& StateMachine : StateMachines)
+    for (FSuspenseCoreWeaponStateMachine& StateMachine : StateMachines)
     {
         if (!StateMachine.bIsTransitioning)
         {
@@ -478,8 +478,8 @@ void USuspenseCoreWeaponStateManager::UpdateTransitions(float DeltaTime)
 
 void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
 {
-    FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
-        [SlotIndex](FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     if (!StateMachine || !StateMachine->bIsTransitioning)
     {
@@ -515,10 +515,10 @@ void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
     }
 }
 
-FWeaponStateMachine& USuspenseCoreWeaponStateManager::GetOrCreateStateMachine(int32 SlotIndex)
+FSuspenseCoreWeaponStateMachine& USuspenseCoreWeaponStateManager::GetOrCreateStateMachine(int32 SlotIndex)
 {
-    FWeaponStateMachine* ExistingMachine = StateMachines.FindByPredicate(
-        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+    FSuspenseCoreWeaponStateMachine* ExistingMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
 
     if (ExistingMachine)
     {
@@ -526,7 +526,7 @@ FWeaponStateMachine& USuspenseCoreWeaponStateManager::GetOrCreateStateMachine(in
     }
 
     // Create new state machine
-    FWeaponStateMachine NewMachine;
+    FSuspenseCoreWeaponStateMachine NewMachine;
     NewMachine.SlotIndex = SlotIndex;
     NewMachine.CurrentState = DefaultHolsteredState;
     NewMachine.PreviousState = DefaultHolsteredState;
@@ -535,9 +535,9 @@ FWeaponStateMachine& USuspenseCoreWeaponStateManager::GetOrCreateStateMachine(in
     return StateMachines[Index];
 }
 
-const FStateTransitionDef* USuspenseCoreWeaponStateManager::FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const
+const FSuspenseCoreStateTransitionDef* USuspenseCoreWeaponStateManager::FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
-    return TransitionDefinitions.FindByPredicate([&FromState, &ToState](const FStateTransitionDef& Def)
+    return TransitionDefinitions.FindByPredicate([&FromState, &ToState](const FSuspenseCoreStateTransitionDef& Def)
     {
         return Def.FromState == FromState && Def.ToState == ToState;
     });
@@ -547,7 +547,7 @@ void USuspenseCoreWeaponStateManager::RecordStateChange(int32 SlotIndex, const F
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-    FWeaponStateHistoryEntry Entry;
+    FSuspenseCoreWeaponStateHistoryEntry Entry;
     Entry.State       = NewState;
     Entry.TimeSeconds = CurrentTime;
 

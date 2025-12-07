@@ -12,7 +12,7 @@
  * Weapon state machine configuration
  */
 USTRUCT()
-struct FWeaponStateMachine
+struct FSuspenseCoreWeaponStateMachine
 {
     GENERATED_BODY()
     
@@ -42,7 +42,7 @@ struct FWeaponStateMachine
  * State transition definition
  */
 USTRUCT()
-struct FStateTransitionDef
+struct FSuspenseCoreStateTransitionDef
 {
     GENERATED_BODY()
     
@@ -63,7 +63,7 @@ struct FStateTransitionDef
 };
 
 USTRUCT(BlueprintType)
-struct FWeaponStateHistoryEntry
+struct FSuspenseCoreWeaponStateHistoryEntry
 {
 	GENERATED_BODY()
 
@@ -126,13 +126,13 @@ public:
      * Register custom state transition
      */
     //UFUNCTION(BlueprintCallable, Category = "Weapon|State")
-    void RegisterTransition(const FStateTransitionDef& Transition);
+    void RegisterTransition(const FSuspenseCoreStateTransitionDef& Transition);
 
     /**
      * Get all state machines
      */
     //UFUNCTION(BlueprintCallable, Category = "Weapon|State")
-    TArray<FWeaponStateMachine> GetAllStateMachines() const { return StateMachines; }
+    TArray<FSuspenseCoreWeaponStateMachine> GetAllStateMachines() const { return StateMachines; }
 
 private:
     // Process ongoing transitions
@@ -142,10 +142,10 @@ private:
     void CompleteTransition(int32 SlotIndex);
     
     // Get or create state machine for slot
-    FWeaponStateMachine& GetOrCreateStateMachine(int32 SlotIndex);
+    FSuspenseCoreWeaponStateMachine& GetOrCreateStateMachine(int32 SlotIndex);
     
     // Find transition definition
-    const FStateTransitionDef* FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const;
+    const FSuspenseCoreStateTransitionDef* FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const;
     
     // Record state change in history
     void RecordStateChange(int32 SlotIndex, const FGameplayTag& NewState);
@@ -163,15 +163,15 @@ private:
     
     // State machines per slot
     UPROPERTY()
-    TArray<FWeaponStateMachine> StateMachines;
+    TArray<FSuspenseCoreWeaponStateMachine> StateMachines;
     
     // Transition definitions
     UPROPERTY()
-    TArray<FStateTransitionDef> TransitionDefinitions;
+    TArray<FSuspenseCoreStateTransitionDef> TransitionDefinitions;
     
     // State history (circular buffer)
 	UPROPERTY()
-	TArray<FWeaponStateHistoryEntry> StateHistory;
+	TArray<FSuspenseCoreWeaponStateHistoryEntry> StateHistory;
     
     UPROPERTY()
     int32 MaxHistorySize = 50;

@@ -23,7 +23,7 @@ struct FEquipmentStateSnapshot;
  * Rule execution priority levels
  */
 UENUM()
-enum class ERuleExecutionPriority : uint8
+enum class ESuspenseCoreRuleExecutionPriority : uint8
 {
     Critical = 0,    // Must pass for operation to proceed (compatibility, safety)
     High     = 1,    // Important validations (requirements, prerequisites)  
@@ -35,7 +35,7 @@ enum class ERuleExecutionPriority : uint8
  * Rule engine registration data
  */
 USTRUCT()
-struct FRuleEngineRegistration
+struct FSuspenseCoreRuleEngineRegistration
 {
     GENERATED_BODY()
 
@@ -49,7 +49,7 @@ struct FRuleEngineRegistration
 
     /** Execution priority */
     UPROPERTY()
-    ERuleExecutionPriority Priority = ERuleExecutionPriority::Normal;
+    ESuspenseCoreRuleExecutionPriority Priority = ESuspenseCoreRuleExecutionPriority::Normal;
 
     /** Is engine enabled */
     UPROPERTY()
@@ -132,7 +132,7 @@ public:
      * @return True if registered successfully
      */
     UFUNCTION(BlueprintCallable, Category="Rules")
-    bool RegisterRuleEngine(const FGameplayTag& EngineType, UObject* Engine, ERuleExecutionPriority Priority);
+    bool RegisterRuleEngine(const FGameplayTag& EngineType, UObject* Engine, ESuspenseCoreRuleExecutionPriority Priority);
 
     /**
      * Unregister rule engine
@@ -146,7 +146,7 @@ public:
      * Get all registered engines
      * @return Array of registered engines sorted by priority
      */
-    TArray<FRuleEngineRegistration> GetRegisteredEngines() const;
+    TArray<FSuspenseCoreRuleEngineRegistration> GetRegisteredEngines() const;
 
     /**
      * Enable/disable specific engine
@@ -203,7 +203,7 @@ protected:
     FRuleEvaluationResult ConvertToLegacyResult(const TArray<FSuspenseCoreRuleCheckResult>& NewResults) const;
     FRuleEvaluationResult ConvertSingleResult(const FSuspenseCoreRuleCheckResult& NewResult) const;
     FRuleEvaluationResult ConvertAggregatedResult(const FSuspenseCoreAggregatedRuleResult& AggResult) const;
-    TArray<FRuleEngineRegistration> GetSortedEngines() const;
+    TArray<FSuspenseCoreRuleEngineRegistration> GetSortedEngines() const;
 
 private:
     //========================================
@@ -232,7 +232,7 @@ private:
 
     /** Registry of all engines */
     UPROPERTY()
-    TMap<FGameplayTag, FRuleEngineRegistration> RegisteredEngines;
+    TMap<FGameplayTag, FSuspenseCoreRuleEngineRegistration> RegisteredEngines;
 
     //========================================
     // Global Rule System (Legacy Support)

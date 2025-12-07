@@ -20,7 +20,7 @@
  * Attachment state tracking data
  */
 USTRUCT()
-struct FAttachmentStateData
+struct FSuspenseCoreAttachmentStateData
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FAttachmentStateData
  * Attachment system configuration
  */
 USTRUCT(BlueprintType)
-struct FAttachmentSystemConfig
+struct FSuspenseCoreAttachmentSystemConfig
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ struct FAttachmentSystemConfig
  * Socket mapping configuration for item types
  */
 USTRUCT(BlueprintType)
-struct FSocketMappingConfig
+struct FSuspenseCoreSocketMappingConfig
 {
 	GENERATED_BODY()
 
@@ -151,19 +151,19 @@ public:
 	 * Set system configuration
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment")
-	void SetSystemConfiguration(const FAttachmentSystemConfig& NewConfig) { SystemConfig = NewConfig; }
+	void SetSystemConfiguration(const FSuspenseCoreAttachmentSystemConfig& NewConfig) { SystemConfig = NewConfig; }
 
 	/**
 	 * Get current configuration
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment")
-	FAttachmentSystemConfig GetSystemConfiguration() const { return SystemConfig; }
+	FSuspenseCoreAttachmentSystemConfig GetSystemConfiguration() const { return SystemConfig; }
 
 	/**
 	 * Add socket mapping for item type
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Equipment|Attachment")
-	void AddSocketMapping(const FSocketMappingConfig& Mapping) { SocketMappings.Add(Mapping); }
+	void AddSocketMapping(const FSuspenseCoreSocketMappingConfig& Mapping) { SocketMappings.Add(Mapping); }
 
 	/**
 	 * Remove socket mapping for item type
@@ -200,19 +200,19 @@ protected:
 	 * System configuration
 	 */
 	UPROPERTY(EditAnywhere, Category = "Attachment Config")
-	FAttachmentSystemConfig SystemConfig;
+	FSuspenseCoreAttachmentSystemConfig SystemConfig;
 
 	/**
 	 * Socket mappings for different item types
 	 */
 	UPROPERTY(EditAnywhere, Category = "Socket Mappings")
-	TArray<FSocketMappingConfig> SocketMappings;
+	TArray<FSuspenseCoreSocketMappingConfig> SocketMappings;
 
 	/**
 	 * Active attachment states
 	 */
 	UPROPERTY()
-	TMap<AActor*, FAttachmentStateData> AttachmentStates;
+	TMap<AActor*, FSuspenseCoreAttachmentStateData> AttachmentStates;
 
 	/**
 	 * Socket occupation tracking
@@ -222,7 +222,7 @@ protected:
 	/**
 	 * Cache for socket configurations (mutable — чтобы вызывать Get() в const методе)
 	 */
-	mutable FSuspenseCoreEquipmentCacheManager<FGameplayTag, FSocketMappingConfig> SocketConfigCache;
+	mutable FSuspenseCoreEquipmentCacheManager<FGameplayTag, FSuspenseCoreSocketMappingConfig> SocketConfigCache;
 
 	/**
 	 * Thread synchronization (RW)
@@ -239,7 +239,7 @@ private:
 	bool InternalAttach(AActor* Equipment, USceneComponent* Target, const FName& SocketName, const FTransform& RelativeTransform,
 						EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldBodies);
 	void UpdateTransitions(float DeltaTime);
-	const FSocketMappingConfig* FindSocketMapping(const FGameplayTag& ItemType) const;
+	const FSuspenseCoreSocketMappingConfig* FindSocketMapping(const FGameplayTag& ItemType) const;
 	void MarkSocketOccupied(const FName& SocketName, AActor* Equipment);
 	void ClearSocketOccupation(const FName& SocketName);
 	USceneComponent* GetEquipmentRootComponent(AActor* Equipment) const;

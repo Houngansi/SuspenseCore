@@ -20,7 +20,7 @@ struct FGameplayEffectSpec;
  * Replicated attribute data for synchronization
  */
 USTRUCT()
-struct FReplicatedAttributeData
+struct FSuspenseCoreReplicatedAttributeData
 {
     GENERATED_BODY()
 
@@ -48,7 +48,7 @@ struct FReplicatedAttributeData
  * Prediction data for attribute changes
  */
 USTRUCT()
-struct FAttributePredictionData
+struct FSuspenseCoreAttributePredictionData
 {
     GENERATED_BODY()
 
@@ -384,7 +384,7 @@ private:
 
     /** Replicated attribute values for client synchronization */
     UPROPERTY(ReplicatedUsing=OnRep_ReplicatedAttributes)
-    TArray<FReplicatedAttributeData> ReplicatedAttributes;
+    TArray<FSuspenseCoreReplicatedAttributeData> ReplicatedAttributes;
 
     /** Classes of attribute sets for client spawning */
     UPROPERTY(ReplicatedUsing=OnRep_AttributeSetClasses)
@@ -400,7 +400,7 @@ private:
 
     /** Active attribute predictions */
     UPROPERTY()
-    TArray<FAttributePredictionData> ActiveAttributePredictions;
+    TArray<FSuspenseCoreAttributePredictionData> ActiveAttributePredictions;
 
     /** Counter for prediction keys */
     UPROPERTY()

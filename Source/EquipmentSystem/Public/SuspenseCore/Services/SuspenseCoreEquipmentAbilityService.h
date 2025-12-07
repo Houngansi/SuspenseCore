@@ -28,7 +28,7 @@ class UGameplayEffect;
  * Maps equipment items to their granted abilities and effects
  */
 USTRUCT(BlueprintType)
-struct FEquipmentAbilityMapping : public FTableRowBase
+struct FSuspenseCoreEquipmentAbilityMapping : public FTableRowBase
 {
     GENERATED_BODY()
 
@@ -136,7 +136,7 @@ public:
 
     /** Get ability mapping for item */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
-    bool GetAbilityMapping(FName ItemID, FEquipmentAbilityMapping& OutMapping) const;
+    bool GetAbilityMapping(FName ItemID, FSuspenseCoreEquipmentAbilityMapping& OutMapping) const;
 
     /** Export service metrics to CSV file */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities|Debug")
@@ -230,7 +230,7 @@ private:
     // Configuration Data
     //========================================
     UPROPERTY()
-    TMap<FName, FEquipmentAbilityMapping> AbilityMappings;
+    TMap<FName, FSuspenseCoreEquipmentAbilityMapping> AbilityMappings;
 
     UPROPERTY(EditDefaultsOnly, Category = "Configuration",
         meta = (AllowedClasses = "/Script/Engine.DataTable"))
@@ -260,7 +260,7 @@ private:
     UPROPERTY()
     TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> EquipmentToOwnerMap;
 
-    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FName, FEquipmentAbilityMapping>> MappingCache;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>> MappingCache;
     FStreamableManager StreamableManager;
     FTimerHandle CleanupTimerHandle;
 

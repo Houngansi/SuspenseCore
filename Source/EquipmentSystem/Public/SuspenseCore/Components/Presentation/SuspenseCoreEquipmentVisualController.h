@@ -24,7 +24,7 @@ class UTimelineComponent;
  * Visual profile row (DataTable) — без конфликта имени с Factory
  */
 USTRUCT(BlueprintType)
-struct FEquipmentVisualProfile : public FTableRowBase
+struct FSuspenseCoreEquipmentVisualProfile : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,7 @@ struct FEquipmentVisualProfile : public FTableRowBase
 
 /** Material transition data */
 USTRUCT()
-struct FMaterialTransition
+struct FSuspenseCoreMaterialTransition
 {
 	GENERATED_BODY()
 
@@ -97,7 +97,7 @@ struct FMaterialTransition
 
 /** Enhanced effect pool entry */
 USTRUCT()
-struct FEnhancedVisualEffectPoolEntry
+struct FSuspenseCoreEnhancedVisualEffectPoolEntry
 {
 	GENERATED_BODY()
 	UPROPERTY() UNiagaraComponent* Component = nullptr;
@@ -111,7 +111,7 @@ struct FEnhancedVisualEffectPoolEntry
 
 /** Active effect metadata */
 USTRUCT()
-struct FEnhancedActiveVisualEffect
+struct FSuspenseCoreEnhancedActiveVisualEffect
 {
 	GENERATED_BODY()
 	UPROPERTY() FGuid EffectId;
@@ -128,22 +128,22 @@ struct FEnhancedActiveVisualEffect
 
 /** Material state tracking */
 USTRUCT()
-struct FEnhancedMaterialState
+struct FSuspenseCoreEnhancedMaterialState
 {
 	GENERATED_BODY()
 	UPROPERTY() TArray<UMaterialInterface*> OriginalMaterials;
 	UPROPERTY() TArray<UMaterialInstanceDynamic*> DynamicMaterials;
-	UPROPERTY() FEquipmentVisualProfile ActiveProfile;
+	UPROPERTY() FSuspenseCoreEquipmentVisualProfile ActiveProfile;
 	UPROPERTY() bool bHasOverride = false;
 	UPROPERTY() float WearLevel = 0.0f;
 	UPROPERTY() bool bIsHighlighted = false;
 	UPROPERTY() FLinearColor HighlightColor = FLinearColor::White;
-	UPROPERTY() TArray<FMaterialTransition> ActiveTransitions;
+	UPROPERTY() TArray<FSuspenseCoreMaterialTransition> ActiveTransitions;
 };
 
 /** Batch visual request */
 USTRUCT()
-struct FBatchVisualRequest
+struct FSuspenseCoreBatchVisualRequest
 {
 	GENERATED_BODY()
 	enum class EOperationType : uint8
@@ -165,7 +165,7 @@ struct FBatchVisualRequest
 
 /** Controller config (добавлен троттлинг эффектов) */
 USTRUCT(BlueprintType)
-struct FVisualControllerConfig
+struct FSuspenseCoreVisualControllerConfig
 {
 	GENERATED_BODY()
 
@@ -228,7 +228,7 @@ public:
 
 	/** Пакет визуальных операций */
 	//UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Visual")
-	int32 BatchProcessVisualRequests(const TArray<FBatchVisualRequest>& Requests);
+	int32 BatchProcessVisualRequests(const TArray<FSuspenseCoreBatchVisualRequest>& Requests);
 
 	/** Прогрев пула эффектов */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Visual")
@@ -263,25 +263,25 @@ public:
 
 	/** Обновить конфиг контроллера (включая троттлинг эффектов) */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Visual")
-	void SetControllerConfiguration(const FVisualControllerConfig& NewConfig);
+	void SetControllerConfiguration(const FSuspenseCoreVisualControllerConfig& NewConfig);
 
 protected:
 	UPROPERTY(EditAnywhere, Category="Visual Config")
-	FVisualControllerConfig ControllerConfig;
+	FSuspenseCoreVisualControllerConfig ControllerConfig;
 
 	UPROPERTY(EditAnywhere, Category="Visual Config")
 	UDataTable* VisualProfileTable = nullptr;
 
 	UPROPERTY() int32 CurrentQualityLevel = 2;
 
-	UPROPERTY() TArray<FEnhancedVisualEffectPoolEntry> EffectPool;
-	UPROPERTY() TMap<FGuid, FEnhancedActiveVisualEffect> ActiveEffects;
-	UPROPERTY() TMap<AActor*, FEnhancedMaterialState> MaterialStates;
+	UPROPERTY() TArray<FSuspenseCoreEnhancedVisualEffectPoolEntry> EffectPool;
+	UPROPERTY() TMap<FGuid, FSuspenseCoreEnhancedActiveVisualEffect> ActiveEffects;
+	UPROPERTY() TMap<AActor*, FSuspenseCoreEnhancedMaterialState> MaterialStates;
 
-	TArray<FBatchVisualRequest> BatchQueue;
+	TArray<FSuspenseCoreBatchVisualRequest> BatchQueue;
 
 	/** Профили из таблицы */
-	TMap<FString, FEquipmentVisualProfile> ProfileCache;
+	TMap<FString, FSuspenseCoreEquipmentVisualProfile> ProfileCache;
 
 	/** Кэши */
 	FSuspenseCoreEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
@@ -334,11 +334,11 @@ private:
 	UNiagaraComponent* CreateEffectComponent(UNiagaraSystem* System);
 	void CleanupEffectPool();
 
-	const FEquipmentVisualProfile* FindBestVisualProfile(const FGameplayTag& ItemType, const FGameplayTag& StateTag) const;
+	const FSuspenseCoreEquipmentVisualProfile* FindBestVisualProfile(const FGameplayTag& ItemType, const FGameplayTag& StateTag) const;
 	void LoadVisualProfiles();
 
-	void ApplyProfileToMaterials(AActor* Equipment, const FEquipmentVisualProfile& Profile, bool bSmooth);
-	void ApplyProfileEffects(AActor* Equipment, const FEquipmentVisualProfile& Profile);
+	void ApplyProfileToMaterials(AActor* Equipment, const FSuspenseCoreEquipmentVisualProfile& Profile, bool bSmooth);
+	void ApplyProfileEffects(AActor* Equipment, const FSuspenseCoreEquipmentVisualProfile& Profile);
 
 	UMaterialInstanceDynamic* GetOrCreateDynamicMaterial(UMaterialInterface* BaseMaterial, const FName& CacheKey);
 	void ApplyWearToMaterial(UMaterialInstanceDynamic* Material, float WearPercent);

@@ -459,7 +459,7 @@ int32 USuspenseCoreEquipmentAttributeComponent::PredictAttributeChange(const FSt
     }
 
     // Create prediction
-    FAttributePredictionData Prediction;
+    FSuspenseCoreAttributePredictionData Prediction;
     Prediction.PredictionKey = NextAttributePredictionKey++;
     Prediction.AttributeName = AttributeName;
     Prediction.PredictedValue = NewValue;
@@ -480,7 +480,7 @@ int32 USuspenseCoreEquipmentAttributeComponent::PredictAttributeChange(const FSt
 void USuspenseCoreEquipmentAttributeComponent::ConfirmAttributePrediction(int32 PredictionKey, bool bSuccess, float ActualValue)
 {
     int32 PredictionIndex = ActiveAttributePredictions.IndexOfByPredicate(
-        [PredictionKey](const FAttributePredictionData& Data) { return Data.PredictionKey == PredictionKey; }
+        [PredictionKey](const FSuspenseCoreAttributePredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
 
     if (PredictionIndex == INDEX_NONE)
@@ -488,7 +488,7 @@ void USuspenseCoreEquipmentAttributeComponent::ConfirmAttributePrediction(int32 
         return;
     }
 
-    FAttributePredictionData& Prediction = ActiveAttributePredictions[PredictionIndex];
+    FSuspenseCoreAttributePredictionData& Prediction = ActiveAttributePredictions[PredictionIndex];
 
     if (!bSuccess)
     {
@@ -510,7 +510,7 @@ bool USuspenseCoreEquipmentAttributeComponent::GetAttributeValue(const FString& 
     FScopeLock Lock(&AttributeCacheCriticalSection);
 
     // Check predictions first
-    for (const FAttributePredictionData& Prediction : ActiveAttributePredictions)
+    for (const FSuspenseCoreAttributePredictionData& Prediction : ActiveAttributePredictions)
     {
         if (Prediction.AttributeName == AttributeName)
         {
@@ -721,7 +721,7 @@ void USuspenseCoreEquipmentAttributeComponent::CollectReplicatedAttributes()
             FProperty* Property = *It;
             if (Property && Property->HasAnyPropertyFlags(CPF_BlueprintVisible))
             {
-                FReplicatedAttributeData Data;
+                FSuspenseCoreReplicatedAttributeData Data;
                 Data.AttributeName = Property->GetName();
                 Data.CurrentValue = GetAttributeValueFromProperty(Set, Property);
                 Data.BaseValue = Data.CurrentValue; // Could be enhanced to track base vs current
@@ -734,7 +734,7 @@ void USuspenseCoreEquipmentAttributeComponent::CollectReplicatedAttributes()
 
 void USuspenseCoreEquipmentAttributeComponent::ApplyReplicatedAttributes()
 {
-    for (const FReplicatedAttributeData& Data : ReplicatedAttributes)
+    for (const FSuspenseCoreReplicatedAttributeData& Data : ReplicatedAttributes)
     {
         SetAttributeValue(Data.AttributeName, Data.CurrentValue, false);
     }

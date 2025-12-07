@@ -16,7 +16,7 @@
  * Rule execution context
  */
 USTRUCT()
-struct FRuleExecutionContext
+struct FSuspenseCoreRuleExecutionContext
 {
     GENERATED_BODY()
 
@@ -44,7 +44,7 @@ struct FRuleExecutionContext
  * Rule violation record
  */
 USTRUCT()
-struct FRuleViolation
+struct FSuspenseCoreRuleViolation
 {
     GENERATED_BODY()
 
@@ -73,7 +73,7 @@ struct FRuleViolation
  * Rule statistics
  */
 USTRUCT()
-struct FRuleStatistics
+struct FSuspenseCoreRuleStatistics
 {
     GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct FRuleStatistics
  * Character requirements data
  */
 USTRUCT()
-struct FCharacterRequirements
+struct FSuspenseCoreCharacterRequirements
 {
     GENERATED_BODY()
 
@@ -131,7 +131,7 @@ struct FCharacterRequirements
  * Weight limit configuration
  */
 USTRUCT()
-struct FWeightLimitConfig
+struct FSuspenseCoreWeightLimitConfig
 {
     GENERATED_BODY()
 
@@ -241,7 +241,7 @@ public:
      * @return Evaluation result
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Rules")
-    FRuleEvaluationResult EvaluateSpecificRule(const FGameplayTag& RuleTag, const FRuleExecutionContext& Context) const;
+    FRuleEvaluationResult EvaluateSpecificRule(const FGameplayTag& RuleTag, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Batch evaluate rules
@@ -250,7 +250,7 @@ public:
      * @return Array of results
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Rules")
-    TArray<FRuleEvaluationResult> BatchEvaluateRules(const TArray<FGameplayTag>& RuleTags, const FRuleExecutionContext& Context) const;
+    TArray<FRuleEvaluationResult> BatchEvaluateRules(const TArray<FGameplayTag>& RuleTags, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Clear all rules
@@ -334,7 +334,7 @@ public:
      * @return Requirements data
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Requirements")
-    FCharacterRequirements GetItemRequirements(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
+    FSuspenseCoreCharacterRequirements GetItemRequirements(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
     /**
      * Check if character meets requirements
@@ -345,7 +345,7 @@ public:
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Requirements")
     FRuleEvaluationResult CheckCharacterMeetsRequirements(
         const AActor* Character,
-        const FCharacterRequirements& Requirements) const;
+        const FSuspenseCoreCharacterRequirements& Requirements) const;
 
     /**
      * Calculate character's weight capacity
@@ -366,7 +366,7 @@ public:
      * @return Array of conflicts
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Conflicts")
-    TArray<FRuleViolation> FindItemConflicts(
+    TArray<FSuspenseCoreRuleViolation> FindItemConflicts(
         const FSuspenseCoreInventoryItemInstance& ItemInstance,
         const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
@@ -377,7 +377,7 @@ public:
      * @return True if resolved
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Conflicts")
-    bool ResolveConflicts(const TArray<FRuleViolation>& Conflicts, int32 ResolutionStrategy);
+    bool ResolveConflicts(const TArray<FSuspenseCoreRuleViolation>& Conflicts, int32 ResolutionStrategy);
 
     //========================================
     // Reporting and Analytics (DEV MODE)
@@ -389,7 +389,7 @@ public:
      * @return Statistics
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Analytics")
-    FRuleStatistics GetRuleStatistics(const FGameplayTag& RuleTag) const;
+    FSuspenseCoreRuleStatistics GetRuleStatistics(const FGameplayTag& RuleTag) const;
 
     /**
      * Get all violations
@@ -397,7 +397,7 @@ public:
      * @return Array of violations
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Analytics")
-    TArray<FRuleViolation> GetViolationHistory(int32 MaxCount = 100) const;
+    TArray<FSuspenseCoreRuleViolation> GetViolationHistory(int32 MaxCount = 100) const;
 
     /**
      * Export rules to JSON
@@ -445,7 +445,7 @@ protected:
      * @param Context Execution context
      * @return True if expression passes
      */
-    bool EvaluateExpression(const FString& Expression, const FRuleExecutionContext& Context) const;
+    bool EvaluateExpression(const FString& Expression, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Parse rule expression
@@ -461,7 +461,7 @@ protected:
      * @param Context Execution context
      * @return Evaluation result
      */
-    FRuleEvaluationResult ExecuteRule(const FEquipmentRule& Rule, const FRuleExecutionContext& Context) const;
+    FRuleEvaluationResult ExecuteRule(const FEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Check rule preconditions
@@ -469,7 +469,7 @@ protected:
      * @param Context Execution context
      * @return True if preconditions met
      */
-    bool CheckPreconditions(const FEquipmentRule& Rule, const FRuleExecutionContext& Context) const;
+    bool CheckPreconditions(const FEquipmentRule& Rule, const FSuspenseCoreRuleExecutionContext& Context) const;
 
     /**
      * Apply rule priority
@@ -537,7 +537,7 @@ protected:
      * Record violation
      * @param Violation Violation to record
      */
-    void RecordViolation(const FRuleViolation& Violation) const;
+    void RecordViolation(const FSuspenseCoreRuleViolation& Violation) const;
 
     /**
      * Update statistics
@@ -578,7 +578,7 @@ private:
 
     /** Weight limit configuration */
     UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-    FWeightLimitConfig WeightConfig;
+    FSuspenseCoreWeightLimitConfig WeightConfig;
 
     /** Maximum rule evaluation depth */
     UPROPERTY(EditDefaultsOnly, Category = "Configuration")
@@ -610,10 +610,10 @@ private:
 
     /** Violation history */
     UPROPERTY()
-    mutable TArray<FRuleViolation> ViolationHistory;
+    mutable TArray<FSuspenseCoreRuleViolation> ViolationHistory;
 
     /** Rule statistics */
-    mutable TMap<FGameplayTag, FRuleStatistics> RuleStats;
+    mutable TMap<FGameplayTag, FSuspenseCoreRuleStatistics> RuleStats;
 
     /** Result cache */
     mutable TMap<uint32, FRuleEvaluationResult> ResultCache;

@@ -25,7 +25,7 @@ struct FEquipmentOperationRequest;
 #include "SuspenseCoreEquipmentLoadoutAdapter.generated.h"
 
 UENUM(BlueprintType)
-enum class ELoadoutApplicationStrategy : uint8
+enum class ESuspenseCoreLoadoutApplicationStrategy : uint8
 {
 	Replace = 0,
 	Merge,
@@ -34,7 +34,7 @@ enum class ELoadoutApplicationStrategy : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FLoadoutValidationOptions
+struct FSuspenseCoreLoadoutValidationOptions
 {
 	GENERATED_BODY()
 
@@ -79,10 +79,10 @@ public:
 	                TScriptInterface<ISuspenseCoreTransactionManager>    InTransactionManager);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetApplicationStrategy(ELoadoutApplicationStrategy Strategy);
+	void SetApplicationStrategy(ESuspenseCoreLoadoutApplicationStrategy Strategy);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetValidationOptions(const FLoadoutValidationOptions& Options);
+	void SetValidationOptions(const FSuspenseCoreLoadoutValidationOptions& Options);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
 	void SetInventoryBridge(TScriptInterface<ISuspenseCoreInventoryBridge> Bridge);
@@ -113,7 +113,7 @@ protected:
 	FEquipmentOperationRequest CreateEquipOperation(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const;
 
 	// Валидация
-	bool ValidateLoadoutConfiguration(const FLoadoutConfiguration& Config, const FLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const;
+	bool ValidateLoadoutConfiguration(const FLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const;
 	bool CheckSlotCompatibility(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId) const;
 	bool CheckInventorySpace(const FLoadoutConfiguration& Config) const;
 	bool CheckItemAvailability(const FName& ItemId) const;
@@ -142,10 +142,10 @@ private:
 
 	// Настройки
 	UPROPERTY(EditAnywhere, Category="Loadout|Configuration")
-	ELoadoutApplicationStrategy ApplicationStrategy = ELoadoutApplicationStrategy::Replace;
+	ESuspenseCoreLoadoutApplicationStrategy ApplicationStrategy = ESuspenseCoreLoadoutApplicationStrategy::Replace;
 
 	UPROPERTY(EditAnywhere, Category="Loadout|Configuration")
-	FLoadoutValidationOptions ValidationOptions;
+	FSuspenseCoreLoadoutValidationOptions ValidationOptions;
 
 	// Состояние
 	UPROPERTY(VisibleInstanceOnly, Category="Loadout|Status")

@@ -11,7 +11,7 @@
  * Service lifecycle state - SuspenseCore version
  */
 UENUM(BlueprintType)
-enum class EServiceLifecycleState : uint8
+enum class ESuspenseCoreServiceLifecycleState : uint8
 {
     Uninitialized,
     Initializing,
@@ -25,7 +25,7 @@ enum class EServiceLifecycleState : uint8
  * Service initialization parameters - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FServiceInitParams
+struct BRIDGESYSTEM_API FSuspenseCoreServiceInitParams
 {
     GENERATED_BODY()
 
@@ -72,7 +72,7 @@ public:
      * @param Params Initialization parameters
      * @return True if initialization started successfully
      */
-    virtual bool InitializeService(const FServiceInitParams& Params) = 0;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) = 0;
 
     /**
      * Shutdown service gracefully
@@ -85,7 +85,7 @@ public:
      * Get current service state
      * @return Current lifecycle state
      */
-    virtual EServiceLifecycleState GetServiceState() const = 0;
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const = 0;
 
     /**
      * Check if service is ready
@@ -143,12 +143,12 @@ class ISuspenseCoreReplicationProvider;
  * Data Service Interface - SuspenseCore version
  */
 UINTERFACE(MinimalAPI, NotBlueprintable)
-class USuspenseCoreEquipmentDataService : public USuspenseCoreEquipmentService
+class USuspenseCoreEquipmentDataServiceInterface : public USuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 };
 
-class BRIDGESYSTEM_API ISuspenseCoreEquipmentDataService : public ISuspenseCoreEquipmentService
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentDataServiceInterface : public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -183,12 +183,12 @@ public:
  * Network Service Interface - SuspenseCore version
  */
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseCoreEquipmentNetworkService : public USuspenseCoreEquipmentService
+class USuspenseCoreEquipmentNetworkServiceInterface : public USuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 };
 
-class BRIDGESYSTEM_API ISuspenseCoreEquipmentNetworkService : public ISuspenseCoreEquipmentService
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentNetworkServiceInterface : public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 

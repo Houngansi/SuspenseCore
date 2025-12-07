@@ -32,7 +32,7 @@ public:
 
 /** Extended validation result carrying diagnostics for UI/metrics */
 USTRUCT(BlueprintType)
-struct FSlotValidationResultEx : public FSlotValidationResult
+struct FSuspenseCoreSlotValidationResultEx : public FSlotValidationResult
 {
 	GENERATED_BODY()
 
@@ -51,12 +51,12 @@ struct FSlotValidationResultEx : public FSlotValidationResult
 	UPROPERTY(BlueprintReadOnly)
 	float ValidationDurationMs = 0.0f;
 
-	FSlotValidationResultEx()
+	FSuspenseCoreSlotValidationResultEx()
 	{
 		Timestamp = FDateTime::Now();
 	}
 
-	explicit FSlotValidationResultEx(const FSlotValidationResult& Base)
+	explicit FSuspenseCoreSlotValidationResultEx(const FSlotValidationResult& Base)
 		: FSlotValidationResult(Base)
 	{
 		Timestamp = FDateTime::Now();
@@ -74,7 +74,7 @@ struct FSlotValidationResultEx : public FSlotValidationResult
 
 /** Batch validation request */
 USTRUCT(BlueprintType)
-struct FBatchValidationRequest
+struct FSuspenseCoreBatchValidationRequest
 {
 	GENERATED_BODY()
 
@@ -94,9 +94,9 @@ struct FBatchValidationRequest
 	FDateTime Timestamp;
 
 	/** Static factory method to create request with generated ID */
-	static FBatchValidationRequest Create()
+	static FSuspenseCoreBatchValidationRequest Create()
 	{
-		FBatchValidationRequest Request;
+		FSuspenseCoreBatchValidationRequest Request;
 		Request.TransactionId = FGuid::NewGuid();
 		Request.Timestamp = FDateTime::Now();
 		return Request;
@@ -105,7 +105,7 @@ struct FBatchValidationRequest
 
 /** Batch validation result */
 USTRUCT(BlueprintType)
-struct FBatchValidationResult
+struct FSuspenseCoreBatchValidationResult
 {
 	GENERATED_BODY()
 
@@ -113,7 +113,7 @@ struct FBatchValidationResult
 	bool bAllValid = true;
 
 	UPROPERTY(BlueprintReadOnly)
-	TArray<FSlotValidationResultEx> OperationResults;
+	TArray<FSuspenseCoreSlotValidationResultEx> OperationResults;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<int32> ConflictingIndices;
@@ -127,7 +127,7 @@ struct FBatchValidationResult
 
 /** Runtime slot restriction snapshot (lightweight copy for read path) */
 USTRUCT(BlueprintType)
-struct FSlotRestrictionData
+struct FSuspenseCoreSlotRestrictionData
 {
 	GENERATED_BODY()
 
@@ -144,7 +144,7 @@ struct FSlotRestrictionData
 
 /** Slot ↔ Slot compatibility entry (mutual exclusion, dependencies, etc.) */
 USTRUCT(BlueprintType)
-struct FSlotCompatibilityEntry
+struct FSuspenseCoreSlotCompatibilityEntry
 {
 	GENERATED_BODY()
 
@@ -168,7 +168,7 @@ struct FEquipmentValidationRule
 	bool bIsStrict = true;
 
 	// Rule function must be pure/read-only. No external locks inside.
-	TFunction<bool(const FSuspenseCoreInventoryItemInstance&, const FEquipmentSlotConfig&, const FSlotRestrictionData*)> RuleFunction;
+	TFunction<bool(const FSuspenseCoreInventoryItemInstance&, const FEquipmentSlotConfig&, const FSuspenseCoreSlotRestrictionData*)> RuleFunction;
 };
 
 /** Cache entries with TTL and DataVersion pin
@@ -190,7 +190,7 @@ struct FSlotValidationCacheEntry
 
 struct FSlotValidationExtendedCacheEntry
 {
-	FSlotValidationResultEx Result;
+	FSuspenseCoreSlotValidationResultEx Result;
 	FDateTime Timestamp;
 	uint32 DataVersion = 0;
 
@@ -237,11 +237,11 @@ public:
 	//===============================
 	// Extended API
 	//===============================
-	FSlotValidationResultEx CanPlaceItemInSlotEx(
+	FSuspenseCoreSlotValidationResultEx CanPlaceItemInSlotEx(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
-	FBatchValidationResult ValidateBatch(const FBatchValidationRequest& Request) const;
+	FSuspenseCoreBatchValidationResult ValidateBatch(const FSuspenseCoreBatchValidationRequest& Request) const;
 
 	bool QuickValidateOperations(
 		const TArray<FTransactionOperation>& Operations,
@@ -282,9 +282,9 @@ public:
 	FString GetValidationStatistics() const;
 
 	void SetItemDataProvider(TSharedPtr<ISuspenseCoreItemDataProvider> Provider);
-	void SetSlotRestrictions(const FGameplayTag& SlotTag, const FSlotRestrictionData& Restrictions);
-	FSlotRestrictionData GetSlotRestrictions(const FGameplayTag& SlotTag) const;
-	void SetSlotCompatibilityMatrix(int32 SlotIndex, const TArray<FSlotCompatibilityEntry>& Entries);
+	void SetSlotRestrictions(const FGameplayTag& SlotTag, const FSuspenseCoreSlotRestrictionData& Restrictions);
+	FSuspenseCoreSlotRestrictionData GetSlotRestrictions(const FGameplayTag& SlotTag) const;
+	void SetSlotCompatibilityMatrix(int32 SlotIndex, const TArray<FSuspenseCoreSlotCompatibilityEntry>& Entries);
 
 	/** Monotonic version for cache keys; from authoritative data source (items/slots). */
 	uint32 GetCurrentDataVersion() const;
@@ -300,12 +300,12 @@ protected:
 	FSlotValidationResult ExecuteValidationRules_NoLock(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSlotRestrictionData* Restrictions) const;
+		const FSuspenseCoreSlotRestrictionData* Restrictions) const;
 
-	FSlotValidationResultEx ExecuteValidationRulesEx_NoLock(
+	FSuspenseCoreSlotValidationResultEx ExecuteValidationRulesEx_NoLock(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSlotRestrictionData* Restrictions) const;
+		const FSuspenseCoreSlotRestrictionData* Restrictions) const;
 
 	// Built-in rule set
 	void InitializeBuiltInRules();
@@ -313,8 +313,8 @@ protected:
 	// Rule implementations
 	FSlotValidationResult ValidateItemType(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
 	FSlotValidationResult ValidateItemLevel(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
-	FSlotValidationResult ValidateItemWeight(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSlotRestrictionData& Restrictions) const;
-	FSlotValidationResult ValidateUniqueItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSlotRestrictionData* Restrictions, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider = TScriptInterface<ISuspenseCoreEquipmentDataProvider>()) const;
+	FSlotValidationResult ValidateItemWeight(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData& Restrictions) const;
+	FSlotValidationResult ValidateUniqueItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData* Restrictions, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider = TScriptInterface<ISuspenseCoreEquipmentDataProvider>()) const;
 
 	// Helpers
 	bool GetItemData(const FName& ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
@@ -327,9 +327,9 @@ protected:
 	// Cache internals
 	//===============================
 	bool GetCachedValidation(const FString& CacheKey, FSlotValidationResult& OutResult) const;
-	bool GetCachedValidationEx(const FString& CacheKey, FSlotValidationResultEx& OutResult) const;
+	bool GetCachedValidationEx(const FString& CacheKey, FSuspenseCoreSlotValidationResultEx& OutResult) const;
 	void CacheValidationResult(const FString& CacheKey, const FSlotValidationResult& Result) const;
-	void CacheValidationResultEx(const FString& CacheKey, const FSlotValidationResultEx& Result) const;
+	void CacheValidationResultEx(const FString& CacheKey, const FSuspenseCoreSlotValidationResultEx& Result) const;
 	FString GenerateCacheKey(const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot) const;
 	void CleanExpiredCacheEntries() const;
 
@@ -358,8 +358,8 @@ private:
 
 	//---------------- Data (split lock) ----------------
 	mutable FCriticalSection DataLock;
-	TMap<FGameplayTag, TSharedPtr<FSlotRestrictionData>> SlotRestrictionsByTag;
-	TMap<int32, TSharedPtr<TArray<FSlotCompatibilityEntry>>> SlotCompatibilityMatrix;
+	TMap<FGameplayTag, TSharedPtr<FSuspenseCoreSlotRestrictionData>> SlotRestrictionsByTag;
+	TMap<int32, TSharedPtr<TArray<FSuspenseCoreSlotCompatibilityEntry>>> SlotCompatibilityMatrix;
 	TSharedPtr<ISuspenseCoreItemDataProvider> ItemDataProvider;
 
 	//---------------- Metrics (atomic counters) ----------------

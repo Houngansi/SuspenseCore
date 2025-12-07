@@ -33,7 +33,7 @@ struct FSuspenseCoreInventoryItemInstanceNet
 
 /** Облегчённая операция экипировки для RPC */
 USTRUCT()
-struct FEquipmentOperationNet
+struct FSuspenseCoreEquipmentOperationNet
 {
 	GENERATED_BODY()
 
@@ -46,12 +46,12 @@ struct FEquipmentOperationNet
 
 /** Облегчённый запрос для RPC */
 USTRUCT()
-struct FNetworkOperationRequestNet
+struct FSuspenseCoreNetworkOperationRequestNet
 {
 	GENERATED_BODY()
 
 	UPROPERTY() FGuid RequestId;
-	UPROPERTY() FEquipmentOperationNet Operation;
+	UPROPERTY() FSuspenseCoreEquipmentOperationNet Operation;
 	UPROPERTY() float Timestamp = 0.f;
 };
 
@@ -60,7 +60,7 @@ struct FNetworkOperationRequestNet
 // -----------------------------
 
 USTRUCT()
-struct FOperationQueueEntry
+struct FSuspenseCoreOperationQueueEntry
 {
 	GENERATED_BODY()
 	UPROPERTY() FNetworkOperationRequest Request;
@@ -77,7 +77,7 @@ struct FOperationQueueEntry
 };
 
 USTRUCT()
-struct FIdempotencyEntry
+struct FSuspenseCoreIdempotencyEntry
 {
 	GENERATED_BODY()
 	UPROPERTY() FGuid                     RequestId;
@@ -88,7 +88,7 @@ struct FIdempotencyEntry
 };
 
 USTRUCT()
-struct FOperationBatch
+struct FSuspenseCoreOperationBatch
 {
 	GENERATED_BODY()
 	UPROPERTY() FGuid                          BatchId;
@@ -98,7 +98,7 @@ struct FOperationBatch
 };
 
 USTRUCT(BlueprintType)
-struct FNetworkDispatcherStats
+struct FSuspenseCoreNetworkDispatcherStats
 {
 	GENERATED_BODY()
 	UPROPERTY(BlueprintReadOnly) int32  TotalSent = 0;
@@ -151,7 +151,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Network")
 	void ConfigureIdempotency(int32 CacheSize, float EntryLifetime);
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Network")
-	FNetworkDispatcherStats GetStats() const { return Statistics; }
+	FSuspenseCoreNetworkDispatcherStats GetStats() const { return Statistics; }
 
 	// Delegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOperationSuccess, const FGuid&, const FEquipmentOperationResult&);
@@ -170,11 +170,11 @@ protected:
 	// 2) Все FString/TArray — по const&.
 	// -----------------------------
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerExecuteOperation(const FNetworkOperationRequestNet& RequestNet);
+	void ServerExecuteOperation(const FSuspenseCoreNetworkOperationRequestNet& RequestNet);
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerExecuteBatch(const FGuid& BatchId, const TArray<FNetworkOperationRequestNet>& RequestsNet);
+	void ServerExecuteBatch(const FGuid& BatchId, const TArray<FSuspenseCoreNetworkOperationRequestNet>& RequestsNet);
 	UFUNCTION(Server, Unreliable, WithValidation)
-	void ServerExecuteLowPriority(const FNetworkOperationRequestNet& RequestNet);
+	void ServerExecuteLowPriority(const FSuspenseCoreNetworkOperationRequestNet& RequestNet);
 
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveResponse(const FGuid& OperationId, bool bSuccess, const FString& ErrorMessage, const FString& ResultData);
@@ -190,8 +190,8 @@ private:
 	// Конвертация DTO <-> доменная модель
 	static FSuspenseCoreInventoryItemInstanceNet   ToNet(const FSuspenseCoreInventoryItemInstance& In);
 	static FSuspenseCoreInventoryItemInstance      FromNet(const FSuspenseCoreInventoryItemInstanceNet& In);
-	static FNetworkOperationRequestNet ToNet(const FNetworkOperationRequest& In);
-	static FNetworkOperationRequest    FromNet(const FNetworkOperationRequestNet& In);
+	static FSuspenseCoreNetworkOperationRequestNet ToNet(const FNetworkOperationRequest& In);
+	static FNetworkOperationRequest    FromNet(const FSuspenseCoreNetworkOperationRequestNet& In);
 
 	// Security / Idempotency / Hashing
 	bool   ValidateRequestSecurity(const FNetworkOperationRequest& Request);
@@ -209,7 +209,7 @@ private:
 	void   HandleTimeout(const FGuid& OperationId);
 	void   UpdateResponseTimeStats(float ResponseTime);
 	bool   ShouldBatchOperation(ENetworkOperationPriority Priority) const;
-	FOperationQueueEntry* FindQueueEntry(const FGuid& OperationId);
+	FSuspenseCoreOperationQueueEntry* FindQueueEntry(const FGuid& OperationId);
 
 	// Result (строковый формат оставил как был в вашем коде)
 	FString SerializeResult(const FEquipmentOperationResult& Result) const;
@@ -233,9 +233,9 @@ private:
 	UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentOperations> OperationExecutor;
 
 	// State
-	UPROPERTY() TArray<FOperationQueueEntry> OperationQueue;
-	UPROPERTY() TArray<FOperationBatch>      ActiveBatches;
-	UPROPERTY() TArray<FIdempotencyEntry>    IdempotencyCache;
+	UPROPERTY() TArray<FSuspenseCoreOperationQueueEntry> OperationQueue;
+	UPROPERTY() TArray<FSuspenseCoreOperationBatch>      ActiveBatches;
+	UPROPERTY() TArray<FSuspenseCoreIdempotencyEntry>    IdempotencyCache;
 
 	TMap<FGuid, FDelegateHandle> ResponseHandlers;
 
@@ -245,7 +245,7 @@ private:
 	float LastBatchTime    = 0.0f;
 	float LastIdempotencyCleanup = 0.0f;
 
-	UPROPERTY() FNetworkDispatcherStats Statistics;
+	UPROPERTY() FSuspenseCoreNetworkDispatcherStats Statistics;
 	TArray<float> ResponseTimeSamples;
 	static constexpr int32 MaxResponseSamples = 100;
 

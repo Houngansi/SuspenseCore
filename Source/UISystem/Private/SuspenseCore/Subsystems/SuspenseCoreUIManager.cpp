@@ -4,12 +4,15 @@
 
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
+#include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -134,13 +137,17 @@ void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 
 void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 {
-	// TODO: Provider binding now handled differently
-	// PanelSwitcher creates content widgets via TabConfigs.ContentWidgetClass
-	// Content widgets should implement ISuspenseCoreUIDataProvider interface
-	// and bind themselves in NativeConstruct via EventBus
-
 	if (!ContainerScreen || !PC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No ContainerScreen or PC"));
+		return;
+	}
+
+	// Get PanelSwitcher from ContainerScreen
+	USuspenseCorePanelSwitcherWidget* PanelSwitcher = ContainerScreen->GetPanelSwitcher();
+	if (!PanelSwitcher)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No PanelSwitcher on ContainerScreen"));
 		return;
 	}
 
@@ -152,22 +159,74 @@ void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 		return;
 	}
 
-	// Find all providers on player
+	// Find all providers on player (Pawn and PlayerState)
 	TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> AllProviders = FindAllProvidersOnActor(Pawn);
 
-	// Also check PlayerState for providers
 	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
 	{
 		TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> StateProviders = FindAllProvidersOnActor(PS);
 		AllProviders.Append(StateProviders);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers (binding via EventBus)"), AllProviders.Num());
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers"), AllProviders.Num());
 
-	// NEW ARCHITECTURE: Publish providers via EventBus
-	// Content widgets subscribe to SuspenseCore.Event.UIProvider.DataChanged
-	// and request data from providers
-	// This is more decoupled than direct panel binding
+	// Create provider lookup by container type
+	TMap<ESuspenseCoreContainerType, TScriptInterface<ISuspenseCoreUIDataProvider>> ProvidersByType;
+	for (const TScriptInterface<ISuspenseCoreUIDataProvider>& Provider : AllProviders)
+	{
+		if (ISuspenseCoreUIDataProvider* ProviderInterface = Provider.GetInterface())
+		{
+			ESuspenseCoreContainerType Type = ProviderInterface->GetContainerType();
+			ProvidersByType.Add(Type, Provider);
+			UE_LOG(LogTemp, Log, TEXT("  Provider type: %d"), static_cast<int32>(Type));
+		}
+	}
+
+	// Iterate all content widgets in PanelSwitcher
+	int32 TabCount = PanelSwitcher->GetTabCount();
+	int32 BoundCount = 0;
+
+	for (int32 TabIndex = 0; TabIndex < TabCount; ++TabIndex)
+	{
+		UUserWidget* ContentWidget = PanelSwitcher->GetTabContent(TabIndex);
+		if (!ContentWidget)
+		{
+			continue;
+		}
+
+		// Check if this widget implements ISuspenseCoreUIContainer
+		// First try cast to base container widget (which has ExpectedContainerType)
+		USuspenseCoreBaseContainerWidget* ContainerWidget = Cast<USuspenseCoreBaseContainerWidget>(ContentWidget);
+		if (ContainerWidget)
+		{
+			// Get expected container type
+			ESuspenseCoreContainerType ExpectedType = ContainerWidget->GetExpectedContainerType();
+
+			// Find matching provider
+			if (TScriptInterface<ISuspenseCoreUIDataProvider>* FoundProvider = ProvidersByType.Find(ExpectedType))
+			{
+				// Bind provider to widget
+				ContainerWidget->BindToProvider(*FoundProvider);
+				BoundCount++;
+
+				UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Bound provider (type=%d) to tab %d (%s)"),
+					static_cast<int32>(ExpectedType), TabIndex, *ContentWidget->GetClass()->GetName());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No provider for container type %d (tab %d)"),
+					static_cast<int32>(ExpectedType), TabIndex);
+			}
+		}
+		else
+		{
+			// Widget doesn't implement base container - might be custom widget
+			UE_LOG(LogTemp, Verbose, TEXT("BindProvidersToScreen: Tab %d (%s) is not a container widget"),
+				TabIndex, *ContentWidget->GetClass()->GetName());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Bound %d/%d container widgets"), BoundCount, TabCount);
 }
 
 //==================================================================
@@ -208,11 +267,11 @@ bool USuspenseCoreUIManager::ShowContainerScreenMulti(
 	// NEW ARCHITECTURE: Screen is configured via Blueprint (PanelSwitcher.TabConfigs)
 	// No need to call InitializeScreen() - PanelSwitcher handles everything
 
-	// Find providers and bind via EventBus
-	BindProvidersToScreen(PC);
-
-	// Add to viewport first
+	// Add to viewport FIRST (NativeConstruct creates content widgets in PanelSwitcher)
 	ContainerScreen->AddToViewport(100);
+
+	// Find providers and bind to content widgets AFTER widgets are created
+	BindProvidersToScreen(PC);
 
 	// Activate screen (sets input mode, opens default/remembered panel)
 	ContainerScreen->ActivateScreen();

@@ -4,26 +4,20 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
-#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/ContextMenu/SuspenseCoreContextMenuWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "Components/WidgetSwitcher.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
-#include "Blueprint/WidgetTree.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 
 //==================================================================
-// Constructor (like legacy SuspenseCharacterScreen)
+// Constructor
 //==================================================================
 
 USuspenseCoreContainerScreenWidget::USuspenseCoreContainerScreenWidget(const FObjectInitializer& ObjectInitializer)
@@ -33,10 +27,8 @@ USuspenseCoreContainerScreenWidget::USuspenseCoreContainerScreenWidget(const FOb
 	, bIsActive(false)
 	, DragGhostOffset(FVector2D::ZeroVector)
 {
-	// Set default screen tag (like legacy ScreenTag = UI.Screen.Character)
+	// Set default tags
 	ScreenTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Screen.Container"), false);
-
-	// Default to first panel (will be set from config)
 	DefaultPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Inventory"), false);
 }
 
@@ -48,124 +40,22 @@ void USuspenseCoreContainerScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// Make widget focusable for mouse/keyboard input
 	SetIsFocusable(true);
-
-	// CRITICAL: Create default layout if widgets are not bound
-	CreateDefaultLayoutIfNeeded();
 
 	// Cache UIManager reference
 	CachedUIManager = USuspenseCoreUIManager::Get(this);
 
-	// Bind to EventBus events
+	// Bind to EventBus
 	BindToUIManager();
 
-	// Log initialization (like legacy)
-	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] NativeConstruct completed. PanelSwitcher=%s"),
-		PanelSwitcher ? TEXT("OK") : TEXT("NULL"));
-}
-
-void USuspenseCoreContainerScreenWidget::CreateDefaultLayoutIfNeeded()
-{
-	// Check if we need to create layout dynamically
-	bool bNeedsLayout = !PanelSwitcher || !PanelContainer || !OverlayLayer;
-
-	if (!bNeedsLayout)
+	// Validate PanelSwitcher binding
+	if (!PanelSwitcher)
 	{
-		return;
+		UE_LOG(LogTemp, Error, TEXT("[ContainerScreen] PanelSwitcher is NOT bound! Bind it in Blueprint."));
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: Creating default layout. PanelSwitcher=%s, PanelContainer=%s, OverlayLayer=%s"),
-		PanelSwitcher ? TEXT("OK") : TEXT("NULL"),
-		PanelContainer ? TEXT("OK") : TEXT("NULL"),
-		OverlayLayer ? TEXT("OK") : TEXT("NULL"));
-
-	// Get or create root widget
-	UWidget* RootWidget = GetRootWidget();
-	UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(RootWidget);
-
-	if (!RootCanvas && WidgetTree)
+	else
 	{
-		// Create root canvas if not present
-		RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
-		if (RootCanvas)
-		{
-			WidgetTree->RootWidget = RootCanvas;
-		}
-	}
-
-	if (!RootCanvas)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ContainerScreen: Cannot create layout - no root canvas!"));
-		return;
-	}
-
-	// Create main vertical container
-	UVerticalBox* MainContainer = WidgetTree ?
-		WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainContainer")) :
-		NewObject<UVerticalBox>(this, TEXT("MainContainer"));
-
-	if (MainContainer)
-	{
-		UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainContainer);
-		if (MainSlot)
-		{
-			MainSlot->SetAnchors(FAnchors(0.1f, 0.1f, 0.9f, 0.9f));
-			MainSlot->SetOffsets(FMargin(0.0f));
-		}
-	}
-
-	// Create PanelSwitcher if not bound
-	if (!PanelSwitcher && MainContainer)
-	{
-		PanelSwitcher = CreateWidget<USuspenseCorePanelSwitcherWidget>(GetOwningPlayer(), USuspenseCorePanelSwitcherWidget::StaticClass());
-		if (PanelSwitcher)
-		{
-			UVerticalBoxSlot* SwitcherSlot = MainContainer->AddChildToVerticalBox(PanelSwitcher);
-			if (SwitcherSlot)
-			{
-				SwitcherSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-				SwitcherSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
-			}
-			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default PanelSwitcher"));
-		}
-	}
-
-	// Create PanelContainer (WidgetSwitcher) if not bound
-	if (!PanelContainer && MainContainer)
-	{
-		PanelContainer = WidgetTree ?
-			WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass(), TEXT("PanelContainer")) :
-			NewObject<UWidgetSwitcher>(this, TEXT("PanelContainer"));
-
-		if (PanelContainer)
-		{
-			UVerticalBoxSlot* ContainerSlot = MainContainer->AddChildToVerticalBox(PanelContainer);
-			if (ContainerSlot)
-			{
-				ContainerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			}
-			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default PanelContainer"));
-		}
-	}
-
-	// Create OverlayLayer if not bound
-	if (!OverlayLayer)
-	{
-		OverlayLayer = WidgetTree ?
-			WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("OverlayLayer")) :
-			NewObject<UOverlay>(this, TEXT("OverlayLayer"));
-
-		if (OverlayLayer)
-		{
-			UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(OverlayLayer);
-			if (OverlaySlot)
-			{
-				OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-				OverlaySlot->SetOffsets(FMargin(0.0f));
-			}
-			UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Created default OverlayLayer"));
-		}
+		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] NativeConstruct completed. PanelSwitcher OK"));
 	}
 }
 
@@ -177,19 +67,8 @@ void USuspenseCoreContainerScreenWidget::NativeDestruct()
 		GetWorld()->GetTimerManager().ClearTimer(RefreshTimerHandle);
 	}
 
-	// Unbind from UIManager events
+	// Unbind from EventBus
 	UnbindFromUIManager();
-
-	// Clean up panels
-	for (USuspenseCorePanelWidget* Panel : Panels)
-	{
-		if (Panel)
-		{
-			Panel->RemoveFromParent();
-		}
-	}
-	Panels.Empty();
-	PanelsByTag.Empty();
 
 	// Clean up overlay widgets
 	if (ItemTooltipWidget)
@@ -213,14 +92,8 @@ void USuspenseCoreContainerScreenWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void USuspenseCoreContainerScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
-{
-	Super::NativeTick(MyGeometry, InDeltaTime);
-}
-
 FReply USuspenseCoreContainerScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	// Handle close key
 	if (InKeyEvent.GetKey() == CloseKey)
 	{
 		CloseScreen();
@@ -231,112 +104,149 @@ FReply USuspenseCoreContainerScreenWidget::NativeOnKeyDown(const FGeometry& InGe
 }
 
 //==================================================================
-// Screen Configuration
+// Screen Activation (from legacy CharacterScreen)
 //==================================================================
 
-void USuspenseCoreContainerScreenWidget::InitializeScreen(const FSuspenseCoreScreenConfig& InScreenConfig)
+void USuspenseCoreContainerScreenWidget::ActivateScreen()
 {
-	ScreenConfig = InScreenConfig;
-
-	// Create panels from config
-	CreatePanels();
-
-	// Setup panel switcher
-	SetupPanelSwitcher();
-
-	// Switch to first panel if available
-	if (ScreenConfig.Panels.Num() > 0)
+	if (bIsActive)
 	{
-		SwitchToPanel(ScreenConfig.Panels[0].PanelTag);
+		return;
 	}
 
-	// Notify Blueprint
-	K2_OnScreenInitialized();
-}
+	bIsActive = true;
 
-//==================================================================
-// Panel Management
-//==================================================================
-
-bool USuspenseCoreContainerScreenWidget::SwitchToPanel(const FGameplayTag& PanelTag)
-{
-	if (!PanelTag.IsValid())
+	// Determine which panel to open
+	FGameplayTag PanelToOpen = DefaultPanelTag;
+	if (bRememberLastPanel && LastOpenedPanel.IsValid())
 	{
-		return false;
+		PanelToOpen = LastOpenedPanel;
 	}
 
-	TObjectPtr<USuspenseCorePanelWidget>* FoundPanel = PanelsByTag.Find(PanelTag);
-	if (!FoundPanel || !*FoundPanel)
+	// Open the panel via PanelSwitcher
+	if (PanelToOpen.IsValid())
 	{
-		return false;
+		OpenPanelByTag(PanelToOpen);
 	}
 
-	// Find panel index in widget switcher
-	int32 PanelIndex = Panels.Find(*FoundPanel);
-	if (PanelIndex == INDEX_NONE)
+	// Set input mode
+	UpdateInputMode();
+
+	// Call Blueprint event
+	K2_OnContainerScreenOpened();
+
+	// Publish screen opened event via EventBus
+	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Opened")));
+
+	// Force refresh after short delay (like legacy)
+	if (GetWorld())
 	{
-		return false;
-	}
-
-	// Switch in widget switcher
-	if (PanelContainer)
-	{
-		PanelContainer->SetActiveWidgetIndex(PanelIndex);
-	}
-
-	// Update panel switcher selection
-	if (PanelSwitcher)
-	{
-		PanelSwitcher->SetActivePanel(PanelTag);
-	}
-
-	ActivePanelTag = PanelTag;
-
-	// Hide tooltip and context menu when switching panels
-	HideTooltip();
-	HideContextMenu();
-
-	// Notify Blueprint
-	K2_OnPanelSwitched(PanelTag);
-
-	return true;
-}
-
-bool USuspenseCoreContainerScreenWidget::SwitchToPanelByIndex(int32 PanelIndex)
-{
-	if (PanelIndex < 0 || PanelIndex >= Panels.Num())
-	{
-		return false;
-	}
-
-	USuspenseCorePanelWidget* Panel = Panels[PanelIndex];
-	if (!Panel)
-	{
-		return false;
-	}
-
-	// Find the panel tag
-	for (const auto& Pair : PanelsByTag)
-	{
-		if (Pair.Value == Panel)
+		GetWorld()->GetTimerManager().SetTimer(RefreshTimerHandle, [this]()
 		{
-			return SwitchToPanel(Pair.Key);
+			RefreshScreenContent();
+		}, 0.2f, false);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Activated - Panel: %s"),
+		PanelToOpen.IsValid() ? *PanelToOpen.ToString() : TEXT("None"));
+}
+
+void USuspenseCoreContainerScreenWidget::DeactivateScreen()
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	bIsActive = false;
+
+	// Remember current panel
+	if (bRememberLastPanel && ActivePanelTag.IsValid())
+	{
+		LastOpenedPanel = ActivePanelTag;
+	}
+
+	// Restore input mode
+	UpdateInputMode();
+
+	// Call Blueprint event
+	K2_OnContainerScreenClosed();
+
+	// Publish screen closed event via EventBus
+	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Closed")));
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Deactivated - Last Panel: %s"),
+		LastOpenedPanel.IsValid() ? *LastOpenedPanel.ToString() : TEXT("None"));
+}
+
+//==================================================================
+// Panel Management (delegates to PanelSwitcher)
+//==================================================================
+
+void USuspenseCoreContainerScreenWidget::OpenPanelByTag(const FGameplayTag& PanelTag)
+{
+	if (!PanelSwitcher)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ContainerScreen] No PanelSwitcher - cannot open panel"));
+		return;
+	}
+
+	bool bSuccess = PanelSwitcher->SelectTabByTag(PanelTag);
+
+	if (bSuccess)
+	{
+		ActivePanelTag = PanelTag;
+		HideTooltip();
+		HideContextMenu();
+		K2_OnPanelSwitched(PanelTag);
+		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Opened panel: %s"), *PanelTag.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ContainerScreen] Failed to open panel: %s"), *PanelTag.ToString());
+
+		// Fallback: select first tab
+		if (PanelSwitcher->GetTabCount() > 0)
+		{
+			PanelSwitcher->SelectTabByIndex(0);
+			ActivePanelTag = PanelSwitcher->GetSelectedTabTag();
+			UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Selected first panel as fallback"));
 		}
 	}
-
-	return false;
 }
 
-USuspenseCorePanelWidget* USuspenseCoreContainerScreenWidget::GetActivePanel() const
+void USuspenseCoreContainerScreenWidget::OpenPanelByIndex(int32 PanelIndex)
 {
-	TObjectPtr<USuspenseCorePanelWidget> const* FoundPanel = PanelsByTag.Find(ActivePanelTag);
-	return FoundPanel ? *FoundPanel : nullptr;
+	if (!PanelSwitcher)
+	{
+		return;
+	}
+
+	PanelSwitcher->SelectTabByIndex(PanelIndex);
+	ActivePanelTag = PanelSwitcher->GetSelectedTabTag();
+	HideTooltip();
+	HideContextMenu();
+	K2_OnPanelSwitched(ActivePanelTag);
 }
 
-USuspenseCorePanelWidget* USuspenseCoreContainerScreenWidget::GetPanelByTag(const FGameplayTag& PanelTag) const
+UUserWidget* USuspenseCoreContainerScreenWidget::GetActivePanelContent() const
 {
-	TObjectPtr<USuspenseCorePanelWidget> const* FoundPanel = PanelsByTag.Find(PanelTag);
-	return FoundPanel ? *FoundPanel : nullptr;
+	if (!PanelSwitcher)
+	{
+		return nullptr;
+	}
+
+	int32 CurrentIndex = PanelSwitcher->GetSelectedTabIndex();
+	return PanelSwitcher->GetTabContent(CurrentIndex);
+}
+
+void USuspenseCoreContainerScreenWidget::RefreshScreenContent()
+{
+	if (PanelSwitcher)
+	{
+		PanelSwitcher->RefreshActiveTabContent();
+		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Refreshed panel content"));
+	}
 }
 
 //==================================================================
@@ -390,7 +300,6 @@ void USuspenseCoreContainerScreenWidget::ShowContextMenu(
 	const FVector2D& ScreenPosition,
 	const TArray<FGameplayTag>& AvailableActions)
 {
-	// Hide tooltip when showing context menu
 	HideTooltip();
 
 	// Create context menu widget if needed
@@ -435,7 +344,6 @@ void USuspenseCoreContainerScreenWidget::ShowDragGhost(const FSuspenseCoreItemUI
 {
 	DragGhostOffset = DragOffset;
 
-	// Create drag ghost widget if needed
 	if (!DragGhostWidget && DragGhostWidgetClass)
 	{
 		DragGhostWidget = CreateWidget<UUserWidget>(GetOwningPlayer(), DragGhostWidgetClass);
@@ -452,8 +360,6 @@ void USuspenseCoreContainerScreenWidget::ShowDragGhost(const FSuspenseCoreItemUI
 
 	if (DragGhostWidget)
 	{
-		// Set item icon on ghost widget
-		// This would be implemented based on your drag ghost widget structure
 		DragGhostWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 }
@@ -481,7 +387,6 @@ void USuspenseCoreContainerScreenWidget::HideDragGhost()
 
 void USuspenseCoreContainerScreenWidget::CloseScreen()
 {
-	// Notify Blueprint
 	K2_OnScreenClosing();
 
 	// Notify UIManager
@@ -490,108 +395,34 @@ void USuspenseCoreContainerScreenWidget::CloseScreen()
 		UIManager->CloseContainerScreen(GetOwningPlayer());
 	}
 
-	// Restore input mode
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = false;
-	}
+	// Deactivate screen (restores input mode, publishes event)
+	DeactivateScreen();
 
 	// Remove from viewport
 	RemoveFromParent();
 }
 
-void USuspenseCoreContainerScreenWidget::OnCloseButtonClicked()
-{
-	CloseScreen();
-}
-
 //==================================================================
-// Setup Methods
+// EventBus Binding
 //==================================================================
-
-void USuspenseCoreContainerScreenWidget::CreatePanels_Implementation()
-{
-	if (!PanelWidgetClass || !PanelContainer)
-	{
-		return;
-	}
-
-	// Clear existing panels
-	PanelContainer->ClearChildren();
-	Panels.Empty();
-	PanelsByTag.Empty();
-
-	// Create panel for each ENABLED config
-	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
-	{
-		// Skip disabled panels
-		if (!PanelConfig.bIsEnabled)
-		{
-			continue;
-		}
-
-		USuspenseCorePanelWidget* Panel = CreateWidget<USuspenseCorePanelWidget>(GetOwningPlayer(), PanelWidgetClass);
-		if (!Panel)
-		{
-			continue;
-		}
-
-		// Initialize panel with config
-		Panel->InitializePanel(PanelConfig);
-
-		// Add to widget switcher
-		PanelContainer->AddChild(Panel);
-
-		// Track panel
-		Panels.Add(Panel);
-		PanelsByTag.Add(PanelConfig.PanelTag, Panel);
-	}
-}
-
-void USuspenseCoreContainerScreenWidget::SetupPanelSwitcher_Implementation()
-{
-	if (!PanelSwitcher)
-	{
-		return;
-	}
-
-	// Clear existing tabs
-	PanelSwitcher->ClearTabs();
-
-	// Add tab for each ENABLED panel
-	for (const FSuspenseCorePanelConfig& PanelConfig : ScreenConfig.Panels)
-	{
-		if (!PanelConfig.bIsEnabled)
-		{
-			continue;
-		}
-		PanelSwitcher->AddTab(PanelConfig.PanelTag, PanelConfig.DisplayName);
-	}
-
-	// NOTE: Panel selection now handled via EventBus (SuspenseCore.Event.UI.Panel.Selected)
-	// See BindToUIManager() for subscription setup
-}
 
 void USuspenseCoreContainerScreenWidget::BindToUIManager()
 {
-	// Get EventBus
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
 	if (!Manager)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: EventManager not available"));
+		UE_LOG(LogTemp, Warning, TEXT("[ContainerScreen] EventManager not available"));
 		return;
 	}
 
 	CachedEventBus = Manager->GetEventBus();
 	if (!CachedEventBus.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ContainerScreen: EventBus not available"));
+		UE_LOG(LogTemp, Warning, TEXT("[ContainerScreen] EventBus not available"));
 		return;
 	}
 
-	// Subscribe to panel selected events via EventBus
+	// Subscribe to panel selected events
 	PanelSelectedEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
 		const_cast<USuspenseCoreContainerScreenWidget*>(this),
@@ -599,12 +430,11 @@ void USuspenseCoreContainerScreenWidget::BindToUIManager()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("ContainerScreen: EventBus subscriptions established"));
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] EventBus subscriptions established"));
 }
 
 void USuspenseCoreContainerScreenWidget::UnbindFromUIManager()
 {
-	// Unsubscribe from EventBus
 	if (CachedEventBus.IsValid() && PanelSelectedEventHandle.IsValid())
 	{
 		CachedEventBus->Unsubscribe(PanelSelectedEventHandle);
@@ -616,150 +446,24 @@ void USuspenseCoreContainerScreenWidget::UnbindFromUIManager()
 
 void USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get panel tag from event data (stored as string)
 	FString PanelTagString = EventData.GetString(FName("PanelTag"));
 	FGameplayTag PanelTag = FGameplayTag::RequestGameplayTag(FName(*PanelTagString), false);
+
 	if (PanelTag.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Received panel selected event - %s"), *PanelTag.ToString());
-		SwitchToPanel(PanelTag);
+
+		// Update active panel tag (PanelSwitcher already switched the content)
+		ActivePanelTag = PanelTag;
+		HideTooltip();
+		HideContextMenu();
+		K2_OnPanelSwitched(PanelTag);
 	}
 }
 
 //==================================================================
-// Screen Activation (from legacy SuspenseCharacterScreen)
+// Helper Methods
 //==================================================================
-
-void USuspenseCoreContainerScreenWidget::ActivateScreen()
-{
-	if (bIsActive)
-	{
-		return;
-	}
-
-	bIsActive = true;
-
-	// Determine which panel to open (like legacy OpenTabByTag logic)
-	FGameplayTag PanelToOpen = DefaultPanelTag;
-
-	if (bRememberLastPanel && LastOpenedPanel.IsValid())
-	{
-		PanelToOpen = LastOpenedPanel;
-	}
-
-	// Open the panel
-	if (PanelToOpen.IsValid())
-	{
-		OpenPanelByTag(PanelToOpen);
-	}
-
-	// Set input mode (like legacy UpdateInputMode)
-	UpdateInputMode();
-
-	// Call Blueprint event
-	K2_OnContainerScreenOpened();
-
-	// Publish screen opened event via EventBus
-	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Opened")));
-
-	// Force refresh active panel content after a short delay (like legacy)
-	if (GetWorld())
-	{
-		GetWorld()->GetTimerManager().SetTimer(RefreshTimerHandle, [this]()
-		{
-			RefreshScreenContent();
-		}, 0.2f, false);
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Activated - Panel: %s"),
-		PanelToOpen.IsValid() ? *PanelToOpen.ToString() : TEXT("None"));
-}
-
-void USuspenseCoreContainerScreenWidget::DeactivateScreen()
-{
-	if (!bIsActive)
-	{
-		return;
-	}
-
-	bIsActive = false;
-
-	// Remember current panel if enabled (like legacy LastOpenedTab)
-	if (bRememberLastPanel && ActivePanelTag.IsValid())
-	{
-		LastOpenedPanel = ActivePanelTag;
-	}
-
-	// Restore input mode
-	UpdateInputMode();
-
-	// Call Blueprint event
-	K2_OnContainerScreenClosed();
-
-	// Publish screen closed event via EventBus
-	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Closed")));
-
-	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Deactivated - Last Panel: %s"),
-		LastOpenedPanel.IsValid() ? *LastOpenedPanel.ToString() : TEXT("None"));
-}
-
-void USuspenseCoreContainerScreenWidget::OpenPanelByTag(const FGameplayTag& PanelTag)
-{
-	if (!PanelSwitcher)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[ContainerScreen] No PanelSwitcher found"));
-		return;
-	}
-
-	// Use SelectTabByTag directly (like legacy UpperTabBar->SelectTabByTag)
-	bool bSuccess = PanelSwitcher->SelectTabByTag(PanelTag);
-
-	if (bSuccess)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Successfully opened panel: %s"),
-			*PanelTag.ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ContainerScreen] Failed to open panel: %s"),
-			*PanelTag.ToString());
-
-		// Fallback: try to select first tab (like legacy)
-		if (PanelSwitcher->GetTabCount() > 0)
-		{
-			PanelSwitcher->SelectTabByIndex(0);
-			UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Selected first panel as fallback"));
-		}
-	}
-}
-
-void USuspenseCoreContainerScreenWidget::OpenPanelByIndex(int32 PanelIndex)
-{
-	if (PanelSwitcher)
-	{
-		PanelSwitcher->SelectTabByIndex(PanelIndex);
-	}
-}
-
-void USuspenseCoreContainerScreenWidget::RefreshScreenContent()
-{
-	// Refresh active panel content (like legacy RefreshActiveTabContent)
-	if (PanelSwitcher)
-	{
-		PanelSwitcher->RefreshActiveTabContent();
-
-		// Get current panel index and content
-		int32 CurrentIndex = PanelSwitcher->GetSelectedTabIndex();
-		if (CurrentIndex >= 0)
-		{
-			if (UUserWidget* PanelContent = PanelSwitcher->GetTabContent(CurrentIndex))
-			{
-				UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Refreshed panel content at index %d"),
-					CurrentIndex);
-			}
-		}
-	}
-}
 
 void USuspenseCoreContainerScreenWidget::UpdateInputMode()
 {
@@ -767,7 +471,6 @@ void USuspenseCoreContainerScreenWidget::UpdateInputMode()
 	{
 		if (bIsActive)
 		{
-			// Set UI and game input mode (like legacy)
 			FInputModeGameAndUI InputMode;
 			InputMode.SetWidgetToFocus(TakeWidget());
 			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -776,7 +479,6 @@ void USuspenseCoreContainerScreenWidget::UpdateInputMode()
 		}
 		else
 		{
-			// Return to game only mode (like legacy)
 			FInputModeGameOnly InputMode;
 			PC->SetInputMode(InputMode);
 			PC->bShowMouseCursor = false;
@@ -791,12 +493,10 @@ void USuspenseCoreContainerScreenWidget::PublishScreenEvent(const FGameplayTag& 
 		return;
 	}
 
-	// Create event data
 	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
 	EventData.SetString(FName("ScreenTag"), ScreenTag.ToString());
 	EventData.SetString(FName("ActivePanelTag"), ActivePanelTag.ToString());
 
-	// Publish via EventBus
 	CachedEventBus->Publish(EventTag, EventData);
 
 	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Published event: %s"), *EventTag.ToString());

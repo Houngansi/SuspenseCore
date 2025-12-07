@@ -6,8 +6,9 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCoreEquipmentComponentBase.generated.h"
 
 // Forward declarations
@@ -15,7 +16,6 @@ class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
 class USuspenseCoreEventManager;
-class USuspenseCoreItemManager;
 
 // Equipment logging category definition
 DECLARE_LOG_CATEGORY_EXTERN(LogMedComEquipment, Log, All);

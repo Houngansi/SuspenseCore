@@ -9,7 +9,7 @@
 #include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCoreSystemCoordinatorComponent.generated.h"
 
-class USuspenseCoreEquipmentServiceLocator;
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 
 /**
  * System Coordinator - Service registration orchestrator

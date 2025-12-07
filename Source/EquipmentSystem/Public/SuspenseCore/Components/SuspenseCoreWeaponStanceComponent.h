@@ -8,7 +8,7 @@
 
 // ✅ Используем существующий у тебя интерфейс (НЕ объявляем свой)
 class USuspenseCoreWeaponAnimation;
-class ISuspenseCoreWeaponAnimation;
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent), BlueprintType, Blueprintable)
 class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStanceComponent : public UActorComponent

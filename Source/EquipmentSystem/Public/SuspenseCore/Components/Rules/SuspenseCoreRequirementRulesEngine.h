@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseCoreRulesTypes.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreRequirementRulesEngine.generated.h"
 
 /**

@@ -17,7 +17,7 @@
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Types/Events/SuspenseCoreEquipmentEventData.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 
 #include "Services/SuspenseCoreEquipmentOperationService.h"

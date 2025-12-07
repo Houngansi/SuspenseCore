@@ -507,3 +507,18 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryChange
 	{
 	}
 };
+
+//==============================================================================
+// Compatibility Aliases
+// These aliases provide compatibility with EquipmentSystem components that
+// use slightly different naming conventions
+//==============================================================================
+
+// Include base inventory types for the alias
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+
+/**
+ * Alias for FSuspenseInventoryItemInstance
+ * Used by EquipmentSystem components that expect SuspenseCore* naming convention
+ */
+using FSuspenseCoreInventoryItemInstance = FSuspenseInventoryItemInstance;

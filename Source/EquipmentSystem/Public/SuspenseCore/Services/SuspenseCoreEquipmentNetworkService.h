@@ -24,7 +24,7 @@
 class USuspenseCoreEquipmentNetworkDispatcher;
 class USuspenseCoreEquipmentPredictionSystem;
 class USuspenseCoreEquipmentReplicationManager;
-class USuspenseCoreEquipmentServiceLocator;
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 class USuspenseCoreEquipmentSecurityService;
 class ISuspenseCoreEquipmentDataProvider;
 class ISuspenseCoreEquipmentOperations;

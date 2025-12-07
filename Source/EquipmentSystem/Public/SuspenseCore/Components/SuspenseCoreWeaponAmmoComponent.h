@@ -6,15 +6,15 @@
 #include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
 #include "Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreWeaponAmmoComponent.generated.h"
 
 // Forward declarations
 class UGameplayEffect;
-class ISuspenseCoreWeapon;
 class UAttributeSet;
 class UWeaponAttributeSet;
 class UAmmoAttributeSet;
-struct FSuspenseCoreUnifiedItemData;
 
 /**
  * Component that manages weapon ammunition state

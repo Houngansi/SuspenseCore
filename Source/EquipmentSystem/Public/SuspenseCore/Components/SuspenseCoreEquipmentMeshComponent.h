@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
@@ -13,7 +13,7 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-class USuspenseCoreItemManager;
+#include "ItemSystem/SuspenseCoreItemManager.h"
 class USuspenseCoreEventManager;
 
 /**

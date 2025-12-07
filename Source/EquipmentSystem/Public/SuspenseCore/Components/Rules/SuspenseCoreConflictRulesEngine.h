@@ -6,14 +6,14 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Types/Rules/SuspenseCoreRulesTypes.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreConflictRulesEngine.generated.h"
 
-// Forward declarations - критически важно для компиляции новых методов
-class ISuspenseCoreEquipmentDataProvider;
-struct FSuspenseCoreUnifiedItemData;
-struct FEquipmentSlotSnapshot;  // ДОБАВЛЕНО: для новых методов со слотами
+// Forward declarations
+struct FEquipmentSlotSnapshot;
 
 /**
  * Conflict type enumeration

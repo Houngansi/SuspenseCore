@@ -11,6 +11,7 @@
 // Forward declarations
 class USuspenseCoreInventorySlotWidget;
 class UGridPanel;
+class UGridSlot;
 class UUniformGridPanel;
 class UCanvasPanel;
 class UTextBlock;
@@ -284,7 +285,19 @@ protected:
 	// Widget References (Bind in Blueprint)
 	//==================================================================
 
-	/** Grid panel containing slots */
+	/**
+	 * Grid panel for slots (PREFERRED - supports multi-cell spanning)
+	 * Use UGridPanel for proper multi-cell item rendering.
+	 * GridSlot supports SetColumnSpan/SetRowSpan for item spanning.
+	 */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	TObjectPtr<UGridPanel> SlotGridPanel;
+
+	/**
+	 * Uniform grid panel for slots (FALLBACK - no spanning support)
+	 * Only use if GridPanel is not available.
+	 * Multi-cell items will render with visual spanning via icon resizing.
+	 */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UUniformGridPanel> SlotGrid;
 
@@ -414,4 +427,50 @@ private:
 
 	/** Double click threshold in seconds */
 	static constexpr double DoubleClickThreshold = 0.3;
+
+	//==================================================================
+	// Multi-Cell Item Support
+	//==================================================================
+
+	/** Whether we're using GridPanel (true) or UniformGridPanel (false) */
+	bool bUsingGridPanel = false;
+
+	/**
+	 * Get the active grid panel widget for slot management
+	 * Returns SlotGridPanel if bound, otherwise SlotGrid
+	 */
+	UPanelWidget* GetActiveGridPanel() const;
+
+	/**
+	 * Update grid slot span for multi-cell item
+	 * Sets ColumnSpan and RowSpan on the GridSlot for anchor slots.
+	 * Hides non-anchor slots that are part of multi-cell item.
+	 * @param AnchorSlotIndex Anchor slot index
+	 * @param ItemSize Item size in grid cells
+	 * @param bIsRotated Whether item is rotated
+	 */
+	void UpdateGridSlotSpan(int32 AnchorSlotIndex, const FIntPoint& ItemSize, bool bIsRotated);
+
+	/**
+	 * Reset grid slot span to 1x1
+	 * @param SlotIndex Slot index to reset
+	 */
+	void ResetGridSlotSpan(int32 SlotIndex);
+
+	/**
+	 * Update visibility for slots occupied by multi-cell item
+	 * Anchor slot: visible with span
+	 * Non-anchor slots: hidden (covered by anchor's span)
+	 * @param AnchorSlotIndex Anchor slot index
+	 * @param ItemSize Item size
+	 * @param bIsRotated Whether rotated
+	 */
+	void UpdateMultiCellSlotVisibility(int32 AnchorSlotIndex, const FIntPoint& ItemSize, bool bIsRotated);
+
+	/**
+	 * Cache of grid slots for quick access (GridPanel mode only)
+	 * Map from slot index to GridSlot
+	 */
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<UGridSlot>> CachedGridSlots;
 };

@@ -8,6 +8,8 @@
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
+#include "Components/GridPanel.h"
+#include "Components/GridSlot.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/CanvasPanel.h"
@@ -472,18 +474,18 @@ TArray<UWidget*> USuspenseCoreInventoryWidget::GetAllSlotWidgets() const
 
 int32 USuspenseCoreInventoryWidget::GetSlotAtLocalPosition(const FVector2D& LocalPosition) const
 {
-	if (!SlotGrid || SlotWidgets.Num() == 0)
+	// Get active grid panel (either GridPanel or UniformGridPanel)
+	UPanelWidget* ActiveGrid = const_cast<USuspenseCoreInventoryWidget*>(this)->GetActiveGridPanel();
+	if (!ActiveGrid || SlotWidgets.Num() == 0)
 	{
 		return INDEX_NONE;
 	}
 
-	// Transform local position from widget space to SlotGrid space
-	// Get SlotGrid's position within the inventory widget hierarchy
+	// Transform local position from widget space to grid space
 	const FGeometry& WidgetGeometry = GetCachedGeometry();
-	const FGeometry& GridGeometry = SlotGrid->GetCachedGeometry();
+	const FGeometry& GridGeometry = ActiveGrid->GetCachedGeometry();
 
 	// Transform from inventory widget space to grid space
-	// The grid might be offset due to padding, borders, or other layout elements
 	FVector2D GridLocalPos = GridGeometry.AbsoluteToLocal(
 		WidgetGeometry.LocalToAbsolute(LocalPosition)
 	);
@@ -608,9 +610,18 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 	UE_LOG(LogTemp, Warning, TEXT("=== CreateSlotWidgets [%s] START === Existing=%d"),
 		*GetName(), SlotWidgets.Num());
 
-	if (!SlotGrid || !SlotWidgetClass)
+	// Check which grid panel type is available
+	// PREFER SlotGridPanel (UGridPanel) for multi-cell spanning support
+	UPanelWidget* ActiveGrid = GetActiveGridPanel();
+	if (!ActiveGrid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: Missing SlotGrid or SlotWidgetClass!"));
+		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: No grid panel bound! Need SlotGridPanel or SlotGrid."));
+		return;
+	}
+
+	if (!SlotWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateSlotWidgets: Missing SlotWidgetClass!"));
 		return;
 	}
 
@@ -626,13 +637,15 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 	}
 
 	// Clear existing
-	SlotGrid->ClearChildren();
+	ActiveGrid->ClearChildren();
 	SlotWidgets.Empty();
+	CachedGridSlots.Empty();
 
 	int32 TotalSlots = GridSize.X * GridSize.Y;
 	SlotWidgets.Reserve(TotalSlots);
 
-	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Creating %d slots"), TotalSlots);
+	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Creating %d slots (using %s)"),
+		TotalSlots, bUsingGridPanel ? TEXT("GridPanel") : TEXT("UniformGridPanel"));
 
 	// Create slot widget for each grid cell
 	for (int32 SlotIndex = 0; SlotIndex < TotalSlots; ++SlotIndex)
@@ -649,19 +662,43 @@ void USuspenseCoreInventoryWidget::CreateSlotWidgets_Implementation()
 		SlotWidget->SetSlotIndex(SlotIndex);
 		SlotWidget->SetGridPosition(GridPos);
 		SlotWidget->SetSlotSize(FVector2D(SlotSizePixels, SlotSizePixels));
+		SlotWidget->SetCellSize(SlotSizePixels); // For multi-cell icon sizing
 
-		// Add to grid at correct position
-		UUniformGridSlot* GridSlot = SlotGrid->AddChildToUniformGrid(SlotWidget, GridPos.Y, GridPos.X);
-		if (GridSlot)
+		// Add to grid at correct position based on grid type
+		if (bUsingGridPanel && SlotGridPanel)
 		{
-			GridSlot->SetHorizontalAlignment(HAlign_Fill);
-			GridSlot->SetVerticalAlignment(VAlign_Fill);
+			// Use GridPanel with full spanning support
+			UGridSlot* GSlot = SlotGridPanel->AddChildToGrid(SlotWidget, GridPos.Y, GridPos.X);
+			if (GSlot)
+			{
+				GSlot->SetRow(GridPos.Y);
+				GSlot->SetColumn(GridPos.X);
+				GSlot->SetRowSpan(1);
+				GSlot->SetColumnSpan(1);
+				GSlot->SetHorizontalAlignment(HAlign_Fill);
+				GSlot->SetVerticalAlignment(VAlign_Fill);
+				GSlot->SetPadding(FMargin(SlotGapPixels * 0.5f));
+
+				// Cache for later span updates
+				CachedGridSlots.Add(SlotIndex, GSlot);
+			}
+		}
+		else if (SlotGrid)
+		{
+			// Fallback to UniformGridPanel (no spanning support)
+			UUniformGridSlot* UGSlot = SlotGrid->AddChildToUniformGrid(SlotWidget, GridPos.Y, GridPos.X);
+			if (UGSlot)
+			{
+				UGSlot->SetHorizontalAlignment(HAlign_Fill);
+				UGSlot->SetVerticalAlignment(VAlign_Fill);
+			}
 		}
 
 		SlotWidgets.Add(SlotWidget);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Created %d slot widgets"), SlotWidgets.Num());
+	UE_LOG(LogTemp, Log, TEXT("CreateSlotWidgets: Created %d slot widgets (cached %d GridSlots)"),
+		SlotWidgets.Num(), CachedGridSlots.Num());
 
 	// Update the slot-to-anchor map for multi-cell items
 	UpdateSlotToAnchorMap();
@@ -687,24 +724,59 @@ void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
 	// Debug logging for first few slots or if item exists
 	if (SlotIndex < 3 || ItemData.InstanceID.IsValid())
 	{
-		UE_LOG(LogTemp, Log, TEXT("UpdateSlotWidget[%d]: bIsAnchor=%d, ItemID=%s, IconPath=%s"),
+		UE_LOG(LogTemp, Log, TEXT("UpdateSlotWidget[%d]: bIsAnchor=%d, bIsPartOfItem=%d, ItemID=%s, Size=%dx%d"),
 			SlotIndex,
 			SlotData.bIsAnchor ? 1 : 0,
+			SlotData.bIsPartOfItem ? 1 : 0,
 			*ItemData.ItemID.ToString(),
-			*ItemData.IconPath.ToString());
+			ItemData.GridSize.X, ItemData.GridSize.Y);
 	}
 
-	// Update slot with data
+	// Handle multi-cell item visibility and spanning
+	if (SlotData.bIsAnchor && ItemData.InstanceID.IsValid())
+	{
+		// ANCHOR SLOT: Visible, with span matching item size
+		SlotWidget->SetVisibility(ESlateVisibility::Visible);
+
+		// Update grid slot span (GridPanel only)
+		UpdateGridSlotSpan(SlotIndex, ItemData.GridSize, ItemData.bIsRotated);
+
+		// Tell slot widget to render for multi-cell
+		SlotWidget->SetMultiCellItemSize(ItemData.GetEffectiveSize());
+	}
+	else if (SlotData.bIsPartOfItem && !SlotData.bIsAnchor)
+	{
+		// NON-ANCHOR OCCUPIED SLOT: Hidden (covered by anchor's span)
+		SlotWidget->SetVisibility(ESlateVisibility::Hidden);
+
+		// Reset span to 1x1
+		ResetGridSlotSpan(SlotIndex);
+	}
+	else
+	{
+		// EMPTY SLOT: Visible, 1x1
+		SlotWidget->SetVisibility(ESlateVisibility::Visible);
+
+		// Reset span
+		ResetGridSlotSpan(SlotIndex);
+
+		// Reset multi-cell size
+		SlotWidget->SetMultiCellItemSize(FIntPoint(1, 1));
+	}
+
+	// Update slot content with data
 	SlotWidget->UpdateSlot(SlotData, ItemData);
 }
 
 void USuspenseCoreInventoryWidget::ClearSlotWidgets_Implementation()
 {
-	if (SlotGrid)
+	UPanelWidget* ActiveGrid = GetActiveGridPanel();
+	if (ActiveGrid)
 	{
-		SlotGrid->ClearChildren();
+		ActiveGrid->ClearChildren();
 	}
 	SlotWidgets.Empty();
+	CachedGridSlots.Empty();
 }
 
 //==================================================================
@@ -978,5 +1050,122 @@ void USuspenseCoreInventoryWidget::HideTooltip()
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
 	{
 		UIManager->HideTooltip();
+	}
+}
+
+//==================================================================
+// Multi-Cell Item Support
+//==================================================================
+
+UPanelWidget* USuspenseCoreInventoryWidget::GetActiveGridPanel() const
+{
+	// Prefer GridPanel (supports spanning) over UniformGridPanel
+	if (SlotGridPanel)
+	{
+		// Cast away const for bUsingGridPanel - it's effectively configuration
+		const_cast<USuspenseCoreInventoryWidget*>(this)->bUsingGridPanel = true;
+		return SlotGridPanel;
+	}
+
+	if (SlotGrid)
+	{
+		const_cast<USuspenseCoreInventoryWidget*>(this)->bUsingGridPanel = false;
+		return SlotGrid;
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreInventoryWidget::UpdateGridSlotSpan(int32 AnchorSlotIndex, const FIntPoint& ItemSize, bool bIsRotated)
+{
+	// Only works with GridPanel
+	if (!bUsingGridPanel || !SlotGridPanel)
+	{
+		return;
+	}
+
+	// Get cached GridSlot
+	TObjectPtr<UGridSlot>* FoundSlot = CachedGridSlots.Find(AnchorSlotIndex);
+	if (!FoundSlot || !(*FoundSlot))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdateGridSlotSpan: No cached GridSlot for slot %d"), AnchorSlotIndex);
+		return;
+	}
+
+	UGridSlot* GSlot = *FoundSlot;
+
+	// Calculate effective size (considering rotation)
+	FIntPoint EffectiveSize = bIsRotated ? FIntPoint(ItemSize.Y, ItemSize.X) : ItemSize;
+
+	// Apply span
+	GSlot->SetColumnSpan(FMath::Max(1, EffectiveSize.X));
+	GSlot->SetRowSpan(FMath::Max(1, EffectiveSize.Y));
+
+	UE_LOG(LogTemp, Log, TEXT("UpdateGridSlotSpan: Slot %d span set to %dx%d (rotated=%d)"),
+		AnchorSlotIndex, EffectiveSize.X, EffectiveSize.Y, bIsRotated ? 1 : 0);
+}
+
+void USuspenseCoreInventoryWidget::ResetGridSlotSpan(int32 SlotIndex)
+{
+	// Only works with GridPanel
+	if (!bUsingGridPanel || !SlotGridPanel)
+	{
+		return;
+	}
+
+	// Get cached GridSlot
+	TObjectPtr<UGridSlot>* FoundSlot = CachedGridSlots.Find(SlotIndex);
+	if (!FoundSlot || !(*FoundSlot))
+	{
+		return;
+	}
+
+	UGridSlot* GSlot = *FoundSlot;
+
+	// Reset to 1x1
+	GSlot->SetColumnSpan(1);
+	GSlot->SetRowSpan(1);
+}
+
+void USuspenseCoreInventoryWidget::UpdateMultiCellSlotVisibility(int32 AnchorSlotIndex, const FIntPoint& ItemSize, bool bIsRotated)
+{
+	// Calculate effective size
+	FIntPoint EffectiveSize = bIsRotated ? FIntPoint(ItemSize.Y, ItemSize.X) : ItemSize;
+
+	// Get anchor grid position
+	FIntPoint AnchorGridPos = SlotIndexToGridPos(AnchorSlotIndex);
+
+	// Iterate all slots occupied by this item
+	for (int32 DY = 0; DY < EffectiveSize.Y; ++DY)
+	{
+		for (int32 DX = 0; DX < EffectiveSize.X; ++DX)
+		{
+			FIntPoint CurrentPos = AnchorGridPos + FIntPoint(DX, DY);
+			int32 CurrentSlotIndex = GridPosToSlotIndex(CurrentPos);
+
+			if (CurrentSlotIndex == INDEX_NONE || CurrentSlotIndex >= SlotWidgets.Num())
+			{
+				continue;
+			}
+
+			if (CurrentSlotIndex == AnchorSlotIndex)
+			{
+				// Anchor slot - visible with span
+				if (SlotWidgets[CurrentSlotIndex])
+				{
+					SlotWidgets[CurrentSlotIndex]->SetVisibility(ESlateVisibility::Visible);
+				}
+				UpdateGridSlotSpan(CurrentSlotIndex, ItemSize, bIsRotated);
+			}
+			else
+			{
+				// Non-anchor slot - hidden (covered by anchor's span)
+				if (SlotWidgets[CurrentSlotIndex])
+				{
+					SlotWidgets[CurrentSlotIndex]->SetVisibility(ESlateVisibility::Hidden);
+				}
+				ResetGridSlotSpan(CurrentSlotIndex);
+			}
+		}
 	}
 }

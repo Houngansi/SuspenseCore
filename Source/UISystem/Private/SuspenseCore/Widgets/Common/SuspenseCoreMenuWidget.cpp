@@ -112,7 +112,6 @@ USuspenseCoreButtonWidget* USuspenseCoreMenuWidget::CreateButton(const FSuspense
 
 	// Configure button
 	Button->SetButtonText(Config.ButtonText);
-	Button->SetButtonStyle(Config.Style);
 	Button->SetButtonEnabled(Config.bEnabled);
 	Button->SetActionTag(Config.ActionTag);
 

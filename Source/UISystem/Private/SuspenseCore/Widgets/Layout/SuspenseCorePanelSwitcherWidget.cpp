@@ -540,15 +540,8 @@ void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(int32 TabI
 		return;
 	}
 
-	// Update button style based on selection
-	if (bIsSelected)
-	{
-		Button->SetButtonStyle(ESuspenseCoreButtonStyle::Primary);
-	}
-	else
-	{
-		Button->SetButtonStyle(ESuspenseCoreButtonStyle::Secondary);
-	}
+	// Visual styling is handled via materials in Blueprint
+	// Override K2_OnTabSelected in Blueprint to customize tab visuals
 }
 
 void USuspenseCorePanelSwitcherWidget::UpdateAllTabVisuals()

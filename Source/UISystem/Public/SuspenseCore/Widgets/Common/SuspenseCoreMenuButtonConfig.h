@@ -6,12 +6,16 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCoreButtonWidget.h"
 #include "SuspenseCoreMenuButtonConfig.generated.h"
+
+// Forward declarations
+class USuspenseCoreButtonWidget;
+class UTexture2D;
 
 /**
  * Configuration for a single menu button
- * Used to procedurally create buttons in menus
+ * Used to procedurally create buttons in menus.
+ * Visual styling is handled via materials in the engine.
  */
 USTRUCT(BlueprintType)
 struct UISYSTEM_API FSuspenseCoreMenuButtonConfig
@@ -25,10 +29,6 @@ struct UISYSTEM_API FSuspenseCoreMenuButtonConfig
 	/** Button text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	FText ButtonText;
-
-	/** Button style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
-	ESuspenseCoreButtonStyle Style = ESuspenseCoreButtonStyle::Secondary;
 
 	/** Is button enabled by default */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
@@ -47,16 +47,14 @@ struct UISYSTEM_API FSuspenseCoreMenuButtonConfig
 	int32 SortOrder = 0;
 
 	FSuspenseCoreMenuButtonConfig()
-		: Style(ESuspenseCoreButtonStyle::Secondary)
-		, bEnabled(true)
+		: bEnabled(true)
 		, SortOrder(0)
 	{
 	}
 
-	FSuspenseCoreMenuButtonConfig(FGameplayTag InTag, const FText& InText, ESuspenseCoreButtonStyle InStyle = ESuspenseCoreButtonStyle::Secondary)
+	FSuspenseCoreMenuButtonConfig(FGameplayTag InTag, const FText& InText)
 		: ActionTag(InTag)
 		, ButtonText(InText)
-		, Style(InStyle)
 		, bEnabled(true)
 		, SortOrder(0)
 	{

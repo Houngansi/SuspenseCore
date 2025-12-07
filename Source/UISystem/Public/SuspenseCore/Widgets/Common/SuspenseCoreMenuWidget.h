@@ -33,12 +33,13 @@ class USuspenseCoreButtonWidget;
  * virtual TArray<FSuspenseCoreMenuButtonConfig> GetDefaultButtonConfigs() const override
  * {
  *     return {
- *         { TAG_Play, LOCTEXT("Play", "PLAY"), ESuspenseCoreButtonStyle::Primary },
+ *         { TAG_Play, LOCTEXT("Play", "PLAY") },
  *         { TAG_Settings, LOCTEXT("Settings", "SETTINGS") },
- *         { TAG_Quit, LOCTEXT("Quit", "QUIT"), ESuspenseCoreButtonStyle::Danger }
+ *         { TAG_Quit, LOCTEXT("Quit", "QUIT") }
  *     };
  * }
  * ```
+ * Note: Visual styling is handled via materials in the engine.
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreMenuWidget : public UUserWidget

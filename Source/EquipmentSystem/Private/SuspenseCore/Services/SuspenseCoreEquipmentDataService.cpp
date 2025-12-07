@@ -6,7 +6,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
@@ -16,7 +16,7 @@
 #include "HAL/FileManager.h"
 #include <atomic>
 
-#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "ItemSystem/SuspenseItemManager.h"
 
 USuspenseCoreEquipmentDataService::USuspenseCoreEquipmentDataService()

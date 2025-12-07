@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
-#include "Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"

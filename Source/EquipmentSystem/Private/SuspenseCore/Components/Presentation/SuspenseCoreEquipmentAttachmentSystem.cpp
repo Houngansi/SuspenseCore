@@ -1,15 +1,15 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Presentation/SuspenseCoreEquipmentAttachmentSystem.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentAttachmentSystem.h"
+#include "SuspenseCore/Components/SkeletalMeshComponent.h"
+#include "SuspenseCore/Components/StaticMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
-#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 
 USuspenseCoreEquipmentAttachmentSystem::USuspenseCoreEquipmentAttachmentSystem()

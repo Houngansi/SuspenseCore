@@ -309,9 +309,9 @@ protected:
 
     // Event Handling
     void PublishOperationEvent(const FEquipmentOperationResult& Result);
-    void OnValidationRulesChanged(const FSuspenseCoreEquipmentEventData& EventData);
-    void OnDataStateChanged(const FSuspenseCoreEquipmentEventData& EventData);
-    void OnNetworkOperationResult(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnValidationRulesChanged(const FSuspenseEquipmentEventData& EventData);
+    void OnDataStateChanged(const FSuspenseEquipmentEventData& EventData);
+    void OnNetworkOperationResult(const FSuspenseEquipmentEventData& EventData);
 
     // Statistics and Logging
     void UpdateStatistics(const FEquipmentOperationResult& Result);
@@ -415,8 +415,8 @@ private:
     int32 MaxHistorySize = 50;
 
     // Caching
-    TSharedPtr<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>> ValidationCache;
-    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>> ResultCache;
+    TSharedPtr<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>> ValidationCache;
+    TSharedPtr<FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>> ResultCache;
     float ValidationCacheTTL = 5.0f;
     float ResultCacheTTL = 2.0f;
 

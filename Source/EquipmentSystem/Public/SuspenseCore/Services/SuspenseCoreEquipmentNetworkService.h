@@ -62,22 +62,22 @@ public:
     //~ End IEquipmentService Interface
 
     //~ Begin ISuspenseCoreEquipmentNetworkService Interface
-    virtual ISuspenseCoreNetworkDispatcher* GetNetworkDispatcher() override
+    virtual ISuspenseNetworkDispatcher* GetNetworkDispatcher() override
     {
         return NetworkDispatcher.GetInterface();
     }
 
-    virtual ISuspenseCorePredictionManager* GetPredictionManager() override
+    virtual ISuspensePredictionManager* GetPredictionManager() override
     {
         return PredictionManager.GetInterface();
     }
 
-    virtual ISuspenseCoreReplicationProvider* GetReplicationProvider() override
+    virtual ISuspenseReplicationProvider* GetReplicationProvider() override
     {
         if (!ReplicationProvider) return nullptr;
         if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseCoreReplicationProvider::StaticClass()))
         {
-            return Cast<ISuspenseCoreReplicationProvider>(ReplicationProvider);
+            return Cast<ISuspenseReplicationProvider>(ReplicationProvider);
         }
         return nullptr;
     }
@@ -122,8 +122,8 @@ private:
     //========================================
     // Network Components
     //========================================
-    TScriptInterface<ISuspenseCoreNetworkDispatcher> NetworkDispatcher;
-    TScriptInterface<ISuspenseCorePredictionManager> PredictionManager;
+    TScriptInterface<ISuspenseNetworkDispatcher> NetworkDispatcher;
+    TScriptInterface<ISuspensePredictionManager> PredictionManager;
 
     UPROPERTY(Transient)
     TObjectPtr<USuspenseCoreEquipmentReplicationManager> ReplicationProvider = nullptr;
@@ -199,7 +199,7 @@ private:
 
     void BindDispatcherToPrediction(
         USuspenseCoreEquipmentNetworkDispatcher* Dispatcher,
-        ISuspenseCorePredictionManager* Prediction);
+        ISuspensePredictionManager* Prediction);
 
     void StartMonitoringTimers(UWorld* World);
 
@@ -217,5 +217,5 @@ private:
     void BroadcastNetworkResult(bool bSuccess, const FGuid& OperationId, const FString& ErrorMessage = TEXT(""));
     void BroadcastSecurityViolation(const FString& ViolationType, APlayerController* PlayerController, const FString& Details);
 
-    void OnOperationCompleted(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnOperationCompleted(const FSuspenseEquipmentEventData& EventData);
 };

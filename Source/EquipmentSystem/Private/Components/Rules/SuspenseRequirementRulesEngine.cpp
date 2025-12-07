@@ -1,7 +1,7 @@
 // MedComRequirementRulesEngine.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Rules/SuspenseRequirementRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseRequirementRulesEngine.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagAssetInterface.h"

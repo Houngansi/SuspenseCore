@@ -1,7 +1,7 @@
 // MedComEquipmentSlotValidator.cpp
 // Copyright MedCom
 
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Validation/SuspenseEquipmentSlotValidator.h"
 
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -10,7 +10,7 @@
 #include "Misc/ScopeLock.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 // Единые макросы/логи проекта
-#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
 
 // Типы/лоадаут
 #include "Types/Equipment/SuspenseEquipmentTypes.h"

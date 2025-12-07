@@ -1,11 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Services/SuspenseEquipmentValidationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentValidationService.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseGlobalCacheRegistry.h"
-#include "Components/Rules/SuspenseRulesCoordinator.h"
+#include "SuspenseCore/Components/Rules/SuspenseRulesCoordinator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
 #include "Runtime/Launch/Resources/Version.h"

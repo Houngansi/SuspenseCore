@@ -44,9 +44,9 @@ struct FTransactionPlanStep
 	UPROPERTY(BlueprintReadWrite, Category="Plan")
 	bool bReversible = true;
 
-	FTransactionPlanStep() = default;
+	FSuspenseCoreTransactionPlanStep() = default;
 
-	explicit FTransactionPlanStep(const FEquipmentOperationRequest& InReq, const FString& InDesc = FString())
+	explicit FSuspenseCoreTransactionPlanStep(const FEquipmentOperationRequest& InReq, const FString& InDesc = FString())
 		: Request(InReq)
 		, Description(InDesc)
 		, StepPriority(0)

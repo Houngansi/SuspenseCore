@@ -6,8 +6,8 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
-#include "Types/Transaction/SuspenseCoreTransactionTypes.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Types/Transaction/SuspenseTransactionTypes.h"
 #include "SuspenseCoreEquipmentTransactionService.generated.h"
 
 // Forward declarations

@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseWeaponAmmoComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponAmmoComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
@@ -8,7 +8,7 @@
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "Engine/World.h"
-#include "Components/SuspenseEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttributeComponent.h"
 #include "Attributes/WeaponAttributeSet.h"
 #include "Attributes/AmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"

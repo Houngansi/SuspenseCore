@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/SuspenseCoreEquipmentComponentBase.h"
+#include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "HAL/RWLock.h"
+#include "HAL/CriticalSection.h"
 
 // Fundamental: service interface + base utilities
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
@@ -115,10 +115,10 @@ private:
 	void TeardownEventHandlers();
 
 	// Event handlers
-	void OnEquipped(const FSuspenseCoreEquipmentEventData& E);
-	void OnUnequipped(const FSuspenseCoreEquipmentEventData& E);
-	void OnSlotSwitched(const FSuspenseCoreEquipmentEventData& E);
-	void OnRefreshAll(const FSuspenseCoreEquipmentEventData& E);
+	void OnEquipped(const FSuspenseEquipmentEventData& E);
+	void OnUnequipped(const FSuspenseEquipmentEventData& E);
+	void OnSlotSwitched(const FSuspenseEquipmentEventData& E);
+	void OnRefreshAll(const FSuspenseEquipmentEventData& E);
 
 	// High-level operations
 	void UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant);
@@ -141,6 +141,6 @@ private:
 	FTransform          ResolveAttachOffset(AActor* Character, const FName ItemID, int32 SlotIndex) const;
 
 	// Event metadata parsing
-	static bool  TryParseInt(const FSuspenseCoreEquipmentEventData& E, const TCHAR* Key, int32& OutValue);
-	static FName ParseName(const FSuspenseCoreEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue = NAME_None);
+	static bool  TryParseInt(const FSuspenseEquipmentEventData& E, const TCHAR* Key, int32& OutValue);
+	static FName ParseName(const FSuspenseEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue = NAME_None);
 };

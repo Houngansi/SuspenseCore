@@ -1,7 +1,7 @@
 // MedComCompatibilityRulesEngine.cpp © MedCom Team
 
-#include "Components/Rules/SuspenseCoreCompatibilityRulesEngine.h"
-#include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Rules/SuspenseCoreCompatibilityRulesEngine.h"
+#include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 
 DEFINE_LOG_CATEGORY(LogCompatibilityRules);

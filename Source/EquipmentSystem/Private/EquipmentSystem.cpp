@@ -1,5 +1,5 @@
 ﻿#include "EquipmentSystem.h"
-#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
 
 // Define log categories declared in SuspenseEquipmentServiceMacros.h
 DEFINE_LOG_CATEGORY(LogSuspenseEquipmentData);

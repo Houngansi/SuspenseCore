@@ -1,7 +1,7 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"

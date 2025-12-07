@@ -1,7 +1,7 @@
 // MedComEquipmentDataStore.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Delegates/SuspenseCoreEventManager.h"

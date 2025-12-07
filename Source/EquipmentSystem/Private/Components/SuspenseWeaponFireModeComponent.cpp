@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseWeaponFireModeComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponFireModeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "Net/UnrealNetwork.h"

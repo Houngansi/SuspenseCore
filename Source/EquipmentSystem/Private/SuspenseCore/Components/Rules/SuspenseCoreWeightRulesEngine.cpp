@@ -1,6 +1,6 @@
 // MedComWeightRulesEngine.cpp © MedCom Team. All Rights Reserved.
 
-#include "Components/Rules/SuspenseCoreWeightRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseCoreWeightRulesEngine.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagAssetInterface.h"

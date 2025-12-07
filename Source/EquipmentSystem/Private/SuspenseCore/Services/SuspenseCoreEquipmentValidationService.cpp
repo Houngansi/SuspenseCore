@@ -3,7 +3,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseGlobalCacheRegistry.h"
 #include "SuspenseCore/Components/Rules/SuspenseCoreRulesCoordinator.h"

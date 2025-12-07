@@ -1,11 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseEquipmentAttachmentComponent.h"
-#include "Components/SuspenseEquipmentMeshComponent.h"
-#include "Components/SuspenseWeaponStanceComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttachmentComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentMeshComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponStanceComponent.h"
 #include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
 #include "Subsystems/WeaponAnimationSubsystem.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "SuspenseCore/Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"

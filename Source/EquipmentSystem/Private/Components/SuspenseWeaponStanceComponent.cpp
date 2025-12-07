@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseWeaponStanceComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponStanceComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"

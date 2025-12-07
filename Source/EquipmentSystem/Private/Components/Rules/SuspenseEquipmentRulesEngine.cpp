@@ -1,7 +1,7 @@
 // MedComEquipmentRulesEngine.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Rules/SuspenseEquipmentRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseEquipmentRulesEngine.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemComponent.h"

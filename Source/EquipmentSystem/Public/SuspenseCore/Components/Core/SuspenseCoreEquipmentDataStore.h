@@ -8,7 +8,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Types/Transaction/SuspenseCoreTransactionTypes.h"
+#include "Types/Transaction/SuspenseTransactionTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
 

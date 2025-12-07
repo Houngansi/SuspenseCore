@@ -180,16 +180,16 @@ protected:
     void EnsureValidConfig();
 
     /** Handle equipment spawned event */
-    void OnEquipmentSpawned(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData);
 
     /** Handle equipment destroyed event */
-    void OnEquipmentDestroyed(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData);
 
     /** New S7 handlers */
-    void OnEquipped(const FSuspenseCoreEquipmentEventData& EventData);
-    void OnUnequipped(const FSuspenseCoreEquipmentEventData& EventData);
-    void OnAbilitiesRefresh(const FSuspenseCoreEquipmentEventData& EventData);
-    void OnCommit(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnEquipped(const FSuspenseEquipmentEventData& EventData);
+    void OnUnequipped(const FSuspenseEquipmentEventData& EventData);
+    void OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData);
+    void OnCommit(const FSuspenseEquipmentEventData& EventData);
 
     /** Handle equipment actor destroyed directly */
     UFUNCTION()
@@ -213,7 +213,7 @@ protected:
 
     /** Parse equipment event data */
     bool ParseEquipmentEventData(
-        const FSuspenseCoreEquipmentEventData& EventData,
+        const FSuspenseEquipmentEventData& EventData,
         FSuspenseInventoryItemInstance& OutItem,
         AActor*& OutEquipmentActor,
         AActor*& OutOwnerActor
@@ -260,7 +260,7 @@ private:
     UPROPERTY()
     TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> EquipmentToOwnerMap;
 
-    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>> MappingCache;
+    TSharedPtr<FSuspenseEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>> MappingCache;
     FStreamableManager StreamableManager;
     FTimerHandle CleanupTimerHandle;
 

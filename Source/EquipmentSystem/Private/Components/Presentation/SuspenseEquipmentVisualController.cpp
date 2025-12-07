@@ -1,14 +1,14 @@
 // Copyright MedCom
 
-#include "Components/Presentation/SuspenseEquipmentVisualController.h"
+#include "SuspenseCore/Components/Presentation/SuspenseEquipmentVisualController.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Components/MeshComponent.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "SuspenseCore/Components/MeshComponent.h"
+#include "SuspenseCore/Components/SkeletalMeshComponent.h"
+#include "SuspenseCore/Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "DrawDebugHelpers.h"

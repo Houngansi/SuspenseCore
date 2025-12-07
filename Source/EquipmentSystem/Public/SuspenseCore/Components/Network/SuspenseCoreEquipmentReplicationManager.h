@@ -2,7 +2,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
+#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
@@ -106,7 +106,7 @@ struct FSuspenseCoreReplicationStatistics
 };
 
 UCLASS(ClassGroup=(Equipment),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentReplicationManager : public UActorComponent, public ISuspenseCoreReplicationProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentReplicationManager : public UActorComponent, public ISuspenseReplicationProvider
 {
     GENERATED_BODY()
 public:

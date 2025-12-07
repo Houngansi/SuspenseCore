@@ -64,9 +64,9 @@ public:
     virtual FGameplayTagContainer GetAllowedItemTypes_Implementation() const override;
     virtual bool ValidateEquipmentRequirements_Implementation(TArray<FString>& OutErrors) const override;
 
-    virtual FSuspenseCoreInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip) override;
-    virtual FSuspenseCoreInventoryOperationResult UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance) override;
-    virtual FSuspenseCoreInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
+    virtual FSuspenseInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip) override;
+    virtual FSuspenseInventoryOperationResult UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance) override;
+    virtual FSuspenseInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
 
     // GAS bridge (read-only / proxy)
     virtual UAbilitySystemComponent* GetAbilitySystemComponent_Implementation() const override;

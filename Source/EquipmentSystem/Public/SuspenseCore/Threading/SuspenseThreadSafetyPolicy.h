@@ -312,7 +312,12 @@ public:
     }
 
 private:
-    volatile int32 LockFlag;
+    // Note: volatile is NOT needed here because FPlatformAtomics functions
+    // provide full memory barriers. In modern C++, volatile does NOT imply
+    // atomicity or memory ordering - use std::atomic for that.
+    // FPlatformAtomics::Interlocked* functions use platform intrinsics that
+    // guarantee proper memory ordering without volatile.
+    int32 LockFlag;
 };
 
 /**

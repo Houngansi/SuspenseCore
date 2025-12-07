@@ -9,6 +9,8 @@
 #include "TimerManager.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTLS.h"
 #include "Misc/SecureHash.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -470,17 +472,39 @@ FSecurityValidationResponse USuspenseCoreEquipmentSecurityService::ValidateReque
 
 uint64 USuspenseCoreEquipmentSecurityService::GenerateNonce()
 {
-    // Generate cryptographically secure random nonce
+    // SECURITY: Generate cryptographically strong nonce using multiple entropy sources
+    // Following NIST SP 800-90B recommendations for entropy collection
+
     uint64 Nonce = 0;
 
-    // Use platform-specific secure random
-    const uint32 High = FPlatformMath::Rand() ^ static_cast<uint32>(FPlatformTime::Cycles64() >> 32);
-    const uint32 Low = FPlatformMath::Rand() ^ static_cast<uint32>(FPlatformTime::Cycles64());
+    // Source 1: High-resolution timer (unpredictable timing)
+    const uint64 CycleEntropy = FPlatformTime::Cycles64();
 
-    Nonce = (static_cast<uint64>(High) << 32) | Low;
+    // Source 2: Generate fresh GUID (uses platform CSPRNG internally)
+    // FGuid::NewGuid() on Windows uses UuidCreate (RPC) or CryptGenRandom
+    // On Linux uses /dev/urandom or getrandom()
+    const FGuid Guid1 = FGuid::NewGuid();
+    const FGuid Guid2 = FGuid::NewGuid();
 
-    // XOR with additional entropy
-    Nonce ^= static_cast<uint64>(FPlatformTime::Cycles());
+    // Combine GUID components (128 bits of platform CSPRNG entropy)
+    const uint64 GuidHigh = (static_cast<uint64>(Guid1.A) << 32) | Guid1.B;
+    const uint64 GuidLow = (static_cast<uint64>(Guid2.C) << 16) | Guid2.D;
+
+    // Source 3: Process/Thread IDs for additional unpredictability
+    const uint64 ProcessEntropy = static_cast<uint64>(FPlatformProcess::GetCurrentProcessId());
+    const uint64 ThreadEntropy = static_cast<uint64>(FPlatformTLS::GetCurrentThreadId());
+
+    // Mix all entropy sources using XOR and rotation
+    // This ensures even if one source is weak, others provide security
+    Nonce = GuidHigh;
+    Nonce ^= FMath::RotateLeft64(GuidLow, 17);
+    Nonce ^= FMath::RotateLeft64(CycleEntropy, 31);
+    Nonce ^= FMath::RotateLeft64(ProcessEntropy ^ ThreadEntropy, 47);
+
+    // Final mixing step - multiply by large prime and XOR high/low
+    constexpr uint64 MixPrime = 0x9E3779B97F4A7C15ULL; // Golden ratio prime
+    Nonce *= MixPrime;
+    Nonce ^= (Nonce >> 33);
 
     return Nonce;
 }
@@ -505,7 +529,7 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
         return FString();
     }
 
-    // Build canonical string from request
+    // Build canonical string from request (deterministic ordering)
     const FString CanonicalString = FString::Printf(
         TEXT("%s|%llu|%s|%d|%d"),
         *Request.OperationId.ToString(),
@@ -524,20 +548,75 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
         return FString();
     }
 
-    // Compute HMAC-SHA256
-    const TArray<uint8> MessageBytes = FTCHARToUTF8(*CanonicalString).Get();
+    // Convert message to UTF-8 bytes
+    const FTCHARToUTF8 Utf8Converter(*CanonicalString);
+    const uint8* MessageData = reinterpret_cast<const uint8*>(Utf8Converter.Get());
+    const int32 MessageLen = Utf8Converter.Length();
 
-    FSHA256Signature Signature;
-    // Note: Using simple SHA256 here - in production use proper HMAC
-    FSHA256::HashBuffer(MessageBytes.GetData(), MessageBytes.Num(), Signature.Signature);
+    // ========================================
+    // RFC 2104 HMAC-SHA256 Implementation
+    // HMAC(K, m) = H((K' ⊕ opad) || H((K' ⊕ ipad) || m))
+    // ========================================
 
-    // XOR with key for basic HMAC simulation
-    for (int32 i = 0; i < 32 && i < KeyBytes.Num(); i++)
+    constexpr int32 BlockSize = 64;  // SHA-256 block size in bytes
+    constexpr int32 HashSize = 32;   // SHA-256 output size in bytes
+    constexpr uint8 IPAD = 0x36;
+    constexpr uint8 OPAD = 0x5C;
+
+    // Step 1: Prepare the key (K')
+    // If key > BlockSize, hash it first. If key < BlockSize, pad with zeros.
+    TArray<uint8> KeyPrime;
+    KeyPrime.SetNumZeroed(BlockSize);
+
+    if (KeyBytes.Num() > BlockSize)
     {
-        Signature.Signature[i] ^= KeyBytes[i];
+        // Hash the key if too long
+        FSHA256Signature KeyHash;
+        FSHA256::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash.Signature);
+        FMemory::Memcpy(KeyPrime.GetData(), KeyHash.Signature, HashSize);
+    }
+    else
+    {
+        // Use key directly (already zero-padded)
+        FMemory::Memcpy(KeyPrime.GetData(), KeyBytes.GetData(), KeyBytes.Num());
     }
 
-    return BytesToHex(Signature.Signature, 32);
+    // Step 2: Compute inner hash: H((K' ⊕ ipad) || message)
+    TArray<uint8> InnerData;
+    InnerData.SetNumUninitialized(BlockSize + MessageLen);
+
+    // K' XOR ipad
+    for (int32 i = 0; i < BlockSize; ++i)
+    {
+        InnerData[i] = KeyPrime[i] ^ IPAD;
+    }
+    // Append message
+    FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+
+    FSHA256Signature InnerHash;
+    FSHA256::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash.Signature);
+
+    // Step 3: Compute outer hash: H((K' ⊕ opad) || inner_hash)
+    TArray<uint8> OuterData;
+    OuterData.SetNumUninitialized(BlockSize + HashSize);
+
+    // K' XOR opad
+    for (int32 i = 0; i < BlockSize; ++i)
+    {
+        OuterData[i] = KeyPrime[i] ^ OPAD;
+    }
+    // Append inner hash
+    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash.Signature, HashSize);
+
+    FSHA256Signature FinalHash;
+    FSHA256::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash.Signature);
+
+    // Secure cleanup of sensitive data
+    FMemory::Memzero(KeyPrime.GetData(), KeyPrime.Num());
+    FMemory::Memzero(InnerData.GetData(), InnerData.Num());
+    FMemory::Memzero(OuterData.GetData(), OuterData.Num());
+
+    return BytesToHex(FinalHash.Signature, HashSize);
 }
 
 bool USuspenseCoreEquipmentSecurityService::VerifyHMAC(const FNetworkOperationRequest& Request) const

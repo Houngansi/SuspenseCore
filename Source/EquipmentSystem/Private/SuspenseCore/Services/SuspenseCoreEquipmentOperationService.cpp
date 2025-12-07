@@ -221,8 +221,18 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
     FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
 
-    EventScope.UnsubscribeAll();
+    // MEMORY LEAK FIX: Properly unsubscribe all EventHandles before clearing
+    // EventScope.UnsubscribeAll() only cleans EventScope subscriptions (which is empty),
+    // but actual subscriptions are stored in EventHandles array and must be unsubscribed explicitly
+    if (auto Bus = EventBus.Pin())
+    {
+        for (const FEventSubscriptionHandle& Handle : EventHandles)
+        {
+            Bus->Unsubscribe(Handle);
+        }
+    }
     EventHandles.Empty();
+    EventScope.UnsubscribeAll(); // Keep for safety if EventScope used elsewhere
 
     {
         FRWScopeLock Lock(ExecutorLock, SLT_Write);

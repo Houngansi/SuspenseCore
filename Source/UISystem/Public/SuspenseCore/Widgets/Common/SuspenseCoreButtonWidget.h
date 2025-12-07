@@ -229,7 +229,7 @@ private:
 	bool bIsEnabled = true;
 
 	/** Is button currently hovered */
-	bool bIsHovered = false;
+	bool bIsButtonHovered = false;
 
 	/** Is button currently focused */
 	bool bIsFocused = false;

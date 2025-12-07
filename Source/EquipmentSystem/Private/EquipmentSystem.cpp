@@ -12,25 +12,19 @@ DEFINE_LOG_CATEGORY(LogSuspenseEquipmentPrediction);
 DEFINE_LOG_CATEGORY(LogSuspenseEquipmentReplication);
 DEFINE_LOG_CATEGORY(LogSuspenseEquipmentDelta);
 
-// Short aliases for legacy code
-DEFINE_LOG_CATEGORY(LogEquipmentPrediction);
-DEFINE_LOG_CATEGORY(LogEquipmentNetwork);
-DEFINE_LOG_CATEGORY(LogEquipmentValidation);
-DEFINE_LOG_CATEGORY(LogEquipmentOperation);
-DEFINE_LOG_CATEGORY(LogEquipmentReplication);
 
 #define LOCTEXT_NAMESPACE "FEquipmentSystemModule"
 
 void FEquipmentSystemModule::StartupModule()
 {
-    
+
 }
 
 void FEquipmentSystemModule::ShutdownModule()
 {
-    
+
 }
 
 #undef LOCTEXT_NAMESPACE
-    
+
 IMPLEMENT_MODULE(FEquipmentSystemModule, EquipmentSystem)

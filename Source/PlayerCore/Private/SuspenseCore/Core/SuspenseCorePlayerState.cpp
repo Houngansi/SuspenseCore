@@ -15,17 +15,17 @@
 #include "TimerManager.h"
 
 // Equipment module includes
-#include "Components/Core/SuspenseEquipmentDataStore.h"
-#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/Core/SuspenseEquipmentOperationExecutor.h"
-#include "Components/Network/SuspenseEquipmentPredictionSystem.h"
-#include "Components/Network/SuspenseEquipmentReplicationManager.h"
-#include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
-#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
-#include "Components/Core/SuspenseWeaponStateManager.h"
-#include "Components/Core/SuspenseEquipmentInventoryBridge.h"
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
-#include "Types/Loadout/SuspenseLoadoutManager.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
+#include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -52,39 +52,39 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	// Core data store - server authoritative source of truth for equipment state
-	EquipmentDataStore = CreateDefaultSubobject<USuspenseEquipmentDataStore>(TEXT("EquipmentDataStore"));
+	EquipmentDataStore = CreateDefaultSubobject<USuspenseCoreEquipmentDataStore>(TEXT("EquipmentDataStore"));
 	EquipmentDataStore->SetIsReplicated(true);
 
 	// Transaction processor - handles atomic equipment operations (equip/unequip/swap)
-	EquipmentTxnProcessor = CreateDefaultSubobject<USuspenseEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
+	EquipmentTxnProcessor = CreateDefaultSubobject<USuspenseCoreEquipmentTransactionProcessor>(TEXT("EquipmentTxnProcessor"));
 	EquipmentTxnProcessor->SetIsReplicated(true);
 
 	// Operation executor - validates and executes equipment operations
-	EquipmentOps = CreateDefaultSubobject<USuspenseEquipmentOperationExecutor>(TEXT("EquipmentOps"));
+	EquipmentOps = CreateDefaultSubobject<USuspenseCoreEquipmentOperationExecutor>(TEXT("EquipmentOps"));
 	EquipmentOps->SetIsReplicated(true);
 
 	// Client prediction system - handles optimistic updates for responsive UI
-	EquipmentPrediction = CreateDefaultSubobject<USuspenseEquipmentPredictionSystem>(TEXT("EquipmentPrediction"));
+	EquipmentPrediction = CreateDefaultSubobject<USuspenseCoreEquipmentPredictionSystem>(TEXT("EquipmentPrediction"));
 	EquipmentPrediction->SetIsReplicated(true);
 
 	// Replication manager - delta-based replication for bandwidth efficiency
-	EquipmentReplication = CreateDefaultSubobject<USuspenseEquipmentReplicationManager>(TEXT("EquipmentReplication"));
+	EquipmentReplication = CreateDefaultSubobject<USuspenseCoreEquipmentReplicationManager>(TEXT("EquipmentReplication"));
 	EquipmentReplication->SetIsReplicated(true);
 
 	// Network dispatcher - RPC queue and request management
-	EquipmentNetworkDispatcher = CreateDefaultSubobject<USuspenseEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
+	EquipmentNetworkDispatcher = CreateDefaultSubobject<USuspenseCoreEquipmentNetworkDispatcher>(TEXT("EquipmentNetworkDispatcher"));
 	EquipmentNetworkDispatcher->SetIsReplicated(true);
 
 	// Event dispatcher - local event bus for equipment events
-	EquipmentEventDispatcher = CreateDefaultSubobject<USuspenseEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
+	EquipmentEventDispatcher = CreateDefaultSubobject<USuspenseCoreEquipmentEventDispatcher>(TEXT("EquipmentEventDispatcher"));
 	EquipmentEventDispatcher->SetIsReplicated(true);
 
 	// Weapon state manager - finite state machine for weapon states (idle, firing, reloading, etc.)
-	WeaponStateManager = CreateDefaultSubobject<USuspenseWeaponStateManager>(TEXT("WeaponStateManager"));
+	WeaponStateManager = CreateDefaultSubobject<USuspenseCoreWeaponStateManager>(TEXT("WeaponStateManager"));
 	WeaponStateManager->SetIsReplicated(true);
 
 	// Inventory bridge - connects equipment system to inventory component
-	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
+	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseCoreEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
 	EquipmentInventoryBridge->SetIsReplicated(true);
 
 	// Network settings - optimized for MMO scale
@@ -771,7 +771,7 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseLoadoutManager* Load
 	// Create Slot Validator (not a component, just UObject)
 	if (!EquipmentSlotValidator)
 	{
-		EquipmentSlotValidator = NewObject<USuspenseEquipmentSlotValidator>(this, TEXT("EquipmentSlotValidator"));
+		EquipmentSlotValidator = NewObject<USuspenseCoreEquipmentSlotValidator>(this, TEXT("EquipmentSlotValidator"));
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentSlotValidator created"));
 	}
 

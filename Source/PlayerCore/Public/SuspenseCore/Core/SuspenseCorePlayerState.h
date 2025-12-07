@@ -19,17 +19,17 @@ class UGameplayAbility;
 class UGameplayEffect;
 
 // Equipment module forward declarations
-class USuspenseEquipmentDataStore;
-class USuspenseEquipmentTransactionProcessor;
-class USuspenseEquipmentReplicationManager;
-class USuspenseEquipmentPredictionSystem;
-class USuspenseWeaponStateManager;
-class USuspenseEquipmentNetworkDispatcher;
-class USuspenseEquipmentInventoryBridge;
-class USuspenseEquipmentEventDispatcher;
-class USuspenseEquipmentOperationExecutor;
-class USuspenseEquipmentSlotValidator;
-class USuspenseLoadoutManager;
+class USuspenseCoreEquipmentDataStore;
+class USuspenseCoreEquipmentTransactionProcessor;
+class USuspenseCoreEquipmentReplicationManager;
+class USuspenseCoreEquipmentPredictionSystem;
+class USuspenseCoreWeaponStateManager;
+class USuspenseCoreEquipmentNetworkDispatcher;
+class USuspenseCoreEquipmentInventoryBridge;
+class USuspenseCoreEquipmentEventDispatcher;
+class USuspenseCoreEquipmentOperationExecutor;
+class USuspenseCoreEquipmentSlotValidator;
+class USuspenseCoreLoadoutManager;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELEGATES (Internal use only - EventBus preferred for external communication)
@@ -135,27 +135,27 @@ public:
 
 	/** Get the equipment data store (core equipment state) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
+	USuspenseCoreEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
 
 	/** Get the equipment transaction processor (atomic operations) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
+	USuspenseCoreEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
 
 	/** Get the equipment operation executor (validated operations) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
+	USuspenseCoreEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
 
 	/** Get the equipment prediction system (client-side prediction) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseEquipmentPredictionSystem* GetEquipmentPrediction() const { return EquipmentPrediction; }
+	USuspenseCoreEquipmentPredictionSystem* GetEquipmentPrediction() const { return EquipmentPrediction; }
 
 	/** Get the equipment inventory bridge (connects equipment to inventory) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseEquipmentInventoryBridge* GetEquipmentInventoryBridge() const { return EquipmentInventoryBridge; }
+	USuspenseCoreEquipmentInventoryBridge* GetEquipmentInventoryBridge() const { return EquipmentInventoryBridge; }
 
 	/** Get the weapon state manager (weapon FSM) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
+	USuspenseCoreWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
@@ -253,43 +253,43 @@ protected:
 
 	/** Core data store for equipment state (Server authoritative, replicated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseEquipmentDataStore* EquipmentDataStore = nullptr;
+	USuspenseCoreEquipmentDataStore* EquipmentDataStore = nullptr;
 
 	/** Transaction processor for atomic equipment changes */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
+	USuspenseCoreEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
 
 	/** Operation executor (deterministic, validated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseEquipmentOperationExecutor* EquipmentOps = nullptr;
+	USuspenseCoreEquipmentOperationExecutor* EquipmentOps = nullptr;
 
 	/** Prediction system (client owning) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseEquipmentPredictionSystem* EquipmentPrediction = nullptr;
+	USuspenseCoreEquipmentPredictionSystem* EquipmentPrediction = nullptr;
 
 	/** Replication manager (delta-based replication) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseEquipmentReplicationManager* EquipmentReplication = nullptr;
+	USuspenseCoreEquipmentReplicationManager* EquipmentReplication = nullptr;
 
 	/** Network dispatcher (RPC/request queue) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
+	USuspenseCoreEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
 
 	/** Event dispatcher / equipment event bus (local) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Events")
-	USuspenseEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
+	USuspenseCoreEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
 
 	/** Weapon state manager (FSM) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Weapon")
-	USuspenseWeaponStateManager* WeaponStateManager = nullptr;
+	USuspenseCoreWeaponStateManager* WeaponStateManager = nullptr;
 
 	/** Inventory bridge (connects equipment to existing inventory) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Inventory")
-	USuspenseEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
+	USuspenseCoreEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
 
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()
-	USuspenseEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
+	USuspenseCoreEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION

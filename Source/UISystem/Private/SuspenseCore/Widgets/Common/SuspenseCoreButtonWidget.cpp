@@ -13,7 +13,7 @@ USuspenseCoreButtonWidget::USuspenseCoreButtonWidget(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 	bIsEnabled = true;
-	bIsHovered = false;
+	bIsButtonHovered = false;
 	bIsFocused = false;
 }
 
@@ -140,7 +140,7 @@ void USuspenseCoreButtonWidget::OnMainButtonClicked()
 
 void USuspenseCoreButtonWidget::OnMainButtonHovered()
 {
-	bIsHovered = true;
+	bIsButtonHovered = true;
 
 	// Play hover sound
 	PlaySound(HoverSound);
@@ -154,7 +154,7 @@ void USuspenseCoreButtonWidget::OnMainButtonHovered()
 
 void USuspenseCoreButtonWidget::OnMainButtonUnhovered()
 {
-	bIsHovered = false;
+	bIsButtonHovered = false;
 
 	// Broadcast delegate
 	OnButtonHovered.Broadcast(this, false);

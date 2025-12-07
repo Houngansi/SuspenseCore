@@ -1,12 +1,12 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreWeaponFireModeComponent.h"
+#include "Components/SuspenseCoreWeaponFireModeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "Net/UnrealNetwork.h"
-#include "Interfaces/Weapon/ISuspenseWeapon.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 
 USuspenseCoreWeaponFireModeComponent::USuspenseCoreWeaponFireModeComponent()
@@ -51,7 +51,7 @@ void USuspenseCoreWeaponFireModeComponent::Cleanup()
     EQUIPMENT_LOG(Log, TEXT("WeaponFireModeComponent cleaned up"));
 }
 
-bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface)
+bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface)
 {
     if (!WeaponInterface)
     {
@@ -62,17 +62,17 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface
     CachedWeaponInterface = WeaponInterface;
     
     // Get weapon data from interface using Execute_ version
-    FSuspenseUnifiedItemData WeaponData;
+    FSuspenseCoreUnifiedItemData WeaponData;
     bool bGotData = false;
     
     // Проверяем, что объект реализует интерфейс
     if (WeaponInterface.GetObject() && WeaponInterface.GetObject()->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
     {
-        bGotData = ISuspenseWeapon::Execute_GetWeaponItemData(WeaponInterface.GetObject(), WeaponData);
+        bGotData = ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponInterface.GetObject(), WeaponData);
     }
     else
     {
-        EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Object does not implement ISuspenseWeapon"));
+        EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Object does not implement ISuspenseCoreWeapon"));
         return false;
     }
     
@@ -86,7 +86,7 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface
     return InitializeFromWeaponData(WeaponData);
 }
 
-bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementation(const FSuspenseUnifiedItemData& WeaponData)
+bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementation(const FSuspenseCoreUnifiedItemData& WeaponData)
 {
     if (!WeaponData.bIsWeapon)
     {
@@ -96,7 +96,7 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementati
     
     // ИСПРАВЛЕНО: Используем Execute_ версию для вызова функции интерфейса
     // Это критически важно для BlueprintNativeEvent функций
-    ISuspenseFireModeProvider::Execute_ClearFireModes(this);
+    ISuspenseCoreFireModeProvider::Execute_ClearFireModes(this);
     
     // Load fire modes from DataTable
     LoadFireModesFromData(WeaponData);
@@ -133,7 +133,7 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementati
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: используем Execute_ версию для вызова метода интерфейса
     EQUIPMENT_LOG(Log, TEXT("Initialized with %d fire modes, default: %s"), 
         FireModes.Num(), 
-        *ISuspenseFireModeProvider::Execute_GetCurrentFireMode(this).ToString());
+        *ISuspenseCoreFireModeProvider::Execute_GetCurrentFireMode(this).ToString());
     
     return true;
 }
@@ -331,7 +331,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeEnabled_Implementation(con
     FireModes[Index].bIsAvailable = bEnabled;
     
     // Broadcast availability change
-    ISuspenseFireModeProvider::BroadcastFireModeAvailabilityChanged(this, FireModeTag, bEnabled);
+    ISuspenseCoreFireModeProvider::BroadcastFireModeAvailabilityChanged(this, FireModeTag, bEnabled);
     
     // If disabling current mode, switch to another
     if (!bEnabled && Index == CurrentFireModeIndex)
@@ -399,16 +399,16 @@ int32 USuspenseCoreWeaponFireModeComponent::GetFireModeInputID_Implementation(co
     return INDEX_NONE;
 }
 
-USuspenseEventManager* USuspenseCoreWeaponFireModeComponent::GetDelegateManager() const
+USuspenseCoreEventManager* USuspenseCoreWeaponFireModeComponent::GetDelegateManager() const
 {
     return Super::GetDelegateManager();
 }
 
-ISuspenseWeapon* USuspenseCoreWeaponFireModeComponent::GetWeaponInterface() const
+ISuspenseCoreWeapon* USuspenseCoreWeaponFireModeComponent::GetWeaponInterface() const
 {
     if (CachedWeaponInterface)
     {
-        return Cast<ISuspenseWeapon>(CachedWeaponInterface.GetInterface());
+        return Cast<ISuspenseCoreWeapon>(CachedWeaponInterface.GetInterface());
     }
     
     // Try to get from owner
@@ -416,28 +416,28 @@ ISuspenseWeapon* USuspenseCoreWeaponFireModeComponent::GetWeaponInterface() cons
     {
         if (Owner->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
         {
-            return Cast<ISuspenseWeapon>(Owner);
+            return Cast<ISuspenseCoreWeapon>(Owner);
         }
     }
     
     return nullptr;
 }
 
-bool USuspenseCoreWeaponFireModeComponent::GetWeaponData(FSuspenseUnifiedItemData& OutData) const
+bool USuspenseCoreWeaponFireModeComponent::GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const
 {
-    ISuspenseWeapon* WeaponInterface = GetWeaponInterface();
+    ISuspenseCoreWeapon* WeaponInterface = GetWeaponInterface();
     if (!WeaponInterface)
     {
         return false;
     }
     
-    return ISuspenseWeapon::Execute_GetWeaponItemData(
+    return ISuspenseCoreWeapon::Execute_GetWeaponItemData(
         Cast<UObject>(WeaponInterface), 
         OutData
     );
 }
 
-void USuspenseCoreWeaponFireModeComponent::LoadFireModesFromData(const FSuspenseUnifiedItemData& WeaponData)
+void USuspenseCoreWeaponFireModeComponent::LoadFireModesFromData(const FSuspenseCoreUnifiedItemData& WeaponData)
 {
     FireModes.Empty();
     FireModes.Reserve(WeaponData.FireModes.Num());
@@ -550,15 +550,15 @@ void USuspenseCoreWeaponFireModeComponent::BroadcastFireModeChanged()
     
     // Get current spread from weapon
     float CurrentSpread = 0.0f;
-    if (ISuspenseWeapon* WeaponInterface = GetWeaponInterface())
+    if (ISuspenseCoreWeapon* WeaponInterface = GetWeaponInterface())
     {
-        CurrentSpread = ISuspenseWeapon::Execute_GetCurrentSpread(
+        CurrentSpread = ISuspenseCoreWeapon::Execute_GetCurrentSpread(
             Cast<UObject>(WeaponInterface)
         );
     }
     
     // Broadcast through interface helper
-    ISuspenseFireModeProvider::BroadcastFireModeChanged(
+    ISuspenseCoreFireModeProvider::BroadcastFireModeChanged(
         this,
         CurrentMode.FireModeTag,
         CurrentSpread

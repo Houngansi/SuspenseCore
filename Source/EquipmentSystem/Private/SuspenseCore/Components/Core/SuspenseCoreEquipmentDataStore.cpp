@@ -1,12 +1,12 @@
 // MedComEquipmentDataStore.cpp
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "Delegates/SuspenseCoreEventManager.h"
 #include "GameFramework/PlayerState.h"
-#include "Types/Loadout/SuspenseLoadoutManager.h"
+#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 // Define logging category
 DEFINE_LOG_CATEGORY(LogEquipmentDataStore);
@@ -57,13 +57,13 @@ void USuspenseCoreEquipmentDataStore::EndPlay(const EEndPlayReason::Type EndPlay
 // Pure Data Access Implementation (Read-only, thread-safe)
 //========================================
 
-FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataStore::GetSlotItem(int32 SlotIndex) const
+FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::GetSlotItem(int32 SlotIndex) const
 {
     FScopeLock Lock(&DataCriticalSection);
     
     if (!ValidateSlotIndexInternal(SlotIndex, TEXT("GetSlotItem")))
     {
-        return FSuspenseInventoryItemInstance();
+        return FSuspenseCoreInventoryItemInstance();
     }
     
     return DataStorage.SlotItems[SlotIndex];
@@ -114,7 +114,7 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(
         return FEquipmentSlotConfig();
     }
     
-    USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>();
+    USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>();
     if (!LoadoutManager)
     {
         return FEquipmentSlotConfig();
@@ -134,18 +134,18 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(
                 if (APlayerState* PS = OwnerPawn->GetPlayerState())
                 {
                     // Check if PlayerState implements loadout interface
-                    if (PS->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
+                    if (PS->GetClass()->ImplementsInterface(USuspenseCoreLoadout::StaticClass()))
                     {
-                        LoadoutToUse = ISuspenseLoadout::Execute_GetCurrentLoadoutID(PS);
+                        LoadoutToUse = ISuspenseCoreLoadout::Execute_GetCurrentLoadoutID(PS);
                     }
                 }
             }
             // Or if owner is PlayerState directly
             else if (APlayerState* PS = Cast<APlayerState>(Owner))
             {
-                if (PS->GetClass()->ImplementsInterface(USuspenseLoadout::StaticClass()))
+                if (PS->GetClass()->ImplementsInterface(USuspenseCoreLoadout::StaticClass()))
                 {
-                    LoadoutToUse = ISuspenseLoadout::Execute_GetCurrentLoadoutID(PS);
+                    LoadoutToUse = ISuspenseCoreLoadout::Execute_GetCurrentLoadoutID(PS);
                 }
             }
         }
@@ -191,7 +191,7 @@ void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
         return;
     }
     
-    USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>();
+    USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>();
     if (!LoadoutManager)
     {
         return;
@@ -210,7 +210,7 @@ void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
     {
         // Update cached configurations
         ModifyDataWithEvents(
-            [this, FreshSlots](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+            [this, FreshSlots](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
             {
                 int32 OldCount = Data.SlotConfigurations.Num();
                 Data.SlotConfigurations = FreshSlots;
@@ -227,8 +227,8 @@ void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
                     FreshSlots.Num(), OldCount);
                 
                 // Queue configuration changed event
-                FSuspensePendingEventData Event;
-                Event.Type = FSuspensePendingEventData::ConfigChanged;
+                FSuspenseCorePendingEventData Event;
+                Event.Type = FSuspenseCorePendingEventData::ConfigChanged;
                 PendingEvents.Add(Event);
                 
                 return true;
@@ -261,7 +261,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataStore::GetAllSlotConfigur
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            if (USuspenseLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseLoadoutManager>())
+            if (USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>())
             {
                 FName LoadoutToUse = CurrentLoadoutID.IsNone() ? 
                     FName(TEXT("Default_Soldier")) : CurrentLoadoutID;
@@ -281,11 +281,11 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataStore::GetAllSlotConfigur
     return DataStorage.SlotConfigurations;
 }
 
-TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataStore::GetAllEquippedItems() const
+TMap<int32, FSuspenseCoreInventoryItemInstance> USuspenseCoreEquipmentDataStore::GetAllEquippedItems() const
 {
     FScopeLock Lock(&DataCriticalSection);
     
-    TMap<int32, FSuspenseInventoryItemInstance> EquippedItems;
+    TMap<int32, FSuspenseCoreInventoryItemInstance> EquippedItems;
     
     for (int32 i = 0; i < DataStorage.SlotItems.Num(); i++)
     {
@@ -326,10 +326,10 @@ bool USuspenseCoreEquipmentDataStore::IsSlotOccupied(int32 SlotIndex) const
 // Data Modification Implementation (Thread-safe with deferred events)
 //========================================
 
-bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance, bool bNotifyObservers)
+bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bNotifyObservers)
 {
     return ModifyDataWithEvents(
-        [this, SlotIndex, ItemInstance](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex, ItemInstance](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             if (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num())
             {
@@ -339,7 +339,7 @@ bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspen
             }
             
             // Store previous item for comparison
-            FSuspenseInventoryItemInstance PreviousItem = Data.SlotItems[SlotIndex];
+            FSuspenseCoreInventoryItemInstance PreviousItem = Data.SlotItems[SlotIndex];
             
             // Check if item actually changed
             if (PreviousItem == ItemInstance)
@@ -369,14 +369,14 @@ bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspen
             Delta.SourceTransactionId = Data.ActiveTransactionId;
             
             // Queue delta event
-            FSuspensePendingEventData DeltaEvent;
-            DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+            FSuspenseCorePendingEventData DeltaEvent;
+            DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
             DeltaEvent.DeltaData = Delta;
             PendingEvents.Add(DeltaEvent);
             
             // Queue traditional event for backward compatibility
-            FSuspensePendingEventData Event;
-            Event.Type = FSuspensePendingEventData::SlotChanged;
+            FSuspenseCorePendingEventData Event;
+            Event.Type = FSuspenseCorePendingEventData::SlotChanged;
             Event.SlotIndex = SlotIndex;
             Event.ItemData = ItemInstance;
             PendingEvents.Add(Event);
@@ -387,12 +387,12 @@ bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspen
     );
 }
 
-FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(int32 SlotIndex, bool bNotifyObservers)
+FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(int32 SlotIndex, bool bNotifyObservers)
 {
-    FSuspenseInventoryItemInstance RemovedItem;
+    FSuspenseCoreInventoryItemInstance RemovedItem;
     
     ModifyDataWithEvents(
-        [this, SlotIndex, &RemovedItem](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex, &RemovedItem](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             if (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num())
             {
@@ -411,7 +411,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(int32 
             }
             
             // Clear slot - NO VALIDATION, just clear
-            Data.SlotItems[SlotIndex] = FSuspenseInventoryItemInstance();
+            Data.SlotItems[SlotIndex] = FSuspenseCoreInventoryItemInstance();
             
             // Log the change
             LogDataModification(TEXT("ClearSlot"), 
@@ -424,22 +424,22 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(int32 
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.ItemClear")),
                 SlotIndex,
                 RemovedItem,
-                FSuspenseInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.DirectClear"))
             );
             Delta.SourceTransactionId = Data.ActiveTransactionId;
             
             // Queue delta event
-            FSuspensePendingEventData DeltaEvent;
-            DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+            FSuspenseCorePendingEventData DeltaEvent;
+            DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
             DeltaEvent.DeltaData = Delta;
             PendingEvents.Add(DeltaEvent);
             
             // Queue traditional event
-            FSuspensePendingEventData Event;
-            Event.Type = FSuspensePendingEventData::SlotChanged;
+            FSuspenseCorePendingEventData Event;
+            Event.Type = FSuspenseCorePendingEventData::SlotChanged;
             Event.SlotIndex = SlotIndex;
-            Event.ItemData = FSuspenseInventoryItemInstance(); // Empty item
+            Event.ItemData = FSuspenseCoreInventoryItemInstance(); // Empty item
             PendingEvents.Add(Event);
             
             return true;
@@ -453,7 +453,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(int32 
 bool USuspenseCoreEquipmentDataStore::InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations)
 {
     return ModifyDataWithEvents(
-        [this, Configurations](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, Configurations](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Store previous state for logging
             int32 PreviousSlotCount = Data.SlotConfigurations.Num();
@@ -475,31 +475,31 @@ bool USuspenseCoreEquipmentDataStore::InitializeSlots(const TArray<FEquipmentSlo
             FEquipmentDelta Delta = CreateDelta(
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.Initialize")),
                 INDEX_NONE,
-                FSuspenseInventoryItemInstance(),
-                FSuspenseInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Initialize"))
             );
             Delta.Metadata.Add(TEXT("SlotCount"), FString::FromInt(Configurations.Num()));
             Delta.Metadata.Add(TEXT("PreviousCount"), FString::FromInt(PreviousSlotCount));
             
             // Queue delta event
-            FSuspensePendingEventData DeltaEvent;
-            DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+            FSuspenseCorePendingEventData DeltaEvent;
+            DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
             DeltaEvent.DeltaData = Delta;
             PendingEvents.Add(DeltaEvent);
             
             // Queue configuration change events for each slot
             for (int32 i = 0; i < Configurations.Num(); i++)
             {
-                FSuspensePendingEventData Event;
-                Event.Type = FSuspensePendingEventData::ConfigChanged;
+                FSuspenseCorePendingEventData Event;
+                Event.Type = FSuspenseCorePendingEventData::ConfigChanged;
                 Event.SlotIndex = i;
                 PendingEvents.Add(Event);
             }
             
             // Also queue a reset event since this is a major structural change
-            FSuspensePendingEventData ResetEvent;
-            ResetEvent.Type = FSuspensePendingEventData::StoreReset;
+            FSuspenseCorePendingEventData ResetEvent;
+            ResetEvent.Type = FSuspenseCorePendingEventData::StoreReset;
             PendingEvents.Add(ResetEvent);
             
             return true;
@@ -521,7 +521,7 @@ int32 USuspenseCoreEquipmentDataStore::GetActiveWeaponSlot() const
 bool USuspenseCoreEquipmentDataStore::SetActiveWeaponSlot(int32 SlotIndex)
 {
     return ModifyDataWithEvents(
-        [this, SlotIndex](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Allow INDEX_NONE to clear active weapon
             if (SlotIndex != INDEX_NONE && (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num()))
@@ -549,22 +549,22 @@ bool USuspenseCoreEquipmentDataStore::SetActiveWeaponSlot(int32 SlotIndex)
             FEquipmentDelta Delta = CreateDelta(
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.ActiveWeapon")),
                 SlotIndex,
-                FSuspenseInventoryItemInstance(),
-                FSuspenseInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.ActiveChange"))
             );
             Delta.Metadata.Add(TEXT("PreviousSlot"), FString::FromInt(PreviousSlot));
             Delta.Metadata.Add(TEXT("NewSlot"), FString::FromInt(SlotIndex));
             
             // Queue delta event
-            FSuspensePendingEventData DeltaEvent;
-            DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+            FSuspenseCorePendingEventData DeltaEvent;
+            DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
             DeltaEvent.DeltaData = Delta;
             PendingEvents.Add(DeltaEvent);
             
             // Queue state change event
-            FSuspensePendingEventData Event;
-            Event.Type = FSuspensePendingEventData::StateChanged;
+            FSuspenseCorePendingEventData Event;
+            Event.Type = FSuspenseCorePendingEventData::StateChanged;
             Event.SlotIndex = SlotIndex;
             PendingEvents.Add(Event);
             
@@ -583,7 +583,7 @@ FGameplayTag USuspenseCoreEquipmentDataStore::GetCurrentEquipmentState() const
 bool USuspenseCoreEquipmentDataStore::SetEquipmentState(const FGameplayTag& NewState)
 {
     return ModifyDataWithEvents(
-        [this, NewState](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, NewState](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             FGameplayTag PreviousState = Data.CurrentState;
             
@@ -603,22 +603,22 @@ bool USuspenseCoreEquipmentDataStore::SetEquipmentState(const FGameplayTag& NewS
             FEquipmentDelta Delta = CreateDelta(
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.StateChange")),
                 INDEX_NONE,
-                FSuspenseInventoryItemInstance(),
-                FSuspenseInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
+                FSuspenseCoreInventoryItemInstance(),
                 FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.StateTransition"))
             );
             Delta.Metadata.Add(TEXT("PreviousState"), PreviousState.ToString());
             Delta.Metadata.Add(TEXT("NewState"), NewState.ToString());
             
             // Queue delta event
-            FSuspensePendingEventData DeltaEvent;
-            DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+            FSuspenseCorePendingEventData DeltaEvent;
+            DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
             DeltaEvent.DeltaData = Delta;
             PendingEvents.Add(DeltaEvent);
             
             // Queue state change event
-            FSuspensePendingEventData Event;
-            Event.Type = FSuspensePendingEventData::StateChanged;
+            FSuspenseCorePendingEventData Event;
+            Event.Type = FSuspenseCorePendingEventData::StateChanged;
             Event.StateTag = NewState;
             PendingEvents.Add(Event);
             
@@ -680,7 +680,7 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
     }
     
     return ModifyDataWithEvents(
-        [this, Snapshot](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this, Snapshot](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Validate snapshot compatibility
             if (Snapshot.SlotSnapshots.Num() != Data.SlotConfigurations.Num())
@@ -700,7 +700,7 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
                 if (SlotSnapshot.SlotIndex >= 0 && SlotSnapshot.SlotIndex < Data.SlotItems.Num())
                 {
                     // Check if slot actually changed
-                    FSuspenseInventoryItemInstance OldItem = Data.SlotItems[SlotSnapshot.SlotIndex];
+                    FSuspenseCoreInventoryItemInstance OldItem = Data.SlotItems[SlotSnapshot.SlotIndex];
                     if (OldItem != SlotSnapshot.ItemInstance)
                     {
                         Data.SlotItems[SlotSnapshot.SlotIndex] = SlotSnapshot.ItemInstance;
@@ -716,8 +716,8 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
                         );
                         Delta.Metadata.Add(TEXT("SnapshotId"), Snapshot.SnapshotId.ToString());
                         
-                        FSuspensePendingEventData DeltaEvent;
-                        DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+                        FSuspenseCorePendingEventData DeltaEvent;
+                        DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
                         DeltaEvent.DeltaData = Delta;
                         PendingEvents.Add(DeltaEvent);
                     }
@@ -745,8 +745,8 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
             // Если состояние изменилось, добавляем событие
             if (OldState != Data.CurrentState)
             {
-                FSuspensePendingEventData StateEvent;
-                StateEvent.Type = FSuspensePendingEventData::StateChanged;
+                FSuspenseCorePendingEventData StateEvent;
+                StateEvent.Type = FSuspenseCorePendingEventData::StateChanged;
                 StateEvent.StateTag = Data.CurrentState;
                 PendingEvents.Add(StateEvent);
             }
@@ -760,16 +760,16 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
             // Queue events for changed slots
             for (int32 SlotIndex : ChangedSlots)
             {
-                FSuspensePendingEventData Event;
-                Event.Type = FSuspensePendingEventData::SlotChanged;
+                FSuspenseCorePendingEventData Event;
+                Event.Type = FSuspenseCorePendingEventData::SlotChanged;
                 Event.SlotIndex = SlotIndex;
                 Event.ItemData = Data.SlotItems[SlotIndex];
                 PendingEvents.Add(Event);
             }
             
             // Queue reset event since this is a major restore operation
-            FSuspensePendingEventData ResetEvent;
-            ResetEvent.Type = FSuspensePendingEventData::StoreReset;
+            FSuspenseCorePendingEventData ResetEvent;
+            ResetEvent.Type = FSuspenseCorePendingEventData::StoreReset;
             PendingEvents.Add(ResetEvent);
             
             return true;
@@ -916,7 +916,7 @@ void USuspenseCoreEquipmentDataStore::OnTransactionDelta(const TArray<FEquipment
     TotalDeltasGenerated += Deltas.Num();
     
     // Collect events for broadcasting (outside lock)
-    TArray<FSuspensePendingEventData> PendingEvents;
+    TArray<FSuspenseCorePendingEventData> PendingEvents;
     
     // Process each delta
     for (const FEquipmentDelta& Delta : Deltas)
@@ -928,16 +928,16 @@ void USuspenseCoreEquipmentDataStore::OnTransactionDelta(const TArray<FEquipment
             *Delta.SourceTransactionId.ToString());
         
         // Queue delta event
-        FSuspensePendingEventData DeltaEvent;
-        DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+        FSuspenseCorePendingEventData DeltaEvent;
+        DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
         DeltaEvent.DeltaData = Delta;
         PendingEvents.Add(DeltaEvent);
         
         // Also create a slot changed event if specific slot affected
         if (Delta.SlotIndex != INDEX_NONE)
         {
-            FSuspensePendingEventData SlotEvent;
-            SlotEvent.Type = FSuspensePendingEventData::SlotChanged;
+            FSuspenseCorePendingEventData SlotEvent;
+            SlotEvent.Type = FSuspenseCorePendingEventData::SlotChanged;
             SlotEvent.SlotIndex = Delta.SlotIndex;
             SlotEvent.ItemData = Delta.ItemAfter;
             PendingEvents.Add(SlotEvent);
@@ -970,7 +970,7 @@ FDateTime USuspenseCoreEquipmentDataStore::GetLastModificationTime() const
 void USuspenseCoreEquipmentDataStore::ResetToDefault()
 {
     ModifyDataWithEvents(
-        [this](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [this](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Clear all items
             for (int32 i = 0; i < Data.SlotItems.Num(); i++)
@@ -982,17 +982,17 @@ void USuspenseCoreEquipmentDataStore::ResetToDefault()
                         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.Reset")),
                         i,
                         Data.SlotItems[i],
-                        FSuspenseInventoryItemInstance(),
+                        FSuspenseCoreInventoryItemInstance(),
                         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.ResetToDefault"))
                     );
                     
-                    FSuspensePendingEventData DeltaEvent;
-                    DeltaEvent.Type = FSuspensePendingEventData::EquipmentDelta;
+                    FSuspenseCorePendingEventData DeltaEvent;
+                    DeltaEvent.Type = FSuspenseCorePendingEventData::EquipmentDelta;
                     DeltaEvent.DeltaData = Delta;
                     PendingEvents.Add(DeltaEvent);
                 }
                 
-                Data.SlotItems[i] = FSuspenseInventoryItemInstance();
+                Data.SlotItems[i] = FSuspenseCoreInventoryItemInstance();
             }
             
             // Reset state
@@ -1006,8 +1006,8 @@ void USuspenseCoreEquipmentDataStore::ResetToDefault()
                 TEXT("Data store reset to default state"));
             
             // Queue reset event
-            FSuspensePendingEventData ResetEvent;
-            ResetEvent.Type = FSuspensePendingEventData::StoreReset;
+            FSuspenseCorePendingEventData ResetEvent;
+            ResetEvent.Type = FSuspenseCorePendingEventData::StoreReset;
             PendingEvents.Add(ResetEvent);
             
             return true;
@@ -1026,7 +1026,7 @@ int32 USuspenseCoreEquipmentDataStore::GetMemoryUsage() const
     TotalBytes += DataStorage.SlotConfigurations.Num() * sizeof(FEquipmentSlotConfig);
     
     // Add slot items size
-    TotalBytes += DataStorage.SlotItems.Num() * sizeof(FSuspenseInventoryItemInstance);
+    TotalBytes += DataStorage.SlotItems.Num() * sizeof(FSuspenseCoreInventoryItemInstance);
     
     // Add snapshot history size
     TotalBytes += SnapshotHistory.Num() * sizeof(FEquipmentStateSnapshot);
@@ -1039,12 +1039,12 @@ int32 USuspenseCoreEquipmentDataStore::GetMemoryUsage() const
 //========================================
 
 bool USuspenseCoreEquipmentDataStore::ModifyDataWithEvents(
-    TFunction<bool(FEquipmentDataStorage&, TArray<FSuspensePendingEventData>&)> ModificationFunc, 
+    TFunction<bool(FEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc, 
     bool bNotifyObservers)
 {
     // This is the critical method that ensures events are never broadcast under lock
     
-    TArray<FSuspensePendingEventData> PendingEvents;
+    TArray<FSuspenseCorePendingEventData> PendingEvents;
     bool bSuccess = false;
     
     // Phase 1: Perform modification under lock and collect events
@@ -1086,8 +1086,8 @@ bool USuspenseCoreEquipmentDataStore::ModifyDataWithEvents(
 FEquipmentDelta USuspenseCoreEquipmentDataStore::CreateDelta(
     const FGameplayTag& ChangeType,
     int32 SlotIndex,
-    const FSuspenseInventoryItemInstance& Before,
-    const FSuspenseInventoryItemInstance& After,
+    const FSuspenseCoreInventoryItemInstance& Before,
+    const FSuspenseCoreInventoryItemInstance& After,
     const FGameplayTag& Reason)
 {
     FEquipmentDelta Delta;
@@ -1104,7 +1104,7 @@ FEquipmentDelta USuspenseCoreEquipmentDataStore::CreateDelta(
     return Delta;
 }
 
-void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspensePendingEventData>& PendingEvents)
+void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspenseCorePendingEventData>& PendingEvents)
 {
     // This method is called AFTER releasing DataCriticalSection
     // It's safe for subscribers to take any locks they need
@@ -1112,11 +1112,11 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
     UE_LOG(LogEquipmentDataStore, Warning, TEXT("=== BroadcastPendingEvents: %d events ==="), 
         PendingEvents.Num());
     
-    for (const FSuspensePendingEventData& Event : PendingEvents)
+    for (const FSuspenseCorePendingEventData& Event : PendingEvents)
     {
         switch (Event.Type)
         {
-            case FSuspensePendingEventData::SlotChanged:
+            case FSuspenseCorePendingEventData::SlotChanged:
             {
                 UE_LOG(LogEquipmentDataStore, Warning, 
                     TEXT("Broadcasting SlotChanged: Slot %d, Item %s"),
@@ -1131,7 +1131,7 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
                 {
                     if (UGameInstance* GI = World->GetGameInstance())
                     {
-                        if (USuspenseEventManager* EDM = GI->GetSubsystem<USuspenseEventManager>())
+                        if (USuspenseCoreEventManager* EDM = GI->GetSubsystem<USuspenseCoreEventManager>())
                         {
                             // Get slot configuration SAFELY through public method
                             // This will take the lock internally if needed
@@ -1158,25 +1158,25 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
                 break;
             }
                 
-            case FSuspensePendingEventData::ConfigChanged:
+            case FSuspenseCorePendingEventData::ConfigChanged:
                 OnSlotConfigurationChangedDelegate.Broadcast(Event.SlotIndex);
                 UE_LOG(LogEquipmentDataStore, Verbose, 
                     TEXT("Configuration changed event broadcasted for slot %d"), Event.SlotIndex);
                 break;
                 
-            case FSuspensePendingEventData::StoreReset:
+            case FSuspenseCorePendingEventData::StoreReset:
                 OnDataStoreResetDelegate.Broadcast();
                 UE_LOG(LogEquipmentDataStore, Verbose, 
                     TEXT("Data store reset event broadcasted"));
                 break;
                 
-            case FSuspensePendingEventData::StateChanged:
+            case FSuspenseCorePendingEventData::StateChanged:
                 // State change notifications (could add specific delegate if needed)
                 UE_LOG(LogEquipmentDataStore, Verbose, 
                     TEXT("State changed event broadcasted"));
                 break;
                 
-            case FSuspensePendingEventData::EquipmentDelta:
+            case FSuspenseCorePendingEventData::EquipmentDelta:
                 OnEquipmentDeltaDelegate.Broadcast(Event.DeltaData);
                 UE_LOG(LogEquipmentDataStore, Verbose, 
                     TEXT("Equipment delta broadcasted: %s"), 
@@ -1210,13 +1210,13 @@ FEquipmentDataStorage USuspenseCoreEquipmentDataStore::CreateDataSnapshot() cons
 bool USuspenseCoreEquipmentDataStore::ApplyDataSnapshot(const FEquipmentDataStorage& Snapshot, bool bNotifyObservers)
 {
     return ModifyDataWithEvents(
-        [Snapshot](FEquipmentDataStorage& Data, TArray<FSuspensePendingEventData>& PendingEvents) -> bool
+        [Snapshot](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             Data = Snapshot;
             
             // Queue a reset event since we're replacing all data
-            FSuspensePendingEventData ResetEvent;
-            ResetEvent.Type = FSuspensePendingEventData::StoreReset;
+            FSuspenseCorePendingEventData ResetEvent;
+            ResetEvent.Type = FSuspenseCorePendingEventData::StoreReset;
             PendingEvents.Add(ResetEvent);
             
             return true;
@@ -1270,7 +1270,7 @@ void USuspenseCoreEquipmentDataStore::UpdateStatistics()
 }
 
 
-// === ISuspenseEquipmentDataProvider high-level queries ===
+// === ISuspenseCoreEquipmentDataProvider high-level queries ===
 
 TArray<int32> USuspenseCoreEquipmentDataStore::FindCompatibleSlots(const FGameplayTag& ItemSlotTag) const
 {
@@ -1340,14 +1340,14 @@ float USuspenseCoreEquipmentDataStore::GetTotalEquippedWeight() const
         if (IsSlotOccupied(i))
         {
             // TODO: replace with real per-item weight lookup if available
-            // FSuspenseInventoryItemInstance Item;
+            // FSuspenseCoreInventoryItemInstance Item;
             // if (GetItemAtSlot(i, Item)) { Total += Item.GetWeight(); }
         }
     }
     return Total;
 }
 
-bool USuspenseCoreEquipmentDataStore::MeetsItemRequirements(const FSuspenseInventoryItemInstance& /*Item*/, int32 /*TargetSlotIndex*/) const
+bool USuspenseCoreEquipmentDataStore::MeetsItemRequirements(const FSuspenseCoreInventoryItemInstance& /*Item*/, int32 /*TargetSlotIndex*/) const
 {
     // Validation service performs heavy checks; datastore returns permissive default.
     return true;

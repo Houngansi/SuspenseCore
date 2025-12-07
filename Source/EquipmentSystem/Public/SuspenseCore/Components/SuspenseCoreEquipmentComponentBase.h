@@ -1,28 +1,28 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Abilities/ISuspenseAbilityProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
+#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreEquipmentComponentBase.generated.h"
 
 // Forward declarations
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
-class USuspenseEventManager;
-class USuspenseItemManager;
+class USuspenseCoreEventManager;
+class USuspenseCoreItemManager;
 
 // Equipment logging category definition
-DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipment, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMedComEquipment, Log, All);
 
 // Helper macro for equipment logging with context
 #define EQUIPMENT_LOG(Verbosity, Format, ...) \
-UE_LOG(LogSuspenseCoreEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
+UE_LOG(LogMedComEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
 
 // Client prediction data structure
 USTRUCT()
@@ -36,7 +36,7 @@ struct FEquipmentComponentPredictionData
 
     /** Predicted item instance */
     UPROPERTY()
-    FSuspenseInventoryItemInstance PredictedItem;
+    FSuspenseCoreInventoryItemInstance PredictedItem;
 
     /** Time when prediction was made */
     UPROPERTY()
@@ -65,7 +65,7 @@ struct FEquipmentComponentPredictionData
  * - No legacy code or placeholders
  */
 UCLASS(Abstract)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentComponentBase : public UActorComponent, public ISuspenseAbilityProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentComponentBase : public UActorComponent, public ISuspenseCoreAbilityProvider
 {
     GENERATED_BODY()
 
@@ -90,7 +90,7 @@ public:
      * @param ItemInstance The item instance to equip
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment")
-    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseInventoryItemInstance& ItemInstance);
+    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /**
      * Comprehensive resource cleanup
@@ -103,7 +103,7 @@ public:
      * @param NewItemInstance New item instance data
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment")
-    virtual void UpdateEquippedItem(const FSuspenseInventoryItemInstance& NewItemInstance);
+    virtual void UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& NewItemInstance);
 
     //================================================
     // Client Prediction Support
@@ -115,7 +115,7 @@ public:
      * @return Prediction key for tracking
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Prediction")
-    int32 StartClientPrediction(const FSuspenseInventoryItemInstance& PredictedInstance);
+    int32 StartClientPrediction(const FSuspenseCoreInventoryItemInstance& PredictedInstance);
 
     /**
      * Confirm or reject client prediction
@@ -124,7 +124,7 @@ public:
      * @param ActualInstance Actual item instance from server
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Prediction")
-    void ConfirmClientPrediction(int32 PredictionKey, bool bSuccess, const FSuspenseInventoryItemInstance& ActualInstance);
+    void ConfirmClientPrediction(int32 PredictionKey, bool bSuccess, const FSuspenseCoreInventoryItemInstance& ActualInstance);
 
     /**
      * Clean up expired predictions
@@ -148,21 +148,21 @@ public:
      * @return Item manager or nullptr if not available
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    USuspenseItemManager* GetItemManager() const;
+    USuspenseCoreItemManager* GetItemManager() const;
 
     /**
      * Get currently equipped item instance
      * @return Current item instance
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    const FSuspenseInventoryItemInstance& GetEquippedItemInstance() const { return EquippedItemInstance; }
+    const FSuspenseCoreInventoryItemInstance& GetEquippedItemInstance() const { return EquippedItemInstance; }
 
     /**
      * Set equipped item instance
      * @param ItemInstance New item instance to equip
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    virtual void SetEquippedItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+    virtual void SetEquippedItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /**
      * Get equipped item data from DataTable
@@ -170,7 +170,7 @@ public:
      * @return True if data was retrieved successfully
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    bool GetEquippedItemData(FSuspenseUnifiedItemData& OutItemData) const;
+    bool GetEquippedItemData(FSuspenseCoreUnifiedItemData& OutItemData) const;
 
     /**
      * Check if item is currently equipped
@@ -219,15 +219,15 @@ public:
      * @return Pointer to the central delegate manager, or nullptr if unavailable
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|System")
-    USuspenseEventManager* GetDelegateManager() const;
+    USuspenseCoreEventManager* GetDelegateManager() const;
 
     //================================================
     // Enhanced Broadcast Methods
     //================================================
 
     /** All broadcast methods remain unchanged but now with improved validation */
-    void BroadcastItemEquipped(const FSuspenseInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
-    void BroadcastItemUnequipped(const FSuspenseInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
+    void BroadcastItemEquipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
+    void BroadcastItemUnequipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType);
     void BroadcastEquipmentPropertyChanged(const FName& PropertyName, float OldValue, float NewValue);
     void BroadcastEquipmentStateChanged(const FGameplayTag& OldState, const FGameplayTag& NewState, bool bInterrupted = false);
     void BroadcastEquipmentEvent(const FGameplayTag& EventTag, const FString& EventData);
@@ -244,7 +244,7 @@ public:
     void BroadcastWeaponSpreadUpdated(float NewSpread, float MaxSpread);
 
     //================================================
-    // ISuspenseAbilityProvider Implementation
+    // ISuspenseCoreAbilityProvider Implementation
     //================================================
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Equipment|Abilities")
@@ -284,7 +284,7 @@ protected:
     /**
      * Called when equipped item changes
      */
-    virtual void OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem);
+    virtual void OnEquippedItemChanged(const FSuspenseCoreInventoryItemInstance& OldItem, const FSuspenseCoreInventoryItemInstance& NewItem);
 
     /**
      * Server-side execution helper
@@ -323,7 +323,7 @@ protected:
     //================================================
 
     UFUNCTION()
-    void OnRep_EquippedItemInstance(const FSuspenseInventoryItemInstance& OldInstance);
+    void OnRep_EquippedItemInstance(const FSuspenseCoreInventoryItemInstance& OldInstance);
 
     UFUNCTION()
     void OnRep_ComponentState();
@@ -338,7 +338,7 @@ protected:
 
     /** Currently equipped item instance - replicated for network consistency */
     UPROPERTY()
-    FSuspenseInventoryItemInstance EquippedItemInstance;
+    FSuspenseCoreInventoryItemInstance EquippedItemInstance;
 
     /** Component version for compatibility tracking */
     UPROPERTY(Replicated)
@@ -364,10 +364,10 @@ protected:
     mutable FCriticalSection CacheCriticalSection;
 
     /** Cached reference to item manager subsystem */
-    mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 
     /** Cached reference to delegate manager */
-    mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
+    mutable TWeakObjectPtr<USuspenseCoreEventManager> CachedDelegateManager;
 
     /** Last time caches were validated */
     mutable float LastCacheValidationTime;

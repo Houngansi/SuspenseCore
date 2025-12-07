@@ -1,11 +1,11 @@
 // MedComEquipmentOperationExecutor.cpp
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
-#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
+#include "Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
+#include "Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "Types/Loadout/SuspenseCoreLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
 
 // Define proper log category
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentExecutor, Log, All);
@@ -662,7 +662,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateEquip(
     // This is the PRIMARY cause of failed equip operations
     if (DataProvider->IsSlotOccupied(Request.TargetSlotIndex))
     {
-        const FSuspenseInventoryItemInstance ExistingItem = DataProvider->GetSlotItem(Request.TargetSlotIndex);
+        const FSuspenseCoreInventoryItemInstance ExistingItem = DataProvider->GetSlotItem(Request.TargetSlotIndex);
 
         UE_LOG(LogTemp, Warning,
             TEXT("ValidateEquip FAILED: Slot %d is occupied by %s (instance %s)"),
@@ -787,8 +787,8 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateSwap(
         return FSlotValidationResult::Success();
     }
 
-    FSuspenseInventoryItemInstance ItemA = DataProvider->GetSlotItem(Request.SourceSlotIndex);
-    FSuspenseInventoryItemInstance ItemB = DataProvider->GetSlotItem(Request.TargetSlotIndex);
+    FSuspenseCoreInventoryItemInstance ItemA = DataProvider->GetSlotItem(Request.SourceSlotIndex);
+    FSuspenseCoreInventoryItemInstance ItemB = DataProvider->GetSlotItem(Request.TargetSlotIndex);
     FEquipmentSlotConfig ConfigA = DataProvider->GetSlotConfiguration(Request.SourceSlotIndex);
     FEquipmentSlotConfig ConfigB = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
 
@@ -836,7 +836,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateMove(
         return FSlotValidationResult::Success();
     }
 
-    FSuspenseInventoryItemInstance Item = DataProvider->GetSlotItem(Request.SourceSlotIndex);
+    FSuspenseCoreInventoryItemInstance Item = DataProvider->GetSlotItem(Request.SourceSlotIndex);
     FEquipmentSlotConfig TargetConfig = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
 
     return SlotValidator->CanPlaceItemInSlot(TargetConfig, Item);
@@ -900,7 +900,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateQuickSwit
 }
 
 //========================================
-// ISuspenseEquipmentOperations Implementation (Legacy)
+// ISuspenseCoreEquipmentOperations Implementation (Legacy)
 //========================================
 
 FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperation(
@@ -980,7 +980,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
 }
 
 FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::EquipItem(
-    const FSuspenseInventoryItemInstance& ItemInstance,
+    const FSuspenseCoreInventoryItemInstance& ItemInstance,
     int32 SlotIndex)
 {
     FEquipmentOperationRequest Request;
@@ -1082,8 +1082,8 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::UndoLastOpera
 //========================================
 
 bool USuspenseCoreEquipmentOperationExecutor::Initialize(
-    TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider,
-    TScriptInterface<ISuspenseSlotValidator> InValidator)
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,
+    TScriptInterface<ISuspenseCoreSlotValidator> InValidator)
 {
     if (!InDataProvider.GetInterface())
     {
@@ -1135,7 +1135,7 @@ FGuid USuspenseCoreEquipmentOperationExecutor::GenerateOperationId() const
 }
 
 int32 USuspenseCoreEquipmentOperationExecutor::FindBestSlotForItem(
-    const FSuspenseInventoryItemInstance& ItemInstance) const
+    const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     if (!ItemInstance.IsValid() || !DataProvider.GetInterface())
     {

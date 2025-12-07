@@ -1,16 +1,16 @@
-// SuspenseEquipmentOperationExecutor.h
+// SuspenseCoreEquipmentOperationExecutor.h
 // Copyright Medcom Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseSlotValidator.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
+#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "Types/Loadout/SuspenseCoreLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
 #include "GameplayTagContainer.h"
 #include <atomic>
 #include "SuspenseCoreEquipmentOperationExecutor.generated.h"
@@ -154,7 +154,7 @@ struct FTransactionPlan
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentOperationExecutor
 	: public UActorComponent
-	, public ISuspenseEquipmentOperations
+	, public ISuspenseCoreEquipmentOperations
 {
 	GENERATED_BODY()
 
@@ -180,7 +180,7 @@ public:
 	 * @param OutError Error message if planning fails
 	 * @return True if plan was successfully built
 	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Planning")
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning")
 	bool BuildPlan(const FEquipmentOperationRequest& Request, FTransactionPlan& OutPlan, FText& OutError) const;
 
 	/**
@@ -191,7 +191,7 @@ public:
 	 * @param OutError Error message if validation fails
 	 * @return True if all steps are valid
 	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Planning")
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning")
 	bool ValidatePlan(const FTransactionPlan& Plan, FText& OutError) const;
 
 	/**
@@ -200,7 +200,7 @@ public:
 	 * @param Plan The plan to estimate
 	 * @return Estimated time in milliseconds
 	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Planning", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning", BlueprintPure)
 	float EstimatePlanExecutionTime(const FTransactionPlan& Plan) const;
 
 	/**
@@ -209,16 +209,16 @@ public:
 	 * @param Plan The plan to check
 	 * @return True if plan can be safely retried
 	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Planning", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning", BlueprintPure)
 	bool IsPlanIdempotent(const FTransactionPlan& Plan) const;
 
 	// =====================================================
-	// ISuspenseEquipmentOperations Implementation (Compatibility)
+	// ISuspenseCoreEquipmentOperations Implementation (Compatibility)
 	// =====================================================
 
 	virtual FEquipmentOperationResult ExecuteOperation(const FEquipmentOperationRequest& Request) override;
 	virtual FSlotValidationResult ValidateOperation(const FEquipmentOperationRequest& Request) const override;
-	virtual FEquipmentOperationResult EquipItem(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
+	virtual FEquipmentOperationResult EquipItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
 	virtual FEquipmentOperationResult UnequipItem(int32 SlotIndex) override;
 	virtual FEquipmentOperationResult SwapItems(int32 SlotIndexA, int32 SlotIndexB) override;
 	virtual FEquipmentOperationResult MoveItem(int32 SourceSlot, int32 TargetSlot) override;
@@ -241,19 +241,19 @@ public:
 	 * @return True if initialized successfully
 	 */
 	UFUNCTION(BlueprintCallable)
-	bool Initialize(TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider,
-					TScriptInterface<ISuspenseSlotValidator> InValidator);
+	bool Initialize(TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,
+					TScriptInterface<ISuspenseCoreSlotValidator> InValidator);
 
 	/** Check if executor is properly initialized */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations", BlueprintPure)
 	bool IsInitialized() const;
 
 	/** Toggle validation requirement for plans */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations")
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations")
 	void SetValidationRequired(bool bRequired) { bRequireValidation = bRequired; }
 
 	/** Get whether validation is required */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations", BlueprintPure)
 	bool IsValidationRequired() const { return bRequireValidation; }
 
 	// =========================
@@ -261,27 +261,27 @@ public:
 	// =========================
 
 	/** Get total plans built */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats", BlueprintPure)
 	int32 GetTotalPlansBuilt() const { return TotalPlansBuilt; }
 
 	/** Get successful validations count */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats", BlueprintPure)
 	int32 GetSuccessfulValidations() const { return SuccessfulValidations; }
 
 	/** Get failed validations count */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats", BlueprintPure)
 	int32 GetFailedValidations() const { return FailedValidations; }
 
 	/** Get average plan size */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats", BlueprintPure)
 	float GetAveragePlanSize() const { return AveragePlanSize; }
 
 	/** Reset statistics */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats")
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats")
 	void ResetStatistics();
 
 	/** Get statistics as formatted string */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Stats", BlueprintPure)
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Stats", BlueprintPure)
 	FString GetStatistics() const;
 
 	// =====================================================
@@ -299,9 +299,9 @@ public:
 	 * @param TargetSlotIndex The slot to validate against
 	 * @return Validation result with detailed error info if incompatible
 	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations|Validation")
+	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Validation")
 	FSlotValidationResult CanEquipItemToSlot(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		int32 TargetSlotIndex) const;
 
 protected:
@@ -346,7 +346,7 @@ protected:
 	FGuid GenerateOperationId() const;
 
 	/** Find best slot for item (read-only query) */
-	int32 FindBestSlotForItem(const FSuspenseInventoryItemInstance& ItemInstance) const;
+	int32 FindBestSlotForItem(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
 	/** Check if slot is weapon slot (read-only query) */
 	bool IsWeaponSlot(int32 SlotIndex) const;
@@ -376,11 +376,11 @@ private:
 
 	/** Data provider interface (read-only access) */
 	UPROPERTY()
-	TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+	TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 
 	/** Slot validator interface (optional) */
 	UPROPERTY()
-	TScriptInterface<ISuspenseSlotValidator> SlotValidator;
+	TScriptInterface<ISuspenseCoreSlotValidator> SlotValidator;
 
 	// ============
 	// Statistics

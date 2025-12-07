@@ -1,9 +1,9 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
-#include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
-#include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "Components/SuspenseCoreEquipmentMeshComponent.h"
+#include "Components/SuspenseCoreEquipmentComponentBase.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Delegates/SuspenseCoreEventManager.h"
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -92,11 +92,11 @@ void USuspenseCoreEquipmentMeshComponent::TickComponent(float DeltaTime, ELevelT
     }
 }
 
-bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
+bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (!ItemInstance.IsValid())
     {
-        UE_LOG(LogSuspenseCoreEquipment, Warning, TEXT("InitializeFromItemInstance: Invalid item instance"));
+        UE_LOG(LogMedComEquipment, Warning, TEXT("InitializeFromItemInstance: Invalid item instance"));
         return false;
     }
 
@@ -104,16 +104,16 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
     CurrentItemInstance = ItemInstance;
 
     // Get item data from DataTable
-    USuspenseItemManager* ItemManager = GetItemManager();
+    USuspenseCoreItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
-        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
+        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
         return false;
     }
 
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
     {
-        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
+        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
             *ItemInstance.ItemID.ToString());
         return false;
     }
@@ -136,14 +136,14 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
     // Request initial state sync
     RequestStateSync();
 
-    UE_LOG(LogSuspenseCoreEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"),
+    UE_LOG(LogMedComEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"),
         *CachedItemData.DisplayName.ToString(),
         bMeshLoaded ? TEXT("Yes") : TEXT("No"));
 
     return bMeshLoaded;
 }
 
-void USuspenseCoreEquipmentMeshComponent::UpdateVisualState(const FSuspenseInventoryItemInstance& ItemInstance)
+void USuspenseCoreEquipmentMeshComponent::UpdateVisualState(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (!bVisualsInitialized)
     {
@@ -308,7 +308,7 @@ void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisua
         });
     }
 
-    UE_LOG(LogSuspenseCoreEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
+    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
 }
 
 bool USuspenseCoreEquipmentMeshComponent::HasVisualStateChanged(const FEquipmentVisualState& OtherState) const
@@ -358,7 +358,7 @@ void USuspenseCoreEquipmentMeshComponent::NotifyVisualStateChanged()
 void USuspenseCoreEquipmentMeshComponent::RequestStateSync()
 {
     // Broadcast request for state sync
-    if (USuspenseEventManager* Manager = GetDelegateManager())
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         FString EventData = FString::Printf(TEXT("Component:%s,ItemID:%s"),
             *GetName(),
@@ -376,7 +376,7 @@ void USuspenseCoreEquipmentMeshComponent::RequestStateSync()
 // Visual Components Implementation
 //================================================
 
-void USuspenseCoreEquipmentMeshComponent::InitializeVisualComponents(const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentMeshComponent::InitializeVisualComponents(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     // Create audio component
     if (!AudioComponent)
@@ -394,7 +394,7 @@ void USuspenseCoreEquipmentMeshComponent::InitializeVisualComponents(const FSusp
     }
 }
 
-bool USuspenseCoreEquipmentMeshComponent::LoadMeshFromItemData(const FSuspenseUnifiedItemData& ItemData)
+bool USuspenseCoreEquipmentMeshComponent::LoadMeshFromItemData(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     // Equipment typically uses skeletal meshes
     // The WorldMesh in item data is a static mesh reference
@@ -404,7 +404,7 @@ bool USuspenseCoreEquipmentMeshComponent::LoadMeshFromItemData(const FSuspenseUn
     if (!ItemData.WorldMesh.IsNull())
     {
         // Log that we have a mesh reference but it's static mesh
-        UE_LOG(LogSuspenseCoreEquipment, Warning,
+        UE_LOG(LogMedComEquipment, Warning,
             TEXT("Item %s has WorldMesh but it's a static mesh reference. Equipment typically uses skeletal meshes."),
             *ItemData.DisplayName.ToString());
     }
@@ -462,7 +462,7 @@ void USuspenseCoreEquipmentMeshComponent::UpdateDynamicMaterials()
     }
 }
 
-void USuspenseCoreEquipmentMeshComponent::SetupWeaponVisuals(const FSuspenseUnifiedItemData& WeaponData)
+void USuspenseCoreEquipmentMeshComponent::SetupWeaponVisuals(const FSuspenseCoreUnifiedItemData& WeaponData)
 {
     // Create muzzle flash component
     if (!MuzzleFlashComponent)
@@ -492,7 +492,7 @@ FVector USuspenseCoreEquipmentMeshComponent::GetSocketLocationSafe(const FName& 
         return GetSocketLocation(SocketName);
     }
 
-    UE_LOG(LogSuspenseCoreEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"),
+    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"),
            *SocketName.ToString());
     return GetComponentLocation();
 }
@@ -691,7 +691,7 @@ int32 USuspenseCoreEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTa
     }
 
     // Broadcast effect event
-    if (USuspenseEventManager* Manager = GetDelegateManager())
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         FString EventData = FString::Printf(TEXT("EffectType:%s,PredictionKey:%d"),
             *EffectType.ToString(), Prediction.PredictionKey);
@@ -780,7 +780,7 @@ bool USuspenseCoreEquipmentMeshComponent::HasAttachmentSocket(const FGameplayTag
     return SocketName != NAME_None && DoesSocketExist(SocketName);
 }
 
-FName USuspenseCoreEquipmentMeshComponent::GetWeaponSocketName(const FSuspenseUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const
+FName USuspenseCoreEquipmentMeshComponent::GetWeaponSocketName(const FSuspenseCoreUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const
 {
     // Map modification types to socket names from weapon data
     if (ModificationType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.Attachment.Sight"))))
@@ -952,7 +952,7 @@ void USuspenseCoreEquipmentMeshComponent::CleanupExpiredPredictions()
 // Cache Management
 //================================================
 
-USuspenseItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() const
+USuspenseCoreItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() const
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
@@ -964,7 +964,7 @@ USuspenseItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() cons
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
             {
-                CachedItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
+                CachedItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
             }
         }
     }
@@ -972,7 +972,7 @@ USuspenseItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() cons
     return CachedItemManager.Get();
 }
 
-USuspenseEventManager* USuspenseCoreEquipmentMeshComponent::GetDelegateManager() const
+USuspenseCoreEventManager* USuspenseCoreEquipmentMeshComponent::GetDelegateManager() const
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
@@ -984,7 +984,7 @@ USuspenseEventManager* USuspenseCoreEquipmentMeshComponent::GetDelegateManager()
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
             {
-                CachedDelegateManager = GameInstance->GetSubsystem<USuspenseEventManager>();
+                CachedDelegateManager = GameInstance->GetSubsystem<USuspenseCoreEventManager>();
             }
         }
     }

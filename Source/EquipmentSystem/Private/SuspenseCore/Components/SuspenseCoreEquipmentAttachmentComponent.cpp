@@ -1,12 +1,12 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
-#include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
-#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
-#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
+#include "Components/SuspenseCoreEquipmentAttachmentComponent.h"
+#include "Components/SuspenseCoreEquipmentMeshComponent.h"
+#include "Components/SuspenseCoreWeaponStanceComponent.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "Subsystems/WeaponAnimationSubsystem.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -146,7 +146,7 @@ void USuspenseCoreEquipmentAttachmentComponent::GetLifetimeReplicatedProps(TArra
     DOREPLIFETIME(USuspenseCoreEquipmentAttachmentComponent, AnimationState);
 }
 
-void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseInventoryItemInstance& ItemInstance)
+void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     // Call base initialization
     Super::InitializeWithItemInstance(InOwner, InASC, ItemInstance);
@@ -158,7 +158,7 @@ void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActo
     }
 
     // Get item data
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for attachment"));
@@ -263,7 +263,7 @@ void USuspenseCoreEquipmentAttachmentComponent::Cleanup()
     Super::Cleanup();
 }
 
-void USuspenseCoreEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspenseInventoryItemInstance& NewItemInstance)
+void USuspenseCoreEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& NewItemInstance)
 {
     // Store current attachment state
     TWeakObjectPtr<AActor> CurrentCharacter = AttachedCharacter;
@@ -282,7 +282,7 @@ void USuspenseCoreEquipmentAttachmentComponent::UpdateEquippedItem(const FSuspen
     // Handle new item
     if (NewItemInstance.IsValid())
     {
-        FSuspenseUnifiedItemData ItemData;
+        FSuspenseCoreUnifiedItemData ItemData;
         if (GetEquippedItemData(ItemData))
         {
             // Update weapon type
@@ -345,7 +345,7 @@ bool USuspenseCoreEquipmentAttachmentComponent::AttachToCharacter(AActor* Charac
     }
 
     // Get item data for attachment info
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for attachment"));
@@ -555,7 +555,7 @@ void USuspenseCoreEquipmentAttachmentComponent::UpdateAttachmentState(bool bMake
     }
 
     // Get item data
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
     {
         EQUIPMENT_LOG(Error, TEXT("UpdateAttachmentState: Failed to get item data"));
@@ -620,7 +620,7 @@ void USuspenseCoreEquipmentAttachmentComponent::UpdateAttachmentState(bool bMake
 void USuspenseCoreEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bToActive, float Duration)
 {
     // Get animation interface
-    TScriptInterface<ISuspenseWeaponAnimation> AnimInterface = GetAnimationInterface();
+    TScriptInterface<ISuspenseCoreWeaponAnimation> AnimInterface = GetAnimationInterface();
     if (!AnimInterface.GetInterface())
     {
         OnAttachmentAnimationComplete();
@@ -631,12 +631,12 @@ void USuspenseCoreEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bTo
     UAnimMontage* Montage = nullptr;
     if (bToActive)
     {
-        Montage = ISuspenseWeaponAnimation::Execute_GetDrawMontage(
+        Montage = ISuspenseCoreWeaponAnimation::Execute_GetDrawMontage(
             AnimInterface.GetObject(), CurrentWeaponType, false);
     }
     else
     {
-        Montage = ISuspenseWeaponAnimation::Execute_GetHolsterMontage(
+        Montage = ISuspenseCoreWeaponAnimation::Execute_GetHolsterMontage(
             AnimInterface.GetObject(), CurrentWeaponType);
     }
 
@@ -680,7 +680,7 @@ void USuspenseCoreEquipmentAttachmentComponent::PlayAttachmentAnimation(bool bTo
     }
 }
 
-TScriptInterface<ISuspenseWeaponAnimation> USuspenseCoreEquipmentAttachmentComponent::GetAnimationInterface() const
+TScriptInterface<ISuspenseCoreWeaponAnimation> USuspenseCoreEquipmentAttachmentComponent::GetAnimationInterface() const
 {
     // Check cache
     float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -695,7 +695,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseCoreEquipmentAttachmentCompo
     // Try stance component first
     if (LinkedStanceComponent.IsValid())
     {
-        TScriptInterface<ISuspenseWeaponAnimation> StanceInterface = LinkedStanceComponent->GetAnimationInterface();
+        TScriptInterface<ISuspenseCoreWeaponAnimation> StanceInterface = LinkedStanceComponent->GetAnimationInterface();
         if (StanceInterface.GetInterface())
         {
             CachedAnimationInterface = StanceInterface;
@@ -785,7 +785,7 @@ FName USuspenseCoreEquipmentAttachmentComponent::GetAttachmentSocketName(bool bA
         return NAME_None;
     }
 
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (GetEquippedItemData(ItemData))
     {
         return bActive ? ItemData.AttachmentSocket : ItemData.UnequippedSocket;
@@ -801,7 +801,7 @@ FTransform USuspenseCoreEquipmentAttachmentComponent::GetAttachmentOffset(bool b
         return FTransform::Identity;
     }
 
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (GetEquippedItemData(ItemData))
     {
         return bActive ? ItemData.AttachmentOffset : ItemData.UnequippedOffset;
@@ -964,7 +964,7 @@ void USuspenseCoreEquipmentAttachmentComponent::UpdateAnimationState(float Delta
 
 FGameplayTag USuspenseCoreEquipmentAttachmentComponent::GetWeaponArchetypeFromItem() const
 {
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (GetEquippedItemData(ItemData) && ItemData.bIsWeapon)
     {
         return ItemData.WeaponArchetype;
@@ -977,7 +977,7 @@ FGameplayTag USuspenseCoreEquipmentAttachmentComponent::GetWeaponArchetypeFromIt
 // Socket Management Implementation
 //================================================
 
-TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidSocketsForItem(const FSuspenseUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const
+TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const
 {
     TArray<FSocketSearchResult> Results;
 
@@ -1073,7 +1073,7 @@ bool USuspenseCoreEquipmentAttachmentComponent::ValidateSocket(const FName& Sock
 // Protected Methods Implementation
 //================================================
 
-AActor* USuspenseCoreEquipmentAttachmentComponent::SpawnEquipmentActor(const FSuspenseUnifiedItemData& ItemData)
+AActor* USuspenseCoreEquipmentAttachmentComponent::SpawnEquipmentActor(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     if (!GetOwner() || !GetWorld())
     {
@@ -1121,7 +1121,7 @@ void USuspenseCoreEquipmentAttachmentComponent::DestroyEquipmentActor()
     }
 }
 
-FName USuspenseCoreEquipmentAttachmentComponent::FindBestAttachmentSocket(USkeletalMeshComponent* TargetMesh, const FSuspenseUnifiedItemData& ItemData, bool bForActive) const
+FName USuspenseCoreEquipmentAttachmentComponent::FindBestAttachmentSocket(USkeletalMeshComponent* TargetMesh, const FSuspenseCoreUnifiedItemData& ItemData, bool bForActive) const
 {
     if (!TargetMesh)
     {
@@ -1603,7 +1603,7 @@ void USuspenseCoreEquipmentAttachmentComponent::OnEquipmentInitialized()
     CurrentWeaponType = GetWeaponArchetypeFromItem();
 }
 
-void USuspenseCoreEquipmentAttachmentComponent::OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem)
+void USuspenseCoreEquipmentAttachmentComponent::OnEquippedItemChanged(const FSuspenseCoreInventoryItemInstance& OldItem, const FSuspenseCoreInventoryItemInstance& NewItem)
 {
     Super::OnEquippedItemChanged(OldItem, NewItem);
 

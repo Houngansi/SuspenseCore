@@ -1,20 +1,20 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
+#include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
-#include "Types/Weapon/SuspenseInventoryAmmoState.h"
+#include "Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 #include "SuspenseCoreWeaponAmmoComponent.generated.h"
 
 // Forward declarations
 class UGameplayEffect;
-class ISuspenseWeapon;
+class ISuspenseCoreWeapon;
 class UAttributeSet;
 class UWeaponAttributeSet;
 class UAmmoAttributeSet;
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreUnifiedItemData;
 
 /**
  * Component that manages weapon ammunition state
@@ -48,7 +48,7 @@ public:
      * @return Success of initialization
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    bool InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface);
+    bool InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface);
 
     //================================================
     // Core Ammo Operations
@@ -100,14 +100,14 @@ public:
      * @return Complete ammo state for saving/loading
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    FSuspenseInventoryAmmoState GetAmmoState() const { return AmmoState; }
+    FSuspenseCoreInventoryAmmoState GetAmmoState() const { return AmmoState; }
 
     /**
      * Set ammo state (for loading)
      * @param NewState State to apply
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    void SetAmmoState(const FSuspenseInventoryAmmoState& NewState);
+    void SetAmmoState(const FSuspenseCoreInventoryAmmoState& NewState);
 
     /**
      * Check if can reload
@@ -205,14 +205,14 @@ protected:
      * Get weapon interface from owner
      * @return Weapon interface or null
      */
-    ISuspenseWeapon* GetWeaponInterface() const;
+    ISuspenseCoreWeapon* GetWeaponInterface() const;
 
     /**
      * Get weapon data from DataTable
      * @param OutData Output weapon data
      * @return True if data retrieved
      */
-    bool GetWeaponData(FSuspenseUnifiedItemData& OutData) const;
+    bool GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const;
 
     /**
      * Broadcast ammo change event
@@ -257,7 +257,7 @@ protected:
     void OnRep_ReloadState();
 
     // Internal method to update ammo state without triggering callbacks
-    void UpdateInternalAmmoState(const FSuspenseInventoryAmmoState& NewState);
+    void UpdateInternalAmmoState(const FSuspenseCoreInventoryAmmoState& NewState);
 
 private:
     //================================================
@@ -266,7 +266,7 @@ private:
 
     /** Current ammunition state */
     UPROPERTY(ReplicatedUsing = OnRep_AmmoState)
-    FSuspenseInventoryAmmoState AmmoState;
+    FSuspenseCoreInventoryAmmoState AmmoState;
 
     /** Reload in progress */
     UPROPERTY(ReplicatedUsing = OnRep_ReloadState)
@@ -286,7 +286,7 @@ private:
 
     /** Cached weapon interface */
     UPROPERTY()
-    TScriptInterface<ISuspenseWeapon> CachedWeaponInterface;
+    TScriptInterface<ISuspenseCoreWeapon> CachedWeaponInterface;
 
     /** Cached reload effect handle */
     FActiveGameplayEffectHandle ReloadEffectHandle;

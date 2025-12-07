@@ -1,17 +1,17 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
+#include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Weapon/ISuspenseFireModeProvider.h"
+#include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
 #include "SuspenseCoreWeaponFireModeComponent.generated.h"
 
 // Forward declarations
 class UGameplayAbility;
-class ISuspenseWeapon;
-struct FSuspenseUnifiedItemData;
+class ISuspenseCoreWeapon;
+struct FSuspenseCoreUnifiedItemData;
 struct FSuspenseCoreWeaponFireModeData;
 
 /**
@@ -21,11 +21,11 @@ struct FSuspenseCoreWeaponFireModeData;
  * - All fire mode definitions come from DataTable via weapon interface
  * - No local storage of fire mode configurations
  * - Uses FFireModeRuntimeData for runtime state only
- * - Fully integrated with ISuspenseWeapon and ISuspenseFireModeProvider
+ * - Fully integrated with ISuspenseCoreWeapon and ISuspenseCoreFireModeProvider
  * - Simplified architecture with single source of truth
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreWeaponFireModeComponent : public USuspenseCoreEquipmentComponentBase, public ISuspenseFireModeProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreWeaponFireModeComponent : public USuspenseCoreEquipmentComponentBase, public ISuspenseCoreFireModeProvider
 {
     GENERATED_BODY()
 
@@ -46,13 +46,13 @@ public:
      * @return Success of initialization
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|FireMode")
-    bool InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface);
+    bool InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface);
 
     //================================================
-    // ISuspenseFireModeProvider Implementation
+    // ISuspenseCoreFireModeProvider Implementation
     //================================================
 
-    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseUnifiedItemData& WeaponData) override;
+    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseCoreUnifiedItemData& WeaponData) override;
     virtual void ClearFireModes_Implementation() override;
     virtual bool CycleToNextFireMode_Implementation() override;
     virtual bool CycleToPreviousFireMode_Implementation() override;
@@ -70,27 +70,27 @@ public:
     virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const override;
     virtual TSubclassOf<UGameplayAbility> GetFireModeAbility_Implementation(const FGameplayTag& FireModeTag) const override;
     virtual int32 GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual USuspenseEventManager* GetDelegateManager() const override;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const override;
 
 protected:
     /**
      * Get weapon interface from owner
      * @return Weapon interface or null
      */
-    ISuspenseWeapon* GetWeaponInterface() const;
+    ISuspenseCoreWeapon* GetWeaponInterface() const;
 
     /**
      * Get weapon data from DataTable
      * @param OutData Output weapon data
      * @return True if data retrieved
      */
-    bool GetWeaponData(FSuspenseUnifiedItemData& OutData) const;
+    bool GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const;
 
     /**
      * Load fire modes from weapon data
      * @param WeaponData Data from DataTable
      */
-    void LoadFireModesFromData(const FSuspenseUnifiedItemData& WeaponData);
+    void LoadFireModesFromData(const FSuspenseCoreUnifiedItemData& WeaponData);
 
     /**
      * Grant abilities for all fire modes
@@ -143,7 +143,7 @@ private:
 
     /** Cached weapon interface */
     UPROPERTY()
-    TScriptInterface<ISuspenseWeapon> CachedWeaponInterface;
+    TScriptInterface<ISuspenseCoreWeapon> CachedWeaponInterface;
 
     /** Flag to prevent recursion during switching */
     bool bIsSwitching;

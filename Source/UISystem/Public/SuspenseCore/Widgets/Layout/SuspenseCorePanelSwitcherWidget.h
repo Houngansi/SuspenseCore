@@ -1,6 +1,6 @@
 // SuspenseCorePanelSwitcherWidget.h
 // SuspenseCore - Panel Switcher (Tab Bar) Widget
-// AAA Pattern: EventBus communication, SuspenseCoreButtonWidget for tabs
+// AAA Pattern: Copied from legacy SuspenseUpperTabBar with EventBus
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -16,11 +16,28 @@ class UHorizontalBox;
 class UWidgetSwitcher;
 class USuspenseCoreButtonWidget;
 class USuspenseCoreEventBus;
-class USuspenseCorePanelWidget;
+
+/**
+ * ESuspenseCorePanelLayoutType
+ * Layout type for tab content (copied from legacy ETabContentLayoutType)
+ */
+UENUM(BlueprintType)
+enum class ESuspenseCorePanelLayoutType : uint8
+{
+	/** Single widget - any UUserWidget */
+	Single UMETA(DisplayName = "Single Widget"),
+
+	/** Multiple widgets with layout - NOT IMPLEMENTED YET */
+	Layout UMETA(DisplayName = "Layout Widget"),
+
+	/** Custom composite widget */
+	Custom UMETA(DisplayName = "Custom")
+};
 
 /**
  * FSuspenseCorePanelTabConfig
- * Configuration for a panel tab (like FSuspenseTabConfig in legacy)
+ * Tab configuration (copied from legacy FSuspenseTabConfig)
+ * Supports any UUserWidget as content - inventory, equipment, combined screens, etc.
  */
 USTRUCT(BlueprintType)
 struct UISYSTEM_API FSuspenseCorePanelTabConfig
@@ -35,9 +52,14 @@ struct UISYSTEM_API FSuspenseCorePanelTabConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tab")
 	FGameplayTag PanelTag;
 
-	/** Panel widget class to create for this tab */
+	/** Layout type for this tab */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tab")
-	TSubclassOf<USuspenseCorePanelWidget> PanelWidgetClass;
+	ESuspenseCorePanelLayoutType LayoutType = ESuspenseCorePanelLayoutType::Single;
+
+	/** Content widget class - ANY UUserWidget! (for Single and Custom types) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tab",
+		meta = (EditCondition = "LayoutType != ESuspenseCorePanelLayoutType::Layout"))
+	TSubclassOf<UUserWidget> ContentWidgetClass;
 
 	/** Optional icon texture for tab button */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tab")
@@ -49,13 +71,7 @@ struct UISYSTEM_API FSuspenseCorePanelTabConfig
 
 	FSuspenseCorePanelTabConfig()
 		: DisplayName(FText::FromString(TEXT("Tab")))
-		, bEnabled(true)
-	{
-	}
-
-	FSuspenseCorePanelTabConfig(const FGameplayTag& InTag, const FText& InName)
-		: DisplayName(InName)
-		, PanelTag(InTag)
+		, LayoutType(ESuspenseCorePanelLayoutType::Single)
 		, bEnabled(true)
 	{
 	}
@@ -63,7 +79,7 @@ struct UISYSTEM_API FSuspenseCorePanelTabConfig
 
 /**
  * FSuspenseCorePanelTabRuntime
- * Runtime data for active tab (button reference, etc.)
+ * Runtime data for active tab
  */
 USTRUCT(BlueprintType)
 struct UISYSTEM_API FSuspenseCorePanelTabRuntime
@@ -74,13 +90,13 @@ struct UISYSTEM_API FSuspenseCorePanelTabRuntime
 	UPROPERTY(BlueprintReadOnly, Category = "Tab")
 	FGameplayTag PanelTag;
 
-	/** Tab button widget instance */
+	/** Tab button widget instance (SuspenseCoreButtonWidget) */
 	UPROPERTY(BlueprintReadOnly, Category = "Tab")
 	TObjectPtr<USuspenseCoreButtonWidget> TabButton;
 
-	/** Panel widget instance (created from config) */
+	/** Content widget instance - ANY UUserWidget */
 	UPROPERTY(BlueprintReadOnly, Category = "Tab")
-	TObjectPtr<USuspenseCorePanelWidget> PanelWidget;
+	TObjectPtr<UUserWidget> ContentWidget;
 
 	/** Is tab currently enabled */
 	bool bEnabled = true;
@@ -92,22 +108,24 @@ struct UISYSTEM_API FSuspenseCorePanelTabRuntime
  * USuspenseCorePanelSwitcherWidget
  *
  * AAA-grade tab bar widget for switching between panels.
- * Uses SuspenseCoreButtonWidget for tab buttons with consistent styling.
- * Communicates ONLY via EventBus (no direct delegates between widgets).
+ * COPIED FROM LEGACY SuspenseUpperTabBar with EventBus integration.
  *
- * ARCHITECTURE (per BestPractices.md):
- * - TabConfigs defined in Blueprint (like legacy SuspenseUpperTabBar)
- * - Creates SuspenseCoreButtonWidget for each tab
- * - Uses EventBus for panel selection events
- * - ActionTag on each button for identification
+ * FEATURES (same as legacy):
+ * - TabConfigs defined in Blueprint
+ * - ContentWidgetClass = ANY UUserWidget (inventory, equipment, combined screens)
+ * - Creates SuspenseCoreButtonWidget for tab buttons
+ * - Switches content in WidgetSwitcher (ContentSwitcher)
+ * - Uses EventBus for panel selection events (SuspenseCore.Event.UI.Panel.Selected)
  *
  * USAGE:
- * 1. Define TabConfigs in Blueprint
- * 2. Bind TabContainer (HorizontalBox) and PanelContainer (WidgetSwitcher)
- * 3. Widget auto-creates tab buttons and panel widgets
+ * 1. In Blueprint, add TabConfigs with:
+ *    - DisplayName = "Inventory"
+ *    - PanelTag = SuspenseCore.UI.Panel.Inventory
+ *    - ContentWidgetClass = WBP_InventoryEquipmentScreen (your combined widget)
+ * 2. Bind TabContainer (HorizontalBox) and ContentSwitcher (WidgetSwitcher)
+ * 3. Widget auto-creates everything on NativeConstruct
  *
- * @see USuspenseCoreContainerScreenWidget
- * @see USuspenseCoreButtonWidget
+ * @see USuspenseUpperTabBar (legacy)
  */
 UCLASS(BlueprintType, Blueprintable)
 class UISYSTEM_API USuspenseCorePanelSwitcherWidget : public UUserWidget
@@ -127,78 +145,54 @@ public:
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 	//==================================================================
-	// Tab Management API
+	// Tab Management API (same as legacy)
 	//==================================================================
 
-	/**
-	 * Initialize tabs from config (called in NativeConstruct)
-	 */
+	/** Initialize tabs from TabConfigs (called automatically in NativeConstruct) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void InitializeTabs();
 
-	/**
-	 * Clear all runtime tabs
-	 */
+	/** Clear all runtime tabs */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void ClearTabs();
 
-	/**
-	 * Get tab count
-	 */
+	/** Get tab count */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
 	int32 GetTabCount() const { return RuntimeTabs.Num(); }
 
-	/**
-	 * Select tab by index
-	 * @param TabIndex Index of tab to select
-	 * @return Success
-	 */
+	/** Select tab by index */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	bool SelectTabByIndex(int32 TabIndex);
 
-	/**
-	 * Select tab by tag
-	 * @param PanelTag Tag of panel to select
-	 * @return Success
-	 */
+	/** Select tab by tag */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	bool SelectTabByTag(const FGameplayTag& PanelTag);
 
-	/**
-	 * Get currently selected tab index
-	 */
+	/** Get currently selected tab index */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
 	int32 GetSelectedTabIndex() const { return CurrentTabIndex; }
 
-	/**
-	 * Get currently active panel tag
-	 */
+	/** Get currently active panel tag */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
 	FGameplayTag GetActivePanel() const;
 
-	/**
-	 * Select next tab (wraps around)
-	 */
+	/** Get content widget for tab index */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|PanelSwitcher")
+	UUserWidget* GetTabContent(int32 TabIndex) const;
+
+	/** Select next tab (wraps around) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void SelectNextTab();
 
-	/**
-	 * Select previous tab (wraps around)
-	 */
+	/** Select previous tab (wraps around) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void SelectPreviousTab();
 
-	/**
-	 * Set tab enabled state
-	 * @param TabIndex Index of tab
-	 * @param bEnabled Whether to enable
-	 */
+	/** Set tab enabled state */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void SetTabEnabled(int32 TabIndex, bool bEnabled);
 
-	/**
-	 * Refresh content of currently selected tab
-	 */
+	/** Refresh content of currently selected tab */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void RefreshActiveTabContent();
 
@@ -206,18 +200,11 @@ public:
 	// Backward Compatibility API (for ContainerScreen integration)
 	//==================================================================
 
-	/**
-	 * Set active panel by tag (wrapper for SelectTabByTag)
-	 * @param PanelTag Tag of panel to activate
-	 */
+	/** Set active panel by tag (wrapper for SelectTabByTag) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void SetActivePanel(const FGameplayTag& PanelTag);
 
-	/**
-	 * Add a tab dynamically at runtime
-	 * @param PanelTag Tag identifying the panel
-	 * @param DisplayName Text to show on tab
-	 */
+	/** Add a tab dynamically at runtime */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
 	void AddTab(const FGameplayTag& PanelTag, const FText& DisplayName);
 
@@ -235,10 +222,10 @@ public:
 
 protected:
 	//==================================================================
-	// Configuration (set in Blueprint)
+	// Configuration (set in Blueprint - SAME AS LEGACY)
 	//==================================================================
 
-	/** Tab configurations (define in Blueprint like legacy TabConfigs) */
+	/** Tab configurations - define your screens here! */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	TArray<FSuspenseCorePanelTabConfig> TabConfigs;
 
@@ -246,7 +233,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (ClampMin = "0"))
 	int32 DefaultTabIndex = 0;
 
-	/** Tab button widget class (must be SuspenseCoreButtonWidget or subclass) */
+	/** Tab button widget class (SuspenseCoreButtonWidget or Blueprint subclass) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	TSubclassOf<USuspenseCoreButtonWidget> TabButtonClass;
 
@@ -254,21 +241,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	FKey NextTabKey = EKeys::Tab;
 
-	/** Key to switch to previous tab (typically Shift+Tab via modifiers) */
+	/** Key to switch to previous tab */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	FKey PreviousTabKey;
 
 	//==================================================================
-	// Widget Bindings (bind in Blueprint)
+	// Widget Bindings (bind in Blueprint - SAME AS LEGACY)
 	//==================================================================
 
 	/** Container for tab buttons (HorizontalBox) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UHorizontalBox> TabContainer;
 
-	/** Container for panel content (WidgetSwitcher) */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
-	TObjectPtr<UWidgetSwitcher> PanelContainer;
+	/** Content switcher - switches between content widgets */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
+	TObjectPtr<UWidgetSwitcher> ContentSwitcher;
 
 	//==================================================================
 	// Tab Creation (override for custom behavior)
@@ -279,24 +266,24 @@ protected:
 	USuspenseCoreButtonWidget* CreateTabButton(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
 	virtual USuspenseCoreButtonWidget* CreateTabButton_Implementation(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
 
-	/** Create panel widget from config */
+	/** Create content widget from config (like legacy CreateTabContent) */
 	UFUNCTION(BlueprintNativeEvent, Category = "SuspenseCore|UI|PanelSwitcher")
-	USuspenseCorePanelWidget* CreatePanelWidget(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
-	virtual USuspenseCorePanelWidget* CreatePanelWidget_Implementation(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
+	UUserWidget* CreateContentWidget(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
+	virtual UUserWidget* CreateContentWidget_Implementation(const FSuspenseCorePanelTabConfig& Config, int32 TabIndex);
 
 	/** Update tab visual state (selected/normal) */
 	UFUNCTION(BlueprintNativeEvent, Category = "SuspenseCore|UI|PanelSwitcher")
 	void UpdateTabVisual(int32 TabIndex, bool bIsSelected);
 	virtual void UpdateTabVisual_Implementation(int32 TabIndex, bool bIsSelected);
 
-	/** Update all tab visuals based on CurrentTabIndex */
+	/** Update all tab visuals */
 	void UpdateAllTabVisuals();
 
 	//==================================================================
 	// Internal Handlers
 	//==================================================================
 
-	/** Handle tab button clicked (via SuspenseCoreButtonWidget delegate) */
+	/** Handle tab button clicked */
 	UFUNCTION()
 	void OnTabButtonClicked(USuspenseCoreButtonWidget* Button);
 
@@ -307,10 +294,7 @@ protected:
 	// EventBus
 	//==================================================================
 
-	/** Setup EventBus subscriptions */
 	void SetupEventSubscriptions();
-
-	/** Teardown EventBus subscriptions */
 	void TeardownEventSubscriptions();
 
 private:
@@ -318,14 +302,14 @@ private:
 	// Runtime State
 	//==================================================================
 
-	/** Runtime tab data (buttons, panels) */
+	/** Runtime tab data */
 	UPROPERTY(Transient)
 	TArray<FSuspenseCorePanelTabRuntime> RuntimeTabs;
 
 	/** Current selected tab index (-1 if none) */
 	int32 CurrentTabIndex = -1;
 
-	/** Map of buttons to tab indices (for click handling) */
+	/** Map of buttons to tab indices */
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<USuspenseCoreButtonWidget>, int32> ButtonToIndexMap;
 

@@ -234,6 +234,16 @@ FGuid USuspenseCoreEquipmentTransactionService::BeginTransaction(const FString& 
         return FGuid();
     }
 
+    // SECURITY: Transactions must only be started on server (authoritative side)
+    // Client-side code should use prediction system, not direct transactions
+    UWorld* World = ServiceParams.WorldContext.Get();
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
+            TEXT("BeginTransaction rejected - transactions are server authoritative only"));
+        return FGuid();
+    }
+
     FScopeLock Lock(&TransactionLock);
 
     // Check nesting limit
@@ -289,6 +299,15 @@ bool USuspenseCoreEquipmentTransactionService::CommitTransaction(const FGuid& Tr
 {
     if (!IsServiceReady())
     {
+        return false;
+    }
+
+    // SECURITY: Only server can commit transactions (authoritative state changes)
+    UWorld* World = ServiceParams.WorldContext.Get();
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
+            TEXT("CommitTransaction rejected - commits are server authoritative only"));
         return false;
     }
 
@@ -361,6 +380,15 @@ bool USuspenseCoreEquipmentTransactionService::RollbackTransaction(const FGuid& 
 {
     if (!IsServiceReady())
     {
+        return false;
+    }
+
+    // SECURITY: Only server can rollback transactions (authoritative state changes)
+    UWorld* World = ServiceParams.WorldContext.Get();
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
+            TEXT("RollbackTransaction rejected - rollbacks are server authoritative only"));
         return false;
     }
 

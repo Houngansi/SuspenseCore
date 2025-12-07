@@ -864,6 +864,16 @@ bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetw
 {
     SCOPED_SERVICE_TIMER("ReceiveEquipmentOperation");
 
+    // SECURITY: Only server can receive and process network operations
+    // This is the authoritative entry point for equipment operations
+    UWorld* World = GetWorld();
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
+            TEXT("ReceiveEquipmentOperation rejected - server authority required"));
+        return false;
+    }
+
     if (!IsServiceReady())
     {
         ServiceMetrics.RecordError();

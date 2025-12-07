@@ -429,9 +429,9 @@ void USuspenseCorePanelSwitcherWidget::PublishPanelSelected(const FGameplayTag& 
 		return;
 	}
 
-	// Create event data with panel tag
+	// Create event data with panel tag (stored as string since FSuspenseCoreEventData has no SetTag)
 	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-	EventData.SetTag(FName("PanelTag"), PanelTag);
+	EventData.SetString(FName("PanelTag"), PanelTag.ToString());
 
 	// Publish event via EventBus (SuspenseCore.Event.UI.Panel.Selected)
 	CachedEventBus->Publish(

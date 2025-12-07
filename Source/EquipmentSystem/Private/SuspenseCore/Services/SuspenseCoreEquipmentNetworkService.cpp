@@ -61,17 +61,21 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
         FScopeLock Lock(&SecurityLock);
         RateLimitPerPlayer.Empty();
         RateLimitPerIP.Empty();
-        ProcessedNonces.Empty();
-        PendingNonces.Empty();
         SuspiciousActivityCount.Empty();
 
-        while (!NonceExpiryQueue.IsEmpty())
+        // Clear LRU nonce cache (secure cleanup)
+        if (NonceCache.IsValid())
         {
-            TPair<uint64, float> Item;
-            NonceExpiryQueue.Dequeue(Item);
+            NonceCache->Clear();
+            NonceCache.Reset();
         }
 
-        HMACSecretKey.Empty();
+        // Clear secure key storage (with memory zeroing)
+        if (SecureKeyStorage.IsValid())
+        {
+            SecureKeyStorage->ClearKey();
+            SecureKeyStorage.Reset();
+        }
 
         // Очищаем интерфейсы
         if (NetworkDispatcher.GetInterface())
@@ -459,8 +463,8 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     InitializeSecurity();
     RECORD_SERVICE_METRIC("security_initialized", 1);
 
-    HMACSecretKey = LoadHMACKeyFromSecureStorage();
-    if (HMACSecretKey.IsEmpty())
+    // Load HMAC key using secure storage with memory obfuscation
+    if (!LoadHMACKey())
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to load HMAC secret key from secure storage"));
         ServiceState = EServiceLifecycleState::Failed;
@@ -610,9 +614,9 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
         const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_replication_error")), 1);
     }
 
-    if (HMACSecretKey.IsEmpty())
+    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
     {
-        OutErrors.Add(FText::FromString(TEXT("HMAC secret key not configured")));
+        OutErrors.Add(FText::FromString(TEXT("HMAC secret key not configured in secure storage")));
         bIsValid = false;
         const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_hmac_error")), 1);
     }
@@ -636,14 +640,14 @@ void USuspenseCoreEquipmentNetworkService::ResetService()
 
     RateLimitPerPlayer.Empty();
     RateLimitPerIP.Empty();
-    ProcessedNonces.Empty();
-    PendingNonces.Empty();
-    while (!NonceExpiryQueue.IsEmpty())
-    {
-        TPair<uint64, float> Item;
-        NonceExpiryQueue.Dequeue(Item);
-    }
     SuspiciousActivityCount.Empty();
+
+    // Reset LRU nonce cache (keeps capacity and TTL settings)
+    if (NonceCache.IsValid())
+    {
+        NonceCache->Clear();
+        NonceCache->ResetStats();
+    }
 
     SecurityMetrics.Reset();
 
@@ -688,9 +692,26 @@ FString USuspenseCoreEquipmentNetworkService::GetServiceStats() const
     Stats += TEXT("\n--- Active Monitoring ---\n");
     Stats += FString::Printf(TEXT("Active Player Rate Limits: %d\n"), RateLimitPerPlayer.Num());
     Stats += FString::Printf(TEXT("Active IP Rate Limits: %d\n"), RateLimitPerIP.Num());
-    Stats += FString::Printf(TEXT("Processed Nonces: %d\n"), ProcessedNonces.Num());
-    Stats += FString::Printf(TEXT("Pending Nonces: %d\n"), PendingNonces.Num());
+
+    // LRU Nonce Cache statistics
+    if (NonceCache.IsValid())
+    {
+        FSuspenseNonceCacheStats CacheStats = NonceCache->GetStats();
+        Stats += FString::Printf(TEXT("Nonce Cache Size: %d/%d\n"), CacheStats.CurrentSize, NonceCache->GetMaxCapacity());
+        Stats += FString::Printf(TEXT("Nonce Cache - Confirmed: %d, Pending: %d\n"),
+            NonceCache->GetConfirmedCount(), NonceCache->GetPendingCount());
+        Stats += FString::Printf(TEXT("Nonce Cache - Hits: %llu, Evictions: %llu, Expired: %llu\n"),
+            CacheStats.TotalHits, CacheStats.TotalEvictions, CacheStats.TotalExpired);
+    }
+
     Stats += FString::Printf(TEXT("Suspicious Activities Tracked: %d\n"), SuspiciousActivityCount.Num());
+
+    // Secure Key Storage status
+    if (SecureKeyStorage.IsValid())
+    {
+        Stats += FString::Printf(TEXT("Secure Key Storage: %s\n"),
+            SecureKeyStorage->HasKey() ? TEXT("Active (key obfuscated)") : TEXT("No key loaded"));
+    }
 
     if (NetworkDispatcher.GetInterface())
     {
@@ -828,8 +849,30 @@ FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipm
 
     if (bCritical && SecurityConfig.bRequireHMACForCritical)
     {
-        NetReq.HMACSignature = NetReq.GenerateHMAC(HMACSecretKey);
-        RECORD_SERVICE_METRIC("hmac_generated", 1);
+        // Use secure key storage with scoped access
+        if (SecureKeyStorage.IsValid() && SecureKeyStorage->HasKey())
+        {
+            FScopedKeyAccess KeyAccess(*SecureKeyStorage);
+            if (KeyAccess.IsValid())
+            {
+                NetReq.HMACSignature = NetReq.GenerateHMAC(KeyAccess.GetKey());
+                RECORD_SERVICE_METRIC("hmac_generated", 1);
+            }
+            else
+            {
+                UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
+                    TEXT("Failed to access HMAC key for critical operation"));
+                ServiceMetrics.RecordError();
+                return FGuid();
+            }
+        }
+        else
+        {
+            UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
+                TEXT("SecureKeyStorage not available for critical operation"));
+            ServiceMetrics.RecordError();
+            return FGuid();
+        }
     }
 
     if (NetworkDispatcher.GetInterface())
@@ -919,7 +962,18 @@ bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetw
     if (NetworkRequest.Priority == ENetworkOperationPriority::Critical &&
         SecurityConfig.bRequireHMACForCritical)
     {
-        if (!NetworkRequest.VerifyHMAC(HMACSecretKey))
+        // Verify HMAC using secure key storage
+        bool bHMACValid = false;
+        if (SecureKeyStorage.IsValid() && SecureKeyStorage->HasKey())
+        {
+            FScopedKeyAccess KeyAccess(*SecureKeyStorage);
+            if (KeyAccess.IsValid())
+            {
+                bHMACValid = NetworkRequest.VerifyHMAC(KeyAccess.GetKey());
+            }
+        }
+
+        if (!bHMACValid)
         {
             SecurityMetrics.RequestsRejectedHMAC++;
             LogSuspiciousActivity(SendingPlayer, TEXT("HMAC verification failed"));
@@ -1170,40 +1224,66 @@ bool USuspenseCoreEquipmentNetworkService::CheckIPRateLimit(const FString& IPAdd
     return true;
 }
 
+bool USuspenseCoreEquipmentNetworkService::IsNonceUsed(uint64 Nonce) const
+{
+    if (!NonceCache.IsValid())
+    {
+        return false;
+    }
+    return NonceCache->Contains(Nonce);
+}
+
 bool USuspenseCoreEquipmentNetworkService::MarkNonceAsPending(uint64 Nonce)
 {
-    if (ProcessedNonces.Contains(Nonce))
+    if (!NonceCache.IsValid())
     {
-        RECORD_SERVICE_METRIC("nonce_replay_attempt", 1);
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("NonceCache not initialized"));
         return false;
     }
-    if (PendingNonces.Contains(Nonce))
+
+    // LRU cache handles both processed and pending nonces
+    if (!NonceCache->AddPending(Nonce, SecurityConfig.NonceLifetime))
     {
-        RECORD_SERVICE_METRIC("nonce_duplicate", 1);
+        // Nonce already exists (replay attack or duplicate)
+        if (NonceCache->IsConfirmed(Nonce))
+        {
+            RECORD_SERVICE_METRIC("nonce_replay_attempt", 1);
+        }
+        else
+        {
+            RECORD_SERVICE_METRIC("nonce_duplicate", 1);
+        }
         return false;
     }
-    PendingNonces.Add(Nonce, FPlatformTime::Seconds());
+
     RECORD_SERVICE_METRIC("nonce_marked_pending", 1);
     return true;
 }
 
 bool USuspenseCoreEquipmentNetworkService::ConfirmNonce(uint64 Nonce)
 {
-    if (!PendingNonces.Contains(Nonce))
+    if (!NonceCache.IsValid())
     {
         RECORD_SERVICE_METRIC("nonce_not_pending", 1);
         return false;
     }
-    PendingNonces.Remove(Nonce);
-    ProcessedNonces.Add(Nonce);
-    NonceExpiryQueue.Enqueue(TPair<uint64, float>(Nonce, FPlatformTime::Seconds() + SecurityConfig.NonceLifetime));
+
+    if (!NonceCache->Confirm(Nonce))
+    {
+        RECORD_SERVICE_METRIC("nonce_not_pending", 1);
+        return false;
+    }
+
     RECORD_SERVICE_METRIC("nonce_confirmed", 1);
     return true;
 }
 
 void USuspenseCoreEquipmentNetworkService::RejectNonce(uint64 Nonce)
 {
-    PendingNonces.Remove(Nonce);
+    if (NonceCache.IsValid())
+    {
+        NonceCache->Reject(Nonce);
+    }
     RECORD_SERVICE_METRIC("nonce_rejected", 1);
 }
 
@@ -1222,24 +1302,28 @@ uint64 USuspenseCoreEquipmentNetworkService::GenerateSecureNonce()
 
     if (Nonce == 0) { Nonce = 1; }
 
-    int32 Attempts = 0;
-    const int32 MaxAttempts = 100;
-    while ((ProcessedNonces.Contains(Nonce) || PendingNonces.Contains(Nonce)) && Attempts < MaxAttempts)
+    // Use LRU cache for collision detection
+    if (NonceCache.IsValid())
     {
-        FGuid NewGuid = FGuid::NewGuid();
-        Nonce ^= ((uint64)NewGuid.A << 32) | (uint64)NewGuid.B;
-        Nonce ^= (uint64)FPlatformTime::Cycles64();
-        if (Nonce == 0) { Nonce = 1; }
-        Attempts++;
-    }
-    if (Attempts >= MaxAttempts)
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Nonce generation collision detected after %d attempts"), MaxAttempts);
-        RECORD_SERVICE_METRIC("nonce_collision_detected", 1);
-        while (ProcessedNonces.Contains(Nonce) || PendingNonces.Contains(Nonce))
+        int32 Attempts = 0;
+        const int32 MaxAttempts = 100;
+        while (NonceCache->Contains(Nonce) && Attempts < MaxAttempts)
         {
-            Nonce++;
+            FGuid NewGuid = FGuid::NewGuid();
+            Nonce ^= ((uint64)NewGuid.A << 32) | (uint64)NewGuid.B;
+            Nonce ^= (uint64)FPlatformTime::Cycles64();
             if (Nonce == 0) { Nonce = 1; }
+            Attempts++;
+        }
+        if (Attempts >= MaxAttempts)
+        {
+            UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Nonce generation collision detected after %d attempts"), MaxAttempts);
+            RECORD_SERVICE_METRIC("nonce_collision_detected", 1);
+            while (NonceCache->Contains(Nonce))
+            {
+                Nonce++;
+                if (Nonce == 0) { Nonce = 1; }
+            }
         }
     }
     return Nonce;
@@ -1247,12 +1331,38 @@ uint64 USuspenseCoreEquipmentNetworkService::GenerateSecureNonce()
 
 FString USuspenseCoreEquipmentNetworkService::GenerateRequestHMAC(const FNetworkOperationRequest& Request) const
 {
-    return Request.GenerateHMAC(HMACSecretKey);
+    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Cannot generate HMAC: SecureKeyStorage not initialized"));
+        return FString();
+    }
+
+    // Use scoped access for automatic secure cleanup
+    FScopedKeyAccess KeyAccess(*SecureKeyStorage);
+    if (!KeyAccess.IsValid())
+    {
+        return FString();
+    }
+
+    return Request.GenerateHMAC(KeyAccess.GetKey());
 }
 
 bool USuspenseCoreEquipmentNetworkService::VerifyRequestHMAC(const FNetworkOperationRequest& Request) const
 {
-    return Request.VerifyHMAC(HMACSecretKey);
+    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Cannot verify HMAC: SecureKeyStorage not initialized"));
+        return false;
+    }
+
+    // Use scoped access for automatic secure cleanup
+    FScopedKeyAccess KeyAccess(*SecureKeyStorage);
+    if (!KeyAccess.IsValid())
+    {
+        return false;
+    }
+
+    return Request.VerifyHMAC(KeyAccess.GetKey());
 }
 
 void USuspenseCoreEquipmentNetworkService::CleanExpiredNonces()
@@ -1263,42 +1373,13 @@ void USuspenseCoreEquipmentNetworkService::CleanExpiredNonces()
     float CurrentTime = FPlatformTime::Seconds();
     int32 CleanedCount = 0;
 
-    while (!NonceExpiryQueue.IsEmpty())
+    // Use LRU cache's built-in expiration cleanup
+    if (NonceCache.IsValid())
     {
-        TPair<uint64, float> Item;
-        if (NonceExpiryQueue.Peek(Item))
-        {
-            if (Item.Value < CurrentTime)
-            {
-                NonceExpiryQueue.Dequeue(Item);
-                ProcessedNonces.Remove(Item.Key);
-                CleanedCount++;
-            }
-            else
-            {
-                break;
-            }
-        }
-        else
-        {
-            break;
-        }
+        CleanedCount = NonceCache->CleanExpired();
     }
 
-    TArray<uint64> ExpiredPendingNonces;
-    for (const auto& Pair : PendingNonces)
-    {
-        if ((CurrentTime - Pair.Value) > 5.0f)
-        {
-            ExpiredPendingNonces.Add(Pair.Key);
-        }
-    }
-    for (uint64 Nonce : ExpiredPendingNonces)
-    {
-        PendingNonces.Remove(Nonce);
-        CleanedCount++;
-    }
-
+    // Clean up rate limit data
     TArray<FGuid> PlayersToRemove;
     for (auto& Pair : RateLimitPerPlayer)
     {
@@ -1546,139 +1627,119 @@ void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
 
 void USuspenseCoreEquipmentNetworkService::InitializeSecurity()
 {
+    // Initialize rate limiting maps
     RateLimitPerPlayer.Reserve(100);
     RateLimitPerIP.Reserve(200);
-    ProcessedNonces.Reserve(1000);
-    PendingNonces.Reserve(100);
+
+    // Initialize LRU nonce cache with configurable capacity and TTL
+    // Default: 10,000 nonces, 5 minute TTL
+    NonceCache = MakeUnique<FSuspenseNonceLRUCache>(
+        10000,                          // Max capacity
+        SecurityConfig.NonceLifetime    // TTL from config
+    );
+
+    // Initialize secure key storage with memory obfuscation
+    SecureKeyStorage = MakeUnique<FSuspenseSecureKeyStorage>();
 
     RECORD_SERVICE_METRIC("security_initialized", 1);
 
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security subsystems initialized with enhanced protection"));
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
+        TEXT("Security subsystems initialized: LRU NonceCache (capacity=%d, TTL=%.0fs), SecureKeyStorage (obfuscated)"),
+        NonceCache->GetMaxCapacity(), SecurityConfig.NonceLifetime);
 }
 
 void USuspenseCoreEquipmentNetworkService::ShutdownSecurity()
 {
+    FScopeLock Lock(&SecurityLock);
+
     // Во время engine exit - минимальная очистка
     if (IsEngineExitRequested())
     {
         // Только очистка локальных данных без логирования
-        FScopeLock Lock(&SecurityLock);
         RateLimitPerPlayer.Empty();
         RateLimitPerIP.Empty();
-        ProcessedNonces.Empty();
-        PendingNonces.Empty();
         SuspiciousActivityCount.Empty();
 
-        while (!NonceExpiryQueue.IsEmpty())
+        // Secure cleanup of LRU nonce cache
+        if (NonceCache.IsValid())
         {
-            TPair<uint64, float> Item;
-            NonceExpiryQueue.Dequeue(Item);
+            NonceCache->Clear();
+            NonceCache.Reset();
         }
 
-        HMACSecretKey.Empty();
+        // Secure cleanup of key storage (zeroes memory)
+        if (SecureKeyStorage.IsValid())
+        {
+            SecureKeyStorage->ClearKey();
+            SecureKeyStorage.Reset();
+        }
+
         return;
     }
 
     // Нормальный shutdown с логированием
-    FScopeLock Lock(&SecurityLock);
-
     FString FinalReport = SecurityMetrics.ToString();
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Final Security Report:\n%s"), *FinalReport);
 
+    // Log nonce cache stats before cleanup
+    if (NonceCache.IsValid())
+    {
+        FSuspenseNonceCacheStats CacheStats = NonceCache->GetStats();
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Nonce Cache Final Stats: %s"), *CacheStats.ToString());
+    }
+
     RateLimitPerPlayer.Empty();
     RateLimitPerIP.Empty();
-    ProcessedNonces.Empty();
-    PendingNonces.Empty();
     SuspiciousActivityCount.Empty();
 
-    while (!NonceExpiryQueue.IsEmpty())
+    // Secure cleanup of LRU nonce cache
+    if (NonceCache.IsValid())
     {
-        TPair<uint64, float> Item;
-        NonceExpiryQueue.Dequeue(Item);
+        NonceCache->Clear();
+        NonceCache.Reset();
     }
 
-    HMACSecretKey.Empty();
+    // Secure cleanup of key storage (zeroes memory before deallocation)
+    if (SecureKeyStorage.IsValid())
+    {
+        SecureKeyStorage->ClearKey();
+        SecureKeyStorage.Reset();
+    }
 
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security subsystems shutdown complete"));
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security subsystems shutdown complete (memory securely zeroed)"));
 }
 
-FString USuspenseCoreEquipmentNetworkService::LoadHMACKeyFromSecureStorage()
+bool USuspenseCoreEquipmentNetworkService::LoadHMACKey()
 {
-    FString Key;
-
-    if (GConfig)
+    if (!SecureKeyStorage.IsValid())
     {
-        FString EncryptedKey;
-        if (GConfig->GetString(TEXT("NetworkSecurity.Keys"), TEXT("HMACSecret"), EncryptedKey, GGameIni))
-        {
-            Key = EncryptedKey;
-        }
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("SecureKeyStorage not initialized"));
+        return false;
     }
 
-    if (Key.IsEmpty())
+    // Try to load from secure sources (env var, config, file)
+    if (SecureKeyStorage->LoadFromSecureSources())
     {
-        FString EnvValue = FPlatformMisc::GetEnvironmentVariable(TEXT("MEDCOM_HMAC_KEY"));
-        if (!EnvValue.IsEmpty())
-        {
-            Key = EnvValue;
-        }
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
+            TEXT("HMAC key loaded from secure sources into obfuscated storage"));
+        RECORD_SERVICE_METRIC("hmac_key_loaded_existing", 1);
+        return true;
     }
 
-    if (Key.IsEmpty())
-    {
-        FString SecureKeyPath = FPaths::ProjectSavedDir() / TEXT("Config/Secure/hmac.key");
+    // No key found - generate a new one
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
+        TEXT("No HMAC key found in secure sources, generating new 64-character key"));
 
-        if (FPaths::FileExists(SecureKeyPath))
-        {
-            FFileHelper::LoadFileToString(Key, *SecureKeyPath);
-            Key = Key.TrimStartAndEnd();
-        }
+    if (!SecureKeyStorage->GenerateNewKey(64))
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to generate new HMAC key"));
+        RECORD_SERVICE_METRIC("hmac_key_generation_failed", 1);
+        return false;
     }
 
-    if (Key.IsEmpty())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("No HMAC key found, generating new secure key"));
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
+        TEXT("Generated and stored new HMAC key with memory obfuscation"));
+    RECORD_SERVICE_METRIC("hmac_key_generated_new", 1);
 
-        FString KeyPart1 = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-        FString KeyPart2 = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-        Key = KeyPart1 + KeyPart2;
-
-        uint64 SystemEntropy = FPlatformTime::Cycles64() ^ (uint64)FPlatformProcess::GetCurrentProcessId();
-        Key += FString::Printf(TEXT("%016llx"), SystemEntropy);
-
-        if (Key.Len() > 64)
-        {
-            Key = Key.Left(64);
-        }
-
-        FString SecureKeyPath = FPaths::ProjectSavedDir() / TEXT("Config/Secure/hmac.key");
-        FString SecureDir     = FPaths::GetPath(SecureKeyPath);
-        if (!FPaths::DirectoryExists(SecureDir))
-        {
-            FPlatformFileManager::Get().GetPlatformFile().CreateDirectoryTree(*SecureDir);
-        }
-
-        if (!FFileHelper::SaveStringToFile(Key, *SecureKeyPath))
-        {
-            UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to save HMAC key to secure storage"));
-        }
-        else
-        {
-            UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Generated and saved new HMAC key to secure storage"));
-
-            if (GConfig)
-            {
-                GConfig->SetString(TEXT("NetworkSecurity.Keys"), TEXT("HMACSecret"), *Key, GGameIni);
-                GConfig->Flush(false, GGameIni);
-            }
-        }
-    }
-
-    if (Key.Len() < 32)
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("HMAC key is too short (%d chars), security compromised!"), Key.Len());
-        RECORD_SERVICE_METRIC("hmac_key_too_short", 1);
-    }
-
-    return Key;
+    return true;
 }

@@ -9,6 +9,8 @@
 #include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Security/SuspenseSecureKeyStorage.h"
+#include "SuspenseCore/Security/SuspenseNonceLRUCache.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
@@ -365,14 +367,16 @@ private:
     TMap<FGuid, FRateLimitData> RateLimitPerPlayer;
     TMap<FString, FRateLimitData> RateLimitPerIP;
 
-    // Security: replay protection
-    TSet<uint64> ProcessedNonces;
-    TMap<uint64, float> PendingNonces;
-    TQueue<TPair<uint64, float>> NonceExpiryQueue;
+    // Security: replay protection using LRU cache with TTL
+    // Replaces unbounded TSet<uint64> ProcessedNonces
+    TUniquePtr<FSuspenseNonceLRUCache> NonceCache;
+
+    // Suspicious activity tracking
     TMap<FString, int32> SuspiciousActivityCount;
 
-    // Security: HMAC secret key
-    FString HMACSecretKey;
+    // Security: HMAC secret key with memory obfuscation
+    // Replaces plain FString HMACSecretKey
+    TUniquePtr<FSuspenseSecureKeyStorage> SecureKeyStorage;
 
     // Thread safety
     mutable FCriticalSection SecurityLock;
@@ -434,13 +438,48 @@ private:
     FGuid CreatePlayerGuid(const FUniqueNetIdRepl& UniqueId) const;
     bool CheckRateLimit(const FGuid& PlayerGuid, APlayerController* PlayerController);
     bool CheckIPRateLimit(const FString& IPAddress);
+
+    /**
+     * Check if nonce exists in cache (replay attack detection)
+     * Uses LRU cache instead of unbounded TSet
+     */
+    bool IsNonceUsed(uint64 Nonce) const;
+
+    /**
+     * Mark nonce as pending in LRU cache
+     */
     bool MarkNonceAsPending(uint64 Nonce);
+
+    /**
+     * Confirm a pending nonce
+     */
     bool ConfirmNonce(uint64 Nonce);
+
+    /**
+     * Reject/remove a pending nonce
+     */
     void RejectNonce(uint64 Nonce);
+
+    /**
+     * Generate cryptographically secure nonce
+     */
     uint64 GenerateSecureNonce();
+
+    /**
+     * Generate HMAC using secure key storage
+     */
     FString GenerateRequestHMAC(const FNetworkOperationRequest& Request) const;
+
+    /**
+     * Verify HMAC using secure key storage
+     */
     bool VerifyRequestHMAC(const FNetworkOperationRequest& Request) const;
+
+    /**
+     * Clean expired nonces from LRU cache
+     */
     void CleanExpiredNonces();
+
     void LogSuspiciousActivity(APlayerController* PlayerController, const FString& Reason);
     FString GetPlayerIdentifier(APlayerController* PlayerController) const;
     FString GetIPAddress(APlayerController* PlayerController) const;
@@ -448,7 +487,20 @@ private:
     void UpdateSecurityMetrics(double StartTime);
     void ExportMetricsPeriodically();
     void AdaptNetworkStrategies();
+
+    /**
+     * Initialize security subsystems (SecureKeyStorage, NonceCache)
+     */
     void InitializeSecurity();
+
+    /**
+     * Shutdown security subsystems with secure memory cleanup
+     */
     void ShutdownSecurity();
-    FString LoadHMACKeyFromSecureStorage();
+
+    /**
+     * Load HMAC key using SecureKeyStorage
+     * @return true if key loaded or generated successfully
+     */
+    bool LoadHMACKey();
 };

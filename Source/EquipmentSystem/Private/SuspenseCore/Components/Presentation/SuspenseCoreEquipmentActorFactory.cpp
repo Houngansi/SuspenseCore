@@ -41,6 +41,9 @@ void USuspenseCoreEquipmentActorFactory::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Initialize EventBus integration
+    SetupEventBus();
+
     USuspenseCoreEquipmentServiceLocator* Locator = USuspenseCoreEquipmentServiceLocator::Get(this);
     if (Locator)
     {
@@ -356,6 +359,9 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     Result.bSuccess = true;
     Result.SpawnedActor = SpawnedActor;
 
+    // Broadcast event via EventBus for inter-component communication
+    BroadcastActorSpawned(SpawnedActor, EnrichedInstance.ItemID, SlotIndex);
+
     UE_LOG(LogEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓✓✓ SUCCESS ✓✓✓"));
     UE_LOG(LogEquipmentOperation, Log,
@@ -375,6 +381,16 @@ bool USuspenseCoreEquipmentActorFactory::DestroyEquipmentActor(AActor* Actor, bo
     {
         return false;
     }
+
+    // Get ItemId from pool entry before unregistering (for EventBus broadcast)
+    FName ItemId = NAME_None;
+    if (const FActorPoolEntry* Entry = FindPoolEntry(Actor))
+    {
+        ItemId = Entry->ItemId;
+    }
+
+    // Broadcast event via EventBus before destroying
+    BroadcastActorDestroyed(Actor, ItemId);
 
     // Unregister from registry
     UnregisterActor(Actor);
@@ -948,4 +964,71 @@ void USuspenseCoreEquipmentActorFactory::LogFactoryOperation(const FString& Oper
 {
     // Категория логов актуализирована под EquipmentServiceMacros.h
     UE_LOG(LogEquipmentOperation, Verbose, TEXT("[EquipmentActorFactory] %s: %s"), *Operation, *Details);
+}
+
+// ============================================================================
+// EventBus Integration
+// ============================================================================
+
+void USuspenseCoreEquipmentActorFactory::SetupEventBus()
+{
+    using namespace SuspenseCoreEquipmentTags;
+
+    // Get EventBus singleton
+    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    if (!EventBus.IsValid())
+    {
+        UE_LOG(LogEquipmentOperation, Warning,
+            TEXT("[ActorFactory] EventBus not available"));
+        return;
+    }
+
+    // Initialize event tags using native compile-time tags
+    Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
+    Tag_Visual_Destroyed = Event::TAG_Equipment_Event_Visual_Detached;
+
+    UE_LOG(LogEquipmentOperation, Log,
+        TEXT("[ActorFactory] EventBus integration initialized"));
+}
+
+void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, const FName& ItemId, int32 SlotIndex)
+{
+    auto Bus = EventBus.Pin();
+    if (!Bus.IsValid() || !Tag_Visual_Spawned.IsValid())
+    {
+        return;
+    }
+
+    FSuspenseCoreEquipmentEventData EventData;
+    EventData.EventType = Tag_Visual_Spawned;
+    EventData.Target = Actor;
+    EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());
+    EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(SlotIndex));
+    EventData.AddMetadata(TEXT("ActorClass"), Actor ? Actor->GetClass()->GetName() : TEXT("None"));
+
+    Bus->Broadcast(EventData);
+
+    UE_LOG(LogEquipmentOperation, Verbose,
+        TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Slot=%d"),
+        *ItemId.ToString(), SlotIndex);
+}
+
+void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, const FName& ItemId)
+{
+    auto Bus = EventBus.Pin();
+    if (!Bus.IsValid() || !Tag_Visual_Destroyed.IsValid())
+    {
+        return;
+    }
+
+    FSuspenseCoreEquipmentEventData EventData;
+    EventData.EventType = Tag_Visual_Destroyed;
+    EventData.Target = Actor;
+    EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());
+
+    Bus->Broadcast(EventData);
+
+    UE_LOG(LogEquipmentOperation, Verbose,
+        TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s"),
+        *ItemId.ToString());
 }

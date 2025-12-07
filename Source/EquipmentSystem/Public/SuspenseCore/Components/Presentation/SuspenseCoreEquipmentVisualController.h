@@ -9,7 +9,7 @@
 #include "Curves/CurveFloat.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
-#include "Interfaces/Equipment/ISuspenseVisualProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
@@ -200,7 +200,7 @@ struct FSuspenseCoreVisualControllerConfig
  * Equipment Visual Controller — SRP: только визуал (материалы/эффекты/анимации).
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentVisualController : public UActorComponent, public ISuspenseVisualProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentVisualController : public UActorComponent, public ISuspenseCoreVisualProvider
 {
 	GENERATED_BODY()
 
@@ -213,7 +213,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent
 
-	//~ ISuspenseVisualProvider
+	//~ ISuspenseCoreVisualProvider
 	virtual FGuid ApplyVisualEffect(AActor* Equipment, const FEquipmentVisualEffect& Effect) override;
 	virtual bool RemoveVisualEffect(const FGuid& EffectId) override;
 	virtual bool ApplyMaterialOverride(AActor* Equipment, const FEquipmentMaterialOverride& Override) override;
@@ -221,7 +221,7 @@ public:
 	virtual void UpdateWearState(AActor* Equipment, float WearPercent) override;
 	virtual void SetHighlighted(AActor* Equipment, bool bHighlighted, const FLinearColor& HighlightColor = FLinearColor::White) override;
 	virtual bool PlayEquipmentAnimation(AActor* Equipment, const FGameplayTag& AnimationTag) override;
-	//~ End ISuspenseVisualProvider
+	//~ End ISuspenseCoreVisualProvider
 
 	/** Применить профиль визуала по StateTag (качество берётся из текущего уровня качества контроллера) */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Visual")

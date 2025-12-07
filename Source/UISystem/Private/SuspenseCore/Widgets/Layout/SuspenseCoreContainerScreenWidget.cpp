@@ -1,5 +1,6 @@
 // SuspenseCoreContainerScreenWidget.cpp
 // SuspenseCore - Main Container Screen Widget Implementation
+// AAA Pattern: Copied from legacy SuspenseCharacterScreen with EventBus
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
@@ -18,16 +19,25 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
 //==================================================================
-// Constructor
+// Constructor (like legacy SuspenseCharacterScreen)
 //==================================================================
 
 USuspenseCoreContainerScreenWidget::USuspenseCoreContainerScreenWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, CloseKey(EKeys::Escape)
+	, bRememberLastPanel(true)
+	, bIsActive(false)
 	, DragGhostOffset(FVector2D::ZeroVector)
 {
+	// Set default screen tag (like legacy ScreenTag = UI.Screen.Character)
+	ScreenTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Screen.Container"), false);
+
+	// Default to first panel (will be set from config)
+	DefaultPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Inventory"), false);
 }
 
 //==================================================================
@@ -47,18 +57,12 @@ void USuspenseCoreContainerScreenWidget::NativeConstruct()
 	// Cache UIManager reference
 	CachedUIManager = USuspenseCoreUIManager::Get(this);
 
-	// Bind to UIManager events
+	// Bind to EventBus events
 	BindToUIManager();
 
-	// Set up input mode for UI
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = true;
-	}
+	// Log initialization (like legacy)
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] NativeConstruct completed. PanelSwitcher=%s"),
+		PanelSwitcher ? TEXT("OK") : TEXT("NULL"));
 }
 
 void USuspenseCoreContainerScreenWidget::CreateDefaultLayoutIfNeeded()
@@ -167,6 +171,12 @@ void USuspenseCoreContainerScreenWidget::CreateDefaultLayoutIfNeeded()
 
 void USuspenseCoreContainerScreenWidget::NativeDestruct()
 {
+	// Clear refresh timer
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(RefreshTimerHandle);
+	}
+
 	// Unbind from UIManager events
 	UnbindFromUIManager();
 
@@ -197,6 +207,8 @@ void USuspenseCoreContainerScreenWidget::NativeDestruct()
 		DragGhostWidget->RemoveFromParent();
 		DragGhostWidget = nullptr;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] NativeDestruct completed"));
 
 	Super::NativeDestruct();
 }
@@ -609,7 +621,183 @@ void USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent(FGameplayTag Event
 	FGameplayTag PanelTag = FGameplayTag::RequestGameplayTag(FName(*PanelTagString), false);
 	if (PanelTag.IsValid())
 	{
-		UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Received panel selected event - %s"), *PanelTag.ToString());
+		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Received panel selected event - %s"), *PanelTag.ToString());
 		SwitchToPanel(PanelTag);
 	}
+}
+
+//==================================================================
+// Screen Activation (from legacy SuspenseCharacterScreen)
+//==================================================================
+
+void USuspenseCoreContainerScreenWidget::ActivateScreen()
+{
+	if (bIsActive)
+	{
+		return;
+	}
+
+	bIsActive = true;
+
+	// Determine which panel to open (like legacy OpenTabByTag logic)
+	FGameplayTag PanelToOpen = DefaultPanelTag;
+
+	if (bRememberLastPanel && LastOpenedPanel.IsValid())
+	{
+		PanelToOpen = LastOpenedPanel;
+	}
+
+	// Open the panel
+	if (PanelToOpen.IsValid())
+	{
+		OpenPanelByTag(PanelToOpen);
+	}
+
+	// Set input mode (like legacy UpdateInputMode)
+	UpdateInputMode();
+
+	// Call Blueprint event
+	K2_OnContainerScreenOpened();
+
+	// Publish screen opened event via EventBus
+	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Opened")));
+
+	// Force refresh active panel content after a short delay (like legacy)
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(RefreshTimerHandle, [this]()
+		{
+			RefreshScreenContent();
+		}, 0.2f, false);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Activated - Panel: %s"),
+		PanelToOpen.IsValid() ? *PanelToOpen.ToString() : TEXT("None"));
+}
+
+void USuspenseCoreContainerScreenWidget::DeactivateScreen()
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	bIsActive = false;
+
+	// Remember current panel if enabled (like legacy LastOpenedTab)
+	if (bRememberLastPanel && ActivePanelTag.IsValid())
+	{
+		LastOpenedPanel = ActivePanelTag;
+	}
+
+	// Restore input mode
+	UpdateInputMode();
+
+	// Call Blueprint event
+	K2_OnContainerScreenClosed();
+
+	// Publish screen closed event via EventBus
+	PublishScreenEvent(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Screen.Closed")));
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Deactivated - Last Panel: %s"),
+		LastOpenedPanel.IsValid() ? *LastOpenedPanel.ToString() : TEXT("None"));
+}
+
+void USuspenseCoreContainerScreenWidget::OpenPanelByTag(const FGameplayTag& PanelTag)
+{
+	if (!PanelSwitcher)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ContainerScreen] No PanelSwitcher found"));
+		return;
+	}
+
+	// Use SelectTabByTag directly (like legacy UpperTabBar->SelectTabByTag)
+	bool bSuccess = PanelSwitcher->SelectTabByTag(PanelTag);
+
+	if (bSuccess)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Successfully opened panel: %s"),
+			*PanelTag.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ContainerScreen] Failed to open panel: %s"),
+			*PanelTag.ToString());
+
+		// Fallback: try to select first tab (like legacy)
+		if (PanelSwitcher->GetTabCount() > 0)
+		{
+			PanelSwitcher->SelectTabByIndex(0);
+			UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Selected first panel as fallback"));
+		}
+	}
+}
+
+void USuspenseCoreContainerScreenWidget::OpenPanelByIndex(int32 PanelIndex)
+{
+	if (PanelSwitcher)
+	{
+		PanelSwitcher->SelectTabByIndex(PanelIndex);
+	}
+}
+
+void USuspenseCoreContainerScreenWidget::RefreshScreenContent()
+{
+	// Refresh active panel content (like legacy RefreshActiveTabContent)
+	if (PanelSwitcher)
+	{
+		PanelSwitcher->RefreshActiveTabContent();
+
+		// Get current panel index and content
+		int32 CurrentIndex = PanelSwitcher->GetSelectedTabIndex();
+		if (CurrentIndex >= 0)
+		{
+			if (UUserWidget* PanelContent = PanelSwitcher->GetTabContent(CurrentIndex))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Refreshed panel content at index %d"),
+					CurrentIndex);
+			}
+		}
+	}
+}
+
+void USuspenseCoreContainerScreenWidget::UpdateInputMode()
+{
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (bIsActive)
+		{
+			// Set UI and game input mode (like legacy)
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = true;
+		}
+		else
+		{
+			// Return to game only mode (like legacy)
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = false;
+		}
+	}
+}
+
+void USuspenseCoreContainerScreenWidget::PublishScreenEvent(const FGameplayTag& EventTag)
+{
+	if (!CachedEventBus.IsValid())
+	{
+		return;
+	}
+
+	// Create event data
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetString(FName("ScreenTag"), ScreenTag.ToString());
+	EventData.SetString(FName("ActivePanelTag"), ActivePanelTag.ToString());
+
+	// Publish via EventBus
+	CachedEventBus->Publish(EventTag, EventData);
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerScreen] Published event: %s"), *EventTag.ToString());
 }

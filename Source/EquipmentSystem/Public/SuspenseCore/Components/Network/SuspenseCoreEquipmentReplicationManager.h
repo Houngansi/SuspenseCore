@@ -14,33 +14,33 @@
 class USuspenseCoreEquipmentNetworkService;
 
 USTRUCT()
-struct FReplicatedSlotItem : public FFastArraySerializerItem
+struct FSuspenseCoreReplicatedSlotItem : public FFastArraySerializerItem
 {
     GENERATED_BODY()
     UPROPERTY() int32 SlotIndex=INDEX_NONE;
     UPROPERTY() FSuspenseCoreInventoryItemInstance ItemInstance;
     UPROPERTY() uint32 ItemVersion=0;
     UPROPERTY() FString ItemHMAC;
-    void PreReplicatedRemove(const struct FReplicatedSlotArray& InArraySerializer);
-    void PostReplicatedAdd(const struct FReplicatedSlotArray& InArraySerializer);
-    void PostReplicatedChange(const struct FReplicatedSlotArray& InArraySerializer);
+    void PreReplicatedRemove(const struct FSuspenseCoreReplicatedSlotArray& InArraySerializer);
+    void PostReplicatedAdd(const struct FSuspenseCoreReplicatedSlotArray& InArraySerializer);
+    void PostReplicatedChange(const struct FSuspenseCoreReplicatedSlotArray& InArraySerializer);
 };
 
 USTRUCT()
-struct FReplicatedSlotArray : public FFastArraySerializer
+struct FSuspenseCoreReplicatedSlotArray : public FFastArraySerializer
 {
     GENERATED_BODY()
-    UPROPERTY() TArray<FReplicatedSlotItem> Items;
+    UPROPERTY() TArray<FSuspenseCoreReplicatedSlotItem> Items;
     UPROPERTY(NotReplicated) class USuspenseCoreEquipmentReplicationManager* OwnerManager=nullptr;
-    bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms){return FFastArraySerializer::FastArrayDeltaSerialize<FReplicatedSlotItem,FReplicatedSlotArray>(Items,DeltaParms,*this);}
+    bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms){return FFastArraySerializer::FastArrayDeltaSerialize<FSuspenseCoreReplicatedSlotItem,FSuspenseCoreReplicatedSlotArray>(Items,DeltaParms,*this);}
     void PostReplicatedAdd(const TArrayView<int32>& AddedIndices,int32 FinalSize);
     void PostReplicatedChange(const TArrayView<int32>& ChangedIndices,int32 FinalSize);
     void PreReplicatedRemove(const TArrayView<int32>& RemovedIndices,int32 FinalSize);
 };
-template<> struct TStructOpsTypeTraits<FReplicatedSlotArray> : public TStructOpsTypeTraitsBase2<FReplicatedSlotArray>{enum{WithNetDeltaSerializer=true};};
+template<> struct TStructOpsTypeTraits<FSuspenseCoreReplicatedSlotArray> : public TStructOpsTypeTraitsBase2<FSuspenseCoreReplicatedSlotArray>{enum{WithNetDeltaSerializer=true};};
 
 USTRUCT()
-struct FSlotReplicationState
+struct FSuspenseCoreSlotReplicationState
 {
     GENERATED_BODY()
     UPROPERTY() int32 SlotIndex=INDEX_NONE;
@@ -53,7 +53,7 @@ struct FSlotReplicationState
 };
 
 USTRUCT()
-struct FClientReplicationState
+struct FSuspenseCoreClientReplicationState
 {
     GENERATED_BODY()
     UPROPERTY() APlayerController* Client=nullptr;
@@ -67,7 +67,7 @@ struct FClientReplicationState
 };
 
 USTRUCT()
-struct FReplicationDeltaMask
+struct FSuspenseCoreReplicationDeltaMask
 {
     GENERATED_BODY()
     UPROPERTY() TArray<uint32> DirtySlotIndices;
@@ -80,7 +80,7 @@ struct FReplicationDeltaMask
 };
 
 USTRUCT()
-struct FCompressedReplicationData
+struct FSuspenseCoreCompressedReplicationData
 {
     GENERATED_BODY()
     UPROPERTY() uint8 CompressionType=0;
@@ -91,7 +91,7 @@ struct FCompressedReplicationData
 };
 
 USTRUCT(BlueprintType)
-struct FReplicationStatistics
+struct FSuspenseCoreReplicationStatistics
 {
     GENERATED_BODY()
     UPROPERTY(BlueprintReadOnly) int32 TotalUpdates=0;
@@ -141,7 +141,7 @@ public:
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Replication")
     void OnNetworkQualityUpdated(float Quality);
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Replication")
-    FReplicationStatistics GetStatistics()const{return Statistics;}
+    FSuspenseCoreReplicationStatistics GetStatistics()const{return Statistics;}
 
     DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataReplicated,APlayerController*,const FReplicatedEquipmentData&);
     FOnDataReplicated OnDataReplicated;
@@ -150,15 +150,15 @@ public:
     DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplicatedStateApplied,const FReplicatedEquipmentData&);
     FOnReplicatedStateApplied OnReplicatedStateApplied;
 
-    friend struct FReplicatedSlotItem;
-    friend struct FReplicatedSlotArray;
+    friend struct FSuspenseCoreReplicatedSlotItem;
+    friend struct FSuspenseCoreReplicatedSlotArray;
 protected:
-    UPROPERTY(ReplicatedUsing=OnRep_SlotArray) FReplicatedSlotArray ReplicatedSlotArray;
+    UPROPERTY(ReplicatedUsing=OnRep_SlotArray) FSuspenseCoreReplicatedSlotArray ReplicatedSlotArray;
     UPROPERTY(ReplicatedUsing=OnRep_Version) uint32 CurrentVersion=0;
     UPROPERTY(ReplicatedUsing=OnRep_ActiveWeaponSlot) int32 ReplicatedActiveWeaponSlot=INDEX_NONE;
     UPROPERTY(ReplicatedUsing=OnRep_EquipmentState) FGameplayTag ReplicatedEquipmentState;
-    UPROPERTY(Replicated) FCompressedReplicationData CompressedData;
-    UPROPERTY() FReplicationDeltaMask CurrentDeltaMask;
+    UPROPERTY(Replicated) FSuspenseCoreCompressedReplicationData CompressedData;
+    UPROPERTY() FSuspenseCoreReplicationDeltaMask CurrentDeltaMask;
 
     UFUNCTION() void OnRep_SlotArray();
     UFUNCTION() void OnRep_Version();
@@ -166,13 +166,13 @@ protected:
     UFUNCTION() void OnRep_EquipmentState();
 
     void ProcessReplication();
-    void UpdateClientReplication(FClientReplicationState& ClientState);
+    void UpdateClientReplication(FSuspenseCoreClientReplicationState& ClientState);
     FReplicatedEquipmentData BuildReplicationData(APlayerController* Client,bool bForceFull)const;
-    FReplicationDeltaMask BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const;
+    FSuspenseCoreReplicationDeltaMask BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const;
     FString GenerateSlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData)const;
     bool VerifySlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData,const FString& HMACSignature)const;
-    FCompressedReplicationData CompressData(const FReplicatedEquipmentData& Data)const;
-    bool DecompressData(const FCompressedReplicationData& Compressed,FReplicatedEquipmentData& OutData)const;
+    FSuspenseCoreCompressedReplicationData CompressData(const FReplicatedEquipmentData& Data)const;
+    bool DecompressData(const FSuspenseCoreCompressedReplicationData& Compressed,FReplicatedEquipmentData& OutData)const;
     float CalculateEnhancedRelevancy(APlayerController* ViewTarget)const;
     void UpdateSlotPriority(int32 SlotIndex);
     bool SlotNeedsReplication(int32 SlotIndex,uint32 ClientVersion)const;
@@ -195,17 +195,17 @@ private:
     UPROPERTY() USuspenseCoreEquipmentNetworkService* SecurityService=nullptr;
 
     UPROPERTY() EEquipmentReplicationPolicy CurrentPolicy=EEquipmentReplicationPolicy::OnlyToRelevant;
-    UPROPERTY() TArray<FSlotReplicationState> SlotStates;
-    TArray<FClientReplicationState> ClientStates;
+    UPROPERTY() TArray<FSuspenseCoreSlotReplicationState> SlotStates;
+    TArray<FSuspenseCoreClientReplicationState> ClientStates;
     TSet<int32> DirtySlots;
-    TMap<uint32,FReplicationDeltaMask> VersionHistory;
+    TMap<uint32,FSuspenseCoreReplicationDeltaMask> VersionHistory;
     bool bForceFullReplication=false;
     float LastReplicationTime=0.0f;
     float UpdateInterval=0.1f;
     float CurrentNetworkQuality=1.0f;
     int32 DynamicMaxDeltasBeforeFull=10;
 
-    mutable FReplicationStatistics Statistics;
+    mutable FSuspenseCoreReplicationStatistics Statistics;
 
     mutable FCriticalSection SlotStateLock;
     mutable FCriticalSection ClientStateLock;

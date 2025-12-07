@@ -18,7 +18,7 @@
  * Actor pool entry for object pooling
  */
 USTRUCT()
-struct FActorPoolEntry
+struct FSuspenseCoreActorPoolEntry
 {
     GENERATED_BODY()
 
@@ -42,7 +42,7 @@ struct FActorPoolEntry
  * Factory configuration
  */
 USTRUCT(BlueprintType)
-struct FActorFactoryConfig
+struct FSuspenseCoreActorFactoryConfig
 {
     GENERATED_BODY()
 
@@ -110,7 +110,7 @@ public:
 
     /** Set factory configuration */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
-    void SetFactoryConfiguration(const FActorFactoryConfig& NewConfig);
+    void SetFactoryConfiguration(const FSuspenseCoreActorFactoryConfig& NewConfig);
 
     /** Get pool statistics */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
@@ -123,11 +123,11 @@ public:
 protected:
     /** Configuration */
     UPROPERTY(EditAnywhere, Category = "Factory Config")
-    FActorFactoryConfig FactoryConfig;
+    FSuspenseCoreActorFactoryConfig FactoryConfig;
 
     /** Actor pool */
     UPROPERTY()
-    TArray<FActorPoolEntry> ActorPool;
+    TArray<FSuspenseCoreActorPoolEntry> ActorPool;
 
     /** Registry of spawned actors by slot */
     UPROPERTY()
@@ -180,13 +180,13 @@ private:
     TSubclassOf<AActor> GetActorClassForItem(const FName& ItemId);
 
     /** Find pool entry for actor */
-    FActorPoolEntry* FindPoolEntry(AActor* Actor);
+    FSuspenseCoreActorPoolEntry* FindPoolEntry(AActor* Actor);
 
     /** Find available pool entry for class */
-    FActorPoolEntry* FindAvailablePoolEntry(TSubclassOf<AActor> ActorClass);
+    FSuspenseCoreActorPoolEntry* FindAvailablePoolEntry(TSubclassOf<AActor> ActorClass);
 
     /** Create new pool entry */
-    FActorPoolEntry* CreatePoolEntry(TSubclassOf<AActor> ActorClass);
+    FSuspenseCoreActorPoolEntry* CreatePoolEntry(TSubclassOf<AActor> ActorClass);
 
     /** Clean up expired pool entries */
     void CleanupPool();

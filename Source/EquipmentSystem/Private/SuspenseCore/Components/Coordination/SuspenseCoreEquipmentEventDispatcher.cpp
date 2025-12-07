@@ -233,7 +233,7 @@ void USuspenseCoreEquipmentEventDispatcher::FlushBatched()
 	for(const auto& E:Local){Dispatch(E);}
 }
 
-FEventDispatcherStats USuspenseCoreEquipmentEventDispatcher::GetStats()const
+FSuspenseCoreEventDispatcherStats USuspenseCoreEquipmentEventDispatcher::GetStats()const
 {
 	return Stats;
 }

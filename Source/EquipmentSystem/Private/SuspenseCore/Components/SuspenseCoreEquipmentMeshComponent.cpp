@@ -190,7 +190,7 @@ void USuspenseCoreEquipmentMeshComponent::UpdateVisualState(const FSuspenseCoreI
 void USuspenseCoreEquipmentMeshComponent::CleanupVisuals()
 {
     // Stop all active effects
-    for (const FVisualEffectPrediction& Prediction : ActivePredictions)
+    for (const FSuspenseCoreVisualEffectPrediction& Prediction : ActivePredictions)
     {
         StopPredictedEffect(Prediction);
     }
@@ -243,7 +243,7 @@ void USuspenseCoreEquipmentMeshComponent::CleanupVisuals()
 // Visual State Synchronization
 //================================================
 
-void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisualState& NewState, bool bForceUpdate)
+void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FSuspenseCoreEquipmentVisualState& NewState, bool bForceUpdate)
 {
     FScopeLock Lock(&VisualStateCriticalSection);
 
@@ -302,7 +302,7 @@ void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisua
     for (const FGameplayTag& EffectTag : RemovedEffects)
     {
         // Stop effects with this tag
-        ActivePredictions.RemoveAll([EffectTag](const FVisualEffectPrediction& Pred)
+        ActivePredictions.RemoveAll([EffectTag](const FSuspenseCoreVisualEffectPrediction& Pred)
         {
             return Pred.EffectType == EffectTag;
         });
@@ -311,7 +311,7 @@ void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FEquipmentVisua
     UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
 }
 
-bool USuspenseCoreEquipmentMeshComponent::HasVisualStateChanged(const FEquipmentVisualState& OtherState) const
+bool USuspenseCoreEquipmentMeshComponent::HasVisualStateChanged(const FSuspenseCoreEquipmentVisualState& OtherState) const
 {
     FScopeLock Lock(&VisualStateCriticalSection);
     return CurrentVisualState != OtherState;
@@ -543,7 +543,7 @@ FVector USuspenseCoreEquipmentMeshComponent::GetMuzzleDirection() const
 int32 USuspenseCoreEquipmentMeshComponent::PlayMuzzleFlash()
 {
     // Create prediction
-    FVisualEffectPrediction Prediction;
+    FSuspenseCoreVisualEffectPrediction Prediction;
     Prediction.PredictionKey = NextPredictionKey++;
     Prediction.EffectType = FGameplayTag::RequestGameplayTag(TEXT("Effect.Weapon.MuzzleFlash"));
     Prediction.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -658,7 +658,7 @@ void USuspenseCoreEquipmentMeshComponent::SetRarityVisual(const FGameplayTag& Ra
 int32 USuspenseCoreEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTag& EffectType)
 {
     // Create prediction
-    FVisualEffectPrediction Prediction;
+    FSuspenseCoreVisualEffectPrediction Prediction;
     Prediction.PredictionKey = NextPredictionKey++;
     Prediction.EffectType = EffectType;
     Prediction.StartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -706,7 +706,7 @@ int32 USuspenseCoreEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTa
 void USuspenseCoreEquipmentMeshComponent::ConfirmEffectPrediction(int32 PredictionKey, bool bSuccess)
 {
     int32 PredictionIndex = ActivePredictions.IndexOfByPredicate(
-        [PredictionKey](const FVisualEffectPrediction& Pred) { return Pred.PredictionKey == PredictionKey; }
+        [PredictionKey](const FSuspenseCoreVisualEffectPrediction& Pred) { return Pred.PredictionKey == PredictionKey; }
     );
 
     if (PredictionIndex == INDEX_NONE)
@@ -714,7 +714,7 @@ void USuspenseCoreEquipmentMeshComponent::ConfirmEffectPrediction(int32 Predicti
         return;
     }
 
-    FVisualEffectPrediction Prediction = ActivePredictions[PredictionIndex];
+    FSuspenseCoreVisualEffectPrediction Prediction = ActivePredictions[PredictionIndex];
 
     if (!bSuccess)
     {
@@ -844,7 +844,7 @@ UNiagaraComponent* USuspenseCoreEquipmentMeshComponent::PlayVisualEffectAtLocati
     return EffectComp;
 }
 
-void USuspenseCoreEquipmentMeshComponent::ApplyPredictedEffect(const FVisualEffectPrediction& Prediction)
+void USuspenseCoreEquipmentMeshComponent::ApplyPredictedEffect(const FSuspenseCoreVisualEffectPrediction& Prediction)
 {
     // Play appropriate effect based on type
     if (Prediction.EffectType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Effect.Use"))))
@@ -879,12 +879,12 @@ void USuspenseCoreEquipmentMeshComponent::ApplyPredictedEffect(const FVisualEffe
 
         if (UNiagaraComponent* EffectComp = PlayVisualEffectAtLocation(Prediction.EffectType, EffectLocation, EffectRotation))
         {
-            const_cast<FVisualEffectPrediction&>(Prediction).EffectComponent = EffectComp;
+            const_cast<FSuspenseCoreVisualEffectPrediction&>(Prediction).EffectComponent = EffectComp;
         }
     }
 }
 
-void USuspenseCoreEquipmentMeshComponent::StopPredictedEffect(const FVisualEffectPrediction& Prediction)
+void USuspenseCoreEquipmentMeshComponent::StopPredictedEffect(const FSuspenseCoreVisualEffectPrediction& Prediction)
 {
     // Правильное приведение типа с проверкой
     if (USceneComponent* SceneComp = Prediction.EffectComponent.Get())
@@ -933,7 +933,7 @@ void USuspenseCoreEquipmentMeshComponent::CleanupExpiredPredictions()
     const float CurrentTime = GetWorld()->GetTimeSeconds();
 
     // Remove expired predictions
-    ActivePredictions.RemoveAll([this, CurrentTime](const FVisualEffectPrediction& Prediction)
+    ActivePredictions.RemoveAll([this, CurrentTime](const FSuspenseCoreVisualEffectPrediction& Prediction)
     {
         bool bExpired = (CurrentTime - Prediction.StartTime) > Prediction.Duration;
         if (bExpired)

@@ -20,7 +20,7 @@ class USuspenseCoreEventManager;
  * Visual state data for synchronization
  */
 USTRUCT()
-struct FEquipmentVisualState
+struct FSuspenseCoreEquipmentVisualState
 {
     GENERATED_BODY()
 
@@ -72,7 +72,7 @@ struct FEquipmentVisualState
  * Visual effect prediction data
  */
 USTRUCT()
-struct FVisualEffectPrediction
+struct FSuspenseCoreVisualEffectPrediction
 {
     GENERATED_BODY()
 
@@ -151,7 +151,7 @@ public:
   * NOTE: Not Blueprint-callable due to TMap in FEquipmentVisualState
   * @return Current visual state data
   */
- FEquipmentVisualState GetVisualState() const { return CurrentVisualState; }
+ FSuspenseCoreEquipmentVisualState GetVisualState() const { return CurrentVisualState; }
 
  /**
   * Apply visual state from synchronization
@@ -159,7 +159,7 @@ public:
   * @param NewState State to apply
   * @param bForceUpdate Force update even if state appears unchanged
   */
- void ApplyVisualState(const FEquipmentVisualState& NewState, bool bForceUpdate = false);
+ void ApplyVisualState(const FSuspenseCoreEquipmentVisualState& NewState, bool bForceUpdate = false);
 
  /**
   * Check if visual state has changed
@@ -167,7 +167,7 @@ public:
   * @param OtherState State to compare against
   * @return True if states differ
   */
- bool HasVisualStateChanged(const FEquipmentVisualState& OtherState) const;
+ bool HasVisualStateChanged(const FSuspenseCoreEquipmentVisualState& OtherState) const;
 
     //================================================
     // Socket and Transform Management
@@ -413,13 +413,13 @@ protected:
      * Apply predicted effect locally
      * @param Prediction Effect prediction data
      */
-    void ApplyPredictedEffect(const FVisualEffectPrediction& Prediction);
+    void ApplyPredictedEffect(const FSuspenseCoreVisualEffectPrediction& Prediction);
 
     /**
      * Stop predicted effect
      * @param Prediction Effect prediction data
      */
-    void StopPredictedEffect(const FVisualEffectPrediction& Prediction);
+    void StopPredictedEffect(const FSuspenseCoreVisualEffectPrediction& Prediction);
 
 private:
     //================================================
@@ -460,11 +460,11 @@ private:
 
     /** Current visual state */
     UPROPERTY()
-    FEquipmentVisualState CurrentVisualState;
+    FSuspenseCoreEquipmentVisualState CurrentVisualState;
 
     /** Previous visual state for change detection */
     UPROPERTY()
-    FEquipmentVisualState PreviousVisualState;
+    FSuspenseCoreEquipmentVisualState PreviousVisualState;
 
     /** Additional transform offset */
     UPROPERTY()
@@ -483,7 +483,7 @@ private:
 
     /** Active effect predictions */
     UPROPERTY()
-    TArray<FVisualEffectPrediction> ActivePredictions;
+    TArray<FSuspenseCoreVisualEffectPrediction> ActivePredictions;
 
     /** Next prediction key */
     UPROPERTY()

@@ -13,7 +13,7 @@
  * Rules configuration for weight/encumbrance evaluation.
  */
 USTRUCT(BlueprintType)
-struct FMedComWeightConfig
+struct FSuspenseCoreMedComWeightConfig
 {
     GENERATED_BODY()
 
@@ -61,7 +61,7 @@ public:
     USuspenseCoreWeightRulesEngine();
 
     /** Set configuration (copy); thread-safe snapshot usage. */
-    void Initialize(const FMedComWeightConfig& InConfig);
+    void Initialize(const FSuspenseCoreMedComWeightConfig& InConfig);
 
     //==================== Top-level evaluation ====================
 
@@ -126,5 +126,5 @@ protected:
 
 private:
     /** Immutable configuration snapshot (updated via Initialize). */
-    FMedComWeightConfig Configuration;
+    FSuspenseCoreMedComWeightConfig Configuration;
 };

@@ -18,7 +18,7 @@ class ISuspenseCoreEventDispatcher;
 
 /** Record of a granted ability */
 USTRUCT()
-struct FGrantedAbilityRecord
+struct FSuspenseCoreGrantedAbilityRecord
 {
     GENERATED_BODY()
 
@@ -34,7 +34,7 @@ struct FGrantedAbilityRecord
 
 /** Record of an applied gameplay effect */
 USTRUCT()
-struct FAppliedEffectRecord
+struct FSuspenseCoreAppliedEffectRecord
 {
     GENERATED_BODY()
 
@@ -49,7 +49,7 @@ struct FAppliedEffectRecord
 
 /** Managed attribute set info */
 USTRUCT()
-struct FManagedAttributeSet
+struct FSuspenseCoreManagedAttributeSet
 {
     GENERATED_BODY()
 
@@ -121,9 +121,9 @@ private:
     UPROPERTY(EditAnywhere, Category="GAS") bool bServerOnly = true;
 
     /** Runtime tracking */
-    UPROPERTY() TArray<FGrantedAbilityRecord> GrantedAbilities;
-    UPROPERTY() TArray<FAppliedEffectRecord> AppliedEffects;
-    UPROPERTY() TArray<FManagedAttributeSet> ManagedAttributeSets;
+    UPROPERTY() TArray<FSuspenseCoreGrantedAbilityRecord> GrantedAbilities;
+    UPROPERTY() TArray<FSuspenseCoreAppliedEffectRecord> AppliedEffects;
+    UPROPERTY() TArray<FSuspenseCoreManagedAttributeSet> ManagedAttributeSets;
 
     // Stats
     mutable int32 TotalAbilitiesGranted = 0;

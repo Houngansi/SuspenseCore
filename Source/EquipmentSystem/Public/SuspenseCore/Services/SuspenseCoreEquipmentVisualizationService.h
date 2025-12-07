@@ -32,7 +32,7 @@
  * Lightweight state per character (visible instances on slots)
  */
 USTRUCT()
-struct FVisCharState
+struct FSuspenseCoreVisCharState
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ private:
 	TObjectPtr<USuspenseCoreEquipmentServiceLocator> CachedServiceLocator;
 
 	// Lightweight state
-	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FVisCharState> Characters;
+	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FSuspenseCoreVisCharState> Characters;
 
 	// Thread safety - using FRWLock for read-heavy visual queries
 	// Lock ordering: VisualizationService (Level 31) - see SuspenseThreadSafetyPolicy.h

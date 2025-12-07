@@ -25,7 +25,7 @@ struct FDispatcherLocalSubscription
 
 /** Простейшая метрика диспетчера */
 USTRUCT(BlueprintType)
-struct FEventDispatcherStats
+struct FSuspenseCoreEventDispatcherStats
 {
 	GENERATED_BODY()
 	UPROPERTY(VisibleAnywhere)int32 TotalEventsDispatched=0;
@@ -64,7 +64,7 @@ public:
 	// расширения (локальные)
 	void SetBatchModeEnabled(bool bEnabled,float FlushIntervalSec=0.02f,int32 MaxPerTick=256);
 	void FlushBatched();
-	FEventDispatcherStats GetStats()const;
+	FSuspenseCoreEventDispatcherStats GetStats()const;
 	int32 UnsubscribeAll(UObject* Subscriber);
 	void SetDetailedLogging(bool bEnable);
 
@@ -90,7 +90,7 @@ private:
 	mutable FCriticalSection QueueCs;
 
 	// статистика
-	FEventDispatcherStats Stats;
+	FSuspenseCoreEventDispatcherStats Stats;
 	double EMA_AvgMs=0.0;
 
 	// фильтры типов (просто прослойка к EventBus)

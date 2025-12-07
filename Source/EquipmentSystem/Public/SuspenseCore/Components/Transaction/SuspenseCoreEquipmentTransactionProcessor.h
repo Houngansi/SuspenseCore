@@ -17,7 +17,7 @@
  * Transaction savepoint
  */
 USTRUCT()
-struct FTransactionSavepoint
+struct FSuspenseCoreTransactionSavepoint
 {
     GENERATED_BODY()
 
@@ -47,7 +47,7 @@ struct FTransactionSavepoint
  * This is our internal representation with more details than FEquipmentTransaction
  */
 USTRUCT()
-struct FTransactionExecutionContext
+struct FSuspenseCoreTransactionExecutionContext
 {
     GENERATED_BODY()
 
@@ -69,7 +69,7 @@ struct FTransactionExecutionContext
 
     /** Savepoints in this transaction */
     UPROPERTY()
-    TArray<FTransactionSavepoint> Savepoints;
+    TArray<FSuspenseCoreTransactionSavepoint> Savepoints;
 
     /** Transaction metadata */
     UPROPERTY()
@@ -92,7 +92,7 @@ struct FTransactionExecutionContext
  * Transaction validation result
  */
 USTRUCT()
-struct FTransactionValidationResult
+struct FSuspenseCoreTransactionValidationResult
 {
     GENERATED_BODY()
 
@@ -281,7 +281,7 @@ public:
      * @return Validation result
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FTransactionValidationResult ValidateTransactionIntegrity(const FGuid& TransactionId) const;
+    FSuspenseCoreTransactionValidationResult ValidateTransactionIntegrity(const FGuid& TransactionId) const;
 
     /**
      * Check for transaction conflicts
@@ -398,7 +398,7 @@ protected:
      * @param ParentId Parent transaction ID
      * @return New context
      */
-    FTransactionExecutionContext CreateExecutionContext(
+    FSuspenseCoreTransactionExecutionContext CreateExecutionContext(
         const FGuid& TransactionId,
         const FString& Description,
         const FGuid& ParentId = FGuid());
@@ -410,7 +410,7 @@ protected:
      * @param Context Transaction context
      * @return True if committed
      */
-    bool ExecuteCommit(FTransactionExecutionContext& Context);
+    bool ExecuteCommit(FSuspenseCoreTransactionExecutionContext& Context);
 
     /**
      * Execute rollback for transaction
@@ -418,14 +418,14 @@ protected:
      * @param Context Transaction context
      * @return True if rolled back
      */
-    bool ExecuteRollback(FTransactionExecutionContext& Context);
+    bool ExecuteRollback(FSuspenseCoreTransactionExecutionContext& Context);
 
     /**
      * Generate deltas from transaction
      * @param Context Transaction context
      * @return Array of deltas
      */
-    TArray<FEquipmentDelta> GenerateDeltasFromTransaction(const FTransactionExecutionContext& Context) const;
+    TArray<FEquipmentDelta> GenerateDeltasFromTransaction(const FSuspenseCoreTransactionExecutionContext& Context) const;
 
     /**
      * Apply operation to state
@@ -468,8 +468,8 @@ protected:
      * @param TransactionId Transaction ID
      * @return Context pointer or nullptr
      */
-    FTransactionExecutionContext* FindExecutionContext(const FGuid& TransactionId);
-    const FTransactionExecutionContext* FindExecutionContext(const FGuid& TransactionId) const;
+    FSuspenseCoreTransactionExecutionContext* FindExecutionContext(const FGuid& TransactionId);
+    const FSuspenseCoreTransactionExecutionContext* FindExecutionContext(const FGuid& TransactionId) const;
 
     /**
      * Find savepoint in transaction
@@ -477,7 +477,7 @@ protected:
      * @param SavepointId Savepoint ID
      * @return Savepoint pointer or nullptr
      */
-    FTransactionSavepoint* FindSavepoint(FTransactionExecutionContext& Context, const FGuid& SavepointId);
+    FSuspenseCoreTransactionSavepoint* FindSavepoint(FSuspenseCoreTransactionExecutionContext& Context, const FGuid& SavepointId);
 
     /**
      * Cleanup expired transactions
@@ -507,7 +507,7 @@ protected:
      * @param Context Execution context
      * @return Transaction data
      */
-    FEquipmentTransaction ConvertToTransaction(const FTransactionExecutionContext& Context) const;
+    FEquipmentTransaction ConvertToTransaction(const FSuspenseCoreTransactionExecutionContext& Context) const;
 
 private:
     //========================================
@@ -516,7 +516,7 @@ private:
 
     /** Active transactions */
     UPROPERTY()
-    TMap<FGuid, FTransactionExecutionContext> ActiveTransactions;
+    TMap<FGuid, FSuspenseCoreTransactionExecutionContext> ActiveTransactions;
 
     /** Transaction history */
     UPROPERTY()

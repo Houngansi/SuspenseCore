@@ -7,6 +7,8 @@
 #include "Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 #include "Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
+#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Engine/StreamableManager.h"
@@ -147,9 +149,29 @@ protected:
     /** Pool cleanup timer handle */
     FTimerHandle PoolCleanupTimerHandle;
 
+    // ---- EventBus Integration ----
+
+    /** EventBus for decoupled inter-component communication */
+    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+
+    /** Event tags using native compile-time tags */
+    FGameplayTag Tag_Visual_Spawned;
+    FGameplayTag Tag_Visual_Destroyed;
+
 private:
     /** Internal spawn logic */
     AActor* SpawnActorInternal(TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, AActor* Owner);
+
+    // ---- EventBus Helpers ----
+
+    /** Initialize EventBus connection */
+    void SetupEventBus();
+
+    /** Broadcast actor spawned event */
+    void BroadcastActorSpawned(AActor* Actor, const FName& ItemId, int32 SlotIndex);
+
+    /** Broadcast actor destroyed event */
+    void BroadcastActorDestroyed(AActor* Actor, const FName& ItemId);
 
     /** Internal destroy logic */
     void DestroyActorInternal(AActor* Actor, bool bImmediate);

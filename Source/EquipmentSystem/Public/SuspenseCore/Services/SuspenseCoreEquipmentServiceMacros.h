@@ -65,6 +65,17 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentReplication, Log, All);
         FScopeLock ScopeLock_##CS(&(CS))
 #endif
 
+// FRWScopeLock-based macros for read-write locks
+#ifndef EQUIPMENT_RW_READ_LOCK
+    #define EQUIPMENT_RW_READ_LOCK(RWL) \
+        FRWScopeLock RWScopeLock_##RWL(RWL, SLT_ReadOnly)
+#endif
+
+#ifndef EQUIPMENT_RW_WRITE_LOCK
+    #define EQUIPMENT_RW_WRITE_LOCK(RWL) \
+        FRWScopeLock RWScopeLock_##RWL(RWL, SLT_Write)
+#endif
+
 //========================================
 // Service Metrics System
 //========================================

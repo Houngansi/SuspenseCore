@@ -30,7 +30,7 @@ static int32 LexToInt(const FString& S, int32 Default)
 
 bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServiceInitParams& InitParams)
 {
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	if (IsServiceReady())
 	{
@@ -150,7 +150,7 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 
 bool USuspenseCoreEquipmentVisualizationService::ShutdownService(bool /*bForce*/)
 {
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT(">>> VisualizationService: ShutdownService STARTED"));
 
@@ -223,7 +223,7 @@ bool USuspenseCoreEquipmentVisualizationService::ValidateService(TArray<FText>& 
 
 void USuspenseCoreEquipmentVisualizationService::ResetService()
 {
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	TeardownEventHandlers();
 
@@ -250,7 +250,7 @@ void USuspenseCoreEquipmentVisualizationService::ResetService()
 
 FString USuspenseCoreEquipmentVisualizationService::GetServiceStats() const
 {
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_READ_LOCK(VisualLock);  // Read-only access for stats
 
 	int32 CharCount = 0;
 	int32 VisualCount = 0;
@@ -453,7 +453,7 @@ void USuspenseCoreEquipmentVisualizationService::OnSlotSwitched(const FSuspenseC
 	int32 ActiveSlot = INDEX_NONE;
 	TryParseInt(E, TEXT("ActiveSlot"), ActiveSlot);
 
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 	FVisCharState& S = Characters.FindOrAdd(Character);
 	S.ActiveSlot = ActiveSlot;
 }
@@ -496,7 +496,7 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 		return;
 	}
 
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	// 1) Acquire/create visual actor
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
@@ -615,7 +615,7 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 
 void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Character, int32 SlotIndex, bool bInstant)
 {
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	FVisCharState* S = Characters.Find(Character);
 	if (!S) return;
@@ -664,7 +664,7 @@ void USuspenseCoreEquipmentVisualizationService::RefreshAllVisuals(AActor* Chara
 
 	// Refresh quality for current visuals
 	{
-		EQUIPMENT_CRITICAL_LOCK(VisualLock);
+		EQUIPMENT_RW_READ_LOCK(VisualLock);  // Read-only access for quality refresh
 		if (FVisCharState* S = Characters.Find(Character))
 		{
 			for (auto& Pair : S->SlotActors)
@@ -826,7 +826,7 @@ void USuspenseCoreEquipmentVisualizationService::ReleaseVisualActor(AActor* Char
 {
 	if (!Character) return;
 
-	EQUIPMENT_CRITICAL_LOCK(VisualLock);
+	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	FVisCharState* S = Characters.Find(Character);
 	if (!S) return;

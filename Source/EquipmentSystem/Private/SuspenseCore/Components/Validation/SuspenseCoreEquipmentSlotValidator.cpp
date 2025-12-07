@@ -13,6 +13,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 // Типы/лоадаут
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Types/Loadout/SuspenseCoreLoadoutSettings.h"
 

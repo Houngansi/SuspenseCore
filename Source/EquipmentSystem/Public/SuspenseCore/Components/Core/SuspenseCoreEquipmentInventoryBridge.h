@@ -4,12 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
-#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Inventory/ISuspenseCoreInventory.h"
-#include "Services/SuspenseCoreEquipmentOperationService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCoreEquipmentInventoryBridge.generated.h"
 
 // Forward declaration

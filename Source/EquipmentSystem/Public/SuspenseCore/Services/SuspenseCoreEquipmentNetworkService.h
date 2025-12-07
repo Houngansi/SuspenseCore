@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Components/Network/SuspenseEquipmentReplicationManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -18,6 +18,7 @@
 #include "Templates/SharedPointer.h"
 #include "Containers/Queue.h"
 #include "HAL/ThreadSafeBool.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "UObject/Interface.h"
 #include "SuspenseCoreEquipmentNetworkService.generated.h"
 

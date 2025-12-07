@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"

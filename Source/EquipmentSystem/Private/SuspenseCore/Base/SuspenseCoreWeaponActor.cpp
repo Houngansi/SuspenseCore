@@ -9,6 +9,8 @@
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 
 // Logging
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreWeaponActor, Log, All);

@@ -3,9 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreAbilityConnector.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreAbilityConnector.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "GameplayAbilitySpec.h"

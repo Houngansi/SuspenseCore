@@ -7,7 +7,7 @@
 #include "Delegates/Delegate.h"
 #include "Interfaces/Equipment/ISuspenseCoreNetworkDispatcher.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Network/SuspenseCoreNetworkTypes.h"
 #include "SuspenseCoreEquipmentNetworkDispatcher.generated.h"
 
@@ -19,7 +19,7 @@ class USuspenseCoreEquipmentNetworkService;
 
 /** Облегчённая версия ItemInstance для RPC (без RuntimeProperties) */
 USTRUCT()
-struct FSuspenseCoreInventoryItemInstanceNet
+struct FSuspenseInventoryItemInstanceNet
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ struct FSuspenseCoreEquipmentOperationNet
 	UPROPERTY() EEquipmentOperationType OperationType = EEquipmentOperationType::None;
 	UPROPERTY() int32 SourceSlotIndex = INDEX_NONE;
 	UPROPERTY() int32 TargetSlotIndex = INDEX_NONE;
-	UPROPERTY() FSuspenseCoreInventoryItemInstanceNet ItemInstance;
+	UPROPERTY() FSuspenseInventoryItemInstanceNet ItemInstance;
 	UPROPERTY() ENetworkOperationPriority Priority = ENetworkOperationPriority::Normal;
 };
 
@@ -188,8 +188,8 @@ protected:
 
 private:
 	// Конвертация DTO <-> доменная модель
-	static FSuspenseCoreInventoryItemInstanceNet   ToNet(const FSuspenseCoreInventoryItemInstance& In);
-	static FSuspenseCoreInventoryItemInstance      FromNet(const FSuspenseCoreInventoryItemInstanceNet& In);
+	static FSuspenseInventoryItemInstanceNet   ToNet(const FSuspenseInventoryItemInstance& In);
+	static FSuspenseInventoryItemInstance      FromNet(const FSuspenseInventoryItemInstanceNet& In);
 	static FSuspenseCoreNetworkOperationRequestNet ToNet(const FNetworkOperationRequest& In);
 	static FNetworkOperationRequest    FromNet(const FSuspenseCoreNetworkOperationRequestNet& In);
 

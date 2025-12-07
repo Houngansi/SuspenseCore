@@ -7,10 +7,10 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Interfaces/Equipment/ISuspenseSlotValidator.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Types/Loadout/SuspenseCoreLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
+#include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
 #include "GameplayTagContainer.h"
 #include <atomic>
 #include "SuspenseCoreEquipmentOperationExecutor.generated.h"
@@ -218,7 +218,7 @@ public:
 
 	virtual FEquipmentOperationResult ExecuteOperation(const FEquipmentOperationRequest& Request) override;
 	virtual FSlotValidationResult ValidateOperation(const FEquipmentOperationRequest& Request) const override;
-	virtual FEquipmentOperationResult EquipItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
+	virtual FEquipmentOperationResult EquipItem(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
 	virtual FEquipmentOperationResult UnequipItem(int32 SlotIndex) override;
 	virtual FEquipmentOperationResult SwapItems(int32 SlotIndexA, int32 SlotIndexB) override;
 	virtual FEquipmentOperationResult MoveItem(int32 SourceSlot, int32 TargetSlot) override;
@@ -242,7 +242,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	bool Initialize(TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,
-					TScriptInterface<ISuspenseCoreSlotValidator> InValidator);
+					TScriptInterface<ISuspenseSlotValidator> InValidator);
 
 	/** Check if executor is properly initialized */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations", BlueprintPure)
@@ -301,7 +301,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Validation")
 	FSlotValidationResult CanEquipItemToSlot(
-		const FSuspenseCoreInventoryItemInstance& ItemInstance,
+		const FSuspenseInventoryItemInstance& ItemInstance,
 		int32 TargetSlotIndex) const;
 
 protected:
@@ -346,7 +346,7 @@ protected:
 	FGuid GenerateOperationId() const;
 
 	/** Find best slot for item (read-only query) */
-	int32 FindBestSlotForItem(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
+	int32 FindBestSlotForItem(const FSuspenseInventoryItemInstance& ItemInstance) const;
 
 	/** Check if slot is weapon slot (read-only query) */
 	bool IsWeaponSlot(int32 SlotIndex) const;
@@ -380,7 +380,7 @@ private:
 
 	/** Slot validator interface (optional) */
 	UPROPERTY()
-	TScriptInterface<ISuspenseCoreSlotValidator> SlotValidator;
+	TScriptInterface<ISuspenseSlotValidator> SlotValidator;
 
 	// ============
 	// Statistics

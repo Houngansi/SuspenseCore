@@ -6,8 +6,8 @@
 #include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Interfaces/Weapon/ISuspenseWeapon.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseCoreWeaponFireModeComponent.generated.h"
 
 // Forward declarations
@@ -21,7 +21,7 @@ struct FSuspenseCoreWeaponFireModeData;
  * - All fire mode definitions come from DataTable via weapon interface
  * - No local storage of fire mode configurations
  * - Uses FFireModeRuntimeData for runtime state only
- * - Fully integrated with ISuspenseCoreWeapon and ISuspenseCoreFireModeProvider
+ * - Fully integrated with ISuspenseWeapon and ISuspenseCoreFireModeProvider
  * - Simplified architecture with single source of truth
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
@@ -46,13 +46,13 @@ public:
      * @return Success of initialization
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|FireMode")
-    bool InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface);
+    bool InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface);
 
     //================================================
     // ISuspenseCoreFireModeProvider Implementation
     //================================================
 
-    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseCoreUnifiedItemData& WeaponData) override;
+    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseUnifiedItemData& WeaponData) override;
     virtual void ClearFireModes_Implementation() override;
     virtual bool CycleToNextFireMode_Implementation() override;
     virtual bool CycleToPreviousFireMode_Implementation() override;
@@ -77,20 +77,20 @@ protected:
      * Get weapon interface from owner
      * @return Weapon interface or null
      */
-    ISuspenseCoreWeapon* GetWeaponInterface() const;
+    ISuspenseWeapon* GetWeaponInterface() const;
 
     /**
      * Get weapon data from DataTable
      * @param OutData Output weapon data
      * @return True if data retrieved
      */
-    bool GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const;
+    bool GetWeaponData(FSuspenseUnifiedItemData& OutData) const;
 
     /**
      * Load fire modes from weapon data
      * @param WeaponData Data from DataTable
      */
-    void LoadFireModesFromData(const FSuspenseCoreUnifiedItemData& WeaponData);
+    void LoadFireModesFromData(const FSuspenseUnifiedItemData& WeaponData);
 
     /**
      * Grant abilities for all fire modes
@@ -143,7 +143,7 @@ private:
 
     /** Cached weapon interface */
     UPROPERTY()
-    TScriptInterface<ISuspenseCoreWeapon> CachedWeaponInterface;
+    TScriptInterface<ISuspenseWeapon> CachedWeaponInterface;
 
     /** Flag to prevent recursion during switching */
     bool bIsSwitching;

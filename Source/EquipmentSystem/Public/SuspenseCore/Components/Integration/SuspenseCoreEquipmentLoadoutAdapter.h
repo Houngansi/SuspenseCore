@@ -11,11 +11,11 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
-#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
-#include "Types/Loadout/SuspenseCoreLoadoutSettings.h"
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
-#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
+#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "Types/Loadout/SuspenseLoadoutManager.h"
+#include "ItemSystem/SuspenseItemManager.h"
 
 class USuspenseCoreEquipmentOperationService;
 
@@ -85,10 +85,10 @@ public:
 	void SetValidationOptions(const FSuspenseCoreLoadoutValidationOptions& Options);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetInventoryBridge(TScriptInterface<ISuspenseCoreInventoryBridge> Bridge);
+	void SetInventoryBridge(TScriptInterface<ISuspenseInventoryBridge> Bridge);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetEventDispatcher(TScriptInterface<ISuspenseCoreEventDispatcher> Dispatcher);
+	void SetEventDispatcher(TScriptInterface<ISuspenseEventDispatcher> Dispatcher);
 
 	// Status
 	UFUNCTION(BlueprintCallable, Category="Loadout|Status", BlueprintPure)
@@ -127,7 +127,7 @@ protected:
 	void LogAdapterState() const;
 
 	USuspenseCoreLoadoutManager* GetLoadoutManager() const;
-	USuspenseCoreItemManager*    GetItemManager() const;
+	USuspenseItemManager*    GetItemManager() const;
 
 	// Поиск централизованного OperationService (через ServiceLocator)
 	USuspenseCoreEquipmentOperationService* GetOperationService(); // <- больше НЕ const
@@ -137,8 +137,8 @@ private:
 	UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 	UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentOperations>   OperationsExecutor;
 	UPROPERTY() TScriptInterface<ISuspenseCoreTransactionManager>    TransactionManager;
-	UPROPERTY() TScriptInterface<ISuspenseCoreInventoryBridge>       InventoryBridge;
-	UPROPERTY() TScriptInterface<ISuspenseCoreEventDispatcher>       EventDispatcher;
+	UPROPERTY() TScriptInterface<ISuspenseInventoryBridge>       InventoryBridge;
+	UPROPERTY() TScriptInterface<ISuspenseEventDispatcher>       EventDispatcher;
 
 	// Настройки
 	UPROPERTY(EditAnywhere, Category="Loadout|Configuration")
@@ -165,7 +165,7 @@ private:
 
 	// Кэш сабсистем
 	mutable TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
-	mutable TWeakObjectPtr<USuspenseCoreItemManager>   CachedItemManager;
+	mutable TWeakObjectPtr<USuspenseItemManager>   CachedItemManager;
 	mutable float LastCacheTime = 0.0f;
 	static constexpr float CacheLifetime = 5.0f;
 

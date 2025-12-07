@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "ISuspenseCoreEquipmentService.generated.h"
 
 /**
@@ -34,7 +34,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreServiceInitParams
     UObject* Owner = nullptr;
 
     UPROPERTY()
-    TObjectPtr<class USuspenseCoreEquipmentServiceLocator> ServiceLocator = nullptr;
+    TObjectPtr<class USuspenseEquipmentServiceLocator> ServiceLocator = nullptr;
 
     UPROPERTY()
     FGameplayTagContainer RequiredServices;

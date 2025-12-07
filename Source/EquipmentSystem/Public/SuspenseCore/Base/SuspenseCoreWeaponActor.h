@@ -46,14 +46,14 @@ public:
     // ASuspenseCoreEquipmentActor overrides (S3/S4 pipeline)
     //================================================
     /** Weapon-specific init: extend base item-equip path with weapon setup */
-    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
 
     //================================================
     // ISuspenseWeapon (facade -> components)
     //================================================
-    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
     virtual bool GetWeaponItemData_Implementation(FSuspenseUnifiedItemData& OutData) const override;
-    virtual FSuspenseCoreInventoryItemInstance GetItemInstance_Implementation() const override;
+    virtual FSuspenseInventoryItemInstance GetItemInstance_Implementation() const override;
 
     // Basic actions
     virtual bool Fire_Implementation(const FWeaponFireParams& Params) override;
@@ -90,8 +90,8 @@ public:
     virtual float GetCurrentAmmo_Implementation() const override;
     virtual float GetRemainingAmmo_Implementation() const override;
     virtual float GetMagazineSize_Implementation() const override;
-    virtual FSuspenseCoreInventoryAmmoState GetAmmoState_Implementation() const override;
-    virtual void SetAmmoState_Implementation(const FSuspenseCoreInventoryAmmoState& NewState) override;
+    virtual FSuspenseInventoryAmmoState GetAmmoState_Implementation() const override;
+    virtual void SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState) override;
     virtual bool CanReload_Implementation() const override;
     virtual bool IsMagazineFull_Implementation() const override;
 

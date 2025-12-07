@@ -119,19 +119,19 @@ public:
     virtual FRuleEvaluationResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FRuleEvaluationResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FSuspenseCoreRuleContext& Context) const override;
+        const FSuspenseRuleContext& Context) const override;
     virtual FRuleEvaluationResult CheckItemCompatibility(
-        const FSuspenseCoreInventoryItemInstance& ItemInstance,
+        const FSuspenseInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
     virtual FRuleEvaluationResult CheckCharacterRequirements(
         const AActor* Character,
-        const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
+        const FSuspenseInventoryItemInstance& ItemInstance) const override;
     virtual FRuleEvaluationResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
     virtual FRuleEvaluationResult CheckConflictingEquipment(
-        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
-        const FSuspenseCoreInventoryItemInstance& NewItem) const override;
+        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
+        const FSuspenseInventoryItemInstance& NewItem) const override;
     virtual TArray<FEquipmentRule> GetActiveRules() const override;
     virtual bool RegisterRule(const FEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;

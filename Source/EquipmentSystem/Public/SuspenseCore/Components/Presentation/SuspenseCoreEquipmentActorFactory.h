@@ -9,8 +9,8 @@
 #include "Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Engine/StreamableManager.h"
 #include "SuspenseCoreEquipmentActorFactory.generated.h"
 
@@ -97,7 +97,7 @@ public:
     //~ Begin ISuspenseCoreActorFactory Interface
     virtual FEquipmentActorSpawnResult SpawnEquipmentActor(const FEquipmentActorSpawnParams& Params) override;
     virtual bool DestroyEquipmentActor(AActor* Actor, bool bImmediate = false) override;
-    virtual bool ConfigureEquipmentActor(AActor* Actor, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual bool ConfigureEquipmentActor(AActor* Actor, const FSuspenseInventoryItemInstance& ItemInstance) override;
     virtual bool RecycleActor(AActor* Actor) override;
     virtual AActor* GetPooledActor(TSubclassOf<AActor> ActorClass) override;
     virtual bool PreloadActorClass(const FName& ItemId) override;

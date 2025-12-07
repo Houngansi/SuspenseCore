@@ -7,7 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "SuspenseCoreSystemCoordinatorComponent.generated.h"
 
 /**
@@ -55,7 +55,7 @@ public:
 
 protected:
     /** Get ServiceLocator */
-    USuspenseCoreEquipmentServiceLocator* GetLocator() const;
+    USuspenseEquipmentServiceLocator* GetLocator() const;
 
     /** Extract service tag from CDO */
     FGameplayTag GetServiceTagFromClass(UClass* ServiceClass) const;

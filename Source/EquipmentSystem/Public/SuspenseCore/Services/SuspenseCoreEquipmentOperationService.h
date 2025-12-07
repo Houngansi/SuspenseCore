@@ -482,8 +482,8 @@ private:
 
     // Service Locator reference (CRITICAL: stored from InitParams)
     UPROPERTY(Transient)
-    TWeakObjectPtr<USuspenseCoreEquipmentServiceLocator> CachedServiceLocator;
+    TWeakObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
 
     // Helper to safely get service locator
-    USuspenseCoreEquipmentServiceLocator* GetServiceLocator() const;
+    USuspenseEquipmentServiceLocator* GetServiceLocator() const;
 };

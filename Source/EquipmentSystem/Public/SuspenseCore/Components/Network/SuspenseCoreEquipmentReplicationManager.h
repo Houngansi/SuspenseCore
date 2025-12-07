@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Serialization/FastArraySerializer.h"
@@ -18,7 +18,7 @@ struct FSuspenseCoreReplicatedSlotItem : public FFastArraySerializerItem
 {
     GENERATED_BODY()
     UPROPERTY() int32 SlotIndex=INDEX_NONE;
-    UPROPERTY() FSuspenseCoreInventoryItemInstance ItemInstance;
+    UPROPERTY() FSuspenseInventoryItemInstance ItemInstance;
     UPROPERTY() uint32 ItemVersion=0;
     UPROPERTY() FString ItemHMAC;
     void PreReplicatedRemove(const struct FSuspenseCoreReplicatedSlotArray& InArraySerializer);
@@ -44,7 +44,7 @@ struct FSuspenseCoreSlotReplicationState
 {
     GENERATED_BODY()
     UPROPERTY() int32 SlotIndex=INDEX_NONE;
-    UPROPERTY() FSuspenseCoreInventoryItemInstance LastReplicatedItem;
+    UPROPERTY() FSuspenseInventoryItemInstance LastReplicatedItem;
     UPROPERTY() uint32 LastReplicatedVersion=0;
     UPROPERTY() bool bIsDirty=false;
     UPROPERTY() float ReplicationPriority=1.0f;
@@ -169,15 +169,15 @@ protected:
     void UpdateClientReplication(FSuspenseCoreClientReplicationState& ClientState);
     FReplicatedEquipmentData BuildReplicationData(APlayerController* Client,bool bForceFull)const;
     FSuspenseCoreReplicationDeltaMask BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const;
-    FString GenerateSlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData)const;
-    bool VerifySlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData,const FString& HMACSignature)const;
+    FString GenerateSlotHMAC(const FSuspenseInventoryItemInstance& SlotData)const;
+    bool VerifySlotHMAC(const FSuspenseInventoryItemInstance& SlotData,const FString& HMACSignature)const;
     FSuspenseCoreCompressedReplicationData CompressData(const FReplicatedEquipmentData& Data)const;
     bool DecompressData(const FSuspenseCoreCompressedReplicationData& Compressed,FReplicatedEquipmentData& OutData)const;
     float CalculateEnhancedRelevancy(APlayerController* ViewTarget)const;
     void UpdateSlotPriority(int32 SlotIndex);
     bool SlotNeedsReplication(int32 SlotIndex,uint32 ClientVersion)const;
     uint32 CalculateChecksum(const FReplicatedEquipmentData& Data)const;
-    void OnDataChanged(int32 SlotIndex,const FSuspenseCoreInventoryItemInstance& NewData);
+    void OnDataChanged(int32 SlotIndex,const FSuspenseInventoryItemInstance& NewData);
     void CleanupClientStates();
     void UpdateStatistics(int32 BytesSent,bool bWasDelta);
     void AdaptReplicationStrategy(float NetworkQuality);

@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "ItemSystem/SuspenseItemManager.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
 
@@ -14,7 +14,7 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-class USuspenseCoreItemManager;
+class USuspenseItemManager;
 class USuspenseCoreEventManager;
 
 /**
@@ -128,14 +128,14 @@ public:
      * @return True if initialization successful
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Mesh")
-    bool InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
+    bool InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
 
     /**
      * Update visual state based on item properties
      * @param ItemInstance Updated item instance
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Mesh")
-    void UpdateVisualState(const FSuspenseCoreInventoryItemInstance& ItemInstance);
+    void UpdateVisualState(const FSuspenseInventoryItemInstance& ItemInstance);
 
     /**
      * Clean up visual components and resources
@@ -214,7 +214,7 @@ public:
      * @param WeaponData Weapon item data
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Weapon")
-    void SetupWeaponVisuals(const FSuspenseCoreUnifiedItemData& WeaponData);
+    void SetupWeaponVisuals(const FSuspenseUnifiedItemData& WeaponData);
 
     /**
      * Get muzzle socket location
@@ -357,14 +357,14 @@ protected:
      * Initialize visual components based on item type
      * @param ItemData Item data from DataTable
      */
-    void InitializeVisualComponents(const FSuspenseCoreUnifiedItemData& ItemData);
+    void InitializeVisualComponents(const FSuspenseUnifiedItemData& ItemData);
 
     /**
      * Load and apply mesh from item data
      * @param ItemData Item data with mesh reference
      * @return True if mesh loaded successfully
      */
-    bool LoadMeshFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
+    bool LoadMeshFromItemData(const FSuspenseUnifiedItemData& ItemData);
 
     /**
      * Create dynamic material instances
@@ -380,7 +380,7 @@ protected:
      * Get item manager subsystem
      * @return Item manager or nullptr
      */
-    USuspenseCoreItemManager* GetItemManager() const;
+    USuspenseItemManager* GetItemManager() const;
 
     /**
      * Get event delegate manager
@@ -394,7 +394,7 @@ protected:
      * @param ModificationType Modification type tag
      * @return Socket name from weapon data
      */
-    FName GetWeaponSocketName(const FSuspenseCoreUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const;
+    FName GetWeaponSocketName(const FSuspenseUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const;
 
     /**
      * Play visual effect at location
@@ -453,11 +453,11 @@ private:
 
     /** Currently loaded item data */
     UPROPERTY()
-    FSuspenseCoreUnifiedItemData CachedItemData;
+    FSuspenseUnifiedItemData CachedItemData;
 
     /** Current item instance */
     UPROPERTY()
-    FSuspenseCoreInventoryItemInstance CurrentItemInstance;
+    FSuspenseInventoryItemInstance CurrentItemInstance;
 
     /** Current visual state */
     UPROPERTY()
@@ -503,7 +503,7 @@ private:
 
     /** Cached item manager reference */
     UPROPERTY()
-    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
+    mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
 
     /** Cached delegate manager reference */
     UPROPERTY()

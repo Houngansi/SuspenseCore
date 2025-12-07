@@ -11,7 +11,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
-#include "Interfaces/Equipment/ISuspensePredictionManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCorePredictionManager.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -125,7 +125,7 @@ struct FSuspenseCoreOperationHistoryEntry
  */
 UCLASS(Config=Game)
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentOperationService : public UObject,
-    public IEquipmentOperationService
+    public ISuspenseCoreEquipmentOperationServiceInterface
 {
     GENERATED_BODY()
 
@@ -134,12 +134,12 @@ public:
     virtual ~USuspenseCoreEquipmentOperationService();
 
     //========================================
-    // IEquipmentService Interface
+    // ISuspenseCoreEquipmentService Interface
     //========================================
 
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override;
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override;
     virtual bool IsServiceReady() const override;
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
@@ -148,10 +148,10 @@ public:
     virtual FString GetServiceStats() const override;
 
     //========================================
-    // IEquipmentOperationService Interface
+    // ISuspenseCoreEquipmentOperationServiceInterface
     //========================================
 
-    virtual ISuspenseEquipmentOperations* GetOperationsExecutor() override;
+    virtual ISuspenseCoreEquipmentOperations* GetOperationsExecutor() override;
     virtual bool QueueOperation(const FEquipmentOperationRequest& Request) override;
     virtual void ProcessOperationQueue() override;
 
@@ -250,7 +250,7 @@ public:
     FOnBatchCompleted OnBatchCompleted;
 
     UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Operations")
-    void SetOperationsExecutor(TScriptInterface<ISuspenseEquipmentOperations> InExecutor);
+    void SetOperationsExecutor(TScriptInterface<ISuspenseCoreEquipmentOperations> InExecutor);
 
 protected:
     // Initialization
@@ -350,7 +350,7 @@ private:
 
     // Service State
     UPROPERTY()
-    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
     UPROPERTY()
     FDateTime InitializationTime;
@@ -367,20 +367,20 @@ private:
 
     // Core Dependencies
     UPROPERTY()
-    TScriptInterface<ISuspenseEquipmentOperations> OperationsExecutor;
+    TScriptInterface<ISuspenseCoreEquipmentOperations> OperationsExecutor;
 
     UPROPERTY()
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 
     UPROPERTY()
-    TScriptInterface<ISuspenseTransactionManager> TransactionManager;
+    TScriptInterface<ISuspenseCoreTransactionManager> TransactionManager;
 
     UPROPERTY()
-    TScriptInterface<ISuspenseEquipmentRules> RulesEngine;
+    TScriptInterface<ISuspenseCoreEquipmentRules> RulesEngine;
 
     // Optional Dependencies
     TWeakObjectPtr<UObject> NetworkServiceObject;
-    TScriptInterface<ISuspensePredictionManager> PredictionManager;
+    TScriptInterface<ISuspenseCorePredictionManager> PredictionManager;
 
     // Prediction tracking
     TMap<FGuid, FGuid> OperationToPredictionMap;

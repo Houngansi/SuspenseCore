@@ -62,27 +62,27 @@ public:
     virtual FString GetServiceStats() const override;
     //~ End IEquipmentService Interface
 
-    //~ Begin ISuspenseCoreEquipmentNetworkService Interface
-    virtual ISuspenseNetworkDispatcher* GetNetworkDispatcher() override
+    //~ Begin ISuspenseCoreEquipmentNetworkServiceInterface
+    virtual ISuspenseCoreNetworkDispatcher* GetNetworkDispatcher() override
     {
-        return NetworkDispatcher.GetInterface();
+        return Cast<ISuspenseCoreNetworkDispatcher>(NetworkDispatcher.GetObject());
     }
 
-    virtual ISuspensePredictionManager* GetPredictionManager() override
+    virtual ISuspenseCorePredictionManager* GetPredictionManager() override
     {
-        return PredictionManager.GetInterface();
+        return Cast<ISuspenseCorePredictionManager>(PredictionManager.GetObject());
     }
 
-    virtual ISuspenseReplicationProvider* GetReplicationProvider() override
+    virtual ISuspenseCoreReplicationProvider* GetReplicationProvider() override
     {
         if (!ReplicationProvider) return nullptr;
         if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseCoreReplicationProvider::StaticClass()))
         {
-            return Cast<ISuspenseReplicationProvider>(ReplicationProvider);
+            return Cast<ISuspenseCoreReplicationProvider>(ReplicationProvider);
         }
         return nullptr;
     }
-    //~ End ISuspenseCoreEquipmentNetworkService Interface
+    //~ End ISuspenseCoreEquipmentNetworkServiceInterface
 
     UFUNCTION(BlueprintCallable, Category = "Network|Operations")
     FGuid SendEquipmentOperation(const FEquipmentOperationRequest& Request, APlayerController* PlayerController);
@@ -123,8 +123,8 @@ private:
     //========================================
     // Network Components
     //========================================
-    TScriptInterface<ISuspenseNetworkDispatcher> NetworkDispatcher;
-    TScriptInterface<ISuspensePredictionManager> PredictionManager;
+    TScriptInterface<ISuspenseCoreNetworkDispatcher> NetworkDispatcher;
+    TScriptInterface<ISuspenseCorePredictionManager> PredictionManager;
 
     UPROPERTY(Transient)
     TObjectPtr<USuspenseCoreEquipmentReplicationManager> ReplicationProvider = nullptr;

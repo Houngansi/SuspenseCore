@@ -198,3 +198,86 @@ public:
     virtual ISuspenseCorePredictionManager* GetPredictionManager() = 0;
     virtual ISuspenseCoreReplicationProvider* GetReplicationProvider() = 0;
 };
+
+/**
+ * Validation Service Interface - SuspenseCore version
+ */
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreEquipmentValidationServiceInterface : public USuspenseCoreEquipmentService
+{
+    GENERATED_BODY()
+};
+
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentValidationServiceInterface : public ISuspenseCoreEquipmentService
+{
+    GENERATED_BODY()
+
+public:
+    /**
+     * Get rules engine interface
+     * @return Rules engine interface
+     */
+    virtual ISuspenseCoreEquipmentRules* GetRulesEngine() = 0;
+
+    /**
+     * Register custom validator
+     * @param ValidatorTag Validator identifier
+     * @param Validator Validation function
+     * @return True if registered
+     */
+    virtual bool RegisterValidator(const FGameplayTag& ValidatorTag, TFunction<bool(const void*)> Validator) = 0;
+
+    /**
+     * Clear validation cache
+     */
+    virtual void ClearValidationCache() = 0;
+};
+
+// Forward declaration for operations
+class ISuspenseCoreEquipmentOperations;
+struct FEquipmentOperationRequest;
+struct FEquipmentOperationResult;
+
+/**
+ * Operation Service Interface - SuspenseCore version
+ */
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreEquipmentOperationServiceInterface : public USuspenseCoreEquipmentService
+{
+    GENERATED_BODY()
+};
+
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentOperationServiceInterface : public ISuspenseCoreEquipmentService
+{
+    GENERATED_BODY()
+
+public:
+    /**
+     * Get operations executor
+     * @return Operations executor interface
+     */
+    virtual ISuspenseCoreEquipmentOperations* GetOperationsExecutor() = 0;
+
+    /**
+     * Queue operation for processing
+     * @param Request Operation request
+     * @return True if queued
+     */
+    virtual bool QueueOperation(const FEquipmentOperationRequest& Request) = 0;
+
+    /**
+     * Process operation queue
+     */
+    virtual void ProcessOperationQueue() = 0;
+
+    /**
+     * Execute operation immediately
+     * @param Request Operation request
+     * @return Operation result
+     */
+    virtual FEquipmentOperationResult ExecuteImmediate(const FEquipmentOperationRequest& Request) = 0;
+};
+
+// Backward compatibility aliases
+using IEquipmentValidationService = ISuspenseCoreEquipmentValidationServiceInterface;
+using IEquipmentOperationService = ISuspenseCoreEquipmentOperationServiceInterface;

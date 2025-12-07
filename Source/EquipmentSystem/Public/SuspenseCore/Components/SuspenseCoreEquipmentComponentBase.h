@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
+#include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "ItemSystem/SuspenseItemManager.h"

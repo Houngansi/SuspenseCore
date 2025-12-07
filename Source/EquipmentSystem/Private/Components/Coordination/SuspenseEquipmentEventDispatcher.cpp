@@ -42,19 +42,31 @@ void USuspenseEquipmentEventDispatcher::TickComponent(float DeltaTime,ELevelTick
 	if(Accumulator<FlushInterval)return;
 	Accumulator=0.f;
 
-	int32 Dispatched=0;
-	while(Dispatched<MaxPerTick)
+	// PERFORMANCE FIX: Batch-process events and compact array once
+	// Instead of RemoveAt(0) for each event (O(n) per removal = O(n²) total),
+	// we collect events to dispatch and compact the array once (O(n) total)
+	TArray<FDispatcherEquipmentEventData> ToDispatch;
 	{
-		FDispatcherEquipmentEventData E;
+		FScopeLock L(&QueueCs);
+		const int32 ToProcess = FMath::Min(MaxPerTick, LocalQueue.Num());
+		if (ToProcess > 0)
 		{
-			FScopeLock L(&QueueCs);
-			if(LocalQueue.Num()==0)break;
-			E=MoveTemp(LocalQueue[0]);
-			LocalQueue.RemoveAt(0,1,false);
-			Stats.CurrentQueueSize=LocalQueue.Num();
+			// Reserve and move events in batch
+			ToDispatch.Reserve(ToProcess);
+			for (int32 i = 0; i < ToProcess; ++i)
+			{
+				ToDispatch.Add(MoveTemp(LocalQueue[i]));
+			}
+			// Single array compaction instead of N RemoveAt(0) calls
+			LocalQueue.RemoveAt(0, ToProcess, false);
+			Stats.CurrentQueueSize = LocalQueue.Num();
 		}
+	}
+
+	// Dispatch outside the lock
+	for (FDispatcherEquipmentEventData& E : ToDispatch)
+	{
 		Dispatch(E);
-		++Dispatched;
 	}
 }
 
@@ -109,9 +121,22 @@ int32 USuspenseEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 		return Removed;
 	}
 
+	// PERFORMANCE FIX: Instead of rebuilding entire HandleToTag map O(n*m),
+	// collect handles to remove during removal pass O(n), then remove them O(k) where k=removed
+	TArray<FDelegateHandle> HandlesToRemove;
+
 	int32 Removed = 0;
 	for (auto& P : LocalSubscriptions)
 	{
+		// First pass: collect handles that will be removed
+		for (const FDispatcherLocalSubscription& S : P.Value)
+		{
+			if (S.Subscriber.Get() == Subscriber)
+			{
+				HandlesToRemove.Add(S.Handle);
+			}
+		}
+		// Then remove
 		Removed += P.Value.RemoveAll([Subscriber](const FDispatcherLocalSubscription& S)
 		{
 			return S.Subscriber.Get() == Subscriber;
@@ -119,14 +144,10 @@ int32 USuspenseEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 	}
 	Stats.ActiveLocalSubscriptions = FMath::Max(0, Stats.ActiveLocalSubscriptions - Removed);
 
-	// Перестраиваем обратную карту хендлов по актуальным подпискам
-	HandleToTag.Reset();
-	for (const auto& P : LocalSubscriptions)
+	// Remove only the affected handles instead of rebuilding entire map
+	for (const FDelegateHandle& H : HandlesToRemove)
 	{
-		for (const FDispatcherLocalSubscription& S : P.Value)
-		{
-			HandleToTag.Add(S.Handle, P.Key);
-		}
+		HandleToTag.Remove(H);
 	}
 	return Removed;
 }

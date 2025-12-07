@@ -11,7 +11,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
-#include "Interfaces/Equipment/ISuspenseCorePredictionManager.h"
+#include "Interfaces/Equipment/ISuspensePredictionManager.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"

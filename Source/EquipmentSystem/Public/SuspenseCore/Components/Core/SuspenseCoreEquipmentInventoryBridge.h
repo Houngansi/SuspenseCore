@@ -3,372 +3,298 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Components/ActorComponent.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
+#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
+#include "Interfaces/Equipment/ISuspenseTransactionManager.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "Services/SuspenseEquipmentOperationService.h"
 #include "SuspenseCoreEquipmentInventoryBridge.generated.h"
 
-// Forward declarations
-class USuspenseCoreEventBus;
-class USuspenseCoreServiceLocator;
-class UInventoryComponent;
-class UEquipmentComponent;
-struct FSuspenseCoreEventData;
-struct FEquipmentOperationRequest;
+// Forward declaration
+class USuspenseEventManager;
 
 /**
- * FSuspenseCoreEquipmentInventoryTransaction
+ * Bridge component for seamless item transfer between inventory and equipment systems.
+ * Provides atomic transactions, validation, and rollback support for all transfer operations.
  *
- * Represents a coordinated transaction between equipment and inventory systems
+ * NEW: Integrated with EventDelegateManager for UI-driven equipment operations.
+ * Listens to equipment operation requests from UI and broadcasts results back.
  */
-USTRUCT(BlueprintType)
-struct FSuspenseCoreEquipmentInventoryTransaction
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentInventoryBridge : public UActorComponent
 {
-	GENERATED_BODY()
-
-	/** Unique transaction ID */
-	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
-	FGuid TransactionId;
-
-	/** Item being transferred */
-	UPROPERTY(BlueprintReadWrite, Category = "Transaction")
-	FSuspenseInventoryItemInstance ItemInstance;
-
-	/** Source system (Equipment or Inventory) */
-	UPROPERTY(BlueprintReadWrite, Category = "Transaction")
-	FGameplayTag SourceSystem;
-
-	/** Target system (Equipment or Inventory) */
-	UPROPERTY(BlueprintReadWrite, Category = "Transaction")
-	FGameplayTag TargetSystem;
-
-	/** Transaction state */
-	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
-	bool bCompleted = false;
-
-	/** Transaction timestamp */
-	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
-	float Timestamp = 0.0f;
-
-	/** Create new transaction */
-	static FSuspenseCoreEquipmentInventoryTransaction Create(
-		const FSuspenseInventoryItemInstance& Item,
-		FGameplayTag Source,
-		FGameplayTag Target)
-	{
-		FSuspenseCoreEquipmentInventoryTransaction Transaction;
-		Transaction.TransactionId = FGuid::NewGuid();
-		Transaction.ItemInstance = Item;
-		Transaction.SourceSystem = Source;
-		Transaction.TargetSystem = Target;
-		Transaction.Timestamp = 0.0f;
-		return Transaction;
-	}
-};
-
-/**
- * USuspenseCoreEquipmentInventoryBridge
- *
- * Bridge between equipment and inventory systems with event-driven synchronization.
- *
- * Architecture:
- * - EventBus: Coordinates communication between equipment and inventory
- * - ServiceLocator: Dependency injection for system access
- * - GameplayTags: System identification and event routing
- * - Transactions: Atomic operations with rollback support
- *
- * Responsibilities:
- * - Coordinate item transfers between equipment and inventory
- * - Ensure data consistency across both systems
- * - Handle equipment/unequipment with inventory updates
- * - Publish bridge events through EventBus
- * - Support rollback on transaction failures
- */
-UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentInventoryBridge : public UObject
-{
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreEquipmentInventoryBridge();
+    USuspenseCoreEquipmentInventoryBridge();
 
-	//================================================
-	// Initialization
-	//================================================
+    // ===== Initialization =====
 
-	/**
-	 * Initialize bridge with dependencies
-	 * @param InServiceLocator ServiceLocator for dependency injection
-	 * @param InInventoryComponent Inventory component to bridge
-	 * @param InEquipmentComponent Equipment component to bridge
-	 * @return True if initialized successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge")
-	bool Initialize(USuspenseCoreServiceLocator* InServiceLocator,
-					UObject* InInventoryComponent,
-					UObject* InEquipmentComponent);
+    /**
+     * Initialize the bridge with required equipment system dependencies
+     * @param InEquipmentData - Equipment data provider interface
+     * @param InEquipmentOps - Equipment operations executor interface
+     * @param InTransactionMgr - Transaction manager for atomic operations
+     * @return true if initialization successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    bool Initialize(
+        TScriptInterface<ISuspenseEquipmentDataProvider> InEquipmentData,
+        TScriptInterface<ISuspenseEquipmentOperations> InEquipmentOps,
+        TScriptInterface<ISuspenseTransactionManager> InTransactionMgr
+    );
 
-	/**
-	 * Shutdown bridge and cleanup
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge")
-	void Shutdown();
+    /**
+     * Set the inventory interface for bridge operations
+     * @param InInventoryInterface - Inventory system interface
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    void SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventoryInterface);
 
-	/**
-	 * Check if bridge is initialized
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge")
-	bool IsInitialized() const { return bIsInitialized; }
+    // ===== Transfer Operations =====
 
-	//================================================
-	// Equipment -> Inventory Operations
-	//================================================
+    /**
+     * Transfer item from inventory to equipment slot
+     * @param Request - Transfer request containing item and target slot info
+     * @return Operation result with success/failure status
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    FSuspenseInventoryOperationResult TransferFromInventory(const FInventoryTransferRequest& Request);
 
-	/**
-	 * Transfer item from equipment to inventory (unequip)
-	 * @param ItemInstance Item to transfer
-	 * @param SlotIndex Equipment slot index
-	 * @return True if transfer succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transfer")
-	bool TransferToInventory(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex);
+    /**
+     * Transfer item from equipment slot to inventory
+     * @param Request - Transfer request containing source slot info
+     * @return Operation result with success/failure status
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    FSuspenseInventoryOperationResult TransferToInventory(const FInventoryTransferRequest& Request);
 
-	/**
-	 * Return equipped item to inventory
-	 * @param SlotIndex Equipment slot to unequip
-	 * @return True if return succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transfer")
-	bool ReturnEquippedItemToInventory(int32 SlotIndex);
+    /**
+     * Atomically swap items between inventory and equipment
+     * @param InventoryItemInstanceID - Instance ID of item in inventory
+     * @param EquipmentSlotIndex - Target equipment slot index
+     * @return Operation result with affected items
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    FSuspenseInventoryOperationResult SwapBetweenInventoryAndEquipment(
+        const FGuid& InventoryItemInstanceID,
+        int32 EquipmentSlotIndex
+    );
 
-	//================================================
-	// Inventory -> Equipment Operations
-	//================================================
+    // ===== Synchronization =====
 
-	/**
-	 * Transfer item from inventory to equipment (equip)
-	 * @param ItemInstance Item to transfer
-	 * @param TargetSlotIndex Target equipment slot
-	 * @return True if transfer succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transfer")
-	bool TransferToEquipment(const FSuspenseInventoryItemInstance& ItemInstance, int32 TargetSlotIndex);
+    /**
+     * Synchronize equipment state with current inventory contents
+     * Updates equipped items if their instances changed in inventory
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
+    void SynchronizeWithInventory();
 
-	/**
-	 * Equip item from inventory
-	 * @param InventorySlotIndex Inventory slot containing item
-	 * @param EquipmentSlotIndex Target equipment slot
-	 * @return True if equip succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transfer")
-	bool EquipFromInventory(int32 InventorySlotIndex, int32 EquipmentSlotIndex);
+    // ===== Validation Helpers =====
 
-	//================================================
-	// Transaction Management
-	//================================================
+    /**
+     * Check if item from inventory can be equipped to target slot
+     * @param Item - Item instance to validate
+     * @param TargetSlot - Target equipment slot index
+     * @return true if item can be equipped
+     */
+    UFUNCTION(BlueprintPure, Category = "Equipment|Bridge")
+    bool CanEquipFromInventory(const FSuspenseInventoryItemInstance& Item, int32 TargetSlot) const;
 
-	/**
-	 * Begin atomic transaction
-	 * @param Item Item for transaction
-	 * @param Source Source system
-	 * @param Target Target system
-	 * @return Transaction ID
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transaction")
-	FGuid BeginTransaction(const FSuspenseInventoryItemInstance& Item, FGameplayTag Source, FGameplayTag Target);
-
-	/**
-	 * Commit transaction
-	 * @param TransactionId Transaction to commit
-	 * @return True if commit succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transaction")
-	bool CommitTransaction(FGuid TransactionId);
-
-	/**
-	 * Rollback transaction
-	 * @param TransactionId Transaction to rollback
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Transaction")
-	void RollbackTransaction(FGuid TransactionId);
-
-	/**
-	 * Get active transaction count
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge|Transaction")
-	int32 GetActiveTransactionCount() const { return ActiveTransactions.Num(); }
-
-	//================================================
-	// Synchronization
-	//================================================
-
-	/**
-	 * Synchronize equipment and inventory states
-	 * Ensures both systems are in consistent state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Sync")
-	void SynchronizeSystems();
-
-	/**
-	 * Validate consistency between systems
-	 * @param OutErrors Array to receive error messages
-	 * @return True if systems are consistent
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Sync")
-	bool ValidateConsistency(TArray<FText>& OutErrors) const;
-
-	/**
-	 * Get item instance from equipment
-	 * @param SlotIndex Equipment slot
-	 * @param OutItem Output item instance
-	 * @return True if item retrieved
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge|Query")
-	bool GetEquippedItem(int32 SlotIndex, FSuspenseInventoryItemInstance& OutItem) const;
-
-	/**
-	 * Check if item can be equipped
-	 * @param ItemInstance Item to check
-	 * @param TargetSlotIndex Target slot
-	 * @param OutReason Reason if not allowed
-	 * @return True if item can be equipped
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge|Query")
-	bool CanEquipItem(const FSuspenseInventoryItemInstance& ItemInstance, int32 TargetSlotIndex, FText& OutReason) const;
-
-	//================================================
-	// Statistics
-	//================================================
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge|Stats")
-	int32 GetTotalTransfers() const { return TotalTransfers; }
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Bridge|Stats")
-	int32 GetFailedTransfers() const { return FailedTransfers; }
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Bridge|Stats")
-	void ResetStatistics();
+    /**
+     * Check if item can be unequipped to inventory
+     * @param SourceSlot - Source equipment slot index
+     * @return true if item can be unequipped and inventory has space
+     */
+    UFUNCTION(BlueprintPure, Category = "Equipment|Bridge")
+    bool CanUnequipToInventory(int32 SourceSlot) const;
 
 protected:
-	//================================================
-	// Event Handlers
-	//================================================
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** Handle item equipped event from equipment system */
-	void OnItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    /** Возвращает персонажа (Pawn/Character) для визуализации; фоллбэк — владелец компонента */
+    AActor* ResolveCharacterTarget() const;
+ /**
+  * Broadcasts Equipment.Event.Equipped to EventBus for visualization
+  * Triggers attachment of visual equipment actor to character mesh
+  *
+  * @param Item - Item instance that was equipped
+  * @param SlotIndex - Equipment slot index where item was placed
+  */
+ void BroadcastEquippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
 
-	/** Handle item unequipped event from equipment system */
-	void OnItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-	/** Handle inventory changed event */
-	void OnInventoryChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
-
-	//================================================
-	// Event Publishing
-	//================================================
-
-	/** Publish transfer started event */
-	void PublishTransferStarted(const FSuspenseCoreEquipmentInventoryTransaction& Transaction);
-
-	/** Publish transfer completed event */
-	void PublishTransferCompleted(const FSuspenseCoreEquipmentInventoryTransaction& Transaction, bool bSuccess);
-
-	/** Publish synchronization event */
-	void PublishSynchronization(bool bSuccess);
-
-	//================================================
-	// Internal Methods
-	//================================================
-
-	/** Execute transfer operation */
-	bool ExecuteTransfer(FSuspenseCoreEquipmentInventoryTransaction& Transaction);
-
-	/** Validate transfer operation */
-	bool ValidateTransfer(const FSuspenseCoreEquipmentInventoryTransaction& Transaction, FText& OutError) const;
-
-	/** Setup event subscriptions */
-	void SetupEventSubscriptions();
-
-	/** Get transaction by ID */
-	FSuspenseCoreEquipmentInventoryTransaction* FindTransaction(FGuid TransactionId);
-
+ /**
+  * Broadcasts both Unequipped and Equipped events for SWAP operations
+  * Ensures proper cleanup of old visual and attachment of new visual
+  *
+  * @param NewItem - Item being equipped (from inventory)
+  * @param OldItem - Item being unequipped (to inventory)
+  * @param SlotIndex - Equipment slot involved in swap
+  */
+ void BroadcastSwapEvents(
+     const FSuspenseInventoryItemInstance& NewItem,
+     const FSuspenseInventoryItemInstance& OldItem,
+     int32 SlotIndex);
 private:
-	//================================================
-	// Dependencies (Injected)
-	//================================================
+    // ===== Dependencies =====
 
-	/** ServiceLocator for dependency injection */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreServiceLocator> ServiceLocator;
+    UPROPERTY()
+    TScriptInterface<ISuspenseEquipmentDataProvider> EquipmentDataProvider;
 
-	/** EventBus for event coordination */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+    UPROPERTY()
+    TScriptInterface<ISuspenseEquipmentOperations> EquipmentOperations;
 
-	/** Inventory component reference */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> InventoryComponent;
+    UPROPERTY()
+    TScriptInterface<ISuspenseTransactionManager> TransactionManager;
 
-	/** Equipment component reference */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> EquipmentComponent;
+    UPROPERTY()
+    TScriptInterface<ISuspenseInventory> InventoryInterface;
 
-	//================================================
-	// Transaction State
-	//================================================
+    UPROPERTY()
+    TScriptInterface<IEquipmentOperationService> EquipmentService;
 
-	/** Active transactions */
-	UPROPERTY()
-	TArray<FSuspenseCoreEquipmentInventoryTransaction> ActiveTransactions;
+    // ===== EventDelegateManager Integration =====
 
-	/** Transaction history (limited size) */
-	UPROPERTY()
-	TArray<FSuspenseCoreEquipmentInventoryTransaction> TransactionHistory;
+    /** Reference to centralized event system for UI-driven operations */
+    TWeakObjectPtr<USuspenseEventManager> EventDelegateManager;
+     void BroadcastUnequippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
+    /** Handle for equipment operation request subscription */
+    FDelegateHandle EquipmentOperationRequestHandle;
 
-	//================================================
-	// State
-	//================================================
+    /**
+     * Handler for equipment operation requests from UI
+     * Processes requests and broadcasts results back through EventDelegateManager
+     * @param Request - Equipment operation request from UI layer
+     */
+    void HandleEquipmentOperationRequest(const FEquipmentOperationRequest& Request);
 
-	/** Initialization flag */
-	UPROPERTY()
-	bool bIsInitialized;
+    // ===== Transaction Support =====
 
-	/** Last sync time */
-	UPROPERTY()
-	float LastSyncTime;
+    /**
+     * Internal transaction state for bridge operations
+     */
+    struct FBridgeTransaction
+    {
+        FGuid TransactionID;
+        FSuspenseInventoryItemInstance InventoryBackup;
+        FSuspenseInventoryItemInstance EquipmentBackup;
+        int32 InventorySlot;
+        int32 EquipmentSlot;
+        bool bInventoryModified;
+        bool bEquipmentModified;
 
-	//================================================
-	// Statistics
-	//================================================
+        FBridgeTransaction()
+            : InventorySlot(INDEX_NONE)
+            , EquipmentSlot(INDEX_NONE)
+            , bInventoryModified(false)
+            , bEquipmentModified(false)
+        {}
+    };
 
-	/** Total transfers executed */
-	UPROPERTY()
-	int32 TotalTransfers;
+    /** Active bridge transactions for rollback support */
+    TMap<FGuid, FBridgeTransaction> ActiveTransactions;
 
-	/** Failed transfers */
-	UPROPERTY()
-	int32 FailedTransfers;
+    /** Critical section for thread-safe transaction operations */
+    mutable FCriticalSection TransactionLock;
 
-	/** Total transactions */
-	UPROPERTY()
-	int32 TotalTransactions;
+    // ===== Legacy Reservation System =====
 
-	//================================================
-	// Configuration
-	//================================================
+    /**
+     * Item reservation for two-phase operations (kept for compatibility)
+     */
+    struct FItemReservation
+    {
+        FGuid ReservationID;
+        FSuspenseInventoryItemInstance ReservedItem;
+        int32 TargetSlot;
+        float ExpirationTime;
+    };
 
-	/** Maximum active transactions */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	int32 MaxActiveTransactions;
+    /** Active item reservations */
+    TMap<FGuid, FItemReservation> ActiveReservations;
 
-	/** Transaction history size */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	int32 MaxTransactionHistory;
+    /** Default reservation timeout in seconds */
+    static constexpr float ReservationTimeout = 5.0f;
 
-	//================================================
-	// Thread Safety
-	//================================================
+    // ===== Internal Transfer Implementations =====
 
-	/** Critical section for thread-safe transaction access */
-	mutable FCriticalSection TransactionCriticalSection;
+    /**
+     * Execute transfer from inventory to equipment with full validation
+     */
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromInventoryToEquip(const FInventoryTransferRequest& Request);
+
+    /**
+     * Execute transfer from equipment to inventory with rollback support
+     */
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromEquipToInventory(const FInventoryTransferRequest& Request);
+
+    /**
+     * Execute atomic swap between inventory and equipment systems
+     */
+    FSuspenseInventoryOperationResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
+
+    // ===== Transaction Management =====
+
+    /**
+     * Begin a new bridge transaction
+     * @return Transaction ID for tracking
+     */
+    FGuid BeginBridgeTransaction();
+
+    /**
+     * Commit a bridge transaction
+     * @param TransactionID - Transaction to commit
+     * @return true if commit successful
+     */
+    bool CommitBridgeTransaction(const FGuid& TransactionID);
+
+    /**
+     * Rollback a bridge transaction, restoring original state
+     * @param TransactionID - Transaction to rollback
+     * @return true if rollback successful
+     */
+    bool RollbackBridgeTransaction(const FGuid& TransactionID);
+
+    // ===== Validation Utilities =====
+
+    /**
+     * Validate that inventory has space for item
+     */
+    bool ValidateInventorySpace(const FSuspenseInventoryItemInstance& Item) const;
+
+    /**
+     * Validate equipment slot compatibility with item
+     */
+    bool ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const;
+
+    /**
+     * Check if inventory has space for item (simplified check)
+     */
+    bool InventoryHasSpace(const FSuspenseInventoryItemInstance& Item) const;
+
+    // ===== Helper Functions =====
+
+    /**
+     * Clean up expired reservations
+     */
+    void CleanupExpiredReservations();
+
+    /**
+     * Find item in inventory by item ID
+     */
+    bool FindItemInInventory(const FName& ItemId, FSuspenseInventoryItemInstance& OutInstance) const;
+
+    /** Flag to prevent double initialization and double subscription */
+    UPROPERTY(Transient)
+    bool bIsInitialized = false;
+
+    /** Cache of processed operation IDs to prevent duplicate handling */
+    UPROPERTY(Transient)
+    TSet<FGuid> ProcessedOperationIds;
+
+    /** Thread-safe lock for operation cache access */
+    mutable FCriticalSection OperationCacheLock;
 };

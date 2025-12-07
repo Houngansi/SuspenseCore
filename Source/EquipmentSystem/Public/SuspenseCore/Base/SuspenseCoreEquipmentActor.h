@@ -20,19 +20,11 @@ class USuspenseCoreEquipmentAttachmentComponent;
 class USuspenseItemManager;
 
 /**
- * SuspenseCore Equipment Actor - Modern event-driven equipment implementation.
- *
- * ARCHITECTURE (following BestPractices.md):
- * - Event Bus: All state changes broadcast through centralized EventBus
- * - DI: Dependencies injected through ServiceLocator, not hard-coded
- * - Tags: GameplayTags for all state and type identification
- * - Services: Business logic delegated to services, actor is thin data holder
- *
- * Key Principles:
- * - No direct GA/GE/Attach calls - services handle these
- * - Initializes components from SSOT (Single Source of Truth)
- * - Publishes events to EventBus for decoupled communication
- * - Provides read-only/proxy Interface methods
+ * Thin equipment actor (S3): bridge between SSOT/data and services.
+ * - No direct GA/GE/Attach calls here.
+ * - Initializes its components from SSOT.
+ * - Publishes events to EventBus.
+ * - Provides read-only/proxy Interface methods.
  */
 UCLASS(Blueprintable, BlueprintType)
 class EQUIPMENTSYSTEM_API ASuspenseCoreEquipmentActor : public AActor, public ISuspenseEquipment
@@ -54,10 +46,10 @@ public:
     virtual void OnEquipped_Implementation(AActor* NewOwner) override;
     virtual void OnUnequipped_Implementation() override;
 
-    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
-    virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
-    virtual FSuspenseInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
+    virtual FSuspenseCoreInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
     virtual FEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
     virtual EEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
     virtual FGameplayTag           GetEquipmentSlotTag_Implementation() const override;
@@ -68,13 +60,13 @@ public:
     virtual FName      GetAttachmentSocket_Implementation() const override;
     virtual FTransform GetAttachmentOffset_Implementation() const override;
 
-    virtual bool CanEquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) const override;
+    virtual bool CanEquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
     virtual FGameplayTagContainer GetAllowedItemTypes_Implementation() const override;
     virtual bool ValidateEquipmentRequirements_Implementation(TArray<FString>& OutErrors) const override;
 
-    virtual FSuspenseInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip) override;
-    virtual FSuspenseInventoryOperationResult UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance) override;
-    virtual FSuspenseInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
+    virtual FSuspenseCoreInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip) override;
+    virtual FSuspenseCoreInventoryOperationResult UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance) override;
+    virtual FSuspenseCoreInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
 
     // GAS bridge (read-only / proxy)
     virtual UAbilitySystemComponent* GetAbilitySystemComponent_Implementation() const override;
@@ -82,7 +74,7 @@ public:
     virtual TArray<TSubclassOf<class UGameplayAbility>> GetGrantedAbilities_Implementation() const override;
     virtual TArray<TSubclassOf<class UGameplayEffect>>  GetPassiveEffects_Implementation() const override;
 
-    // Effects management entrypoints (delegated to services)
+    // Effects management entrypoints (now NO-OP for S3)
     virtual void ApplyEquipmentEffects_Implementation() override;
     virtual void RemoveEquipmentEffects_Implementation() override;
 
@@ -104,11 +96,11 @@ public:
 
     // Utility for spawn-side initialization
     UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Init")
-    bool InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+    bool InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
 protected:
     /** Initialize all internal components from item instance (SSOT-driven) */
-    void InitializeEquipmentComponents(const FSuspenseInventoryItemInstance& ItemInstance);
+    void InitializeEquipmentComponents(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /** Setup visual mesh defaults (does not attach) */
     void SetupEquipmentMesh(const FSuspenseUnifiedItemData& ItemData);
@@ -124,7 +116,7 @@ protected:
     void OnRep_ItemData();
 
     /** Publish equipment event with optional payload pointer (item instance) */
-    void NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseInventoryItemInstance* Payload = nullptr) const;
+    void NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseCoreInventoryItemInstance* Payload = nullptr) const;
 
     /** Publish property-changed (State) via Equipment.Event.PropertyChanged */
     void NotifyEquipmentStateChanged(const FGameplayTag& NewState, bool bIsRefresh) const;
@@ -135,15 +127,15 @@ protected:
     /** Subsystem accessor */
     USuspenseItemManager* GetItemManager() const;
 
-    // Services handle GA/GE - these are NO-OP stubs for compatibility
-    void GrantAbilitiesFromItemData();
-    void ApplyPassiveEffectsFromItemData();
-    void ApplyInitializationEffects();
-    void RemoveGrantedAbilities();
-    void RemoveAppliedEffects();
+    // ===== S3: GA/GE hooks now NO-OP (keep for compatibility) =====
+    void GrantAbilitiesFromItemData();          // NO-OP
+    void ApplyPassiveEffectsFromItemData();     // NO-OP
+    void ApplyInitializationEffects();          // NO-OP
+    void RemoveGrantedAbilities();              // NO-OP
+    void RemoveAppliedEffects();                // NO-OP
 
 protected:
-    // Components - using SuspenseCore prefixed components
+    // Components
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="SuspenseCore|Equipment|Components")
     USuspenseCoreEquipmentMeshComponent*        MeshComponent;
 
@@ -171,7 +163,7 @@ protected:
     float ReplicatedItemCondition = 0.f;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="SuspenseCore|Equipment|Runtime")
-    FSuspenseInventoryItemInstance EquippedItemInstance;
+    FSuspenseCoreInventoryItemInstance EquippedItemInstance;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SuspenseCore|Equipment|Slot")
     FGameplayTag EquipmentSlotTag;
@@ -184,7 +176,7 @@ protected:
     bool  bFullyInitialized  = false;
     int32 EquipmentCycleCounter = 0;
 
-    // Local GA/GE handles kept only for safe cleanup if legacy calls happened
+    // Local GA/GE handles kept only for safe cleanup if legacy calls happened (will be empty in S3)
     TArray<FGameplayAbilitySpecHandle>   GrantedAbilityHandles;
     TArray<FActiveGameplayEffectHandle>  AppliedEffectHandles;
 
@@ -193,7 +185,7 @@ protected:
     {
         TWeakObjectPtr<AActor>                  PendingOwner;
         TWeakObjectPtr<UAbilitySystemComponent> PendingASC;
-        FSuspenseInventoryItemInstance          PendingItemInstance;
+        FSuspenseCoreInventoryItemInstance                  PendingItemInstance;
 
         bool bHasOwnerData = false;
         bool bHasItemData  = false;
@@ -202,7 +194,7 @@ protected:
         {
             PendingOwner.Reset();
             PendingASC.Reset();
-            PendingItemInstance = FSuspenseInventoryItemInstance();
+            PendingItemInstance = FSuspenseCoreInventoryItemInstance();
             bHasOwnerData = false;
             bHasItemData  = false;
         }
@@ -216,7 +208,7 @@ protected:
     FPendingInit PendingInit;
 
 private:
-    // Logging helpers
+    // Logging helpers (category minimal)
     bool CheckAuthority(const TCHAR* Ctx) const
     {
         if (!HasAuthority())

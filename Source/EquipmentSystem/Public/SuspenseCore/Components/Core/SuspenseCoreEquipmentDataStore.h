@@ -1,427 +1,337 @@
+// SuspenseEquipmentDataStore.h
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "GameplayTagContainer.h"
+#include "Components/ActorComponent.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "Types/Transaction/SuspenseTransactionTypes.h"
+#include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
 
-// Forward declarations
-class USuspenseCoreEventBus;
-class USuspenseCoreServiceLocator;
-struct FSuspenseCoreEventData;
+// Define logging category for DataStore
+DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentDataStore, Log, All);
 
 /**
- * FSuspenseCoreEquipmentCacheEntry
- *
- * Cached equipment data entry with timestamp
+ * Structure for deferred event dispatch
+ * Used to collect events under lock and dispatch after releasing it
+ */
+struct FSuspensePendingEventData
+{
+    enum EEventType
+    {
+        SlotChanged,
+        ConfigChanged,
+        StoreReset,
+        StateChanged,
+        EquipmentDelta  // New type for delta events
+    };
+
+    EEventType Type;
+    int32 SlotIndex;
+    FSuspenseInventoryItemInstance ItemData;
+    FGameplayTag StateTag;
+    FEquipmentDelta DeltaData;  // New field for delta data
+};
+
+/**
+ * Internal data storage structure
+ * Encapsulates all mutable state for thread-safe access
  */
 USTRUCT()
-struct FSuspenseCoreEquipmentCacheEntry
+struct FEquipmentDataStorage
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-	/** Cached item instance */
-	UPROPERTY()
-	FSuspenseInventoryItemInstance ItemInstance;
+    /** Slot configurations */
+    UPROPERTY()
+    TArray<FEquipmentSlotConfig> SlotConfigurations;
 
-	/** Cache timestamp */
-	UPROPERTY()
-	float CacheTime = 0.0f;
+    /** Items in slots */
+    UPROPERTY()
+    TArray<FSuspenseInventoryItemInstance> SlotItems;
 
-	/** Cache version */
-	UPROPERTY()
-	int32 Version = 0;
+    /** Active weapon slot index */
+    UPROPERTY()
+    int32 ActiveWeaponSlot = INDEX_NONE;
 
-	/** Is cache entry valid */
-	UPROPERTY()
-	bool bIsValid = false;
+    /** Current equipment state */
+    UPROPERTY()
+    FGameplayTag CurrentState;
 
-	/** Check if cache is expired */
-	bool IsExpired(float CurrentTime, float MaxAge) const
-	{
-		return !bIsValid || (CurrentTime - CacheTime) > MaxAge;
-	}
+    /** Data version for change tracking */
+    UPROPERTY()
+    uint32 DataVersion = 0;
 
-	/** Invalidate cache entry */
-	void Invalidate()
-	{
-		bIsValid = false;
-	}
+    /** Last modification time */
+    UPROPERTY()
+    FDateTime LastModified;
+
+    /** Current transaction context (if any) */
+    UPROPERTY()
+    FGuid ActiveTransactionId;
+
+    FEquipmentDataStorage()
+    {
+        CurrentState = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Idle"));
+        LastModified = FDateTime::Now();
+    }
 };
 
 /**
- * FSuspenseCoreEquipmentSnapshot
+ * Equipment Data Store Component
  *
- * Complete snapshot of equipment state for save/load
+ * Philosophy: Pure data storage with no business logic.
+ * Acts as a "dumb" container that only stores and retrieves data.
+ * All validation and decision-making is handled by external validators.
+ *
+ * Key Design Principles:
+ * - Thread-safe data access through critical sections
+ * - Immutable public interface (all getters return copies)
+ * - Event-driven change notifications (NEVER under locks)
+ * - No business logic, pure data storage
+ * - No validation rules or decision making
+ * - DIFF-based change tracking for fine-grained updates
+ *
+ * Critical Threading Rule:
+ * Events are NEVER broadcast under DataCriticalSection to prevent deadlocks.
+ * We collect event data under lock, then broadcast after releasing it.
  */
-USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreEquipmentSnapshot
+UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataStore : public UActorComponent, public ISuspenseEquipmentDataProvider
 {
-	GENERATED_BODY()
-
-	/** Snapshot ID */
-	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
-	FGuid SnapshotId;
-
-	/** Snapshot timestamp */
-	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
-	FDateTime Timestamp;
-
-	/** All equipped items */
-	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
-	TMap<int32, FSuspenseInventoryItemInstance> EquippedItems;
-
-	/** Active equipment tags */
-	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
-	FGameplayTagContainer ActiveTags;
-
-	/** Custom metadata */
-	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
-	TMap<FName, FString> Metadata;
-
-	/** Create new snapshot */
-	static FSuspenseCoreEquipmentSnapshot Create()
-	{
-		FSuspenseCoreEquipmentSnapshot Snapshot;
-		Snapshot.SnapshotId = FGuid::NewGuid();
-		Snapshot.Timestamp = FDateTime::Now();
-		return Snapshot;
-	}
-};
-
-/**
- * USuspenseCoreEquipmentDataStore
- *
- * Local data storage with caching for equipment system.
- *
- * Architecture:
- * - EventBus: Publishes data change events
- * - ServiceLocator: Dependency injection for service access
- * - GameplayTags: Data categorization and event routing
- * - Caching: Multi-level cache with TTL and invalidation
- *
- * Responsibilities:
- * - Store and retrieve equipment item data
- * - Manage data cache with expiration
- * - Create and restore equipment snapshots
- * - Publish data change events through EventBus
- * - Support data queries with cache hits
- */
-UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataStore : public UObject
-{
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreEquipmentDataStore();
+    USuspenseCoreEquipmentDataStore();
+    virtual ~USuspenseCoreEquipmentDataStore();
 
-	//================================================
-	// Initialization
-	//================================================
+    //~ Begin UActorComponent Interface
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    //~ End UActorComponent Interface
 
-	/**
-	 * Initialize data store with dependencies
-	 * @param InServiceLocator ServiceLocator for dependency injection
-	 * @return True if initialized successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore")
-	bool Initialize(USuspenseCoreServiceLocator* InServiceLocator);
+    //========================================
+    // ISuspenseEquipmentDataProvider Implementation
 
-	/**
-	 * Shutdown data store and cleanup
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore")
-	void Shutdown();
+	// High-level queries required by ISuspenseEquipmentDataProvider
+	virtual TArray<int32> FindCompatibleSlots(const FGameplayTag& ItemSlotTag) const override;
+	virtual TArray<int32> GetSlotsByType(EEquipmentSlotType SlotType) const override;
+	virtual int32 GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const override;
+	virtual float GetTotalEquippedWeight() const override;
+	virtual bool MeetsItemRequirements(const FSuspenseInventoryItemInstance& Item, int32 TargetSlotIndex) const override;
+	virtual FString GetDebugInfo() const override;
+    //========================================
 
-	/**
-	 * Check if data store is initialized
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore")
-	bool IsInitialized() const { return bIsInitialized; }
+    // Pure Data Access - No Logic
+    virtual FSuspenseInventoryItemInstance GetSlotItem(int32 SlotIndex) const override;
+    virtual FEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const override;
+    virtual TArray<FEquipmentSlotConfig> GetAllSlotConfigurations() const override;
+    virtual TMap<int32, FSuspenseInventoryItemInstance> GetAllEquippedItems() const override;
+    virtual int32 GetSlotCount() const override;
+    virtual bool IsValidSlotIndex(int32 SlotIndex) const override;
+    virtual bool IsSlotOccupied(int32 SlotIndex) const override;
 
-	//================================================
-	// Data Storage Operations
-	//================================================
+    // Data Modification - No Validation
+    virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) override;
+    virtual FSuspenseInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) override;
+    virtual bool InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations) override;
 
-	/**
-	 * Store equipment item data
-	 * @param SlotIndex Equipment slot
-	 * @param ItemInstance Item to store
-	 * @return True if stored successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Storage")
-	bool StoreItemData(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance);
+    // State Management
+    virtual int32 GetActiveWeaponSlot() const override;
+    virtual bool SetActiveWeaponSlot(int32 SlotIndex) override;
+    virtual FGameplayTag GetCurrentEquipmentState() const override;
+    virtual bool SetEquipmentState(const FGameplayTag& NewState) override;
 
-	/**
-	 * Retrieve equipment item data
-	 * @param SlotIndex Equipment slot
-	 * @param OutItem Output item instance
-	 * @return True if item retrieved
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Storage")
-	bool RetrieveItemData(int32 SlotIndex, FSuspenseInventoryItemInstance& OutItem) const;
+    // Snapshot Management
+    virtual FEquipmentStateSnapshot CreateSnapshot() const override;
+    virtual bool RestoreSnapshot(const FEquipmentStateSnapshot& Snapshot) override;
+    virtual FEquipmentSlotSnapshot CreateSlotSnapshot(int32 SlotIndex) const override;
 
-	/**
-	 * Remove item data from slot
-	 * @param SlotIndex Equipment slot
-	 * @return True if removed successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Storage")
-	bool RemoveItemData(int32 SlotIndex);
+    // Events
+    virtual FOnSlotDataChanged& OnSlotDataChanged() override { return OnSlotDataChangedDelegate; }
+    virtual FOnSlotConfigurationChanged& OnSlotConfigurationChanged() override { return OnSlotConfigurationChangedDelegate; }
+    virtual FOnDataStoreReset& OnDataStoreReset() override { return OnDataStoreResetDelegate; }
 
-	/**
-	 * Check if slot has data
-	 * @param SlotIndex Equipment slot
-	 * @return True if slot has stored data
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Storage")
-	bool HasItemData(int32 SlotIndex) const;
+    /** Get equipment delta event */
+    FOnEquipmentDelta& OnEquipmentDelta() { return OnEquipmentDeltaDelegate; }
 
-	/**
-	 * Get all stored item slots
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Storage")
-	TArray<int32> GetStoredSlots() const;
+    //========================================
+    // Transaction Support
+    //========================================
 
-	/**
-	 * Clear all stored data
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Storage")
-	void ClearAllData();
+    /**
+     * Set active transaction context
+     * @param TransactionId Current transaction ID
+     */
+    void SetActiveTransaction(const FGuid& TransactionId);
 
-	//================================================
-	// Cache Management
-	//================================================
+    /**
+     * Clear active transaction context
+     */
+    void ClearActiveTransaction();
+
+    /**
+     * Get active transaction ID
+     * @return Current transaction or invalid GUID
+     */
+    FGuid GetActiveTransaction() const;
 
 	/**
-	 * Update cache for slot
-	 * @param SlotIndex Equipment slot
-	 * @param ItemInstance Item to cache
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Cache")
-	void UpdateCache(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance);
+	* Clears ActiveTransactionId only if it matches the provided TxnId.
+	* Safe for nested transactions.
+	*/
+	void ClearActiveTransactionIfMatches(const FGuid& TxnId);
+	//========================================
+	// Transaction Delta Handler
+	//========================================
 
 	/**
-	 * Invalidate cache for slot
-	 * @param SlotIndex Equipment slot
+	 * Handle transaction deltas from TransactionProcessor
+	 * Called when transaction is committed/rolled back
+	 * Updates internal state and broadcasts events
+	 *
+	 * @param Deltas - Array of transaction deltas with before/after states
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Cache")
-	void InvalidateCache(int32 SlotIndex);
+	void OnTransactionDelta(const TArray<FEquipmentDelta>& Deltas);
+    //========================================
+    // Additional Public Methods
+    //========================================
+
+    //UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+    uint32 GetDataVersion() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+    FDateTime GetLastModificationTime() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+    void ResetToDefault();
+
+    UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+    int32 GetMemoryUsage() const;
+	/**
+		* Get fresh slot configuration directly from LoadoutManager
+		* This ensures we always use the most up-to-date configuration
+		* @param SlotIndex Index of the slot
+		* @return Fresh configuration from LoadoutManager or cached if unavailable
+		*/
+	UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+	FEquipmentSlotConfig GetFreshSlotConfiguration(int32 SlotIndex) const;
 
 	/**
-	 * Invalidate all caches
+	 * Refresh all cached slot configurations from LoadoutManager
+	 * Call this when you know configurations have changed
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Cache")
-	void InvalidateAllCaches();
+	UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+	void RefreshSlotConfigurations();
 
 	/**
-	 * Get cache hit rate
+	 * Set the current loadout ID for this data store
+	 * Used to fetch correct configuration from LoadoutManager
 	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Cache")
-	float GetCacheHitRate() const;
-
-	/**
-	 * Clean expired cache entries
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Cache")
-	void CleanExpiredCaches();
-
-	//================================================
-	// Snapshot Operations
-	//================================================
-
-	/**
-	 * Create snapshot of current equipment state
-	 * @return Equipment snapshot
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Snapshot")
-	FSuspenseCoreEquipmentSnapshot CreateSnapshot();
-
-	/**
-	 * Restore equipment state from snapshot
-	 * @param Snapshot Snapshot to restore
-	 * @return True if restored successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Snapshot")
-	bool RestoreSnapshot(const FSuspenseCoreEquipmentSnapshot& Snapshot);
-
-	/**
-	 * Save snapshot to persistent storage
-	 * @param Snapshot Snapshot to save
-	 * @param SaveName Name for saved snapshot
-	 * @return True if saved successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Snapshot")
-	bool SaveSnapshot(const FSuspenseCoreEquipmentSnapshot& Snapshot, const FString& SaveName);
-
-	/**
-	 * Load snapshot from persistent storage
-	 * @param SaveName Name of saved snapshot
-	 * @param OutSnapshot Output snapshot
-	 * @return True if loaded successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Snapshot")
-	bool LoadSnapshot(const FString& SaveName, FSuspenseCoreEquipmentSnapshot& OutSnapshot);
-
-	//================================================
-	// Query Operations
-	//================================================
-
-	/**
-	 * Find items by tag
-	 * @param Tag Tag to search for
-	 * @return Array of matching items with their slots
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Query")
-	TMap<int32, FSuspenseInventoryItemInstance> FindItemsByTag(FGameplayTag Tag) const;
-
-	/**
-	 * Find items by type
-	 * @param ItemType Item type to search for
-	 * @return Array of matching items with their slots
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Query")
-	TMap<int32, FSuspenseInventoryItemInstance> FindItemsByType(FName ItemType) const;
-
-	/**
-	 * Get total stored items count
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Query")
-	int32 GetStoredItemCount() const { return StoredItems.Num(); }
-
-	//================================================
-	// Statistics
-	//================================================
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Stats")
-	int32 GetTotalReads() const { return TotalReads; }
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Stats")
-	int32 GetTotalWrites() const { return TotalWrites; }
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Stats")
-	int32 GetCacheHits() const { return CacheHits; }
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Stats")
-	int32 GetCacheMisses() const { return CacheMisses; }
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|DataStore|Stats")
-	void ResetStatistics();
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|DataStore|Stats")
-	FString GetDataStoreStats() const;
-
+	UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
+	void SetCurrentLoadoutID(const FName& LoadoutID);
 protected:
-	//================================================
-	// Event Publishing
-	//================================================
+    /**
+     * Internal method to modify data with event collection
+     * Collects events under lock, broadcasts after releasing
+     */
+    bool ModifyDataWithEvents(
+        TFunction<bool(FEquipmentDataStorage&, TArray<FSuspensePendingEventData>&)> ModificationFunc,
+        bool bNotifyObservers = true
+    );
 
-	/** Publish data changed event */
-	void PublishDataChanged(int32 SlotIndex, bool bAdded);
+    /**
+     * Create delta for a change
+     */
+    FEquipmentDelta CreateDelta(
+        const FGameplayTag& ChangeType,
+        int32 SlotIndex,
+        const FSuspenseInventoryItemInstance& Before,
+        const FSuspenseInventoryItemInstance& After,
+        const FGameplayTag& Reason
+    );
 
-	/** Publish cache invalidated event */
-	void PublishCacheInvalidated(int32 SlotIndex);
+    bool ValidateSlotIndexInternal(int32 SlotIndex, const FString& FunctionName) const;
+    FEquipmentDataStorage CreateDataSnapshot() const;
+    bool ApplyDataSnapshot(const FEquipmentDataStorage& Snapshot, bool bNotifyObservers = true);
+    void IncrementVersion();
+    void LogDataModification(const FString& ModificationType, const FString& Details) const;
 
-	/** Publish snapshot created event */
-	void PublishSnapshotCreated(const FSuspenseCoreEquipmentSnapshot& Snapshot);
-
-	//================================================
-	// Internal Methods
-	//================================================
-
-	/** Get or create cache entry */
-	FSuspenseCoreEquipmentCacheEntry& GetOrCreateCacheEntry(int32 SlotIndex);
-
-	/** Check if cache is valid */
-	bool IsCacheValid(int32 SlotIndex) const;
-
-	/** Update cache statistics */
-	void UpdateCacheStats(bool bHit);
-
+    /**
+     * Broadcast collected events after releasing lock
+     * This method is called OUTSIDE of any critical section
+     */
+    void BroadcastPendingEvents(const TArray<FSuspensePendingEventData>& PendingEvents);
+	/** Current loadout ID being used by this data store */
+	UPROPERTY()
+	FName CurrentLoadoutID;
 private:
-	//================================================
-	// Dependencies (Injected)
-	//================================================
+    //========================================
+    // Core Data Storage
+    //========================================
 
-	/** ServiceLocator for dependency injection */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreServiceLocator> ServiceLocator;
+    /** Main data storage */
+    UPROPERTY()
+    FEquipmentDataStorage DataStorage;
 
-	/** EventBus for event publishing */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+    /** Critical section for thread-safe access */
+    mutable FCriticalSection DataCriticalSection;
 
-	//================================================
-	// Data Storage
-	//================================================
+    //========================================
+    // Snapshot Management
+    //========================================
 
-	/** Stored equipment items by slot */
-	UPROPERTY()
-	TMap<int32, FSuspenseInventoryItemInstance> StoredItems;
+    /** History of snapshots for undo/redo */
+    UPROPERTY()
+    TArray<FEquipmentStateSnapshot> SnapshotHistory;
 
-	/** Cache entries by slot */
-	UPROPERTY()
-	TMap<int32, FSuspenseCoreEquipmentCacheEntry> CacheEntries;
+    /** Maximum snapshots to keep */
+    static constexpr int32 MaxSnapshotHistory = 10;
 
-	//================================================
-	// State
-	//================================================
+    //========================================
+    // Event Delegates
+    //========================================
 
-	/** Initialization flag */
-	UPROPERTY()
-	bool bIsInitialized;
+    /** Delegate fired when slot data changes */
+    FOnSlotDataChanged OnSlotDataChangedDelegate;
 
-	/** Data version for change tracking */
-	UPROPERTY()
-	int32 DataVersion;
+    /** Delegate fired when slot configuration changes */
+    FOnSlotConfigurationChanged OnSlotConfigurationChangedDelegate;
 
-	//================================================
-	// Configuration
-	//================================================
+    /** Delegate fired when data store is reset */
+    FOnDataStoreReset OnDataStoreResetDelegate;
 
-	/** Cache max age in seconds */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float CacheMaxAge;
+    /** Delegate fired for equipment deltas */
+    FOnEquipmentDelta OnEquipmentDeltaDelegate;
 
-	/** Enable automatic cache cleanup */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableAutoCacheCleanup;
+    //========================================
+    // Statistics
+    //========================================
 
-	/** Cache cleanup interval in seconds */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float CacheCleanupInterval;
+    /** Total modifications counter */
+    UPROPERTY()
+    int32 TotalModifications = 0;
 
-	//================================================
-	// Statistics
-	//================================================
+    /** Total deltas generated */
+    UPROPERTY()
+    int32 TotalDeltasGenerated = 0;
 
-	/** Total read operations */
-	UPROPERTY()
-	int32 TotalReads;
+    /** Modification rate tracking */
+    UPROPERTY()
+    float ModificationRate = 0.0f;
 
-	/** Total write operations */
-	UPROPERTY()
-	int32 TotalWrites;
+    /** Last rate calculation time */
+    float LastRateCalculationTime = 0.0f;
 
-	/** Cache hits */
-	UPROPERTY()
-	int32 CacheHits;
+    void UpdateStatistics();
 
-	/** Cache misses */
-	UPROPERTY()
-	int32 CacheMisses;
+	/** Конвертирует тег состояния в enum (для обратной совместимости снапшотов) */
+	EEquipmentState ConvertTagToEquipmentState(const FGameplayTag& StateTag) const;
 
-	/** Last cache cleanup time */
-	UPROPERTY()
-	float LastCacheCleanupTime;
-
-	//================================================
-	// Thread Safety
-	//================================================
-
-	/** Critical section for thread-safe data access */
-	mutable FCriticalSection DataCriticalSection;
+	/** Конвертирует enum состояния в тег (fallback, если в снапшоте нет тега) */
+	FGameplayTag ConvertEquipmentStateToTag(EEquipmentState State) const;
 };

@@ -21,9 +21,9 @@
 // Local tag cache (perf/stability)
 // ==============================
 
-namespace SuspenseCoreEquipmentTags
+namespace
 {
-    struct FTagCache
+    struct FEquipmentTagCache
     {
         // Equipment states
         FGameplayTag State_Inactive;
@@ -56,7 +56,7 @@ namespace SuspenseCoreEquipmentTags
         FGameplayTag Slot_Quick4;
         FGameplayTag Slot_Armband;
 
-        FTagCache()
+        FEquipmentTagCache()
         {
             // states
             State_Inactive = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Inactive"));
@@ -91,10 +91,11 @@ namespace SuspenseCoreEquipmentTags
         }
     };
 
-    static const FTagCache& Get()
+    // renamed to avoid clash with AActor::Tags field
+    static const FEquipmentTagCache& EqTags()
     {
-        static FTagCache Instance;
-        return Instance;
+        static FEquipmentTagCache S;
+        return S;
     }
 }
 
@@ -114,8 +115,8 @@ ASuspenseCoreEquipmentActor::ASuspenseCoreEquipmentActor()
     AttributeComponent  = CreateDefaultSubobject<USuspenseCoreEquipmentAttributeComponent>(TEXT("AttributeComponent"));
     AttachmentComponent = CreateDefaultSubobject<USuspenseCoreEquipmentAttachmentComponent>(TEXT("AttachmentComponent"));
 
-    CurrentState     = SuspenseCoreEquipmentTags::Get().State_Inactive;
-    EquipmentSlotTag = SuspenseCoreEquipmentTags::Get().Slot_None;
+    CurrentState     = EqTags().State_Inactive;
+    EquipmentSlotTag = EqTags().Slot_None;
 }
 
 void ASuspenseCoreEquipmentActor::BeginPlay()
@@ -183,15 +184,17 @@ void ASuspenseCoreEquipmentActor::OnEquipped_Implementation(AActor* NewOwner)
     PendingInit.PendingASC     = CachedASC;
     PendingInit.bHasOwnerData  = true;
 
-    SetEquipmentStateInternal(SuspenseCoreEquipmentTags::Get().State_Equipped);
-    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().Event_Equipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
+    SetEquipmentStateInternal(EqTags().State_Equipped);
+    // Передаём текущий инстанс, если он уже валиден, иначе nullptr
+    NotifyEquipmentEvent(EqTags().Event_Equipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
 }
 
 void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
 {
     if (!CheckAuthority(TEXT("OnUnequipped"))) { return; }
 
-    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().Event_Unequipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
+    // Сначала уведомим слушателей, пока инстанс ещё сохранён
+    NotifyEquipmentEvent(EqTags().Event_Unequipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
 
     RemoveGrantedAbilities();
     RemoveAppliedEffects();
@@ -199,7 +202,7 @@ void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
     if (AttributeComponent)  { AttributeComponent->Cleanup(); }
     if (AttachmentComponent) { AttachmentComponent->Cleanup(); }
 
-    SetEquipmentStateInternal(SuspenseCoreEquipmentTags::Get().State_Inactive);
+    SetEquipmentStateInternal(EqTags().State_Inactive);
 
     OwnerActor   = nullptr;
     CachedASC    = nullptr;
@@ -207,7 +210,7 @@ void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
     PendingInit.Reset();
 }
 
-void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (!ItemInstance.IsValid())
     {
@@ -232,31 +235,32 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FS
 
         InitializeEquipmentComponents(EquippedItemInstance);
 
-        NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+        // Событие для UI/сервисов с валидным payload
+        NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
 
         bFullyInitialized = true;
         PendingInit.Reset();
     }
 }
 
-void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (EquippedItemInstance.IsValid())
     {
         for (const auto& KV : EquippedItemInstance.RuntimeProperties)
         {
-            const_cast<FSuspenseInventoryItemInstance&>(ItemInstance).SetRuntimeProperty(KV.Key, KV.Value);
+            const_cast<FSuspenseCoreInventoryItemInstance&>(ItemInstance).SetRuntimeProperty(KV.Key, KV.Value);
         }
     }
 
-    EquippedItemInstance = FSuspenseInventoryItemInstance();
+    EquippedItemInstance = FSuspenseCoreInventoryItemInstance();
 }
 
 // ==============================
 // Components init (SSOT)
 // ==============================
 
-void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseInventoryItemInstance& ItemInstance)
+void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (!ItemInstance.IsValid())
     {
@@ -306,7 +310,7 @@ void ASuspenseCoreEquipmentActor::SetupEquipmentMesh(const FSuspenseUnifiedItemD
 // Interface: properties / queries
 // ==============================
 
-FSuspenseInventoryItemInstance ASuspenseCoreEquipmentActor::GetEquippedItemInstance_Implementation() const
+FSuspenseCoreInventoryItemInstance ASuspenseCoreEquipmentActor::GetEquippedItemInstance_Implementation() const
 {
     return EquippedItemInstance;
 }
@@ -324,31 +328,30 @@ const FEquipmentSlotConfig* ASuspenseCoreEquipmentActor::GetSlotConfigurationPtr
 
 EEquipmentSlotType ASuspenseCoreEquipmentActor::GetEquipmentSlotType_Implementation() const
 {
-    const auto& Tags = SuspenseCoreEquipmentTags::Get();
     const FGameplayTag& T = EquipmentSlotTag;
 
-    if (T.MatchesTagExact(Tags.Slot_PrimaryWeapon))    return EEquipmentSlotType::PrimaryWeapon;
-    if (T.MatchesTagExact(Tags.Slot_SecondaryWeapon))  return EEquipmentSlotType::SecondaryWeapon;
-    if (T.MatchesTagExact(Tags.Slot_Holster))          return EEquipmentSlotType::Holster;
-    if (T.MatchesTagExact(Tags.Slot_Scabbard))         return EEquipmentSlotType::Scabbard;
+    if (T.MatchesTagExact(EqTags().Slot_PrimaryWeapon))    return EEquipmentSlotType::PrimaryWeapon;
+    if (T.MatchesTagExact(EqTags().Slot_SecondaryWeapon))  return EEquipmentSlotType::SecondaryWeapon;
+    if (T.MatchesTagExact(EqTags().Slot_Holster))          return EEquipmentSlotType::Holster;
+    if (T.MatchesTagExact(EqTags().Slot_Scabbard))         return EEquipmentSlotType::Scabbard;
 
-    if (T.MatchesTagExact(Tags.Slot_Headwear))         return EEquipmentSlotType::Headwear;
-    if (T.MatchesTagExact(Tags.Slot_Earpiece))         return EEquipmentSlotType::Earpiece;
-    if (T.MatchesTagExact(Tags.Slot_Eyewear))          return EEquipmentSlotType::Eyewear;
-    if (T.MatchesTagExact(Tags.Slot_FaceCover))        return EEquipmentSlotType::FaceCover;
+    if (T.MatchesTagExact(EqTags().Slot_Headwear))         return EEquipmentSlotType::Headwear;
+    if (T.MatchesTagExact(EqTags().Slot_Earpiece))         return EEquipmentSlotType::Earpiece;
+    if (T.MatchesTagExact(EqTags().Slot_Eyewear))          return EEquipmentSlotType::Eyewear;
+    if (T.MatchesTagExact(EqTags().Slot_FaceCover))        return EEquipmentSlotType::FaceCover;
 
-    if (T.MatchesTagExact(Tags.Slot_BodyArmor))        return EEquipmentSlotType::BodyArmor;
-    if (T.MatchesTagExact(Tags.Slot_TacticalRig))      return EEquipmentSlotType::TacticalRig;
+    if (T.MatchesTagExact(EqTags().Slot_BodyArmor))        return EEquipmentSlotType::BodyArmor;
+    if (T.MatchesTagExact(EqTags().Slot_TacticalRig))      return EEquipmentSlotType::TacticalRig;
 
-    if (T.MatchesTagExact(Tags.Slot_Backpack))         return EEquipmentSlotType::Backpack;
-    if (T.MatchesTagExact(Tags.Slot_SecureContainer))  return EEquipmentSlotType::SecureContainer;
+    if (T.MatchesTagExact(EqTags().Slot_Backpack))         return EEquipmentSlotType::Backpack;
+    if (T.MatchesTagExact(EqTags().Slot_SecureContainer))  return EEquipmentSlotType::SecureContainer;
 
-    if (T.MatchesTagExact(Tags.Slot_Quick1))           return EEquipmentSlotType::QuickSlot1;
-    if (T.MatchesTagExact(Tags.Slot_Quick2))           return EEquipmentSlotType::QuickSlot2;
-    if (T.MatchesTagExact(Tags.Slot_Quick3))           return EEquipmentSlotType::QuickSlot3;
-    if (T.MatchesTagExact(Tags.Slot_Quick4))           return EEquipmentSlotType::QuickSlot4;
+    if (T.MatchesTagExact(EqTags().Slot_Quick1))           return EEquipmentSlotType::QuickSlot1;
+    if (T.MatchesTagExact(EqTags().Slot_Quick2))           return EEquipmentSlotType::QuickSlot2;
+    if (T.MatchesTagExact(EqTags().Slot_Quick3))           return EEquipmentSlotType::QuickSlot3;
+    if (T.MatchesTagExact(EqTags().Slot_Quick4))           return EEquipmentSlotType::QuickSlot4;
 
-    if (T.MatchesTagExact(Tags.Slot_Armband))          return EEquipmentSlotType::Armband;
+    if (T.MatchesTagExact(EqTags().Slot_Armband))          return EEquipmentSlotType::Armband;
 
     return EEquipmentSlotType::None;
 }
@@ -389,7 +392,7 @@ FTransform ASuspenseCoreEquipmentActor::GetAttachmentOffset_Implementation() con
     return GetUnifiedItemData(ItemData) ? ItemData.AttachmentOffset : FTransform::Identity;
 }
 
-bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) const
+bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     if (!ItemInstance.IsValid()) { return false; }
 
@@ -443,9 +446,9 @@ bool ASuspenseCoreEquipmentActor::ValidateEquipmentRequirements_Implementation(T
 // Interface: operations
 // ==============================
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!ItemInstance.IsValid())
     {
@@ -463,7 +466,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance
 
     if (EquippedItemInstance.IsValid())
     {
-        FSuspenseInventoryItemInstance Tmp;
+        FSuspenseCoreInventoryItemInstance Tmp;
         UnequipItem_Implementation(Tmp);
     }
 
@@ -475,9 +478,9 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance
     return R;
 }
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!EquippedItemInstance.IsValid())
     {
@@ -495,9 +498,9 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Imple
     return R;
 }
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!OtherEquipment)
     {
@@ -506,8 +509,8 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
         return R;
     }
 
-    const FSuspenseInventoryItemInstance ThisItem  = EquippedItemInstance;
-    const FSuspenseInventoryItemInstance OtherItem = ISuspenseEquipment::Execute_GetEquippedItemInstance(OtherEquipment.GetObject());
+    const FSuspenseCoreInventoryItemInstance ThisItem  = EquippedItemInstance;
+    const FSuspenseCoreInventoryItemInstance OtherItem = ISuspenseEquipment::Execute_GetEquippedItemInstance(OtherEquipment.GetObject());
 
     const bool bThisCanEquipOther  = !OtherItem.IsValid() || CanEquipItemInstance_Implementation(OtherItem);
     const bool bOtherCanEquipThis  = !ThisItem.IsValid() || ISuspenseEquipment::Execute_CanEquipItemInstance(OtherEquipment.GetObject(), ThisItem);
@@ -519,7 +522,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
         return R;
     }
 
-    FSuspenseInventoryItemInstance Tmp;
+    FSuspenseCoreInventoryItemInstance Tmp;
     if (ThisItem.IsValid())
     {
         UnequipItem_Implementation(Tmp);
@@ -527,7 +530,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
     }
     if (OtherItem.IsValid())
     {
-        FSuspenseInventoryItemInstance OtherUnequipped;
+        FSuspenseCoreInventoryItemInstance OtherUnequipped;
         ISuspenseEquipment::Execute_UnequipItem(OtherEquipment.GetObject(), OtherUnequipped);
         EquipItemInstance_Implementation(OtherUnequipped, false);
         R.AffectedItems.Add(OtherUnequipped);
@@ -585,8 +588,8 @@ TArray<TSubclassOf<UGameplayEffect>> ASuspenseCoreEquipmentActor::GetPassiveEffe
     return Effects;
 }
 
-// Services handle GA/GE - these are NO-OP stubs
-void ASuspenseCoreEquipmentActor::ApplyEquipmentEffects_Implementation()      { ApplyInitializationEffects(); }
+// S3: NO-OPs (services will grant/remove on events)
+void ASuspenseCoreEquipmentActor::ApplyEquipmentEffects_Implementation()      { ApplyInitializationEffects(); /* intentionally empty */ }
 void ASuspenseCoreEquipmentActor::RemoveEquipmentEffects_Implementation()     { RemoveGrantedAbilities(); RemoveAppliedEffects(); }
 void ASuspenseCoreEquipmentActor::GrantAbilitiesFromItemData()                { GrantedAbilityHandles.Reset(); }
 void ASuspenseCoreEquipmentActor::ApplyPassiveEffectsFromItemData()           { AppliedEffectHandles.Reset(); }
@@ -618,20 +621,19 @@ bool ASuspenseCoreEquipmentActor::IsInEquipmentState_Implementation(const FGamep
 
 TArray<FGameplayTag> ASuspenseCoreEquipmentActor::GetAvailableStateTransitions_Implementation() const
 {
-    const auto& Tags = SuspenseCoreEquipmentTags::Get();
     TArray<FGameplayTag> Out;
-    if (CurrentState.MatchesTagExact(Tags.State_Inactive))
+    if (CurrentState.MatchesTagExact(EqTags().State_Inactive))
     {
-        Out.Add(Tags.State_Equipped);
+        Out.Add(EqTags().State_Equipped);
     }
-    else if (CurrentState.MatchesTagExact(Tags.State_Equipped))
+    else if (CurrentState.MatchesTagExact(EqTags().State_Equipped))
     {
-        Out.Add(Tags.State_Ready);
-        Out.Add(Tags.State_Inactive);
+        Out.Add(EqTags().State_Ready);
+        Out.Add(EqTags().State_Inactive);
     }
-    else if (CurrentState.MatchesTagExact(Tags.State_Ready))
+    else if (CurrentState.MatchesTagExact(EqTags().State_Ready))
     {
-        Out.Add(Tags.State_Equipped);
+        Out.Add(EqTags().State_Equipped);
     }
     return Out;
 }
@@ -689,14 +691,14 @@ FGameplayTag ASuspenseCoreEquipmentActor::GetWeaponArchetype_Implementation() co
 bool ASuspenseCoreEquipmentActor::CanFireWeapon_Implementation() const
 {
     if (!IsWeaponEquipment_Implementation()) { return false; }
-    return CurrentState.MatchesTag(SuspenseCoreEquipmentTags::Get().State_Ready);
+    return CurrentState.MatchesTag(EqTags().State_Ready);
 }
 
 // ==============================
 // Spawn-side init helper
 // ==============================
 
-bool ASuspenseCoreEquipmentActor::InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
+bool ASuspenseCoreEquipmentActor::InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     if (!ItemInstance.IsValid()) { return false; }
 
@@ -710,7 +712,7 @@ bool ASuspenseCoreEquipmentActor::InitializeFromItemInstance(const FSuspenseInve
     InitializeEquipmentComponents(ItemInstance);
     SetupEquipmentMesh(Data);
 
-    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+    NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
     return true;
 }
 
@@ -736,7 +738,7 @@ void ASuspenseCoreEquipmentActor::OnRep_ItemData()
         if (IM->GetUnifiedItemData(ReplicatedItemID, Data))
         {
             SetupEquipmentMesh(Data);
-            NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+            NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
         }
     }
 }
@@ -745,15 +747,17 @@ void ASuspenseCoreEquipmentActor::OnRep_ItemData()
 // Events / SSOT helpers
 // ==============================
 
-void ASuspenseCoreEquipmentActor::NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseInventoryItemInstance* Payload) const
+void ASuspenseCoreEquipmentActor::NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseCoreInventoryItemInstance* Payload) const
 {
     ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, EventTag, Payload);
 }
 
 void ASuspenseCoreEquipmentActor::NotifyEquipmentStateChanged(const FGameplayTag& NewState, bool bIsRefresh) const
 {
-    const FSuspenseInventoryItemInstance* Payload = EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr;
-    ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, SuspenseCoreEquipmentTags::Get().Event_PropertyChanged, Payload);
+    // В текущей сигнатуре шлём только событие PropertyChanged с контекстом предмета,
+    // слушатели читают текущее состояние через интерфейс актора.
+    const FSuspenseCoreInventoryItemInstance* Payload = EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr;
+    ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, EqTags().Event_PropertyChanged, Payload);
 }
 
 bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseUnifiedItemData& OutData) const

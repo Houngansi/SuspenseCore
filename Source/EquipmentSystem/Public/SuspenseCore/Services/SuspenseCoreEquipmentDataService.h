@@ -1,3 +1,4 @@
+// SuspenseEquipmentDataService.h
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
@@ -5,335 +6,502 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
-#include "GameplayTagContainer.h"
-#include "SuspenseCoreEquipmentServiceMacros.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "Delegates/Delegate.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "SuspenseCoreEquipmentDataService.generated.h"
 
 // Forward declarations
-class USuspenseEquipmentServiceLocator;
-class USuspenseCoreEventBus;
-class USuspenseEquipmentDataStore;
-class USuspenseEquipmentTransactionProcessor;
-class ISuspenseEquipmentDataProvider;
-class ISuspenseTransactionManager;
-struct FEquipmentStateSnapshot;
+class USuspenseCoreEquipmentDataStore;
+class USuspenseCoreEquipmentTransactionProcessor;
+class USuspenseCoreEquipmentSlotValidator;
+struct FEquipmentDelta;
+class USuspenseItemManager;
+/** Delegate for equipment delta notifications from service */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceEquipmentDelta, const FEquipmentDelta&);
+
+/** Delegate for batch delta notifications */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceBatchDeltas, const TArray<FEquipmentDelta>&);
 
 /**
- * SuspenseCoreEquipmentDataService
+ * Equipment Data Service - Foundation Layer for Equipment System
  *
- * Philosophy:
- * Single Source of Truth (SSOT) for all equipment data.
- * Manages equipment state through DataStore and TransactionProcessor components.
+ * Design Philosophy:
+ * This service acts as the single source of truth for all equipment data in the game.
+ * It coordinates between the DataStore (raw storage) and TransactionProcessor (ACID operations).
  *
  * Key Responsibilities:
- * - Equipment data storage and retrieval
- * - Transaction management for ACID operations
- * - Data state snapshots for rollback
- * - Change notification through events
- * - Thread-safe data access
- * - Cache management for performance
+ * 1. Lifecycle management of data components
+ * 2. Transaction coordination for atomic operations
+ * 3. Multi-level caching for performance
+ * 4. Thread-safe data access patterns
+ * 5. Event propagation for data changes
+ * 6. DIFF-based change tracking and propagation
  *
- * Architecture Patterns:
- * - Event Bus: Publishes data change events
- * - Dependency Injection: Receives components via InjectComponents()
- * - GameplayTags: Service identification
- * - SSOT: Authoritative source for equipment data
- * - ACID: Transaction semantics for data modifications
+ * Performance Considerations for MMO:
+ * - Read operations are cached with TTL to minimize database hits
+ * - Write operations are batched through transactions
+ * - Snapshots are used for rollback and state synchronization
+ * - Lock-free reads where possible, write locks are minimized
+ * - Fine-grained DIFF events for efficient network replication
  *
- * Initialization Order (CRITICAL):
- * 1. InjectComponents(DataStore, TransactionProcessor) - inject core components
- * 2. SetValidator(Validator) - optional validation component
- * 3. InitializeService(Params) - complete initialization
+ * The service does NOT:
+ * - Implement business logic (that's for operation services)
+ * - Handle networking (that's for network service)
+ * - Manage UI state (that's for UI systems)
+ *
+ * Locking Policy:
+ * - DataStore access is protected by DataLock (FRWLock).
+ * - Cache access is protected by CacheLock (FRWLock).
+ * - Never hold both locks simultaneously to avoid deadlocks.
+ * - FRWLock is NOT recursive - avoid nested locks on same mutex.
+ *
+ * Non-Functional Guarantees:
+ * - No business rules implemented here (coordination only).
+ * - ACID at the coordinator level: commit/rollback enforced, no partial side effects.
+ * - Threading contract: no recursive locking of the same FRWLock; DataLock and CacheLock never held together.
+ * - Event dispatch happens on the Game Thread.
+ * - DIFF events are generated for all state changes.
+ * - Observability only (metrics/logs) – does not affect decisions.
+ *
+ * INITIALIZATION ORDER (CRITICAL):
+ * 1. InjectComponents(DataStore, TransactionProcessor) - provides components
+ * 2. SetValidator(SlotValidator) - optional but recommended for validation
+ * 3. InitializeService(Params) - initializes the service with proper phases
+ *
+ * Breaking this order will cause initialization failures and undefined behavior.
  */
-UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataService : public UObject, public IEquipmentDataService
+
+UCLASS()
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataService : public UObject,
+    public IEquipmentDataService
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreEquipmentDataService();
-	virtual ~USuspenseCoreEquipmentDataService();
+    USuspenseCoreEquipmentDataService();
+    virtual ~USuspenseCoreEquipmentDataService();
 
-	//========================================
-	// ISuspenseEquipmentService Interface
-	//========================================
+    //========================================
+    // IEquipmentService Implementation
+    //========================================
 
-	virtual bool InitializeService(const FServiceInitParams& Params) override;
-	virtual bool ShutdownService(bool bForce = false) override;
-	virtual EServiceLifecycleState GetServiceState() const override;
-	virtual bool IsServiceReady() const override;
-	virtual FGameplayTag GetServiceTag() const override;
-	virtual FGameplayTagContainer GetRequiredDependencies() const override;
-	virtual bool ValidateService(TArray<FText>& OutErrors) const override;
-	virtual void ResetService() override;
-	virtual FString GetServiceStats() const override;
+    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool ShutdownService(bool bForce = false) override;
+    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual FGameplayTag GetServiceTag() const override;
+    virtual FGameplayTagContainer GetRequiredDependencies() const override;
+    virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+    virtual void ResetService() override;
+    virtual FString GetServiceStats() const override;
 
-	//========================================
-	// IEquipmentDataService Interface
-	//========================================
+ //========================================
+ // IEquipmentDataService Implementation
+ //========================================
 
-	virtual void InjectComponents(UObject* InDataStore, UObject* InTransactionProcessor) override;
-	virtual void SetValidator(UObject* InValidator) override;
-	virtual ISuspenseEquipmentDataProvider* GetDataProvider() override;
-	virtual ISuspenseTransactionManager* GetTransactionManager() override;
+ virtual ISuspenseEquipmentDataProvider* GetDataProvider() override;
+ virtual ISuspenseTransactionManager* GetTransactionManager() override;
 
-	//========================================
-	// Data Access (Thread-Safe)
-	//========================================
+ //========================================
+ // Component Injection and Configuration
+ //========================================
 
-	/**
-	 * Get equipment data for slot
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Data")
-	struct FSuspenseInventoryItemInstance GetSlotData(int32 SlotIndex) const;
+ /**
+  * Inject ready components into the service
+  *
+  * IMPLEMENTATION NOTE: Receives type-erased UObject* from interface,
+  * casts to actual types here in MedComEquipment module.
+  *
+  * This method is critical for proper architecture of the system.
+  * The service does NOT create components, but receives them from outside already configured.
+  * This guarantees component uniqueness and proper initialization order.
+  *
+  * @param InDataStore Ready data storage component (UObject* will be cast to USuspenseCoreEquipmentDataStore*)
+  * @param InTransactionProcessor Ready transaction processing component (UObject* will be cast to USuspenseCoreEquipmentTransactionProcessor*)
+  */
+ virtual void InjectComponents(UObject* InDataStore, UObject* InTransactionProcessor) override;
 
-	/**
-	 * Set equipment data for slot
-	 * Publishes data changed event
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Data")
-	bool SetSlotData(int32 SlotIndex, const struct FSuspenseInventoryItemInstance& ItemData);
+ /**
+  * Set validator for slot operations
+  * Must be called before InitializeService for proper validation setup
+  *
+  * @param InValidator Validator component (UObject* will be cast to USuspenseCoreEquipmentSlotValidator*)
+  */
+ virtual void SetValidator(UObject* InValidator) override;
 
-	/**
-	 * Swap items between two slots
-	 * Atomic operation with transaction support
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Data")
-	bool SwapSlots(int32 SlotA, int32 SlotB);
+    //========================================
+    // Data Operations (High-Level API)
+    //========================================
 
-	/**
-	 * Clear slot data
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Data")
-	bool ClearSlot(int32 SlotIndex);
+    /**
+     * Get item from slot with caching and thread-safe double-checked locking
+     * @param SlotIndex Slot to query
+     * @return Item instance (may be invalid if empty)
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    FSuspenseInventoryItemInstance GetSlotItemCached(int32 SlotIndex) const;
 
-	/**
-	 * Get all slot data
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Data")
-	TArray<FSuspenseInventoryItemInstance> GetAllSlotData() const;
+    /**
+     * Batch get multiple slot items with single lock acquisition
+     * Optimized for mass reads in MMO scenarios
+     * @param SlotIndices Array of slot indices to retrieve
+     * @return Map of slot index to item instance
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    TMap<int32, FSuspenseInventoryItemInstance> BatchGetSlotItems(const TArray<int32>& SlotIndices) const;
 
-	//========================================
-	// Transaction Management
-	//========================================
+    /**
+     * Perform atomic swap of items between slots
+     * @param SlotA First slot
+     * @param SlotB Second slot
+     * @return Transaction ID for tracking
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    FGuid SwapSlotItems(int32 SlotA, int32 SlotB);
 
-	/**
-	 * Begin transaction for multiple operations
-	 * Returns transaction ID for commit/rollback
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Transaction")
-	FGuid BeginTransaction(const FString& Description);
+    /**
+     * Batch update multiple slots in single transaction
+     * @param Updates Map of slot index to new item
+     * @return Transaction ID for tracking
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    FGuid BatchUpdateSlots(const TMap<int32, FSuspenseInventoryItemInstance>& Updates);
 
-	/**
-	 * Commit transaction
-	 * Publishes batch data changed events
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Transaction")
-	bool CommitTransaction(const FGuid& TransactionId);
+    /**
+     * Create checkpoint for rollback capability
+     * @param CheckpointName Descriptive name
+     * @return Checkpoint ID
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    FGuid CreateDataCheckpoint(const FString& CheckpointName);
 
-	/**
-	 * Rollback transaction
-	 * Reverts all changes made in transaction
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Transaction")
-	bool RollbackTransaction(const FGuid& TransactionId);
+    /**
+     * Rollback to checkpoint
+     * @param CheckpointId Checkpoint to restore
+     * @return True if successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    bool RollbackToCheckpoint(const FGuid& CheckpointId);
 
-	//========================================
-	// State Management
-	//========================================
+    /**
+     * Validate data integrity (public version that acquires locks)
+     * @param bDeep Perform deep validation
+     * @return Validation result
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    bool ValidateDataIntegrity(bool bDeep = false) const;
 
-	/**
-	 * Create state snapshot for rollback
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|State")
-	FGuid CreateSnapshot(const FString& SnapshotName);
+    /**
+     * Force cache refresh for specific slot
+     * @param SlotIndex Slot to refresh (-1 for all)
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    void InvalidateCache(int32 SlotIndex = -1);
 
-	/**
-	 * Restore from snapshot
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|State")
-	bool RestoreSnapshot(const FGuid& SnapshotId);
+    /**
+     * Get cache statistics
+     * @return Cache stats structure
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
+    FString GetCacheStatistics() const;
 
-	/**
-	 * Get current equipment state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|State")
-	FEquipmentStateSnapshot GetCurrentState() const;
+    /**
+     * Export service metrics to CSV file
+     * @param FilePath Absolute path to output file
+     * @return True if export successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Data|Metrics")
+    bool ExportMetricsToCSV(const FString& FilePath) const;
 
-	/**
-	 * Validate data integrity
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|State")
-	bool ValidateDataIntegrity(TArray<FText>& OutErrors) const;
+    //========================================
+    // Delta Event Access
+    //========================================
 
-	//========================================
-	// Cache Management
-	//========================================
+    /** Get delta event delegate */
+    FOnServiceEquipmentDelta& OnEquipmentDelta() { return OnEquipmentDeltaDelegate; }
 
-	/**
-	 * Invalidate cache for slot
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Cache")
-	void InvalidateSlotCache(int32 SlotIndex);
+    /** Get batch delta event delegate */
+    FOnServiceBatchDeltas& OnBatchDeltas() { return OnBatchDeltasDelegate; }
 
-	/**
-	 * Clear all caches
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Cache")
-	void ClearAllCaches();
+    /**
+     * Get recent deltas
+     * @param MaxCount Maximum number to return
+     * @return Recent deltas in reverse chronological order
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Delta")
+    TArray<FEquipmentDelta> GetRecentDeltas(int32 MaxCount = 10) const;
 
-	/**
-	 * Get cache statistics
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Cache")
-	FString GetCacheStats() const;
-
-	//========================================
-	// Event Publishing
-	//========================================
-
-	/**
-	 * Publish data changed event
-	 */
-	void PublishDataChanged(int32 SlotIndex);
-
-	/**
-	 * Publish batch data changed event
-	 */
-	void PublishBatchDataChanged(const TArray<int32>& SlotIndices);
+    /**
+     * Get delta statistics
+     * @return String with delta metrics
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Delta")
+    FString GetDeltaStatistics() const;
 
 protected:
-	//========================================
-	// Service Lifecycle
-	//========================================
+    /**
+     * Initialize data storage with default configuration
+     */
+    void InitializeDataStorage();
 
-	/** Initialize data storage components */
-	bool InitializeDataStorage();
+    /**
+     * Setup event subscriptions for cache invalidation
+     */
+    void SetupEventSubscriptions();
 
-	/** Setup event subscriptions */
-	void SetupEventSubscriptions();
+    /**
+     * Handle cache invalidation event
+     */
+    void OnCacheInvalidation(const FSuspenseCoreEquipmentEventData& EventData);
 
-	/** Cleanup resources */
-	void CleanupResources();
+    /**
+     * Handle transaction completion
+     */
+    void OnTransactionCompleted(const FGuid& TransactionId, bool bSuccess);
 
-	//========================================
-	// Data Operations
-	//========================================
+    /**
+     * Handle equipment delta from DataStore
+     */
+    void OnDataStoreDelta(const FEquipmentDelta& Delta);
 
-	/** Internal data access with locking */
-	struct FSuspenseInventoryItemInstance GetSlotDataInternal(int32 SlotIndex) const;
+    /**
+     * Handle batch deltas from TransactionProcessor
+     */
+    void OnTransactionDeltas(const TArray<FEquipmentDelta>& Deltas);
 
-	/** Internal data modification with locking */
-	bool SetSlotDataInternal(int32 SlotIndex, const struct FSuspenseInventoryItemInstance& ItemData);
+    /**
+     * Broadcast delta through event system
+     */
+    void BroadcastDelta(const FEquipmentDelta& Delta);
 
-	/** Validate slot index */
-	bool IsValidSlotIndex(int32 SlotIndex) const;
+    /**
+     * Broadcast batch deltas through event system
+     */
+    void BroadcastBatchDeltas(const TArray<FEquipmentDelta>& Deltas);
 
-	//========================================
-	// Event Handlers
-	//========================================
+    /**
+     * Handle external request to resend current state as deltas (ketchup refresh)
+     */
+    void OnResendRequested(const FSuspenseCoreEquipmentEventData& EventData);
 
-	/** Handle transaction completed event */
-	void OnTransactionCompleted(const FGuid& TransactionId, bool bSuccess);
 
-	/** Handle cache invalidation request */
-	void OnCacheInvalidationRequested(const struct FSuspenseEquipmentEventData& EventData);
+    /**
+     * Perform deep validation of data consistency (public version that acquires locks)
+     */
+    bool PerformDeepValidation() const;
+
+    /**
+     * Internal deep validation (assumes DataLock already held by caller)
+     */
+    bool PerformDeepValidation_Internal() const;
+
+    /**
+     * Internal data integrity validation (assumes DataLock already held by caller)
+     */
+    bool ValidateDataIntegrity_Internal(bool bDeep) const;
+
+    /**
+     * Create default slot configuration for initialization
+     */
+    TArray<FEquipmentSlotConfig> CreateDefaultSlotConfiguration() const;
+
+    /**
+     * Update cache entry with TTL using proper locking
+     */
+    void UpdateCacheEntry(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const;
+
+    /**
+     * Batch update cache entries with single lock
+     */
+    void BatchUpdateCache(const TMap<int32, FSuspenseInventoryItemInstance>& Items) const;
+
+    /**
+     * Log data operation for debugging
+     */
+    void LogDataOperation(const FString& Operation, int32 SlotIndex = -1) const;
+
+    /**
+     * Reset data store to initial state
+     */
+    void ResetDataStore();
+
+    /**
+     * Check if slot index is valid
+     */
+    bool IsValidSlotIndex(int32 SlotIndex) const;
+
+    /** Safe cache warm-up without holding DataLock and CacheLock simultaneously */
+    void WarmupCachesSafe();
+
+    /** Flag showing that components were injected */
+    bool bComponentsInjected = false;
 
 private:
-	//========================================
-	// Service State
-	//========================================
+    //========================================
+    // Service State
+    //========================================
 
-	/** Current service lifecycle state */
-	UPROPERTY()
-	EServiceLifecycleState ServiceState;
+    /** Current service lifecycle state */
+    UPROPERTY()
+    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
 
-	/** Service initialization timestamp */
-	UPROPERTY()
-	FDateTime InitializationTime;
+    /** Service initialization timestamp */
+    UPROPERTY()
+    FDateTime InitializationTime;
 
-	/** Components injected flag */
-	bool bComponentsInjected;
+    //========================================
+    // Core Components
+    //========================================
 
-	//========================================
-	// Core Components (Injected)
-	//========================================
+    /** Data store component for raw storage */
+    UPROPERTY()
+    USuspenseCoreEquipmentDataStore* DataStore = nullptr;
 
-	/** DataStore component - manages raw data storage */
-	UPROPERTY()
-	TObjectPtr<USuspenseEquipmentDataStore> DataStore;
+    /** Transaction processor for ACID operations */
+    UPROPERTY()
+    USuspenseCoreEquipmentTransactionProcessor* TransactionProcessor = nullptr;
 
-	/** TransactionProcessor - manages ACID transactions */
-	UPROPERTY()
-	TObjectPtr<USuspenseEquipmentTransactionProcessor> TransactionProcessor;
+    /** Slot validator for business logic */
+    UPROPERTY()
+    USuspenseCoreEquipmentSlotValidator* SlotValidator = nullptr;
 
-	/** Validator - optional slot validation */
-	UPROPERTY()
-	TObjectPtr<UObject> SlotValidator;
+    /** Interface wrapper for data provider - for universal access */
+    TScriptInterface<ISuspenseEquipmentDataProvider> DataProviderInterface;
 
-	//========================================
-	// Dependencies (via ServiceLocator)
-	//========================================
+    /** Interface wrapper for transaction manager - for universal access */
+    TScriptInterface<ISuspenseTransactionManager> TransactionManagerInterface;
 
-	/** ServiceLocator for dependency injection */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator;
+ UPROPERTY(Transient)
+    TObjectPtr<USuspenseItemManager> ItemManager = nullptr;
+    //========================================
+    // Thread Safety
+    //========================================
 
-	/** EventBus for event publishing */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+    /** Read/write lock for data access */
+    mutable FRWLock DataLock;
 
-	//========================================
-	// Thread Safety
-	//========================================
+    /** Separate lock for cache operations */
+    mutable FRWLock CacheLock;
 
-	/** Read/Write lock for data access */
-	mutable FRWLock DataLock;
+    /** Lock for delta history */
+    mutable FCriticalSection DeltaLock;
 
-	/** Lock for cache operations */
-	mutable FRWLock CacheLock;
+    //========================================
+    // Caching Layer
+    //========================================
 
-	//========================================
-	// Configuration
-	//========================================
+    /** Cache for state snapshots */
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>> SnapshotCache;
 
-	/** Maximum number of slots */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	int32 MaxSlotCount;
+    /** Cache for individual item instances */
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>> ItemCache;
 
-	/** Enable caching */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableCaching;
+    /** Cache for slot configurations */
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>> ConfigCache;
 
-	/** Cache TTL in seconds */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float CacheTTL;
+    /** Default cache TTL in seconds */
+    float DefaultCacheTTL = 60.0f;
 
-	/** Enable detailed logging */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableDetailedLogging;
+    //========================================
+    // Event Management
+    //========================================
 
-	//========================================
-	// Statistics
-	//========================================
+    /** Event subscription scope for automatic cleanup */
+    FEventSubscriptionScope EventScope;
 
-	/** Total read operations */
-	UPROPERTY()
-	int32 TotalReads;
+    /** Handles for specific event subscriptions */
+    TArray<FEventSubscriptionHandle> EventHandles;
 
-	/** Total write operations */
-	UPROPERTY()
-	int32 TotalWrites;
+    /** Delegate handle for global cache invalidation */
+    FDelegateHandle GlobalCacheInvalidateHandle;
 
-	/** Total transactions */
-	UPROPERTY()
-	int32 TotalTransactions;
+    /** Delegate for delta events */
+    FOnServiceEquipmentDelta OnEquipmentDeltaDelegate;
 
-	/** Cache hit count */
-	UPROPERTY()
-	int32 CacheHits;
+    /** Delegate for batch delta events */
+    FOnServiceBatchDeltas OnBatchDeltasDelegate;
 
-	/** Cache miss count */
-	UPROPERTY()
-	int32 CacheMisses;
+    //========================================
+    // Delta Management
+    //========================================
+
+    /** Recent delta history for debugging/replay */
+    UPROPERTY()
+    TArray<FEquipmentDelta> RecentDeltaHistory;
+
+    /** Maximum deltas to keep in history */
+    static constexpr int32 MaxDeltaHistory = 100;
+
+    /** Total deltas processed */
+    mutable std::atomic<int32> TotalDeltasProcessed{0};
+
+    /** Deltas by type counter */
+    mutable TMap<FGameplayTag, int32> DeltasByType;
+
+    //========================================
+    // Configuration
+    //========================================
+
+    /** Maximum number of slots supported */
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    int32 MaxSlotCount = 20;
+
+    /** Enable automatic cache warming */
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    bool bEnableCacheWarming = true;
+
+    /** Cache warming interval in seconds */
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    float CacheWarmingInterval = 30.0f;
+
+    /** Enable detailed logging for debugging */
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    bool bEnableDetailedLogging = false;
+
+    /** Enable delta tracking */
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    bool bEnableDeltaTracking = true;
+
+    //========================================
+    // Statistics and Monitoring
+    //========================================
+
+    /** Total read operations performed */
+    mutable std::atomic<int32> TotalReads{0};
+
+    /** Total write operations performed */
+    mutable std::atomic<int32> TotalWrites{0};
+
+    /** Cache hit count */
+    mutable std::atomic<int32> CacheHits{0};
+
+    /** Cache miss count */
+    mutable std::atomic<int32> CacheMisses{0};
+
+    /** Cache contention count for monitoring lock conflicts */
+    mutable std::atomic<int32> CacheContention{0};
+
+    /** Total transactions started */
+    mutable std::atomic<int32> TotalTransactions{0};
+
+    /** Successful transactions */
+    mutable std::atomic<int32> SuccessfulTransactions{0};
+
+    /** Failed transactions */
+    mutable std::atomic<int32> FailedTransactions{0};
+
+    /** Last cache warming time */
+    float LastCacheWarmingTime = 0.0f;
+
+    /** Service metrics collection */
+    mutable FServiceMetrics ServiceMetrics;
+
+    /** Delta metrics collection */
+    mutable FDeltaMetrics DeltaMetrics;
 };

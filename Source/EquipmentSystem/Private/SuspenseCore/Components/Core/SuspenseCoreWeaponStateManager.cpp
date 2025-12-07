@@ -1,373 +1,582 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
-#include "SuspenseCore/Types/SuspenseCoreTypes.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreWeaponState, Log, All);
-
-#define WEAPONSTATE_LOG(Verbosity, Format, ...) \
-	UE_LOG(LogSuspenseCoreWeaponState, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 USuspenseCoreWeaponStateManager::USuspenseCoreWeaponStateManager()
 {
-	bIsInitialized = false;
-	TotalTransitions = 0;
-	FailedTransitions = 0;
+    PrimaryComponentTick.bCanEverTick = true;
+    PrimaryComponentTick.TickInterval = 0.016f; // 60 FPS for smooth transitions
+    SetIsReplicatedByDefault(false);
+
+    // Initialize default states
+    DefaultIdleState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    DefaultHolsteredState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+
+    // Setup default transitions
+    FStateTransitionDef DrawTransition;
+    DrawTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+    DrawTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
+    DrawTransition.Duration = 0.5f;
+    DrawTransition.bInterruptible = false;
+    TransitionDefinitions.Add(DrawTransition);
+
+    FStateTransitionDef DrawCompleteTransition;
+    DrawCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
+    DrawCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    DrawCompleteTransition.Duration = 0.1f;
+    DrawCompleteTransition.bInterruptible = false;
+    TransitionDefinitions.Add(DrawCompleteTransition);
+
+    FStateTransitionDef HolsterTransition;
+    HolsterTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    HolsterTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
+    HolsterTransition.Duration = 0.4f;
+    HolsterTransition.bInterruptible = true;
+    TransitionDefinitions.Add(HolsterTransition);
+
+    FStateTransitionDef HolsterCompleteTransition;
+    HolsterCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
+    HolsterCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+    HolsterCompleteTransition.Duration = 0.1f;
+    HolsterCompleteTransition.bInterruptible = false;
+    TransitionDefinitions.Add(HolsterCompleteTransition);
+
+    FStateTransitionDef FireTransition;
+    FireTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    FireTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
+    FireTransition.Duration = 0.0f; // Instant
+    FireTransition.bInterruptible = true;
+    TransitionDefinitions.Add(FireTransition);
+
+    FStateTransitionDef FireEndTransition;
+    FireEndTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
+    FireEndTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    FireEndTransition.Duration = 0.1f;
+    FireEndTransition.bInterruptible = true;
+    TransitionDefinitions.Add(FireEndTransition);
+
+    FStateTransitionDef ReloadTransition;
+    ReloadTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    ReloadTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
+    ReloadTransition.Duration = 2.0f;
+    ReloadTransition.bInterruptible = false;
+    TransitionDefinitions.Add(ReloadTransition);
+
+    FStateTransitionDef ReloadCompleteTransition;
+    ReloadCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
+    ReloadCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    ReloadCompleteTransition.Duration = 0.2f;
+    ReloadCompleteTransition.bInterruptible = false;
+    TransitionDefinitions.Add(ReloadCompleteTransition);
+}
+
+void USuspenseCoreWeaponStateManager::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: BeginPlay - Weapon state manager started"));
+}
+
+void USuspenseCoreWeaponStateManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    // Clear all state machines
+    FScopeLock Lock(&StateMachineLock);
+    StateMachines.Empty();
+    StateHistory.Empty();
+
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: EndPlay - Weapon state manager stopped"));
+
+    Super::EndPlay(EndPlayReason);
+}
+
+void USuspenseCoreWeaponStateManager::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+    // Update all active transitions
+    UpdateTransitions(DeltaTime);
 }
 
 bool USuspenseCoreWeaponStateManager::Initialize(
-	USuspenseCoreServiceLocator* InServiceLocator,
-	UObject* InOwner)
+    TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider,
+    TScriptInterface<ISuspenseEventDispatcher> InEventDispatcher)
 {
-	if (!InServiceLocator || !InOwner)
-	{
-		WEAPONSTATE_LOG(Error, TEXT("Initialize: Invalid parameters"));
-		return false;
-	}
+    DataProvider   = InDataProvider;
+    EventDispatcher = InEventDispatcher;
 
-	ServiceLocator = InServiceLocator;
-	Owner = InOwner;
+    if (!DataProvider.GetInterface())
+    {
+        UE_LOG(LogTemp, Error, TEXT("MedComWeaponStateManager: Initialize failed - DataProvider is null"));
+        return false;
+    }
 
-	// Get EventBus from ServiceLocator
-	EventBus = ServiceLocator->GetService<USuspenseCoreEventBus>();
-	if (!EventBus.IsValid())
-	{
-		WEAPONSTATE_LOG(Warning, TEXT("Initialize: EventBus not found in ServiceLocator"));
-	}
+    // Инициализация стейт-машин только для реальных оружейных слотов из вашего ESuspenseCoreEquipmentSlotType
+    // (Sidearm/Melee в вашем enum нет — используем Holster и Scabbard)
+    const int32 SlotCount = DataProvider->GetSlotCount();
+    for (int32 i = 0; i < SlotCount; ++i)
+    {
+        const FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(i);
 
-	// Setup default transitions
-	SetupDefaultTransitions();
+        const bool bIsWeaponSlot =
+            (SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon)  ||
+            (SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon)||
+            (SlotConfig.SlotType == EEquipmentSlotType::Holster)        ||
+            (SlotConfig.SlotType == EEquipmentSlotType::Scabbard);
 
-	bIsInitialized = true;
-	WEAPONSTATE_LOG(Log, TEXT("Initialize: Success"));
-	return true;
+        if (bIsWeaponSlot)
+        {
+            FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(i);
+            StateMachine.CurrentState  = DefaultHolsteredState;
+            StateMachine.PreviousState = DefaultHolsteredState;
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Initialized with %d weapon slots"), StateMachines.Num());
+    return true;
 }
 
-void USuspenseCoreWeaponStateManager::SetupStateMachine(FGameplayTag InitialState)
+FGameplayTag USuspenseCoreWeaponStateManager::GetWeaponState(int32 SlotIndex) const
 {
-	if (!InitialState.IsValid())
-	{
-		WEAPONSTATE_LOG(Error, TEXT("SetupStateMachine: Invalid initial state"));
-		return;
-	}
+    FScopeLock Lock(&StateMachineLock);
 
-	FScopeLock Lock(&StateCriticalSection);
+    if (SlotIndex == -1)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
 
-	CurrentStateData.CurrentState = InitialState;
-	CurrentStateData.PreviousState = FGameplayTag();
-	CurrentStateData.StateEntryTime = 0.0f;
-	CurrentStateData.bIsTransitioning = false;
-	CurrentStateData.ActiveStateTags.Reset();
+    if (SlotIndex == INDEX_NONE)
+    {
+        return FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.None"));
+    }
 
-	WEAPONSTATE_LOG(Log, TEXT("SetupStateMachine: Initial state set to %s"), *InitialState.ToString());
+    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (StateMachine)
+    {
+        return StateMachine->CurrentState;
+    }
+
+    return FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.None"));
 }
 
-bool USuspenseCoreWeaponStateManager::RequestStateTransition(FGameplayTag NewState, bool bForceTransition)
+FWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransition(const FWeaponStateTransitionRequest& Request)
 {
-	if (!bIsInitialized)
-	{
-		WEAPONSTATE_LOG(Error, TEXT("RequestStateTransition: State manager not initialized"));
-		return false;
-	}
+    FScopeLock Lock(&StateMachineLock);
 
-	if (!NewState.IsValid())
-	{
-		WEAPONSTATE_LOG(Error, TEXT("RequestStateTransition: Invalid target state"));
-		return false;
-	}
+    FWeaponStateTransitionResult Result;
+    Result.bSuccess = false;
 
-	FScopeLock Lock(&StateCriticalSection);
+    int32 SlotIndex = Request.WeaponSlotIndex;
+    if (SlotIndex == -1)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
 
-	// Check if already in target state
-	if (CurrentStateData.CurrentState.MatchesTagExact(NewState))
-	{
-		WEAPONSTATE_LOG(Verbose, TEXT("RequestStateTransition: Already in state %s"), *NewState.ToString());
-		return true;
-	}
+    if (SlotIndex == INDEX_NONE)
+    {
+        Result.FailureReason = FText::FromString(TEXT("No active weapon slot"));
+        return Result;
+    }
 
-	// Validate transition
-	FText ValidationReason;
-	if (!bForceTransition && !CanTransitionTo(NewState, ValidationReason))
-	{
-		WEAPONSTATE_LOG(Warning, TEXT("RequestStateTransition: Transition denied - %s"),
-			*ValidationReason.ToString());
-		PublishTransitionFailed(CurrentStateData.CurrentState, NewState, ValidationReason);
-		FailedTransitions++;
-		return false;
-	}
+    FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
 
-	// Execute transition
-	return ExecuteTransition(NewState, bForceTransition);
+    // Check if already transitioning
+    if (StateMachine.bIsTransitioning && !Request.bForceTransition)
+    {
+        const FStateTransitionDef* CurrentTransition = FindTransitionDef(
+            StateMachine.ActiveTransition.FromState,
+            StateMachine.ActiveTransition.ToState);
+
+        if (CurrentTransition && !CurrentTransition->bInterruptible)
+        {
+            Result.FailureReason = FText::FromString(TEXT("Current transition cannot be interrupted"));
+            return Result;
+        }
+    }
+
+    // Validate transition
+    if (!CanTransitionTo(Request.FromState.IsValid() ? Request.FromState : StateMachine.CurrentState, Request.ToState))
+    {
+        Result.FailureReason = FText::FromString(TEXT("Invalid state transition"));
+        return Result;
+    }
+
+    // Find transition definition
+    const FStateTransitionDef* TransitionDef = FindTransitionDef(
+        Request.FromState.IsValid() ? Request.FromState : StateMachine.CurrentState,
+        Request.ToState);
+
+    float Duration = Request.TransitionDuration > 0 ? Request.TransitionDuration :
+                     (TransitionDef ? TransitionDef->Duration : GetTransitionDuration(StateMachine.CurrentState, Request.ToState));
+
+    // Start transition
+    StateMachine.PreviousState = StateMachine.CurrentState;
+    StateMachine.bIsTransitioning = true;
+    StateMachine.TransitionStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    StateMachine.TransitionDuration = Duration;
+    StateMachine.ActiveTransition = Request;
+
+    // If instant transition, complete immediately
+    if (Duration <= 0.0f)
+    {
+        CompleteTransition(SlotIndex);
+    }
+
+    Result.bSuccess = true;
+    Result.ResultingState = Request.ToState;
+    Result.ActualDuration = Duration;
+
+    // Record in history
+    RecordStateChange(SlotIndex, Request.ToState);
+
+    // Broadcast event
+    BroadcastStateChange(SlotIndex, StateMachine.PreviousState, Request.ToState);
+
+    return Result;
 }
 
-bool USuspenseCoreWeaponStateManager::CanTransitionTo(FGameplayTag TargetState, FText& OutReason) const
+bool USuspenseCoreWeaponStateManager::CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
-	FScopeLock Lock(&StateCriticalSection);
-
-	// Find transition
-	const FSuspenseCoreWeaponStateTransition* Transition = FindTransition(
-		CurrentStateData.CurrentState,
-		TargetState);
-
-	if (!Transition)
-	{
-		OutReason = FText::FromString(FString::Printf(
-			TEXT("No transition defined from %s to %s"),
-			*CurrentStateData.CurrentState.ToString(),
-			*TargetState.ToString()));
-		return false;
-	}
-
-	// Validate transition conditions
-	return ValidateTransition(*Transition, OutReason);
+    // Check if transition is defined
+    const FStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
+    return TransitionDef != nullptr;
 }
 
-void USuspenseCoreWeaponStateManager::ForceSetState(FGameplayTag NewState)
+TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetValidTransitions(const FGameplayTag& CurrentState) const
 {
-	if (!NewState.IsValid())
-	{
-		return;
-	}
+    TArray<FGameplayTag> ValidTransitions;
 
-	FScopeLock Lock(&StateCriticalSection);
+    for (const FStateTransitionDef& Transition : TransitionDefinitions)
+    {
+        if (Transition.FromState == CurrentState)
+        {
+            ValidTransitions.Add(Transition.ToState);
+        }
+    }
 
-	const FGameplayTag OldState = CurrentStateData.CurrentState;
-	CurrentStateData.PreviousState = OldState;
-	CurrentStateData.CurrentState = NewState;
-	CurrentStateData.StateEntryTime = 0.0f;
-	CurrentStateData.bIsTransitioning = false;
-
-	WEAPONSTATE_LOG(Warning, TEXT("ForceSetState: %s -> %s (forced)"),
-		*OldState.ToString(),
-		*NewState.ToString());
-
-	PublishStateChanged(OldState, NewState, true);
+    return ValidTransitions;
 }
 
-bool USuspenseCoreWeaponStateManager::ReturnToPreviousState()
+bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, int32 SlotIndex)
 {
-	FScopeLock Lock(&StateCriticalSection);
+    FScopeLock Lock(&StateMachineLock);
 
-	if (!CurrentStateData.PreviousState.IsValid())
-	{
-		WEAPONSTATE_LOG(Warning, TEXT("ReturnToPreviousState: No previous state"));
-		return false;
-	}
+    if (SlotIndex == -1)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
 
-	return RequestStateTransition(CurrentStateData.PreviousState, false);
+    if (SlotIndex == INDEX_NONE)
+    {
+        return false;
+    }
+
+    FWeaponStateMachine& StateMachine = GetOrCreateStateMachine(SlotIndex);
+
+    // Force state without validation
+    StateMachine.PreviousState = StateMachine.CurrentState;
+    StateMachine.CurrentState = NewState;
+    StateMachine.bIsTransitioning = false;
+    StateMachine.TransitionStartTime = 0.0f;
+    StateMachine.TransitionDuration = 0.0f;
+
+    // Record and broadcast
+    RecordStateChange(SlotIndex, NewState);
+    BroadcastStateChange(SlotIndex, StateMachine.PreviousState, NewState);
+
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Forced slot %d to state %s"),
+        SlotIndex, *NewState.ToString());
+
+    return true;
 }
 
-bool USuspenseCoreWeaponStateManager::IsInState(FGameplayTag StateTag) const
+float USuspenseCoreWeaponStateManager::GetTransitionDuration(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
-	FScopeLock Lock(&StateCriticalSection);
-	return CurrentStateData.CurrentState.MatchesTagExact(StateTag);
+    const FStateTransitionDef* TransitionDef = FindTransitionDef(FromState, ToState);
+    if (TransitionDef)
+    {
+        return TransitionDef->Duration;
+    }
+
+    // Default durations for common transitions
+    if (FromState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered")))
+    {
+        if (ToState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing")))
+        {
+            return 0.5f;
+        }
+    }
+    else if (FromState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready")))
+    {
+        if (ToState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering")))
+        {
+            return 0.4f;
+        }
+        else if (ToState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading")))
+        {
+            return 2.0f;
+        }
+        else if (ToState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing")))
+        {
+            return 0.0f; // Instant
+        }
+    }
+
+    return 0.2f; // Default transition time
 }
 
-bool USuspenseCoreWeaponStateManager::IsInAnyState(const FGameplayTagContainer& StateTags) const
+bool USuspenseCoreWeaponStateManager::IsTransitioning(int32 SlotIndex) const
 {
-	FScopeLock Lock(&StateCriticalSection);
-	return StateTags.HasTag(CurrentStateData.CurrentState);
+    FScopeLock Lock(&StateMachineLock);
+
+    if (SlotIndex == -1)
+    {
+        // Check if any weapon is transitioning
+        for (const FWeaponStateMachine& StateMachine : StateMachines)
+        {
+            if (StateMachine.bIsTransitioning)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    return StateMachine ? StateMachine->bIsTransitioning : false;
 }
 
-float USuspenseCoreWeaponStateManager::GetTimeInCurrentState() const
+float USuspenseCoreWeaponStateManager::GetTransitionProgress(int32 SlotIndex) const
 {
-	FScopeLock Lock(&StateCriticalSection);
-	const float CurrentTime = 0.0f; // TODO: Get actual game time
-	return CurrentStateData.GetTimeInState(CurrentTime);
+    FScopeLock Lock(&StateMachineLock);
+
+    if (SlotIndex == -1)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
+
+    const FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (!StateMachine || !StateMachine->bIsTransitioning || !GetWorld())
+    {
+        return 0.0f;
+    }
+
+    float ElapsedTime = GetWorld()->GetTimeSeconds() - StateMachine->TransitionStartTime;
+    return FMath::Clamp(ElapsedTime / StateMachine->TransitionDuration, 0.0f, 1.0f);
 }
 
-void USuspenseCoreWeaponStateManager::RegisterTransition(
-	const FSuspenseCoreWeaponStateTransition& Transition)
+bool USuspenseCoreWeaponStateManager::AbortTransition(int32 SlotIndex)
 {
-	FScopeLock Lock(&StateCriticalSection);
+    FScopeLock Lock(&StateMachineLock);
 
-	RegisteredTransitions.Add(Transition);
+    if (SlotIndex == -1)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
 
-	WEAPONSTATE_LOG(Verbose, TEXT("RegisterTransition: %s -> %s"),
-		*Transition.FromState.ToString(),
-		*Transition.ToState.ToString());
+    FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (!StateMachine || !StateMachine->bIsTransitioning)
+    {
+        return false;
+    }
+
+    // Check if transition is interruptible
+    const FStateTransitionDef* TransitionDef = FindTransitionDef(
+        StateMachine->ActiveTransition.FromState,
+        StateMachine->ActiveTransition.ToState);
+
+    if (TransitionDef && !TransitionDef->bInterruptible)
+    {
+        return false;
+    }
+
+    // Abort transition - return to previous state
+    StateMachine->CurrentState = StateMachine->PreviousState;
+    StateMachine->bIsTransitioning = false;
+    StateMachine->TransitionStartTime = 0.0f;
+    StateMachine->TransitionDuration = 0.0f;
+
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Aborted transition for slot %d"), SlotIndex);
+
+    return true;
 }
 
-void USuspenseCoreWeaponStateManager::UnregisterTransition(FGameplayTag FromState, FGameplayTag ToState)
+TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetStateHistory(int32 MaxCount) const
 {
-	FScopeLock Lock(&StateCriticalSection);
+    FScopeLock Lock(&StateMachineLock);
 
-	RegisteredTransitions.RemoveAll([&](const FSuspenseCoreWeaponStateTransition& Trans)
-	{
-		return Trans.FromState.MatchesTagExact(FromState) && Trans.ToState.MatchesTagExact(ToState);
-	});
+    TArray<FGameplayTag> History;
+    if (MaxCount <= 0 || StateHistory.Num() == 0)
+    {
+        return History;
+    }
+
+    const int32 StartIndex = FMath::Max(0, StateHistory.Num() - MaxCount);
+    for (int32 i = StartIndex; i < StateHistory.Num(); ++i)
+    {
+        // В вашей структуре FWeaponStateHistoryEntry поля называются State/TimeSeconds
+        History.Add(StateHistory[i].State);
+    }
+
+    return History;
 }
 
-TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetValidTransitionsFromCurrentState() const
+void USuspenseCoreWeaponStateManager::RegisterTransition(const FStateTransitionDef& Transition)
 {
-	FScopeLock Lock(&StateCriticalSection);
+    FScopeLock Lock(&StateMachineLock);
 
-	TArray<FGameplayTag> ValidTransitions;
+    // Remove existing transition if present
+    TransitionDefinitions.RemoveAll([&Transition](const FStateTransitionDef& Def)
+    {
+        return Def.FromState == Transition.FromState && Def.ToState == Transition.ToState;
+    });
 
-	for (const FSuspenseCoreWeaponStateTransition& Trans : RegisteredTransitions)
-	{
-		if (Trans.FromState.MatchesTagExact(CurrentStateData.CurrentState))
-		{
-			FText ValidationReason;
-			if (ValidateTransition(Trans, ValidationReason))
-			{
-				ValidTransitions.Add(Trans.ToState);
-			}
-		}
-	}
+    // Add new transition
+    TransitionDefinitions.Add(Transition);
 
-	return ValidTransitions;
+    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Registered transition %s -> %s"),
+        *Transition.FromState.ToString(), *Transition.ToState.ToString());
 }
 
-void USuspenseCoreWeaponStateManager::AddStateTag(FGameplayTag Tag)
+void USuspenseCoreWeaponStateManager::UpdateTransitions(float DeltaTime)
 {
-	FScopeLock Lock(&StateCriticalSection);
-	CurrentStateData.ActiveStateTags.AddTag(Tag);
+    FScopeLock Lock(&StateMachineLock);
+
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    float CurrentTime = GetWorld()->GetTimeSeconds();
+
+    for (FWeaponStateMachine& StateMachine : StateMachines)
+    {
+        if (!StateMachine.bIsTransitioning)
+        {
+            continue;
+        }
+
+        float ElapsedTime = CurrentTime - StateMachine.TransitionStartTime;
+
+        if (ElapsedTime >= StateMachine.TransitionDuration)
+        {
+            CompleteTransition(StateMachine.SlotIndex);
+        }
+    }
 }
 
-void USuspenseCoreWeaponStateManager::RemoveStateTag(FGameplayTag Tag)
+void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
 {
-	FScopeLock Lock(&StateCriticalSection);
-	CurrentStateData.ActiveStateTags.RemoveTag(Tag);
+    FWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (!StateMachine || !StateMachine->bIsTransitioning)
+    {
+        return;
+    }
+
+    // Complete the transition
+    StateMachine->CurrentState = StateMachine->ActiveTransition.ToState;
+    StateMachine->bIsTransitioning = false;
+    StateMachine->TransitionStartTime = 0.0f;
+    StateMachine->TransitionDuration = 0.0f;
+
+    UE_LOG(LogTemp, Verbose, TEXT("MedComWeaponStateManager: Completed transition for slot %d to state %s"),
+        SlotIndex, *StateMachine->CurrentState.ToString());
+
+    // Check for chained transitions
+    TArray<FGameplayTag> ValidNextStates = GetValidTransitions(StateMachine->CurrentState);
+
+    // Auto-transition for intermediate states
+    if (StateMachine->CurrentState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing")))
+    {
+        FWeaponStateTransitionRequest AutoTransition;
+        AutoTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+        AutoTransition.WeaponSlotIndex = SlotIndex;
+        RequestStateTransition(AutoTransition);
+    }
+    else if (StateMachine->CurrentState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering")))
+    {
+        FWeaponStateTransitionRequest AutoTransition;
+        AutoTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+        AutoTransition.WeaponSlotIndex = SlotIndex;
+        RequestStateTransition(AutoTransition);
+    }
 }
 
-bool USuspenseCoreWeaponStateManager::HasStateTag(FGameplayTag Tag) const
+FWeaponStateMachine& USuspenseCoreWeaponStateManager::GetOrCreateStateMachine(int32 SlotIndex)
 {
-	FScopeLock Lock(&StateCriticalSection);
-	return CurrentStateData.ActiveStateTags.HasTag(Tag);
+    FWeaponStateMachine* ExistingMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (ExistingMachine)
+    {
+        return *ExistingMachine;
+    }
+
+    // Create new state machine
+    FWeaponStateMachine NewMachine;
+    NewMachine.SlotIndex = SlotIndex;
+    NewMachine.CurrentState = DefaultHolsteredState;
+    NewMachine.PreviousState = DefaultHolsteredState;
+
+    int32 Index = StateMachines.Add(NewMachine);
+    return StateMachines[Index];
 }
 
-void USuspenseCoreWeaponStateManager::ClearStateTags()
+const FStateTransitionDef* USuspenseCoreWeaponStateManager::FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const
 {
-	FScopeLock Lock(&StateCriticalSection);
-	CurrentStateData.ActiveStateTags.Reset();
+    return TransitionDefinitions.FindByPredicate([&FromState, &ToState](const FStateTransitionDef& Def)
+    {
+        return Def.FromState == FromState && Def.ToState == ToState;
+    });
 }
 
-void USuspenseCoreWeaponStateManager::ResetStatistics()
+void USuspenseCoreWeaponStateManager::RecordStateChange(int32 SlotIndex, const FGameplayTag& NewState)
 {
-	TotalTransitions = 0;
-	FailedTransitions = 0;
-	WEAPONSTATE_LOG(Log, TEXT("ResetStatistics"));
+    const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+    FWeaponStateHistoryEntry Entry;
+    Entry.State       = NewState;
+    Entry.TimeSeconds = CurrentTime;
+
+    StateHistory.Add(Entry);
+
+    // Ограничиваем буфер истории
+    if (StateHistory.Num() > MaxHistorySize)
+    {
+        const int32 Excess = StateHistory.Num() - MaxHistorySize;
+        StateHistory.RemoveAt(0, Excess);
+    }
 }
 
-void USuspenseCoreWeaponStateManager::PublishStateChanged(
-	FGameplayTag OldState,
-	FGameplayTag NewState,
-	bool bInterrupted)
+void USuspenseCoreWeaponStateManager::BroadcastStateChange(int32 SlotIndex, const FGameplayTag& OldState, const FGameplayTag& NewState)
 {
-	if (!EventBus.IsValid())
-	{
-		return;
-	}
+    if (!EventDispatcher.GetInterface())
+    {
+        return;
+    }
 
-	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Owner.Get());
-	EventData.SetString(TEXT("OldState"), OldState.ToString());
-	EventData.SetString(TEXT("NewState"), NewState.ToString());
-	EventData.SetBool(TEXT("Interrupted"), bInterrupted);
+    // В FEquipmentEventData нет поля EventPayload — используем метаданные (как в вашем VisualController)
+    FSuspenseCoreEquipmentEventData Ev;
+    Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Weapon.StateChanged"));
+    Ev.Source    = this;
+    Ev.Target    = GetOwner(); // по желанию: кто «носит» оружие
 
-	EventBus->Publish(
-		FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Weapon.State.Changed"))),
-		EventData);
+    Ev.AddMetadata(TEXT("Slot"), FString::FromInt(SlotIndex));
+    Ev.AddMetadata(TEXT("From"), OldState.ToString());
+    Ev.AddMetadata(TEXT("To"),   NewState.ToString());
 
-	WEAPONSTATE_LOG(Verbose, TEXT("PublishStateChanged: %s -> %s"),
-		*OldState.ToString(),
-		*NewState.ToString());
-}
-
-void USuspenseCoreWeaponStateManager::PublishTransitionFailed(
-	FGameplayTag FromState,
-	FGameplayTag ToState,
-	const FText& Reason)
-{
-	if (!EventBus.IsValid())
-	{
-		return;
-	}
-
-	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Owner.Get());
-	EventData.SetString(TEXT("FromState"), FromState.ToString());
-	EventData.SetString(TEXT("ToState"), ToState.ToString());
-	EventData.SetString(TEXT("Reason"), Reason.ToString());
-
-	EventBus->Publish(
-		FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Weapon.State.TransitionFailed"))),
-		EventData);
-
-	WEAPONSTATE_LOG(Warning, TEXT("PublishTransitionFailed: %s -> %s - %s"),
-		*FromState.ToString(),
-		*ToState.ToString(),
-		*Reason.ToString());
-}
-
-bool USuspenseCoreWeaponStateManager::ExecuteTransition(FGameplayTag NewState, bool bForce)
-{
-	const FGameplayTag OldState = CurrentStateData.CurrentState;
-
-	// Update state
-	CurrentStateData.PreviousState = OldState;
-	CurrentStateData.CurrentState = NewState;
-	CurrentStateData.StateEntryTime = 0.0f; // TODO: Get actual game time
-	CurrentStateData.bIsTransitioning = false;
-
-	TotalTransitions++;
-
-	WEAPONSTATE_LOG(Log, TEXT("ExecuteTransition: %s -> %s"),
-		*OldState.ToString(),
-		*NewState.ToString());
-
-	// Publish state changed event
-	PublishStateChanged(OldState, NewState, bForce);
-
-	return true;
-}
-
-const FSuspenseCoreWeaponStateTransition* USuspenseCoreWeaponStateManager::FindTransition(
-	FGameplayTag FromState,
-	FGameplayTag ToState) const
-{
-	for (const FSuspenseCoreWeaponStateTransition& Trans : RegisteredTransitions)
-	{
-		if (Trans.FromState.MatchesTagExact(FromState) && Trans.ToState.MatchesTagExact(ToState))
-		{
-			return &Trans;
-		}
-	}
-
-	return nullptr;
-}
-
-bool USuspenseCoreWeaponStateManager::ValidateTransition(
-	const FSuspenseCoreWeaponStateTransition& Transition,
-	FText& OutReason) const
-{
-	// Check required tags
-	if (Transition.RequiredTags.Num() > 0)
-	{
-		if (!CurrentStateData.ActiveStateTags.HasAll(Transition.RequiredTags))
-		{
-			OutReason = FText::FromString(TEXT("Missing required tags for transition"));
-			return false;
-		}
-	}
-
-	// Check blocked tags
-	if (Transition.BlockedTags.Num() > 0)
-	{
-		if (CurrentStateData.ActiveStateTags.HasAny(Transition.BlockedTags))
-		{
-			OutReason = FText::FromString(TEXT("Blocked tags present for transition"));
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void USuspenseCoreWeaponStateManager::SetupDefaultTransitions()
-{
-	// TODO: Setup common weapon state transitions
-	// Example: Idle -> Firing, Firing -> Reloading, etc.
-	WEAPONSTATE_LOG(Log, TEXT("SetupDefaultTransitions: Complete"));
+    EventDispatcher->BroadcastEvent(Ev);
 }

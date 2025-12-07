@@ -2,22 +2,23 @@
 
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "GameFramework/Actor.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedComponent(true);
+	SetIsReplicatedByDefault(true);
 
+	CurrentWeaponType = FGameplayTag(); // none
 	bWeaponDrawn = false;
-	AnimationInterfaceCacheLifetime = 0.25f;
 	LastAnimationInterfaceCacheTime = -1000.0f;
 }
 
 void USuspenseCoreWeaponStanceComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
 	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, CurrentWeaponType);
 	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bWeaponDrawn);
 }
@@ -25,122 +26,112 @@ void USuspenseCoreWeaponStanceComponent::GetLifetimeReplicatedProps(TArray<FLife
 void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipmentActor)
 {
 	TrackedEquipmentActor = NewEquipmentActor;
-
-	// Clear cached animation interface when equipment changes
-	CachedAnimationInterface = nullptr;
-	LastAnimationInterfaceCacheTime = -1000.0f;
-
-	UE_LOG(LogTemp, Log, TEXT("USuspenseCoreWeaponStanceComponent::OnEquipmentChanged: %s"),
-		*GetNameSafe(NewEquipmentActor));
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetWeaponStance(const FGameplayTag& WeaponTypeTag, bool bImmediate)
 {
 	if (CurrentWeaponType == WeaponTypeTag)
 	{
-		return; // Already in this stance
+		return;
 	}
 
 	CurrentWeaponType = WeaponTypeTag;
-	PushToAnimationLayer(!bImmediate);
 
-	UE_LOG(LogTemp, Log, TEXT("USuspenseCoreWeaponStanceComponent::SetWeaponStance: %s (Immediate: %d)"),
-		*WeaponTypeTag.ToString(), bImmediate);
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+
+	if (bImmediate)
+	{
+		PushToAnimationLayer(/*bSkipIfNoInterface=*/false);
+	}
 }
 
 void USuspenseCoreWeaponStanceComponent::ClearWeaponStance(bool bImmediate)
 {
-	if (!CurrentWeaponType.IsValid())
-	{
-		return; // Already cleared
-	}
-
-	CurrentWeaponType = FGameplayTag();
-	bWeaponDrawn = false;
-	PushToAnimationLayer(!bImmediate);
-
-	UE_LOG(LogTemp, Log, TEXT("USuspenseCoreWeaponStanceComponent::ClearWeaponStance (Immediate: %d)"),
-		bImmediate);
+	SetWeaponStance(FGameplayTag(), bImmediate);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 {
 	if (bWeaponDrawn == bDrawn)
 	{
-		return; // Already in this state
+		return;
 	}
 
 	bWeaponDrawn = bDrawn;
-	PushToAnimationLayer(true);
 
-	UE_LOG(LogTemp, Log, TEXT("USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState: %d"), bDrawn);
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
 TScriptInterface<ISuspenseWeaponAnimation> USuspenseCoreWeaponStanceComponent::GetAnimationInterface() const
 {
-	// Check if cache is valid
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const float TimeSinceCache = CurrentTime - LastAnimationInterfaceCacheTime;
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-	if (CachedAnimationInterface && TimeSinceCache < AnimationInterfaceCacheLifetime)
+	// кэш свежий?
+	if (CachedAnimationInterface.GetInterface() &&
+		(Now - LastAnimationInterfaceCacheTime) < AnimationInterfaceCacheLifetime)
 	{
 		return CachedAnimationInterface;
 	}
 
-	// Cache expired or invalid, refresh
-	CachedAnimationInterface = nullptr;
-
-	AActor* EquipmentActor = TrackedEquipmentActor.Get();
-	if (!EquipmentActor)
+	// Вариант 1: владелец реализует интерфейс
+	if (AActor* OwnerActor = GetOwner())
 	{
-		// Try owner as fallback
-		EquipmentActor = GetOwner();
-	}
-
-	if (EquipmentActor)
-	{
-		// Try to get animation interface from equipment actor
-		if (EquipmentActor->Implements<USuspenseWeaponAnimation>())
+		if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreWeaponAnimation::StaticClass()))
 		{
-			CachedAnimationInterface = EquipmentActor;
-			LastAnimationInterfaceCacheTime = CurrentTime;
+			CachedAnimationInterface.SetObject(OwnerActor);
+			CachedAnimationInterface.SetInterface(Cast<ISuspenseWeaponAnimation>(OwnerActor));
+			LastAnimationInterfaceCacheTime = Now;
+			return CachedAnimationInterface;
 		}
 	}
 
+	// Вариант 2: (осознанно) НЕ полезем в сабсистему здесь — аттачмент сам делает fallback на субсистему.
+	// Это позволяет не плодить зависимостей и избежать лишних include.
+
+	// Кэша нет — возвращаем пусто
+	CachedAnimationInterface = nullptr;
+	LastAnimationInterfaceCacheTime = Now;
 	return CachedAnimationInterface;
 }
 
 void USuspenseCoreWeaponStanceComponent::OnRep_WeaponType()
 {
-	UE_LOG(LogTemp, Verbose, TEXT("USuspenseCoreWeaponStanceComponent::OnRep_WeaponType: %s"),
-		*CurrentWeaponType.ToString());
-
-	PushToAnimationLayer(true);
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
 void USuspenseCoreWeaponStanceComponent::OnRep_DrawnState()
 {
-	UE_LOG(LogTemp, Verbose, TEXT("USuspenseCoreWeaponStanceComponent::OnRep_DrawnState: %d"),
-		bWeaponDrawn);
-
-	PushToAnimationLayer(true);
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
 void USuspenseCoreWeaponStanceComponent::PushToAnimationLayer(bool bSkipIfNoInterface) const
 {
-	TScriptInterface<ISuspenseWeaponAnimation> AnimInterface = GetAnimationInterface();
-
-	if (!AnimInterface && bSkipIfNoInterface)
+	const TScriptInterface<ISuspenseWeaponAnimation> AnimI = GetAnimationInterface();
+	if (!AnimI.GetInterface())
 	{
-		// No interface available, skip silently
+		if (!bSkipIfNoInterface)
+		{
+			// нет интерфейса — ничего не делаем
+		}
 		return;
 	}
 
-	if (AnimInterface)
-	{
-		// Implementation stub - push stance to animation layer
-		// This would call methods on the animation interface to update the animation state
-		UE_LOG(LogTemp, Verbose, TEXT("USuspenseCoreWeaponStanceComponent::PushToAnimationLayer: Type=%s, Drawn=%d"),
-			*CurrentWeaponType.ToString(), bWeaponDrawn);
-	}
+	// Здесь можно добавить активные вызовы в твой аним-интерфейс
+	// (например, ApplyStance(CurrentWeaponType, bWeaponDrawn)),
+	// когда определим контракт. Пока отдаём интерфейс наверх.
 }

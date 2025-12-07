@@ -54,11 +54,11 @@ void USuspenseCorePanelSwitcherWidget::NativePreConstruct()
 				{
 					PreviewButton->AddChild(PreviewText);
 
-					UHorizontalBoxSlot* Slot = TabContainer->AddChildToHorizontalBox(PreviewButton);
-					if (Slot)
+					UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(PreviewButton);
+					if (TabSlot)
 					{
-						Slot->SetPadding(FMargin(4.0f, 0.0f));
-						Slot->SetHorizontalAlignment(HAlign_Left);
+						TabSlot->SetPadding(FMargin(4.0f, 0.0f));
+						TabSlot->SetHorizontalAlignment(HAlign_Left);
 					}
 				}
 			}
@@ -173,11 +173,11 @@ void USuspenseCorePanelSwitcherWidget::InitializeTabs()
 		}
 
 		// Add button to container
-		if (UHorizontalBoxSlot* Slot = TabContainer->AddChildToHorizontalBox(RuntimeTab.TabButton))
+		if (UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(RuntimeTab.TabButton))
 		{
-			Slot->SetPadding(FMargin(4.0f, 0.0f));
-			Slot->SetHorizontalAlignment(HAlign_Fill);
-			Slot->SetVerticalAlignment(VAlign_Fill);
+			TabSlot->SetPadding(FMargin(4.0f, 0.0f));
+			TabSlot->SetHorizontalAlignment(HAlign_Fill);
+			TabSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 
 		// Create panel widget if PanelContainer is bound
@@ -382,6 +382,83 @@ void USuspenseCorePanelSwitcherWidget::RefreshActiveTabContent()
 			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Refreshing active tab content"));
 		}
 	}
+}
+
+//==================================================================
+// Backward Compatibility API
+//==================================================================
+
+void USuspenseCorePanelSwitcherWidget::SetActivePanel(const FGameplayTag& PanelTag)
+{
+	// Wrapper for SelectTabByTag (backward compatibility with ContainerScreen)
+	SelectTabByTag(PanelTag);
+}
+
+void USuspenseCorePanelSwitcherWidget::AddTab(const FGameplayTag& PanelTag, const FText& DisplayName)
+{
+	if (!PanelTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher::AddTab - Invalid PanelTag"));
+		return;
+	}
+
+	if (!TabContainer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher::AddTab - TabContainer not bound"));
+		return;
+	}
+
+	// Check if tab already exists
+	for (const FSuspenseCorePanelTabRuntime& Existing : RuntimeTabs)
+	{
+		if (Existing.PanelTag.MatchesTagExact(PanelTag))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher::AddTab - Tab '%s' already exists"), *PanelTag.ToString());
+			return;
+		}
+	}
+
+	// Create config for this tab
+	FSuspenseCorePanelTabConfig Config;
+	Config.PanelTag = PanelTag;
+	Config.DisplayName = DisplayName;
+	Config.bEnabled = true;
+
+	// Create runtime tab
+	FSuspenseCorePanelTabRuntime RuntimeTab;
+	RuntimeTab.PanelTag = PanelTag;
+	RuntimeTab.bEnabled = true;
+
+	// Create tab button
+	int32 TabIndex = RuntimeTabs.Num();
+	RuntimeTab.TabButton = CreateTabButton(Config, TabIndex);
+	if (!RuntimeTab.TabButton)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher::AddTab - Failed to create button for '%s'"), *PanelTag.ToString());
+		return;
+	}
+
+	// Add button to container
+	if (UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(RuntimeTab.TabButton))
+	{
+		TabSlot->SetPadding(FMargin(4.0f, 0.0f));
+		TabSlot->SetHorizontalAlignment(HAlign_Fill);
+		TabSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+	// Track button->index mapping
+	ButtonToIndexMap.Add(RuntimeTab.TabButton, TabIndex);
+
+	// Store runtime tab
+	RuntimeTabs.Add(RuntimeTab);
+
+	// Notify Blueprint
+	K2_OnTabCreated(TabIndex, RuntimeTab.TabButton);
+
+	// Update visuals (new tab is not selected)
+	UpdateTabVisual(TabIndex, false);
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher::AddTab - Created tab '%s' at index %d"), *PanelTag.ToString(), TabIndex);
 }
 
 //==================================================================

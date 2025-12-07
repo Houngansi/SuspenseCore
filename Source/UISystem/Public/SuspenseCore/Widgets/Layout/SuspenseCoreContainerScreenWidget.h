@@ -341,5 +341,5 @@ private:
 	FVector2D DragGhostOffset;
 
 	/** Handle panel selected event from EventBus */
-	void OnPanelSelectedEvent(const FGameplayTag& EventTag, const struct FSuspenseCoreEventData& EventData);
+	void OnPanelSelectedEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 };

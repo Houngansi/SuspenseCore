@@ -602,10 +602,11 @@ void USuspenseCoreContainerScreenWidget::UnbindFromUIManager()
 	CachedEventBus.Reset();
 }
 
-void USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreContainerScreenWidget::OnPanelSelectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get panel tag from event data
-	FGameplayTag PanelTag = EventData.GetTag(FName("PanelTag"));
+	// Get panel tag from event data (stored as string)
+	FString PanelTagString = EventData.GetString(FName("PanelTag"));
+	FGameplayTag PanelTag = FGameplayTag::RequestGameplayTag(FName(*PanelTagString), false);
 	if (PanelTag.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("ContainerScreen: Received panel selected event - %s"), *PanelTag.ToString());

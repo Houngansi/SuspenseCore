@@ -249,7 +249,7 @@ public:
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentSecurityService : public UObject,
-    public IEquipmentService,
+    public ISuspenseCoreEquipmentService,
     public ISuspenseCoreSecurityService
 {
     GENERATED_BODY()
@@ -259,10 +259,10 @@ public:
     virtual ~USuspenseCoreEquipmentSecurityService();
 
     //~ Begin IEquipmentService Interface
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
-    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
     virtual bool ValidateService(TArray<FText>& OutErrors) const override;
@@ -297,8 +297,8 @@ public:
 
 protected:
     // Service state
-    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
-    FServiceInitParams ServiceParams;
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
+    FSuspenseCoreServiceInitParams ServiceParams;
 
     // Configuration
     FSecurityServiceConfig Config;
@@ -323,7 +323,7 @@ protected:
 
     // Metrics
     FSecurityServiceMetrics Metrics;
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
     // Cleanup timer
     FTimerHandle CleanupTimerHandle;

@@ -203,7 +203,7 @@ private:
 
 	// Queue / Sending
 	void   ProcessQueue();
-	bool   SendOperation(FOperationQueueEntry& Entry);
+	bool   SendOperation(FSuspenseCoreOperationQueueEntry& Entry);
 	float  CalculateRetryDelay(int32 RetryCount) const;
 	void   SendWithPriority(ENetworkOperationPriority Priority, const FNetworkOperationRequest& Request);
 	void   HandleTimeout(const FGuid& OperationId);

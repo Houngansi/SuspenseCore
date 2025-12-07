@@ -6,12 +6,12 @@
 #include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreWeaponFireModeComponent.generated.h"
 
 // Forward declarations
 class UGameplayAbility;
-class ISuspenseCoreWeapon;
-struct FSuspenseCoreUnifiedItemData;
 struct FSuspenseCoreWeaponFireModeData;
 
 /**

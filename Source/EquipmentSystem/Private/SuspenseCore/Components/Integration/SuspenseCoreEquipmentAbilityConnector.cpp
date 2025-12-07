@@ -9,7 +9,7 @@
 #include "AttributeSet.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"

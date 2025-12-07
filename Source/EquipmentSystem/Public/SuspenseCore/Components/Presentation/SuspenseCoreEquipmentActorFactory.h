@@ -9,7 +9,7 @@
 #include "Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Engine/StreamableManager.h"
 #include "SuspenseCoreEquipmentActorFactory.generated.h"

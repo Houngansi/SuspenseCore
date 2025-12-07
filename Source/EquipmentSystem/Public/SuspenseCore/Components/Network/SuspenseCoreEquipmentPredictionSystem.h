@@ -8,7 +8,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentPredictionSystem.generated.h"
 

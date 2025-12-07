@@ -6,14 +6,15 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseCoreRulesTypes.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCoreCompatibilityRulesEngine.generated.h"
 
+// Forward declarations
 class USuspenseCoreEquipmentSlotValidator;
 class ISuspenseCoreItemDataProvider;
-
-#include "SuspenseCoreCompatibilityRulesEngine.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCompatibilityRules, Log, All);
 

@@ -8,15 +8,15 @@
 
 #include "Interfaces/Equipment/ISuspenseCoreLoadoutAdapter.h"
 #include "Interfaces/Core/ISuspenseCoreLoadout.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
+#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
 
-class ISuspenseCoreEquipmentDataProvider;
-class ISuspenseCoreEquipmentOperations;
-class ISuspenseCoreTransactionManager;
-class ISuspenseCoreInventoryBridge;
-class ISuspenseCoreEventDispatcher;
-class USuspenseCoreLoadoutManager;
-class USuspenseCoreItemManager;
 class USuspenseCoreEquipmentOperationService;
 
 struct FEquipmentStateSnapshot;

@@ -4,17 +4,18 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseCoreAbilityConnector.h"
+#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreEquipmentAbilityConnector.generated.h"
 
 class UAbilitySystemComponent;
 class UAttributeSet;
-class USuspenseCoreItemManager;
-class ISuspenseCoreEquipmentDataProvider;
-class ISuspenseCoreEventDispatcher;
 
 /** Record of a granted ability */
 USTRUCT()

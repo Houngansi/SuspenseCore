@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "ISuspenseCoreEquipmentService.generated.h"
 
 /**

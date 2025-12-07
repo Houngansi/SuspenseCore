@@ -33,7 +33,7 @@ class USuspenseCoreEquipmentDataProvider : public UInterface
  *
  * Key methods are pure virtual, convenience queries have default implementations.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentDataProvider
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentDataProvider
 {
     GENERATED_BODY()
 

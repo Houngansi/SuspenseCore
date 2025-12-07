@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
-#include "SuspenseCore/Interfaces/ISuspenseCoreTransactionManager.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "Types/Transaction/SuspenseCoreTransactionTypes.h"

@@ -17,7 +17,7 @@ class ISuspenseCoreEquipmentDataProvider;
  * Rule evaluation result - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreRuleResult
+struct BRIDGESYSTEM_API FSuspenseCoreRuleResult
 {
     GENERATED_BODY()
 
@@ -77,7 +77,7 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreRuleResult
  * Equipment rule definition - SuspenseCore version
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreEquipmentRule
+struct BRIDGESYSTEM_API FSuspenseCoreEquipmentRule
 {
     GENERATED_BODY()
 
@@ -127,7 +127,7 @@ class USuspenseCoreEquipmentRules : public UInterface
  * - Thread-safe for concurrent Evaluate* calls after initialization
  * - EvaluateRulesWithContext MUST NOT read live DataProvider
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreEquipmentRules
+class BRIDGESYSTEM_API ISuspenseCoreEquipmentRules
 {
     GENERATED_BODY()
 

@@ -36,7 +36,7 @@ class USuspenseCoreTransactionManager : public UInterface
  * Thread Safety:
  * All implementations must be thread-safe.
  */
-class EQUIPMENTSYSTEM_API ISuspenseCoreTransactionManager
+class BRIDGESYSTEM_API ISuspenseCoreTransactionManager
 {
     GENERATED_BODY()
 

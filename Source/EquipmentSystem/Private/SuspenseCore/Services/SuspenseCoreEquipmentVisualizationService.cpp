@@ -1,7 +1,8 @@
 // EquipmentVisualizationServiceImpl.cpp
-// Copyright MedCom
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -9,6 +10,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+
+// Namespace aliases for cleaner code
+using namespace SuspenseCoreEquipmentTags;
 
 // ===== Local utilities =====================================================
 
@@ -59,18 +63,18 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 		TEXT("ServiceLocator cached successfully from InitParams: %p"),
 		CachedServiceLocator.Get());
 
-	// Initialize service tag
-	VisualizationServiceTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Visualization"));
+	// Initialize service tag - using native compile-time tags
+	VisualizationServiceTag = Service::TAG_Service_Equipment_Visualization;
 	if (!VisualizationServiceTag.IsValid())
 	{
 		LifecycleState = EServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("InitializeService FAILED: Could not request Service.Equipment.Visualization tag"));
+			TEXT("InitializeService FAILED: Service.Equipment.Visualization native tag not registered"));
 		return false;
 	}
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-		TEXT("Service tag initialized: %s"),
+		TEXT("Service tag initialized (native): %s"),
 		*VisualizationServiceTag.ToString());
 
 	// Initialize EventBus
@@ -94,17 +98,17 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 	CachedUpdateIntervalSec = MaxUpdateRateHz > 0.f ? (1.0 / MaxUpdateRateHz) : 0.0;
 	LastProcessTimeSec      = 0.0;
 
-	// Initialize event tags (non-fatal if not found)
-	Tag_OnEquipped          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"), false);
-	Tag_OnUnequipped        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"), false);
-	Tag_OnSlotSwitched      = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SlotSwitched"), false);
-	Tag_VisRefreshAll       = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Visual.RefreshAll"), false);
+	// Initialize event tags using native compile-time tags
+	Tag_OnEquipped          = Event::TAG_Equipment_Event_Equipped;
+	Tag_OnUnequipped        = Event::TAG_Equipment_Event_Unequipped;
+	Tag_OnSlotSwitched      = Event::TAG_Equipment_Event_SlotSwitched;
+	Tag_VisRefreshAll       = Event::TAG_Equipment_Event_Visual_RefreshAll;
 
-	// Initialize dependency service tags
-	Tag_ActorFactory     = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"), false);
-	Tag_AttachmentSystem = FGameplayTag::RequestGameplayTag(TEXT("Service.AttachmentSystem"), false);
-	Tag_VisualController = FGameplayTag::RequestGameplayTag(TEXT("Service.VisualController"), false);
-	Tag_EquipmentData    = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data"), false);
+	// Initialize dependency service tags using native tags
+	Tag_ActorFactory     = Service::TAG_Service_ActorFactory;
+	Tag_AttachmentSystem = Service::TAG_Service_AttachmentSystem;
+	Tag_VisualController = Service::TAG_Service_VisualController;
+	Tag_EquipmentData    = Service::TAG_Service_Equipment_Data;
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("Event tags initialized"));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("Setting up event handlers..."));

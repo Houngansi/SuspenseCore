@@ -2,6 +2,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
 #include "Components/Network/SuspenseEquipmentPredictionSystem.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"

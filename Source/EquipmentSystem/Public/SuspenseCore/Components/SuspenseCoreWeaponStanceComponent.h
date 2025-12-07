@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
+#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
 #include "SuspenseCoreWeaponStanceComponent.generated.h"
 
 // Forward declaration
@@ -35,7 +35,7 @@ public:
 	void SetWeaponDrawnState(bool bDrawn);
 
 	UFUNCTION(BlueprintCallable, Category="Weapon|Stance")
-	TScriptInterface<ISuspenseCoreWeaponAnimation> GetAnimationInterface() const;
+	TScriptInterface<ISuspenseWeaponAnimation> GetAnimationInterface() const;
 
 	// -------- Helpers --------
 	UFUNCTION(BlueprintPure, Category="Weapon|Stance")
@@ -72,7 +72,7 @@ private:
 
 	// Кэш интерфейса анимаций (тот же, что ждёт Attachment)
 	UPROPERTY(Transient)
-	mutable TScriptInterface<ISuspenseCoreWeaponAnimation> CachedAnimationInterface;
+	mutable TScriptInterface<ISuspenseWeaponAnimation> CachedAnimationInterface;
 
 	// Настройки кэша
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Stance")

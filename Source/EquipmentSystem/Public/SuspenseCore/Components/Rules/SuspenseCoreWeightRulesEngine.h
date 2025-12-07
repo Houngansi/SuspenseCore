@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseCoreWeightRulesEngine.generated.h"
 
 /**
@@ -67,15 +67,15 @@ public:
 
     /** Evaluate incoming item vs capacity; returns aggregated rule result (strict on hard limit). */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FSuspenseCoreAggregatedRuleResult EvaluateWeightRules(const FSuspenseCoreRuleContext& Context) const;
+    FSuspenseAggregatedRuleResult EvaluateWeightRules(const FSuspenseRuleContext& Context) const;
 
     /** Check simple capacity gate. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FSuspenseCoreRuleCheckResult CheckWeightLimit(float CurrentWeight, float AdditionalWeight, float MaxCapacity) const;
+    FSuspenseRuleCheckResult CheckWeightLimit(float CurrentWeight, float AdditionalWeight, float MaxCapacity) const;
 
     /** Encumbrance evaluation for UX (ratio/tag). */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    FSuspenseCoreRuleCheckResult CheckEncumbrance(const AActor* Character, float TotalWeight) const;
+    FSuspenseRuleCheckResult CheckEncumbrance(const AActor* Character, float TotalWeight) const;
 
     //==================== Capacity / weights ====================
 
@@ -90,10 +90,10 @@ public:
 
     /** Weight for a single item: uses runtime "Weight" property; non-negative. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    float CalculateItemWeight(const FSuspenseCoreInventoryItemInstance& Item) const;
+    float CalculateItemWeight(const FSuspenseInventoryItemInstance& Item) const;
 
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    float CalculateTotalWeight(const TArray<FSuspenseCoreInventoryItemInstance>& Items) const;
+    float CalculateTotalWeight(const TArray<FSuspenseInventoryItemInstance>& Items) const;
 
     /** Optional tag-based modifiers. Tags must be supplied by caller; engine never fetches item data. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
@@ -104,12 +104,12 @@ public:
     /** Split total by top-level item categories (tag roots). If no tags provided, all in Item.Unknown. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
     TMap<FGameplayTag, float> AnalyzeWeightDistribution(
-        const TArray<FSuspenseCoreInventoryItemInstance>& Items,
+        const TArray<FSuspenseInventoryItemInstance>& Items,
         const TArray<FGameplayTagContainer>& OptionalItemTags /* parallel to Items, may be empty */) const;
 
     /** Indices of heaviest N items. */
     UFUNCTION(BlueprintCallable, Category="Weight Rules")
-    TArray<int32> FindHeaviestItems(const TArray<FSuspenseCoreInventoryItemInstance>& Items, int32 TopN = 3) const;
+    TArray<int32> FindHeaviestItems(const TArray<FSuspenseInventoryItemInstance>& Items, int32 TopN = 3) const;
     //==================== Cache and Statistics ====================
 
     /** Clear any cached data (stateless engine - no-op) */
@@ -122,7 +122,7 @@ public:
 
 protected:
     float GetCharacterStrength(const AActor* Character) const;
-    float GetItemRuntimeWeight(const FSuspenseCoreInventoryItemInstance& Item) const;
+    float GetItemRuntimeWeight(const FSuspenseInventoryItemInstance& Item) const;
 
 private:
     /** Immutable configuration snapshot (updated via Initialize). */

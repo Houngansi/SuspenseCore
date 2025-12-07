@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
+#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "Services/SuspenseCoreEquipmentOperationService.h"
@@ -101,7 +101,7 @@ public:
      * @return true if item can be equipped
      */
     UFUNCTION(BlueprintPure, Category = "Equipment|Bridge")
-    bool CanEquipFromInventory(const FSuspenseCoreInventoryItemInstance& Item, int32 TargetSlot) const;
+    bool CanEquipFromInventory(const FSuspenseInventoryItemInstance& Item, int32 TargetSlot) const;
 
     /**
      * Check if item can be unequipped to inventory
@@ -124,7 +124,7 @@ protected:
   * @param Item - Item instance that was equipped
   * @param SlotIndex - Equipment slot index where item was placed
   */
- void BroadcastEquippedEvent(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex);
+ void BroadcastEquippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
 
  /**
   * Broadcasts both Unequipped and Equipped events for SWAP operations
@@ -135,8 +135,8 @@ protected:
   * @param SlotIndex - Equipment slot involved in swap
   */
  void BroadcastSwapEvents(
-     const FSuspenseCoreInventoryItemInstance& NewItem,
-     const FSuspenseCoreInventoryItemInstance& OldItem,
+     const FSuspenseInventoryItemInstance& NewItem,
+     const FSuspenseInventoryItemInstance& OldItem,
      int32 SlotIndex);
 private:
     // ===== Dependencies =====
@@ -160,7 +160,7 @@ private:
 
     /** Reference to centralized event system for UI-driven operations */
     TWeakObjectPtr<USuspenseCoreEventManager> EventDelegateManager;
-     void BroadcastUnequippedEvent(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex);
+     void BroadcastUnequippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
     /** Handle for equipment operation request subscription */
     FDelegateHandle EquipmentOperationRequestHandle;
 
@@ -179,8 +179,8 @@ private:
     struct FBridgeTransaction
     {
         FGuid TransactionID;
-        FSuspenseCoreInventoryItemInstance InventoryBackup;
-        FSuspenseCoreInventoryItemInstance EquipmentBackup;
+        FSuspenseInventoryItemInstance InventoryBackup;
+        FSuspenseInventoryItemInstance EquipmentBackup;
         int32 InventorySlot;
         int32 EquipmentSlot;
         bool bInventoryModified;
@@ -208,7 +208,7 @@ private:
     struct FItemReservation
     {
         FGuid ReservationID;
-        FSuspenseCoreInventoryItemInstance ReservedItem;
+        FSuspenseInventoryItemInstance ReservedItem;
         int32 TargetSlot;
         float ExpirationTime;
     };
@@ -263,17 +263,17 @@ private:
     /**
      * Validate that inventory has space for item
      */
-    bool ValidateInventorySpace(const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool ValidateInventorySpace(const FSuspenseInventoryItemInstance& Item) const;
 
     /**
      * Validate equipment slot compatibility with item
      */
-    bool ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const;
 
     /**
      * Check if inventory has space for item (simplified check)
      */
-    bool InventoryHasSpace(const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool InventoryHasSpace(const FSuspenseInventoryItemInstance& Item) const;
 
     // ===== Helper Functions =====
 
@@ -285,7 +285,7 @@ private:
     /**
      * Find item in inventory by item ID
      */
-    bool FindItemInInventory(const FName& ItemId, FSuspenseCoreInventoryItemInstance& OutInstance) const;
+    bool FindItemInInventory(const FName& ItemId, FSuspenseInventoryItemInstance& OutInstance) const;
 
     /** Flag to prevent double initialization and double subscription */
     UPROPERTY(Transient)

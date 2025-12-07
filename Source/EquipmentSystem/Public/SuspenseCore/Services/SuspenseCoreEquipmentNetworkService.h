@@ -11,7 +11,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
@@ -25,7 +25,7 @@
 class USuspenseCoreEquipmentNetworkDispatcher;
 class USuspenseCoreEquipmentPredictionSystem;
 class USuspenseCoreEquipmentReplicationManager;
-class USuspenseCoreEquipmentServiceLocator;
+class USuspenseEquipmentServiceLocator;
 class USuspenseCoreEquipmentSecurityService;
 class ISuspenseCoreEquipmentDataProvider;
 class ISuspenseCoreEquipmentOperations;

@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
-#include "Types/Weapon/SuspenseCoreInventoryAmmoState.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Types/Weapon/SuspenseInventoryAmmoState.h"
+#include "Interfaces/Weapon/ISuspenseWeapon.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseCoreWeaponAmmoComponent.generated.h"
 
 // Forward declarations
@@ -48,7 +48,7 @@ public:
      * @return Success of initialization
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    bool InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface);
+    bool InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface);
 
     //================================================
     // Core Ammo Operations
@@ -100,14 +100,14 @@ public:
      * @return Complete ammo state for saving/loading
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    FSuspenseCoreInventoryAmmoState GetAmmoState() const { return AmmoState; }
+    FSuspenseInventoryAmmoState GetAmmoState() const { return AmmoState; }
 
     /**
      * Set ammo state (for loading)
      * @param NewState State to apply
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo")
-    void SetAmmoState(const FSuspenseCoreInventoryAmmoState& NewState);
+    void SetAmmoState(const FSuspenseInventoryAmmoState& NewState);
 
     /**
      * Check if can reload
@@ -205,14 +205,14 @@ protected:
      * Get weapon interface from owner
      * @return Weapon interface or null
      */
-    ISuspenseCoreWeapon* GetWeaponInterface() const;
+    ISuspenseWeapon* GetWeaponInterface() const;
 
     /**
      * Get weapon data from DataTable
      * @param OutData Output weapon data
      * @return True if data retrieved
      */
-    bool GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const;
+    bool GetWeaponData(FSuspenseUnifiedItemData& OutData) const;
 
     /**
      * Broadcast ammo change event
@@ -257,7 +257,7 @@ protected:
     void OnRep_ReloadState();
 
     // Internal method to update ammo state without triggering callbacks
-    void UpdateInternalAmmoState(const FSuspenseCoreInventoryAmmoState& NewState);
+    void UpdateInternalAmmoState(const FSuspenseInventoryAmmoState& NewState);
 
 private:
     //================================================
@@ -266,7 +266,7 @@ private:
 
     /** Current ammunition state */
     UPROPERTY(ReplicatedUsing = OnRep_AmmoState)
-    FSuspenseCoreInventoryAmmoState AmmoState;
+    FSuspenseInventoryAmmoState AmmoState;
 
     /** Reload in progress */
     UPROPERTY(ReplicatedUsing = OnRep_ReloadState)
@@ -286,7 +286,7 @@ private:
 
     /** Cached weapon interface */
     UPROPERTY()
-    TScriptInterface<ISuspenseCoreWeapon> CachedWeaponInterface;
+    TScriptInterface<ISuspenseWeapon> CachedWeaponInterface;
 
     /** Cached reload effect handle */
     FActiveGameplayEffectHandle ReloadEffectHandle;

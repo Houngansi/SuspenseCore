@@ -13,7 +13,7 @@
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
-#include "Core/SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
 
 // Presentation layer interfaces
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"
@@ -81,7 +81,7 @@ private:
 	TArray<FEventSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)
-	TObjectPtr<USuspenseCoreEquipmentServiceLocator> CachedServiceLocator;
+	TObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
 
 	// Lightweight state
 	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FSuspenseCoreVisCharState> Characters;

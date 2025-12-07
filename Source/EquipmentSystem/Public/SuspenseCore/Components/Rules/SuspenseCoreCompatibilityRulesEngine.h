@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Rules/SuspenseRulesTypes.h"
+#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCoreCompatibilityRulesEngine.generated.h"
@@ -33,27 +33,27 @@ public:
 
 	//------------- Public API -------------
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseCoreRuleCheckResult CheckItemCompatibility(
-		const FSuspenseCoreInventoryItemInstance& ItemInstance,
+	FSuspenseRuleCheckResult CheckItemCompatibility(
+		const FSuspenseInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseCoreRuleCheckResult CheckTypeCompatibility(
+	FSuspenseRuleCheckResult CheckTypeCompatibility(
 		const FGameplayTag& ItemType,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseCoreAggregatedRuleResult EvaluateCompatibilityRules(
-		const FSuspenseCoreRuleContext& Context) const;
+	FSuspenseAggregatedRuleResult EvaluateCompatibilityRules(
+		const FSuspenseRuleContext& Context) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	TArray<int32> FindCompatibleSlots(
-		const FSuspenseCoreInventoryItemInstance& ItemInstance,
+		const FSuspenseInventoryItemInstance& ItemInstance,
 		const TArray<FEquipmentSlotConfig>& AvailableSlots) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	float GetCompatibilityScore(
-		const FSuspenseCoreInventoryItemInstance& ItemInstance,
+		const FSuspenseInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	//------------- DI -------------
@@ -74,10 +74,10 @@ public:
 
 protected:
 	//------------- Internal helpers -------------
-	bool GetItemData(FName ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
+	bool GetItemData(FName ItemID, struct FSuspenseUnifiedItemData& OutData) const;
 
 	/** Convert SlotValidator result to rules-format (severity mapping). */
-	static FSuspenseCoreRuleCheckResult Convert(const FSlotValidationResult& R);
+	static FSuspenseRuleCheckResult Convert(const FSlotValidationResult& R);
 
 private:
 	UPROPERTY(Transient)

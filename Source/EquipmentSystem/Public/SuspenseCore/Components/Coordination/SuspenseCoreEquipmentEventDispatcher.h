@@ -5,7 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "SuspenseCoreEquipmentEventDispatcher.generated.h"
 
 struct FEventSubscriptionHandle;
@@ -38,7 +38,7 @@ struct FSuspenseCoreEventDispatcherStats
 };
 
 UCLASS(ClassGroup=(MedCom),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentEventDispatcher:public UActorComponent,public ISuspenseCoreEventDispatcher
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentEventDispatcher:public UActorComponent,public ISuspenseEventDispatcher
 {
 	GENERATED_BODY()
 public:
@@ -49,7 +49,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason)override;
 	virtual void TickComponent(float DeltaTime,ELevelTick TickType,FActorComponentTickFunction* ThisTickFunction)override;
 
-	// ISuspenseCoreEventDispatcher
+	// ISuspenseEventDispatcher
 	virtual FDelegateHandle Subscribe(const FGameplayTag& EventType,const FEquipmentEventDelegate& Delegate)override;
 	virtual bool Unsubscribe(const FGameplayTag& EventType,const FDelegateHandle& Handle)override;
 	virtual void BroadcastEvent(const FSuspenseCoreEquipmentEventData& Event)override;

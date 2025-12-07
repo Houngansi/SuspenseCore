@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreWeaponStateProvider.h"
+#include "Interfaces/Equipment/ISuspenseWeaponStateProvider.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreWeaponStateManager.generated.h"
 
@@ -87,7 +87,7 @@ struct FSuspenseCoreWeaponStateHistoryEntry
  * - Event-driven: Broadcasts state changes for observers
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorComponent, public ISuspenseCoreWeaponStateProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorComponent, public ISuspenseWeaponStateProvider
 {
     GENERATED_BODY()
 
@@ -100,7 +100,7 @@ public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
     //~ End UActorComponent Interface
 
-    //~ Begin ISuspenseCoreWeaponStateProvider Interface
+    //~ Begin ISuspenseWeaponStateProvider Interface
     virtual FGameplayTag GetWeaponState(int32 SlotIndex = -1) const override;
     virtual FWeaponStateTransitionResult RequestStateTransition(const FWeaponStateTransitionRequest& Request) override;
     virtual bool CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
@@ -111,7 +111,7 @@ public:
     virtual float GetTransitionProgress(int32 SlotIndex = -1) const override;
     virtual bool AbortTransition(int32 SlotIndex = -1) override;
     virtual TArray<FGameplayTag> GetStateHistory(int32 MaxCount = 10) const override;
-    //~ End ISuspenseCoreWeaponStateProvider Interface
+    //~ End ISuspenseWeaponStateProvider Interface
 
     /**
      * Initialize with dependencies
@@ -119,7 +119,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon|State")
     bool Initialize(
         TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider,
-        TScriptInterface<ISuspenseCoreEventDispatcher> EventDispatcher
+        TScriptInterface<ISuspenseEventDispatcher> EventDispatcher
     );
 
     /**
@@ -159,7 +159,7 @@ private:
     TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
     
     UPROPERTY()
-    TScriptInterface<ISuspenseCoreEventDispatcher> EventDispatcher;
+    TScriptInterface<ISuspenseEventDispatcher> EventDispatcher;
     
     // State machines per slot
     UPROPERTY()

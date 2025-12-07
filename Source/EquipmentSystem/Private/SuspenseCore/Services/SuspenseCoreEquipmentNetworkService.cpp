@@ -2,6 +2,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
@@ -14,24 +15,18 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
-#include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformTime.h"
-#include "HAL/PlatformMisc.h"
 #include "Misc/SecureHash.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Misc/ConfigCacheIni.h"
 
 USuspenseCoreEquipmentNetworkService::USuspenseCoreEquipmentNetworkService()
     : ServiceState(EServiceLifecycleState::Uninitialized)
     , AverageLatency(0.0f)
     , TotalOperationsSent(0)
     , TotalOperationsRejected(0)
-    , TotalReplayAttemptsBlocked(0)
-    , TotalIntegrityFailures(0)
     , NetworkQualityLevel(1.0f)
 {
-    SecurityConfig = FNetworkSecurityConfig::LoadFromConfig();
+    // SecurityService will be created in InitializeService
 }
 
 USuspenseCoreEquipmentNetworkService::~USuspenseCoreEquipmentNetworkService()
@@ -57,24 +52,10 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
         // Только обнуляем состояние, никакого I/O
         ServiceState = EServiceLifecycleState::Shutdown;
 
-        // Очищаем только локальные контейнеры (безопасно)
-        FRWScopeLock Lock(SecurityLock, SLT_Write);
-        RateLimitPerPlayer.Empty();
-        RateLimitPerIP.Empty();
-        SuspiciousActivityCount.Empty();
-
-        // Clear LRU nonce cache (secure cleanup)
-        if (NonceCache.IsValid())
+        // Delegate security cleanup to SecurityService
+        if (SecurityService && IsValid(SecurityService))
         {
-            NonceCache->Clear();
-            NonceCache.Reset();
-        }
-
-        // Clear secure key storage (with memory zeroing)
-        if (SecureKeyStorage.IsValid())
-        {
-            SecureKeyStorage->ClearKey();
-            SecureKeyStorage.Reset();
+            SecurityService->ShutdownService(true);
         }
 
         // Очищаем интерфейсы
@@ -89,6 +70,7 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
             PredictionManager.SetInterface(nullptr);
         }
         ReplicationProvider = nullptr;
+        SecurityService = nullptr;
 
         return;
     }
@@ -108,11 +90,8 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     // Только если не force и не из деструктора
     if (!bForce && GetWorld())
     {
-        FString FinalMetricsPath = FPaths::ProjectLogDir() / TEXT("NetworkSecurity_FinalMetrics.csv");
-        ExportSecurityMetrics(FinalMetricsPath);
-
-        FString ServiceMetricsPath = FPaths::ProjectLogDir() / TEXT("NetworkService_FinalMetrics.csv");
-        ExportMetricsToCSV(ServiceMetricsPath);
+        ExportSecurityMetrics(FPaths::ProjectLogDir() / TEXT("NetworkSecurity_FinalMetrics.csv"));
+        ExportMetricsToCSV(FPaths::ProjectLogDir() / TEXT("NetworkService_FinalMetrics.csv"));
     }
 
     // === БЕЗОПАСНАЯ ОЧИСТКА ТАЙМЕРОВ ===
@@ -121,17 +100,9 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     {
         FTimerManager& TimerManager = World->GetTimerManager();
 
-        if (NonceCleanupTimer.IsValid())
-        {
-            TimerManager.ClearTimer(NonceCleanupTimer);
-        }
         if (MetricsUpdateTimer.IsValid())
         {
             TimerManager.ClearTimer(MetricsUpdateTimer);
-        }
-        if (MetricsExportTimer.IsValid())
-        {
-            TimerManager.ClearTimer(MetricsExportTimer);
         }
     }
 
@@ -161,8 +132,11 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
         }
     }
 
-    // === БЕЗОПАСНАЯ ОЧИСТКА SECURITY ===
-    ShutdownSecurity();
+    // === SHUTDOWN SECURITY SERVICE ===
+    if (SecurityService && IsValid(SecurityService))
+    {
+        SecurityService->ShutdownService(bForce);
+    }
 
     // === БЕЗОПАСНАЯ ОЧИСТКА ИНТЕРФЕЙСОВ ===
     if (NetworkDispatcher.GetInterface())
@@ -178,6 +152,7 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     }
 
     ReplicationProvider = nullptr;
+    SecurityService = nullptr;
 
     ServiceState = EServiceLifecycleState::Shutdown;
 
@@ -429,23 +404,12 @@ void USuspenseCoreEquipmentNetworkService::StartMonitoringTimers(UWorld* World)
 {
     if (!World) return;
 
-    World->GetTimerManager().SetTimer(
-        NonceCleanupTimer,
-        this,
-        &USuspenseCoreEquipmentNetworkService::CleanExpiredNonces,
-        60.0f, true);
-
+    // Network metrics update timer - security timers are handled by SecurityService
     World->GetTimerManager().SetTimer(
         MetricsUpdateTimer,
         this,
         &USuspenseCoreEquipmentNetworkService::UpdateNetworkMetrics,
         1.0f, true);
-
-    World->GetTimerManager().SetTimer(
-        MetricsExportTimer,
-        this,
-        &USuspenseCoreEquipmentNetworkService::ExportMetricsPeriodically,
-        300.0f, true);
 }
 
 bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitParams& Params)
@@ -463,19 +427,25 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     ServiceState  = EServiceLifecycleState::Initializing;
     ServiceParams = Params;
 
-    InitializeSecurity();
-    RECORD_SERVICE_METRIC("security_initialized", 1);
-
-    // Load HMAC key using secure storage with memory obfuscation
-    if (!LoadHMACKey())
+    // Create and initialize SecurityService (delegated security responsibility)
+    SecurityService = NewObject<USuspenseCoreEquipmentSecurityService>(this);
+    if (!SecurityService)
     {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to load HMAC secret key from secure storage"));
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to create SecurityService"));
         ServiceState = EServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
-        RECORD_SERVICE_METRIC("hmac_key_load_failed", 1);
         return false;
     }
-    RECORD_SERVICE_METRIC("hmac_key_loaded", 1);
+
+    if (!SecurityService->InitializeService(Params))
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to initialize SecurityService"));
+        ServiceState = EServiceLifecycleState::Failed;
+        ServiceMetrics.RecordError();
+        RECORD_SERVICE_METRIC("security_service_init_failed", 1);
+        return false;
+    }
+    RECORD_SERVICE_METRIC("security_service_initialized", 1);
 
     UWorld* World = GetWorld();
     if (!World)
@@ -560,6 +530,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("initialization_success", 1);
 
+    const FSecurityServiceConfig& SecurityConfig = SecurityService->GetConfiguration();
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("========================================"));
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Equipment Network Service Initialized"));
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security: Strict=%s, HMACCritical=%s, IPRateLimit=%s"),
@@ -621,11 +592,22 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
         const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_replication_error")), 1);
     }
 
-    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
+    // Delegate security validation to SecurityService
+    if (!SecurityService || !SecurityService->IsServiceReady())
     {
-        OutErrors.Add(FText::FromString(TEXT("HMAC secret key not configured in secure storage")));
+        OutErrors.Add(FText::FromString(TEXT("SecurityService is not initialized or ready")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_hmac_error")), 1);
+        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_security_error")), 1);
+    }
+    else
+    {
+        // Validate SecurityService
+        TArray<FText> SecurityErrors;
+        if (!SecurityService->ValidateService(SecurityErrors))
+        {
+            OutErrors.Append(SecurityErrors);
+            bIsValid = false;
+        }
     }
 
     if (bIsValid)
@@ -643,87 +625,52 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
 void USuspenseCoreEquipmentNetworkService::ResetService()
 {
     SCOPED_SERVICE_TIMER("ResetService");
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
-    RateLimitPerPlayer.Empty();
-    RateLimitPerIP.Empty();
-    SuspiciousActivityCount.Empty();
-
-    // Reset LRU nonce cache (keeps capacity and TTL settings)
-    if (NonceCache.IsValid())
+    // Delegate security reset to SecurityService
+    if (SecurityService)
     {
-        NonceCache->Clear();
-        NonceCache->ResetStats();
+        SecurityService->ResetService();
     }
 
-    SecurityMetrics.Reset();
-
-    AverageLatency              = 0.0f;
-    TotalOperationsSent         = 0;
-    TotalOperationsRejected     = 0;
-    TotalReplayAttemptsBlocked  = 0;
-    TotalIntegrityFailures      = 0;
+    // Reset network-specific metrics
+    AverageLatency          = 0.0f;
+    TotalOperationsSent     = 0;
+    TotalOperationsRejected = 0;
 
     ServiceMetrics.Reset();
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("Network.Service.Reset", 1);
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
-        TEXT("EquipmentNetworkService reset complete - all security and metric data cleared"));
+        TEXT("EquipmentNetworkService reset complete"));
 }
 
 FString USuspenseCoreEquipmentNetworkService::GetServiceStats() const
 {
     FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetServiceStats")));
-    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access
 
     FString Stats = TEXT("=== Equipment Network Service Statistics ===\n");
     Stats += FString::Printf(TEXT("Service State: %s\n"),
         *UEnum::GetValueAsString(ServiceState));
     Stats += FString::Printf(TEXT("Network Quality: %.2f\n"), NetworkQualityLevel);
     Stats += FString::Printf(TEXT("Average Latency: %.2f ms\n"), AverageLatency);
+    Stats += FString::Printf(TEXT("Operations Sent: %d, Rejected: %d\n"),
+        TotalOperationsSent, TotalOperationsRejected);
 
     Stats += TEXT("\n=== Service Performance Metrics ===\n");
     Stats += ServiceMetrics.ToString(TEXT("NetworkService"));
 
-    Stats += TEXT("\n=== Enhanced Security Metrics ===\n");
-    Stats += SecurityMetrics.ToString();
-
-    Stats += TEXT("\n--- Security Configuration ---\n");
-    Stats += FString::Printf(TEXT("Packet Age Limit: %.1f seconds\n"), SecurityConfig.PacketAgeLimit);
-    Stats += FString::Printf(TEXT("Max Ops/Second: %d\n"), SecurityConfig.MaxOperationsPerSecond);
-    Stats += FString::Printf(TEXT("Max Ops/Minute: %d\n"), SecurityConfig.MaxOperationsPerMinute);
-    Stats += FString::Printf(TEXT("IP Rate Limiting: %s\n"), SecurityConfig.bEnableIPRateLimit ? TEXT("ENABLED") : TEXT("DISABLED"));
-
-    Stats += TEXT("\n--- Active Monitoring ---\n");
-    Stats += FString::Printf(TEXT("Active Player Rate Limits: %d\n"), RateLimitPerPlayer.Num());
-    Stats += FString::Printf(TEXT("Active IP Rate Limits: %d\n"), RateLimitPerIP.Num());
-
-    // LRU Nonce Cache statistics
-    if (NonceCache.IsValid())
+    // Delegate security stats to SecurityService
+    if (SecurityService)
     {
-        FSuspenseNonceCacheStats CacheStats = NonceCache->GetStats();
-        Stats += FString::Printf(TEXT("Nonce Cache Size: %d/%d\n"), CacheStats.CurrentSize, NonceCache->GetMaxCapacity());
-        Stats += FString::Printf(TEXT("Nonce Cache - Confirmed: %d, Pending: %d\n"),
-            NonceCache->GetConfirmedCount(), NonceCache->GetPendingCount());
-        Stats += FString::Printf(TEXT("Nonce Cache - Hits: %llu, Evictions: %llu, Expired: %llu\n"),
-            CacheStats.TotalHits, CacheStats.TotalEvictions, CacheStats.TotalExpired);
-    }
-
-    Stats += FString::Printf(TEXT("Suspicious Activities Tracked: %d\n"), SuspiciousActivityCount.Num());
-
-    // Secure Key Storage status
-    if (SecureKeyStorage.IsValid())
-    {
-        Stats += FString::Printf(TEXT("Secure Key Storage: %s\n"),
-            SecureKeyStorage->HasKey() ? TEXT("Active (key obfuscated)") : TEXT("No key loaded"));
+        Stats += TEXT("\n=== Security Service Statistics ===\n");
+        Stats += SecurityService->GetServiceStats();
     }
 
     if (NetworkDispatcher.GetInterface())
     {
         Stats += TEXT("\n--- Network Dispatcher ---\n");
-        // оператор -> указывает на интерфейс; для статистики компонента лучше спросить сам компонент
         if (USuspenseCoreEquipmentNetworkDispatcher* Dispatcher =
                 Cast<USuspenseCoreEquipmentNetworkDispatcher>(NetworkDispatcher.GetObject()))
         {
@@ -753,21 +700,46 @@ bool USuspenseCoreEquipmentNetworkService::ExportMetricsToCSV(const FString& Fil
 void USuspenseCoreEquipmentNetworkService::ReloadSecurityConfig()
 {
     SCOPED_SERVICE_TIMER("ReloadSecurityConfig");
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
-    FNetworkSecurityConfig NewConfig = FNetworkSecurityConfig::LoadFromConfig();
-    SecurityConfig = NewConfig;
+    // Delegate to SecurityService
+    if (SecurityService)
+    {
+        SecurityService->ReloadConfiguration();
+    }
 
     RECORD_SERVICE_METRIC("config_reloaded", 1);
     ServiceMetrics.RecordSuccess();
 
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security configuration reloaded from INI"));
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security configuration reloaded via SecurityService"));
+}
+
+const FSecurityServiceMetrics* USuspenseCoreEquipmentNetworkService::GetSecurityMetrics() const
+{
+    if (SecurityService)
+    {
+        return &SecurityService->GetMetrics();
+    }
+    return nullptr;
+}
+
+bool USuspenseCoreEquipmentNetworkService::ExportSecurityMetrics(const FString& FilePath) const
+{
+    if (IsEngineExitRequested())
+    {
+        return false;
+    }
+
+    // Delegate to SecurityService
+    if (SecurityService)
+    {
+        return SecurityService->ExportMetrics(FilePath);
+    }
+    return false;
 }
 
 FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipmentOperationRequest& Request, APlayerController* PlayerController)
 {
     SCOPED_SERVICE_TIMER("SendEquipmentOperation");
-    const double StartTime = FPlatformTime::Seconds();
 
     if (!IsServiceReady())
     {
@@ -776,6 +748,7 @@ FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipm
         RECORD_SERVICE_METRIC("send_operation_service_not_ready", 1);
         return FGuid();
     }
+
     if (!PlayerController)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Invalid player controller"));
@@ -784,133 +757,105 @@ FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipm
         return FGuid();
     }
 
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
+    if (!SecurityService || !SecurityService->IsServiceReady())
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("SecurityService not ready"));
+        ServiceMetrics.RecordError();
+        return FGuid();
+    }
 
+    // Get player GUID for security validation
     FGuid PlayerGuid;
     if (APlayerState* PS = PlayerController->GetPlayerState<APlayerState>())
     {
         const FUniqueNetIdRepl& UID = PS->GetUniqueId();
-        if (UID.IsValid()) PlayerGuid = CreatePlayerGuid(UID);
+        if (UID.IsValid())
+        {
+            PlayerGuid = CreatePlayerGuid(UID);
+        }
     }
 
     if (!PlayerGuid.IsValid())
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to generate valid player GUID"));
-        SecurityMetrics.RequestsRejectedIntegrity++;
         ServiceMetrics.RecordError();
         RECORD_SERVICE_METRIC("send_operation_invalid_guid", 1);
         return FGuid();
     }
 
-    const FString IP = GetIPAddress(PlayerController);
-    if (SecurityConfig.bEnableIPRateLimit && !CheckIPRateLimit(IP))
-    {
-        SecurityMetrics.RequestsRejectedIP++;
-        LogSuspiciousActivity(PlayerController, TEXT("IP rate limit exceeded"));
-        ServiceMetrics.RecordError();
-        RECORD_SERVICE_METRIC("send_operation_ip_rate_limit", 1);
-        return FGuid();
-    }
-
-    if (!CheckRateLimit(PlayerGuid, PlayerController))
-    {
-        TotalOperationsRejected++;
-        SecurityMetrics.RequestsRejectedRateLimit++;
-        LogSuspiciousActivity(PlayerController, TEXT("Player rate limit exceeded"));
-        ServiceMetrics.RecordError();
-        RECORD_SERVICE_METRIC("send_operation_player_rate_limit", 1);
-        return FGuid();
-    }
-
-    const uint64 Nonce = GenerateSecureNonce();
-    if (!MarkNonceAsPending(Nonce))
-    {
-        SecurityMetrics.RequestsRejectedReplay++;
-        LogSuspiciousActivity(PlayerController, TEXT("Duplicate nonce on client"));
-        ServiceMetrics.RecordError();
-        RECORD_SERVICE_METRIC("send_operation_nonce_duplicate", 1);
-        return FGuid();
-    }
-    RECORD_SERVICE_METRIC("nonce_generated", 1);
-
-    FNetworkOperationRequest NetReq;
-    NetReq.RequestId        = FGuid::NewGuid();
-    NetReq.Operation        = Request;
-    NetReq.Priority         = ENetworkOperationPriority::Normal;
-    NetReq.Timestamp        = FPlatformTime::Seconds();
-    NetReq.ClientTimestamp  = NetReq.Timestamp;
-    NetReq.Nonce            = Nonce;
-    NetReq.bRequiresConfirmation = true;
-
-    const bool bCritical = (Request.OperationType == EEquipmentOperationType::Drop)     ||
+    // Determine if critical operation
+    const bool bCritical = (Request.OperationType == EEquipmentOperationType::Drop) ||
                            (Request.OperationType == EEquipmentOperationType::Transfer) ||
                            (Request.OperationType == EEquipmentOperationType::Upgrade);
-    if (bCritical)
+
+    // Generate nonce via SecurityService
+    const uint64 Nonce = SecurityService->GenerateNonce();
+
+    // Validate request via SecurityService (rate limiting, nonce, IP checks)
+    FSecurityValidationResponse ValidationResult = SecurityService->ValidateRequest(
+        PlayerGuid, PlayerController, Nonce, bCritical);
+
+    if (!ValidationResult.IsValid())
     {
-        NetReq.Priority = ENetworkOperationPriority::Critical;
-        SecurityMetrics.CriticalOperationsProcessed++;
-        RECORD_SERVICE_METRIC("critical_operation", 1);
+        TotalOperationsRejected++;
+        ServiceMetrics.RecordError();
+
+        if (ValidationResult.bShouldLogSuspicious)
+        {
+            SecurityService->ReportSuspiciousActivity(PlayerController, ValidationResult.ErrorMessage);
+        }
+
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Security validation failed: %s"),
+            *ValidationResult.ErrorMessage);
+        RECORD_SERVICE_METRIC("send_operation_security_rejected", 1);
+        return FGuid();
     }
+
+    // Build network request
+    FNetworkOperationRequest NetReq;
+    NetReq.RequestId = FGuid::NewGuid();
+    NetReq.Operation = Request;
+    NetReq.Priority = bCritical ? ENetworkOperationPriority::Critical : ENetworkOperationPriority::Normal;
+    NetReq.Timestamp = FPlatformTime::Seconds();
+    NetReq.ClientTimestamp = NetReq.Timestamp;
+    NetReq.Nonce = Nonce;
+    NetReq.bRequiresConfirmation = true;
 
     NetReq.UpdateChecksum();
 
+    // Generate HMAC for critical operations via SecurityService
+    const FSecurityServiceConfig& SecurityConfig = SecurityService->GetConfiguration();
     if (bCritical && SecurityConfig.bRequireHMACForCritical)
     {
-        // Use secure key storage with scoped access
-        if (SecureKeyStorage.IsValid() && SecureKeyStorage->HasKey())
-        {
-            FScopedKeyAccess KeyAccess(*SecureKeyStorage);
-            if (KeyAccess.IsValid())
-            {
-                NetReq.HMACSignature = NetReq.GenerateHMAC(KeyAccess.GetKey());
-                RECORD_SERVICE_METRIC("hmac_generated", 1);
-            }
-            else
-            {
-                UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
-                    TEXT("Failed to access HMAC key for critical operation"));
-                ServiceMetrics.RecordError();
-                return FGuid();
-            }
-        }
-        else
+        NetReq.HMACSignature = SecurityService->GenerateHMAC(NetReq);
+        if (NetReq.HMACSignature.IsEmpty())
         {
             UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
-                TEXT("SecureKeyStorage not available for critical operation"));
+                TEXT("Failed to generate HMAC for critical operation"));
             ServiceMetrics.RecordError();
             return FGuid();
         }
+        RECORD_SERVICE_METRIC("hmac_generated", 1);
     }
 
+    // Send via dispatcher
     if (NetworkDispatcher.GetInterface())
     {
         NetworkDispatcher->SendOperationToServer(NetReq);
         RECORD_SERVICE_METRIC("operation_sent_to_dispatcher", 1);
     }
 
-    FRateLimitData& RL = RateLimitPerPlayer.FindOrAdd(PlayerGuid);
-    RL.RecordOperation(NetReq.Timestamp);
-    RL.PlayerIdentifier = GetPlayerIdentifier(PlayerController);
-
-    if (SecurityConfig.bEnableIPRateLimit)
-    {
-        FRateLimitData& IRL = RateLimitPerIP.FindOrAdd(IP);
-        IRL.RecordOperation(NetReq.Timestamp);
-        IRL.PlayerIdentifier = IP;
-    }
+    // Mark nonce as used after successful send
+    SecurityService->MarkNonceUsed(Nonce);
 
     TotalOperationsSent++;
-    SecurityMetrics.TotalRequestsProcessed++;
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("send_operation_success", 1);
 
-    UpdateSecurityMetrics(StartTime);
-
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("Sent %s operation %s with nonce %llu from %s"),
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("Sent %s operation %s with nonce %llu"),
         bCritical ? TEXT("CRITICAL") : TEXT("normal"),
         *NetReq.RequestId.ToString(),
-        Nonce,
-        *GetPlayerIdentifier(PlayerController));
+        Nonce);
 
     return NetReq.RequestId;
 }
@@ -918,7 +863,6 @@ FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipm
 bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetworkOperationRequest& NetworkRequest, APlayerController* SendingPlayer)
 {
     SCOPED_SERVICE_TIMER("ReceiveEquipmentOperation");
-    const double StartTime = FPlatformTime::Seconds();
 
     if (!IsServiceReady())
     {
@@ -927,88 +871,102 @@ bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetw
         return false;
     }
 
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
+    if (!SecurityService || !SecurityService->IsServiceReady())
+    {
+        ServiceMetrics.RecordError();
+        RECORD_SERVICE_METRIC("receive_operation_security_not_ready", 1);
+        return false;
+    }
 
+    // Validate packet integrity (checksum)
     if (!NetworkRequest.ValidateIntegrity())
     {
-        TotalIntegrityFailures++;
-        SecurityMetrics.RequestsRejectedIntegrity++;
-        LogSuspiciousActivity(SendingPlayer, TEXT("Checksum validation failed"));
+        TotalOperationsRejected++;
+        SecurityService->ReportSuspiciousActivity(SendingPlayer, TEXT("Checksum validation failed"));
         ServiceMetrics.RecordError();
         RECORD_SERVICE_METRIC("receive_operation_integrity_failed", 1);
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Integrity check failed for %s from %s"),
-            *NetworkRequest.RequestId.ToString(), *GetPlayerIdentifier(SendingPlayer));
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Integrity check failed for %s"),
+            *NetworkRequest.RequestId.ToString());
         return false;
     }
 
-    if (!MarkNonceAsPending(NetworkRequest.Nonce))
+    // Get player GUID for validation
+    FGuid PlayerGuid;
+    if (SendingPlayer)
     {
-        TotalReplayAttemptsBlocked++;
-        SecurityMetrics.RequestsRejectedReplay++;
-        LogSuspiciousActivity(SendingPlayer, TEXT("Replay attack detected"));
+        if (APlayerState* PS = SendingPlayer->GetPlayerState<APlayerState>())
+        {
+            const FUniqueNetIdRepl& UID = PS->GetUniqueId();
+            if (UID.IsValid())
+            {
+                PlayerGuid = CreatePlayerGuid(UID);
+            }
+        }
+    }
+
+    const bool bCritical = (NetworkRequest.Priority == ENetworkOperationPriority::Critical);
+
+    // Validate via SecurityService (nonce, rate limiting, timing)
+    FSecurityValidationResponse ValidationResult = SecurityService->ValidateRequest(
+        PlayerGuid, SendingPlayer, NetworkRequest.Nonce, bCritical);
+
+    if (!ValidationResult.IsValid())
+    {
+        TotalOperationsRejected++;
         ServiceMetrics.RecordError();
-        RECORD_SERVICE_METRIC("receive_operation_replay_attack", 1);
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Replay blocked, nonce %llu from %s"),
-            NetworkRequest.Nonce, *GetPlayerIdentifier(SendingPlayer));
+
+        if (ValidationResult.bShouldLogSuspicious)
+        {
+            SecurityService->ReportSuspiciousActivity(SendingPlayer, ValidationResult.ErrorMessage);
+        }
+
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Receive validation failed: %s"),
+            *ValidationResult.ErrorMessage);
         return false;
     }
 
+    // Check packet age
+    const FSecurityServiceConfig& SecurityConfig = SecurityService->GetConfiguration();
     const float Now = FPlatformTime::Seconds();
     const float Age = Now - NetworkRequest.ClientTimestamp;
     if (Age > SecurityConfig.PacketAgeLimit)
     {
-        LogSuspiciousActivity(SendingPlayer, TEXT("Stale packet received"));
-        RejectNonce(NetworkRequest.Nonce);
+        SecurityService->ReportSuspiciousActivity(SendingPlayer, TEXT("Stale packet received"));
         ServiceMetrics.RecordError();
         RECORD_SERVICE_METRIC("receive_operation_stale_packet", 1);
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Stale packet rejected age=%.2fs from %s"),
-            Age, *GetPlayerIdentifier(SendingPlayer));
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Stale packet rejected age=%.2fs"),
+            Age);
         return false;
     }
 
-    if (NetworkRequest.Priority == ENetworkOperationPriority::Critical &&
-        SecurityConfig.bRequireHMACForCritical)
+    // Verify HMAC for critical operations via SecurityService
+    if (bCritical && SecurityConfig.bRequireHMACForCritical)
     {
-        // Verify HMAC using secure key storage
-        bool bHMACValid = false;
-        if (SecureKeyStorage.IsValid() && SecureKeyStorage->HasKey())
+        if (!SecurityService->VerifyHMAC(NetworkRequest))
         {
-            FScopedKeyAccess KeyAccess(*SecureKeyStorage);
-            if (KeyAccess.IsValid())
-            {
-                bHMACValid = NetworkRequest.VerifyHMAC(KeyAccess.GetKey());
-            }
-        }
-
-        if (!bHMACValid)
-        {
-            SecurityMetrics.RequestsRejectedHMAC++;
-            LogSuspiciousActivity(SendingPlayer, TEXT("HMAC verification failed"));
-            RejectNonce(NetworkRequest.Nonce);
+            SecurityService->ReportSuspiciousActivity(SendingPlayer, TEXT("HMAC verification failed"));
             ServiceMetrics.RecordError();
             RECORD_SERVICE_METRIC("receive_operation_hmac_failed", 1);
-            UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("HMAC failed for %s from %s"),
-                *NetworkRequest.RequestId.ToString(), *GetPlayerIdentifier(SendingPlayer));
+            UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("HMAC failed for %s"),
+                *NetworkRequest.RequestId.ToString());
             return false;
         }
         RECORD_SERVICE_METRIC("hmac_verified", 1);
     }
 
-    ConfirmNonce(NetworkRequest.Nonce);
+    // Mark nonce as confirmed
+    SecurityService->MarkNonceUsed(NetworkRequest.Nonce);
     RECORD_SERVICE_METRIC("nonce_confirmed", 1);
 
-    SecurityMetrics.TotalRequestsProcessed++;
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("receive_operation_success", 1);
 
-    UpdateSecurityMetrics(StartTime);
     return true;
 }
 
 void USuspenseCoreEquipmentNetworkService::SetNetworkQuality(float Quality)
 {
     SCOPED_SERVICE_TIMER("SetNetworkQuality");
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     NetworkQualityLevel = FMath::Clamp(Quality, 0.0f, 1.0f);
     AdaptNetworkStrategies();
@@ -1023,7 +981,6 @@ FLatencyCompensationData USuspenseCoreEquipmentNetworkService::GetNetworkMetrics
 {
     FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetNetworkMetrics")));
-    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access
 
     FLatencyCompensationData Metrics;
     Metrics.EstimatedLatency = AverageLatency;
@@ -1031,17 +988,22 @@ FLatencyCompensationData USuspenseCoreEquipmentNetworkService::GetNetworkMetrics
     Metrics.ClientTime       = FPlatformTime::Seconds();
     Metrics.TimeDilation     = 1.0f;
 
-    uint64 TotalProcessed = SecurityMetrics.TotalRequestsProcessed.Load();
-    uint64 TotalRejected  = SecurityMetrics.RequestsRejectedRateLimit.Load() +
-                            SecurityMetrics.RequestsRejectedReplay.Load() +
-                            SecurityMetrics.RequestsRejectedIntegrity.Load() +
-                            SecurityMetrics.RequestsRejectedHMAC.Load() +
-                            SecurityMetrics.RequestsRejectedIP.Load();
-
-    if (TotalProcessed > 0)
+    // Calculate packet loss from SecurityService metrics
+    if (SecurityService)
     {
-        float LossRate = (float)TotalRejected / (float)(TotalProcessed + TotalRejected);
-        Metrics.PacketLoss = FMath::RoundToInt(LossRate * 100.0f);
+        const FSecurityServiceMetrics& SecurityMetrics = SecurityService->GetMetrics();
+        uint64 TotalProcessed = SecurityMetrics.TotalRequestsProcessed.Load();
+        uint64 TotalRejected  = SecurityMetrics.RequestsRejectedRateLimit.Load() +
+                                SecurityMetrics.RequestsRejectedReplay.Load() +
+                                SecurityMetrics.RequestsRejectedIntegrity.Load() +
+                                SecurityMetrics.RequestsRejectedHMAC.Load() +
+                                SecurityMetrics.RequestsRejectedIP.Load();
+
+        if (TotalProcessed > 0)
+        {
+            float LossRate = (float)TotalRejected / (float)(TotalProcessed + TotalRejected);
+            Metrics.PacketLoss = FMath::RoundToInt(LossRate * 100.0f);
+        }
     }
 
     const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("metrics_retrieved")), 1);
@@ -1061,8 +1023,6 @@ void USuspenseCoreEquipmentNetworkService::ForceSynchronization(APlayerControlle
         return;
     }
 
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
-
     if (ReplicationProvider)
     {
         ReplicationProvider->ForceFullReplication();
@@ -1080,27 +1040,6 @@ void USuspenseCoreEquipmentNetworkService::ForceSynchronization(APlayerControlle
 
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("force_sync_success", 1);
-}
-
-bool USuspenseCoreEquipmentNetworkService::ExportSecurityMetrics(const FString& FilePath) const
-{
-    // Не экспортировать во время engine shutdown
-    if (IsEngineExitRequested())
-    {
-        return false;
-    }
-
-    // Проверка что файловая система доступна
-    if (!FPaths::DirectoryExists(FPaths::ProjectLogDir()))
-    {
-        return false;
-    }
-
-    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access for export
-
-    FString MetricsCSV = SecurityMetrics.ToCSV();
-
-    return FFileHelper::SaveStringToFile(MetricsCSV, *FilePath);
 }
 
 FGuid USuspenseCoreEquipmentNetworkService::CreatePlayerGuid(const FUniqueNetIdRepl& UniqueId) const
@@ -1140,379 +1079,13 @@ FGuid USuspenseCoreEquipmentNetworkService::CreatePlayerGuid(const FUniqueNetIdR
     return FGuid(GuidComponents[0], GuidComponents[1], GuidComponents[2], GuidComponents[3]);
 }
 
-bool USuspenseCoreEquipmentNetworkService::CheckRateLimit(const FGuid& PlayerGuid, APlayerController* PlayerController)
-{
-    float CurrentTime = FPlatformTime::Seconds();
-    FRateLimitData& RateLimitData = RateLimitPerPlayer.FindOrAdd(PlayerGuid);
-
-    if (RateLimitData.PlayerIdentifier.IsEmpty())
-    {
-        RateLimitData.PlayerIdentifier = GetPlayerIdentifier(PlayerController);
-    }
-
-    if (!RateLimitData.IsOperationAllowed(CurrentTime,
-        SecurityConfig.MaxOperationsPerSecond,
-        SecurityConfig.MaxOperationsPerMinute,
-        SecurityConfig.TemporaryBanDuration))
-    {
-        RateLimitData.RecordViolation(CurrentTime,
-            SecurityConfig.TemporaryBanDuration,
-            SecurityConfig.MaxViolationsBeforeBan);
-
-        if (RateLimitData.bIsTemporarilyBanned)
-        {
-            SecurityMetrics.PlayersTemporarilyBanned++;
-            RECORD_SERVICE_METRIC("player_banned", 1);
-        }
-
-        RECORD_SERVICE_METRIC("rate_limit_violation", 1);
-
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
-            TEXT("Rate limit violation for %s - %d violations, banned: %s"),
-            *RateLimitData.PlayerIdentifier,
-            RateLimitData.ViolationCount,
-            RateLimitData.bIsTemporarilyBanned ? TEXT("YES") : TEXT("NO"));
-
-        return false;
-    }
-
-    if (RateLimitData.LastOperationTime > 0.0f &&
-        (CurrentTime - RateLimitData.LastOperationTime) < SecurityConfig.MinOperationInterval)
-    {
-        RECORD_SERVICE_METRIC("operation_too_fast", 1);
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("Operation too fast from %s (%.3f seconds since last)"),
-            *RateLimitData.PlayerIdentifier,
-            CurrentTime - RateLimitData.LastOperationTime);
-
-        return false;
-    }
-
-    return true;
-}
-
-bool USuspenseCoreEquipmentNetworkService::CheckIPRateLimit(const FString& IPAddress)
-{
-    if (IPAddress.IsEmpty() || IPAddress == TEXT("Unknown"))
-    {
-        return true;
-    }
-
-    float CurrentTime = FPlatformTime::Seconds();
-
-    FRateLimitData& IPRateLimitData = RateLimitPerIP.FindOrAdd(IPAddress);
-    IPRateLimitData.PlayerIdentifier = IPAddress;
-
-    int32 MaxPerMinute = SecurityConfig.MaxOperationsPerIPPerMinute;
-
-    if (!IPRateLimitData.IsOperationAllowed(CurrentTime, MaxPerMinute / 60, MaxPerMinute,
-        SecurityConfig.TemporaryBanDuration * 2))
-    {
-        IPRateLimitData.RecordViolation(CurrentTime,
-            SecurityConfig.TemporaryBanDuration * 2,
-            SecurityConfig.MaxViolationsBeforeBan);
-
-        if (IPRateLimitData.bIsTemporarilyBanned)
-        {
-            SecurityMetrics.IPsTemporarilyBanned++;
-            RECORD_SERVICE_METRIC("ip_banned", 1);
-        }
-
-        RECORD_SERVICE_METRIC("ip_rate_limit_violation", 1);
-
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
-            TEXT("IP rate limit violation for %s - %d violations, banned: %s"),
-            *IPAddress,
-            IPRateLimitData.ViolationCount,
-            IPRateLimitData.bIsTemporarilyBanned ? TEXT("YES") : TEXT("NO"));
-
-        return false;
-    }
-
-    return true;
-}
-
-bool USuspenseCoreEquipmentNetworkService::IsNonceUsed(uint64 Nonce) const
-{
-    if (!NonceCache.IsValid())
-    {
-        return false;
-    }
-    return NonceCache->Contains(Nonce);
-}
-
-bool USuspenseCoreEquipmentNetworkService::MarkNonceAsPending(uint64 Nonce)
-{
-    if (!NonceCache.IsValid())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("NonceCache not initialized"));
-        return false;
-    }
-
-    // LRU cache handles both processed and pending nonces
-    if (!NonceCache->AddPending(Nonce, SecurityConfig.NonceLifetime))
-    {
-        // Nonce already exists (replay attack or duplicate)
-        if (NonceCache->IsConfirmed(Nonce))
-        {
-            RECORD_SERVICE_METRIC("nonce_replay_attempt", 1);
-        }
-        else
-        {
-            RECORD_SERVICE_METRIC("nonce_duplicate", 1);
-        }
-        return false;
-    }
-
-    RECORD_SERVICE_METRIC("nonce_marked_pending", 1);
-    return true;
-}
-
-bool USuspenseCoreEquipmentNetworkService::ConfirmNonce(uint64 Nonce)
-{
-    if (!NonceCache.IsValid())
-    {
-        RECORD_SERVICE_METRIC("nonce_not_pending", 1);
-        return false;
-    }
-
-    if (!NonceCache->Confirm(Nonce))
-    {
-        RECORD_SERVICE_METRIC("nonce_not_pending", 1);
-        return false;
-    }
-
-    RECORD_SERVICE_METRIC("nonce_confirmed", 1);
-    return true;
-}
-
-void USuspenseCoreEquipmentNetworkService::RejectNonce(uint64 Nonce)
-{
-    if (NonceCache.IsValid())
-    {
-        NonceCache->Reject(Nonce);
-    }
-    RECORD_SERVICE_METRIC("nonce_rejected", 1);
-}
-
-uint64 USuspenseCoreEquipmentNetworkService::GenerateSecureNonce()
-{
-    uint64 Nonce = 0;
-    FGuid Guid1 = FGuid::NewGuid();
-    FGuid Guid2 = FGuid::NewGuid();
-
-    Nonce  = ((uint64)Guid1.A << 32) | (uint64)Guid1.B;
-    Nonce ^= ((uint64)Guid1.C << 16) | ((uint64)Guid1.D << 48);
-    Nonce ^= ((uint64)Guid2.A) | ((uint64)Guid2.B << 32);
-    Nonce ^= ((uint64)Guid2.C << 48) | ((uint64)Guid2.D << 16);
-    Nonce ^= (uint64)FPlatformTime::Cycles64();
-    Nonce ^= (uint64)FPlatformTLS::GetCurrentThreadId() << 24;
-
-    if (Nonce == 0) { Nonce = 1; }
-
-    // Use LRU cache for collision detection
-    if (NonceCache.IsValid())
-    {
-        int32 Attempts = 0;
-        const int32 MaxAttempts = 100;
-        while (NonceCache->Contains(Nonce) && Attempts < MaxAttempts)
-        {
-            FGuid NewGuid = FGuid::NewGuid();
-            Nonce ^= ((uint64)NewGuid.A << 32) | (uint64)NewGuid.B;
-            Nonce ^= (uint64)FPlatformTime::Cycles64();
-            if (Nonce == 0) { Nonce = 1; }
-            Attempts++;
-        }
-        if (Attempts >= MaxAttempts)
-        {
-            UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Nonce generation collision detected after %d attempts"), MaxAttempts);
-            RECORD_SERVICE_METRIC("nonce_collision_detected", 1);
-            while (NonceCache->Contains(Nonce))
-            {
-                Nonce++;
-                if (Nonce == 0) { Nonce = 1; }
-            }
-        }
-    }
-    return Nonce;
-}
-
-FString USuspenseCoreEquipmentNetworkService::GenerateRequestHMAC(const FNetworkOperationRequest& Request) const
-{
-    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Cannot generate HMAC: SecureKeyStorage not initialized"));
-        return FString();
-    }
-
-    // Use scoped access for automatic secure cleanup
-    FScopedKeyAccess KeyAccess(*SecureKeyStorage);
-    if (!KeyAccess.IsValid())
-    {
-        return FString();
-    }
-
-    return Request.GenerateHMAC(KeyAccess.GetKey());
-}
-
-bool USuspenseCoreEquipmentNetworkService::VerifyRequestHMAC(const FNetworkOperationRequest& Request) const
-{
-    if (!SecureKeyStorage.IsValid() || !SecureKeyStorage->HasKey())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Cannot verify HMAC: SecureKeyStorage not initialized"));
-        return false;
-    }
-
-    // Use scoped access for automatic secure cleanup
-    FScopedKeyAccess KeyAccess(*SecureKeyStorage);
-    if (!KeyAccess.IsValid())
-    {
-        return false;
-    }
-
-    return Request.VerifyHMAC(KeyAccess.GetKey());
-}
-
-void USuspenseCoreEquipmentNetworkService::CleanExpiredNonces()
-{
-    SCOPED_SERVICE_TIMER("CleanExpiredNonces");
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
-
-    float CurrentTime = FPlatformTime::Seconds();
-    int32 CleanedCount = 0;
-
-    // Use LRU cache's built-in expiration cleanup
-    if (NonceCache.IsValid())
-    {
-        CleanedCount = NonceCache->CleanExpired();
-    }
-
-    // Clean up rate limit data
-    TArray<FGuid> PlayersToRemove;
-    for (auto& Pair : RateLimitPerPlayer)
-    {
-        FRateLimitData& Data = Pair.Value;
-        Data.OperationTimestamps.RemoveAll([CurrentTime](float Time){ return (CurrentTime - Time) > 300.0f; });
-        if (Data.OperationTimestamps.Num() == 0 && (CurrentTime - Data.LastOperationTime) > 600.0f)
-        {
-            PlayersToRemove.Add(Pair.Key);
-        }
-    }
-    for (const FGuid& PlayerGuid : PlayersToRemove)
-    {
-        RateLimitPerPlayer.Remove(PlayerGuid);
-    }
-
-    TArray<FString> IPsToRemove;
-    for (auto& Pair : RateLimitPerIP)
-    {
-        FRateLimitData& Data = Pair.Value;
-        Data.OperationTimestamps.RemoveAll([CurrentTime](float Time){ return (CurrentTime - Time) > 300.0f; });
-        if (Data.OperationTimestamps.Num() == 0 && (CurrentTime - Data.LastOperationTime) > 600.0f)
-        {
-            IPsToRemove.Add(Pair.Key);
-        }
-    }
-    for (const FString& IP : IPsToRemove)
-    {
-        RateLimitPerIP.Remove(IP);
-    }
-
-    RECORD_SERVICE_METRIC("nonces_cleaned", CleanedCount);
-    RECORD_SERVICE_METRIC("players_cleaned", PlayersToRemove.Num());
-    RECORD_SERVICE_METRIC("ips_cleaned", IPsToRemove.Num());
-
-    if (CleanedCount > 0)
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("Cleaned %d expired nonces, %d inactive players, %d inactive IPs"),
-            CleanedCount, PlayersToRemove.Num(), IPsToRemove.Num());
-    }
-}
-
-void USuspenseCoreEquipmentNetworkService::LogSuspiciousActivity(APlayerController* PlayerController, const FString& Reason)
-{
-    if (!SecurityConfig.bLogSuspiciousActivity)
-    {
-        return;
-    }
-
-    FString PlayerID = GetPlayerIdentifier(PlayerController);
-    int32& Count = SuspiciousActivityCount.FindOrAdd(PlayerID);
-    Count++;
-
-    SecurityMetrics.SuspiciousActivitiesDetected++;
-    RECORD_SERVICE_METRIC("suspicious_activity", 1);
-
-    FString LogEntry = FString::Printf(
-        TEXT("[SECURITY] %s | Player: %s | Reason: %s | Count: %d"),
-        *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M:%S")),
-        *PlayerID,
-        *Reason,
-        Count
-    );
-
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("%s"), *LogEntry);
-
-    FString SecurityLogPath = FPaths::ProjectLogDir() / TEXT("NetworkSecurity.log");
-    FFileHelper::SaveStringToFile(LogEntry + TEXT("\n"), *SecurityLogPath,
-        FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
-
-    // Broadcast security violation via EventBus for inter-service communication
-    BroadcastSecurityViolation(TEXT("SuspiciousActivity"), PlayerController, Reason);
-
-    if (Count >= SecurityConfig.MaxSuspiciousActivities)
-    {
-        RECORD_SERVICE_METRIC("suspicious_threshold_exceeded", 1);
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
-            TEXT("SECURITY ALERT: Player %s exceeded suspicious activity threshold! Immediate action required."),
-            *PlayerID);
-
-        // Broadcast critical security alert
-        BroadcastSecurityViolation(TEXT("ThresholdExceeded"), PlayerController,
-            FString::Printf(TEXT("Count: %d, Max: %d"), Count, SecurityConfig.MaxSuspiciousActivities));
-    }
-}
-
-FString USuspenseCoreEquipmentNetworkService::GetPlayerIdentifier(APlayerController* PlayerController) const
-{
-    if (!PlayerController)
-    {
-        return TEXT("Unknown");
-    }
-
-    FString Identifier = GetIPAddress(PlayerController);
-
-    if (APlayerState* PlayerState = PlayerController->GetPlayerState<APlayerState>())
-    {
-        Identifier += FString::Printf(TEXT(" [%s]"), *PlayerState->GetPlayerName());
-
-        if (const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId(); UniqueId.IsValid())
-        {
-            Identifier += FString::Printf(TEXT(" ID:%s"), *UniqueId->ToString());
-        }
-    }
-
-    return Identifier.IsEmpty() ? TEXT("Unknown") : Identifier;
-}
-
-FString USuspenseCoreEquipmentNetworkService::GetIPAddress(APlayerController* PlayerController) const
-{
-    if (!PlayerController)
-    {
-        return TEXT("Unknown");
-    }
-
-    if (UNetConnection* Connection = PlayerController->GetNetConnection())
-    {
-        return Connection->LowLevelGetRemoteAddress();
-    }
-
-    return TEXT("Unknown");
-}
+// ============================================================================
+// Network Metrics - kept in NetworkService as network-specific logic
+// ============================================================================
 
 void USuspenseCoreEquipmentNetworkService::UpdateNetworkMetrics()
 {
     SCOPED_SERVICE_TIMER("UpdateNetworkMetrics");
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     if (NetworkDispatcher.GetInterface())
     {
@@ -1555,39 +1128,6 @@ void USuspenseCoreEquipmentNetworkService::UpdateNetworkMetrics()
             ReplicationMgr->OnNetworkQualityUpdated(NetworkQuality);
         }
     }
-}
-
-void USuspenseCoreEquipmentNetworkService::UpdateSecurityMetrics(double StartTime)
-{
-    double EndTime           = FPlatformTime::Seconds();
-    double ProcessingTimeUs  = (EndTime - StartTime) * 1000000.0;
-
-    uint64 CurrentAvg = SecurityMetrics.AverageProcessingTimeUs.Load();
-    uint64 NewAvg     = (uint64)((CurrentAvg * 0.9) + (ProcessingTimeUs * 0.1));
-    SecurityMetrics.AverageProcessingTimeUs = NewAvg;
-
-    uint64 CurrentPeak = SecurityMetrics.PeakProcessingTimeUs.Load();
-    if (ProcessingTimeUs > CurrentPeak)
-    {
-        SecurityMetrics.PeakProcessingTimeUs = (uint64)ProcessingTimeUs;
-    }
-
-    RECORD_SERVICE_METRIC("processing_time_us", (int64)ProcessingTimeUs);
-}
-
-void USuspenseCoreEquipmentNetworkService::ExportMetricsPeriodically()
-{
-    SCOPED_SERVICE_TIMER("ExportMetricsPeriodically");
-
-    FString Timestamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
-
-    FString SecurityFilePath = FPaths::ProjectLogDir() / FString::Printf(TEXT("NetworkSecurity_%s.csv"), *Timestamp);
-    ExportSecurityMetrics(SecurityFilePath);
-
-    FString ServiceFilePath = FPaths::ProjectLogDir() / FString::Printf(TEXT("NetworkService_%s.csv"), *Timestamp);
-    ExportMetricsToCSV(ServiceFilePath);
-
-    RECORD_SERVICE_METRIC("periodic_export", 2);
 }
 
 void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
@@ -1637,125 +1177,6 @@ void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
         RECORD_SERVICE_METRIC("strategy_good_network", 1);
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Adapted to GOOD network - maximum security enabled"));
     }
-}
-
-void USuspenseCoreEquipmentNetworkService::InitializeSecurity()
-{
-    // Initialize rate limiting maps
-    RateLimitPerPlayer.Reserve(100);
-    RateLimitPerIP.Reserve(200);
-
-    // Initialize LRU nonce cache with configurable capacity and TTL
-    // Default: 10,000 nonces, 5 minute TTL
-    NonceCache = MakeUnique<FSuspenseNonceLRUCache>(
-        10000,                          // Max capacity
-        SecurityConfig.NonceLifetime    // TTL from config
-    );
-
-    // Initialize secure key storage with memory obfuscation
-    SecureKeyStorage = MakeUnique<FSuspenseSecureKeyStorage>();
-
-    RECORD_SERVICE_METRIC("security_initialized", 1);
-
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
-        TEXT("Security subsystems initialized: LRU NonceCache (capacity=%d, TTL=%.0fs), SecureKeyStorage (obfuscated)"),
-        NonceCache->GetMaxCapacity(), SecurityConfig.NonceLifetime);
-}
-
-void USuspenseCoreEquipmentNetworkService::ShutdownSecurity()
-{
-    FRWScopeLock Lock(SecurityLock, SLT_Write);
-
-    // Во время engine exit - минимальная очистка
-    if (IsEngineExitRequested())
-    {
-        // Только очистка локальных данных без логирования
-        RateLimitPerPlayer.Empty();
-        RateLimitPerIP.Empty();
-        SuspiciousActivityCount.Empty();
-
-        // Secure cleanup of LRU nonce cache
-        if (NonceCache.IsValid())
-        {
-            NonceCache->Clear();
-            NonceCache.Reset();
-        }
-
-        // Secure cleanup of key storage (zeroes memory)
-        if (SecureKeyStorage.IsValid())
-        {
-            SecureKeyStorage->ClearKey();
-            SecureKeyStorage.Reset();
-        }
-
-        return;
-    }
-
-    // Нормальный shutdown с логированием
-    FString FinalReport = SecurityMetrics.ToString();
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Final Security Report:\n%s"), *FinalReport);
-
-    // Log nonce cache stats before cleanup
-    if (NonceCache.IsValid())
-    {
-        FSuspenseNonceCacheStats CacheStats = NonceCache->GetStats();
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Nonce Cache Final Stats: %s"), *CacheStats.ToString());
-    }
-
-    RateLimitPerPlayer.Empty();
-    RateLimitPerIP.Empty();
-    SuspiciousActivityCount.Empty();
-
-    // Secure cleanup of LRU nonce cache
-    if (NonceCache.IsValid())
-    {
-        NonceCache->Clear();
-        NonceCache.Reset();
-    }
-
-    // Secure cleanup of key storage (zeroes memory before deallocation)
-    if (SecureKeyStorage.IsValid())
-    {
-        SecureKeyStorage->ClearKey();
-        SecureKeyStorage.Reset();
-    }
-
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Security subsystems shutdown complete (memory securely zeroed)"));
-}
-
-bool USuspenseCoreEquipmentNetworkService::LoadHMACKey()
-{
-    if (!SecureKeyStorage.IsValid())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("SecureKeyStorage not initialized"));
-        return false;
-    }
-
-    // Try to load from secure sources (env var, config, file)
-    if (SecureKeyStorage->LoadFromSecureSources())
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
-            TEXT("HMAC key loaded from secure sources into obfuscated storage"));
-        RECORD_SERVICE_METRIC("hmac_key_loaded_existing", 1);
-        return true;
-    }
-
-    // No key found - generate a new one
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
-        TEXT("No HMAC key found in secure sources, generating new 64-character key"));
-
-    if (!SecureKeyStorage->GenerateNewKey(64))
-    {
-        UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to generate new HMAC key"));
-        RECORD_SERVICE_METRIC("hmac_key_generation_failed", 1);
-        return false;
-    }
-
-    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
-        TEXT("Generated and stored new HMAC key with memory obfuscation"));
-    RECORD_SERVICE_METRIC("hmac_key_generated_new", 1);
-
-    return true;
 }
 
 // ============================================================================
@@ -1885,7 +1306,7 @@ void USuspenseCoreEquipmentNetworkService::BroadcastSecurityViolation(
 void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
     const FSuspenseCoreEquipmentEventData& EventData)
 {
-    // Handle operation completed events - update metrics and broadcast network result
+    // Handle operation completed events - update network metrics
     const FString OpIdStr = EventData.GetMetadata(TEXT("OperationId"), TEXT(""));
     const FString SuccessStr = EventData.GetMetadata(TEXT("Success"), TEXT("false"));
     const bool bSuccess = SuccessStr.Equals(TEXT("true"), ESearchCase::IgnoreCase);
@@ -1893,10 +1314,7 @@ void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
     FGuid OperationId;
     if (FGuid::Parse(OpIdStr, OperationId))
     {
-        // Track network metrics
-        FRWScopeLock Lock(SecurityLock, SLT_Write);
-        SecurityMetrics.TotalRequestsProcessed.IncrementExchange();
-
+        // Track network-specific metrics only
         if (!bSuccess)
         {
             TotalOperationsRejected++;

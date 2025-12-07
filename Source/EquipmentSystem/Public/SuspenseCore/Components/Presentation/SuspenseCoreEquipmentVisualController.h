@@ -7,10 +7,10 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
-#include "Core/Utils/SuspenseCoreEquipmentCacheManager.h"
-#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCoreEquipmentVisualController.generated.h"
 

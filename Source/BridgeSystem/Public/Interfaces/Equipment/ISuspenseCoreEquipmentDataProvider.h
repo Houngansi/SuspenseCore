@@ -245,3 +245,9 @@ public:
         );
     }
 };
+
+// Aliases for backward compatibility with existing code
+using FOnSlotDataChanged = FOnSuspenseCoreSlotDataChanged;
+using FOnSlotConfigurationChanged = FOnSuspenseCoreSlotConfigurationChanged;
+using FOnDataStoreReset = FOnSuspenseCoreDataStoreReset;
+using IEquipmentDataProvider = ISuspenseCoreEquipmentDataProvider;

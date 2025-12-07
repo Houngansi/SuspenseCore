@@ -6,7 +6,7 @@
 #include "GameplayEffectExtension.h"
 #include "AttributeSet.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
-#include "Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "GameplayTagsManager.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemGlobals.h"

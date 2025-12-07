@@ -4,7 +4,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "GameFramework/PlayerState.h"
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 

@@ -245,3 +245,8 @@ public:
     /** Get performance metrics */
     virtual TMap<FString, FString> GetPerformanceMetrics() const { return TMap<FString, FString>(); }
 };
+
+// Aliases for backward compatibility with existing code
+using FRuleEvaluationResult = FSuspenseCoreRuleResult;
+using FEquipmentRule = FSuspenseCoreEquipmentRule;
+using IEquipmentRules = ISuspenseCoreEquipmentRules;

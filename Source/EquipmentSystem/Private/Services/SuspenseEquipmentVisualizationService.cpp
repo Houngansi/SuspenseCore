@@ -8,7 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "SuspenseCore/Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 
 // ===== Local utilities =====================================================
 

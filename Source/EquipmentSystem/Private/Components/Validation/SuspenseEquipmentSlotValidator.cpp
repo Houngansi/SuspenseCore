@@ -10,7 +10,7 @@
 #include "Misc/ScopeLock.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 // Единые макросы/логи проекта
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 
 // Типы/лоадаут
 #include "Types/Equipment/SuspenseEquipmentTypes.h"

@@ -4,7 +4,7 @@
 #include "SuspenseCore/Components/Core/SuspenseEquipmentOperationExecutor.h"
 #include "SuspenseCore/Components/Core/SuspenseEquipmentDataStore.h"
 #include "SuspenseCore/Components/Validation/SuspenseEquipmentSlotValidator.h"
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"  // Для ESuspenseEquipmentSlotType
 
 // Define proper log category

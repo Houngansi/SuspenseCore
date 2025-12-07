@@ -5,15 +5,15 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreTransactionManager.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Delegates/Delegate.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "SuspenseCoreEquipmentDataService.generated.h"
 
 // Forward declarations
@@ -79,7 +79,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceBatchDeltas, const TArray<FEquipme
 
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataService : public UObject,
-    public IEquipmentDataService
+    public ISuspenseCoreEquipmentDataService
 {
     GENERATED_BODY()
 
@@ -101,12 +101,12 @@ public:
     virtual void ResetService() override;
     virtual FString GetServiceStats() const override;
 
- //========================================
- // IEquipmentDataService Implementation
- //========================================
+    //========================================
+    // ISuspenseCoreEquipmentDataService Implementation
+    //========================================
 
- virtual ISuspenseEquipmentDataProvider* GetDataProvider() override;
- virtual ISuspenseTransactionManager* GetTransactionManager() override;
+    virtual ISuspenseCoreEquipmentDataProvider* GetDataProvider() override;
+    virtual ISuspenseCoreTransactionManager* GetTransactionManager() override;
 
  //========================================
  // Component Injection and Configuration
@@ -372,10 +372,10 @@ private:
     USuspenseCoreEquipmentSlotValidator* SlotValidator = nullptr;
 
     /** Interface wrapper for data provider - for universal access */
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProviderInterface;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProviderInterface;
 
     /** Interface wrapper for transaction manager - for universal access */
-    TScriptInterface<ISuspenseTransactionManager> TransactionManagerInterface;
+    TScriptInterface<ISuspenseCoreTransactionManager> TransactionManagerInterface;
 
  UPROPERTY(Transient)
     TObjectPtr<USuspenseItemManager> ItemManager = nullptr;

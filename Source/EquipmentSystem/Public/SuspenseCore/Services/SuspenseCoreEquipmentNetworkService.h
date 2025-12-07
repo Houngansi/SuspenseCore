@@ -42,7 +42,7 @@ struct FUniqueNetIdRepl;
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkService : public UObject,
-    public ISuspenseCoreEquipmentNetworkService
+    public ISuspenseCoreEquipmentNetworkServiceInterface
 {
     GENERATED_BODY()
 
@@ -51,10 +51,10 @@ public:
     virtual ~USuspenseCoreEquipmentNetworkService();
 
     //~ Begin IEquipmentService Interface
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
-    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
     virtual bool ValidateService(TArray<FText>& OutErrors) const override;
@@ -117,8 +117,8 @@ private:
     //========================================
     // Service State
     //========================================
-    EServiceLifecycleState ServiceState;
-    FServiceInitParams ServiceParams;
+    ESuspenseCoreServiceLifecycleState ServiceState;
+    FSuspenseCoreServiceInitParams ServiceParams;
 
     //========================================
     // Network Components
@@ -139,7 +139,7 @@ private:
     //========================================
     // Metrics
     //========================================
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
     mutable float AverageLatency;
     mutable int32 TotalOperationsSent;
     mutable int32 TotalOperationsRejected;

@@ -277,7 +277,3 @@ public:
      */
     virtual FEquipmentOperationResult ExecuteImmediate(const FEquipmentOperationRequest& Request) = 0;
 };
-
-// Backward compatibility aliases
-using IEquipmentValidationService = ISuspenseCoreEquipmentValidationServiceInterface;
-using IEquipmentOperationService = ISuspenseCoreEquipmentOperationServiceInterface;

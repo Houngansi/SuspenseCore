@@ -8,51 +8,35 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreContainerScreenWidget.generated.h"
 
 // Forward declarations
-class USuspenseCorePanelWidget;
 class USuspenseCorePanelSwitcherWidget;
 class USuspenseCoreTooltipWidget;
 class USuspenseCoreContextMenuWidget;
 class USuspenseCoreUIManager;
 class USuspenseCoreEventBus;
-class UWidgetSwitcher;
 class UOverlay;
 
 /**
  * USuspenseCoreContainerScreenWidget
  *
  * Main screen widget for container UI (Inventory, Equipment, Stash, Trader, etc.)
- * Manages panel switching, tooltips, context menus, and drag-drop visualization.
- * COPIED FROM LEGACY SuspenseCharacterScreen with EventBus integration.
+ * Uses PanelSwitcher for panel management (like legacy CharacterScreen uses UpperTabBar).
  *
- * FEATURES (from legacy CharacterScreen):
- * - Screen activation/deactivation with proper EventBus notifications
- * - Remember last opened panel (like legacy remember tab)
- * - PanelSwitcher binding (like legacy UpperTabBar)
- * - Input mode management when screen opens/closes
- * - Timer-based content refresh after activation
+ * IMPORTANT: Panel content is managed by PanelSwitcher.TabConfigs.ContentWidgetClass
+ * ContainerScreen only handles: overlay (tooltips, context menu), input mode, EventBus
  *
- * LAYOUT STRUCTURE:
- * - Header: Title, close button
- * - Panel Switcher: Tab bar for switching panels (SuspenseCorePanelSwitcherWidget)
- * - Panel Container: Widget switcher containing panels
- * - Footer: Weight/slots info, action buttons
- * - Overlay: Tooltips, context menus, drag ghost
+ * ARCHITECTURE (like legacy CharacterScreen):
+ * - PanelSwitcher = UpperTabBar (manages tabs + content)
+ * - OverlayLayer = tooltips, context menus, drag ghost
+ * - Screen activation/deactivation via EventBus
  *
- * PANELS:
- * - Each panel can contain multiple container widgets
- * - Panels are configured via FSuspenseCorePanelConfig
- * - Common presets: Inventory, Inventory+Equipment, Inventory+Stash, etc.
- *
- * USAGE (like legacy CharacterScreen):
- * 1. In Blueprint, bind PanelSwitcher (SuspenseCorePanelSwitcherWidget)
+ * USAGE:
+ * 1. In Blueprint, bind PanelSwitcher (configure TabConfigs there)
  * 2. Configure ScreenTag and DefaultPanelTag
  * 3. Call ActivateScreen() to show, DeactivateScreen() to hide
- * 4. Widget handles input mode and EventBus notifications automatically
  *
  * @see USuspenseCharacterScreen (legacy)
  * @see USuspenseCorePanelSwitcherWidget
@@ -71,25 +55,7 @@ public:
 
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
-
-	//==================================================================
-	// Screen Configuration
-	//==================================================================
-
-	/**
-	 * Initialize screen with configuration
-	 * @param InScreenConfig Configuration defining available panels
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	void InitializeScreen(const FSuspenseCoreScreenConfig& InScreenConfig);
-
-	/**
-	 * Get current screen configuration
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
-	const FSuspenseCoreScreenConfig& GetScreenConfig() const { return ScreenConfig; }
 
 	//==================================================================
 	// Screen Activation (from legacy CharacterScreen)
@@ -121,15 +87,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
 	FGameplayTag GetScreenTag() const { return ScreenTag; }
 
+	//==================================================================
+	// Panel Management (delegates to PanelSwitcher)
+	//==================================================================
+
 	/**
-	 * Open panel by tag (like legacy OpenTabByTag)
+	 * Open panel by tag (delegates to PanelSwitcher->SelectTabByTag)
 	 * @param PanelTag Tag of the panel to open
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
 	void OpenPanelByTag(const FGameplayTag& PanelTag);
 
 	/**
-	 * Open panel by index (like legacy OpenTabByIndex)
+	 * Open panel by index (delegates to PanelSwitcher->SelectTabByIndex)
 	 * @param PanelIndex Index of the panel to open
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
@@ -142,54 +112,22 @@ public:
 	USuspenseCorePanelSwitcherWidget* GetPanelSwitcher() const { return PanelSwitcher; }
 
 	/**
-	 * Refresh content of the currently active panel
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	void RefreshScreenContent();
-
-	//==================================================================
-	// Panel Management
-	//==================================================================
-
-	/**
-	 * Switch to panel by tag
-	 * @param PanelTag Gameplay tag identifying the panel
-	 * @return True if panel was switched successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	bool SwitchToPanel(const FGameplayTag& PanelTag);
-
-	/**
-	 * Switch to panel by index
-	 * @param PanelIndex Index in the panels array
-	 * @return True if panel was switched successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	bool SwitchToPanelByIndex(int32 PanelIndex);
-
-	/**
-	 * Get current active panel
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
-	USuspenseCorePanelWidget* GetActivePanel() const;
-
-	/**
 	 * Get current active panel tag
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
 	FGameplayTag GetActivePanelTag() const { return ActivePanelTag; }
 
 	/**
-	 * Get panel by tag
+	 * Get current active panel content widget
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
-	USuspenseCorePanelWidget* GetPanelByTag(const FGameplayTag& PanelTag) const;
+	UUserWidget* GetActivePanelContent() const;
 
 	/**
-	 * Get all panels
+	 * Refresh content of the currently active panel
 	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
-	TArray<USuspenseCorePanelWidget*> GetAllPanels() const { return Panels; }
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void RefreshScreenContent();
 
 	//==================================================================
 	// Tooltip Management
@@ -197,11 +135,9 @@ public:
 
 	/**
 	 * Show tooltip for item
-	 * @param ItemData Item data to display
-	 * @param ScreenPosition Position to show tooltip
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	void ShowTooltip(const FSuspenseCoreItemUIData& ItemData, const FVector2D& ScreenPosition);
+	void ShowTooltip(const struct FSuspenseCoreItemUIData& ItemData, const FVector2D& ScreenPosition);
 
 	/**
 	 * Hide current tooltip
@@ -221,15 +157,10 @@ public:
 
 	/**
 	 * Show context menu for item
-	 * @param ItemData Item data
-	 * @param ContainerID Container containing the item
-	 * @param SlotIndex Slot index
-	 * @param ScreenPosition Position to show menu
-	 * @param AvailableActions Actions to display
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
 	void ShowContextMenu(
-		const FSuspenseCoreItemUIData& ItemData,
+		const struct FSuspenseCoreItemUIData& ItemData,
 		const FGuid& ContainerID,
 		int32 SlotIndex,
 		const FVector2D& ScreenPosition,
@@ -251,24 +182,12 @@ public:
 	// Drag-Drop Visual
 	//==================================================================
 
-	/**
-	 * Show drag ghost for item
-	 * @param ItemData Item being dragged
-	 * @param DragOffset Offset from cursor
-	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
-	void ShowDragGhost(const FSuspenseCoreItemUIData& ItemData, const FVector2D& DragOffset);
+	void ShowDragGhost(const struct FSuspenseCoreItemUIData& ItemData, const FVector2D& DragOffset);
 
-	/**
-	 * Update drag ghost position
-	 * @param ScreenPosition Current cursor position
-	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
 	void UpdateDragGhostPosition(const FVector2D& ScreenPosition);
 
-	/**
-	 * Hide drag ghost
-	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
 	void HideDragGhost();
 
@@ -277,24 +196,14 @@ public:
 	//==================================================================
 
 	/**
-	 * Close the container screen
+	 * Close the container screen (calls DeactivateScreen + RemoveFromParent)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
 	void CloseScreen();
 
-	/**
-	 * Handle close button clicked
-	 */
-	UFUNCTION()
-	void OnCloseButtonClicked();
-
 	//==================================================================
 	// Blueprint Events
 	//==================================================================
-
-	/** Called when screen is initialized */
-	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Screen Initialized"))
-	void K2_OnScreenInitialized();
 
 	/** Called when panel is switched */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Panel Switched"))
@@ -304,11 +213,11 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Screen Closing"))
 	void K2_OnScreenClosing();
 
-	/** Called when screen is activated (from legacy K2_OnCharacterScreenOpened) */
+	/** Called when screen is activated */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Container Screen Opened"))
 	void K2_OnContainerScreenOpened();
 
-	/** Called when screen is deactivated (from legacy K2_OnCharacterScreenClosed) */
+	/** Called when screen is deactivated */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Container Screen Closed"))
 	void K2_OnContainerScreenClosed();
 
@@ -317,60 +226,39 @@ protected:
 	// Setup Methods
 	//==================================================================
 
-	/** Create panel widgets from config */
-	UFUNCTION(BlueprintNativeEvent, Category = "SuspenseCore|UI|Screen")
-	void CreatePanels();
-	virtual void CreatePanels_Implementation();
-
-	/** Setup panel switcher tabs */
-	UFUNCTION(BlueprintNativeEvent, Category = "SuspenseCore|UI|Screen")
-	void SetupPanelSwitcher();
-	virtual void SetupPanelSwitcher_Implementation();
-
-	/** Bind to UIManager events */
+	/** Bind to EventBus events */
 	void BindToUIManager();
 
-	/** Unbind from UIManager events */
+	/** Unbind from EventBus events */
 	void UnbindFromUIManager();
-
-	/** Create default layout structure if widgets are not bound in Blueprint */
-	void CreateDefaultLayoutIfNeeded();
 
 	//==================================================================
 	// Widget References (Bind in Blueprint)
 	//==================================================================
 
-	/** Panel switcher widget (tab bar) */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Panel switcher widget - manages tabs AND content (like legacy UpperTabBar) */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<USuspenseCorePanelSwitcherWidget> PanelSwitcher;
-
-	/** Widget switcher containing panels */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
-	TObjectPtr<UWidgetSwitcher> PanelContainer;
 
 	/** Overlay for tooltips and context menus */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UOverlay> OverlayLayer;
 
-	/** Tooltip widget */
+	/** Tooltip widget (created on demand) */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<USuspenseCoreTooltipWidget> ItemTooltipWidget;
 
-	/** Context menu widget */
+	/** Context menu widget (created on demand) */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<USuspenseCoreContextMenuWidget> ContextMenuWidget;
 
-	/** Drag ghost widget */
+	/** Drag ghost widget (created on demand) */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<UUserWidget> DragGhostWidget;
 
 	//==================================================================
 	// Configuration
 	//==================================================================
-
-	/** Widget class to use for panels */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
-	TSubclassOf<USuspenseCorePanelWidget> PanelWidgetClass;
 
 	/** Widget class to use for tooltip */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
@@ -417,16 +305,6 @@ private:
 	// State
 	//==================================================================
 
-	/** Current screen configuration */
-	FSuspenseCoreScreenConfig ScreenConfig;
-
-	/** Created panel widgets */
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<USuspenseCorePanelWidget>> Panels;
-
-	/** Map of panel tags to panel widgets */
-	TMap<FGameplayTag, TObjectPtr<USuspenseCorePanelWidget>> PanelsByTag;
-
 	/** Currently active panel tag */
 	FGameplayTag ActivePanelTag;
 
@@ -436,7 +314,7 @@ private:
 
 	/** Cached EventBus reference */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<class USuspenseCoreEventBus> CachedEventBus;
+	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** EventBus subscription handle for panel selection */
 	FSuspenseCoreSubscriptionHandle PanelSelectedEventHandle;
@@ -447,12 +325,12 @@ private:
 	/** Handle panel selected event from EventBus */
 	void OnPanelSelectedEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 
-	/** Update input mode based on screen state (from legacy) */
+	/** Update input mode based on screen state */
 	void UpdateInputMode();
 
-	/** Publish screen event via EventBus (SuspenseCore.Event.UI.Screen.Opened/Closed) */
+	/** Publish screen event via EventBus */
 	void PublishScreenEvent(const FGameplayTag& EventTag);
 
-	/** Refresh timer handle for delayed content refresh after activation */
+	/** Refresh timer handle */
 	FTimerHandle RefreshTimerHandle;
 };

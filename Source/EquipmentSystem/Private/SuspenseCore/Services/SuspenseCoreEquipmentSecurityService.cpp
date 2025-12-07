@@ -375,6 +375,18 @@ FSecurityValidationResponse USuspenseCoreEquipmentSecurityService::ValidateReque
     uint64 Nonce,
     bool bIsCritical)
 {
+    // SECURITY: Validation must only run on server (authoritative side)
+    UWorld* World = ServiceParams.WorldContext.Get();
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        FSecurityValidationResponse ClientResponse;
+        ClientResponse.Result = ESecurityValidationResult::ServiceUnavailable;
+        ClientResponse.ErrorMessage = TEXT("Security validation is server-only");
+        UE_LOG(LogSuspenseCoreEquipmentSecurity, Warning,
+            TEXT("ValidateRequest rejected - security validation is server authoritative only"));
+        return ClientResponse;
+    }
+
     const double StartTime = FPlatformTime::Seconds();
     FSecurityValidationResponse Response;
 

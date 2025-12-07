@@ -6,10 +6,8 @@
 //========================================
 // Native Tag Definitions
 // Tags are registered at module load time (before CDO construction)
+// All tags defined within SuspenseCoreEquipmentTags namespace
 //========================================
-
-// Root service tag (global scope for module linkage)
-UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment, "Service.Equipment");
 
 namespace SuspenseCoreEquipmentTags
 {

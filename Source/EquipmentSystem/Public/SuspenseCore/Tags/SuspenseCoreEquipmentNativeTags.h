@@ -15,10 +15,9 @@
 
 //========================================
 // Native Tag Module Declaration
+// All tags are declared within SuspenseCoreEquipmentTags namespace
+// to avoid global namespace pollution and duplicate symbols
 //========================================
-
-// Forward declare the module for linking
-EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Service_Equipment);
 
 namespace SuspenseCoreEquipmentTags
 {

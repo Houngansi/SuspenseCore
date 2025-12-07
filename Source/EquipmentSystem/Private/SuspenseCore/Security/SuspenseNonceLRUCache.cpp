@@ -30,13 +30,17 @@ bool FSuspenseNonceLRUCache::Contains(uint64 Nonce) const
     const FSuspenseNonceEntry* Entry = NonceMap.Find(Nonce);
     if (Entry)
     {
-        // Check if expired
+        // SECURITY: Check if expired - expired nonces MUST be rejected
+        // to prevent replay attacks (BestPractices.md Section 13)
         if (Entry->ExpiryTime < FPlatformTime::Seconds())
         {
-            // Entry is expired, will be cleaned up later
-            // For safety, still report as found (conservative approach)
-            Stats.TotalHits++;
-            return true;
+            // Entry is expired - treat as NOT FOUND to prevent replay attacks
+            // This is the secure approach: expired nonce = invalid nonce
+            Stats.TotalExpired++;
+            Stats.TotalMisses++;
+            UE_LOG(LogNonceCache, Warning,
+                TEXT("SECURITY: Rejected expired nonce %llu (potential replay attack)"), Nonce);
+            return false;
         }
 
         Stats.TotalHits++;

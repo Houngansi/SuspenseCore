@@ -26,7 +26,7 @@ UE_LOG(LogMedComEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), #
 
 // Client prediction data structure
 USTRUCT()
-struct FEquipmentComponentPredictionData
+struct FSuspenseCoreEquipmentComponentPredictionData
 {
     GENERATED_BODY()
 
@@ -46,7 +46,7 @@ struct FEquipmentComponentPredictionData
     UPROPERTY()
     bool bConfirmed = false;
 
-    FEquipmentComponentPredictionData() = default;
+    FSuspenseCoreEquipmentComponentPredictionData() = default;
 
     bool IsExpired(float CurrentTime, float TimeoutSeconds = 2.0f) const
     {
@@ -378,7 +378,7 @@ protected:
 
     /** Active predictions waiting for server confirmation */
     UPROPERTY()
-    TArray<FEquipmentComponentPredictionData> ActivePredictions;
+    TArray<FSuspenseCoreEquipmentComponentPredictionData> ActivePredictions;
 
     /** Counter for generating unique prediction keys */
     UPROPERTY()

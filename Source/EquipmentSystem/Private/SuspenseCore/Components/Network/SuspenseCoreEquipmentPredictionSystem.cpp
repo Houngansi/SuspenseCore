@@ -107,7 +107,7 @@ FGuid USuspenseCoreEquipmentPredictionSystem::CreatePrediction(const FEquipmentO
         if(DataProvider.GetInterface()){NewPrediction.PredictedState=DataProvider->CreateSnapshot();}
         ActivePredictions.Add(NewPrediction);
         if(Operation.OperationId.IsValid()){OperationToPredictionMap.Add(Operation.OperationId,NewPrediction.PredictionId);}
-        FPredictionTimelineEntry E;E.PredictionId=NewPrediction.PredictionId;E.Timestamp=NewPrediction.PredictionTime;E.ServerTimestamp=LastServerUpdateTime;E.StateChange=NewPrediction.PredictedState;E.Confidence=GetAdjustedConfidence(Operation.OperationType);
+        FSuspenseCorePredictionTimelineEntry E;E.PredictionId=NewPrediction.PredictionId;E.Timestamp=NewPrediction.PredictionTime;E.ServerTimestamp=LastServerUpdateTime;E.StateChange=NewPrediction.PredictedState;E.Confidence=GetAdjustedConfidence(Operation.OperationType);
         AddToTimeline(E);
         {
             FScopeLock StatsLock(&StatisticsLock);
@@ -151,7 +151,7 @@ bool USuspenseCoreEquipmentPredictionSystem::ConfirmPrediction(const FGuid& Pred
     {
         P.bConfirmed=true;
         UpdateConfidence(true);
-        if(FPredictionTimelineEntry* T=FindTimelineEntry(PredictionId)){T->bConfirmed=true;}
+        if(FSuspenseCorePredictionTimelineEntry* T=FindTimelineEntry(PredictionId)){T->bConfirmed=true;}
         {
             FScopeLock StatsLock(&StatisticsLock);
             Statistics.TotalConfirmed++;
@@ -357,11 +357,11 @@ void USuspenseCoreEquipmentPredictionSystem::ResetPredictionSystem()
         FScopeLock Lock(&TimelineLock);
         PredictionTimeline.Empty();
     }
-    ConfidenceMetrics=FPredictionConfidenceMetrics();
+    ConfidenceMetrics=FSuspenseCorePredictionConfidenceMetrics();
     ConfidenceMetrics.ConfidenceLevel=1.0f;
     ConfidenceMetrics.SuccessRate=1.0f;
-    Statistics=FPredictionStatistics();
-    ReconciliationState=FReconciliationState();
+    Statistics=FSuspenseCorePredictionStatistics();
+    ReconciliationState=FSuspenseCoreReconciliationState();
     LatencySamples.Empty();
     UE_LOG(LogEquipmentPrediction,Log,TEXT("ResetPredictionSystem: clean"));
 }
@@ -472,17 +472,17 @@ float USuspenseCoreEquipmentPredictionSystem::CalculatePredictionPriority(const 
     return FMath::Clamp(P,0.0f,1.0f);
 }
 
-void USuspenseCoreEquipmentPredictionSystem::AddToTimeline(const FPredictionTimelineEntry& Entry)
+void USuspenseCoreEquipmentPredictionSystem::AddToTimeline(const FSuspenseCorePredictionTimelineEntry& Entry)
 {
     FScopeLock Lock(&TimelineLock);
     PredictionTimeline.Add(Entry);
     if(PredictionTimeline.Num()>MaxTimelineEntries){PredictionTimeline.RemoveAt(0);}
 }
 
-FPredictionTimelineEntry* USuspenseCoreEquipmentPredictionSystem::FindTimelineEntry(const FGuid& PredictionId)
+FSuspenseCorePredictionTimelineEntry* USuspenseCoreEquipmentPredictionSystem::FindTimelineEntry(const FGuid& PredictionId)
 {
     FScopeLock Lock(&TimelineLock);
-    return PredictionTimeline.FindByPredicate([&PredictionId](const FPredictionTimelineEntry& E){return E.PredictionId==PredictionId;});
+    return PredictionTimeline.FindByPredicate([&PredictionId](const FSuspenseCorePredictionTimelineEntry& E){return E.PredictionId==PredictionId;});
 }
 
 void USuspenseCoreEquipmentPredictionSystem::CleanupTimeline()
@@ -491,7 +491,7 @@ void USuspenseCoreEquipmentPredictionSystem::CleanupTimeline()
     const float Now=GetWorld()->GetTimeSeconds();
     const float MaxAge=PredictionTimeout*2.0f;
     FScopeLock Lock(&TimelineLock);
-    PredictionTimeline.RemoveAll([Now,MaxAge](const FPredictionTimelineEntry& E){return (Now-E.Timestamp)>MaxAge;});
+    PredictionTimeline.RemoveAll([Now,MaxAge](const FSuspenseCorePredictionTimelineEntry& E){return (Now-E.Timestamp)>MaxAge;});
 }
 
 bool USuspenseCoreEquipmentPredictionSystem::ValidatePrediction(const FEquipmentPrediction& Prediction,const FEquipmentOperationResult& ServerResult) const

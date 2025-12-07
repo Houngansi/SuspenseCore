@@ -23,7 +23,7 @@
 // Shadow Snapshot Implementation
 //========================================
 
-bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& Operation)
+bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& Operation)
 {
     switch (Operation.OperationType)
     {
@@ -101,12 +101,12 @@ bool FShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& 
     }
 }
 
-bool FShadowEquipmentSnapshot::IsSlotOccupied(int32 SlotIndex) const
+bool FSuspenseCoreShadowEquipmentSnapshot::IsSlotOccupied(int32 SlotIndex) const
 {
     return SlotItems.Contains(SlotIndex);
 }
 
-FSuspenseInventoryItemInstance FShadowEquipmentSnapshot::GetItemAtSlot(int32 SlotIndex) const
+FSuspenseInventoryItemInstance FSuspenseCoreShadowEquipmentSnapshot::GetItemAtSlot(int32 SlotIndex) const
 {
     if (const FSuspenseInventoryItemInstance* Found = SlotItems.Find(SlotIndex))
     {
@@ -873,7 +873,7 @@ TArray<FSlotValidationResult> USuspenseCoreEquipmentValidationService::BatchVali
     // Primary path: use shadow snapshot for sequential validation
     if (bUseShadowSnapshot && Requests.Num() > 1)
     {
-        const FBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
+        const FSuspenseCoreBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
         Results = Report.Results;
 
         // Handle atomic batch result
@@ -970,13 +970,13 @@ TArray<FSlotValidationResult> USuspenseCoreEquipmentValidationService::BatchVali
     return Results;
 }
 
-FBatchValidationReport USuspenseCoreEquipmentValidationService::BatchValidateWithReport(
+FSuspenseCoreBatchValidationReport USuspenseCoreEquipmentValidationService::BatchValidateWithReport(
     const TArray<FEquipmentOperationRequest>& Requests,
     bool bAtomic)
 {
     SCOPED_SERVICE_TIMER("Validation.BatchValidateWithReport");
 
-    FBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
+    FSuspenseCoreBatchValidationReport Report = ProcessBatchWithShadowSnapshot(Requests);
 
     if (bAtomic && !Report.bAllPassed)
     {
@@ -1008,7 +1008,7 @@ TArray<FSlotValidationResult> USuspenseCoreEquipmentValidationService::ProcessPa
     Results.SetNum(NumRequests);
 
     // Buffer for events to dispatch on game thread
-    TArray<FBufferedValidationEvent> BufferedEvents;
+    TArray<FSuspenseCoreBufferedValidationEvent> BufferedEvents;
     BufferedEvents.Reserve(NumRequests * 3);
     FCriticalSection EventBufferLock;
 
@@ -1025,21 +1025,21 @@ TArray<FSlotValidationResult> USuspenseCoreEquipmentValidationService::ProcessPa
         {
             FScopeLock Lock(&EventBufferLock);
 
-            FBufferedValidationEvent StartEvent;
-            StartEvent.Type    = FBufferedValidationEvent::Started;
+            FSuspenseCoreBufferedValidationEvent StartEvent;
+            StartEvent.Type    = FSuspenseCoreBufferedValidationEvent::Started;
             StartEvent.Request = Requests[Index];
             BufferedEvents.Add(StartEvent);
 
-            FBufferedValidationEvent CompleteEvent;
-            CompleteEvent.Type    = FBufferedValidationEvent::Completed;
+            FSuspenseCoreBufferedValidationEvent CompleteEvent;
+            CompleteEvent.Type    = FSuspenseCoreBufferedValidationEvent::Completed;
             CompleteEvent.Request = Requests[Index];
             CompleteEvent.Result  = Results[Index];
             BufferedEvents.Add(CompleteEvent);
 
             if (!Results[Index].bIsValid)
             {
-                FBufferedValidationEvent FailEvent;
-                FailEvent.Type    = FBufferedValidationEvent::Failed;
+                FSuspenseCoreBufferedValidationEvent FailEvent;
+                FailEvent.Type    = FSuspenseCoreBufferedValidationEvent::Failed;
                 FailEvent.Request = Requests[Index];
                 FailEvent.Result  = Results[Index];
                 BufferedEvents.Add(FailEvent);
@@ -1128,7 +1128,7 @@ TArray<FSlotValidationResult> USuspenseCoreEquipmentValidationService::ProcessSe
     return Results;
 }
 
-FBatchValidationReport USuspenseCoreEquipmentValidationService::ProcessBatchWithShadowSnapshot(
+FSuspenseCoreBatchValidationReport USuspenseCoreEquipmentValidationService::ProcessBatchWithShadowSnapshot(
     const TArray<FEquipmentOperationRequest>& Requests)
 {
     SCOPED_SERVICE_TIMER("Validation.ProcessBatchWithShadowSnapshot");
@@ -1136,12 +1136,12 @@ FBatchValidationReport USuspenseCoreEquipmentValidationService::ProcessBatchWith
     const float StartTime = FPlatformTime::Seconds();
     ShadowSnapshotBatches.fetch_add(1);
 
-    FBatchValidationReport Report;
+    FSuspenseCoreBatchValidationReport Report;
     Report.TotalOperations = Requests.Num();
     Report.Results.Reserve(Requests.Num());
 
     // Initialize shadow snapshot from current equipment state
-    FShadowEquipmentSnapshot ShadowSnapshot;
+    FSuspenseCoreShadowEquipmentSnapshot ShadowSnapshot;
     if (DataProvider.GetInterface())
     {
         const TMap<int32, FSuspenseInventoryItemInstance> CurrentEquipment = DataProvider->GetAllEquippedItems();
@@ -1223,7 +1223,7 @@ FBatchValidationReport USuspenseCoreEquipmentValidationService::ProcessBatchWith
 
 FSlotValidationResult USuspenseCoreEquipmentValidationService::ValidateAgainstShadowSnapshot(
     const FEquipmentOperationRequest& Request,
-    const FShadowEquipmentSnapshot& Snapshot)
+    const FSuspenseCoreShadowEquipmentSnapshot& Snapshot)
 {
     SCOPED_SERVICE_TIMER("Validation.ValidateAgainstShadowSnapshot");
 
@@ -1322,7 +1322,7 @@ FSlotValidationResult USuspenseCoreEquipmentValidationService::ValidateAgainstSh
     return FSlotValidationResult::Success();
 }
 
-void USuspenseCoreEquipmentValidationService::DispatchBufferedEvents(const TArray<FBufferedValidationEvent>& Events)
+void USuspenseCoreEquipmentValidationService::DispatchBufferedEvents(const TArray<FSuspenseCoreBufferedValidationEvent>& Events)
 {
     if (!IsInGameThread())
     {
@@ -1330,15 +1330,15 @@ void USuspenseCoreEquipmentValidationService::DispatchBufferedEvents(const TArra
         return;
     }
 
-    for (const FBufferedValidationEvent& Event : Events)
+    for (const FSuspenseCoreBufferedValidationEvent& Event : Events)
     {
         switch (Event.Type)
         {
-            case FBufferedValidationEvent::Started:
+            case FSuspenseCoreBufferedValidationEvent::Started:
                 OnValidationStarted.Broadcast(Event.Request);
                 break;
 
-            case FBufferedValidationEvent::Completed:
+            case FSuspenseCoreBufferedValidationEvent::Completed:
                 OnValidationCompleted.Broadcast(Event.Result);
                 PublishValidationEvent(
                     Event.Result.bIsValid ?
@@ -1349,11 +1349,11 @@ void USuspenseCoreEquipmentValidationService::DispatchBufferedEvents(const TArra
                 );
                 break;
 
-            case FBufferedValidationEvent::Failed:
+            case FSuspenseCoreBufferedValidationEvent::Failed:
                 OnValidationFailed.Broadcast(Event.Request, Event.Result.ErrorMessage);
                 break;
 
-            case FBufferedValidationEvent::Custom:
+            case FSuspenseCoreBufferedValidationEvent::Custom:
                 if (Event.CustomEventTag.IsValid())
                 {
                     PublishValidationEvent(Event.CustomEventTag, Event.Request, Event.Result);

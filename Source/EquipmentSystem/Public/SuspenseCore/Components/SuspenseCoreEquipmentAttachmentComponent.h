@@ -21,7 +21,7 @@ class UAnimMontage;
  * Attachment state for replication and animation sync
  */
 USTRUCT()
-struct FAttachmentAnimationState
+struct FSuspenseCoreAttachmentAnimationState
 {
     GENERATED_BODY()
 
@@ -41,14 +41,14 @@ struct FAttachmentAnimationState
     UPROPERTY()
     float StartTime = 0.0f;
 
-    FAttachmentAnimationState() = default;
+    FSuspenseCoreAttachmentAnimationState() = default;
 };
 
 /**
  * Attachment prediction data for client-side responsiveness
  */
 USTRUCT()
-struct FAttachmentPredictionData
+struct FSuspenseCoreAttachmentPredictionData
 {
     GENERATED_BODY()
 
@@ -84,14 +84,14 @@ struct FAttachmentPredictionData
     UPROPERTY()
     float PredictionTime = 0.0f;
 
-    FAttachmentPredictionData() = default;
+    FSuspenseCoreAttachmentPredictionData() = default;
 };
 
 /**
  * Socket search result with quality score
  */
 USTRUCT()
-struct FSocketSearchResult
+struct FSuspenseCoreSocketSearchResult
 {
     GENERATED_BODY()
 
@@ -107,9 +107,9 @@ struct FSocketSearchResult
     UPROPERTY()
     bool bSocketExists = false;
 
-    FSocketSearchResult() = default;
+    FSuspenseCoreSocketSearchResult() = default;
 
-    FSocketSearchResult(const FName& InSocketName, int32 InScore, bool bExists)
+    FSuspenseCoreSocketSearchResult(const FName& InSocketName, int32 InScore, bool bExists)
         : SocketName(InSocketName), QualityScore(InScore), bSocketExists(bExists) {}
 };
 
@@ -330,7 +330,7 @@ public:
      * @param TargetMesh Mesh to search on
      * @return Array of valid sockets with scores
      */
-    TArray<FSocketSearchResult> GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const;
+    TArray<FSuspenseCoreSocketSearchResult> GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const;
 
     /**
      * Validate socket exists and is appropriate
@@ -415,13 +415,13 @@ protected:
      * Apply predicted attachment locally
      * @param Prediction Prediction data to apply
      */
-    void ApplyPredictedAttachment(const FAttachmentPredictionData& Prediction);
+    void ApplyPredictedAttachment(const FSuspenseCoreAttachmentPredictionData& Prediction);
 
     /**
      * Revert predicted attachment
      * @param Prediction Prediction data to revert
      */
-    void RevertPredictedAttachment(const FAttachmentPredictionData& Prediction);
+    void RevertPredictedAttachment(const FSuspenseCoreAttachmentPredictionData& Prediction);
 
     /**
      * Clean up expired predictions
@@ -560,7 +560,7 @@ private:
 
     /** Current animation state */
     UPROPERTY(ReplicatedUsing=OnRep_AnimationState)
-    FAttachmentAnimationState AnimationState;
+    FSuspenseCoreAttachmentAnimationState AnimationState;
 
     /** Timer handle for animation completion */
     FTimerHandle AnimationCompletionTimer;
@@ -589,7 +589,7 @@ private:
 
     /** Active attachment predictions specific to this component */
     UPROPERTY()
-    TArray<FAttachmentPredictionData> AttachmentPredictions;
+    TArray<FSuspenseCoreAttachmentPredictionData> AttachmentPredictions;
 
     /** Next prediction key for attachments */
     UPROPERTY()
@@ -597,14 +597,14 @@ private:
 
     /** Last confirmed attachment state */
     UPROPERTY()
-    FAttachmentPredictionData LastConfirmedState;
+    FSuspenseCoreAttachmentPredictionData LastConfirmedState;
 
     //==================================================================
     // Performance Optimization
     //==================================================================
 
     /** Socket cache for performance */
-    mutable TMap<FString, FSocketSearchResult> SocketCache;
+    mutable TMap<FString, FSuspenseCoreSocketSearchResult> SocketCache;
 
     /** Last socket cache update time */
     mutable float LastSocketCacheTime;

@@ -42,7 +42,7 @@ void USuspenseCoreEquipmentOperationExecutor::EndPlay(const EEndPlayReason::Type
 
 bool USuspenseCoreEquipmentOperationExecutor::BuildPlan(
     const FEquipmentOperationRequest& Request,
-    FTransactionPlan& OutPlan,
+    FSuspenseCoreTransactionPlan& OutPlan,
     FText& OutError) const
 {
     FScopeLock Lock(&PlanningCriticalSection);
@@ -62,7 +62,7 @@ bool USuspenseCoreEquipmentOperationExecutor::BuildPlan(
     }
 
     // Initialize plan
-    OutPlan = FTransactionPlan();
+    OutPlan = FSuspenseCoreTransactionPlan();
     OutPlan.DebugLabel = FString::Printf(TEXT("Plan-%s-%s"),
         *Request.OperationId.ToString(),
         *UEnum::GetValueAsString(Request.OperationType));
@@ -124,7 +124,7 @@ bool USuspenseCoreEquipmentOperationExecutor::BuildPlan(
 
         default:
             // For unsupported operations, create single-step plan
-            OutPlan.Add(FTransactionPlanStep(Request, TEXT("Direct execution")));
+            OutPlan.Add(FSuspenseCoreTransactionPlanStep(Request, TEXT("Direct execution")));
             break;
     }
 
@@ -176,7 +176,7 @@ bool USuspenseCoreEquipmentOperationExecutor::BuildPlan(
 }
 
 bool USuspenseCoreEquipmentOperationExecutor::ValidatePlan(
-    const FTransactionPlan& Plan,
+    const FSuspenseCoreTransactionPlan& Plan,
     FText& OutError) const
 {
     FScopeLock Lock(&PlanningCriticalSection);
@@ -203,7 +203,7 @@ bool USuspenseCoreEquipmentOperationExecutor::ValidatePlan(
     // Validate each step
     for (int32 i = 0; i < Plan.Steps.Num(); i++)
     {
-        const FTransactionPlanStep& Step = Plan.Steps[i];
+        const FSuspenseCoreTransactionPlanStep& Step = Plan.Steps[i];
 
         if (!ValidateStep(Step, OutError))
         {
@@ -221,7 +221,7 @@ bool USuspenseCoreEquipmentOperationExecutor::ValidatePlan(
     return true;
 }
 
-float USuspenseCoreEquipmentOperationExecutor::EstimatePlanExecutionTime(const FTransactionPlan& Plan) const
+float USuspenseCoreEquipmentOperationExecutor::EstimatePlanExecutionTime(const FSuspenseCoreTransactionPlan& Plan) const
 {
     // Base estimates per operation type (in milliseconds)
     static const TMap<EEquipmentOperationType, float> OperationCosts = {
@@ -242,7 +242,7 @@ float USuspenseCoreEquipmentOperationExecutor::EstimatePlanExecutionTime(const F
 
     float TotalMs = 0.0f;
 
-    for (const FTransactionPlanStep& Step : Plan.Steps)
+    for (const FSuspenseCoreTransactionPlanStep& Step : Plan.Steps)
     {
         if (const float* Cost = OperationCosts.Find(Step.Request.OperationType))
         {
@@ -274,12 +274,12 @@ float USuspenseCoreEquipmentOperationExecutor::EstimatePlanExecutionTime(const F
     return TotalMs;
 }
 
-bool USuspenseCoreEquipmentOperationExecutor::IsPlanIdempotent(const FTransactionPlan& Plan) const
+bool USuspenseCoreEquipmentOperationExecutor::IsPlanIdempotent(const FSuspenseCoreTransactionPlan& Plan) const
 {
     // Plans are idempotent if they only contain absolute-set operations
     // Move/Swap/QuickSwitch operations are generally not idempotent
 
-    for (const FTransactionPlanStep& Step : Plan.Steps)
+    for (const FSuspenseCoreTransactionPlanStep& Step : Plan.Steps)
     {
         switch (Step.Request.OperationType)
         {
@@ -325,10 +325,10 @@ bool USuspenseCoreEquipmentOperationExecutor::IsPlanIdempotent(const FTransactio
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Equip(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Simple equip is a single step
-    FTransactionPlanStep Step(In, TEXT("Equip item to slot"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Equip item to slot"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true;
@@ -336,10 +336,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Equip(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Unequip(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Simple unequip is a single step
-    FTransactionPlanStep Step(In, TEXT("Unequip item from slot"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Unequip item from slot"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true;
@@ -347,10 +347,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Unequip(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Move(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Move is a single atomic step
-    FTransactionPlanStep Step(In, TEXT("Move item between slots"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Move item between slots"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true;
@@ -358,10 +358,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Move(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Drop(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Drop is a single step but not easily reversible
-    FTransactionPlanStep Step(In, TEXT("Drop item from slot"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Drop item from slot"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Step.bReversible = false; // Can't easily undo a drop
     Out.Add(Step);
@@ -370,7 +370,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Drop(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Swap(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Swap expands to three-step atomic operation for safety
 
@@ -381,7 +381,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Swap(
     TempMove.SourceSlotIndex = In.SourceSlotIndex;
     TempMove.TargetSlotIndex = -1; // Special marker for temp storage
 
-    FTransactionPlanStep Step1(TempMove, TEXT("Swap step 1: Move A to temp"));
+    FSuspenseCoreTransactionPlanStep Step1(TempMove, TEXT("Swap step 1: Move A to temp"));
     Step1.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step1);
 
@@ -392,7 +392,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Swap(
     MoveBA.SourceSlotIndex = In.TargetSlotIndex;
     MoveBA.TargetSlotIndex = In.SourceSlotIndex;
 
-    FTransactionPlanStep Step2(MoveBA, TEXT("Swap step 2: Move B to A"));
+    FSuspenseCoreTransactionPlanStep Step2(MoveBA, TEXT("Swap step 2: Move B to A"));
     Step2.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step2);
 
@@ -403,7 +403,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Swap(
     MoveTemp.SourceSlotIndex = -1; // From temporary storage
     MoveTemp.TargetSlotIndex = In.TargetSlotIndex;
 
-    FTransactionPlanStep Step3(MoveTemp, TEXT("Swap step 3: Move temp to B"));
+    FSuspenseCoreTransactionPlanStep Step3(MoveTemp, TEXT("Swap step 3: Move temp to B"));
     Step3.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
     Out.Add(Step3);
 
@@ -414,7 +414,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Swap(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_QuickSwitch(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     if (!DataProvider.GetInterface())
     {
@@ -467,7 +467,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_QuickSwitch(
         *UEnum::GetValueAsString(ToType),   TargetSlot
     );
 
-    FTransactionPlanStep Step(SwitchRequest, Description);
+    FSuspenseCoreTransactionPlanStep Step(SwitchRequest, Description);
     Step.StepPriority = static_cast<int32>(EEquipmentOperationPriority::Critical);
 
     Out.Add(Step);
@@ -477,10 +477,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_QuickSwitch(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Transfer(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Transfer between containers - single step for now
-    FTransactionPlanStep Step(In, TEXT("Transfer item between containers"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Transfer item between containers"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true;
@@ -488,10 +488,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Transfer(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Reload(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Reload weapon - single step
-    FTransactionPlanStep Step(In, TEXT("Reload weapon"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Reload weapon"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = false; // Can't un-reload
@@ -499,10 +499,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Reload(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Repair(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Repair item - single step
-    FTransactionPlanStep Step(In, TEXT("Repair item"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Repair item"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = false; // Can't un-repair
@@ -510,10 +510,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Repair(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Upgrade(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Upgrade item - single step
-    FTransactionPlanStep Step(In, TEXT("Upgrade item"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Upgrade item"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Step.bReversible = false; // Upgrades are permanent
     Out.Add(Step);
@@ -522,10 +522,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Upgrade(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Modify(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Modify item - single step
-    FTransactionPlanStep Step(In, TEXT("Modify item"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Modify item"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true; // Modifications might be reversible
@@ -533,10 +533,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Modify(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Combine(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Combine items - single step
-    FTransactionPlanStep Step(In, TEXT("Combine items"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Combine items"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Step.bReversible = false; // Can't uncombine
     Out.Add(Step);
@@ -545,10 +545,10 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Combine(
 
 void USuspenseCoreEquipmentOperationExecutor::Expand_Split(
     const FEquipmentOperationRequest& In,
-    FTransactionPlan& Out) const
+    FSuspenseCoreTransactionPlan& Out) const
 {
     // Split stack - single step
-    FTransactionPlanStep Step(In, TEXT("Split item stack"));
+    FSuspenseCoreTransactionPlanStep Step(In, TEXT("Split item stack"));
     Step.StepPriority = static_cast<int32>(In.Priority);
     Out.Add(Step);
     Out.bReversible = true; // Can recombine
@@ -559,7 +559,7 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_Split(
 //========================================
 
 bool USuspenseCoreEquipmentOperationExecutor::ValidateStep(
-    const FTransactionPlanStep& Step,
+    const FSuspenseCoreTransactionPlanStep& Step,
     FText& OutError) const
 {
     if (!bRequireValidation)
@@ -921,7 +921,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
     FScopeLock Lock(&PlanningCriticalSection);
 
     // Build plan
-    FTransactionPlan Plan;
+    FSuspenseCoreTransactionPlan Plan;
     FText PlanError;
 
     UE_LOG(LogEquipmentExecutor, Warning, TEXT("Building execution plan..."));

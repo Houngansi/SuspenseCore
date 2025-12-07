@@ -193,7 +193,7 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
 
-        for (FQueuedOperation* Op : OperationQueue)
+        for (FSuspenseCoreQueuedOperation* Op : OperationQueue)
         {
             ReleaseOperation(Op);
         }
@@ -201,7 +201,7 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
 
         for (auto& BatchPair : ActiveBatches)
         {
-            for (FQueuedOperation* Op : BatchPair.Value)
+            for (FSuspenseCoreQueuedOperation* Op : BatchPair.Value)
             {
                 ReleaseOperation(Op);
             }
@@ -362,7 +362,7 @@ void USuspenseCoreEquipmentOperationService::ResetService()
         FRWScopeLock Lock(QueueLock, SLT_Write);
 
         // Release all queued operations back to pool
-        for (FQueuedOperation* Op : OperationQueue)
+        for (FSuspenseCoreQueuedOperation* Op : OperationQueue)
         {
             ReleaseOperation(Op);
         }
@@ -371,7 +371,7 @@ void USuspenseCoreEquipmentOperationService::ResetService()
         // Release all active batch operations
         for (auto& BatchPair : ActiveBatches)
         {
-            for (FQueuedOperation* Op : BatchPair.Value)
+            for (FSuspenseCoreQueuedOperation* Op : BatchPair.Value)
             {
                 ReleaseOperation(Op);
             }
@@ -560,13 +560,13 @@ void USuspenseCoreEquipmentOperationService::ProcessOperationQueue()
 
     bIsProcessingQueue = true;
 
-    TArray<FQueuedOperation*> BatchToProcess;
+    TArray<FSuspenseCoreQueuedOperation*> BatchToProcess;
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
 
         if (bClearQueueAfterProcessing)
         {
-            for (FQueuedOperation* Op : OperationQueue)
+            for (FSuspenseCoreQueuedOperation* Op : OperationQueue)
             {
                 ReleaseOperation(Op);
             }
@@ -577,7 +577,7 @@ void USuspenseCoreEquipmentOperationService::ProcessOperationQueue()
         }
 
         // ВАЖНО: для TArray<T*> предикат принимает (const T&, const T&)
-        OperationQueue.Sort([](const FQueuedOperation& A, const FQueuedOperation& B)
+        OperationQueue.Sort([](const FSuspenseCoreQueuedOperation& A, const FSuspenseCoreQueuedOperation& B)
         {
             if (A.Priority != B.Priority)
             {
@@ -596,7 +596,7 @@ void USuspenseCoreEquipmentOperationService::ProcessOperationQueue()
         }
     }
 
-    for (FQueuedOperation* QueuedOp : BatchToProcess)
+    for (FSuspenseCoreQueuedOperation* QueuedOp : BatchToProcess)
     {
         const float QueueTimeSec = FPlatformTime::Seconds() - QueuedOp->QueueTime;
         AverageQueueTime = AverageQueueTime * 0.9f + QueueTimeSec * 0.1f;
@@ -644,7 +644,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::ExecuteImmedia
         return DelegateOperationToServer(LocalRequest);
     }
 
-    FQueuedOperation* QueuedOp = AcquireOperation();
+    FSuspenseCoreQueuedOperation* QueuedOp = AcquireOperation();
     QueuedOp->Request = LocalRequest;
     QueuedOp->QueueTime = FPlatformTime::Seconds();
     QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::Critical);
@@ -694,7 +694,7 @@ int32 USuspenseCoreEquipmentOperationService::QueueOperationWithPriority(const F
         return INDEX_NONE;
     }
 
-    FQueuedOperation* QueuedOp = AcquireOperation();
+    FSuspenseCoreQueuedOperation* QueuedOp = AcquireOperation();
     QueuedOp->Request = LocalRequest;
     QueuedOp->QueueTime = FPlatformTime::Seconds();
     QueuedOp->Priority = Priority;
@@ -741,7 +741,7 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperations(const TArray<FEqui
     }
 
     FGuid BatchId = FGuid::NewGuid();
-    TArray<FQueuedOperation*> BatchOps;
+    TArray<FSuspenseCoreQueuedOperation*> BatchOps;
 
     for (FEquipmentOperationRequest Request : Requests)
     {
@@ -750,7 +750,7 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperations(const TArray<FEqui
             Request.OperationId = FGuid::NewGuid();
         }
 
-        FQueuedOperation* QueuedOp = AcquireOperation();
+        FSuspenseCoreQueuedOperation* QueuedOp = AcquireOperation();
         QueuedOp->Request = Request;
         QueuedOp->QueueTime = FPlatformTime::Seconds();
         QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::High);
@@ -769,10 +769,10 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperations(const TArray<FEqui
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
 
-        TArray<FQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
+        TArray<FSuspenseCoreQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
         if (StoredBatch)
         {
-            for (FQueuedOperation* Op : *StoredBatch)
+            for (FSuspenseCoreQueuedOperation* Op : *StoredBatch)
             {
                 ReleaseOperation(Op);
             }
@@ -810,7 +810,7 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperationsEx(const TArray<FEq
     }
 
     FGuid BatchId = FGuid::NewGuid();
-    TArray<FQueuedOperation*> BatchOps;
+    TArray<FSuspenseCoreQueuedOperation*> BatchOps;
 
     for (FEquipmentOperationRequest Request : Requests)
     {
@@ -819,7 +819,7 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperationsEx(const TArray<FEq
             Request.OperationId = FGuid::NewGuid();
         }
 
-        FQueuedOperation* QueuedOp = AcquireOperation();
+        FSuspenseCoreQueuedOperation* QueuedOp = AcquireOperation();
         QueuedOp->Request = Request;
         QueuedOp->QueueTime = FPlatformTime::Seconds();
         QueuedOp->Priority = static_cast<int32>(EEquipmentOperationPriority::High);
@@ -838,10 +838,10 @@ FGuid USuspenseCoreEquipmentOperationService::BatchOperationsEx(const TArray<FEq
     {
         FRWScopeLock Lock(QueueLock, SLT_Write);
 
-        TArray<FQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
+        TArray<FSuspenseCoreQueuedOperation*>* StoredBatch = ActiveBatches.Find(BatchId);
         if (StoredBatch)
         {
-            for (FQueuedOperation* Op : *StoredBatch)
+            for (FSuspenseCoreQueuedOperation* Op : *StoredBatch)
             {
                 ReleaseOperation(Op);
             }
@@ -870,7 +870,7 @@ bool USuspenseCoreEquipmentOperationService::CancelQueuedOperation(const FGuid& 
     {
         if (OperationQueue[i]->Request.OperationId == OperationId)
         {
-            FQueuedOperation* Op = OperationQueue[i];
+            FSuspenseCoreQueuedOperation* Op = OperationQueue[i];
             OperationQueue.RemoveAt(i);
 
             ReleaseOperation(Op);
@@ -912,7 +912,7 @@ void USuspenseCoreEquipmentOperationService::ClearQueue(bool bForce)
 
     int32 ClearedCount = OperationQueue.Num();
 
-    for (FQueuedOperation* Op : OperationQueue)
+    for (FSuspenseCoreQueuedOperation* Op : OperationQueue)
     {
         ReleaseOperation(Op);
     }
@@ -971,7 +971,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::UndoLastOperat
     {
         if (OperationHistory[i].bCanUndo)
         {
-            FOperationHistoryEntry& Entry = OperationHistory[i];
+            FSuspenseCoreOperationHistoryEntry& Entry = OperationHistory[i];
 
             if (DataProvider.GetInterface())
             {
@@ -1017,7 +1017,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::RedoLastOperat
         );
     }
 
-    FOperationHistoryEntry Entry = RedoStack.Pop();
+    FSuspenseCoreOperationHistoryEntry Entry = RedoStack.Pop();
 
     if (DataProvider.GetInterface())
     {
@@ -1037,13 +1037,13 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::RedoLastOperat
     return Result;
 }
 
-TArray<FOperationHistoryEntry> USuspenseCoreEquipmentOperationService::GetOperationHistory(int32 MaxCount) const
+TArray<FSuspenseCoreOperationHistoryEntry> USuspenseCoreEquipmentOperationService::GetOperationHistory(int32 MaxCount) const
 {
     SCOPED_SERVICE_TIMER("GetOperationHistory");
 
     FRWScopeLock Lock(HistoryLock, SLT_ReadOnly);
 
-    TArray<FOperationHistoryEntry> Result;
+    TArray<FSuspenseCoreOperationHistoryEntry> Result;
     int32 StartIndex = FMath::Max(0, OperationHistory.Num() - MaxCount);
 
     for (int32 i = StartIndex; i < OperationHistory.Num(); i++)
@@ -1072,7 +1072,7 @@ bool USuspenseCoreEquipmentOperationService::CanUndo() const
 
     FRWScopeLock Lock(HistoryLock, SLT_ReadOnly);
 
-    for (const FOperationHistoryEntry& Entry : OperationHistory)
+    for (const FSuspenseCoreOperationHistoryEntry& Entry : OperationHistory)
     {
         if (Entry.bCanUndo)
         {
@@ -1159,7 +1159,7 @@ void USuspenseCoreEquipmentOperationService::ResetMetrics()
 // NEW: Transaction Plan Support Methods (UPDATED)
 //========================================
 
-FTransactionOperation USuspenseCoreEquipmentOperationService::MakeTxnOpFromStep(const FTransactionPlanStep& Step) const
+FTransactionOperation USuspenseCoreEquipmentOperationService::MakeTxnOpFromStep(const FSuspenseCoreTransactionPlanStep& Step) const
 {
     FTransactionOperation Op;
     Op.OperationId = Step.Request.OperationId; // Guaranteed by plan step constructor
@@ -1225,7 +1225,7 @@ FGameplayTag USuspenseCoreEquipmentOperationService::MapOperationTypeToTag(EEqui
     }
 }
 
-bool USuspenseCoreEquipmentOperationService::BatchValidatePlan(const FTransactionPlan& Plan, FText& OutError) const
+bool USuspenseCoreEquipmentOperationService::BatchValidatePlan(const FSuspenseCoreTransactionPlan& Plan, FText& OutError) const
 {
     OutError = FText::GetEmpty();
 
@@ -1261,7 +1261,7 @@ bool USuspenseCoreEquipmentOperationService::BatchValidatePlan(const FTransactio
 }
 
 bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
-    const FTransactionPlan& Plan,
+    const FSuspenseCoreTransactionPlan& Plan,
     const FGuid& OuterTxnId,
     TArray<FEquipmentDelta>& OutDeltas)
 {
@@ -1291,7 +1291,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
     {
         for (int32 i = 0; i < Plan.Steps.Num(); ++i)
         {
-            const FTransactionPlanStep& Step = Plan.Steps[i];
+            const FSuspenseCoreTransactionPlanStep& Step = Plan.Steps[i];
             FTransactionOperation Op = MakeTxnOpFromStep(Step);
 
             // Зарегистрировать → применить к рабочему снапшоту
@@ -1351,7 +1351,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
     // === ПУТЬ 2: Legacy fallback (прямые вызовы DataProvider без уведомлений) ===
     for (int32 i = 0; i < Plan.Steps.Num(); i++)
     {
-        const FTransactionPlanStep& Step = Plan.Steps[i];
+        const FSuspenseCoreTransactionPlanStep& Step = Plan.Steps[i];
 
         FTransactionOperation Op = MakeTxnOpFromStep(Step);
         if (!TransactionManager->RegisterOperation(TxnId, Op))
@@ -1561,11 +1561,11 @@ bool USuspenseCoreEquipmentOperationService::CommitTransactionWithDeltas(const F
 // Legacy Compatibility Methods
 // ========================================
 
-FTransactionPlanStep USuspenseCoreEquipmentOperationService::MakePlanStepFromRequest(const FEquipmentOperationRequest& Request) const
+FSuspenseCoreTransactionPlanStep USuspenseCoreEquipmentOperationService::MakePlanStepFromRequest(const FEquipmentOperationRequest& Request) const
 {
     // Human-readable description for logs/metrics
     FString Description = FString::Printf(TEXT("Direct operation: %s"), *Request.GetDescription());
-    FTransactionPlanStep Step(Request, Description);
+    FSuspenseCoreTransactionPlanStep Step(Request, Description);
     Step.StepPriority = static_cast<int32>(Request.Priority);
 
     // Estimate reversibility based on operation type
@@ -1593,15 +1593,15 @@ FTransactionPlanStep USuspenseCoreEquipmentOperationService::MakePlanStepFromReq
     return Step;
 }
 
-bool USuspenseCoreEquipmentOperationService::BuildSingleStepPlanFromRequest(const FEquipmentOperationRequest& Request, FTransactionPlan& OutPlan) const
+bool USuspenseCoreEquipmentOperationService::BuildSingleStepPlanFromRequest(const FEquipmentOperationRequest& Request, FSuspenseCoreTransactionPlan& OutPlan) const
 {
     // Build minimal compatible plan from single request
-    OutPlan = FTransactionPlan();
+    OutPlan = FSuspenseCoreTransactionPlan();
     OutPlan.DebugLabel = FString::Printf(TEXT("CompatPlan-%s-%s"),
         *Request.OperationId.ToString(),
         *UEnum::GetValueAsString(Request.OperationType));
 
-    const FTransactionPlanStep Step = MakePlanStepFromRequest(Request);
+    const FSuspenseCoreTransactionPlanStep Step = MakePlanStepFromRequest(Request);
     OutPlan.Add(Step);
 
     // Compatible plan is atomic with reversibility from the step
@@ -1613,7 +1613,7 @@ bool USuspenseCoreEquipmentOperationService::BuildSingleStepPlanFromRequest(cons
 }
 
 bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
-    const TArray<FQueuedOperation*>& BatchOps,
+    const TArray<FSuspenseCoreQueuedOperation*>& BatchOps,
     bool bAtomic,
     TArray<FEquipmentOperationResult>* OutResults)
 {
@@ -1645,14 +1645,14 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
     }
 
     // 1) Build combined plan (preserving operation order)
-    FTransactionPlan CombinedPlan;
+    FSuspenseCoreTransactionPlan CombinedPlan;
     CombinedPlan.DebugLabel = FString::Printf(TEXT("Batch-%dOps"), BatchOps.Num());
     CombinedPlan.bAtomic = true;
     CombinedPlan.bReversible = true;
 
     TArray<FEquipmentOperationRequest> Requests;
     Requests.Reserve(BatchOps.Num());
-    for (FQueuedOperation* Op : BatchOps)
+    for (FSuspenseCoreQueuedOperation* Op : BatchOps)
     {
         Requests.Add(Op->Request);
     }
@@ -1660,7 +1660,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
     // Build individual plans and merge steps
     for (const FEquipmentOperationRequest& Req : Requests)
     {
-        FTransactionPlan LocalPlan;
+        FSuspenseCoreTransactionPlan LocalPlan;
         FText Err;
 
         if (bUseTransactionPlans)
@@ -1671,7 +1671,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
                 if (OutResults)
                 {
                     OutResults->Empty();
-                    for (const FQueuedOperation* Op : BatchOps)
+                    for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
                     {
                         FEquipmentOperationResult R = FEquipmentOperationResult::CreateFailure(
                             Op->Request.OperationId, Err, EEquipmentValidationFailure::SystemError);
@@ -1688,7 +1688,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
                 if (OutResults)
                 {
                     OutResults->Empty();
-                    for (const FQueuedOperation* Op : BatchOps)
+                    for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
                     {
                         FEquipmentOperationResult R = FEquipmentOperationResult::CreateFailure(
                             Op->Request.OperationId,
@@ -1702,7 +1702,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
         }
 
         // Merge steps into combined plan
-        for (const FTransactionPlanStep& Step : LocalPlan.Steps)
+        for (const FSuspenseCoreTransactionPlanStep& Step : LocalPlan.Steps)
         {
             CombinedPlan.Add(Step);
         }
@@ -1716,7 +1716,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
             if (OutResults)
             {
                 OutResults->Empty();
-                for (const FQueuedOperation* Op : BatchOps)
+                for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
                 {
                     FEquipmentOperationResult R = FEquipmentOperationResult::CreateFailure(
                         Op->Request.OperationId,
@@ -1744,7 +1744,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
     }
 
     // Send start events for UI consistency
-    for (const FQueuedOperation* Op : BatchOps)
+    for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
     {
         OnOperationStarted.Broadcast(Op->Request);
     }
@@ -1759,7 +1759,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
         if (OutResults)
         {
             OutResults->Empty();
-            for (const FQueuedOperation* Op : BatchOps)
+            for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
             {
                 FEquipmentOperationResult R = FEquipmentOperationResult::CreateFailure(
                     Op->Request.OperationId,
@@ -1803,7 +1803,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
     if (OutResults)
     {
         OutResults->Empty();
-        for (const FQueuedOperation* Op : BatchOps)
+        for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
         {
             if (bExecOk && bCommitOk)
             {
@@ -1838,7 +1838,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatchUsingPlans(
     // Record history for successful batch
     if (bExecOk && bCommitOk)
     {
-        for (const FQueuedOperation* Op : BatchOps)
+        for (const FSuspenseCoreQueuedOperation* Op : BatchOps)
         {
             FEquipmentOperationResult Dummy = FEquipmentOperationResult::CreateSuccess(Op->Request.OperationId);
             RecordOperation(Op->Request, Dummy, StateBefore);
@@ -2297,7 +2297,7 @@ void USuspenseCoreEquipmentOperationService::ConfirmPrediction(const FGuid& Oper
     OperationToPredictionMap.Remove(OperationId);
 }
 
-int32 USuspenseCoreEquipmentOperationService::TryCoalesceOperation(FQueuedOperation* NewOp)
+int32 USuspenseCoreEquipmentOperationService::TryCoalesceOperation(FSuspenseCoreQueuedOperation* NewOp)
 {
     if (!NewOp)
     {
@@ -2309,7 +2309,7 @@ int32 USuspenseCoreEquipmentOperationService::TryCoalesceOperation(FQueuedOperat
 
     for (int32 i = OperationQueue.Num() - 1; i >= StartIdx; --i)
     {
-        FQueuedOperation* ExistingOp = OperationQueue[i];
+        FSuspenseCoreQueuedOperation* ExistingOp = OperationQueue[i];
         if (!ExistingOp)
         {
             continue;
@@ -2347,7 +2347,7 @@ void USuspenseCoreEquipmentOperationService::OptimizeQueue()
 }
 
 FEquipmentOperationResult USuspenseCoreEquipmentOperationService::ProcessSingleOperation(
-    FQueuedOperation* QueuedOp,
+    FSuspenseCoreQueuedOperation* QueuedOp,
     const FGuid& OuterTransactionId)
 {
     if (!QueuedOp)
@@ -2398,7 +2398,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::ProcessSingleO
     }
 
     // === 1) Build Plan (unified path) ===
-    FTransactionPlan Plan;
+    FSuspenseCoreTransactionPlan Plan;
     FText PlanError;
 
     if (bUseTransactionPlans)
@@ -2496,7 +2496,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::ProcessSingleO
 }
 
 bool USuspenseCoreEquipmentOperationService::PreflightRequests(
-    const TArray<FQueuedOperation*>& BatchOps,
+    const TArray<FSuspenseCoreQueuedOperation*>& BatchOps,
     TArray<FEquipmentOperationResult>* OutResults)
 {
     // Early validation: check if ValidationService is available for batch preflight
@@ -2519,7 +2519,7 @@ bool USuspenseCoreEquipmentOperationService::PreflightRequests(
     TArray<FEquipmentOperationRequest> Requests;
     Requests.Reserve(BatchOps.Num());
 
-    for (const FQueuedOperation* QOp : BatchOps)
+    for (const FSuspenseCoreQueuedOperation* QOp : BatchOps)
     {
         if (QOp)
         {
@@ -2630,7 +2630,7 @@ bool USuspenseCoreEquipmentOperationService::PreflightRequests(
 }
 
 bool USuspenseCoreEquipmentOperationService::ProcessBatch(
-    const TArray<FQueuedOperation*>& BatchOps,
+    const TArray<FSuspenseCoreQueuedOperation*>& BatchOps,
     bool bAtomic,
     TArray<FEquipmentOperationResult>* OutResults)
 {
@@ -2681,7 +2681,7 @@ bool USuspenseCoreEquipmentOperationService::ProcessBatch(
 
     // Process each operation with shared transaction
     int32 ProcessedCount = 0;
-    for (FQueuedOperation* Op : BatchOps)
+    for (FSuspenseCoreQueuedOperation* Op : BatchOps)
     {
         const FEquipmentOperationResult R = ProcessSingleOperation(Op, BatchTransactionId);
         Results.Add(R);
@@ -2961,7 +2961,7 @@ void USuspenseCoreEquipmentOperationService::RecordOperation(const FEquipmentOpe
 
     RedoStack.Empty();
 
-    FOperationHistoryEntry Entry;
+    FSuspenseCoreOperationHistoryEntry Entry;
     Entry.Request = Request;
     Entry.Result = Result;
     Entry.ExecutionTime = FDateTime::Now();
@@ -3140,7 +3140,7 @@ void USuspenseCoreEquipmentOperationService::InitializeObjectPools()
         FScopeLock Lock(&OperationPoolLock);
         for (int32 i = 0; i < InitialPoolSize; i++)
         {
-            FQueuedOperation* NewOp = new FQueuedOperation();
+            FSuspenseCoreQueuedOperation* NewOp = new FSuspenseCoreQueuedOperation();
             NewOp->bIsFromPool = true;
             OperationPool.Enqueue(NewOp);
             OperationPoolSize.fetch_add(1);
@@ -3168,7 +3168,7 @@ void USuspenseCoreEquipmentOperationService::CleanupObjectPools()
 {
     {
         FScopeLock Lock(&OperationPoolLock);
-        FQueuedOperation* Op = nullptr;
+        FSuspenseCoreQueuedOperation* Op = nullptr;
         while (OperationPool.Dequeue(Op))
         {
             delete Op;
@@ -3193,14 +3193,14 @@ void USuspenseCoreEquipmentOperationService::CleanupObjectPools()
         OperationPoolHits.load(), ResultPoolHits.load());
 }
 
-FQueuedOperation* USuspenseCoreEquipmentOperationService::AcquireOperation()
+FSuspenseCoreQueuedOperation* USuspenseCoreEquipmentOperationService::AcquireOperation()
 {
     if (!bEnableObjectPooling)
     {
-        return new FQueuedOperation();
+        return new FSuspenseCoreQueuedOperation();
     }
 
-    FQueuedOperation* Operation = nullptr;
+    FSuspenseCoreQueuedOperation* Operation = nullptr;
 
     {
         FScopeLock Lock(&OperationPoolLock);
@@ -3220,7 +3220,7 @@ FQueuedOperation* USuspenseCoreEquipmentOperationService::AcquireOperation()
 
     if (!Operation)
     {
-        Operation = new FQueuedOperation();
+        Operation = new FSuspenseCoreQueuedOperation();
         Operation->bIsFromPool = false;
 
         if (bEnableDetailedLogging)
@@ -3239,7 +3239,7 @@ FQueuedOperation* USuspenseCoreEquipmentOperationService::AcquireOperation()
     return Operation;
 }
 
-void USuspenseCoreEquipmentOperationService::ReleaseOperation(FQueuedOperation* Operation)
+void USuspenseCoreEquipmentOperationService::ReleaseOperation(FSuspenseCoreQueuedOperation* Operation)
 {
     if (!Operation)
     {
@@ -3397,7 +3397,7 @@ void USuspenseCoreEquipmentOperationService::TrimPools(int32 KeepPerPool)
         int32 ToDrop = FMath::Max(0, OriginalOperationPoolSize - KeepPerPool);
         OperationsDropped = ToDrop;
 
-        FQueuedOperation* Op = nullptr;
+        FSuspenseCoreQueuedOperation* Op = nullptr;
         while (ToDrop > 0 && OperationPool.Dequeue(Op))
         {
             delete Op;
@@ -3468,7 +3468,7 @@ FString USuspenseCoreEquipmentOperationService::GetPoolStatistics() const
     Stats += FString::Printf(TEXT("Total Overflows: %d\n"), PoolOverflows.load());
 
     int32 AllocationsSaved = OperationPoolHits.load() + ResultPoolHits.load();
-    int32 OperationBytes = OperationPoolHits.load() * sizeof(FQueuedOperation);
+    int32 OperationBytes = OperationPoolHits.load() * sizeof(FSuspenseCoreQueuedOperation);
     int32 ResultBytes = ResultPoolHits.load() * sizeof(FEquipmentOperationResult);
     int32 TotalBytesSaved = OperationBytes + ResultBytes;
 

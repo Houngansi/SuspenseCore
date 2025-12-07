@@ -281,7 +281,7 @@ int32 USuspenseCoreEquipmentComponentBase::StartClientPrediction(const FSuspense
     }
 
     // Create new prediction
-    FEquipmentComponentPredictionData NewPrediction;
+    FSuspenseCoreEquipmentComponentPredictionData NewPrediction;
     NewPrediction.PredictionKey = NextPredictionKey++;
     NewPrediction.PredictedItem = PredictedInstance;
     NewPrediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -299,7 +299,7 @@ void USuspenseCoreEquipmentComponentBase::ConfirmClientPrediction(int32 Predicti
 {
     // Find prediction
     int32 PredictionIndex = ActivePredictions.IndexOfByPredicate(
-        [PredictionKey](const FEquipmentComponentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
+        [PredictionKey](const FSuspenseCoreEquipmentComponentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
 
     if (PredictionIndex == INDEX_NONE)
@@ -308,7 +308,7 @@ void USuspenseCoreEquipmentComponentBase::ConfirmClientPrediction(int32 Predicti
         return;
     }
 
-    FEquipmentComponentPredictionData& Prediction = ActivePredictions[PredictionIndex];
+    FSuspenseCoreEquipmentComponentPredictionData& Prediction = ActivePredictions[PredictionIndex];
 
     if (bSuccess)
     {
@@ -341,7 +341,7 @@ void USuspenseCoreEquipmentComponentBase::CleanupExpiredPredictions()
     const float CurrentTime = GetWorld()->GetTimeSeconds();
 
     // Remove expired predictions
-    ActivePredictions.RemoveAll([CurrentTime](const FEquipmentComponentPredictionData& Data)
+    ActivePredictions.RemoveAll([CurrentTime](const FSuspenseCoreEquipmentComponentPredictionData& Data)
     {
         return Data.IsExpired(CurrentTime, PredictionTimeoutSeconds);
     });

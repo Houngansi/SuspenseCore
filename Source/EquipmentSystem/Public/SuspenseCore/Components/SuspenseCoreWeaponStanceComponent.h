@@ -4,11 +4,11 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "SuspenseCoreWeaponStanceComponent.generated.h"
 
-// ✅ Используем существующий у тебя интерфейс (НЕ объявляем свой)
+// Forward declaration
 class USuspenseCoreWeaponAnimation;
-#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent), BlueprintType, Blueprintable)
 class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStanceComponent : public UActorComponent

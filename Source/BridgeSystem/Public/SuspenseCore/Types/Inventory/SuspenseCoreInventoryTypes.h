@@ -8,7 +8,12 @@
 #include "GameplayTagContainer.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseCoreInventoryTypes.generated.h"
+
+// Compatibility alias for FSuspenseInventoryItemInstance
+// Used by EquipmentSystem components that expect SuspenseCore* naming convention
+using FSuspenseCoreInventoryItemInstance = FSuspenseInventoryItemInstance;
 
 // Forward declaration
 class USuspenseCoreInventoryComponent;
@@ -514,11 +519,6 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryChange
 // use slightly different naming conventions
 //==============================================================================
 
-// Include base inventory types for the alias
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-
-/**
- * Alias for FSuspenseInventoryItemInstance
- * Used by EquipmentSystem components that expect SuspenseCore* naming convention
- */
-using FSuspenseCoreInventoryItemInstance = FSuspenseInventoryItemInstance;
+// Forward declaration - actual type defined in BridgeSystem's SuspenseInventoryTypes.h
+// The alias is declared at the top of this file after includes
+// See: Types/Inventory/SuspenseInventoryTypes.h for FSuspenseInventoryItemInstance

@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
-#include "Interfaces/Equipment/ISuspensePredictionManager.h"
-#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreNetworkInterfaces.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentOperations.h"
 #include "Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
@@ -26,16 +26,21 @@ class USuspenseCoreEquipmentPredictionSystem;
 class USuspenseCoreEquipmentReplicationManager;
 class USuspenseCoreEquipmentServiceLocator;
 class USuspenseCoreEquipmentSecurityService;
-class ISuspenseEquipmentDataProvider;
-class ISuspenseEquipmentOperations;
+class ISuspenseCoreEquipmentDataProvider;
+class ISuspenseCoreEquipmentOperations;
 struct FUniqueNetIdRepl;
 
 /**
  * Equipment Network Service Implementation
+ *
+ * Single Responsibility: Network operations coordination
+ * - Manages NetworkDispatcher, PredictionManager, ReplicationProvider
+ * - Delegates security validation to SecurityService
+ * - Integrates with EventBus for network events
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkService : public UObject,
-    public IEquipmentNetworkService
+    public ISuspenseCoreEquipmentNetworkService
 {
     GENERATED_BODY()
 
@@ -55,27 +60,27 @@ public:
     virtual FString GetServiceStats() const override;
     //~ End IEquipmentService Interface
 
-    //~ Begin IEquipmentNetworkService Interface
-    virtual ISuspenseNetworkDispatcher* GetNetworkDispatcher() override
+    //~ Begin ISuspenseCoreEquipmentNetworkService Interface
+    virtual ISuspenseCoreNetworkDispatcher* GetNetworkDispatcher() override
     {
         return NetworkDispatcher.GetInterface();
     }
 
-    virtual ISuspensePredictionManager* GetPredictionManager() override
+    virtual ISuspenseCorePredictionManager* GetPredictionManager() override
     {
         return PredictionManager.GetInterface();
     }
 
-    virtual ISuspenseReplicationProvider* GetReplicationProvider() override
+    virtual ISuspenseCoreReplicationProvider* GetReplicationProvider() override
     {
         if (!ReplicationProvider) return nullptr;
-        if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseReplicationProvider::StaticClass()))
+        if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseCoreReplicationProvider::StaticClass()))
         {
-            return Cast<ISuspenseReplicationProvider>(ReplicationProvider);
+            return Cast<ISuspenseCoreReplicationProvider>(ReplicationProvider);
         }
         return nullptr;
     }
-    //~ End IEquipmentNetworkService Interface
+    //~ End ISuspenseCoreEquipmentNetworkService Interface
 
     UFUNCTION(BlueprintCallable, Category = "Network|Operations")
     FGuid SendEquipmentOperation(const FEquipmentOperationRequest& Request, APlayerController* PlayerController);
@@ -116,8 +121,8 @@ private:
     //========================================
     // Network Components
     //========================================
-    TScriptInterface<ISuspenseNetworkDispatcher> NetworkDispatcher;
-    TScriptInterface<ISuspensePredictionManager> PredictionManager;
+    TScriptInterface<ISuspenseCoreNetworkDispatcher> NetworkDispatcher;
+    TScriptInterface<ISuspenseCorePredictionManager> PredictionManager;
 
     UPROPERTY(Transient)
     TObjectPtr<USuspenseCoreEquipmentReplicationManager> ReplicationProvider = nullptr;
@@ -174,26 +179,26 @@ private:
     // ---- Dependency Resolution ----
     bool ResolveDependencies(
         UWorld* World,
-        TScriptInterface<ISuspenseEquipmentDataProvider>& OutDataProvider,
-        TScriptInterface<ISuspenseEquipmentOperations>& OutOperationExecutor);
+        TScriptInterface<ISuspenseCoreEquipmentDataProvider>& OutDataProvider,
+        TScriptInterface<ISuspenseCoreEquipmentOperations>& OutOperationExecutor);
 
     // ---- Component Creation ----
     USuspenseCoreEquipmentNetworkDispatcher* CreateAndInitNetworkDispatcher(
         AActor* OwnerActor,
-        const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor);
+        const TScriptInterface<ISuspenseCoreEquipmentOperations>& OperationExecutor);
 
     USuspenseCoreEquipmentPredictionSystem* CreateAndInitPredictionSystem(
         AActor* OwnerActor,
-        const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider,
-        const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor);
+        const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider,
+        const TScriptInterface<ISuspenseCoreEquipmentOperations>& OperationExecutor);
 
     USuspenseCoreEquipmentReplicationManager* CreateAndInitReplicationManager(
         AActor* OwnerActor,
-        const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider);
+        const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider);
 
     void BindDispatcherToPrediction(
         USuspenseCoreEquipmentNetworkDispatcher* Dispatcher,
-        ISuspensePredictionManager* Prediction);
+        ISuspenseCorePredictionManager* Prediction);
 
     void StartMonitoringTimers(UWorld* World);
 

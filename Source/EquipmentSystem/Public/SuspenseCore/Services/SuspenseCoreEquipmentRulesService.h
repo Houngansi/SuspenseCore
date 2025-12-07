@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
 #include "SuspenseCoreEquipmentRulesService.generated.h"
 
 // Forward declarations

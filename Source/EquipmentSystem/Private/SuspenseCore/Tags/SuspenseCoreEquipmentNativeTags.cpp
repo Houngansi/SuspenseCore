@@ -26,6 +26,9 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Validation, "Service.Equipment.Validation");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Visualization, "Service.Equipment.Visualization");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Prediction, "Service.Equipment.Prediction");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Security, "Service.Equipment.Security");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Rules, "Service.Equipment.Rules");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Transaction, "Service.Equipment.Transaction");
 
         // Supporting services
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_ActorFactory, "Service.ActorFactory");

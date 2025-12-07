@@ -101,6 +101,9 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
 
     ServiceState = EServiceLifecycleState::Shutting;
 
+    // === TEARDOWN EVENTBUS SUBSCRIPTIONS ===
+    TeardownEventSubscriptions();
+
     // === БЕЗОПАСНЫЙ ЭКСПОРТ МЕТРИК ===
     // Только если не force и не из деструктора
     if (!bForce && GetWorld())
@@ -548,6 +551,10 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
 
     StartMonitoringTimers(World);
     RECORD_SERVICE_METRIC("timers_started", 3);
+
+    // Setup EventBus subscriptions for inter-service communication
+    SetupEventSubscriptions();
+    RECORD_SERVICE_METRIC("eventbus_subscriptions", EventSubscriptions.Num());
 
     ServiceState = EServiceLifecycleState::Ready;
     ServiceMetrics.RecordSuccess();
@@ -1449,12 +1456,19 @@ void USuspenseCoreEquipmentNetworkService::LogSuspiciousActivity(APlayerControll
     FFileHelper::SaveStringToFile(LogEntry + TEXT("\n"), *SecurityLogPath,
         FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 
+    // Broadcast security violation via EventBus for inter-service communication
+    BroadcastSecurityViolation(TEXT("SuspiciousActivity"), PlayerController, Reason);
+
     if (Count >= SecurityConfig.MaxSuspiciousActivities)
     {
         RECORD_SERVICE_METRIC("suspicious_threshold_exceeded", 1);
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error,
             TEXT("SECURITY ALERT: Player %s exceeded suspicious activity threshold! Immediate action required."),
             *PlayerID);
+
+        // Broadcast critical security alert
+        BroadcastSecurityViolation(TEXT("ThresholdExceeded"), PlayerController,
+            FString::Printf(TEXT("Count: %d, Max: %d"), Count, SecurityConfig.MaxSuspiciousActivities));
     }
 }
 
@@ -1742,4 +1756,158 @@ bool USuspenseCoreEquipmentNetworkService::LoadHMACKey()
     RECORD_SERVICE_METRIC("hmac_key_generated_new", 1);
 
     return true;
+}
+
+// ============================================================================
+// EventBus Integration - Phase 4
+// ============================================================================
+
+void USuspenseCoreEquipmentNetworkService::SetupEventSubscriptions()
+{
+    using namespace SuspenseCoreEquipmentTags;
+
+    // Get EventBus singleton
+    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    if (!EventBus.IsValid())
+    {
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
+            TEXT("SetupEventSubscriptions: EventBus not available"));
+        return;
+    }
+
+    // Initialize event tags using native compile-time tags
+    Tag_NetworkResult = Event::TAG_Equipment_Event_Network_Result;
+    Tag_NetworkTimeout = Event::TAG_Equipment_Event_Network_Timeout;
+    Tag_SecurityViolation = Event::TAG_Equipment_Event_Network_SecurityViolation;
+    Tag_OperationCompleted = Event::TAG_Equipment_Event_Operation_Completed;
+
+    auto Bus = EventBus.Pin();
+    if (!Bus.IsValid())
+    {
+        return;
+    }
+
+    // Subscribe to operation completed events to track network-related operations
+    if (Tag_OperationCompleted.IsValid())
+    {
+        EventSubscriptions.Add(Bus->Subscribe(
+            Tag_OperationCompleted,
+            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentNetworkService::OnOperationCompleted),
+            EEventPriority::Normal,
+            EEventExecutionContext::GameThread,
+            this));
+
+        UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
+            TEXT("Subscribed to Operation.Completed events"));
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
+        TEXT("EventBus subscriptions setup complete: %d subscriptions"),
+        EventSubscriptions.Num());
+}
+
+void USuspenseCoreEquipmentNetworkService::TeardownEventSubscriptions()
+{
+    if (auto Bus = EventBus.Pin())
+    {
+        for (const auto& Handle : EventSubscriptions)
+        {
+            Bus->Unsubscribe(Handle);
+        }
+    }
+    EventSubscriptions.Empty();
+    EventBus.Reset();
+
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
+        TEXT("EventBus subscriptions torn down"));
+}
+
+void USuspenseCoreEquipmentNetworkService::BroadcastNetworkResult(
+    bool bSuccess,
+    const FGuid& OperationId,
+    const FString& ErrorMessage)
+{
+    auto Bus = EventBus.Pin();
+    if (!Bus.IsValid() || !Tag_NetworkResult.IsValid())
+    {
+        return;
+    }
+
+    FSuspenseCoreEquipmentEventData EventData;
+    EventData.EventType = Tag_NetworkResult;
+    EventData.AddMetadata(TEXT("Success"), bSuccess ? TEXT("true") : TEXT("false"));
+    EventData.AddMetadata(TEXT("OperationId"), OperationId.ToString());
+    if (!bSuccess && !ErrorMessage.IsEmpty())
+    {
+        EventData.AddMetadata(TEXT("ErrorMessage"), ErrorMessage);
+    }
+
+    Bus->Broadcast(EventData);
+
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
+        TEXT("Broadcast Network.Result: Success=%s, OpId=%s"),
+        bSuccess ? TEXT("true") : TEXT("false"),
+        *OperationId.ToString());
+}
+
+void USuspenseCoreEquipmentNetworkService::BroadcastSecurityViolation(
+    const FString& ViolationType,
+    APlayerController* PlayerController,
+    const FString& Details)
+{
+    auto Bus = EventBus.Pin();
+    if (!Bus.IsValid() || !Tag_SecurityViolation.IsValid())
+    {
+        return;
+    }
+
+    FSuspenseCoreEquipmentEventData EventData;
+    EventData.EventType = Tag_SecurityViolation;
+    EventData.Target = PlayerController;
+    EventData.AddMetadata(TEXT("ViolationType"), ViolationType);
+    EventData.AddMetadata(TEXT("Details"), Details);
+
+    if (PlayerController)
+    {
+        if (APlayerState* PS = PlayerController->GetPlayerState<APlayerState>())
+        {
+            EventData.AddMetadata(TEXT("PlayerName"), PS->GetPlayerName());
+        }
+    }
+
+    Bus->Broadcast(EventData);
+
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
+        TEXT("Broadcast Security.Violation: Type=%s, Details=%s"),
+        *ViolationType, *Details);
+}
+
+void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
+    const FSuspenseCoreEquipmentEventData& EventData)
+{
+    // Handle operation completed events - update metrics and broadcast network result
+    const FString OpIdStr = EventData.GetMetadata(TEXT("OperationId"), TEXT(""));
+    const FString SuccessStr = EventData.GetMetadata(TEXT("Success"), TEXT("false"));
+    const bool bSuccess = SuccessStr.Equals(TEXT("true"), ESearchCase::IgnoreCase);
+
+    FGuid OperationId;
+    if (FGuid::Parse(OpIdStr, OperationId))
+    {
+        // Track network metrics
+        FRWScopeLock Lock(SecurityLock, SLT_Write);
+        SecurityMetrics.TotalRequestsProcessed.IncrementExchange();
+
+        if (!bSuccess)
+        {
+            TotalOperationsRejected++;
+        }
+        else
+        {
+            TotalOperationsSent++;
+        }
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
+        TEXT("OnOperationCompleted: OpId=%s, Success=%s"),
+        *OpIdStr, bSuccess ? TEXT("true") : TEXT("false"));
 }

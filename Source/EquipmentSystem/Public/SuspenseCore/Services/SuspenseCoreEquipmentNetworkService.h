@@ -11,6 +11,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Security/SuspenseSecureKeyStorage.h"
 #include "SuspenseCore/Security/SuspenseNonceLRUCache.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
@@ -405,6 +406,16 @@ private:
     FDelegateHandle DispatcherSuccessHandle;
     FDelegateHandle DispatcherFailureHandle;
     FDelegateHandle DispatcherTimeoutHandle;
+
+    // EventBus integration for decoupled inter-service communication
+    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+    TArray<FEventSubscriptionHandle> EventSubscriptions;
+
+    // Event tags for network events
+    FGameplayTag Tag_NetworkResult;
+    FGameplayTag Tag_NetworkTimeout;
+    FGameplayTag Tag_SecurityViolation;
+    FGameplayTag Tag_OperationCompleted;
     /**
      * Internal non-virtual cleanup method safe to call from destructor
      * @param bForce Force immediate cleanup without metrics export
@@ -505,4 +516,37 @@ private:
      * @return true if key loaded or generated successfully
      */
     bool LoadHMACKey();
+
+    // ---- EventBus integration ----
+
+    /**
+     * Setup EventBus subscriptions for network events
+     */
+    void SetupEventSubscriptions();
+
+    /**
+     * Teardown EventBus subscriptions
+     */
+    void TeardownEventSubscriptions();
+
+    /**
+     * Broadcast network result via EventBus
+     * @param bSuccess Whether operation succeeded
+     * @param OperationId The operation identifier
+     * @param ErrorMessage Error message if failed
+     */
+    void BroadcastNetworkResult(bool bSuccess, const FGuid& OperationId, const FString& ErrorMessage = TEXT(""));
+
+    /**
+     * Broadcast security violation event via EventBus
+     * @param ViolationType Type of security violation
+     * @param PlayerController The offending player (may be nullptr)
+     * @param Details Additional violation details
+     */
+    void BroadcastSecurityViolation(const FString& ViolationType, APlayerController* PlayerController, const FString& Details);
+
+    /**
+     * Handle operation completed event from OperationService
+     */
+    void OnOperationCompleted(const FSuspenseCoreEquipmentEventData& EventData);
 };

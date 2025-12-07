@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCorePanelSwitcherWidget.generated.h"
 
 // Forward declarations

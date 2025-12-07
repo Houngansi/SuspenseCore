@@ -8,7 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
-#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreContainerScreenWidget.generated.h"
 
 // Forward declarations

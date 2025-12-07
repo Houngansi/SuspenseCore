@@ -1,3 +1,4 @@
+// SuspenseEquipmentAbilityService.h
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
@@ -5,369 +6,284 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
+#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCoreEquipmentServiceMacros.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Engine/DataTable.h"
+#include "Engine/StreamableManager.h"
 #include "SuspenseCoreEquipmentAbilityService.generated.h"
 
 // Forward declarations
-class USuspenseEquipmentServiceLocator;
-class USuspenseCoreEventBus;
+class USuspenseCoreEquipmentAbilityConnector;
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
-struct FGameplayAbilitySpec;
-struct FActiveGameplayEffectHandle;
 
 /**
- * SuspenseCoreEquipmentAbilityService
- *
- * Philosophy:
- * Integrates equipment system with Gameplay Ability System (GAS).
- * Manages ability grants, effect applications, and attribute modifications.
- *
- * Key Responsibilities:
- * - Grant abilities when equipment is equipped
- * - Remove abilities when equipment is unequipped
- * - Apply gameplay effects from equipment
- * - Manage attribute modifiers
- * - Handle ability cooldowns and costs
- * - Sync equipment state with GAS
- *
- * Architecture Patterns:
- * - Event Bus: Subscribes to equipment events
- * - Dependency Injection: Uses ServiceLocator
- * - GameplayTags: Ability/Effect identification
- * - GAS Integration: Full Gameplay Ability System integration
- * - Observer Pattern: Reacts to equipment changes
- *
- * GAS Integration Flow:
- * 1. Equipment equipped → Grant abilities/effects
- * 2. Equipment unequipped → Remove abilities/effects
- * 3. Equipment modified → Update ability specs
- * 4. Ability activated → Track cooldowns/costs
- * 5. Effect expired → Notify equipment system
- *
- * Best Practices:
- * - All gameplay logic uses GAS (no direct stat modification)
- * - GameplayTags for ability identification
- * - GameplayEffects for stat modifications
- * - Proper replication support
- * - Clean ability/effect lifecycle management
+ * Configuration for equipment abilities loaded from DataTable
+ * Maps equipment items to their granted abilities and effects
  */
-UCLASS(BlueprintType)
+USTRUCT(BlueprintType)
+struct FEquipmentAbilityMapping : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    /** Item ID this mapping applies to */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+    FName ItemID;
+
+    /** Abilities to grant when this equipment is active */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+    TArray<TSubclassOf<UGameplayAbility>> GrantedAbilities;
+
+    /** Passive effects to apply when this equipment is active */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+    TArray<TSubclassOf<UGameplayEffect>> PassiveEffects;
+
+    /** Required tags on the equipment actor to grant abilities */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability", meta = (Categories = "Equipment"))
+    FGameplayTagContainer RequiredTags;
+
+    /** Tags that prevent ability granting if present on equipment */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability", meta = (Categories = "Equipment"))
+    FGameplayTagContainer BlockedTags;
+
+    /** Input tag for primary ability activation */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability", meta = (Categories = "Input"))
+    FGameplayTag PrimaryInputTag;
+
+    /** Input tag for secondary ability activation */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability", meta = (Categories = "Input"))
+    FGameplayTag SecondaryInputTag;
+
+    /** Validates this mapping entry */
+    bool IsValid() const
+    {
+        return !ItemID.IsNone();
+    }
+};
+
+/**
+ * Equipment Ability Service - Equipment Actor Coordinator
+ *
+ * ARCHITECTURAL PHILOSOPHY:
+ * This service manages abilities that EQUIPMENT ACTORS provide, NOT character abilities.
+ * - Character abilities (sprint, jump, etc.) are managed in PlayerState
+ * - Equipment abilities (weapon fire, armor shield, etc.) are managed here
+ * - Each equipment actor gets its own AbilityConnector
+ * - The connector bridges equipment abilities to the owner's ASC
+ *
+ * KEY RESPONSIBILITIES:
+ * 1. Create/destroy AbilityConnectors for equipment actors
+ * 2. Load ability mappings from DataTables (item->abilities configuration)
+ * 3. React to equipment spawn/destroy events
+ * 4. Coordinate ability granting to owner's ASC through connectors
+ *
+ * Thread Safety: All public methods MUST be called on GameThread (GAS requirement)
+ */
+UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAbilityService : public UObject, public ISuspenseEquipmentService
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreEquipmentAbilityService();
-	virtual ~USuspenseCoreEquipmentAbilityService();
+    USuspenseCoreEquipmentAbilityService();
+    virtual ~USuspenseCoreEquipmentAbilityService();
 
-	//========================================
-	// ISuspenseEquipmentService Interface
-	//========================================
+    //========================================
+    // IEquipmentService Implementation
+    //========================================
 
-	virtual bool InitializeService(const FServiceInitParams& Params) override;
-	virtual bool ShutdownService(bool bForce = false) override;
-	virtual EServiceLifecycleState GetServiceState() const override;
-	virtual bool IsServiceReady() const override;
-	virtual FGameplayTag GetServiceTag() const override;
-	virtual FGameplayTagContainer GetRequiredDependencies() const override;
-	virtual bool ValidateService(TArray<FText>& OutErrors) const override;
-	virtual void ResetService() override;
-	virtual FString GetServiceStats() const override;
+    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool ShutdownService(bool bForce = false) override;
+    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual FGameplayTag GetServiceTag() const override;
+    virtual FGameplayTagContainer GetRequiredDependencies() const override;
+    virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+    virtual void ResetService() override;
+    virtual FString GetServiceStats() const override;
+    virtual void BeginDestroy() override;
+    //========================================
+    // Public API - Configuration
+    //========================================
 
-	//========================================
-	// Ability Management
-	//========================================
+    /** Load ability mappings from a DataTable */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    int32 LoadAbilityMappings(UDataTable* MappingTable);
 
-	/**
-	 * Grant abilities from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Abilities")
-	TArray<struct FGameplayAbilitySpecHandle> GrantEquipmentAbilities(int32 SlotIndex, const struct FSuspenseInventoryItemInstance& Item);
+    /**
+     * Get or create ability connector for an equipment actor
+     * @return Connector component or nullptr if ASC not found on owner
+     */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    USuspenseCoreEquipmentAbilityConnector* GetOrCreateConnectorForEquipment(
+        AActor* EquipmentActor,
+        AActor* OwnerActor
+    );
 
-	/**
-	 * Remove abilities from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Abilities")
-	bool RemoveEquipmentAbilities(int32 SlotIndex);
+    /** Remove ability connector from equipment actor */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    bool RemoveConnectorForEquipment(AActor* EquipmentActor);
 
-	/**
-	 * Get granted ability handles for slot
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Abilities")
-	TArray<struct FGameplayAbilitySpecHandle> GetAbilitiesForSlot(int32 SlotIndex) const;
+    /** Check if item has ability mapping */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities", BlueprintPure)
+    bool HasAbilityMapping(FName ItemID) const;
 
-	/**
-	 * Check if ability is granted from equipment
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Abilities")
-	bool IsAbilityFromEquipment(const struct FGameplayAbilitySpecHandle& AbilityHandle) const;
+    /** Get ability mapping for item */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    bool GetAbilityMapping(FName ItemID, FEquipmentAbilityMapping& OutMapping) const;
 
-	/**
-	 * Try activate equipment ability
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Abilities")
-	bool TryActivateEquipmentAbility(int32 SlotIndex, FGameplayTag AbilityTag);
+    /** Export service metrics to CSV file */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities|Debug")
+    bool ExportMetricsToCSV(const FString& FilePath) const;
 
-	/**
-	 * Cancel equipment ability
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Abilities")
-	void CancelEquipmentAbility(int32 SlotIndex, FGameplayTag AbilityTag);
+    //========================================
+    // Public API - Operations
+    //========================================
 
-	//========================================
-	// Gameplay Effect Management
-	//========================================
+    /** Process equipment spawn - creates connector and grants abilities */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    void ProcessEquipmentSpawn(
+        AActor* EquipmentActor,
+        AActor* OwnerActor,
+        const FSuspenseInventoryItemInstance& ItemInstance
+    );
 
-	/**
-	 * Apply gameplay effects from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Effects")
-	TArray<FActiveGameplayEffectHandle> ApplyEquipmentEffects(int32 SlotIndex, const struct FSuspenseInventoryItemInstance& Item);
+    /** Process equipment destroy - removes connector and abilities */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    void ProcessEquipmentDestroy(AActor* EquipmentActor);
 
-	/**
-	 * Remove gameplay effects from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Effects")
-	bool RemoveEquipmentEffects(int32 SlotIndex);
+    /** Update equipment abilities when item data changes */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
+    void UpdateEquipmentAbilities(
+        AActor* EquipmentActor,
+        const FSuspenseInventoryItemInstance& UpdatedItemInstance
+    );
 
-	/**
-	 * Get active effect handles for slot
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Effects")
-	TArray<FActiveGameplayEffectHandle> GetEffectsForSlot(int32 SlotIndex) const;
-
-	/**
-	 * Update effect magnitude
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Effects")
-	bool UpdateEffectMagnitude(FActiveGameplayEffectHandle EffectHandle, float NewMagnitude);
-
-	/**
-	 * Get effect remaining duration
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Effects")
-	float GetEffectRemainingDuration(FActiveGameplayEffectHandle EffectHandle) const;
-
-	//========================================
-	// Attribute Management
-	//========================================
-
-	/**
-	 * Apply attribute modifiers from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Attributes")
-	bool ApplyAttributeModifiers(int32 SlotIndex, const struct FSuspenseInventoryItemInstance& Item);
-
-	/**
-	 * Remove attribute modifiers from equipment
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Attributes")
-	bool RemoveAttributeModifiers(int32 SlotIndex);
-
-	/**
-	 * Get attribute value with equipment modifiers
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Attributes")
-	float GetAttributeValue(FGameplayAttribute Attribute) const;
-
-	/**
-	 * Calculate total modifier for attribute from all equipment
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Attributes")
-	float CalculateTotalModifier(FGameplayAttribute Attribute) const;
-
-	//========================================
-	// GAS Component Access
-	//========================================
-
-	/**
-	 * Set ability system component
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Abilities")
-	void SetAbilitySystemComponent(UAbilitySystemComponent* ASC);
-
-	/**
-	 * Get ability system component
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Abilities")
-	UAbilitySystemComponent* GetAbilitySystemComponent() const;
-
-	//========================================
-	// Event Publishing
-	//========================================
-
-	/**
-	 * Publish ability granted event
-	 */
-	void PublishAbilityGranted(int32 SlotIndex, FGameplayTag AbilityTag);
-
-	/**
-	 * Publish ability removed event
-	 */
-	void PublishAbilityRemoved(int32 SlotIndex, FGameplayTag AbilityTag);
-
-	/**
-	 * Publish effect applied event
-	 */
-	void PublishEffectApplied(int32 SlotIndex, FGameplayTag EffectTag);
-
-	/**
-	 * Publish effect removed event
-	 */
-	void PublishEffectRemoved(int32 SlotIndex, FGameplayTag EffectTag);
+    /** Clean up invalid/destroyed equipment connectors */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities|Debug")
+    int32 CleanupInvalidConnectors();
 
 protected:
-	//========================================
-	// Service Lifecycle
-	//========================================
+    /** Initialize default ability mappings */
+    void InitializeDefaultMappings();
 
-	/** Initialize GAS integration */
-	bool InitializeGASIntegration();
+    /** Setup event subscriptions */
+    void SetupEventHandlers();
 
-	/** Setup event subscriptions */
-	void SetupEventSubscriptions();
+    /** Ensure configuration is valid */
+    void EnsureValidConfig();
 
-	/** Cleanup granted abilities and effects */
-	void CleanupGrantedAbilitiesAndEffects();
+    /** Handle equipment spawned event */
+    void OnEquipmentSpawned(const FSuspenseCoreEquipmentEventData& EventData);
 
-	//========================================
-	// Ability Operations
-	//========================================
+    /** Handle equipment destroyed event */
+    void OnEquipmentDestroyed(const FSuspenseCoreEquipmentEventData& EventData);
 
-	/** Grant single ability */
-	struct FGameplayAbilitySpecHandle GrantAbilityInternal(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level);
+    /** New S7 handlers */
+    void OnEquipped(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnUnequipped(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnAbilitiesRefresh(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnCommit(const FSuspenseCoreEquipmentEventData& EventData);
 
-	/** Remove single ability */
-	bool RemoveAbilityInternal(const struct FGameplayAbilitySpecHandle& AbilityHandle);
+    /** Handle equipment actor destroyed directly */
+    UFUNCTION()
+    void OnEquipmentActorDestroyed(AActor* DestroyedActor);
 
-	/** Get ability specs for equipment item */
-	TArray<TSubclassOf<UGameplayAbility>> GetAbilityClassesForItem(const struct FSuspenseInventoryItemInstance& Item) const;
+    /** Timer callback for periodic cleanup */
+    UFUNCTION()
+    void OnCleanupTimer();
 
-	//========================================
-	// Effect Operations
-	//========================================
+    /** Create connector for equipment actor */
+    USuspenseCoreEquipmentAbilityConnector* CreateConnectorForEquipment(
+        AActor* EquipmentActor,
+        AActor* OwnerActor
+    );
 
-	/** Apply single effect */
-	FActiveGameplayEffectHandle ApplyEffectInternal(TSubclassOf<UGameplayEffect> EffectClass, float Level);
+    /** Find AbilitySystemComponent on owner actor */
+    UAbilitySystemComponent* FindOwnerAbilitySystemComponent(AActor* OwnerActor) const;
 
-	/** Remove single effect */
-	bool RemoveEffectInternal(FActiveGameplayEffectHandle EffectHandle);
+    /** Get gameplay tags from equipment actor */
+    FGameplayTagContainer GetEquipmentTags(AActor* EquipmentActor) const;
 
-	/** Get effect specs for equipment item */
-	TArray<TSubclassOf<UGameplayEffect>> GetEffectClassesForItem(const struct FSuspenseInventoryItemInstance& Item) const;
-
-	//========================================
-	// Event Handlers
-	//========================================
-
-	/** Handle equipment equipped event */
-	void OnEquipmentEquipped(const struct FSuspenseEquipmentEventData& EventData);
-
-	/** Handle equipment unequipped event */
-	void OnEquipmentUnequipped(const struct FSuspenseEquipmentEventData& EventData);
-
-	/** Handle equipment modified event */
-	void OnEquipmentModified(const struct FSuspenseEquipmentEventData& EventData);
-
-	/** Handle ability activated */
-	void OnAbilityActivated(UGameplayAbility* Ability);
-
-	/** Handle ability ended */
-	void OnAbilityEnded(UGameplayAbility* Ability);
+    /** Parse equipment event data */
+    bool ParseEquipmentEventData(
+        const FSuspenseCoreEquipmentEventData& EventData,
+        FSuspenseInventoryItemInstance& OutItem,
+        AActor*& OutEquipmentActor,
+        AActor*& OutOwnerActor
+    ) const;
 
 private:
-	//========================================
-	// Service State
-	//========================================
+    //========================================
+    // Service State
+    //========================================
+    UPROPERTY()
+    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
 
-	/** Current service lifecycle state */
-	UPROPERTY()
-	EServiceLifecycleState ServiceState;
+    //========================================
+    // Configuration Data
+    //========================================
+    UPROPERTY()
+    TMap<FName, FEquipmentAbilityMapping> AbilityMappings;
 
-	/** Service initialization timestamp */
-	UPROPERTY()
-	FDateTime InitializationTime;
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration",
+        meta = (AllowedClasses = "/Script/Engine.DataTable"))
+    TSoftObjectPtr<UDataTable> DefaultMappingTable;
 
-	//========================================
-	// Dependencies (via ServiceLocator)
-	//========================================
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (ClampMin = "60.0", ClampMax = "3600.0"))
+    float MappingCacheTTL = 300.0f;
 
-	/** ServiceLocator for dependency injection */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator;
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (ClampMin = "10.0", ClampMax = "300.0"))
+    float CleanupInterval = 60.0f;
 
-	/** EventBus for event subscription/publishing */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    bool bEnableDetailedLogging = false;
 
-	/** Data service for equipment state queries */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> DataService;
+    UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+    bool bEnablePeriodicCleanup = true;
 
-	//========================================
-	// GAS Integration
-	//========================================
+    /** Was cache registered in the global registry */
+    bool bCacheRegistered = false;
 
-	/** Ability System Component */
-	UPROPERTY()
-	TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+    //========================================
+    // Runtime Data
+    //========================================
+    UPROPERTY()
+    TMap<TWeakObjectPtr<AActor>, USuspenseCoreEquipmentAbilityConnector*> EquipmentConnectors;
 
-	/** Map of slot index to granted ability handles */
-	UPROPERTY()
-	TMap<int32, TArray<struct FGameplayAbilitySpecHandle>> GrantedAbilities;
+    UPROPERTY()
+    TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> EquipmentToOwnerMap;
 
-	/** Map of slot index to active effect handles */
-	UPROPERTY()
-	TMap<int32, TArray<FActiveGameplayEffectHandle>> ActiveEffects;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FName, FEquipmentAbilityMapping>> MappingCache;
+    FStreamableManager StreamableManager;
+    FTimerHandle CleanupTimerHandle;
 
-	/** Map of ability handle to slot index (reverse lookup) */
-	UPROPERTY()
-	TMap<struct FGameplayAbilitySpecHandle, int32> AbilityToSlotMap;
+    //========================================
+    // Thread Safety
+    //========================================
+    mutable FEquipmentRWLock ConnectorLock;
+    mutable FEquipmentRWLock MappingLock;
 
-	//========================================
-	// Configuration
-	//========================================
+    //========================================
+    // Event Management
+    //========================================
+    TArray<FEventSubscriptionHandle> EventSubscriptions;
 
-	/** Auto-activate abilities on grant */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bAutoActivateAbilities;
+    /** S7 event tags (initialized in InitializeService) */
+    FGameplayTag Tag_OnEquipped;
+    FGameplayTag Tag_OnUnequipped;
+    FGameplayTag Tag_OnAbilitiesRefresh;
+    FGameplayTag Tag_OnCommit;
 
-	/** Remove effects on unequip */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bRemoveEffectsOnUnequip;
-
-	/** Enable detailed logging */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableDetailedLogging;
-
-	//========================================
-	// Statistics
-	//========================================
-
-	/** Total abilities granted */
-	UPROPERTY()
-	int32 TotalAbilitiesGranted;
-
-	/** Total abilities removed */
-	UPROPERTY()
-	int32 TotalAbilitiesRemoved;
-
-	/** Total effects applied */
-	UPROPERTY()
-	int32 TotalEffectsApplied;
-
-	/** Total effects removed */
-	UPROPERTY()
-	int32 TotalEffectsRemoved;
-
-	/** Currently active abilities */
-	UPROPERTY()
-	int32 ActiveAbilityCount;
-
-	/** Currently active effects */
-	UPROPERTY()
-	int32 ActiveEffectCount;
+    //========================================
+    // Metrics and Statistics
+    //========================================
+    mutable FServiceMetrics ServiceMetrics;
+    mutable int32 CacheHits = 0;
+    mutable int32 CacheMisses = 0;
 };

@@ -20,18 +20,10 @@ class USuspenseEventManager;
 class USuspenseCoreEquipmentMeshComponent;
 
 /**
- * SuspenseCore Weapon Actor - Modern event-driven weapon implementation.
- *
- * ARCHITECTURE (following BestPractices.md):
- * - Event Bus: Weapon events broadcast through centralized EventBus
- * - DI: Services inject via ServiceLocator for abilities, ammo management
- * - Tags: GameplayTags for weapon types, fire modes, ammo types
- * - Services: Abilities/effects delegated to AbilityService
- *
- * Key Principles:
- * - No GA/GE, no direct Attach or visual hacks
- * - Initializes components from SSOT and proxies calls to them
- * - Ammo state persistence happens via component; actor only mirrors to ItemInstance
+ * Thin weapon actor facade (S4).
+ * - No GA/GE, no direct Attach or visual hacks.
+ * - Initializes components from SSOT and proxies calls to them.
+ * - Ammo state persistence happens via component; actor only mirrors to ItemInstance.
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API ASuspenseCoreWeaponActor : public ASuspenseCoreEquipmentActor,
@@ -51,17 +43,17 @@ public:
     virtual USuspenseEventManager* GetDelegateManager() const override;
 
     //================================================
-    // ASuspenseCoreEquipmentActor overrides
+    // ASuspenseCoreEquipmentActor overrides (S3/S4 pipeline)
     //================================================
     /** Weapon-specific init: extend base item-equip path with weapon setup */
-    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     //================================================
     // ISuspenseWeapon (facade -> components)
     //================================================
-    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual bool GetWeaponItemData_Implementation(FSuspenseUnifiedItemData& OutData) const override;
-    virtual FSuspenseInventoryItemInstance GetItemInstance_Implementation() const override;
+    virtual FSuspenseCoreInventoryItemInstance GetItemInstance_Implementation() const override;
 
     // Basic actions
     virtual bool Fire_Implementation(const FWeaponFireParams& Params) override;
@@ -88,18 +80,18 @@ public:
     virtual float GetRecoil_Implementation() const override;
     virtual float GetRange_Implementation() const override;
 
-    // Spread
+    // Spread (actor doesn't simulate it anymore)
     virtual float GetBaseSpread_Implementation() const override;
     virtual float GetMaxSpread_Implementation() const override;
     virtual float GetCurrentSpread_Implementation() const override;
     virtual void  SetCurrentSpread_Implementation(float NewSpread) override;
 
-    // Ammo (delegation to AmmoComponent)
+    // Ammo (delegation to AmmoComponent; SetAmmoState only persists to ItemInstance)
     virtual float GetCurrentAmmo_Implementation() const override;
     virtual float GetRemainingAmmo_Implementation() const override;
     virtual float GetMagazineSize_Implementation() const override;
-    virtual FSuspenseInventoryAmmoState GetAmmoState_Implementation() const override;
-    virtual void SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState) override;
+    virtual FSuspenseCoreInventoryAmmoState GetAmmoState_Implementation() const override;
+    virtual void SetAmmoState_Implementation(const FSuspenseCoreInventoryAmmoState& NewState) override;
     virtual bool CanReload_Implementation() const override;
     virtual bool IsMagazineFull_Implementation() const override;
 
@@ -131,7 +123,7 @@ public:
     virtual int32 GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const override;
 
     //================================================
-    // Utility
+    // Utility (no traces/attach here)
     //================================================
     UFUNCTION(BlueprintCallable, Category="Weapon|Geometry")
     FVector GetMuzzleLocation() const;
@@ -165,7 +157,7 @@ protected:
     bool bHasCachedData = false;
 
     //================================================
-    // Components (owned by actor) - SuspenseCore prefixed
+    // Components (owned by actor)
     //================================================
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponAmmoComponent* AmmoComponent;
@@ -173,7 +165,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponFireModeComponent* FireModeComponent;
 
-    /** Optional local scope camera component */
+    /** Optional local scope camera component (no socket-based attach here) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     UCameraComponent* ScopeCamera;
 };

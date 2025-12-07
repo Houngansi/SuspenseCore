@@ -3,449 +3,452 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
-#include "GameplayTagContainer.h"
-#include "SuspenseCoreEquipmentServiceMacros.h"
+#include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
+#include "Interfaces/Equipment/ISuspensePredictionManager.h"
+#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
+#include "Components/Network/SuspenseEquipmentReplicationManager.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "Types/Network/SuspenseNetworkTypes.h"
+#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/SharedPointer.h"
+#include "Containers/Queue.h"
+#include "HAL/ThreadSafeBool.h"
+#include "UObject/Interface.h"
 #include "SuspenseCoreEquipmentNetworkService.generated.h"
 
-// Forward declarations
-class USuspenseEquipmentServiceLocator;
-class USuspenseCoreEventBus;
-class APlayerController;
-class ISuspenseNetworkDispatcher;
-class ISuspensePredictionManager;
-class ISuspenseReplicationProvider;
-struct FEquipmentOperationRequest;
-struct FEquipmentOperationResult;
+// Forward declarations for dependency resolution
+class USuspenseCoreEquipmentNetworkDispatcher;
+class USuspenseCoreEquipmentPredictionSystem;
+class USuspenseCoreEquipmentReplicationManager;
+class USuspenseCoreEquipmentServiceLocator;
+class ISuspenseEquipmentDataProvider;
+class ISuspenseEquipmentOperations;
+struct FUniqueNetIdRepl;
 
 /**
- * SuspenseCoreEquipmentNetworkService
- *
- * Philosophy:
- * Manages network replication and client-server communication for equipment.
- * Ensures server authority while providing responsive client prediction.
- *
- * Key Responsibilities:
- * - Server RPC handling
- * - Client prediction management
- * - Replication of equipment state
- * - Network event dispatching
- * - Rollback and reconciliation
- * - Bandwidth optimization
- * - Security validation
- *
- * Architecture Patterns:
- * - Event Bus: Publishes network events
- * - Dependency Injection: Uses ServiceLocator
- * - GameplayTags: Event categorization
- * - Server Authority: All operations validated on server
- * - Client Prediction: Optimistic client updates
- * - Rollback: Prediction correction
- *
- * Network Flow:
- * 1. Client requests operation → Predict locally
- * 2. Send RPC to server
- * 3. Server validates and executes
- * 4. Server replicates result
- * 5. Client receives → Reconcile prediction
- * 6. Rollback if mismatch
- *
- * Best Practices (from BestPractices.md):
- * - Server authority for all data changes
- * - WithValidation for all RPCs
- * - Rate limiting to prevent spam
- * - COND_OwnerOnly for private data
- * - ReplicationGraph support for MMO scale
+ * Network security configuration loaded from config files
+ * Provides runtime-configurable security parameters
  */
-UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkService : public UObject, public IEquipmentNetworkService
+USTRUCT()
+struct FNetworkSecurityConfig
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
+
+    /** Maximum age for valid packets in seconds */
+    UPROPERTY(Config)
+    float PacketAgeLimit = 30.0f;
+
+    /** Lifetime of nonces in seconds before cleanup */
+    UPROPERTY(Config)
+    float NonceLifetime = 300.0f;
+
+    /** Maximum operations allowed per second per player */
+    UPROPERTY(Config)
+    int32 MaxOperationsPerSecond = 10;
+
+    /** Maximum operations allowed per minute per player */
+    UPROPERTY(Config)
+    int32 MaxOperationsPerMinute = 200;
+
+    /** Minimum interval between operations in seconds */
+    UPROPERTY(Config)
+    float MinOperationInterval = 0.05f;
+
+    /** Maximum suspicious activities before permanent action */
+    UPROPERTY(Config)
+    int32 MaxSuspiciousActivities = 10;
+
+    /** Duration of temporary ban in seconds */
+    UPROPERTY(Config)
+    float TemporaryBanDuration = 60.0f;
+
+    /** Maximum violations before temporary ban */
+    UPROPERTY(Config)
+    int32 MaxViolationsBeforeBan = 3;
+
+    /** Enable strict security checks */
+    UPROPERTY(Config)
+    bool bEnableStrictSecurity = true;
+
+    /** Log suspicious activities to file */
+    UPROPERTY(Config)
+    bool bLogSuspiciousActivity = true;
+
+    /** Require HMAC for critical operations */
+    UPROPERTY(Config)
+    bool bRequireHMACForCritical = true;
+
+    /** Enable IP-based rate limiting */
+    UPROPERTY(Config)
+    bool bEnableIPRateLimit = true;
+
+    /** Maximum operations per IP per minute */
+    UPROPERTY(Config)
+    int32 MaxOperationsPerIPPerMinute = 500;
+
+    /**
+     * Load configuration from ini file
+     * @param ConfigSection Section name in config file
+     * @return Loaded configuration
+     */
+    static FNetworkSecurityConfig LoadFromConfig(const FString& ConfigSection = TEXT("NetworkSecurity"))
+    {
+        FNetworkSecurityConfig Config;
+
+        if (!GConfig) return Config;
+
+        GConfig->GetFloat(*ConfigSection, TEXT("PacketAgeLimit"), Config.PacketAgeLimit, GGameIni);
+        GConfig->GetFloat(*ConfigSection, TEXT("NonceLifetime"), Config.NonceLifetime, GGameIni);
+        GConfig->GetInt(*ConfigSection, TEXT("MaxOperationsPerSecond"), Config.MaxOperationsPerSecond, GGameIni);
+        GConfig->GetInt(*ConfigSection, TEXT("MaxOperationsPerMinute"), Config.MaxOperationsPerMinute, GGameIni);
+        GConfig->GetFloat(*ConfigSection, TEXT("MinOperationInterval"), Config.MinOperationInterval, GGameIni);
+        GConfig->GetInt(*ConfigSection, TEXT("MaxSuspiciousActivities"), Config.MaxSuspiciousActivities, GGameIni);
+        GConfig->GetFloat(*ConfigSection, TEXT("TemporaryBanDuration"), Config.TemporaryBanDuration, GGameIni);
+        GConfig->GetInt(*ConfigSection, TEXT("MaxViolationsBeforeBan"), Config.MaxViolationsBeforeBan, GGameIni);
+        GConfig->GetBool(*ConfigSection, TEXT("bEnableStrictSecurity"), Config.bEnableStrictSecurity, GGameIni);
+        GConfig->GetBool(*ConfigSection, TEXT("bLogSuspiciousActivity"), Config.bLogSuspiciousActivity, GGameIni);
+        GConfig->GetBool(*ConfigSection, TEXT("bRequireHMACForCritical"), Config.bRequireHMACForCritical, GGameIni);
+        GConfig->GetBool(*ConfigSection, TEXT("bEnableIPRateLimit"), Config.bEnableIPRateLimit, GGameIni);
+        GConfig->GetInt(*ConfigSection, TEXT("MaxOperationsPerIPPerMinute"), Config.MaxOperationsPerIPPerMinute, GGameIni);
+
+        return Config;
+    }
+};
+
+/**
+ * Enhanced network security metrics for monitoring
+ * Provides comprehensive tracking of all security events
+ */
+struct FNetworkSecurityMetrics
+{
+    // Use atomic counters for thread-safe operations
+    TAtomic<uint64> TotalRequestsProcessed{0};
+    TAtomic<uint64> RequestsRejectedRateLimit{0};
+    TAtomic<uint64> RequestsRejectedReplay{0};
+    TAtomic<uint64> RequestsRejectedIntegrity{0};
+    TAtomic<uint64> RequestsRejectedHMAC{0};
+    TAtomic<uint64> RequestsRejectedIP{0};
+    TAtomic<uint64> SuspiciousActivitiesDetected{0};
+    TAtomic<uint64> PlayersTemporarilyBanned{0};
+    TAtomic<uint64> IPsTemporarilyBanned{0};
+    TAtomic<uint64> CriticalOperationsProcessed{0};
+
+    // Performance metrics
+    TAtomic<uint64> AverageProcessingTimeUs{0};
+    TAtomic<uint64> PeakProcessingTimeUs{0};
+
+    FString ToString() const
+    {
+        return FString::Printf(
+            TEXT("=== Security Metrics ===\n")
+            TEXT("Total Processed: %llu\n")
+            TEXT("Rate Limit Rejects: %llu\n")
+            TEXT("Replay Attack Blocks: %llu\n")
+            TEXT("Integrity Failures: %llu\n")
+            TEXT("HMAC Failures: %llu\n")
+            TEXT("IP Rate Limit Rejects: %llu\n")
+            TEXT("Suspicious Activities: %llu\n")
+            TEXT("Players Banned: %llu\n")
+            TEXT("IPs Banned: %llu\n")
+            TEXT("Critical Operations: %llu\n")
+            TEXT("Avg Processing: %llu µs\n")
+            TEXT("Peak Processing: %llu µs"),
+            TotalRequestsProcessed.Load(),
+            RequestsRejectedRateLimit.Load(),
+            RequestsRejectedReplay.Load(),
+            RequestsRejectedIntegrity.Load(),
+            RequestsRejectedHMAC.Load(),
+            RequestsRejectedIP.Load(),
+            SuspiciousActivitiesDetected.Load(),
+            PlayersTemporarilyBanned.Load(),
+            IPsTemporarilyBanned.Load(),
+            CriticalOperationsProcessed.Load(),
+            AverageProcessingTimeUs.Load(),
+            PeakProcessingTimeUs.Load()
+        );
+    }
+
+    FString ToCSV() const
+    {
+        return FString::Printf(
+            TEXT("Timestamp,TotalProcessed,RateLimit,Replay,Integrity,HMAC,IPLimit,Suspicious,PlayersBanned,IPsBanned,Critical,AvgTime,PeakTime\n")
+            TEXT("%s,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu"),
+            *FDateTime::Now().ToString(),
+            TotalRequestsProcessed.Load(),
+            RequestsRejectedRateLimit.Load(),
+            RequestsRejectedReplay.Load(),
+            RequestsRejectedIntegrity.Load(),
+            RequestsRejectedHMAC.Load(),
+            RequestsRejectedIP.Load(),
+            SuspiciousActivitiesDetected.Load(),
+            PlayersTemporarilyBanned.Load(),
+            IPsTemporarilyBanned.Load(),
+            CriticalOperationsProcessed.Load(),
+            AverageProcessingTimeUs.Load(),
+            PeakProcessingTimeUs.Load()
+        );
+    }
+
+    void Reset()
+    {
+        TotalRequestsProcessed.Store(0);
+        RequestsRejectedRateLimit.Store(0);
+        RequestsRejectedReplay.Store(0);
+        RequestsRejectedIntegrity.Store(0);
+        RequestsRejectedHMAC.Store(0);
+        RequestsRejectedIP.Store(0);
+        SuspiciousActivitiesDetected.Store(0);
+        PlayersTemporarilyBanned.Store(0);
+        IPsTemporarilyBanned.Store(0);
+        CriticalOperationsProcessed.Store(0);
+        AverageProcessingTimeUs.Store(0);
+        PeakProcessingTimeUs.Store(0);
+    }
+};
+
+/**
+ * Rate limiting data for player operations
+ */
+struct FRateLimitData
+{
+    TArray<float> OperationTimestamps;
+    float LastOperationTime = 0.0f;
+    int32 ViolationCount = 0;
+    FString PlayerIdentifier;
+    bool bIsTemporarilyBanned = false;
+    float BanExpiryTime = 0.0f;
+
+    bool IsOperationAllowed(float CurrentTime, int32 MaxPerSecond, int32 MaxPerMinute, float BanDuration = 60.0f)
+    {
+        if (bIsTemporarilyBanned && CurrentTime < BanExpiryTime)
+        {
+            return false;
+        }
+        else if (bIsTemporarilyBanned)
+        {
+            bIsTemporarilyBanned = false;
+            ViolationCount = 0;
+        }
+
+        OperationTimestamps.RemoveAll([CurrentTime](float Time)
+        {
+            return (CurrentTime - Time) > 60.0f;
+        });
+
+        int32 OpsInLastSecond = 0;
+        for (float Time : OperationTimestamps)
+        {
+            if ((CurrentTime - Time) <= 1.0f)
+            {
+                OpsInLastSecond++;
+            }
+        }
+
+        if (OpsInLastSecond >= MaxPerSecond)
+        {
+            return false;
+        }
+
+        if (OperationTimestamps.Num() >= MaxPerMinute)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    void RecordOperation(float CurrentTime)
+    {
+        OperationTimestamps.Add(CurrentTime);
+        LastOperationTime = CurrentTime;
+    }
+
+    void RecordViolation(float CurrentTime, float BanDuration = 60.0f, int32 MaxViolations = 3)
+    {
+        ViolationCount++;
+        if (ViolationCount >= MaxViolations)
+        {
+            bIsTemporarilyBanned = true;
+            BanExpiryTime = CurrentTime + BanDuration;
+        }
+    }
+};
+
+/**
+ * Equipment Network Service Implementation
+ */
+UCLASS()
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkService : public UObject,
+    public IEquipmentNetworkService
+{
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreEquipmentNetworkService();
-	virtual ~USuspenseCoreEquipmentNetworkService();
+    USuspenseCoreEquipmentNetworkService();
+    virtual ~USuspenseCoreEquipmentNetworkService();
 
-	//========================================
-	// ISuspenseEquipmentService Interface
-	//========================================
+    //~ Begin IEquipmentService Interface
+    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool ShutdownService(bool bForce = false) override;
+    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual FGameplayTag GetServiceTag() const override;
+    virtual FGameplayTagContainer GetRequiredDependencies() const override;
+    virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+    virtual void ResetService() override;
+    virtual FString GetServiceStats() const override;
+    //~ End IEquipmentService Interface
 
-	virtual bool InitializeService(const FServiceInitParams& Params) override;
-	virtual bool ShutdownService(bool bForce = false) override;
-	virtual EServiceLifecycleState GetServiceState() const override;
-	virtual bool IsServiceReady() const override;
-	virtual FGameplayTag GetServiceTag() const override;
-	virtual FGameplayTagContainer GetRequiredDependencies() const override;
-	virtual bool ValidateService(TArray<FText>& OutErrors) const override;
-	virtual void ResetService() override;
-	virtual FString GetServiceStats() const override;
+    //~ Begin IEquipmentNetworkService Interface
+    virtual ISuspenseNetworkDispatcher* GetNetworkDispatcher() override
+    {
+        return NetworkDispatcher.GetInterface();
+    }
 
-	//========================================
-	// IEquipmentNetworkService Interface
-	//========================================
+    virtual ISuspensePredictionManager* GetPredictionManager() override
+    {
+        return PredictionManager.GetInterface();
+    }
 
-	virtual ISuspenseNetworkDispatcher* GetNetworkDispatcher() override;
-	virtual ISuspensePredictionManager* GetPredictionManager() override;
-	virtual ISuspenseReplicationProvider* GetReplicationProvider() override;
+    virtual ISuspenseReplicationProvider* GetReplicationProvider() override
+    {
+        if (!ReplicationProvider) return nullptr;
+        if (ReplicationProvider->GetClass()->ImplementsInterface(USuspenseReplicationProvider::StaticClass()))
+        {
+            return Cast<ISuspenseReplicationProvider>(ReplicationProvider);
+        }
+        return nullptr;
+    }
+    //~ End IEquipmentNetworkService Interface
 
-	//========================================
-	// Server Authority
-	//========================================
+    UFUNCTION(BlueprintCallable, Category = "Network|Operations")
+    FGuid SendEquipmentOperation(const FEquipmentOperationRequest& Request, APlayerController* PlayerController);
 
-	/**
-	 * Execute operation on server (authority)
-	 * Called from client RPC
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	FEquipmentOperationResult ServerExecuteOperation(const FEquipmentOperationRequest& Request);
+    bool ReceiveEquipmentOperation(const FNetworkOperationRequest& NetworkRequest, APlayerController* SendingPlayer);
 
-	/**
-	 * Validate server operation request
-	 * Checks authority, rate limits, security
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	bool ValidateServerRequest(const FEquipmentOperationRequest& Request, FText& OutError) const;
+    UFUNCTION(BlueprintCallable, Category = "Network|Quality")
+    void SetNetworkQuality(float Quality);
 
-	/**
-	 * Check if local player has authority
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	bool HasAuthority() const;
+    //UFUNCTION(BlueprintCallable, Category = "Network|Metrics")
+    FLatencyCompensationData GetNetworkMetrics() const;
 
-	/**
-	 * Get owning player controller
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	APlayerController* GetOwningController() const;
+    UFUNCTION(BlueprintCallable, Category = "Network|Sync")
+    void ForceSynchronization(APlayerController* PlayerController);
 
-	//========================================
-	// Client Prediction
-	//========================================
+    const FNetworkSecurityMetrics& GetSecurityMetrics() const { return SecurityMetrics; }
+    bool ExportSecurityMetrics(const FString& FilePath) const;
 
-	/**
-	 * Start client prediction for operation
-	 * Returns prediction ID for tracking
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	FGuid StartPrediction(const FEquipmentOperationRequest& Request);
+    UFUNCTION(BlueprintCallable, Category = "Network|Metrics")
+    bool ExportMetricsToCSV(const FString& FilePath) const;
 
-	/**
-	 * Confirm prediction when server result received
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ConfirmPrediction(const FGuid& PredictionId, const FEquipmentOperationResult& ServerResult);
-
-	/**
-	 * Rollback failed prediction
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void RollbackPrediction(const FGuid& PredictionId);
-
-	/**
-	 * Get pending predictions
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	TArray<FGuid> GetPendingPredictions() const;
-
-	/**
-	 * Clear all predictions
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ClearPredictions();
-
-	//========================================
-	// Replication Management
-	//========================================
-
-	/**
-	 * Replicate equipment state to clients
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ReplicateEquipmentState(int32 SlotIndex);
-
-	/**
-	 * Replicate batch state changes
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ReplicateBatchChanges(const TArray<int32>& SlotIndices);
-
-	/**
-	 * Force full state refresh for client
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ForceStateRefresh();
-
-	/**
-	 * Set replication condition for slot
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void SetReplicationCondition(int32 SlotIndex, ELifetimeCondition Condition);
-
-	//========================================
-	// Security and Rate Limiting
-	//========================================
-
-	/**
-	 * Check rate limit for operation
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	bool CheckRateLimit(const FEquipmentOperationRequest& Request) const;
-
-	/**
-	 * Record operation for rate limiting
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void RecordOperation(const FEquipmentOperationRequest& Request);
-
-	/**
-	 * Check if client is flooding
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	bool IsClientFlooding() const;
-
-	/**
-	 * Reset rate limit counters
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	void ResetRateLimits();
-
-	//========================================
-	// Network Diagnostics
-	//========================================
-
-	/**
-	 * Get network statistics
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Network")
-	FString GetNetworkStats() const;
-
-	/**
-	 * Get prediction accuracy
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	float GetPredictionAccuracy() const;
-
-	/**
-	 * Get average round-trip time
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment|Network")
-	float GetAverageRTT() const;
-
-	//========================================
-	// Event Publishing
-	//========================================
-
-	/**
-	 * Publish server operation event
-	 */
-	void PublishServerOperation(const FEquipmentOperationRequest& Request, const FEquipmentOperationResult& Result);
-
-	/**
-	 * Publish prediction started event
-	 */
-	void PublishPredictionStarted(const FGuid& PredictionId);
-
-	/**
-	 * Publish prediction confirmed event
-	 */
-	void PublishPredictionConfirmed(const FGuid& PredictionId, bool bMatched);
-
-	/**
-	 * Publish rate limit exceeded event
-	 */
-	void PublishRateLimitExceeded(const FEquipmentOperationRequest& Request);
-
-protected:
-	//========================================
-	// Service Lifecycle
-	//========================================
-
-	/** Initialize network components */
-	bool InitializeNetworkComponents();
-
-	/** Setup event subscriptions */
-	void SetupEventSubscriptions();
-
-	/** Cleanup network resources */
-	void CleanupNetworkResources();
-
-	//========================================
-	// Prediction Management
-	//========================================
-
-	/** Create prediction snapshot */
-	struct FEquipmentStateSnapshot CreatePredictionSnapshot() const;
-
-	/** Apply prediction to local state */
-	void ApplyPrediction(const FGuid& PredictionId, const FEquipmentOperationRequest& Request);
-
-	/** Reconcile prediction with server result */
-	void ReconcilePrediction(const FGuid& PredictionId, const FEquipmentOperationResult& ServerResult);
-
-	/** Cleanup expired predictions */
-	void CleanupExpiredPredictions();
-
-	//========================================
-	// Rate Limiting
-	//========================================
-
-	/** Update rate limit window */
-	void UpdateRateLimitWindow();
-
-	/** Get operations in current window */
-	int32 GetOperationsInWindow() const;
-
-	/** Calculate rate limit threshold */
-	int32 CalculateRateLimit() const;
-
-	//========================================
-	// Event Handlers
-	//========================================
-
-	/** Handle server operation completed */
-	void OnServerOperationCompleted(const struct FSuspenseEquipmentEventData& EventData);
-
-	/** Handle replication update */
-	void OnReplicationUpdate(const struct FSuspenseEquipmentEventData& EventData);
-
-	/** Handle network error */
-	void OnNetworkError(const struct FSuspenseEquipmentEventData& EventData);
+    UFUNCTION(BlueprintCallable, Category = "Network|Security")
+    void ReloadSecurityConfig();
 
 private:
-	//========================================
-	// Service State
-	//========================================
+    // Service state
+    EServiceLifecycleState ServiceState;
+    FServiceInitParams ServiceParams;
 
-	/** Current service lifecycle state */
-	UPROPERTY()
-	EServiceLifecycleState ServiceState;
+    // Network components: store UE interfaces as TScriptInterface (GC-friendly), replication keeps raw UObject
+    TScriptInterface<ISuspenseNetworkDispatcher> NetworkDispatcher;
+    TScriptInterface<ISuspensePredictionManager>  PredictionManager;
 
-	/** Service initialization timestamp */
-	UPROPERTY()
-	FDateTime InitializationTime;
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEquipmentReplicationManager> ReplicationProvider = nullptr;
 
-	/** Is this service on server */
-	UPROPERTY()
-	bool bIsServer;
+    // Security configuration loaded from INI
+    FNetworkSecurityConfig SecurityConfig;
 
-	/** Is this service on client */
-	UPROPERTY()
-	bool bIsClient;
+    // Security: Rate limiting
+    TMap<FGuid, FRateLimitData> RateLimitPerPlayer;
+    TMap<FString, FRateLimitData> RateLimitPerIP;
 
-	//========================================
-	// Dependencies (via ServiceLocator)
-	//========================================
+    // Security: replay protection
+    TSet<uint64> ProcessedNonces;
+    TMap<uint64, float> PendingNonces;
+    TQueue<TPair<uint64, float>> NonceExpiryQueue;
+    TMap<FString, int32> SuspiciousActivityCount;
 
-	/** ServiceLocator for dependency injection */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator;
+    // Security: HMAC secret key
+    FString HMACSecretKey;
 
-	/** EventBus for event subscription/publishing */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+    // Thread safety
+    mutable FCriticalSection SecurityLock;
 
-	/** Data service for state access */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> DataService;
+    // Metrics
+    FNetworkSecurityMetrics SecurityMetrics;
+    mutable FServiceMetrics ServiceMetrics;
 
-	/** Operation service for execution */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> OperationService;
+    // Legacy metrics
+    mutable float AverageLatency;
+    mutable int32 TotalOperationsSent;
+    mutable int32 TotalOperationsRejected;
+    mutable int32 TotalReplayAttemptsBlocked;
+    mutable int32 TotalIntegrityFailures;
 
-	//========================================
-	// Network Components
-	//========================================
+    float NetworkQualityLevel;
 
-	/** Owning player controller */
-	UPROPERTY()
-	TWeakObjectPtr<APlayerController> OwningController;
+    // Timers
+    FTimerHandle NonceCleanupTimer;
+    FTimerHandle MetricsUpdateTimer;
+    FTimerHandle MetricsExportTimer;
 
-	//========================================
-	// Client Prediction
-	//========================================
+    // Dispatcher delegate handles
+    FDelegateHandle DispatcherSuccessHandle;
+    FDelegateHandle DispatcherFailureHandle;
+    FDelegateHandle DispatcherTimeoutHandle;
+    /**
+     * Internal non-virtual cleanup method safe to call from destructor
+     * @param bForce Force immediate cleanup without metrics export
+     * @param bFromDestructor True if called from destructor (minimal cleanup)
+     */
+    void InternalShutdown(bool bForce, bool bFromDestructor);
 
-	/** Pending predictions map */
-	UPROPERTY()
-	TMap<FGuid, struct FEquipmentStateSnapshot> PendingPredictions;
+    // ---- helpers ----
+    bool ResolveDependencies(
+        UWorld* World,
+        TScriptInterface<ISuspenseEquipmentDataProvider>& OutDataProvider,
+        TScriptInterface<ISuspenseEquipmentOperations>& OutOperationExecutor);
 
-	/** Prediction timestamps */
-	UPROPERTY()
-	TMap<FGuid, FDateTime> PredictionTimestamps;
+    USuspenseCoreEquipmentNetworkDispatcher* CreateAndInitNetworkDispatcher(
+        AActor* OwnerActor,
+        const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor);
 
-	/** Prediction timeout in seconds */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float PredictionTimeout;
+    USuspenseCoreEquipmentPredictionSystem* CreateAndInitPredictionSystem(
+        AActor* OwnerActor,
+        const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider,
+        const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor);
 
-	//========================================
-	// Rate Limiting
-	//========================================
+    USuspenseCoreEquipmentReplicationManager* CreateAndInitReplicationManager(
+        AActor* OwnerActor,
+        const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider);
 
-	/** Operation timestamps for rate limiting */
-	UPROPERTY()
-	TArray<FDateTime> RecentOperationTimes;
+    void BindDispatcherToPrediction(
+        USuspenseCoreEquipmentNetworkDispatcher* Dispatcher,
+        ISuspensePredictionManager* Prediction);
 
-	/** Rate limit window in seconds */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float RateLimitWindow;
+    void StartMonitoringTimers(UWorld* World);
 
-	/** Max operations per window */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	int32 MaxOperationsPerWindow;
-
-	/** Last rate limit check time */
-	UPROPERTY()
-	FDateTime LastRateLimitCheck;
-
-	//========================================
-	// Configuration
-	//========================================
-
-	/** Enable client prediction */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnablePrediction;
-
-	/** Enable rate limiting */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableRateLimiting;
-
-	/** Enable detailed logging */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	bool bEnableDetailedLogging;
-
-	/** Replication frequency (Hz) */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
-	float ReplicationFrequency;
-
-	//========================================
-	// Statistics
-	//========================================
-
-	/** Total server operations */
-	UPROPERTY()
-	int32 TotalServerOperations;
-
-	/** Total client predictions */
-	UPROPERTY()
-	int32 TotalPredictions;
-
-	/** Successful predictions */
-	UPROPERTY()
-	int32 SuccessfulPredictions;
-
-	/** Failed predictions */
-	UPROPERTY()
-	int32 FailedPredictions;
-
-	/** Rate limit violations */
-	UPROPERTY()
-	int32 RateLimitViolations;
-
-	/** Total bytes sent */
-	UPROPERTY()
-	int32 TotalBytesSent;
-
-	/** Total bytes received */
-	UPROPERTY()
-	int32 TotalBytesReceived;
+    FGuid CreatePlayerGuid(const FUniqueNetIdRepl& UniqueId) const;
+    bool CheckRateLimit(const FGuid& PlayerGuid, APlayerController* PlayerController);
+    bool CheckIPRateLimit(const FString& IPAddress);
+    bool MarkNonceAsPending(uint64 Nonce);
+    bool ConfirmNonce(uint64 Nonce);
+    void RejectNonce(uint64 Nonce);
+    uint64 GenerateSecureNonce();
+    FString GenerateRequestHMAC(const FNetworkOperationRequest& Request) const;
+    bool VerifyRequestHMAC(const FNetworkOperationRequest& Request) const;
+    void CleanExpiredNonces();
+    void LogSuspiciousActivity(APlayerController* PlayerController, const FString& Reason);
+    FString GetPlayerIdentifier(APlayerController* PlayerController) const;
+    FString GetIPAddress(APlayerController* PlayerController) const;
+    void UpdateNetworkMetrics();
+    void UpdateSecurityMetrics(double StartTime);
+    void ExportMetricsPeriodically();
+    void AdaptNetworkStrategies();
+    void InitializeSecurity();
+    void ShutdownSecurity();
+    FString LoadHMACKeyFromSecureStorage();
 };

@@ -1,25 +1,61 @@
+// MedComSystemCoordinatorSubsystem.cpp
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Subsystems/SuspenseCoreSystemCoordinator.h"
-#include "SuspenseCore/Services/SuspenseCoreServiceLocator.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "Engine/EngineTypes.h"
+#include "Misc/ScopeExit.h"
+#include "HAL/IConsoleManager.h"
 
-// Logging
-DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreCoordinator, Log, All);
+// Core interfaces
+#include "Interfaces/Core/SuspenseWorldBindable.h"
+
+// Equipment infrastructure
+#include "SuspenseCore/Subsystems/SuspenseCoreSystemCoordinator.h"
+#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMedComCoordinatorSubsystem, Log, All);
 
 //========================================
-// Constructor
+// Helper Functions
+//========================================
+
+namespace
+{
+    // Helper function to convert ENetMode to string without StaticEnum issues
+    FString GetNetModeString(ENetMode NetMode)
+    {
+        switch (NetMode)
+        {
+            case NM_Standalone: return TEXT("Standalone");
+            case NM_DedicatedServer: return TEXT("DedicatedServer");
+            case NM_ListenServer: return TEXT("ListenServer");
+            case NM_Client: return TEXT("Client");
+            default: return TEXT("Unknown");
+        }
+    }
+}
+static const TCHAR* NetModeToString(const ENetMode InMode)
+{
+    switch (InMode)
+    {
+    case NM_Standalone: return TEXT("Standalone");
+    case NM_DedicatedServer: return TEXT("DedicatedServer");
+    case NM_ListenServer: return TEXT("ListenServer");
+    case NM_Client: return TEXT("Client");
+    default: return TEXT("Unknown");
+    }
+}
+//========================================
+// Construction
 //========================================
 
 USuspenseCoreSystemCoordinator::USuspenseCoreSystemCoordinator()
-	: ServiceLocator(nullptr)
-	, CachedEventManager(nullptr)
-	, bIsInitialized(false)
-	, bServicesRegistered(false)
-	, bServicesInitialized(false)
 {
+    // Subsystem created by UE automatically
 }
 
 //========================================
@@ -28,448 +64,428 @@ USuspenseCoreSystemCoordinator::USuspenseCoreSystemCoordinator()
 
 bool USuspenseCoreSystemCoordinator::ShouldCreateSubsystem(UObject* Outer) const
 {
-	// Always create for valid GameInstance
-	return Outer && Outer->IsA<UGameInstance>();
+    // Гарантируем порядок: сперва создаётся ServiceLocator (GI Subsystem), затем — координатор.
+    if (UGameInstance* GI = Cast<UGameInstance>(Outer))
+    {
+        (void)GI->GetSubsystem<USuspenseEquipmentServiceLocator>(); // намеренно ради side-effect, чтобы не плодить warning
+    }
+    return Super::ShouldCreateSubsystem(Outer);
 }
 
 void USuspenseCoreSystemCoordinator::Initialize(FSubsystemCollectionBase& Collection)
 {
-	Super::Initialize(Collection);
+    Super::Initialize(Collection);
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Initialize subsystem"));
+    check(IsInGameThread());
 
-	check(IsInGameThread());
+    // 1) Получаем локатор (ServiceLocator is also a GI Subsystem)
+    if (UGameInstance* GI = GetGameInstance())
+    {
+        ServiceLocator = GI->GetSubsystem<USuspenseEquipmentServiceLocator>();
+    }
 
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[Initialize] Initializing SuspenseCoreSystemCoordinator..."));
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error,
+            TEXT("ServiceLocator subsystem not found! Ensure USuspenseEquipmentServiceLocator is properly configured."));
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ServiceLocator acquired from GameInstance"));
+    }
 
-	// Create core subsystems
-	CreateSubsystems();
+    // 2) Регистрация/прогрев/валидация (this IS the coordinator)
+    EnsureServicesRegistered(TryGetCurrentWorldSafe());
+    ValidateAndLog();
 
-	// Register core services
-	RegisterCoreServices();
-	bServicesRegistered = true;
+    // 4) Подписки на жизненный цикл мира
+    PostWorldInitHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
+        this, &USuspenseCoreSystemCoordinator::OnPostWorldInitialization);
 
-	// Initialize all services
-	InitializeServices();
-	bServicesInitialized = true;
+    PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
+        this, &USuspenseCoreSystemCoordinator::OnPostLoadMapWithWorld);
 
-	// Mark as ready
-	bIsInitialized = true;
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[Initialize] SuspenseCoreSystemCoordinator initialized successfully. Services registered: %d"),
-		GetServiceCount());
-
-	// Broadcast system initialized event
-	BroadcastSystemEvent(FGameplayTag::RequestGameplayTag(FName("System.Coordinator.Initialized")), this);
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Subsystem Initialize() complete. ServicesReady=%s"),
+        bServicesReady ? TEXT("YES") : TEXT("NO"));
 }
 
 void USuspenseCoreSystemCoordinator::Deinitialize()
 {
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Deinitialize subsystem"));
+    check(IsInGameThread());
 
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[Deinitialize] Shutting down SuspenseCoreSystemCoordinator..."));
+    if (PostWorldInitHandle.IsValid())
+    {
+        FWorldDelegates::OnPostWorldInitialization.Remove(PostWorldInitHandle);
+        PostWorldInitHandle.Reset();
+    }
+    if (PostLoadMapHandle.IsValid())
+    {
+        FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
+        PostLoadMapHandle.Reset();
+    }
 
-	// Broadcast shutdown event
-	BroadcastSystemEvent(FGameplayTag::RequestGameplayTag(FName("System.Coordinator.Shutdown")), this);
+    // Shutdown services
+    Shutdown();
 
-	// Shutdown all services
-	ShutdownServices();
+    ServiceLocator = nullptr;
+    bServicesRegistered = false;
+    bServicesReady = false;
 
-	// Clear state flags
-	bServicesInitialized = false;
-	bServicesRegistered = false;
-	bIsInitialized = false;
+    Super::Deinitialize();
+}
 
-	// Clear service locator
-	if (ServiceLocator)
-	{
-		ServiceLocator->ClearAllServices();
-		ServiceLocator = nullptr;
-	}
 
-	// Clear cached references
-	CachedEventManager.Reset();
+//========================================
+// World Lifecycle Handlers
+//========================================
 
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[Deinitialize] SuspenseCoreSystemCoordinator shutdown complete."));
+void USuspenseCoreSystemCoordinator::OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
+{
+    check(IsInGameThread());
+    if (!World || World->IsPreviewWorld() || World->IsEditorWorld())
+    {
+        return;
+    }
 
-	Super::Deinitialize();
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("OnPostWorldInitialization: %s (NetMode=%s, Ptr=%p)"),
+        *World->GetName(), NetModeToString(World->GetNetMode()), World);
+
+    EnsureServicesRegistered(World);
+}
+
+void USuspenseCoreSystemCoordinator::OnPostLoadMapWithWorld(UWorld* LoadedWorld)
+{
+    check(IsInGameThread());
+    if (!LoadedWorld || LoadedWorld->IsPreviewWorld() || LoadedWorld->IsEditorWorld())
+    {
+        return;
+    }
+
+    RebindAllWorldBindableServices(LoadedWorld);
+    ValidateAndLog();
 }
 
 //========================================
-// Static Accessor
+// Internal Operations
 //========================================
 
-USuspenseCoreSystemCoordinator* USuspenseCoreSystemCoordinator::Get(const UObject* WorldContextObject)
+void USuspenseCoreSystemCoordinator::EnsureServicesRegistered(UWorld* ForWorld)
 {
-	if (!WorldContextObject)
-	{
-		return nullptr;
-	}
+    check(IsInGameThread());
 
-	if (const UWorld* World = WorldContextObject->GetWorld())
-	{
-		if (UGameInstance* GameInstance = World->GetGameInstance())
-		{
-			return GameInstance->GetSubsystem<USuspenseCoreSystemCoordinator>();
-		}
-	}
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("EnsureServicesRegistered: ServiceLocator is null"));
+        return;
+    }
 
-	return nullptr;
+    if (!bServicesRegistered)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("=== RegisterCoreServices BEGIN ==="));
+        RegisterCoreServices();   // Call directly on this subsystem
+        WarmUpServices();         // Warm up caches/subscriptions
+        bServicesRegistered = true;
+    }
+
+    // Инициализация ленивых сервисов (если требуется)
+    const int32 Inited = ServiceLocator->InitializeAllServices();
+    if (Inited > 0)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Services warmed up (%d initialized)"), Inited);
+    }
+
+    // Первая привязка к миру
+    RebindAllWorldBindableServices(ForWorld ? ForWorld : TryGetCurrentWorldSafe());
 }
+
+void USuspenseCoreSystemCoordinator::RebindAllWorldBindableServices(UWorld* ForWorld)
+{
+    check(IsInGameThread());
+
+    if (!ForWorld)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("RebindAllWorldBindableServices: ForWorld is nullptr"));
+        return;
+    }
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("RebindAllWorldBindableServices: ServiceLocator is nullptr"));
+        return;
+    }
+    if (bRebindInProgress)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Verbose, TEXT("RebindAllWorldBindableServices: skip (in progress)"));
+        return;
+    }
+
+    bRebindInProgress = true;
+    ON_SCOPE_EXIT { bRebindInProgress = false; };
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("RebindAllWorldBindableServices: %s (NetMode=%s, Ptr=%p)"),
+        *ForWorld->GetName(), NetModeToString(ForWorld->GetNetMode()), ForWorld);
+
+    const TArray<FGameplayTag> AllTags = ServiceLocator->GetAllRegisteredServiceTags();
+
+    int32 Rebound = 0;
+    int32 Skipped = 0;
+
+    for (const FGameplayTag& Tag : AllTags)
+    {
+        UObject* SvcObj = ServiceLocator->TryGetService(Tag);
+        if (!SvcObj) { ++Skipped; continue; }
+
+        if (SvcObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass()))
+        {
+            // Pure C++ call (no UFUNCTION-Execute - we don't need BP reflection here)
+            if (ISuspenseWorldBindable* Iface = Cast<ISuspenseWorldBindable>(SvcObj))
+            {
+                Iface->RebindWorld(ForWorld);
+            }
+            ++Rebound;
+        }
+        else
+        {
+            ++Skipped;
+        }
+    }
+
+    ++RebindCount;
+    LastBoundWorld = ForWorld;
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("RebindAllWorldBindableServices: complete (Rebound=%d, Skipped=%d, Total=%d)"),
+        Rebound, Skipped, AllTags.Num());
+}
+
+void USuspenseCoreSystemCoordinator::ValidateAndLog()
+{
+    check(IsInGameThread());
+    bServicesReady = false;
+
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: ServiceLocator is null"));
+        return;
+    }
+
+    TArray<FText> Errors;
+    const bool bOk = ValidateServices(Errors);
+
+    if (bOk && Errors.Num() == 0)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ValidateServices: OK"));
+        bServicesReady = true;
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ValidateServices: %d issues detected"), Errors.Num());
+        for (const FText& E : Errors)
+        {
+            UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("  - %s"), *E.ToString());
+        }
+    }
+}
+
+
+UWorld* USuspenseCoreSystemCoordinator::TryGetCurrentWorldSafe() const
+{
+    if (const UGameInstance* GI = GetGameInstance())
+    {
+        return GI->GetWorld();
+    }
+    return nullptr;
+}
+
 
 //========================================
-// Service Management API
+// Public API
 //========================================
 
-void USuspenseCoreSystemCoordinator::RegisterServiceByName(FName ServiceName, UObject* ServiceInstance)
+void USuspenseCoreSystemCoordinator::ForceRebindWorld(UWorld* World)
 {
-	check(IsInGameThread());
+    if (!World)
+    {
+        World = TryGetCurrentWorldSafe();
+    }
 
-	if (!ServiceInstance)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[RegisterServiceByName] Cannot register null service: %s"),
-			*ServiceName.ToString());
-		return;
-	}
+    if (!World)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("ForceRebindWorld: no valid world"));
+        return;
+    }
 
-	if (!ServiceLocator)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Error, TEXT("[RegisterServiceByName] ServiceLocator is null! Cannot register service: %s"),
-			*ServiceName.ToString());
-		return;
-	}
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("ForceRebindWorld: manually triggered for %s"), *World->GetName());
 
-	ServiceLocator->RegisterServiceByName(ServiceName, ServiceInstance);
-
-	UE_LOG(LogSuspenseCoreCoordinator, Verbose, TEXT("[RegisterServiceByName] Registered service: %s (%s)"),
-		*ServiceName.ToString(), *ServiceInstance->GetClass()->GetName());
-}
-
-void USuspenseCoreSystemCoordinator::UnregisterServiceByName(FName ServiceName)
-{
-	check(IsInGameThread());
-
-	if (!ServiceLocator)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[UnregisterServiceByName] ServiceLocator is null!"));
-		return;
-	}
-
-	ServiceLocator->UnregisterService(ServiceName);
-
-	UE_LOG(LogSuspenseCoreCoordinator, Verbose, TEXT("[UnregisterServiceByName] Unregistered service: %s"),
-		*ServiceName.ToString());
-}
-
-UObject* USuspenseCoreSystemCoordinator::GetServiceByName(FName ServiceName) const
-{
-	check(IsInGameThread());
-
-	if (!ServiceLocator)
-	{
-		return nullptr;
-	}
-
-	return ServiceLocator->GetServiceByName(ServiceName);
-}
-
-bool USuspenseCoreSystemCoordinator::HasService(FName ServiceName) const
-{
-	check(IsInGameThread());
-
-	if (!ServiceLocator)
-	{
-		return false;
-	}
-
-	return ServiceLocator->HasService(ServiceName);
-}
-
-//========================================
-// EventBus Integration
-//========================================
-
-USuspenseCoreEventBus* USuspenseCoreSystemCoordinator::GetEventBus() const
-{
-	check(IsInGameThread());
-
-	// Get EventManager and return its EventBus
-	if (USuspenseCoreEventManager* EventManager = GetEventManager())
-	{
-		return EventManager->GetEventBus();
-	}
-
-	return nullptr;
-}
-
-void USuspenseCoreSystemCoordinator::BroadcastSystemEvent(FGameplayTag EventTag, UObject* Source)
-{
-	check(IsInGameThread());
-
-	if (!EventTag.IsValid())
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[BroadcastSystemEvent] Invalid event tag!"));
-		return;
-	}
-
-	if (USuspenseCoreEventBus* EventBus = GetEventBus())
-	{
-		EventBus->PublishSimple(EventTag, Source);
-
-		UE_LOG(LogSuspenseCoreCoordinator, VeryVerbose, TEXT("[BroadcastSystemEvent] Event published: %s"),
-			*EventTag.ToString());
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[BroadcastSystemEvent] EventBus not available! Event not published: %s"),
-			*EventTag.ToString());
-	}
-}
-
-void USuspenseCoreSystemCoordinator::SubscribeToSystemEvent(FGameplayTag EventTag, UObject* Subscriber)
-{
-	check(IsInGameThread());
-
-	if (!EventTag.IsValid())
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[SubscribeToSystemEvent] Invalid event tag!"));
-		return;
-	}
-
-	if (!Subscriber)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[SubscribeToSystemEvent] Null subscriber!"));
-		return;
-	}
-
-	// Note: This is a simplified Blueprint-friendly version
-	// For full subscription with callback, use EventBus->Subscribe() directly
-	UE_LOG(LogSuspenseCoreCoordinator, Verbose, TEXT("[SubscribeToSystemEvent] Subscriber registered for event: %s"),
-		*EventTag.ToString());
-}
-
-//========================================
-// Status API
-//========================================
-
-int32 USuspenseCoreSystemCoordinator::GetServiceCount() const
-{
-	check(IsInGameThread());
-
-	if (!ServiceLocator)
-	{
-		return 0;
-	}
-
-	return ServiceLocator->GetServiceCount();
-}
-
-TArray<FName> USuspenseCoreSystemCoordinator::GetRegisteredServiceNames() const
-{
-	check(IsInGameThread());
-
-	if (!ServiceLocator)
-	{
-		return TArray<FName>();
-	}
-
-	return ServiceLocator->GetRegisteredServiceNames();
+    RebindAllWorldBindableServices(World);
 }
 
 //========================================
 // Debug Commands
 //========================================
 
-void USuspenseCoreSystemCoordinator::DebugDumpSystemState()
+void USuspenseCoreSystemCoordinator::DebugDumpServicesState()
 {
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("SuspenseCoreSystemCoordinator State"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("Initialized: %s"), bIsInitialized ? TEXT("YES") : TEXT("NO"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("Services Registered: %s"), bServicesRegistered ? TEXT("YES") : TEXT("NO"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("Services Initialized: %s"), bServicesInitialized ? TEXT("YES") : TEXT("NO"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("Service Count: %d"), GetServiceCount());
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("ServiceLocator Valid: %s"), ServiceLocator ? TEXT("YES") : TEXT("NO"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("EventBus Available: %s"), GetEventBus() ? TEXT("YES") : TEXT("NO"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("=== EQUIPMENT SERVICES STATE ==="));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+
+    // Subsystem status
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Subsystem Status:"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Services Registered: %s"), bServicesRegistered ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Services Ready:      %s"), bServicesReady ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Rebind In Progress:  %s"), bRebindInProgress ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Total Rebinds:       %d"), RebindCount);
+
+    // World status
+    UWorld* CurrentWorld = TryGetCurrentWorldSafe();
+    if (CurrentWorld)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Current World:"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Name:     %s"), *CurrentWorld->GetName());
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  NetMode:  %s"), *GetNetModeString(CurrentWorld->GetNetMode()));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Ptr:      %p"), CurrentWorld);
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Current World: NONE"));
+    }
+
+    // Last bound world
+    if (UWorld* LastWorld = LastBoundWorld.Get())
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Last Bound World:"));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  Name: %s (Ptr=%p)"), *LastWorld->GetName(), LastWorld);
+    }
+
+    // Registered services
+    if (ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+
+        const TArray<FGameplayTag> AllServiceTags = ServiceLocator->GetAllRegisteredServiceTags();
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("Registered Services: %d"), AllServiceTags.Num());
+
+        for (const FGameplayTag& Tag : AllServiceTags)
+        {
+            UObject* ServiceObj = ServiceLocator->GetService(Tag);
+            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass());
+            const bool bIsReady = ServiceLocator->IsServiceReady(Tag);
+
+            UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  - %s (Ready=%s, WorldBindable=%s)"),
+                *Tag.ToString(),
+                bIsReady ? TEXT("YES") : TEXT("NO"),
+                bIsWorldBindable ? TEXT("YES") : TEXT("NO"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+        UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("ServiceLocator: NONE"));
+    }
+
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("=== END ==="));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT(""));
 }
 
-void USuspenseCoreSystemCoordinator::DebugDumpServices()
+void USuspenseCoreSystemCoordinator::DebugForceRebind()
 {
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("Registered Services (%d)"), GetServiceCount());
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
+    UWorld* World = TryGetCurrentWorldSafe();
+    if (!World)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("DebugForceRebind: no current world"));
+        return;
+    }
 
-	TArray<FName> ServiceNames = GetRegisteredServiceNames();
-	for (const FName& ServiceName : ServiceNames)
-	{
-		if (UObject* Service = GetServiceByName(ServiceName))
-		{
-			UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("  - %s (%s)"),
-				*ServiceName.ToString(), *Service->GetClass()->GetName());
-		}
-		else
-		{
-			UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("  - %s (INVALID)"), *ServiceName.ToString());
-		}
-	}
-
-	UE_LOG(LogSuspenseCoreCoordinator, Display, TEXT("========================================"));
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("DebugForceRebind: forcing rebind to %s"), *World->GetName());
+    ForceRebindWorld(World);
+    UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("DebugForceRebind: complete"));
 }
 
 //========================================
-// Protected Methods
+// Coordinator Lifecycle Methods
 //========================================
 
-void USuspenseCoreSystemCoordinator::CreateSubsystems()
+void USuspenseCoreSystemCoordinator::Shutdown()
 {
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::Shutdown"));
 
-	// Get GameInstance as outer for persistence across map loads
-	UGameInstance* GameInstance = GetGameInstance();
-	if (!GameInstance)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Error, TEXT("[CreateSubsystems] GameInstance is null!"));
-		return;
-	}
-
-	// Create ServiceLocator
-	ServiceLocator = NewObject<USuspenseCoreServiceLocator>(GameInstance, TEXT("SuspenseCoreServiceLocator"));
-	if (!ServiceLocator)
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Error, TEXT("[CreateSubsystems] Failed to create ServiceLocator!"));
-		return;
-	}
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[CreateSubsystems] ServiceLocator created successfully."));
-
-	// Cache EventManager reference
-	CachedEventManager = GetEventManager();
-	if (CachedEventManager.IsValid())
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[CreateSubsystems] EventManager found and cached."));
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("[CreateSubsystems] EventManager not available yet. Will retry on demand."));
-	}
+    // Cleanup any active subscriptions or timers
+    // Currently no additional cleanup needed - services handle their own cleanup
 }
 
 void USuspenseCoreSystemCoordinator::RegisterCoreServices()
 {
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::RegisterCoreServices"));
 
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[RegisterCoreServices] Registering core SuspenseCore services..."));
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Error, TEXT("RegisterCoreServices: ServiceLocator is null"));
+        return;
+    }
 
-	// Register ServiceLocator itself as a service
-	if (ServiceLocator)
-	{
-		RegisterService<USuspenseCoreServiceLocator>(ServiceLocator);
-	}
-
-	// Subclasses can override this method to register additional services
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[RegisterCoreServices] Core services registration complete."));
+    // Core services are registered through ServiceLocator when components initialize
+    // This method serves as a hook for any coordinator-level registration logic
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete"));
 }
 
-void USuspenseCoreSystemCoordinator::InitializeServices()
+void USuspenseCoreSystemCoordinator::WarmUpServices()
 {
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::WarmUpServices"));
 
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[InitializeServices] Initializing registered services..."));
+    if (!ServiceLocator)
+    {
+        UE_LOG(LogMedComCoordinatorSubsystem, Warning, TEXT("WarmUpServices: ServiceLocator is null"));
+        return;
+    }
 
-	// Get all registered services
-	TArray<FName> ServiceNames = GetRegisteredServiceNames();
-
-	int32 InitializedCount = 0;
-	for (const FName& ServiceName : ServiceNames)
-	{
-		if (UObject* Service = GetServiceByName(ServiceName))
-		{
-			// Check if service implements initialization interface
-			// For now, we just log. Extend this to call Initialize() if interface exists.
-			UE_LOG(LogSuspenseCoreCoordinator, Verbose, TEXT("[InitializeServices] Service ready: %s"),
-				*ServiceName.ToString());
-
-			InitializedCount++;
-		}
-	}
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[InitializeServices] Initialized %d services."), InitializedCount);
-}
-
-void USuspenseCoreSystemCoordinator::ShutdownServices()
-{
-	check(IsInGameThread());
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[ShutdownServices] Shutting down services..."));
-
-	// Get all registered services
-	TArray<FName> ServiceNames = GetRegisteredServiceNames();
-
-	int32 ShutdownCount = 0;
-	for (const FName& ServiceName : ServiceNames)
-	{
-		if (UObject* Service = GetServiceByName(ServiceName))
-		{
-			// Check if service implements shutdown interface
-			// For now, we just log. Extend this to call Shutdown() if interface exists.
-			UE_LOG(LogSuspenseCoreCoordinator, Verbose, TEXT("[ShutdownServices] Shutting down service: %s"),
-				*ServiceName.ToString());
-
-			ShutdownCount++;
-		}
-	}
-
-	UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("[ShutdownServices] Shutdown %d services."), ShutdownCount);
+    // Initialize all lazy services
+    const int32 Initialized = ServiceLocator->InitializeAllServices();
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("WarmUpServices: %d services initialized"), Initialized);
 }
 
 bool USuspenseCoreSystemCoordinator::ValidateServices(TArray<FText>& OutErrors) const
 {
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log, TEXT("Coordinator::ValidateServices"));
 
-	OutErrors.Empty();
+    OutErrors.Empty();
 
-	// Validate ServiceLocator exists
-	if (!ServiceLocator)
-	{
-		OutErrors.Add(FText::FromString(TEXT("ServiceLocator is null")));
-		return false;
-	}
+    if (!ServiceLocator)
+    {
+        OutErrors.Add(FText::FromString(TEXT("ServiceLocator is null")));
+        return false;
+    }
 
-	// Validate we have at least one service registered
-	if (GetServiceCount() == 0)
-	{
-		OutErrors.Add(FText::FromString(TEXT("No services registered")));
-		return false;
-	}
+    // Validate all registered services
+    const TArray<FGameplayTag> AllTags = ServiceLocator->GetAllRegisteredServiceTags();
 
-	// All services should be valid objects
-	TArray<FName> ServiceNames = GetRegisteredServiceNames();
-	for (const FName& ServiceName : ServiceNames)
-	{
-		if (!GetServiceByName(ServiceName))
-		{
-			OutErrors.Add(FText::FromString(FString::Printf(TEXT("Service '%s' is invalid"), *ServiceName.ToString())));
-		}
-	}
+    int32 ValidCount = 0;
+    int32 InvalidCount = 0;
 
-	return OutErrors.Num() == 0;
-}
+    for (const FGameplayTag& Tag : AllTags)
+    {
+        if (ServiceLocator->IsServiceReady(Tag))
+        {
+            ValidCount++;
+        }
+        else
+        {
+            InvalidCount++;
+            OutErrors.Add(FText::Format(
+                FText::FromString(TEXT("Service not ready: {0}")),
+                FText::FromString(Tag.ToString())
+            ));
+        }
+    }
 
-USuspenseCoreEventManager* USuspenseCoreSystemCoordinator::GetEventManager() const
-{
-	check(IsInGameThread());
+    UE_LOG(LogMedComCoordinatorSubsystem, Log,
+        TEXT("ValidateServices: Valid=%d, Invalid=%d, Total=%d"),
+        ValidCount, InvalidCount, AllTags.Num());
 
-	// Return cached version if still valid
-	if (CachedEventManager.IsValid())
-	{
-		return CachedEventManager.Get();
-	}
-
-	// Try to get from GameInstance
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
-		return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
-	}
-
-	return nullptr;
+    return InvalidCount == 0;
 }

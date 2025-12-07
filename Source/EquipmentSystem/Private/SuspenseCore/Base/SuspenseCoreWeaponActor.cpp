@@ -13,7 +13,7 @@
 // Logging
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreWeaponActor, Log, All);
 
-namespace SuspenseCoreWeaponDefaults
+namespace WeaponDefaults
 {
     static constexpr float DefaultDamage      = 25.0f;
     static constexpr float DefaultFireRate    = 600.0f;
@@ -24,7 +24,7 @@ namespace SuspenseCoreWeaponDefaults
     // Runtime property keys (persist only via ItemInstance)
     static const FName Prop_CurrentAmmo     (TEXT("CurrentAmmo"));
     static const FName Prop_RemainingAmmo   (TEXT("RemainingAmmo"));
-    static const FName Prop_CurrentFireMode (TEXT("CurrentFireMode"));
+    static const FName Prop_CurrentFireMode (TEXT("CurrentFireMode")); // index stored as float
 }
 
 ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
@@ -37,7 +37,8 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 
     if (ScopeCamera)
     {
-        ScopeCamera->SetupAttachment(RootComponent.Get());
+        // В UE5 RootComponent — TObjectPtr; для SetupAttachment нужен сырой указатель.
+        ScopeCamera->SetupAttachment(RootComponent.Get()); // допустимо и если RootComponent == nullptr
         ScopeCamera->bAutoActivate = false;
     }
 
@@ -48,13 +49,15 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 void ASuspenseCoreWeaponActor::BeginPlay()
 {
     Super::BeginPlay();
-    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("SuspenseCoreWeaponActor BeginPlay: %s"), *GetName());
+    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("WeaponActor BeginPlay: %s"), *GetName());
 }
 
 void ASuspenseCoreWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    // Persist ammo / firemode (component already persists on changes; here — final guard)
     SaveWeaponState();
 
+    // Soft cleanup components (no GA/GE touch)
     if (AmmoComponent)     { AmmoComponent->Cleanup(); }
     if (FireModeComponent) { FireModeComponent->Cleanup(); }
 
@@ -63,16 +66,19 @@ void ASuspenseCoreWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 USuspenseEventManager* ASuspenseCoreWeaponActor::GetDelegateManager() const
 {
+    // У этого фасада собственного менеджера нет — события маршрутизируются компонентами/сервисами.
     return nullptr;
 }
 
 //================================================
-// ASuspenseCoreEquipmentActor override
+// ASuspenseCoreEquipmentActor override: extend item-equip path
 //================================================
-void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    // Base: caches ASC, initializes Mesh/Attribute/Attachment from SSOT + fires UI.Equipment.DataReady
     Super::OnItemInstanceEquipped_Implementation(ItemInstance);
 
+    // Load SSOT data for weapon specifics
     if (USuspenseItemManager* ItemManager = GetItemManager())
     {
         if (ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
@@ -85,7 +91,10 @@ void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSusp
                 return;
             }
 
+            // Initialize owned weapon components from SSOT (ONLY public APIs of mesh component)
             SetupComponentsFromItemData(CachedItemData);
+
+            // Restore persisted runtime bits (ammo / fire mode index)
             RestoreWeaponState();
 
             UE_LOG(LogSuspenseCoreWeaponActor, Log, TEXT("Weapon initialized from SSOT: %s"), *CachedItemData.DisplayName.ToString());
@@ -99,15 +108,16 @@ void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSusp
 //================================================
 // ISuspenseWeapon (facade)
 //================================================
-FWeaponInitializationResult ASuspenseCoreWeaponActor::InitializeFromItemData_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+FWeaponInitializationResult ASuspenseCoreWeaponActor::InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     FWeaponInitializationResult R;
 
+    // Use the same unified path as equip (no GA/GE/Attach here)
     OnItemInstanceEquipped_Implementation(ItemInstance);
 
     R.bSuccess         = bHasCachedData;
     R.FireModesLoaded  = FireModeComponent ? ISuspenseFireModeProvider::Execute_GetAvailableFireModeCount(FireModeComponent) : 0;
-    R.AbilitiesGranted = 0;
+    R.AbilitiesGranted = 0; // actor grants nothing
 
     if (!R.bSuccess)
     {
@@ -126,18 +136,20 @@ bool ASuspenseCoreWeaponActor::GetWeaponItemData_Implementation(FSuspenseUnified
     return false;
 }
 
-FSuspenseInventoryItemInstance ASuspenseCoreWeaponActor::GetItemInstance_Implementation() const
+FSuspenseCoreInventoryItemInstance ASuspenseCoreWeaponActor::GetItemInstance_Implementation() const
 {
     return EquippedItemInstance;
 }
 
 bool ASuspenseCoreWeaponActor::Fire_Implementation(const FWeaponFireParams& /*Params*/)
 {
+    // Actor doesn't simulate fire; ability flow does it.
     return AmmoComponent ? AmmoComponent->ConsumeAmmo(1.0f) : false;
 }
 
 void ASuspenseCoreWeaponActor::StopFire_Implementation()
 {
+    // Intentionally empty (handled by abilities / components)
 }
 
 bool ASuspenseCoreWeaponActor::Reload_Implementation(bool bForce)
@@ -192,27 +204,28 @@ FName ASuspenseCoreWeaponActor::GetStockSocketName_Implementation() const
 
 float ASuspenseCoreWeaponActor::GetWeaponDamage_Implementation() const
 {
-    return GetWeaponAttributeValue(TEXT("Damage"), SuspenseCoreWeaponDefaults::DefaultDamage);
+    return GetWeaponAttributeValue(TEXT("Damage"), WeaponDefaults::DefaultDamage);
 }
 
 float ASuspenseCoreWeaponActor::GetFireRate_Implementation() const
 {
-    return GetWeaponAttributeValue(TEXT("FireRate"), SuspenseCoreWeaponDefaults::DefaultFireRate);
+    return GetWeaponAttributeValue(TEXT("FireRate"), WeaponDefaults::DefaultFireRate);
 }
 
 float ASuspenseCoreWeaponActor::GetReloadTime_Implementation() const
 {
-    return AmmoComponent ? AmmoComponent->GetReloadTime(true) : SuspenseCoreWeaponDefaults::DefaultReloadTime;
+    // Delegated to AmmoComponent where possible
+    return AmmoComponent ? AmmoComponent->GetReloadTime(/*bTactical*/ true) : WeaponDefaults::DefaultReloadTime;
 }
 
 float ASuspenseCoreWeaponActor::GetRecoil_Implementation() const
 {
-    return GetWeaponAttributeValue(TEXT("Recoil"), SuspenseCoreWeaponDefaults::DefaultRecoil);
+    return GetWeaponAttributeValue(TEXT("Recoil"), WeaponDefaults::DefaultRecoil);
 }
 
 float ASuspenseCoreWeaponActor::GetRange_Implementation() const
 {
-    return GetWeaponAttributeValue(TEXT("Range"), SuspenseCoreWeaponDefaults::DefaultRange);
+    return GetWeaponAttributeValue(TEXT("Range"), WeaponDefaults::DefaultRange);
 }
 
 float ASuspenseCoreWeaponActor::GetBaseSpread_Implementation() const
@@ -227,11 +240,13 @@ float ASuspenseCoreWeaponActor::GetMaxSpread_Implementation() const
 
 float ASuspenseCoreWeaponActor::GetCurrentSpread_Implementation() const
 {
+    // Actor does not simulate dynamic spread anymore; return base value for UI if needed.
     return GetBaseSpread_Implementation();
 }
 
 void ASuspenseCoreWeaponActor::SetCurrentSpread_Implementation(float /*NewSpread*/)
 {
+    // No-op: spread simulation is handled by abilities/components
 }
 
 float ASuspenseCoreWeaponActor::GetCurrentAmmo_Implementation() const
@@ -249,20 +264,21 @@ float ASuspenseCoreWeaponActor::GetMagazineSize_Implementation() const
     return AmmoComponent ? AmmoComponent->GetMagazineSize() : 0.0f;
 }
 
-FSuspenseInventoryAmmoState ASuspenseCoreWeaponActor::GetAmmoState_Implementation() const
+FSuspenseCoreInventoryAmmoState ASuspenseCoreWeaponActor::GetAmmoState_Implementation() const
 {
-    return AmmoComponent ? AmmoComponent->GetAmmoState() : FSuspenseInventoryAmmoState();
+    return AmmoComponent ? AmmoComponent->GetAmmoState() : FSuspenseCoreInventoryAmmoState();
 }
 
-void ASuspenseCoreWeaponActor::SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState)
+void ASuspenseCoreWeaponActor::SetAmmoState_Implementation(const FSuspenseCoreInventoryAmmoState& NewState)
 {
+    // IMPORTANT: actor only persists state to ItemInstance, not pushes into component (to avoid recursion)
     if (!EquippedItemInstance.IsValid())
     {
         return;
     }
 
-    EquippedItemInstance.SetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_CurrentAmmo,   NewState.CurrentAmmo);
-    EquippedItemInstance.SetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_RemainingAmmo, NewState.RemainingAmmo);
+    EquippedItemInstance.SetRuntimeProperty(WeaponDefaults::Prop_CurrentAmmo,     NewState.CurrentAmmo);
+    EquippedItemInstance.SetRuntimeProperty(WeaponDefaults::Prop_RemainingAmmo,   NewState.RemainingAmmo);
 }
 
 bool ASuspenseCoreWeaponActor::CanReload_Implementation() const
@@ -282,6 +298,7 @@ FWeaponStateFlags ASuspenseCoreWeaponActor::GetWeaponState_Implementation() cons
     {
         Flags.bIsReloading = AmmoComponent->IsReloading();
     }
+    // bIsFiring / bIsAiming handled by abilities/components
     return Flags;
 }
 
@@ -296,6 +313,7 @@ bool ASuspenseCoreWeaponActor::IsInWeaponState_Implementation(const FWeaponState
 
 void ASuspenseCoreWeaponActor::SetWeaponState_Implementation(const FWeaponStateFlags& NewState, bool bEnabled)
 {
+    // Let components handle the real state transitions
     if (NewState.bIsReloading && AmmoComponent)
     {
         if (bEnabled)  { AmmoComponent->StartReload(false); }
@@ -486,12 +504,14 @@ void ASuspenseCoreWeaponActor::SaveWeaponState()
         return;
     }
 
+    // Persist ammo via interface contract (component already calls this on changes)
     if (AmmoComponent)
     {
-        const FSuspenseInventoryAmmoState AS = AmmoComponent->GetAmmoState();
+        const FSuspenseCoreInventoryAmmoState AS = AmmoComponent->GetAmmoState();
         SetAmmoState_Implementation(AS);
     }
 
+    // Persist fire mode index (for quick restore)
     if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
         const TArray<FFireModeRuntimeData> All = ISuspenseFireModeProvider::Execute_GetAllFireModes(FireModeComponent);
@@ -500,7 +520,7 @@ void ASuspenseCoreWeaponActor::SaveWeaponState()
         const int32 Index = All.IndexOfByPredicate([&](const FFireModeRuntimeData& E){ return E.FireModeTag == Cur; });
         if (Index != INDEX_NONE)
         {
-            EquippedItemInstance.SetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_CurrentFireMode, static_cast<float>(Index));
+            EquippedItemInstance.SetRuntimeProperty(WeaponDefaults::Prop_CurrentFireMode, static_cast<float>(Index));
         }
     }
 }
@@ -512,25 +532,27 @@ void ASuspenseCoreWeaponActor::RestoreWeaponState()
         return;
     }
 
+    // Restore ammo
     if (AmmoComponent)
     {
-        const float Curr  = EquippedItemInstance.GetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_CurrentAmmo,   -1.0f);
-        const float Rem   = EquippedItemInstance.GetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_RemainingAmmo, -1.0f);
+        const float Curr  = EquippedItemInstance.GetRuntimeProperty(WeaponDefaults::Prop_CurrentAmmo,   -1.0f);
+        const float Rem   = EquippedItemInstance.GetRuntimeProperty(WeaponDefaults::Prop_RemainingAmmo, -1.0f);
 
         if (Curr >= 0.0f && Rem >= 0.0f)
         {
-            FSuspenseInventoryAmmoState S;
+            FSuspenseCoreInventoryAmmoState S;
             S.CurrentAmmo    = Curr;
             S.RemainingAmmo  = Rem;
             S.AmmoType       = GetAmmoType_Implementation();
             S.bHasAmmoState  = true;
-            AmmoComponent->SetAmmoState(S);
+            AmmoComponent->SetAmmoState(S); // component handles broadcast + persist
         }
     }
 
+    // Restore fire mode by saved index
     if (FireModeComponent && FireModeComponent->GetClass()->ImplementsInterface(USuspenseFireModeProvider::StaticClass()))
     {
-        const float SavedIndexF = EquippedItemInstance.GetRuntimeProperty(SuspenseCoreWeaponDefaults::Prop_CurrentFireMode, -1.0f);
+        const float SavedIndexF = EquippedItemInstance.GetRuntimeProperty(WeaponDefaults::Prop_CurrentFireMode, -1.0f);
         if (SavedIndexF >= 0.0f)
         {
             ISuspenseFireModeProvider::Execute_SetFireModeByIndex(FireModeComponent, FMath::RoundToInt(SavedIndexF));
@@ -543,11 +565,13 @@ void ASuspenseCoreWeaponActor::RestoreWeaponState()
 //================================================
 void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseUnifiedItemData& ItemData)
 {
+    // Mesh: use ONLY public interface (InitializeFromItemInstance уже вызван базой в S3)
     if (USuspenseCoreEquipmentMeshComponent* MC = MeshComponent)
     {
-        MC->SetupWeaponVisuals(ItemData);
+        MC->SetupWeaponVisuals(ItemData); // применяет оружейные визуальные настройки
     }
 
+    // Link AttributeComponent to AmmoComponent for attribute access
     if (USuspenseCoreEquipmentAttributeComponent* AC = AttributeComponent)
     {
         if (AmmoComponent)
@@ -556,10 +580,12 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseUnifie
         }
     }
 
+    // Create weapon interface handle for components
     TScriptInterface<ISuspenseWeapon> SelfIface;
     SelfIface.SetObject(this);
     SelfIface.SetInterface(Cast<ISuspenseWeapon>(this));
 
+    // Initialize components from weapon (ASC cached in base at equip-time)
     if (AmmoComponent)
     {
         AmmoComponent->Initialize(GetOwner(), CachedASC);

@@ -3,374 +3,190 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Components/ActorComponent.h"
+#include "Interfaces/Equipment/ISuspenseWeaponStateProvider.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreWeaponStateManager.generated.h"
 
-// Forward declarations
-class USuspenseCoreEventBus;
-class USuspenseCoreServiceLocator;
-struct FSuspenseCoreEventData;
-
 /**
- * FSuspenseCoreWeaponStateTransition
- *
- * Defines a valid state transition with conditions
+ * Weapon state machine configuration
  */
-USTRUCT(BlueprintType)
-struct FSuspenseCoreWeaponStateTransition
+USTRUCT()
+struct FWeaponStateMachine
 {
-	GENERATED_BODY()
-
-	/** Source state */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	FGameplayTag FromState;
-
-	/** Target state */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	FGameplayTag ToState;
-
-	/** Required tags for transition to be valid */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	FGameplayTagContainer RequiredTags;
-
-	/** Blocked tags that prevent transition */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	FGameplayTagContainer BlockedTags;
-
-	/** Transition priority (lower = higher priority) */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	int32 Priority = 0;
-
-	/** Can transition be interrupted */
-	UPROPERTY(BlueprintReadWrite, Category = "State")
-	bool bInterruptible = true;
+    GENERATED_BODY()
+    
+    UPROPERTY()
+    int32 SlotIndex = INDEX_NONE;
+    
+    UPROPERTY()
+    FGameplayTag CurrentState;
+    
+    UPROPERTY()
+    FGameplayTag PreviousState;
+    
+    UPROPERTY()
+    bool bIsTransitioning = false;
+    
+    UPROPERTY()
+    float TransitionStartTime = 0.0f;
+    
+    UPROPERTY()
+    float TransitionDuration = 0.0f;
+    
+    UPROPERTY()
+    FWeaponStateTransitionRequest ActiveTransition;
 };
 
 /**
- * FSuspenseCoreWeaponStateData
- *
- * Runtime data for current weapon state
+ * State transition definition
  */
+USTRUCT()
+struct FStateTransitionDef
+{
+    GENERATED_BODY()
+    
+    UPROPERTY()
+    FGameplayTag FromState;
+    
+    UPROPERTY()
+    FGameplayTag ToState;
+    
+    UPROPERTY()
+    float Duration = 0.2f;
+    
+    UPROPERTY()
+    bool bInterruptible = false;
+    
+    UPROPERTY()
+    FGameplayTagContainer RequiredTags;
+};
+
 USTRUCT(BlueprintType)
-struct FSuspenseCoreWeaponStateData
+struct FWeaponStateHistoryEntry
 {
 	GENERATED_BODY()
 
-	/** Current state tag */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	FGameplayTag CurrentState;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag State;
 
-	/** Previous state tag */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	FGameplayTag PreviousState;
-
-	/** Time when entered current state */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	float StateEntryTime = 0.0f;
-
-	/** Duration in current state */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	float StateDuration = 0.0f;
-
-	/** Is state transition in progress */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	bool bIsTransitioning = false;
-
-	/** Active state tags */
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	FGameplayTagContainer ActiveStateTags;
-
-	/** Get time in current state */
-	float GetTimeInState(float CurrentTime) const
-	{
-		return CurrentTime - StateEntryTime;
-	}
-
-	/** Is in specific state */
-	bool IsInState(FGameplayTag StateTag) const
-	{
-		return CurrentState.MatchesTagExact(StateTag);
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TimeSeconds = 0.f;
 };
 
 /**
- * USuspenseCoreWeaponStateManager
- *
- * Manages weapon state machine with event-driven transitions.
- *
- * Architecture:
- * - EventBus: Publishes state change events
- * - GameplayTags: State identification and transition rules
- * - State Machine: Deterministic state transitions with validation
- *
- * Responsibilities:
- * - Manage weapon state lifecycle (Idle, Firing, Reloading, etc.)
- * - Validate and execute state transitions
- * - Track state history and timing
- * - Publish state change events through EventBus
- * - Support state queries and predictions
+ * Weapon State Manager Component
+ * 
+ * Philosophy: Dedicated finite state machine for weapon states.
+ * Manages state transitions, validates state changes, and tracks history.
+ * 
+ * Key Principles:
+ * - Single Responsibility: Only manages weapon states
+ * - State Machine Pattern: Clear transition rules and validation
+ * - Per-slot independence: Each weapon slot has its own state
+ * - Event-driven: Broadcasts state changes for observers
  */
-UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UObject
+UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorComponent, public ISuspenseWeaponStateProvider
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreWeaponStateManager();
+    USuspenseCoreWeaponStateManager();
 
-	//================================================
-	// Initialization
-	//================================================
+    //~ Begin UActorComponent Interface
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    //~ End UActorComponent Interface
 
-	/**
-	 * Initialize state manager with dependencies
-	 * @param InServiceLocator ServiceLocator for dependency injection
-	 * @param InOwner Owning weapon actor/component
-	 * @return True if initialized successfully
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState")
-	bool Initialize(USuspenseCoreServiceLocator* InServiceLocator, UObject* InOwner);
+    //~ Begin ISuspenseWeaponStateProvider Interface
+    virtual FGameplayTag GetWeaponState(int32 SlotIndex = -1) const override;
+    virtual FWeaponStateTransitionResult RequestStateTransition(const FWeaponStateTransitionRequest& Request) override;
+    virtual bool CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
+    virtual TArray<FGameplayTag> GetValidTransitions(const FGameplayTag& CurrentState) const override;
+    virtual bool ForceState(const FGameplayTag& NewState, int32 SlotIndex = -1) override;
+    virtual float GetTransitionDuration(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
+    virtual bool IsTransitioning(int32 SlotIndex = -1) const override;
+    virtual float GetTransitionProgress(int32 SlotIndex = -1) const override;
+    virtual bool AbortTransition(int32 SlotIndex = -1) override;
+    virtual TArray<FGameplayTag> GetStateHistory(int32 MaxCount = 10) const override;
+    //~ End ISuspenseWeaponStateProvider Interface
 
-	/**
-	 * Setup initial state and transitions
-	 * @param InitialState Starting state tag
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState")
-	void SetupStateMachine(FGameplayTag InitialState);
+    /**
+     * Initialize with dependencies
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+    bool Initialize(
+        TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider,
+        TScriptInterface<ISuspenseEventDispatcher> EventDispatcher
+    );
 
-	/**
-	 * Check if state manager is initialized
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	bool IsInitialized() const { return bIsInitialized; }
+    /**
+     * Register custom state transition
+     */
+    //UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+    void RegisterTransition(const FStateTransitionDef& Transition);
 
-	//================================================
-	// State Transitions
-	//================================================
-
-	/**
-	 * Request state transition
-	 * @param NewState Target state
-	 * @param bForceTransition Force transition even if not normally allowed
-	 * @return True if transition succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState")
-	bool RequestStateTransition(FGameplayTag NewState, bool bForceTransition = false);
-
-	/**
-	 * Can transition to target state
-	 * @param TargetState State to check
-	 * @param OutReason Reason if transition not allowed
-	 * @return True if transition is valid
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	bool CanTransitionTo(FGameplayTag TargetState, FText& OutReason) const;
-
-	/**
-	 * Force immediate state change (skips validation)
-	 * Use with caution - for initialization or emergency resets
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState")
-	void ForceSetState(FGameplayTag NewState);
-
-	/**
-	 * Return to previous state
-	 * @return True if successfully returned to previous state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState")
-	bool ReturnToPreviousState();
-
-	//================================================
-	// State Queries
-	//================================================
-
-	/**
-	 * Get current state data
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	FSuspenseCoreWeaponStateData GetCurrentStateData() const { return CurrentStateData; }
-
-	/**
-	 * Get current state tag
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	FGameplayTag GetCurrentState() const { return CurrentStateData.CurrentState; }
-
-	/**
-	 * Get previous state tag
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	FGameplayTag GetPreviousState() const { return CurrentStateData.PreviousState; }
-
-	/**
-	 * Is in specific state
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	bool IsInState(FGameplayTag StateTag) const;
-
-	/**
-	 * Is in any of the specified states
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	bool IsInAnyState(const FGameplayTagContainer& StateTags) const;
-
-	/**
-	 * Get time in current state
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	float GetTimeInCurrentState() const;
-
-	/**
-	 * Is currently transitioning
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState")
-	bool IsTransitioning() const { return CurrentStateData.bIsTransitioning; }
-
-	//================================================
-	// Transition Configuration
-	//================================================
-
-	/**
-	 * Register valid state transition
-	 * @param Transition Transition definition
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Config")
-	void RegisterTransition(const FSuspenseCoreWeaponStateTransition& Transition);
-
-	/**
-	 * Remove registered transition
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Config")
-	void UnregisterTransition(FGameplayTag FromState, FGameplayTag ToState);
-
-	/**
-	 * Get all valid transitions from current state
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState|Config")
-	TArray<FGameplayTag> GetValidTransitionsFromCurrentState() const;
-
-	//================================================
-	// State Tags
-	//================================================
-
-	/**
-	 * Add active state tag
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Tags")
-	void AddStateTag(FGameplayTag Tag);
-
-	/**
-	 * Remove active state tag
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Tags")
-	void RemoveStateTag(FGameplayTag Tag);
-
-	/**
-	 * Has specific state tag
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState|Tags")
-	bool HasStateTag(FGameplayTag Tag) const;
-
-	/**
-	 * Clear all state tags
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Tags")
-	void ClearStateTags();
-
-	//================================================
-	// Statistics
-	//================================================
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState|Stats")
-	int32 GetTotalTransitions() const { return TotalTransitions; }
-
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|WeaponState|Stats")
-	int32 GetFailedTransitions() const { return FailedTransitions; }
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|WeaponState|Stats")
-	void ResetStatistics();
-
-protected:
-	//================================================
-	// Event Publishing
-	//================================================
-
-	/** Publish state changed event */
-	void PublishStateChanged(FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted);
-
-	/** Publish transition failed event */
-	void PublishTransitionFailed(FGameplayTag FromState, FGameplayTag ToState, const FText& Reason);
-
-	//================================================
-	// Internal Methods
-	//================================================
-
-	/** Execute state transition */
-	bool ExecuteTransition(FGameplayTag NewState, bool bForce);
-
-	/** Find valid transition */
-	const FSuspenseCoreWeaponStateTransition* FindTransition(FGameplayTag FromState, FGameplayTag ToState) const;
-
-	/** Validate transition against current conditions */
-	bool ValidateTransition(const FSuspenseCoreWeaponStateTransition& Transition, FText& OutReason) const;
-
-	/** Setup default weapon state transitions */
-	void SetupDefaultTransitions();
+    /**
+     * Get all state machines
+     */
+    //UFUNCTION(BlueprintCallable, Category = "Weapon|State")
+    TArray<FWeaponStateMachine> GetAllStateMachines() const { return StateMachines; }
 
 private:
-	//================================================
-	// Dependencies (Injected)
-	//================================================
+    // Process ongoing transitions
+    void UpdateTransitions(float DeltaTime);
+    
+    // Complete a transition
+    void CompleteTransition(int32 SlotIndex);
+    
+    // Get or create state machine for slot
+    FWeaponStateMachine& GetOrCreateStateMachine(int32 SlotIndex);
+    
+    // Find transition definition
+    const FStateTransitionDef* FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const;
+    
+    // Record state change in history
+    void RecordStateChange(int32 SlotIndex, const FGameplayTag& NewState);
+    
+    // Broadcast state change event
+    void BroadcastStateChange(int32 SlotIndex, const FGameplayTag& OldState, const FGameplayTag& NewState);
 
-	/** ServiceLocator for dependency injection */
+private:
+    // Dependencies
+    UPROPERTY()
+    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+    
+    UPROPERTY()
+    TScriptInterface<ISuspenseEventDispatcher> EventDispatcher;
+    
+    // State machines per slot
+    UPROPERTY()
+    TArray<FWeaponStateMachine> StateMachines;
+    
+    // Transition definitions
+    UPROPERTY()
+    TArray<FStateTransitionDef> TransitionDefinitions;
+    
+    // State history (circular buffer)
 	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreServiceLocator> ServiceLocator;
-
-	/** EventBus for event publishing */
-	UPROPERTY()
-	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
-
-	/** Owning weapon */
-	UPROPERTY()
-	TWeakObjectPtr<UObject> Owner;
-
-	//================================================
-	// State Data
-	//================================================
-
-	/** Current state information */
-	UPROPERTY()
-	FSuspenseCoreWeaponStateData CurrentStateData;
-
-	/** Registered state transitions */
-	UPROPERTY()
-	TArray<FSuspenseCoreWeaponStateTransition> RegisteredTransitions;
-
-	//================================================
-	// State
-	//================================================
-
-	/** Initialization flag */
-	UPROPERTY()
-	bool bIsInitialized;
-
-	//================================================
-	// Statistics
-	//================================================
-
-	/** Total state transitions */
-	UPROPERTY()
-	int32 TotalTransitions;
-
-	/** Failed transitions */
-	UPROPERTY()
-	int32 FailedTransitions;
-
-	//================================================
-	// Thread Safety
-	//================================================
-
-	/** Critical section for thread-safe state access */
-	mutable FCriticalSection StateCriticalSection;
+	TArray<FWeaponStateHistoryEntry> StateHistory;
+    
+    UPROPERTY()
+    int32 MaxHistorySize = 50;
+    
+    // Default states
+    UPROPERTY()
+    FGameplayTag DefaultIdleState;
+    
+    UPROPERTY()
+    FGameplayTag DefaultHolsteredState;
+    
+    // Active weapon slot tracking
+    UPROPERTY()
+    int32 ActiveWeaponSlot = INDEX_NONE;
+    
+    // Thread safety
+    mutable FCriticalSection StateMachineLock;
 };

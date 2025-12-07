@@ -1,3 +1,4 @@
+// SuspenseSystemCoordinator.h
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
@@ -7,308 +8,217 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreSystemCoordinator.generated.h"
 
-class USuspenseCoreServiceLocator;
-class USuspenseCoreEventBus;
-class USuspenseCoreEventManager;
+class USuspenseCoreSystemCoordinatorComponent;
+class USuspenseEquipmentServiceLocator;
 
 /**
- * USuspenseCoreSystemCoordinator
- *
- * GameInstance-level subsystem that coordinates all SuspenseCore services and components.
- * Provides centralized service management, lifecycle control, and dependency injection.
+ * GameInstance-level subsystem that owns and manages global equipment services.
  *
  * ARCHITECTURE:
- * - Owns and manages service lifecycle
- * - Integrates with EventBus for system-wide event communication
- * - Provides ServiceLocator functionality for dependency injection
- * - Survives seamless/non-seamless map transitions
- * - Ensures proper initialization order and cleanup
+ * - Owns USuspenseCoreSystemCoordinatorComponent (persistent, not temporary)
+ * - Registers global services once via ServiceLocator
+ * - Survives seamless/non-seamless travel
+ * - Rebinds world-dependent services on world transitions
+ * - Ensures single-instance global services (no duplication)
  *
  * LIFECYCLE:
- * 1. Initialize() - Create subsystems, register core services
- * 2. RegisterService<T>() - Register services during initialization
- * 3. GetService<T>() - Retrieve services for use
- * 4. Deinitialize() - Clean shutdown, release resources
+ * 1. Initialize() - Create coordinator, register services
+ * 2. OnPostWorldInitialization() - Initial world bind
+ * 3. OnPostLoadMapWithWorld() - Rebind on travel
+ * 4. OnWorldBeginPlay() - Final rebind before gameplay
+ * 5. Deinitialize() - Clean shutdown
  *
  * THREAD SAFETY:
  * All methods are GameThread-only (checked via check(IsInGameThread()))
  *
- * USAGE:
- *   auto* Coordinator = USuspenseCoreSystemCoordinator::Get(WorldContext);
- *   Coordinator->RegisterService<UMyService>(MyServiceInstance);
- *   auto* Service = Coordinator->GetService<UMyService>();
- *   Coordinator->BroadcastSystemEvent(EventTag, EventData);
+ * PIE/MULTIPLAYER:
+ * - Works correctly with PIE multi-client
+ * - Works with Listen/Dedicated servers
+ * - Services are per-GameInstance, components are per-PlayerState
  */
-UCLASS(DisplayName="SuspenseCore System Coordinator", meta=(Comment="Coordinates all SuspenseCore services and manages their lifecycle"))
+UCLASS(DisplayName="MedCom System Coordinator Subsystem", meta=(Comment="Owns global equipment services and manages their lifecycle"))
 class EQUIPMENTSYSTEM_API USuspenseCoreSystemCoordinator : public UGameInstanceSubsystem
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USuspenseCoreSystemCoordinator();
+    USuspenseCoreSystemCoordinator();
 
-	//========================================
-	// USubsystem Interface
-	//========================================
+    //========================================
+    // USubsystem Interface
+    //========================================
 
-	/** Called to determine if subsystem should be created for this outer */
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+    /** Called to determine if subsystem should be created for this outer */
+    virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
-	/** Initialize subsystem - create service locator, register services */
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    /** Initialize subsystem - register services, bind world delegates */
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	/** Cleanup subsystem - shutdown services, release resources */
-	virtual void Deinitialize() override;
+    /** Cleanup subsystem - shutdown services, unbind delegates */
+    virtual void Deinitialize() override;
 
-	//========================================
-	// Static Accessor
-	//========================================
+    //========================================
+    // Public Status API
+    //========================================
 
-	/**
-	 * Get coordinator instance from world context
-	 * @param WorldContextObject - World context object
-	 * @return Coordinator instance or nullptr if not available
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|System", meta=(WorldContext="WorldContextObject"))
-	static USuspenseCoreSystemCoordinator* Get(const UObject* WorldContextObject);
+    /**
+     * Check if global services are ready
+     * @return true if services passed validation and are operational
+     */
+    UFUNCTION(BlueprintPure, Category="MedCom|Services")
+    bool AreGlobalServicesReady() const { return bServicesReady; }
 
-	//========================================
-	// Service Management API
-	//========================================
+    /**
+     * Get ServiceLocator instance (read-only)
+     * @return ServiceLocator or nullptr if not initialized
+     */
+    UFUNCTION(BlueprintPure, Category="MedCom|Services")
+    USuspenseEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
 
-	/**
-	 * Register a service instance (C++ template version)
-	 * @param ServiceInstance - Service instance to register
-	 */
-	template<typename T>
-	void RegisterService(T* ServiceInstance)
-	{
-		static_assert(TIsDerivedFrom<T, UObject>::Value, "Service must derive from UObject");
-		check(IsInGameThread());
+    //========================================
+    // Manual Control (for edge cases/tests)
+    //========================================
 
-		if (ServiceLocator)
-		{
-			ServiceLocator->RegisterService<T>(ServiceInstance);
-			UE_LOG(LogTemp, Verbose, TEXT("[SuspenseCoreSystemCoordinator] Registered service: %s"),
-				*T::StaticClass()->GetName());
-		}
-	}
+    /**
+     * Force rebind all world-bindable services to a specific world
+     * Use case: manual recovery after abnormal travel, testing
+     * @param World - World to rebind to, nullptr = use current world
+     */
+    UFUNCTION(BlueprintCallable, Category="MedCom|Services")
+    void ForceRebindWorld(UWorld* World = nullptr);
 
-	/**
-	 * Register a service by name (Blueprint version)
-	 * @param ServiceName - Name to register service under
-	 * @param ServiceInstance - Service instance to register
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
-	void RegisterServiceByName(FName ServiceName, UObject* ServiceInstance);
+    //========================================
+    // Debug Commands (Exec functions)
+    //========================================
 
-	/**
-	 * Unregister a service (C++ template version)
-	 */
-	template<typename T>
-	void UnregisterService()
-	{
-		check(IsInGameThread());
+    /**
+     * Dump current services state to log
+     * Usage: ~ DebugDumpServicesState
+     */
+    UFUNCTION(Exec, Category="MedCom|Debug")
+    void DebugDumpServicesState();
 
-		if (ServiceLocator)
-		{
-			ServiceLocator->UnregisterService(T::StaticClass()->GetFName());
-			UE_LOG(LogTemp, Verbose, TEXT("[SuspenseCoreSystemCoordinator] Unregistered service: %s"),
-				*T::StaticClass()->GetName());
-		}
-	}
+    /**
+     * Force rebind to current world
+     * Usage: ~ DebugForceRebind
+     */
+    UFUNCTION(Exec, Category="MedCom|Debug")
+    void DebugForceRebind();
 
-	/**
-	 * Unregister a service by name (Blueprint version)
-	 * @param ServiceName - Name of service to unregister
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
-	void UnregisterServiceByName(FName ServiceName);
+    //========================================
+    // Coordinator Lifecycle Methods
+    //========================================
 
-	/**
-	 * Get a service instance (C++ template version)
-	 * @return Service instance or nullptr if not registered
-	 */
-	template<typename T>
-	T* GetService() const
-	{
-		check(IsInGameThread());
+    /**
+     * Shuts down the coordinator and cleans up resources
+     * Called from Deinitialize()
+     */
+    void Shutdown();
 
-		if (ServiceLocator)
-		{
-			return ServiceLocator->GetService<T>();
-		}
+    /**
+     * Registers core equipment services with the ServiceLocator
+     * Called during initial service registration
+     */
+    void RegisterCoreServices();
 
-		return nullptr;
-	}
+    /**
+     * Warms up services by initializing caches and subscriptions
+     * Called after services are registered
+     */
+    void WarmUpServices();
 
-	/**
-	 * Get a service by name (Blueprint version)
-	 * @param ServiceName - Name of service to retrieve
-	 * @return Service instance or nullptr if not registered
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
-	UObject* GetServiceByName(FName ServiceName) const;
-
-	/**
-	 * Check if a service is registered
-	 * @param ServiceName - Name of service to check
-	 * @return true if service is registered
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
-	bool HasService(FName ServiceName) const;
-
-	//========================================
-	// EventBus Integration
-	//========================================
-
-	/**
-	 * Get the EventBus for publishing/subscribing to system events
-	 * @return EventBus instance or nullptr if not initialized
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Events")
-	USuspenseCoreEventBus* GetEventBus() const;
-
-	/**
-	 * Broadcast a system event through the EventBus
-	 * @param EventTag - Gameplay tag identifying the event
-	 * @param Source - Source object that triggered the event
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Events")
-	void BroadcastSystemEvent(FGameplayTag EventTag, UObject* Source);
-
-	/**
-	 * Subscribe to a system event
-	 * @param EventTag - Gameplay tag identifying the event
-	 * @param Subscriber - Object subscribing to the event
-	 * @param Callback - Callback to invoke when event is published
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Events")
-	void SubscribeToSystemEvent(FGameplayTag EventTag, UObject* Subscriber);
-
-	//========================================
-	// Service Locator Access
-	//========================================
-
-	/**
-	 * Get the ServiceLocator instance (read-only)
-	 * @return ServiceLocator or nullptr if not initialized
-	 */
-	UFUNCTION(BlueprintPure, Category="SuspenseCore|Services")
-	USuspenseCoreServiceLocator* GetServiceLocator() const { return ServiceLocator; }
-
-	//========================================
-	// Status API
-	//========================================
-
-	/**
-	 * Check if coordinator is fully initialized and ready
-	 * @return true if all systems are initialized and operational
-	 */
-	UFUNCTION(BlueprintPure, Category="SuspenseCore|System")
-	bool IsReady() const { return bIsInitialized; }
-
-	/**
-	 * Get count of registered services
-	 * @return Number of registered services
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
-	int32 GetServiceCount() const;
-
-	/**
-	 * Get list of all registered service names
-	 * @return Array of service names
-	 */
-	UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services|Debug")
-	TArray<FName> GetRegisteredServiceNames() const;
-
-	//========================================
-	// Debug Commands
-	//========================================
-
-	/**
-	 * Dump current system state to log
-	 * Usage: ~ DebugDumpSystemState
-	 */
-	UFUNCTION(Exec, Category="SuspenseCore|Debug")
-	void DebugDumpSystemState();
-
-	/**
-	 * Dump all registered services to log
-	 * Usage: ~ DebugDumpServices
-	 */
-	UFUNCTION(Exec, Category="SuspenseCore|Debug")
-	void DebugDumpServices();
-
-protected:
-	//========================================
-	// Internal Methods
-	//========================================
-
-	/**
-	 * Create core subsystems (ServiceLocator, EventBus integration)
-	 */
-	void CreateSubsystems();
-
-	/**
-	 * Register core SuspenseCore services
-	 * Override in subclasses to add custom services
-	 */
-	virtual void RegisterCoreServices();
-
-	/**
-	 * Initialize services after registration
-	 * Calls initialization methods on registered services if they implement ISuspenseCoreService
-	 */
-	void InitializeServices();
-
-	/**
-	 * Shutdown all services before cleanup
-	 */
-	void ShutdownServices();
-
-	/**
-	 * Validate that all required services are registered
-	 * @param OutErrors - Array to receive validation error messages
-	 * @return true if all required services are present
-	 */
-	bool ValidateServices(TArray<FText>& OutErrors) const;
-
-	/**
-	 * Get EventManager from GameInstance
-	 * @return EventManager instance or nullptr
-	 */
-	USuspenseCoreEventManager* GetEventManager() const;
+    /**
+     * Validates all registered services are properly configured
+     * @param OutErrors Array to receive validation error messages
+     * @return true if all services pass validation
+     */
+    bool ValidateServices(TArray<FText>& OutErrors) const;
 
 private:
-	//========================================
-	// Owned Objects
-	//========================================
+    //========================================
+    // World Lifecycle Handlers
+    //========================================
 
-	/**
-	 * ServiceLocator instance - registry of all services
-	 * Created with GameInstance as outer for persistence
-	 */
-	UPROPERTY(Transient)
-	TObjectPtr<USuspenseCoreServiceLocator> ServiceLocator = nullptr;
+    /**
+     * Called when world is initialized (first time or after travel)
+     * Triggers: EnsureServicesRegistered + RebindAllWorldBindableServices
+     */
+    void OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 
-	/**
-	 * Cached reference to EventManager
-	 * Retrieved from GameInstance subsystems
-	 */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<USuspenseCoreEventManager> CachedEventManager = nullptr;
+    /**
+     * Called after map is loaded (seamless/non-seamless travel)
+     * Triggers: RebindAllWorldBindableServices
+     */
+    void OnPostLoadMapWithWorld(UWorld* LoadedWorld);
 
-	//========================================
-	// State Flags
-	//========================================
+    //========================================
+    // Internal Operations
+    //========================================
 
-	/** Coordinator has been fully initialized */
-	bool bIsInitialized = false;
+    /**
+     * Register global services if not already registered (idempotent)
+     * @param ForWorld - World context for potential world-dependent registration params
+     */
+    void EnsureServicesRegistered(UWorld* ForWorld);
 
-	/** Services have been registered */
-	bool bServicesRegistered = false;
+    /**
+     * Iterate all registered services and call RebindWorld on implementers
+     * @param ForWorld - World to rebind to
+     */
+    void RebindAllWorldBindableServices(UWorld* ForWorld);
 
-	/** Services have been initialized */
-	bool bServicesInitialized = false;
+    /**
+     * Validate all services via Coordinator and log results
+     */
+    void ValidateAndLog();
+
+    /**
+     * Safely get current world from GameInstance
+     * @return Current world or nullptr if GI not available/world not ready
+     */
+    UWorld* TryGetCurrentWorldSafe() const;
+
+private:
+    //========================================
+    // Owned Objects
+    //========================================
+
+    /**
+     * ServiceLocator instance - registry of all services
+     * Either retrieved from world or created with GI outer
+     */
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator = nullptr;
+
+    //========================================
+    // State Flags
+    //========================================
+
+    /** Services have been registered in ServiceLocator */
+    bool bServicesRegistered = false;
+
+    /** Services passed validation and are operational */
+    bool bServicesReady = false;
+
+    /** Guard flag to prevent reentrant rebind calls during map load */
+    bool bRebindInProgress = false;
+
+    //========================================
+    // Delegate Handles (for cleanup)
+    //========================================
+
+    FDelegateHandle PostWorldInitHandle;
+    FDelegateHandle PostLoadMapHandle;
+
+    //========================================
+    // Metrics (for monitoring/debugging)
+    //========================================
+
+    /** Count of rebind operations performed */
+    UPROPERTY(Transient)
+    int32 RebindCount = 0;
+
+    /** Last world that was bound */
+    UPROPERTY(Transient)
+    TWeakObjectPtr<UWorld> LastBoundWorld = nullptr;
 };

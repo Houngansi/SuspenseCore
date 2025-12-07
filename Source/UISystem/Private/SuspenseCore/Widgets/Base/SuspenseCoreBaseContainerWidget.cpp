@@ -480,6 +480,7 @@ void USuspenseCoreBaseContainerWidget::HandleDragCancelled()
 
 ESuspenseCoreContainerType USuspenseCoreBaseContainerWidget::GetContainerType() const
 {
+	// If bound to provider, use provider's type
 	if (BoundProvider)
 	{
 		if (ISuspenseCoreUIDataProvider* ProviderInterface = BoundProvider.GetInterface())
@@ -487,7 +488,8 @@ ESuspenseCoreContainerType USuspenseCoreBaseContainerWidget::GetContainerType() 
 			return ProviderInterface->GetContainerType();
 		}
 	}
-	return ESuspenseCoreContainerType::None;
+	// Otherwise, use configured expected type (set in Blueprint)
+	return ExpectedContainerType;
 }
 
 FGameplayTag USuspenseCoreBaseContainerWidget::GetContainerTypeTag() const

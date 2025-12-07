@@ -193,11 +193,31 @@ protected:
 	virtual void ClearSlotWidgets_Implementation() {}
 
 	//==================================================================
+	// Configuration (set in Blueprint)
+	//==================================================================
+
+	/**
+	 * Expected container type this widget should bind to.
+	 * Used to match with appropriate provider before binding.
+	 * Set this in Blueprint widget defaults.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	ESuspenseCoreContainerType ExpectedContainerType = ESuspenseCoreContainerType::Inventory;
+
+	//==================================================================
 	// Protected State (accessible to derived classes)
 	//==================================================================
 
 	/** Cached container data from provider - use in CreateSlotWidgets to get grid size */
 	FSuspenseCoreContainerUIData CachedContainerData;
+
+public:
+	/**
+	 * Get expected container type (for provider matching before binding)
+	 * @return Expected container type set in configuration
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Container")
+	ESuspenseCoreContainerType GetExpectedContainerType() const { return ExpectedContainerType; }
 
 private:
 	//==================================================================

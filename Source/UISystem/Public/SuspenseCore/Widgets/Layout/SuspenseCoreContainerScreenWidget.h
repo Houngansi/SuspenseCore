@@ -1,5 +1,6 @@
 // SuspenseCoreContainerScreenWidget.h
 // SuspenseCore - Main Container Screen Widget
+// AAA Pattern: Copied from legacy SuspenseCharacterScreen with EventBus
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -17,6 +18,7 @@ class USuspenseCorePanelSwitcherWidget;
 class USuspenseCoreTooltipWidget;
 class USuspenseCoreContextMenuWidget;
 class USuspenseCoreUIManager;
+class USuspenseCoreEventBus;
 class UWidgetSwitcher;
 class UOverlay;
 
@@ -25,10 +27,18 @@ class UOverlay;
  *
  * Main screen widget for container UI (Inventory, Equipment, Stash, Trader, etc.)
  * Manages panel switching, tooltips, context menus, and drag-drop visualization.
+ * COPIED FROM LEGACY SuspenseCharacterScreen with EventBus integration.
+ *
+ * FEATURES (from legacy CharacterScreen):
+ * - Screen activation/deactivation with proper EventBus notifications
+ * - Remember last opened panel (like legacy remember tab)
+ * - PanelSwitcher binding (like legacy UpperTabBar)
+ * - Input mode management when screen opens/closes
+ * - Timer-based content refresh after activation
  *
  * LAYOUT STRUCTURE:
  * - Header: Title, close button
- * - Panel Switcher: Tab bar for switching panels
+ * - Panel Switcher: Tab bar for switching panels (SuspenseCorePanelSwitcherWidget)
  * - Panel Container: Widget switcher containing panels
  * - Footer: Weight/slots info, action buttons
  * - Overlay: Tooltips, context menus, drag ghost
@@ -38,7 +48,13 @@ class UOverlay;
  * - Panels are configured via FSuspenseCorePanelConfig
  * - Common presets: Inventory, Inventory+Equipment, Inventory+Stash, etc.
  *
- * @see USuspenseCorePanelWidget
+ * USAGE (like legacy CharacterScreen):
+ * 1. In Blueprint, bind PanelSwitcher (SuspenseCorePanelSwitcherWidget)
+ * 2. Configure ScreenTag and DefaultPanelTag
+ * 3. Call ActivateScreen() to show, DeactivateScreen() to hide
+ * 4. Widget handles input mode and EventBus notifications automatically
+ *
+ * @see USuspenseCharacterScreen (legacy)
  * @see USuspenseCorePanelSwitcherWidget
  */
 UCLASS(BlueprintType, Blueprintable)
@@ -74,6 +90,62 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
 	const FSuspenseCoreScreenConfig& GetScreenConfig() const { return ScreenConfig; }
+
+	//==================================================================
+	// Screen Activation (from legacy CharacterScreen)
+	//==================================================================
+
+	/**
+	 * Activate the container screen
+	 * Opens default or last remembered panel, sets input mode, publishes events
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void ActivateScreen();
+
+	/**
+	 * Deactivate the container screen
+	 * Remembers current panel, restores input mode, publishes events
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void DeactivateScreen();
+
+	/**
+	 * Is screen currently active
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
+	bool IsScreenActive() const { return bIsActive; }
+
+	/**
+	 * Get screen tag (unique identifier)
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Screen")
+	FGameplayTag GetScreenTag() const { return ScreenTag; }
+
+	/**
+	 * Open panel by tag (like legacy OpenTabByTag)
+	 * @param PanelTag Tag of the panel to open
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void OpenPanelByTag(const FGameplayTag& PanelTag);
+
+	/**
+	 * Open panel by index (like legacy OpenTabByIndex)
+	 * @param PanelIndex Index of the panel to open
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void OpenPanelByIndex(int32 PanelIndex);
+
+	/**
+	 * Get the panel switcher widget (like legacy GetTabBar)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	USuspenseCorePanelSwitcherWidget* GetPanelSwitcher() const { return PanelSwitcher; }
+
+	/**
+	 * Refresh content of the currently active panel
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Screen")
+	void RefreshScreenContent();
 
 	//==================================================================
 	// Panel Management
@@ -232,6 +304,14 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Screen Closing"))
 	void K2_OnScreenClosing();
 
+	/** Called when screen is activated (from legacy K2_OnCharacterScreenOpened) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Container Screen Opened"))
+	void K2_OnContainerScreenOpened();
+
+	/** Called when screen is deactivated (from legacy K2_OnCharacterScreenClosed) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Screen", meta = (DisplayName = "On Container Screen Closed"))
+	void K2_OnContainerScreenClosed();
+
 protected:
 	//==================================================================
 	// Setup Methods
@@ -308,6 +388,30 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
 	FKey CloseKey;
 
+	//==================================================================
+	// Screen State Configuration (from legacy CharacterScreen)
+	//==================================================================
+
+	/** Screen identifier tag (e.g., SuspenseCore.UI.Screen.Container) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen")
+	FGameplayTag ScreenTag;
+
+	/** Default panel to open when screen activates */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen")
+	FGameplayTag DefaultPanelTag;
+
+	/** Whether to remember last opened panel */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen")
+	bool bRememberLastPanel = true;
+
+	/** Whether screen is currently active */
+	UPROPERTY(BlueprintReadOnly, Category = "Screen")
+	bool bIsActive = false;
+
+	/** Last opened panel tag (for remember feature) */
+	UPROPERTY(BlueprintReadOnly, Category = "Screen")
+	FGameplayTag LastOpenedPanel;
+
 private:
 	//==================================================================
 	// State
@@ -342,4 +446,13 @@ private:
 
 	/** Handle panel selected event from EventBus */
 	void OnPanelSelectedEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
+	/** Update input mode based on screen state (from legacy) */
+	void UpdateInputMode();
+
+	/** Publish screen event via EventBus (SuspenseCore.Event.UI.Screen.Opened/Closed) */
+	void PublishScreenEvent(const FGameplayTag& EventTag);
+
+	/** Refresh timer handle for delayed content refresh after activation */
+	FTimerHandle RefreshTimerHandle;
 };

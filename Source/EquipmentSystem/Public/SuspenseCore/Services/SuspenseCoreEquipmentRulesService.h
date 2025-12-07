@@ -6,7 +6,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCoreEquipmentRulesService.generated.h"
 
 // Forward declarations

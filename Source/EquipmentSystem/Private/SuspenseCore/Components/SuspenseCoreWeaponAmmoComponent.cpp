@@ -6,7 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
-#include "Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "Attributes/WeaponAttributeSet.h"

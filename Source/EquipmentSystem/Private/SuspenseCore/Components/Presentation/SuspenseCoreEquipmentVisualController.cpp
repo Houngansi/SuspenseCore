@@ -1,7 +1,7 @@
 // Copyright MedCom
 
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentVisualController.h"
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"

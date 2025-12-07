@@ -5,7 +5,7 @@
 #include "GameplayEffect.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayAbilitySpec.h"
-#include "Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "Engine/World.h"

@@ -7,7 +7,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Interfaces/Inventory/ISuspenseCoreInventory.h"
-#include "Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
@@ -16,7 +16,7 @@
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 // === Includes for EventBus and character resolution ===
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"

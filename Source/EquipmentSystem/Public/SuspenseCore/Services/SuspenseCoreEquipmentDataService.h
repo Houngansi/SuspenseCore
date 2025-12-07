@@ -9,7 +9,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"

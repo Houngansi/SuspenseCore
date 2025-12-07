@@ -9,8 +9,8 @@
 #include "HAL/CriticalSection.h"
 
 // Fundamental: service interface + base utilities
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"

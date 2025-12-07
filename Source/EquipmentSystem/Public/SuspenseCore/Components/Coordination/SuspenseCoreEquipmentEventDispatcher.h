@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "SuspenseCoreEquipmentEventDispatcher.generated.h"

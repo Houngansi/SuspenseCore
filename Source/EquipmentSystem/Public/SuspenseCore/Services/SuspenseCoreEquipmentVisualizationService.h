@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
+#include "HAL/RWLock.h"
 
 // Fundamental: service interface + base utilities
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
@@ -84,7 +85,10 @@ private:
 
 	// Lightweight state
 	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FVisCharState> Characters;
-	mutable FCriticalSection VisualLock;
+
+	// Thread safety - using FRWLock for read-heavy visual queries
+	// Lock ordering: VisualizationService (Level 31) - see SuspenseThreadSafetyPolicy.h
+	mutable FRWLock VisualLock;
 
 	// Rate limiter
 	double CachedUpdateIntervalSec = 0.0;

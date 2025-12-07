@@ -14,6 +14,7 @@
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/RWLock.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Queue.h"
 #include "HAL/ThreadSafeBool.h"
@@ -378,8 +379,9 @@ private:
     // Replaces plain FString HMACSecretKey
     TUniquePtr<FSuspenseSecureKeyStorage> SecureKeyStorage;
 
-    // Thread safety
-    mutable FCriticalSection SecurityLock;
+    // Thread safety - using FRWLock for read-heavy operations
+    // Lock ordering: NetworkSecurity (Level 11) - see SuspenseThreadSafetyPolicy.h
+    mutable FRWLock SecurityLock;
 
     // Metrics
     FNetworkSecurityMetrics SecurityMetrics;

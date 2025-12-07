@@ -58,7 +58,7 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
         ServiceState = EServiceLifecycleState::Shutdown;
 
         // Очищаем только локальные контейнеры (безопасно)
-        FScopeLock Lock(&SecurityLock);
+        FRWScopeLock Lock(SecurityLock, SLT_Write);
         RateLimitPerPlayer.Empty();
         RateLimitPerIP.Empty();
         SuspiciousActivityCount.Empty();
@@ -636,7 +636,7 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
 void USuspenseCoreEquipmentNetworkService::ResetService()
 {
     SCOPED_SERVICE_TIMER("ResetService");
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     RateLimitPerPlayer.Empty();
     RateLimitPerIP.Empty();
@@ -669,7 +669,7 @@ FString USuspenseCoreEquipmentNetworkService::GetServiceStats() const
 {
     FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetServiceStats")));
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access
 
     FString Stats = TEXT("=== Equipment Network Service Statistics ===\n");
     Stats += FString::Printf(TEXT("Service State: %s\n"),
@@ -746,7 +746,7 @@ bool USuspenseCoreEquipmentNetworkService::ExportMetricsToCSV(const FString& Fil
 void USuspenseCoreEquipmentNetworkService::ReloadSecurityConfig()
 {
     SCOPED_SERVICE_TIMER("ReloadSecurityConfig");
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     FNetworkSecurityConfig NewConfig = FNetworkSecurityConfig::LoadFromConfig();
     SecurityConfig = NewConfig;
@@ -777,7 +777,7 @@ FGuid USuspenseCoreEquipmentNetworkService::SendEquipmentOperation(const FEquipm
         return FGuid();
     }
 
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     FGuid PlayerGuid;
     if (APlayerState* PS = PlayerController->GetPlayerState<APlayerState>())
@@ -920,7 +920,7 @@ bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetw
         return false;
     }
 
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     if (!NetworkRequest.ValidateIntegrity())
     {
@@ -1001,7 +1001,7 @@ bool USuspenseCoreEquipmentNetworkService::ReceiveEquipmentOperation(const FNetw
 void USuspenseCoreEquipmentNetworkService::SetNetworkQuality(float Quality)
 {
     SCOPED_SERVICE_TIMER("SetNetworkQuality");
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     NetworkQualityLevel = FMath::Clamp(Quality, 0.0f, 1.0f);
     AdaptNetworkStrategies();
@@ -1016,7 +1016,7 @@ FLatencyCompensationData USuspenseCoreEquipmentNetworkService::GetNetworkMetrics
 {
     FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetNetworkMetrics")));
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access
 
     FLatencyCompensationData Metrics;
     Metrics.EstimatedLatency = AverageLatency;
@@ -1054,7 +1054,7 @@ void USuspenseCoreEquipmentNetworkService::ForceSynchronization(APlayerControlle
         return;
     }
 
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     if (ReplicationProvider)
     {
@@ -1089,7 +1089,7 @@ bool USuspenseCoreEquipmentNetworkService::ExportSecurityMetrics(const FString& 
         return false;
     }
 
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);  // Read-only access for export
 
     FString MetricsCSV = SecurityMetrics.ToCSV();
 
@@ -1368,7 +1368,7 @@ bool USuspenseCoreEquipmentNetworkService::VerifyRequestHMAC(const FNetworkOpera
 void USuspenseCoreEquipmentNetworkService::CleanExpiredNonces()
 {
     SCOPED_SERVICE_TIMER("CleanExpiredNonces");
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     float CurrentTime = FPlatformTime::Seconds();
     int32 CleanedCount = 0;
@@ -1498,7 +1498,7 @@ FString USuspenseCoreEquipmentNetworkService::GetIPAddress(APlayerController* Pl
 void USuspenseCoreEquipmentNetworkService::UpdateNetworkMetrics()
 {
     SCOPED_SERVICE_TIMER("UpdateNetworkMetrics");
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     if (NetworkDispatcher.GetInterface())
     {
@@ -1650,7 +1650,7 @@ void USuspenseCoreEquipmentNetworkService::InitializeSecurity()
 
 void USuspenseCoreEquipmentNetworkService::ShutdownSecurity()
 {
-    FScopeLock Lock(&SecurityLock);
+    FRWScopeLock Lock(SecurityLock, SLT_Write);
 
     // Во время engine exit - минимальная очистка
     if (IsEngineExitRequested())

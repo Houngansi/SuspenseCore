@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
@@ -18,25 +19,29 @@
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentOperations);
 
-// Service identification tags
+// Service identification tags - using native compile-time tags
 namespace ServiceTags
 {
-    const FGameplayTag Operations = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"));
-    const FGameplayTag Data = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data"));
-    const FGameplayTag Validation = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Validation"));
-    const FGameplayTag Network = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Network"));
-    const FGameplayTag Prediction = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Prediction"));
+    using namespace SuspenseCoreEquipmentTags::Service;
+
+    const FGameplayTag& Operations = TAG_Service_Equipment_Operations;
+    const FGameplayTag& Data = TAG_Service_Equipment_Data;
+    const FGameplayTag& Validation = TAG_Service_Equipment_Validation;
+    const FGameplayTag& Network = TAG_Service_Equipment_Network;
+    const FGameplayTag& Prediction = TAG_Service_Equipment_Prediction;
 }
 
-// Event tags
+// Event tags - using native compile-time tags
 namespace EventTags
 {
-    const FGameplayTag OperationQueued = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Operation.Queued"));
-    const FGameplayTag OperationStarted = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Operation.Started"));
-    const FGameplayTag OperationCompleted = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Operation.Completed"));
-    const FGameplayTag ValidationChanged = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Validation.Changed"));
-    const FGameplayTag DataChanged = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Data.Changed"));
-    const FGameplayTag NetworkResult = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Network.Result"));
+    using namespace SuspenseCoreEquipmentTags::Event;
+
+    const FGameplayTag& OperationQueued = TAG_Equipment_Event_Operation_Queued;
+    const FGameplayTag& OperationStarted = TAG_Equipment_Event_Operation_Started;
+    const FGameplayTag& OperationCompleted = TAG_Equipment_Event_Operation_Completed;
+    const FGameplayTag& ValidationChanged = TAG_Equipment_Event_Validation_Changed;
+    const FGameplayTag& DataChanged = TAG_Equipment_Event_Data_Changed;
+    const FGameplayTag& NetworkResult = TAG_Equipment_Event_Network_Result;
 }
 
 USuspenseCoreEquipmentOperationService::USuspenseCoreEquipmentOperationService()
@@ -258,7 +263,7 @@ bool USuspenseCoreEquipmentOperationService::IsServiceReady() const
 FGameplayTag USuspenseCoreEquipmentOperationService::GetServiceTag() const
 {
     SCOPED_SERVICE_TIMER("GetServiceTag");
-    return FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"));
+    return ServiceTags::Operations;
 }
 
 FGameplayTagContainer USuspenseCoreEquipmentOperationService::GetRequiredDependencies() const

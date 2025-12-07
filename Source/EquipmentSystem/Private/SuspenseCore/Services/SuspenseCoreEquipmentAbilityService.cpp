@@ -2,7 +2,9 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
-#include "Components/Integration/SuspenseEquipmentAbilityConnector.h"
+#include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Misc/App.h"
@@ -11,7 +13,6 @@
 #include "GameFramework/PlayerState.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 

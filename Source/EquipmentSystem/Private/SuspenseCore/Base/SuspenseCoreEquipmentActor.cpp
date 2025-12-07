@@ -1,0 +1,779 @@
+// Copyright SuspenseCore Team. All Rights Reserved.
+
+#include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
+
+#include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
+#include "ItemSystem/SuspenseItemManager.h"
+
+#include "Abilities/GameplayAbilityTypes.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerState.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Net/UnrealNetwork.h"
+
+// ==============================
+// Local tag cache (perf/stability)
+// ==============================
+
+namespace SuspenseCoreEquipmentTags
+{
+    struct FTagCache
+    {
+        // Equipment states
+        FGameplayTag State_Inactive;
+        FGameplayTag State_Equipped;
+        FGameplayTag State_Ready;
+
+        // Events
+        FGameplayTag Event_Equipped;
+        FGameplayTag Event_Unequipped;
+        FGameplayTag Event_PropertyChanged;
+        FGameplayTag UI_DataReady;
+
+        // Slots
+        FGameplayTag Slot_None;
+        FGameplayTag Slot_PrimaryWeapon;
+        FGameplayTag Slot_SecondaryWeapon;
+        FGameplayTag Slot_Holster;
+        FGameplayTag Slot_Scabbard;
+        FGameplayTag Slot_Headwear;
+        FGameplayTag Slot_Earpiece;
+        FGameplayTag Slot_Eyewear;
+        FGameplayTag Slot_FaceCover;
+        FGameplayTag Slot_BodyArmor;
+        FGameplayTag Slot_TacticalRig;
+        FGameplayTag Slot_Backpack;
+        FGameplayTag Slot_SecureContainer;
+        FGameplayTag Slot_Quick1;
+        FGameplayTag Slot_Quick2;
+        FGameplayTag Slot_Quick3;
+        FGameplayTag Slot_Quick4;
+        FGameplayTag Slot_Armband;
+
+        FTagCache()
+        {
+            // states
+            State_Inactive = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Inactive"));
+            State_Equipped = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Equipped"));
+            State_Ready    = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Ready"));
+
+            // events
+            Event_Equipped        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
+            Event_Unequipped      = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
+            Event_PropertyChanged = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.PropertyChanged"));
+            UI_DataReady          = FGameplayTag::RequestGameplayTag(TEXT("UI.Equipment.DataReady"));
+
+            // slots
+            Slot_None            = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.None"));
+            Slot_PrimaryWeapon   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.PrimaryWeapon"));
+            Slot_SecondaryWeapon = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"));
+            Slot_Holster         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"));
+            Slot_Scabbard        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Scabbard"));
+            Slot_Headwear        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Headwear"));
+            Slot_Earpiece        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Earpiece"));
+            Slot_Eyewear         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Eyewear"));
+            Slot_FaceCover       = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.FaceCover"));
+            Slot_BodyArmor       = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.BodyArmor"));
+            Slot_TacticalRig     = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.TacticalRig"));
+            Slot_Backpack        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Backpack"));
+            Slot_SecureContainer = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecureContainer"));
+            Slot_Quick1          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot1"));
+            Slot_Quick2          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot2"));
+            Slot_Quick3          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot3"));
+            Slot_Quick4          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot4"));
+            Slot_Armband         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Armband"));
+        }
+    };
+
+    static const FTagCache& Get()
+    {
+        static FTagCache Instance;
+        return Instance;
+    }
+}
+
+// ==============================
+// Construction / Replication
+// ==============================
+
+ASuspenseCoreEquipmentActor::ASuspenseCoreEquipmentActor()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    bReplicates = true;
+    bNetUseOwnerRelevancy = true;
+
+    MeshComponent       = CreateDefaultSubobject<USuspenseCoreEquipmentMeshComponent>(TEXT("MeshComponent"));
+    RootComponent       = MeshComponent;
+
+    AttributeComponent  = CreateDefaultSubobject<USuspenseCoreEquipmentAttributeComponent>(TEXT("AttributeComponent"));
+    AttachmentComponent = CreateDefaultSubobject<USuspenseCoreEquipmentAttachmentComponent>(TEXT("AttachmentComponent"));
+
+    CurrentState     = SuspenseCoreEquipmentTags::Get().State_Inactive;
+    EquipmentSlotTag = SuspenseCoreEquipmentTags::Get().Slot_None;
+}
+
+void ASuspenseCoreEquipmentActor::BeginPlay()
+{
+    Super::BeginPlay();
+    SetReplicateMovement(false);
+    bIsInitialized = true;
+}
+
+void ASuspenseCoreEquipmentActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ASuspenseCoreEquipmentActor, OwnerActor);
+    DOREPLIFETIME(ASuspenseCoreEquipmentActor, CurrentState);
+
+    DOREPLIFETIME_CONDITION(ASuspenseCoreEquipmentActor, ReplicatedItemID,        COND_SkipOwner);
+    DOREPLIFETIME_CONDITION(ASuspenseCoreEquipmentActor, ReplicatedItemQuantity,  COND_SkipOwner);
+    DOREPLIFETIME_CONDITION(ASuspenseCoreEquipmentActor, ReplicatedItemCondition, COND_SkipOwner);
+}
+
+// ==============================
+// Public: GAS cache
+// ==============================
+
+void ASuspenseCoreEquipmentActor::SetCachedASC(UAbilitySystemComponent* InASC)
+{
+    if (!InASC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[%s] SetCachedASC: null ASC"), *GetName());
+        return;
+    }
+
+    CachedASC = InASC;
+    if (PendingInit.bHasOwnerData)
+    {
+        PendingInit.PendingASC = InASC;
+    }
+}
+
+// ==============================
+// Interface: lifecycle
+// ==============================
+
+void ASuspenseCoreEquipmentActor::OnEquipped_Implementation(AActor* NewOwner)
+{
+    if (!CheckAuthority(TEXT("OnEquipped"))) { return; }
+    if (!NewOwner) { UE_LOG(LogTemp, Error, TEXT("OnEquipped: Owner is null")); return; }
+
+    EquipmentCycleCounter++;
+
+    SetOwner(NewOwner);
+    OwnerActor = NewOwner;
+
+    if (!CachedASC)
+    {
+        if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(NewOwner))
+        {
+            CachedASC = ASI->GetAbilitySystemComponent();
+        }
+    }
+
+    PendingInit.Reset();
+    PendingInit.PendingOwner   = NewOwner;
+    PendingInit.PendingASC     = CachedASC;
+    PendingInit.bHasOwnerData  = true;
+
+    SetEquipmentStateInternal(SuspenseCoreEquipmentTags::Get().State_Equipped);
+    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().Event_Equipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
+}
+
+void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
+{
+    if (!CheckAuthority(TEXT("OnUnequipped"))) { return; }
+
+    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().Event_Unequipped, EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr);
+
+    RemoveGrantedAbilities();
+    RemoveAppliedEffects();
+
+    if (AttributeComponent)  { AttributeComponent->Cleanup(); }
+    if (AttachmentComponent) { AttachmentComponent->Cleanup(); }
+
+    SetEquipmentStateInternal(SuspenseCoreEquipmentTags::Get().State_Inactive);
+
+    OwnerActor   = nullptr;
+    CachedASC    = nullptr;
+    bFullyInitialized = false;
+    PendingInit.Reset();
+}
+
+void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+{
+    if (!ItemInstance.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[%s] OnItemInstanceEquipped: invalid instance"), *GetName());
+        return;
+    }
+
+    EquippedItemInstance            = ItemInstance;
+    PendingInit.PendingItemInstance = ItemInstance;
+    PendingInit.bHasItemData        = true;
+
+    if (HasAuthority())
+    {
+        ReplicatedItemID        = ItemInstance.ItemID;
+        ReplicatedItemQuantity  = ItemInstance.Quantity;
+        ReplicatedItemCondition = ItemInstance.GetRuntimeProperty(TEXT("Durability"), 100.f);
+    }
+
+    if (PendingInit.IsReadyToInitialize())
+    {
+        bFullyInitialized = false;
+
+        InitializeEquipmentComponents(EquippedItemInstance);
+
+        NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+
+        bFullyInitialized = true;
+        PendingInit.Reset();
+    }
+}
+
+void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance)
+{
+    if (EquippedItemInstance.IsValid())
+    {
+        for (const auto& KV : EquippedItemInstance.RuntimeProperties)
+        {
+            const_cast<FSuspenseInventoryItemInstance&>(ItemInstance).SetRuntimeProperty(KV.Key, KV.Value);
+        }
+    }
+
+    EquippedItemInstance = FSuspenseInventoryItemInstance();
+}
+
+// ==============================
+// Components init (SSOT)
+// ==============================
+
+void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseInventoryItemInstance& ItemInstance)
+{
+    if (!ItemInstance.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("[%s] InitializeEquipmentComponents: invalid instance"), *GetName());
+        return;
+    }
+    if (!CachedASC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[%s] InitializeEquipmentComponents: ASC not set"), *GetName());
+    }
+
+    FSuspenseUnifiedItemData ItemData;
+    if (!GetUnifiedItemData(ItemData))
+    {
+        UE_LOG(LogTemp, Error, TEXT("[%s] SSOT not found for %s"), *GetName(), *ItemInstance.ItemID.ToString());
+        return;
+    }
+
+    EquipmentSlotTag = ItemData.EquipmentSlot;
+
+    if (MeshComponent)
+    {
+        MeshComponent->InitializeFromItemInstance(ItemInstance);
+    }
+    if (AttributeComponent)
+    {
+        AttributeComponent->InitializeWithItemInstance(this, CachedASC, ItemInstance);
+    }
+    if (AttachmentComponent)
+    {
+        AttachmentComponent->InitializeWithItemInstance(this, CachedASC, ItemInstance);
+    }
+
+    SetupEquipmentMesh(ItemData);
+}
+
+void ASuspenseCoreEquipmentActor::SetupEquipmentMesh(const FSuspenseUnifiedItemData& ItemData)
+{
+    if (!MeshComponent) { return; }
+    if (USkeletalMesh* SK = MeshComponent->GetSkeletalMeshAsset())
+    {
+        UE_LOG(LogTemp, VeryVerbose, TEXT("[%s] Mesh set to %s"), *GetName(), *SK->GetName());
+    }
+}
+
+// ==============================
+// Interface: properties / queries
+// ==============================
+
+FSuspenseInventoryItemInstance ASuspenseCoreEquipmentActor::GetEquippedItemInstance_Implementation() const
+{
+    return EquippedItemInstance;
+}
+
+FEquipmentSlotConfig ASuspenseCoreEquipmentActor::GetSlotConfiguration_Implementation() const
+{
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    return Cfg ? *Cfg : FEquipmentSlotConfig();
+}
+
+const FEquipmentSlotConfig* ASuspenseCoreEquipmentActor::GetSlotConfigurationPtr() const
+{
+    return nullptr; // base has no predefined slot profile
+}
+
+EEquipmentSlotType ASuspenseCoreEquipmentActor::GetEquipmentSlotType_Implementation() const
+{
+    const auto& Tags = SuspenseCoreEquipmentTags::Get();
+    const FGameplayTag& T = EquipmentSlotTag;
+
+    if (T.MatchesTagExact(Tags.Slot_PrimaryWeapon))    return EEquipmentSlotType::PrimaryWeapon;
+    if (T.MatchesTagExact(Tags.Slot_SecondaryWeapon))  return EEquipmentSlotType::SecondaryWeapon;
+    if (T.MatchesTagExact(Tags.Slot_Holster))          return EEquipmentSlotType::Holster;
+    if (T.MatchesTagExact(Tags.Slot_Scabbard))         return EEquipmentSlotType::Scabbard;
+
+    if (T.MatchesTagExact(Tags.Slot_Headwear))         return EEquipmentSlotType::Headwear;
+    if (T.MatchesTagExact(Tags.Slot_Earpiece))         return EEquipmentSlotType::Earpiece;
+    if (T.MatchesTagExact(Tags.Slot_Eyewear))          return EEquipmentSlotType::Eyewear;
+    if (T.MatchesTagExact(Tags.Slot_FaceCover))        return EEquipmentSlotType::FaceCover;
+
+    if (T.MatchesTagExact(Tags.Slot_BodyArmor))        return EEquipmentSlotType::BodyArmor;
+    if (T.MatchesTagExact(Tags.Slot_TacticalRig))      return EEquipmentSlotType::TacticalRig;
+
+    if (T.MatchesTagExact(Tags.Slot_Backpack))         return EEquipmentSlotType::Backpack;
+    if (T.MatchesTagExact(Tags.Slot_SecureContainer))  return EEquipmentSlotType::SecureContainer;
+
+    if (T.MatchesTagExact(Tags.Slot_Quick1))           return EEquipmentSlotType::QuickSlot1;
+    if (T.MatchesTagExact(Tags.Slot_Quick2))           return EEquipmentSlotType::QuickSlot2;
+    if (T.MatchesTagExact(Tags.Slot_Quick3))           return EEquipmentSlotType::QuickSlot3;
+    if (T.MatchesTagExact(Tags.Slot_Quick4))           return EEquipmentSlotType::QuickSlot4;
+
+    if (T.MatchesTagExact(Tags.Slot_Armband))          return EEquipmentSlotType::Armband;
+
+    return EEquipmentSlotType::None;
+}
+
+FGameplayTag ASuspenseCoreEquipmentActor::GetEquipmentSlotTag_Implementation() const
+{
+    return EquipmentSlotTag;
+}
+
+bool ASuspenseCoreEquipmentActor::IsEquipped_Implementation() const
+{
+    return (OwnerActor != nullptr) && EquippedItemInstance.IsValid();
+}
+
+bool ASuspenseCoreEquipmentActor::IsRequiredSlot_Implementation() const
+{
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    return Cfg ? Cfg->bIsRequired : false;
+}
+
+FText ASuspenseCoreEquipmentActor::GetSlotDisplayName_Implementation() const
+{
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    return Cfg ? Cfg->DisplayName : FText::GetEmpty();
+}
+
+FName ASuspenseCoreEquipmentActor::GetAttachmentSocket_Implementation() const
+{
+    if (!EquippedItemInstance.IsValid()) { return NAME_None; }
+    FSuspenseUnifiedItemData ItemData;
+    return GetUnifiedItemData(ItemData) ? ItemData.AttachmentSocket : NAME_None;
+}
+
+FTransform ASuspenseCoreEquipmentActor::GetAttachmentOffset_Implementation() const
+{
+    if (!EquippedItemInstance.IsValid()) { return FTransform::Identity; }
+    FSuspenseUnifiedItemData ItemData;
+    return GetUnifiedItemData(ItemData) ? ItemData.AttachmentOffset : FTransform::Identity;
+}
+
+bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) const
+{
+    if (!ItemInstance.IsValid()) { return false; }
+
+    if (const USuspenseItemManager* IM = GetItemManager())
+    {
+        FSuspenseUnifiedItemData Data;
+        if (!IM->GetUnifiedItemData(ItemInstance.ItemID, Data)) { return false; }
+        if (!Data.bIsEquippable) { return false; }
+        if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
+        return true;
+    }
+    return false;
+}
+
+FGameplayTagContainer ASuspenseCoreEquipmentActor::GetAllowedItemTypes_Implementation() const
+{
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    return Cfg ? Cfg->AllowedItemTypes : FGameplayTagContainer();
+}
+
+bool ASuspenseCoreEquipmentActor::ValidateEquipmentRequirements_Implementation(TArray<FString>& OutErrors) const
+{
+    OutErrors.Empty();
+
+    if (!EquippedItemInstance.IsValid())
+    {
+        if (IsRequiredSlot_Implementation())
+        {
+            OutErrors.Add(FString::Printf(TEXT("Required slot %s is empty"), *EquipmentSlotTag.ToString()));
+            return false;
+        }
+        return true;
+    }
+
+    FSuspenseUnifiedItemData Data;
+    if (!GetUnifiedItemData(Data))
+    {
+        OutErrors.Add(TEXT("Failed to load SSOT row"));
+        return false;
+    }
+    if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag))
+    {
+        OutErrors.Add(FString::Printf(TEXT("Slot mismatch: expected %s, got %s"),
+                           *EquipmentSlotTag.ToString(), *Data.EquipmentSlot.ToString()));
+        return false;
+    }
+    return true;
+}
+
+// ==============================
+// Interface: operations
+// ==============================
+
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip)
+{
+    FSuspenseInventoryOperationResult R;
+
+    if (!ItemInstance.IsValid())
+    {
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidItem;
+        R.ErrorMessage = FText::FromString(TEXT("Invalid item instance"));
+        return R;
+    }
+
+    if (!bForceEquip && !CanEquipItemInstance_Implementation(ItemInstance))
+    {
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
+        R.ErrorMessage = FText::FromString(TEXT("Item cannot be equipped in this slot"));
+        return R;
+    }
+
+    if (EquippedItemInstance.IsValid())
+    {
+        FSuspenseInventoryItemInstance Tmp;
+        UnequipItem_Implementation(Tmp);
+    }
+
+    OnItemInstanceEquipped_Implementation(ItemInstance);
+
+    R.bSuccess = true;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
+    R.AffectedItems.Add(ItemInstance);
+    return R;
+}
+
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance)
+{
+    FSuspenseInventoryOperationResult R;
+
+    if (!EquippedItemInstance.IsValid())
+    {
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::ItemNotFound;
+        R.ErrorMessage = FText::FromString(TEXT("No item equipped"));
+        return R;
+    }
+
+    OutUnequippedInstance = EquippedItemInstance;
+    OnItemInstanceUnequipped_Implementation(OutUnequippedInstance);
+
+    R.bSuccess = true;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
+    R.AffectedItems.Add(OutUnequippedInstance);
+    return R;
+}
+
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
+{
+    FSuspenseInventoryOperationResult R;
+
+    if (!OtherEquipment)
+    {
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
+        R.ErrorMessage = FText::FromString(TEXT("Invalid target equipment"));
+        return R;
+    }
+
+    const FSuspenseInventoryItemInstance ThisItem  = EquippedItemInstance;
+    const FSuspenseInventoryItemInstance OtherItem = ISuspenseEquipment::Execute_GetEquippedItemInstance(OtherEquipment.GetObject());
+
+    const bool bThisCanEquipOther  = !OtherItem.IsValid() || CanEquipItemInstance_Implementation(OtherItem);
+    const bool bOtherCanEquipThis  = !ThisItem.IsValid() || ISuspenseEquipment::Execute_CanEquipItemInstance(OtherEquipment.GetObject(), ThisItem);
+
+    if (!bThisCanEquipOther || !bOtherCanEquipThis)
+    {
+        R.bSuccess = false; R.ErrorCode = ESuspenseInventoryErrorCode::InvalidSlot;
+        R.ErrorMessage = FText::FromString(TEXT("Items cannot be swapped between these slots"));
+        return R;
+    }
+
+    FSuspenseInventoryItemInstance Tmp;
+    if (ThisItem.IsValid())
+    {
+        UnequipItem_Implementation(Tmp);
+        R.AffectedItems.Add(Tmp);
+    }
+    if (OtherItem.IsValid())
+    {
+        FSuspenseInventoryItemInstance OtherUnequipped;
+        ISuspenseEquipment::Execute_UnequipItem(OtherEquipment.GetObject(), OtherUnequipped);
+        EquipItemInstance_Implementation(OtherUnequipped, false);
+        R.AffectedItems.Add(OtherUnequipped);
+    }
+    if (ThisItem.IsValid())
+    {
+        ISuspenseEquipment::Execute_EquipItemInstance(OtherEquipment.GetObject(), Tmp, false);
+    }
+
+    R.bSuccess = true;
+    R.ErrorCode = ESuspenseInventoryErrorCode::Success;
+    return R;
+}
+
+// ==============================
+// GAS (proxy)
+// ==============================
+
+UAbilitySystemComponent* ASuspenseCoreEquipmentActor::GetAbilitySystemComponent_Implementation() const
+{
+    return CachedASC;
+}
+
+UAttributeSet* ASuspenseCoreEquipmentActor::GetEquipmentAttributeSet_Implementation() const
+{
+    return AttributeComponent ? AttributeComponent->GetAttributeSet() : nullptr;
+}
+
+TArray<TSubclassOf<UGameplayAbility>> ASuspenseCoreEquipmentActor::GetGrantedAbilities_Implementation() const
+{
+    TArray<TSubclassOf<UGameplayAbility>> Abilities;
+    if (!EquippedItemInstance.IsValid()) { return Abilities; }
+
+    FSuspenseUnifiedItemData Data;
+    if (GetUnifiedItemData(Data))
+    {
+        for (const FGrantedAbilityData& GA : Data.GrantedAbilities)
+        {
+            if (GA.AbilityClass) { Abilities.Add(GA.AbilityClass); }
+        }
+    }
+    return Abilities;
+}
+
+TArray<TSubclassOf<UGameplayEffect>> ASuspenseCoreEquipmentActor::GetPassiveEffects_Implementation() const
+{
+    TArray<TSubclassOf<UGameplayEffect>> Effects;
+    if (!EquippedItemInstance.IsValid()) { return Effects; }
+
+    FSuspenseUnifiedItemData Data;
+    if (GetUnifiedItemData(Data))
+    {
+        Effects = Data.PassiveEffects;
+    }
+    return Effects;
+}
+
+// Services handle GA/GE - these are NO-OP stubs
+void ASuspenseCoreEquipmentActor::ApplyEquipmentEffects_Implementation()      { ApplyInitializationEffects(); }
+void ASuspenseCoreEquipmentActor::RemoveEquipmentEffects_Implementation()     { RemoveGrantedAbilities(); RemoveAppliedEffects(); }
+void ASuspenseCoreEquipmentActor::GrantAbilitiesFromItemData()                { GrantedAbilityHandles.Reset(); }
+void ASuspenseCoreEquipmentActor::ApplyPassiveEffectsFromItemData()           { AppliedEffectHandles.Reset(); }
+void ASuspenseCoreEquipmentActor::ApplyInitializationEffects()                {}
+void ASuspenseCoreEquipmentActor::RemoveGrantedAbilities()                    { GrantedAbilityHandles.Reset(); }
+void ASuspenseCoreEquipmentActor::RemoveAppliedEffects()                      { AppliedEffectHandles.Reset(); }
+
+// ==============================
+// State
+// ==============================
+
+FGameplayTag ASuspenseCoreEquipmentActor::GetCurrentEquipmentState_Implementation() const
+{
+    return CurrentState;
+}
+
+bool ASuspenseCoreEquipmentActor::SetEquipmentState_Implementation(const FGameplayTag& NewState, bool bForceTransition)
+{
+    if (!bForceTransition && CurrentState == NewState) { return false; }
+    CurrentState = NewState;
+    NotifyEquipmentStateChanged(NewState, /*bIsRefresh*/false);
+    return true;
+}
+
+bool ASuspenseCoreEquipmentActor::IsInEquipmentState_Implementation(const FGameplayTag& StateTag) const
+{
+    return CurrentState.MatchesTag(StateTag);
+}
+
+TArray<FGameplayTag> ASuspenseCoreEquipmentActor::GetAvailableStateTransitions_Implementation() const
+{
+    const auto& Tags = SuspenseCoreEquipmentTags::Get();
+    TArray<FGameplayTag> Out;
+    if (CurrentState.MatchesTagExact(Tags.State_Inactive))
+    {
+        Out.Add(Tags.State_Equipped);
+    }
+    else if (CurrentState.MatchesTagExact(Tags.State_Equipped))
+    {
+        Out.Add(Tags.State_Ready);
+        Out.Add(Tags.State_Inactive);
+    }
+    else if (CurrentState.MatchesTagExact(Tags.State_Ready))
+    {
+        Out.Add(Tags.State_Equipped);
+    }
+    return Out;
+}
+
+void ASuspenseCoreEquipmentActor::SetEquipmentStateInternal(const FGameplayTag& NewState)
+{
+    SetEquipmentState_Implementation(NewState, false);
+}
+
+// ==============================
+// Runtime properties
+// ==============================
+
+float ASuspenseCoreEquipmentActor::GetEquipmentRuntimeProperty_Implementation(const FName& PropertyName, float DefaultValue) const
+{
+    return EquippedItemInstance.IsValid()
+        ? EquippedItemInstance.GetRuntimeProperty(PropertyName, DefaultValue)
+        : DefaultValue;
+}
+
+void ASuspenseCoreEquipmentActor::SetEquipmentRuntimeProperty_Implementation(const FName& PropertyName, float Value)
+{
+    if (!EquippedItemInstance.IsValid()) { return; }
+    const float Old = EquippedItemInstance.GetRuntimeProperty(PropertyName, 0.f);
+    EquippedItemInstance.SetRuntimeProperty(PropertyName, Value);
+    ISuspenseEquipment::BroadcastEquipmentPropertyChanged(this, PropertyName, Old, Value);
+}
+
+float ASuspenseCoreEquipmentActor::GetEquipmentConditionPercent_Implementation() const
+{
+    if (!EquippedItemInstance.IsValid()) { return 1.f; }
+    const float MaxDur = EquippedItemInstance.GetRuntimeProperty(TEXT("MaxDurability"), 100.f);
+    const float CurDur = EquippedItemInstance.GetRuntimeProperty(TEXT("Durability"),   MaxDur);
+    return (MaxDur > 0.f) ? FMath::Clamp(CurDur / MaxDur, 0.f, 1.f) : 1.f;
+}
+
+// ==============================
+// Weapon helpers (read-only)
+// ==============================
+
+bool ASuspenseCoreEquipmentActor::IsWeaponEquipment_Implementation() const
+{
+    if (!EquippedItemInstance.IsValid()) { return false; }
+    FSuspenseUnifiedItemData Data;
+    return GetUnifiedItemData(Data) ? Data.bIsWeapon : false;
+}
+
+FGameplayTag ASuspenseCoreEquipmentActor::GetWeaponArchetype_Implementation() const
+{
+    if (!EquippedItemInstance.IsValid()) { return FGameplayTag(); }
+    FSuspenseUnifiedItemData Data;
+    return GetUnifiedItemData(Data) ? Data.WeaponArchetype : FGameplayTag();
+}
+
+bool ASuspenseCoreEquipmentActor::CanFireWeapon_Implementation() const
+{
+    if (!IsWeaponEquipment_Implementation()) { return false; }
+    return CurrentState.MatchesTag(SuspenseCoreEquipmentTags::Get().State_Ready);
+}
+
+// ==============================
+// Spawn-side init helper
+// ==============================
+
+bool ASuspenseCoreEquipmentActor::InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance)
+{
+    if (!ItemInstance.IsValid()) { return false; }
+
+    EquippedItemInstance = ItemInstance;
+
+    FSuspenseUnifiedItemData Data;
+    if (!GetUnifiedItemData(Data)) { return false; }
+
+    EquipmentSlotTag = Data.EquipmentSlot;
+
+    InitializeEquipmentComponents(ItemInstance);
+    SetupEquipmentMesh(Data);
+
+    NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+    return true;
+}
+
+// ==============================
+// Replication notifications
+// ==============================
+
+void ASuspenseCoreEquipmentActor::OnRep_ItemData()
+{
+    if (HasAuthority()) { return; }
+    if (ReplicatedItemID == NAME_None) { return; }
+
+    if (!EquippedItemInstance.IsValid())
+    {
+        EquippedItemInstance.ItemID   = ReplicatedItemID;
+        EquippedItemInstance.Quantity = ReplicatedItemQuantity;
+        EquippedItemInstance.SetRuntimeProperty(TEXT("Durability"), ReplicatedItemCondition);
+    }
+
+    if (USuspenseItemManager* IM = GetItemManager())
+    {
+        FSuspenseUnifiedItemData Data;
+        if (IM->GetUnifiedItemData(ReplicatedItemID, Data))
+        {
+            SetupEquipmentMesh(Data);
+            NotifyEquipmentEvent(SuspenseCoreEquipmentTags::Get().UI_DataReady, &EquippedItemInstance);
+        }
+    }
+}
+
+// ==============================
+// Events / SSOT helpers
+// ==============================
+
+void ASuspenseCoreEquipmentActor::NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseInventoryItemInstance* Payload) const
+{
+    ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, EventTag, Payload);
+}
+
+void ASuspenseCoreEquipmentActor::NotifyEquipmentStateChanged(const FGameplayTag& NewState, bool bIsRefresh) const
+{
+    const FSuspenseInventoryItemInstance* Payload = EquippedItemInstance.IsValid() ? &EquippedItemInstance : nullptr;
+    ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, SuspenseCoreEquipmentTags::Get().Event_PropertyChanged, Payload);
+}
+
+bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseUnifiedItemData& OutData) const
+{
+    if (!EquippedItemInstance.IsValid()) { return false; }
+    if (USuspenseItemManager* IM = GetItemManager())
+    {
+        return IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData);
+    }
+    return false;
+}
+
+USuspenseItemManager* ASuspenseCoreEquipmentActor::GetItemManager() const
+{
+    if (const UWorld* W = GetWorld())
+    {
+        if (UGameInstance* GI = W->GetGameInstance())
+        {
+            return GI->GetSubsystem<USuspenseItemManager>();
+        }
+    }
+    return nullptr;
+}

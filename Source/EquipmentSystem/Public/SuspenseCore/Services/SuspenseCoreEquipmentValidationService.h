@@ -99,7 +99,7 @@ using FSlotValidationBatchResult = FSuspenseCoreBatchValidationReport;
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentValidationService : public UObject,
-    public IEquipmentValidationService
+    public ISuspenseCoreEquipmentValidationServiceInterface
 {
     GENERATED_BODY()
 
@@ -122,10 +122,10 @@ public:
     virtual FString GetServiceStats() const override;
 
     //========================================
-    // IEquipmentValidationService Implementation
+    // ISuspenseCoreEquipmentValidationServiceInterface Implementation
     //========================================
 
-    virtual ISuspenseEquipmentRules* GetRulesEngine() override;
+    virtual ISuspenseCoreEquipmentRules* GetRulesEngine() override;
     virtual bool RegisterValidator(const FGameplayTag& ValidatorTag, TFunction<bool(const void*)> Validator) override;
     virtual void ClearValidationCache() override;
 
@@ -234,7 +234,7 @@ protected:
         const FSlotValidationResult& Result);
 
     /** Determine failure type from rule evaluation result */
-    EEquipmentValidationFailure DetermineFailureType(const FRuleEvaluationResult& RuleResult) const;
+    EEquipmentValidationFailure DetermineFailureType(const FSuspenseCoreRuleResult& RuleResult) const;
 
     /** Validate single request (thread-safe, with optional event broadcasting) */
     FSlotValidationResult ValidateSingleRequest(
@@ -288,15 +288,15 @@ private:
 
     /** Rules interface (coordinator) that performs actual validation */
     UPROPERTY()
-    TScriptInterface<ISuspenseEquipmentRules> Rules;
+    TScriptInterface<ISuspenseCoreEquipmentRules> Rules;
 
     /** Data provider interface */
     UPROPERTY()
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 
     /** Transaction manager interface (optional) */
     UPROPERTY()
-    TScriptInterface<ISuspenseTransactionManager> TransactionManager;
+    TScriptInterface<ISuspenseCoreTransactionManager> TransactionManager;
 
     /** Custom validators registered by external systems */
     TMap<FGameplayTag, TFunction<bool(const void*)>> CustomValidators;

@@ -1,25 +1,25 @@
 // MedComSystemCoordinator.cpp
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/Core/SuspenseCoreSystemCoordinatorComponent.h"
-#include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentService.h"
+#include "Components/Core/SuspenseCoreSystemCoordinatorComponent.h"
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 
 // Concrete service implementations
-#include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
+#include "Services/SuspenseCoreEquipmentDataService.h"
+#include "Services/SuspenseCoreEquipmentValidationService.h"
+#include "Services/SuspenseCoreEquipmentOperationService.h"
+#include "Services/SuspenseCoreEquipmentVisualizationService.h"
+#include "Services/SuspenseCoreEquipmentAbilityService.h"
 
 // Presentation layer components (registered as services)
-#include "Components/Presentation/SuspenseEquipmentActorFactory.h"
-#include "Components/Presentation/SuspenseEquipmentAttachmentSystem.h"
-#include "Components/Presentation/SuspenseEquipmentVisualController.h"
+#include "Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
+#include "Components/Presentation/SuspenseCoreEquipmentAttachmentSystem.h"
+#include "Components/Presentation/SuspenseCoreEquipmentVisualController.h"
 
 // Additional interfaces
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
 
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -125,7 +125,7 @@ FGameplayTag USuspenseCoreSystemCoordinatorComponent::GetServiceTagFromClass(UCl
         return FGameplayTag();
     }
 
-    ISuspenseEquipmentService* Iface = Cast<ISuspenseEquipmentService>(CDO);
+    ISuspenseCoreEquipmentService* Iface = Cast<ISuspenseCoreEquipmentService>(CDO);
     if (!Iface)
     {
         UE_LOG(LogMedComCoordinator, Error, TEXT("GetServiceTagFromClass: Interface cast failed on CDO: %s"),
@@ -217,7 +217,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
                 return;
             }
 
-            USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
+            USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
             if (!ItemManager)
             {
                 UE_LOG(LogMedComCoordinator, Error, TEXT("DataService injection: ItemManager subsystem not found"));

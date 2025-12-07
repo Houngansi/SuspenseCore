@@ -1,11 +1,11 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
 
@@ -13,8 +13,8 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-class USuspenseItemManager;
-class USuspenseEventManager;
+class USuspenseCoreItemManager;
+class USuspenseCoreEventManager;
 
 /**
  * Visual state data for synchronization
@@ -127,14 +127,14 @@ public:
      * @return True if initialization successful
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Mesh")
-    bool InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+    bool InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /**
      * Update visual state based on item properties
      * @param ItemInstance Updated item instance
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Mesh")
-    void UpdateVisualState(const FSuspenseInventoryItemInstance& ItemInstance);
+    void UpdateVisualState(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /**
      * Clean up visual components and resources
@@ -213,7 +213,7 @@ public:
      * @param WeaponData Weapon item data
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Weapon")
-    void SetupWeaponVisuals(const FSuspenseUnifiedItemData& WeaponData);
+    void SetupWeaponVisuals(const FSuspenseCoreUnifiedItemData& WeaponData);
 
     /**
      * Get muzzle socket location
@@ -356,14 +356,14 @@ protected:
      * Initialize visual components based on item type
      * @param ItemData Item data from DataTable
      */
-    void InitializeVisualComponents(const FSuspenseUnifiedItemData& ItemData);
+    void InitializeVisualComponents(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Load and apply mesh from item data
      * @param ItemData Item data with mesh reference
      * @return True if mesh loaded successfully
      */
-    bool LoadMeshFromItemData(const FSuspenseUnifiedItemData& ItemData);
+    bool LoadMeshFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Create dynamic material instances
@@ -379,13 +379,13 @@ protected:
      * Get item manager subsystem
      * @return Item manager or nullptr
      */
-    USuspenseItemManager* GetItemManager() const;
+    USuspenseCoreItemManager* GetItemManager() const;
 
     /**
      * Get event delegate manager
      * @return Delegate manager or nullptr
      */
-    USuspenseEventManager* GetDelegateManager() const;
+    USuspenseCoreEventManager* GetDelegateManager() const;
 
     /**
      * Map modification type to socket name
@@ -393,7 +393,7 @@ protected:
      * @param ModificationType Modification type tag
      * @return Socket name from weapon data
      */
-    FName GetWeaponSocketName(const FSuspenseUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const;
+    FName GetWeaponSocketName(const FSuspenseCoreUnifiedItemData& WeaponData, const FGameplayTag& ModificationType) const;
 
     /**
      * Play visual effect at location
@@ -452,11 +452,11 @@ private:
 
     /** Currently loaded item data */
     UPROPERTY()
-    FSuspenseUnifiedItemData CachedItemData;
+    FSuspenseCoreUnifiedItemData CachedItemData;
 
     /** Current item instance */
     UPROPERTY()
-    FSuspenseInventoryItemInstance CurrentItemInstance;
+    FSuspenseCoreInventoryItemInstance CurrentItemInstance;
 
     /** Current visual state */
     UPROPERTY()
@@ -502,11 +502,11 @@ private:
 
     /** Cached item manager reference */
     UPROPERTY()
-    mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 
     /** Cached delegate manager reference */
     UPROPERTY()
-    mutable TWeakObjectPtr<USuspenseEventManager> CachedDelegateManager;
+    mutable TWeakObjectPtr<USuspenseCoreEventManager> CachedDelegateManager;
 
     /** Last cache validation time */
     mutable float LastCacheValidationTime;

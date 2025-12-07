@@ -1,12 +1,12 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
+#include "Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "AttributeSet.h"
-#include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Delegates/SuspenseCoreEventManager.h"
 #include "GameplayTagsManager.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemGlobals.h"
@@ -51,7 +51,7 @@ void USuspenseCoreEquipmentAttributeComponent::GetLifetimeReplicatedProps(TArray
     DOREPLIFETIME(USuspenseCoreEquipmentAttributeComponent, AttributeReplicationVersion);
 }
 
-void USuspenseCoreEquipmentAttributeComponent::InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseInventoryItemInstance& ItemInstance)
+void USuspenseCoreEquipmentAttributeComponent::InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     // Call base initialization first
     Super::InitializeWithItemInstance(InOwner, InASC, ItemInstance);
@@ -63,7 +63,7 @@ void USuspenseCoreEquipmentAttributeComponent::InitializeWithItemInstance(AActor
     }
 
     // Get item data from DataTable - this is our source of truth
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetEquippedItemData(ItemData))
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to get item data for: %s"), *ItemInstance.ItemID.ToString());
@@ -109,7 +109,7 @@ void USuspenseCoreEquipmentAttributeComponent::Cleanup()
     Super::Cleanup();
 }
 
-void USuspenseCoreEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseInventoryItemInstance& ItemInstance)
+void USuspenseCoreEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     // Update base item
     Super::UpdateEquippedItem(ItemInstance);
@@ -117,7 +117,7 @@ void USuspenseCoreEquipmentAttributeComponent::UpdateEquippedItem(const FSuspens
     // Reinitialize with new item if valid
     if (ItemInstance.IsValid())
     {
-        FSuspenseUnifiedItemData ItemData;
+        FSuspenseCoreUnifiedItemData ItemData;
         if (GetEquippedItemData(ItemData))
         {
             // Clean up old AttributeSets
@@ -150,14 +150,14 @@ void USuspenseCoreEquipmentAttributeComponent::OnEquipmentInitialized()
     EQUIPMENT_LOG(Log, TEXT("Equipment attributes component initialized"));
 }
 
-void USuspenseCoreEquipmentAttributeComponent::OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem)
+void USuspenseCoreEquipmentAttributeComponent::OnEquippedItemChanged(const FSuspenseCoreInventoryItemInstance& OldItem, const FSuspenseCoreInventoryItemInstance& NewItem)
 {
     Super::OnEquippedItemChanged(OldItem, NewItem);
 
     // Additional handling if needed when item changes
 }
 
-void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     if (!CachedASC)
     {
@@ -288,7 +288,7 @@ void USuspenseCoreEquipmentAttributeComponent::CleanupAttributeSets()
     EQUIPMENT_LOG(Log, TEXT("Cleaned up all attribute sets"));
 }
 
-void USuspenseCoreEquipmentAttributeComponent::ApplyInitializationEffect(UAttributeSet* AttributeSet, TSubclassOf<UGameplayEffect> InitEffect, const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentAttributeComponent::ApplyInitializationEffect(UAttributeSet* AttributeSet, TSubclassOf<UGameplayEffect> InitEffect, const FSuspenseCoreUnifiedItemData& ItemData)
 {
     if (!AttributeSet || !InitEffect || !CachedASC)
     {
@@ -320,7 +320,7 @@ void USuspenseCoreEquipmentAttributeComponent::ApplyInitializationEffect(UAttrib
     }
 }
 
-void USuspenseCoreEquipmentAttributeComponent::ApplyItemEffects(const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentAttributeComponent::ApplyItemEffects(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     if (!CachedASC)
     {
@@ -389,7 +389,7 @@ void USuspenseCoreEquipmentAttributeComponent::RemoveItemEffects()
     EQUIPMENT_LOG(Log, TEXT("Removed all item effects and abilities"));
 }
 
-void USuspenseCoreEquipmentAttributeComponent::ApplyPassiveEffects(const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentAttributeComponent::ApplyPassiveEffects(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     for (const TSubclassOf<UGameplayEffect>& EffectClass : ItemData.PassiveEffects)
     {
@@ -405,7 +405,7 @@ void USuspenseCoreEquipmentAttributeComponent::ApplyPassiveEffects(const FSuspen
     }
 }
 
-void USuspenseCoreEquipmentAttributeComponent::ApplyGrantedAbilities(const FSuspenseUnifiedItemData& ItemData)
+void USuspenseCoreEquipmentAttributeComponent::ApplyGrantedAbilities(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     for (const FGrantedAbilityData& AbilityData : ItemData.GrantedAbilities)
     {
@@ -818,7 +818,7 @@ bool USuspenseCoreEquipmentAttributeComponent::ServerSetAttributeValue_Validate(
 
 void USuspenseCoreEquipmentAttributeComponent::ServerApplyItemEffects_Implementation(const FName& ItemID)
 {
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (GetItemManager() && GetItemManager()->GetUnifiedItemData(ItemID, ItemData))
     {
         ApplyItemEffects(ItemData);

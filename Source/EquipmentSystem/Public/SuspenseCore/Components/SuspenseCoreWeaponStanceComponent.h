@@ -1,4 +1,4 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,7 +8,7 @@
 
 // ✅ Используем существующий у тебя интерфейс (НЕ объявляем свой)
 class USuspenseCoreWeaponAnimation;
-class ISuspenseWeaponAnimation;
+class ISuspenseCoreWeaponAnimation;
 
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent), BlueprintType, Blueprintable)
 class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStanceComponent : public UActorComponent
@@ -35,7 +35,7 @@ public:
 	void SetWeaponDrawnState(bool bDrawn);
 
 	UFUNCTION(BlueprintCallable, Category="Weapon|Stance")
-	TScriptInterface<ISuspenseWeaponAnimation> GetAnimationInterface() const;
+	TScriptInterface<ISuspenseCoreWeaponAnimation> GetAnimationInterface() const;
 
 	// -------- Helpers --------
 	UFUNCTION(BlueprintPure, Category="Weapon|Stance")
@@ -72,7 +72,7 @@ private:
 
 	// Кэш интерфейса анимаций (тот же, что ждёт Attachment)
 	UPROPERTY(Transient)
-	mutable TScriptInterface<ISuspenseWeaponAnimation> CachedAnimationInterface;
+	mutable TScriptInterface<ISuspenseCoreWeaponAnimation> CachedAnimationInterface;
 
 	// Настройки кэша
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Stance")

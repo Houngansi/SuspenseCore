@@ -1,12 +1,12 @@
-// SuspenseSystemCoordinatorComponent.h
-// Copyright SuspenseCore Team. All Rights Reserved.
+// SuspenseCoreSystemCoordinatorComponent.h
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
+#include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCoreSystemCoordinatorComponent.generated.h"
 
 class USuspenseCoreEquipmentServiceLocator;
@@ -29,22 +29,22 @@ public:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     /** Explicit bootstrap - can be called from game code */
-    UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Coordinator")
+    UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Coordinator")
     bool BootstrapServices();
 
     /** Validate all services ready */
-    UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Coordinator")
+    UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Coordinator")
     bool ValidateServices(TArray<FText>& OutErrors) const;
 
     /** PUBLIC: for calling from subsystem or player state if needed */
-    UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Coordinator")
+    UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Coordinator")
     void RegisterCoreServices();
     /**
      * Register presentation layer services (Factory, Attachment, Visual)
      */
     void RegisterPresentationServices();
     /** PUBLIC: warm up services (initialize caches, subscriptions) */
-    UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Coordinator")
+    UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Coordinator")
     void WarmUpServices();
     
     /**

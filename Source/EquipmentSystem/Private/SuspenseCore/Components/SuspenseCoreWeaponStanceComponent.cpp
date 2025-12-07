@@ -1,10 +1,10 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
+#include "Components/SuspenseCoreWeaponStanceComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
@@ -77,7 +77,7 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
-TScriptInterface<ISuspenseWeaponAnimation> USuspenseCoreWeaponStanceComponent::GetAnimationInterface() const
+TScriptInterface<ISuspenseCoreWeaponAnimation> USuspenseCoreWeaponStanceComponent::GetAnimationInterface() const
 {
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
@@ -94,7 +94,7 @@ TScriptInterface<ISuspenseWeaponAnimation> USuspenseCoreWeaponStanceComponent::G
 		if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreWeaponAnimation::StaticClass()))
 		{
 			CachedAnimationInterface.SetObject(OwnerActor);
-			CachedAnimationInterface.SetInterface(Cast<ISuspenseWeaponAnimation>(OwnerActor));
+			CachedAnimationInterface.SetInterface(Cast<ISuspenseCoreWeaponAnimation>(OwnerActor));
 			LastAnimationInterfaceCacheTime = Now;
 			return CachedAnimationInterface;
 		}
@@ -121,7 +121,7 @@ void USuspenseCoreWeaponStanceComponent::OnRep_DrawnState()
 
 void USuspenseCoreWeaponStanceComponent::PushToAnimationLayer(bool bSkipIfNoInterface) const
 {
-	const TScriptInterface<ISuspenseWeaponAnimation> AnimI = GetAnimationInterface();
+	const TScriptInterface<ISuspenseCoreWeaponAnimation> AnimI = GetAnimationInterface();
 	if (!AnimI.GetInterface())
 	{
 		if (!bSkipIfNoInterface)

@@ -1,14 +1,14 @@
-// SuspenseEquipmentDataStore.h
-// Copyright SuspenseCore Team. All Rights Reserved.
+// SuspenseCoreEquipmentDataStore.h
+// Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Types/Transaction/SuspenseTransactionTypes.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "Types/Transaction/SuspenseCoreTransactionTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
 
@@ -19,7 +19,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentDataStore, Log, All);
  * Structure for deferred event dispatch
  * Used to collect events under lock and dispatch after releasing it
  */
-struct FSuspensePendingEventData
+struct FSuspenseCorePendingEventData
 {
     enum EEventType
     {
@@ -32,7 +32,7 @@ struct FSuspensePendingEventData
 
     EEventType Type;
     int32 SlotIndex;
-    FSuspenseInventoryItemInstance ItemData;
+    FSuspenseCoreInventoryItemInstance ItemData;
     FGameplayTag StateTag;
     FEquipmentDelta DeltaData;  // New field for delta data
 };
@@ -52,7 +52,7 @@ struct FEquipmentDataStorage
 
     /** Items in slots */
     UPROPERTY()
-    TArray<FSuspenseInventoryItemInstance> SlotItems;
+    TArray<FSuspenseCoreInventoryItemInstance> SlotItems;
 
     /** Active weapon slot index */
     UPROPERTY()
@@ -101,7 +101,7 @@ struct FEquipmentDataStorage
  * We collect event data under lock, then broadcast after releasing it.
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataStore : public UActorComponent, public ISuspenseEquipmentDataProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataStore : public UActorComponent, public ISuspenseCoreEquipmentDataProvider
 {
     GENERATED_BODY()
 
@@ -115,29 +115,29 @@ public:
     //~ End UActorComponent Interface
 
     //========================================
-    // ISuspenseEquipmentDataProvider Implementation
+    // ISuspenseCoreEquipmentDataProvider Implementation
 
-	// High-level queries required by ISuspenseEquipmentDataProvider
+	// High-level queries required by ISuspenseCoreEquipmentDataProvider
 	virtual TArray<int32> FindCompatibleSlots(const FGameplayTag& ItemSlotTag) const override;
 	virtual TArray<int32> GetSlotsByType(EEquipmentSlotType SlotType) const override;
 	virtual int32 GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const override;
 	virtual float GetTotalEquippedWeight() const override;
-	virtual bool MeetsItemRequirements(const FSuspenseInventoryItemInstance& Item, int32 TargetSlotIndex) const override;
+	virtual bool MeetsItemRequirements(const FSuspenseCoreInventoryItemInstance& Item, int32 TargetSlotIndex) const override;
 	virtual FString GetDebugInfo() const override;
     //========================================
 
     // Pure Data Access - No Logic
-    virtual FSuspenseInventoryItemInstance GetSlotItem(int32 SlotIndex) const override;
+    virtual FSuspenseCoreInventoryItemInstance GetSlotItem(int32 SlotIndex) const override;
     virtual FEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const override;
     virtual TArray<FEquipmentSlotConfig> GetAllSlotConfigurations() const override;
-    virtual TMap<int32, FSuspenseInventoryItemInstance> GetAllEquippedItems() const override;
+    virtual TMap<int32, FSuspenseCoreInventoryItemInstance> GetAllEquippedItems() const override;
     virtual int32 GetSlotCount() const override;
     virtual bool IsValidSlotIndex(int32 SlotIndex) const override;
     virtual bool IsSlotOccupied(int32 SlotIndex) const override;
 
     // Data Modification - No Validation
-    virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) override;
-    virtual FSuspenseInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) override;
+    virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) override;
+    virtual FSuspenseCoreInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) override;
     virtual bool InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations) override;
 
     // State Management
@@ -240,7 +240,7 @@ protected:
      * Collects events under lock, broadcasts after releasing
      */
     bool ModifyDataWithEvents(
-        TFunction<bool(FEquipmentDataStorage&, TArray<FSuspensePendingEventData>&)> ModificationFunc,
+        TFunction<bool(FEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc,
         bool bNotifyObservers = true
     );
 
@@ -250,8 +250,8 @@ protected:
     FEquipmentDelta CreateDelta(
         const FGameplayTag& ChangeType,
         int32 SlotIndex,
-        const FSuspenseInventoryItemInstance& Before,
-        const FSuspenseInventoryItemInstance& After,
+        const FSuspenseCoreInventoryItemInstance& Before,
+        const FSuspenseCoreInventoryItemInstance& After,
         const FGameplayTag& Reason
     );
 
@@ -265,7 +265,7 @@ protected:
      * Broadcast collected events after releasing lock
      * This method is called OUTSIDE of any critical section
      */
-    void BroadcastPendingEvents(const TArray<FSuspensePendingEventData>& PendingEvents);
+    void BroadcastPendingEvents(const TArray<FSuspenseCorePendingEventData>& PendingEvents);
 	/** Current loadout ID being used by this data store */
 	UPROPERTY()
 	FName CurrentLoadoutID;

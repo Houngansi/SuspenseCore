@@ -1,14 +1,14 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/SuspenseCoreWeaponAmmoComponent.h"
+#include "Components/SuspenseCoreWeaponAmmoComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
-#include "Interfaces/Weapon/ISuspenseWeapon.h"
-#include "ItemSystem/SuspenseItemManager.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
+#include "Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
-#include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
+#include "Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "Attributes/WeaponAttributeSet.h"
 #include "Attributes/AmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"
@@ -19,7 +19,7 @@ USuspenseCoreWeaponAmmoComponent::USuspenseCoreWeaponAmmoComponent()
     SetIsReplicatedByDefault(true);
 
     // Initialize runtime state
-    AmmoState = FSuspenseInventoryAmmoState();
+    AmmoState = FSuspenseCoreInventoryAmmoState();
     bIsReloading = false;
     ReloadStartTime = 0.0f;
     bIsTacticalReload = true;
@@ -79,7 +79,7 @@ void USuspenseCoreWeaponAmmoComponent::Cleanup()
     EQUIPMENT_LOG(Verbose, TEXT("WeaponAmmoComponent cleaned up"));
 }
 
-bool USuspenseCoreWeaponAmmoComponent::InitializeFromWeapon(TScriptInterface<ISuspenseWeapon> WeaponInterface)
+bool USuspenseCoreWeaponAmmoComponent::InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface)
 {
     if (!WeaponInterface)
     {
@@ -90,7 +90,7 @@ bool USuspenseCoreWeaponAmmoComponent::InitializeFromWeapon(TScriptInterface<ISu
     CachedWeaponInterface = WeaponInterface;
 
     // Get initial ammo state from weapon
-    AmmoState = ISuspenseWeapon::Execute_GetAmmoState(WeaponInterface.GetObject());
+    AmmoState = ISuspenseCoreWeapon::Execute_GetAmmoState(WeaponInterface.GetObject());
 
     // Update cached magazine size from attributes
     UpdateMagazineSizeFromAttributes();
@@ -239,7 +239,7 @@ bool USuspenseCoreWeaponAmmoComponent::ConsumeAmmo(float Amount)
 void USuspenseCoreWeaponAmmoComponent::SaveAmmoStateToWeapon()
 {
     // Получаем интерфейс оружия для доступа к ItemInstance
-    ISuspenseWeapon* WeaponInterface = GetWeaponInterface();
+    ISuspenseCoreWeapon* WeaponInterface = GetWeaponInterface();
     if (!WeaponInterface)
     {
         // Нет оружия - нечего сохранять
@@ -248,7 +248,7 @@ void USuspenseCoreWeaponAmmoComponent::SaveAmmoStateToWeapon()
 
     // Вызываем SetAmmoState на оружии ТОЛЬКО для сохранения в ItemInstance
     // Оружие НЕ должно вызывать обратно SetAmmoState на компоненте
-    ISuspenseWeapon::Execute_SetAmmoState(Cast<UObject>(WeaponInterface), AmmoState);
+    ISuspenseCoreWeapon::Execute_SetAmmoState(Cast<UObject>(WeaponInterface), AmmoState);
 
     EQUIPMENT_LOG(Verbose, TEXT("SaveAmmoStateToWeapon: Persisted ammo state %.1f/%.1f"),
         AmmoState.CurrentAmmo, AmmoState.RemainingAmmo);
@@ -320,7 +320,7 @@ bool USuspenseCoreWeaponAmmoComponent::StartReload(bool bForce)
     ApplyReloadEffect();
 
     // Broadcast reload start
-    if (USuspenseEventManager* Manager = GetDelegateManager())
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadStart();
     }
@@ -371,7 +371,7 @@ void USuspenseCoreWeaponAmmoComponent::CompleteReload()
     SaveAmmoStateToWeapon();
 
     // Уведомляем о завершении перезарядки
-    if (USuspenseEventManager* Manager = GetDelegateManager())
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadEnd();
     }
@@ -400,7 +400,7 @@ void USuspenseCoreWeaponAmmoComponent::CancelReload()
     }
 
     // Broadcast cancel
-    if (USuspenseEventManager* Manager = GetDelegateManager())
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         Manager->NotifyWeaponReloadEnd();
     }
@@ -408,7 +408,7 @@ void USuspenseCoreWeaponAmmoComponent::CancelReload()
     EQUIPMENT_LOG(Log, TEXT("Reload cancelled"));
 }
 
-void USuspenseCoreWeaponAmmoComponent::SetAmmoState(const FSuspenseInventoryAmmoState& NewState)
+void USuspenseCoreWeaponAmmoComponent::SetAmmoState(const FSuspenseCoreInventoryAmmoState& NewState)
 {
     if (!ExecuteOnServer("SetAmmoState", [&]() {}))
     {
@@ -453,7 +453,7 @@ bool USuspenseCoreWeaponAmmoComponent::IsMagazineFull() const
     float MagazineSize = GetMagazineSize();
     return AmmoState.IsMagazineFull(MagazineSize);
 }
-void USuspenseCoreWeaponAmmoComponent::UpdateInternalAmmoState(const FSuspenseInventoryAmmoState& NewState)
+void USuspenseCoreWeaponAmmoComponent::UpdateInternalAmmoState(const FSuspenseCoreInventoryAmmoState& NewState)
 {
     // Обновляем состояние без вызова внешних интерфейсов
     AmmoState = NewState;
@@ -493,7 +493,7 @@ float USuspenseCoreWeaponAmmoComponent::GetMagazineSize() const
     }
 
     // Fallback: Get base values from DataTable for weapon archetype
-    FSuspenseUnifiedItemData WeaponData;
+    FSuspenseCoreUnifiedItemData WeaponData;
     if (GetWeaponData(WeaponData))
     {
         // Check weapon archetype for default values
@@ -563,7 +563,7 @@ float USuspenseCoreWeaponAmmoComponent::GetReloadTime(bool bTactical) const
     }
 
     // Fallback: Get base values from weapon archetype
-    FSuspenseUnifiedItemData WeaponData;
+    FSuspenseCoreUnifiedItemData WeaponData;
     if (GetWeaponData(WeaponData))
     {
         float BaseReloadTime = bTactical ? 2.5f : 3.5f;
@@ -595,7 +595,7 @@ float USuspenseCoreWeaponAmmoComponent::GetReloadTime(bool bTactical) const
 FGameplayTag USuspenseCoreWeaponAmmoComponent::GetAmmoType() const
 {
     // Get from weapon data
-    FSuspenseUnifiedItemData WeaponData;
+    FSuspenseCoreUnifiedItemData WeaponData;
     if (GetWeaponData(WeaponData))
     {
         return WeaponData.AmmoType;
@@ -636,7 +636,7 @@ void USuspenseCoreWeaponAmmoComponent::ApplyDurabilityModifiers()
         if (DurabilityPercent < 0.5f && FMath::RandRange(0.0f, 1.0f) < WeaponAS->GetMisfireChance() / 100.0f)
         {
             // Misfire occurred - broadcast event
-            if (USuspenseEventManager* Manager = GetDelegateManager())
+            if (USuspenseCoreEventManager* Manager = GetDelegateManager())
             {
                 FGameplayEventData Payload;
                 Payload.EventTag = FGameplayTag::RequestGameplayTag("Event.Weapon.Misfire");
@@ -654,11 +654,11 @@ void USuspenseCoreWeaponAmmoComponent::ApplyDurabilityModifiers()
     }
 }
 
-ISuspenseWeapon* USuspenseCoreWeaponAmmoComponent::GetWeaponInterface() const
+ISuspenseCoreWeapon* USuspenseCoreWeaponAmmoComponent::GetWeaponInterface() const
 {
     if (CachedWeaponInterface)
     {
-        return Cast<ISuspenseWeapon>(CachedWeaponInterface.GetInterface());
+        return Cast<ISuspenseCoreWeapon>(CachedWeaponInterface.GetInterface());
     }
 
     // Try to get from owner
@@ -666,22 +666,22 @@ ISuspenseWeapon* USuspenseCoreWeaponAmmoComponent::GetWeaponInterface() const
     {
         if (Owner->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
         {
-            return Cast<ISuspenseWeapon>(Owner);
+            return Cast<ISuspenseCoreWeapon>(Owner);
         }
     }
 
     return nullptr;
 }
 
-bool USuspenseCoreWeaponAmmoComponent::GetWeaponData(FSuspenseUnifiedItemData& OutData) const
+bool USuspenseCoreWeaponAmmoComponent::GetWeaponData(FSuspenseCoreUnifiedItemData& OutData) const
 {
-    ISuspenseWeapon* WeaponInterface = GetWeaponInterface();
+    ISuspenseCoreWeapon* WeaponInterface = GetWeaponInterface();
     if (!WeaponInterface)
     {
         return false;
     }
 
-    return ISuspenseWeapon::Execute_GetWeaponItemData(
+    return ISuspenseCoreWeapon::Execute_GetWeaponItemData(
         Cast<UObject>(WeaponInterface),
         OutData
     );
@@ -707,7 +707,7 @@ void USuspenseCoreWeaponAmmoComponent::ApplyReloadEffect()
     }
 
     // Get reload effect from weapon data
-    FSuspenseUnifiedItemData WeaponData;
+    FSuspenseCoreUnifiedItemData WeaponData;
     if (!GetWeaponData(WeaponData))
     {
         return;
@@ -776,14 +776,14 @@ void USuspenseCoreWeaponAmmoComponent::OnRep_ReloadState()
 {
     if (bIsReloading)
     {
-        if (USuspenseEventManager* Manager = GetDelegateManager())
+        if (USuspenseCoreEventManager* Manager = GetDelegateManager())
         {
             Manager->NotifyWeaponReloadStart();
         }
     }
     else
     {
-        if (USuspenseEventManager* Manager = GetDelegateManager())
+        if (USuspenseCoreEventManager* Manager = GetDelegateManager())
         {
             Manager->NotifyWeaponReloadEnd();
         }

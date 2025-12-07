@@ -1,8 +1,8 @@
-// Copyright SuspenseCore Team. All Rights Reserved.
+// Copyright Suspense Team. All Rights Reserved.
 
-#include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
+#include "Components/Core/SuspenseCoreWeaponStateManager.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -102,8 +102,8 @@ void USuspenseCoreWeaponStateManager::TickComponent(float DeltaTime, ELevelTick 
 }
 
 bool USuspenseCoreWeaponStateManager::Initialize(
-    TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider,
-    TScriptInterface<ISuspenseEventDispatcher> InEventDispatcher)
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,
+    TScriptInterface<ISuspenseCoreEventDispatcher> InEventDispatcher)
 {
     DataProvider   = InDataProvider;
     EventDispatcher = InEventDispatcher;

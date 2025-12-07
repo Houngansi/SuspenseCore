@@ -203,6 +203,25 @@ public:
 	void RefreshActiveTabContent();
 
 	//==================================================================
+	// Backward Compatibility API (for ContainerScreen integration)
+	//==================================================================
+
+	/**
+	 * Set active panel by tag (wrapper for SelectTabByTag)
+	 * @param PanelTag Tag of panel to activate
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
+	void SetActivePanel(const FGameplayTag& PanelTag);
+
+	/**
+	 * Add a tab dynamically at runtime
+	 * @param PanelTag Tag identifying the panel
+	 * @param DisplayName Text to show on tab
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|PanelSwitcher")
+	void AddTab(const FGameplayTag& PanelTag, const FText& DisplayName);
+
+	//==================================================================
 	// Blueprint Events
 	//==================================================================
 

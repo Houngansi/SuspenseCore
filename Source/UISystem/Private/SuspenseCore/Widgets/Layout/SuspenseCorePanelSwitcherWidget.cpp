@@ -1,16 +1,19 @@
 // SuspenseCorePanelSwitcherWidget.cpp
 // SuspenseCore - Panel Switcher (Tab Bar) Widget Implementation
+// AAA Pattern: EventBus communication, SuspenseCoreButtonWidget for tabs
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
-#include "Components/Button.h"
-#include "Components/TextBlock.h"
-#include "Components/PanelWidget.h"
-#include "Framework/Application/SlateApplication.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
+#include "SuspenseCore/Widgets/Common/SuspenseCoreButtonWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/WidgetSwitcher.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+#include "Blueprint/WidgetTree.h"
 
 //==================================================================
 // Constructor
@@ -18,8 +21,9 @@
 
 USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, DefaultTabIndex(0)
 	, NextTabKey(EKeys::Tab)
-	, PreviousTabKey(EKeys::LeftShift) // Shift+Tab handled separately
+	, CurrentTabIndex(-1)
 {
 }
 
@@ -27,32 +31,73 @@ USuspenseCorePanelSwitcherWidget::USuspenseCorePanelSwitcherWidget(const FObject
 // UUserWidget Interface
 //==================================================================
 
+void USuspenseCorePanelSwitcherWidget::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	// Preview tabs in designer (like legacy SuspenseUpperTabBar)
+	if (IsDesignTime() && TabContainer && WidgetTree)
+	{
+		TabContainer->ClearChildren();
+
+		for (int32 i = 0; i < TabConfigs.Num(); i++)
+		{
+			// Create preview text for design time
+			UTextBlock* PreviewText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			if (PreviewText)
+			{
+				PreviewText->SetText(TabConfigs[i].DisplayName);
+
+				// Create preview button
+				UButton* PreviewButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+				if (PreviewButton)
+				{
+					PreviewButton->AddChild(PreviewText);
+
+					UHorizontalBoxSlot* Slot = TabContainer->AddChildToHorizontalBox(PreviewButton);
+					if (Slot)
+					{
+						Slot->SetPadding(FMargin(4.0f, 0.0f));
+						Slot->SetHorizontalAlignment(HAlign_Left);
+					}
+				}
+			}
+		}
+	}
+}
+
 void USuspenseCorePanelSwitcherWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// Setup EventBus subscriptions
+	// Skip runtime initialization in design mode
+	if (IsDesignTime())
+	{
+		return;
+	}
+
+	// Setup EventBus first
 	SetupEventSubscriptions();
 
-	// FALLBACK: If TabContainer is not bound in Blueprint, create it dynamically
+	// Validate required bindings
 	if (!TabContainer)
 	{
-		TabContainer = NewObject<UHorizontalBox>(this, TEXT("TabContainer"));
-		if (TabContainer)
-		{
-			// Get root widget and add TabContainer to it
-			UWidget* RootWidget = GetRootWidget();
-			if (UPanelWidget* RootPanel = Cast<UPanelWidget>(RootWidget))
-			{
-				RootPanel->AddChild(TabContainer);
-				UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: TabContainer was not bound! Created dynamically. Please bind TabContainer in Blueprint for proper styling."));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("PanelSwitcher: Could not create TabContainer - root widget is not a panel!"));
-			}
-		}
+		UE_LOG(LogTemp, Error, TEXT("PanelSwitcher: TabContainer not bound! Bind it in Blueprint."));
+		return;
 	}
+
+	// Clear design-time content
+	TabContainer->ClearChildren();
+
+	if (PanelContainer)
+	{
+		PanelContainer->ClearChildren();
+	}
+
+	// Initialize tabs from config
+	InitializeTabs();
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Initialized with %d tabs"), RuntimeTabs.Num());
 }
 
 void USuspenseCorePanelSwitcherWidget::NativeDestruct()
@@ -60,7 +105,7 @@ void USuspenseCorePanelSwitcherWidget::NativeDestruct()
 	// Teardown EventBus subscriptions
 	TeardownEventSubscriptions();
 
-	// Clear all tabs
+	// Clear all tabs (unbinds delegates)
 	ClearTabs();
 
 	Super::NativeDestruct();
@@ -69,12 +114,18 @@ void USuspenseCorePanelSwitcherWidget::NativeDestruct()
 FReply USuspenseCorePanelSwitcherWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	// Handle tab navigation
-	if (InKeyEvent.GetKey() == NextTabKey)
+	if (InKeyEvent.GetKey() == NextTabKey && !InKeyEvent.IsShiftDown())
 	{
 		SelectNextTab();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == PreviousTabKey)
+	else if (InKeyEvent.GetKey() == NextTabKey && InKeyEvent.IsShiftDown())
+	{
+		// Shift+Tab = previous tab
+		SelectPreviousTab();
+		return FReply::Handled();
+	}
+	else if (PreviousTabKey.IsValid() && InKeyEvent.GetKey() == PreviousTabKey)
 	{
 		SelectPreviousTab();
 		return FReply::Handled();
@@ -84,313 +135,393 @@ FReply USuspenseCorePanelSwitcherWidget::NativeOnKeyDown(const FGeometry& InGeom
 }
 
 //==================================================================
-// Tab Management
+// Tab Management API
 //==================================================================
 
-void USuspenseCorePanelSwitcherWidget::AddTab(const FGameplayTag& PanelTag, const FText& DisplayName)
+void USuspenseCorePanelSwitcherWidget::InitializeTabs()
 {
-	if (!PanelTag.IsValid() || !TabContainer)
+	// Clear any existing runtime tabs
+	ClearTabs();
+
+	if (TabConfigs.Num() == 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddTab: Invalid tag or TabContainer is null"));
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: No TabConfigs defined!"));
 		return;
 	}
 
-	// Check if tab already exists
-	if (TabIndexByTag.Contains(PanelTag))
+	// Create tabs from configs
+	for (int32 i = 0; i < TabConfigs.Num(); i++)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddTab: Tab '%s' already exists"), *PanelTag.ToString());
-		return;
-	}
+		const FSuspenseCorePanelTabConfig& Config = TabConfigs[i];
 
-	// Create tab data
-	FSuspenseCorePanelTab TabData(PanelTag, DisplayName);
-
-	// Create tab button
-	TabData.TabButton = CreateTabButton(TabData);
-	if (!TabData.TabButton)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("AddTab: Failed to create button for '%s'"), *PanelTag.ToString());
-		return;
-	}
-
-	// Add button-to-tag mapping for click handling
-	ButtonToTagMap.Add(TabData.TabButton, PanelTag);
-
-	// Add to container
-	if (UHorizontalBoxSlot* TabSlot = TabContainer->AddChildToHorizontalBox(TabData.TabButton))
-	{
-		TabSlot->SetHorizontalAlignment(HAlign_Fill);
-		TabSlot->SetVerticalAlignment(VAlign_Fill);
-		TabSlot->SetPadding(FMargin(4.0f, 0.0f));
-	}
-
-	// Track tab
-	int32 TabIndex = Tabs.Num();
-	Tabs.Add(TabData);
-	TabIndexByTag.Add(PanelTag, TabIndex);
-
-	UE_LOG(LogTemp, Log, TEXT("AddTab: Created tab '%s' at index %d"), *PanelTag.ToString(), TabIndex);
-
-	// Notify Blueprint
-	K2_OnTabCreated(TabData);
-
-	// Update visual (deselected by default)
-	UpdateTabVisual(TabData, false);
-}
-
-void USuspenseCorePanelSwitcherWidget::RemoveTab(const FGameplayTag& PanelTag)
-{
-	int32* FoundIndex = TabIndexByTag.Find(PanelTag);
-	if (!FoundIndex)
-	{
-		return;
-	}
-
-	int32 TabIndex = *FoundIndex;
-	if (TabIndex >= 0 && TabIndex < Tabs.Num())
-	{
-		FSuspenseCorePanelTab& Tab = Tabs[TabIndex];
-
-		// Remove button from container and clean up
-		if (Tab.TabButton)
+		if (!Config.PanelTag.IsValid())
 		{
-			// Remove dynamic delegate binding
-			Tab.TabButton->OnClicked.RemoveDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
-			ButtonToTagMap.Remove(Tab.TabButton);
-			Tab.TabButton->RemoveFromParent();
+			UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: TabConfig[%d] has invalid PanelTag, skipping"), i);
+			continue;
 		}
 
-		// Remove from tracking
-		Tabs.RemoveAt(TabIndex);
-		TabIndexByTag.Remove(PanelTag);
+		FSuspenseCorePanelTabRuntime RuntimeTab;
+		RuntimeTab.PanelTag = Config.PanelTag;
+		RuntimeTab.bEnabled = Config.bEnabled;
 
-		// Update indices for remaining tabs
-		for (auto& Pair : TabIndexByTag)
+		// Create tab button
+		RuntimeTab.TabButton = CreateTabButton(Config, i);
+		if (!RuntimeTab.TabButton)
 		{
-			if (Pair.Value > TabIndex)
+			UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Failed to create button for tab %d"), i);
+			continue;
+		}
+
+		// Add button to container
+		if (UHorizontalBoxSlot* Slot = TabContainer->AddChildToHorizontalBox(RuntimeTab.TabButton))
+		{
+			Slot->SetPadding(FMargin(4.0f, 0.0f));
+			Slot->SetHorizontalAlignment(HAlign_Fill);
+			Slot->SetVerticalAlignment(VAlign_Fill);
+		}
+
+		// Create panel widget if PanelContainer is bound
+		if (PanelContainer && Config.PanelWidgetClass)
+		{
+			RuntimeTab.PanelWidget = CreatePanelWidget(Config, i);
+			if (RuntimeTab.PanelWidget)
 			{
-				Pair.Value--;
+				PanelContainer->AddChild(RuntimeTab.PanelWidget);
 			}
 		}
+
+		// Track button->index mapping for click handler
+		ButtonToIndexMap.Add(RuntimeTab.TabButton, RuntimeTabs.Num());
+
+		// Store runtime tab
+		RuntimeTabs.Add(RuntimeTab);
+
+		// Notify Blueprint
+		K2_OnTabCreated(i, RuntimeTab.TabButton);
+
+		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Created tab %d - %s"), i, *Config.PanelTag.ToString());
+	}
+
+	// Select default tab
+	if (RuntimeTabs.Num() > 0)
+	{
+		int32 IndexToSelect = FMath::Clamp(DefaultTabIndex, 0, RuntimeTabs.Num() - 1);
+		SelectTabByIndex(IndexToSelect);
 	}
 }
 
 void USuspenseCorePanelSwitcherWidget::ClearTabs()
 {
-	// Remove all tab buttons
-	for (FSuspenseCorePanelTab& Tab : Tabs)
+	// Unbind button delegates and remove from parent
+	for (FSuspenseCorePanelTabRuntime& Tab : RuntimeTabs)
 	{
 		if (Tab.TabButton)
 		{
-			// Remove dynamic delegate binding
-			Tab.TabButton->OnClicked.RemoveDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
+			// Unbind from SuspenseCoreButtonWidget delegate
+			Tab.TabButton->OnButtonClicked.RemoveDynamic(this, &USuspenseCorePanelSwitcherWidget::OnTabButtonClicked);
 			Tab.TabButton->RemoveFromParent();
+		}
+
+		if (Tab.PanelWidget)
+		{
+			Tab.PanelWidget->RemoveFromParent();
 		}
 	}
 
-	Tabs.Empty();
-	TabIndexByTag.Empty();
-	ButtonToTagMap.Empty();
-	ActivePanelTag = FGameplayTag();
+	RuntimeTabs.Empty();
+	ButtonToIndexMap.Empty();
+	CurrentTabIndex = -1;
 
 	if (TabContainer)
 	{
 		TabContainer->ClearChildren();
 	}
+
+	if (PanelContainer)
+	{
+		PanelContainer->ClearChildren();
+	}
 }
 
-//==================================================================
-// Selection
-//==================================================================
-
-void USuspenseCorePanelSwitcherWidget::SetActivePanel(const FGameplayTag& PanelTag)
+bool USuspenseCorePanelSwitcherWidget::SelectTabByIndex(int32 TabIndex)
 {
-	if (ActivePanelTag == PanelTag)
+	if (TabIndex < 0 || TabIndex >= RuntimeTabs.Num())
 	{
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Invalid tab index %d"), TabIndex);
+		return false;
 	}
 
-	// Update previous tab visual
-	if (ActivePanelTag.IsValid())
+	FSuspenseCorePanelTabRuntime& Tab = RuntimeTabs[TabIndex];
+
+	// Check if tab is enabled
+	if (!Tab.bEnabled)
 	{
-		int32* PrevIndex = TabIndexByTag.Find(ActivePanelTag);
-		if (PrevIndex && *PrevIndex >= 0 && *PrevIndex < Tabs.Num())
-		{
-			UpdateTabVisual(Tabs[*PrevIndex], false);
-		}
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Tab %d is disabled"), TabIndex);
+		return false;
 	}
 
-	ActivePanelTag = PanelTag;
+	int32 OldIndex = CurrentTabIndex;
+	CurrentTabIndex = TabIndex;
 
-	// Update new tab visual
-	if (ActivePanelTag.IsValid())
+	// Update all tab visuals
+	UpdateAllTabVisuals();
+
+	// Switch panel container if available
+	if (PanelContainer && Tab.PanelWidget)
 	{
-		int32* NewIndex = TabIndexByTag.Find(ActivePanelTag);
-		if (NewIndex && *NewIndex >= 0 && *NewIndex < Tabs.Num())
-		{
-			UpdateTabVisual(Tabs[*NewIndex], true);
-		}
+		PanelContainer->SetActiveWidget(Tab.PanelWidget);
 	}
 
 	// Notify Blueprint
-	K2_OnTabSelected(PanelTag);
+	if (OldIndex != CurrentTabIndex)
+	{
+		K2_OnTabSelected(OldIndex, CurrentTabIndex);
+	}
+
+	// Publish via EventBus
+	PublishPanelSelected(Tab.PanelTag);
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Selected tab %d (%s)"), TabIndex, *Tab.PanelTag.ToString());
+	return true;
+}
+
+bool USuspenseCorePanelSwitcherWidget::SelectTabByTag(const FGameplayTag& PanelTag)
+{
+	for (int32 i = 0; i < RuntimeTabs.Num(); i++)
+	{
+		if (RuntimeTabs[i].PanelTag.MatchesTagExact(PanelTag))
+		{
+			return SelectTabByIndex(i);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Tab with tag %s not found"), *PanelTag.ToString());
+	return false;
+}
+
+FGameplayTag USuspenseCorePanelSwitcherWidget::GetActivePanel() const
+{
+	if (CurrentTabIndex >= 0 && CurrentTabIndex < RuntimeTabs.Num())
+	{
+		return RuntimeTabs[CurrentTabIndex].PanelTag;
+	}
+	return FGameplayTag();
 }
 
 void USuspenseCorePanelSwitcherWidget::SelectNextTab()
 {
-	if (Tabs.Num() == 0)
+	if (RuntimeTabs.Num() == 0)
 	{
 		return;
 	}
 
-	int32 CurrentIndex = 0;
-	if (ActivePanelTag.IsValid())
+	// Find next enabled tab
+	int32 StartIndex = FMath::Max(0, CurrentTabIndex);
+	for (int32 i = 1; i <= RuntimeTabs.Num(); i++)
 	{
-		int32* FoundIndex = TabIndexByTag.Find(ActivePanelTag);
-		if (FoundIndex)
+		int32 NextIndex = (StartIndex + i) % RuntimeTabs.Num();
+		if (RuntimeTabs[NextIndex].bEnabled)
 		{
-			CurrentIndex = *FoundIndex;
+			SelectTabByIndex(NextIndex);
+			return;
 		}
 	}
-
-	// Move to next (wrap around)
-	int32 NextIndex = (CurrentIndex + 1) % Tabs.Num();
-	FGameplayTag NextTag = Tabs[NextIndex].PanelTag;
-
-	// Publish via EventBus
-	PublishPanelSelected(NextTag);
 }
 
 void USuspenseCorePanelSwitcherWidget::SelectPreviousTab()
 {
-	if (Tabs.Num() == 0)
+	if (RuntimeTabs.Num() == 0)
 	{
 		return;
 	}
 
-	int32 CurrentIndex = 0;
-	if (ActivePanelTag.IsValid())
+	// Find previous enabled tab
+	int32 StartIndex = FMath::Max(0, CurrentTabIndex);
+	for (int32 i = 1; i <= RuntimeTabs.Num(); i++)
 	{
-		int32* FoundIndex = TabIndexByTag.Find(ActivePanelTag);
-		if (FoundIndex)
+		int32 PrevIndex = (StartIndex - i + RuntimeTabs.Num()) % RuntimeTabs.Num();
+		if (RuntimeTabs[PrevIndex].bEnabled)
 		{
-			CurrentIndex = *FoundIndex;
+			SelectTabByIndex(PrevIndex);
+			return;
 		}
 	}
+}
 
-	// Move to previous (wrap around)
-	int32 PrevIndex = (CurrentIndex - 1 + Tabs.Num()) % Tabs.Num();
-	FGameplayTag PrevTag = Tabs[PrevIndex].PanelTag;
+void USuspenseCorePanelSwitcherWidget::SetTabEnabled(int32 TabIndex, bool bEnabled)
+{
+	if (TabIndex < 0 || TabIndex >= RuntimeTabs.Num())
+	{
+		return;
+	}
 
-	// Publish via EventBus
-	PublishPanelSelected(PrevTag);
+	FSuspenseCorePanelTabRuntime& Tab = RuntimeTabs[TabIndex];
+	Tab.bEnabled = bEnabled;
+
+	// Update button enabled state
+	if (Tab.TabButton)
+	{
+		Tab.TabButton->SetButtonEnabled(bEnabled);
+	}
+
+	// If disabling current tab, select another
+	if (!bEnabled && CurrentTabIndex == TabIndex)
+	{
+		SelectNextTab();
+	}
+}
+
+void USuspenseCorePanelSwitcherWidget::RefreshActiveTabContent()
+{
+	if (CurrentTabIndex >= 0 && CurrentTabIndex < RuntimeTabs.Num())
+	{
+		USuspenseCorePanelWidget* Panel = RuntimeTabs[CurrentTabIndex].PanelWidget;
+		if (Panel)
+		{
+			// TODO: Call panel refresh method if available
+			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Refreshing active tab content"));
+		}
+	}
 }
 
 //==================================================================
 // Tab Creation
 //==================================================================
 
-UButton* USuspenseCorePanelSwitcherWidget::CreateTabButton_Implementation(const FSuspenseCorePanelTab& TabData)
+USuspenseCoreButtonWidget* USuspenseCorePanelSwitcherWidget::CreateTabButton_Implementation(
+	const FSuspenseCorePanelTabConfig& Config, int32 TabIndex)
 {
-	// Create button
-	UButton* Button = NewObject<UButton>(this);
+	// Determine button class to use
+	TSubclassOf<USuspenseCoreButtonWidget> ButtonClass = TabButtonClass;
+	if (!ButtonClass)
+	{
+		ButtonClass = USuspenseCoreButtonWidget::StaticClass();
+	}
+
+	// Create button widget
+	USuspenseCoreButtonWidget* Button = CreateWidget<USuspenseCoreButtonWidget>(this, ButtonClass);
 	if (!Button)
 	{
+		UE_LOG(LogTemp, Error, TEXT("PanelSwitcher: Failed to create SuspenseCoreButtonWidget"));
 		return nullptr;
 	}
 
-	// Create text inside button
-	UTextBlock* Text = NewObject<UTextBlock>(Button);
-	if (Text)
+	// Configure button
+	Button->SetButtonText(Config.DisplayName);
+	Button->SetButtonEnabled(Config.bEnabled);
+
+	// Set ActionTag for identification (per BestPractices.md)
+	// Format: SuspenseCore.UI.Tab.<PanelTag leaf>
+	Button->SetActionTag(Config.PanelTag);
+
+	// Set icon if provided
+	if (Config.TabIcon)
 	{
-		Text->SetText(TabData.DisplayName);
-		Text->SetJustification(ETextJustify::Center);
-		Button->AddChild(Text);
+		Button->SetButtonIcon(Config.TabIcon);
 	}
 
-	// CRITICAL: Store button->tag mapping BEFORE binding click event
-	// This is used in HandleTabButtonClicked to identify which button was clicked
-	ButtonToTagMap.Add(Button, TabData.PanelTag);
-
-	// Bind click event - HandleTabButtonClicked will use ButtonToTagMap to find the tag
-	Button->OnClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked);
+	// CRITICAL: Bind to button's OnButtonClicked delegate
+	// SuspenseCoreButtonWidget broadcasts this when clicked
+	Button->OnButtonClicked.AddDynamic(this, &USuspenseCorePanelSwitcherWidget::OnTabButtonClicked);
 
 	return Button;
 }
 
-void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(const FSuspenseCorePanelTab& Tab, bool bIsSelected)
+USuspenseCorePanelWidget* USuspenseCorePanelSwitcherWidget::CreatePanelWidget_Implementation(
+	const FSuspenseCorePanelTabConfig& Config, int32 TabIndex)
 {
-	if (!Tab.TabButton)
+	if (!Config.PanelWidgetClass)
+	{
+		return nullptr;
+	}
+
+	// Create panel widget
+	USuspenseCorePanelWidget* Panel = CreateWidget<USuspenseCorePanelWidget>(this, Config.PanelWidgetClass);
+	if (Panel)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Created panel widget for tab %d"), TabIndex);
+	}
+
+	return Panel;
+}
+
+void USuspenseCorePanelSwitcherWidget::UpdateTabVisual_Implementation(int32 TabIndex, bool bIsSelected)
+{
+	if (TabIndex < 0 || TabIndex >= RuntimeTabs.Num())
 	{
 		return;
 	}
 
-	// Apply appropriate style
+	USuspenseCoreButtonWidget* Button = RuntimeTabs[TabIndex].TabButton;
+	if (!Button)
+	{
+		return;
+	}
+
+	// Update button style based on selection
+	// SuspenseCoreButtonWidget handles its own styling via SetButtonStyle
 	if (bIsSelected)
 	{
-		Tab.TabButton->SetStyle(SelectedTabStyle);
+		Button->SetButtonStyle(ESuspenseCoreButtonStyle::Primary);
 	}
 	else
 	{
-		Tab.TabButton->SetStyle(NormalTabStyle);
-	}
-
-	// Update text if available
-	if (Tab.TabText)
-	{
-		// Could change text color, font, etc. for selected state
+		Button->SetButtonStyle(ESuspenseCoreButtonStyle::Secondary);
 	}
 }
 
-void USuspenseCorePanelSwitcherWidget::HandleTabButtonClicked()
+void USuspenseCorePanelSwitcherWidget::UpdateAllTabVisuals()
 {
-	// Find which button was clicked using FSlateApplication focused widget
-	if (FSlateApplication::IsInitialized())
+	for (int32 i = 0; i < RuntimeTabs.Num(); i++)
 	{
-		TSharedPtr<SWidget> FocusedWidget = FSlateApplication::Get().GetUserFocusedWidget(0);
+		UpdateTabVisual(i, i == CurrentTabIndex);
+	}
+}
 
-		for (const auto& Pair : ButtonToTagMap)
-		{
-			UButton* Button = Pair.Key.Get();
-			if (!Button)
-			{
-				continue;
-			}
+//==================================================================
+// Internal Handlers
+//==================================================================
 
-			TSharedPtr<SWidget> ButtonSlateWidget = Button->GetCachedWidget();
-			if (!ButtonSlateWidget.IsValid())
-			{
-				continue;
-			}
-
-			// Check if focused widget is this button or its child
-			TSharedPtr<SWidget> CurrentWidget = FocusedWidget;
-			while (CurrentWidget.IsValid())
-			{
-				if (CurrentWidget == ButtonSlateWidget)
-				{
-					UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked - %s"), *Pair.Value.ToString());
-					PublishPanelSelected(Pair.Value);
-					return;
-				}
-				CurrentWidget = CurrentWidget->GetParentWidget();
-			}
-		}
+void USuspenseCorePanelSwitcherWidget::OnTabButtonClicked(USuspenseCoreButtonWidget* Button)
+{
+	if (!Button)
+	{
+		return;
 	}
 
-	// Fallback: Check which button has keyboard focus (UMG level)
-	for (const auto& Pair : ButtonToTagMap)
+	// Find tab index from ButtonToIndexMap
+	int32* FoundIndex = ButtonToIndexMap.Find(Button);
+	if (FoundIndex)
 	{
-		UButton* Button = Pair.Key.Get();
-		if (Button && Button->HasKeyboardFocus())
-		{
-			UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab clicked (fallback) - %s"), *Pair.Value.ToString());
-			PublishPanelSelected(Pair.Value);
-			return;
-		}
+		UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Tab button clicked - index %d"), *FoundIndex);
+		SelectTabByIndex(*FoundIndex);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Unknown button clicked"));
+	}
+}
+
+void USuspenseCorePanelSwitcherWidget::PublishPanelSelected(const FGameplayTag& PanelTag)
+{
+	if (!CachedEventBus.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Cannot publish - EventBus not available"));
+		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: HandleTabButtonClicked - could not identify which button"));
+	// Create event data (per BestPractices.md - use EventBus, not direct delegates)
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetString(FName("PanelTag"), PanelTag.ToString());
+	EventData.SetInt(FName("TabIndex"), CurrentTabIndex);
+
+	// Publish event: SuspenseCore.Event.UI.Panel.Selected
+	CachedEventBus->Publish(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
+		EventData
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Published panel selected - %s"), *PanelTag.ToString());
 }
 
 //==================================================================
@@ -413,31 +544,10 @@ void USuspenseCorePanelSwitcherWidget::SetupEventSubscriptions()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: EventBus subscriptions established"));
+	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: EventBus ready"));
 }
 
 void USuspenseCorePanelSwitcherWidget::TeardownEventSubscriptions()
 {
 	CachedEventBus.Reset();
-}
-
-void USuspenseCorePanelSwitcherWidget::PublishPanelSelected(const FGameplayTag& PanelTag)
-{
-	if (!CachedEventBus.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("PanelSwitcher: Cannot publish - EventBus not available"));
-		return;
-	}
-
-	// Create event data with panel tag (stored as string since FSuspenseCoreEventData has no SetTag)
-	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-	EventData.SetString(FName("PanelTag"), PanelTag.ToString());
-
-	// Publish event via EventBus (SuspenseCore.Event.UI.Panel.Selected)
-	CachedEventBus->Publish(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Panel.Selected")),
-		EventData
-	);
-
-	UE_LOG(LogTemp, Log, TEXT("PanelSwitcher: Published panel selected event - %s"), *PanelTag.ToString());
 }

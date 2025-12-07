@@ -26,69 +26,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSuspenseCoreButtonClicked, USuspe
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSuspenseCoreButtonHovered, USuspenseCoreButtonWidget*, Button, bool, bIsHovered);
 
 /**
- * ESuspenseCoreButtonStyle
- * Visual style presets for buttons
- */
-UENUM(BlueprintType)
-enum class ESuspenseCoreButtonStyle : uint8
-{
-	Primary		UMETA(DisplayName = "Primary"),		// Main action buttons
-	Secondary	UMETA(DisplayName = "Secondary"),	// Secondary actions
-	Tertiary	UMETA(DisplayName = "Tertiary"),	// Subtle actions
-	Danger		UMETA(DisplayName = "Danger"),		// Destructive actions (delete, quit)
-	Success		UMETA(DisplayName = "Success"),		// Confirm actions
-	Ghost		UMETA(DisplayName = "Ghost"),		// Minimal/transparent
-	Custom		UMETA(DisplayName = "Custom")		// Use custom colors
-};
-
-/**
- * FSuspenseCoreButtonColors
- * Color configuration for button states
- */
-USTRUCT(BlueprintType)
-struct UISYSTEM_API FSuspenseCoreButtonColors
-{
-	GENERATED_BODY()
-
-	/** Normal state background color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor NormalBackground = FLinearColor(0.1f, 0.1f, 0.1f, 0.9f);
-
-	/** Hovered state background color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor HoveredBackground = FLinearColor(0.2f, 0.2f, 0.2f, 1.0f);
-
-	/** Pressed state background color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor PressedBackground = FLinearColor(0.05f, 0.05f, 0.05f, 1.0f);
-
-	/** Disabled state background color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor DisabledBackground = FLinearColor(0.1f, 0.1f, 0.1f, 0.5f);
-
-	/** Text color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor TextColor = FLinearColor::White;
-
-	/** Disabled text color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor DisabledTextColor = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
-
-	/** Border/accent color */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Colors")
-	FLinearColor AccentColor = FLinearColor(0.8f, 0.6f, 0.2f, 1.0f);
-};
-
-/**
  * USuspenseCoreButtonWidget
  *
  * Universal button widget for SuspenseCore UI.
- * Provides consistent styling, sounds, and behavior across all UI.
+ * Visual styling is handled via materials in the engine.
  *
  * FEATURES:
  * - Text + optional icon
- * - Multiple style presets (Primary, Secondary, Danger, etc.)
- * - Hover/press animations
  * - Sound effects
  * - Keyboard focus support
  * - GameplayTag-based action identification
@@ -96,14 +40,12 @@ struct UISYSTEM_API FSuspenseCoreButtonColors
  * USAGE:
  * 1. Add to any widget as a child
  * 2. Bind ButtonText and optionally Icon
- * 3. Set Style or CustomColors
+ * 3. Style via materials in Blueprint
  * 4. Connect OnButtonClicked delegate
  *
  * IN BLUEPRINT:
  * - Override K2_OnClicked for custom behavior
  * - Use ActionTag to identify button purpose
- *
- * @see ESuspenseCoreButtonStyle
  */
 UCLASS(BlueprintType, Blueprintable)
 class UISYSTEM_API USuspenseCoreButtonWidget : public UUserWidget
@@ -119,6 +61,7 @@ public:
 
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativePreConstruct() override;
 	virtual FReply NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent) override;
 	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
@@ -160,20 +103,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Button")
 	bool IsButtonEnabled() const { return bIsEnabled; }
-
-	/**
-	 * Set button style preset
-	 * @param NewStyle Style preset to apply
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Button")
-	void SetButtonStyle(ESuspenseCoreButtonStyle NewStyle);
-
-	/**
-	 * Set custom colors (only works when Style is Custom)
-	 * @param NewColors Custom color configuration
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Button")
-	void SetCustomColors(const FSuspenseCoreButtonColors& NewColors);
 
 	/**
 	 * Simulate button click programmatically
@@ -248,18 +177,9 @@ protected:
 	// Configuration
 	//==================================================================
 
-	/** Button display text */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	/** Button display text - editable per instance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (ExposeOnSpawn = true))
 	FText ButtonText;
-
-	/** Button style preset */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
-	ESuspenseCoreButtonStyle Style = ESuspenseCoreButtonStyle::Primary;
-
-	/** Custom colors (used when Style is Custom) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration",
-		meta = (EditCondition = "Style == ESuspenseCoreButtonStyle::Custom"))
-	FSuspenseCoreButtonColors CustomColors;
 
 	/** Action tag for identification (e.g., SuspenseCore.UIAction.Play) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
@@ -297,23 +217,6 @@ protected:
 	UFUNCTION()
 	void OnMainButtonUnhovered();
 
-	/** Handle button pressed */
-	UFUNCTION()
-	void OnMainButtonPressed();
-
-	/** Handle button released */
-	UFUNCTION()
-	void OnMainButtonReleased();
-
-	/** Apply style colors to button */
-	void ApplyStyle();
-
-	/** Get colors for current style */
-	FSuspenseCoreButtonColors GetStyleColors() const;
-
-	/** Update visual state based on current properties */
-	void UpdateVisualState();
-
 	/** Play sound effect */
 	void PlaySound(USoundBase* Sound);
 
@@ -327,9 +230,6 @@ private:
 
 	/** Is button currently hovered */
 	bool bIsHovered = false;
-
-	/** Is button currently pressed */
-	bool bIsPressed = false;
 
 	/** Is button currently focused */
 	bool bIsFocused = false;

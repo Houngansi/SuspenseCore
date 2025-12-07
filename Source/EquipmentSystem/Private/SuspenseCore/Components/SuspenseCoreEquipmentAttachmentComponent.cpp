@@ -246,7 +246,7 @@ void USuspenseCoreEquipmentAttachmentComponent::Cleanup()
     AttachedCharacter.Reset();
     bDidSpawnActor = false;
     AttachmentPredictions.Empty();
-    AnimationState = FAttachmentAnimationState();
+    AnimationState = FSuspenseCoreAttachmentAnimationState();
 
     // Update version and force replication
     if (GetOwner() && GetOwner()->HasAuthority())
@@ -823,7 +823,7 @@ int32 USuspenseCoreEquipmentAttachmentComponent::PredictAttachment(AActor* Chara
     }
 
     // Create prediction
-    FAttachmentPredictionData Prediction;
+    FSuspenseCoreAttachmentPredictionData Prediction;
     Prediction.PredictionKey = NextAttachmentPredictionKey++;
     Prediction.bPredictedAttached = true;
     Prediction.bPredictedActive = bUseActiveSocket;
@@ -852,7 +852,7 @@ int32 USuspenseCoreEquipmentAttachmentComponent::PredictDetachment()
     }
 
     // Create prediction
-    FAttachmentPredictionData Prediction;
+    FSuspenseCoreAttachmentPredictionData Prediction;
     Prediction.PredictionKey = NextAttachmentPredictionKey++;
     Prediction.bPredictedAttached = false;
     Prediction.PredictionTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -875,7 +875,7 @@ void USuspenseCoreEquipmentAttachmentComponent::ConfirmAttachmentPrediction(int3
 {
     // Find prediction
     int32 PredictionIndex = AttachmentPredictions.IndexOfByPredicate(
-        [PredictionKey](const FAttachmentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
+        [PredictionKey](const FSuspenseCoreAttachmentPredictionData& Data) { return Data.PredictionKey == PredictionKey; }
     );
 
     if (PredictionIndex == INDEX_NONE)
@@ -883,7 +883,7 @@ void USuspenseCoreEquipmentAttachmentComponent::ConfirmAttachmentPrediction(int3
         return;
     }
 
-    FAttachmentPredictionData Prediction = AttachmentPredictions[PredictionIndex];
+    FSuspenseCoreAttachmentPredictionData Prediction = AttachmentPredictions[PredictionIndex];
     AttachmentPredictions.RemoveAt(PredictionIndex);
 
     if (!bSuccess)
@@ -898,7 +898,7 @@ void USuspenseCoreEquipmentAttachmentComponent::ConfirmAttachmentPrediction(int3
     }
 }
 
-void USuspenseCoreEquipmentAttachmentComponent::ApplyPredictedAttachment(const FAttachmentPredictionData& Prediction)
+void USuspenseCoreEquipmentAttachmentComponent::ApplyPredictedAttachment(const FSuspenseCoreAttachmentPredictionData& Prediction)
 {
     if (!Prediction.bPredictedAttached || !SpawnedEquipmentActor)
     {
@@ -921,7 +921,7 @@ void USuspenseCoreEquipmentAttachmentComponent::ApplyPredictedAttachment(const F
     }
 }
 
-void USuspenseCoreEquipmentAttachmentComponent::RevertPredictedAttachment(const FAttachmentPredictionData& Prediction)
+void USuspenseCoreEquipmentAttachmentComponent::RevertPredictedAttachment(const FSuspenseCoreAttachmentPredictionData& Prediction)
 {
     // Revert to last confirmed state
     if (LastConfirmedState.bPredictedAttached && LastConfirmedState.PredictedCharacter.IsValid())
@@ -944,7 +944,7 @@ void USuspenseCoreEquipmentAttachmentComponent::CleanupExpiredPredictions()
     const float CurrentTime = GetWorld()->GetTimeSeconds();
     const float TimeoutSeconds = 2.0f;
 
-    AttachmentPredictions.RemoveAll([CurrentTime, TimeoutSeconds](const FAttachmentPredictionData& Data)
+    AttachmentPredictions.RemoveAll([CurrentTime, TimeoutSeconds](const FSuspenseCoreAttachmentPredictionData& Data)
     {
         return (CurrentTime - Data.PredictionTime) > TimeoutSeconds;
     });
@@ -977,9 +977,9 @@ FGameplayTag USuspenseCoreEquipmentAttachmentComponent::GetWeaponArchetypeFromIt
 // Socket Management Implementation
 //================================================
 
-TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const
+TArray<FSuspenseCoreSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const
 {
-    TArray<FSocketSearchResult> Results;
+    TArray<FSuspenseCoreSocketSearchResult> Results;
 
     if (!TargetMesh)
     {
@@ -990,13 +990,13 @@ TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidS
     if (ItemData.AttachmentSocket != NAME_None)
     {
         bool bExists = TargetMesh->DoesSocketExist(ItemData.AttachmentSocket);
-        Results.Add(FSocketSearchResult(ItemData.AttachmentSocket, 100, bExists));
+        Results.Add(FSuspenseCoreSocketSearchResult(ItemData.AttachmentSocket, 100, bExists));
     }
 
     if (ItemData.UnequippedSocket != NAME_None)
     {
         bool bExists = TargetMesh->DoesSocketExist(ItemData.UnequippedSocket);
-        Results.Add(FSocketSearchResult(ItemData.UnequippedSocket, 95, bExists));
+        Results.Add(FSuspenseCoreSocketSearchResult(ItemData.UnequippedSocket, 95, bExists));
     }
 
     // Check slot defaults
@@ -1006,13 +1006,13 @@ TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidS
     if (DefaultActive != NAME_None && DefaultActive != ItemData.AttachmentSocket)
     {
         bool bExists = TargetMesh->DoesSocketExist(DefaultActive);
-        Results.Add(FSocketSearchResult(DefaultActive, 90, bExists));
+        Results.Add(FSuspenseCoreSocketSearchResult(DefaultActive, 90, bExists));
     }
 
     if (DefaultInactive != NAME_None && DefaultInactive != ItemData.UnequippedSocket)
     {
         bool bExists = TargetMesh->DoesSocketExist(DefaultInactive);
-        Results.Add(FSocketSearchResult(DefaultInactive, 85, bExists));
+        Results.Add(FSuspenseCoreSocketSearchResult(DefaultInactive, 85, bExists));
     }
 
     // Check priority lists
@@ -1037,7 +1037,7 @@ TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidS
         for (const FName& SocketName : *PriorityList)
         {
             // Skip if already added
-            bool bAlreadyAdded = Results.ContainsByPredicate([&SocketName](const FSocketSearchResult& Result)
+            bool bAlreadyAdded = Results.ContainsByPredicate([&SocketName](const FSuspenseCoreSocketSearchResult& Result)
             {
                 return Result.SocketName == SocketName;
             });
@@ -1045,13 +1045,13 @@ TArray<FSocketSearchResult> USuspenseCoreEquipmentAttachmentComponent::GetValidS
             if (!bAlreadyAdded)
             {
                 bool bExists = TargetMesh->DoesSocketExist(SocketName);
-                Results.Add(FSocketSearchResult(SocketName, Score--, bExists));
+                Results.Add(FSuspenseCoreSocketSearchResult(SocketName, Score--, bExists));
             }
         }
     }
 
     // Sort by score
-    Results.Sort([](const FSocketSearchResult& A, const FSocketSearchResult& B)
+    Results.Sort([](const FSuspenseCoreSocketSearchResult& A, const FSuspenseCoreSocketSearchResult& B)
     {
         return A.QualityScore > B.QualityScore;
     });
@@ -1140,7 +1140,7 @@ FName USuspenseCoreEquipmentAttachmentComponent::FindBestAttachmentSocket(USkele
                 *TargetMesh->GetName(),
                 bForActive ? TEXT("Active") : TEXT("Inactive"));
 
-            if (FSocketSearchResult* CachedResult = SocketCache.Find(CacheKey))
+            if (FSuspenseCoreSocketSearchResult* CachedResult = SocketCache.Find(CacheKey))
             {
                 if (CachedResult->bSocketExists)
                 {
@@ -1151,10 +1151,10 @@ FName USuspenseCoreEquipmentAttachmentComponent::FindBestAttachmentSocket(USkele
     }
 
     // Get all valid sockets
-    TArray<FSocketSearchResult> ValidSockets = GetValidSocketsForItem(ItemData, TargetMesh);
+    TArray<FSuspenseCoreSocketSearchResult> ValidSockets = GetValidSocketsForItem(ItemData, TargetMesh);
 
     // Find first existing socket
-    for (const FSocketSearchResult& Result : ValidSockets)
+    for (const FSuspenseCoreSocketSearchResult& Result : ValidSockets)
     {
         if (Result.bSocketExists)
         {

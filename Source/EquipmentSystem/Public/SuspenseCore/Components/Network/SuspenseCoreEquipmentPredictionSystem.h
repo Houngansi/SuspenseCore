@@ -16,7 +16,7 @@ class USuspenseCoreEquipmentNetworkDispatcher;
 class USuspenseCoreEquipmentReplicationManager;
 
 USTRUCT()
-struct FPredictionTimelineEntry
+struct FSuspenseCorePredictionTimelineEntry
 {
     GENERATED_BODY()
     UPROPERTY() FGuid PredictionId;
@@ -28,7 +28,7 @@ struct FPredictionTimelineEntry
 };
 
 USTRUCT()
-struct FPredictionConfidenceMetrics
+struct FSuspenseCorePredictionConfidenceMetrics
 {
     GENERATED_BODY()
     UPROPERTY() int32 TotalPredictions=0;
@@ -50,7 +50,7 @@ struct FPredictionConfidenceMetrics
 };
 
 USTRUCT()
-struct FReconciliationState
+struct FSuspenseCoreReconciliationState
 {
     GENERATED_BODY()
     UPROPERTY() FEquipmentStateSnapshot ServerState;
@@ -61,7 +61,7 @@ struct FReconciliationState
 };
 
 USTRUCT(BlueprintType)
-struct FPredictionStatistics
+struct FSuspenseCorePredictionStatistics
 {
     GENERATED_BODY()
     UPROPERTY(BlueprintReadOnly) int32 ActivePredictions=0;
@@ -105,9 +105,9 @@ public:
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Prediction")
     void SetPredictionTimeout(float Timeout){PredictionTimeout=FMath::Max(0.1f,Timeout);}
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Prediction")
-    FPredictionStatistics GetStatistics() const {return Statistics;}
+    FSuspenseCorePredictionStatistics GetStatistics() const {return Statistics;}
     //UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Prediction")
-    FPredictionConfidenceMetrics GetConfidenceMetrics() const {return ConfidenceMetrics;}
+    FSuspenseCorePredictionConfidenceMetrics GetConfidenceMetrics() const {return ConfidenceMetrics;}
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Prediction")
     void ResetPredictionSystem();
 
@@ -133,8 +133,8 @@ protected:
     void UpdateConfidence(bool bSuccess);
     bool ShouldAllowPrediction(const FEquipmentOperationRequest& Operation) const;
     float CalculatePredictionPriority(const FEquipmentOperationRequest& Operation) const;
-    void AddToTimeline(const FPredictionTimelineEntry& Entry);
-    FPredictionTimelineEntry* FindTimelineEntry(const FGuid& PredictionId);
+    void AddToTimeline(const FSuspenseCorePredictionTimelineEntry& Entry);
+    FSuspenseCorePredictionTimelineEntry* FindTimelineEntry(const FGuid& PredictionId);
     void CleanupTimeline();
     bool ValidatePrediction(const FEquipmentPrediction& Prediction,const FEquipmentOperationResult& ServerResult) const;
     void HandlePredictionTimeout(const FGuid& PredictionId);
@@ -159,10 +159,10 @@ private:
 
     UPROPERTY() TArray<FEquipmentPrediction> ActivePredictions;
     UPROPERTY() TMap<FGuid,FGuid> OperationToPredictionMap;
-    UPROPERTY() TArray<FPredictionTimelineEntry> PredictionTimeline;
-    UPROPERTY() FReconciliationState ReconciliationState;
-    UPROPERTY() FPredictionConfidenceMetrics ConfidenceMetrics;
-    UPROPERTY() FPredictionStatistics Statistics;
+    UPROPERTY() TArray<FSuspenseCorePredictionTimelineEntry> PredictionTimeline;
+    UPROPERTY() FSuspenseCoreReconciliationState ReconciliationState;
+    UPROPERTY() FSuspenseCorePredictionConfidenceMetrics ConfidenceMetrics;
+    UPROPERTY() FSuspenseCorePredictionStatistics Statistics;
 
     UPROPERTY() bool bPredictionEnabled=true;
     float LastServerUpdateTime=0.0f;

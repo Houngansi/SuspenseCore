@@ -20,7 +20,7 @@
  * Pure data structure, no side effects.
  */
 USTRUCT(BlueprintType)
-struct FTransactionPlanStep
+struct FSuspenseCoreTransactionPlanStep
 {
 	GENERATED_BODY()
 
@@ -44,7 +44,7 @@ struct FTransactionPlanStep
 	UPROPERTY(BlueprintReadWrite, Category="Plan")
 	bool bReversible = true;
 
-	FTransactionPlanStep() = default;
+	FSuspenseCoreTransactionPlanStep() = default;
 
 	explicit FTransactionPlanStep(const FEquipmentOperationRequest& InReq, const FString& InDesc = FString())
 		: Request(InReq)
@@ -70,7 +70,7 @@ struct FTransactionPlanStep
  * concurrent planning without locks on data.
  */
 USTRUCT(BlueprintType)
-struct FTransactionPlan
+struct FSuspenseCoreTransactionPlan
 {
 	GENERATED_BODY()
 
@@ -92,7 +92,7 @@ struct FTransactionPlan
 
 	/** Ordered steps to execute */
 	UPROPERTY(BlueprintReadWrite, Category="Plan")
-	TArray<FTransactionPlanStep> Steps;
+	TArray<FSuspenseCoreTransactionPlanStep> Steps;
 
 	/** Short label for logs/metrics */
 	UPROPERTY(BlueprintReadWrite, Category="Plan")
@@ -107,23 +107,23 @@ struct FTransactionPlan
 	TMap<FString, FString> Metadata;
 
 	/** Static factory method to create plan with generated ID */
-	static FTransactionPlan Create()
+	static FSuspenseCoreTransactionPlan Create()
 	{
-		FTransactionPlan Plan;
+		FSuspenseCoreTransactionPlan Plan;
 		Plan.PlanId = FGuid::NewGuid();
 		return Plan;
 	}
 
 	int32 Num() const { return Steps.Num(); }
 	bool IsValid() const { return PlanId.IsValid() && Steps.Num() > 0; }
-	void Add(const FTransactionPlanStep& Step) { Steps.Add(Step); }
+	void Add(const FSuspenseCoreTransactionPlanStep& Step) { Steps.Add(Step); }
 	void Clear() { Steps.Empty(); Metadata.Empty(); }
 
 	/** Get total priority score for queue sorting */
 	int32 GetTotalPriority() const
 	{
 		int32 Total = 0;
-		for (const FTransactionPlanStep& Step : Steps)
+		for (const FSuspenseCoreTransactionPlanStep& Step : Steps)
 		{
 			Total += Step.StepPriority;
 		}
@@ -181,7 +181,7 @@ public:
 	 * @return True if plan was successfully built
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning")
-	bool BuildPlan(const FEquipmentOperationRequest& Request, FTransactionPlan& OutPlan, FText& OutError) const;
+	bool BuildPlan(const FEquipmentOperationRequest& Request, FSuspenseCoreTransactionPlan& OutPlan, FText& OutError) const;
 
 	/**
 	 * Validate a plan step-by-step via slot validator.
@@ -192,7 +192,7 @@ public:
 	 * @return True if all steps are valid
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning")
-	bool ValidatePlan(const FTransactionPlan& Plan, FText& OutError) const;
+	bool ValidatePlan(const FSuspenseCoreTransactionPlan& Plan, FText& OutError) const;
 
 	/**
 	 * Estimate execution time for a plan (for queue prioritization).
@@ -201,7 +201,7 @@ public:
 	 * @return Estimated time in milliseconds
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning", BlueprintPure)
-	float EstimatePlanExecutionTime(const FTransactionPlan& Plan) const;
+	float EstimatePlanExecutionTime(const FSuspenseCoreTransactionPlan& Plan) const;
 
 	/**
 	 * Check if a plan is idempotent (safe to retry).
@@ -210,7 +210,7 @@ public:
 	 * @return True if plan can be safely retried
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Planning", BlueprintPure)
-	bool IsPlanIdempotent(const FTransactionPlan& Plan) const;
+	bool IsPlanIdempotent(const FSuspenseCoreTransactionPlan& Plan) const;
 
 	// =====================================================
 	// ISuspenseCoreEquipmentOperations Implementation (Compatibility)
@@ -310,22 +310,22 @@ protected:
 	// ==========================================
 
 	/** Expand high-level operations into atomic steps */
-	void Expand_Equip(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Unequip(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Move(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Drop(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Swap(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_QuickSwitch(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Transfer(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Reload(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Repair(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Upgrade(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Modify(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Combine(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
-	void Expand_Split(const FEquipmentOperationRequest& In, FTransactionPlan& Out) const;
+	void Expand_Equip(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Unequip(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Move(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Drop(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Swap(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_QuickSwitch(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Transfer(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Reload(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Repair(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Upgrade(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Modify(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Combine(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
+	void Expand_Split(const FEquipmentOperationRequest& In, FSuspenseCoreTransactionPlan& Out) const;
 
 	/** Validate a single plan step */
-	bool ValidateStep(const FTransactionPlanStep& Step, FText& OutError) const;
+	bool ValidateStep(const FSuspenseCoreTransactionPlanStep& Step, FText& OutError) const;
 
 	// ==============================
 	// Validation Methods (Pure APIs)

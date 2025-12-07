@@ -84,7 +84,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentReplication, Log, All);
  * Thread-safe accumulator for a single metric
  * (добавлены move-ctor/assign, запрет copy — чтобы тип можно было хранить в UE-контейнерах)
  */
-struct FMetricAccumulator
+struct FSuspenseCoreMetricAccumulator
 {
     std::atomic<int64> Count{0};
     std::atomic<int64> Sum{0};      // Sum of values (e.g., duration in ms)
@@ -92,9 +92,9 @@ struct FMetricAccumulator
     std::atomic<int64> Max{LLONG_MIN};
 
     // --- Move support for UE containers (TMap/TArray need move-constructible values) ---
-    FMetricAccumulator() = default;
+    FSuspenseCoreMetricAccumulator() = default;
 
-    FMetricAccumulator(FMetricAccumulator&& Other) noexcept
+    FSuspenseCoreMetricAccumulator(FSuspenseCoreMetricAccumulator&& Other) noexcept
     {
         Count.store(Other.Count.load(std::memory_order_relaxed), std::memory_order_relaxed);
         Sum  .store(Other.Sum  .load(std::memory_order_relaxed), std::memory_order_relaxed);
@@ -103,7 +103,7 @@ struct FMetricAccumulator
         // оставить Other как есть: атомики пригодны к повторному использованию
     }
 
-    FMetricAccumulator& operator=(FMetricAccumulator&& Other) noexcept
+    FSuspenseCoreMetricAccumulator& operator=(FSuspenseCoreMetricAccumulator&& Other) noexcept
     {
         if (this != &Other)
         {
@@ -115,8 +115,8 @@ struct FMetricAccumulator
         return *this;
     }
 
-    FMetricAccumulator(const FMetricAccumulator&) = delete;
-    FMetricAccumulator& operator=(const FMetricAccumulator&) = delete;
+    FSuspenseCoreMetricAccumulator(const FSuspenseCoreMetricAccumulator&) = delete;
+    FSuspenseCoreMetricAccumulator& operator=(const FSuspenseCoreMetricAccumulator&) = delete;
     // -------------------------------------------------------------------------------
 
     FORCEINLINE void Add(int64 Value)
@@ -166,7 +166,7 @@ struct FMetricAccumulator
 /**
  * Unified service metrics container
  */
-struct FServiceMetrics
+struct FSuspenseCoreServiceMetrics
 {
     // Global counters
     std::atomic<int64> TotalCalls{0};
@@ -178,7 +178,7 @@ struct FServiceMetrics
 
     // Named metrics (methods, custom metrics)
     mutable FCriticalSection NamedLock;
-    TMap<FName, FMetricAccumulator> Named; // Protected by NamedLock
+    TMap<FName, FSuspenseCoreMetricAccumulator> Named; // Protected by NamedLock
 
     void RecordCallDuration(int64 DurationMs)
     {
@@ -198,7 +198,7 @@ struct FServiceMetrics
     void RecordValue(const FName& MetricName, int64 Value)
     {
         FScopeLock L(&NamedLock);
-        FMetricAccumulator& Acc = Named.FindOrAdd(MetricName);
+        FSuspenseCoreMetricAccumulator& Acc = Named.FindOrAdd(MetricName);
         Acc.Add(Value);
     }
 
@@ -257,7 +257,7 @@ struct FServiceMetrics
             for (const auto& KVP : Named)
             {
                 const FName& Name = KVP.Key;
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Csv += FString::Printf(TEXT("%s,%s,%lld,%lld,%lld,%lld,%.3f\n"),
                     *ServiceName, *Name.ToString(),
                     (long long)S.Count, (long long)S.Sum,
@@ -286,7 +286,7 @@ struct FServiceMetrics
         FScopeLock L(&NamedLock);
         for (const auto& KVP : Named)
         {
-            const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+            const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
             Out += FString::Printf(TEXT("%s => count=%lld, sum=%lld, min=%lld, max=%lld, avg=%.3f\n"),
                 *KVP.Key.ToString(), (long long)S.Count, (long long)S.Sum,
                 (long long)S.Min, (long long)S.Max, S.Avg);
@@ -299,7 +299,7 @@ struct FServiceMetrics
 // Delta/DIFF Metrics (оставлено как было, тип Accumulator теперь мувится)
 //========================================
 
-struct FDeltaMetrics
+struct FSuspenseCoreDeltaMetrics
 {
     std::atomic<int64> TotalDeltas{0};
     std::atomic<int64> TotalBatchDeltas{0};
@@ -308,9 +308,9 @@ struct FDeltaMetrics
     std::atomic<int64> MaxDeltaProcessingMs{LLONG_MIN};
 
     mutable FCriticalSection DeltaTypeLock;
-    TMap<FName, FMetricAccumulator> DeltasByType;   // Protected by DeltaTypeLock
-    TMap<FName, FMetricAccumulator> DeltasBySource; // Protected by DeltaTypeLock
-    TMap<FName, FMetricAccumulator> DeltaTiming;    // Protected by DeltaTypeLock
+    TMap<FName, FSuspenseCoreMetricAccumulator> DeltasByType;   // Protected by DeltaTypeLock
+    TMap<FName, FSuspenseCoreMetricAccumulator> DeltasBySource; // Protected by DeltaTypeLock
+    TMap<FName, FSuspenseCoreMetricAccumulator> DeltaTiming;    // Protected by DeltaTypeLock
 
     void RecordDelta(const FName& DeltaType, int64 ProcessingTimeMs = 0)
     {
@@ -328,7 +328,7 @@ struct FDeltaMetrics
         }
 
         FScopeLock L(&DeltaTypeLock);
-        FMetricAccumulator& TypeAcc = DeltasByType.FindOrAdd(DeltaType);
+        FSuspenseCoreMetricAccumulator& TypeAcc = DeltasByType.FindOrAdd(DeltaType);
         TypeAcc.Add(ProcessingTimeMs > 0 ? ProcessingTimeMs : 1);
     }
 
@@ -343,31 +343,31 @@ struct FDeltaMetrics
         }
 
         FScopeLock L(&DeltaTypeLock);
-        FMetricAccumulator& TypeAcc = DeltasByType.FindOrAdd(DeltaType);
+        FSuspenseCoreMetricAccumulator& TypeAcc = DeltasByType.FindOrAdd(DeltaType);
         TypeAcc.Add(BatchSize);
 
-        FMetricAccumulator& TimingAcc = DeltaTiming.FindOrAdd(DeltaType);
+        FSuspenseCoreMetricAccumulator& TimingAcc = DeltaTiming.FindOrAdd(DeltaType);
         TimingAcc.Add(ProcessingTimeMs);
     }
 
     void RecordDeltaSource(const FName& Source, int64 Count = 1)
     {
         FScopeLock L(&DeltaTypeLock);
-        FMetricAccumulator& SourceAcc = DeltasBySource.FindOrAdd(Source);
+        FSuspenseCoreMetricAccumulator& SourceAcc = DeltasBySource.FindOrAdd(Source);
         SourceAcc.Add(Count);
     }
 
     void RecordDeltaTiming(const FName& OperationType, int64 DurationMs)
     {
         FScopeLock L(&DeltaTypeLock);
-        FMetricAccumulator& TimingAcc = DeltaTiming.FindOrAdd(OperationType);
+        FSuspenseCoreMetricAccumulator& TimingAcc = DeltaTiming.FindOrAdd(OperationType);
         TimingAcc.Add(DurationMs);
     }
 
     void RecordValue(const FName& MetricName, int64 Value)
     {
         FScopeLock L(&DeltaTypeLock);
-        FMetricAccumulator& Acc = DeltasByType.FindOrAdd(MetricName);
+        FSuspenseCoreMetricAccumulator& Acc = DeltasByType.FindOrAdd(MetricName);
         Acc.Add(Value);
     }
 
@@ -413,7 +413,7 @@ struct FDeltaMetrics
 
             for (const auto& KVP : DeltasByType)
             {
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Csv += FString::Printf(TEXT("%s,%s,%s,%lld,%lld,%lld,%lld,%.3f\n"),
                     *ServiceName, TEXT("DeltaType"), *KVP.Key.ToString(),
                     (long long)S.Count, (long long)S.Sum,
@@ -422,7 +422,7 @@ struct FDeltaMetrics
 
             for (const auto& KVP : DeltasBySource)
             {
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Csv += FString::Printf(TEXT("%s,%s,%s,%lld,%lld,%lld,%lld,%.3f\n"),
                     *ServiceName, TEXT("DeltaSource"), *KVP.Key.ToString(),
                     (long long)S.Count, (long long)S.Sum,
@@ -431,7 +431,7 @@ struct FDeltaMetrics
 
             for (const auto& KVP : DeltaTiming)
             {
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Csv += FString::Printf(TEXT("%s,%s,%s,%lld,%lld,%lld,%lld,%.3f\n"),
                     *ServiceName, TEXT("DeltaTiming"), *KVP.Key.ToString(),
                     (long long)S.Count, (long long)S.Sum,
@@ -465,7 +465,7 @@ struct FDeltaMetrics
             Out += TEXT("\nDeltas by Type:\n");
             for (const auto& KVP : DeltasByType)
             {
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Out += FString::Printf(TEXT("  %s: count=%lld, avg=%.3f\n"),
                     *KVP.Key.ToString(), (long long)S.Count, S.Avg);
             }
@@ -476,7 +476,7 @@ struct FDeltaMetrics
             Out += TEXT("\nDeltas by Source:\n");
             for (const auto& KVP : DeltasBySource)
             {
-                const FMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
+                const FSuspenseCoreMetricAccumulator::FSnapshot S = KVP.Value.Snapshot();
                 Out += FString::Printf(TEXT("  %s: count=%lld\n"),
                     *KVP.Key.ToString(), (long long)S.Count);
             }
@@ -490,16 +490,16 @@ struct FDeltaMetrics
 // Scoped timers & legacy macros (без изменений функционально)
 //========================================
 
-class FScopedServiceTimer
+class FSuspenseCoreScopedServiceTimer
 {
 public:
-    FScopedServiceTimer(FServiceMetrics& InMetrics, const FName& InMethodMetricName)
+    FSuspenseCoreScopedServiceTimer(FSuspenseCoreServiceMetrics& InMetrics, const FName& InMethodMetricName)
         : Metrics(InMetrics)
         , MethodMetricName(InMethodMetricName)
         , StartSeconds(FPlatformTime::Seconds())
     {}
 
-    ~FScopedServiceTimer()
+    ~FSuspenseCoreScopedServiceTimer()
     {
         const double End = FPlatformTime::Seconds();
         const int64 Ms = (int64)((End - StartSeconds) * 1000.0);
@@ -508,21 +508,21 @@ public:
     }
 
 private:
-    FServiceMetrics& Metrics;
+    FSuspenseCoreServiceMetrics& Metrics;
     FName MethodMetricName;
     double StartSeconds = 0.0;
 };
 
-class FScopedDiffTimer
+class FSuspenseCoreScopedDiffTimer
 {
 public:
-    FScopedDiffTimer(FDeltaMetrics& InMetrics, const FName& InOperationType)
+    FSuspenseCoreScopedDiffTimer(FSuspenseCoreDeltaMetrics& InMetrics, const FName& InOperationType)
         : Metrics(InMetrics)
         , OperationType(InOperationType)
         , StartSeconds(FPlatformTime::Seconds())
     {}
 
-    ~FScopedDiffTimer()
+    ~FSuspenseCoreScopedDiffTimer()
     {
         const double End = FPlatformTime::Seconds();
         const int64 Ms = (int64)((End - StartSeconds) * 1000.0);
@@ -530,7 +530,7 @@ public:
     }
 
 private:
-    FDeltaMetrics& Metrics;
+    FSuspenseCoreDeltaMetrics& Metrics;
     FName OperationType;
     double StartSeconds = 0.0;
 };
@@ -539,16 +539,16 @@ private:
 // Performance tracking (legacy) — без изменений
 //========================================
 
-class FScopedDurationTimer
+class FSuspenseCoreScopedDurationTimer
 {
 public:
-    FScopedDurationTimer(float& OutDuration)
+    FSuspenseCoreScopedDurationTimer(float& OutDuration)
         : Duration(OutDuration)
         , StartTime(FPlatformTime::Seconds())
     {
     }
 
-    ~FScopedDurationTimer()
+    ~FSuspenseCoreScopedDurationTimer()
     {
         float ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0f;
 
@@ -562,15 +562,15 @@ private:
 };
 
 #define TRACK_DATA_OPERATION_TIME(OpName) \
-    FScopedDurationTimer Timer##OpName(AverageReadLatency); \
+    FSuspenseCoreScopedDurationTimer Timer##OpName(AverageReadLatency); \
     if (bEnableDetailedLogging) { LogDataOperation(TEXT(#OpName)); }
 
 #define TRACK_NETWORK_OPERATION_TIME(OpName) \
-    FScopedDurationTimer Timer##OpName(AverageOperationLatency); \
+    FSuspenseCoreScopedDurationTimer Timer##OpName(AverageOperationLatency); \
     if (bDetailedMetrics) { LogNetworkOperation(TEXT(#OpName)); }
 
 #define TRACK_VALIDATION_TIME(OpName) \
-    FScopedDurationTimer Timer##OpName(AverageValidationTime); \
+    FSuspenseCoreScopedDurationTimer Timer##OpName(AverageValidationTime); \
     if (bEnableMetrics) { LogValidationOperation(TEXT(#OpName)); }
 
 //========================================
@@ -581,10 +581,10 @@ private:
     do { ServiceMetrics.RecordValue(FName(TEXT(MetricName)), (int64)(Value)); } while(0)
 
 #define SCOPED_SERVICE_TIMER(MetricName) \
-    FScopedServiceTimer ANON_SVC_TIMER_##__LINE__(ServiceMetrics, FName(TEXT(MetricName)))
+    FSuspenseCoreScopedServiceTimer ANON_SVC_TIMER_##__LINE__(ServiceMetrics, FName(TEXT(MetricName)))
 
 #define SCOPED_SERVICE_TIMER_CONST(MetricName) \
-    FScopedServiceTimer ANON_SVC_TIMER_##__LINE__(const_cast<FServiceMetrics&>(ServiceMetrics), FName(TEXT(MetricName)))
+    FSuspenseCoreScopedServiceTimer ANON_SVC_TIMER_##__LINE__(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics), FName(TEXT(MetricName)))
 
 //========================================
 // Delta/DIFF Metrics Macros
@@ -603,10 +603,10 @@ private:
     do { DeltaMetrics.RecordDeltaSource(FName(TEXT(Source)), (int64)(Count)); } while(0)
 
 #define SCOPED_DIFF_TIMER(OperationType) \
-    FScopedDiffTimer ANON_DIFF_TIMER_##__LINE__(DeltaMetrics, FName(TEXT(OperationType)))
+    FSuspenseCoreScopedDiffTimer ANON_DIFF_TIMER_##__LINE__(DeltaMetrics, FName(TEXT(OperationType)))
 
 #define SCOPED_DIFF_TIMER_CONST(OperationType) \
-    FScopedDiffTimer ANON_DIFF_TIMER_##__LINE__(const_cast<FDeltaMetrics&>(DeltaMetrics), FName(TEXT(OperationType)))
+    FSuspenseCoreScopedDiffTimer ANON_DIFF_TIMER_##__LINE__(const_cast<FSuspenseCoreDeltaMetrics&>(DeltaMetrics), FName(TEXT(OperationType)))
 
 #define LOG_DELTA_OPERATION(DeltaType, SlotIndex) \
     UE_LOG(LogSuspenseCoreEquipmentDelta, Verbose, TEXT("Delta[%s]: Slot %d"), TEXT(DeltaType), SlotIndex)

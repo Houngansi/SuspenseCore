@@ -42,7 +42,7 @@ struct FSuspenseCorePendingEventData
  * Encapsulates all mutable state for thread-safe access
  */
 USTRUCT()
-struct FEquipmentDataStorage
+struct FSuspenseCoreEquipmentDataStorage
 {
     GENERATED_BODY()
 
@@ -74,7 +74,7 @@ struct FEquipmentDataStorage
     UPROPERTY()
     FGuid ActiveTransactionId;
 
-    FEquipmentDataStorage()
+    FSuspenseCoreEquipmentDataStorage()
     {
         CurrentState = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Idle"));
         LastModified = FDateTime::Now();
@@ -240,7 +240,7 @@ protected:
      * Collects events under lock, broadcasts after releasing
      */
     bool ModifyDataWithEvents(
-        TFunction<bool(FEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc,
+        TFunction<bool(FSuspenseCoreEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc,
         bool bNotifyObservers = true
     );
 
@@ -256,8 +256,8 @@ protected:
     );
 
     bool ValidateSlotIndexInternal(int32 SlotIndex, const FString& FunctionName) const;
-    FEquipmentDataStorage CreateDataSnapshot() const;
-    bool ApplyDataSnapshot(const FEquipmentDataStorage& Snapshot, bool bNotifyObservers = true);
+    FSuspenseCoreEquipmentDataStorage CreateDataSnapshot() const;
+    bool ApplyDataSnapshot(const FSuspenseCoreEquipmentDataStorage& Snapshot, bool bNotifyObservers = true);
     void IncrementVersion();
     void LogDataModification(const FString& ModificationType, const FString& Details) const;
 
@@ -276,7 +276,7 @@ private:
 
     /** Main data storage */
     UPROPERTY()
-    FEquipmentDataStorage DataStorage;
+    FSuspenseCoreEquipmentDataStorage DataStorage;
 
     /** Critical section for thread-safe access */
     mutable FCriticalSection DataCriticalSection;

@@ -210,7 +210,7 @@ void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
     {
         // Update cached configurations
         ModifyDataWithEvents(
-            [this, FreshSlots](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+            [this, FreshSlots](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
             {
                 int32 OldCount = Data.SlotConfigurations.Num();
                 Data.SlotConfigurations = FreshSlots;
@@ -329,7 +329,7 @@ bool USuspenseCoreEquipmentDataStore::IsSlotOccupied(int32 SlotIndex) const
 bool USuspenseCoreEquipmentDataStore::SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bNotifyObservers)
 {
     return ModifyDataWithEvents(
-        [this, SlotIndex, ItemInstance](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex, ItemInstance](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             if (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num())
             {
@@ -392,7 +392,7 @@ FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(in
     FSuspenseCoreInventoryItemInstance RemovedItem;
     
     ModifyDataWithEvents(
-        [this, SlotIndex, &RemovedItem](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex, &RemovedItem](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             if (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num())
             {
@@ -453,7 +453,7 @@ FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(in
 bool USuspenseCoreEquipmentDataStore::InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations)
 {
     return ModifyDataWithEvents(
-        [this, Configurations](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, Configurations](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Store previous state for logging
             int32 PreviousSlotCount = Data.SlotConfigurations.Num();
@@ -521,7 +521,7 @@ int32 USuspenseCoreEquipmentDataStore::GetActiveWeaponSlot() const
 bool USuspenseCoreEquipmentDataStore::SetActiveWeaponSlot(int32 SlotIndex)
 {
     return ModifyDataWithEvents(
-        [this, SlotIndex](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, SlotIndex](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Allow INDEX_NONE to clear active weapon
             if (SlotIndex != INDEX_NONE && (SlotIndex < 0 || SlotIndex >= Data.SlotItems.Num()))
@@ -583,7 +583,7 @@ FGameplayTag USuspenseCoreEquipmentDataStore::GetCurrentEquipmentState() const
 bool USuspenseCoreEquipmentDataStore::SetEquipmentState(const FGameplayTag& NewState)
 {
     return ModifyDataWithEvents(
-        [this, NewState](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, NewState](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             FGameplayTag PreviousState = Data.CurrentState;
             
@@ -680,7 +680,7 @@ bool USuspenseCoreEquipmentDataStore::RestoreSnapshot(const FEquipmentStateSnaps
     }
     
     return ModifyDataWithEvents(
-        [this, Snapshot](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this, Snapshot](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Validate snapshot compatibility
             if (Snapshot.SlotSnapshots.Num() != Data.SlotConfigurations.Num())
@@ -970,7 +970,7 @@ FDateTime USuspenseCoreEquipmentDataStore::GetLastModificationTime() const
 void USuspenseCoreEquipmentDataStore::ResetToDefault()
 {
     ModifyDataWithEvents(
-        [this](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [this](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             // Clear all items
             for (int32 i = 0; i < Data.SlotItems.Num(); i++)
@@ -1020,7 +1020,7 @@ int32 USuspenseCoreEquipmentDataStore::GetMemoryUsage() const
 {
     FScopeLock Lock(&DataCriticalSection);
     
-    int32 TotalBytes = sizeof(FEquipmentDataStorage);
+    int32 TotalBytes = sizeof(FSuspenseCoreEquipmentDataStorage);
     
     // Add slot configurations size
     TotalBytes += DataStorage.SlotConfigurations.Num() * sizeof(FEquipmentSlotConfig);
@@ -1039,7 +1039,7 @@ int32 USuspenseCoreEquipmentDataStore::GetMemoryUsage() const
 //========================================
 
 bool USuspenseCoreEquipmentDataStore::ModifyDataWithEvents(
-    TFunction<bool(FEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc, 
+    TFunction<bool(FSuspenseCoreEquipmentDataStorage&, TArray<FSuspenseCorePendingEventData>&)> ModificationFunc, 
     bool bNotifyObservers)
 {
     // This is the critical method that ensures events are never broadcast under lock
@@ -1052,7 +1052,7 @@ bool USuspenseCoreEquipmentDataStore::ModifyDataWithEvents(
         FScopeLock Lock(&DataCriticalSection);
         
         // Create backup for potential rollback
-        FEquipmentDataStorage Backup = DataStorage;
+        FSuspenseCoreEquipmentDataStorage Backup = DataStorage;
         
         // Execute modification and collect events
         bSuccess = ModificationFunc(DataStorage, PendingEvents);
@@ -1201,16 +1201,16 @@ bool USuspenseCoreEquipmentDataStore::ValidateSlotIndexInternal(int32 SlotIndex,
     return true;
 }
 
-FEquipmentDataStorage USuspenseCoreEquipmentDataStore::CreateDataSnapshot() const
+FSuspenseCoreEquipmentDataStorage USuspenseCoreEquipmentDataStore::CreateDataSnapshot() const
 {
     FScopeLock Lock(&DataCriticalSection);
     return DataStorage;
 }
 
-bool USuspenseCoreEquipmentDataStore::ApplyDataSnapshot(const FEquipmentDataStorage& Snapshot, bool bNotifyObservers)
+bool USuspenseCoreEquipmentDataStore::ApplyDataSnapshot(const FSuspenseCoreEquipmentDataStorage& Snapshot, bool bNotifyObservers)
 {
     return ModifyDataWithEvents(
-        [Snapshot](FEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
+        [Snapshot](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
         {
             Data = Snapshot;
             

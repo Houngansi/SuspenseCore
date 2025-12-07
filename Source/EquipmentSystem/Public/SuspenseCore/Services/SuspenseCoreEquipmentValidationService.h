@@ -22,7 +22,7 @@
 /**
  * Buffered validation event for thread-safe dispatching
  */
-struct FBufferedValidationEvent
+struct FSuspenseCoreBufferedValidationEvent
 {
     enum EEventType
     {
@@ -37,14 +37,14 @@ struct FBufferedValidationEvent
     FSlotValidationResult Result;
     FGameplayTag CustomEventTag;
 
-    FBufferedValidationEvent() : Type(Started) {}
+    FSuspenseCoreBufferedValidationEvent() : Type(Started) {}
 };
 
 /**
  * Shadow snapshot for batch validation
  * Represents temporary equipment state during validation
  */
-struct FShadowEquipmentSnapshot
+struct FSuspenseCoreShadowEquipmentSnapshot
 {
     TMap<int32, FSuspenseInventoryItemInstance> SlotItems;
     TMap<FName, int32> ItemQuantities;
@@ -64,7 +64,7 @@ struct FShadowEquipmentSnapshot
  * Batch validation report
  */
 USTRUCT(BlueprintType)
-struct FBatchValidationReport
+struct FSuspenseCoreBatchValidationReport
 {
     GENERATED_BODY()
 
@@ -91,7 +91,7 @@ struct FBatchValidationReport
 };
 
 // Alias to keep external API consistent
-using FSlotValidationBatchResult = FBatchValidationReport;
+using FSlotValidationBatchResult = FSuspenseCoreBatchValidationReport;
 
 
 /**
@@ -138,7 +138,7 @@ public:
      * Uses sequential order with shadow snapshot and stops on first failure.
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FORCEINLINE FBatchValidationReport Preflight(const TArray<FEquipmentOperationRequest>& Requests)
+    FORCEINLINE FSuspenseCoreBatchValidationReport Preflight(const TArray<FEquipmentOperationRequest>& Requests)
     {
         return BatchValidateEx(Requests, /*bFastPath=*/true, /*bServerAuthoritative=*/false, /*bStopOnFailure=*/true);
     }
@@ -181,7 +181,7 @@ public:
      * Batch validation with detailed report
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FBatchValidationReport BatchValidateWithReport(
+    FSuspenseCoreBatchValidationReport BatchValidateWithReport(
         const TArray<FEquipmentOperationRequest>& Requests,
         bool bAtomic = false);
 
@@ -255,16 +255,16 @@ protected:
         bool bStopOnFailure = false);
 
     /** Process batch with shadow snapshot (no side effects) */
-    FBatchValidationReport ProcessBatchWithShadowSnapshot(
+    FSuspenseCoreBatchValidationReport ProcessBatchWithShadowSnapshot(
         const TArray<FEquipmentOperationRequest>& Requests);
 
     /** Validate operation against shadow snapshot */
     FSlotValidationResult ValidateAgainstShadowSnapshot(
         const FEquipmentOperationRequest& Request,
-        const FShadowEquipmentSnapshot& Snapshot);
+        const FSuspenseCoreShadowEquipmentSnapshot& Snapshot);
 
     /** Dispatch buffered events on game thread */
-    void DispatchBufferedEvents(const TArray<FBufferedValidationEvent>& Events);
+    void DispatchBufferedEvents(const TArray<FSuspenseCoreBufferedValidationEvent>& Events);
 
     /** Handle rules or configuration change */
     void OnRulesOrConfigChanged();
@@ -380,5 +380,5 @@ private:
     // Service Metrics (mutable for const methods)
     //========================================
 
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 };

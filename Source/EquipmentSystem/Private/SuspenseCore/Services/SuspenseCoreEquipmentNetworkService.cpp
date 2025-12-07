@@ -543,14 +543,14 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
 
 FGameplayTag USuspenseCoreEquipmentNetworkService::GetServiceTag() const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetServiceTag")));
     return FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Network"));
 }
 
 FGameplayTagContainer USuspenseCoreEquipmentNetworkService::GetRequiredDependencies() const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetRequiredDependencies")));
     FGameplayTagContainer Dependencies;
     Dependencies.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data")));
@@ -560,7 +560,7 @@ FGameplayTagContainer USuspenseCoreEquipmentNetworkService::GetRequiredDependenc
 
 bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErrors) const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("ValidateService")));
     bool bIsValid = true;
 
@@ -568,28 +568,28 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
     {
         OutErrors.Add(FText::FromString(TEXT("Network Service is not in Ready state")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_state_error")), 1);
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_state_error")), 1);
     }
 
     if (!NetworkDispatcher.GetInterface())
     {
         OutErrors.Add(FText::FromString(TEXT("NetworkDispatcher is not initialized")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_dispatcher_error")), 1);
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_dispatcher_error")), 1);
     }
 
     if (!PredictionManager.GetInterface())
     {
         OutErrors.Add(FText::FromString(TEXT("PredictionManager is not initialized")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_prediction_error")), 1);
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_prediction_error")), 1);
     }
 
     if (!ReplicationProvider)
     {
         OutErrors.Add(FText::FromString(TEXT("ReplicationProvider is not initialized")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_replication_error")), 1);
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_replication_error")), 1);
     }
 
     // Delegate security validation to SecurityService
@@ -597,7 +597,7 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
     {
         OutErrors.Add(FText::FromString(TEXT("SecurityService is not initialized or ready")));
         bIsValid = false;
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_security_error")), 1);
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("validation_security_error")), 1);
     }
     else
     {
@@ -612,11 +612,11 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
 
     if (bIsValid)
     {
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordSuccess();
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordSuccess();
     }
     else
     {
-        const_cast<FServiceMetrics&>(ServiceMetrics).RecordError();
+        const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordError();
     }
 
     return bIsValid;
@@ -647,7 +647,7 @@ void USuspenseCoreEquipmentNetworkService::ResetService()
 
 FString USuspenseCoreEquipmentNetworkService::GetServiceStats() const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetServiceStats")));
 
     FString Stats = TEXT("=== Equipment Network Service Statistics ===\n");
@@ -682,7 +682,7 @@ FString USuspenseCoreEquipmentNetworkService::GetServiceStats() const
         }
     }
 
-    const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("stats_retrieved")), 1);
+    const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("stats_retrieved")), 1);
 
     return Stats;
 }
@@ -989,7 +989,7 @@ void USuspenseCoreEquipmentNetworkService::SetNetworkQuality(float Quality)
 
 FLatencyCompensationData USuspenseCoreEquipmentNetworkService::GetNetworkMetrics() const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("GetNetworkMetrics")));
 
     FLatencyCompensationData Metrics;
@@ -1016,7 +1016,7 @@ FLatencyCompensationData USuspenseCoreEquipmentNetworkService::GetNetworkMetrics
         }
     }
 
-    const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("metrics_retrieved")), 1);
+    const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("metrics_retrieved")), 1);
 
     return Metrics;
 }
@@ -1054,7 +1054,7 @@ void USuspenseCoreEquipmentNetworkService::ForceSynchronization(APlayerControlle
 
 FGuid USuspenseCoreEquipmentNetworkService::CreatePlayerGuid(const FUniqueNetIdRepl& UniqueId) const
 {
-    FScopedServiceTimer __svc_timer(const_cast<FServiceMetrics&>(ServiceMetrics),
+    FSuspenseCoreScopedServiceTimer __svc_timer(const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics),
                                     FName(TEXT("CreatePlayerGuid")));
 
     if (!UniqueId.IsValid())
@@ -1085,7 +1085,7 @@ FGuid USuspenseCoreEquipmentNetworkService::CreatePlayerGuid(const FUniqueNetIdR
     GuidComponents[2] = (*reinterpret_cast<uint32*>(&HashResult[8]))  ^ (*reinterpret_cast<uint32*>(&SecondPassHash[8]));
     GuidComponents[3] = (*reinterpret_cast<uint32*>(&HashResult[12])) ^ (*reinterpret_cast<uint32*>(&SecondPassHash[4]));
 
-    const_cast<FServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("player_guid_created")), 1);
+    const_cast<FSuspenseCoreServiceMetrics&>(ServiceMetrics).RecordValue(FName(TEXT("player_guid_created")), 1);
     return FGuid(GuidComponents[0], GuidComponents[1], GuidComponents[2], GuidComponents[3]);
 }
 

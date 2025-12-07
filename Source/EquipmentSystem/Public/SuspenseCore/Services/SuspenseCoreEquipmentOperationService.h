@@ -29,14 +29,14 @@ class USuspenseCoreEquipmentValidationService;
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentOperations, Log, All);
 
 // Forward declarations for plan types from Executor
-struct FTransactionPlanStep;
-struct FTransactionPlan;
+struct FSuspenseCoreTransactionPlanStep;
+struct FSuspenseCoreTransactionPlan;
 
 /**
  * Operation queue entry with priority support
  */
 USTRUCT()
-struct FQueuedOperation
+struct FSuspenseCoreQueuedOperation
 {
     GENERATED_BODY()
 
@@ -55,7 +55,7 @@ struct FQueuedOperation
     // Diagnostic flag
     bool bIsFromPool = false;
 
-    bool operator<(const FQueuedOperation& Other) const
+    bool operator<(const FSuspenseCoreQueuedOperation& Other) const
     {
         return Priority < Other.Priority;
     }
@@ -73,7 +73,7 @@ struct FQueuedOperation
  * Operation history entry for undo/redo support
  */
 USTRUCT()
-struct FOperationHistoryEntry
+struct FSuspenseCoreOperationHistoryEntry
 {
     GENERATED_BODY()
 
@@ -212,7 +212,7 @@ public:
     FEquipmentOperationResult RedoLastOperation();
 
     //UFUNCTION(BlueprintCallable, Category = "Equipment|History")
-    TArray<FOperationHistoryEntry> GetOperationHistory(int32 MaxCount = 10) const;
+    TArray<FSuspenseCoreOperationHistoryEntry> GetOperationHistory(int32 MaxCount = 10) const;
 
     UFUNCTION(BlueprintCallable, Category = "Equipment|History")
     void ClearHistory();
@@ -270,25 +270,25 @@ protected:
     void ConfirmPrediction(const FGuid& OperationId, const FEquipmentOperationResult& ServerResult);
 
     // Object Pool Management
-    FQueuedOperation* AcquireOperation();
-    void ReleaseOperation(FQueuedOperation* Operation);
+    FSuspenseCoreQueuedOperation* AcquireOperation();
+    void ReleaseOperation(FSuspenseCoreQueuedOperation* Operation);
     FEquipmentOperationResult* AcquireResult();
     void ReleaseResult(FEquipmentOperationResult* Result);
 
     // Operation Processing - Core methods
 
     // Preflight validation hook (S8)
-    bool PreflightRequests(const TArray<FQueuedOperation*>& BatchOps, TArray<FEquipmentOperationResult>* OutResults);
+    bool PreflightRequests(const TArray<FSuspenseCoreQueuedOperation*>& BatchOps, TArray<FEquipmentOperationResult>* OutResults);
 
-    FEquipmentOperationResult ProcessSingleOperation(FQueuedOperation* QueuedOp,
+    FEquipmentOperationResult ProcessSingleOperation(FSuspenseCoreQueuedOperation* QueuedOp,
                                                      const FGuid& OuterTransactionId = FGuid());
-    bool ProcessBatch(const TArray<FQueuedOperation*>& BatchOps, bool bAtomic,
+    bool ProcessBatch(const TArray<FSuspenseCoreQueuedOperation*>& BatchOps, bool bAtomic,
                      TArray<FEquipmentOperationResult>* OutResults = nullptr);
     void ProcessQueueAsync();
     bool TickQueueFallback(float DeltaTime);
 
     // Queue optimization
-    int32 TryCoalesceOperation(FQueuedOperation* NewOp);
+    int32 TryCoalesceOperation(FSuspenseCoreQueuedOperation* NewOp);
     void OptimizeQueue();
 
     // Validation with enhanced caching
@@ -327,9 +327,9 @@ protected:
 
 private:
     // NEW: Transaction Plan Support Methods
-    FTransactionOperation MakeTxnOpFromStep(const FTransactionPlanStep& Step) const;
-    bool BatchValidatePlan(const FTransactionPlan& Plan, FText& OutError) const;
-    bool ExecutePlanTransactional(const FTransactionPlan& Plan, const FGuid& OuterTxnId,
+    FTransactionOperation MakeTxnOpFromStep(const FSuspenseCoreTransactionPlanStep& Step) const;
+    bool BatchValidatePlan(const FSuspenseCoreTransactionPlan& Plan, FText& OutError) const;
+    bool ExecutePlanTransactional(const FSuspenseCoreTransactionPlan& Plan, const FGuid& OuterTxnId,
                                   TArray<FEquipmentDelta>& OutDeltas);
 
     /**
@@ -339,11 +339,11 @@ private:
     bool CommitTransactionWithDeltas(const FGuid& TxnId, const TArray<FEquipmentDelta>& Deltas);
 
     // Legacy compatibility helpers
-    bool BuildSingleStepPlanFromRequest(const FEquipmentOperationRequest& Request, FTransactionPlan& OutPlan) const;
-    FTransactionPlanStep MakePlanStepFromRequest(const FEquipmentOperationRequest& Request) const;
+    bool BuildSingleStepPlanFromRequest(const FEquipmentOperationRequest& Request, FSuspenseCoreTransactionPlan& OutPlan) const;
+    FSuspenseCoreTransactionPlanStep MakePlanStepFromRequest(const FEquipmentOperationRequest& Request) const;
 
     // Batch processing with unified plan path
-    bool ProcessBatchUsingPlans(const TArray<FQueuedOperation*>& BatchOps,
+    bool ProcessBatchUsingPlans(const TArray<FSuspenseCoreQueuedOperation*>& BatchOps,
                                 bool bAtomic,
                                 TArray<FEquipmentOperationResult>* OutResults);
     FGameplayTag MapOperationTypeToTag(EEquipmentOperationType OpType) const;
@@ -386,8 +386,8 @@ private:
     TMap<FGuid, FGuid> OperationToPredictionMap;
 
     // Queue Management
-    TArray<FQueuedOperation*> OperationQueue;
-    TMap<FGuid, TArray<FQueuedOperation*>> ActiveBatches;
+    TArray<FSuspenseCoreQueuedOperation*> OperationQueue;
+    TMap<FGuid, TArray<FSuspenseCoreQueuedOperation*>> ActiveBatches;
     bool bIsProcessingQueue = false;
     bool bQueueProcessingEnabled = true;
     bool bClearQueueAfterProcessing = false;
@@ -395,7 +395,7 @@ private:
     FTSTicker::FDelegateHandle TickerHandle;
 
     // Object Pools
-    TQueue<FQueuedOperation*> OperationPool;
+    TQueue<FSuspenseCoreQueuedOperation*> OperationPool;
     TQueue<FEquipmentOperationResult*> ResultPool;
     static constexpr int32 MaxPoolSize = 100;
     static constexpr int32 InitialPoolSize = 50;
@@ -410,8 +410,8 @@ private:
     mutable std::atomic<int32> PoolOverflows{0};
 
     // History Management
-    TArray<FOperationHistoryEntry> OperationHistory;
-    TArray<FOperationHistoryEntry> RedoStack;
+    TArray<FSuspenseCoreOperationHistoryEntry> OperationHistory;
+    TArray<FSuspenseCoreOperationHistoryEntry> RedoStack;
     int32 MaxHistorySize = 50;
 
     // Caching
@@ -474,7 +474,7 @@ private:
     int32 PeakQueueSize = 0;
 
     // Unified Service Metrics
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
     // Validation service (for preflight batch checks)
     UPROPERTY(Transient)

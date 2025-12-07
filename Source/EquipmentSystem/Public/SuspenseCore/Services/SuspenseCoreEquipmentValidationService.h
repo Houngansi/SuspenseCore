@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -111,10 +111,10 @@ public:
     // IEquipmentService Implementation
     //========================================
 
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
-    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
     virtual bool ValidateService(TArray<FText>& OutErrors) const override;
@@ -275,7 +275,7 @@ private:
     //========================================
 
     UPROPERTY()
-    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
     UPROPERTY()
     FDateTime InitializationTime;

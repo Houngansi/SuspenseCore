@@ -14,6 +14,7 @@
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Engine/DataTable.h"
 #include "Engine/StreamableManager.h"
+#include <atomic>
 #include "SuspenseCoreEquipmentAbilityService.generated.h"
 
 // Forward declarations
@@ -284,6 +285,8 @@ private:
     // Metrics and Statistics
     //========================================
     mutable FServiceMetrics ServiceMetrics;
-    mutable int32 CacheHits = 0;
-    mutable int32 CacheMisses = 0;
+
+    // THREAD-SAFETY FIX: Use atomic for concurrent access
+    mutable std::atomic<int32> CacheHits{0};
+    mutable std::atomic<int32> CacheMisses{0};
 };

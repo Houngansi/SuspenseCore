@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "Components/Network/SuspenseCoreEquipmentReplicationManager.h"
-#include "Services/SuspenseCoreEquipmentNetworkService.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "GameFramework/PlayerController.h"
@@ -10,7 +10,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Misc/SecureHash.h"
 #include "DrawDebugHelpers.h"
 

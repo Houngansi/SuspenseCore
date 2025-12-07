@@ -52,9 +52,9 @@ struct FEquipmentVisualState
     UPROPERTY()
     uint8 StateVersion = 0;
 
-    FEquipmentVisualState() = default;
+    FSuspenseCoreEquipmentVisualState() = default;
 
-    bool operator==(const FEquipmentVisualState& Other) const
+    bool operator==(const FSuspenseCoreEquipmentVisualState& Other) const
     {
         return ConditionPercent == Other.ConditionPercent &&
                RarityGlowIntensity == Other.RarityGlowIntensity &&
@@ -62,7 +62,7 @@ struct FEquipmentVisualState
                ActiveEffects == Other.ActiveEffects;
     }
 
-    bool operator!=(const FEquipmentVisualState& Other) const
+    bool operator!=(const FSuspenseCoreEquipmentVisualState& Other) const
     {
         return !(*this == Other);
     }
@@ -96,7 +96,7 @@ struct FVisualEffectPrediction
     UPROPERTY()
     TWeakObjectPtr<USceneComponent> EffectComponent;
 
-    FVisualEffectPrediction() = default;
+    FSuspenseCoreVisualEffectPrediction() = default;
 };
 
 /**
@@ -159,7 +159,7 @@ public:
   * @param NewState State to apply
   * @param bForceUpdate Force update even if state appears unchanged
   */
- void ApplyVisualState(const FEquipmentVisualState& NewState, bool bForceUpdate = false);
+ void ApplyVisualState(const FSuspenseCoreEquipmentVisualState& NewState, bool bForceUpdate = false);
 
  /**
   * Check if visual state has changed
@@ -167,7 +167,7 @@ public:
   * @param OtherState State to compare against
   * @return True if states differ
   */
- bool HasVisualStateChanged(const FEquipmentVisualState& OtherState) const;
+ bool HasVisualStateChanged(const FSuspenseCoreEquipmentVisualState& OtherState) const;
 
     //================================================
     // Socket and Transform Management

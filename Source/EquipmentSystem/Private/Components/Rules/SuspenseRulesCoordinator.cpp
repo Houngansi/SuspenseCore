@@ -1,11 +1,11 @@
 // MedComRulesCoordinator.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Rules/SuspenseRulesCoordinator.h"
-#include "Components/Rules/SuspenseWeightRulesEngine.h"
-#include "Components/Rules/SuspenseRequirementRulesEngine.h"
-#include "Components/Rules/SuspenseConflictRulesEngine.h"
-#include "Components/Rules/SuspenseCompatibilityRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseRulesCoordinator.h"
+#include "SuspenseCore/Components/Rules/SuspenseWeightRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseRequirementRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseConflictRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseCompatibilityRulesEngine.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/PlatformTime.h"

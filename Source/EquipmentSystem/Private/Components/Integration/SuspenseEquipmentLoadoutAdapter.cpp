@@ -1,5 +1,5 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "Components/Integration/SuspenseEquipmentLoadoutAdapter.h"
+#include "SuspenseCore/Components/Integration/SuspenseEquipmentLoadoutAdapter.h"
 
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -20,7 +20,7 @@
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 
-#include "Services/SuspenseEquipmentOperationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentOperationService.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLoadoutAdapter, Log, All);

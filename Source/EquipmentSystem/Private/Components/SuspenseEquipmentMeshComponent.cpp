@@ -1,13 +1,13 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseEquipmentMeshComponent.h"
-#include "Components/SuspenseEquipmentComponentBase.h"
+#include "SuspenseCore/Components/SuspenseEquipmentMeshComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentComponentBase.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
-#include "Components/AudioComponent.h"
+#include "SuspenseCore/Components/AudioComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"

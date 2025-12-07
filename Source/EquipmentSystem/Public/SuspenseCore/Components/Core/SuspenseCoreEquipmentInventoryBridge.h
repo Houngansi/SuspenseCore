@@ -61,7 +61,7 @@ public:
      * @return Operation result with success/failure status
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult TransferFromInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult TransferFromInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Transfer item from equipment slot to inventory
@@ -69,7 +69,7 @@ public:
      * @return Operation result with success/failure status
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult TransferToInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult TransferToInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Atomically swap items between inventory and equipment
@@ -78,7 +78,7 @@ public:
      * @return Operation result with affected items
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult SwapBetweenInventoryAndEquipment(
+    FSuspenseInventoryOperationResult SwapBetweenInventoryAndEquipment(
         const FGuid& InventoryItemInstanceID,
         int32 EquipmentSlotIndex
     );
@@ -224,17 +224,17 @@ private:
     /**
      * Execute transfer from inventory to equipment with full validation
      */
-    FSuspenseCoreInventoryOperationResult ExecuteTransfer_FromInventoryToEquip(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromInventoryToEquip(const FInventoryTransferRequest& Request);
 
     /**
      * Execute transfer from equipment to inventory with rollback support
      */
-    FSuspenseCoreInventoryOperationResult ExecuteTransfer_FromEquipToInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromEquipToInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Execute atomic swap between inventory and equipment systems
      */
-    FSuspenseCoreInventoryOperationResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
+    FSuspenseInventoryOperationResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
 
     // ===== Transaction Management =====
 

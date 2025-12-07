@@ -1,10 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Services/SuspenseEquipmentNetworkService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentNetworkService.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
-#include "Components/Network/SuspenseEquipmentPredictionSystem.h"
-#include "Components/Network/SuspenseEquipmentReplicationManager.h"
+#include "SuspenseCore/Components/Network/SuspenseEquipmentNetworkDispatcher.h"
+#include "SuspenseCore/Components/Network/SuspenseEquipmentPredictionSystem.h"
+#include "SuspenseCore/Components/Network/SuspenseEquipmentReplicationManager.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
 #include "HAL/PlatformProcess.h"

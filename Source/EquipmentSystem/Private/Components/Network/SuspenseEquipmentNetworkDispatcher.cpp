@@ -1,8 +1,8 @@
 // MedComEquipmentNetworkDispatcher.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Network/SuspenseEquipmentNetworkDispatcher.h"
-#include "Services/SuspenseEquipmentNetworkService.h"
+#include "SuspenseCore/Components/Network/SuspenseEquipmentNetworkDispatcher.h"
+#include "SuspenseCore/Services/SuspenseEquipmentNetworkService.h"
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "GameFramework/PlayerController.h"

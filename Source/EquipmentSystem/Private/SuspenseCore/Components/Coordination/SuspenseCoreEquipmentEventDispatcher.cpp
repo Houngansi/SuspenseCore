@@ -1,5 +1,5 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "Engine/World.h"
 #include "Algo/Sort.h"

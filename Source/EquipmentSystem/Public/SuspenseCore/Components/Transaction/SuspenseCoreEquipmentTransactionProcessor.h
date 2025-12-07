@@ -9,7 +9,7 @@
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Types/Transaction/SuspenseCoreTransactionTypes.h"
+#include "Types/Transaction/SuspenseTransactionTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentTransactionProcessor.generated.h"
 

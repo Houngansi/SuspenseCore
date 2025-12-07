@@ -1,8 +1,8 @@
 // MedComEquipmentTransactionProcessor.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/Core/SuspenseEquipmentDataStore.h"
+#include "SuspenseCore/Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "SuspenseCore/Components/Core/SuspenseEquipmentDataStore.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"

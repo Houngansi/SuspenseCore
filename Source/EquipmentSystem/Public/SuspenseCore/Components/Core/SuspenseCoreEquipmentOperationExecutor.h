@@ -46,7 +46,7 @@ struct FSuspenseCoreTransactionPlanStep
 
 	FSuspenseCoreTransactionPlanStep() = default;
 
-	explicit FTransactionPlanStep(const FEquipmentOperationRequest& InReq, const FString& InDesc = FString())
+	explicit FSuspenseCoreTransactionPlanStep(const FEquipmentOperationRequest& InReq, const FString& InDesc = FString())
 		: Request(InReq)
 		, Description(InDesc)
 		, StepPriority(0)

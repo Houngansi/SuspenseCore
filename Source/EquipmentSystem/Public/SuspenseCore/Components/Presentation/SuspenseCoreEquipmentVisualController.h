@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "Services/SuspenseCoreEquipmentServiceMacros.h"
@@ -284,8 +284,8 @@ protected:
 	TMap<FString, FSuspenseCoreEquipmentVisualProfile> ProfileCache;
 
 	/** Кэши */
-	FSuspenseCoreEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
-	FSuspenseCoreEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
+	FSuspenseEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
+	FSuspenseEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
 
 	/** Подписки на EventBus */
 	TArray<FEventSubscriptionHandle> EventSubscriptions;
@@ -318,10 +318,10 @@ protected:
 
 private:
 	void SetupEventHandlers();
-	void OnEquipmentStateChanged(const FSuspenseCoreEquipmentEventData& EventData);
-	void OnWeaponFired(const FSuspenseCoreEquipmentEventData& EventData);
-	void OnWeaponReload(const FSuspenseCoreEquipmentEventData& EventData);
-	void OnQuickSwitch(const FSuspenseCoreEquipmentEventData& EventData);
+	void OnEquipmentStateChanged(const FSuspenseEquipmentEventData& EventData);
+	void OnWeaponFired(const FSuspenseEquipmentEventData& EventData);
+	void OnWeaponReload(const FSuspenseEquipmentEventData& EventData);
+	void OnQuickSwitch(const FSuspenseEquipmentEventData& EventData);
 
 	void ProcessBatchQueue();
 	void UpdateMaterialTransitions(float DeltaTime);

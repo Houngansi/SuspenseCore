@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Delegates/Delegate.h"
-#include "Interfaces/Equipment/ISuspenseCoreNetworkDispatcher.h"
+#include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Network/SuspenseCoreNetworkTypes.h"
+#include "Types/Network/SuspenseNetworkTypes.h"
 #include "SuspenseCoreEquipmentNetworkDispatcher.generated.h"
 
 class USuspenseCoreEquipmentNetworkService;
@@ -114,7 +114,7 @@ struct FSuspenseCoreNetworkDispatcherStats
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkDispatcher
 	: public UActorComponent
-	, public ISuspenseCoreNetworkDispatcher
+	, public ISuspenseNetworkDispatcher
 {
 	GENERATED_BODY()
 public:
@@ -123,7 +123,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// ISuspenseCoreNetworkDispatcher
+	// ISuspenseNetworkDispatcher
 	virtual FGuid SendOperationToServer(const FNetworkOperationRequest& Request) override;
 	virtual void SendOperationToClients(const FNetworkOperationRequest& Request, const TArray<APlayerController*>& TargetClients) override;
 	virtual void HandleServerResponse(const FNetworkOperationResponse& Response) override;

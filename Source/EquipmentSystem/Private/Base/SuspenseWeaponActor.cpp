@@ -1,11 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Base/SuspenseWeaponActor.h"
+#include "SuspenseCore/Base/SuspenseWeaponActor.h"
 
-#include "Components/SuspenseWeaponAmmoComponent.h"
-#include "Components/SuspenseWeaponFireModeComponent.h"
-#include "Components/SuspenseEquipmentMeshComponent.h"
-#include "Components/SuspenseEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponAmmoComponent.h"
+#include "SuspenseCore/Components/SuspenseWeaponFireModeComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentMeshComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttributeComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"

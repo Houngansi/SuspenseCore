@@ -1,9 +1,9 @@
 // MedComEquipmentPredictionSystem.cpp
 // Copyright Suspense Team. All Rights Reserved.
-#include "Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
-#include "Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
-#include "Components/Network/SuspenseCoreEquipmentReplicationManager.h"
-#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
+#include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"

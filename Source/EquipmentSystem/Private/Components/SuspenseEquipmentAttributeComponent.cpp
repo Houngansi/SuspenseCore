@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/SuspenseEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttributeComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"

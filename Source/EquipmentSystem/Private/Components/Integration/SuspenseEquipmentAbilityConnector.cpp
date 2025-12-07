@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Integration/SuspenseEquipmentAbilityConnector.h"
+#include "SuspenseCore/Components/Integration/SuspenseEquipmentAbilityConnector.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "ItemSystem/SuspenseItemManager.h"

@@ -79,7 +79,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceBatchDeltas, const TArray<FEquipme
 
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataService : public UObject,
-    public ISuspenseCoreEquipmentDataService
+    public ISuspenseEquipmentDataServiceInterface
 {
     GENERATED_BODY()
 
@@ -102,7 +102,7 @@ public:
     virtual FString GetServiceStats() const override;
 
     //========================================
-    // ISuspenseCoreEquipmentDataService Implementation
+    // ISuspenseEquipmentDataServiceInterface Implementation
     //========================================
 
     virtual ISuspenseCoreEquipmentDataProvider* GetDataProvider() override;
@@ -258,7 +258,7 @@ protected:
     /**
      * Handle cache invalidation event
      */
-    void OnCacheInvalidation(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnCacheInvalidation(const FSuspenseEquipmentEventData& EventData);
 
     /**
      * Handle transaction completion
@@ -288,7 +288,7 @@ protected:
     /**
      * Handle external request to resend current state as deltas (ketchup refresh)
      */
-    void OnResendRequested(const FSuspenseCoreEquipmentEventData& EventData);
+    void OnResendRequested(const FSuspenseEquipmentEventData& EventData);
 
 
     /**
@@ -397,13 +397,13 @@ private:
     //========================================
 
     /** Cache for state snapshots */
-    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>> SnapshotCache;
+    mutable TSharedPtr<FSuspenseEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>> SnapshotCache;
 
     /** Cache for individual item instances */
-    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>> ItemCache;
+    mutable TSharedPtr<FSuspenseEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>> ItemCache;
 
     /** Cache for slot configurations */
-    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>> ConfigCache;
+    mutable TSharedPtr<FSuspenseEquipmentCacheManager<int32, FEquipmentSlotConfig>> ConfigCache;
 
     /** Default cache TTL in seconds */
     float DefaultCacheTTL = 60.0f;

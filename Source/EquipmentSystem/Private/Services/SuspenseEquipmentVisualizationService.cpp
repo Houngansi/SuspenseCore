@@ -1,14 +1,14 @@
 // EquipmentVisualizationServiceImpl.cpp
 // Copyright MedCom
 
-#include "Services/SuspenseEquipmentVisualizationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentVisualizationService.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "SuspenseCore/Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Services/SuspenseEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
 
 // ===== Local utilities =====================================================
 

@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Core/SuspenseWeaponStateManager.h"
+#include "SuspenseCore/Components/Core/SuspenseWeaponStateManager.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "Engine/World.h"

@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "Interfaces/Equipment/ISuspenseActorFactory.h"
 #include "Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
@@ -81,7 +81,7 @@ struct FSuspenseCoreActorFactoryConfig
  * - Efficient caching through FEquipmentCacheManager
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseCoreActorFactory
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseActorFactory
 {
     GENERATED_BODY()
 
@@ -94,7 +94,7 @@ public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
     //~ End UActorComponent Interface
 
-    //~ Begin ISuspenseCoreActorFactory Interface
+    //~ Begin ISuspenseActorFactory Interface
     virtual FEquipmentActorSpawnResult SpawnEquipmentActor(const FEquipmentActorSpawnParams& Params) override;
     virtual bool DestroyEquipmentActor(AActor* Actor, bool bImmediate = false) override;
     virtual bool ConfigureEquipmentActor(AActor* Actor, const FSuspenseInventoryItemInstance& ItemInstance) override;
@@ -106,7 +106,7 @@ public:
     virtual bool UnregisterActor(AActor* Actor) override;
     virtual TMap<int32, AActor*> GetAllSpawnedActors() const override;
     virtual void ClearAllActors(bool bDestroy = true) override;
-    //~ End ISuspenseCoreActorFactory Interface
+    //~ End ISuspenseActorFactory Interface
 
     /** Set factory configuration */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Factory")
@@ -134,7 +134,7 @@ protected:
     TMap<int32, AActor*> SpawnedActorRegistry;
 
     /** Cache manager for actor classes */
-    FSuspenseCoreEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
+    FSuspenseEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
 
     /** Streamable manager for async loading */
     FStreamableManager StreamableManager;

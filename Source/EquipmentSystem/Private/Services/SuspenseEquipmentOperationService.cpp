@@ -1,20 +1,20 @@
 // EquipmentOperationServiceImpl.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Services/SuspenseEquipmentOperationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentOperationService.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/Core/SuspenseEquipmentDataStore.h"
+#include "SuspenseCore/Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "SuspenseCore/Components/Core/SuspenseEquipmentDataStore.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
-#include "Components/Core/SuspenseEquipmentOperationExecutor.h"
-#include "Services/SuspenseEquipmentValidationService.h"
+#include "SuspenseCore/Components/Core/SuspenseEquipmentOperationExecutor.h"
+#include "SuspenseCore/Services/SuspenseEquipmentValidationService.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Async/Async.h"
-#include "Services/SuspenseEquipmentDataService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentDataService.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseEquipmentOperations);
 

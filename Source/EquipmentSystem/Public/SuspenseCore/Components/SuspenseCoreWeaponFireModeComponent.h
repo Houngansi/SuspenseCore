@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/SuspenseCoreEquipmentComponentBase.h"
+#include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"

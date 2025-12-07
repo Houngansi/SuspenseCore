@@ -1,21 +1,21 @@
 // MedComSystemCoordinator.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Core/SuspenseSystemCoordinatorComponent.h"
+#include "SuspenseCore/Components/Core/SuspenseSystemCoordinatorComponent.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 
 // Concrete service implementations
-#include "Services/SuspenseEquipmentDataService.h"
-#include "Services/SuspenseEquipmentValidationService.h"
-#include "Services/SuspenseEquipmentOperationService.h"
-#include "Services/SuspenseEquipmentVisualizationService.h"
-#include "Services/SuspenseEquipmentAbilityService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentDataService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentValidationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentOperationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentVisualizationService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentAbilityService.h"
 
 // Presentation layer components (registered as services)
-#include "Components/Presentation/SuspenseEquipmentActorFactory.h"
-#include "Components/Presentation/SuspenseEquipmentAttachmentSystem.h"
-#include "Components/Presentation/SuspenseEquipmentVisualController.h"
+#include "SuspenseCore/Components/Presentation/SuspenseEquipmentActorFactory.h"
+#include "SuspenseCore/Components/Presentation/SuspenseEquipmentAttachmentSystem.h"
+#include "SuspenseCore/Components/Presentation/SuspenseEquipmentVisualController.h"
 
 // Additional interfaces
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"

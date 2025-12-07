@@ -1,10 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Base/SuspenseEquipmentActor.h"
+#include "SuspenseCore/Base/SuspenseEquipmentActor.h"
 
-#include "Components/SuspenseEquipmentMeshComponent.h"
-#include "Components/SuspenseEquipmentAttributeComponent.h"
-#include "Components/SuspenseEquipmentAttachmentComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentMeshComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseEquipmentAttachmentComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 
 #include "Abilities/GameplayAbilityTypes.h"

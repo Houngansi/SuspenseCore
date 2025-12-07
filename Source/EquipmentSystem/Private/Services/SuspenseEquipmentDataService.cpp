@@ -1,11 +1,11 @@
 // EquipmentDataServiceImpl.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Services/SuspenseEquipmentDataService.h"
+#include "SuspenseCore/Services/SuspenseEquipmentDataService.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "Components/Core/SuspenseEquipmentDataStore.h"
-#include "Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
-#include "Components/Validation/SuspenseEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Core/SuspenseEquipmentDataStore.h"
+#include "SuspenseCore/Components/Transaction/SuspenseEquipmentTransactionProcessor.h"
+#include "SuspenseCore/Components/Validation/SuspenseEquipmentSlotValidator.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
@@ -15,7 +15,7 @@
 #include "HAL/FileManager.h"
 #include <atomic>
 
-#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "ItemSystem/SuspenseItemManager.h"
 
 USuspenseEquipmentDataService::USuspenseEquipmentDataService()

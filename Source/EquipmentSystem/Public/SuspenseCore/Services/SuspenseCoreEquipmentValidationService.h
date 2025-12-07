@@ -344,7 +344,7 @@ private:
     std::atomic<uint32> RulesEpoch{1};
 
     /** Result cache with versioning support */
-    TSharedPtr<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>> ResultCache;
+    TSharedPtr<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>> ResultCache;
 
     //========================================
     // Event Management

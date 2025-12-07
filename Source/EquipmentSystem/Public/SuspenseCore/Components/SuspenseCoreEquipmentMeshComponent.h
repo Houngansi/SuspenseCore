@@ -53,9 +53,9 @@ struct FSuspenseCoreEquipmentVisualState
     UPROPERTY()
     uint8 StateVersion = 0;
 
-    FEquipmentVisualState() = default;
+    FSuspenseCoreEquipmentVisualState() = default;
 
-    bool operator==(const FEquipmentVisualState& Other) const
+    bool operator==(const FSuspenseCoreEquipmentVisualState& Other) const
     {
         return ConditionPercent == Other.ConditionPercent &&
                RarityGlowIntensity == Other.RarityGlowIntensity &&
@@ -63,7 +63,7 @@ struct FSuspenseCoreEquipmentVisualState
                ActiveEffects == Other.ActiveEffects;
     }
 
-    bool operator!=(const FEquipmentVisualState& Other) const
+    bool operator!=(const FSuspenseCoreEquipmentVisualState& Other) const
     {
         return !(*this == Other);
     }
@@ -97,7 +97,7 @@ struct FSuspenseCoreVisualEffectPrediction
     UPROPERTY()
     TWeakObjectPtr<USceneComponent> EffectComponent;
 
-    FVisualEffectPrediction() = default;
+    FSuspenseCoreVisualEffectPrediction() = default;
 };
 
 /**

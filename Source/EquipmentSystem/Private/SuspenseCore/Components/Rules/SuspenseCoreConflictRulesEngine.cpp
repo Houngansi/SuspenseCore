@@ -1,7 +1,7 @@
 // MedComConflictRulesEngine.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Rules/SuspenseCoreConflictRulesEngine.h"
+#include "SuspenseCore/Components/Rules/SuspenseCoreConflictRulesEngine.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Operations/SuspenseCoreInventoryResult.h"

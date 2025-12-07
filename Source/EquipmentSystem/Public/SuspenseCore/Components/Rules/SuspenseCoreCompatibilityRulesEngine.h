@@ -16,7 +16,7 @@
 class USuspenseCoreEquipmentSlotValidator;
 class ISuspenseCoreItemDataProvider;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogCompatibilityRules, Log, All);
+// Log category declared in SuspenseCompatibilityRulesEngine.h
 
 /**
  * Compatibility rules engine (prod path).

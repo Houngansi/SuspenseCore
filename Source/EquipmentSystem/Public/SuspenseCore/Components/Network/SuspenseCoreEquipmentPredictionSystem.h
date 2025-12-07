@@ -4,10 +4,10 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseCorePredictionManager.h"
+#include "Interfaces/Equipment/ISuspensePredictionManager.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
+#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentPredictionSystem.generated.h"
@@ -74,7 +74,7 @@ struct FSuspenseCorePredictionStatistics
 };
 
 UCLASS(ClassGroup=(Equipment),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentPredictionSystem : public UActorComponent, public ISuspenseCorePredictionManager
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentPredictionSystem : public UActorComponent, public ISuspensePredictionManager
 {
     GENERATED_BODY()
 public:

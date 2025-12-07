@@ -1,8 +1,8 @@
 // EquipmentAbilityServiceImpl.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Services/SuspenseEquipmentAbilityService.h"
-#include "Components/Integration/SuspenseEquipmentAbilityConnector.h"
+#include "SuspenseCore/Services/SuspenseEquipmentAbilityService.h"
+#include "SuspenseCore/Components/Integration/SuspenseEquipmentAbilityConnector.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Misc/App.h"
@@ -11,7 +11,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Components/Coordination/SuspenseEquipmentEventDispatcher.h"
+#include "SuspenseCore/Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 

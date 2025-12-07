@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Core/Utils/SuspenseCoreEquipmentEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "SuspenseCoreEquipmentEventDispatcher.generated.h"
@@ -52,8 +52,8 @@ public:
 	// ISuspenseEventDispatcher
 	virtual FDelegateHandle Subscribe(const FGameplayTag& EventType,const FEquipmentEventDelegate& Delegate)override;
 	virtual bool Unsubscribe(const FGameplayTag& EventType,const FDelegateHandle& Handle)override;
-	virtual void BroadcastEvent(const FSuspenseCoreEquipmentEventData& Event)override;
-	virtual void QueueEvent(const FSuspenseCoreEquipmentEventData& Event)override;
+	virtual void BroadcastEvent(const FSuspenseEquipmentEventData& Event)override;
+	virtual void QueueEvent(const FSuspenseEquipmentEventData& Event)override;
 	virtual int32 ProcessEventQueue(int32 MaxEvents=-1)override;
 	virtual void ClearEventQueue(const FGameplayTag& EventType=FGameplayTag())override;
 	virtual int32 GetQueuedEventCount(const FGameplayTag& EventType=FGameplayTag())const override;
@@ -108,9 +108,9 @@ private:
 	// wiring с EventBus
 	void WireBus();
 	void UnwireBus();
-	void OnBusEvent_Delta(const FSuspenseCoreEquipmentEventData& E);
-	void OnBusEvent_BatchDelta(const FSuspenseCoreEquipmentEventData& E);
-	void OnBusEvent_OperationCompleted(const FSuspenseCoreEquipmentEventData& E);
+	void OnBusEvent_Delta(const FSuspenseEquipmentEventData& E);
+	void OnBusEvent_BatchDelta(const FSuspenseEquipmentEventData& E);
+	void OnBusEvent_OperationCompleted(const FSuspenseEquipmentEventData& E);
 
 	// доставка локальным подписчикам
 	void Enqueue(const FDispatcherEquipmentEventData& E);
@@ -119,7 +119,7 @@ private:
 	static void SortByPriority(TArray<FDispatcherLocalSubscription>& Arr);
 
 	// преобразование payload
-	static FDispatcherEquipmentEventData ToDispatcherPayload(const FSuspenseCoreEquipmentEventData& In);
+	static FDispatcherEquipmentEventData ToDispatcherPayload(const FSuspenseEquipmentEventData& In);
 
 	// служебное
 	int32 CleanupInvalid();

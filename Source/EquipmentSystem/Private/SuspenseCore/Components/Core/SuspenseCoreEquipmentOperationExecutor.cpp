@@ -1,10 +1,10 @@
 // MedComEquipmentOperationExecutor.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
-#include "Components/Core/SuspenseCoreEquipmentDataStore.h"
-#include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
-#include "Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Types/Loadout/SuspenseCoreLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
 
 // Define proper log category

@@ -6,6 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "ItemSystem/SuspenseCoreItemManager.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
 
@@ -13,7 +14,7 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-#include "ItemSystem/SuspenseCoreItemManager.h"
+class USuspenseCoreItemManager;
 class USuspenseCoreEventManager;
 
 /**

@@ -6,6 +6,7 @@
 #include "Components/SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentAttachmentComponent.generated.h"
 
@@ -14,7 +15,6 @@ class USceneComponent;
 class USkeletalMeshComponent;
 class USuspenseCoreEquipmentMeshComponent;
 class USuspenseCoreWeaponStanceComponent;
-#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 class UAnimMontage;
 
 /**

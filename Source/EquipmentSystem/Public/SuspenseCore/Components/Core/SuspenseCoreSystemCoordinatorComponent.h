@@ -7,9 +7,8 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
-#include "SuspenseCoreSystemCoordinatorComponent.generated.h"
-
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCoreSystemCoordinatorComponent.generated.h"
 
 /**
  * System Coordinator - Service registration orchestrator

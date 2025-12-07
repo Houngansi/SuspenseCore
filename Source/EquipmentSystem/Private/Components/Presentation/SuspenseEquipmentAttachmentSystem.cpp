@@ -9,7 +9,7 @@
 #include "TimerManager.h"
 #include "SuspenseCore/Components/Coordination/SuspenseEquipmentEventDispatcher.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 
 USuspenseEquipmentAttachmentSystem::USuspenseEquipmentAttachmentSystem()

@@ -2,7 +2,7 @@
 
 #include "SuspenseCore/Components/Presentation/SuspenseEquipmentActorFactory.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "SuspenseCore/Base/SuspenseWeaponActor.h"
 #include "SuspenseCore/Base/SuspenseEquipmentActor.h"
 #include "SuspenseCore/Components/SuspenseEquipmentAttributeComponent.h"

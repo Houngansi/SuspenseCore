@@ -10,7 +10,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "SuspenseCore/Services/SuspenseEquipmentServiceMacros.h"
+#include "Services/SuspenseEquipmentServiceMacros.h"
 #include "Misc/SecureHash.h"
 #include "DrawDebugHelpers.h"
 

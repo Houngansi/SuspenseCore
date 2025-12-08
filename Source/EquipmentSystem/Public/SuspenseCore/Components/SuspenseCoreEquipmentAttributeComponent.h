@@ -36,7 +36,7 @@ struct FSuspenseCoreReplicatedAttributeData
     UPROPERTY()
     float CurrentValue;
 
-    FReplicatedAttributeData()
+    FSuspenseCoreReplicatedAttributeData()
     {
         AttributeName = "";
         BaseValue = 0.0f;
@@ -72,7 +72,7 @@ struct FSuspenseCoreAttributePredictionData
     UPROPERTY()
     float PredictionTime;
 
-    FAttributePredictionData()
+    FSuspenseCoreAttributePredictionData()
     {
         PredictionKey = 0;
         AttributeName = "";

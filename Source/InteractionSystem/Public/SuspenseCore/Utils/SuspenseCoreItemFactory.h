@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Interaction/ISuspenseItemFactoryInterface.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreItemFactory.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreItemFactory.generated.h"
@@ -34,7 +34,7 @@ struct FSuspenseUnifiedItemData;
 UCLASS()
 class INTERACTIONSYSTEM_API USuspenseCoreItemFactory
 	: public UGameInstanceSubsystem
-	, public ISuspenseItemFactoryInterface
+	, public ISuspenseCoreItemFactory
 	, public ISuspenseCoreEventEmitter
 {
 	GENERATED_BODY()

@@ -1,5 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentLoadoutAdapter.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreLoadoutAdapter.h"
 
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -98,18 +99,18 @@ USuspenseCoreEquipmentOperationService* USuspenseCoreEquipmentLoadoutAdapter::Ge
 	return nullptr;
 }
 
-FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(const FName& LoadoutId, bool bForce)
+FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(const FName& LoadoutId, bool bForce)
 {
 	FScopeLock Lock(&AdapterCriticalSection);
 
-	if (!bIsInitialized) { return FLoadoutApplicationResult::CreateFailure(LoadoutId, TEXT("Adapter not initialized")); }
-	if (bIsApplying)      { return FLoadoutApplicationResult::CreateFailure(LoadoutId, TEXT("Another loadout is being applied")); }
+	if (!bIsInitialized) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Adapter not initialized"))); }
+	if (bIsApplying)      { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Another loadout is being applied"))); }
 
 	const USuspenseCoreLoadoutManager* Manager = GetLoadoutManager();
-	if (!Manager) { return FLoadoutApplicationResult::CreateFailure(LoadoutId, TEXT("LoadoutManager not found")); }
+	if (!Manager) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("LoadoutManager not found"))); }
 
-	const FLoadoutConfiguration* Config = Manager->GetLoadoutConfig(LoadoutId);
-	if (!Config) { return FLoadoutApplicationResult::CreateFailure(LoadoutId, TEXT("Loadout not found")); }
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!Manager->GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
 
 	// ——— optional centralized path via OperationService (S8 pipeline) ———
 	if (bPreferOperationService)
@@ -120,16 +121,16 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(con
 			if (!bForce)
 			{
 				TArray<FText> ValidationErrors;
-				if (!ValidateLoadoutConfiguration(*Config, ValidationOptions, ValidationErrors))
+				if (!ValidateLoadoutConfiguration(Config, ValidationOptions, ValidationErrors))
 				{
 					FString Combined;
 					for (const FText& E : ValidationErrors) { Combined += E.ToString() + TEXT("\n"); }
-					return FLoadoutApplicationResult::CreateFailure(LoadoutId, Combined);
+					return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(Combined));
 				}
 			}
 
 			// Build & execute a batch of operations atomically
-			const TArray<FEquipmentOperationRequest> Requests = CreateOperationsFromLoadout(*Config);
+			const TArray<FEquipmentOperationRequest> Requests = CreateOperationsFromLoadout(Config);
 
 			TArray<FEquipmentOperationResult> Results;
 			const FGuid BatchId = OpSvc->BatchOperationsEx(Requests, /*bAtomic=*/true, Results);
@@ -139,16 +140,17 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(con
 			for (const FEquipmentOperationResult& R : Results)
 			{
 				if (R.bSuccess) { ++SuccessCount; }
-				else if (FirstError.IsEmpty()) { FirstError = R.ErrorMessage.ToString(); } // FText -> FString
+				else if (FirstError.IsEmpty()) { FirstError = R.ErrorMessage.ToString(); }
 			}
 
-			FLoadoutApplicationResult Result;
-			Result.AppliedLoadoutID = Config->LoadoutID;
-			Result.ApplicationTime  = FDateTime::Now();
-			Result.bSuccess         = (SuccessCount == Requests.Num());
+			FSuspenseCoreLoadoutApplicationResult Result;
+			Result.LoadoutId = LoadoutId;
+			Result.bSuccess  = (SuccessCount == Requests.Num());
+			Result.ItemsEquipped = SuccessCount;
+			Result.ItemsFailed = Requests.Num() - SuccessCount;
 			if (!Result.bSuccess && !FirstError.IsEmpty())
 			{
-				Result.ErrorMessages.Add(FirstError); // без несуществующего AddError
+				Result.AddError(FText::FromString(FirstError));
 			}
 
 			if (Result.bSuccess)
@@ -166,7 +168,7 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(con
 	bIsApplying = true;
 	ON_SCOPE_EXIT { bIsApplying = false; };
 
-	FLoadoutApplicationResult LocalResult = ApplyLoadoutConfiguration(*Config, bForce);
+	FSuspenseCoreLoadoutApplicationResult LocalResult = ApplyLoadoutConfiguration(Config, ESuspenseCoreLoadoutStrategy::Replace);
 
 	if (LocalResult.bSuccess)
 	{
@@ -187,8 +189,23 @@ bool USuspenseCoreEquipmentLoadoutAdapter::SaveAsLoadout(const FName& LoadoutId)
 		return false;
 	}
 
-	const FLoadoutConfiguration NewLoadout = BuildLoadoutFromCurrentState(LoadoutId);
+	const FSuspenseCoreLoadoutConfiguration NewLoadout = BuildLoadoutFromCurrentState(LoadoutId);
 	UE_LOG(LogLoadoutAdapter, Log, TEXT("SaveAsLoadout: Built loadout '%s'"), *LoadoutId.ToString());
+	return true;
+}
+
+bool USuspenseCoreEquipmentLoadoutAdapter::SaveAsLoadoutWithName(const FName& LoadoutId, const FText& DisplayName)
+{
+	FScopeLock Lock(&AdapterCriticalSection);
+	if (!bIsInitialized || !DataProvider.GetInterface())
+	{
+		UE_LOG(LogLoadoutAdapter, Error, TEXT("SaveAsLoadoutWithName: Not initialized"));
+		return false;
+	}
+
+	FSuspenseCoreLoadoutConfiguration NewLoadout = BuildLoadoutFromCurrentState(LoadoutId);
+	NewLoadout.DisplayName = DisplayName;
+	UE_LOG(LogLoadoutAdapter, Log, TEXT("SaveAsLoadoutWithName: Built loadout '%s' (%s)"), *LoadoutId.ToString(), *DisplayName.ToString());
 	return true;
 }
 
@@ -204,14 +221,45 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadout(const FName& LoadoutI
 		return false;
 	}
 
-	const FLoadoutConfiguration* Config = LoadoutManager->GetLoadoutConfig(LoadoutId);
-	if (!Config)
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config))
 	{
 		OutErrors.Add(FText::Format(FText::FromString(TEXT("Loadout '{0}' not found")), FText::FromName(LoadoutId)));
 		return false;
 	}
 
-	return ValidateLoadoutConfiguration(*Config, ValidationOptions, OutErrors);
+	return ValidateLoadoutConfiguration(Config, ValidationOptions, OutErrors);
+}
+
+bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutWithOptions(const FName& LoadoutId, const FSuspenseCoreLoadoutAdapterOptions& Options, TArray<FText>& OutErrors, TArray<FText>& OutWarnings) const
+{
+	FScopeLock Lock(&AdapterCriticalSection);
+	OutErrors.Empty();
+	OutWarnings.Empty();
+
+	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
+	if (!LoadoutManager)
+	{
+		OutErrors.Add(FText::FromString(TEXT("LoadoutManager not available")));
+		return false;
+	}
+
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config))
+	{
+		OutErrors.Add(FText::Format(FText::FromString(TEXT("Loadout '{0}' not found")), FText::FromName(LoadoutId)));
+		return false;
+	}
+
+	// Convert adapter options to validation options
+	FSuspenseCoreLoadoutValidationOptions ValidationOpts;
+	ValidationOpts.bCheckCharacterClass = Options.bCheckCharacterClass;
+	ValidationOpts.bCheckInventorySpace = Options.bCheckInventorySpace;
+	ValidationOpts.bCheckItemAvailability = Options.bCheckItemAvailability;
+	ValidationOpts.bCheckSlotCompatibility = Options.bCheckSlotCompatibility;
+	ValidationOpts.bCheckWeightLimits = Options.bCheckWeightLimits;
+
+	return ValidateLoadoutConfiguration(Config, ValidationOpts, OutErrors);
 }
 
 FName USuspenseCoreEquipmentLoadoutAdapter::GetCurrentLoadout() const
@@ -220,28 +268,43 @@ FName USuspenseCoreEquipmentLoadoutAdapter::GetCurrentLoadout() const
 	return CurrentLoadoutId;
 }
 
-FLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::ConvertToLoadoutFormat(const FEquipmentStateSnapshot& State) const
+bool USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutConfiguration(const FName& LoadoutId, FSuspenseCoreLoadoutConfiguration& OutConfiguration) const
 {
-	FLoadoutConfiguration Loadout;
-	Loadout.LoadoutID   = FName(FString::Printf(TEXT("Snapshot_%s"), *FGuid::NewGuid().ToString()));
-	Loadout.LoadoutName = FText::FromString(TEXT("Equipment Snapshot"));
-	Loadout.Description = FText::Format(FText::FromString(TEXT("Snapshot taken at {0}")),
-	                                    FText::FromString(State.Timestamp.ToString()));
+	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
+	if (!LoadoutManager) { return false; }
+
+	return LoadoutManager->GetLoadoutConfiguration(LoadoutId, OutConfiguration);
+}
+
+TArray<FName> USuspenseCoreEquipmentLoadoutAdapter::GetAvailableLoadouts() const
+{
+	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
+	if (!LoadoutManager) { return TArray<FName>(); }
+
+	return LoadoutManager->GetAllLoadoutIDs();
+}
+
+FSuspenseCoreLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::ConvertToLoadoutFormat(const FEquipmentStateSnapshot& State) const
+{
+	FSuspenseCoreLoadoutConfiguration Loadout;
+	Loadout.LoadoutId = FName(FString::Printf(TEXT("Snapshot_%s"), *FGuid::NewGuid().ToString()));
+	Loadout.DisplayName = FText::FromString(TEXT("Equipment Snapshot"));
+	Loadout.CreatedTime = FDateTime::Now();
 
 	for (const FEquipmentSlotSnapshot& SlotSnapshot : State.SlotSnapshots)
 	{
-		Loadout.EquipmentSlots.Add(SlotSnapshot.Configuration);
 		if (SlotSnapshot.ItemInstance.IsValid())
 		{
-			Loadout.StartingEquipment.Add(SlotSnapshot.Configuration.SlotType, SlotSnapshot.ItemInstance.ItemID);
+			Loadout.SlotToItem.Add(SlotSnapshot.SlotIndex, SlotSnapshot.ItemInstance.ItemID);
+			Loadout.SlotTypeToItem.Add(SlotSnapshot.Configuration.SlotType, SlotSnapshot.ItemInstance.ItemID);
 		}
 	}
 	return Loadout;
 }
 
-TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::ConvertFromLoadoutFormat(const FLoadoutConfiguration& Loadout) const
+TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::ConvertFromLoadoutFormat(const FSuspenseCoreLoadoutConfiguration& Configuration) const
 {
-	return CreateOperationsFromLoadout(Loadout);
+	return CreateOperationsFromLoadout(Configuration);
 }
 
 FString USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutPreview(const FName& LoadoutId) const
@@ -249,10 +312,109 @@ FString USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutPreview(const FName& Loa
 	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
 	if (!LoadoutManager) { return TEXT("LoadoutManager not available"); }
 
-	const FLoadoutConfiguration* Config = LoadoutManager->GetLoadoutConfig(LoadoutId);
-	if (!Config) { return FString::Printf(TEXT("Loadout '%s' not found"), *LoadoutId.ToString()); }
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return FString::Printf(TEXT("Loadout '%s' not found"), *LoadoutId.ToString()); }
 
-	return GenerateLoadoutPreview(*Config);
+	return GenerateLoadoutPreview(Config);
+}
+
+bool USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutDiff(const FName& LoadoutId, TArray<FName>& OutItemsToAdd, TArray<FName>& OutItemsToRemove) const
+{
+	OutItemsToAdd.Empty();
+	OutItemsToRemove.Empty();
+
+	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
+	if (!LoadoutManager || !DataProvider.GetInterface()) { return false; }
+
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return false; }
+
+	// Get current equipped items
+	TSet<FName> CurrentItems;
+	const TMap<int32, FSuspenseCoreInventoryItemInstance> Equipped = DataProvider->GetAllEquippedItems();
+	for (const auto& Pair : Equipped)
+	{
+		CurrentItems.Add(Pair.Value.ItemID);
+	}
+
+	// Get loadout items
+	TSet<FName> LoadoutItems;
+	for (const auto& Pair : Config.SlotToItem)
+	{
+		LoadoutItems.Add(Pair.Value);
+	}
+
+	// Items to add (in loadout but not equipped)
+	for (const FName& Item : LoadoutItems)
+	{
+		if (!CurrentItems.Contains(Item))
+		{
+			OutItemsToAdd.Add(Item);
+		}
+	}
+
+	// Items to remove (equipped but not in loadout)
+	for (const FName& Item : CurrentItems)
+	{
+		if (!LoadoutItems.Contains(Item))
+		{
+			OutItemsToRemove.Add(Item);
+		}
+	}
+
+	return true;
+}
+
+USuspenseCoreEventBus* USuspenseCoreEquipmentLoadoutAdapter::GetEventBus() const
+{
+	return CachedEventBus.Get();
+}
+
+void USuspenseCoreEquipmentLoadoutAdapter::SetEventBus(USuspenseCoreEventBus* InEventBus)
+{
+	CachedEventBus = InEventBus;
+}
+
+bool USuspenseCoreEquipmentLoadoutAdapter::IsApplyingLoadout() const
+{
+	return bIsApplying;
+}
+
+FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::GetLastApplicationResult() const
+{
+	return LastApplicationResult;
+}
+
+bool USuspenseCoreEquipmentLoadoutAdapter::CancelApplication()
+{
+	FScopeLock Lock(&AdapterCriticalSection);
+
+	if (!bIsApplying) { return false; }
+
+	if (ActiveTransactionId.IsValid() && TransactionManager.GetInterface())
+	{
+		TransactionManager->RollbackTransaction(ActiveTransactionId);
+		ActiveTransactionId.Invalidate();
+	}
+
+	bIsApplying = false;
+	return true;
+}
+
+FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadoutWithStrategy(const FName& LoadoutId, ESuspenseCoreLoadoutStrategy Strategy)
+{
+	FScopeLock Lock(&AdapterCriticalSection);
+
+	if (!bIsInitialized) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Adapter not initialized"))); }
+	if (bIsApplying) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Another loadout is being applied"))); }
+
+	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
+	if (!LoadoutManager) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("LoadoutManager not found"))); }
+
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
+
+	return ApplyLoadoutConfiguration(Config, Strategy);
 }
 
 void USuspenseCoreEquipmentLoadoutAdapter::SetApplicationStrategy(ESuspenseCoreLoadoutApplicationStrategy Strategy)
@@ -288,10 +450,10 @@ float USuspenseCoreEquipmentLoadoutAdapter::EstimateApplicationTime(const FName&
 	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
 	if (!LoadoutManager) { return 0.0f; }
 
-	const FLoadoutConfiguration* Config = LoadoutManager->GetLoadoutConfig(LoadoutId);
-	if (!Config) { return 0.0f; }
+	FSuspenseCoreLoadoutConfiguration Config;
+	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return 0.0f; }
 
-	int32 OperationCount = Config->StartingEquipment.Num();
+	int32 OperationCount = Config.SlotToItem.Num();
 	if (ApplicationStrategy == ESuspenseCoreLoadoutApplicationStrategy::Replace)
 	{
 		if (DataProvider.GetInterface())
@@ -304,11 +466,13 @@ float USuspenseCoreEquipmentLoadoutAdapter::EstimateApplicationTime(const FName&
 
 // ==================== Internal helpers ====================
 
-FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadoutConfiguration(const FLoadoutConfiguration& Config, bool bForce)
+FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadoutConfiguration(const FSuspenseCoreLoadoutConfiguration& Config, ESuspenseCoreLoadoutStrategy Strategy)
 {
-	FLoadoutApplicationResult Result;
-	Result.AppliedLoadoutID = Config.LoadoutID;
-	Result.ApplicationTime  = FDateTime::Now();
+	FSuspenseCoreLoadoutApplicationResult Result;
+	Result.LoadoutId = Config.LoadoutId;
+	Result.StrategyUsed = Strategy;
+
+	bool bForce = (Strategy == ESuspenseCoreLoadoutStrategy::ValidateOnly);
 
 	if (!bForce)
 	{
@@ -317,73 +481,82 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadoutConf
 		{
 			FString Combined;
 			for (const FText& E : ValidationErrors) { Combined += E.ToString() + TEXT("\n"); }
-			return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, Combined);
+			return FSuspenseCoreLoadoutApplicationResult::Failure(Config.LoadoutId, FText::FromString(Combined));
 		}
 	}
 
-	ActiveTransactionId = TransactionManager->BeginTransaction(FString::Printf(TEXT("ApplyLoadout_%s"), *Config.LoadoutID.ToString()));
-	if (!ActiveTransactionId.IsValid())
+	if (Strategy == ESuspenseCoreLoadoutStrategy::ValidateOnly)
 	{
-		return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, TEXT("Failed to begin transaction"));
+		// Just validate, don't apply
+		Result.bSuccess = true;
+		return Result;
 	}
 
-	if (ApplicationStrategy == ESuspenseCoreLoadoutApplicationStrategy::Replace)
+	ActiveTransactionId = TransactionManager->BeginTransaction(FString::Printf(TEXT("ApplyLoadout_%s"), *Config.LoadoutId.ToString()));
+	if (!ActiveTransactionId.IsValid())
+	{
+		return FSuspenseCoreLoadoutApplicationResult::Failure(Config.LoadoutId, FText::FromString(TEXT("Failed to begin transaction")));
+	}
+
+	if (Strategy == ESuspenseCoreLoadoutStrategy::Replace)
 	{
 		if (!ClearCurrentEquipment())
 		{
 			TransactionManager->RollbackTransaction(ActiveTransactionId);
 			ActiveTransactionId.Invalidate();
-			return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, TEXT("Failed to clear current equipment"));
+			return FSuspenseCoreLoadoutApplicationResult::Failure(Config.LoadoutId, FText::FromString(TEXT("Failed to clear current equipment")));
 		}
 	}
 
-	if (DataProvider.GetInterface())
+	// Convert SlotTypeToItem to equipment map
+	TMap<EEquipmentSlotType, FName> StartingEquipment;
+	for (const auto& Pair : Config.SlotTypeToItem)
 	{
-		if (!DataProvider->InitializeSlots(Config.EquipmentSlots))
-		{
-			TransactionManager->RollbackTransaction(ActiveTransactionId);
-			ActiveTransactionId.Invalidate();
-			return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, TEXT("Failed to initialize equipment slots"));
-		}
-		Result.MergeComponentResult(FGameplayTag::RequestGameplayTag(TEXT("Loadout.Component.Equipment.Slots")),
-		                            true,
-		                            FString::Printf(TEXT("Initialized %d slots"), Config.EquipmentSlots.Num()));
+		StartingEquipment.Add(Pair.Key, Pair.Value);
 	}
 
-	const int32 EquippedCount = ApplyStartingEquipment(Config.StartingEquipment);
-	Result.MergeComponentResult(FGameplayTag::RequestGameplayTag(TEXT("Loadout.Component.Equipment.Items")),
-	                            EquippedCount > 0,
-	                            FString::Printf(TEXT("Equipped %d/%d items"), EquippedCount, Config.StartingEquipment.Num()));
+	const int32 EquippedCount = ApplyStartingEquipment(StartingEquipment);
+	Result.ItemsEquipped = EquippedCount;
+	Result.ItemsFailed = StartingEquipment.Num() - EquippedCount;
 
 	if (!TransactionManager->CommitTransaction(ActiveTransactionId))
 	{
 		TransactionManager->RollbackTransaction(ActiveTransactionId);
 		ActiveTransactionId.Invalidate();
-		return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, TEXT("Failed to commit transaction"));
+		return FSuspenseCoreLoadoutApplicationResult::Failure(Config.LoadoutId, FText::FromString(TEXT("Failed to commit transaction")));
 	}
 
 	ActiveTransactionId.Invalidate();
 	Result.bSuccess = true;
 
-	UE_LOG(LogLoadoutAdapter, Log, TEXT("ApplyLoadoutConfiguration: Applied '%s'"), *Config.LoadoutID.ToString());
+	UE_LOG(LogLoadoutAdapter, Log, TEXT("ApplyLoadoutConfiguration: Applied '%s'"), *Config.LoadoutId.ToString());
 	return Result;
 }
 
-TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::CreateOperationsFromLoadout(const FLoadoutConfiguration& Config) const
+TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::CreateOperationsFromLoadout(const FSuspenseCoreLoadoutConfiguration& Config) const
 {
 	TArray<FEquipmentOperationRequest> Ops;
 
-	int32 SlotIndex = 0;
-	for (const FEquipmentSlotConfig& SlotConfig : Config.EquipmentSlots)
+	// Build operations from SlotToItem map
+	for (const auto& Pair : Config.SlotToItem)
 	{
-		if (const FName* ItemId = Config.StartingEquipment.Find(SlotConfig.SlotType))
+		const int32 SlotIndex = Pair.Key;
+		const FName& ItemId = Pair.Value;
+
+		if (!ItemId.IsNone())
 		{
-			if (!ItemId->IsNone())
+			FEquipmentSlotConfig SlotConfig;
+			// Get slot config from DataProvider if available
+			if (DataProvider.GetInterface())
 			{
-				Ops.Add(CreateEquipOperation(SlotConfig, *ItemId, SlotIndex));
+				const TArray<FEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
+				if (AllSlots.IsValidIndex(SlotIndex))
+				{
+					SlotConfig = AllSlots[SlotIndex];
+				}
 			}
+			Ops.Add(CreateEquipOperation(SlotConfig, ItemId, SlotIndex));
 		}
-		++SlotIndex;
 	}
 	return Ops;
 }
@@ -412,27 +585,32 @@ FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOper
 	return Req;
 }
 
-bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const
+bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FSuspenseCoreLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const
 {
 	bool bValid = true;
 
 	if (Options.bCheckSlotCompatibility)
 	{
-		for (const auto& Pair : Config.StartingEquipment)
+		for (const auto& Pair : Config.SlotTypeToItem)
 		{
 			const EEquipmentSlotType SlotType = Pair.Key;
-			const FName              ItemId   = Pair.Value;
+			const FName ItemId = Pair.Value;
 
-			const FEquipmentSlotConfig* SlotConfig = nullptr;
-			for (const FEquipmentSlotConfig& Slot : Config.EquipmentSlots)
+			// Get slot config from DataProvider
+			FEquipmentSlotConfig SlotConfig;
+			bool bFoundSlot = false;
+			if (DataProvider.GetInterface())
 			{
-				if (Slot.SlotType == SlotType) { SlotConfig = &Slot; break; }
+				for (const FEquipmentSlotConfig& Slot : DataProvider->GetAllSlotConfigurations())
+				{
+					if (Slot.SlotType == SlotType) { SlotConfig = Slot; bFoundSlot = true; break; }
+				}
 			}
 
-			if (SlotConfig && !CheckSlotCompatibility(*SlotConfig, ItemId))
+			if (bFoundSlot && !CheckSlotCompatibility(SlotConfig, ItemId))
 			{
 				OutErrors.Add(FText::Format(FText::FromString(TEXT("Item '{0}' not compatible with slot '{1}'")),
-				                            FText::FromName(ItemId), SlotConfig->DisplayName));
+				                            FText::FromName(ItemId), SlotConfig.DisplayName));
 				bValid = false;
 			}
 		}
@@ -446,7 +624,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FL
 
 	if (Options.bCheckItemAvailability)
 	{
-		for (const auto& Pair : Config.StartingEquipment)
+		for (const auto& Pair : Config.SlotTypeToItem)
 		{
 			if (!CheckItemAvailability(Pair.Value))
 			{
@@ -461,7 +639,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FL
 		float TotalWeight = 0.0f;
 		if (USuspenseCoreItemManager* ItemManager = GetItemManager())
 		{
-			for (const auto& Pair : Config.StartingEquipment)
+			for (const auto& Pair : Config.SlotTypeToItem)
 			{
 				FSuspenseCoreUnifiedItemData Data;
 				if (ItemManager->GetUnifiedItemData(Pair.Value, Data))
@@ -470,12 +648,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FL
 				}
 			}
 		}
-		if (TotalWeight > Config.MaxTotalWeight)
-		{
-			OutErrors.Add(FText::Format(FText::FromString(TEXT("Total weight ({0} kg) exceeds limit ({1} kg)")),
-			                            FText::AsNumber(TotalWeight), FText::AsNumber(Config.MaxTotalWeight)));
-			bValid = false;
-		}
+		// Note: FSuspenseCoreLoadoutConfiguration doesn't have MaxTotalWeight - skip weight check
 	}
 
 	return bValid;
@@ -492,7 +665,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::CheckSlotCompatibility(const FEquipme
 	return SlotConfig.CanEquipItemType(ItemData.ItemType);
 }
 
-bool USuspenseCoreEquipmentLoadoutAdapter::CheckInventorySpace(const FLoadoutConfiguration& Config) const
+bool USuspenseCoreEquipmentLoadoutAdapter::CheckInventorySpace(const FSuspenseCoreLoadoutConfiguration& Config) const
 {
 	// Legacy InventoryBridge removed - assume space is available
 	return true;
@@ -505,46 +678,47 @@ bool USuspenseCoreEquipmentLoadoutAdapter::CheckItemAvailability(const FName& It
 	return ItemManager->HasItem(ItemId);
 }
 
-FLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::BuildLoadoutFromCurrentState(const FName& LoadoutId) const
+FSuspenseCoreLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::BuildLoadoutFromCurrentState(const FName& LoadoutId) const
 {
-	FLoadoutConfiguration Loadout;
-	Loadout.LoadoutID   = LoadoutId;
-	Loadout.LoadoutName = FText::FromName(LoadoutId);
+	FSuspenseCoreLoadoutConfiguration Loadout;
+	Loadout.LoadoutId = LoadoutId;
+	Loadout.DisplayName = FText::FromName(LoadoutId);
+	Loadout.CreatedTime = FDateTime::Now();
+	Loadout.ModifiedTime = FDateTime::Now();
 
 	if (!DataProvider.GetInterface()) { return Loadout; }
 
-	Loadout.EquipmentSlots = DataProvider->GetAllSlotConfigurations();
-
+	const TArray<FEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
 	const TMap<int32, FSuspenseCoreInventoryItemInstance> Equipped = DataProvider->GetAllEquippedItems();
 	for (const auto& Pair : Equipped)
 	{
 		const int32 SlotIndex = Pair.Key;
 		const FSuspenseCoreInventoryItemInstance& Instance = Pair.Value;
 
-		if (Loadout.EquipmentSlots.IsValidIndex(SlotIndex))
+		Loadout.SlotToItem.Add(SlotIndex, Instance.ItemID);
+
+		if (AllSlots.IsValidIndex(SlotIndex))
 		{
-			const FEquipmentSlotConfig& SlotCfg = Loadout.EquipmentSlots[SlotIndex];
-			Loadout.StartingEquipment.Add(SlotCfg.SlotType, Instance.ItemID);
+			const FEquipmentSlotConfig& SlotCfg = AllSlots[SlotIndex];
+			Loadout.SlotTypeToItem.Add(SlotCfg.SlotType, Instance.ItemID);
 		}
 	}
 	return Loadout;
 }
 
-FString USuspenseCoreEquipmentLoadoutAdapter::GenerateLoadoutPreview(const FLoadoutConfiguration& Config) const
+FString USuspenseCoreEquipmentLoadoutAdapter::GenerateLoadoutPreview(const FSuspenseCoreLoadoutConfiguration& Config) const
 {
 	FString S;
-	S += FString::Printf(TEXT("Loadout: %s\n"), *Config.LoadoutName.ToString());
-	S += FString::Printf(TEXT("Description: %s\n"), *Config.Description.ToString());
-	S += FString::Printf(TEXT("Equipment Slots: %d\n"),  Config.EquipmentSlots.Num());
-	S += FString::Printf(TEXT("Starting Items: %d\n"),   Config.StartingEquipment.Num());
+	S += FString::Printf(TEXT("Loadout: %s\n"), *Config.DisplayName.ToString());
+	S += FString::Printf(TEXT("ID: %s\n"), *Config.LoadoutId.ToString());
+	S += FString::Printf(TEXT("Slot Items: %d\n"), Config.SlotToItem.Num());
 	S += TEXT("\nEquipment:\n");
 
-	for (const auto& Pair : Config.StartingEquipment)
+	for (const auto& Pair : Config.SlotTypeToItem)
 	{
 		const FString SlotName = StaticEnum<EEquipmentSlotType>()->GetNameStringByValue((int64)Pair.Key);
 		S += FString::Printf(TEXT("  %s: %s\n"), *SlotName, *Pair.Value.ToString());
 	}
-	S += FString::Printf(TEXT("\nMax Weight: %.1f kg\n"), Config.MaxTotalWeight);
 	return S;
 }
 

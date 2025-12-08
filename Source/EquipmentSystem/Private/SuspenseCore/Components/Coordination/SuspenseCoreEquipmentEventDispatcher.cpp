@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Engine/World.h"
 #include "Algo/Sort.h"
 #include "Async/Async.h"
@@ -16,7 +16,7 @@ USuspenseCoreEquipmentEventDispatcher::USuspenseCoreEquipmentEventDispatcher()
 void USuspenseCoreEquipmentEventDispatcher::BeginPlay()
 {
 	Super::BeginPlay();
-	EventBus=FSuspenseCoreEquipmentEventBus::Get();
+	EventBus=FSuspenseEquipmentEventBus::Get();
 	WireBus();
 }
 
@@ -50,7 +50,7 @@ void USuspenseCoreEquipmentEventDispatcher::TickComponent(float DeltaTime,ELevel
 			FScopeLock L(&QueueCs);
 			if(LocalQueue.Num()==0)break;
 			E=MoveTemp(LocalQueue[0]);
-			LocalQueue.RemoveAt(0,1,false);
+			LocalQueue.RemoveAt(0, 1, EAllowShrinking::No);
 			Stats.CurrentQueueSize=LocalQueue.Num();
 		}
 		Dispatch(E);
@@ -131,13 +131,13 @@ int32 USuspenseCoreEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 	return Removed;
 }
 
-void USuspenseCoreEquipmentEventDispatcher::BroadcastEvent(const FSuspenseCoreEquipmentEventData& Event)
+void USuspenseCoreEquipmentEventDispatcher::BroadcastEvent(const FSuspenseEquipmentEventData& Event)
 {
 	if(!EventBus.IsValid())return;
 	EventBus->Broadcast(Event);
 }
 
-void USuspenseCoreEquipmentEventDispatcher::QueueEvent(const FSuspenseCoreEquipmentEventData& Event)
+void USuspenseCoreEquipmentEventDispatcher::QueueEvent(const FSuspenseEquipmentEventData& Event)
 {
 	if(!EventBus.IsValid())return;
 	EventBus->QueueEvent(Event);
@@ -262,19 +262,19 @@ void USuspenseCoreEquipmentEventDispatcher::UnwireBus()
 	BusOpCompleted.Invalidate();
 }
 
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_Delta(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_Delta(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
 }
 
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_BatchDelta(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_BatchDelta(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	Enqueue(D);
 }
 
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_OperationCompleted(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_OperationCompleted(const FSuspenseEquipmentEventData& E)
 {
 	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
 	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
@@ -326,7 +326,7 @@ void USuspenseCoreEquipmentEventDispatcher::SortByPriority(TArray<FDispatcherLoc
 	Arr.Sort([](const FDispatcherLocalSubscription& A,const FDispatcherLocalSubscription& B){return A.Priority>B.Priority;});
 }
 
-FDispatcherEquipmentEventData USuspenseCoreEquipmentEventDispatcher::ToDispatcherPayload(const FSuspenseCoreEquipmentEventData& In)
+FDispatcherEquipmentEventData USuspenseCoreEquipmentEventDispatcher::ToDispatcherPayload(const FSuspenseEquipmentEventData& In)
 {
 	FDispatcherEquipmentEventData Out;
 	Out.EventType=In.EventType;

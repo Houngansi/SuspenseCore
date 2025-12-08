@@ -357,17 +357,12 @@ void USuspenseCoreEquipmentMeshComponent::NotifyVisualStateChanged()
 
 void USuspenseCoreEquipmentMeshComponent::RequestStateSync()
 {
-    // Broadcast request for state sync
+    // Broadcast request for state sync via new EventBus
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        FString EventData = FString::Printf(TEXT("Component:%s,ItemID:%s"),
-            *GetName(),
-            *CurrentItemInstance.ItemID.ToString());
-
-        Manager->NotifyEquipmentEvent(
-            GetOwner(),
+        Manager->PublishEvent(
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestVisualSync")),
-            EventData
+            GetOwner()
         );
     }
 }
@@ -690,14 +685,13 @@ int32 USuspenseCoreEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTa
         CurrentVisualState.StateVersion++;
     }
 
-    // Broadcast effect event
+    // Broadcast effect event via new EventBus
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        FString EventData = FString::Printf(TEXT("EffectType:%s,PredictionKey:%d"),
-            *EffectType.ToString(), Prediction.PredictionKey);
-        Manager->NotifyEquipmentEvent(GetOwner(),
+        Manager->PublishEvent(
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualEffect")),
-            EventData);
+            GetOwner()
+        );
     }
 
     return Prediction.PredictionKey;

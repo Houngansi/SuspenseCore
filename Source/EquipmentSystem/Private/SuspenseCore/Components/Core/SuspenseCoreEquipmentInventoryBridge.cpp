@@ -10,7 +10,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
@@ -40,10 +40,10 @@ void USuspenseCoreEquipmentInventoryBridge::EndPlay(const EEndPlayReason::Type E
 {
     if (EventDelegateManager.IsValid() && EquipmentOperationRequestHandle.IsValid())
     {
-        EventDelegateManager->UniversalUnsubscribe(EquipmentOperationRequestHandle);
-        EquipmentOperationRequestHandle.Reset();
+        EventDelegateManager->UnsubscribeFromEvent(EquipmentOperationRequestHandle);
+        EquipmentOperationRequestHandle = FSuspenseCoreSubscriptionHandle();
 
-        UE_LOG(LogEquipmentBridge, Log, TEXT("Unsubscribed from EventDelegateManager"));
+        UE_LOG(LogEquipmentBridge, Log, TEXT("Unsubscribed from EventManager"));
     }
 
     {
@@ -158,9 +158,9 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
         return false;
     }
 
-    if (!EventDelegateManager->IsSystemReady())
+    if (!EventDelegateManager->GetEventBus())
     {
-        UE_LOG(LogEquipmentBridge, Error, TEXT("FAILED - EventDelegateManager not initialized!"));
+        UE_LOG(LogEquipmentBridge, Error, TEXT("FAILED - EventBus not available!"));
         return false;
     }
 
@@ -170,29 +170,35 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
         UE_LOG(LogEquipmentBridge, Warning,
             TEXT("Found existing subscription handle - unsubscribing first"));
 
-        EventDelegateManager->UniversalUnsubscribe(EquipmentOperationRequestHandle);
-        EquipmentOperationRequestHandle.Reset();
+        EventDelegateManager->UnsubscribeFromEvent(EquipmentOperationRequestHandle);
+        EquipmentOperationRequestHandle = FSuspenseCoreSubscriptionHandle();
     }
 
-    // Subscribe to equipment operation requests from UI
-    EquipmentOperationRequestHandle = EventDelegateManager->SubscribeToEquipmentOperationRequest(
-        [this](const FEquipmentOperationRequest& Request)
+    // Subscribe to equipment operation requests via EventBus
+    const FGameplayTag RequestTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Request"), false);
+    if (RequestTag.IsValid())
+    {
+        FSuspenseCoreEventCallback Callback;
+        Callback.BindLambda([this](const FSuspenseCoreEventData& EventData)
         {
-            UE_LOG(LogEquipmentBridge, Log, TEXT("Lambda called - Operation: %s"),
+            // Extract request from event data
+            FEquipmentOperationRequest Request;
+            Request.OperationType = static_cast<EEquipmentOperationType>(
+                static_cast<int32>(EventData.GetFloat(TEXT("OperationType"))));
+            Request.TargetSlotIndex = static_cast<int32>(EventData.GetFloat(TEXT("TargetSlot")));
+            Request.SourceSlotIndex = static_cast<int32>(EventData.GetFloat(TEXT("SourceSlot")));
+            Request.OperationId = FGuid(EventData.GetString(TEXT("OperationId")));
+
+            UE_LOG(LogEquipmentBridge, Log, TEXT("EventBus callback - Operation: %s"),
                 *StaticEnum<EEquipmentOperationType>()->GetValueAsString(Request.OperationType));
 
             HandleEquipmentOperationRequest(Request);
-        }
-    );
+        });
 
-    if (!EquipmentOperationRequestHandle.IsValid())
-    {
-        UE_LOG(LogEquipmentBridge, Error,
-            TEXT("CRITICAL FAILURE - Subscription returned invalid handle!"));
-        return false;
+        EquipmentOperationRequestHandle = EventDelegateManager->SubscribeToEvent(RequestTag, Callback);
     }
 
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("✓✓✓ SUBSCRIPTION SUCCESSFUL ✓✓✓"));
+    UE_LOG(LogEquipmentBridge, Log, TEXT("EventBus subscription configured"));
 
     // Mark as initialized to prevent future re-initialization
     bIsInitialized = true;
@@ -270,7 +276,15 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
             FailureResult.ErrorMessage = FText::FromString(TEXT("Inventory interface not initialized"));
             FailureResult.FailureType = EEquipmentValidationFailure::SystemError;
 
-            EventDelegateManager->BroadcastEquipmentOperationCompleted(FailureResult);
+            // Broadcast result via EventBus
+            FSuspenseCoreEventData ResultData = FSuspenseCoreEventData::Create(this);
+            ResultData.SetBool(TEXT("Success"), FailureResult.bSuccess);
+            ResultData.SetString(TEXT("OperationId"), FailureResult.OperationId.ToString());
+            ResultData.SetString(TEXT("ErrorMessage"), FailureResult.ErrorMessage.ToString());
+            EventDelegateManager->PublishEventWithData(
+                FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Completed")),
+                ResultData
+            );
         }
         return;
     }
@@ -495,10 +509,17 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
         }
     }
 
-    // Broadcast result back through EventDelegateManager
+    // Broadcast result back through EventBus
     if (EventDelegateManager.IsValid())
     {
-        EventDelegateManager->BroadcastEquipmentOperationCompleted(EquipmentResult);
+        FSuspenseCoreEventData ResultData = FSuspenseCoreEventData::Create(this);
+        ResultData.SetBool(TEXT("Success"), EquipmentResult.bSuccess);
+        ResultData.SetString(TEXT("OperationId"), EquipmentResult.OperationId.ToString());
+        ResultData.SetString(TEXT("ErrorMessage"), EquipmentResult.ErrorMessage.ToString());
+        EventDelegateManager->PublishEventWithData(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Completed")),
+            ResultData
+        );
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("=== Operation Result Broadcasted ==="));
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Success: %s"), EquipmentResult.bSuccess ? TEXT("YES") : TEXT("NO"));
@@ -762,9 +783,19 @@ FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Exe
             TEXT("Notifying EventDelegateManager: Slot %d cleared (Type: %s)"),
             Request.SourceSlot, *SlotType.ToString());
 
-        // Notify that the slot is now empty (false = not occupied)
-        EventDelegateManager->NotifyEquipmentSlotUpdated(Request.SourceSlot, SlotType, false);
-        EventDelegateManager->NotifyEquipmentUpdated();
+        // Notify that the slot is now empty via EventBus
+        FSuspenseCoreEventData SlotData = FSuspenseCoreEventData::Create(this);
+        SlotData.SetFloat(TEXT("SlotIndex"), static_cast<float>(Request.SourceSlot));
+        SlotData.SetString(TEXT("SlotType"), SlotType.ToString());
+        SlotData.SetBool(TEXT("Occupied"), false);
+        EventDelegateManager->PublishEventWithData(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Updated")),
+            SlotData
+        );
+        EventDelegateManager->PublishEvent(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Updated")),
+            this
+        );
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== UNEQUIP SUCCESSFUL ==="));
@@ -1147,11 +1178,21 @@ FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Exe
         }
 
         UE_LOG(LogEquipmentBridge, Warning,
-            TEXT("Notifying EventDelegateManager: Slot %d updated (Type: %s, Occupied: YES)"),
+            TEXT("Notifying EventBus: Slot %d updated (Type: %s, Occupied: YES)"),
             Request.TargetSlot, *SlotType.ToString());
 
-        EventDelegateManager->NotifyEquipmentSlotUpdated(Request.TargetSlot, SlotType, true);
-        EventDelegateManager->NotifyEquipmentUpdated();
+        FSuspenseCoreEventData SlotData = FSuspenseCoreEventData::Create(this);
+        SlotData.SetFloat(TEXT("SlotIndex"), static_cast<float>(Request.TargetSlot));
+        SlotData.SetString(TEXT("SlotType"), SlotType.ToString());
+        SlotData.SetBool(TEXT("Occupied"), true);
+        EventDelegateManager->PublishEventWithData(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Updated")),
+            SlotData
+        );
+        EventDelegateManager->PublishEvent(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Updated")),
+            this
+        );
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("✓✓✓ TRANSFER SUCCESSFUL ✓✓✓"));
@@ -1487,11 +1528,21 @@ FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Exe
         }
 
         UE_LOG(LogEquipmentBridge, Warning,
-            TEXT("Notifying EventDelegateManager: Slot %d swapped (Type: %s)"),
+            TEXT("Notifying EventBus: Slot %d swapped (Type: %s)"),
             EquipmentSlot, *SlotType.ToString());
 
-        EventDelegateManager->NotifyEquipmentSlotUpdated(EquipmentSlot, SlotType, true);
-        EventDelegateManager->NotifyEquipmentUpdated();
+        FSuspenseCoreEventData SlotData = FSuspenseCoreEventData::Create(this);
+        SlotData.SetFloat(TEXT("SlotIndex"), static_cast<float>(EquipmentSlot));
+        SlotData.SetString(TEXT("SlotType"), SlotType.ToString());
+        SlotData.SetBool(TEXT("Occupied"), true);
+        EventDelegateManager->PublishEventWithData(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Updated")),
+            SlotData
+        );
+        EventDelegateManager->PublishEvent(
+            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Updated")),
+            this
+        );
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("✓✓✓ SWAP COMPLETED SUCCESSFULLY ✓✓✓"));

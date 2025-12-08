@@ -183,7 +183,7 @@ private:
     TScriptInterface<ISuspenseCoreInventory> InventoryInterface;
 
     UPROPERTY()
-    TScriptInterface<IEquipmentOperationService> EquipmentService;
+    TScriptInterface<ISuspenseCoreEquipmentOperationServiceInterface> EquipmentService;
 
     // ===== EventDelegateManager Integration =====
 

@@ -911,19 +911,3 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Debug")
 	void ResetEquipmentStatistics();
 };
-
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy ISuspenseEquipment usage */
-using ISuspenseEquipment = ISuspenseCoreEquipment;
-
-/** Alias for legacy USuspenseEquipment UInterface */
-using USuspenseEquipment = USuspenseCoreEquipment;
-
-/** Alias for legacy event structures */
-using FEquipmentLifecycleEvent = FSuspenseCoreEquipmentLifecycleEvent;
-using FEquipmentStateChangeEvent = FSuspenseCoreEquipmentStateChangeEvent;
-using FEquipmentPropertyChangeEvent = FSuspenseCoreEquipmentPropertyChangeEvent;
-using FEquipmentOperationEvent = FSuspenseCoreEquipmentOperationEvent;

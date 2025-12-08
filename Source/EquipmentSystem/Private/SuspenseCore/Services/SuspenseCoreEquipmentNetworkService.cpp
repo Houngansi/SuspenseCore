@@ -214,9 +214,9 @@ bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
         const FGameplayTag OpServiceTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"));
         UObject* ServiceObj = ServiceLocator->GetService(OpServiceTag);
 
-        if (ServiceObj && ServiceObj->GetClass()->ImplementsInterface(UEquipmentOperationService::StaticClass()))
+        if (ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentOperationServiceInterface::StaticClass()))
         {
-            IEquipmentOperationService* OpService = Cast<IEquipmentOperationService>(ServiceObj);
+            ISuspenseCoreEquipmentOperationServiceInterface* OpService = Cast<ISuspenseCoreEquipmentOperationServiceInterface>(ServiceObj);
             if (OpService)
             {
                 ISuspenseCoreEquipmentOperations* Executor = OpService->GetOperationsExecutor();

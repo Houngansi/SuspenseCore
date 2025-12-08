@@ -8,7 +8,7 @@
 
 // фундаментальные утилиты
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 #include "Engine/EngineTypes.h"

@@ -6,7 +6,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Inventory/ISuspenseInventory.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -209,7 +209,7 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     return true;
 }
 
-void USuspenseCoreEquipmentInventoryBridge::SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventoryInterface)
+void USuspenseCoreEquipmentInventoryBridge::SetInventoryInterface(TScriptInterface<ISuspenseCoreInventory> InInventoryInterface)
 {
     InventoryInterface = InInventoryInterface;
 }
@@ -224,7 +224,7 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
         *StaticEnum<EEquipmentOperationType>()->GetValueAsString(Request.OperationType));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item: %s (Instance: %s)"),
         *Request.ItemInstance.ItemID.ToString(),
-        *Request.ItemInstance.InstanceID.ToString());
+        *Request.ItemInstance.UniqueInstanceID.ToString());
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Target Slot: %d"), Request.TargetSlotIndex);
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Operation ID: %s"), *Request.OperationId.ToString());
 
@@ -290,7 +290,7 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
     }
 
     // Process operation based on type
-    FSuspenseInventoryOperationResult InventoryResult;
+    FSuspenseCoreInventoryOperationResult InventoryResult;
     FEquipmentOperationResult EquipmentResult;
 
     switch (Request.OperationType)
@@ -299,7 +299,7 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
         {
             UE_LOG(LogEquipmentBridge, Log, TEXT("Processing EQUIP operation"));
 
-            FInventoryTransferRequest TransferReq;
+            FSuspenseCoreInventoryTransferRequest TransferReq;
             TransferReq.Item = Request.ItemInstance;
             TransferReq.TargetSlot = Request.TargetSlotIndex;
             TransferReq.SourceSlot = INDEX_NONE;
@@ -373,13 +373,13 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
             }
 
             // Get item from slot before we start the transfer
-            FSuspenseInventoryItemInstance UnequippedItem = EquipmentDataProvider->GetSlotItem(Request.SourceSlotIndex);
+            FSuspenseCoreItemInstance UnequippedItem = EquipmentDataProvider->GetSlotItem(Request.SourceSlotIndex);
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Unequipping item: %s from slot %d"),
                 *UnequippedItem.ItemID.ToString(), Request.SourceSlotIndex);
 
             // Create transfer request for the unequip operation
-            FInventoryTransferRequest TransferReq;
+            FSuspenseCoreInventoryTransferRequest TransferReq;
             TransferReq.SourceSlot = Request.SourceSlotIndex;
             TransferReq.TargetSlot = INDEX_NONE; // Let inventory find best slot
             TransferReq.Item = UnequippedItem;
@@ -415,7 +415,7 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
             UE_LOG(LogEquipmentBridge, Log, TEXT("Processing SWAP operation"));
 
             InventoryResult = ExecuteSwap_InventoryToEquipment(
-                Request.ItemInstance.InstanceID,
+                Request.ItemInstance.UniqueInstanceID,
                 Request.TargetSlotIndex
             );
 
@@ -477,7 +477,7 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
                 break;
             }
 
-            const FSuspenseInventoryItemInstance DroppedItem = EquipmentDataProvider->ClearSlot(
+            const FSuspenseCoreItemInstance DroppedItem = EquipmentDataProvider->ClearSlot(
                 Request.TargetSlotIndex, true);
 
             if (DroppedItem.IsValid())
@@ -528,8 +528,8 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
 
 // ===== ExecuteTransfer_FromEquipToInventory - Complete Implementation =====
 
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteTransfer_FromEquipToInventory(
-    const FInventoryTransferRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteTransfer_FromEquipToInventory(
+    const FSuspenseCoreInventoryTransferRequest& Request)
 {
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromEquipToInventory START ==="));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Source Equipment Slot: %d"), Request.SourceSlot);
@@ -538,51 +538,41 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!EquipmentDataProvider.GetInterface() || !InventoryInterface.GetInterface())
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Dependencies not available"));
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::NotInitialized,
-            FText::FromString(TEXT("Bridge not initialized")),
-            TEXT("TransferFromEquipToInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::NotInitialized,
+            TEXT("Bridge not initialized"));
     }
 
     // Validate that the source slot index is valid
     if (!EquipmentDataProvider->IsValidSlotIndex(Request.SourceSlot))
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Invalid source slot: %d"), Request.SourceSlot);
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::InvalidSlot,
-            FText::Format(FText::FromString(TEXT("Invalid equipment slot: {0}")),
-                FText::AsNumber(Request.SourceSlot)),
-            TEXT("TransferFromEquipToInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::InvalidSlot,
+            FString::Printf(TEXT("Invalid equipment slot: %d"), Request.SourceSlot));
     }
 
     // Get the equipped item from the slot before we start any operations
-    FSuspenseInventoryItemInstance EquippedItem = EquipmentDataProvider->GetSlotItem(Request.SourceSlot);
+    FSuspenseCoreItemInstance EquippedItem = EquipmentDataProvider->GetSlotItem(Request.SourceSlot);
 
     // If the slot is already empty, this is not an error, just return success
     if (!EquippedItem.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Slot %d is already empty"), Request.SourceSlot);
-        return FSuspenseInventoryOperationResult::Success(TEXT("TransferFromEquipToInventory"), nullptr);
+        return FSuspenseCoreInventoryOperationResult::Success(Request.SourceSlot);
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item to transfer: %s (InstanceID: %s)"),
         *EquippedItem.ItemID.ToString(),
-        *EquippedItem.InstanceID.ToString());
+        *EquippedItem.UniqueInstanceID.ToString());
 
     // Check if inventory has space for the item we are about to unequip
     if (!InventoryHasSpace(EquippedItem))
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("No space in inventory"));
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::NoSpace,
-            FText::FromString(TEXT("No space in inventory for unequipped item")),
-            TEXT("TransferFromEquipToInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::NoSpace,
+            TEXT("No space in inventory for unequipped item"));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("Inventory has space"));
@@ -616,12 +606,12 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 ClearOp.OperationType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
                 ClearOp.SlotIndex = Request.SourceSlot;
                 ClearOp.ItemBefore = EquippedItem;
-                ClearOp.ItemAfter = FSuspenseInventoryItemInstance();
+                ClearOp.ItemAfter = FSuspenseCoreItemInstance();
                 ClearOp.bReversible = true;
                 ClearOp.Timestamp = FPlatformTime::Seconds();
                 ClearOp.Priority = ETransactionPriority::Normal;
                 ClearOp.Metadata.Add(TEXT("Destination"), TEXT("Inventory"));
-                ClearOp.Metadata.Add(TEXT("InstanceID"), EquippedItem.InstanceID.ToString());
+                ClearOp.Metadata.Add(TEXT("InstanceID"), EquippedItem.UniqueInstanceID.ToString());
 
                 TransactionManager->RegisterOperation(EquipTxnId, ClearOp);
                 TransactionManager->ApplyOperation(EquipTxnId, ClearOp);
@@ -632,7 +622,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             BridgeTxn.bEquipmentModified = true;
 
             // This call will trigger notifications to UIConnector which will update UI
-            FSuspenseInventoryItemInstance ClearedItem = EquipmentDataProvider->ClearSlot(Request.SourceSlot, true);
+            FSuspenseCoreItemInstance ClearedItem = EquipmentDataProvider->ClearSlot(Request.SourceSlot, true);
 
             if (!ClearedItem.IsValid())
             {
@@ -640,12 +630,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 TransactionManager->RollbackTransaction(EquipTxnId);
                 RollbackBridgeTransaction(BridgeTxnId);
 
-                return FSuspenseInventoryOperationResult::Failure(
-                    ESuspenseInventoryErrorCode::UnknownError,
-                    FText::FromString(TEXT("Failed to clear equipment slot")),
-                    TEXT("TransferFromEquipToInventory"),
-                    nullptr
-                );
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Failed to clear equipment slot"));
             }
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Equipment slot cleared successfully"));
@@ -654,19 +641,20 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 2: Adding item to inventory..."));
             BridgeTxn.bInventoryModified = true;
 
-            FSuspenseInventoryOperationResult AddResult = InventoryInterface->AddItemInstance(EquippedItem);
+            bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
 
-            if (!AddResult.bSuccess)
+            if (!bAddSuccess)
             {
-                UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to add to inventory: %s"),
-                    *AddResult.ErrorMessage.ToString());
+                UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to add item to inventory"));
 
                 // Rollback: restore item to equipment slot
                 EquipmentDataProvider->SetSlotItem(Request.SourceSlot, EquippedItem, true);
                 TransactionManager->RollbackTransaction(EquipTxnId);
                 RollbackBridgeTransaction(BridgeTxnId);
 
-                return AddResult;
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Failed to add item to inventory"));
             }
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Item added to inventory successfully"));
@@ -677,17 +665,14 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 UE_LOG(LogEquipmentBridge, Error, TEXT("Transaction validation failed"));
 
                 // Rollback both sides: remove from inventory and restore to equipment
-                InventoryInterface->RemoveItemInstance(EquippedItem.InstanceID);
+                InventoryInterface->RemoveItemInstance(EquippedItem.UniqueInstanceID);
                 EquipmentDataProvider->SetSlotItem(Request.SourceSlot, EquippedItem, true);
                 TransactionManager->RollbackTransaction(EquipTxnId);
                 RollbackBridgeTransaction(BridgeTxnId);
 
-                return FSuspenseInventoryOperationResult::Failure(
-                    ESuspenseInventoryErrorCode::UnknownError,
-                    FText::FromString(TEXT("Transaction validation failed")),
-                    TEXT("TransferFromEquipToInventory"),
-                    nullptr
-                );
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Transaction validation failed"));
             }
 
             // Commit the transaction to make changes permanent
@@ -696,12 +681,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 UE_LOG(LogEquipmentBridge, Error, TEXT("Transaction commit failed"));
                 RollbackBridgeTransaction(BridgeTxnId);
 
-                return FSuspenseInventoryOperationResult::Failure(
-                    ESuspenseInventoryErrorCode::UnknownError,
-                    FText::FromString(TEXT("Failed to commit transaction")),
-                    TEXT("TransferFromEquipToInventory"),
-                    nullptr
-                );
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Failed to commit transaction"));
             }
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Transaction committed successfully"));
@@ -721,15 +703,15 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
 
         // Clear equipment slot
         BridgeTxn.bEquipmentModified = true;
-        FSuspenseInventoryItemInstance ClearedItem = EquipmentDataProvider->ClearSlot(Request.SourceSlot, true);
+        FSuspenseCoreItemInstance ClearedItem = EquipmentDataProvider->ClearSlot(Request.SourceSlot, true);
 
         if (ClearedItem.IsValid())
         {
             // Add to inventory
             BridgeTxn.bInventoryModified = true;
-            FSuspenseInventoryOperationResult AddResult = InventoryInterface->AddItemInstance(EquippedItem);
+            bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
 
-            if (AddResult.bSuccess)
+            if (bAddSuccess)
             {
                 bOperationSuccess = true;
             }
@@ -738,7 +720,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 // Rollback: restore to equipment
                 EquipmentDataProvider->SetSlotItem(Request.SourceSlot, EquippedItem, true);
                 RollbackBridgeTransaction(BridgeTxnId);
-                return AddResult;
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Failed to add item to inventory"));
             }
         }
         else
@@ -752,12 +736,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!bOperationSuccess)
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("=== UNEQUIP FAILED ==="));
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::UnknownError,
-            FText::FromString(TEXT("Failed to unequip item")),
-            TEXT("TransferFromEquipToInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::Unknown,
+            TEXT("Failed to unequip item"));
     }
 
     // Commit the bridge transaction since everything succeeded
@@ -804,8 +785,8 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromEquipToInventory END ==="));
 
     // Create success result with affected items list
-    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(
-        TEXT("TransferFromEquipToInventory"), nullptr);
+    FSuspenseCoreInventoryOperationResult Result = FSuspenseCoreInventoryOperationResult::Success(
+        Request.SourceSlot, EquippedItem.Quantity, EquippedItem.UniqueInstanceID);
     Result.AffectedItems.Add(EquippedItem);
 
     return Result;
@@ -814,17 +795,17 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
 
 // ===== Public Transfer Operations =====
 
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::TransferFromInventory(const FInventoryTransferRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::TransferFromInventory(const FSuspenseCoreInventoryTransferRequest& Request)
 {
     return ExecuteTransfer_FromInventoryToEquip(Request);
 }
 
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::TransferToInventory(const FInventoryTransferRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::TransferToInventory(const FSuspenseCoreInventoryTransferRequest& Request)
 {
     return ExecuteTransfer_FromEquipToInventory(Request);
 }
 
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::SwapBetweenInventoryAndEquipment(
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::SwapBetweenInventoryAndEquipment(
     const FGuid& InventoryItemInstanceID,
     int32 EquipmentSlotIndex)
 {
@@ -840,24 +821,24 @@ void USuspenseCoreEquipmentInventoryBridge::SynchronizeWithInventory()
         return;
     }
 
-    const TMap<int32, FSuspenseInventoryItemInstance> Equipped = EquipmentDataProvider->GetAllEquippedItems();
-    const TArray<FSuspenseInventoryItemInstance> InvenItems = InventoryInterface->GetAllItemInstances();
+    const TMap<int32, FSuspenseCoreItemInstance> Equipped = EquipmentDataProvider->GetAllEquippedItems();
+    const TArray<FSuspenseCoreItemInstance> InvenItems = InventoryInterface->GetAllItemInstances();
 
     TSet<FGuid> InventoryInstanceIds;
     InventoryInstanceIds.Reserve(InvenItems.Num());
-    for (const FSuspenseInventoryItemInstance& Ii : InvenItems)
+    for (const FSuspenseCoreItemInstance& Ii : InvenItems)
     {
-        InventoryInstanceIds.Add(Ii.InstanceID);
+        InventoryInstanceIds.Add(Ii.UniqueInstanceID);
     }
 
-    for (const TPair<int32, FSuspenseInventoryItemInstance>& SlotIt : Equipped)
+    for (const TPair<int32, FSuspenseCoreItemInstance>& SlotIt : Equipped)
     {
         const int32 SlotIdx = SlotIt.Key;
-        const FSuspenseInventoryItemInstance& EquippedItem = SlotIt.Value;
+        const FSuspenseCoreItemInstance& EquippedItem = SlotIt.Value;
 
-        if (EquippedItem.IsValid() && !InventoryInstanceIds.Contains(EquippedItem.InstanceID))
+        if (EquippedItem.IsValid() && !InventoryInstanceIds.Contains(EquippedItem.UniqueInstanceID))
         {
-            FSuspenseInventoryItemInstance Found;
+            FSuspenseCoreItemInstance Found;
             if (FindItemInInventory(EquippedItem.ItemID, Found))
             {
                 EquipmentDataProvider->SetSlotItem(SlotIdx, Found, true);
@@ -868,7 +849,7 @@ void USuspenseCoreEquipmentInventoryBridge::SynchronizeWithInventory()
 
 // ===== Validation Helpers =====
 
-bool USuspenseCoreEquipmentInventoryBridge::CanEquipFromInventory(const FSuspenseInventoryItemInstance& Item, int32 TargetSlot) const
+bool USuspenseCoreEquipmentInventoryBridge::CanEquipFromInventory(const FSuspenseCoreItemInstance& Item, int32 TargetSlot) const
 {
     if (!EquipmentDataProvider.GetInterface() || !EquipmentOperations.GetInterface())
     {
@@ -912,20 +893,20 @@ bool USuspenseCoreEquipmentInventoryBridge::CanUnequipToInventory(int32 SourceSl
         return false;
     }
 
-    FSuspenseInventoryItemInstance EquippedItem = EquipmentDataProvider->GetSlotItem(SourceSlot);
+    FSuspenseCoreItemInstance EquippedItem = EquipmentDataProvider->GetSlotItem(SourceSlot);
     return InventoryHasSpace(EquippedItem);
 }
 
 // ===== Private: Transfer Implementations =====
 
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteTransfer_FromInventoryToEquip(
-    const FInventoryTransferRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteTransfer_FromInventoryToEquip(
+    const FSuspenseCoreInventoryTransferRequest& Request)
 {
-    const FSuspenseInventoryItemInstance& Item = Request.Item;
+    const FSuspenseCoreItemInstance& Item = Request.Item;
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromInventoryToEquip START ==="));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("ItemID: %s"), *Item.ItemID.ToString());
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("InstanceID: %s"), *Item.InstanceID.ToString());
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("InstanceID: %s"), *Item.UniqueInstanceID.ToString());
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Quantity: %d"), Item.Quantity);
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Target Slot: %d"), Request.TargetSlot);
 
@@ -933,7 +914,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!InventoryInterface->HasItem(Item.ItemID, FMath::Max(1, Item.Quantity)))
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Item %s not found in inventory"), *Item.ItemID.ToString());
-        return FSuspenseInventoryOperationResult::ItemNotFound(TEXT("TransferFromInventory"), Item.ItemID);
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::ItemNotFound,
+            FString::Printf(TEXT("Item %s not found in inventory"), *Item.ItemID.ToString()));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Item exists in inventory"));
@@ -942,18 +925,15 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!EquipmentDataProvider->IsValidSlotIndex(Request.TargetSlot))
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Invalid target slot index: %d"), Request.TargetSlot);
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::InvalidSlot,
-            FText::Format(FText::FromString(TEXT("Invalid equipment slot: {0}")), FText::AsNumber(Request.TargetSlot)),
-            TEXT("TransferFromInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::InvalidSlot,
+            FString::Printf(TEXT("Invalid equipment slot: %d"), Request.TargetSlot));
     }
 
     // Step 2b: Check if slot is occupied and auto-SWAP
     if (EquipmentDataProvider->IsSlotOccupied(Request.TargetSlot))
     {
-        const FSuspenseInventoryItemInstance OccupiedItem = EquipmentDataProvider->GetSlotItem(Request.TargetSlot);
+        const FSuspenseCoreItemInstance OccupiedItem = EquipmentDataProvider->GetSlotItem(Request.TargetSlot);
 
         UE_LOG(LogEquipmentBridge, Warning,
             TEXT("Target slot %d is occupied by %s - checking if SWAP is possible"),
@@ -978,7 +958,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                     UE_LOG(LogEquipmentBridge, Warning,
                         TEXT("✓ Items are swappable - executing automatic SWAP operation"));
 
-                    return ExecuteSwap_InventoryToEquipment(Item.InstanceID, Request.TargetSlot);
+                    return ExecuteSwap_InventoryToEquipment(Item.UniqueInstanceID, Request.TargetSlot);
                 }
                 else
                 {
@@ -988,28 +968,19 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                         Request.TargetSlot,
                         *NewItemValidation.ErrorMessage.ToString());
 
-                    return FSuspenseInventoryOperationResult::Failure(
-                        ESuspenseInventoryErrorCode::InvalidItem,
-                        FText::Format(
-                            FText::FromString(TEXT("Cannot equip {0} to slot {1}: {2}")),
-                            FText::FromName(Item.ItemID),
-                            FText::AsNumber(Request.TargetSlot),
-                            NewItemValidation.ErrorMessage),
-                        TEXT("TransferFromInventory"),
-                        nullptr
-                    );
+                    return FSuspenseCoreInventoryOperationResult::Failure(
+                        ESuspenseCoreInventoryResult::InvalidItem,
+                        FString::Printf(TEXT("Cannot equip %s to slot %d: %s"),
+                            *Item.ItemID.ToString(),
+                            Request.TargetSlot,
+                            *NewItemValidation.ErrorMessage.ToString()));
                 }
             }
         }
 
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::SlotOccupied,
-            FText::Format(
-                FText::FromString(TEXT("Equipment slot {0} is occupied. Unequip it first.")),
-                FText::AsNumber(Request.TargetSlot)),
-            TEXT("TransferFromInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::SlotOccupied,
+            FString::Printf(TEXT("Equipment slot %d is occupied. Unequip it first."), Request.TargetSlot));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Target slot %d is empty"), Request.TargetSlot);
@@ -1028,12 +999,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                     TEXT("Item %s incompatible with slot %d: %s"),
                     *Item.ItemID.ToString(), Request.TargetSlot, *ValidationResult.ErrorMessage.ToString());
 
-                return FSuspenseInventoryOperationResult::Failure(
-                    ESuspenseInventoryErrorCode::InvalidItem,
-                    ValidationResult.ErrorMessage,
-                    TEXT("TransferFromInventory"),
-                    nullptr
-                );
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::InvalidItem,
+                    ValidationResult.ErrorMessage.ToString());
             }
 
             UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Item passed compatibility validation"));
@@ -1041,13 +1009,15 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     }
 
     // Step 3: Remove from inventory
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("Removing item from inventory (InstanceID: %s)"), *Item.InstanceID.ToString());
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("Removing item from inventory (InstanceID: %s)"), *Item.UniqueInstanceID.ToString());
 
-    const FSuspenseInventoryOperationResult RemoveRes = InventoryInterface->RemoveItemInstance(Item.InstanceID);
-    if (!RemoveRes.bSuccess)
+    const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(Item.UniqueInstanceID);
+    if (!bRemoveSuccess)
     {
-        UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to remove item from inventory: %s"), *RemoveRes.ErrorMessage.ToString());
-        return RemoveRes;
+        UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to remove item from inventory"));
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::OperationFailed,
+            FString::Printf(TEXT("Failed to remove item %s from inventory"), *Item.ItemID.ToString()));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Item removed from inventory"));
@@ -1070,13 +1040,13 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 EquipOp.OperationId = FGuid::NewGuid();
                 EquipOp.OperationType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
                 EquipOp.SlotIndex = Request.TargetSlot;
-                EquipOp.ItemBefore = FSuspenseInventoryItemInstance();
+                EquipOp.ItemBefore = FSuspenseCoreItemInstance();
                 EquipOp.ItemAfter = Item;
                 EquipOp.bReversible = true;
                 EquipOp.Timestamp = FPlatformTime::Seconds();
                 EquipOp.Priority = ETransactionPriority::Normal;
                 EquipOp.Metadata.Add(TEXT("Source"), TEXT("Inventory"));
-                EquipOp.Metadata.Add(TEXT("InstanceID"), Item.InstanceID.ToString());
+                EquipOp.Metadata.Add(TEXT("InstanceID"), Item.UniqueInstanceID.ToString());
 
                 TransactionManager->RegisterOperation(TxnId, EquipOp);
                 TransactionManager->ApplyOperation(TxnId, EquipOp);
@@ -1094,12 +1064,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 TransactionManager->RollbackTransaction(TxnId);
                 InventoryInterface->AddItemInstance(Item);
 
-                return FSuspenseInventoryOperationResult::Failure(
-                    ESuspenseInventoryErrorCode::UnknownError,
-                    FText::FromString(TEXT("Failed to write item to equipment slot")),
-                    TEXT("TransferFromInventory"),
-                    nullptr
-                );
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::Unknown,
+                    TEXT("Failed to write item to equipment slot"));
             }
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("✓ Item written to slot %d"), Request.TargetSlot);
@@ -1152,12 +1119,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!bEquipSuccess)
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("=== EQUIP FAILED ==="));
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::UnknownError,
-            FText::FromString(TEXT("Failed to equip item")),
-            TEXT("TransferFromInventory"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::Unknown,
+            TEXT("Failed to equip item"));
     }
 
     // CRITICAL: Broadcast visualization event
@@ -1199,13 +1163,13 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item %s equipped to slot %d"), *Item.ItemID.ToString(), Request.TargetSlot);
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromInventoryToEquip END ==="));
 
-    FSuspenseInventoryOperationResult SuccessResult = FSuspenseInventoryOperationResult::Success(TEXT("TransferFromInventory"), nullptr);
+    FSuspenseCoreInventoryOperationResult SuccessResult = FSuspenseCoreInventoryOperationResult::Success(Request.TargetSlot, Item.Quantity, Item.UniqueInstanceID);
     SuccessResult.AffectedItems.Add(Item);
     return SuccessResult;
 }
 
 void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
-    const FSuspenseInventoryItemInstance& Item,
+    const FSuspenseCoreItemInstance& Item,
     int32 SlotIndex)
 {
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== BroadcastUnequippedEvent START ==="));
@@ -1239,7 +1203,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
         EventData.SetObject(FName(TEXT("Target")), TargetActor);
         EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
         EventData.SetString(FName(TEXT("ItemID")), Item.ItemID.ToString());
-        EventData.SetString(FName(TEXT("InstanceID")), Item.InstanceID.ToString());
+        EventData.SetString(FName(TEXT("InstanceID")), Item.UniqueInstanceID.ToString());
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Unequipped"));
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s, Slot: %d"),
@@ -1255,7 +1219,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== BroadcastUnequippedEvent END ==="));
 }
-FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteSwap_InventoryToEquipment(
+FSuspenseCoreInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::ExecuteSwap_InventoryToEquipment(
     const FGuid& InventoryInstanceID,
     int32 EquipmentSlot)
 {
@@ -1269,22 +1233,19 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     if (!InventoryInterface.GetInterface() || !EquipmentDataProvider.GetInterface())
     {
         RollbackBridgeTransaction(TransactionID);
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::NotInitialized,
-            FText::FromString(TEXT("Bridge not initialized")),
-            TEXT("SwapInventoryEquipment"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::NotInitialized,
+            TEXT("Bridge not initialized"));
     }
 
     // Get items from both sides
-    FSuspenseInventoryItemInstance InventoryItem;
+    FSuspenseCoreItemInstance InventoryItem;
     bool bFoundInInventory = false;
 
-    const TArray<FSuspenseInventoryItemInstance> AllItems = InventoryInterface->GetAllItemInstances();
-    for (const FSuspenseInventoryItemInstance& Item : AllItems)
+    const TArray<FSuspenseCoreItemInstance> AllItems = InventoryInterface->GetAllItemInstances();
+    for (const FSuspenseCoreItemInstance& Item : AllItems)
     {
-        if (Item.InstanceID == InventoryInstanceID)
+        if (Item.UniqueInstanceID == InventoryInstanceID)
         {
             InventoryItem = Item;
             bFoundInInventory = true;
@@ -1298,12 +1259,14 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Item not found in inventory!"));
         RollbackBridgeTransaction(TransactionID);
-        return FSuspenseInventoryOperationResult::ItemNotFound(TEXT("SwapInventoryEquipment"), FName("Unknown"));
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::ItemNotFound,
+            FString::Printf(TEXT("Item with InstanceID %s not found in inventory"), *InventoryInstanceID.ToString()));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Found inventory item: %s"), *InventoryItem.ItemID.ToString());
 
-    FSuspenseInventoryItemInstance EquippedItem;
+    FSuspenseCoreItemInstance EquippedItem;
     if (EquipmentDataProvider->IsSlotOccupied(EquipmentSlot))
     {
         EquippedItem = EquipmentDataProvider->GetSlotItem(EquipmentSlot);
@@ -1317,12 +1280,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("✗ No space in inventory"));
         RollbackBridgeTransaction(TransactionID);
-        return FSuspenseInventoryOperationResult::Failure(
-            ESuspenseInventoryErrorCode::NoSpace,
-            FText::FromString(TEXT("No space in inventory for unequipped item")),
-            TEXT("SwapInventoryEquipment"),
-            nullptr
-        );
+        return FSuspenseCoreInventoryOperationResult::Failure(
+            ESuspenseCoreInventoryResult::NoSpace,
+            TEXT("No space in inventory for unequipped item"));
     }
 
     // Execute atomic swap with transaction
@@ -1346,7 +1306,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
                 UnequipOp.OperationType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
                 UnequipOp.SlotIndex = EquipmentSlot;
                 UnequipOp.ItemBefore = EquippedItem;
-                UnequipOp.ItemAfter = FSuspenseInventoryItemInstance();
+                UnequipOp.ItemAfter = FSuspenseCoreItemInstance();
                 UnequipOp.bReversible = true;
                 UnequipOp.Timestamp = CurrentTime;
                 UnequipOp.Priority = ETransactionPriority::High;
@@ -1359,7 +1319,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             EquipOp.OperationId = FGuid::NewGuid();
             EquipOp.OperationType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
             EquipOp.SlotIndex = EquipmentSlot;
-            EquipOp.ItemBefore = EquippedItem.IsValid() ? EquippedItem : FSuspenseInventoryItemInstance();
+            EquipOp.ItemBefore = EquippedItem.IsValid() ? EquippedItem : FSuspenseCoreItemInstance();
             EquipOp.ItemAfter = InventoryItem;
             EquipOp.bReversible = true;
             EquipOp.Timestamp = CurrentTime + 0.001f;
@@ -1370,7 +1330,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             {
                 EquipOp.Metadata.Add(TEXT("OperationContext"), TEXT("Swap"));
                 EquipOp.SecondaryItemBefore = EquippedItem;
-                EquipOp.SecondaryItemAfter = FSuspenseInventoryItemInstance();
+                EquipOp.SecondaryItemAfter = FSuspenseCoreItemInstance();
             }
 
             TransactionManager->RegisterOperation(EquipTransID, EquipOp);
@@ -1380,14 +1340,16 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         // Phase 1: Remove from inventory
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 1: Removing %s from inventory"), *InventoryItem.ItemID.ToString());
         Transaction.bInventoryModified = true;
-        FSuspenseInventoryOperationResult RemoveResult = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
+        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
 
-        if (!RemoveResult.bSuccess)
+        if (!bRemoveSuccess)
         {
             UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Failed to remove item from inventory"));
             TransactionManager->RollbackTransaction(EquipTransID);
             RollbackBridgeTransaction(TransactionID);
-            return RemoveResult;
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::OperationFailed,
+                FString::Printf(TEXT("Failed to remove item %s from inventory"), *InventoryItem.ItemID.ToString()));
         }
 
         // Phase 2: Clear equipment slot if occupied
@@ -1410,12 +1372,9 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             TransactionManager->RollbackTransaction(EquipTransID);
             RollbackBridgeTransaction(TransactionID);
 
-            return FSuspenseInventoryOperationResult::Failure(
-                ESuspenseInventoryErrorCode::UnknownError,
-                FText::FromString(TEXT("Failed to equip item")),
-                TEXT("SwapInventoryEquipment"),
-                nullptr
-            );
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::Unknown,
+                TEXT("Failed to equip item"));
         }
 
         // Phase 4: Add previously equipped item to inventory (if any)
@@ -1424,14 +1383,16 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 4: Adding %s back to inventory"),
                 *EquippedItem.ItemID.ToString());
 
-            FSuspenseInventoryOperationResult AddResult = InventoryInterface->AddItemInstance(EquippedItem);
+            const bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
 
-            if (!AddResult.bSuccess)
+            if (!bAddSuccess)
             {
                 UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Failed to add unequipped item to inventory"));
                 TransactionManager->RollbackTransaction(EquipTransID);
                 RollbackBridgeTransaction(TransactionID);
-                return AddResult;
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::OperationFailed,
+                    FString::Printf(TEXT("Failed to add item %s to inventory"), *EquippedItem.ItemID.ToString()));
             }
         }
 
@@ -1442,24 +1403,18 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
             TransactionManager->RollbackTransaction(EquipTransID);
             RollbackBridgeTransaction(TransactionID);
 
-            return FSuspenseInventoryOperationResult::Failure(
-                ESuspenseInventoryErrorCode::UnknownError,
-                FText::FromString(TEXT("Transaction validation failed")),
-                TEXT("SwapInventoryEquipment"),
-                nullptr
-            );
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::Unknown,
+                TEXT("Transaction validation failed"));
         }
 
         if (!TransactionManager->CommitTransaction(EquipTransID))
         {
             UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Transaction commit failed"));
             RollbackBridgeTransaction(TransactionID);
-            return FSuspenseInventoryOperationResult::Failure(
-                ESuspenseInventoryErrorCode::UnknownError,
-                FText::FromString(TEXT("Failed to commit transaction")),
-                TEXT("SwapInventoryEquipment"),
-                nullptr
-            );
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::Unknown,
+                TEXT("Failed to commit transaction"));
         }
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("✓ Transaction committed successfully"));
@@ -1469,11 +1424,13 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         // Fallback without transaction manager
         UE_LOG(LogEquipmentBridge, Warning, TEXT("⚠ No TransactionManager - using direct operations"));
 
-        FSuspenseInventoryOperationResult RemoveResult = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
-        if (!RemoveResult.bSuccess)
+        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
+        if (!bRemoveSuccess)
         {
             RollbackBridgeTransaction(TransactionID);
-            return RemoveResult;
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::OperationFailed,
+                FString::Printf(TEXT("Failed to remove item from inventory")));
         }
         Transaction.bInventoryModified = true;
 
@@ -1486,21 +1443,20 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         if (!EquipmentDataProvider->SetSlotItem(EquipmentSlot, InventoryItem, true))
         {
             RollbackBridgeTransaction(TransactionID);
-            return FSuspenseInventoryOperationResult::Failure(
-                ESuspenseInventoryErrorCode::UnknownError,
-                FText::FromString(TEXT("Failed to equip item")),
-                TEXT("SwapInventoryEquipment"),
-                nullptr
-            );
+            return FSuspenseCoreInventoryOperationResult::Failure(
+                ESuspenseCoreInventoryResult::Unknown,
+                TEXT("Failed to equip item"));
         }
 
         if (EquippedItem.IsValid())
         {
-            FSuspenseInventoryOperationResult AddResult = InventoryInterface->AddItemInstance(EquippedItem);
-            if (!AddResult.bSuccess)
+            const bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
+            if (!bAddSuccess)
             {
                 RollbackBridgeTransaction(TransactionID);
-                return AddResult;
+                return FSuspenseCoreInventoryOperationResult::Failure(
+                    ESuspenseCoreInventoryResult::OperationFailed,
+                    FString::Printf(TEXT("Failed to add item %s to inventory"), *EquippedItem.ItemID.ToString()));
             }
         }
     }
@@ -1549,7 +1505,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
     }
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== SWAP END ==="));
 
-    FSuspenseInventoryOperationResult Result = FSuspenseInventoryOperationResult::Success(TEXT("SwapInventoryEquipment"), nullptr);
+    FSuspenseCoreInventoryOperationResult Result = FSuspenseCoreInventoryOperationResult::Success(EquipmentSlot, InventoryItem.Quantity, InventoryItem.UniqueInstanceID);
     Result.AffectedItems.Add(InventoryItem);
     if (EquippedItem.IsValid())
     {
@@ -1627,7 +1583,7 @@ bool USuspenseCoreEquipmentInventoryBridge::RollbackBridgeTransaction(const FGui
 
 // ===== Validation Utilities =====
 
-bool USuspenseCoreEquipmentInventoryBridge::ValidateInventorySpace(const FSuspenseInventoryItemInstance& Item) const
+bool USuspenseCoreEquipmentInventoryBridge::ValidateInventorySpace(const FSuspenseCoreItemInstance& Item) const
 {
     if (!InventoryInterface.GetInterface())
     {
@@ -1637,7 +1593,7 @@ bool USuspenseCoreEquipmentInventoryBridge::ValidateInventorySpace(const FSuspen
     return InventoryHasSpace(Item);
 }
 
-bool USuspenseCoreEquipmentInventoryBridge::ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const
+bool USuspenseCoreEquipmentInventoryBridge::ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseCoreItemInstance& Item) const
 {
     if (!EquipmentDataProvider.GetInterface())
     {
@@ -1652,7 +1608,7 @@ bool USuspenseCoreEquipmentInventoryBridge::ValidateEquipmentSlot(int32 SlotInde
     return true;
 }
 
-bool USuspenseCoreEquipmentInventoryBridge::InventoryHasSpace(const FSuspenseInventoryItemInstance& Item) const
+bool USuspenseCoreEquipmentInventoryBridge::InventoryHasSpace(const FSuspenseCoreItemInstance& Item) const
 {
     return InventoryInterface.GetInterface() != nullptr;
 }
@@ -1683,15 +1639,15 @@ void USuspenseCoreEquipmentInventoryBridge::CleanupExpiredReservations()
     }
 }
 
-bool USuspenseCoreEquipmentInventoryBridge::FindItemInInventory(const FName& ItemId, FSuspenseInventoryItemInstance& OutInstance) const
+bool USuspenseCoreEquipmentInventoryBridge::FindItemInInventory(const FName& ItemId, FSuspenseCoreItemInstance& OutInstance) const
 {
     if (!InventoryInterface.GetInterface())
     {
         return false;
     }
 
-    const TArray<FSuspenseInventoryItemInstance> Items = InventoryInterface->GetAllItemInstances();
-    for (const FSuspenseInventoryItemInstance& It : Items)
+    const TArray<FSuspenseCoreItemInstance> Items = InventoryInterface->GetAllItemInstances();
+    for (const FSuspenseCoreItemInstance& It : Items)
     {
         if (It.ItemID == ItemId)
         {
@@ -1790,7 +1746,7 @@ AActor* USuspenseCoreEquipmentInventoryBridge::ResolveCharacterTarget() const
     return nullptr;
 }
 
-void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex)
+void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspenseCoreItemInstance& Item, int32 SlotIndex)
 {
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== BroadcastEquippedEvent START ==="));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item: %s, Slot: %d"),
@@ -1857,7 +1813,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         EventData.SetObject(FName(TEXT("Target")), TargetActor);
         EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
         EventData.SetString(FName(TEXT("ItemID")), Item.ItemID.ToString());
-        EventData.SetString(FName(TEXT("InstanceID")), Item.InstanceID.ToString());
+        EventData.SetString(FName(TEXT("InstanceID")), Item.UniqueInstanceID.ToString());
         EventData.SetInt(FName(TEXT("Quantity")), Item.Quantity);
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Equipped"));
@@ -1876,8 +1832,8 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
 }
 
 void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
-    const FSuspenseInventoryItemInstance& NewItem,
-    const FSuspenseInventoryItemInstance& OldItem,
+    const FSuspenseCoreItemInstance& NewItem,
+    const FSuspenseCoreItemInstance& OldItem,
     int32 SlotIndex)
 {
     AActor* TargetActor = ResolveCharacterTarget();
@@ -1901,7 +1857,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
             EventData.SetObject(FName(TEXT("Target")), TargetActor);
             EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
             EventData.SetString(FName(TEXT("ItemID")), OldItem.ItemID.ToString());
-            EventData.SetString(FName(TEXT("InstanceID")), OldItem.InstanceID.ToString());
+            EventData.SetString(FName(TEXT("InstanceID")), OldItem.UniqueInstanceID.ToString());
 
             EventDelegateManager->PublishEventWithData(UnequippedTag, EventData);
             UE_LOG(LogEquipmentBridge, Log, TEXT("[EquipmentBridge] Broadcasted Unequipped event for %s"), *OldItem.ItemID.ToString());
@@ -1913,7 +1869,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
 }
 
 FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::CanEquipItemToSlot(
-    const FSuspenseInventoryItemInstance& ItemInstance,
+    const FSuspenseCoreItemInstance& ItemInstance,
     int32 TargetSlotIndex) const
 {
     FEquipmentOperationRequest TempRequest;

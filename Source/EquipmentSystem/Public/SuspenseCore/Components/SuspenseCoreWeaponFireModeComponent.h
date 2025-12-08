@@ -70,7 +70,7 @@ public:
     virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const override;
     virtual TSubclassOf<UGameplayAbility> GetFireModeAbility_Implementation(const FGameplayTag& FireModeTag) const override;
     virtual int32 GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual USuspenseCoreEventManager* GetDelegateManager() const override;
+    virtual USuspenseEventManager* GetDelegateManager() const override;
 
 protected:
     /**

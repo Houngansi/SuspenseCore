@@ -80,7 +80,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceBatchDeltas, const TArray<FEquipme
 
 UCLASS()
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentDataService : public UObject,
-    public ISuspenseEquipmentDataServiceInterface
+    public ISuspenseCoreEquipmentDataServiceInterface
 {
     GENERATED_BODY()
 
@@ -89,13 +89,13 @@ public:
     virtual ~USuspenseCoreEquipmentDataService();
 
     //========================================
-    // IEquipmentService Implementation
+    // ISuspenseCoreEquipmentService Implementation
     //========================================
 
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
-    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
     virtual bool ValidateService(TArray<FText>& OutErrors) const override;
@@ -350,7 +350,7 @@ private:
 
     /** Current service lifecycle state */
     UPROPERTY()
-    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
     /** Service initialization timestamp */
     UPROPERTY()
@@ -501,8 +501,8 @@ private:
     float LastCacheWarmingTime = 0.0f;
 
     /** Service metrics collection */
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
     /** Delta metrics collection */
-    mutable FDeltaMetrics DeltaMetrics;
+    mutable FSuspenseCoreDeltaMetrics DeltaMetrics;
 };

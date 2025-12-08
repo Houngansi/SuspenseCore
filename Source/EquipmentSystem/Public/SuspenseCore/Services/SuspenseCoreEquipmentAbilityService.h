@@ -284,7 +284,7 @@ private:
     //========================================
     // Metrics and Statistics
     //========================================
-    mutable FServiceMetrics ServiceMetrics;
+    mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
     // THREAD-SAFETY FIX: Use atomic for concurrent access
     mutable std::atomic<int32> CacheHits{0};

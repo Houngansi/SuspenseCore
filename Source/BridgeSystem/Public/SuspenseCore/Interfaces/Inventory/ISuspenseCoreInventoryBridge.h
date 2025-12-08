@@ -21,7 +21,7 @@ class USuspenseCoreEventBus;
  * Describes a transfer operation between inventory and equipment systems.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferRequest
+struct BRIDGESYSTEM_API FSuspenseCoreBridgeTransferRequest
 {
 	GENERATED_BODY()
 
@@ -53,17 +53,17 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferRequest
 	UPROPERTY(BlueprintReadOnly, Category = "Transfer")
 	FGuid RequestId;
 
-	FSuspenseCoreInventoryTransferRequest()
+	FSuspenseCoreBridgeTransferRequest()
 	{
 		RequestId = FGuid::NewGuid();
 	}
 
 	/** Static factory: Create transfer FROM inventory */
-	static FSuspenseCoreInventoryTransferRequest FromInventory(
+	static FSuspenseCoreBridgeTransferRequest FromInventory(
 		const FSuspenseInventoryItemInstance& InItem,
 		int32 ToEquipmentSlot)
 	{
-		FSuspenseCoreInventoryTransferRequest Request;
+		FSuspenseCoreBridgeTransferRequest Request;
 		Request.Item = InItem;
 		Request.SourceSlot = INDEX_NONE;
 		Request.TargetSlot = ToEquipmentSlot;
@@ -73,11 +73,11 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferRequest
 	}
 
 	/** Static factory: Create transfer TO inventory */
-	static FSuspenseCoreInventoryTransferRequest ToInventory(
+	static FSuspenseCoreBridgeTransferRequest ToInventory(
 		const FSuspenseInventoryItemInstance& InItem,
 		int32 FromEquipmentSlot)
 	{
-		FSuspenseCoreInventoryTransferRequest Request;
+		FSuspenseCoreBridgeTransferRequest Request;
 		Request.Item = InItem;
 		Request.SourceSlot = FromEquipmentSlot;
 		Request.TargetSlot = INDEX_NONE;
@@ -220,7 +220,7 @@ public:
 	 * @return Transfer result with success/failure info
 	 */
 	virtual FSuspenseCoreInventoryTransferResult TransferFromInventory(
-		const FSuspenseCoreInventoryTransferRequest& Request) = 0;
+		const FSuspenseCoreBridgeTransferRequest& Request) = 0;
 
 	/**
 	 * Transfer item from equipment to inventory
@@ -228,7 +228,7 @@ public:
 	 * @return Transfer result with success/failure info
 	 */
 	virtual FSuspenseCoreInventoryTransferResult TransferToInventory(
-		const FSuspenseCoreInventoryTransferRequest& Request) = 0;
+		const FSuspenseCoreBridgeTransferRequest& Request) = 0;
 
 	/**
 	 * Validate transfer before execution (dry run)
@@ -236,7 +236,7 @@ public:
 	 * @return Validation result (success = transfer would succeed)
 	 */
 	virtual FSuspenseCoreInventoryTransferResult ValidateTransfer(
-		const FSuspenseCoreInventoryTransferRequest& Request) const = 0;
+		const FSuspenseCoreBridgeTransferRequest& Request) const = 0;
 
 	//========================================
 	// Space Management

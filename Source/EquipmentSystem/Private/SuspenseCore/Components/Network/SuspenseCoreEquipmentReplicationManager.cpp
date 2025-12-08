@@ -15,12 +15,12 @@
 #include "DrawDebugHelpers.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 
-// FReplicatedSlotItem
-void FReplicatedSlotItem::PreReplicatedRemove(const FReplicatedSlotArray& InArraySerializer)
+// FSuspenseCoreReplicatedSlotItem
+void FSuspenseCoreReplicatedSlotItem::PreReplicatedRemove(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
     UE_LOG(LogEquipmentReplication,Verbose,TEXT("PreReplicatedRemove: Slot %d removed"),SlotIndex);
 }
-void FReplicatedSlotItem::PostReplicatedAdd(const FReplicatedSlotArray& InArraySerializer)
+void FSuspenseCoreReplicatedSlotItem::PostReplicatedAdd(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
     UE_LOG(LogEquipmentReplication,Verbose,TEXT("PostReplicatedAdd: Slot %d added"),SlotIndex);
     if(InArraySerializer.OwnerManager)
@@ -37,7 +37,7 @@ void FReplicatedSlotItem::PostReplicatedAdd(const FReplicatedSlotArray& InArrayS
         }
     }
 }
-void FReplicatedSlotItem::PostReplicatedChange(const FReplicatedSlotArray& InArraySerializer)
+void FSuspenseCoreReplicatedSlotItem::PostReplicatedChange(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
     UE_LOG(LogEquipmentReplication,Verbose,TEXT("PostReplicatedChange: Slot %d changed"),SlotIndex);
     if(InArraySerializer.OwnerManager)
@@ -55,8 +55,8 @@ void FReplicatedSlotItem::PostReplicatedChange(const FReplicatedSlotArray& InArr
     }
 }
 
-// FReplicatedSlotArray
-void FReplicatedSlotArray::PostReplicatedAdd(const TArrayView<int32>& AddedIndices,int32 FinalSize)
+// FSuspenseCoreReplicatedSlotArray
+void FSuspenseCoreReplicatedSlotArray::PostReplicatedAdd(const TArrayView<int32>& AddedIndices,int32 FinalSize)
 {
     if(!OwnerManager)return;
     for(int32 Index:AddedIndices)
@@ -70,7 +70,7 @@ void FReplicatedSlotArray::PostReplicatedAdd(const TArrayView<int32>& AddedIndic
         }
     }
 }
-void FReplicatedSlotArray::PostReplicatedChange(const TArrayView<int32>& ChangedIndices,int32 FinalSize)
+void FSuspenseCoreReplicatedSlotArray::PostReplicatedChange(const TArrayView<int32>& ChangedIndices,int32 FinalSize)
 {
     if(!OwnerManager)return;
     for(int32 Index:ChangedIndices)
@@ -84,7 +84,7 @@ void FReplicatedSlotArray::PostReplicatedChange(const TArrayView<int32>& Changed
         }
     }
 }
-void FReplicatedSlotArray::PreReplicatedRemove(const TArrayView<int32>& RemovedIndices,int32 FinalSize)
+void FSuspenseCoreReplicatedSlotArray::PreReplicatedRemove(const TArrayView<int32>& RemovedIndices,int32 FinalSize)
 {
     if(!OwnerManager)return;
     for(int32 Index:RemovedIndices)
@@ -205,7 +205,7 @@ void USuspenseCoreEquipmentReplicationManager::MarkForReplication(int32 SlotInde
     {FScopeLock Lock(&SlotStateLock);
         if(SlotStates.IsValidIndex(SlotIndex))
         {
-            FSlotReplicationState& S=SlotStates[SlotIndex];
+            FSuspenseCoreSlotReplicationState& S=SlotStates[SlotIndex];
             S.bIsDirty=true;
             S.LastChangeTime=GetWorld()?GetWorld()->GetTimeSeconds():0.0f;
             S.ChangeCount++;
@@ -224,7 +224,7 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicated
 {
     FScopeLock Lock(&SlotStateLock);
     FReplicatedEquipmentData Data;
-    for(const FReplicatedSlotItem& Item:ReplicatedSlotArray.Items)
+    for(const FSuspenseCoreReplicatedSlotItem& Item:ReplicatedSlotArray.Items)
     {
         if(Data.SlotInstances.Num()<=Item.SlotIndex){Data.SlotInstances.SetNum(Item.SlotIndex+1);}
         Data.SlotInstances[Item.SlotIndex]=Item.ItemInstance;
@@ -263,7 +263,7 @@ void USuspenseCoreEquipmentReplicationManager::ForceFullReplication()
 {
     bForceFullReplication=true;
     {FScopeLock Lock(&DirtySlotLock);DirtySlots.Empty();if(DataProvider.GetInterface()){for(int32 i=0;i<DataProvider->GetSlotCount();i++){DirtySlots.Add(i);}}}
-    {FScopeLock Lock(&SlotStateLock);for(FSlotReplicationState& S:SlotStates){S.bIsDirty=true;}}
+    {FScopeLock Lock(&SlotStateLock);for(FSuspenseCoreSlotReplicationState& S:SlotStates){S.bIsDirty=true;}}
     CurrentDeltaMask.Clear();
     CurrentVersion++;
     MARK_PROPERTY_DIRTY_FROM_NAME(USuspenseCoreEquipmentReplicationManager,CurrentVersion,this);
@@ -366,7 +366,7 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicatio
     TSet<int32> Changed;
     for(uint32 V=LastVersion+1;V<=CurrentVersion;V++)
     {
-        if(const FReplicationDeltaMask* M=VersionHistory.Find(V))
+        if(const FSuspenseCoreReplicationDeltaMask* M=VersionHistory.Find(V))
         {
             for(int32 SlotIndex:M->DirtySlotIndices){Changed.Add(SlotIndex);}
         }
@@ -374,7 +374,7 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicatio
     for(int32 SlotIndex:Changed)
     {
         if(Delta.SlotInstances.Num()<=SlotIndex){Delta.SlotInstances.SetNum(SlotIndex+1);}
-        for(const FReplicatedSlotItem& Item:ReplicatedSlotArray.Items)
+        for(const FSuspenseCoreReplicatedSlotItem& Item:ReplicatedSlotArray.Items)
         {
             if(Item.SlotIndex==SlotIndex){Delta.SlotInstances[SlotIndex]=Item.ItemInstance;break;}
         }
@@ -419,7 +419,7 @@ bool USuspenseCoreEquipmentReplicationManager::Initialize(TScriptInterface<ISusp
             FSuspenseCoreInventoryItemInstance SlotItem=DataProvider->GetSlotItem(i);
             if(SlotItem.IsValid())
             {
-                FReplicatedSlotItem NewItem;NewItem.SlotIndex=i;NewItem.ItemInstance=SlotItem;NewItem.ItemVersion=1;
+                FSuspenseCoreReplicatedSlotItem NewItem;NewItem.SlotIndex=i;NewItem.ItemInstance=SlotItem;NewItem.ItemVersion=1;
                 if(bUseHMACSecurity && SecurityService){NewItem.ItemHMAC=GenerateSlotHMAC(SlotItem);}
                 ReplicatedSlotArray.Items.Add(NewItem);
             }
@@ -490,7 +490,7 @@ void USuspenseCoreEquipmentReplicationManager::ProcessReplication()
         for(int32 SlotIndex:DirtySlots)
         {
             FSuspenseCoreInventoryItemInstance NewItem=DataProvider->GetSlotItem(SlotIndex);
-            FReplicatedSlotItem* Existing=ReplicatedSlotArray.Items.FindByPredicate([SlotIndex](const FReplicatedSlotItem& I){return I.SlotIndex==SlotIndex;});
+            FSuspenseCoreReplicatedSlotItem* Existing=ReplicatedSlotArray.Items.FindByPredicate([SlotIndex](const FSuspenseCoreReplicatedSlotItem& I){return I.SlotIndex==SlotIndex;});
             if(Existing)
             {
                 // фикс: надёжное сравнение UStruct вместо operator!=
@@ -507,7 +507,7 @@ void USuspenseCoreEquipmentReplicationManager::ProcessReplication()
             }
             else if(NewItem.IsValid())
             {
-                FReplicatedSlotItem NewSlot;NewSlot.SlotIndex=SlotIndex;NewSlot.ItemInstance=NewItem;NewSlot.ItemVersion=1;
+                FSuspenseCoreReplicatedSlotItem NewSlot;NewSlot.SlotIndex=SlotIndex;NewSlot.ItemInstance=NewItem;NewSlot.ItemVersion=1;
                 if(bUseHMACSecurity && SecurityService){NewSlot.ItemHMAC=GenerateSlotHMAC(NewItem);}
                 ReplicatedSlotArray.Items.Add(NewSlot);
                 ReplicatedSlotArray.MarkItemDirty(ReplicatedSlotArray.Items.Last());
@@ -570,12 +570,12 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::BuildReplicat
     return GetReplicationDelta(CS->LastAcknowledgedVersion);
 }
 
-FReplicationDeltaMask USuspenseCoreEquipmentReplicationManager::BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const
+FSuspenseCoreReplicationDeltaMask USuspenseCoreEquipmentReplicationManager::BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const
 {
-    FReplicationDeltaMask Mask;Mask.StartVersion=FromVersion;Mask.EndVersion=ToVersion;Mask.Timestamp=GetWorld()?GetWorld()->GetTimeSeconds():0.0f;
+    FSuspenseCoreReplicationDeltaMask Mask;Mask.StartVersion=FromVersion;Mask.EndVersion=ToVersion;Mask.Timestamp=GetWorld()?GetWorld()->GetTimeSeconds():0.0f;
     for(uint32 V=FromVersion+1;V<=ToVersion;V++)
     {
-        if(const FReplicationDeltaMask* VM=VersionHistory.Find(V))
+        if(const FSuspenseCoreReplicationDeltaMask* VM=VersionHistory.Find(V))
         {
             for(int32 SlotIndex:VM->DirtySlotIndices){Mask.AddSlot(SlotIndex);}
         }
@@ -809,7 +809,7 @@ float USuspenseCoreEquipmentReplicationManager::CalculateEnhancedRelevancy(APlay
 void USuspenseCoreEquipmentReplicationManager::UpdateSlotPriority(int32 SlotIndex)
 {
     if(!SlotStates.IsValidIndex(SlotIndex)){return;}
-    FSlotReplicationState& S=SlotStates[SlotIndex];
+    FSuspenseCoreSlotReplicationState& S=SlotStates[SlotIndex];
     S.ReplicationPriority=1.0f;
     if(DataProvider.GetInterface())
     {
@@ -824,7 +824,7 @@ void USuspenseCoreEquipmentReplicationManager::UpdateSlotPriority(int32 SlotInde
 bool USuspenseCoreEquipmentReplicationManager::SlotNeedsReplication(int32 SlotIndex,uint32 ClientVersion)const
 {
     if(!SlotStates.IsValidIndex(SlotIndex)){return false;}
-    const FSlotReplicationState& S=SlotStates[SlotIndex];
+    const FSuspenseCoreSlotReplicationState& S=SlotStates[SlotIndex];
     if(S.bIsDirty){return true;}
     if(S.LastReplicatedVersion>ClientVersion){return true;}
     return false;

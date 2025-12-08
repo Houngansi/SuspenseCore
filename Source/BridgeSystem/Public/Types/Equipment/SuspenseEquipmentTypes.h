@@ -3,7 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Interfaces/Core/ISuspenseLoadout.h" // canonical FLoadoutApplicationResult
 #include "SuspenseEquipmentTypes.generated.h"
@@ -99,7 +99,7 @@ struct BRIDGESYSTEM_API FEquipmentOperationRequest
     EEquipmentOperationPriority Priority=EEquipmentOperationPriority::Normal;
 
     UPROPERTY(BlueprintReadWrite,Category="Operation")
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreItemInstance ItemInstance;
 
     UPROPERTY(BlueprintReadWrite,Category="Operation")
     int32 SourceSlotIndex=INDEX_NONE;
@@ -133,7 +133,7 @@ struct BRIDGESYSTEM_API FEquipmentOperationRequest
         return Request;
     }
 
-    static FEquipmentOperationRequest CreateRequest(EEquipmentOperationType Type,const FSuspenseInventoryItemInstance& Item,int32 TargetSlot)
+    static FEquipmentOperationRequest CreateRequest(EEquipmentOperationType Type,const FSuspenseCoreItemInstance& Item,int32 TargetSlot)
     {
         FEquipmentOperationRequest Request;
         Request.OperationId = FGuid::NewGuid();
@@ -181,7 +181,7 @@ struct BRIDGESYSTEM_API FEquipmentOperationResult
     UPROPERTY(BlueprintReadWrite,Category="Result") FGuid OperationId;
     UPROPERTY(BlueprintReadWrite,Category="Result") FGuid TransactionId;
     UPROPERTY(BlueprintReadWrite,Category="Result") TArray<int32> AffectedSlots;
-    UPROPERTY(BlueprintReadWrite,Category="Result") TArray<FSuspenseInventoryItemInstance> AffectedItems;
+    UPROPERTY(BlueprintReadWrite,Category="Result") TArray<FSuspenseCoreItemInstance> AffectedItems;
     UPROPERTY(BlueprintReadWrite,Category="Result") TMap<FString,FString> ResultMetadata;
     UPROPERTY(BlueprintReadWrite,Category="Result") float ExecutionTime=0.0f;
     UPROPERTY(BlueprintReadWrite,Category="Result") TArray<FText> Warnings;
@@ -230,7 +230,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotSnapshot
     int32 SlotIndex=INDEX_NONE;
 
     UPROPERTY(BlueprintReadWrite,Category="Snapshot")
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreItemInstance ItemInstance;
 
     UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FEquipmentSlotConfig Configuration;

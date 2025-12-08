@@ -92,12 +92,12 @@ void USuspenseCoreEquipmentVisualController::EndPlay(const EEndPlayReason::Type 
 		}
 	}
 
-	// Отписки (без range-for)
-	if (auto Bus = FSuspenseCoreEquipmentEventBus::Get(); Bus.IsValid())
+	// Отписки от EventBus (SuspenseCore architecture)
+	if (EventBus)
 	{
-		for (int32 i = 0; i < EventSubscriptions.Num(); ++i)
+		for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
 		{
-			Bus->Unsubscribe(EventSubscriptions[i]);
+			EventBus->Unsubscribe(Handle);
 		}
 	}
 	EventSubscriptions.Empty();
@@ -224,13 +224,15 @@ FGuid USuspenseCoreEquipmentVisualController::ApplyVisualEffect(AActor* Equipmen
 	// Отметка троттлинга
 	MarkEffectPlayed(Equipment, Effect.EffectType);
 
-	// EventBus
-	FSuspenseCoreEquipmentEventData Ev;
-	Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.EffectApplied"));
-	Ev.Target = Equipment;
-	Ev.AddMetadata(TEXT("EffectType"), Effect.EffectType.ToString());
-	Ev.AddMetadata(TEXT("EffectId"), Id.ToString());
-	FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+	// EventBus (SuspenseCore architecture)
+	if (EventBus)
+	{
+		FSuspenseCoreEventData Ev = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentVisualController*>(this));
+		Ev.SetObject(FName("Target"), Equipment);
+		Ev.SetString(FName("EffectType"), Effect.EffectType.ToString());
+		Ev.SetString(FName("EffectId"), Id.ToString());
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Visual.EffectApplied")), Ev);
+	}
 
 	return Id;
 }
@@ -253,12 +255,15 @@ bool USuspenseCoreEquipmentVisualController::RemoveVisualEffect(const FGuid& Eff
 		ActiveEffects.Remove(EffectId);
 		TotalEffectsRemoved++;
 
-		FSuspenseCoreEquipmentEventData Ev;
-		Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.EffectRemoved"));
-		Ev.Target = Target;
-		Ev.AddMetadata(TEXT("EffectType"), Type.ToString());
-		Ev.AddMetadata(TEXT("EffectId"), EffectId.ToString());
-		FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+		// EventBus (SuspenseCore architecture)
+		if (EventBus)
+		{
+			FSuspenseCoreEventData Ev = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentVisualController*>(this));
+			Ev.SetObject(FName("Target"), Target);
+			Ev.SetString(FName("EffectType"), Type.ToString());
+			Ev.SetString(FName("EffectId"), EffectId.ToString());
+			EventBus->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Visual.EffectRemoved")), Ev);
+		}
 
 		return true;
 	}
@@ -423,11 +428,14 @@ bool USuspenseCoreEquipmentVisualController::PlayEquipmentAnimation(AActor* Equi
 		}
 	}
 
-	FSuspenseCoreEquipmentEventData Ev;
-	Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Visual.AnimationPlayed"));
-	Ev.Target = Equipment;
-	Ev.AddMetadata(TEXT("AnimationTag"), AnimationTag.ToString());
-	FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+	// EventBus (SuspenseCore architecture)
+	if (EventBus)
+	{
+		FSuspenseCoreEventData Ev = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentVisualController*>(this));
+		Ev.SetObject(FName("Target"), Equipment);
+		Ev.SetString(FName("AnimationTag"), AnimationTag.ToString());
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Visual.AnimationPlayed")), Ev);
+	}
 	return true;
 }
 
@@ -590,43 +598,57 @@ void USuspenseCoreEquipmentVisualController::LoadVisualProfileTable(UDataTable* 
 
 void USuspenseCoreEquipmentVisualController::SetupEventHandlers()
 {
-	auto Bus = FSuspenseCoreEquipmentEventBus::Get();
-	if (!Bus.IsValid()) return;
+	// Initialize EventBus via ServiceProvider (SuspenseCore architecture)
+	if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+	{
+		EventBus = Provider->GetEventBus();
+	}
 
-	EventSubscriptions.Add(Bus->Subscribe(
-		FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.StateChanged")),
-		FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnEquipmentStateChanged),
-		EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VisualController] SetupEventHandlers: EventBus not available"));
+		return;
+	}
 
-	EventSubscriptions.Add(Bus->Subscribe(
-		FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Fired")),
-		FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnWeaponFired),
-		EEventPriority::High, EEventExecutionContext::GameThread, this));
+	EventSubscriptions.Add(EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.StateChanged")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnEquipmentStateChanged),
+		ESuspenseCoreEventPriority::Normal));
 
-	EventSubscriptions.Add(Bus->Subscribe(
-		FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Reload")),
-		FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnWeaponReload),
-		EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+	EventSubscriptions.Add(EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.Fired")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnWeaponFired),
+		ESuspenseCoreEventPriority::High));
 
-	EventSubscriptions.Add(Bus->Subscribe(
-		FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.QuickSwitch")),
-		FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnQuickSwitch),
-		EEventPriority::High, EEventExecutionContext::GameThread, this));
+	EventSubscriptions.Add(EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.Reload")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnWeaponReload),
+		ESuspenseCoreEventPriority::Normal));
+
+	EventSubscriptions.Add(EventBus->SubscribeNative(
+		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.QuickSwitch")),
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualController::OnQuickSwitch),
+		ESuspenseCoreEventPriority::High));
 }
 
-void USuspenseCoreEquipmentVisualController::OnEquipmentStateChanged(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentVisualController::OnEquipmentStateChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (AActor* Eq = EventData.GetTargetAs<AActor>())
+	if (AActor* Eq = EventData.GetObject<AActor>(FName("Target")))
 	{
+		const FString NewStateStr = EventData.GetString(FName("NewState"));
 		const FGameplayTag StateTag = FGameplayTag::RequestGameplayTag(
-			*EventData.GetMetadata(TEXT("NewState"), TEXT("Equipment.State.Idle")));
+			NewStateStr.IsEmpty() ? TEXT("Equipment.State.Idle") : *NewStateStr);
 		ApplyVisualProfile(Eq, StateTag, true);
 	}
 }
 
-void USuspenseCoreEquipmentVisualController::OnWeaponFired(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentVisualController::OnWeaponFired(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (AActor* Wep = EventData.GetTargetAs<AActor>())
+	if (AActor* Wep = EventData.GetObject<AActor>(FName("Target")))
 	{
 		FEquipmentVisualEffect Fx;
 		Fx.EffectType = FGameplayTag::RequestGameplayTag(TEXT("Effect.Weapon.MuzzleFlash"));
@@ -639,18 +661,18 @@ void USuspenseCoreEquipmentVisualController::OnWeaponFired(const FSuspenseCoreEq
 	}
 }
 
-void USuspenseCoreEquipmentVisualController::OnWeaponReload(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentVisualController::OnWeaponReload(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (AActor* Wep = EventData.GetTargetAs<AActor>())
+	if (AActor* Wep = EventData.GetObject<AActor>(FName("Target")))
 	{
 		ApplyVisualProfile(Wep, FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Reloading")), true);
 	}
 }
 
-void USuspenseCoreEquipmentVisualController::OnQuickSwitch(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentVisualController::OnQuickSwitch(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if (AActor* OldW = Cast<AActor>(EventData.Source.Get())) { ClearAllEffectsForEquipment(OldW, false); }
-	if (AActor* NewW = EventData.GetTargetAs<AActor>())
+	if (AActor* OldW = EventData.GetObject<AActor>(FName("Source"))) { ClearAllEffectsForEquipment(OldW, false); }
+	if (AActor* NewW = EventData.GetObject<AActor>(FName("Target")))
 	{
 		ApplyVisualProfile(NewW, FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Active")), true);
 	}

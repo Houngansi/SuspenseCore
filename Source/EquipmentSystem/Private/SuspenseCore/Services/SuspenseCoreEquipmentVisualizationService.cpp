@@ -77,16 +77,19 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 		TEXT("Service tag initialized (native): %s"),
 		*VisualizationServiceTag.ToString());
 
-	// Initialize EventBus
-	EventBus = FSuspenseCoreEquipmentEventBus::Get();
-	if (!EventBus.IsValid())
+	// Initialize EventBus via ServiceProvider (SuspenseCore architecture)
+	if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+	{
+		EventBus = Provider->GetEventBus();
+	}
+	if (!EventBus)
 	{
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("InitializeService FAILED: EventBus missing"));
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("EventBus acquired successfully"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("EventBus acquired successfully via ServiceProvider"));
 
 	LifecycleState = ESuspenseCoreServiceLifecycleState::Initializing;
 
@@ -197,7 +200,7 @@ bool USuspenseCoreEquipmentVisualizationService::ValidateService(TArray<FText>& 
 		bOk = false;
 	}
 
-	if (!EventBus.IsValid())
+	if (!EventBus)
 	{
 		OutErrors.Add(FText::FromString(TEXT("EventBus missing")));
 		bOk = false;
@@ -241,7 +244,7 @@ void USuspenseCoreEquipmentVisualizationService::ResetService()
 	}
 
 	Characters.Empty();
-	EventBus.Reset();
+	EventBus = nullptr;
 	LastProcessTimeSec = 0.0;
 	LifecycleState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
@@ -268,54 +271,60 @@ FString USuspenseCoreEquipmentVisualizationService::GetServiceStats() const
 
 void USuspenseCoreEquipmentVisualizationService::SetupEventHandlers()
 {
-	auto Bus = EventBus.Pin();
-	check(Bus.IsValid());
+	if (!EventBus)
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("SetupEventHandlers: EventBus is null"));
+		return;
+	}
 
 	if (Tag_OnEquipped.IsValid())
 	{
-		Subscriptions.Add(Bus->Subscribe(
-			Tag_OnEquipped,
-			FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnEquipped),
-			EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+		Subscriptions.Add(EventBus->SubscribeNative(
+			Tag_OnEquipped, this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnEquipped),
+			ESuspenseCoreEventPriority::Normal));
 	}
 
 	if (Tag_OnUnequipped.IsValid())
 	{
-		Subscriptions.Add(Bus->Subscribe(
-			Tag_OnUnequipped,
-			FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnUnequipped),
-			EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+		Subscriptions.Add(EventBus->SubscribeNative(
+			Tag_OnUnequipped, this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnUnequipped),
+			ESuspenseCoreEventPriority::Normal));
 	}
 
 	if (Tag_OnSlotSwitched.IsValid())
 	{
-		Subscriptions.Add(Bus->Subscribe(
-			Tag_OnSlotSwitched,
-			FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnSlotSwitched),
-			EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+		Subscriptions.Add(EventBus->SubscribeNative(
+			Tag_OnSlotSwitched, this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnSlotSwitched),
+			ESuspenseCoreEventPriority::Normal));
 	}
 
 	if (Tag_VisRefreshAll.IsValid())
 	{
-		Subscriptions.Add(Bus->Subscribe(
-			Tag_VisRefreshAll,
-			FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnRefreshAll),
-			EEventPriority::Normal, EEventExecutionContext::GameThread, this));
+		Subscriptions.Add(EventBus->SubscribeNative(
+			Tag_VisRefreshAll, this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnRefreshAll),
+			ESuspenseCoreEventPriority::Normal));
 	}
 }
 
 void USuspenseCoreEquipmentVisualizationService::TeardownEventHandlers()
 {
-	if (auto Bus = EventBus.Pin())
+	if (EventBus)
 	{
-		for (const auto& H : Subscriptions) { Bus->Unsubscribe(H); }
+		for (const FSuspenseCoreSubscriptionHandle& Handle : Subscriptions)
+		{
+			EventBus->Unsubscribe(Handle);
+		}
 	}
 	Subscriptions.Empty();
 }
 
 // ===== Event handlers ============================================================
 
-void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentVisualizationService::OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> OnEquipped event received"));
 
@@ -327,7 +336,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 	}
 
 	// Step 2: Extract and validate Character
-	AActor* Character = E.GetTargetAs<AActor>();
+	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
 	if (!Character)
 	{
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
@@ -344,7 +353,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 
 	// Step 3: Parse Slot metadata
 	int32 Slot = INDEX_NONE;
-	const bool bSlotParsed = TryParseInt(E, TEXT("Slot"), Slot);
+	const bool bSlotParsed = TryParseInt(EventData, TEXT("Slot"), Slot);
 
 	if (!bSlotParsed)
 	{
@@ -352,7 +361,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 			TEXT("OnEquipped FAILED: Could not parse 'Slot' metadata"));
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("  Metadata['Slot'] = '%s'"),
-			*E.GetMetadata(TEXT("Slot"), TEXT("<empty>")));
+			*EventData.GetString(FName("Slot")));
 		return;
 	}
 
@@ -366,7 +375,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("OnEquipped: Slot = %d"), Slot);
 
 	// Step 4: Parse ItemID metadata
-	const FName ItemID = ParseName(E, TEXT("ItemID"));
+	const FName ItemID = ParseName(EventData, TEXT("ItemID"));
 
 	if (ItemID.IsNone())
 	{
@@ -374,7 +383,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 			TEXT("OnEquipped FAILED: ItemID is None after parsing"));
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("  Metadata['ItemID'] = '%s'"),
-			*E.GetMetadata(TEXT("ItemID"), TEXT("<empty>")));
+			*EventData.GetString(FName("ItemID")));
 		return;
 	}
 
@@ -382,10 +391,10 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 
 	// Step 5: Log all available metadata for diagnostics
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("OnEquipped: All metadata:"));
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  Slot       = %s"), *E.GetMetadata(TEXT("Slot"), TEXT("<none>")));
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  ItemID     = %s"), *E.GetMetadata(TEXT("ItemID"), TEXT("<none>")));
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  InstanceID = %s"), *E.GetMetadata(TEXT("InstanceID"), TEXT("<none>")));
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  Quantity   = %s"), *E.GetMetadata(TEXT("Quantity"), TEXT("<none>")));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  Slot       = %s"), *EventData.GetString(FName("Slot")));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  ItemID     = %s"), *EventData.GetString(FName("ItemID")));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  InstanceID = %s"), *EventData.GetString(FName("InstanceID")));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  Quantity   = %s"), *EventData.GetString(FName("Quantity")));
 
 	// Step 6: Final validation before calling UpdateVisualForSlot
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -400,7 +409,7 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(const FSuspenseCoreE
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("OnEquipped: UpdateVisualForSlot call completed"));
 }
 
-void USuspenseCoreEquipmentVisualizationService::OnUnequipped(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentVisualizationService::OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> OnUnequipped event received"));
 
@@ -410,7 +419,7 @@ void USuspenseCoreEquipmentVisualizationService::OnUnequipped(const FSuspenseCor
 		return;
 	}
 
-	AActor* Character = E.GetTargetAs<AActor>();
+	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
 	if (!Character)
 	{
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
@@ -422,7 +431,7 @@ void USuspenseCoreEquipmentVisualizationService::OnUnequipped(const FSuspenseCor
 		TEXT("OnUnequipped: Character = %s"), *Character->GetName());
 
 	int32 Slot = INDEX_NONE;
-	const bool bSlotParsed = TryParseInt(E, TEXT("Slot"), Slot);
+	const bool bSlotParsed = TryParseInt(EventData, TEXT("Slot"), Slot);
 
 	if (!bSlotParsed || Slot == INDEX_NONE)
 	{
@@ -430,7 +439,7 @@ void USuspenseCoreEquipmentVisualizationService::OnUnequipped(const FSuspenseCor
 			TEXT("OnUnequipped FAILED: Could not parse Slot (got %d)"), Slot);
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("  Metadata['Slot'] = '%s'"),
-			*E.GetMetadata(TEXT("Slot"), TEXT("<empty>")));
+			*EventData.GetString(FName("Slot")));
 		return;
 	}
 
@@ -443,27 +452,28 @@ void USuspenseCoreEquipmentVisualizationService::OnUnequipped(const FSuspenseCor
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("OnUnequipped: HideVisualForSlot call completed"));
 }
 
-void USuspenseCoreEquipmentVisualizationService::OnSlotSwitched(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentVisualizationService::OnSlotSwitched(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	if (RateLimit()) return;
 
-	AActor* Character = E.GetTargetAs<AActor>();
+	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
 	if (!Character) return;
 
 	int32 ActiveSlot = INDEX_NONE;
-	TryParseInt(E, TEXT("ActiveSlot"), ActiveSlot);
+	TryParseInt(EventData, TEXT("ActiveSlot"), ActiveSlot);
 
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 	FSuspenseCoreVisCharState& S = Characters.FindOrAdd(Character);
 	S.ActiveSlot = ActiveSlot;
 }
 
-void USuspenseCoreEquipmentVisualizationService::OnRefreshAll(const FSuspenseCoreEquipmentEventData& E)
+void USuspenseCoreEquipmentVisualizationService::OnRefreshAll(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	AActor* Character = E.GetTargetAs<AActor>();
+	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
 	if (!Character) return;
 
-	const bool bForce = E.GetMetadata(TEXT("Force"), TEXT("false")).Equals(TEXT("true"), ESearchCase::IgnoreCase);
+	const FString ForceStr = EventData.GetString(FName("Force"));
+	const bool bForce = ForceStr.Equals(TEXT("true"), ESearchCase::IgnoreCase);
 	RequestRefresh(Character, bForce);
 }
 
@@ -652,14 +662,13 @@ void USuspenseCoreEquipmentVisualizationService::RefreshAllVisuals(AActor* Chara
 {
 	if (!Character) return;
 
-	// Request data layer to resend current state (ketchup)
-	if (auto Bus = EventBus.Pin())
+	// Request data layer to resend current state (SuspenseCore EventBus)
+	if (EventBus)
 	{
-		FSuspenseCoreEquipmentEventData Req;
-		Req.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestResend"));
-		Req.Target    = Character;
-		Req.AddMetadata(TEXT("Reason"), bForce ? TEXT("ForceRefreshVisual") : TEXT("RefreshVisual"));
-		Bus->Broadcast(Req);
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentVisualizationService*>(this));
+		EventData.SetObject(FName("Target"), Character);
+		EventData.SetString(FName("Reason"), bForce ? TEXT("ForceRefreshVisual") : TEXT("RefreshVisual"));
+		EventBus->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.RequestResend")), EventData);
 	}
 
 	// Refresh quality for current visuals
@@ -1258,16 +1267,16 @@ bool USuspenseCoreEquipmentVisualizationService::RateLimit() const
 
 // ===== Event metadata parsing =====================================================
 
-bool USuspenseCoreEquipmentVisualizationService::TryParseInt(const FSuspenseCoreEquipmentEventData& E, const TCHAR* Key, int32& OutValue)
+bool USuspenseCoreEquipmentVisualizationService::TryParseInt(const FSuspenseCoreEventData& EventData, const TCHAR* Key, int32& OutValue)
 {
-	const FString S = E.GetMetadata(Key, TEXT(""));
+	const FString S = EventData.GetString(FName(Key));
 	if (S.IsEmpty()) { return false; }
 	OutValue = LexToInt(S, OutValue);
 	return true;
 }
 
-FName USuspenseCoreEquipmentVisualizationService::ParseName(const FSuspenseCoreEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue)
+FName USuspenseCoreEquipmentVisualizationService::ParseName(const FSuspenseCoreEventData& EventData, const TCHAR* Key, const FName DefaultValue)
 {
-	const FString S = E.GetMetadata(Key, TEXT(""));
+	const FString S = EventData.GetString(FName(Key));
 	return S.IsEmpty() ? DefaultValue : FName(*S);
 }

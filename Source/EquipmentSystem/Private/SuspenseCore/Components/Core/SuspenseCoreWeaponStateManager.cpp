@@ -568,15 +568,12 @@ void USuspenseCoreWeaponStateManager::BroadcastStateChange(int32 SlotIndex, cons
         return;
     }
 
-    // В FEquipmentEventData нет поля EventPayload — используем метаданные (как в вашем VisualController)
-    FSuspenseCoreEquipmentEventData Ev;
-    Ev.EventType = FGameplayTag::RequestGameplayTag(TEXT("Weapon.StateChanged"));
-    Ev.Source    = this;
-    Ev.Target    = GetOwner(); // по желанию: кто «носит» оружие
+    // SuspenseCore architecture: FSuspenseCoreEventData with Publish()
+    FSuspenseCoreEventData Ev = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreWeaponStateManager*>(this));
+    Ev.SetObject(FName("Target"), GetOwner());
+    Ev.SetInt(FName("Slot"), SlotIndex);
+    Ev.SetString(FName("From"), OldState.ToString());
+    Ev.SetString(FName("To"), NewState.ToString());
 
-    Ev.AddMetadata(TEXT("Slot"), FString::FromInt(SlotIndex));
-    Ev.AddMetadata(TEXT("From"), OldState.ToString());
-    Ev.AddMetadata(TEXT("To"),   NewState.ToString());
-
-    EventDispatcher->BroadcastEvent(Ev);
+    EventDispatcher->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.StateChanged")), Ev);
 }

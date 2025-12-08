@@ -286,8 +286,15 @@ bool USuspenseCoreEquipmentValidationService::ShutdownService(bool bForce)
     // Unregister from cache registry
     FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentValidation.Results"));
 
-    // Clear event subscriptions
-    EventScope.UnsubscribeAll();
+    // Clear event subscriptions (SuspenseCore EventBus)
+    if (EventBus)
+    {
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
+        {
+            EventBus->Unsubscribe(Handle);
+        }
+    }
+    EventSubscriptions.Empty();
 
     // Clean up rules interface (coordinator is UObject, not component)
     if (Rules.GetInterface())
@@ -1525,55 +1532,69 @@ bool USuspenseCoreEquipmentValidationService::InitializeDependencies()
 
 void USuspenseCoreEquipmentValidationService::SetupEventSubscriptions()
 {
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    // Initialize EventBus via ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (!EventBus)
     {
         UE_LOG(LogSuspenseCoreEquipmentValidation, Warning, TEXT("SetupEventSubscriptions: EventBus not available"));
         return;
     }
 
     // Subscribe to cache invalidation events
-    EventScope.Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Cache.Invalidate.Validation")),
-        FEventHandlerDelegate::CreateLambda([this](const FSuspenseCoreEquipmentEventData& EventData)
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Cache.Invalidate.Validation")),
+        this,
+        FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
         {
             ClearValidationCache();
-        })
-    );
+        }),
+        ESuspenseCoreEventPriority::Normal
+    ));
 
     // Subscribe to rules change events
-    EventScope.Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Rules.Changed")),
-        FEventHandlerDelegate::CreateLambda([this](const FSuspenseCoreEquipmentEventData& EventData)
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Rules.Changed")),
+        this,
+        FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
         {
             OnRulesOrConfigChanged();
-        })
-    );
+        }),
+        ESuspenseCoreEventPriority::Normal
+    ));
 
     // Subscribe to configuration changes
-    EventScope.Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Configuration.Changed")),
-        FEventHandlerDelegate::CreateLambda([this](const FSuspenseCoreEquipmentEventData& EventData)
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Configuration.Changed")),
+        this,
+        FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
         {
             OnRulesOrConfigChanged();
 
-            if (EventData.HasMetadata(TEXT("ReloadRules")) && Rules.GetInterface())
+            const FString ReloadRulesStr = EventData.GetString(FName("ReloadRules"));
+            if (!ReloadRulesStr.IsEmpty() && Rules.GetInterface())
             {
                 Rules->ClearRuleCache();
             }
-        })
-    );
+        }),
+        ESuspenseCoreEventPriority::Normal
+    ));
 
     // Subscribe to transaction events (for cache invalidation only)
-    EventScope.Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Transaction.RolledBack")),
-        FEventHandlerDelegate::CreateLambda([this](const FSuspenseCoreEquipmentEventData& EventData)
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Transaction.RolledBack")),
+        this,
+        FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
         {
             ClearValidationCache();
-        })
-    );
+        }),
+        ESuspenseCoreEventPriority::Normal
+    ));
 
-    UE_LOG(LogSuspenseCoreEquipmentValidation, Log, TEXT("SetupEventSubscriptions: Event handlers registered"));
+    UE_LOG(LogSuspenseCoreEquipmentValidation, Log, TEXT("SetupEventSubscriptions: Event handlers registered via ServiceProvider"));
 }
 
 void USuspenseCoreEquipmentValidationService::OnRulesOrConfigChanged()
@@ -1672,33 +1693,30 @@ void USuspenseCoreEquipmentValidationService::PublishValidationEvent(
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
-    EventData.EventType = EventType;
-    EventData.Source = this;
-    EventData.Target = Request.Instigator.Get();
-    EventData.Timestamp = FPlatformTime::Seconds();
-    EventData.Priority = Result.FailureType == EEquipmentValidationFailure::SystemError ?
-        EEventPriority::High : EEventPriority::Normal;
+    if (!EventBus)
+    {
+        return;
+    }
+
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentValidationService*>(this));
+    EventData.SetObject(FName("Target"), Request.Instigator.Get());
 
     // Add metadata
-    EventData.AddMetadata(TEXT("OperationId"), Request.OperationId.ToString());
-    EventData.AddMetadata(TEXT("OperationType"), UEnum::GetValueAsString(Request.OperationType));
-    EventData.AddMetadata(TEXT("ItemID"), Request.ItemInstance.ItemID.ToString());
-    EventData.AddMetadata(TEXT("ValidationPassed"), Result.bIsValid ? TEXT("true") : TEXT("false"));
-    EventData.AddMetadata(TEXT("Confidence"), FString::Printf(TEXT("%.2f"), Result.ConfidenceScore));
-    EventData.AddMetadata(TEXT("RulesEpoch"), FString::Printf(TEXT("%u"), RulesEpoch.load()));
+    EventData.SetString(FName("OperationId"), Request.OperationId.ToString());
+    EventData.SetString(FName("OperationType"), UEnum::GetValueAsString(Request.OperationType));
+    EventData.SetString(FName("ItemID"), Request.ItemInstance.ItemID.ToString());
+    EventData.SetString(FName("ValidationPassed"), Result.bIsValid ? TEXT("true") : TEXT("false"));
+    EventData.SetString(FName("Confidence"), FString::Printf(TEXT("%.2f"), Result.ConfidenceScore));
+    EventData.SetString(FName("RulesEpoch"), FString::Printf(TEXT("%u"), RulesEpoch.load()));
 
     if (!Result.bIsValid)
     {
-        EventData.AddMetadata(TEXT("FailureType"), UEnum::GetValueAsString(Result.FailureType));
-        EventData.AddMetadata(TEXT("ErrorMessage"), Result.ErrorMessage.ToString());
+        EventData.SetString(FName("FailureType"), UEnum::GetValueAsString(Result.FailureType));
+        EventData.SetString(FName("ErrorMessage"), Result.ErrorMessage.ToString());
     }
 
     // Publish event
-    if (auto EventBus = FSuspenseCoreEquipmentEventBus::Get())
-    {
-        EventBus->Broadcast(EventData);
-    }
+    EventBus->Publish(EventType, EventData);
 }
 
 EEquipmentValidationFailure USuspenseCoreEquipmentValidationService::DetermineFailureType(const FRuleEvaluationResult& RuleResult) const

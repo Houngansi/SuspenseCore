@@ -288,8 +288,11 @@ protected:
 	FSuspenseEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
 	FSuspenseEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
 
-	/** Подписки на EventBus */
-	TArray<FEventSubscriptionHandle> EventSubscriptions;
+	/** Подписки на EventBus (SuspenseCore architecture) */
+	UPROPERTY(Transient)
+	TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+	TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
 	/** Синхронизация: RWLocks под макросы из EquipmentServiceMacros.h */
 	mutable FEquipmentRWLock EffectLock;
@@ -319,10 +322,10 @@ protected:
 
 private:
 	void SetupEventHandlers();
-	void OnEquipmentStateChanged(const FSuspenseEquipmentEventData& EventData);
-	void OnWeaponFired(const FSuspenseEquipmentEventData& EventData);
-	void OnWeaponReload(const FSuspenseEquipmentEventData& EventData);
-	void OnQuickSwitch(const FSuspenseEquipmentEventData& EventData);
+	void OnEquipmentStateChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnWeaponFired(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnWeaponReload(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnQuickSwitch(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	void ProcessBatchQueue();
 	void UpdateMaterialTransitions(float DeltaTime);

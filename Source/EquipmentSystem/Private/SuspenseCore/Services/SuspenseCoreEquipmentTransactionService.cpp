@@ -685,7 +685,11 @@ const FEquipmentTransaction* USuspenseCoreEquipmentTransactionService::FindTrans
 
 void USuspenseCoreEquipmentTransactionService::SetupEventBus()
 {
-    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    // Initialize EventBus via ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
 
     using namespace SuspenseCoreEquipmentTags;
     Tag_Transaction_Started = Event::TAG_Equipment_Event_Operation_Started;
@@ -696,12 +700,11 @@ void USuspenseCoreEquipmentTransactionService::SetupEventBus()
 
 void USuspenseCoreEquipmentTransactionService::TeardownEventBus()
 {
-    auto Bus = EventBus.Pin();
-    if (Bus.IsValid())
+    if (EventBus)
     {
-        for (const FEventSubscriptionHandle& Handle : EventSubscriptions)
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
         {
-            Bus->Unsubscribe(Handle);
+            EventBus->Unsubscribe(Handle);
         }
     }
     EventSubscriptions.Empty();
@@ -709,54 +712,46 @@ void USuspenseCoreEquipmentTransactionService::TeardownEventBus()
 
 void USuspenseCoreEquipmentTransactionService::BroadcastTransactionStarted(const FGuid& TransactionId, const FString& Description) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Transaction_Started.IsValid()) return;
+    if (!EventBus || !Tag_Transaction_Started.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
-    EventData.EventType = Tag_Transaction_Started;
-    EventData.AddMetadata(TEXT("TransactionId"), TransactionId.ToString());
-    EventData.AddMetadata(TEXT("Description"), Description);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentTransactionService*>(this));
+    EventData.SetString(FName("TransactionId"), TransactionId.ToString());
+    EventData.SetString(FName("Description"), Description);
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Transaction_Started, EventData);
 }
 
 void USuspenseCoreEquipmentTransactionService::BroadcastTransactionCommitted(const FGuid& TransactionId) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Transaction_Committed.IsValid()) return;
+    if (!EventBus || !Tag_Transaction_Committed.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
-    EventData.EventType = Tag_Transaction_Committed;
-    EventData.AddMetadata(TEXT("TransactionId"), TransactionId.ToString());
-    EventData.AddMetadata(TEXT("Result"), TEXT("Committed"));
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentTransactionService*>(this));
+    EventData.SetString(FName("TransactionId"), TransactionId.ToString());
+    EventData.SetString(FName("Result"), TEXT("Committed"));
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Transaction_Committed, EventData);
 }
 
 void USuspenseCoreEquipmentTransactionService::BroadcastTransactionRolledBack(const FGuid& TransactionId) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Transaction_RolledBack.IsValid()) return;
+    if (!EventBus || !Tag_Transaction_RolledBack.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
-    EventData.EventType = Tag_Transaction_RolledBack;
-    EventData.AddMetadata(TEXT("TransactionId"), TransactionId.ToString());
-    EventData.AddMetadata(TEXT("Result"), TEXT("RolledBack"));
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentTransactionService*>(this));
+    EventData.SetString(FName("TransactionId"), TransactionId.ToString());
+    EventData.SetString(FName("Result"), TEXT("RolledBack"));
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Transaction_RolledBack, EventData);
 }
 
 void USuspenseCoreEquipmentTransactionService::BroadcastTransactionFailed(const FGuid& TransactionId, const FString& Reason) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Transaction_Failed.IsValid()) return;
+    if (!EventBus || !Tag_Transaction_Failed.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
-    EventData.EventType = Tag_Transaction_Failed;
-    EventData.AddMetadata(TEXT("TransactionId"), TransactionId.ToString());
-    EventData.AddMetadata(TEXT("Reason"), Reason);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentTransactionService*>(this));
+    EventData.SetString(FName("TransactionId"), TransactionId.ToString());
+    EventData.SetString(FName("Reason"), Reason);
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Transaction_Failed, EventData);
 }
 
 void USuspenseCoreEquipmentTransactionService::UpdateMetrics(const FGuid& TransactionId, bool bCommitted) const

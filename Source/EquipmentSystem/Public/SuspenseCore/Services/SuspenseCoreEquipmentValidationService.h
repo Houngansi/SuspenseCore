@@ -349,10 +349,13 @@ private:
     TSharedPtr<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>> ResultCache;
 
     //========================================
-    // Event Management
+    // Event Management (SuspenseCore architecture)
     //========================================
 
-    FEventSubscriptionScope EventScope;
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
     //========================================
     // Statistics (using atomics for lock-free updates)

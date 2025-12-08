@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Equipment/ISuspenseVisualProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "ISuspenseCoreVisualProvider.generated.h"
 
 /**
@@ -187,5 +187,3 @@ public:
     virtual bool PlayEquipmentAnimation(AActor* Equipment, const FGameplayTag& AnimationTag) = 0;
 };
 
-// Backward compatibility alias
-using IVisualProvider = ISuspenseCoreVisualProvider;

@@ -21,6 +21,7 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBridge, Log, All);
 

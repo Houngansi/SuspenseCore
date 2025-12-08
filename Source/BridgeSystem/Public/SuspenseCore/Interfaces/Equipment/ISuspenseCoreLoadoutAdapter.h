@@ -409,16 +409,3 @@ public:
 	 */
 	virtual bool CancelApplication() = 0;
 };
-
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy FLoadoutConfiguration */
-using FLoadoutConfiguration = FSuspenseCoreLoadoutConfiguration;
-
-/** Alias for legacy FLoadoutApplicationResult */
-using FLoadoutApplicationResult = FSuspenseCoreLoadoutApplicationResult;
-
-/** Alias for legacy interface usage */
-using ILoadoutAdapter = ISuspenseCoreLoadoutAdapter;

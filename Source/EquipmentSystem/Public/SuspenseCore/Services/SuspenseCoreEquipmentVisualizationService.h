@@ -7,27 +7,17 @@
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
 #include "HAL/CriticalSection.h"
-
-// Fundamental: service interface + base utilities
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
-
-// Presentation layer interfaces
-#include "Interfaces/Equipment/ISuspenseActorFactory.h"
-
-// Unified macros (logs/locks/metrics) - log categories declared centrally
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-
-// Item / visualization types (lightweight dependencies)
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Equipment/SuspenseEquipmentVisualizationTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
-
 #include "SuspenseCoreEquipmentVisualizationService.generated.h"
 
 /**
@@ -85,7 +75,7 @@ private:
 	TArray<FSuspenseCoreSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)
-	TObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
+	TObjectPtr<USuspenseCoreEquipmentServiceLocator> CachedServiceLocator;
 
 	// Lightweight state
 	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FSuspenseCoreVisCharState> Characters;

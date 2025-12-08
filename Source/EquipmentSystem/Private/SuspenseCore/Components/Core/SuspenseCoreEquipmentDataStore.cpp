@@ -8,7 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/PlayerState.h"
-#include "Interfaces/Core/ISuspenseCoreLoadout.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 

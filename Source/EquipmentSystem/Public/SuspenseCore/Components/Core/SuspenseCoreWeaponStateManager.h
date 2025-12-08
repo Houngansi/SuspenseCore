@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseWeaponStateProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreWeaponStateProvider.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCoreWeaponStateManager.generated.h"
 
 /**
@@ -15,25 +17,25 @@ USTRUCT()
 struct FSuspenseCoreWeaponStateMachine
 {
     GENERATED_BODY()
-    
+
     UPROPERTY()
     int32 SlotIndex = INDEX_NONE;
-    
+
     UPROPERTY()
     FGameplayTag CurrentState;
-    
+
     UPROPERTY()
     FGameplayTag PreviousState;
-    
+
     UPROPERTY()
     bool bIsTransitioning = false;
-    
+
     UPROPERTY()
     float TransitionStartTime = 0.0f;
-    
+
     UPROPERTY()
     float TransitionDuration = 0.0f;
-    
+
     UPROPERTY()
     FWeaponStateTransitionRequest ActiveTransition;
 };
@@ -45,19 +47,19 @@ USTRUCT()
 struct FSuspenseCoreStateTransitionDef
 {
     GENERATED_BODY()
-    
+
     UPROPERTY()
     FGameplayTag FromState;
-    
+
     UPROPERTY()
     FGameplayTag ToState;
-    
+
     UPROPERTY()
     float Duration = 0.2f;
-    
+
     UPROPERTY()
     bool bInterruptible = false;
-    
+
     UPROPERTY()
     FGameplayTagContainer RequiredTags;
 };
@@ -76,10 +78,10 @@ struct FSuspenseCoreWeaponStateHistoryEntry
 
 /**
  * Weapon State Manager Component
- * 
+ *
  * Philosophy: Dedicated finite state machine for weapon states.
  * Manages state transitions, validates state changes, and tracks history.
- * 
+ *
  * Key Principles:
  * - Single Responsibility: Only manages weapon states
  * - State Machine Pattern: Clear transition rules and validation
@@ -87,7 +89,7 @@ struct FSuspenseCoreWeaponStateHistoryEntry
  * - Event-driven: Broadcasts state changes for observers
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorComponent, public ISuspenseWeaponStateProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorComponent, public ISuspenseCoreWeaponStateProvider
 {
     GENERATED_BODY()
 
@@ -137,19 +139,19 @@ public:
 private:
     // Process ongoing transitions
     void UpdateTransitions(float DeltaTime);
-    
+
     // Complete a transition
     void CompleteTransition(int32 SlotIndex);
-    
+
     // Get or create state machine for slot
     FSuspenseCoreWeaponStateMachine& GetOrCreateStateMachine(int32 SlotIndex);
-    
+
     // Find transition definition
     const FSuspenseCoreStateTransitionDef* FindTransitionDef(const FGameplayTag& FromState, const FGameplayTag& ToState) const;
-    
+
     // Record state change in history
     void RecordStateChange(int32 SlotIndex, const FGameplayTag& NewState);
-    
+
     // Broadcast state change event
     void BroadcastStateChange(int32 SlotIndex, const FGameplayTag& OldState, const FGameplayTag& NewState);
 
@@ -157,36 +159,36 @@ private:
     // Dependencies
     UPROPERTY()
     TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
-    
+
     UPROPERTY()
-    TScriptInterface<ISuspenseEventDispatcher> EventDispatcher;
-    
+    TScriptInterface<ISuspenseCoreEventDispatcher> EventDispatcher;
+
     // State machines per slot
     UPROPERTY()
     TArray<FSuspenseCoreWeaponStateMachine> StateMachines;
-    
+
     // Transition definitions
     UPROPERTY()
     TArray<FSuspenseCoreStateTransitionDef> TransitionDefinitions;
-    
+
     // State history (circular buffer)
 	UPROPERTY()
 	TArray<FSuspenseCoreWeaponStateHistoryEntry> StateHistory;
-    
+
     UPROPERTY()
     int32 MaxHistorySize = 50;
-    
+
     // Default states
     UPROPERTY()
     FGameplayTag DefaultIdleState;
-    
+
     UPROPERTY()
     FGameplayTag DefaultHolsteredState;
-    
+
     // Active weapon slot tracking
     UPROPERTY()
     int32 ActiveWeaponSlot = INDEX_NONE;
-    
+
     // Thread safety
     mutable FCriticalSection StateMachineLock;
 };

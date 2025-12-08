@@ -698,7 +698,7 @@ bool ASuspenseCorePlayerState::TryWireEquipmentModuleOnce()
 	return false;
 }
 
-bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
+bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
 {
 	// Basic validation
 	if (!EquipmentDataStore || !EquipmentTxnProcessor || !EquipmentOps)

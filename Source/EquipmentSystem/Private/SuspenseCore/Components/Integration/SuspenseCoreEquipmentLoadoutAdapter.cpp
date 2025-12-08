@@ -19,6 +19,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Types/Loadout/SuspenseCoreItemDataTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLoadoutAdapter, Log, All);
 

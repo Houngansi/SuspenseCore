@@ -495,15 +495,3 @@ public:
 	virtual void ResetStatistics() = 0;
 };
 
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy FWeaponStateTransitionRequest */
-using FWeaponStateTransitionRequest = FSuspenseCoreWeaponStateTransitionRequest;
-
-/** Alias for legacy FWeaponStateTransitionResult */
-using FWeaponStateTransitionResult = FSuspenseCoreWeaponStateTransitionResult;
-
-/** Alias for legacy interface usage */
-using IWeaponStateProvider = ISuspenseCoreWeaponStateProvider;

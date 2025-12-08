@@ -7,13 +7,15 @@
 #include "HAL/CriticalSection.h"
 
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreLoadoutAdapter.h"
-#include "Interfaces/Core/ISuspenseCoreLoadout.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventoryBridge.h"
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 class USuspenseCoreEquipmentOperationService;

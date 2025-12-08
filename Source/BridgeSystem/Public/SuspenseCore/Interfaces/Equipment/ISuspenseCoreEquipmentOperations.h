@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "ISuspenseCoreEquipmentOperations.generated.h"
 
@@ -157,3 +157,4 @@ public:
         return OperationType != EEquipmentOperationType::None;
     }
 };
+

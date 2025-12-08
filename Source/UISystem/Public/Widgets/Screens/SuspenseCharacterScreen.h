@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/Screens/ISuspenseScreen.h"
+#include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCharacterScreen.generated.h"
 

@@ -409,3 +409,4 @@ public:
 	 */
 	virtual bool CancelApplication() = 0;
 };
+

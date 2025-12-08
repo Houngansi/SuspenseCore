@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Weapon/SuspenseInventoryAmmoState.h"
 #include "ISuspenseWeapon.generated.h"
 
@@ -413,3 +413,4 @@ public:
         const UObject* Weapon,
         const FGameplayTag& NewFireMode);
 };
+

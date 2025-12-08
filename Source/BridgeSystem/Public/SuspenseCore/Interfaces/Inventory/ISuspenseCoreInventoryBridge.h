@@ -7,8 +7,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Operations/SuspenseInventoryResult.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "ISuspenseCoreInventoryBridge.generated.h"
 
 // Forward declarations
@@ -361,4 +361,5 @@ public:
 	 */
 	virtual int32 ClearExpiredReservations() = 0;
 };
+
 

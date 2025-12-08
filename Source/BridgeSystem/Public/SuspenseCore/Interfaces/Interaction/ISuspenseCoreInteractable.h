@@ -125,3 +125,4 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Interaction")
 	void OnFocusLost(APlayerController* InstigatingController);
 };
+

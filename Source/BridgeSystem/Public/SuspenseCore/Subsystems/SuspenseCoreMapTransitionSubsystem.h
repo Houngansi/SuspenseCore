@@ -204,3 +204,4 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Config")
 	FString MenuGameModePath;
 };
+

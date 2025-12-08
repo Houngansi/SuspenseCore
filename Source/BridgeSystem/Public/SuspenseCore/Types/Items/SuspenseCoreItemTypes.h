@@ -785,3 +785,4 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
 		return true;
 	}
 };
+

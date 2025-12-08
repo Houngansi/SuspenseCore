@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/UI/ISuspenseCrosshairWidget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreCrosshairWidget.h"
 #include "SuspenseCrosshairWidget.generated.h"
 
 // Forward declarations

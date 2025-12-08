@@ -14,7 +14,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 
 #include "SuspenseCoreEquipmentSlotValidator.generated.h"

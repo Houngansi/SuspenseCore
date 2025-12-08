@@ -439,3 +439,4 @@ struct BRIDGESYSTEM_API FEquipmentAttachmentState
 
     bool IsValid() const { return SlotIndex != INDEX_NONE && !AttachmentSocket.IsNone(); }
 };
+

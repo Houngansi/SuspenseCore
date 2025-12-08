@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "ISuspenseCoreEquipmentDataProvider.generated.h"
 
@@ -245,4 +245,5 @@ public:
         );
     }
 };
+
 

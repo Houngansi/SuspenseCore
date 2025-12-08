@@ -13,7 +13,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
-#include "Types/Network/SuspenseNetworkTypes.h"
+#include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"

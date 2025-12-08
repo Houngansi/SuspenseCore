@@ -10,7 +10,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
-#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCoreEquipmentVisualController.generated.h"

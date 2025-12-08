@@ -5,7 +5,7 @@
 #include "Widgets/DragDrop/SuspenseDragVisualWidget.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"

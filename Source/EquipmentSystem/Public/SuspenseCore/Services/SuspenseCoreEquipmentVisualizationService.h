@@ -10,14 +10,14 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
-#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Equipment/SuspenseEquipmentVisualizationTypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentVisualizationTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCoreEquipmentVisualizationService.generated.h"
 
 /**

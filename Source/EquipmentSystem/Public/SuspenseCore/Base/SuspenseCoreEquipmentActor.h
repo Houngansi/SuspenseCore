@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"

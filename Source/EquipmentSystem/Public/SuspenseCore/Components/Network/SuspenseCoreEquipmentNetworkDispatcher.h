@@ -7,8 +7,8 @@
 #include "Delegates/Delegate.h"
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Network/SuspenseNetworkTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "SuspenseCoreEquipmentNetworkDispatcher.generated.h"
 
 class USuspenseCoreEquipmentNetworkService;

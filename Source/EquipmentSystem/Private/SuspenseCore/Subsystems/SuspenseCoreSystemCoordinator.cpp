@@ -10,7 +10,7 @@
 #include "HAL/IConsoleManager.h"
 
 // Core interfaces
-#include "Interfaces/Core/SuspenseWorldBindable.h"
+#include "SuspenseCore/Interfaces/Core/SuspenseCoreWorldBindable.h"
 
 // Equipment infrastructure
 #include "SuspenseCore/Subsystems/SuspenseCoreSystemCoordinator.h"

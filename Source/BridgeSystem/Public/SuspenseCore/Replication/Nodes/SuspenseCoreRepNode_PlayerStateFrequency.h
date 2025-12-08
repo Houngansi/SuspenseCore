@@ -109,3 +109,4 @@ protected:
 	/** Get owning PlayerState for this connection */
 	APlayerState* GetConnectionPlayerState(const FConnectionGatherActorListParameters& Params) const;
 };
+

@@ -2,9 +2,9 @@
 
 #include "Tooltip/SuspenseTooltipManager.h"
 #include "Widgets/Tooltip/SuspenseItemTooltipWidget.h"
-#include "Interfaces/UI/ISuspenseTooltip.h"
-#include "Interfaces/UI/ISuspenseTooltipSource.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltip.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltipSource.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Components/PanelWidget.h"
 #include "Blueprint/WidgetTree.h"

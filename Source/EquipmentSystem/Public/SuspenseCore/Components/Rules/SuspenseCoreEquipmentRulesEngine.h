@@ -7,7 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentRulesEngine.generated.h"

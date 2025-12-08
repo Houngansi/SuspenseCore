@@ -10,7 +10,7 @@
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
 
 USuspenseCoreEquipmentAttachmentSystem::USuspenseCoreEquipmentAttachmentSystem()
 	: SocketConfigCache(50)

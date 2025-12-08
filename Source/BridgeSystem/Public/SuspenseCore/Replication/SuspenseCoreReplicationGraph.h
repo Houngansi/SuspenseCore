@@ -170,3 +170,4 @@ private:
 	/** Per-connection owner-only nodes */
 	TMap<UNetReplicationGraphConnection*, TObjectPtr<USuspenseCoreRepNode_OwnerOnly>> ConnectionOwnerOnlyNodes;
 };
+

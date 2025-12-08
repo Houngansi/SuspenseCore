@@ -64,3 +64,4 @@ public:
     UDataTable* GetItemDataTable() const;
     virtual UDataTable* GetItemDataTable_Implementation() const { return nullptr; }
 };
+

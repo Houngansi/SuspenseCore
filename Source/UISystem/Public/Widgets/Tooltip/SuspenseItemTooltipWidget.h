@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseTooltip.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltip.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseItemTooltipWidget.generated.h"
 

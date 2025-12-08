@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Transaction/SuspenseTransactionTypes.h"
+#include "SuspenseCore/Types/Transaction/SuspenseCoreTransactionTypes.h"
 #include "ISuspenseCoreTransactionManager.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
@@ -176,3 +176,4 @@ public:
      */
     virtual TArray<FEquipmentDelta> GetTransactionDeltas(const FGuid& TransactionId) const = 0;
 };
+

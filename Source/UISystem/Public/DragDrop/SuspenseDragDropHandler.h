@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
-#include "Operations/SuspenseInventoryResult.h"
+#include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "UObject/WeakInterfacePtr.h"

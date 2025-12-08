@@ -357,3 +357,4 @@ public:
 	 */
 	virtual FString GetDebugString() const = 0;
 };
+

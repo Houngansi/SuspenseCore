@@ -110,3 +110,4 @@ protected:
 	 */
 	bool SavePlayerInternal(const FSuspenseCorePlayerData& Data);
 };
+

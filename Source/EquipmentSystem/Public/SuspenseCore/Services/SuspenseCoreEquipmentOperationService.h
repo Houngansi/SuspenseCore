@@ -13,7 +13,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Core/Utils/SuspenseEquipmentCacheManager.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Engine/TimerHandle.h"

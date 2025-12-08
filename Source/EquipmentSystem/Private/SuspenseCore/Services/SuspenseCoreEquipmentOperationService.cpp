@@ -11,7 +11,7 @@
 #include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
-#include "Types/Network/SuspenseNetworkTypes.h"
+#include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"

@@ -160,3 +160,4 @@ public:
 		_Data.SetString(FName(Key), Value); \
 		EventBus->Publish(EventTag, _Data); \
 	}
+

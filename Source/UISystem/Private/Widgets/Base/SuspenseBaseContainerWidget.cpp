@@ -5,7 +5,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Components/PanelWidget.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 

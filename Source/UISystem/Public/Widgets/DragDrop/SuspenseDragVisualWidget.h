@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Engine/StreamableManager.h"
 #include "Components/TextBlock.h"
 #include "SuspenseDragVisualWidget.generated.h"

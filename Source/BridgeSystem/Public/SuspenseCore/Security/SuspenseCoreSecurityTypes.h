@@ -191,3 +191,4 @@ struct FSuspenseCoreRateLimitEntry
 		WindowStartTime = 0.0;
 	}
 };
+

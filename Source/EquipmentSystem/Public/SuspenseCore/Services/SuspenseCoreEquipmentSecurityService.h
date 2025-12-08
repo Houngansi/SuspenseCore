@@ -7,7 +7,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Security/SuspenseSecureKeyStorage.h"
 #include "SuspenseCore/Security/SuspenseNonceLRUCache.h"
-#include "Types/Network/SuspenseNetworkTypes.h"
+#include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
 #include "SuspenseCoreEquipmentSecurityService.generated.h"

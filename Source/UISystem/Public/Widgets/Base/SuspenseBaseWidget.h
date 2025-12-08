@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseUIWidget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseBaseWidget.generated.h"
 

@@ -138,3 +138,4 @@ public:
 	 */
 	virtual bool IsAvailable() const = 0;
 };
+

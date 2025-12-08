@@ -4,7 +4,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"

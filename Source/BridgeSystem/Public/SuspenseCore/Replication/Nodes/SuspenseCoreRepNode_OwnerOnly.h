@@ -78,3 +78,4 @@ protected:
 	/** Check if this is our owning connection */
 	bool IsOwningConnection(const FConnectionGatherActorListParameters& Params) const;
 };
+

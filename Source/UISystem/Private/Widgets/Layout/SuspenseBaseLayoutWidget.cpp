@@ -3,9 +3,9 @@
 
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Components/PanelWidget.h"
-#include "Interfaces/UI/ISuspenseUIWidget.h"
-#include "Interfaces/Screens/ISuspenseScreen.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
+#include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Components/SuspenseUIManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"

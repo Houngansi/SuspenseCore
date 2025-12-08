@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "SuspenseDragDropOperation.generated.h"
 
 // Forward declarations

@@ -2,10 +2,10 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
-#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseGlobalCacheRegistry.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreGlobalCacheRegistry.h"
 #include "SuspenseCore/Components/Rules/SuspenseCoreRulesCoordinator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Types/Rules/SuspenseRulesTypes.h"

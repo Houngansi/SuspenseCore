@@ -208,7 +208,6 @@
 	} while(0)
 #else
 #define SUSPENSE_REQUIRE_SERVICE(WorldContext, ServiceClass) ((void)0)
-#endif
 
 /**
  * SUSPENSE_REQUIRE_EVENTBUS
@@ -223,7 +222,6 @@
 	} while(0)
 #else
 #define SUSPENSE_REQUIRE_EVENTBUS(WorldContext) ((void)0)
-#endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONDITIONAL SERVICE ACCESS
@@ -346,3 +344,4 @@
  */
 #define SUSPENSE_CREATE_EVENT_PRIORITY(Source, Priority, OutVar) \
 	FSuspenseCoreEventData OutVar = FSuspenseCoreEventData::Create(Source, Priority)
+

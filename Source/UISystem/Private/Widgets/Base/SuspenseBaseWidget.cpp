@@ -1,7 +1,7 @@
 // Copyright Suspense Team Team. All Rights Reserved.
 
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "Animation/WidgetAnimation.h"
 #include "Engine/World.h"
@@ -139,18 +139,18 @@ void USuspenseBaseWidget::OnVisibilityChanged_Implementation(bool bIsVisible)
         bIsVisible ? TEXT("Visible") : TEXT("Hidden")));
 }
 
-USuspenseEventManager* USuspenseBaseWidget::GetDelegateManager() const
+USuspenseCoreEventManager* USuspenseBaseWidget::GetDelegateManager() const
 {
     if (!CachedEventManager)
     {
         // Получаем из GameInstance - правильный способ для UGameInstanceSubsystem
         if (UGameInstance* GameInstance = GetGameInstance())
         {
-            CachedEventManager = GameInstance->GetSubsystem<USuspenseEventManager>();
+            CachedEventManager = GameInstance->GetSubsystem<USuspenseCoreEventManager>();
         }
         if (!CachedEventManager)
         {
-            CachedEventManager = USuspenseEventManager::Get(this);
+            CachedEventManager = USuspenseCoreEventManager::Get(this);
         }
     }
     return CachedEventManager;

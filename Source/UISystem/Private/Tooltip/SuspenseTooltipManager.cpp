@@ -4,7 +4,7 @@
 #include "Widgets/Tooltip/SuspenseItemTooltipWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltip.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltipSource.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Components/PanelWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -36,15 +36,16 @@ void USuspenseTooltipManager::Initialize(FSubsystemCollectionBase& Collection)
             "Tooltips will not work until a default class is set."));
     }
 
+    // TODO: Migrate to EventBus - old delegate system removed
     // Subscribe to tooltip events
-    TooltipRequestHandle = CachedEventManager->OnTooltipRequestedNative.AddUObject(
-        this, &USuspenseTooltipManager::OnTooltipRequested);
-
-    TooltipHideHandle = CachedEventManager->OnTooltipHideRequestedNative.AddUObject(
-        this, &USuspenseTooltipManager::OnTooltipHideRequested);
-
-    TooltipUpdateHandle = CachedEventManager->OnTooltipUpdatePositionNative.AddUObject(
-        this, &USuspenseTooltipManager::OnTooltipUpdatePosition);
+    // TooltipRequestHandle = CachedEventManager->OnTooltipRequestedNative.AddUObject(
+    //     this, &USuspenseTooltipManager::OnTooltipRequested);
+    //
+    // TooltipHideHandle = CachedEventManager->OnTooltipHideRequestedNative.AddUObject(
+    //     this, &USuspenseTooltipManager::OnTooltipHideRequested);
+    //
+    // TooltipUpdateHandle = CachedEventManager->OnTooltipUpdatePositionNative.AddUObject(
+    //     this, &USuspenseTooltipManager::OnTooltipUpdatePosition);
 
     // Pre-create pool for default class if specified
     if (Configuration.DefaultTooltipClass && Configuration.MaxPooledTooltipsPerClass > 0)
@@ -701,7 +702,7 @@ APlayerController* USuspenseTooltipManager::GetOwningPlayerController() const
     return nullptr;
 }
 
-USuspenseEventManager* USuspenseTooltipManager::GetEventManager() const
+USuspenseCoreEventManager* USuspenseTooltipManager::GetEventManager() const
 {
     if (CachedEventManager)
     {
@@ -710,7 +711,7 @@ USuspenseEventManager* USuspenseTooltipManager::GetEventManager() const
 
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        return GameInstance->GetSubsystem<USuspenseEventManager>();
+        return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
     }
 
     return nullptr;

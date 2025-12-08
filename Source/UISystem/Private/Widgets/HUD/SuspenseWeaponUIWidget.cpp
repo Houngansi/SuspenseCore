@@ -4,7 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
@@ -368,7 +368,7 @@ float USuspenseWeaponUIWidget::GetAmmoPercentage() const
 
 void USuspenseWeaponUIWidget::SubscribeToEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         // Subscribe to ammo changed events
         AmmoChangedHandle = EventManager->SubscribeToAmmoChanged(
@@ -411,7 +411,7 @@ void USuspenseWeaponUIWidget::SubscribeToEvents()
 
 void USuspenseWeaponUIWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         // Unsubscribe from all events
         if (AmmoChangedHandle.IsValid())

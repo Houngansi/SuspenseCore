@@ -5,7 +5,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Components/PanelWidget.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -191,7 +191,7 @@ FGameplayTag USuspenseBaseContainerWidget::GetWidgetTag_Implementation() const
    return ContainerType;
 }
 
-USuspenseEventManager* USuspenseBaseContainerWidget::GetDelegateManager() const
+USuspenseCoreEventManager* USuspenseBaseContainerWidget::GetDelegateManager() const
 {
    if (CachedDelegateManager)
    {
@@ -298,7 +298,7 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
    }
 
    // Notify through event system
-   if (USuspenseEventManager* Manager = GetDelegateManager())
+   if (USuspenseCoreEventManager* Manager = GetDelegateManager())
    {
        FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.Click"));
        Manager->OnUISlotInteraction.Broadcast(this, SlotIndex, InteractionType);

@@ -1,11 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreAttributeProvider.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseEventManager* ISuspenseAttributeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseAttributeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -24,7 +24,7 @@ USuspenseEventManager* ISuspenseAttributeProvider::GetDelegateManagerStatic(cons
 		return nullptr;
 	}
     
-	return GameInstance->GetSubsystem<USuspenseEventManager>();
+	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
 void ISuspenseAttributeProvider::BroadcastHealthUpdate(const UObject* Provider, float CurrentHealth, float MaxHealth)
@@ -34,11 +34,12 @@ void ISuspenseAttributeProvider::BroadcastHealthUpdate(const UObject* Provider, 
 		return;
 	}
     
-	USuspenseEventManager* Manager = GetDelegateManagerStatic(Provider);
+	USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
 	if (Manager)
 	{
-		float HealthPercent = (MaxHealth > 0.0f) ? (CurrentHealth / MaxHealth) : 0.0f;
-		Manager->NotifyHealthUpdated(CurrentHealth, MaxHealth, HealthPercent);
+		// TODO: Migrate to EventBus - old delegate system removed
+		// float HealthPercent = (MaxHealth > 0.0f) ? (CurrentHealth / MaxHealth) : 0.0f;
+		// Manager->NotifyHealthUpdated(CurrentHealth, MaxHealth, HealthPercent);
 	}
 }
 
@@ -49,10 +50,11 @@ void ISuspenseAttributeProvider::BroadcastStaminaUpdate(const UObject* Provider,
 		return;
 	}
     
-	USuspenseEventManager* Manager = GetDelegateManagerStatic(Provider);
+	USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
 	if (Manager)
 	{
-		float StaminaPercent = (MaxStamina > 0.0f) ? (CurrentStamina / MaxStamina) : 0.0f;
-		Manager->NotifyStaminaUpdated(CurrentStamina, MaxStamina, StaminaPercent);
+		// TODO: Migrate to EventBus - old delegate system removed
+		// float StaminaPercent = (MaxStamina > 0.0f) ? (CurrentStamina / MaxStamina) : 0.0f;
+		// Manager->NotifyStaminaUpdated(CurrentStamina, MaxStamina, StaminaPercent);
 	}
 }

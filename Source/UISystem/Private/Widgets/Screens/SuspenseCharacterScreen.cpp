@@ -7,7 +7,7 @@
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
 #include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "GameFramework/PlayerController.h"
 
 USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& ObjectInitializer)
@@ -162,7 +162,7 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
     K2_OnCharacterScreenOpened();
 
     // Notify event system
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         EventManager->NotifyScreenActivated(this, ScreenTag);
 
@@ -222,7 +222,7 @@ void USuspenseCharacterScreen::OnScreenDeactivated_Implementation()
     K2_OnCharacterScreenClosed();
 
     // Notify event system
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         EventManager->NotifyScreenDeactivated(this, ScreenTag);
 
@@ -323,7 +323,7 @@ void USuspenseCharacterScreen::OnTabBarClosed(UObject* TabBar)
         SetVisibility(ESlateVisibility::Collapsed);
 
         // Notify about close
-        if (USuspenseEventManager* EventManager = GetDelegateManager())
+        if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
         {
             FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Closed"));
             EventManager->NotifyUIEventGeneric(this, EventTag, TEXT(""));

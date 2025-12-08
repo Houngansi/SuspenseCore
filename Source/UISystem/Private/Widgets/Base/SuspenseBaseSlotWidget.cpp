@@ -3,7 +3,7 @@
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -969,7 +969,7 @@ USuspenseDragDropHandler* USuspenseBaseSlotWidget::GetDragDropHandler() const
     return USuspenseDragDropHandler::Get(this);
 }
 
-USuspenseEventManager* USuspenseBaseSlotWidget::GetEventManager() const
+USuspenseCoreEventManager* USuspenseBaseSlotWidget::GetEventManager() const
 {
     if (CachedEventManager)
     {
@@ -978,7 +978,7 @@ USuspenseEventManager* USuspenseBaseSlotWidget::GetEventManager() const
 
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        return GameInstance->GetSubsystem<USuspenseEventManager>();
+        return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
     }
 
     return nullptr;

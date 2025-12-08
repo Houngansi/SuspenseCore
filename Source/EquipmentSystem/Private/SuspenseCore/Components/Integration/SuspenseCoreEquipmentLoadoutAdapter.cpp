@@ -10,13 +10,10 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventoryBridge.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
-#include "Types/Events/SuspenseCoreEquipmentEventData.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 
@@ -53,8 +50,6 @@ void USuspenseCoreEquipmentLoadoutAdapter::EndPlay(const EEndPlayReason::Type En
 	DataProvider        = nullptr;
 	OperationsExecutor  = nullptr;
 	TransactionManager  = nullptr;
-	InventoryBridge     = nullptr;
-	EventDispatcher     = nullptr;
 
 	UE_LOG(LogLoadoutAdapter, Log, TEXT("LoadoutAdapter: EndPlay"));
 	Super::EndPlay(EndPlayReason);
@@ -155,20 +150,6 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(con
 				Result.ErrorMessages.Add(FirstError); // без несуществующего AddError
 			}
 
-			// Event: Loadout applied (EventBus)
-			if (EventDispatcher.GetInterface())
-			{
-				FSuspenseCoreEquipmentEventData Ev;
-				Ev.EventType  = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Applied"));
-				Ev.Source     = this;
-				Ev.Payload    = LoadoutId.ToString();
-				Ev.Timestamp  = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-				Ev.Metadata.Add(TEXT("BatchId"),       BatchId.ToString());
-				Ev.Metadata.Add(TEXT("SuccessCount"),  LexToString(SuccessCount));
-				Ev.Metadata.Add(TEXT("Total"),         LexToString(Requests.Num()));
-				EventDispatcher->BroadcastEvent(Ev);
-			}
-
 			if (Result.bSuccess)
 			{
 				CurrentLoadoutId = LoadoutId;
@@ -181,31 +162,10 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadout(con
 	}
 
 	// ——— fallback path via TransactionManager/OperationsExecutor ———
-	if (EventDispatcher.GetInterface())
-	{
-		FSuspenseCoreEquipmentEventData Event;
-		Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Start"));
-		Event.Source    = this;
-		Event.Payload   = LoadoutId.ToString();
-		Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-		EventDispatcher->BroadcastEvent(Event);
-	}
-
 	bIsApplying = true;
 	ON_SCOPE_EXIT { bIsApplying = false; };
 
 	FLoadoutApplicationResult LocalResult = ApplyLoadoutConfiguration(*Config, bForce);
-
-	if (EventDispatcher.GetInterface())
-	{
-		FSuspenseCoreEquipmentEventData Event;
-		Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.End"));
-		Event.Source    = this;
-		Event.Payload   = LoadoutId.ToString();
-		Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-		Event.Metadata.Add(TEXT("Success"), LocalResult.bSuccess ? TEXT("true") : TEXT("false"));
-		EventDispatcher->BroadcastEvent(Event);
-	}
 
 	if (LocalResult.bSuccess)
 	{
@@ -304,18 +264,6 @@ void USuspenseCoreEquipmentLoadoutAdapter::SetValidationOptions(const FSuspenseC
 {
 	ValidationOptions = Options;
 	UE_LOG(LogLoadoutAdapter, Log, TEXT("SetValidationOptions: updated"));
-}
-
-void USuspenseCoreEquipmentLoadoutAdapter::SetInventoryBridge(TScriptInterface<ISuspenseCoreInventoryBridge> Bridge)
-{
-	InventoryBridge = Bridge;
-	UE_LOG(LogLoadoutAdapter, Log, TEXT("SetInventoryBridge: %s"), Bridge.GetInterface() ? TEXT("set") : TEXT("cleared"));
-}
-
-void USuspenseCoreEquipmentLoadoutAdapter::SetEventDispatcher(TScriptInterface<ISuspenseCoreEventDispatcher> Dispatcher)
-{
-	EventDispatcher = Dispatcher;
-	UE_LOG(LogLoadoutAdapter, Log, TEXT("SetEventDispatcher: %s"), Dispatcher.GetInterface() ? TEXT("set") : TEXT("cleared"));
 }
 
 TArray<FName> USuspenseCoreEquipmentLoadoutAdapter::GetCompatibleLoadouts() const
@@ -545,16 +493,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::CheckSlotCompatibility(const FEquipme
 
 bool USuspenseCoreEquipmentLoadoutAdapter::CheckInventorySpace(const FLoadoutConfiguration& Config) const
 {
-	if (!InventoryBridge.GetInterface()) { return true; }
-
-	for (const auto& Pair : Config.StartingEquipment)
-	{
-		FSuspenseCoreInventoryItemInstance Tmp;
-		Tmp.ItemID   = Pair.Value;
-		Tmp.Quantity = 1;
-
-		if (!InventoryBridge->InventoryHasSpace(Tmp)) { return false; }
-	}
+	// Legacy InventoryBridge removed - assume space is available
 	return true;
 }
 
@@ -722,16 +661,9 @@ int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EE
 
 void USuspenseCoreEquipmentLoadoutAdapter::NotifyLoadoutChange(const FName& LoadoutId, bool bSuccess)
 {
-	if (!EventDispatcher.GetInterface()) { return; }
-
-	FSuspenseEquipmentEventData Event;
-	Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Changed"));
-	Event.Source    = this;
-	Event.Payload   = LoadoutId.ToString();
-	Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	Event.Metadata.Add(TEXT("Success"), bSuccess ? TEXT("true") : TEXT("false"));
-
-	EventDispatcher->BroadcastEvent(Event);
+	// Legacy EventDispatcher removed - logging only
+	UE_LOG(LogLoadoutAdapter, Log, TEXT("LoadoutChange: %s, Success=%s"),
+		*LoadoutId.ToString(), bSuccess ? TEXT("true") : TEXT("false"));
 }
 
 void USuspenseCoreEquipmentLoadoutAdapter::LogAdapterState() const

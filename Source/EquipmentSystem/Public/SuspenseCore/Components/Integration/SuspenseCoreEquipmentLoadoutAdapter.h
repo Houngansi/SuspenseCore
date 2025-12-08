@@ -11,8 +11,6 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
-#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
@@ -85,12 +83,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
 	void SetValidationOptions(const FSuspenseCoreLoadoutValidationOptions& Options);
 
-	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetInventoryBridge(TScriptInterface<ISuspenseCoreInventoryBridge> Bridge);
-
-	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetEventDispatcher(TScriptInterface<ISuspenseCoreEventDispatcher> Dispatcher);
-
 	// Status
 	UFUNCTION(BlueprintCallable, Category="Loadout|Status", BlueprintPure)
 	FLoadoutApplicationResult GetLastApplicationResult() const { return LastApplicationResult; }
@@ -138,8 +130,6 @@ private:
 	UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 	UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentOperations>   OperationsExecutor;
 	UPROPERTY() TScriptInterface<ISuspenseCoreTransactionManager>    TransactionManager;
-	UPROPERTY() TScriptInterface<ISuspenseInventoryBridge>       InventoryBridge;
-	UPROPERTY() TScriptInterface<ISuspenseEventDispatcher>       EventDispatcher;
 
 	// Настройки
 	UPROPERTY(EditAnywhere, Category="Loadout|Configuration")

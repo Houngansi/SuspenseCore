@@ -10,7 +10,7 @@
 
 // Fundamental: service interface + base utilities
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
@@ -78,7 +78,7 @@ private:
 	UPROPERTY() bool bEnableBatching = true;               // Batch notifications
 
 	// Event bus
-	TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+	TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
 	TArray<FEventSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)

@@ -7,7 +7,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCoreEquipmentRulesService.generated.h"
 
 // Forward declarations
@@ -169,7 +169,7 @@ protected:
     USuspenseCoreRulesCoordinator* RulesCoordinator = nullptr;
 
     // EventBus integration
-    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
     TArray<FEventSubscriptionHandle> EventSubscriptions;
 
     // Event tags

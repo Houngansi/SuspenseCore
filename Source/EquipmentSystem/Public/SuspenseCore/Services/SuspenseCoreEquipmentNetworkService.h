@@ -10,7 +10,7 @@
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
@@ -160,7 +160,7 @@ private:
     //========================================
     // EventBus Integration
     //========================================
-    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
     TArray<FEventSubscriptionHandle> EventSubscriptions;
 
     // Event tags for network events

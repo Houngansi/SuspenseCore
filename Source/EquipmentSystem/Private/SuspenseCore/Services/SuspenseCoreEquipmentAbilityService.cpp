@@ -74,7 +74,7 @@ bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCore
                 ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f
                 : 0.0f;
             return FString::Printf(TEXT("Cache: Hits=%d, Misses=%d, HitRate=%.1f%%\n%s"),
-                CacheHits, CacheMisses, HitRate,
+                CacheHits.load(), CacheMisses.load(), HitRate,
                 *MappingCache->GetStatistics().ToString());
         }
     );
@@ -267,7 +267,7 @@ FString USuspenseCoreEquipmentAbilityService::GetServiceStats() const
         ? (float)CacheHits / (CacheHits + CacheMisses) * 100.0f
         : 0.0f;
     Stats += FString::Printf(TEXT("Cache: Hits=%d, Misses=%d, HitRate=%.1f%%\n"),
-        CacheHits, CacheMisses, HitRate);
+        CacheHits.load(), CacheMisses.load(), HitRate);
 
     // List active equipment connectors
     if (EquipmentConnectors.Num() > 0)
@@ -1135,7 +1135,7 @@ USuspenseCoreEquipmentAbilityConnector* USuspenseCoreEquipmentAbilityService::Cr
     Connector->RegisterComponent();
 
     // Initialize connector with owner's ASC
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
     if (!Connector->Initialize(ASC, DataProvider))
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Error,

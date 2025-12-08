@@ -1,30 +1,20 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Interfaces/Weapon/ISuspenseFireModeProvider.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseEventManager* ISuspenseFireModeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseFireModeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
 		return nullptr;
 	}
-    
-	UWorld* World = WorldContextObject->GetWorld();
-	if (!World)
-	{
-		return nullptr;
-	}
-    
-	UGameInstance* GameInstance = World->GetGameInstance();
-	if (!GameInstance)
-	{
-		return nullptr;
-	}
-    
-	return GameInstance->GetSubsystem<USuspenseEventManager>();
+
+	return USuspenseCoreEventManager::Get(WorldContextObject);
 }
 
 void ISuspenseFireModeProvider::BroadcastFireModeChanged(
@@ -36,10 +26,20 @@ void ISuspenseFireModeProvider::BroadcastFireModeChanged(
 	{
 		return;
 	}
-    
-	if (USuspenseEventManager* Manager = GetDelegateManagerStatic(FireModeProvider))
+
+	if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(FireModeProvider))
 	{
-		Manager->NotifyFireModeChanged(NewFireMode, CurrentSpread);
+		if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+		{
+			FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(FireModeProvider))
+				.SetString(TEXT("FireModeTag"), NewFireMode.ToString())
+				.SetFloat(TEXT("CurrentSpread"), CurrentSpread);
+
+			EventBus->Publish(
+				FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeChanged")),
+				EventData
+			);
+		}
 	}
 }
 
@@ -52,9 +52,19 @@ void ISuspenseFireModeProvider::BroadcastFireModeAvailabilityChanged(
 	{
 		return;
 	}
-    
-	if (USuspenseEventManager* Manager = GetDelegateManagerStatic(FireModeProvider))
+
+	if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(FireModeProvider))
 	{
-		Manager->NotifyFireModeProviderChanged(FireModeTag, bEnabled);
+		if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+		{
+			FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(FireModeProvider))
+				.SetString(TEXT("FireModeTag"), FireModeTag.ToString())
+				.SetBool(TEXT("Enabled"), bEnabled);
+
+			EventBus->Publish(
+				FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeAvailabilityChanged")),
+				EventData
+			);
+		}
 	}
 }

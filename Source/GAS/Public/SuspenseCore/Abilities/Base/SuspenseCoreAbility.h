@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GASAbility.h"
+#include "Abilities/GameplayAbility.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreAbility.generated.h"
 
@@ -16,7 +16,7 @@ struct FSuspenseCoreEventData;
  * USuspenseCoreAbility
  *
  * Base class for all SuspenseCore abilities with EventBus integration.
- * Extends UGASAbility with event publishing capabilities.
+ * Extends UGameplayAbility with event publishing capabilities.
  *
  * ARCHITECTURE:
  * - All ability events are published through EventBus
@@ -29,11 +29,11 @@ struct FSuspenseCoreEventData;
  * - SuspenseCore.Event.Ability.Cancelled
  * - SuspenseCore.Event.Ability.Failed
  *
- * @see UGASAbility (base class)
+ * @see UGameplayAbility (base class)
  * @see USuspenseCoreEventBus
  */
 UCLASS(Abstract, Blueprintable)
-class GAS_API USuspenseCoreAbility : public UGASAbility
+class GAS_API USuspenseCoreAbility : public UGameplayAbility
 {
 	GENERATED_BODY()
 

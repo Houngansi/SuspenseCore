@@ -27,7 +27,7 @@
 class USuspenseCoreEquipmentNetworkDispatcher;
 class USuspenseCoreEquipmentPredictionSystem;
 class USuspenseCoreEquipmentReplicationManager;
-class USuspenseEquipmentServiceLocator;
+class USuspenseCoreEquipmentServiceLocator;
 class USuspenseCoreEquipmentSecurityService;
 class ISuspenseCoreEquipmentDataProvider;
 class ISuspenseCoreEquipmentOperations;

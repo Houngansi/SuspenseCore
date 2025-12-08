@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "SuspenseCore/Components/SkeletalMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 

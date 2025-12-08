@@ -1,8 +1,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentAttachmentSystem.h"
-#include "SuspenseCore/Components/SkeletalMeshComponent.h"
-#include "SuspenseCore/Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "Engine/World.h"

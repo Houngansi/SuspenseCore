@@ -66,7 +66,7 @@ void ASuspenseCoreWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
     Super::EndPlay(EndPlayReason);
 }
 
-USuspenseEventManager* ASuspenseCoreWeaponActor::GetDelegateManager() const
+USuspenseCoreEventManager* ASuspenseCoreWeaponActor::GetDelegateManager() const
 {
     // У этого фасада собственного менеджера нет — события маршрутизируются компонентами/сервисами.
     return nullptr;

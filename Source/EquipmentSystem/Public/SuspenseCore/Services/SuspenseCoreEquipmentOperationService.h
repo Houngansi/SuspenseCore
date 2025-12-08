@@ -23,6 +23,7 @@
 #include "Containers/Ticker.h"
 #include <atomic>
 
+#include "SuspenseCoreEquipmentNetworkService.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentOperationService.generated.h"
 
@@ -486,8 +487,8 @@ private:
 
     // Service Locator reference (CRITICAL: stored from InitParams)
     UPROPERTY(Transient)
-    TWeakObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
+    TWeakObjectPtr<USuspenseCoreEquipmentServiceLocator> CachedServiceLocator;
 
     // Helper to safely get service locator
-    USuspenseEquipmentServiceLocator* GetServiceLocator() const;
+    USuspenseCoreEquipmentServiceLocator* GetServiceLocator() const;
 };

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCoreSystemCoordinator.generated.h"
 
 class USuspenseCoreSystemCoordinatorComponent;
@@ -73,7 +74,7 @@ public:
      * @return ServiceLocator or nullptr if not initialized
      */
     UFUNCTION(BlueprintPure, Category="MedCom|Services")
-    USuspenseEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
+    USuspenseCoreEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
 
     //========================================
     // Manual Control (for edge cases/tests)
@@ -188,7 +189,7 @@ private:
      * Either retrieved from world or created with GI outer
      */
     UPROPERTY(Transient)
-    TObjectPtr<USuspenseEquipmentServiceLocator> ServiceLocator = nullptr;
+    TObjectPtr<USuspenseCoreEquipmentServiceLocator> ServiceLocator = nullptr;
 
     //========================================
     // State Flags

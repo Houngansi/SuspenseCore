@@ -93,26 +93,6 @@ struct BRIDGESYSTEM_API FSuspenseCoreSlotValidationResult
 
 	void AddDetail(const FString& Detail) { ValidationDetails.Add(Detail); }
 	bool HasDetails() const { return ValidationDetails.Num() > 0; }
-
-	/** Convert to legacy FSlotValidationResult for compatibility */
-	FSlotValidationResult ToLegacy() const
-	{
-		FSlotValidationResult Legacy;
-		Legacy.bIsValid = bIsValid;
-		Legacy.ErrorMessage = ErrorMessage;
-		Legacy.ErrorTag = ErrorTag;
-		return Legacy;
-	}
-
-	/** Create from legacy FSlotValidationResult */
-	static FSuspenseCoreSlotValidationResult FromLegacy(const FSlotValidationResult& Legacy)
-	{
-		FSuspenseCoreSlotValidationResult Result;
-		Result.bIsValid = Legacy.bIsValid;
-		Result.ErrorMessage = Legacy.ErrorMessage;
-		Result.ErrorTag = Legacy.ErrorTag;
-		return Result;
-	}
 };
 
 /**

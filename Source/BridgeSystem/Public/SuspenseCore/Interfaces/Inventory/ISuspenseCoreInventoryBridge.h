@@ -138,16 +138,6 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferResult
 		Result.RequestId = InRequestId;
 		return Result;
 	}
-
-	/** Convert to legacy FSuspenseInventoryOperationResult for compatibility */
-	FSuspenseInventoryOperationResult ToLegacy() const
-	{
-		FSuspenseInventoryOperationResult Legacy;
-		Legacy.bSuccess = bSuccess;
-		Legacy.ErrorMessage = ErrorMessage;
-		Legacy.AffectedSlot = AffectedSlot;
-		return Legacy;
-	}
 };
 
 /**

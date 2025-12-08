@@ -37,7 +37,7 @@ struct FSuspenseCoreWeaponStateMachine
     float TransitionDuration = 0.0f;
 
     UPROPERTY()
-    FWeaponStateTransitionRequest ActiveTransition;
+    FSuspenseCoreWeaponStateTransitionRequest ActiveTransition;
 };
 
 /**

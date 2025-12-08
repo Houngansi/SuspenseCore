@@ -38,9 +38,9 @@ FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentNetworkDispatcher::From
 	return Out;
 }
 
-FNetworkOperationRequestNet USuspenseCoreEquipmentNetworkDispatcher::ToNet(const FNetworkOperationRequest& In)
+FSuspenseCoreNetworkOperationRequestNet USuspenseCoreEquipmentNetworkDispatcher::ToNet(const FNetworkOperationRequest& In)
 {
-	FNetworkOperationRequestNet Out;
+	FSuspenseCoreNetworkOperationRequestNet Out;
 	Out.RequestId                 = In.RequestId;
 	Out.Timestamp                 = In.Timestamp;
 	Out.Operation.OperationType   = In.Operation.OperationType;
@@ -51,7 +51,7 @@ FNetworkOperationRequestNet USuspenseCoreEquipmentNetworkDispatcher::ToNet(const
 	return Out;
 }
 
-FNetworkOperationRequest USuspenseCoreEquipmentNetworkDispatcher::FromNet(const FNetworkOperationRequestNet& In)
+FNetworkOperationRequest USuspenseCoreEquipmentNetworkDispatcher::FromNet(const FSuspenseCoreNetworkOperationRequestNet& In)
 {
 	FNetworkOperationRequest Out; // дефолтная инициализация
 	Out.RequestId  = In.RequestId;
@@ -88,7 +88,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::EndPlay(const EEndPlayReason::Type
 {
 	{
 		FScopeLock Lock(&QueueLock);
-		for (const FOperationQueueEntry& Entry : OperationQueue)
+		for (const FSuspenseCoreOperationQueueEntry& Entry : OperationQueue)
 		{
 			OnOperationTimeout.Broadcast(Entry.Request.RequestId);
 		}
@@ -125,7 +125,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::TickComponent(float DeltaTime, ELe
 		}
 
 		FScopeLock Lock(&QueueLock);
-		for (FOperationQueueEntry& Entry : OperationQueue)
+		for (FSuspenseCoreOperationQueueEntry& Entry : OperationQueue)
 		{
 			if (Entry.bInProgress && CurrentTime - Entry.LastAttemptTime > CurrentTimeout)
 			{
@@ -163,7 +163,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::SendOperationToServer(const FNetw
 			return FGuid();
 		}
 
-		FOperationQueueEntry Entry;
+		FSuspenseCoreOperationQueueEntry Entry;
 		Entry.Request     = Request;
 		Entry.QueueTime   = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 		Entry.RequestHash = CalculateRequestHash(Request);
@@ -185,7 +185,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::HandleServerResponse(const FNetwor
 	Statistics.TotalReceived++;
 	if (Response.Latency > 0.0f) { UpdateResponseTimeStats(Response.Latency); }
 
-	FOperationQueueEntry* Entry = FindQueueEntry(Response.RequestId);
+	FSuspenseCoreOperationQueueEntry* Entry = FindQueueEntry(Response.RequestId);
 	if (!Entry)
 	{
 		OnServerResponse.Broadcast(Response.RequestId, Response.Result);
@@ -201,7 +201,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::HandleServerResponse(const FNetwor
 		OnServerResponse.Broadcast(Response.RequestId, Response.Result);
 
 		FScopeLock Lock(&QueueLock);
-		OperationQueue.RemoveAll([&](const FOperationQueueEntry& E){ return E.Request.RequestId == Response.RequestId; });
+		OperationQueue.RemoveAll([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == Response.RequestId; });
 		Statistics.CurrentQueueSize = OperationQueue.Num();
 	}
 	else
@@ -226,7 +226,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::HandleServerResponse(const FNetwor
 				Response.RequestId, Response.Result.ErrorMessage, Response.Result.FailureType));
 
 			FScopeLock Lock(&QueueLock);
-			OperationQueue.RemoveAll([&](const FOperationQueueEntry& E){ return E.Request.RequestId == Response.RequestId; });
+			OperationQueue.RemoveAll([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == Response.RequestId; });
 			Statistics.CurrentQueueSize = OperationQueue.Num();
 		}
 	}
@@ -239,7 +239,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::BatchOperations(const TArray<FNet
 	const FGuid BatchId = FGuid::NewGuid();
 	{
 		FScopeLock Lock(&QueueLock);
-		FOperationBatch Batch;
+		FSuspenseCoreOperationBatch Batch;
 		Batch.BatchId     = BatchId;
 		Batch.CreationTime= GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
@@ -257,7 +257,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::BatchOperations(const TArray<FNet
 				break;
 			}
 
-			FOperationQueueEntry Entry;
+			FSuspenseCoreOperationQueueEntry Entry;
 			Entry.Request     = R;
 			Entry.QueueTime   = Batch.CreationTime;
 			Entry.RequestHash = CalculateRequestHash(R);
@@ -275,7 +275,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::BatchOperations(const TArray<FNet
 bool USuspenseCoreEquipmentNetworkDispatcher::CancelOperation(const FGuid& RequestId)
 {
 	FScopeLock Lock(&QueueLock);
-	const int32 Removed = OperationQueue.RemoveAll([&](const FOperationQueueEntry& E){ return E.Request.RequestId == RequestId && !E.bInProgress; });
+	const int32 Removed = OperationQueue.RemoveAll([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == RequestId && !E.bInProgress; });
 	if (Removed > 0)
 	{
 		Statistics.CurrentQueueSize = OperationQueue.Num();
@@ -286,7 +286,7 @@ bool USuspenseCoreEquipmentNetworkDispatcher::CancelOperation(const FGuid& Reque
 
 bool USuspenseCoreEquipmentNetworkDispatcher::RetryOperation(const FGuid& RequestId)
 {
-	FOperationQueueEntry* Entry = FindQueueEntry(RequestId);
+	FSuspenseCoreOperationQueueEntry* Entry = FindQueueEntry(RequestId);
 	if (!Entry) { return false; }
 	if (Entry->RetryCount >= MaxRetryAttempts) { return false; }
 	Entry->RetryCount++; Entry->bInProgress = false; Entry->LastAttemptTime = 0.0f;
@@ -298,7 +298,7 @@ TArray<FNetworkOperationRequest> USuspenseCoreEquipmentNetworkDispatcher::GetPen
 	FScopeLock Lock(&QueueLock);
 	TArray<FNetworkOperationRequest> Out;
 	Out.Reserve(OperationQueue.Num());
-	for (const FOperationQueueEntry& E : OperationQueue) { Out.Add(E.Request); }
+	for (const FSuspenseCoreOperationQueueEntry& E : OperationQueue) { Out.Add(E.Request); }
 	return Out;
 }
 
@@ -329,7 +329,7 @@ FString USuspenseCoreEquipmentNetworkDispatcher::GetNetworkStatistics() const
 bool USuspenseCoreEquipmentNetworkDispatcher::IsOperationPending(const FGuid& RequestId) const
 {
 	FScopeLock Lock(&QueueLock);
-	return OperationQueue.ContainsByPredicate([&](const FOperationQueueEntry& E){ return E.Request.RequestId == RequestId; });
+	return OperationQueue.ContainsByPredicate([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == RequestId; });
 }
 
 // ============================
@@ -393,10 +393,10 @@ bool USuspenseCoreEquipmentNetworkDispatcher::VerifyServerSecurity(const FNetwor
 
 void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 {
-	TArray<FOperationQueueEntry*> Pending;
+	TArray<FSuspenseCoreOperationQueueEntry*> Pending;
 	{
 		FScopeLock Lock(&QueueLock);
-		for (FOperationQueueEntry& Entry : OperationQueue)
+		for (FSuspenseCoreOperationQueueEntry& Entry : OperationQueue)
 		{
 			if (!Entry.bInProgress)
 			{
@@ -405,7 +405,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 		}
 	}
 
-	for (FOperationQueueEntry* EntryPtr : Pending)
+	for (FSuspenseCoreOperationQueueEntry* EntryPtr : Pending)
 	{
 		if (EntryPtr) { SendOperation(*EntryPtr); }
 	}
@@ -414,7 +414,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 		FScopeLock Lock(&QueueLock);
 		const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-		for (FOperationBatch& Batch : ActiveBatches)
+		for (FSuspenseCoreOperationBatch& Batch : ActiveBatches)
 		{
 			if (!Batch.bSent && Now - Batch.CreationTime >= BatchWaitTime)
 			{
@@ -435,7 +435,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 				if (!bAllValid) { continue; }
 
 				// Сбор net-DTO и отправка
-				TArray<FNetworkOperationRequestNet> NetList;
+				TArray<FSuspenseCoreNetworkOperationRequestNet> NetList;
 				NetList.Reserve(Batch.Operations.Num());
 				for (const FNetworkOperationRequest& R : Batch.Operations)
 				{
@@ -446,11 +446,11 @@ void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 				Batch.bSent = true;
 			}
 		}
-		ActiveBatches.RemoveAll([](const FOperationBatch& B){ return B.bSent; });
+		ActiveBatches.RemoveAll([](const FSuspenseCoreOperationBatch& B){ return B.bSent; });
 	}
 }
 
-bool USuspenseCoreEquipmentNetworkDispatcher::SendOperation(FOperationQueueEntry& Entry)
+bool USuspenseCoreEquipmentNetworkDispatcher::SendOperation(FSuspenseCoreOperationQueueEntry& Entry)
 {
 	if (Entry.bInProgress) { return false; }
 
@@ -477,7 +477,7 @@ bool USuspenseCoreEquipmentNetworkDispatcher::SendOperation(FOperationQueueEntry
 		OnServerResponse.Broadcast(Entry.Request.RequestId, Cached);
 
 		FScopeLock Lock(&QueueLock);
-		OperationQueue.RemoveAll([&](const FOperationQueueEntry& E){ return E.Request.RequestId == Entry.Request.RequestId; });
+		OperationQueue.RemoveAll([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == Entry.Request.RequestId; });
 		Statistics.CurrentQueueSize = OperationQueue.Num();
 		return true;
 	}
@@ -507,10 +507,10 @@ void USuspenseCoreEquipmentNetworkDispatcher::SendWithPriority(ENetworkOperation
 		if (ShouldBatchOperation(Priority))
 		{
 			FScopeLock Lock(&QueueLock);
-			FOperationBatch* Existing = ActiveBatches.FindByPredicate([](const FOperationBatch& B){ return !B.bSent; });
+			FSuspenseCoreOperationBatch* Existing = ActiveBatches.FindByPredicate([](const FSuspenseCoreOperationBatch& B){ return !B.bSent; });
 			if (!Existing)
 			{
-				FOperationBatch NewBatch;
+				FSuspenseCoreOperationBatch NewBatch;
 				NewBatch.BatchId      = FGuid::NewGuid();
 				NewBatch.CreationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 				ActiveBatches.Add(NewBatch);
@@ -519,7 +519,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::SendWithPriority(ENetworkOperation
 			Existing->Operations.Add(Request);
 			if (Existing->Operations.Num() >= MaxBatchSize)
 			{
-				TArray<FNetworkOperationRequestNet> NetList;
+				TArray<FSuspenseCoreNetworkOperationRequestNet> NetList;
 				NetList.Reserve(Existing->Operations.Num());
 				for (const FNetworkOperationRequest& R : Existing->Operations) { NetList.Add(ToNet(R)); }
 
@@ -543,7 +543,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::SendWithPriority(ENetworkOperation
 void USuspenseCoreEquipmentNetworkDispatcher::HandleTimeout(const FGuid& OperationId)
 {
 	FScopeLock Lock(&QueueLock);
-	for (FOperationQueueEntry& Entry : OperationQueue)
+	for (FSuspenseCoreOperationQueueEntry& Entry : OperationQueue)
 	{
 		if (Entry.Request.RequestId == OperationId && Entry.bInProgress)
 		{
@@ -560,7 +560,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::HandleTimeout(const FGuid& Operati
 				OnOperationTimeout.Broadcast(OperationId);
 				OnOperationFailure.Broadcast(OperationId, NSLOCTEXT("EquipmentNetwork", "Timeout", "Operation timed out"));
 
-				OperationQueue.RemoveAll([&](const FOperationQueueEntry& E){ return E.Request.RequestId == OperationId; });
+				OperationQueue.RemoveAll([&](const FSuspenseCoreOperationQueueEntry& E){ return E.Request.RequestId == OperationId; });
 				Statistics.CurrentQueueSize = OperationQueue.Num();
 			}
 			break;
@@ -586,10 +586,10 @@ bool USuspenseCoreEquipmentNetworkDispatcher::ShouldBatchOperation(ENetworkOpera
 	return Priority == ENetworkOperationPriority::Normal;
 }
 
-FOperationQueueEntry* USuspenseCoreEquipmentNetworkDispatcher::FindQueueEntry(const FGuid& OperationId)
+FSuspenseCoreOperationQueueEntry* USuspenseCoreEquipmentNetworkDispatcher::FindQueueEntry(const FGuid& OperationId)
 {
 	FScopeLock Lock(&QueueLock);
-	for (FOperationQueueEntry& E : OperationQueue)
+	for (FSuspenseCoreOperationQueueEntry& E : OperationQueue)
 	{
 		if (E.Request.RequestId == OperationId) { return &E; }
 	}
@@ -677,12 +677,12 @@ void USuspenseCoreEquipmentNetworkDispatcher::CleanIdempotencyCache()
 // RPC (исправленные сигнатуры)
 // ============================
 
-bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteOperation_Validate(const FNetworkOperationRequestNet& RequestNet)
+bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteOperation_Validate(const FSuspenseCoreNetworkOperationRequestNet& RequestNet)
 {
 	return RequestNet.Operation.OperationType != EEquipmentOperationType::None;
 }
 
-void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteOperation_Implementation(const FNetworkOperationRequestNet& RequestNet)
+void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteOperation_Implementation(const FSuspenseCoreNetworkOperationRequestNet& RequestNet)
 {
 	FNetworkOperationRequest Request = FromNet(RequestNet);
 
@@ -704,12 +704,12 @@ void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteOperation_Implementat
 	}
 }
 
-bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Validate(const FGuid& /*BatchId*/, const TArray<FNetworkOperationRequestNet>& RequestsNet)
+bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Validate(const FGuid& /*BatchId*/, const TArray<FSuspenseCoreNetworkOperationRequestNet>& RequestsNet)
 {
 	return RequestsNet.Num() > 0 && RequestsNet.Num() <= MaxBatchSize;
 }
 
-void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Implementation(const FGuid& BatchId, const TArray<FNetworkOperationRequestNet>& RequestsNet)
+void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Implementation(const FGuid& BatchId, const TArray<FSuspenseCoreNetworkOperationRequestNet>& RequestsNet)
 {
 	APlayerController* Sender = Cast<APlayerController>(GetOwner());
 
@@ -718,7 +718,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Implementation(
 	OpIds.Reserve(RequestsNet.Num());
 	Results.Reserve(RequestsNet.Num());
 
-	for (const FNetworkOperationRequestNet& Net : RequestsNet)
+	for (const FSuspenseCoreNetworkOperationRequestNet& Net : RequestsNet)
 	{
 		FNetworkOperationRequest Req = FromNet(Net);
 
@@ -748,12 +748,12 @@ void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteBatch_Implementation(
 	ClientReceiveBatchResponse(BatchId, OpIds, Results);
 }
 
-bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteLowPriority_Validate(const FNetworkOperationRequestNet& RequestNet)
+bool USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteLowPriority_Validate(const FSuspenseCoreNetworkOperationRequestNet& RequestNet)
 {
 	return RequestNet.Operation.OperationType != EEquipmentOperationType::None;
 }
 
-void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteLowPriority_Implementation(const FNetworkOperationRequestNet& RequestNet)
+void USuspenseCoreEquipmentNetworkDispatcher::ServerExecuteLowPriority_Implementation(const FSuspenseCoreNetworkOperationRequestNet& RequestNet)
 {
 	FNetworkOperationRequest Request = FromNet(RequestNet);
 

@@ -1,5 +1,5 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "Core/Utils/SuspenseGlobalCacheRegistry.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreGlobalCacheRegistry.h"
 
 FSuspenseGlobalCacheRegistry& FSuspenseGlobalCacheRegistry::Get()
 {

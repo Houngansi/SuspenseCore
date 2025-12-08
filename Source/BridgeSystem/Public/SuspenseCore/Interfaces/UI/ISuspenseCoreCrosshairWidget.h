@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECROSSHAIRWIDGET_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECROSSHAIRWIDGET_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -139,3 +140,5 @@ public:
      */
     static void BroadcastCrosshairColorChanged(const UObject* Widget, const FLinearColor& NewColor);
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECROSSHAIRWIDGET_H

@@ -7,8 +7,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Operations/SuspenseInventoryResult.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "ISuspenseCoreEquipment.generated.h"
 
@@ -911,3 +911,4 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Debug")
 	void ResetEquipmentStatistics();
 };
+

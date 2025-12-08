@@ -406,3 +406,4 @@ public:
 	 */
 	virtual void LogContents() const = 0;
 };
+

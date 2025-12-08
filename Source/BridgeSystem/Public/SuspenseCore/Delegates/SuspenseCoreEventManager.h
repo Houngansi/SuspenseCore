@@ -1,11 +1,12 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_DELEGATES_SUSPENSECOREEVENTMANAGER_H
+#define SUSPENSECORE_DELEGATES_SUSPENSECOREEVENTMANAGER_H
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "GameplayTagContainer.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h" // Используем структуры из единого источника
 #include "Engine/Engine.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -1057,3 +1058,5 @@ protected:
     // Счетчик для уникальных handle
     int32 GenericEventHandleCounter = 0;
 };
+
+#endif // SUSPENSECORE_DELEGATES_SUSPENSECOREEVENTMANAGER_H

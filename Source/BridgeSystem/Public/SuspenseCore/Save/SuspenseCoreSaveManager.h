@@ -315,3 +315,4 @@ protected:
 	/** Calculate play time */
 	int64 GetTotalPlayTime() const;
 };
+

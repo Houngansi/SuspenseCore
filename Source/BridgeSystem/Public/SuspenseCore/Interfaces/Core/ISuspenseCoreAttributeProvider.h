@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREATTRIBUTEPROVIDER_H
+#define SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREATTRIBUTEPROVIDER_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -233,3 +234,5 @@ public:
      */
     static void BroadcastStaminaUpdate(const UObject* Provider, float CurrentStamina, float MaxStamina);
 };
+
+#endif // SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREATTRIBUTEPROVIDER_H

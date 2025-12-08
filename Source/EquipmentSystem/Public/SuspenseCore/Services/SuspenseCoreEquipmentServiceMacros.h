@@ -16,7 +16,7 @@
 
 // ВАЖНО: используем ваш канонический треад-гвард и RW-лок,
 // чтобы не дублировать типы/макросы и не ловить redefinition.
-#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 
 //========================================
 // Logging Categories

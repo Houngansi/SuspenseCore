@@ -3,7 +3,7 @@
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"

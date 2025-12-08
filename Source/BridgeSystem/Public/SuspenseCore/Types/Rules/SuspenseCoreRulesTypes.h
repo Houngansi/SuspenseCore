@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseRulesTypes.generated.h"
 
 /**
@@ -236,3 +236,4 @@ struct BRIDGESYSTEM_API FSuspenseRuleContext
     UPROPERTY(BlueprintReadWrite, Category = "Context")
     TMap<FString, FString> Metadata;
 };
+

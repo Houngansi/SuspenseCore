@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "GameplayTagContainer.h"

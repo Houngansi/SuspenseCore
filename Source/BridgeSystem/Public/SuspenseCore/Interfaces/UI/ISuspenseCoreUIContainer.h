@@ -377,3 +377,4 @@ public:
 	 */
 	virtual void SetLocked(bool bLocked) = 0;
 };
+

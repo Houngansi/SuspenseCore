@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Interfaces/UI/ISuspenseContainerUI.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreContainerUI.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h" 

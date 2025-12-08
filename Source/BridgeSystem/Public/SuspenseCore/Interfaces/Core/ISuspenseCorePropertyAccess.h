@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREPROPERTYACCESS_H
+#define SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREPROPERTYACCESS_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -159,3 +160,5 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Properties|Validation")
     FString GetPropertyType(const FString& PropertyName) const;
 };
+
+#endif // SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREPROPERTYACCESS_H

@@ -95,3 +95,4 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
         return CurrentAmmo + RemainingAmmo;
     }
 };
+

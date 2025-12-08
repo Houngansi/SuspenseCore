@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SUSPENSECORE_TYPES_ANIMATION_SUSPENSECOREANIMATIONSTATE_H
+#define SUSPENSECORE_TYPES_ANIMATION_SUSPENSECOREANIMATIONSTATE_H
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
@@ -192,3 +193,6 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 		LHGripTransform[Index] = Transform;
 	}
 };
+
+
+#endif // SUSPENSECORE_TYPES_ANIMATION_SUSPENSECOREANIMATIONSTATE_H

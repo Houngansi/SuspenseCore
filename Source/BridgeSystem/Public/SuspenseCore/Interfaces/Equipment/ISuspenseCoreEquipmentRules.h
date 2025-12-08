@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
 #include "ISuspenseCoreEquipmentRules.generated.h"
@@ -245,3 +245,4 @@ public:
     /** Get performance metrics */
     virtual TMap<FString, FString> GetPerformanceMetrics() const { return TMap<FString, FString>(); }
 };
+

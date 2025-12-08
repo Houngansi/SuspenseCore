@@ -1,7 +1,7 @@
 // MedComShared/Private/ItemSystem/ItemSystemAccess.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "ItemSystem/SuspenseItemSystemAccess.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemSystemAccess.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"

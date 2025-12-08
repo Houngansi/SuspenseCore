@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "ISuspenseSlotUI.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -89,3 +90,5 @@ protected:
     #define DIRECT_INTERFACE_CALL_NOT_ALLOWED() \
         checkf(0, TEXT("Do not call interface methods directly! Use Execute_ methods instead."))
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H

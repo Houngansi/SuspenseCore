@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseLoadoutSettings.generated.h"
 
 /**
@@ -596,5 +596,5 @@ public:
             }
         }
     }
-#endif
 };
+

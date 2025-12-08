@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCoreCompatibilityRulesEngine.generated.h"

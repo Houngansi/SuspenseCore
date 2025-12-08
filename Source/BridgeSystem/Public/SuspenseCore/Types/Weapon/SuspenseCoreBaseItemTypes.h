@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H
+#define SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -80,3 +81,6 @@ namespace MedComItemTypes
         Custom = 4     // Пользовательские способности
     };
 }
+
+
+#endif // SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H

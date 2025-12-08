@@ -11,11 +11,11 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
-#include "Interfaces/Screens/ISuspenseScreen.h"
+#include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "Framework/Application/SlateApplication.h"
 
 USuspenseUpperTabBar::USuspenseUpperTabBar(const FObjectInitializer& ObjectInitializer)

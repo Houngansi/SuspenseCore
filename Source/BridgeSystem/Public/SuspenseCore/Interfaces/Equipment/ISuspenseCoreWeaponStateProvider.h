@@ -494,3 +494,4 @@ public:
 	 */
 	virtual void ResetStatistics() = 0;
 };
+

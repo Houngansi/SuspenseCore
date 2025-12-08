@@ -1,7 +1,7 @@
 // MedComCore/Abilities/Inventory/MedComInventoryGASIntegration.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Abilities/Inventory/SuspenseInventoryGASIntegration.h"
+#include "SuspenseCore/Abilities/Inventory/SuspenseCoreInventoryGASIntegration.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayAbilitySpec.h"

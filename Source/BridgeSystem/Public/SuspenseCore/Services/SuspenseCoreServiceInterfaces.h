@@ -291,3 +291,4 @@ public:
 	 */
 	virtual void OnNetworkRoleChanged(bool bIsServer, bool bHasAuthority) = 0;
 };
+

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SUSPENSECORE_INPUT_SUSPENSECOREABILITYINPUTID_H
+#define SUSPENSECORE_INPUT_SUSPENSECOREABILITYINPUTID_H
 
 #include "SuspenseAbilityInputID.generated.h"
 
@@ -32,3 +33,5 @@ enum class ESuspenseAbilityInputID : uint8
 
 	// боевые действия с оружием ― добавим позже (Fire, Reload, ADS и т.д.)
 };
+
+#endif // SUSPENSECORE_INPUT_SUSPENSECOREABILITYINPUTID_H

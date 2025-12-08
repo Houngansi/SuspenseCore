@@ -2,7 +2,7 @@
 
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Engine/AssetManager.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 
 // Include InventoryUtils for item instance creation
 // This ensures proper initialization of runtime properties

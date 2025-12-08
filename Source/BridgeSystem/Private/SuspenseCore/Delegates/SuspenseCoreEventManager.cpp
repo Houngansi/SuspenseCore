@@ -1,10 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 

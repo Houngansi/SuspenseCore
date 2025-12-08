@@ -4,7 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"

@@ -6,9 +6,9 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Types/Transaction/SuspenseTransactionTypes.h"
+#include "SuspenseCore/Types/Transaction/SuspenseCoreTransactionTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
 

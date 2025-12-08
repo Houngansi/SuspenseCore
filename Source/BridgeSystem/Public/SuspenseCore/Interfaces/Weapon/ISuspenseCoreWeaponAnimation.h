@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Animation/SuspenseAnimationState.h"
+#include "SuspenseCore/Types/Animation/SuspenseCoreAnimationState.h"
 #include "ISuspenseWeaponAnimation.generated.h"
 
 // Forward declarations

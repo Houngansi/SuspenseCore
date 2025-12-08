@@ -58,3 +58,4 @@ protected:
 	/** List of always-relevant actors */
 	FActorRepListRefView ReplicationActorList;
 };
+

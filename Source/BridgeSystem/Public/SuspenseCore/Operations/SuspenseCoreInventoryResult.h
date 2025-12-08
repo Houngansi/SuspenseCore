@@ -1,9 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H
+#define SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H
 
 #include "CoreMinimal.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseInventoryResult.generated.h"
 
 /**
@@ -302,3 +303,6 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
         return Result;
     }
 };
+
+
+#endif // SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H

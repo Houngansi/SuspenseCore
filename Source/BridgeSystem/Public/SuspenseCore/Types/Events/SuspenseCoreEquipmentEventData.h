@@ -1,10 +1,11 @@
 // Types/Events/SuspenseEquipmentEventData.h
 // Copyright MedCom.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H
+#define SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H
 
 #include "CoreMinimal.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
 
 /*
  * DEPRECATION NOTICE:
@@ -13,3 +14,6 @@
  * We intentionally removed any cross-module includes (e.g., inventory),
  * USTRUCT and *.generated.h to avoid ODR and module coupling.
  */
+
+
+#endif // SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H

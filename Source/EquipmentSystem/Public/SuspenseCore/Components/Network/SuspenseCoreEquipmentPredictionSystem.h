@@ -4,11 +4,11 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspensePredictionManager.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCorePredictionManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentPredictionSystem.generated.h"
 

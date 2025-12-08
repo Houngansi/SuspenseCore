@@ -272,3 +272,4 @@ private:
 	/** Initialization flag */
 	bool bIsInitialized = false;
 };
+

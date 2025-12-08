@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H
+#define SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseTransactionTypes.generated.h"
 
 /**
@@ -398,3 +399,6 @@ struct BRIDGESYSTEM_API FTransactionMetrics
         return Duration > 0.0f ? OperationCount / Duration : 0.0f;
     }
 };
+
+
+#endif // SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H

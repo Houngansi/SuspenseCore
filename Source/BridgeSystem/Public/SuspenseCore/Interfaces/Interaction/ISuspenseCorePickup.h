@@ -200,3 +200,4 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Pickup|Info")
 	float GetWeight() const;
 };
+

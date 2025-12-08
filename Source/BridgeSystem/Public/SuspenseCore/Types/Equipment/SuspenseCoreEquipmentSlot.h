@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H
+#define SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"          // FSuspenseInventoryItemInstance
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"          // FSuspenseInventoryItemInstance
 #include "Types/Equipment/SuspenseEquipmentTypes.h"          // FEquipmentSlotConfig and tags
 #include "SuspenseEquipmentSlot.generated.h"
 
@@ -61,3 +62,6 @@ struct BRIDGESYSTEM_API FSuspenseEquipmentSlot
         GridItems.AddDefaulted(TotalCells);
     }
 };
+
+
+#endif // SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H

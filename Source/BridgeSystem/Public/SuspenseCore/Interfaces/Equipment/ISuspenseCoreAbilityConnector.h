@@ -9,7 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffectTypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "ISuspenseCoreAbilityConnector.generated.h"
 
 // Forward declarations
@@ -408,4 +408,5 @@ public:
 	 */
 	virtual void ResetStatistics() = 0;
 };
+
 

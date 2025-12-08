@@ -279,3 +279,4 @@ public:
      */
     virtual FEquipmentOperationResult ExecuteImmediate(const FEquipmentOperationRequest& Request) = 0;
 };
+

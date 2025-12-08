@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_CORE_ISUSPENSECORECHARACTER_H
+#define SUSPENSECORE_INTERFACES_CORE_ISUSPENSECORECHARACTER_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -119,3 +120,5 @@ public:
      */
     static void BroadcastWeaponChanged(const UObject* Character, AActor* NewWeapon, bool bHasWeapon);
 };
+
+#endif // SUSPENSECORE_INTERFACES_CORE_ISUSPENSECORECHARACTER_H

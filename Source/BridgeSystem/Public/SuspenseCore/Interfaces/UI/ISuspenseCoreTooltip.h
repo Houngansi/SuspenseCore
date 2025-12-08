@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "ISuspenseTooltip.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -58,3 +59,5 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UI|Tooltip")
 	void SetTooltipAnchor(const FVector2D& Anchor, const FVector2D& Pivot);
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H

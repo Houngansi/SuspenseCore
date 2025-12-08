@@ -1,8 +1,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
 
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "Async/Async.h"

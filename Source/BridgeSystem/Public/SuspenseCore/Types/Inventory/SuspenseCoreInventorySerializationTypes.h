@@ -403,3 +403,4 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryExport
 	{
 	}
 };
+

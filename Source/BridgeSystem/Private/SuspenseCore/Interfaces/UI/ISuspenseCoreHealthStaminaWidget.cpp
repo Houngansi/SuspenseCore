@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Interfaces/UI/ISuspenseHealthStaminaWidget.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreHealthStaminaWidget.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 

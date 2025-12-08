@@ -143,3 +143,4 @@ public:
         const USuspenseCoreLoadoutManager* LoadoutManager,
         TArray<FString>& OutReasons);
 };
+

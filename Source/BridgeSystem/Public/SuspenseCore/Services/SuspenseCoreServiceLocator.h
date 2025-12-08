@@ -127,3 +127,4 @@ protected:
 	/** Критическая секция для thread-safety */
 	mutable FCriticalSection ServiceLock;
 };
+

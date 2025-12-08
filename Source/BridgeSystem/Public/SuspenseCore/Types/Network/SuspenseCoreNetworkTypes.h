@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H
+#define SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Engine/NetSerialization.h"
 #include "Misc/Crc.h"             // FCrc::MemCrc32
@@ -614,3 +615,6 @@ struct BRIDGESYSTEM_API FEquipmentPrediction
         return Prediction;
     }
 };
+
+
+#endif // SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H

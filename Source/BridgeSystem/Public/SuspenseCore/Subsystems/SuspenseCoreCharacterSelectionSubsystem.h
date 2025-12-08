@@ -166,3 +166,4 @@ protected:
 	/** Publish class selected (confirmed) event */
 	void PublishClassSelectedEvent();
 };
+

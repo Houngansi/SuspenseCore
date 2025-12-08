@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Interfaces/Abilities/ISuspenseAbilityProvider.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "GameplayEffect.h"
 #include "GameplayAbilities/Public/AbilitySystemComponent.h"
 #include "Engine/World.h"

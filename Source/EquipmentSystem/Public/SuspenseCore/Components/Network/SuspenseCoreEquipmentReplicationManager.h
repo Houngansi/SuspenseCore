@@ -2,9 +2,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseReplicationProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Serialization/FastArraySerializer.h"

@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREHEALTHSTAMINAWIDGET_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREHEALTHSTAMINAWIDGET_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -134,3 +135,5 @@ public:
      */
     static void BroadcastStaminaUpdated(const UObject* Widget, float CurrentStamina, float MaxStamina);
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREHEALTHSTAMINAWIDGET_H

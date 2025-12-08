@@ -145,3 +145,4 @@ protected:
 	/** Get viewer location from params */
 	FVector GetViewerLocation(const FConnectionGatherActorListParameters& Params) const;
 };
+

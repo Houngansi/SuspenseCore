@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"

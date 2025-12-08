@@ -353,3 +353,4 @@ protected:
 	/** Get or create EventBus */
 	USuspenseCoreEventBus* GetEventBus();
 };
+

@@ -3,12 +3,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseSlotUI.h"
-#include "Interfaces/UI/ISuspenseDraggable.h"
-#include "Interfaces/UI/ISuspenseDropTarget.h"
-#include "Interfaces/UI/ISuspenseTooltipSource.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreSlotUI.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreDropTarget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltipSource.h"
 #include "Widgets/Tooltip/SuspenseItemTooltipWidget.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Engine/StreamableManager.h"
 #include "SuspenseBaseSlotWidget.generated.h"
 

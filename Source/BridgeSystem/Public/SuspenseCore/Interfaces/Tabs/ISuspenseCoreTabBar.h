@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_TABS_ISUSPENSECORETABBAR_H
+#define SUSPENSECORE_INTERFACES_TABS_ISUSPENSECORETABBAR_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -90,3 +91,5 @@ public:
     virtual FOnTabBarSelectionChanged* GetOnTabSelectionChanged() = 0;
     virtual FOnTabBarClosed* GetOnTabBarClosed() = 0;
 };
+
+#endif // SUSPENSECORE_INTERFACES_TABS_ISUSPENSECORETABBAR_H

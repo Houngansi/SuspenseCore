@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "ISuspenseDraggable.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -56,3 +57,5 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI|DragDrop")
 	void UpdateDragVisual(bool bIsValidTarget);
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H

@@ -3,10 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Interfaces/UI/ISuspenseContainerUI.h"
-#include "Interfaces/UI/ISuspenseUIWidget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreContainerUI.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "Widgets/DragDrop/SuspenseDragVisualWidget.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "SuspenseBaseContainerWidget.generated.h"
 
 // Forward declarations

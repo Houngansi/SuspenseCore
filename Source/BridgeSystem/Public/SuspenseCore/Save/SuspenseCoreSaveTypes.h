@@ -410,3 +410,4 @@ enum class ESuspenseCoreSaveResult : uint8
 	PermissionDenied,
 	InProgress
 };
+

@@ -5,9 +5,9 @@
 #include "Widgets/Tabs/SuspenseUpperTabBar.h"
 #include "Widgets/Inventory/SuspenseInventoryWidget.h"
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
-#include "Interfaces/Tabs/ISuspenseTabBar.h"
-#include "Interfaces/Screens/ISuspenseScreen.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
+#include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "GameFramework/PlayerController.h"
 
 USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& ObjectInitializer)

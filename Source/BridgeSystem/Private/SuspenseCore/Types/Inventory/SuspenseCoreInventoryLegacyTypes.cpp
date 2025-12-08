@@ -1,10 +1,10 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Types/Inventory/SuspenseInventoryTypes.h"
-#include "Types/Inventory/SuspenseInventoryUtils.h" 
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryUtils.h" 
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "ItemSystem/SuspenseItemSystemAccess.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemSystemAccess.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 

@@ -1,11 +1,12 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "ISuspenseContainerUI.generated.h"
 
@@ -131,3 +132,5 @@ public:
         int32 SlotIndex,
         const FGameplayTag& InteractionType);
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H

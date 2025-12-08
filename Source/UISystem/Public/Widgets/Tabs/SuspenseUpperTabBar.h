@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
-#include "Interfaces/Tabs/ISuspenseTabBar.h"
+#include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseUpperTabBar.generated.h"
 

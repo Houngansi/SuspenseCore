@@ -122,3 +122,4 @@ private:
     bool bIsInitialized = false;
     mutable FCriticalSection CacheCriticalSection;
 };
+

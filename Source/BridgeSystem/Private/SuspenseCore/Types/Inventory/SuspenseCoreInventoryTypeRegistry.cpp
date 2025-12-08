@@ -1,7 +1,7 @@
 // MedComShared/Types/Inventory/InventoryTypeRegistry.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Types/Inventory/SuspenseInventoryTypeRegistry.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypeRegistry.h"
 #include "GameplayTagsManager.h" 
 
 // Initialize static singleton

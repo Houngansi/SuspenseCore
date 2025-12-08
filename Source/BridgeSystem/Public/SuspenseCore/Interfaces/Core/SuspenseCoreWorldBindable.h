@@ -1,7 +1,8 @@
 // SuspenseWorldBindable.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_CORE_SUSPENSECOREWORLDBINDABLE_H
+#define SUSPENSECORE_INTERFACES_CORE_SUSPENSECOREWORLDBINDABLE_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -61,3 +62,5 @@ public:
     bool IsWorldBoundReady() const;
     virtual bool IsWorldBoundReady_Implementation() const { return true; }
 };
+
+#endif // SUSPENSECORE_INTERFACES_CORE_SUSPENSECOREWORLDBINDABLE_H

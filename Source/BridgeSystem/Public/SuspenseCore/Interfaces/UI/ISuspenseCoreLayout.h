@@ -1,7 +1,8 @@
 // ISuspenseLayout.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -59,3 +60,5 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UI|Layout")
 	void RefreshLayout();
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H

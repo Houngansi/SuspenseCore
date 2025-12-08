@@ -309,3 +309,4 @@ struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadout : public FTableRowBase
 
 	bool IsValid() const { return !LoadoutID.IsNone(); }
 };
+

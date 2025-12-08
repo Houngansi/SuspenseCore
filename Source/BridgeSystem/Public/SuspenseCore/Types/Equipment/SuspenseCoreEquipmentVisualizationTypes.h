@@ -1,11 +1,12 @@
 // SuspenseEquipmentVisualizationTypes.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTVISUALIZATIONTYPES_H
+#define SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTVISUALIZATIONTYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseEquipmentVisualizationTypes.generated.h"
 
 /**
@@ -121,3 +122,6 @@ struct BRIDGESYSTEM_API FEquipmentVisualEventData
     UPROPERTY(BlueprintReadOnly)
     FString VisualPayload;
 };
+
+
+#endif // SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTVISUALIZATIONTYPES_H

@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_UI_SUSPENSECORECONTAINERUITYPES_H
+#define SUSPENSECORE_TYPES_UI_SUSPENSECORECONTAINERUITYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -659,3 +660,6 @@ struct BRIDGESYSTEM_API FDragDropResult
         Message = InMessage;
     }
 };
+
+
+#endif // SUSPENSECORE_TYPES_UI_SUSPENSECORECONTAINERUITYPES_H

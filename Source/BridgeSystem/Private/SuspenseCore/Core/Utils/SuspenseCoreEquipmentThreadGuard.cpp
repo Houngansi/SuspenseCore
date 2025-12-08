@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 
-#include "Core/Utils/SuspenseEquipmentThreadGuard.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 
 // =========================
 // FEquipmentRWLock

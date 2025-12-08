@@ -685,5 +685,4 @@ struct BRIDGESYSTEM_API FSuspenseUnifiedItemData : public FTableRowBase
 #if WITH_EDITOR
     /** Handle data table changes in editor */
     virtual void OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName) override;
-#endif
 };

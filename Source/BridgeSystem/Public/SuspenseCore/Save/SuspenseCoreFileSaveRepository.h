@@ -154,3 +154,4 @@ protected:
 	 */
 	void RemoveFromHeaderCache(const FString& PlayerId, int32 SlotIndex);
 };
+

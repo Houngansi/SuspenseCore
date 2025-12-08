@@ -1,7 +1,8 @@
 // FSuspenseEquipmentCacheManager.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H
+#define SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H
 
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
@@ -16,7 +17,7 @@
 #include <limits>
 
 // ВАЖНО: подключаем только объявление реестра (без его повторного определения здесь)
-#include "Core/Utils/SuspenseGlobalCacheRegistry.h"
+#include "SuspenseCore/Core/Utils/SuspenseCoreGlobalCacheRegistry.h"
 
 // Эти инклюды у вас уже были — оставляю без изменений
 #include "Abilities/GameplayAbility.h"
@@ -653,3 +654,6 @@ private:
 // Specialized caches
 using FTagQueryCache = FSuspenseEquipmentCacheManager<FGameplayTag, bool>;
 using FItemDataCache = FSuspenseEquipmentCacheManager<FName, TSharedPtr<struct FSuspenseInventoryItemInstance>>;
+
+
+#endif // SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H

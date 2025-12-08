@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREWEAPONTYPES_H
+#define SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREWEAPONTYPES_H
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -304,3 +305,6 @@ struct BRIDGESYSTEM_API FWeaponHitData
     {
     }
 };
+
+
+#endif // SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREWEAPONTYPES_H

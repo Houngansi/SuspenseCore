@@ -3,9 +3,9 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "Delegates/SuspenseEventManager.h"
-#include "Interfaces/UI/ISuspenseDraggable.h"
-#include "Operations/SuspenseInventoryResult.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
+#include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "Engine/World.h"
 
 USuspenseDragDropOperation::USuspenseDragDropOperation()

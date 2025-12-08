@@ -8,7 +8,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
 #include "GameplayTagContainer.h"

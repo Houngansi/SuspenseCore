@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/Network/SuspenseNetworkTypes.h"
+#include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "ISuspenseCoreNetworkInterfaces.generated.h"
 
@@ -241,3 +241,4 @@ public:
     /** Handle replication callback */
     virtual void OnReplicationCallback(const FName& PropertyName) = 0;
 };
+

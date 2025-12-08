@@ -130,3 +130,4 @@ public:
      */
     virtual bool PlayEquipmentAnimation(AActor* Equipment, const FGameplayTag& AnimationTag) = 0;
 };
+

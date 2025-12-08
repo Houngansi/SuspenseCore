@@ -487,3 +487,4 @@ struct BRIDGESYSTEM_API FSuspenseCoreBatchOperation
 		return GetOperationCount() == 0;
 	}
 };
+

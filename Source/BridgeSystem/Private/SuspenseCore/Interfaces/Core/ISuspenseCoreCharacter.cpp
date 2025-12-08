@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Interfaces/Core/ISuspenseCharacter.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
+#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"

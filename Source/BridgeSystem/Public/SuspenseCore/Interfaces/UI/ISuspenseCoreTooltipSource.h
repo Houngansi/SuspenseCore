@@ -1,10 +1,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H
+#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/UI/SuspenseContainerUITypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "ISuspenseTooltipSource.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
@@ -55,3 +56,5 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Tooltip|Source")
 	void OnTooltipHidden();
 };
+
+#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H

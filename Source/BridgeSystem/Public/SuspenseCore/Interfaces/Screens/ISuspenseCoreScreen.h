@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#pragma once
+#ifndef SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H
+#define SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -68,3 +69,5 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "UI|Screen")
 	bool RequiresTick() const;
 };
+
+#endif // SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H

@@ -1,8 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "AbilitySystemComponent.h"
@@ -53,8 +52,6 @@ void USuspenseCoreEquipmentAbilityConnector::EndPlay(const EEndPlayReason::Type 
     AbilitySystemComponent = nullptr;
     DataProvider.SetInterface(nullptr);
     DataProvider.SetObject(nullptr);
-    EventDispatcher.SetInterface(nullptr);
-    EventDispatcher.SetObject(nullptr);
 
     LogStatistics();
 

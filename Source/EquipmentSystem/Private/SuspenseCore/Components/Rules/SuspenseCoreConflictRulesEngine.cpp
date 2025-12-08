@@ -2,10 +2,11 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreConflictRulesEngine.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "Operations/SuspenseCoreInventoryResult.h"
 #include "Algo/Transform.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogConflictRules, Log, All);
 

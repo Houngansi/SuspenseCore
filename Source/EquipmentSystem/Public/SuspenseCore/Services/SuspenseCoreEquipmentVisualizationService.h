@@ -9,7 +9,7 @@
 #include "HAL/CriticalSection.h"
 
 // Fundamental: service interface + base utilities
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
@@ -22,6 +22,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 // Item / visualization types (lightweight dependencies)
+#include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "Types/Equipment/SuspenseEquipmentVisualizationTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"

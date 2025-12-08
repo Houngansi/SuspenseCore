@@ -16,6 +16,7 @@
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Types/Loadout/SuspenseLoadoutManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
+#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 class USuspenseCoreEquipmentOperationService;
 

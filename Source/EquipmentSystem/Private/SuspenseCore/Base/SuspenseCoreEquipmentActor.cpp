@@ -16,6 +16,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 
 // ==============================
 // Local tag cache (perf/stability)

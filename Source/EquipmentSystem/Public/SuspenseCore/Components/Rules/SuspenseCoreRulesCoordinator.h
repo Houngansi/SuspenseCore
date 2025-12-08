@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "GameplayTagContainer.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
 #include "SuspenseCoreRulesCoordinator.generated.h"
@@ -26,7 +26,7 @@ UENUM()
 enum class ESuspenseCoreRuleExecutionPriority : uint8
 {
     Critical = 0,    // Must pass for operation to proceed (compatibility, safety)
-    High     = 1,    // Important validations (requirements, prerequisites)  
+    High     = 1,    // Important validations (requirements, prerequisites)
     Normal   = 2,    // Standard checks (weight, capacity)
     Low      = 3     // Advisory checks (conflicts, set bonuses)
 };
@@ -58,23 +58,23 @@ struct FSuspenseCoreRuleEngineRegistration
 
 /**
  * Production Rules Coordinator - STATELESS для глобального использования
- * 
+ *
  * АРХИТЕКТУРНЫЙ ПРИНЦИП:
  * Coordinator не хранит состояние игрока - он работает как чистая функция.
  * Все данные игрока передаются через FSuspenseRuleContext.
  * DataProvider опционален и используется только для вспомогательных операций.
- * 
+ *
  * Philosophy: Orchestrates specialized rule engines in priority order.
  * Single point of truth for equipment validation with optimized pipeline.
- * 
+ *
  * Key Principles:
- * - Pipeline execution: Compatibility → Requirements → Weight → Conflict  
+ * - Pipeline execution: Compatibility → Requirements → Weight → Conflict
  * - Stateless operation: все данные в контексте
  * - DataProvider опционален (для fallback-операций)
  * - Early termination on critical failures
  * - Performance metrics and reporting
  * - Thread-safe for concurrent rule evaluation
- * 
+ *
  * Thread Safety: Safe for concurrent rule evaluations after initialization
  */
 UCLASS(BlueprintType)
@@ -111,7 +111,7 @@ public:
     virtual bool SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
     virtual FString GenerateComplianceReport(const FEquipmentStateSnapshot& CurrentState) const override;
     virtual void ClearRuleCache() override;
-    
+
     /**
      * Initialize coordinator - DataProvider теперь ОПЦИОНАЛЕН
      * @param InDataProvider Optional data provider (может быть nullptr для stateless режима)
@@ -123,7 +123,7 @@ public:
     //========================================
     // Engine Management
     //========================================
-    
+
     /**
      * Register external rule engine
      * @param EngineType Engine type identifier
@@ -160,14 +160,14 @@ public:
     //========================================
     // Performance and Diagnostics
     //========================================
-    
+
     /**
      * Get execution statistics
      * @return Performance metrics map
      */
     UFUNCTION(BlueprintCallable, Category="Rules")
     TMap<FString, FString> GetExecutionStatistics() const;
-    
+
     /**
      * Get pipeline health status
      * @return Health check results
@@ -209,8 +209,8 @@ private:
     //========================================
     // Core Components
     //========================================
-    
-    /** 
+
+    /**
      * Data provider interface - ОПЦИОНАЛЕН
      * Используется только для fallback-операций, когда контекст не полон
      */
@@ -249,7 +249,7 @@ private:
     //========================================
     // Performance Optimization
     //========================================
-    
+
     /** Cached weight engine configuration for slot filtering */
     UPROPERTY(Transient)
     FGameplayTagContainer ExcludedSlotsCache;
@@ -257,7 +257,7 @@ private:
     //========================================
     // Metrics (Thread-Safe)
     //========================================
-    
+
     /** Engine execution counts */
     UPROPERTY(Transient)
     mutable TMap<FGameplayTag, int64> EngineExecCount;
@@ -280,7 +280,7 @@ private:
     //========================================
     // State Tracking
     //========================================
-    
+
     /** Initialization timestamp */
     UPROPERTY(Transient)
     FDateTime InitializationTime;

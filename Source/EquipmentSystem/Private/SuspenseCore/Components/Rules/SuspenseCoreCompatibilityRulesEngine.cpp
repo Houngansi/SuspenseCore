@@ -2,9 +2,9 @@
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreCompatibilityRulesEngine.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
-
-DEFINE_LOG_CATEGORY(LogCompatibilityRules);
+#include "Types/Rules/SuspenseCoreRulesTypes.h"
 
 USuspenseCoreCompatibilityRulesEngine::USuspenseCoreCompatibilityRulesEngine()
 {

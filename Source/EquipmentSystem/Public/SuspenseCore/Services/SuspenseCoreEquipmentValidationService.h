@@ -17,6 +17,8 @@
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
 #include <atomic>
+
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCoreEquipmentValidationService.generated.h"
 
 /**

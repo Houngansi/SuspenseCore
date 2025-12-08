@@ -67,7 +67,7 @@ void USuspenseCoreEquipmentAbilityConnector::EndPlay(const EEndPlayReason::Type 
 
 bool USuspenseCoreEquipmentAbilityConnector::Initialize(
     UAbilitySystemComponent* InASC,
-    TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider)
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider)
 {
     if (!EnsureValidExecution(TEXT("Initialize")))
     {

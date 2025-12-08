@@ -6,7 +6,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -185,8 +185,8 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
             FEquipmentOperationRequest Request;
             Request.OperationType = static_cast<EEquipmentOperationType>(
                 static_cast<int32>(EventData.GetFloat(FName(TEXT("OperationType")))));
-            Request.TargetSlot = static_cast<int32>(EventData.GetFloat(FName(TEXT("TargetSlot"))));
-            Request.SourceSlot = static_cast<int32>(EventData.GetFloat(FName(TEXT("SourceSlot"))));
+            Request.TargetSlotIndex = static_cast<int32>(EventData.GetFloat(FName(TEXT("TargetSlot"))));
+            Request.SourceSlotIndex = static_cast<int32>(EventData.GetFloat(FName(TEXT("SourceSlot"))));
 
             UE_LOG(LogEquipmentBridge, Log, TEXT("EventBus callback - Operation: %d"),
                 static_cast<int32>(Request.OperationType));
@@ -209,7 +209,7 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     return true;
 }
 
-void USuspenseCoreEquipmentInventoryBridge::SetInventoryInterface(TScriptInterface<ISuspenseCoreInventory> InInventoryInterface)
+void USuspenseCoreEquipmentInventoryBridge::SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventoryInterface)
 {
     InventoryInterface = InInventoryInterface;
 }
@@ -1232,29 +1232,25 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EvOut;
-    EvOut.EventType = UnequippedTag;
-    EvOut.Target    = TargetActor;
-    EvOut.Source    = this;
-    EvOut.Timestamp = FPlatformTime::Seconds();
-
-    EvOut.AddMetadata(TEXT("Slot"),       FString::FromInt(SlotIndex));
-    EvOut.AddMetadata(TEXT("ItemID"),     Item.ItemID.ToString());
-    EvOut.AddMetadata(TEXT("InstanceID"), Item.InstanceID.ToString());
-
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Unequipped"));
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s, Slot: %d"),
-        *TargetActor->GetName(), SlotIndex);
-
-    TSharedPtr<FSuspenseCoreEquipmentEventBus> EventBus = FSuspenseCoreEquipmentEventBus::Get();
-    if (EventBus.IsValid())
+    // Use EventBus via EventDelegateManager
+    if (EventDelegateManager.IsValid())
     {
-        EventBus->Broadcast(EvOut);
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetObject(FName(TEXT("Target")), TargetActor);
+        EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
+        EventData.SetString(FName(TEXT("ItemID")), Item.ItemID.ToString());
+        EventData.SetString(FName(TEXT("InstanceID")), Item.InstanceID.ToString());
+
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Unequipped"));
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s, Slot: %d"),
+            *TargetActor->GetName(), SlotIndex);
+
+        EventDelegateManager->PublishEventWithData(UnequippedTag, EventData);
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Event broadcast successful"));
     }
     else
     {
-        UE_LOG(LogEquipmentBridge, Error, TEXT("EventBus not available!"));
+        UE_LOG(LogEquipmentBridge, Error, TEXT("EventDelegateManager not available!"));
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== BroadcastUnequippedEvent END ==="));
@@ -1854,33 +1850,26 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         return;
     }
 
-    // Create and populate event
-    FSuspenseCoreEquipmentEventData EvIn;
-    EvIn.EventType = EquippedTag;
-    EvIn.Target    = TargetActor;
-    EvIn.Source    = this;
-    EvIn.Timestamp = FPlatformTime::Seconds();
-
-    // Add metadata
-    EvIn.AddMetadata(TEXT("Slot"),       FString::FromInt(SlotIndex));
-    EvIn.AddMetadata(TEXT("ItemID"),     Item.ItemID.ToString());
-    EvIn.AddMetadata(TEXT("InstanceID"), Item.InstanceID.ToString());
-    EvIn.AddMetadata(TEXT("Quantity"),   FString::FromInt(Item.Quantity));
-
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Equipped"));
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s"), *TargetActor->GetName());
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());
-
-    // FIXED: Correctly work with TSharedPtr
-    TSharedPtr<FSuspenseCoreEquipmentEventBus> EventBus = FSuspenseCoreEquipmentEventBus::Get();
-    if (EventBus.IsValid())
+    // Use EventBus via EventDelegateManager
+    if (EventDelegateManager.IsValid())
     {
-        EventBus->Broadcast(EvIn);
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetObject(FName(TEXT("Target")), TargetActor);
+        EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
+        EventData.SetString(FName(TEXT("ItemID")), Item.ItemID.ToString());
+        EventData.SetString(FName(TEXT("InstanceID")), Item.InstanceID.ToString());
+        EventData.SetInt(FName(TEXT("Quantity")), Item.Quantity);
+
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Equipped"));
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s"), *TargetActor->GetName());
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());
+
+        EventDelegateManager->PublishEventWithData(EquippedTag, EventData);
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Event broadcast successful"));
     }
     else
     {
-        UE_LOG(LogEquipmentBridge, Error, TEXT("EventBus not available!"));
+        UE_LOG(LogEquipmentBridge, Error, TEXT("EventDelegateManager not available!"));
     }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== BroadcastEquippedEvent END ==="));
@@ -1906,17 +1895,15 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
             TEXT("Equipment.Event.Unequipped"),
             /*ErrorIfNotFound*/ false);
 
-        if (UnequippedTag.IsValid())
+        if (UnequippedTag.IsValid() && EventDelegateManager.IsValid())
         {
-            FSuspenseCoreEquipmentEventData EvOut;
-            EvOut.EventType = UnequippedTag;
-            EvOut.Target    = TargetActor;
-            EvOut.Source    = this;
-            EvOut.Timestamp = FPlatformTime::Seconds();
-            EvOut.AddMetadata(TEXT("Slot"),   FString::FromInt(SlotIndex));
-            EvOut.AddMetadata(TEXT("ItemID"), OldItem.ItemID.ToString());
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+            EventData.SetObject(FName(TEXT("Target")), TargetActor);
+            EventData.SetInt(FName(TEXT("Slot")), SlotIndex);
+            EventData.SetString(FName(TEXT("ItemID")), OldItem.ItemID.ToString());
+            EventData.SetString(FName(TEXT("InstanceID")), OldItem.InstanceID.ToString());
 
-            FSuspenseCoreEquipmentEventBus::Get()->Broadcast(EvOut);
+            EventDelegateManager->PublishEventWithData(UnequippedTag, EventData);
             UE_LOG(LogEquipmentBridge, Log, TEXT("[EquipmentBridge] Broadcasted Unequipped event for %s"), *OldItem.ItemID.ToString());
         }
     }

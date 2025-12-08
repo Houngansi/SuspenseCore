@@ -7,7 +7,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
+#include "Interfaces/Inventory/ISuspenseInventory.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
@@ -54,7 +54,7 @@ public:
      * @param InInventoryInterface - Inventory system interface
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    void SetInventoryInterface(TScriptInterface<ISuspenseCoreInventory> InInventoryInterface);
+    void SetInventoryInterface(TScriptInterface<ISuspenseInventory> InInventoryInterface);
 
     // ===== Transfer Operations =====
 
@@ -154,7 +154,7 @@ private:
     TScriptInterface<ISuspenseCoreTransactionManager> TransactionManager;
 
     UPROPERTY()
-    TScriptInterface<ISuspenseCoreInventory> InventoryInterface;
+    TScriptInterface<ISuspenseInventory> InventoryInterface;
 
     UPROPERTY()
     TScriptInterface<IEquipmentOperationService> EquipmentService;

@@ -5,7 +5,7 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "Subsystems/WeaponAnimationSubsystem.h"
-#include "SuspenseCore/Components/SkeletalMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"

@@ -7,7 +7,7 @@
 #include "NiagaraSystem.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "SuspenseCore/Components/MeshComponent.h"
-#include "SuspenseCore/Components/SkeletalMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"

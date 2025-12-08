@@ -504,3 +504,113 @@ struct BRIDGESYSTEM_API FLatencyCompensationData
         return ServerTime + EstimatedLatency * 0.5f;
     }
 };
+
+/**
+ * Equipment replication policy
+ */
+UENUM(BlueprintType)
+enum class EEquipmentReplicationPolicy : uint8
+{
+    /** No replication */
+    None = 0,
+
+    /** Replicate to owner only */
+    OwnerOnly,
+
+    /** Replicate only to relevant clients */
+    OnlyToRelevant,
+
+    /** Replicate to all clients */
+    ToAll,
+
+    /** Server authoritative with client prediction */
+    ServerAuthoritative
+};
+
+/**
+ * Replicated equipment data for network synchronization
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FReplicatedEquipmentData
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    uint32 Version = 0;
+
+    UPROPERTY()
+    TArray<FSuspenseInventoryItemInstance> SlotItems;
+
+    UPROPERTY()
+    TArray<int32> SlotIndices;
+
+    UPROPERTY()
+    int32 ActiveWeaponSlot = INDEX_NONE;
+
+    UPROPERTY()
+    FGameplayTag CurrentState;
+
+    UPROPERTY()
+    float Timestamp = 0.0f;
+
+    UPROPERTY()
+    uint32 Checksum = 0;
+
+    UPROPERTY()
+    bool bIsDelta = false;
+
+    UPROPERTY()
+    uint32 BaseVersion = 0;
+
+    bool IsValid() const { return Version > 0; }
+    int32 GetSlotCount() const { return SlotItems.Num(); }
+};
+
+/**
+ * Equipment prediction record
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FEquipmentPrediction
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FGuid PredictionId;
+
+    UPROPERTY()
+    FEquipmentOperationRequest Request;
+
+    UPROPERTY()
+    FEquipmentStateSnapshot StateBefore;
+
+    UPROPERTY()
+    FEquipmentStateSnapshot StateAfter;
+
+    UPROPERTY()
+    float PredictionTime = 0.0f;
+
+    UPROPERTY()
+    float ConfirmationTime = 0.0f;
+
+    UPROPERTY()
+    bool bConfirmed = false;
+
+    UPROPERTY()
+    bool bRolledBack = false;
+
+    UPROPERTY()
+    bool bPending = true;
+
+    FEquipmentPrediction()
+    {
+        PredictionId = FGuid::NewGuid();
+    }
+
+    static FEquipmentPrediction Create(const FEquipmentOperationRequest& InRequest)
+    {
+        FEquipmentPrediction Prediction;
+        Prediction.Request = InRequest;
+        Prediction.PredictionTime = FPlatformTime::Seconds();
+        return Prediction;
+    }
+};

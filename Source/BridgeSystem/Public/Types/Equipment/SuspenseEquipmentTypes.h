@@ -401,3 +401,41 @@ struct BRIDGESYSTEM_API FEquipmentComparisonResult
     UPROPERTY(BlueprintReadWrite,Category="Comparison") TArray<FText> Downgrades;
     UPROPERTY(BlueprintReadWrite,Category="Comparison") TArray<FText> Notes;
 };
+
+/**
+ * Equipment attachment state
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FEquipmentAttachmentState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    int32 SlotIndex = INDEX_NONE;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    FName AttachmentSocket = NAME_None;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    FTransform AttachmentTransform = FTransform::Identity;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    bool bIsAttached = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    bool bIsVisible = true;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    TWeakObjectPtr<AActor> AttachedActor;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    TWeakObjectPtr<USceneComponent> AttachParent;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    FGameplayTag AttachmentType;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attachment")
+    float AttachmentTime = 0.0f;
+
+    bool IsValid() const { return SlotIndex != INDEX_NONE && !AttachmentSocket.IsNone(); }
+};

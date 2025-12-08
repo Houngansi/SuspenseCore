@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerState.h"
 #include "GameplayAbilitySpec.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "Engine/World.h"
@@ -553,25 +555,20 @@ void USuspenseCoreEquipmentComponentBase::OnRep_ComponentState()
 
 void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("ItemEquipped"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
+        .SetInt(TEXT("Quantity"), ItemInstance.Quantity)
+        .SetString(TEXT("SlotType"), SlotType.ToString())
+        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString());
 
-    // Create comprehensive event data
-    FString EventData = FString::Printf(
-        TEXT("ItemID:%s,Quantity:%d,Slot:%s,InstanceID:%s"),
-        *ItemInstance.ItemID.ToString(),
-        ItemInstance.Quantity,
-        *SlotType.ToString(),
-        *ItemInstance.InstanceID.ToString()
-    );
-
-    Manager->NotifyEquipmentEvent(
-        GetOwner(),
+    Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemEquipped")),
         EventData
     );
@@ -581,24 +578,20 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseC
 
 void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("ItemUnequipped"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
+        .SetInt(TEXT("Quantity"), ItemInstance.Quantity)
+        .SetString(TEXT("SlotType"), SlotType.ToString())
+        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString());
 
-    FString EventData = FString::Printf(
-        TEXT("ItemID:%s,Quantity:%d,Slot:%s,InstanceID:%s"),
-        *ItemInstance.ItemID.ToString(),
-        ItemInstance.Quantity,
-        *SlotType.ToString(),
-        *ItemInstance.InstanceID.ToString()
-    );
-
-    Manager->NotifyEquipmentEvent(
-        GetOwner(),
+    Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemUnequipped")),
         EventData
     );
@@ -608,14 +601,21 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspens
 
 void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentPropertyChanged(const FName& PropertyName, float OldValue, float NewValue)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(FString::Printf(TEXT("PropertyChanged:%s"), *PropertyName.ToString()), false);
         return;
     }
 
-    ISuspenseCoreEquipment::BroadcastEquipmentPropertyChanged(
-        this, PropertyName, OldValue, NewValue
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this)
+        .SetString(TEXT("PropertyName"), PropertyName.ToString())
+        .SetFloat(TEXT("OldValue"), OldValue)
+        .SetFloat(TEXT("NewValue"), NewValue);
+
+    Manager->GetEventBus()->Publish(
+        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.PropertyChanged")),
+        EventData
     );
 
     LogEventBroadcast(FString::Printf(TEXT("PropertyChanged:%s"), *PropertyName.ToString()), true);
@@ -623,94 +623,115 @@ void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentPropertyChanged(cons
 
 void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentStateChanged(const FGameplayTag& OldState, const FGameplayTag& NewState, bool bInterrupted)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("StateChanged"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
-    Manager->NotifyEquipmentStateChanged(OldState, NewState, bInterrupted);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetString(TEXT("OldState"), OldState.ToString())
+        .SetString(TEXT("NewState"), NewState.ToString())
+        .SetBool(TEXT("Interrupted"), bInterrupted);
+
+    Manager->GetEventBus()->Publish(
+        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.StateChanged")),
+        EventData
+    );
+
     LogEventBroadcast(TEXT("StateChanged"), true);
 }
 
-void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentEvent(const FGameplayTag& EventTag, const FString& EventData)
+void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentEvent(const FGameplayTag& EventTag, const FString& EventDataStr)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(EventTag.ToString(), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
-    Manager->NotifyEquipmentEvent(GetOwner(), EventTag, EventData);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetString(TEXT("Payload"), EventDataStr);
+
+    Manager->GetEventBus()->Publish(EventTag, EventData);
+
     LogEventBroadcast(EventTag.ToString(), true);
 }
 
 void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentUpdated()
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("EquipmentUpdated"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
-    Manager->NotifyEquipmentUpdated();
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
+
+    Manager->GetEventBus()->Publish(
+        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Updated")),
+        EventData
+    );
+
     LogEventBroadcast(TEXT("EquipmentUpdated"), true);
 }
 
 void USuspenseCoreEquipmentComponentBase::BroadcastAmmoChanged(float CurrentAmmo, float RemainingAmmo, float MagazineSize)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("AmmoChanged"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
-    Manager->NotifyAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetFloat(TEXT("CurrentAmmo"), CurrentAmmo)
+        .SetFloat(TEXT("RemainingAmmo"), RemainingAmmo)
+        .SetFloat(TEXT("MagazineSize"), MagazineSize);
+
+    Manager->GetEventBus()->Publish(
+        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.AmmoChanged")),
+        EventData
+    );
+
     LogEventBroadcast(TEXT("AmmoChanged"), true);
 }
 
 void USuspenseCoreEquipmentComponentBase::BroadcastWeaponFired(const FVector& Origin, const FVector& Impact, bool bSuccess, const FGameplayTag& FireMode)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("WeaponFired"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetVector(TEXT("Origin"), Origin)
+        .SetVector(TEXT("Impact"), Impact)
+        .SetBool(TEXT("Success"), bSuccess)
+        .SetString(TEXT("FireMode"), FireMode.ToString());
 
-    // Enhanced with fire mode information
-    FString EventData = FString::Printf(
-        TEXT("Origin:%s,Impact:%s,Success:%s,FireMode:%s"),
-        *Origin.ToString(),
-        *Impact.ToString(),
-        bSuccess ? TEXT("true") : TEXT("false"),
-        *FireMode.ToString()
-    );
-
-    Manager->NotifyEquipmentEvent(
-        GetOwner(),
+    Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.WeaponFired")),
         EventData
     );
 
-    Manager->NotifyWeaponFired(Origin, Impact, bSuccess, FireMode.GetTagName());
     LogEventBroadcast(TEXT("WeaponFired"), true);
 }
 
 void USuspenseCoreEquipmentComponentBase::BroadcastFireModeChanged(const FGameplayTag& NewFireMode, const FText& FireModeDisplayName)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("FireModeChanged"), false);
         return;
     }
-
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
 
     // Get current spread from weapon data if available
     float CurrentSpread = 0.0f;
@@ -719,18 +740,12 @@ void USuspenseCoreEquipmentComponentBase::BroadcastFireModeChanged(const FGamepl
         CurrentSpread = GetEquippedItemProperty(TEXT("CurrentSpread"), 0.0f);
     }
 
-    Manager->NotifyFireModeChanged(NewFireMode, CurrentSpread);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetString(TEXT("FireMode"), NewFireMode.ToString())
+        .SetString(TEXT("DisplayName"), FireModeDisplayName.ToString())
+        .SetFloat(TEXT("Spread"), CurrentSpread);
 
-    // Also send detailed event
-    FString EventData = FString::Printf(
-        TEXT("FireMode:%s,DisplayName:%s,Spread:%.3f"),
-        *NewFireMode.ToString(),
-        *FireModeDisplayName.ToString(),
-        CurrentSpread
-    );
-
-    Manager->NotifyEquipmentEvent(
-        GetOwner(),
+    Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.FireModeChanged")),
         EventData
     );
@@ -740,61 +755,43 @@ void USuspenseCoreEquipmentComponentBase::BroadcastFireModeChanged(const FGamepl
 
 void USuspenseCoreEquipmentComponentBase::BroadcastWeaponReload(bool bStarted, float ReloadDuration)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("WeaponReload"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetBool(TEXT("Started"), bStarted)
+        .SetFloat(TEXT("Duration"), ReloadDuration);
 
-    if (bStarted)
-    {
-        Manager->NotifyWeaponReloadStart();
+    FGameplayTag EventTag = bStarted
+        ? FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadStart"))
+        : FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadEnd"));
 
-        // Send detailed event with duration
-        FString EventData = FString::Printf(TEXT("Duration:%.2f"), ReloadDuration);
-        Manager->NotifyEquipmentEvent(
-            GetOwner(),
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadStart")),
-            EventData
-        );
-    }
-    else
-    {
-        Manager->NotifyWeaponReloadEnd();
-        Manager->NotifyEquipmentEvent(
-            GetOwner(),
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadEnd")),
-            TEXT("")
-        );
-    }
+    Manager->GetEventBus()->Publish(EventTag, EventData);
 
     LogEventBroadcast(TEXT("WeaponReload"), true);
 }
 
 void USuspenseCoreEquipmentComponentBase::BroadcastWeaponSpreadUpdated(float NewSpread, float MaxSpread)
 {
-    if (!ValidateDelegateManager())
+    USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
+    if (!Manager || !Manager->GetEventBus())
     {
         LogEventBroadcast(TEXT("SpreadUpdated"), false);
         return;
     }
 
-    USuspenseCoreEventManager* Manager = GetDelegateManager();
+    float Percentage = MaxSpread > 0.0f ? (NewSpread / MaxSpread * 100.0f) : 0.0f;
 
-    Manager->NotifyWeaponSpreadUpdated(NewSpread);
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
+        .SetFloat(TEXT("CurrentSpread"), NewSpread)
+        .SetFloat(TEXT("MaxSpread"), MaxSpread)
+        .SetFloat(TEXT("Percentage"), Percentage);
 
-    // Send detailed event
-    FString EventData = FString::Printf(
-        TEXT("CurrentSpread:%.3f,MaxSpread:%.3f,Percentage:%.1f"),
-        NewSpread,
-        MaxSpread,
-        MaxSpread > 0.0f ? (NewSpread / MaxSpread * 100.0f) : 0.0f
-    );
-
-    Manager->NotifyEquipmentEvent(
-        GetOwner(),
+    Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SpreadUpdated")),
         EventData
     );

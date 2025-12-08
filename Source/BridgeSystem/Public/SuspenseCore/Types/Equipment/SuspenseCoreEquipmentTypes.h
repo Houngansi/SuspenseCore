@@ -5,7 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Interfaces/Core/ISuspenseLoadout.h" // canonical FLoadoutApplicationResult
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseEquipmentTypes.generated.h"
 
 UENUM(BlueprintType)

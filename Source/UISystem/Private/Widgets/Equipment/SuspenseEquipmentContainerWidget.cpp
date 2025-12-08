@@ -6,7 +6,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
-#include "Interfaces/Core/ISuspenseLoadout.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "Components/SuspenseEquipmentUIBridge.h"
 
 #include "Components/CanvasPanel.h"

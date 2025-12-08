@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Interaction/ISuspenseItemFactoryInterface.h"
+#include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreItemFactory.h"
 #include "SuspenseItemFactory.generated.h"
 
 // Forward declarations
@@ -18,7 +18,7 @@ struct FSuspenseUnifiedItemData;
  * Works with unified DataTable system
  */
 UCLASS()
-class INTERACTIONSYSTEM_API USuspenseItemFactory : public UGameInstanceSubsystem, public ISuspenseItemFactoryInterface
+class INTERACTIONSYSTEM_API USuspenseItemFactory : public UGameInstanceSubsystem, public ISuspenseCoreItemFactory
 {
     GENERATED_BODY()
 

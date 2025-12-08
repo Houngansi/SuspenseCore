@@ -94,7 +94,7 @@ USuspenseCoreEventBus* USuspenseCoreItemFactory::GetEventBus() const
 }
 
 //==================================================================
-// ISuspenseItemFactoryInterface Implementation
+// ISuspenseCoreItemFactory Implementation
 //==================================================================
 
 AActor* USuspenseCoreItemFactory::CreatePickupFromItemID_Implementation(

@@ -1,96 +1,169 @@
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentEventDispatcher.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
+
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
-#include "Algo/Sort.h"
 #include "Async/Async.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreEventDispatcher, Log, All);
 
 USuspenseCoreEquipmentEventDispatcher::USuspenseCoreEquipmentEventDispatcher()
 {
-	PrimaryComponentTick.bCanEverTick=true;
-	TagDelta=FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta"));
-	TagBatchDelta=FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.Batch"));
-	TagOperationCompleted=FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Completed"));
+	PrimaryComponentTick.bCanEverTick = true;
+
+	// Initialize tags with new SuspenseCore.Event.* format
+	TagDelta = SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Data_Delta;
+	TagBatchDelta = SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Data;
+	TagOperationCompleted = SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Operation_Completed;
 }
 
 void USuspenseCoreEquipmentEventDispatcher::BeginPlay()
 {
 	Super::BeginPlay();
-	EventBus=FSuspenseEquipmentEventBus::Get();
-	WireBus();
+	ConnectToEventBus();
 }
 
 void USuspenseCoreEquipmentEventDispatcher::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UnwireBus();
+	DisconnectFromEventBus();
+
+	// Clear local queue
 	{
-		FScopeLock L(&QueueCs);
+		FScopeLock Lock(&QueueCs);
 		LocalQueue.Empty();
 	}
+
+	// Remove all subscriptions
+	int32 Removed = UnsubscribeAll(nullptr);
+	if (bVerbose)
 	{
-		int32 Removed=UnsubscribeAll(nullptr);
-		if(bVerbose){UE_LOG(LogTemp,Verbose,TEXT("Dispatcher EndPlay: removed %d local subs"),Removed);}
+		UE_LOG(LogSuspenseCoreEventDispatcher, Verbose, TEXT("EndPlay: removed %d local subscriptions"), Removed);
 	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
-void USuspenseCoreEquipmentEventDispatcher::TickComponent(float DeltaTime,ELevelTick TickType,FActorComponentTickFunction* ThisTickFunction)
+void USuspenseCoreEquipmentEventDispatcher::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	Super::TickComponent(DeltaTime,TickType,ThisTickFunction);
-	if(!bBatchMode)return;
-	Accumulator+=DeltaTime;
-	if(Accumulator<FlushInterval)return;
-	Accumulator=0.f;
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	int32 Dispatched=0;
-	while(Dispatched<MaxPerTick)
+	if (!bBatchMode)
 	{
-		FDispatcherEquipmentEventData E;
+		return;
+	}
+
+	Accumulator += DeltaTime;
+	if (Accumulator < FlushInterval)
+	{
+		return;
+	}
+	Accumulator = 0.f;
+
+	int32 Dispatched = 0;
+	while (Dispatched < MaxPerTick)
+	{
+		FQueuedEvent QueuedEvent;
 		{
-			FScopeLock L(&QueueCs);
-			if(LocalQueue.Num()==0)break;
-			E=MoveTemp(LocalQueue[0]);
+			FScopeLock Lock(&QueueCs);
+			if (LocalQueue.Num() == 0)
+			{
+				break;
+			}
+			QueuedEvent = MoveTemp(LocalQueue[0]);
 			LocalQueue.RemoveAt(0, 1, EAllowShrinking::No);
-			Stats.CurrentQueueSize=LocalQueue.Num();
+			Stats.CurrentQueueSize = LocalQueue.Num();
 		}
-		Dispatch(E);
+		DispatchEvent(QueuedEvent.EventTag, QueuedEvent.EventData);
 		++Dispatched;
 	}
 }
 
-FDelegateHandle USuspenseCoreEquipmentEventDispatcher::Subscribe(const FGameplayTag& EventType,const FEquipmentEventDelegate& Delegate)
-{
-	if(!EventType.IsValid()||!Delegate.IsBound())return FDelegateHandle();
-	FDispatcherLocalSubscription S;
-	S.Handle = FDelegateHandle(FDelegateHandle::GenerateNewHandle);
-	S.Delegate=Delegate;
-	S.Priority=0;
-	S.Subscriber=Delegate.GetUObject();
-	S.bActive=true;
-	S.SubscribedAt=GetWorld()?GetWorld()->GetTimeSeconds():0.f;
+//========================================
+// ISuspenseCoreEventDispatcher Interface
+//========================================
 
-	TArray<FDispatcherLocalSubscription>& Arr=LocalSubscriptions.FindOrAdd(EventType);
-	Arr.Add(S);
-	SortByPriority(Arr);
-	HandleToTag.Add(S.Handle,EventType);
-	Stats.ActiveLocalSubscriptions++;
-	return S.Handle;
+USuspenseCoreEventBus* USuspenseCoreEquipmentEventDispatcher::GetEventBus() const
+{
+	return EventBus;
 }
 
-bool USuspenseCoreEquipmentEventDispatcher::Unsubscribe(const FGameplayTag& EventType,const FDelegateHandle& Handle)
+FSuspenseCoreSubscriptionHandle USuspenseCoreEquipmentEventDispatcher::Subscribe(
+	const FGameplayTag& EventTag,
+	UObject* Subscriber,
+	FSuspenseCoreNativeEventCallback Callback,
+	ESuspenseCoreEventPriority Priority)
 {
-	if(!Handle.IsValid())return false;
-	TArray<FDispatcherLocalSubscription>* Arr=LocalSubscriptions.Find(EventType);
-	if(!Arr)return false;
-	const int32 Before=Arr->Num();
-	Arr->RemoveAll([&](const FDispatcherLocalSubscription& S){return S.Handle==Handle;});
-	const int32 Removed=Before-Arr->Num();
-	if(Removed>0)
+	if (!EventTag.IsValid() || !Callback.IsBound())
 	{
-		HandleToTag.Remove(Handle);
-		Stats.ActiveLocalSubscriptions=FMath::Max(0,Stats.ActiveLocalSubscriptions-Removed);
+		return FSuspenseCoreSubscriptionHandle();
+	}
+
+	FSuspenseCoreDispatcherSubscription Sub;
+	Sub.Handle = GenerateHandle();
+	Sub.Callback = Callback;
+	Sub.Subscriber = Subscriber;
+	Sub.Priority = Priority;
+	Sub.bActive = true;
+	Sub.SubscribedAt = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+	TArray<FSuspenseCoreDispatcherSubscription>& Arr = LocalSubscriptions.FindOrAdd(EventTag);
+	Arr.Add(Sub);
+	SortByPriority(Arr);
+
+	HandleToTag.Add(Sub.Handle.GetId(), EventTag);
+	Stats.ActiveLocalSubscriptions++;
+
+	if (bVerbose)
+	{
+		UE_LOG(LogSuspenseCoreEventDispatcher, Verbose, TEXT("Subscribe to %s, handle=%llu"),
+			*EventTag.ToString(), Sub.Handle.GetId());
+	}
+
+	return Sub.Handle;
+}
+
+bool USuspenseCoreEquipmentEventDispatcher::Unsubscribe(const FSuspenseCoreSubscriptionHandle& Handle)
+{
+	if (!Handle.IsValid())
+	{
+		return false;
+	}
+
+	const FGameplayTag* TagPtr = HandleToTag.Find(Handle.GetId());
+	if (!TagPtr)
+	{
+		return false;
+	}
+
+	TArray<FSuspenseCoreDispatcherSubscription>* Arr = LocalSubscriptions.Find(*TagPtr);
+	if (!Arr)
+	{
+		return false;
+	}
+
+	const int32 Before = Arr->Num();
+	Arr->RemoveAll([&](const FSuspenseCoreDispatcherSubscription& S)
+	{
+		return S.Handle == Handle;
+	});
+
+	const int32 Removed = Before - Arr->Num();
+	if (Removed > 0)
+	{
+		HandleToTag.Remove(Handle.GetId());
+		Stats.ActiveLocalSubscriptions = FMath::Max(0, Stats.ActiveLocalSubscriptions - Removed);
+
+		if (bVerbose)
+		{
+			UE_LOG(LogSuspenseCoreEventDispatcher, Verbose, TEXT("Unsubscribe handle=%llu, removed=%d"),
+				Handle.GetId(), Removed);
+		}
 		return true;
 	}
+
 	return false;
 }
 
@@ -98,10 +171,11 @@ int32 USuspenseCoreEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 {
 	if (Subscriber == nullptr)
 	{
+		// Remove all subscriptions
 		int32 Removed = 0;
-		for (auto& P : LocalSubscriptions)
+		for (auto& Pair : LocalSubscriptions)
 		{
-			Removed += P.Value.Num();
+			Removed += Pair.Value.Num();
 		}
 		LocalSubscriptions.Empty();
 		HandleToTag.Empty();
@@ -110,244 +184,321 @@ int32 USuspenseCoreEquipmentEventDispatcher::UnsubscribeAll(UObject* Subscriber)
 	}
 
 	int32 Removed = 0;
-	for (auto& P : LocalSubscriptions)
+	for (auto& Pair : LocalSubscriptions)
 	{
-		Removed += P.Value.RemoveAll([Subscriber](const FDispatcherLocalSubscription& S)
+		Removed += Pair.Value.RemoveAll([Subscriber](const FSuspenseCoreDispatcherSubscription& S)
 		{
 			return S.Subscriber.Get() == Subscriber;
 		});
 	}
+
 	Stats.ActiveLocalSubscriptions = FMath::Max(0, Stats.ActiveLocalSubscriptions - Removed);
 
-	// Перестраиваем обратную карту хендлов по актуальным подпискам
+	// Rebuild handle map from current subscriptions
 	HandleToTag.Reset();
-	for (const auto& P : LocalSubscriptions)
+	for (const auto& Pair : LocalSubscriptions)
 	{
-		for (const FDispatcherLocalSubscription& S : P.Value)
+		for (const FSuspenseCoreDispatcherSubscription& S : Pair.Value)
 		{
-			HandleToTag.Add(S.Handle, P.Key);
+			HandleToTag.Add(S.Handle.GetId(), Pair.Key);
 		}
 	}
+
 	return Removed;
 }
 
-void USuspenseCoreEquipmentEventDispatcher::BroadcastEvent(const FSuspenseEquipmentEventData& Event)
+void USuspenseCoreEquipmentEventDispatcher::Publish(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
 {
-	if(!EventBus.IsValid())return;
-	EventBus->Broadcast(Event);
-}
-
-void USuspenseCoreEquipmentEventDispatcher::QueueEvent(const FSuspenseEquipmentEventData& Event)
-{
-	if(!EventBus.IsValid())return;
-	EventBus->QueueEvent(Event);
-}
-
-int32 USuspenseCoreEquipmentEventDispatcher::ProcessEventQueue(int32 MaxEvents)
-{
-	if(!EventBus.IsValid())return 0;
-	return EventBus->ProcessEventQueue(MaxEvents);
-}
-
-void USuspenseCoreEquipmentEventDispatcher::ClearEventQueue(const FGameplayTag& EventType)
-{
-	if(!EventBus.IsValid())return;
-	EventBus->ClearEventQueue(EventType);
+	if (!EventBus)
 	{
-		FScopeLock L(&QueueCs);
-		if(EventType.IsValid())
+		// Fallback: dispatch locally only
+		if (bBatchMode)
 		{
-			const int32 Before=LocalQueue.Num();
-			LocalQueue.RemoveAll([&](const FDispatcherEquipmentEventData& E){return E.EventType==EventType;});
-			const int32 Removed=Before-LocalQueue.Num();
-			if(Removed>0){Stats.CurrentQueueSize=LocalQueue.Num();}
+			EnqueueEvent(EventTag, EventData);
 		}
 		else
 		{
-			LocalQueue.Reset();
-			Stats.CurrentQueueSize=0;
+			DispatchEvent(EventTag, EventData);
 		}
+		return;
 	}
+
+	// Publish through EventBus
+	EventBus->Publish(EventTag, EventData);
 }
 
-int32 USuspenseCoreEquipmentEventDispatcher::GetQueuedEventCount(const FGameplayTag& EventType)const
+void USuspenseCoreEquipmentEventDispatcher::PublishDeferred(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
 {
-	FScopeLock L(&QueueCs);
-	if(!EventType.IsValid())return LocalQueue.Num();
-	int32 C=0;
-	for(const auto& E:LocalQueue){if(E.EventType==EventType)++C;}
-	return C;
-}
-
-void USuspenseCoreEquipmentEventDispatcher::SetEventFilter(const FGameplayTag& EventType,bool bAllow)
-{
-	LocalTypeEnabled.Add(EventType,bAllow);
-	if(EventBus.IsValid()){EventBus->SetEventFilter(EventType,bAllow);}
-}
-
-FString USuspenseCoreEquipmentEventDispatcher::GetEventStatistics()const
-{
-	FString S;
-	S+=FString::Printf(TEXT("LocalSubs:%d Queue:%d Peak:%.0f Dispatched:%d AvgMs:%.2f\n"),
-		Stats.ActiveLocalSubscriptions,Stats.CurrentQueueSize,Stats.PeakQueueSize,Stats.TotalEventsDispatched,Stats.AverageDispatchMs);
-	if(EventBus.IsValid())
+	if (!EventBus)
 	{
-		const auto BusStats=EventBus->GetStatistics().ToString();
-		S+=TEXT("Bus:\n");
-		S+=BusStats;
+		// Always enqueue for deferred
+		EnqueueEvent(EventTag, EventData);
+		return;
 	}
-	return S;
+
+	EventBus->PublishDeferred(EventTag, EventData);
 }
 
-bool USuspenseCoreEquipmentEventDispatcher::RegisterEventType(const FGameplayTag& EventType,const FText& Description)
+bool USuspenseCoreEquipmentEventDispatcher::HasSubscribers(const FGameplayTag& EventTag) const
 {
-	if(!EventType.IsValid())return false;
-	if(!LocalTypeEnabled.Contains(EventType))
+	// Check local subscriptions
+	const TArray<FSuspenseCoreDispatcherSubscription>* Arr = LocalSubscriptions.Find(EventTag);
+	if (Arr && Arr->Num() > 0)
 	{
-		LocalTypeEnabled.Add(EventType,true);
-		Stats.RegisteredEventTypes++;
+		return true;
 	}
-	return true;
+
+	// Check EventBus
+	if (EventBus)
+	{
+		return EventBus->HasSubscribers(EventTag);
+	}
+
+	return false;
 }
 
-void USuspenseCoreEquipmentEventDispatcher::SetBatchModeEnabled(bool bEnabled,float FlushIntervalSec,int32 MaxPerTickIn)
+FString USuspenseCoreEquipmentEventDispatcher::GetStatistics() const
 {
-	bBatchMode=bEnabled;
-	FlushInterval=FMath::Max(0.f,FlushIntervalSec);
-	MaxPerTick=FMath::Max(1,MaxPerTickIn);
+	FString Result;
+	Result += FString::Printf(
+		TEXT("LocalSubs:%d Queue:%d Peak:%.0f Dispatched:%d AvgMs:%.2f\n"),
+		Stats.ActiveLocalSubscriptions,
+		Stats.CurrentQueueSize,
+		Stats.PeakQueueSize,
+		Stats.TotalEventsDispatched,
+		Stats.AverageDispatchMs
+	);
+
+	if (EventBus)
+	{
+		FSuspenseCoreEventBusStats BusStats = EventBus->GetStats();
+		Result += FString::Printf(
+			TEXT("EventBus: Subscriptions=%d Published=%lld Queued=%d"),
+			BusStats.ActiveSubscriptions,
+			BusStats.TotalEventsPublished,
+			BusStats.DeferredEventsQueued
+		);
+	}
+
+	return Result;
+}
+
+//========================================
+// Extended API
+//========================================
+
+void USuspenseCoreEquipmentEventDispatcher::SetBatchModeEnabled(bool bEnabled, float FlushIntervalSec, int32 InMaxPerTick)
+{
+	bBatchMode = bEnabled;
+	FlushInterval = FMath::Max(0.f, FlushIntervalSec);
+	MaxPerTick = FMath::Max(1, InMaxPerTick);
 }
 
 void USuspenseCoreEquipmentEventDispatcher::FlushBatched()
 {
-	if(!IsInGameThread())
+	if (!IsInGameThread())
 	{
-		AsyncTask(ENamedThreads::GameThread,[this](){FlushBatched();});
+		AsyncTask(ENamedThreads::GameThread, [this]() { FlushBatched(); });
 		return;
 	}
-	TArray<FDispatcherEquipmentEventData> Local;
+
+	TArray<FQueuedEvent> LocalCopy;
 	{
-		FScopeLock L(&QueueCs);
-		Local=MoveTemp(LocalQueue);
-		Stats.CurrentQueueSize=0;
+		FScopeLock Lock(&QueueCs);
+		LocalCopy = MoveTemp(LocalQueue);
+		Stats.CurrentQueueSize = 0;
 	}
-	for(const auto& E:Local){Dispatch(E);}
+
+	for (const FQueuedEvent& QE : LocalCopy)
+	{
+		DispatchEvent(QE.EventTag, QE.EventData);
+	}
 }
 
-FSuspenseCoreEventDispatcherStats USuspenseCoreEquipmentEventDispatcher::GetStats()const
+FSuspenseCoreEventDispatcherStats USuspenseCoreEquipmentEventDispatcher::GetStats() const
 {
 	return Stats;
 }
 
 void USuspenseCoreEquipmentEventDispatcher::SetDetailedLogging(bool bEnable)
 {
-	bVerbose=bEnable;
+	bVerbose = bEnable;
 }
 
-void USuspenseCoreEquipmentEventDispatcher::WireBus()
-{
-	if(!EventBus.IsValid())return;
-	BusDelta=EventBus->Subscribe(TagDelta,FEventHandlerDelegate::CreateUObject(this,&USuspenseCoreEquipmentEventDispatcher::OnBusEvent_Delta));
-	BusBatchDelta=EventBus->Subscribe(TagBatchDelta,FEventHandlerDelegate::CreateUObject(this,&USuspenseCoreEquipmentEventDispatcher::OnBusEvent_BatchDelta));
-	BusOpCompleted=EventBus->Subscribe(TagOperationCompleted,FEventHandlerDelegate::CreateUObject(this,&USuspenseCoreEquipmentEventDispatcher::OnBusEvent_OperationCompleted));
-}
+//========================================
+// Internal Methods
+//========================================
 
-void USuspenseCoreEquipmentEventDispatcher::UnwireBus()
+void USuspenseCoreEquipmentEventDispatcher::ConnectToEventBus()
 {
-	if(!EventBus.IsValid())return;
-	if(BusDelta.IsValid())EventBus->Unsubscribe(BusDelta);
-	if(BusBatchDelta.IsValid())EventBus->Unsubscribe(BusBatchDelta);
-	if(BusOpCompleted.IsValid())EventBus->Unsubscribe(BusOpCompleted);
-	BusDelta.Invalidate();
-	BusBatchDelta.Invalidate();
-	BusOpCompleted.Invalidate();
-}
-
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_Delta(const FSuspenseEquipmentEventData& E)
-{
-	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
-	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
-}
-
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_BatchDelta(const FSuspenseEquipmentEventData& E)
-{
-	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
-	Enqueue(D);
-}
-
-void USuspenseCoreEquipmentEventDispatcher::OnBusEvent_OperationCompleted(const FSuspenseEquipmentEventData& E)
-{
-	const FDispatcherEquipmentEventData D=ToDispatcherPayload(E);
-	if(bBatchMode){Enqueue(D);}else{Dispatch(D);}
-}
-
-void USuspenseCoreEquipmentEventDispatcher::Enqueue(const FDispatcherEquipmentEventData& E)
-{
-	FScopeLock L(&QueueCs);
-	LocalQueue.Add(E);
-	Stats.TotalEventsQueued++;
-	Stats.CurrentQueueSize=LocalQueue.Num();
-	Stats.PeakQueueSize=FMath::Max(Stats.PeakQueueSize,(float)LocalQueue.Num());
-}
-
-void USuspenseCoreEquipmentEventDispatcher::Dispatch(const FDispatcherEquipmentEventData& E)
-{
-	if(!IsInGameThread())
+	// Get EventBus from ServiceProvider
+	USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
+	if (Provider)
 	{
-		AsyncTask(ENamedThreads::GameThread,[this,E](){Dispatch(E);});
+		EventBus = Provider->GetEventBus();
+	}
+
+	if (!EventBus)
+	{
+		UE_LOG(LogSuspenseCoreEventDispatcher, Warning,
+			TEXT("Could not get EventBus from ServiceProvider. Local-only mode."));
 		return;
 	}
-	const double T0=FPlatformTime::Seconds();
-	DispatchToLocal(E.EventType,E);
-	const double Ms=(FPlatformTime::Seconds()-T0)*1000.0;
+
+	// Subscribe to equipment events from EventBus
+	auto DeltaHandle = EventBus->SubscribeNative(
+		TagDelta,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentEventDispatcher::OnBusEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+	BusSubscriptions.Add(DeltaHandle);
+
+	auto BatchHandle = EventBus->SubscribeNative(
+		TagBatchDelta,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentEventDispatcher::OnBusEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+	BusSubscriptions.Add(BatchHandle);
+
+	auto OpHandle = EventBus->SubscribeNative(
+		TagOperationCompleted,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentEventDispatcher::OnBusEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+	BusSubscriptions.Add(OpHandle);
+
+	UE_LOG(LogSuspenseCoreEventDispatcher, Log, TEXT("Connected to EventBus with %d subscriptions"),
+		BusSubscriptions.Num());
+}
+
+void USuspenseCoreEquipmentEventDispatcher::DisconnectFromEventBus()
+{
+	if (!EventBus)
+	{
+		return;
+	}
+
+	for (const FSuspenseCoreSubscriptionHandle& Handle : BusSubscriptions)
+	{
+		EventBus->Unsubscribe(Handle);
+	}
+	BusSubscriptions.Empty();
+
+	UE_LOG(LogSuspenseCoreEventDispatcher, Log, TEXT("Disconnected from EventBus"));
+}
+
+void USuspenseCoreEquipmentEventDispatcher::OnBusEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (bBatchMode)
+	{
+		EnqueueEvent(EventTag, EventData);
+	}
+	else
+	{
+		DispatchEvent(EventTag, EventData);
+	}
+}
+
+void USuspenseCoreEquipmentEventDispatcher::EnqueueEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
+{
+	FScopeLock Lock(&QueueCs);
+
+	FQueuedEvent QE;
+	QE.EventTag = EventTag;
+	QE.EventData = EventData;
+
+	LocalQueue.Add(QE);
+	Stats.TotalEventsQueued++;
+	Stats.CurrentQueueSize = LocalQueue.Num();
+	Stats.PeakQueueSize = FMath::Max(Stats.PeakQueueSize, (float)LocalQueue.Num());
+}
+
+void USuspenseCoreEquipmentEventDispatcher::DispatchEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (!IsInGameThread())
+	{
+		AsyncTask(ENamedThreads::GameThread, [this, EventTag, EventData]()
+		{
+			DispatchEvent(EventTag, EventData);
+		});
+		return;
+	}
+
+	const double StartTime = FPlatformTime::Seconds();
+
+	DispatchToLocal(EventTag, EventData);
+
+	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 	Stats.TotalEventsDispatched++;
-	const float Alpha=0.01f;
-	Stats.AverageDispatchMs=(1.f-Alpha)*Stats.AverageDispatchMs+Alpha*(float)Ms;
-	if(bVerbose){UE_LOG(LogTemp,Verbose,TEXT("Dispatch %s in %.2f ms"),*E.EventType.ToString(),(float)Ms);}
-}
 
-void USuspenseCoreEquipmentEventDispatcher::DispatchToLocal(const FGameplayTag& Type,const FDispatcherEquipmentEventData& E)
-{
-	TArray<FDispatcherLocalSubscription> Copy;
+	// Exponential moving average
+	const float Alpha = 0.01f;
+	Stats.AverageDispatchMs = (1.f - Alpha) * Stats.AverageDispatchMs + Alpha * (float)ElapsedMs;
+
+	if (bVerbose)
 	{
-		TArray<FDispatcherLocalSubscription>* Arr=LocalSubscriptions.Find(Type);
-		if(!Arr)return;
-		Copy=*Arr;
-	}
-	for(FDispatcherLocalSubscription& S:Copy)
-	{
-		if(!S.bActive)continue;
-		if(S.Subscriber.IsValid()&&!IsValid(S.Subscriber.Get()))continue;
-		S.Delegate.Execute(E);
+		UE_LOG(LogSuspenseCoreEventDispatcher, Verbose, TEXT("Dispatch %s in %.2f ms"),
+			*EventTag.ToString(), (float)ElapsedMs);
 	}
 }
 
-void USuspenseCoreEquipmentEventDispatcher::SortByPriority(TArray<FDispatcherLocalSubscription>& Arr)
+void USuspenseCoreEquipmentEventDispatcher::DispatchToLocal(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData)
 {
-	Arr.Sort([](const FDispatcherLocalSubscription& A,const FDispatcherLocalSubscription& B){return A.Priority>B.Priority;});
+	TArray<FSuspenseCoreDispatcherSubscription> CopyArr;
+	{
+		TArray<FSuspenseCoreDispatcherSubscription>* Arr = LocalSubscriptions.Find(EventTag);
+		if (!Arr || Arr->Num() == 0)
+		{
+			return;
+		}
+		CopyArr = *Arr;
+	}
+
+	for (FSuspenseCoreDispatcherSubscription& Sub : CopyArr)
+	{
+		if (!Sub.bActive)
+		{
+			continue;
+		}
+
+		if (Sub.Subscriber.IsValid() && !IsValid(Sub.Subscriber.Get()))
+		{
+			continue;
+		}
+
+		Sub.Callback.Execute(EventTag, EventData);
+		Sub.DispatchCount++;
+	}
 }
 
-FDispatcherEquipmentEventData USuspenseCoreEquipmentEventDispatcher::ToDispatcherPayload(const FSuspenseEquipmentEventData& In)
+void USuspenseCoreEquipmentEventDispatcher::SortByPriority(TArray<FSuspenseCoreDispatcherSubscription>& Arr)
 {
-	FDispatcherEquipmentEventData Out;
-	Out.EventType=In.EventType;
-	Out.Source=In.Source.Get();
-	Out.EventPayload=In.Payload;
-	Out.Timestamp=In.Timestamp;
-	Out.Priority=(int32)In.Priority;
-	Out.Metadata=In.Metadata;
-	return Out;
+	// Lower priority value = higher priority (System=0 is highest)
+	Arr.Sort([](const FSuspenseCoreDispatcherSubscription& A, const FSuspenseCoreDispatcherSubscription& B)
+	{
+		return static_cast<uint8>(A.Priority) < static_cast<uint8>(B.Priority);
+	});
 }
 
 int32 USuspenseCoreEquipmentEventDispatcher::CleanupInvalid()
 {
-	int32 Removed=0;
-	for(auto& P:LocalSubscriptions)
+	int32 Removed = 0;
+	for (auto& Pair : LocalSubscriptions)
 	{
-		Removed+=P.Value.RemoveAll([](const FDispatcherLocalSubscription& S)
+		Removed += Pair.Value.RemoveAll([](const FSuspenseCoreDispatcherSubscription& S)
 		{
-			return !S.Delegate.IsBound()||(S.Subscriber.IsValid()&&!IsValid(S.Subscriber.Get()));
+			return !S.Callback.IsBound() || (S.Subscriber.IsValid() && !IsValid(S.Subscriber.Get()));
 		});
 	}
-	Stats.ActiveLocalSubscriptions=FMath::Max(0,Stats.ActiveLocalSubscriptions-Removed);
+
+	Stats.ActiveLocalSubscriptions = FMath::Max(0, Stats.ActiveLocalSubscriptions - Removed);
 	return Removed;
+}
+
+FSuspenseCoreSubscriptionHandle USuspenseCoreEquipmentEventDispatcher::GenerateHandle()
+{
+	return FSuspenseCoreSubscriptionHandle(NextSubscriptionId++);
 }

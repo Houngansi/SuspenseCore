@@ -7,7 +7,8 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentRulesService.generated.h"
 
 // Forward declarations
@@ -168,9 +169,11 @@ protected:
     UPROPERTY()
     USuspenseCoreRulesCoordinator* RulesCoordinator = nullptr;
 
-    // EventBus integration
-    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
-    TArray<FEventSubscriptionHandle> EventSubscriptions;
+    // EventBus integration (SuspenseCore architecture)
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
     // Event tags
     FGameplayTag Tag_Validation_Started;

@@ -410,14 +410,15 @@ private:
     float DefaultCacheTTL = 60.0f;
 
     //========================================
-    // Event Management
+    // Event Management (SuspenseCore architecture)
     //========================================
 
-    /** Event subscription scope for automatic cleanup */
-    FEventSubscriptionScope EventScope;
+    /** Cached EventBus reference */
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
 
     /** Handles for specific event subscriptions */
-    TArray<FEventSubscriptionHandle> EventHandles;
+    TArray<FSuspenseCoreSubscriptionHandle> EventHandles;
 
     /** Delegate handle for global cache invalidation */
     FDelegateHandle GlobalCacheInvalidateHandle;

@@ -8,7 +8,7 @@
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"

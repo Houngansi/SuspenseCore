@@ -7,7 +7,8 @@
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
@@ -150,10 +151,11 @@ protected:
     /** Pool cleanup timer handle */
     FTimerHandle PoolCleanupTimerHandle;
 
-    // ---- EventBus Integration ----
+    // ---- EventBus Integration (SuspenseCore architecture) ----
 
     /** EventBus for decoupled inter-component communication */
-    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
 
     /** Event tags using native compile-time tags */
     FGameplayTag Tag_Visual_Spawned;

@@ -277,3 +277,23 @@ public:
      */
     virtual FEquipmentOperationResult ExecuteImmediate(const FEquipmentOperationRequest& Request) = 0;
 };
+
+//========================================
+// Backward Compatibility Aliases
+//========================================
+
+/** Legacy alias for operation service interface */
+using IEquipmentOperationService = ISuspenseCoreEquipmentOperationServiceInterface;
+using UEquipmentOperationService = USuspenseCoreEquipmentOperationServiceInterface;
+
+/** Legacy alias for data service interface */
+using IEquipmentDataService = ISuspenseCoreEquipmentDataServiceInterface;
+using UEquipmentDataService = USuspenseCoreEquipmentDataServiceInterface;
+
+/** Legacy alias for network service interface */
+using IEquipmentNetworkService = ISuspenseCoreEquipmentNetworkServiceInterface;
+using UEquipmentNetworkService = USuspenseCoreEquipmentNetworkServiceInterface;
+
+/** Legacy alias for validation service interface */
+using IEquipmentValidationService = ISuspenseCoreEquipmentValidationServiceInterface;
+using UEquipmentValidationService = USuspenseCoreEquipmentValidationServiceInterface;

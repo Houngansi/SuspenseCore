@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"
@@ -271,7 +272,7 @@ USuspenseCoreEquipmentNetworkDispatcher* USuspenseCoreEquipmentNetworkService::C
 
     // ВАЖНО: храним как TScriptInterface, без TSharedPtr
     NetworkDispatcher.SetObject(Dispatcher);
-    NetworkDispatcher.SetInterface(Cast<ISuspenseNetworkDispatcher>(Dispatcher));
+    NetworkDispatcher.SetInterface(Cast<ISuspenseCoreNetworkDispatcher>(Dispatcher));
 
     return Dispatcher;
 }
@@ -315,7 +316,7 @@ USuspenseCoreEquipmentPredictionSystem* USuspenseCoreEquipmentNetworkService::Cr
 
     // НЕ TSharedPtr — используем TScriptInterface (GC-safe)
     PredictionManager.SetObject(Prediction);
-    PredictionManager.SetInterface(Cast<ISuspensePredictionManager>(Prediction));
+    PredictionManager.SetInterface(Cast<ISuspenseCorePredictionManager>(Prediction));
 
     return Prediction;
 }
@@ -1198,7 +1199,7 @@ void USuspenseCoreEquipmentNetworkService::SetupEventSubscriptions()
     using namespace SuspenseCoreEquipmentTags;
 
     // Get EventBus singleton
-    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
@@ -1264,7 +1265,7 @@ void USuspenseCoreEquipmentNetworkService::BroadcastNetworkResult(
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = Tag_NetworkResult;
     EventData.AddMetadata(TEXT("Success"), bSuccess ? TEXT("true") : TEXT("false"));
     EventData.AddMetadata(TEXT("OperationId"), OperationId.ToString());
@@ -1292,7 +1293,7 @@ void USuspenseCoreEquipmentNetworkService::BroadcastSecurityViolation(
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = Tag_SecurityViolation;
     EventData.Target = PlayerController;
     EventData.AddMetadata(TEXT("ViolationType"), ViolationType);
@@ -1314,7 +1315,7 @@ void USuspenseCoreEquipmentNetworkService::BroadcastSecurityViolation(
 }
 
 void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
-    const FSuspenseCoreEquipmentEventData& EventData)
+    const FSuspenseEquipmentEventData& EventData)
 {
     // Handle operation completed events - update network metrics
     const FString OpIdStr = EventData.GetMetadata(TEXT("OperationId"), TEXT(""));

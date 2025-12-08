@@ -6,7 +6,10 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "HAL/PlatformTime.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentRules.h"
 #include "Misc/ConfigCacheIni.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentRules);
 
@@ -108,7 +111,7 @@ bool USuspenseCoreEquipmentRulesService::InitializeService(const FSuspenseCoreSe
     if (!RulesCoordinator)
     {
         UE_LOG(LogSuspenseCoreEquipmentRules, Error, TEXT("Failed to create RulesCoordinator"));
-        ServiceState = ESuspenseCoreServiceLifecycleState::Error;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         return false;
     }
 
@@ -505,7 +508,7 @@ void USuspenseCoreEquipmentRulesService::CleanupExpiredCache() const
 
 void USuspenseCoreEquipmentRulesService::SetupEventBus()
 {
-    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    EventBus = FSuspenseEquipmentEventBus::Get();
 
     using namespace SuspenseCoreEquipmentTags;
     Tag_Validation_Started = Event::TAG_Equipment_Event_Validation_Started;
@@ -531,7 +534,7 @@ void USuspenseCoreEquipmentRulesService::BroadcastValidationStarted(const FEquip
     auto Bus = EventBus.Pin();
     if (!Bus.IsValid() || !Tag_Validation_Started.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = Tag_Validation_Started;
     EventData.AddMetadata(TEXT("ItemId"), Request.ItemInstance.ItemID.ToString());
     EventData.AddMetadata(TEXT("OperationType"), FString::FromInt(static_cast<int32>(Request.OperationType)));
@@ -550,7 +553,7 @@ void USuspenseCoreEquipmentRulesService::BroadcastValidationResult(
     const FGameplayTag ResultTag = Result.bPassed ? Tag_Validation_Passed : Tag_Validation_Failed;
     if (!ResultTag.IsValid()) return;
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = ResultTag;
     EventData.AddMetadata(TEXT("ItemId"), Request.ItemInstance.ItemID.ToString());
     EventData.AddMetadata(TEXT("OperationType"), FString::FromInt(static_cast<int32>(Request.OperationType)));

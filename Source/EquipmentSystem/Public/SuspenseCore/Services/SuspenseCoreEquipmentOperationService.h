@@ -22,6 +22,8 @@
 #include "Containers/Queue.h"
 #include "Containers/Ticker.h"
 #include <atomic>
+
+#include "Types/Events/SuspenseEquipmentEventData.h"
 #include "SuspenseCoreEquipmentOperationService.generated.h"
 
 class USuspenseCoreEquipmentValidationService;

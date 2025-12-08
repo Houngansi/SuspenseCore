@@ -225,7 +225,7 @@ bool USuspenseCoreEquipmentSecurityService::InitializeService(const FSuspenseCor
     if (!InitializeSecureStorage())
     {
         UE_LOG(LogSuspenseCoreEquipmentSecurity, Error, TEXT("Failed to initialize secure storage"));
-        ServiceState = ESuspenseCoreServiceLifecycleState::Error;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         return false;
     }
 

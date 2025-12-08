@@ -15,6 +15,7 @@
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Async/Async.h"
+#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentOperations);
@@ -46,8 +47,8 @@ namespace EventTags
 
 USuspenseCoreEquipmentOperationService::USuspenseCoreEquipmentOperationService()
 {
-    ValidationCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>(500));
-    ResultCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
+    ValidationCache = MakeShareable(new FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>(500));
+    ResultCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
     InitializationTime = FDateTime::Now();
 }
 
@@ -78,7 +79,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FSuspenseCo
     InitializationTime = FDateTime::Now();
 
     // CRITICAL FIX: Store ServiceLocator reference from params
-    CachedServiceLocator = Cast<USuspenseCoreEquipmentServiceLocator>(Params.ServiceLocator);
+    CachedServiceLocator = Cast<USuspenseEquipmentServiceLocator>(Params.ServiceLocator);
 
     if (!CachedServiceLocator.IsValid())
     {
@@ -114,11 +115,11 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FSuspenseCo
 
     // Initialize caching systems with proper constructor signature
     // Format: FEquipmentCacheManager(float DefaultTTL, int32 MaxEntries)
-    ValidationCache = MakeShared<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>>(
+    ValidationCache = MakeShared<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>>(
         ValidationCacheTTL,  // Default TTL: 5.0s
         1000);               // Max entries: 1000
 
-    ResultCache = MakeShared<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
+    ResultCache = MakeShared<FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
         ResultCacheTTL,      // Default TTL: 2.0s
         500);                // Max entries: 500
 
@@ -1898,7 +1899,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
     if (DataSvcObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataProvider::StaticClass()))
     {
         DataProvider.SetObject(DataSvcObj);
-        DataProvider.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataSvcObj));
+        DataProvider.SetInterface(Cast<ISuspenseCoreEquipmentDataProvider>(DataSvcObj));
         bResolvedProvider = (DataProvider.GetObject() && DataProvider.GetInterface());
         if (bResolvedProvider)
         {
@@ -1913,7 +1914,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
     {
         if (USuspenseCoreEquipmentDataService* DataSvc = Cast<USuspenseCoreEquipmentDataService>(DataSvcObj))
         {
-            if (ISuspenseEquipmentDataProvider* Provider = DataSvc->GetDataProvider())
+            if (ISuspenseCoreEquipmentDataProvider* Provider = DataSvc->GetDataProvider())
             {
                 DataProvider.SetObject(DataSvcObj); // держим сервис как владелец жизненного цикла
                 DataProvider.SetInterface(Provider);
@@ -1940,10 +1941,10 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
     {
         const FGameplayTag TxnTag = FGameplayTag::RequestGameplayTag(FName("Service.Equipment.Transaction"));
         UObject* TxnObj = Locator->TryGetService(TxnTag);
-        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(USuspenseTransactionManager::StaticClass()))
+        if (TxnObj && TxnObj->GetClass()->ImplementsInterface(USuspenseCoreTransactionManager::StaticClass()))
         {
             TransactionManager.SetObject(TxnObj);
-            TransactionManager.SetInterface(Cast<ISuspenseTransactionManager>(TxnObj));
+            TransactionManager.SetInterface(Cast<ISuspenseCoreTransactionManager>(TxnObj));
             UE_LOG(LogSuspenseCoreEquipmentOperations, Log,
                 TEXT("InitializeDependencies: ✅ TransactionManager resolved (GLOBAL)"));
         }
@@ -1971,7 +1972,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
         if (ValidationObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentRules::StaticClass()))
         {
             RulesEngine.SetObject(ValidationObj);
-            RulesEngine.SetInterface(Cast<ISuspenseEquipmentRules>(ValidationObj));
+            RulesEngine.SetInterface(Cast<ISuspenseCoreEquipmentRules>(ValidationObj));
             bBoundRules = (RulesEngine.GetObject() && RulesEngine.GetInterface());
             if (bBoundRules)
             {
@@ -2014,7 +2015,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
     return true;
 }
 
-void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterface<ISuspenseEquipmentOperations> InExecutor)
+void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterface<ISuspenseCoreEquipmentOperations> InExecutor)
 {
     if (!InExecutor.GetObject() || !InExecutor.GetInterface())
     {
@@ -2047,7 +2048,7 @@ void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterf
 
 void USuspenseCoreEquipmentOperationService::SetupEventSubscriptions()
 {
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         return;
@@ -2997,13 +2998,13 @@ void USuspenseCoreEquipmentOperationService::PruneHistory()
 
 void USuspenseCoreEquipmentOperationService::PublishOperationEvent(const FEquipmentOperationResult& Result)
 {
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = EventTags::OperationCompleted;
     EventData.Source = this;
     EventData.Payload = Result.OperationId.ToString();
@@ -3021,7 +3022,7 @@ void USuspenseCoreEquipmentOperationService::PublishOperationEvent(const FEquipm
     EventBus->Broadcast(EventData);
 }
 
-void USuspenseCoreEquipmentOperationService::OnValidationRulesChanged(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnValidationRulesChanged(const FSuspenseEquipmentEventData& EventData)
 {
     InvalidateValidationCache();
 
@@ -3029,7 +3030,7 @@ void USuspenseCoreEquipmentOperationService::OnValidationRulesChanged(const FSus
         TEXT("Validation rules changed - cache invalidated"));
 }
 
-void USuspenseCoreEquipmentOperationService::OnDataStateChanged(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnDataStateChanged(const FSuspenseEquipmentEventData& EventData)
 {
     ResultCache->Clear();
     ServiceMetrics.Inc(TEXT("ResultCacheInvalidations"));
@@ -3038,7 +3039,7 @@ void USuspenseCoreEquipmentOperationService::OnDataStateChanged(const FSuspenseC
         TEXT("Data state changed - result cache cleared"));
 }
 
-void USuspenseCoreEquipmentOperationService::OnNetworkOperationResult(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnNetworkOperationResult(const FSuspenseEquipmentEventData& EventData)
 {
     // Достаём OperationId: сначала из метаданных, потом из payload
     FGuid OperationId;

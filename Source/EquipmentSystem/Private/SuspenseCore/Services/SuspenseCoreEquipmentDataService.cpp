@@ -15,7 +15,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include <atomic>
-
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "ItemSystem/SuspenseItemManager.h"
 
@@ -23,9 +23,9 @@ USuspenseCoreEquipmentDataService::USuspenseCoreEquipmentDataService()
 {
     // Initialize caches with appropriate sizes for MMO scale
     // These sizes are tuned for ~100 concurrent players per server
-    SnapshotCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
-    ItemCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>(500));
-    ConfigCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
+    SnapshotCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
+    ItemCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>(500));
+    ConfigCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
 
     InitializationTime = FDateTime::Now();
 }
@@ -96,7 +96,7 @@ void USuspenseCoreEquipmentDataService::InjectComponents(UObject* InDataStore, U
 
         // Create interface wrapper
         DataProviderInterface.SetObject(DataStore);
-        DataProviderInterface.SetInterface(Cast<ISuspenseEquipmentDataProvider>(DataStore));
+        DataProviderInterface.SetInterface(Cast<ISuspenseCoreEquipmentDataProvider>(DataStore));
 
         if (!DataProviderInterface.GetInterface())
         {
@@ -817,13 +817,13 @@ FString USuspenseCoreEquipmentDataService::GetServiceStats() const
 // IEquipmentDataService Implementation
 //========================================
 
-ISuspenseEquipmentDataProvider* USuspenseCoreEquipmentDataService::GetDataProvider()
+ISuspenseCoreEquipmentDataProvider* USuspenseCoreEquipmentDataService::GetDataProvider()
 {
     SCOPED_SERVICE_TIMER("Data.GetDataProvider");
     return DataProviderInterface.GetInterface();
 }
 
-ISuspenseTransactionManager* USuspenseCoreEquipmentDataService::GetTransactionManager()
+ISuspenseCoreTransactionManager* USuspenseCoreEquipmentDataService::GetTransactionManager()
 {
     SCOPED_SERVICE_TIMER("Data.GetTransactionManager");
     return TransactionManagerInterface.GetInterface();
@@ -1663,7 +1663,7 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
     // Подписка на глобальные события через EventBus
     // ===================================================================
 
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (EventBus.IsValid())
     {
         // Подписываемся на запросы инвалидации кэша от других систем
@@ -1703,7 +1703,7 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
         TEXT("SetupEventSubscriptions: All event subscriptions configured"));
 }
 
-void USuspenseCoreEquipmentDataService::OnCacheInvalidation(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentDataService::OnCacheInvalidation(const FSuspenseEquipmentEventData& EventData)
 {
     // Parse slot index from event payload if available
     int32 SlotIndex = -1;
@@ -1865,10 +1865,10 @@ void USuspenseCoreEquipmentDataService::BroadcastDelta(const FEquipmentDelta& De
     OnEquipmentDeltaDelegate.Broadcast(Delta);
 
     // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Транслируем дельты в правильные события
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (EventBus.IsValid())
     {
-        FSuspenseCoreEquipmentEventData EventData;
+        FSuspenseEquipmentEventData EventData;
         EventData.Source = this;
         EventData.Timestamp = FPlatformTime::Seconds();
         EventData.Priority = EEventPriority::Normal;
@@ -1950,13 +1950,13 @@ void USuspenseCoreEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquip
     for (const FEquipmentDelta& Delta : Deltas)
     {
         // Переиспользуем логику из BroadcastDelta для единообразия
-        auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+        auto EventBus = FSuspenseEquipmentEventBus::Get();
         if (!EventBus.IsValid())
         {
             continue;
         }
 
-        FSuspenseCoreEquipmentEventData EventData;
+        FSuspenseEquipmentEventData EventData;
         EventData.Source = this;
         EventData.Timestamp = FPlatformTime::Seconds();
         EventData.Priority = EEventPriority::Normal;
@@ -2483,7 +2483,7 @@ void USuspenseCoreEquipmentDataService::WarmupCachesSafe()
     }
 }
 
-void USuspenseCoreEquipmentDataService::OnResendRequested(const FSuspenseCoreEquipmentEventData& Event)
+void USuspenseCoreEquipmentDataService::OnResendRequested(const FSuspenseEquipmentEventData& Event)
 {
     // Минимальная корректная реализация: фиксируем запрос и инициируем безопасное переотправление
     UE_LOG(LogTemp, Verbose,

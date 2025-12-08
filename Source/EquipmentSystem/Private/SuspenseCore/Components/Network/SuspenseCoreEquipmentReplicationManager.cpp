@@ -13,6 +13,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Misc/SecureHash.h"
 #include "DrawDebugHelpers.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 
 // FReplicatedSlotItem
 void FReplicatedSlotItem::PreReplicatedRemove(const FReplicatedSlotArray& InArraySerializer)

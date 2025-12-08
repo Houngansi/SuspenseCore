@@ -15,6 +15,8 @@
 #include "Engine/DataTable.h"
 #include "Engine/StreamableManager.h"
 #include <atomic>
+
+#include "Types/Events/SuspenseEquipmentEventData.h"
 #include "SuspenseCoreEquipmentAbilityService.generated.h"
 
 // Forward declarations

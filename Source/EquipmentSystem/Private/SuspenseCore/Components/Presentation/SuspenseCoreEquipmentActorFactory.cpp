@@ -14,6 +14,9 @@
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "Interfaces/Equipment/ISuspenseCoreEquipment.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 #include "UObject/SoftObjectPath.h"
 
 // ===== helper (поместите в .cpp файла фабрики, над методами) =====
@@ -975,7 +978,7 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     using namespace SuspenseCoreEquipmentTags;
 
     // Get EventBus singleton
-    EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         UE_LOG(LogEquipmentOperation, Warning,
@@ -999,7 +1002,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, co
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = Tag_Visual_Spawned;
     EventData.Target = Actor;
     EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());
@@ -1021,7 +1024,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, 
         return;
     }
 
-    FSuspenseCoreEquipmentEventData EventData;
+    FSuspenseEquipmentEventData EventData;
     EventData.EventType = Tag_Visual_Destroyed;
     EventData.Target = Actor;
     EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());

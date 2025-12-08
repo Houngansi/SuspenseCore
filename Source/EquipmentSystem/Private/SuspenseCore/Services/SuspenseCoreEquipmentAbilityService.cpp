@@ -19,7 +19,7 @@
 USuspenseCoreEquipmentAbilityService::USuspenseCoreEquipmentAbilityService()
 {
     // Initialize cache with reasonable size
-    MappingCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>(100));
+    MappingCache = MakeShareable(new FSuspenseEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>(100));
 }
 
 USuspenseCoreEquipmentAbilityService::~USuspenseCoreEquipmentAbilityService()
@@ -138,7 +138,7 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
     EquipmentToOwnerMap.Empty();
 
     // Безопасная отписка от EventBus
-    if (auto EventBus = FSuspenseCoreEquipmentEventBus::Get())
+    if (auto EventBus = FSuspenseEquipmentEventBus::Get())
     {
         for (const FEventSubscriptionHandle& Handle : EventSubscriptions)
         {
@@ -910,7 +910,7 @@ void USuspenseCoreEquipmentAbilityService::InitializeDefaultMappings()
 
 void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
 {
-    auto EventBus = FSuspenseCoreEquipmentEventBus::Get();
+    auto EventBus = FSuspenseEquipmentEventBus::Get();
     if (!EventBus.IsValid())
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
@@ -982,7 +982,7 @@ void USuspenseCoreEquipmentAbilityService::EnsureValidConfig()
         MappingCacheTTL, CleanupInterval);
 }
 
-void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData)
 {
     // Parse structured event data
     FSuspenseInventoryItemInstance ItemInstance;
@@ -1001,7 +1001,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseCor
     ServiceMetrics.Inc(FName("Ability.Events.Spawned"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData)
 {
     AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
     if (!EquipmentActor)
@@ -1016,7 +1016,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseC
 
 // === S7 Handlers ===
 
-void USuspenseCoreEquipmentAbilityService::OnEquipped(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipped(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1031,7 +1031,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipped(const FSuspenseCoreEquipme
     ServiceMetrics.Inc(FName("Ability.Events.Equipped"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnUnequipped(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnUnequipped(const FSuspenseEquipmentEventData& EventData)
 {
     AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
     if (!EquipmentActor)
@@ -1050,7 +1050,7 @@ void USuspenseCoreEquipmentAbilityService::OnUnequipped(const FSuspenseCoreEquip
     ServiceMetrics.Inc(FName("Ability.Events.Unequipped"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1065,7 +1065,7 @@ void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseCor
     ServiceMetrics.Inc(FName("Ability.Events.Refresh"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnCommit(const FSuspenseCoreEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnCommit(const FSuspenseEquipmentEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -1135,7 +1135,7 @@ USuspenseCoreEquipmentAbilityConnector* USuspenseCoreEquipmentAbilityService::Cr
     Connector->RegisterComponent();
 
     // Initialize connector with owner's ASC
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
     if (!Connector->Initialize(ASC, DataProvider))
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Error,
@@ -1252,7 +1252,7 @@ FGameplayTagContainer USuspenseCoreEquipmentAbilityService::GetEquipmentTags(AAc
 }
 
 bool USuspenseCoreEquipmentAbilityService::ParseEquipmentEventData(
-    const FSuspenseCoreEquipmentEventData& EventData,
+    const FSuspenseEquipmentEventData& EventData,
     FSuspenseInventoryItemInstance& OutItem,
     AActor*& OutEquipmentActor,
     AActor*& OutOwnerActor) const

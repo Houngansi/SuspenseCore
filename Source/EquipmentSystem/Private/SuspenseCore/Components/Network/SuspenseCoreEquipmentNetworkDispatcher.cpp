@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 #include "Misc/SecureHash.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 
 // ----------------------------------------------------
 // Helpers: DTO <-> Domain (локальные, без сторонних зависимостей)

@@ -10,8 +10,9 @@
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
+#include "Operations/SuspenseInventoryResult.h"
+#include "Interfaces/Equipment/ISuspenseInventoryBridge.h"
 #include "SuspenseCoreEquipmentInventoryBridge.generated.h"
 
 // Forward declaration
@@ -63,7 +64,7 @@ public:
      * @return Operation result with success/failure status
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult TransferFromInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult TransferFromInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Transfer item from equipment slot to inventory
@@ -71,7 +72,7 @@ public:
      * @return Operation result with success/failure status
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult TransferToInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult TransferToInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Atomically swap items between inventory and equipment
@@ -80,7 +81,7 @@ public:
      * @return Operation result with affected items
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Bridge")
-    FSuspenseCoreInventoryOperationResult SwapBetweenInventoryAndEquipment(
+    FSuspenseInventoryOperationResult SwapBetweenInventoryAndEquipment(
         const FGuid& InventoryItemInstanceID,
         int32 EquipmentSlotIndex
     );
@@ -126,7 +127,7 @@ protected:
   * @param Item - Item instance that was equipped
   * @param SlotIndex - Equipment slot index where item was placed
   */
- void BroadcastEquippedEvent(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex);
+ void BroadcastEquippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
 
  /**
   * Broadcasts both Unequipped and Equipped events for SWAP operations
@@ -137,8 +138,8 @@ protected:
   * @param SlotIndex - Equipment slot involved in swap
   */
  void BroadcastSwapEvents(
-     const FSuspenseCoreInventoryItemInstance& NewItem,
-     const FSuspenseCoreInventoryItemInstance& OldItem,
+     const FSuspenseInventoryItemInstance& NewItem,
+     const FSuspenseInventoryItemInstance& OldItem,
      int32 SlotIndex);
 private:
     // ===== Dependencies =====
@@ -162,7 +163,7 @@ private:
 
     /** Reference to centralized event system for UI-driven operations */
     TWeakObjectPtr<USuspenseCoreEventManager> EventDelegateManager;
-     void BroadcastUnequippedEvent(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex);
+     void BroadcastUnequippedEvent(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
     /** Handle for equipment operation request subscription */
     FSuspenseCoreSubscriptionHandle EquipmentOperationRequestHandle;
 
@@ -181,8 +182,8 @@ private:
     struct FBridgeTransaction
     {
         FGuid TransactionID;
-        FSuspenseCoreInventoryItemInstance InventoryBackup;
-        FSuspenseCoreInventoryItemInstance EquipmentBackup;
+        FSuspenseInventoryItemInstance InventoryBackup;
+        FSuspenseInventoryItemInstance EquipmentBackup;
         int32 InventorySlot;
         int32 EquipmentSlot;
         bool bInventoryModified;
@@ -210,7 +211,7 @@ private:
     struct FItemReservation
     {
         FGuid ReservationID;
-        FSuspenseCoreInventoryItemInstance ReservedItem;
+        FSuspenseInventoryItemInstance ReservedItem;
         int32 TargetSlot;
         float ExpirationTime;
     };
@@ -226,17 +227,17 @@ private:
     /**
      * Execute transfer from inventory to equipment with full validation
      */
-    FSuspenseCoreInventoryOperationResult ExecuteTransfer_FromInventoryToEquip(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromInventoryToEquip(const FInventoryTransferRequest& Request);
 
     /**
      * Execute transfer from equipment to inventory with rollback support
      */
-    FSuspenseCoreInventoryOperationResult ExecuteTransfer_FromEquipToInventory(const FInventoryTransferRequest& Request);
+    FSuspenseInventoryOperationResult ExecuteTransfer_FromEquipToInventory(const FInventoryTransferRequest& Request);
 
     /**
      * Execute atomic swap between inventory and equipment systems
      */
-    FSuspenseCoreInventoryOperationResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
+    FSuspenseInventoryOperationResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
 
     // ===== Transaction Management =====
 
@@ -265,17 +266,17 @@ private:
     /**
      * Validate that inventory has space for item
      */
-    bool ValidateInventorySpace(const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool ValidateInventorySpace(const FSuspenseInventoryItemInstance& Item) const;
 
     /**
      * Validate equipment slot compatibility with item
      */
-    bool ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool ValidateEquipmentSlot(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const;
 
     /**
      * Check if inventory has space for item (simplified check)
      */
-    bool InventoryHasSpace(const FSuspenseCoreInventoryItemInstance& Item) const;
+    bool InventoryHasSpace(const FSuspenseInventoryItemInstance& Item) const;
 
     // ===== Helper Functions =====
 
@@ -287,7 +288,7 @@ private:
     /**
      * Find item in inventory by item ID
      */
-    bool FindItemInInventory(const FName& ItemId, FSuspenseCoreInventoryItemInstance& OutInstance) const;
+    bool FindItemInInventory(const FName& ItemId, FSuspenseInventoryItemInstance& OutInstance) const;
 
     /** Flag to prevent double initialization and double subscription */
     UPROPERTY(Transient)

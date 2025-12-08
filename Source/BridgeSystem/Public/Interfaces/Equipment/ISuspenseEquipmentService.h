@@ -198,13 +198,13 @@ public:
      * Get data provider interface for direct data access
      * @return Data provider interface (typically the DataStore)
      */
-    virtual class ISuspenseEquipmentDataProvider* GetDataProvider() = 0;
-    
+    virtual class ISuspenseCoreEquipmentDataProvider* GetDataProvider() = 0;
+
     /**
      * Get transaction manager interface for ACID operations
      * @return Transaction manager interface (typically the TransactionProcessor)
      */
-    virtual class ISuspenseTransactionManager* GetTransactionManager() = 0;
+    virtual class ISuspenseCoreTransactionManager* GetTransactionManager() = 0;
 };
 
 // Operation Service Interface
@@ -222,8 +222,8 @@ class BRIDGESYSTEM_API IEquipmentOperationService : public ISuspenseEquipmentSer
     GENERATED_BODY()
 
 public:
-    // Forward to ISuspenseEquipmentOperations methods
-    virtual class ISuspenseEquipmentOperations* GetOperationsExecutor() = 0;
+    // Forward to ISuspenseCoreEquipmentOperations methods
+    virtual class ISuspenseCoreEquipmentOperations* GetOperationsExecutor() = 0;
     virtual bool QueueOperation(const struct FEquipmentOperationRequest& Request) = 0;
     virtual void ProcessOperationQueue() = 0;
 

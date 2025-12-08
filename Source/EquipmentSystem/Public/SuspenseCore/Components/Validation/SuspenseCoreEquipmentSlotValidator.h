@@ -11,7 +11,7 @@
 // Единый источник макросов и лог-категорий проекта
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
-#include "Interfaces/Equipment/ISuspenseSlotValidator.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
@@ -203,7 +203,7 @@ struct FSlotValidationExtendedCacheEntry
 };
 
 UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentSlotValidator : public UObject, public ISuspenseSlotValidator
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentSlotValidator : public UObject, public ISuspenseCoreSlotValidator
 {
 	GENERATED_BODY()
 

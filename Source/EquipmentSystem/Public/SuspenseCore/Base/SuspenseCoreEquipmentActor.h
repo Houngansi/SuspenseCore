@@ -9,7 +9,7 @@
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Interfaces/Equipment/ISuspenseEquipment.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCoreEquipmentActor.generated.h"
 
 class UAbilitySystemComponent;
@@ -27,7 +27,7 @@ class USuspenseItemManager;
  * - Provides read-only/proxy Interface methods.
  */
 UCLASS(Blueprintable, BlueprintType)
-class EQUIPMENTSYSTEM_API ASuspenseCoreEquipmentActor : public AActor, public ISuspenseEquipment
+class EQUIPMENTSYSTEM_API ASuspenseCoreEquipmentActor : public AActor, public ISuspenseCoreEquipment
 {
     GENERATED_BODY()
 

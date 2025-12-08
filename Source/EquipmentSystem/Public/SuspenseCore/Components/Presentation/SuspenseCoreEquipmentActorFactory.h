@@ -7,7 +7,7 @@
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
@@ -153,7 +153,7 @@ protected:
     // ---- EventBus Integration ----
 
     /** EventBus for decoupled inter-component communication */
-    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
 
     /** Event tags using native compile-time tags */
     FGameplayTag Tag_Visual_Spawned;

@@ -6,7 +6,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Types/Transaction/SuspenseTransactionTypes.h"
 #include "SuspenseCoreEquipmentTransactionService.generated.h"
 
@@ -200,7 +200,7 @@ protected:
     TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 
     // EventBus integration
-    TWeakPtr<FSuspenseCoreEquipmentEventBus> EventBus;
+    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
     TArray<FEventSubscriptionHandle> EventSubscriptions;
 
     // Event tags

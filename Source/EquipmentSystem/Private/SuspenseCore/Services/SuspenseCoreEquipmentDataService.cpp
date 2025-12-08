@@ -158,7 +158,7 @@ void USuspenseCoreEquipmentDataService::SetValidator(UObject* InValidator)
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentDataService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("Data.InitializeService");
     bool bOk = false;
@@ -170,7 +170,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
         UE_LOG(LogSuspenseCoreEquipmentData, Error, TEXT("InitializeService: ItemManager not injected!"));
         UE_LOG(LogSuspenseCoreEquipmentData, Error, TEXT("  Call InjectComponents(DataStore, ItemManager) before InitializeService"));
         RECORD_SERVICE_METRIC("Data.Init.NoItemManager", 1);
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         return false;
     }
 
@@ -181,7 +181,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
     {
         FRWScopeLock ScopeLock(DataLock, SLT_Write);
 
-        if (ServiceState != EServiceLifecycleState::Uninitialized)
+        if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
         {
             UE_LOG(LogSuspenseCoreEquipmentData, Warning,
                 TEXT("InitializeService: Service already initialized (state: %s)"),
@@ -190,7 +190,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
             return false;
         }
 
-        ServiceState = EServiceLifecycleState::Initializing;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
 
         // ✅ STATELESS MODE: Per-player components are optional
         // Auto-resolve: если инъекции ещё не было — попробуем достать компоненты с Owner (обычно PlayerState/Actor).
@@ -245,7 +245,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
             // Additional validation of components and interfaces
             if (!DataStore || !DataStore->IsValidLowLevel())
             {
-                ServiceState = EServiceLifecycleState::Failed;
+                ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
                 UE_LOG(LogSuspenseCoreEquipmentData, Error,
                     TEXT("InitializeService: DataStore is invalid or destroyed"));
                 RECORD_SERVICE_METRIC("Data.Init.InvalidDataStore", 1);
@@ -254,7 +254,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
 
             if (!TransactionProcessor || !TransactionProcessor->IsValidLowLevel())
             {
-                ServiceState = EServiceLifecycleState::Failed;
+                ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
                 UE_LOG(LogSuspenseCoreEquipmentData, Error,
                     TEXT("InitializeService: TransactionProcessor is invalid or destroyed"));
                 RECORD_SERVICE_METRIC("Data.Init.InvalidTransactionProcessor", 1);
@@ -263,7 +263,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
 
             if (!DataProviderInterface.GetInterface())
             {
-                ServiceState = EServiceLifecycleState::Failed;
+                ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
                 UE_LOG(LogSuspenseCoreEquipmentData, Error,
                     TEXT("InitializeService: DataProviderInterface is not set"));
                 RECORD_SERVICE_METRIC("Data.Init.NoDataProviderInterface", 1);
@@ -272,7 +272,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
 
             if (!TransactionManagerInterface.GetInterface())
             {
-                ServiceState = EServiceLifecycleState::Failed;
+                ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
                 UE_LOG(LogSuspenseCoreEquipmentData, Error,
                     TEXT("InitializeService: TransactionManagerInterface is not set"));
                 RECORD_SERVICE_METRIC("Data.Init.NoTransactionManagerInterface", 1);
@@ -319,7 +319,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
             if (!TransactionProcessor->Initialize(DataProviderInterface))
             {
                 FRWScopeLock ScopeLock(DataLock, SLT_Write);
-                ServiceState = EServiceLifecycleState::Failed;
+                ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
                 UE_LOG(LogSuspenseCoreEquipmentData, Error,
                     TEXT("InitializeService: Failed to initialize TransactionProcessor with DataProvider"));
                 RECORD_SERVICE_METRIC("Data.Init.TransactionProcessorInitFailed", 1);
@@ -387,7 +387,7 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FServiceInitPara
         }
 
         // Finalize initialization
-        ServiceState = EServiceLifecycleState::Ready;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
         RECORD_SERVICE_METRIC("Data.Init.Success", 1);
 
         // ✅ Enhanced logging with mode indication
@@ -446,7 +446,7 @@ bool USuspenseCoreEquipmentDataService::ShutdownService(bool bForce)
     // Phase 0: Quick exit check with read lock only
     {
         FRWScopeLock ScopeLock(DataLock, SLT_ReadOnly);
-        if (ServiceState == EServiceLifecycleState::Shutdown)
+        if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
         {
             bOk = true;
             return true;
@@ -480,13 +480,13 @@ bool USuspenseCoreEquipmentDataService::ShutdownService(bool bForce)
         FRWScopeLock ScopeLock(DataLock, SLT_Write);
 
         // Double-check state
-        if (ServiceState == EServiceLifecycleState::Shutdown)
+        if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
         {
             bOk = true;
             return true;
         }
 
-        ServiceState = EServiceLifecycleState::Shutting;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
         // Clear event subscriptions and delegates
         EventScope.UnsubscribeAll();
@@ -501,7 +501,7 @@ bool USuspenseCoreEquipmentDataService::ShutdownService(bool bForce)
         TransactionManagerInterface.SetObject(nullptr);
         TransactionManagerInterface.SetInterface(nullptr);
 
-        ServiceState = EServiceLifecycleState::Shutdown;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     }
 
     // Phase 3: Cache and registry cleanup (these operations take their own locks)

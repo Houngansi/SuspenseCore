@@ -95,17 +95,17 @@ USuspenseCoreEquipmentTransactionService::~USuspenseCoreEquipmentTransactionServ
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentTransactionService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentTransactionService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("TransactionService::Initialize");
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("Service already initialized"));
-        return ServiceState == EServiceLifecycleState::Ready;
+        return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
     ServiceParams = Params;
 
     UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, TEXT(">>> TransactionService: Initializing..."));
@@ -116,7 +116,7 @@ bool USuspenseCoreEquipmentTransactionService::InitializeService(const FServiceI
     // Setup EventBus integration
     SetupEventBus();
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     UE_LOG(LogSuspenseCoreEquipmentTransaction, Log,
         TEXT("<<< TransactionService: Initialized (Timeout=%.1fs, MaxDepth=%d, Events=%s)"),
         Config.TransactionTimeout,
@@ -128,7 +128,7 @@ bool USuspenseCoreEquipmentTransactionService::InitializeService(const FServiceI
 
 bool USuspenseCoreEquipmentTransactionService::ShutdownService(bool bForce)
 {
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
@@ -153,7 +153,7 @@ bool USuspenseCoreEquipmentTransactionService::ShutdownService(bool bForce)
         TransactionStartTimes.Empty();
     }
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, TEXT("<<< TransactionService: Shutdown complete"));
 
     return true;

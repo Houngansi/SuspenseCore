@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
@@ -481,26 +482,44 @@ bool USuspenseEquipmentServiceLocator::InitializeService(FServiceRegistration& R
         return false;
     }
 
-    // 4) Call service initialization
-    if (ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(
+    // 4) Call service initialization - try both legacy and SuspenseCore interfaces
+    bool bInitialized = false;
+    Reg.State = EServiceLifecycleState::Initializing;
+
+    // Try legacy ISuspenseEquipmentService first
+    if (ISuspenseEquipmentService* LegacySvc = static_cast<ISuspenseEquipmentService*>(
                Reg.ServiceInstance->GetInterfaceAddress(USuspenseEquipmentService::StaticClass())))
     {
-        Reg.State = EServiceLifecycleState::Initializing;
+        bInitialized = LegacySvc->InitializeService(Reg.InitParams);
+    }
+    // Try ISuspenseCoreEquipmentService if legacy not found
+    else if (ISuspenseCoreEquipmentService* CoreSvc = static_cast<ISuspenseCoreEquipmentService*>(
+               Reg.ServiceInstance->GetInterfaceAddress(USuspenseCoreEquipmentService::StaticClass())))
+    {
+        // Convert FServiceInitParams to FSuspenseCoreServiceInitParams (identical layout)
+        FSuspenseCoreServiceInitParams CoreParams;
+        CoreParams.Owner = Reg.InitParams.Owner;
+        CoreParams.ServiceLocator = Reg.InitParams.ServiceLocator;
+        CoreParams.RequiredServices = Reg.InitParams.RequiredServices;
+        CoreParams.Configuration = Reg.InitParams.Configuration;
+        CoreParams.bAutoStart = Reg.InitParams.bAutoStart;
+        CoreParams.Priority = Reg.InitParams.Priority;
 
-        //Pass params with ServiceLocator reference
-        if (!Svc->InitializeService(Reg.InitParams))
-        {
-            UE_LOG(LogServiceLocator, Error, TEXT("InitializeService() returned false for %s"),
-                *Reg.ServiceTag.ToString());
-            Reg.State = EServiceLifecycleState::Failed;
-            Initializing.Remove(Reg.ServiceTag);
-            ++TotalFailed;
-            return false;
-        }
+        bInitialized = CoreSvc->InitializeService(CoreParams);
     }
     else
     {
-        UE_LOG(LogServiceLocator, Error, TEXT("Service %s does not implement UEquipmentService"),
+        UE_LOG(LogServiceLocator, Error, TEXT("Service %s does not implement USuspenseEquipmentService or USuspenseCoreEquipmentService"),
+            *Reg.ServiceTag.ToString());
+        Reg.State = EServiceLifecycleState::Failed;
+        Initializing.Remove(Reg.ServiceTag);
+        ++TotalFailed;
+        return false;
+    }
+
+    if (!bInitialized)
+    {
+        UE_LOG(LogServiceLocator, Error, TEXT("InitializeService() returned false for %s"),
             *Reg.ServiceTag.ToString());
         Reg.State = EServiceLifecycleState::Failed;
         Initializing.Remove(Reg.ServiceTag);
@@ -553,11 +572,28 @@ bool USuspenseEquipmentServiceLocator::ShutdownService(FServiceRegistration& Reg
 
     Reg.State = EServiceLifecycleState::Shutting;
 
-    if (Reg.ServiceInstance &&
-        Reg.ServiceInstance->GetClass()->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
+    if (Reg.ServiceInstance)
     {
-        ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(Reg.ServiceInstance->GetInterfaceAddress(USuspenseEquipmentService::StaticClass()));
-        Svc->ShutdownService(bForce);
+        // Try legacy ISuspenseEquipmentService first
+        if (Reg.ServiceInstance->GetClass()->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
+        {
+            ISuspenseEquipmentService* Svc = static_cast<ISuspenseEquipmentService*>(
+                Reg.ServiceInstance->GetInterfaceAddress(USuspenseEquipmentService::StaticClass()));
+            if (Svc)
+            {
+                Svc->ShutdownService(bForce);
+            }
+        }
+        // Try ISuspenseCoreEquipmentService if legacy not found
+        else if (Reg.ServiceInstance->GetClass()->ImplementsInterface(USuspenseCoreEquipmentService::StaticClass()))
+        {
+            ISuspenseCoreEquipmentService* CoreSvc = static_cast<ISuspenseCoreEquipmentService*>(
+                Reg.ServiceInstance->GetInterfaceAddress(USuspenseCoreEquipmentService::StaticClass()));
+            if (CoreSvc)
+            {
+                CoreSvc->ShutdownService(bForce);
+            }
+        }
     }
 
     Reg.ServiceInstance = nullptr;
@@ -739,7 +775,14 @@ bool USuspenseEquipmentServiceLocator::ValidateServiceInstance(const UObject* Se
     }
 
     const UClass* Cls = ServiceInstance->GetClass();
-    if (!Cls || !Cls->ImplementsInterface(USuspenseEquipmentService::StaticClass()))
+    if (!Cls)
+    {
+        return false;
+    }
+
+    // Accept services implementing either legacy or SuspenseCore interface
+    if (!Cls->ImplementsInterface(USuspenseEquipmentService::StaticClass()) &&
+        !Cls->ImplementsInterface(USuspenseCoreEquipmentService::StaticClass()))
     {
         return false;
     }

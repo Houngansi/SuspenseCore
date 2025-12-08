@@ -28,7 +28,7 @@ static int32 LexToInt(const FString& S, int32 Default)
 
 // ===== IEquipmentService ======================================================
 
-bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServiceInitParams& InitParams)
+bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspenseCoreServiceInitParams& InitParams)
 {
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
@@ -49,7 +49,7 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 
 	if (!CachedServiceLocator)
 	{
-		LifecycleState = EServiceLifecycleState::Failed;
+		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("InitializeService FAILED: ServiceLocator not provided in InitParams!"));
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
@@ -67,7 +67,7 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 	VisualizationServiceTag = Service::TAG_Service_Equipment_Visualization;
 	if (!VisualizationServiceTag.IsValid())
 	{
-		LifecycleState = EServiceLifecycleState::Failed;
+		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("InitializeService FAILED: Service.Equipment.Visualization native tag not registered"));
 		return false;
@@ -81,14 +81,14 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 	EventBus = FSuspenseCoreEquipmentEventBus::Get();
 	if (!EventBus.IsValid())
 	{
-		LifecycleState = EServiceLifecycleState::Failed;
+		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("InitializeService FAILED: EventBus missing"));
 		return false;
 	}
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("EventBus acquired successfully"));
 
-	LifecycleState = EServiceLifecycleState::Initializing;
+	LifecycleState = ESuspenseCoreServiceLifecycleState::Initializing;
 
 	// Default config
 	MaxUpdateRateHz    = 30.f;
@@ -141,7 +141,7 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FServic
 		TEXT("VisService init completed: MaxRate=%.1fHz, Quality=%d"),
 		MaxUpdateRateHz, VisualQualityLevel);
 
-	LifecycleState = EServiceLifecycleState::Ready;
+	LifecycleState = ESuspenseCoreServiceLifecycleState::Ready;
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 		TEXT("<<< VisualizationService: InitializeService SUCCESS"));
@@ -169,7 +169,7 @@ bool USuspenseCoreEquipmentVisualizationService::ShutdownService(bool /*bForce*/
 	}
 	Characters.Empty();
 
-	LifecycleState = EServiceLifecycleState::Shutdown;
+	LifecycleState = ESuspenseCoreServiceLifecycleState::Shutdown;
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("<<< VisualizationService: ShutdownService COMPLETED"));
 	return true;
@@ -243,7 +243,7 @@ void USuspenseCoreEquipmentVisualizationService::ResetService()
 	Characters.Empty();
 	EventBus.Reset();
 	LastProcessTimeSec = 0.0;
-	LifecycleState = EServiceLifecycleState::Uninitialized;
+	LifecycleState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("VisService reset"));
 }
@@ -454,7 +454,7 @@ void USuspenseCoreEquipmentVisualizationService::OnSlotSwitched(const FSuspenseC
 	TryParseInt(E, TEXT("ActiveSlot"), ActiveSlot);
 
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
-	FVisCharState& S = Characters.FindOrAdd(Character);
+	FSuspenseCoreVisCharState& S = Characters.FindOrAdd(Character);
 	S.ActiveSlot = ActiveSlot;
 }
 
@@ -564,7 +564,7 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 	ApplyQualitySettings(Visual);
 
 	// 4) Store in state
-	FVisCharState& S = Characters.FindOrAdd(Character);
+	FSuspenseCoreVisCharState& S = Characters.FindOrAdd(Character);
 	S.SlotActors.FindOrAdd(SlotIndex) = Visual;
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("Step 4: Stored in state map"));
@@ -617,7 +617,7 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 {
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
-	FVisCharState* S = Characters.Find(Character);
+	FSuspenseCoreVisCharState* S = Characters.Find(Character);
 	if (!S) return;
 
 	TWeakObjectPtr<AActor>* Found = S->SlotActors.Find(SlotIndex);
@@ -665,7 +665,7 @@ void USuspenseCoreEquipmentVisualizationService::RefreshAllVisuals(AActor* Chara
 	// Refresh quality for current visuals
 	{
 		EQUIPMENT_RW_READ_LOCK(VisualLock);  // Read-only access for quality refresh
-		if (FVisCharState* S = Characters.Find(Character))
+		if (FSuspenseCoreVisCharState* S = Characters.Find(Character))
 		{
 			for (auto& Pair : S->SlotActors)
 			{
@@ -828,7 +828,7 @@ void USuspenseCoreEquipmentVisualizationService::ReleaseVisualActor(AActor* Char
 
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
-	FVisCharState* S = Characters.Find(Character);
+	FSuspenseCoreVisCharState* S = Characters.Find(Character);
 	if (!S) return;
 
 	TWeakObjectPtr<AActor>* Found = S->SlotActors.Find(SlotIndex);

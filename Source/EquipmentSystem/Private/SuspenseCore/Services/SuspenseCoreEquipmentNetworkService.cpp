@@ -20,7 +20,7 @@
 #include "Misc/Paths.h"
 
 USuspenseCoreEquipmentNetworkService::USuspenseCoreEquipmentNetworkService()
-    : ServiceState(EServiceLifecycleState::Uninitialized)
+    : ServiceState(ESuspenseCoreServiceLifecycleState::Uninitialized)
     , AverageLatency(0.0f)
     , TotalOperationsSent(0)
     , TotalOperationsRejected(0)
@@ -50,7 +50,7 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     if (IsEngineExitRequested() || bFromDestructor)
     {
         // Только обнуляем состояние, никакого I/O
-        ServiceState = EServiceLifecycleState::Shutdown;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
 
         // Delegate security cleanup to SecurityService
         if (SecurityService && IsValid(SecurityService))
@@ -76,12 +76,12 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     }
 
     // Защита от повторного вызова
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return;
     }
 
-    ServiceState = EServiceLifecycleState::Shutting;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
     // === TEARDOWN EVENTBUS SUBSCRIPTIONS ===
     TeardownEventSubscriptions();
@@ -154,7 +154,7 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
     ReplicationProvider = nullptr;
     SecurityService = nullptr;
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Equipment Network Service shutdown complete"));
 }
@@ -412,11 +412,11 @@ void USuspenseCoreEquipmentNetworkService::StartMonitoringTimers(UWorld* World)
         1.0f, true);
 }
 
-bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentNetworkService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("InitializeService");
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("Service already initialized"));
         ServiceMetrics.RecordError();
@@ -424,7 +424,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
         return false;
     }
 
-    ServiceState  = EServiceLifecycleState::Initializing;
+    ServiceState  = ESuspenseCoreServiceLifecycleState::Initializing;
     ServiceParams = Params;
 
     // Create and initialize SecurityService (delegated security responsibility)
@@ -432,7 +432,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     if (!SecurityService)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to create SecurityService"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -440,7 +440,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     if (!SecurityService->InitializeService(Params))
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Failed to initialize SecurityService"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         RECORD_SERVICE_METRIC("security_service_init_failed", 1);
         return false;
@@ -451,7 +451,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     if (!World)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("No valid world context for network service initialization"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -460,7 +460,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     if (!OwnerActor)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Error, TEXT("Service owner is not an Actor, cannot create network components"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -469,7 +469,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     TScriptInterface<ISuspenseEquipmentOperations>  OperationExecutor;
     if (!ResolveDependencies(World, DataProvider, OperationExecutor))
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -478,7 +478,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
         CreateAndInitNetworkDispatcher(OwnerActor, OperationExecutor);
     if (!Dispatcher)
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -488,7 +488,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
         CreateAndInitPredictionSystem(OwnerActor, DataProvider, OperationExecutor);
     if (!Prediction)
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -498,7 +498,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
         CreateAndInitReplicationManager(OwnerActor, DataProvider);
     if (!Replication)
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         ServiceMetrics.RecordError();
         return false;
     }
@@ -526,7 +526,7 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FServiceInitP
     SetupEventSubscriptions();
     RECORD_SERVICE_METRIC("eventbus_subscriptions", EventSubscriptions.Num());
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     ServiceMetrics.RecordSuccess();
     RECORD_SERVICE_METRIC("initialization_success", 1);
 
@@ -564,7 +564,7 @@ bool USuspenseCoreEquipmentNetworkService::ValidateService(TArray<FText>& OutErr
                                     FName(TEXT("ValidateService")));
     bool bIsValid = true;
 
-    if (ServiceState != EServiceLifecycleState::Ready)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Ready)
     {
         OutErrors.Add(FText::FromString(TEXT("Network Service is not in Ready state")));
         bIsValid = false;

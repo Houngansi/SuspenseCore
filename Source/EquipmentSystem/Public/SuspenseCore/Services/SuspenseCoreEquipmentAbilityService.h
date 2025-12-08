@@ -86,7 +86,7 @@ struct FSuspenseCoreEquipmentAbilityMapping : public FTableRowBase
  * Thread Safety: All public methods MUST be called on GameThread (GAS requirement)
  */
 UCLASS()
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAbilityService : public UObject, public ISuspenseEquipmentService
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAbilityService : public UObject, public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -95,13 +95,13 @@ public:
     virtual ~USuspenseCoreEquipmentAbilityService();
 
     //========================================
-    // IEquipmentService Implementation
+    // ISuspenseCoreEquipmentService Implementation
     //========================================
 
-    virtual bool InitializeService(const FServiceInitParams& Params) override;
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
     virtual bool ShutdownService(bool bForce = false) override;
-    virtual EServiceLifecycleState GetServiceState() const override { return ServiceState; }
-    virtual bool IsServiceReady() const override { return ServiceState == EServiceLifecycleState::Ready; }
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
     virtual FGameplayTag GetServiceTag() const override;
     virtual FGameplayTagContainer GetRequiredDependencies() const override;
     virtual bool ValidateService(TArray<FText>& OutErrors) const override;
@@ -224,7 +224,7 @@ private:
     // Service State
     //========================================
     UPROPERTY()
-    EServiceLifecycleState ServiceState = EServiceLifecycleState::Uninitialized;
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
     //========================================
     // Configuration Data

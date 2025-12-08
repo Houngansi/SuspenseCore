@@ -53,7 +53,7 @@ USuspenseCoreEquipmentOperationService::USuspenseCoreEquipmentOperationService()
 
 USuspenseCoreEquipmentOperationService::~USuspenseCoreEquipmentOperationService()
 {
-    if (ServiceState == EServiceLifecycleState::Ready)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Ready)
     {
         ShutdownService(true);
     }
@@ -64,17 +64,17 @@ USuspenseCoreEquipmentOperationService::~USuspenseCoreEquipmentOperationService(
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentOperationService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentOperationService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentOperations, Warning,
             TEXT("InitializeService: already initialized (state=%s)"),
             *UEnum::GetValueAsString(ServiceState));
-        return ServiceState == EServiceLifecycleState::Ready;
+        return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
     InitializationTime = FDateTime::Now();
 
     // CRITICAL FIX: Store ServiceLocator reference from params
@@ -84,7 +84,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FServiceIni
     {
         UE_LOG(LogSuspenseCoreEquipmentOperations, Error,
             TEXT("InitializeService: ServiceLocator not provided in init params"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         return false;
     }
 
@@ -108,7 +108,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FServiceIni
     {
         UE_LOG(LogSuspenseCoreEquipmentOperations, Error,
             TEXT("Failed to initialize dependencies"));
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         return false;
     }
 
@@ -135,7 +135,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FServiceIni
         StartQueueProcessing();
     }
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
 
     UE_LOG(LogSuspenseCoreEquipmentOperations, Log,
         TEXT("EquipmentOperationService initialized successfully"));
@@ -170,12 +170,12 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
 {
     SCOPED_SERVICE_TIMER("ShutdownService");
 
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
 
-    ServiceState = EServiceLifecycleState::Shutting;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
     StopQueueProcessing();
 
     if (!bForce && OperationQueue.Num() > 0)
@@ -245,7 +245,7 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     }
 
     CleanupObjectPools();
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     ServiceMetrics.RecordSuccess();
 
     UE_LOG(LogSuspenseCoreEquipmentOperations, Log,
@@ -258,7 +258,7 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     return true;
 }
 
-EServiceLifecycleState USuspenseCoreEquipmentOperationService::GetServiceState() const
+ESuspenseCoreServiceLifecycleState USuspenseCoreEquipmentOperationService::GetServiceState() const
 {
     SCOPED_SERVICE_TIMER("GetServiceState");
     return ServiceState;
@@ -267,7 +267,7 @@ EServiceLifecycleState USuspenseCoreEquipmentOperationService::GetServiceState()
 bool USuspenseCoreEquipmentOperationService::IsServiceReady() const
 {
     SCOPED_SERVICE_TIMER("IsServiceReady");
-    return ServiceState == EServiceLifecycleState::Ready;
+    return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
 }
 
 FGameplayTag USuspenseCoreEquipmentOperationService::GetServiceTag() const
@@ -292,7 +292,7 @@ bool USuspenseCoreEquipmentOperationService::ValidateService(TArray<FText>& OutE
     OutErrors.Empty();
     bool bIsValid = true;
 
-    if (ServiceState != EServiceLifecycleState::Ready)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Ready)
     {
         OutErrors.Add(FText::Format(
             NSLOCTEXT("Equipment", "ServiceNotReady", "Service not ready: {0}"),

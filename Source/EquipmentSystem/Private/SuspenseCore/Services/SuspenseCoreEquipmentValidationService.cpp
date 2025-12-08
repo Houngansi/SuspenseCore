@@ -161,7 +161,7 @@ void USuspenseCoreEquipmentValidationService::EnsureValidConfig()
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentValidationService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("Validation.InitializeService");
 
@@ -179,7 +179,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceIn
 
     EQUIPMENT_WRITE_LOCK(CacheLock);
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentValidation, Warning,
             TEXT("InitializeService: Service already initialized (state: %s)"),
@@ -188,11 +188,11 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceIn
         return false;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
 
     if (!InitializeDependencies())
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("InitializeService: Failed to initialize dependencies"));
         ServiceMetrics.RecordError();
         return false;
@@ -208,7 +208,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceIn
 
     if (!Coordinator)
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("InitializeService: Failed to create rules coordinator"));
         ServiceMetrics.RecordError();
         return false;
@@ -218,7 +218,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceIn
     // RulesCoordinator теперь корректно работает в stateless режиме
     if (!Coordinator->Initialize(DataProvider))
     {
-        ServiceState = EServiceLifecycleState::Failed;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
         UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("InitializeService: Failed to initialize rules coordinator"));
         ServiceMetrics.RecordError();
         return false;
@@ -236,7 +236,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FServiceIn
             ResultCache.Get());
     }
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
 
     UE_LOG(LogSuspenseCoreEquipmentValidation, Log,
         TEXT("EquipmentValidationService initialized successfully:"));
@@ -264,12 +264,12 @@ bool USuspenseCoreEquipmentValidationService::ShutdownService(bool bForce)
     SCOPED_SERVICE_TIMER("Validation.ShutdownService");
     EQUIPMENT_WRITE_LOCK(CacheLock);
 
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
 
-    ServiceState = EServiceLifecycleState::Shutting;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
     // Clear cache
     if (ResultCache.IsValid())
@@ -300,7 +300,7 @@ bool USuspenseCoreEquipmentValidationService::ShutdownService(bool bForce)
     DataProvider = nullptr;
     TransactionManager = nullptr;
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
 
     // Log final statistics
     const FTimespan Uptime = FDateTime::Now() - InitializationTime;

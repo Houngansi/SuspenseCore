@@ -531,7 +531,7 @@ void USuspenseCoreEquipmentOperationService::InitializeWithOwner(APlayerState* I
 // IEquipmentOperationService Implementation
 //========================================
 
-ISuspenseEquipmentOperations* USuspenseCoreEquipmentOperationService::GetOperationsExecutor()
+ISuspenseCoreEquipmentOperations* USuspenseCoreEquipmentOperationService::GetOperationsExecutor()
 {
     SCOPED_SERVICE_TIMER("GetOperationsExecutor");
     FRWScopeLock Lock(ExecutorLock, SLT_ReadOnly);
@@ -2014,14 +2014,14 @@ bool USuspenseCoreEquipmentOperationService::InitializeDependencies()
     return true;
 }
 
-void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterface<ISuspenseEquipmentOperations> InExecutor)
+void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterface<ISuspenseCoreEquipmentOperations> InExecutor)
 {
     if (!InExecutor.GetObject() || !InExecutor.GetInterface())
     {
         // Разрешаем очистку, но предупреждаем
         {
             FRWScopeLock W(ExecutorLock, SLT_Write);
-            OperationsExecutor = TScriptInterface<ISuspenseEquipmentOperations>();
+            OperationsExecutor = TScriptInterface<ISuspenseCoreEquipmentOperations>();
         }
         UE_LOG(LogSuspenseCoreEquipmentOperations, Warning, TEXT("SetOperationsExecutor: cleared executor (null injected)"));
         return;
@@ -2853,7 +2853,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationService::ValidateOperationC
 
     if (RulesEngine.GetInterface())
     {
-        FRuleEvaluationResult RuleResult = RulesEngine->EvaluateRules(Request);
+        FSuspenseCoreRuleEvaluationResult RuleResult = RulesEngine->EvaluateRules(Request);
 
         Result.bIsValid = RuleResult.bPassed;
         Result.ErrorMessage = RuleResult.FailureReason;

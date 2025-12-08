@@ -429,6 +429,7 @@ private:
     mutable FCriticalSection ResultPoolLock;
 
     // Event Management
+    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
     FEventSubscriptionScope EventScope;
     TArray<FEventSubscriptionHandle> EventHandles;
 

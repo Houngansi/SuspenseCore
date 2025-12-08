@@ -200,7 +200,7 @@ private:
 
     void BindDispatcherToPrediction(
         USuspenseCoreEquipmentNetworkDispatcher* Dispatcher,
-        ISuspensePredictionManager* Prediction);
+        ISuspenseCorePredictionManager* Prediction);
 
     void StartMonitoringTimers(UWorld* World);
 

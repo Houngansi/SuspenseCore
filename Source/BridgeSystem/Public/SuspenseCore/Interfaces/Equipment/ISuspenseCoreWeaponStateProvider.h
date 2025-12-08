@@ -191,7 +191,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreStateTransitionRule
  * Weapon state history entry
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreWeaponStateHistoryEntry
+struct BRIDGESYSTEM_API FSuspenseCoreWSPHistoryEntry
 {
 	GENERATED_BODY()
 
@@ -439,7 +439,7 @@ public:
 	 * @param MaxCount Maximum entries to return
 	 * @return Array of history entries
 	 */
-	virtual TArray<FSuspenseCoreWeaponStateHistoryEntry> GetStateHistory(
+	virtual TArray<FSuspenseCoreWSPHistoryEntry> GetStateHistory(
 		int32 MaxCount = 10) const = 0;
 
 	/**
@@ -448,7 +448,7 @@ public:
 	 * @param MaxCount Maximum entries
 	 * @return Array of history entries
 	 */
-	virtual TArray<FSuspenseCoreWeaponStateHistoryEntry> GetSlotStateHistory(
+	virtual TArray<FSuspenseCoreWSPHistoryEntry> GetSlotStateHistory(
 		int32 SlotIndex,
 		int32 MaxCount = 10) const = 0;
 

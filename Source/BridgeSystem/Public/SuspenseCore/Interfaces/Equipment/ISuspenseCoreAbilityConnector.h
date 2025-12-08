@@ -91,7 +91,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreAppliedEffect
  * Managed attribute set record
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreManagedAttributeSet
+struct BRIDGESYSTEM_API FSuspenseCoreConnectorAttributeSet
 {
 	GENERATED_BODY()
 
@@ -336,7 +336,7 @@ public:
 	 * Get all managed attribute sets
 	 * @return Array of managed attribute records
 	 */
-	virtual TArray<FSuspenseCoreManagedAttributeSet> GetManagedAttributeSets() const = 0;
+	virtual TArray<FSuspenseCoreConnectorAttributeSet> GetManagedAttributeSets() const = 0;
 
 	//========================================
 	// Cleanup

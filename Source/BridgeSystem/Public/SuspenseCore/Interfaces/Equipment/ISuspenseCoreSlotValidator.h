@@ -119,7 +119,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreSlotValidationResult
  * Batch validation request for multiple operations
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreBatchValidationRequest
+struct BRIDGESYSTEM_API FSuspenseCoreSlotBatchRequest
 {
 	GENERATED_BODY()
 
@@ -135,7 +135,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBatchValidationRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Validation")
 	bool bStopOnFirstFailure = false;
 
-	FSuspenseCoreBatchValidationRequest()
+	FSuspenseCoreSlotBatchRequest()
 	{
 		RequestId = FGuid::NewGuid();
 	}
@@ -145,7 +145,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBatchValidationRequest
  * Batch validation result
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreBatchValidationResult
+struct BRIDGESYSTEM_API FSuspenseCoreSlotBatchResult
 {
 	GENERATED_BODY()
 
@@ -281,8 +281,8 @@ public:
 	 * @param Request Batch validation request
 	 * @return Batch validation result
 	 */
-	virtual FSuspenseCoreBatchValidationResult ValidateBatch(
-		const FSuspenseCoreBatchValidationRequest& Request) const = 0;
+	virtual FSuspenseCoreSlotBatchResult ValidateBatch(
+		const FSuspenseCoreSlotBatchRequest& Request) const = 0;
 
 	/**
 	 * Quick validation without detailed results

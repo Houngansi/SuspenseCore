@@ -141,7 +141,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadoutConfiguration
  * Loadout Validation Options
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreLoadoutValidationOptions
+struct BRIDGESYSTEM_API FSuspenseCoreLoadoutAdapterOptions
 {
 	GENERATED_BODY()
 
@@ -166,14 +166,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadoutValidationOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Validation")
 	bool bCheckConflictingItems = true;
 
-	static FSuspenseCoreLoadoutValidationOptions Default()
+	static FSuspenseCoreLoadoutAdapterOptions Default()
 	{
-		return FSuspenseCoreLoadoutValidationOptions();
+		return FSuspenseCoreLoadoutAdapterOptions();
 	}
 
-	static FSuspenseCoreLoadoutValidationOptions Minimal()
+	static FSuspenseCoreLoadoutAdapterOptions Minimal()
 	{
-		FSuspenseCoreLoadoutValidationOptions Options;
+		FSuspenseCoreLoadoutAdapterOptions Options;
 		Options.bCheckCharacterClass = false;
 		Options.bCheckCharacterLevel = false;
 		Options.bCheckInventorySpace = false;
@@ -285,7 +285,7 @@ public:
 	 */
 	virtual bool ValidateLoadoutWithOptions(
 		const FName& LoadoutId,
-		const FSuspenseCoreLoadoutValidationOptions& Options,
+		const FSuspenseCoreLoadoutAdapterOptions& Options,
 		TArray<FText>& OutErrors,
 		TArray<FText>& OutWarnings) const = 0;
 

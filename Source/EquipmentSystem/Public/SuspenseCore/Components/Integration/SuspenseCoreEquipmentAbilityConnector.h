@@ -5,7 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreAbilityConnector.h"
 #include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "ItemSystem/SuspenseItemManager.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "GameplayAbilitySpec.h"
@@ -77,8 +77,8 @@ public:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    // ISuspenseCoreAbilityConnector
-    virtual bool Initialize(UAbilitySystemComponent* InASC, TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider) override;
+    // ISuspenseAbilityConnector (via ISuspenseCoreAbilityConnector alias)
+    virtual bool Initialize(UAbilitySystemComponent* InASC, TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider) override;
     virtual TArray<FGameplayAbilitySpecHandle> GrantEquipmentAbilities(const FSuspenseInventoryItemInstance& ItemInstance) override;
     virtual int32 RemoveGrantedAbilities(const TArray<FGameplayAbilitySpecHandle>& Handles) override;
     virtual TArray<FActiveGameplayEffectHandle> ApplyEquipmentEffects(const FSuspenseInventoryItemInstance& ItemInstance) override;

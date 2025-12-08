@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
 #include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
@@ -67,7 +67,7 @@ void USuspenseCoreEquipmentAbilityConnector::EndPlay(const EEndPlayReason::Type 
 
 bool USuspenseCoreEquipmentAbilityConnector::Initialize(
     UAbilitySystemComponent* InASC,
-    TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider)
+    TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider)
 {
     if (!EnsureValidExecution(TEXT("Initialize")))
     {
@@ -134,8 +134,8 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveGrantedAbilities(const TArra
             continue;
         }
 
-        const FGrantedAbilityRecord* Found = GrantedAbilities.FindByPredicate(
-            [Handle](const FGrantedAbilityRecord& R){ return R.AbilityHandle == Handle; });
+        const FSuspenseCoreGrantedAbilityRecord* Found = GrantedAbilities.FindByPredicate(
+            [Handle](const FSuspenseCoreGrantedAbilityRecord& R){ return R.AbilityHandle == Handle; });
 
         const TCHAR* AbilityClassName = TEXT("UnknownAbility");
         int32 SlotIndex = INDEX_NONE;
@@ -151,7 +151,7 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveGrantedAbilities(const TArra
         AbilitySystemComponent->CancelAbilityHandle(Handle);
         AbilitySystemComponent->ClearAbility(Handle);
 
-        const int32 RemovedRecords = GrantedAbilities.RemoveAll([Handle](const FGrantedAbilityRecord& R)
+        const int32 RemovedRecords = GrantedAbilities.RemoveAll([Handle](const FSuspenseCoreGrantedAbilityRecord& R)
         {
             return R.AbilityHandle == Handle;
         });
@@ -197,8 +197,8 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveAppliedEffects(const TArray<
             continue;
         }
 
-        const FAppliedEffectRecord* Found = AppliedEffects.FindByPredicate(
-            [Handle](const FAppliedEffectRecord& R){ return R.EffectHandle == Handle; });
+        const FSuspenseCoreAppliedEffectRecord* Found = AppliedEffects.FindByPredicate(
+            [Handle](const FSuspenseCoreAppliedEffectRecord& R){ return R.EffectHandle == Handle; });
 
         const TCHAR* EffectClassName = TEXT("UnknownEffect");
         int32 SlotIndex = INDEX_NONE;
@@ -215,7 +215,7 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveAppliedEffects(const TArray<
 
         if (bRemoved)
         {
-            AppliedEffects.RemoveAll([Handle](const FAppliedEffectRecord& R)
+            AppliedEffects.RemoveAll([Handle](const FSuspenseCoreAppliedEffectRecord& R)
             {
                 return R.EffectHandle == Handle;
             });
@@ -274,7 +274,7 @@ bool USuspenseCoreEquipmentAbilityConnector::UpdateEquipmentAttributes(
     UAttributeSet* ExistingSet = nullptr;
     int32 ExistingSlotIndex = INDEX_NONE;
 
-    for (FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
+    for (FSuspenseCoreManagedAttributeSet& ManagedSet : ManagedAttributeSets)
     {
         if (ManagedSet.ItemInstanceId == ItemInstance.InstanceID)
         {
@@ -302,7 +302,7 @@ bool USuspenseCoreEquipmentAbilityConnector::UpdateEquipmentAttributes(
     else if (ExistingSlotIndex != SlotIndex)
     {
         // Update slot index if changed
-        for (FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
+        for (FSuspenseCoreManagedAttributeSet& ManagedSet : ManagedAttributeSets)
         {
             if (ManagedSet.AttributeSet == ExistingSet)
             {
@@ -337,7 +337,7 @@ bool USuspenseCoreEquipmentAbilityConnector::UpdateEquipmentAttributes(
 
 UAttributeSet* USuspenseCoreEquipmentAbilityConnector::GetEquipmentAttributeSet(int32 SlotIndex) const
 {
-    for (const FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
+    for (const FSuspenseCoreManagedAttributeSet& ManagedSet : ManagedAttributeSets)
     {
         if (ManagedSet.SlotIndex == SlotIndex)
         {
@@ -462,7 +462,7 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveAbilitiesForSlot(int32 SlotI
 {
     TArray<FGameplayAbilitySpecHandle> HandlesToRemove;
 
-    for (const FGrantedAbilityRecord& Record : GrantedAbilities)
+    for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
     {
         if (Record.SlotIndex == SlotIndex)
         {
@@ -524,7 +524,7 @@ int32 USuspenseCoreEquipmentAbilityConnector::RemoveEffectsForSlot(int32 SlotInd
 {
     TArray<FActiveGameplayEffectHandle> HandlesToRemove;
 
-    for (const FAppliedEffectRecord& Record : AppliedEffects)
+    for (const FSuspenseCoreAppliedEffectRecord& Record : AppliedEffects)
     {
         if (Record.SlotIndex == SlotIndex)
         {
@@ -553,7 +553,7 @@ void USuspenseCoreEquipmentAbilityConnector::ClearAll()
 
     if (AbilitySystemComponent)
     {
-        for (const FGrantedAbilityRecord& Record : GrantedAbilities)
+        for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
         {
             if (Record.AbilityHandle.IsValid())
             {
@@ -562,7 +562,7 @@ void USuspenseCoreEquipmentAbilityConnector::ClearAll()
             }
         }
 
-        for (const FAppliedEffectRecord& Record : AppliedEffects)
+        for (const FSuspenseCoreAppliedEffectRecord& Record : AppliedEffects)
         {
             if (Record.EffectHandle.IsValid())
             {
@@ -653,7 +653,7 @@ bool USuspenseCoreEquipmentAbilityConnector::ValidateConnector(TArray<FString>& 
     if (AbilitySystemComponent)
     {
         int32 OrphanedAbilities = 0;
-        for (const FGrantedAbilityRecord& Record : GrantedAbilities)
+        for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
         {
             if (!AbilitySystemComponent->FindAbilitySpecFromHandle(Record.AbilityHandle))
             {
@@ -668,7 +668,7 @@ bool USuspenseCoreEquipmentAbilityConnector::ValidateConnector(TArray<FString>& 
         }
 
         int32 OrphanedEffects = 0;
-        for (const FAppliedEffectRecord& Record : AppliedEffects)
+        for (const FSuspenseCoreAppliedEffectRecord& Record : AppliedEffects)
         {
             const FActiveGameplayEffect* ActiveEffect = AbilitySystemComponent->GetActiveGameplayEffect(Record.EffectHandle);
             if (!ActiveEffect)
@@ -704,7 +704,7 @@ FString USuspenseCoreEquipmentAbilityConnector::GetDebugInfo() const
 
     DebugInfo += TEXT("\n--- Granted Abilities ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), GrantedAbilities.Num());
-    for (const FGrantedAbilityRecord& Record : GrantedAbilities)
+    for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
     {
         DebugInfo += FString::Printf(TEXT("  [%s] %s (Level %d, Slot %d, Source: %s)\n"),
             *Record.ItemInstanceId.ToString().Left(8),
@@ -716,7 +716,7 @@ FString USuspenseCoreEquipmentAbilityConnector::GetDebugInfo() const
 
     DebugInfo += TEXT("\n--- Applied Effects ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), AppliedEffects.Num());
-    for (const FAppliedEffectRecord& Record : AppliedEffects)
+    for (const FSuspenseCoreAppliedEffectRecord& Record : AppliedEffects)
     {
         DebugInfo += FString::Printf(TEXT("  [%s] %s (Duration: %.1f, Slot %d, Source: %s)\n"),
             *Record.ItemInstanceId.ToString().Left(8),
@@ -728,7 +728,7 @@ FString USuspenseCoreEquipmentAbilityConnector::GetDebugInfo() const
 
     DebugInfo += TEXT("\n--- Managed Attributes ---\n");
     DebugInfo += FString::Printf(TEXT("Total: %d\n"), ManagedAttributeSets.Num());
-    for (const FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
+    for (const FSuspenseCoreManagedAttributeSet& ManagedSet : ManagedAttributeSets)
     {
         DebugInfo += FString::Printf(TEXT("  [%s] %s (Slot %d, Type: %s, Init: %s)\n"),
             *ManagedSet.ItemInstanceId.ToString().Left(8),
@@ -820,7 +820,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseCoreEquipmentAbilityConnector::Grant
         {
             GrantedHandles.Add(Handle);
 
-            FGrantedAbilityRecord Record;
+            FSuspenseCoreGrantedAbilityRecord Record;
             Record.ItemInstanceId = ItemInstance.InstanceID;
             Record.SlotIndex = SlotIndex;
             Record.AbilityHandle = Handle;
@@ -860,7 +860,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseCoreEquipmentAbilityConnector::Grant
             {
                 GrantedHandles.Add(Handle);
 
-                FGrantedAbilityRecord Record;
+                FSuspenseCoreGrantedAbilityRecord Record;
                 Record.ItemInstanceId = ItemInstance.InstanceID;
                 Record.SlotIndex = SlotIndex;
                 Record.AbilityHandle = Handle;
@@ -907,7 +907,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseCoreEquipmentAbilityConnector::Appl
         {
             AppliedHandles.Add(Handle);
 
-            FAppliedEffectRecord Record;
+            FSuspenseCoreAppliedEffectRecord Record;
             Record.ItemInstanceId = ItemInstance.InstanceID;
             Record.SlotIndex = SlotIndex;
             Record.EffectHandle = Handle;
@@ -992,8 +992,8 @@ UAttributeSet* USuspenseCoreEquipmentAbilityConnector::CreateAttributeSetFromIte
     if (ManagedAttributeSets.Num() > 0)
     {
         const FGuid& InstanceId = ItemInstance.InstanceID;
-        const FManagedAttributeSet* Existing = ManagedAttributeSets.FindByPredicate(
-            [&](const FManagedAttributeSet& M)
+        const FSuspenseCoreManagedAttributeSet* Existing = ManagedAttributeSets.FindByPredicate(
+            [&](const FSuspenseCoreManagedAttributeSet& M)
             {
                 return M.ItemInstanceId == InstanceId && M.AttributeClass == AttributeClass && IsValid(M.AttributeSet);
             });
@@ -1022,7 +1022,7 @@ UAttributeSet* USuspenseCoreEquipmentAbilityConnector::CreateAttributeSetFromIte
 
     AbilitySystemComponent->AddAttributeSetSubobject(NewAttributeSet);
 
-    FManagedAttributeSet ManagedSet;
+    FSuspenseCoreManagedAttributeSet ManagedSet;
     ManagedSet.SlotIndex = SlotIndex;
     ManagedSet.AttributeSet = NewAttributeSet;
     ManagedSet.AttributeClass = AttributeClass;
@@ -1162,7 +1162,7 @@ bool USuspenseCoreEquipmentAbilityConnector::InitializeAttributeSet(
 
     if (Handle.IsValid())
     {
-        for (FManagedAttributeSet& ManagedSet : ManagedAttributeSets)
+        for (FSuspenseCoreManagedAttributeSet& ManagedSet : ManagedAttributeSets)
         {
             if (ManagedSet.AttributeSet == AttributeSet)
             {

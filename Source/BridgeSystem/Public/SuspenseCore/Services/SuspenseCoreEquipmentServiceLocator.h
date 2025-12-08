@@ -291,7 +291,3 @@ private:
 	// Depth guard
 	static constexpr int32 MaxDepDepth = 16;
 };
-
-// Backward compatibility aliases
-using FServiceRegistration = FSuspenseCoreServiceRegistration;
-using FServiceInjectionDelegate = FSuspenseCoreServiceInjectionDelegate;

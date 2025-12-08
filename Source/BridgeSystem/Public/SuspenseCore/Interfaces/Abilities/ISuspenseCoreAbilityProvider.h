@@ -196,6 +196,3 @@ public:
      */
     static void BroadcastEffectApplied(const UObject* Provider, FActiveGameplayEffectHandle EffectHandle, TSubclassOf<UGameplayEffect> EffectClass);
 };
-
-// Backward compatibility alias
-using IAbilityProvider = ISuspenseCoreAbilityProvider;

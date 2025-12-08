@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "ISuspenseCoreVisualProvider.generated.h"
 
 /**
@@ -36,34 +35,6 @@ struct FSuspenseCoreVisualEffect
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
     bool bLooping = false;
-
-    /** Convert to legacy format */
-    FEquipmentVisualEffect ToLegacy() const
-    {
-        FEquipmentVisualEffect Legacy;
-        Legacy.EffectType = EffectType;
-        Legacy.NiagaraEffect = NiagaraEffect;
-        Legacy.CascadeEffect = CascadeEffect;
-        Legacy.AttachSocket = AttachSocket;
-        Legacy.RelativeTransform = RelativeTransform;
-        Legacy.Duration = Duration;
-        Legacy.bLooping = bLooping;
-        return Legacy;
-    }
-
-    /** Create from legacy format */
-    static FSuspenseCoreVisualEffect FromLegacy(const FEquipmentVisualEffect& Legacy)
-    {
-        FSuspenseCoreVisualEffect Result;
-        Result.EffectType = Legacy.EffectType;
-        Result.NiagaraEffect = Legacy.NiagaraEffect;
-        Result.CascadeEffect = Legacy.CascadeEffect;
-        Result.AttachSocket = Legacy.AttachSocket;
-        Result.RelativeTransform = Legacy.RelativeTransform;
-        Result.Duration = Legacy.Duration;
-        Result.bLooping = Legacy.bLooping;
-        return Result;
-    }
 };
 
 /**
@@ -88,30 +59,6 @@ struct FSuspenseCoreMaterialOverride
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material")
     TMap<FName, class UTexture*> TextureParameters;
-
-    /** Convert to legacy format */
-    FEquipmentMaterialOverride ToLegacy() const
-    {
-        FEquipmentMaterialOverride Legacy;
-        Legacy.MaterialSlot = MaterialSlot;
-        Legacy.OverrideMaterial = OverrideMaterial;
-        Legacy.ScalarParameters = ScalarParameters;
-        Legacy.VectorParameters = VectorParameters;
-        Legacy.TextureParameters = TextureParameters;
-        return Legacy;
-    }
-
-    /** Create from legacy format */
-    static FSuspenseCoreMaterialOverride FromLegacy(const FEquipmentMaterialOverride& Legacy)
-    {
-        FSuspenseCoreMaterialOverride Result;
-        Result.MaterialSlot = Legacy.MaterialSlot;
-        Result.OverrideMaterial = Legacy.OverrideMaterial;
-        Result.ScalarParameters = Legacy.ScalarParameters;
-        Result.VectorParameters = Legacy.VectorParameters;
-        Result.TextureParameters = Legacy.TextureParameters;
-        return Result;
-    }
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
@@ -125,9 +72,6 @@ class USuspenseCoreVisualProvider : public UInterface
  *
  * Philosophy: Manages all visual aspects of equipment.
  * Handles materials, effects, and visual state changes.
- *
- * This is the SuspenseCore version of ISuspenseVisualProvider with
- * extended functionality and proper type naming conventions.
  */
 class BRIDGESYSTEM_API ISuspenseCoreVisualProvider
 {
@@ -140,7 +84,7 @@ public:
      * @param Effect Effect configuration
      * @return Effect instance ID
      */
-    virtual FGuid ApplyVisualEffect(AActor* Equipment, const FEquipmentVisualEffect& Effect) = 0;
+    virtual FGuid ApplyVisualEffect(AActor* Equipment, const FSuspenseCoreVisualEffect& Effect) = 0;
 
     /**
      * Remove visual effect
@@ -155,7 +99,7 @@ public:
      * @param Override Material configuration
      * @return True if applied
      */
-    virtual bool ApplyMaterialOverride(AActor* Equipment, const FEquipmentMaterialOverride& Override) = 0;
+    virtual bool ApplyMaterialOverride(AActor* Equipment, const FSuspenseCoreMaterialOverride& Override) = 0;
 
     /**
      * Reset materials to default
@@ -186,4 +130,3 @@ public:
      */
     virtual bool PlayEquipmentAnimation(AActor* Equipment, const FGameplayTag& AnimationTag) = 0;
 };
-

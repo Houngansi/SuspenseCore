@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "ISuspenseCoreEquipmentService.generated.h"
+
+// Forward declaration to break circular dependency
+class USuspenseCoreEquipmentServiceLocator;
 
 /**
  * Service lifecycle state - SuspenseCore version

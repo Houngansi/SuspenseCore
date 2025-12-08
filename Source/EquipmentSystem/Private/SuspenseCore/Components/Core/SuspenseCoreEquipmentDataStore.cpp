@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
@@ -1148,12 +1150,28 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
                             const bool bOccupied = Event.ItemData.IsValid();
 
                             UE_LOG(LogEquipmentDataStore, Log,
-                                TEXT("Notifying EventDelegateManager: Slot %d (Type: %s, Occupied: %s)"),
+                                TEXT("Notifying EventBus: Slot %d (Type: %s, Occupied: %s)"),
                                 Event.SlotIndex, *SlotType.ToString(), bOccupied ? TEXT("YES") : TEXT("NO"));
 
-                            // Broadcast to global event system
-                            EDM->NotifyEquipmentSlotUpdated(Event.SlotIndex, SlotType, bOccupied);
-                            EDM->NotifyEquipmentUpdated();
+                            // Broadcast to global event system via EventBus
+                            if (USuspenseCoreEventBus* EventBus = EDM->GetEventBus())
+                            {
+                                FSuspenseCoreEventData SlotEventData = FSuspenseCoreEventData::Create(this)
+                                    .SetInt(TEXT("SlotIndex"), Event.SlotIndex)
+                                    .SetString(TEXT("SlotType"), SlotType.ToString())
+                                    .SetBool(TEXT("Occupied"), bOccupied);
+
+                                EventBus->Publish(
+                                    FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SlotUpdated")),
+                                    SlotEventData
+                                );
+
+                                FSuspenseCoreEventData UpdateEventData = FSuspenseCoreEventData::Create(this);
+                                EventBus->Publish(
+                                    FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Updated")),
+                                    UpdateEventData
+                                );
+                            }
                         }
                     }
                 }

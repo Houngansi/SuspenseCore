@@ -10,7 +10,7 @@
 #include "ISuspenseFireModeProvider.generated.h"
 
 // Forward declarations
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 struct FWeaponFireModeData;
 struct FSuspenseUnifiedItemData;
 
@@ -258,14 +258,14 @@ public:
      * Получить центральный менеджер делегатов для событий режимов огня
      * @return Указатель на менеджер делегатов или nullptr
      */
-    virtual USuspenseEventManager* GetDelegateManager() const = 0;
-    
+    virtual USuspenseCoreEventManager* GetDelegateManager() const = 0;
+
     /**
      * Статический хелпер для получения менеджера делегатов
      * @param WorldContextObject - любой объект с валидным контекстом мира
      * @return Менеджер делегатов или nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Хелпер для безопасной трансляции изменений режима огня

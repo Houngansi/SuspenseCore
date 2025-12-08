@@ -1,30 +1,20 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
-#include "Delegates/SuspenseEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseEventManager* ISuspenseWeapon::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseWeapon::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
         return nullptr;
     }
-    
-    UWorld* World = WorldContextObject->GetWorld();
-    if (!World)
-    {
-        return nullptr;
-    }
-    
-    UGameInstance* GameInstance = World->GetGameInstance();
-    if (!GameInstance)
-    {
-        return nullptr;
-    }
-    
-    return GameInstance->GetSubsystem<USuspenseEventManager>();
+
+    return USuspenseCoreEventManager::Get(WorldContextObject);
 }
 
 void ISuspenseWeapon::BroadcastWeaponFired(
@@ -38,10 +28,22 @@ void ISuspenseWeapon::BroadcastWeaponFired(
     {
         return;
     }
-    
-    if (USuspenseEventManager* Manager = GetDelegateManagerStatic(Weapon))
+
+    if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Weapon))
     {
-        Manager->NotifyWeaponFired(Origin, Impact, bSuccess, ShotType);
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))
+                .SetVector(TEXT("Origin"), Origin)
+                .SetVector(TEXT("Impact"), Impact)
+                .SetBool(TEXT("Success"), bSuccess)
+                .SetString(TEXT("ShotType"), ShotType.ToString());
+
+            EventBus->Publish(
+                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Fired")),
+                EventData
+            );
+        }
     }
 }
 
@@ -55,10 +57,21 @@ void ISuspenseWeapon::BroadcastAmmoChanged(
     {
         return;
     }
-    
-    if (USuspenseEventManager* Manager = GetDelegateManagerStatic(Weapon))
+
+    if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Weapon))
     {
-        Manager->NotifyAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))
+                .SetFloat(TEXT("CurrentAmmo"), CurrentAmmo)
+                .SetFloat(TEXT("RemainingAmmo"), RemainingAmmo)
+                .SetFloat(TEXT("MagazineSize"), MagazineSize);
+
+            EventBus->Publish(
+                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.AmmoChanged")),
+                EventData
+            );
+        }
     }
 }
 
@@ -70,10 +83,20 @@ void ISuspenseWeapon::BroadcastReloadStarted(
     {
         return;
     }
-    
-    if (USuspenseEventManager* Manager = GetDelegateManagerStatic(Weapon))
+
+    if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Weapon))
     {
-        Manager->NotifyWeaponReloadStart();
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))
+                .SetFloat(TEXT("ReloadDuration"), ReloadDuration)
+                .SetBool(TEXT("Started"), true);
+
+            EventBus->Publish(
+                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Reload")),
+                EventData
+            );
+        }
     }
 }
 
@@ -85,10 +108,20 @@ void ISuspenseWeapon::BroadcastReloadCompleted(
     {
         return;
     }
-    
-    if (USuspenseEventManager* Manager = GetDelegateManagerStatic(Weapon))
+
+    if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Weapon))
     {
-        Manager->NotifyWeaponReloadEnd();
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))
+                .SetBool(TEXT("Completed"), true)
+                .SetBool(TEXT("Success"), bSuccess);
+
+            EventBus->Publish(
+                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Reload")),
+                EventData
+            );
+        }
     }
 }
 
@@ -100,16 +133,26 @@ void ISuspenseWeapon::BroadcastFireModeChanged(
     {
         return;
     }
-    
-    if (USuspenseEventManager* Manager = GetDelegateManagerStatic(Weapon))
+
+    if (USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Weapon))
     {
-        // Получаем текущий разброс из интерфейса оружия
-        float CurrentSpread = 0.0f;
-        if (const ISuspenseWeapon* WeaponInterface = Cast<ISuspenseWeapon>(Weapon))
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
         {
-            CurrentSpread = WeaponInterface->Execute_GetCurrentSpread(Weapon);
+            // Get current spread from weapon interface
+            float CurrentSpread = 0.0f;
+            if (Weapon->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
+            {
+                CurrentSpread = ISuspenseWeapon::Execute_GetCurrentSpread(Weapon);
+            }
+
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))
+                .SetString(TEXT("FireModeTag"), NewFireMode.ToString())
+                .SetFloat(TEXT("CurrentSpread"), CurrentSpread);
+
+            EventBus->Publish(
+                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeChanged")),
+                EventData
+            );
         }
-        
-        Manager->NotifyFireModeChanged(NewFireMode, CurrentSpread);
     }
 }

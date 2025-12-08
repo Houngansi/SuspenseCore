@@ -634,7 +634,7 @@ bool USuspenseCoreEquipmentNetworkDispatcher::CheckIdempotency(const FNetworkOpe
 {
 	const uint64 H = CalculateRequestHash(Request);
 	FScopeLock Lock(&IdempotencyLock);
-	for (const FIdempotencyEntry& E : IdempotencyCache)
+	for (const FSuspenseCoreIdempotencyEntry& E : IdempotencyCache)
 	{
 		if (E.RequestId == Request.RequestId || E.RequestHash == H)
 		{
@@ -647,7 +647,7 @@ bool USuspenseCoreEquipmentNetworkDispatcher::CheckIdempotency(const FNetworkOpe
 
 void USuspenseCoreEquipmentNetworkDispatcher::StoreIdempotentResult(const FNetworkOperationRequest& Request, const FEquipmentOperationResult& Result)
 {
-	FIdempotencyEntry NewEntry;
+	FSuspenseCoreIdempotencyEntry NewEntry;
 	NewEntry.RequestId   = Request.RequestId;
 	NewEntry.RequestHash = CalculateRequestHash(Request);
 	NewEntry.CachedResult= Result;
@@ -666,7 +666,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::CleanIdempotencyCache()
 {
 	FScopeLock Lock(&IdempotencyLock);
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	IdempotencyCache.RemoveAll([&](const FIdempotencyEntry& E)
+	IdempotencyCache.RemoveAll([&](const FSuspenseCoreIdempotencyEntry& E)
 	{
 		return (Now - E.Timestamp) > IdempotencyLifetime;
 	});

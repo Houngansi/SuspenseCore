@@ -7,8 +7,8 @@
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "HAL/PlatformProcess.h"
 #include "Engine/World.h"
 #include "Engine/NetConnection.h"
@@ -161,8 +161,8 @@ void USuspenseCoreEquipmentNetworkService::InternalShutdown(bool bForce, bool bF
 
 bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
     UWorld* World,
-    TScriptInterface<ISuspenseEquipmentDataProvider>& OutDataProvider,
-    TScriptInterface<ISuspenseEquipmentOperations>& OutOperationExecutor)
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider>& OutDataProvider,
+    TScriptInterface<ISuspenseCoreEquipmentOperations>& OutOperationExecutor)
 {
     if (!World)
     {
@@ -188,7 +188,7 @@ bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
             IEquipmentDataService* DataService = Cast<IEquipmentDataService>(ServiceObj);
             if (DataService)
             {
-                ISuspenseEquipmentDataProvider* Provider = DataService->GetDataProvider();
+                ISuspenseCoreEquipmentDataProvider* Provider = DataService->GetDataProvider();
                 if (Provider)
                 {
                     if (UObject* ProviderObj = Cast<UObject>(Provider))
@@ -217,7 +217,7 @@ bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
             IEquipmentOperationService* OpService = Cast<IEquipmentOperationService>(ServiceObj);
             if (OpService)
             {
-                ISuspenseEquipmentOperations* Executor = OpService->GetOperationsExecutor();
+                ISuspenseCoreEquipmentOperations* Executor = OpService->GetOperationsExecutor();
                 if (Executor)
                 {
                     if (UObject* ExecutorObj = Cast<UObject>(Executor))
@@ -241,7 +241,7 @@ bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
 
 USuspenseCoreEquipmentNetworkDispatcher* USuspenseCoreEquipmentNetworkService::CreateAndInitNetworkDispatcher(
     AActor* OwnerActor,
-    const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor)
+    const TScriptInterface<ISuspenseCoreEquipmentOperations>& OperationExecutor)
 {
     if (!OwnerActor)
     {
@@ -278,8 +278,8 @@ USuspenseCoreEquipmentNetworkDispatcher* USuspenseCoreEquipmentNetworkService::C
 
 USuspenseCoreEquipmentPredictionSystem* USuspenseCoreEquipmentNetworkService::CreateAndInitPredictionSystem(
     AActor* OwnerActor,
-    const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider,
-    const TScriptInterface<ISuspenseEquipmentOperations>& OperationExecutor)
+    const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider,
+    const TScriptInterface<ISuspenseCoreEquipmentOperations>& OperationExecutor)
 {
     if (!OwnerActor)
     {
@@ -315,14 +315,14 @@ USuspenseCoreEquipmentPredictionSystem* USuspenseCoreEquipmentNetworkService::Cr
 
     // НЕ TSharedPtr — используем TScriptInterface (GC-safe)
     PredictionManager.SetObject(Prediction);
-    PredictionManager.SetInterface(Cast<ISuspensePredictionManager>(Prediction));
+    PredictionManager.SetInterface(Cast<ISuspenseCorePredictionManager>(Prediction));
 
     return Prediction;
 }
 
 USuspenseCoreEquipmentReplicationManager* USuspenseCoreEquipmentNetworkService::CreateAndInitReplicationManager(
     AActor* OwnerActor,
-    const TScriptInterface<ISuspenseEquipmentDataProvider>& DataProvider)
+    const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider)
 {
     if (!OwnerActor)
     {
@@ -365,7 +365,7 @@ USuspenseCoreEquipmentReplicationManager* USuspenseCoreEquipmentNetworkService::
 
 void USuspenseCoreEquipmentNetworkService::BindDispatcherToPrediction(
     USuspenseCoreEquipmentNetworkDispatcher* Dispatcher,
-    ISuspensePredictionManager* Prediction)
+    ISuspenseCorePredictionManager* Prediction)
 {
     if (!Dispatcher || !Prediction)
     {
@@ -465,8 +465,8 @@ bool USuspenseCoreEquipmentNetworkService::InitializeService(const FSuspenseCore
         return false;
     }
 
-    TScriptInterface<ISuspenseEquipmentDataProvider> DataProvider;
-    TScriptInterface<ISuspenseEquipmentOperations>  OperationExecutor;
+    TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
+    TScriptInterface<ISuspenseCoreEquipmentOperations>  OperationExecutor;
     if (!ResolveDependencies(World, DataProvider, OperationExecutor))
     {
         ServiceState = ESuspenseCoreServiceLifecycleState::Failed;
@@ -1039,7 +1039,7 @@ void USuspenseCoreEquipmentNetworkService::ForceSynchronization(APlayerControlle
         RECORD_SERVICE_METRIC("full_replication_forced", 1);
 
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("Forced synchronization for %s"),
-            *GetPlayerIdentifier(PlayerController));
+            *GetNameSafe(PlayerController));
     }
 
     if (NetworkDispatcher.GetInterface())
@@ -1104,7 +1104,7 @@ void USuspenseCoreEquipmentNetworkService::UpdateNetworkMetrics()
         if (USuspenseCoreEquipmentNetworkDispatcher* Dispatcher =
                 Cast<USuspenseCoreEquipmentNetworkDispatcher>(NetworkDispatcher.GetObject()))
         {
-            const FNetworkDispatcherStats Stats = Dispatcher->GetStats();
+            const FSuspenseCoreNetworkDispatcherStats Stats = Dispatcher->GetStats();
             NewSampleMs = Stats.AverageResponseTime * 1000.0f;
         }
         else

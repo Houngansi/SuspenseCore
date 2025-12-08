@@ -7,12 +7,12 @@
 #include "Misc/ScopeLock.h"
 #include "GameplayTagContainer.h"
 
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Interfaces/Equipment/ISuspenseCoreInventoryBridge.h"
-#include "Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
-#include "Interfaces/Core/ISuspenseCoreLoadout.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventoryBridge.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"

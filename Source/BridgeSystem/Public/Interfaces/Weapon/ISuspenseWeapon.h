@@ -15,7 +15,7 @@ class UGameplayEffect;
 class UGameplayAbility;
 class UAttributeSet;
 class UAbilitySystemComponent;
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 struct FSuspenseUnifiedItemData;
 struct FWeaponFireParams;
 
@@ -366,12 +366,12 @@ public:
     /**
      * Get delegate manager for weapon events
      */
-    virtual USuspenseEventManager* GetDelegateManager() const = 0;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const = 0;
 
     /**
      * Static helper to get delegate manager
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
 
     /**
      * Broadcast weapon fired event

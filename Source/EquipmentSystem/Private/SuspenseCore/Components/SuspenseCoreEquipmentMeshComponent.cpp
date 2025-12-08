@@ -7,7 +7,7 @@
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
-#include "SuspenseCore/Components/AudioComponent.h"
+#include "Components/AudioComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"

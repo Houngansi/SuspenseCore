@@ -409,9 +409,3 @@ public:
 	virtual void ResetStatistics() = 0;
 };
 
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy interface usage */
-using IAbilityConnector = ISuspenseCoreAbilityConnector;

@@ -452,15 +452,3 @@ public:
 	virtual void ResetStatistics() = 0;
 };
 
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy FEquipmentSlotValidationResult */
-using FEquipmentSlotValidationResult = FSuspenseCoreSlotValidationResult;
-
-/** Alias for legacy FSlotValidationResult */
-using FSlotValidationResult = FSuspenseCoreSlotValidationResult;
-
-/** Alias for legacy interface usage */
-using ISlotValidator = ISuspenseCoreSlotValidator;

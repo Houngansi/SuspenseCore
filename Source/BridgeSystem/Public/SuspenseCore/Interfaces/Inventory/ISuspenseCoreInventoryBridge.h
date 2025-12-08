@@ -372,12 +372,3 @@ public:
 	virtual int32 ClearExpiredReservations() = 0;
 };
 
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Alias for legacy code using FInventoryTransferRequest */
-using FInventoryTransferRequest = FSuspenseCoreInventoryTransferRequest;
-
-/** Alias for legacy interface usage */
-using IInventoryBridge = ISuspenseCoreInventoryBridge;

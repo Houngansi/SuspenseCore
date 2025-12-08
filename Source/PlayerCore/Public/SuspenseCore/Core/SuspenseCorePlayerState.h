@@ -379,7 +379,7 @@ protected:
 	 * @param AppliedLoadoutID - ID of loadout that was just applied (can be NAME_None)
 	 * @return true if wiring succeeded, false otherwise
 	 */
-	bool WireEquipmentModule(USuspenseLoadoutManager* LoadoutManager = nullptr, const FName& AppliedLoadoutID = NAME_None);
+	bool WireEquipmentModule(USuspenseCoreLoadoutManager* LoadoutManager = nullptr, const FName& AppliedLoadoutID = NAME_None);
 
 	/**
 	 * Attempt to wire equipment module once.

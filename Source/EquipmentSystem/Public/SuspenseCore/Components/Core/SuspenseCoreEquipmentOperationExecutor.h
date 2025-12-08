@@ -7,7 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Interfaces/Equipment/ISuspenseSlotValidator.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
@@ -242,7 +242,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	bool Initialize(TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,
-					TScriptInterface<ISuspenseSlotValidator> InValidator);
+					TScriptInterface<ISuspenseCoreSlotValidator> InValidator);
 
 	/** Check if executor is properly initialized */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations", BlueprintPure)
@@ -380,7 +380,7 @@ private:
 
 	/** Slot validator interface (optional) */
 	UPROPERTY()
-	TScriptInterface<ISuspenseSlotValidator> SlotValidator;
+	TScriptInterface<ISuspenseCoreSlotValidator> SlotValidator;
 
 	// ============
 	// Statistics

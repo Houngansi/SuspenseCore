@@ -12,91 +12,91 @@
 namespace SuspenseCoreEquipmentTags
 {
     //========================================
-    // SERVICE IDENTIFICATION TAGS
+    // SERVICE IDENTIFICATION TAGS - Following SuspenseCore.Service.* convention
     //========================================
     namespace Service
     {
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment, "Service.Equipment");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Ability, "Service.Equipment.Ability");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Data, "Service.Equipment.Data");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Network, "Service.Equipment.Network");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Operations, "Service.Equipment.Operations");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Validation, "Service.Equipment.Validation");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Visualization, "Service.Equipment.Visualization");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Prediction, "Service.Equipment.Prediction");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Security, "Service.Equipment.Security");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Rules, "Service.Equipment.Rules");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Transaction, "Service.Equipment.Transaction");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment, "SuspenseCore.Service.Equipment");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Ability, "SuspenseCore.Service.Equipment.Ability");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Data, "SuspenseCore.Service.Equipment.Data");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Network, "SuspenseCore.Service.Equipment.Network");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Operations, "SuspenseCore.Service.Equipment.Operations");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Validation, "SuspenseCore.Service.Equipment.Validation");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Visualization, "SuspenseCore.Service.Equipment.Visualization");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Prediction, "SuspenseCore.Service.Equipment.Prediction");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Security, "SuspenseCore.Service.Equipment.Security");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Rules, "SuspenseCore.Service.Equipment.Rules");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Transaction, "SuspenseCore.Service.Equipment.Transaction");
 
         // Supporting services
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_ActorFactory, "Service.ActorFactory");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_AttachmentSystem, "Service.AttachmentSystem");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_VisualController, "Service.VisualController");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_ActorFactory, "SuspenseCore.Service.Equipment.ActorFactory");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_AttachmentSystem, "SuspenseCore.Service.Equipment.AttachmentSystem");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_VisualController, "SuspenseCore.Service.Equipment.VisualController");
     }
 
     //========================================
-    // EVENT TAGS
+    // EVENT TAGS - Following SuspenseCore.Event.* convention (BestPractices.md)
     //========================================
     namespace Event
     {
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event, "Equipment.Event");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event, "SuspenseCore.Event.Equipment");
 
         // Item Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Equipped, "Equipment.Event.Equipped");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Unequipped, "Equipment.Event.Unequipped");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_ItemEquipped, "Equipment.Event.ItemEquipped");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_ItemUnequipped, "Equipment.Event.ItemUnequipped");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_SlotSwitched, "Equipment.Event.SlotSwitched");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Commit, "Equipment.Event.Commit");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Equipped, "SuspenseCore.Event.Equipment.Equipped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Unequipped, "SuspenseCore.Event.Equipment.Unequipped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_ItemEquipped, "SuspenseCore.Event.Equipment.ItemEquipped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_ItemUnequipped, "SuspenseCore.Event.Equipment.ItemUnequipped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_SlotSwitched, "SuspenseCore.Event.Equipment.SlotSwitched");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Commit, "SuspenseCore.Event.Equipment.Commit");
 
         // Ability Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability, "Equipment.Event.Ability");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Refresh, "Equipment.Event.Ability.Refresh");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Granted, "Equipment.Event.Ability.Granted");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Removed, "Equipment.Event.Ability.Removed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability, "SuspenseCore.Event.Equipment.Ability");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Refresh, "SuspenseCore.Event.Equipment.Ability.Refresh");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Granted, "SuspenseCore.Event.Equipment.Ability.Granted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Removed, "SuspenseCore.Event.Equipment.Ability.Removed");
 
         // Operation Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation, "Equipment.Event.Operation");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Queued, "Equipment.Event.Operation.Queued");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Started, "Equipment.Event.Operation.Started");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Completed, "Equipment.Event.Operation.Completed");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Cancelled, "Equipment.Event.Operation.Cancelled");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation, "SuspenseCore.Event.Equipment.Operation");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Queued, "SuspenseCore.Event.Equipment.Operation.Queued");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Started, "SuspenseCore.Event.Equipment.Operation.Started");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Completed, "SuspenseCore.Event.Equipment.Operation.Completed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Operation_Cancelled, "SuspenseCore.Event.Equipment.Operation.Cancelled");
 
         // Validation Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation, "Equipment.Event.Validation");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Changed, "Equipment.Event.Validation.Changed");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Started, "Equipment.Event.Validation.Started");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Passed, "Equipment.Event.Validation.Passed");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Failed, "Equipment.Event.Validation.Failed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation, "SuspenseCore.Event.Equipment.Validation");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Changed, "SuspenseCore.Event.Equipment.Validation.Changed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Started, "SuspenseCore.Event.Equipment.Validation.Started");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Passed, "SuspenseCore.Event.Equipment.Validation.Passed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Validation_Failed, "SuspenseCore.Event.Equipment.Validation.Failed");
 
         // Data Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data, "Equipment.Event.Data");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Changed, "Equipment.Event.Data.Changed");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Synced, "Equipment.Event.Data.Synced");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Snapshot, "Equipment.Event.Data.Snapshot");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Delta, "Equipment.Event.Data.Delta");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data, "SuspenseCore.Event.Equipment.Data");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Changed, "SuspenseCore.Event.Equipment.Data.Changed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Synced, "SuspenseCore.Event.Equipment.Data.Synced");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Snapshot, "SuspenseCore.Event.Equipment.Data.Snapshot");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Data_Delta, "SuspenseCore.Event.Equipment.Data.Delta");
 
         // Network Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network, "Equipment.Event.Network");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_Result, "Equipment.Event.Network.Result");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_Timeout, "Equipment.Event.Network.Timeout");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_SecurityViolation, "Equipment.Event.Network.SecurityViolation");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network, "SuspenseCore.Event.Equipment.Network");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_Result, "SuspenseCore.Event.Equipment.Network.Result");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_Timeout, "SuspenseCore.Event.Equipment.Network.Timeout");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Network_SecurityViolation, "SuspenseCore.Event.Equipment.Network.SecurityViolation");
 
         // Visual Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual, "Equipment.Event.Visual");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_RefreshAll, "Equipment.Event.VisRefreshAll");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Spawned, "Equipment.Event.Visual.Spawned");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Attached, "Equipment.Event.Visual.Attached");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Detached, "Equipment.Event.Visual.Detached");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual, "SuspenseCore.Event.Equipment.Visual");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_RefreshAll, "SuspenseCore.Event.Equipment.Visual.RefreshAll");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Spawned, "SuspenseCore.Event.Equipment.Visual.Spawned");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Attached, "SuspenseCore.Event.Equipment.Visual.Attached");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Detached, "SuspenseCore.Event.Equipment.Visual.Detached");
 
         // Weapon Events
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon, "Equipment.Event.Weapon");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Fired, "Equipment.Event.WeaponFired");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_FireModeChanged, "Equipment.Event.FireModeChanged");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_ReloadStart, "Equipment.Event.ReloadStart");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_ReloadEnd, "Equipment.Event.ReloadEnd");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_SpreadUpdated, "Equipment.Event.SpreadUpdated");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_AmmoChanged, "Equipment.Event.AmmoChanged");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon, "SuspenseCore.Event.Equipment.Weapon");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Fired, "SuspenseCore.Event.Equipment.Weapon.Fired");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_FireModeChanged, "SuspenseCore.Event.Equipment.Weapon.FireModeChanged");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_ReloadStart, "SuspenseCore.Event.Equipment.Weapon.ReloadStart");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_ReloadEnd, "SuspenseCore.Event.Equipment.Weapon.ReloadEnd");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_SpreadUpdated, "SuspenseCore.Event.Equipment.Weapon.SpreadUpdated");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_AmmoChanged, "SuspenseCore.Event.Equipment.Weapon.AmmoChanged");
     }
 
     //========================================
@@ -147,17 +147,17 @@ namespace SuspenseCoreEquipmentTags
     }
 
     //========================================
-    // UI TAGS
+    // UI TAGS - Following SuspenseCore.Event.UI.* convention (BestPractices.md)
     //========================================
     namespace UI
     {
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment, "UI.Equipment");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DataReady, "UI.Equipment.DataReady");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_SlotClicked, "UI.Equipment.SlotClicked");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_SlotHovered, "UI.Equipment.SlotHovered");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DragStarted, "UI.Equipment.DragStarted");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DragEnded, "UI.Equipment.DragEnded");
-        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_ContextMenu, "UI.Equipment.ContextMenu");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment, "SuspenseCore.Event.UI.Equipment");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DataReady, "SuspenseCore.Event.UI.Equipment.DataReady");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_SlotClicked, "SuspenseCore.Event.UI.Equipment.SlotClicked");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_SlotHovered, "SuspenseCore.Event.UI.Equipment.SlotHovered");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DragStarted, "SuspenseCore.Event.UI.Equipment.DragStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_DragEnded, "SuspenseCore.Event.UI.Equipment.DragEnded");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_ContextMenu, "SuspenseCore.Event.UI.Equipment.ContextMenu");
     }
 
 } // namespace SuspenseCoreEquipmentTags

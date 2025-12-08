@@ -1,125 +1,276 @@
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentEventDispatcher.h
+// Copyright SuspenseCore Team. All Rights Reserved.
+//
+// Equipment Event Dispatcher - Migrated to SuspenseCore EventBus architecture.
+// Uses USuspenseCoreEventBus instead of legacy FSuspenseEquipmentEventBus.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Equipment/ISuspenseEventDispatcher.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCoreEquipmentEventDispatcher.generated.h"
 
-struct FEventSubscriptionHandle;
+// Forward declarations
+class USuspenseCoreEventBus;
+class USuspenseCoreServiceProvider;
 
-/** Внутренняя запись локальной подписки диспетчера */
-struct FDispatcherLocalSubscription
+/**
+ * Internal local subscription record for dispatcher
+ * Uses SuspenseCore types instead of legacy
+ */
+struct FSuspenseCoreDispatcherSubscription
 {
-	FDelegateHandle Handle;
-	FEquipmentEventDelegate Delegate;
+	FSuspenseCoreSubscriptionHandle Handle;
+	FSuspenseCoreNativeEventCallback Callback;
 	TWeakObjectPtr<UObject> Subscriber;
-	int32 Priority=0;
-	bool bActive=true;
-	int32 DispatchCount=0;
-	float SubscribedAt=0.f;
+	ESuspenseCoreEventPriority Priority = ESuspenseCoreEventPriority::Normal;
+	bool bActive = true;
+	int32 DispatchCount = 0;
+	float SubscribedAt = 0.f;
 };
 
-/** Простейшая метрика диспетчера */
+/**
+ * Dispatcher statistics - SuspenseCore version
+ */
 USTRUCT(BlueprintType)
 struct FSuspenseCoreEventDispatcherStats
 {
 	GENERATED_BODY()
-	UPROPERTY(VisibleAnywhere)int32 TotalEventsDispatched=0;
-	UPROPERTY(VisibleAnywhere)int32 TotalEventsQueued=0;
-	UPROPERTY(VisibleAnywhere)int32 ActiveLocalSubscriptions=0;
-	UPROPERTY(VisibleAnywhere)int32 RegisteredEventTypes=0;
-	UPROPERTY(VisibleAnywhere)int32 CurrentQueueSize=0;
-	UPROPERTY(VisibleAnywhere)float AverageDispatchMs=0.f;
-	UPROPERTY(VisibleAnywhere)float PeakQueueSize=0.f;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 TotalEventsDispatched = 0;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 TotalEventsQueued = 0;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 ActiveLocalSubscriptions = 0;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 RegisteredEventTypes = 0;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 CurrentQueueSize = 0;
+
+	UPROPERTY(VisibleAnywhere)
+	float AverageDispatchMs = 0.f;
+
+	UPROPERTY(VisibleAnywhere)
+	float PeakQueueSize = 0.f;
 };
 
-UCLASS(ClassGroup=(MedCom),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentEventDispatcher:public UActorComponent,public ISuspenseEventDispatcher
+/**
+ * USuspenseCoreEquipmentEventDispatcher
+ *
+ * Equipment event dispatcher component using SuspenseCore EventBus architecture.
+ * This is the NEW implementation - uses USuspenseCoreEventBus instead of FSuspenseEquipmentEventBus.
+ *
+ * Key features:
+ * - Integrates with USuspenseCoreEventBus via ServiceProvider
+ * - Uses FSuspenseCoreEventData for all event payloads
+ * - Uses FSuspenseCoreSubscriptionHandle for subscription management
+ * - Event tags follow SuspenseCore.Event.Equipment.* format (per BestPractices.md)
+ * - Batch mode support for high-frequency events
+ * - Local subscription layer for component-specific filtering
+ *
+ * Usage:
+ *   // In your component
+ *   USuspenseCoreEquipmentEventDispatcher* Dispatcher = GetOwner()->FindComponentByClass<USuspenseCoreEquipmentEventDispatcher>();
+ *   if (Dispatcher)
+ *   {
+ *       // Subscribe to equipment events
+ *       auto Handle = Dispatcher->Subscribe(
+ *           SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Equipped,
+ *           this,
+ *           FSuspenseCoreNativeEventCallback::CreateUObject(this, &ThisClass::OnEquipped)
+ *       );
+ *
+ *       // Publish events
+ *       FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(this);
+ *       Data.SetInt(FName("SlotIndex"), 0);
+ *       Dispatcher->Publish(SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Equipped, Data);
+ *   }
+ */
+UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentEventDispatcher : public UActorComponent,
+	public ISuspenseCoreEventDispatcher
 {
 	GENERATED_BODY()
+
 public:
 	USuspenseCoreEquipmentEventDispatcher();
 
-	// lifecycle
-	virtual void BeginPlay()override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason)override;
-	virtual void TickComponent(float DeltaTime,ELevelTick TickType,FActorComponentTickFunction* ThisTickFunction)override;
+	//========================================
+	// UActorComponent Interface
+	//========================================
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// ISuspenseEventDispatcher
-	virtual FDelegateHandle Subscribe(const FGameplayTag& EventType,const FEquipmentEventDelegate& Delegate)override;
-	virtual bool Unsubscribe(const FGameplayTag& EventType,const FDelegateHandle& Handle)override;
-	virtual void BroadcastEvent(const FSuspenseEquipmentEventData& Event)override;
-	virtual void QueueEvent(const FSuspenseEquipmentEventData& Event)override;
-	virtual int32 ProcessEventQueue(int32 MaxEvents=-1)override;
-	virtual void ClearEventQueue(const FGameplayTag& EventType=FGameplayTag())override;
-	virtual int32 GetQueuedEventCount(const FGameplayTag& EventType=FGameplayTag())const override;
-	virtual void SetEventFilter(const FGameplayTag& EventType,bool bAllow)override;
-	virtual FString GetEventStatistics()const override;
-	virtual bool RegisterEventType(const FGameplayTag& EventType,const FText& Description)override;
+	//========================================
+	// ISuspenseCoreEventDispatcher Interface
+	//========================================
+	virtual USuspenseCoreEventBus* GetEventBus() const override;
 
-	// расширения (локальные)
-	void SetBatchModeEnabled(bool bEnabled,float FlushIntervalSec=0.02f,int32 MaxPerTick=256);
+	virtual FSuspenseCoreSubscriptionHandle Subscribe(
+		const FGameplayTag& EventTag,
+		UObject* Subscriber,
+		FSuspenseCoreNativeEventCallback Callback,
+		ESuspenseCoreEventPriority Priority = ESuspenseCoreEventPriority::Normal
+	) override;
+
+	virtual bool Unsubscribe(const FSuspenseCoreSubscriptionHandle& Handle) override;
+	virtual int32 UnsubscribeAll(UObject* Subscriber) override;
+
+	virtual void Publish(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData) override;
+	virtual void PublishDeferred(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData) override;
+
+	virtual bool HasSubscribers(const FGameplayTag& EventTag) const override;
+	virtual FString GetStatistics() const override;
+
+	//========================================
+	// Extended API
+	//========================================
+
+	/**
+	 * Enable/disable batch mode for high-frequency events
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Events")
+	void SetBatchModeEnabled(bool bEnabled, float FlushIntervalSec = 0.02f, int32 MaxPerTick = 256);
+
+	/**
+	 * Flush all batched events immediately
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Events")
 	void FlushBatched();
-	FSuspenseCoreEventDispatcherStats GetStats()const;
-	int32 UnsubscribeAll(UObject* Subscriber);
+
+	/**
+	 * Get dispatcher statistics
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Events")
+	FSuspenseCoreEventDispatcherStats GetStats() const;
+
+	/**
+	 * Enable detailed logging
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Events")
 	void SetDetailedLogging(bool bEnable);
 
 private:
-	// шина
-	TSharedPtr<FSuspenseEquipmentEventBus> EventBus;
-	FEventSubscriptionHandle BusDelta;
-	FEventSubscriptionHandle BusBatchDelta;
-	FEventSubscriptionHandle BusOpCompleted;
+	//========================================
+	// EventBus Connection
+	//========================================
 
-	// локальные подписки диспетчера
-	TMap<FGameplayTag,TArray<FDispatcherLocalSubscription>> LocalSubscriptions;
-	TMap<FDelegateHandle,FGameplayTag> HandleToTag;
+	/** Cached EventBus reference from ServiceProvider */
+	UPROPERTY(Transient)
+	TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
 
-	// конфиг обработки очереди (локальной)
-	bool bBatchMode=true;
-	float FlushInterval=0.02f;
-	int32 MaxPerTick=256;
-	float Accumulator=0.f;
+	/** Subscription handles for EventBus events */
+	TArray<FSuspenseCoreSubscriptionHandle> BusSubscriptions;
 
-	// очередь локальная (коалесинг для UI/инструментов)
-	TArray<FDispatcherEquipmentEventData> LocalQueue;
+	//========================================
+	// Local Subscription Management
+	//========================================
+
+	/** Local subscriptions by event tag */
+	TMap<FGameplayTag, TArray<FSuspenseCoreDispatcherSubscription>> LocalSubscriptions;
+
+	/** Handle to tag mapping for quick unsubscribe */
+	TMap<uint64, FGameplayTag> HandleToTag;
+
+	/** Next subscription ID */
+	uint64 NextSubscriptionId = 1;
+
+	//========================================
+	// Batch Mode Configuration
+	//========================================
+
+	/** Enable batch mode for event processing */
+	bool bBatchMode = true;
+
+	/** Flush interval in seconds */
+	float FlushInterval = 0.02f;
+
+	/** Maximum events to process per tick */
+	int32 MaxPerTick = 256;
+
+	/** Time accumulator for flush interval */
+	float Accumulator = 0.f;
+
+	//========================================
+	// Event Queue
+	//========================================
+
+	/** Queued events structure */
+	struct FQueuedEvent
+	{
+		FGameplayTag EventTag;
+		FSuspenseCoreEventData EventData;
+	};
+
+	/** Local event queue for batch processing */
+	TArray<FQueuedEvent> LocalQueue;
+
+	/** Critical section for thread-safe queue access */
 	mutable FCriticalSection QueueCs;
 
-	// статистика
+	//========================================
+	// Statistics
+	//========================================
+
+	/** Dispatcher statistics */
 	FSuspenseCoreEventDispatcherStats Stats;
-	double EMA_AvgMs=0.0;
 
-	// фильтры типов (просто прослойка к EventBus)
-	TMap<FGameplayTag,bool> LocalTypeEnabled;
+	/** Enable verbose logging */
+	bool bVerbose = false;
 
-	// логирование
-	bool bVerbose=false;
+	//========================================
+	// Event Tags (using new SuspenseCore.Event.* format)
+	//========================================
 
-	// теги, которые слушаем из EventBus
-	UPROPERTY(EditDefaultsOnly,Category="Tags")FGameplayTag TagDelta;
-	UPROPERTY(EditDefaultsOnly,Category="Tags")FGameplayTag TagBatchDelta;
-	UPROPERTY(EditDefaultsOnly,Category="Tags")FGameplayTag TagOperationCompleted;
+	/** Delta event tag */
+	UPROPERTY(EditDefaultsOnly, Category = "Tags")
+	FGameplayTag TagDelta;
 
-private:
-	// wiring с EventBus
-	void WireBus();
-	void UnwireBus();
-	void OnBusEvent_Delta(const FSuspenseEquipmentEventData& E);
-	void OnBusEvent_BatchDelta(const FSuspenseEquipmentEventData& E);
-	void OnBusEvent_OperationCompleted(const FSuspenseEquipmentEventData& E);
+	/** Batch delta event tag */
+	UPROPERTY(EditDefaultsOnly, Category = "Tags")
+	FGameplayTag TagBatchDelta;
 
-	// доставка локальным подписчикам
-	void Enqueue(const FDispatcherEquipmentEventData& E);
-	void Dispatch(const FDispatcherEquipmentEventData& E);
-	void DispatchToLocal(const FGameplayTag& Type,const FDispatcherEquipmentEventData& E);
-	static void SortByPriority(TArray<FDispatcherLocalSubscription>& Arr);
+	/** Operation completed event tag */
+	UPROPERTY(EditDefaultsOnly, Category = "Tags")
+	FGameplayTag TagOperationCompleted;
 
-	// преобразование payload
-	static FDispatcherEquipmentEventData ToDispatcherPayload(const FSuspenseEquipmentEventData& In);
+	//========================================
+	// Internal Methods
+	//========================================
 
-	// служебное
+	/** Connect to EventBus */
+	void ConnectToEventBus();
+
+	/** Disconnect from EventBus */
+	void DisconnectFromEventBus();
+
+	/** Handle event from EventBus */
+	void OnBusEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Enqueue event for batch processing */
+	void EnqueueEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Dispatch event to local subscribers */
+	void DispatchEvent(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Dispatch to local subscriptions */
+	void DispatchToLocal(const FGameplayTag& EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Sort subscriptions by priority */
+	static void SortByPriority(TArray<FSuspenseCoreDispatcherSubscription>& Arr);
+
+	/** Cleanup invalid subscriptions */
 	int32 CleanupInvalid();
+
+	/** Generate unique subscription handle */
+	FSuspenseCoreSubscriptionHandle GenerateHandle();
 };

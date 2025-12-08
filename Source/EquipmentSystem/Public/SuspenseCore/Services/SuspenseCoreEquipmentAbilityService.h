@@ -273,9 +273,12 @@ private:
     mutable FEquipmentRWLock MappingLock;
 
     //========================================
-    // Event Management
+    // Event Management (SuspenseCore architecture)
     //========================================
-    TArray<FEventSubscriptionHandle> EventSubscriptions;
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
     /** S7 event tags (initialized in InitializeService) */
     FGameplayTag Tag_OnEquipped;

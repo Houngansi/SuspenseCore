@@ -6,9 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/Equipment/ISuspenseAttachmentProvider.h"
 
-// фундаментальные утилиты
+// SuspenseCore architecture
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 #include "Engine/EngineTypes.h"

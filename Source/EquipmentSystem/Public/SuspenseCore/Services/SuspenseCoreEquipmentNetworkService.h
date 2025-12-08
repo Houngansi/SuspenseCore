@@ -10,7 +10,8 @@
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "Types/Network/SuspenseNetworkTypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
@@ -158,12 +159,14 @@ private:
     FDelegateHandle DispatcherTimeoutHandle;
 
     //========================================
-    // EventBus Integration
+    // EventBus Integration (SuspenseCore architecture)
     //========================================
-    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
-    TArray<FEventSubscriptionHandle> EventSubscriptions;
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
 
-    // Event tags for network events
+    TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
+
+    // Event tags for network events (SuspenseCore.Event.* format)
     FGameplayTag Tag_NetworkResult;
     FGameplayTag Tag_NetworkTimeout;
     FGameplayTag Tag_SecurityViolation;
@@ -218,5 +221,5 @@ private:
     void BroadcastNetworkResult(bool bSuccess, const FGuid& OperationId, const FString& ErrorMessage = TEXT(""));
     void BroadcastSecurityViolation(const FString& ViolationType, APlayerController* PlayerController, const FString& Details);
 
-    void OnOperationCompleted(const FSuspenseEquipmentEventData& EventData);
+    void OnOperationCompleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 };

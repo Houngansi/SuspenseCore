@@ -430,10 +430,11 @@ private:
     mutable FCriticalSection OperationPoolLock;
     mutable FCriticalSection ResultPoolLock;
 
-    // Event Management
-    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
-    FEventSubscriptionScope EventScope;
-    TArray<FEventSubscriptionHandle> EventHandles;
+    // Event Management (SuspenseCore architecture)
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    TArray<FSuspenseCoreSubscriptionHandle> EventHandles;
 
     // Configuration
     UPROPERTY(EditDefaultsOnly, Category = "Configuration")

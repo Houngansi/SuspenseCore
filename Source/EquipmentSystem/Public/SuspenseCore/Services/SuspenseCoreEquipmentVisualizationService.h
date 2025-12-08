@@ -10,7 +10,8 @@
 
 // Fundamental: service interface + base utilities
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
@@ -77,9 +78,11 @@ private:
 	UPROPERTY() int32 VisualQualityLevel = 2;              // 0..3
 	UPROPERTY() bool bEnableBatching = true;               // Batch notifications
 
-	// Event bus
-	TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
-	TArray<FEventSubscriptionHandle> Subscriptions;
+	// Event bus (SuspenseCore architecture)
+	UPROPERTY(Transient)
+	TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+	TArray<FSuspenseCoreSubscriptionHandle> Subscriptions;
 
 	UPROPERTY(Transient)
 	TObjectPtr<USuspenseEquipmentServiceLocator> CachedServiceLocator;
@@ -115,11 +118,11 @@ private:
 	void SetupEventHandlers();
 	void TeardownEventHandlers();
 
-	// Event handlers
-	void OnEquipped(const FSuspenseEquipmentEventData& E);
-	void OnUnequipped(const FSuspenseEquipmentEventData& E);
-	void OnSlotSwitched(const FSuspenseEquipmentEventData& E);
-	void OnRefreshAll(const FSuspenseEquipmentEventData& E);
+	// Event handlers (SuspenseCore types)
+	void OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnSlotSwitched(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnRefreshAll(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// High-level operations
 	void UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant);
@@ -141,7 +144,7 @@ private:
 	FName               ResolveAttachSocket(AActor* Character, const FName ItemID, int32 SlotIndex) const;
 	FTransform          ResolveAttachOffset(AActor* Character, const FName ItemID, int32 SlotIndex) const;
 
-	// Event metadata parsing
-	static bool  TryParseInt(const FSuspenseEquipmentEventData& E, const TCHAR* Key, int32& OutValue);
-	static FName ParseName(const FSuspenseEquipmentEventData& E, const TCHAR* Key, const FName DefaultValue = NAME_None);
+	// Event metadata parsing (SuspenseCore types)
+	static bool  TryParseInt(const FSuspenseCoreEventData& EventData, const TCHAR* Key, int32& OutValue);
+	static FName ParseName(const FSuspenseCoreEventData& EventData, const TCHAR* Key, const FName DefaultValue = NAME_None);
 };

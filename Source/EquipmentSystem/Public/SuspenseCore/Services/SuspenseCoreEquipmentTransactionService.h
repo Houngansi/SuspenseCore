@@ -6,7 +6,8 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Types/Transaction/SuspenseTransactionTypes.h"
 #include "SuspenseCoreEquipmentTransactionService.generated.h"
 
@@ -199,9 +200,11 @@ protected:
     UPROPERTY()
     TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
 
-    // EventBus integration
-    TWeakPtr<FSuspenseEquipmentEventBus> EventBus;
-    TArray<FEventSubscriptionHandle> EventSubscriptions;
+    // EventBus integration (SuspenseCore architecture)
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
     // Event tags
     FGameplayTag Tag_Transaction_Started;

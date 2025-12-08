@@ -11,6 +11,7 @@
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "Types/Rules/SuspenseRulesTypes.h"
@@ -18,7 +19,6 @@
 #include "HAL/CriticalSection.h"
 #include <atomic>
 
-#include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "SuspenseCoreEquipmentValidationService.generated.h"
 
 /**

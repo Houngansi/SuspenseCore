@@ -14,7 +14,7 @@
 
 // Equipment infrastructure
 #include "SuspenseCore/Subsystems/SuspenseCoreSystemCoordinator.h"
-#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "Interfaces/Equipment/ISuspenseEquipmentService.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMedComCoordinatorSubsystem, Log, All);

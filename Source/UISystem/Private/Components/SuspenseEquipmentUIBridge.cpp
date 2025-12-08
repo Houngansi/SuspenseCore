@@ -5,7 +5,7 @@
 #include "Components/SuspenseUIManager.h"
 #include "Delegates/SuspenseEventManager.h"
 #include "ItemSystem/SuspenseItemManager.h"
-#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 
 #include "GameplayTagContainer.h"
 #include "Engine/World.h"

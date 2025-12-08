@@ -1,19 +1,16 @@
 // SuspenseCoreEquipmentServiceLocator.h
-// SuspenseCore compatibility wrapper
+// Backward compatibility redirect
 // Copyright Suspense Team. All Rights Reserved.
 //
-// This file provides SuspenseCore* class aliases for compatibility with
-// EquipmentSystem components that use the SuspenseCore naming convention.
+// This file redirects to the new SuspenseCore architecture.
+// Use SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h directly.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+// Redirect to new location
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 
-// Class aliases for SuspenseCore naming convention compatibility
-
-/** Alias for USuspenseEquipmentServiceLocator class */
-using USuspenseCoreEquipmentServiceLocator = USuspenseEquipmentServiceLocator;
-
-/** Alias for FServiceRegistration struct */
-using FSuspenseCoreServiceRegistration = FServiceRegistration;
+// Legacy aliases for backward compatibility with code using old names
+using USuspenseEquipmentServiceLocator = USuspenseCoreEquipmentServiceLocator;
+using FServiceRegistration = FSuspenseCoreServiceRegistration;
+using FServiceInjectionDelegate = FSuspenseCoreServiceInjectionDelegate;

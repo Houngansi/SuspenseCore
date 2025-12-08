@@ -13,7 +13,7 @@
 #include "Core/Utils/SuspenseEquipmentEventBus.h"
 #include "Core/Utils/SuspenseEquipmentThreadGuard.h"
 #include "Core/Utils/SuspenseEquipmentCacheManager.h"
-#include "Core/Services/SuspenseEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 
 // Presentation layer interfaces
 #include "Interfaces/Equipment/ISuspenseActorFactory.h"

@@ -11,7 +11,7 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -279,7 +279,7 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                 FTimerHandle RefreshTimerHandle;
                 GetWorld()->GetTimerManager().SetTimerForNextTick([this, TabIndex]()
                 {
-                    if (USuspenseEventManager* EventManager = GetDelegateManager())
+                    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
                     {
                         // Отправляем событие обновления инвентаря
                         FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"));
@@ -520,7 +520,7 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
                 UE_LOG(LogTemp, Log, TEXT("[TabBar] Equipment Widget created, will be initialized by bridge"));
 
                 // Отправляем событие готовности Equipment виджета
-                if (USuspenseEventManager* EventManager = GetDelegateManager())
+                if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
                 {
                     FTimerHandle InitTimerHandle;
                     GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget]()
@@ -587,7 +587,7 @@ void USuspenseUpperTabBar::OnCloseButtonClicked()
     OnTabBarClosed.Broadcast(this);
 
     // Notify event system
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.TabBar.CloseClicked"));
         EventManager->NotifyUIEventGeneric(this, EventTag, TabBarTag.ToString());
@@ -713,7 +713,7 @@ void USuspenseUpperTabBar::ApplyButtonStyle(UButton* Button, bool bSelected)
 
 void USuspenseUpperTabBar::SubscribeToEvents()
 {
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         // ВАЖНОЕ ИЗМЕНЕНИЕ: Подписываемся на правильные события инвентаря
 
@@ -768,7 +768,7 @@ void USuspenseUpperTabBar::SubscribeToEvents()
 
 void USuspenseUpperTabBar::UnsubscribeFromEvents()
 {
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         EventManager->UniversalUnsubscribe(CharacterLevelUpdateHandle);
         EventManager->UniversalUnsubscribe(InventoryUpdateHandle);
@@ -781,7 +781,7 @@ void USuspenseUpperTabBar::BroadcastTabSelectionChanged(int32 OldIndex, int32 Ne
     OnTabSelectionChanged.Broadcast(this, OldIndex, NewIndex);
 
     // Notify event system with detailed info
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         FGameplayTag OldTag = TabConfigs.IsValidIndex(OldIndex) ? TabConfigs[OldIndex].TabTag : FGameplayTag();
         FGameplayTag NewTag = TabConfigs.IsValidIndex(NewIndex) ? TabConfigs[NewIndex].TabTag : FGameplayTag();

@@ -4,7 +4,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -318,7 +318,7 @@ void USuspenseCrosshairWidget::UpdateCrosshairPositions()
 
 void USuspenseCrosshairWidget::SubscribeToEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         // Subscribe to crosshair updates
         CrosshairUpdateHandle = EventManager->SubscribeToCrosshairUpdated(
@@ -340,7 +340,7 @@ void USuspenseCrosshairWidget::SubscribeToEvents()
 
 void USuspenseCrosshairWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         if (CrosshairUpdateHandle.IsValid())
         {

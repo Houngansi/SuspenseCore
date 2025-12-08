@@ -5,7 +5,7 @@
 #include "Widgets/DragDrop/SuspenseDragVisualWidget.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Interfaces/UI/ISuspenseInventoryUIBridge.h"
 #include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
@@ -33,7 +33,7 @@ void USuspenseDragDropHandler::Initialize(FSubsystemCollectionBase& Collection)
     // Get event manager
     if (UGameInstance* GameInstance = GetGameInstance())
     {
-        CachedEventManager = GameInstance->GetSubsystem<USuspenseEventManager>();
+        CachedEventManager = GameInstance->GetSubsystem<USuspenseCoreEventManager>();
     }
 
     LastCacheValidationTime = 0.0f;
@@ -165,11 +165,11 @@ USuspenseDragDropOperation* USuspenseDragDropHandler::StartDragOperation(
     // Store active operation
     ActiveOperation = DragOp;
 
-    // Send drag started event
-    if (CachedEventManager)
-    {
-        CachedEventManager->OnUIDragStarted.Broadcast(SourceSlot, DragData);
-    }
+    // TODO: Migrate to EventBus - old delegate system removed
+    // if (CachedEventManager)
+    // {
+    //     CachedEventManager->OnUIDragStarted.Broadcast(SourceSlot, DragData);
+    // }
 
     return DragOp;
 }
@@ -232,15 +232,15 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     // Clear visual feedback
     ClearAllVisualFeedback();
 
-    // Send completion event
-    if (CachedEventManager)
-    {
-        CachedEventManager->OnUIDragCompleted.Broadcast(
-            nullptr,
-            DropTarget.Container,
-            Result.IsSuccess()
-        );
-    }
+    // TODO: Migrate to EventBus - old delegate system removed
+    // if (CachedEventManager)
+    // {
+    //     CachedEventManager->OnUIDragCompleted.Broadcast(
+    //         nullptr,
+    //         DropTarget.Container,
+    //         Result.IsSuccess()
+    //     );
+    // }
 
     return Result;
 }
@@ -915,26 +915,26 @@ FSlotValidationResult USuspenseDragDropHandler::ValidateDropPlacement(
 
 FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FDropRequest& Request)
 {
-    // Send drop event
-    if (CachedEventManager)
-    {
-        // Find target container widget
-        USuspenseBaseContainerWidget* TargetContainer = nullptr;
-
-        if (auto* CachedContainer = ContainerCache.Find(Request.TargetContainer))
-        {
-            TargetContainer = CachedContainer->Get();
-        }
-
-        if (TargetContainer)
-        {
-            CachedEventManager->OnUIItemDropped.Broadcast(
-                TargetContainer,
-                Request.DragData,
-                Request.TargetSlot
-            );
-        }
-    }
+    // TODO: Migrate to EventBus - old delegate system removed
+    // if (CachedEventManager)
+    // {
+    //     // Find target container widget
+    //     USuspenseBaseContainerWidget* TargetContainer = nullptr;
+    //
+    //     if (auto* CachedContainer = ContainerCache.Find(Request.TargetContainer))
+    //     {
+    //         TargetContainer = CachedContainer->Get();
+    //     }
+    //
+    //     if (TargetContainer)
+    //     {
+    //         CachedEventManager->OnUIItemDropped.Broadcast(
+    //             TargetContainer,
+    //             Request.DragData,
+    //             Request.TargetSlot
+    //         );
+    //     }
+    // }
 
     return FSuspenseInventoryOperationResult::Success(TEXT("ExecuteDrop"));
 }
@@ -1018,12 +1018,12 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInv
         UnequipRequest.Parameters.Add(TEXT("SourceContainer"), Request.SourceContainer.ToString());
     }
 
-    // Dispatch through event system
-    if (CachedEventManager)
-    {
-        CachedEventManager->BroadcastEquipmentOperationRequest(UnequipRequest);
-        return FSuspenseInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
-    }
+    // TODO: Migrate to EventBus - old delegate system removed
+    // if (CachedEventManager)
+    // {
+    //     CachedEventManager->BroadcastEquipmentOperationRequest(UnequipRequest);
+    //     return FSuspenseInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
+    // }
 
     return FSuspenseInventoryOperationResult::Failure(
         ESuspenseInventoryErrorCode::UnknownError,

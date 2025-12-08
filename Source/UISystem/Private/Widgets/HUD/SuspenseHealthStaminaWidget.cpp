@@ -4,7 +4,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreAttributeProvider.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -427,7 +427,7 @@ void USuspenseHealthStaminaWidget::UpdateFromProvider()
 
 void USuspenseHealthStaminaWidget::SubscribeToEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         HealthUpdateHandle = EventManager->SubscribeToHealthUpdated(
             [this](float Current, float Max, float Percent)
@@ -447,7 +447,7 @@ void USuspenseHealthStaminaWidget::SubscribeToEvents()
 
 void USuspenseHealthStaminaWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
         if (HealthUpdateHandle.IsValid())
         {

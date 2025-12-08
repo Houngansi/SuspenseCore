@@ -3,7 +3,7 @@
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
 #include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "Engine/World.h"
@@ -73,7 +73,7 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
         // Refresh source container even on invalid operation
         if (Handler.IsValid())
         {
-            if (USuspenseEventManager* EventManager = USuspenseEventManager::Get(Handler.Get()))
+            if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(Handler.Get()))
             {
                 EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
             }
@@ -113,7 +113,7 @@ void USuspenseDragDropOperation::DragCancelled_Implementation(const FPointerEven
         Handler->ClearAllVisualFeedback();
 
         // Ensure source container refreshes to show item in original position
-        if (USuspenseEventManager* EventManager = USuspenseEventManager::Get(Handler.Get()))
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(Handler.Get()))
         {
             EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
 

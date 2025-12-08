@@ -1,13 +1,13 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "Interfaces/Abilities/ISuspenseAbilityProvider.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "GameplayEffect.h"
 #include "GameplayAbilities/Public/AbilitySystemComponent.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseEventManager* ISuspenseAbilityProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseAbilityProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -26,7 +26,7 @@ USuspenseEventManager* ISuspenseAbilityProvider::GetDelegateManagerStatic(const 
         return nullptr;
     }
     
-    return GameInstance->GetSubsystem<USuspenseEventManager>();
+    return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
 void ISuspenseAbilityProvider::BroadcastAbilityGranted(const UObject* Provider, FGameplayAbilitySpecHandle AbilityHandle, TSubclassOf<UGameplayAbility> AbilityClass)
@@ -36,16 +36,17 @@ void ISuspenseAbilityProvider::BroadcastAbilityGranted(const UObject* Provider, 
         return;
     }
     
-    USuspenseEventManager* Manager = GetDelegateManagerStatic(Provider);
+    USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
     if (Manager)
     {
+        // TODO: Migrate to EventBus - old delegate system removed
         // Notify about ability granted - using class name instead of private handle
-        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("AbilitySystem.Event.AbilityGranted"));
-        FString EventData = FString::Printf(TEXT("Ability:%s,Valid:%s"), 
-            *AbilityClass->GetName(), 
-            AbilityHandle.IsValid() ? TEXT("true") : TEXT("false"));
-            
-        Manager->NotifyEquipmentEvent(const_cast<UObject*>(Provider), EventTag, EventData);
+        // FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("AbilitySystem.Event.AbilityGranted"));
+        // FString EventData = FString::Printf(TEXT("Ability:%s,Valid:%s"),
+        //     *AbilityClass->GetName(),
+        //     AbilityHandle.IsValid() ? TEXT("true") : TEXT("false"));
+        //
+        // Manager->NotifyEquipmentEvent(const_cast<UObject*>(Provider), EventTag, EventData);
     }
 }
 
@@ -56,15 +57,16 @@ void ISuspenseAbilityProvider::BroadcastEffectApplied(const UObject* Provider, F
         return;
     }
     
-    USuspenseEventManager* Manager = GetDelegateManagerStatic(Provider);
+    USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
     if (Manager)
     {
+        // TODO: Migrate to EventBus - old delegate system removed
         // Notify about effect applied - using class name instead of private handle
-        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("AbilitySystem.Event.EffectApplied"));
-        FString EventData = FString::Printf(TEXT("Effect:%s,Valid:%s"), 
-            *EffectClass->GetName(), 
-            EffectHandle.IsValid() ? TEXT("true") : TEXT("false"));
-            
-        Manager->NotifyEquipmentEvent(const_cast<UObject*>(Provider), EventTag, EventData);
+        // FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("AbilitySystem.Event.EffectApplied"));
+        // FString EventData = FString::Printf(TEXT("Effect:%s,Valid:%s"),
+        //     *EffectClass->GetName(),
+        //     EffectHandle.IsValid() ? TEXT("true") : TEXT("false"));
+        //
+        // Manager->NotifyEquipmentEvent(const_cast<UObject*>(Provider), EventTag, EventData);
     }
 }

@@ -5,7 +5,7 @@
 #include "Components/PanelWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
-#include "SuspenseCore/Delegates/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Components/SuspenseUIManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -365,7 +365,7 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
     }
 
     // ИСПРАВЛЕНИЕ: Отправляем событие готовности для обоих типов виджетов
-    if (USuspenseEventManager* EventManager = GetEventManager())
+    if (USuspenseCoreEventManager* EventManager = GetEventManager())
     {
         FTimerHandle InitTimerHandle;
         GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget, Config, this]()
@@ -587,7 +587,7 @@ void USuspenseBaseLayoutWidget::UnregisterWidgetFromUIManager(const FGameplayTag
 
 void USuspenseBaseLayoutWidget::NotifyWidgetCreated(UUserWidget* Widget, const FGameplayTag& InWidgetTag)
 {
-    if (USuspenseEventManager* EventManager = GetEventManager())
+    if (USuspenseCoreEventManager* EventManager = GetEventManager())
     {
         // Create event data string
         FString EventData = FString::Printf(TEXT("Widget:%s,Tag:%s,Parent:%s"),
@@ -603,7 +603,7 @@ void USuspenseBaseLayoutWidget::NotifyWidgetCreated(UUserWidget* Widget, const F
 
 void USuspenseBaseLayoutWidget::NotifyWidgetDestroyed(const FGameplayTag& InWidgetTag)
 {
-    if (USuspenseEventManager* EventManager = GetEventManager())
+    if (USuspenseCoreEventManager* EventManager = GetEventManager())
     {
         // Create event data string
         FString EventData = FString::Printf(TEXT("Tag:%s"), *InWidgetTag.ToString());
@@ -619,9 +619,9 @@ USuspenseUIManager* USuspenseBaseLayoutWidget::GetUIManager() const
     return USuspenseUIManager::Get(this);
 }
 
-USuspenseEventManager* USuspenseBaseLayoutWidget::GetEventManager() const
+USuspenseCoreEventManager* USuspenseBaseLayoutWidget::GetEventManager() const
 {
-    if (USuspenseEventManager* EventManager = GetDelegateManager())
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
     {
         return EventManager;
     }
@@ -631,7 +631,7 @@ USuspenseEventManager* USuspenseBaseLayoutWidget::GetEventManager() const
     {
         if (UGameInstance* GameInstance = World->GetGameInstance())
         {
-            return GameInstance->GetSubsystem<USuspenseEventManager>();
+            return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
         }
     }
 

@@ -1,7 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREMOVEMENT_H
-#define SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREMOVEMENT_H
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -182,5 +181,3 @@ public:
     /** Get delegate manager for movement events */
     static class USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
 };
-
-#endif // SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREMOVEMENT_H

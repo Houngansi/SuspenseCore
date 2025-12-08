@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H
-#define SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -617,4 +617,3 @@ struct BRIDGESYSTEM_API FEquipmentPrediction
 };
 
 
-#endif // SUSPENSECORE_TYPES_NETWORK_SUSPENSECORENETWORKTYPES_H

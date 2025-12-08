@@ -1,8 +1,8 @@
 // MedComShared/Public/ItemSystem/SuspenseItemSystemAccess.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_ITEMSYSTEM_SUSPENSECOREITEMSYSTEMACCESS_H
-#define SUSPENSECORE_ITEMSYSTEM_SUSPENSECOREITEMSYSTEMACCESS_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 
@@ -87,4 +87,3 @@ private:
     FItemSystemAccess& operator=(const FItemSystemAccess&) = delete;
 };
 
-#endif // SUSPENSECORE_ITEMSYSTEM_SUSPENSECOREITEMSYSTEMACCESS_H

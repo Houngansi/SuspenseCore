@@ -596,5 +596,6 @@ public:
             }
         }
     }
+#endif
 };
 

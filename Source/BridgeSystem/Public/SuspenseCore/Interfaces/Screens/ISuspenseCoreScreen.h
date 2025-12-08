@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H
-#define SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -70,4 +70,3 @@ public:
 	bool RequiresTick() const;
 };
 
-#endif // SUSPENSECORE_INTERFACES_SCREENS_ISUSPENSECORESCREEN_H

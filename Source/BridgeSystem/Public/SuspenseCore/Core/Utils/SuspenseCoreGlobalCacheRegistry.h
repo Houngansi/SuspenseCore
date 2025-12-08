@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
-#ifndef SUSPENSECORE_CORE_UTILS_SUSPENSECOREGLOBALCACHEREGISTRY_H
-#define SUSPENSECORE_CORE_UTILS_SUSPENSECOREGLOBALCACHEREGISTRY_H
+
+#pragma once
 
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
@@ -55,6 +55,3 @@ private:
 	mutable FCriticalSection RegistryLock;
 	TMap<FString, TFunction<FString(void)>> CacheStatsGetters;
 };
-
-
-#endif // SUSPENSECORE_CORE_UTILS_SUSPENSECOREGLOBALCACHEREGISTRY_H

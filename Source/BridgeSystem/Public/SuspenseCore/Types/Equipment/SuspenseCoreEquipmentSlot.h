@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H
-#define SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -64,4 +64,3 @@ struct BRIDGESYSTEM_API FSuspenseEquipmentSlot
 };
 
 
-#endif // SUSPENSECORE_TYPES_EQUIPMENT_SUSPENSECOREEQUIPMENTSLOT_H

@@ -145,5 +145,6 @@ public:
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override { return NSLOCTEXT("SuspenseCore", "SettingsSection", "SuspenseCore"); }
 	virtual FText GetSectionDescription() const override { return NSLOCTEXT("SuspenseCore", "SettingsDesc", "Configure SuspenseCore plugin settings"); }
+#endif
 };
 

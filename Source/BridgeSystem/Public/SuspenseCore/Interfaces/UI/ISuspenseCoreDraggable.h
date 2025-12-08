@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -58,4 +58,3 @@ public:
 	void UpdateDragVisual(bool bIsValidTarget);
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDRAGGABLE_H

@@ -681,8 +681,9 @@ struct BRIDGESYSTEM_API FSuspenseUnifiedItemData : public FTableRowBase
         if (bIsArmor) return ArmorInitialization.ArmorAttributeSetClass;
         return EquipmentAttributeSet;
     }
-    
+
 #if WITH_EDITOR
     /** Handle data table changes in editor */
     virtual void OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName) override;
+#endif
 };

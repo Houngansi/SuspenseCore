@@ -1,8 +1,7 @@
 // MedComCore/Abilities/Inventory/SuspenseInventoryGASIntegration.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_ABILITIES_INVENTORY_SUSPENSECOREINVENTORYGASINTEGRATION_H
-#define SUSPENSECORE_ABILITIES_INVENTORY_SUSPENSECOREINVENTORYGASINTEGRATION_H
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
@@ -123,5 +122,3 @@ private:
     /** Handle to weight effect */
     FActiveGameplayEffectHandle WeightEffectHandle;
 };
-
-#endif // SUSPENSECORE_ABILITIES_INVENTORY_SUSPENSECOREINVENTORYGASINTEGRATION_H

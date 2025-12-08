@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
-#ifndef SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTTHREADGUARD_H
-#define SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTTHREADGUARD_H
+
+#pragma once
 
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
@@ -95,6 +95,3 @@ private:
 #ifndef EQUIPMENT_SCOPE_LOCK
 #define EQUIPMENT_SCOPE_LOCK(CS) FEquipmentScopeLock EQUIPMENT_JOIN(_EqScopeLock__, __LINE__)(CS, nullptr)
 #endif
-
-
-#endif // SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTTHREADGUARD_H

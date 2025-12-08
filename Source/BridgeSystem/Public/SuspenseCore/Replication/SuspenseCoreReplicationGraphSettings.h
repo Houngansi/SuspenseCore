@@ -229,5 +229,6 @@ public:
 		return NSLOCTEXT("SuspenseCore", "SuspenseCoreReplicationSettingsDescription",
 			"Configure replication graph settings for MMO scalability");
 	}
+#endif
 };
 

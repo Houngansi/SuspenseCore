@@ -387,7 +387,7 @@ bool USuspenseCoreEquipmentActorFactory::DestroyEquipmentActor(AActor* Actor, bo
 
     // Get ItemId from pool entry before unregistering (for EventBus broadcast)
     FName ItemId = NAME_None;
-    if (const FActorPoolEntry* Entry = FindPoolEntry(Actor))
+    if (const FSuspenseCoreActorPoolEntry* Entry = FindPoolEntry(Actor))
     {
         ItemId = Entry->ItemId;
     }
@@ -470,7 +470,7 @@ bool USuspenseCoreEquipmentActorFactory::RecycleActor(AActor* Actor)
     EQUIPMENT_SCOPE_LOCK(PoolLock);
 
     // Find existing pool entry
-    FActorPoolEntry* Entry = FindPoolEntry(Actor);
+    FSuspenseCoreActorPoolEntry* Entry = FindPoolEntry(Actor);
     if (Entry)
     {
         // Already in pool → просто обновляем таймстамп/флаги
@@ -487,7 +487,7 @@ bool USuspenseCoreEquipmentActorFactory::RecycleActor(AActor* Actor)
 
     // Check pool size limit per class
     int32 ClassCount = 0;
-    for (const FActorPoolEntry& PoolEntry : ActorPool)
+    for (const FSuspenseCoreActorPoolEntry& PoolEntry : ActorPool)
     {
         if (PoolEntry.ActorClass == Actor->GetClass())
         {
@@ -501,7 +501,7 @@ bool USuspenseCoreEquipmentActorFactory::RecycleActor(AActor* Actor)
     }
 
     // Add to pool
-    FActorPoolEntry NewEntry;
+    FSuspenseCoreActorPoolEntry NewEntry;
     NewEntry.Actor = Actor;
     NewEntry.ActorClass = Actor->GetClass();
     NewEntry.bInUse = false;
@@ -526,7 +526,7 @@ AActor* USuspenseCoreEquipmentActorFactory::GetPooledActor(TSubclassOf<AActor> A
 
     EQUIPMENT_SCOPE_LOCK(PoolLock);
 
-    FActorPoolEntry* Entry = FindAvailablePoolEntry(ActorClass);
+    FSuspenseCoreActorPoolEntry* Entry = FindAvailablePoolEntry(ActorClass);
     if (Entry)
     {
         Entry->bInUse = true;
@@ -715,7 +715,7 @@ void USuspenseCoreEquipmentActorFactory::ClearAllActors(bool bDestroy)
 
             if (bDestroy)
             {
-                for (FActorPoolEntry& Entry : ActorPool)
+                for (FSuspenseCoreActorPoolEntry& Entry : ActorPool)
                 {
                     if (IsActorValid(Entry.Actor))
                     {
@@ -741,7 +741,7 @@ void USuspenseCoreEquipmentActorFactory::ClearAllActors(bool bDestroy)
 // Public Methods
 //========================================
 
-void USuspenseCoreEquipmentActorFactory::SetFactoryConfiguration(const FActorFactoryConfig& NewConfig)
+void USuspenseCoreEquipmentActorFactory::SetFactoryConfiguration(const FSuspenseCoreActorFactoryConfig& NewConfig)
 {
     FactoryConfig = NewConfig;
 
@@ -767,7 +767,7 @@ void USuspenseCoreEquipmentActorFactory::GetPoolStatistics(int32& TotalActors, i
     ActiveActors = 0;
     PooledActors = 0;
 
-    for (const FActorPoolEntry& Entry : ActorPool)
+    for (const FSuspenseCoreActorPoolEntry& Entry : ActorPool)
     {
         if (Entry.bInUse)
         {
@@ -876,9 +876,9 @@ TSubclassOf<AActor> USuspenseCoreEquipmentActorFactory::GetActorClassForItem(con
     return nullptr;
 }
 
-FActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindPoolEntry(AActor* Actor)
+FSuspenseCoreActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindPoolEntry(AActor* Actor)
 {
-    for (FActorPoolEntry& Entry : ActorPool)
+    for (FSuspenseCoreActorPoolEntry& Entry : ActorPool)
     {
         if (Entry.Actor == Actor)
         {
@@ -888,9 +888,9 @@ FActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindPoolEntry(AActor* Actor
     return nullptr;
 }
 
-FActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindAvailablePoolEntry(TSubclassOf<AActor> ActorClass)
+FSuspenseCoreActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindAvailablePoolEntry(TSubclassOf<AActor> ActorClass)
 {
-    for (FActorPoolEntry& Entry : ActorPool)
+    for (FSuspenseCoreActorPoolEntry& Entry : ActorPool)
     {
         if (Entry.ActorClass == ActorClass && !Entry.bInUse && IsActorValid(Entry.Actor))
         {
@@ -900,9 +900,9 @@ FActorPoolEntry* USuspenseCoreEquipmentActorFactory::FindAvailablePoolEntry(TSub
     return nullptr;
 }
 
-FActorPoolEntry* USuspenseCoreEquipmentActorFactory::CreatePoolEntry(TSubclassOf<AActor> ActorClass)
+FSuspenseCoreActorPoolEntry* USuspenseCoreEquipmentActorFactory::CreatePoolEntry(TSubclassOf<AActor> ActorClass)
 {
-    FActorPoolEntry NewEntry;
+    FSuspenseCoreActorPoolEntry NewEntry;
     NewEntry.ActorClass = ActorClass;
     NewEntry.bInUse = false;
     NewEntry.LastUsedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -923,7 +923,7 @@ void USuspenseCoreEquipmentActorFactory::CleanupPool()
 
     for (int32 i = ActorPool.Num() - 1; i >= 0; i--)
     {
-        FActorPoolEntry& Entry = ActorPool[i];
+        FSuspenseCoreActorPoolEntry& Entry = ActorPool[i];
 
         // Remove expired unused entries
         if (!Entry.bInUse && (CurrentTime - Entry.LastUsedTime) > FactoryConfig.ActorIdleTimeout)

@@ -16,7 +16,7 @@ class UCameraComponent;
 class USuspenseCoreWeaponAmmoComponent;
 class USuspenseCoreWeaponFireModeComponent;
 class USuspenseCoreEquipmentAttributeComponent;
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 class USuspenseCoreEquipmentMeshComponent;
 
 /**
@@ -40,7 +40,7 @@ public:
     //================================================
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-    virtual USuspenseEventManager* GetDelegateManager() const override;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const override;
 
     //================================================
     // ASuspenseCoreEquipmentActor overrides (S3/S4 pipeline)

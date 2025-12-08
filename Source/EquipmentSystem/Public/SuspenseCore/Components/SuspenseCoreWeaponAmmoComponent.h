@@ -8,8 +8,8 @@
 #include "Types/Weapon/SuspenseInventoryAmmoState.h"
 #include "Interfaces/Weapon/ISuspenseWeapon.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Attributes/WeaponAttributeSet.h"
-#include "Attributes/AmmoAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "SuspenseCoreWeaponAmmoComponent.generated.h"
 
 // Forward declarations

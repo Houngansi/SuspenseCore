@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -60,4 +60,3 @@ public:
 	void SetTooltipAnchor(const FVector2D& Anchor, const FVector2D& Pivot);
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIP_H

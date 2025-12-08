@@ -2,8 +2,7 @@
 // Equipment Attachment Provider Interface
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_EQUIPMENT_ISUSPENSECOREATTACHMENTPROVIDER_H
-#define SUSPENSECORE_INTERFACES_EQUIPMENT_ISUSPENSECOREATTACHMENTPROVIDER_H
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -55,6 +54,3 @@ public:
     /** Set socket for slot */
     virtual void SetSocketForSlot(int32 SlotIndex, const FName& SocketName) = 0;
 };
-
-
-#endif // SUSPENSECORE_INTERFACES_EQUIPMENT_ISUSPENSECOREATTACHMENTPROVIDER_H

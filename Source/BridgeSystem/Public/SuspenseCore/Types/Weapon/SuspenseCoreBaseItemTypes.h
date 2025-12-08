@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H
-#define SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -83,4 +83,3 @@ namespace MedComItemTypes
 }
 
 
-#endif // SUSPENSECORE_TYPES_WEAPON_SUSPENSECOREBASEITEMTYPES_H

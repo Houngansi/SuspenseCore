@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -133,4 +133,3 @@ public:
         const FGameplayTag& InteractionType);
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORECONTAINERUI_H

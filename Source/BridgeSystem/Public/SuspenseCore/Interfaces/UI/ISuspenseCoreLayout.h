@@ -1,8 +1,8 @@
 // ISuspenseLayout.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -61,4 +61,3 @@ public:
 	void RefreshLayout();
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORELAYOUT_H

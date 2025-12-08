@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H
-#define SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -401,4 +401,3 @@ struct BRIDGESYSTEM_API FTransactionMetrics
 };
 
 
-#endif // SUSPENSECORE_TYPES_TRANSACTION_SUSPENSECORETRANSACTIONTYPES_H

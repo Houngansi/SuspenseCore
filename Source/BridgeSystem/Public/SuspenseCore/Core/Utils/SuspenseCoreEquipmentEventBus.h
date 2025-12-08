@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
-#ifndef SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTEVENTBUS_H
-#define SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTEVENTBUS_H
+
+#pragma once
+
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Templates/SharedPointer.h"
@@ -347,6 +348,3 @@ private:
         _EventData.Timestamp=FPlatformTime::Seconds(); \
         FSuspenseEquipmentEventBus::Get()->QueueEvent(_EventData); \
     }
-
-
-#endif // SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTEVENTBUS_H

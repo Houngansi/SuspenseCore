@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -91,4 +91,3 @@ protected:
         checkf(0, TEXT("Do not call interface methods directly! Use Execute_ methods instead."))
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORESLOTUI_H

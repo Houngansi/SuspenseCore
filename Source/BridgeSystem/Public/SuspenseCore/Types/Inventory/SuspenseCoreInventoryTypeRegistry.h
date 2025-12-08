@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYTYPEREGISTRY_H
-#define SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYTYPEREGISTRY_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -157,4 +157,3 @@ private:
 };
 
 
-#endif // SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYTYPEREGISTRY_H

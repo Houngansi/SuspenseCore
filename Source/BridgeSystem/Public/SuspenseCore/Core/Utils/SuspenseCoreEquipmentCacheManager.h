@@ -1,8 +1,7 @@
 // FSuspenseEquipmentCacheManager.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H
-#define SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H
+#pragma once
 
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
@@ -654,6 +653,3 @@ private:
 // Specialized caches
 using FTagQueryCache = FSuspenseEquipmentCacheManager<FGameplayTag, bool>;
 using FItemDataCache = FSuspenseEquipmentCacheManager<FName, TSharedPtr<struct FSuspenseInventoryItemInstance>>;
-
-
-#endif // SUSPENSECORE_CORE_UTILS_SUSPENSECOREEQUIPMENTCACHEMANAGER_H

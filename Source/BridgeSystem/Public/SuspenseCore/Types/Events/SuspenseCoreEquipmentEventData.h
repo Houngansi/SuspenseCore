@@ -1,8 +1,8 @@
 // Types/Events/SuspenseEquipmentEventData.h
 // Copyright MedCom.
 
-#ifndef SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H
-#define SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
@@ -16,4 +16,3 @@
  */
 
 
-#endif // SUSPENSECORE_TYPES_EVENTS_SUSPENSECOREEQUIPMENTEVENTDATA_H

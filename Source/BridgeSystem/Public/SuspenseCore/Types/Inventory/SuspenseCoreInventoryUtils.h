@@ -1,8 +1,8 @@
 // MedComShared/Public/Types/Inventory/SuspenseInventoryUtils.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYUTILS_H
-#define SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYUTILS_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -218,4 +218,3 @@ namespace InventoryUtils
 }
 
 
-#endif // SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYUTILS_H

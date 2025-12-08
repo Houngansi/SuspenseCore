@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H
-#define SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
@@ -305,4 +305,3 @@ struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
 };
 
 
-#endif // SUSPENSECORE_OPERATIONS_SUSPENSECOREINVENTORYRESULT_H

@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYLEGACYTYPES_H
-#define SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYLEGACYTYPES_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
@@ -582,4 +582,3 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
 };
 
 
-#endif // SUSPENSECORE_TYPES_INVENTORY_SUSPENSECOREINVENTORYLEGACYTYPES_H

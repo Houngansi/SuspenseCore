@@ -1,8 +1,8 @@
 // ISuspenseDropTarget.h
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDROPTARGET_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDROPTARGET_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
@@ -66,4 +66,3 @@ public:
     int32 GetDropTargetSlot() const;
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECOREDROPTARGET_H

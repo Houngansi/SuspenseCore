@@ -81,6 +81,7 @@ public:
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override;
 	virtual FText GetSectionDescription() const override;
+#endif
 
 	//========================================================================
 	// Item System Configuration
@@ -197,5 +198,6 @@ public:
 	/** Validate all configured assets */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Settings")
 	bool ValidateConfiguration(TArray<FString>& OutErrors) const;
+#endif
 };
 

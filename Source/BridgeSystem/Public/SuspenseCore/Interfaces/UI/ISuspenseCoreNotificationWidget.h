@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORENOTIFICATIONWIDGET_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORENOTIFICATIONWIDGET_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -149,4 +149,3 @@ public:
     static void BroadcastNotification(const UObject* Widget, const FString& Message, float Duration);
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORENOTIFICATIONWIDGET_H

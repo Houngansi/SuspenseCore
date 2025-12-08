@@ -7,7 +7,7 @@
 #include "Engine/DataTable.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseItemManager.generated.h"
+#include "SuspenseCoreItemManager.generated.h"
 
 /**
  * Item manager subsystem for centralized item data access

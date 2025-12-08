@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H
-#define SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -57,4 +57,3 @@ public:
 	void OnTooltipHidden();
 };
 
-#endif // SUSPENSECORE_INTERFACES_UI_ISUSPENSECORETOOLTIPSOURCE_H

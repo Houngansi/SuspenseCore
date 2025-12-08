@@ -1,7 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#ifndef SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREENEMY_H
-#define SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREENEMY_H
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -126,5 +125,3 @@ public:
      */
     static void BroadcastEnemyWeaponChanged(const UObject* Enemy, AActor* NewWeapon);
 };
-
-#endif // SUSPENSECORE_INTERFACES_CORE_ISUSPENSECOREENEMY_H

@@ -86,10 +86,10 @@ public:
 	void SetValidationOptions(const FSuspenseCoreLoadoutValidationOptions& Options);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetInventoryBridge(TScriptInterface<ISuspenseInventoryBridge> Bridge);
+	void SetInventoryBridge(TScriptInterface<ISuspenseCoreInventoryBridge> Bridge);
 
 	UFUNCTION(BlueprintCallable, Category="Loadout|Configuration")
-	void SetEventDispatcher(TScriptInterface<ISuspenseEventDispatcher> Dispatcher);
+	void SetEventDispatcher(TScriptInterface<ISuspenseCoreEventDispatcher> Dispatcher);
 
 	// Status
 	UFUNCTION(BlueprintCallable, Category="Loadout|Status", BlueprintPure)

@@ -294,13 +294,13 @@ FString USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutPreview(const FName& Loa
 	return GenerateLoadoutPreview(*Config);
 }
 
-void USuspenseCoreEquipmentLoadoutAdapter::SetApplicationStrategy(ELoadoutApplicationStrategy Strategy)
+void USuspenseCoreEquipmentLoadoutAdapter::SetApplicationStrategy(ESuspenseCoreLoadoutApplicationStrategy Strategy)
 {
 	ApplicationStrategy = Strategy;
 	UE_LOG(LogLoadoutAdapter, Log, TEXT("SetApplicationStrategy: %d"), (int32)Strategy);
 }
 
-void USuspenseCoreEquipmentLoadoutAdapter::SetValidationOptions(const FLoadoutValidationOptions& Options)
+void USuspenseCoreEquipmentLoadoutAdapter::SetValidationOptions(const FSuspenseCoreLoadoutValidationOptions& Options)
 {
 	ValidationOptions = Options;
 	UE_LOG(LogLoadoutAdapter, Log, TEXT("SetValidationOptions: updated"));
@@ -343,7 +343,7 @@ float USuspenseCoreEquipmentLoadoutAdapter::EstimateApplicationTime(const FName&
 	if (!Config) { return 0.0f; }
 
 	int32 OperationCount = Config->StartingEquipment.Num();
-	if (ApplicationStrategy == ELoadoutApplicationStrategy::Replace)
+	if (ApplicationStrategy == ESuspenseCoreLoadoutApplicationStrategy::Replace)
 	{
 		if (DataProvider.GetInterface())
 		{
@@ -378,7 +378,7 @@ FLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::ApplyLoadoutConf
 		return FLoadoutApplicationResult::CreateFailure(Config.LoadoutID, TEXT("Failed to begin transaction"));
 	}
 
-	if (ApplicationStrategy == ELoadoutApplicationStrategy::Replace)
+	if (ApplicationStrategy == ESuspenseCoreLoadoutApplicationStrategy::Replace)
 	{
 		if (!ClearCurrentEquipment())
 		{
@@ -463,7 +463,7 @@ FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOper
 	return Req;
 }
 
-bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FLoadoutConfiguration& Config, const FLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const
+bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const
 {
 	bool bValid = true;
 
@@ -724,7 +724,7 @@ void USuspenseCoreEquipmentLoadoutAdapter::NotifyLoadoutChange(const FName& Load
 {
 	if (!EventDispatcher.GetInterface()) { return; }
 
-	FSuspenseCoreEquipmentEventData Event;
+	FSuspenseEquipmentEventData Event;
 	Event.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Loadout.Changed"));
 	Event.Source    = this;
 	Event.Payload   = LoadoutId.ToString();

@@ -79,7 +79,7 @@ public:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     // ISuspenseAbilityConnector (via ISuspenseCoreAbilityConnector alias)
-    virtual bool Initialize(UAbilitySystemComponent* InASC, TScriptInterface<ISuspenseEquipmentDataProvider> InDataProvider) override;
+    virtual bool Initialize(UAbilitySystemComponent* InASC, TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider) override;
     virtual TArray<FGameplayAbilitySpecHandle> GrantEquipmentAbilities(const FSuspenseInventoryItemInstance& ItemInstance) override;
     virtual int32 RemoveGrantedAbilities(const TArray<FGameplayAbilitySpecHandle>& Handles) override;
     virtual TArray<FActiveGameplayEffectHandle> ApplyEquipmentEffects(const FSuspenseInventoryItemInstance& ItemInstance) override;

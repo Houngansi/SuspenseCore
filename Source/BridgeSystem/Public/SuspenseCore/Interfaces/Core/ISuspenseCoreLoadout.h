@@ -14,3 +14,6 @@ using USuspenseCoreLoadout = USuspenseLoadout;
 
 /** Alias for ISuspenseLoadout interface */
 using ISuspenseCoreLoadout = ISuspenseLoadout;
+
+/** Alias for FLoadoutApplicationResult */
+using FSuspenseCoreLoadoutResult = FLoadoutApplicationResult;

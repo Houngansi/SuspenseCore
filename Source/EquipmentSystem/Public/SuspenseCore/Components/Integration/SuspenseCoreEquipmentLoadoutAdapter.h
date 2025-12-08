@@ -8,6 +8,7 @@
 
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreLoadoutAdapter.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
+#include "Interfaces/Core/ISuspenseLoadout.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"

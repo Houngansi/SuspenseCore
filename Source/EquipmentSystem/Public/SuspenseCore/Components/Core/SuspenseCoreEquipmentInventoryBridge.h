@@ -11,6 +11,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "Types/Inventory/SuspenseInventoryTypes.h"
 #include "SuspenseCoreEquipmentInventoryBridge.generated.h"
 
 // Forward declaration
@@ -102,7 +103,7 @@ public:
      * @return true if item can be equipped
      */
     UFUNCTION(BlueprintPure, Category = "Equipment|Bridge")
-    bool CanEquipFromInventory(const FSuspenseCoreInventoryItemInstance& Item, int32 TargetSlot) const;
+    bool CanEquipFromInventory(const FSuspenseInventoryItemInstance& Item, int32 TargetSlot) const;
 
     /**
      * Check if item can be unequipped to inventory

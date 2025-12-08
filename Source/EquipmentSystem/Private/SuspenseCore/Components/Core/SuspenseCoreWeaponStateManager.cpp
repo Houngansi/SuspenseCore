@@ -164,11 +164,11 @@ FGameplayTag USuspenseCoreWeaponStateManager::GetWeaponState(int32 SlotIndex) co
     return FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.None"));
 }
 
-FWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransition(const FWeaponStateTransitionRequest& Request)
+FSuspenseCoreWeaponStateTransitionResult USuspenseCoreWeaponStateManager::RequestStateTransition(const FSuspenseCoreWeaponStateTransitionRequest& Request)
 {
     FScopeLock Lock(&StateMachineLock);
 
-    FWeaponStateTransitionResult Result;
+    FSuspenseCoreWeaponStateTransitionResult Result;
     Result.bSuccess = false;
 
     int32 SlotIndex = Request.WeaponSlotIndex;
@@ -501,14 +501,14 @@ void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
     // Auto-transition for intermediate states
     if (StateMachine->CurrentState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing")))
     {
-        FWeaponStateTransitionRequest AutoTransition;
+        FSuspenseCoreWeaponStateTransitionRequest AutoTransition;
         AutoTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
         AutoTransition.WeaponSlotIndex = SlotIndex;
         RequestStateTransition(AutoTransition);
     }
     else if (StateMachine->CurrentState == FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering")))
     {
-        FWeaponStateTransitionRequest AutoTransition;
+        FSuspenseCoreWeaponStateTransitionRequest AutoTransition;
         AutoTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
         AutoTransition.WeaponSlotIndex = SlotIndex;
         RequestStateTransition(AutoTransition);

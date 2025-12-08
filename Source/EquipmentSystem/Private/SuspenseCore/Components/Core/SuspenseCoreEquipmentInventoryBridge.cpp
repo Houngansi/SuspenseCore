@@ -125,10 +125,10 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
         const FGameplayTag ServiceTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operation"));
         if (UObject* SvcObj = Locator->GetService(ServiceTag))
         {
-            if (SvcObj->GetClass()->ImplementsInterface(UEquipmentOperationService::StaticClass()))
+            if (SvcObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentOperationServiceInterface::StaticClass()))
             {
                 EquipmentService.SetObject(SvcObj);
-                EquipmentService.SetInterface(Cast<IEquipmentOperationService>(SvcObj));
+                EquipmentService.SetInterface(Cast<ISuspenseCoreEquipmentOperationServiceInterface>(SvcObj));
                 UE_LOG(LogEquipmentBridge, Log, TEXT("OperationService acquired via locator"));
             }
         }

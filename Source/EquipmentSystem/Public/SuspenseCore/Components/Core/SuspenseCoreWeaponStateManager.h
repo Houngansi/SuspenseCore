@@ -102,9 +102,9 @@ public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
     //~ End UActorComponent Interface
 
-    //~ Begin ISuspenseWeaponStateProvider Interface
+    //~ Begin ISuspenseCoreWeaponStateProvider Interface
     virtual FGameplayTag GetWeaponState(int32 SlotIndex = -1) const override;
-    virtual FWeaponStateTransitionResult RequestStateTransition(const FWeaponStateTransitionRequest& Request) override;
+    virtual FSuspenseCoreWeaponStateTransitionResult RequestStateTransition(const FSuspenseCoreWeaponStateTransitionRequest& Request) override;
     virtual bool CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
     virtual TArray<FGameplayTag> GetValidTransitions(const FGameplayTag& CurrentState) const override;
     virtual bool ForceState(const FGameplayTag& NewState, int32 SlotIndex = -1) override;
@@ -113,7 +113,7 @@ public:
     virtual float GetTransitionProgress(int32 SlotIndex = -1) const override;
     virtual bool AbortTransition(int32 SlotIndex = -1) override;
     virtual TArray<FGameplayTag> GetStateHistory(int32 MaxCount = 10) const override;
-    //~ End ISuspenseWeaponStateProvider Interface
+    //~ End ISuspenseCoreWeaponStateProvider Interface
 
     /**
      * Initialize with dependencies
@@ -121,7 +121,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon|State")
     bool Initialize(
         TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider,
-        TScriptInterface<ISuspenseEventDispatcher> EventDispatcher
+        TScriptInterface<ISuspenseCoreEventDispatcher> EventDispatcher
     );
 
     /**

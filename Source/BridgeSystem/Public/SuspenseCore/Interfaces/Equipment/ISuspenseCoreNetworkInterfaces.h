@@ -241,15 +241,3 @@ public:
     /** Handle replication callback */
     virtual void OnReplicationCallback(const FName& PropertyName) = 0;
 };
-
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Legacy type aliases for implementation files using old names */
-using ISuspenseReplicationProvider = ISuspenseCoreReplicationProvider;
-using USuspenseReplicationProvider = USuspenseCoreReplicationProvider;
-using ISuspensePredictionManager = ISuspenseCorePredictionManager;
-using USuspensePredictionManager = USuspenseCorePredictionManager;
-using ISuspenseNetworkDispatcher = ISuspenseCoreNetworkDispatcher;
-using USuspenseNetworkDispatcher = USuspenseCoreNetworkDispatcher;

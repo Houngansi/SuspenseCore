@@ -160,11 +160,3 @@ public:
 		_Data.SetString(FName(Key), Value); \
 		EventBus->Publish(EventTag, _Data); \
 	}
-
-//========================================
-// Backward Compatibility Aliases
-//========================================
-
-/** Legacy interface alias for existing implementation files */
-using ISuspenseEventDispatcher = ISuspenseCoreEventDispatcher;
-using USuspenseEventDispatcher = USuspenseCoreEventDispatcher;

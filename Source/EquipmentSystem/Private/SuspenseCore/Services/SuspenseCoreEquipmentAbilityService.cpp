@@ -57,11 +57,11 @@ bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCore
     // Load default mappings
     InitializeDefaultMappings();
 
-    // Initialize S7 event tags (non-fatal if tags not found)
-    Tag_OnEquipped        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"), /*ErrorIfNotFound*/false);
-    Tag_OnUnequipped      = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"), /*ErrorIfNotFound*/false);
-    Tag_OnAbilitiesRefresh= FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Ability.Refresh"), /*ErrorIfNotFound*/false);
-    Tag_OnCommit          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Commit"), /*ErrorIfNotFound*/false);
+    // Initialize S7 event tags using SuspenseCore.Event.* format (per BestPractices.md)
+    Tag_OnEquipped        = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Equipped"), /*ErrorIfNotFound*/false);
+    Tag_OnUnequipped      = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Unequipped"), /*ErrorIfNotFound*/false);
+    Tag_OnAbilitiesRefresh= FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Ability.Refresh"), /*ErrorIfNotFound*/false);
+    Tag_OnCommit          = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Commit"), /*ErrorIfNotFound*/false);
 
     // Setup event handlers
     SetupEventHandlers();
@@ -137,15 +137,16 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
     EquipmentConnectors.Empty();
     EquipmentToOwnerMap.Empty();
 
-    // Безопасная отписка от EventBus
-    if (auto EventBus = FSuspenseEquipmentEventBus::Get())
+    // Безопасная отписка от EventBus (SuspenseCore architecture)
+    if (EventBus)
     {
-        for (const FEventSubscriptionHandle& Handle : EventSubscriptions)
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
         {
             EventBus->Unsubscribe(Handle);
         }
     }
     EventSubscriptions.Empty();
+    EventBus = nullptr;
 
     // Безопасная очистка кеша
     if (MappingCache.IsValid())
@@ -168,7 +169,7 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
 
 FGameplayTag USuspenseCoreEquipmentAbilityService::GetServiceTag() const
 {
-    return FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Ability"));
+    return FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Service.Equipment.Ability"));
 }
 
 FGameplayTagContainer USuspenseCoreEquipmentAbilityService::GetRequiredDependencies() const
@@ -910,63 +911,81 @@ void USuspenseCoreEquipmentAbilityService::InitializeDefaultMappings()
 
 void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
 {
-    auto EventBus = FSuspenseEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    using namespace SuspenseCoreEquipmentTags;
+
+    // Get EventBus from ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (!EventBus)
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-            TEXT("EventBus not available, event handling disabled"));
+            TEXT("EventBus not available from ServiceProvider, event handling disabled"));
         return;
     }
 
-    // Spawned
-    FEventSubscriptionHandle SpawnedHandle = EventBus->Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Spawned")),
-        FEventHandlerDelegate::CreateUObject(
+    // Spawned - using SuspenseCore.Event.Equipment.Visual.Spawned tag
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        Event::TAG_Equipment_Event_Visual_Spawned,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(
             this, &USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned),
-        EEventPriority::High
-    );
-    EventSubscriptions.Add(SpawnedHandle);
+        ESuspenseCoreEventPriority::High
+    ));
 
-    // Destroyed
-    FEventSubscriptionHandle DestroyedHandle = EventBus->Subscribe(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Destroyed")),
-        FEventHandlerDelegate::CreateUObject(
+    // Destroyed - using SuspenseCore.Event.Equipment.Visual.Detached tag
+    EventSubscriptions.Add(EventBus->SubscribeNative(
+        Event::TAG_Equipment_Event_Visual_Detached,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(
             this, &USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed),
-        EEventPriority::High
-    );
-    EventSubscriptions.Add(DestroyedHandle);
+        ESuspenseCoreEventPriority::High
+    ));
 
-    // === S7: Equipped / Unequipped / Refresh / Commit ===
+    // Equipped event (SuspenseCore.Event.Equipment.Equipped)
     if (Tag_OnEquipped.IsValid())
     {
-        EventSubscriptions.Add(EventBus->Subscribe(
+        EventSubscriptions.Add(EventBus->SubscribeNative(
             Tag_OnEquipped,
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnEquipped),
-            EEventPriority::High));
-    }
-    if (Tag_OnUnequipped.IsValid())
-    {
-        EventSubscriptions.Add(EventBus->Subscribe(
-            Tag_OnUnequipped,
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnUnequipped),
-            EEventPriority::High));
-    }
-    if (Tag_OnAbilitiesRefresh.IsValid())
-    {
-        EventSubscriptions.Add(EventBus->Subscribe(
-            Tag_OnAbilitiesRefresh,
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh),
-            EEventPriority::Normal));
-    }
-    if (Tag_OnCommit.IsValid())
-    {
-        EventSubscriptions.Add(EventBus->Subscribe(
-            Tag_OnCommit,
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnCommit),
-            EEventPriority::Normal));
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnEquipped),
+            ESuspenseCoreEventPriority::High));
     }
 
-    UE_LOG(LogSuspenseCoreEquipmentAbility, Log, TEXT("Event handlers registered"));
+    // Unequipped event (SuspenseCore.Event.Equipment.Unequipped)
+    if (Tag_OnUnequipped.IsValid())
+    {
+        EventSubscriptions.Add(EventBus->SubscribeNative(
+            Tag_OnUnequipped,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnUnequipped),
+            ESuspenseCoreEventPriority::High));
+    }
+
+    // Abilities refresh event (SuspenseCore.Event.Equipment.Ability.Refresh)
+    if (Tag_OnAbilitiesRefresh.IsValid())
+    {
+        EventSubscriptions.Add(EventBus->SubscribeNative(
+            Tag_OnAbilitiesRefresh,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh),
+            ESuspenseCoreEventPriority::Normal));
+    }
+
+    // Commit event (SuspenseCore.Event.Equipment.Commit)
+    if (Tag_OnCommit.IsValid())
+    {
+        EventSubscriptions.Add(EventBus->SubscribeNative(
+            Tag_OnCommit,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnCommit),
+            ESuspenseCoreEventPriority::Normal));
+    }
+
+    UE_LOG(LogSuspenseCoreEquipmentAbility, Log,
+        TEXT("Event handlers registered: %d subscriptions"), EventSubscriptions.Num());
 }
 
 void USuspenseCoreEquipmentAbilityService::EnsureValidConfig()
@@ -982,17 +1001,17 @@ void USuspenseCoreEquipmentAbilityService::EnsureValidConfig()
         MappingCacheTTL, CleanupInterval);
 }
 
-void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    // Parse structured event data
+    // Parse structured event data from SuspenseCore event
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
 
-    if (!ParseEquipmentEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
+    if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-            TEXT("Failed to parse equipment spawned event"));
+            TEXT("Failed to parse equipment spawned event [%s]"), *EventTag.ToString());
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
@@ -1001,9 +1020,9 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(const FSuspenseEqu
     ServiceMetrics.Inc(FName("Ability.Events.Spawned"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
+    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
     if (!EquipmentActor)
     {
         ServiceMetrics.Inc(FName("Ability.Events.InvalidSource"));
@@ -1014,16 +1033,16 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(const FSuspenseE
     ServiceMetrics.Inc(FName("Ability.Events.Destroyed"));
 }
 
-// === S7 Handlers ===
+// === S7 Handlers (SuspenseCore Event format) ===
 
-void USuspenseCoreEquipmentAbilityService::OnEquipped(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
-    if (!ParseEquipmentEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
+    if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
-        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnEquipped: parse failed"));
+        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnEquipped [%s]: parse failed"), *EventTag.ToString());
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
@@ -1031,17 +1050,17 @@ void USuspenseCoreEquipmentAbilityService::OnEquipped(const FSuspenseEquipmentEv
     ServiceMetrics.Inc(FName("Ability.Events.Equipped"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnUnequipped(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    AActor* EquipmentActor = Cast<AActor>(EventData.Source.Get());
+    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
     if (!EquipmentActor)
     {
         // Try full parse (in case source differs)
         FSuspenseInventoryItemInstance Item;
         AActor* Owner = nullptr;
-        if (!ParseEquipmentEventData(EventData, Item, EquipmentActor, Owner) || !EquipmentActor)
+        if (!ParseSuspenseCoreEventData(EventData, Item, EquipmentActor, Owner) || !EquipmentActor)
         {
-            UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnUnequipped: invalid source"));
+            UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnUnequipped [%s]: invalid source"), *EventTag.ToString());
             ServiceMetrics.Inc(FName("Ability.Events.InvalidSource"));
             return;
         }
@@ -1050,14 +1069,14 @@ void USuspenseCoreEquipmentAbilityService::OnUnequipped(const FSuspenseEquipment
     ServiceMetrics.Inc(FName("Ability.Events.Unequipped"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
-    if (!ParseEquipmentEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
+    if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
-        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnAbilitiesRefresh: parse failed"));
+        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnAbilitiesRefresh [%s]: parse failed"), *EventTag.ToString());
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
@@ -1065,14 +1084,14 @@ void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(const FSuspenseEqu
     ServiceMetrics.Inc(FName("Ability.Events.Refresh"));
 }
 
-void USuspenseCoreEquipmentAbilityService::OnCommit(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentAbilityService::OnCommit(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     FSuspenseInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
-    if (!ParseEquipmentEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
+    if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
-        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnCommit: parse failed"));
+        UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("OnCommit [%s]: parse failed"), *EventTag.ToString());
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
@@ -1251,52 +1270,69 @@ FGameplayTagContainer USuspenseCoreEquipmentAbilityService::GetEquipmentTags(AAc
     return Tags;
 }
 
-bool USuspenseCoreEquipmentAbilityService::ParseEquipmentEventData(
-    const FSuspenseEquipmentEventData& EventData,
+bool USuspenseCoreEquipmentAbilityService::ParseSuspenseCoreEventData(
+    const FSuspenseCoreEventData& EventData,
     FSuspenseInventoryItemInstance& OutItem,
     AActor*& OutEquipmentActor,
     AActor*& OutOwnerActor) const
 {
-    // Equipment actor should be in Source
-    OutEquipmentActor = Cast<AActor>(EventData.Source.Get());
+    // Equipment actor should be in Source (using FSuspenseCoreEventData API)
+    OutEquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
     if (!OutEquipmentActor)
     {
         return false;
     }
 
     // Owner should be in Target
-    OutOwnerActor = Cast<AActor>(EventData.Target.Get());
+    OutOwnerActor = Cast<AActor>(EventData.GetObject(FName("Target")));
     if (!OutOwnerActor)
     {
         return false;
     }
 
-    // Try to parse item data from metadata
-    FString ItemIDStr = EventData.GetMetadata(TEXT("ItemID"));
+    // Parse item data from FSuspenseCoreEventData (uses TMap<FName, FString> for strings)
+    FString ItemIDStr = EventData.GetString(FName("ItemID"));
     if (!ItemIDStr.IsEmpty())
     {
         OutItem.ItemID = *ItemIDStr;
 
-        FString InstanceIDStr = EventData.GetMetadata(TEXT("InstanceID"));
+        FString InstanceIDStr = EventData.GetString(FName("InstanceID"));
         if (!InstanceIDStr.IsEmpty())
         {
             FGuid::Parse(InstanceIDStr, OutItem.InstanceID);
         }
 
-        FString QuantityStr = EventData.GetMetadata(TEXT("Quantity"));
-        if (!QuantityStr.IsEmpty())
+        // Quantity can be stored as int or string
+        int32 Quantity = EventData.GetInt(FName("Quantity"));
+        if (Quantity > 0)
         {
-            OutItem.Quantity = FCString::Atoi(*QuantityStr);
+            OutItem.Quantity = Quantity;
+        }
+        else
+        {
+            FString QuantityStr = EventData.GetString(FName("Quantity"));
+            if (!QuantityStr.IsEmpty())
+            {
+                OutItem.Quantity = FCString::Atoi(*QuantityStr);
+            }
+        }
+
+        // Try to get anchor index
+        int32 AnchorIndex = EventData.GetInt(FName("AnchorIndex"));
+        if (AnchorIndex != 0) // 0 is default, check if explicitly set
+        {
+            OutItem.AnchorIndex = AnchorIndex;
         }
 
         return OutItem.IsValid();
     }
 
-    // Fallback: Try JSON parsing from payload
-    if (!EventData.Payload.IsEmpty())
+    // Fallback: Try JSON parsing from Payload string field
+    FString PayloadStr = EventData.GetString(FName("Payload"));
+    if (!PayloadStr.IsEmpty())
     {
         TSharedPtr<FJsonObject> JsonObject;
-        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(EventData.Payload);
+        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(PayloadStr);
 
         if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
         {

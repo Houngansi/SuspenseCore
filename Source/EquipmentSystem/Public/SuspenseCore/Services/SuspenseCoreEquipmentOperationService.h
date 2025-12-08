@@ -23,7 +23,7 @@
 #include "Containers/Ticker.h"
 #include <atomic>
 
-#include "Types/Events/SuspenseEquipmentEventData.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentOperationService.generated.h"
 
 class USuspenseCoreEquipmentValidationService;
@@ -309,11 +309,11 @@ protected:
                         const FEquipmentStateSnapshot& StateBefore);
     void PruneHistory();
 
-    // Event Handling
+    // Event Handling (SuspenseCore EventBus)
     void PublishOperationEvent(const FEquipmentOperationResult& Result);
-    void OnValidationRulesChanged(const FSuspenseEquipmentEventData& EventData);
-    void OnDataStateChanged(const FSuspenseEquipmentEventData& EventData);
-    void OnNetworkOperationResult(const FSuspenseEquipmentEventData& EventData);
+    void OnValidationRulesChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnDataStateChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnNetworkOperationResult(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
     // Statistics and Logging
     void UpdateStatistics(const FEquipmentOperationResult& Result);

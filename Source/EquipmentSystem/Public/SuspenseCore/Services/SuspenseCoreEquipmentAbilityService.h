@@ -16,7 +16,7 @@
 #include "Engine/StreamableManager.h"
 #include <atomic>
 
-#include "Types/Events/SuspenseEquipmentEventData.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentAbilityService.generated.h"
 
 // Forward declarations
@@ -181,17 +181,17 @@ protected:
     /** Ensure configuration is valid */
     void EnsureValidConfig();
 
-    /** Handle equipment spawned event */
-    void OnEquipmentSpawned(const FSuspenseEquipmentEventData& EventData);
+    /** Handle equipment spawned event (SuspenseCore EventBus) */
+    void OnEquipmentSpawned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-    /** Handle equipment destroyed event */
-    void OnEquipmentDestroyed(const FSuspenseEquipmentEventData& EventData);
+    /** Handle equipment destroyed event (SuspenseCore EventBus) */
+    void OnEquipmentDestroyed(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
-    /** New S7 handlers */
-    void OnEquipped(const FSuspenseEquipmentEventData& EventData);
-    void OnUnequipped(const FSuspenseEquipmentEventData& EventData);
-    void OnAbilitiesRefresh(const FSuspenseEquipmentEventData& EventData);
-    void OnCommit(const FSuspenseEquipmentEventData& EventData);
+    /** S7 handlers (SuspenseCore EventBus) */
+    void OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnAbilitiesRefresh(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnCommit(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
     /** Handle equipment actor destroyed directly */
     UFUNCTION()
@@ -213,9 +213,9 @@ protected:
     /** Get gameplay tags from equipment actor */
     FGameplayTagContainer GetEquipmentTags(AActor* EquipmentActor) const;
 
-    /** Parse equipment event data */
-    bool ParseEquipmentEventData(
-        const FSuspenseEquipmentEventData& EventData,
+    /** Parse SuspenseCore event data (new architecture) */
+    bool ParseSuspenseCoreEventData(
+        const FSuspenseCoreEventData& EventData,
         FSuspenseInventoryItemInstance& OutItem,
         AActor*& OutEquipmentActor,
         AActor*& OutOwnerActor

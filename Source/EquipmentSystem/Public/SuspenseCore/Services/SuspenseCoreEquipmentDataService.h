@@ -14,7 +14,7 @@
 #include "Types/Loadout/SuspenseLoadoutSettings.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Delegates/Delegate.h"
-#include "Types/Events/SuspenseEquipmentEventData.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentDataService.generated.h"
 
 // Forward declarations
@@ -257,9 +257,9 @@ protected:
     void SetupEventSubscriptions();
 
     /**
-     * Handle cache invalidation event
+     * Handle cache invalidation event (SuspenseCore EventBus)
      */
-    void OnCacheInvalidation(const FSuspenseEquipmentEventData& EventData);
+    void OnCacheInvalidation(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
     /**
      * Handle transaction completion
@@ -287,9 +287,9 @@ protected:
     void BroadcastBatchDeltas(const TArray<FEquipmentDelta>& Deltas);
 
     /**
-     * Handle external request to resend current state as deltas (ketchup refresh)
+     * Handle external request to resend current state as deltas (SuspenseCore EventBus)
      */
-    void OnResendRequested(const FSuspenseEquipmentEventData& EventData);
+    void OnResendRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 
     /**

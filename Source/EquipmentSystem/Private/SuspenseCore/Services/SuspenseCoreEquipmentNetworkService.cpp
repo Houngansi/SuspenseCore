@@ -3,6 +3,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentSecurityService.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
@@ -1198,39 +1199,36 @@ void USuspenseCoreEquipmentNetworkService::SetupEventSubscriptions()
 {
     using namespace SuspenseCoreEquipmentTags;
 
-    // Get EventBus singleton
-    EventBus = FSuspenseEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    // Get EventBus from ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (!EventBus)
     {
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
-            TEXT("SetupEventSubscriptions: EventBus not available"));
+            TEXT("SetupEventSubscriptions: EventBus not available from ServiceProvider"));
         return;
     }
 
-    // Initialize event tags using native compile-time tags
+    // Initialize event tags using native compile-time tags (SuspenseCore.Event.* format)
     Tag_NetworkResult = Event::TAG_Equipment_Event_Network_Result;
     Tag_NetworkTimeout = Event::TAG_Equipment_Event_Network_Timeout;
     Tag_SecurityViolation = Event::TAG_Equipment_Event_Network_SecurityViolation;
     Tag_OperationCompleted = Event::TAG_Equipment_Event_Operation_Completed;
 
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid())
-    {
-        return;
-    }
-
     // Subscribe to operation completed events to track network-related operations
     if (Tag_OperationCompleted.IsValid())
     {
-        EventSubscriptions.Add(Bus->Subscribe(
+        EventSubscriptions.Add(EventBus->SubscribeNative(
             Tag_OperationCompleted,
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentNetworkService::OnOperationCompleted),
-            EEventPriority::Normal,
-            EEventExecutionContext::GameThread,
-            this));
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentNetworkService::OnOperationCompleted),
+            ESuspenseCoreEventPriority::Normal));
 
         UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
-            TEXT("Subscribed to Operation.Completed events"));
+            TEXT("Subscribed to SuspenseCore.Event.Equipment.Operation.Completed events"));
     }
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log,
@@ -1240,15 +1238,15 @@ void USuspenseCoreEquipmentNetworkService::SetupEventSubscriptions()
 
 void USuspenseCoreEquipmentNetworkService::TeardownEventSubscriptions()
 {
-    if (auto Bus = EventBus.Pin())
+    if (EventBus)
     {
-        for (const auto& Handle : EventSubscriptions)
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
         {
-            Bus->Unsubscribe(Handle);
+            EventBus->Unsubscribe(Handle);
         }
     }
     EventSubscriptions.Empty();
-    EventBus.Reset();
+    EventBus = nullptr;
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
         TEXT("EventBus subscriptions torn down"));
@@ -1259,25 +1257,24 @@ void USuspenseCoreEquipmentNetworkService::BroadcastNetworkResult(
     const FGuid& OperationId,
     const FString& ErrorMessage)
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_NetworkResult.IsValid())
+    if (!EventBus || !Tag_NetworkResult.IsValid())
     {
         return;
     }
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = Tag_NetworkResult;
-    EventData.AddMetadata(TEXT("Success"), bSuccess ? TEXT("true") : TEXT("false"));
-    EventData.AddMetadata(TEXT("OperationId"), OperationId.ToString());
+    // Create event data using SuspenseCore types
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetString(FName("Success"), bSuccess ? TEXT("true") : TEXT("false"));
+    EventData.SetString(FName("OperationId"), OperationId.ToString());
     if (!bSuccess && !ErrorMessage.IsEmpty())
     {
-        EventData.AddMetadata(TEXT("ErrorMessage"), ErrorMessage);
+        EventData.SetString(FName("ErrorMessage"), ErrorMessage);
     }
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_NetworkResult, EventData);
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
-        TEXT("Broadcast Network.Result: Success=%s, OpId=%s"),
+        TEXT("Broadcast SuspenseCore.Event.Equipment.Network.Result: Success=%s, OpId=%s"),
         bSuccess ? TEXT("true") : TEXT("false"),
         *OperationId.ToString());
 }
@@ -1287,39 +1284,39 @@ void USuspenseCoreEquipmentNetworkService::BroadcastSecurityViolation(
     APlayerController* PlayerController,
     const FString& Details)
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_SecurityViolation.IsValid())
+    if (!EventBus || !Tag_SecurityViolation.IsValid())
     {
         return;
     }
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = Tag_SecurityViolation;
-    EventData.Target = PlayerController;
-    EventData.AddMetadata(TEXT("ViolationType"), ViolationType);
-    EventData.AddMetadata(TEXT("Details"), Details);
+    // Create event data using SuspenseCore types
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetObject(FName("Target"), PlayerController);
+    EventData.SetString(FName("ViolationType"), ViolationType);
+    EventData.SetString(FName("Details"), Details);
 
     if (PlayerController)
     {
         if (APlayerState* PS = PlayerController->GetPlayerState<APlayerState>())
         {
-            EventData.AddMetadata(TEXT("PlayerName"), PS->GetPlayerName());
+            EventData.SetString(FName("PlayerName"), PS->GetPlayerName());
         }
     }
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_SecurityViolation, EventData);
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning,
-        TEXT("Broadcast Security.Violation: Type=%s, Details=%s"),
+        TEXT("Broadcast SuspenseCore.Event.Equipment.Network.SecurityViolation: Type=%s, Details=%s"),
         *ViolationType, *Details);
 }
 
 void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
-    const FSuspenseEquipmentEventData& EventData)
+    FGameplayTag EventTag,
+    const FSuspenseCoreEventData& EventData)
 {
     // Handle operation completed events - update network metrics
-    const FString OpIdStr = EventData.GetMetadata(TEXT("OperationId"), TEXT(""));
-    const FString SuccessStr = EventData.GetMetadata(TEXT("Success"), TEXT("false"));
+    const FString OpIdStr = EventData.GetString(FName("OperationId"), TEXT(""));
+    const FString SuccessStr = EventData.GetString(FName("Success"), TEXT("false"));
     const bool bSuccess = SuccessStr.Equals(TEXT("true"), ESearchCase::IgnoreCase);
 
     FGuid OperationId;
@@ -1337,6 +1334,6 @@ void USuspenseCoreEquipmentNetworkService::OnOperationCompleted(
     }
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
-        TEXT("OnOperationCompleted: OpId=%s, Success=%s"),
-        *OpIdStr, bSuccess ? TEXT("true") : TEXT("false"));
+        TEXT("OnOperationCompleted [%s]: OpId=%s, Success=%s"),
+        *EventTag.ToString(), *OpIdStr, bSuccess ? TEXT("true") : TEXT("false"));
 }

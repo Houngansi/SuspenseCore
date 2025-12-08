@@ -3,6 +3,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentRulesService.h"
 #include "SuspenseCore/Components/Rules/SuspenseCoreRulesCoordinator.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "HAL/PlatformTime.h"
@@ -508,7 +509,17 @@ void USuspenseCoreEquipmentRulesService::CleanupExpiredCache() const
 
 void USuspenseCoreEquipmentRulesService::SetupEventBus()
 {
-    EventBus = FSuspenseEquipmentEventBus::Get();
+    // Get EventBus from ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (!EventBus)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentRules, Warning,
+            TEXT("EventBus not available from ServiceProvider, validation events disabled"));
+    }
 
     using namespace SuspenseCoreEquipmentTags;
     Tag_Validation_Started = Event::TAG_Equipment_Event_Validation_Started;
@@ -518,52 +529,50 @@ void USuspenseCoreEquipmentRulesService::SetupEventBus()
 
 void USuspenseCoreEquipmentRulesService::TeardownEventBus()
 {
-    auto Bus = EventBus.Pin();
-    if (Bus.IsValid())
+    if (EventBus)
     {
-        for (const FEventSubscriptionHandle& Handle : EventSubscriptions)
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
         {
-            Bus->Unsubscribe(Handle);
+            EventBus->Unsubscribe(Handle);
         }
     }
     EventSubscriptions.Empty();
+    EventBus = nullptr;
 }
 
 void USuspenseCoreEquipmentRulesService::BroadcastValidationStarted(const FEquipmentOperationRequest& Request) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Validation_Started.IsValid()) return;
+    if (!EventBus || !Tag_Validation_Started.IsValid()) return;
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = Tag_Validation_Started;
-    EventData.AddMetadata(TEXT("ItemId"), Request.ItemInstance.ItemID.ToString());
-    EventData.AddMetadata(TEXT("OperationType"), FString::FromInt(static_cast<int32>(Request.OperationType)));
-    EventData.AddMetadata(TEXT("TargetSlot"), FString::FromInt(Request.TargetSlotIndex));
+    // Create event data using FSuspenseCoreEventData (SuspenseCore architecture)
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentRulesService*>(this));
+    EventData.SetString(FName("ItemId"), Request.ItemInstance.ItemID.ToString());
+    EventData.SetInt(FName("OperationType"), static_cast<int32>(Request.OperationType));
+    EventData.SetInt(FName("TargetSlot"), Request.TargetSlotIndex);
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Validation_Started, EventData);
 }
 
 void USuspenseCoreEquipmentRulesService::BroadcastValidationResult(
     const FEquipmentOperationRequest& Request,
-    const FRuleEvaluationResult& Result) const
+    const FSuspenseCoreRuleResult& Result) const
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid()) return;
+    if (!EventBus) return;
 
     const FGameplayTag ResultTag = Result.bPassed ? Tag_Validation_Passed : Tag_Validation_Failed;
     if (!ResultTag.IsValid()) return;
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = ResultTag;
-    EventData.AddMetadata(TEXT("ItemId"), Request.ItemInstance.ItemID.ToString());
-    EventData.AddMetadata(TEXT("OperationType"), FString::FromInt(static_cast<int32>(Request.OperationType)));
-    EventData.AddMetadata(TEXT("Passed"), Result.bPassed ? TEXT("true") : TEXT("false"));
+    // Create event data using FSuspenseCoreEventData (SuspenseCore architecture)
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentRulesService*>(this));
+    EventData.SetString(FName("ItemId"), Request.ItemInstance.ItemID.ToString());
+    EventData.SetInt(FName("OperationType"), static_cast<int32>(Request.OperationType));
+    EventData.SetString(FName("Passed"), Result.bPassed ? TEXT("true") : TEXT("false"));
     if (!Result.bPassed)
     {
-        EventData.AddMetadata(TEXT("FailureReason"), Result.FailureReason);
+        EventData.SetString(FName("FailureReason"), Result.FailureReason);
     }
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(ResultTag, EventData);
 }
 
 void USuspenseCoreEquipmentRulesService::UpdateMetrics(double EvaluationStartTime, bool bPassed) const

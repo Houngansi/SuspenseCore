@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
@@ -488,8 +489,17 @@ bool USuspenseCoreEquipmentDataService::ShutdownService(bool bForce)
 
         ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
-        // Clear event subscriptions and delegates
-        EventScope.UnsubscribeAll();
+        // Clear event subscriptions and delegates (SuspenseCore architecture)
+        if (EventBus)
+        {
+            for (const FSuspenseCoreSubscriptionHandle& Handle : EventHandles)
+            {
+                EventBus->Unsubscribe(Handle);
+            }
+        }
+        EventHandles.Empty();
+        EventBus = nullptr;
+
         OnEquipmentDeltaDelegate.Clear();
         OnBatchDeltasDelegate.Clear();
 
@@ -1660,27 +1670,41 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
     );
 
     // ===================================================================
-    // Подписка на глобальные события через EventBus
+    // Подписка на глобальные события через EventBus (SuspenseCore architecture)
     // ===================================================================
 
-    auto EventBus = FSuspenseEquipmentEventBus::Get();
-    if (EventBus.IsValid())
+    // Get EventBus from ServiceProvider (per BestPractices.md)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (EventBus)
     {
         // Подписываемся на запросы инвалидации кэша от других систем
-        EventScope.Subscribe(
-            FGameplayTag::RequestGameplayTag(TEXT("Cache.Invalidate.Equipment")),
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentDataService::OnCacheInvalidation)
-        );
+        EventHandles.Add(EventBus->SubscribeNative(
+            FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Cache.Invalidate.Equipment"), false),
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentDataService::OnCacheInvalidation),
+            ESuspenseCoreEventPriority::Normal
+        ));
 
         // S8: Subscribe to resend requests (state refresh)
-        EventScope.Subscribe(
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestResend")),
-            FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentDataService::OnResendRequested)
-        );
-
+        EventHandles.Add(EventBus->SubscribeNative(
+            FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.RequestResend"), false),
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentDataService::OnResendRequested),
+            ESuspenseCoreEventPriority::Normal
+        ));
 
         UE_LOG(LogSuspenseCoreEquipmentData, Log,
-            TEXT("SetupEventSubscriptions: Subscribed to global cache invalidation events"));
+            TEXT("SetupEventSubscriptions: Subscribed to global cache invalidation events (%d handles)"),
+            EventHandles.Num());
+    }
+    else
+    {
+        UE_LOG(LogSuspenseCoreEquipmentData, Warning,
+            TEXT("SetupEventSubscriptions: EventBus not available from ServiceProvider"));
     }
 
     // ===================================================================
@@ -1703,24 +1727,22 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
         TEXT("SetupEventSubscriptions: All event subscriptions configured"));
 }
 
-void USuspenseCoreEquipmentDataService::OnCacheInvalidation(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentDataService::OnCacheInvalidation(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    // Parse slot index from event payload if available
-    int32 SlotIndex = -1;
+    // Parse slot index from event data (SuspenseCore architecture)
+    int32 SlotIndex = EventData.GetInt(FName("SlotIndex"));
 
-    TArray<FString> Params;
-    EventData.Payload.ParseIntoArray(Params, TEXT(","));
-
-    for (const FString& Param : Params)
+    // If not found as int, try string parsing (backwards compatibility)
+    if (SlotIndex == 0)
     {
-        FString Key, Value;
-        if (Param.Split(TEXT(":"), &Key, &Value))
+        FString SlotIndexStr = EventData.GetString(FName("SlotIndex"));
+        if (!SlotIndexStr.IsEmpty())
         {
-            if (Key == TEXT("SlotIndex"))
-            {
-                SlotIndex = FCString::Atoi(*Value);
-                break;
-            }
+            SlotIndex = FCString::Atoi(*SlotIndexStr);
+        }
+        else
+        {
+            SlotIndex = -1; // Default: invalidate all
         }
     }
 
@@ -1864,69 +1886,65 @@ void USuspenseCoreEquipmentDataService::BroadcastDelta(const FEquipmentDelta& De
     // Broadcast through delegate (now guaranteed on game thread)
     OnEquipmentDeltaDelegate.Broadcast(Delta);
 
-    // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Транслируем дельты в правильные события
-    auto EventBus = FSuspenseEquipmentEventBus::Get();
-    if (EventBus.IsValid())
+    // Broadcast deltas through EventBus (SuspenseCore architecture)
+    if (!EventBus)
     {
-        FSuspenseEquipmentEventData EventData;
-        EventData.Source = this;
-        EventData.Timestamp = FPlatformTime::Seconds();
-        EventData.Priority = EEventPriority::Normal;
+        return;
+    }
 
-        // Определяем тип события на основе типа операции в дельте
-        const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
-        const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
-        const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
-        const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
+    // Create event data using FSuspenseCoreEventData
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
 
-        // 🎯 КЛЮЧЕВАЯ ЛОГИКА: Преобразуем операции в события
-        if (Delta.ChangeType.MatchesTag(OperationEquip) || Delta.ChangeType.MatchesTag(OperationSet))
-        {
-            // ЭТО СОБЫТИЕ ТРИГГЕРИТ СПАВН ВИЗУАЛЬНОГО АКТОРА!
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
+    // Set target (owner of equipment)
+    if (DataStore)
+    {
+        EventData.SetObject(FName("Target"), DataStore->GetOwner());
+    }
 
-            // Добавляем критически важные метаданные для VisualizationService
-            EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
-            EventData.AddMetadata(TEXT("ItemID"), Delta.ItemAfter.ItemID.ToString());
-            EventData.AddMetadata(TEXT("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
+    // Determine event type based on operation type in delta
+    const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
+    const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
+    const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
+    const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
 
-            // Устанавливаем Target для события (владелец экипировки)
-            if (DataStore)
-            {
-                EventData.Target = DataStore->GetOwner();
-            }
+    FGameplayTag EventTag;
 
-            UE_LOG(LogSuspenseCoreEquipmentData, Warning,
-                TEXT("🟢 Broadcasting Equipment.Event.Equipped - Slot: %d, Item: %s"),
-                Delta.SlotIndex, *Delta.ItemAfter.ItemID.ToString());
-        }
-        else if (Delta.ChangeType.MatchesTag(OperationUnequip) || Delta.ChangeType.MatchesTag(OperationClear))
-        {
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
-            EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
+    // Key logic: Transform operations to events (SuspenseCore.Event.Equipment.* format)
+    if (Delta.ChangeType.MatchesTag(OperationEquip) || Delta.ChangeType.MatchesTag(OperationSet))
+    {
+        // This event triggers visual actor spawn!
+        EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Equipped"));
 
-            if (DataStore)
-            {
-                EventData.Target = DataStore->GetOwner();
-            }
+        // Add critical metadata for VisualizationService
+        EventData.SetInt(FName("Slot"), Delta.SlotIndex);
+        EventData.SetString(FName("ItemID"), Delta.ItemAfter.ItemID.ToString());
+        EventData.SetString(FName("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
 
-            UE_LOG(LogSuspenseCoreEquipmentData, Log,
-                TEXT("Broadcasting Equipment.Event.Unequipped - Slot: %d"), Delta.SlotIndex);
-        }
-        else
-        {
-            // Для других типов операций используем общий тег дельты
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta"));
-            EventData.Payload = Delta.ToString();
-            EventData.AddMetadata(TEXT("DeltaType"), Delta.ChangeType.ToString());
-            EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(Delta.SlotIndex));
-        }
+        UE_LOG(LogSuspenseCoreEquipmentData, Warning,
+            TEXT("Broadcasting SuspenseCore.Event.Equipment.Equipped - Slot: %d, Item: %s"),
+            Delta.SlotIndex, *Delta.ItemAfter.ItemID.ToString());
+    }
+    else if (Delta.ChangeType.MatchesTag(OperationUnequip) || Delta.ChangeType.MatchesTag(OperationClear))
+    {
+        EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Unequipped"));
+        EventData.SetInt(FName("Slot"), Delta.SlotIndex);
 
-        // Broadcast события
-        if (EventData.EventType.IsValid())
-        {
-            EventBus->Broadcast(EventData);
-        }
+        UE_LOG(LogSuspenseCoreEquipmentData, Log,
+            TEXT("Broadcasting SuspenseCore.Event.Equipment.Unequipped - Slot: %d"), Delta.SlotIndex);
+    }
+    else
+    {
+        // For other operation types use general delta tag
+        EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Delta"));
+        EventData.SetString(FName("Payload"), Delta.ToString());
+        EventData.SetString(FName("DeltaType"), Delta.ChangeType.ToString());
+        EventData.SetInt(FName("SlotIndex"), Delta.SlotIndex);
+    }
+
+    // Publish event through EventBus
+    if (EventTag.IsValid())
+    {
+        EventBus->Publish(EventTag, EventData);
     }
 }
 
@@ -1945,69 +1963,60 @@ void USuspenseCoreEquipmentDataService::BroadcastBatchDeltas(const TArray<FEquip
     // Broadcast through delegate
     OnBatchDeltasDelegate.Broadcast(Deltas);
 
-    // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обрабатываем каждую дельту индивидуально
-    // для генерации правильных событий типа Equipment.Event.Equipped/Unequipped
+    // Process each delta individually for proper event generation (SuspenseCore architecture)
+    if (!EventBus)
+    {
+        return;
+    }
+
+    const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
+    const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
+    const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
+    const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
+
     for (const FEquipmentDelta& Delta : Deltas)
     {
-        // Переиспользуем логику из BroadcastDelta для единообразия
-        auto EventBus = FSuspenseEquipmentEventBus::Get();
-        if (!EventBus.IsValid())
+        // Create event data using FSuspenseCoreEventData
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetInt(FName("BatchSize"), Deltas.Num());
+
+        // Set target (owner of equipment)
+        if (DataStore)
         {
-            continue;
+            EventData.SetObject(FName("Target"), DataStore->GetOwner());
         }
 
-        FSuspenseEquipmentEventData EventData;
-        EventData.Source = this;
-        EventData.Timestamp = FPlatformTime::Seconds();
-        EventData.Priority = EEventPriority::Normal;
-
-        const FGameplayTag OperationEquip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Equip"));
-        const FGameplayTag OperationSet = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
-        const FGameplayTag OperationUnequip = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Unequip"));
-        const FGameplayTag OperationClear = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Clear"));
+        FGameplayTag EventTag;
 
         if (Delta.ChangeType.MatchesTag(OperationEquip) || Delta.ChangeType.MatchesTag(OperationSet))
         {
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
-            EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
-            EventData.AddMetadata(TEXT("ItemID"), Delta.ItemAfter.ItemID.ToString());
-            EventData.AddMetadata(TEXT("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
-            EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
-
-            if (DataStore)
-            {
-                EventData.Target = DataStore->GetOwner();
-            }
+            EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Equipped"));
+            EventData.SetInt(FName("Slot"), Delta.SlotIndex);
+            EventData.SetString(FName("ItemID"), Delta.ItemAfter.ItemID.ToString());
+            EventData.SetString(FName("InstanceID"), Delta.ItemAfter.InstanceID.ToString());
 
             UE_LOG(LogSuspenseCoreEquipmentData, Warning,
-                TEXT("🟢 [Batch] Broadcasting Equipment.Event.Equipped - Slot: %d, Item: %s"),
+                TEXT("[Batch] Broadcasting SuspenseCore.Event.Equipment.Equipped - Slot: %d, Item: %s"),
                 Delta.SlotIndex, *Delta.ItemAfter.ItemID.ToString());
-
-            EventBus->Broadcast(EventData);
         }
         else if (Delta.ChangeType.MatchesTag(OperationUnequip) || Delta.ChangeType.MatchesTag(OperationClear))
         {
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
-            EventData.AddMetadata(TEXT("Slot"), FString::FromInt(Delta.SlotIndex));
-            EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
-
-            if (DataStore)
-            {
-                EventData.Target = DataStore->GetOwner();
-            }
-
-            EventBus->Broadcast(EventData);
+            EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Unequipped"));
+            EventData.SetInt(FName("Slot"), Delta.SlotIndex);
         }
         else
         {
-            // Для других операций используем общий BatchDelta тег
-            EventData.EventType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Delta.Batch"));
-            EventData.Payload = Delta.ToString();
-            EventData.AddMetadata(TEXT("DeltaType"), Delta.ChangeType.ToString());
-            EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(Delta.SlotIndex));
-            EventData.AddMetadata(TEXT("BatchSize"), FString::FromInt(Deltas.Num()));
+            // For other operations use general BatchDelta tag
+            EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Equipment.Delta.Batch"));
+            EventData.SetString(FName("Payload"), Delta.ToString());
+            EventData.SetString(FName("DeltaType"), Delta.ChangeType.ToString());
+            EventData.SetInt(FName("SlotIndex"), Delta.SlotIndex);
+        }
 
-            EventBus->Broadcast(EventData);
+        // Publish event through EventBus
+        if (EventTag.IsValid())
+        {
+            EventBus->Publish(EventTag, EventData);
         }
     }
 }
@@ -2483,20 +2492,18 @@ void USuspenseCoreEquipmentDataService::WarmupCachesSafe()
     }
 }
 
-void USuspenseCoreEquipmentDataService::OnResendRequested(const FSuspenseEquipmentEventData& Event)
+void USuspenseCoreEquipmentDataService::OnResendRequested(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    // Минимальная корректная реализация: фиксируем запрос и инициируем безопасное переотправление
+    // Handle resend request using SuspenseCore event data
     UE_LOG(LogTemp, Verbose,
-        TEXT("[EquipmentDataService] Resend requested: Type=%s, Src=%s, Tgt=%s, Payload=%s"),
-        *Event.EventType.ToString(),
-        *GetNameSafe(Event.Source.Get()),
-        *GetNameSafe(Event.Target.Get()),
-        *Event.Payload);
+        TEXT("[EquipmentDataService] Resend requested: EventTag=%s, Source=%s"),
+        *EventTag.ToString(),
+        *GetNameSafe(EventData.GetObject(FName("Source"))));
 
-    // Если у вас уже есть внутренняя процедура переотправки — вызовите её тут.
-    // Например, можно переиспользовать вашу очередь/механизм:
-    // RequeueAllPendingDeltas();  // <- если есть
-    // BroadcastBatchDeltas();      // <- если есть
+    // If you have an internal resend procedure - call it here.
+    // For example, you can reuse your queue/mechanism:
+    // RequeueAllPendingDeltas();  // <- if available
+    // BroadcastBatchDeltas();      // <- if available
 
-    // Базовый "no-op" безопасен: подписчик существует, метод реализован, линковка закрыта.
+    // Basic "no-op" is safe: subscriber exists, method implemented, linking closed.
 }

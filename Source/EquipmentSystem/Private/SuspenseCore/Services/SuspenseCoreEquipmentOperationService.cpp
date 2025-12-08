@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
@@ -222,18 +223,16 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
     FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
 
-    // MEMORY LEAK FIX: Properly unsubscribe all EventHandles before clearing
-    // EventScope.UnsubscribeAll() only cleans EventScope subscriptions (which is empty),
-    // but actual subscriptions are stored in EventHandles array and must be unsubscribed explicitly
-    if (auto Bus = EventBus.Pin())
+    // Properly unsubscribe all EventHandles (SuspenseCore architecture)
+    if (EventBus)
     {
-        for (const FEventSubscriptionHandle& Handle : EventHandles)
+        for (const FSuspenseCoreSubscriptionHandle& Handle : EventHandles)
         {
-            Bus->Unsubscribe(Handle);
+            EventBus->Unsubscribe(Handle);
         }
     }
     EventHandles.Empty();
-    EventScope.UnsubscribeAll(); // Keep for safety if EventScope used elsewhere
+    EventBus = nullptr;
 
     {
         FRWScopeLock Lock(ExecutorLock, SLT_Write);
@@ -2048,26 +2047,42 @@ void USuspenseCoreEquipmentOperationService::SetOperationsExecutor(TScriptInterf
 
 void USuspenseCoreEquipmentOperationService::SetupEventSubscriptions()
 {
-    auto EventBus = FSuspenseEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    // Get EventBus from ServiceProvider (SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
     {
+        EventBus = Provider->GetEventBus();
+    }
+
+    if (!EventBus)
+    {
+        UE_LOG(LogSuspenseCoreEquipmentOperations, Warning,
+            TEXT("SetupEventSubscriptions: EventBus not available from ServiceProvider"));
         return;
     }
 
-    EventHandles.Add(EventBus->Subscribe(
+    EventHandles.Add(EventBus->SubscribeNative(
         EventTags::ValidationChanged,
-        FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnValidationRulesChanged)
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnValidationRulesChanged),
+        ESuspenseCoreEventPriority::Normal
     ));
 
-    EventHandles.Add(EventBus->Subscribe(
+    EventHandles.Add(EventBus->SubscribeNative(
         EventTags::DataChanged,
-        FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnDataStateChanged)
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnDataStateChanged),
+        ESuspenseCoreEventPriority::Normal
     ));
 
-    EventHandles.Add(EventBus->Subscribe(
+    EventHandles.Add(EventBus->SubscribeNative(
         EventTags::NetworkResult,
-        FEventHandlerDelegate::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnNetworkOperationResult)
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentOperationService::OnNetworkOperationResult),
+        ESuspenseCoreEventPriority::Normal
     ));
+
+    UE_LOG(LogSuspenseCoreEquipmentOperations, Log,
+        TEXT("SetupEventSubscriptions: %d event subscriptions configured"), EventHandles.Num());
 }
 
 void USuspenseCoreEquipmentOperationService::StartQueueProcessing()
@@ -2998,87 +3013,90 @@ void USuspenseCoreEquipmentOperationService::PruneHistory()
 
 void USuspenseCoreEquipmentOperationService::PublishOperationEvent(const FEquipmentOperationResult& Result)
 {
-    auto EventBus = FSuspenseEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    if (!EventBus)
     {
         return;
     }
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = EventTags::OperationCompleted;
-    EventData.Source = this;
-    EventData.Payload = Result.OperationId.ToString();
-    EventData.Timestamp = FPlatformTime::Seconds();
+    // Create event data using FSuspenseCoreEventData (SuspenseCore architecture)
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetString(FName("OperationId"), Result.OperationId.ToString());
 
     if (!Result.bSuccess)
     {
-        EventData.Metadata.Add(TEXT("Error"), Result.ErrorMessage.ToString());
-        EventData.Metadata.Add(TEXT("FailureType"), UEnum::GetValueAsString(Result.FailureType));
+        EventData.SetString(FName("Error"), Result.ErrorMessage.ToString());
+        EventData.SetString(FName("FailureType"), UEnum::GetValueAsString(Result.FailureType));
     }
 
-    EventData.Metadata.Add(TEXT("ExecutionTime"), FString::Printf(TEXT("%.3f"), Result.ExecutionTime));
-    EventData.Metadata.Add(TEXT("AffectedSlots"), FString::Printf(TEXT("%d"), Result.AffectedSlots.Num()));
+    EventData.SetString(FName("ExecutionTime"), FString::Printf(TEXT("%.3f"), Result.ExecutionTime));
+    EventData.SetInt(FName("AffectedSlots"), Result.AffectedSlots.Num());
 
-    EventBus->Broadcast(EventData);
+    EventBus->Publish(EventTags::OperationCompleted, EventData);
 }
 
-void USuspenseCoreEquipmentOperationService::OnValidationRulesChanged(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnValidationRulesChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     InvalidateValidationCache();
 
     UE_LOG(LogSuspenseCoreEquipmentOperations, Verbose,
-        TEXT("Validation rules changed - cache invalidated"));
+        TEXT("Validation rules changed [%s] - cache invalidated"), *EventTag.ToString());
 }
 
-void USuspenseCoreEquipmentOperationService::OnDataStateChanged(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnDataStateChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     ResultCache->Clear();
     ServiceMetrics.Inc(TEXT("ResultCacheInvalidations"));
 
     UE_LOG(LogSuspenseCoreEquipmentOperations, Verbose,
-        TEXT("Data state changed - result cache cleared"));
+        TEXT("Data state changed [%s] - result cache cleared"), *EventTag.ToString());
 }
 
-void USuspenseCoreEquipmentOperationService::OnNetworkOperationResult(const FSuspenseEquipmentEventData& EventData)
+void USuspenseCoreEquipmentOperationService::OnNetworkOperationResult(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    // Достаём OperationId: сначала из метаданных, потом из payload
+    // Get OperationId from event data (SuspenseCore architecture)
     FGuid OperationId;
 
-    if (EventData.HasMetadata(TEXT("OperationId")))
+    FString OperationIdStr = EventData.GetString(FName("OperationId"));
+    if (!OperationIdStr.IsEmpty())
     {
-        FGuid::Parse(EventData.GetMetadata(TEXT("OperationId")), OperationId);
+        FGuid::Parse(OperationIdStr, OperationId);
     }
     if (!OperationId.IsValid())
     {
-        FGuid::Parse(EventData.Payload, OperationId);
+        // Try from Payload field
+        FString PayloadStr = EventData.GetString(FName("Payload"));
+        if (!PayloadStr.IsEmpty())
+        {
+            FGuid::Parse(PayloadStr, OperationId);
+        }
     }
     if (!OperationId.IsValid())
     {
-        // Нечего подтверждать
+        // Nothing to confirm
         return;
     }
 
-    // Строим результат из события
+    // Build result from event
     FEquipmentOperationResult ServerResult;
     ServerResult.OperationId = OperationId;
-    ServerResult.bSuccess = !EventData.HasMetadata(TEXT("Error"));
+
+    FString ErrorStr = EventData.GetString(FName("Error"));
+    ServerResult.bSuccess = ErrorStr.IsEmpty();
 
     if (!ServerResult.bSuccess)
     {
         ServerResult.ErrorMessage = FText::FromString(
-            EventData.HasMetadata(TEXT("Error")) ?
-            EventData.GetMetadata(TEXT("Error")) :
-            TEXT("Unknown network error")
+            !ErrorStr.IsEmpty() ? ErrorStr : TEXT("Unknown network error")
         );
     }
 
-    // Подтверждаем/откатываем prediction
+    // Confirm/rollback prediction
     ConfirmPrediction(OperationId, ServerResult);
 
-    // Пробрасываем событие как обычное завершение операции для единого пути UI/логики
+    // Broadcast event as normal operation completion for unified UI/logic path
     OnOperationCompleted.Broadcast(ServerResult);
 
-    // Кешируем успешный результат или инвалидируем кеш при ошибке
+    // Cache successful result or invalidate cache on error
     if (ServerResult.bSuccess)
     {
         ResultCache->Set(OperationId, ServerResult, ResultCacheTTL);

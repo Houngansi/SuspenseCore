@@ -10,7 +10,7 @@
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "Core/Utils/SuspenseEquipmentEventBus.h"
 
 USuspenseCoreEquipmentAttachmentSystem::USuspenseCoreEquipmentAttachmentSystem()
 	: SocketConfigCache(50)
@@ -47,7 +47,7 @@ void USuspenseCoreEquipmentAttachmentSystem::BeginPlay()
 		InitializeDefaultMappings();
 	}
 
-	for (const FSocketMappingConfig& Mapping : SocketMappings)
+	for (const FSuspenseCoreSocketMappingConfig& Mapping : SocketMappings)
 	{
 		SocketConfigCache.Set(Mapping.ItemType, Mapping, /*TTL*/0.0f);
 	}
@@ -146,7 +146,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::AttachEquipment(
 	{
 		FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Write);
 
-		FAttachmentStateData& StateData = AttachmentStates.FindOrAdd(Equipment);
+		FSuspenseCoreAttachmentStateData& StateData = AttachmentStates.FindOrAdd(Equipment);
 		StateData.CurrentState.bIsAttached = true;
 		StateData.CurrentState.AttachedTo = Target;
 		StateData.CurrentState.CurrentSocket = Config.SocketName;
@@ -156,14 +156,14 @@ bool USuspenseCoreEquipmentAttachmentSystem::AttachEquipment(
 
 		MarkSocketOccupied(Config.SocketName, Equipment);
 
-		FSuspenseCoreEquipmentEventData Ev;
+		FSuspenseEquipmentEventData Ev;
 		Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 		Ev.Source      = this;
 		Ev.Target      = Equipment;
 		Ev.Timestamp   = FPlatformTime::Seconds();
 		Ev.NumericData = 1.0f; // attached
 		Ev.AddMetadata(TEXT("Socket"), Config.SocketName.ToString());
-		FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+		FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 		LogAttachmentOperation(TEXT("AttachEquipment"),
 			FString::Printf(TEXT("Attached %s to '%s'"),
@@ -183,7 +183,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, 
 
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Write);
 
-	FAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
+	FSuspenseCoreAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
 	if (!StateData || !StateData->CurrentState.bIsAttached)
 	{
 		return false;
@@ -213,14 +213,14 @@ bool USuspenseCoreEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, 
 
 	AttachmentStates.Remove(Equipment);
 
-	FSuspenseCoreEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = 0.0f;
 	Ev.AddMetadata(TEXT("Socket"), OldSocket.ToString());
-	FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 	LogAttachmentOperation(TEXT("DetachEquipment"),
 		FString::Printf(TEXT("Detached %s"), *Equipment->GetName()));
@@ -240,7 +240,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Write);
 
-	FAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
+	FSuspenseCoreAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
 	if (!StateData || !StateData->CurrentState.bIsAttached)
 	{
 		return false;
@@ -285,14 +285,14 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 
 			MarkSocketOccupied(NewConfig.SocketName, Equipment);
 
-			FSuspenseCoreEquipmentEventData Ev;
+			FSuspenseEquipmentEventData Ev;
 			Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
 			Ev.Source      = this;
 			Ev.Target      = Equipment;
 			Ev.Timestamp   = FPlatformTime::Seconds();
 			Ev.NumericData = 1.0f;
 			Ev.AddMetadata(TEXT("Socket"), NewConfig.SocketName.ToString());
-			FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+			FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 			LogAttachmentOperation(TEXT("UpdateAttachment"),
 				FString::Printf(TEXT("Immediate update for %s"), *Equipment->GetName()));
@@ -308,7 +308,7 @@ FEquipmentAttachmentState USuspenseCoreEquipmentAttachmentSystem::GetAttachmentS
 {
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Read);
 
-	if (const FAttachmentStateData* StateData = AttachmentStates.Find(Equipment))
+	if (const FSuspenseCoreAttachmentStateData* StateData = AttachmentStates.Find(Equipment))
 	{
 		return StateData->CurrentState;
 	}
@@ -325,7 +325,7 @@ FName USuspenseCoreEquipmentAttachmentSystem::FindBestSocket(
 		return NAME_None;
 	}
 
-	const FSocketMappingConfig* Mapping = FindSocketMapping(ItemType);
+	const FSuspenseCoreSocketMappingConfig* Mapping = FindSocketMapping(ItemType);
 	if (Mapping)
 	{
 		const FName SocketName = bActiveState ? Mapping->ActiveSocket : Mapping->InactiveSocket;
@@ -365,7 +365,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::SwitchAttachmentState(
 
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Write);
 
-	FAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
+	FSuspenseCoreAttachmentStateData* StateData = AttachmentStates.Find(Equipment);
 	if (!StateData || !StateData->CurrentState.bIsAttached)
 	{
 		return false;
@@ -378,14 +378,14 @@ bool USuspenseCoreEquipmentAttachmentSystem::SwitchAttachmentState(
 
 	StateData->CurrentState.bIsActive = bMakeActive;
 
-	FSuspenseCoreEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.StateChanged"));
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = bMakeActive ? 1.0f : 0.0f;
 	Ev.AddMetadata(TEXT("IsActive"), bMakeActive ? TEXT("1") : TEXT("0"));
-	FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 
 	LogAttachmentOperation(TEXT("SwitchAttachmentState"),
 		FString::Printf(TEXT("Switched %s to %s"),
@@ -534,7 +534,7 @@ void USuspenseCoreEquipmentAttachmentSystem::UpdateTransitions(float DeltaTime)
 
 	for (auto& StatePair : AttachmentStates)
 	{
-		FAttachmentStateData& StateData = StatePair.Value;
+		FSuspenseCoreAttachmentStateData& StateData = StatePair.Value;
 
 		if (StateData.bIsTransitioning)
 		{
@@ -581,20 +581,20 @@ void USuspenseCoreEquipmentAttachmentSystem::UpdateTransitions(float DeltaTime)
 	}
 }
 
-const FSocketMappingConfig* USuspenseCoreEquipmentAttachmentSystem::FindSocketMapping(const FGameplayTag& ItemType) const
+const FSuspenseCoreSocketMappingConfig* USuspenseCoreEquipmentAttachmentSystem::FindSocketMapping(const FGameplayTag& ItemType) const
 {
-	FSocketMappingConfig Cached;
+	FSuspenseCoreSocketMappingConfig Cached;
 	if (SocketConfigCache.Get(ItemType, Cached))
 	{
-		static FSocketMappingConfig Snapshot;
+		static FSuspenseCoreSocketMappingConfig Snapshot;
 		Snapshot = Cached;
 		return &Snapshot;
 	}
 
-	const FSocketMappingConfig* Best = nullptr;
+	const FSuspenseCoreSocketMappingConfig* Best = nullptr;
 	int32 BestPriority = -1;
 
-	for (const FSocketMappingConfig& Mapping : SocketMappings)
+	for (const FSuspenseCoreSocketMappingConfig& Mapping : SocketMappings)
 	{
 		if (Mapping.ItemType.MatchesTag(ItemType) && Mapping.Priority > BestPriority)
 		{
@@ -606,7 +606,7 @@ const FSocketMappingConfig* USuspenseCoreEquipmentAttachmentSystem::FindSocketMa
 	if (Best)
 	{
 		SocketConfigCache.Set(ItemType, *Best, /*TTL*/0.0f);
-		static FSocketMappingConfig Snapshot;
+		static FSuspenseCoreSocketMappingConfig Snapshot;
 		Snapshot = *Best;
 		return &Snapshot;
 	}
@@ -634,7 +634,7 @@ USceneComponent* USuspenseCoreEquipmentAttachmentSystem::GetEquipmentRootCompone
 void USuspenseCoreEquipmentAttachmentSystem::InitializeDefaultMappings()
 {
 	{
-		FSocketMappingConfig RifleMapping;
+		FSuspenseCoreSocketMappingConfig RifleMapping;
 		RifleMapping.ItemType = FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Rifle"));
 		RifleMapping.ActiveSocket = TEXT("GripPoint");
 		RifleMapping.InactiveSocket = TEXT("WeaponBackSocket");
@@ -643,7 +643,7 @@ void USuspenseCoreEquipmentAttachmentSystem::InitializeDefaultMappings()
 	}
 
 	{
-		FSocketMappingConfig PistolMapping;
+		FSuspenseCoreSocketMappingConfig PistolMapping;
 		PistolMapping.ItemType = FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol"));
 		PistolMapping.ActiveSocket = TEXT("GripPoint");
 		PistolMapping.InactiveSocket = TEXT("HolsterSocket");
@@ -652,7 +652,7 @@ void USuspenseCoreEquipmentAttachmentSystem::InitializeDefaultMappings()
 	}
 
 	{
-		FSocketMappingConfig MeleeMapping;
+		FSuspenseCoreSocketMappingConfig MeleeMapping;
 		MeleeMapping.ItemType = FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee"));
 		MeleeMapping.ActiveSocket = TEXT("GripPoint");
 		MeleeMapping.InactiveSocket = TEXT("MeleeSocket");
@@ -663,13 +663,13 @@ void USuspenseCoreEquipmentAttachmentSystem::InitializeDefaultMappings()
 
 void USuspenseCoreEquipmentAttachmentSystem::BroadcastAttachmentEvent(const FGameplayTag& EventTag, AActor* Equipment, bool bSuccess)
 {
-	FSuspenseCoreEquipmentEventData Ev;
+	FSuspenseEquipmentEventData Ev;
 	Ev.EventType   = EventTag;
 	Ev.Source      = this;
 	Ev.Target      = Equipment;
 	Ev.Timestamp   = FPlatformTime::Seconds();
 	Ev.NumericData = bSuccess ? 1.0f : 0.0f;
-	FSuspenseCoreEquipmentEventBus::Get()->Broadcast(Ev);
+	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
 }
 
 void USuspenseCoreEquipmentAttachmentSystem::LogAttachmentOperation(const FString& Operation, const FString& Details) const
@@ -699,7 +699,7 @@ TArray<AActor*> USuspenseCoreEquipmentAttachmentSystem::GetAllAttachedEquipment(
 bool USuspenseCoreEquipmentAttachmentSystem::IsEquipmentAttached(AActor* Equipment) const
 {
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Read);
-	if (const FAttachmentStateData* State = AttachmentStates.Find(Equipment))
+	if (const FSuspenseCoreAttachmentStateData* State = AttachmentStates.Find(Equipment))
 	{
 		return State->CurrentState.bIsAttached;
 	}

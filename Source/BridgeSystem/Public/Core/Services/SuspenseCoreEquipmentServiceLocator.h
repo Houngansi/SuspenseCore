@@ -13,7 +13,7 @@
 // Class aliases for SuspenseCore naming convention compatibility
 
 /** Alias for USuspenseEquipmentServiceLocator class */
-using USuspenseEquipmentServiceLocator = USuspenseEquipmentServiceLocator;
+using USuspenseCoreEquipmentServiceLocator = USuspenseEquipmentServiceLocator;
 
 /** Alias for FServiceRegistration struct */
 using FSuspenseCoreServiceRegistration = FServiceRegistration;

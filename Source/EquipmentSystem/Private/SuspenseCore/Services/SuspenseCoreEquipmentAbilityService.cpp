@@ -19,7 +19,7 @@
 USuspenseCoreEquipmentAbilityService::USuspenseCoreEquipmentAbilityService()
 {
     // Initialize cache with reasonable size
-    MappingCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FName, FEquipmentAbilityMapping>(100));
+    MappingCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>(100));
 }
 
 USuspenseCoreEquipmentAbilityService::~USuspenseCoreEquipmentAbilityService()
@@ -37,19 +37,19 @@ void USuspenseCoreEquipmentAbilityService::BeginDestroy()
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentAbilityService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("InitializeService");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("Service already initialized"));
         ServiceMetrics.RecordError();
         return false;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
 
     // Ensure valid configuration
     EnsureValidConfig();
@@ -97,7 +97,7 @@ bool USuspenseCoreEquipmentAbilityService::InitializeService(const FServiceInitP
         }
     }
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     ServiceMetrics.RecordSuccess();
 
     UE_LOG(LogSuspenseCoreEquipmentAbility, Log, TEXT("EquipmentAbilityService initialized with %d mappings"),
@@ -111,12 +111,12 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
     SCOPED_SERVICE_TIMER("ShutdownService");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
 
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
 
-    ServiceState = EServiceLifecycleState::Shutting;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
     if (UWorld* World = GetWorld())
     {
@@ -160,7 +160,7 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
         bCacheRegistered = false;
     }
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     ServiceMetrics.RecordSuccess();
     UE_LOG(LogSuspenseCoreEquipmentAbility, Log, TEXT("EquipmentAbilityService shutdown complete"));
     return true;
@@ -331,13 +331,13 @@ int32 USuspenseCoreEquipmentAbilityService::LoadAbilityMappings(UDataTable* Mapp
     const TArray<FName> RowNames = MappingTable->GetRowNames();
     for (const FName& RowName : RowNames)
     {
-        const FEquipmentAbilityMapping* Mapping =
-            MappingTable->FindRow<FEquipmentAbilityMapping>(RowName, TEXT("LoadAbilityMappings"));
+        const FSuspenseCoreEquipmentAbilityMapping* Mapping =
+            MappingTable->FindRow<FSuspenseCoreEquipmentAbilityMapping>(RowName, TEXT("LoadAbilityMappings"));
 
         if (!Mapping)
         {
             UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-                TEXT("Failed to cast row %s to FEquipmentAbilityMapping"),
+                TEXT("Failed to cast row %s to FSuspenseCoreEquipmentAbilityMapping"),
                 *RowName.ToString());
             InvalidCount++;
             continue;
@@ -540,7 +540,7 @@ bool USuspenseCoreEquipmentAbilityService::HasAbilityMapping(FName ItemID) const
     EQUIPMENT_READ_LOCK(MappingLock);
 
     // Check cache first
-    FEquipmentAbilityMapping CachedMapping;
+    FSuspenseCoreEquipmentAbilityMapping CachedMapping;
     if (MappingCache->Get(ItemID, CachedMapping))
     {
         CacheHits++;
@@ -553,7 +553,7 @@ bool USuspenseCoreEquipmentAbilityService::HasAbilityMapping(FName ItemID) const
 
 bool USuspenseCoreEquipmentAbilityService::GetAbilityMapping(
     FName ItemID,
-    FEquipmentAbilityMapping& OutMapping) const
+    FSuspenseCoreEquipmentAbilityMapping& OutMapping) const
 {
     EQUIPMENT_READ_LOCK(MappingLock);
 
@@ -566,7 +566,7 @@ bool USuspenseCoreEquipmentAbilityService::GetAbilityMapping(
     }
 
     // Check main storage
-    const FEquipmentAbilityMapping* Mapping = AbilityMappings.Find(ItemID);
+    const FSuspenseCoreEquipmentAbilityMapping* Mapping = AbilityMappings.Find(ItemID);
     if (Mapping)
     {
         OutMapping = *Mapping;
@@ -649,7 +649,7 @@ void USuspenseCoreEquipmentAbilityService::ProcessEquipmentSpawn(
     }
 
     // Check if we have a mapping for this item
-    FEquipmentAbilityMapping Mapping;
+    FSuspenseCoreEquipmentAbilityMapping Mapping;
     if (GetAbilityMapping(ItemInstance.ItemID, Mapping))
     {
         // Check requirements based on EQUIPMENT tags, not character tags
@@ -785,7 +785,7 @@ void USuspenseCoreEquipmentAbilityService::UpdateEquipmentAbilities(
         Connector->RemoveEffectsForSlot(SlotIndex);
 
         // Re-grant with updated item data
-        FEquipmentAbilityMapping Mapping;
+        FSuspenseCoreEquipmentAbilityMapping Mapping;
         if (GetAbilityMapping(UpdatedItemInstance.ItemID, Mapping))
         {
             Connector->GrantAbilitiesForSlot(SlotIndex, UpdatedItemInstance);

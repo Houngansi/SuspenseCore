@@ -85,17 +85,17 @@ USuspenseCoreEquipmentRulesService::~USuspenseCoreEquipmentRulesService()
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentRulesService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentRulesService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("RulesService::Initialize");
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentRules, Warning, TEXT("Service already initialized"));
-        return ServiceState == EServiceLifecycleState::Ready;
+        return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
     ServiceParams = Params;
 
     UE_LOG(LogSuspenseCoreEquipmentRules, Log, TEXT(">>> RulesService: Initializing..."));
@@ -108,7 +108,7 @@ bool USuspenseCoreEquipmentRulesService::InitializeService(const FServiceInitPar
     if (!RulesCoordinator)
     {
         UE_LOG(LogSuspenseCoreEquipmentRules, Error, TEXT("Failed to create RulesCoordinator"));
-        ServiceState = EServiceLifecycleState::Error;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Error;
         return false;
     }
 
@@ -121,7 +121,7 @@ bool USuspenseCoreEquipmentRulesService::InitializeService(const FServiceInitPar
     // Setup EventBus integration
     SetupEventBus();
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     UE_LOG(LogSuspenseCoreEquipmentRules, Log,
         TEXT("<<< RulesService: Initialized (Cache=%s, Events=%s)"),
         Config.bEnableCaching ? TEXT("ON") : TEXT("OFF"),
@@ -132,7 +132,7 @@ bool USuspenseCoreEquipmentRulesService::InitializeService(const FServiceInitPar
 
 bool USuspenseCoreEquipmentRulesService::ShutdownService(bool bForce)
 {
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
@@ -151,7 +151,7 @@ bool USuspenseCoreEquipmentRulesService::ShutdownService(bool bForce)
     // RulesCoordinator will be cleaned up by GC (UPROPERTY)
     RulesCoordinator = nullptr;
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     UE_LOG(LogSuspenseCoreEquipmentRules, Log, TEXT("<<< RulesService: Shutdown complete"));
 
     return true;

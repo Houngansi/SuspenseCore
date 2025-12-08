@@ -47,16 +47,16 @@ struct FSuspenseCoreVisCharState
  * lightweight cache state and rate limiting.
  */
 UCLASS()
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentVisualizationService final : public UObject, public ISuspenseEquipmentService
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentVisualizationService final : public UObject, public ISuspenseCoreEquipmentService
 {
 	GENERATED_BODY()
 
 public:
-	// === IEquipmentService ===
-	virtual bool InitializeService(const FServiceInitParams& InitParams) override;
+	// === ISuspenseCoreEquipmentService ===
+	virtual bool InitializeService(const FSuspenseCoreServiceInitParams& InitParams) override;
 	virtual bool ShutdownService(bool bForce) override;
-	virtual EServiceLifecycleState GetServiceState() const override { return LifecycleState; }
-	virtual bool IsServiceReady() const override { return LifecycleState == EServiceLifecycleState::Ready; }
+	virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return LifecycleState; }
+	virtual bool IsServiceReady() const override { return LifecycleState == ESuspenseCoreServiceLifecycleState::Ready; }
 	virtual FGameplayTag GetServiceTag() const override
 	{
 		// НИКОГДА не зависящим от состояния инстанса образом (работает и на CDO)
@@ -108,7 +108,7 @@ private:
 	FGameplayTag Tag_EquipmentData;      // "Service.Equipment.Data"
 
 	// Lifecycle state
-	UPROPERTY() EServiceLifecycleState LifecycleState = EServiceLifecycleState::Uninitialized;
+	UPROPERTY() ESuspenseCoreServiceLifecycleState LifecycleState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 
 	// === Internal logic ===
 	void SetupEventHandlers();

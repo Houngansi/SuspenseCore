@@ -203,17 +203,17 @@ USuspenseCoreEquipmentSecurityService::~USuspenseCoreEquipmentSecurityService()
 // IEquipmentService Implementation
 //========================================
 
-bool USuspenseCoreEquipmentSecurityService::InitializeService(const FServiceInitParams& Params)
+bool USuspenseCoreEquipmentSecurityService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
     SCOPED_SERVICE_TIMER("SecurityService::Initialize");
 
-    if (ServiceState != EServiceLifecycleState::Uninitialized)
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
         UE_LOG(LogSuspenseCoreEquipmentSecurity, Warning, TEXT("Service already initialized"));
-        return ServiceState == EServiceLifecycleState::Ready;
+        return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
     }
 
-    ServiceState = EServiceLifecycleState::Initializing;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
     ServiceParams = Params;
 
     UE_LOG(LogSuspenseCoreEquipmentSecurity, Log, TEXT(">>> SecurityService: Initializing..."));
@@ -225,7 +225,7 @@ bool USuspenseCoreEquipmentSecurityService::InitializeService(const FServiceInit
     if (!InitializeSecureStorage())
     {
         UE_LOG(LogSuspenseCoreEquipmentSecurity, Error, TEXT("Failed to initialize secure storage"));
-        ServiceState = EServiceLifecycleState::Error;
+        ServiceState = ESuspenseCoreServiceLifecycleState::Error;
         return false;
     }
 
@@ -248,7 +248,7 @@ bool USuspenseCoreEquipmentSecurityService::InitializeService(const FServiceInit
         );
     }
 
-    ServiceState = EServiceLifecycleState::Ready;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     UE_LOG(LogSuspenseCoreEquipmentSecurity, Log,
         TEXT("<<< SecurityService: Initialized (Cache=%d, StrictMode=%s)"),
         Config.NonceCacheCapacity,
@@ -259,7 +259,7 @@ bool USuspenseCoreEquipmentSecurityService::InitializeService(const FServiceInit
 
 bool USuspenseCoreEquipmentSecurityService::ShutdownService(bool bForce)
 {
-    if (ServiceState == EServiceLifecycleState::Shutdown)
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
     {
         return true;
     }
@@ -294,7 +294,7 @@ bool USuspenseCoreEquipmentSecurityService::ShutdownService(bool bForce)
         SuspiciousActivityCount.Empty();
     }
 
-    ServiceState = EServiceLifecycleState::Shutdown;
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
     UE_LOG(LogSuspenseCoreEquipmentSecurity, Log, TEXT("<<< SecurityService: Shutdown complete"));
 
     return true;

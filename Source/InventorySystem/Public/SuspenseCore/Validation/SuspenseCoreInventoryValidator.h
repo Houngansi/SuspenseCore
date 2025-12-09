@@ -60,7 +60,7 @@ public:
 		USuspenseCoreInventoryComponent* Component,
 		FName ItemID,
 		int32 Quantity,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	/**
@@ -76,7 +76,7 @@ public:
 		USuspenseCoreInventoryComponent* Component,
 		const FSuspenseCoreItemInstance& ItemInstance,
 		int32 TargetSlot,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	/**
@@ -92,7 +92,7 @@ public:
 		USuspenseCoreInventoryComponent* Component,
 		FName ItemID,
 		int32 Quantity,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	/**
@@ -108,7 +108,7 @@ public:
 		USuspenseCoreInventoryComponent* Component,
 		int32 FromSlot,
 		int32 ToSlot,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	/**
@@ -124,7 +124,7 @@ public:
 		USuspenseCoreInventoryComponent* Component,
 		int32 Slot1,
 		int32 Slot2,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	/**
@@ -142,7 +142,7 @@ public:
 		int32 SourceSlot,
 		int32 SplitQuantity,
 		int32 TargetSlot,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 
 	//==================================================================
@@ -276,6 +276,6 @@ protected:
 	bool ValidateCustomRules(
 		USuspenseCoreInventoryComponent* Component,
 		FName ItemID,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	) const;
 };

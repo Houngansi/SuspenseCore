@@ -108,7 +108,7 @@ public:
 		USuspenseCoreInventoryComponent* Target,
 		FName ItemID,
 		int32 Quantity,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	);
 
 	/**
@@ -126,7 +126,7 @@ public:
 		USuspenseCoreInventoryComponent* Target,
 		const FGuid& InstanceID,
 		int32 TargetSlot,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	);
 
 	/**
@@ -139,7 +139,7 @@ public:
 	bool ExecuteTransfer(
 		const FSuspenseCoreTransferOperation& Operation,
 		const FSuspenseCoreOperationContext& Context,
-		FSuspenseInventoryOperationResult& OutResult
+		FSuspenseCoreInventorySimpleResult& OutResult
 	);
 
 	//==================================================================

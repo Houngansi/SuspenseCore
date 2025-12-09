@@ -35,6 +35,19 @@
 // Helpers - Utility functions
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVENTORY SYSTEM - Re-exported from InventorySystem module
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Inventory Component
+#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
+
+// Inventory Manager
+#include "SuspenseCore/Base/SuspenseCoreInventoryManager.h"
+
+// Inventory Events
+#include "SuspenseCore/Events/Inventory/SuspenseCoreInventoryEvents.h"
+
 /**
  * FSuspenseCoreModule
  *
@@ -46,7 +59,8 @@
  * 2. GAS (PreDefault) - Gameplay Ability System
  * 3. PlayerCore (Default) - Player systems
  * 4. InteractionSystem (Default) - Interaction systems
- * 5. SuspenseCore (Default) - This module, re-exports all
+ * 5. InventorySystem (Default) - Inventory systems
+ * 6. SuspenseCore (Default) - This module, re-exports all
  */
 class SUSPENSECORE_API FSuspenseCoreModule : public IModuleInterface
 {

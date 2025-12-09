@@ -16,6 +16,17 @@
 #include "Blueprint/UserWidget.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// OPTIONAL MODULE INCLUDES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_UI_SYSTEM
+#include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#endif
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -51,10 +62,30 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 	SetupEnhancedInput();
 
-	// UI widget creation will be added when UISystem module is enabled
-	// For now, just log the input mode state
+	// Create UI widgets for local player (conditional on WITH_UI_SYSTEM)
 	if (IsLocalController())
 	{
+		CreatePauseMenu();
+		CreateHUDWidget();
+
+#if WITH_UI_SYSTEM
+		// Configure UIManager with widget classes
+		if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+		{
+			if (ContainerScreenWidgetClass)
+			{
+				UIManager->ContainerScreenClass = ContainerScreenWidgetClass;
+				UE_LOG(LogTemp, Warning, TEXT("  UIManager: ContainerScreenClass set to %s"), *ContainerScreenWidgetClass->GetName());
+			}
+			if (TooltipWidgetClass)
+			{
+				UIManager->TooltipWidgetClass = TooltipWidgetClass;
+				UE_LOG(LogTemp, Warning, TEXT("  UIManager: TooltipWidgetClass set to %s"), *TooltipWidgetClass->GetName());
+			}
+		}
+#endif
+
+		// Verify input mode
 		UE_LOG(LogTemp, Warning, TEXT("=== Input Mode Check ==="));
 		UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));
 	}
@@ -565,30 +596,133 @@ USuspenseCoreEventBus* ASuspenseCorePlayerController::GetEventBus() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PAUSE MENU (Stub implementations - UISystem not yet enabled)
+// PAUSE MENU
 // ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::CreatePauseMenu()
+{
+#if WITH_UI_SYSTEM
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreatePauseMenu ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidgetClass: %s"), PauseMenuWidgetClass ? *PauseMenuWidgetClass->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_PauseGame: %s"), IA_PauseGame ? *IA_PauseGame->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickSave: %s"), IA_QuickSave ? *IA_QuickSave->GetName() : TEXT("NOT SET!"));
+	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickLoad: %s"), IA_QuickLoad ? *IA_QuickLoad->GetName() : TEXT("NOT SET!"));
+
+	if (!PauseMenuWidgetClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidgetClass is not set in BP_SuspenseCorePlayerController!"));
+		return;
+	}
+
+	PauseMenuWidget = CreateWidget<USuspenseCorePauseMenuWidget>(this, PauseMenuWidgetClass);
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->AddToViewport(100); // High Z-order for pause menu
+		PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: PauseMenuWidget created and added to viewport"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not create PauseMenuWidget!"));
+	}
+#endif // WITH_UI_SYSTEM
+}
 
 void ASuspenseCorePlayerController::TogglePauseMenu()
 {
-	// Stub: Widget creation to be added when UISystem module is enabled
-	UE_LOG(LogTemp, Warning, TEXT("TogglePauseMenu: UISystem not enabled, widget not available"));
+#if WITH_UI_SYSTEM
+	UE_LOG(LogTemp, Warning, TEXT("=== TogglePauseMenu called ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
+
+	if (USuspenseCorePauseMenuWidget* PauseMenu = Cast<USuspenseCorePauseMenuWidget>(PauseMenuWidget))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  Calling PauseMenuWidget->TogglePauseMenu()"));
+		PauseMenu->TogglePauseMenu();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidget is NULL! Cannot toggle pause menu."));
+	}
+#endif // WITH_UI_SYSTEM
 }
 
 void ASuspenseCorePlayerController::ShowPauseMenu()
 {
-	// Stub: Widget creation to be added when UISystem module is enabled
-	UE_LOG(LogTemp, Warning, TEXT("ShowPauseMenu: UISystem not enabled, widget not available"));
+#if WITH_UI_SYSTEM
+	if (USuspenseCorePauseMenuWidget* PauseMenu = Cast<USuspenseCorePauseMenuWidget>(PauseMenuWidget))
+	{
+		PauseMenu->ShowPauseMenu();
+	}
+#endif // WITH_UI_SYSTEM
 }
 
 void ASuspenseCorePlayerController::HidePauseMenu()
 {
-	// Stub: Widget creation to be added when UISystem module is enabled
+#if WITH_UI_SYSTEM
+	if (USuspenseCorePauseMenuWidget* PauseMenu = Cast<USuspenseCorePauseMenuWidget>(PauseMenuWidget))
+	{
+		PauseMenu->HidePauseMenu();
+	}
+#endif // WITH_UI_SYSTEM
 }
 
 bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
 {
-	// Stub: UISystem not enabled
+#if WITH_UI_SYSTEM
+	if (USuspenseCorePauseMenuWidget* PauseMenu = Cast<USuspenseCorePauseMenuWidget>(PauseMenuWidget))
+	{
+		return PauseMenu->IsMenuVisible();
+	}
+#endif // WITH_UI_SYSTEM
 	return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HUD WIDGET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::CreateHUDWidget()
+{
+#if WITH_UI_SYSTEM
+	if (!HUDWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerController: HUDWidgetClass is not set"));
+		return;
+	}
+
+	HUDWidget = CreateWidget<USuspenseCoreHUDWidget>(this, HUDWidgetClass);
+	if (HUDWidget)
+	{
+		HUDWidget->AddToViewport(0); // Low Z-order for HUD (under pause menu)
+		HUDWidget->SetVisibility(ESlateVisibility::Visible);
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerController: HUD widget created and added to viewport"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SuspenseCorePlayerController: Failed to create HUD widget"));
+	}
+#endif // WITH_UI_SYSTEM
+}
+
+void ASuspenseCorePlayerController::ShowHUD()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void ASuspenseCorePlayerController::HideHUD()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+bool ASuspenseCorePlayerController::IsHUDVisible() const
+{
+	return HUDWidget && HUDWidget->GetVisibility() == ESlateVisibility::Visible;
 }
 
 void ASuspenseCorePlayerController::QuickSave()

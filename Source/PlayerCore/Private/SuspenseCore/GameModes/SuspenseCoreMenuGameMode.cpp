@@ -8,6 +8,14 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIONAL MODULE INCLUDES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_UI_SYSTEM
+#include "SuspenseCore/Widgets/SuspenseCoreMainMenuWidget.h"
+#endif
+
 ASuspenseCoreMenuGameMode::ASuspenseCoreMenuGameMode()
 {
 	// No default pawn - this is a menu
@@ -34,7 +42,10 @@ void ASuspenseCoreMenuGameMode::StartPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCoreMenuGameMode::StartPlay on map: %s ==="), *GetWorld()->GetMapName());
 
-	// Widget creation to be added when UISystem module is enabled
+	if (bAutoCreateMainMenu)
+	{
+		CreateMainMenuWidget();
+	}
 }
 
 void ASuspenseCoreMenuGameMode::BeginPlay()
@@ -57,7 +68,40 @@ AActor* ASuspenseCoreMenuGameMode::ChoosePlayerStart_Implementation(AController*
 	return nullptr;
 }
 
-// Widget creation to be added when UISystem module is enabled
+void ASuspenseCoreMenuGameMode::CreateMainMenuWidget()
+{
+#if WITH_UI_SYSTEM
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreMenuGameMode: No player controller found"));
+		return;
+	}
+
+	// If we have a widget class set, use it
+	if (MainMenuWidgetClass)
+	{
+		MainMenuWidget = CreateWidget<USuspenseCoreMainMenuWidget>(PC, MainMenuWidgetClass);
+	}
+	else
+	{
+		// Create default widget
+		MainMenuWidget = CreateWidget<USuspenseCoreMainMenuWidget>(PC, USuspenseCoreMainMenuWidget::StaticClass());
+	}
+
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->AddToViewport(0);
+		OnMenuShown();
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCoreMenuGameMode: Main menu widget created and shown"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SuspenseCoreMenuGameMode: Failed to create main menu widget"));
+	}
+#endif // WITH_UI_SYSTEM
+}
 
 void ASuspenseCoreMenuGameMode::SetupMenuInputMode()
 {
@@ -76,14 +120,24 @@ void ASuspenseCoreMenuGameMode::SetupMenuInputMode()
 
 void ASuspenseCoreMenuGameMode::ShowMainMenu()
 {
-	// Stub: Widget creation to be added when UISystem module is enabled
-	SetupMenuInputMode();
-	UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu: UISystem not enabled, widget not available"));
+	if (!MainMenuWidget)
+	{
+		CreateMainMenuWidget();
+	}
+
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		SetupMenuInputMode();
+	}
 }
 
 void ASuspenseCoreMenuGameMode::HideMainMenu()
 {
-	// Stub: UISystem not enabled
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void ASuspenseCoreMenuGameMode::TransitionToGameMap(FName MapName)

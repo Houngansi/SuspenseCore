@@ -17,32 +17,32 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 	USuspenseCoreInventoryComponent* Component,
 	FName ItemID,
 	int32 Quantity,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!Component)
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::Unknown, TEXT("Null component"));
 		return false;
 	}
 
 	if (!Component->IsInitialized())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
 
 	if (ItemID.IsNone())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::InvalidItem, TEXT("Invalid ItemID"));
 		return false;
 	}
 
 	if (Quantity <= 0)
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::InvalidItem, TEXT("Invalid quantity"));
 		return false;
 	}
@@ -51,7 +51,7 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 	FSuspenseCoreItemData ItemData;
 	if (!GetItemData(Component, ItemID, ItemData))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::ItemNotFound,
 			FString::Printf(TEXT("Item %s not found in DataTable"), *ItemID.ToString()));
 		return false;
@@ -62,7 +62,7 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 	float RemainingCapacity;
 	if (!CheckWeightConstraint(Component, ItemWeight, RemainingCapacity))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::WeightLimitExceeded,
 			FString::Printf(TEXT("Weight limit exceeded (need %.1f, have %.1f)"), ItemWeight, RemainingCapacity));
 		return false;
@@ -71,7 +71,7 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 	// Check type
 	if (!CheckTypeConstraint(Component, ItemData.Classification.ItemType))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::TypeNotAllowed,
 			FString::Printf(TEXT("Item type %s not allowed"), *ItemData.Classification.ItemType.ToString()));
 		return false;
@@ -86,7 +86,7 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 		int32 Remainder;
 		if (!CheckStackConstraint(Component, ItemID, Quantity, CanFullyStack, Remainder) || !CanFullyStack)
 		{
-			OutResult = FSuspenseInventoryOperationResult::Failure(
+			OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 				ESuspenseCoreInventoryResult::NoSpace, TEXT("No space available"));
 			return false;
 		}
@@ -98,7 +98,7 @@ bool USuspenseCoreInventoryValidator::ValidateAddItem(
 		return false;
 	}
 
-	OutResult = FSuspenseInventoryOperationResult::Success(AvailableSlot, Quantity);
+	OutResult = FSuspenseCoreInventorySimpleResult::Success(AvailableSlot, Quantity);
 	return true;
 }
 
@@ -106,11 +106,11 @@ bool USuspenseCoreInventoryValidator::ValidateAddItemInstance(
 	USuspenseCoreInventoryComponent* Component,
 	const FSuspenseCoreItemInstance& ItemInstance,
 	int32 TargetSlot,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!ItemInstance.IsValid())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::InvalidItem, TEXT("Invalid item instance"));
 		return false;
 	}
@@ -122,11 +122,11 @@ bool USuspenseCoreInventoryValidator::ValidateRemoveItem(
 	USuspenseCoreInventoryComponent* Component,
 	FName ItemID,
 	int32 Quantity,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!Component || !Component->IsInitialized())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
@@ -134,13 +134,13 @@ bool USuspenseCoreInventoryValidator::ValidateRemoveItem(
 	int32 Available = Component->GetItemCountByID(ItemID);
 	if (Available < Quantity)
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::InsufficientQuantity,
 			FString::Printf(TEXT("Insufficient quantity (have %d, need %d)"), Available, Quantity));
 		return false;
 	}
 
-	OutResult = FSuspenseInventoryOperationResult::Success(-1, Quantity);
+	OutResult = FSuspenseCoreInventorySimpleResult::Success(-1, Quantity);
 	return true;
 }
 
@@ -148,25 +148,25 @@ bool USuspenseCoreInventoryValidator::ValidateMoveItem(
 	USuspenseCoreInventoryComponent* Component,
 	int32 FromSlot,
 	int32 ToSlot,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!Component || !Component->IsInitialized())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
 
 	if (FromSlot == ToSlot)
 	{
-		OutResult = FSuspenseInventoryOperationResult::Success(ToSlot);
+		OutResult = FSuspenseCoreInventorySimpleResult::Success(ToSlot);
 		return true;
 	}
 
 	FSuspenseCoreItemInstance Instance;
 	if (!Component->GetItemInstanceAtSlot(FromSlot, Instance))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::ItemNotFound, TEXT("No item at source slot"));
 		return false;
 	}
@@ -174,14 +174,14 @@ bool USuspenseCoreInventoryValidator::ValidateMoveItem(
 	FSuspenseCoreItemData ItemData;
 	if (!GetItemData(Component, Instance.ItemID, ItemData))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::ItemNotFound, TEXT("Item data not found"));
 		return false;
 	}
 
 	// TODO: Check if can place at target (considering source item removal)
 
-	OutResult = FSuspenseInventoryOperationResult::Success(ToSlot);
+	OutResult = FSuspenseCoreInventorySimpleResult::Success(ToSlot);
 	return true;
 }
 
@@ -189,18 +189,18 @@ bool USuspenseCoreInventoryValidator::ValidateSwapItems(
 	USuspenseCoreInventoryComponent* Component,
 	int32 Slot1,
 	int32 Slot2,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!Component || !Component->IsInitialized())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
 
 	// Both slots must have items or be swappable
 	// For now, simple validation
-	OutResult = FSuspenseInventoryOperationResult::Success();
+	OutResult = FSuspenseCoreInventorySimpleResult::Success();
 	return true;
 }
 
@@ -209,11 +209,11 @@ bool USuspenseCoreInventoryValidator::ValidateSplitStack(
 	int32 SourceSlot,
 	int32 SplitQuantity,
 	int32 TargetSlot,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	if (!Component || !Component->IsInitialized())
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
@@ -221,14 +221,14 @@ bool USuspenseCoreInventoryValidator::ValidateSplitStack(
 	FSuspenseCoreItemInstance Instance;
 	if (!Component->GetItemInstanceAtSlot(SourceSlot, Instance))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::ItemNotFound, TEXT("No item at source slot"));
 		return false;
 	}
 
 	if (SplitQuantity <= 0 || SplitQuantity >= Instance.Quantity)
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::InsufficientQuantity,
 			TEXT("Invalid split quantity"));
 		return false;
@@ -237,12 +237,12 @@ bool USuspenseCoreInventoryValidator::ValidateSplitStack(
 	// Check if target slot is available
 	if (TargetSlot != INDEX_NONE && Component->IsSlotOccupied(TargetSlot))
 	{
-		OutResult = FSuspenseInventoryOperationResult::Failure(
+		OutResult = FSuspenseCoreInventorySimpleResult::Failure(
 			ESuspenseCoreInventoryResult::SlotOccupied, TEXT("Target slot occupied"));
 		return false;
 	}
 
-	OutResult = FSuspenseInventoryOperationResult::Success(TargetSlot, SplitQuantity);
+	OutResult = FSuspenseCoreInventorySimpleResult::Success(TargetSlot, SplitQuantity);
 	return true;
 }
 
@@ -428,7 +428,7 @@ USuspenseCoreDataManager* USuspenseCoreInventoryValidator::GetDataManager(USuspe
 bool USuspenseCoreInventoryValidator::ValidateCustomRules_Implementation(
 	USuspenseCoreInventoryComponent* Component,
 	FName ItemID,
-	FSuspenseInventoryOperationResult& OutResult) const
+	FSuspenseCoreInventorySimpleResult& OutResult) const
 {
 	// Default: no custom rules, always pass
 	return true;

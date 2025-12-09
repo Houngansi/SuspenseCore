@@ -224,7 +224,7 @@ public:
 	 * @return true if successful
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory|Results")
-	static bool IsOperationSuccess(const FSuspenseInventoryOperationResult& Result);
+	static bool IsOperationSuccess(const FSuspenseCoreInventorySimpleResult& Result);
 
 	/**
 	 * Get result message.
@@ -232,7 +232,7 @@ public:
 	 * @return Human-readable message
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory|Results")
-	static FString GetResultMessage(const FSuspenseInventoryOperationResult& Result);
+	static FString GetResultMessage(const FSuspenseCoreInventorySimpleResult& Result);
 
 	/**
 	 * Get localized result code name.

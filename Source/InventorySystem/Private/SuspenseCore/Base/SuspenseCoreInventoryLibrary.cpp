@@ -358,12 +358,12 @@ FString USuspenseCoreInventoryLibrary::FormatWeight(float Weight)
 	}
 }
 
-bool USuspenseCoreInventoryLibrary::IsOperationSuccess(const FSuspenseInventoryOperationResult& Result)
+bool USuspenseCoreInventoryLibrary::IsOperationSuccess(const FSuspenseCoreInventorySimpleResult& Result)
 {
 	return Result.bSuccess;
 }
 
-FString USuspenseCoreInventoryLibrary::GetResultMessage(const FSuspenseInventoryOperationResult& Result)
+FString USuspenseCoreInventoryLibrary::GetResultMessage(const FSuspenseCoreInventorySimpleResult& Result)
 {
 	if (Result.bSuccess)
 	{

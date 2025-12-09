@@ -14,11 +14,18 @@
 class USuspenseCoreAbilitySystemComponent;
 class USuspenseCoreAttributeSet;
 class USuspenseCoreEventBus;
-class USuspenseCoreInventoryComponent;
 class UGameplayAbility;
 class UGameplayEffect;
 
-// Equipment module forward declarations
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIONAL MODULE FORWARD DECLARATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_INVENTORY_SYSTEM
+class USuspenseCoreInventoryComponent;
+#endif
+
+#if WITH_EQUIPMENT_SYSTEM
 class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreEquipmentTransactionProcessor;
 class USuspenseCoreEquipmentReplicationManager;
@@ -30,6 +37,7 @@ class USuspenseCoreEquipmentEventDispatcher;
 class USuspenseCoreEquipmentOperationExecutor;
 class USuspenseCoreEquipmentSlotValidator;
 class USuspenseCoreLoadoutManager;
+#endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELEGATES (Internal use only - EventBus preferred for external communication)
@@ -122,17 +130,20 @@ public:
 	bool ApplyEffect(TSubclassOf<UGameplayEffect> EffectClass, float Level = 1.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - INVENTORY
+	// PUBLIC API - INVENTORY (Conditional: WITH_INVENTORY_SYSTEM)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_INVENTORY_SYSTEM
 	/** Get the inventory component */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory")
 	USuspenseCoreInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - EQUIPMENT
+	// PUBLIC API - EQUIPMENT (Conditional: WITH_EQUIPMENT_SYSTEM)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_EQUIPMENT_SYSTEM
 	/** Get the equipment data store (core equipment state) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
 	USuspenseCoreEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
@@ -156,6 +167,7 @@ public:
 	/** Get the weapon state manager (weapon FSM) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
 	USuspenseCoreWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
@@ -232,25 +244,32 @@ public:
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// COMPONENTS
+	// CORE COMPONENTS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Ability System Component - created in constructor */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
 	USuspenseCoreAbilitySystemComponent* AbilitySystemComponent = nullptr;
 
-	/** Inventory Component - created in constructor, persists across respawns */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
-	USuspenseCoreInventoryComponent* InventoryComponent = nullptr;
-
 	/** Attribute Set - spawned by ASC */
 	UPROPERTY()
 	USuspenseCoreAttributeSet* AttributeSet = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT MODULE COMPONENTS (Per-Player)
+	// INVENTORY COMPONENT (Conditional: WITH_INVENTORY_SYSTEM)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_INVENTORY_SYSTEM
+	/** Inventory Component - created in constructor, persists across respawns */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
+	USuspenseCoreInventoryComponent* InventoryComponent = nullptr;
+#endif
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// EQUIPMENT MODULE COMPONENTS (Conditional: WITH_EQUIPMENT_SYSTEM)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_EQUIPMENT_SYSTEM
 	/** Core data store for equipment state (Server authoritative, replicated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
 	USuspenseCoreEquipmentDataStore* EquipmentDataStore = nullptr;
@@ -290,6 +309,7 @@ protected:
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()
 	USuspenseCoreEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -369,9 +389,10 @@ protected:
 	void HandleAttributeChange(const FGameplayTag& AttributeTag, float NewValue, float OldValue);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT MODULE WIRING
+	// EQUIPMENT MODULE WIRING (Conditional: WITH_EQUIPMENT_SYSTEM)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_EQUIPMENT_SYSTEM
 	/**
 	 * Wire up per-player equipment components with global services.
 	 * CRITICAL: Called AFTER loadout application to ensure slots are configured.
@@ -390,14 +411,18 @@ protected:
 
 	/** Initialize all equipment module components */
 	void InitializeEquipmentComponents();
+#endif
 
+#if WITH_INVENTORY_SYSTEM
 	/** Initialize inventory component from loadout configuration */
 	void InitializeInventoryFromLoadout();
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// CONFIGURATION
+	// CONFIGURATION (Conditional: WITH_INVENTORY_SYSTEM || WITH_EQUIPMENT_SYSTEM)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_INVENTORY_SYSTEM || WITH_EQUIPMENT_SYSTEM
 	/**
 	 * Default loadout ID for this player.
 	 * References row in SuspenseCoreDataManager's LoadoutDataTable.
@@ -408,6 +433,7 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Loadout")
 	FName DefaultLoadoutID = TEXT("Default_Soldier");
+#endif
 
 private:
 	/** Cached EventBus reference (mutable for const getter caching) */
@@ -423,6 +449,7 @@ private:
 	/** Flag for initialization state */
 	bool bAbilitySystemInitialized = false;
 
+#if WITH_EQUIPMENT_SYSTEM
 	/** Flag for equipment module initialization state */
 	bool bEquipmentModuleInitialized = false;
 
@@ -441,4 +468,5 @@ private:
 
 	/** Interval between retry attempts (50 milliseconds) */
 	static constexpr float EquipmentWireRetryInterval = 0.05f;
+#endif
 };

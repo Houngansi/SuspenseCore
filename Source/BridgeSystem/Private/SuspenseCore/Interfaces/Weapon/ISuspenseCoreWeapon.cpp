@@ -40,7 +40,7 @@ void ISuspenseCoreWeapon::BroadcastWeaponFired(
                 .SetString(TEXT("ShotType"), ShotType.ToString());
 
             EventBus->Publish(
-                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Fired")),
+                FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.Fired")),
                 EventData
             );
         }
@@ -68,7 +68,7 @@ void ISuspenseCoreWeapon::BroadcastAmmoChanged(
                 .SetFloat(TEXT("MagazineSize"), MagazineSize);
 
             EventBus->Publish(
-                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.AmmoChanged")),
+                FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.AmmoChanged")),
                 EventData
             );
         }
@@ -93,7 +93,7 @@ void ISuspenseCoreWeapon::BroadcastReloadStarted(
                 .SetBool(TEXT("Started"), true);
 
             EventBus->Publish(
-                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Reload")),
+                FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.ReloadStarted")),
                 EventData
             );
         }
@@ -118,7 +118,7 @@ void ISuspenseCoreWeapon::BroadcastReloadCompleted(
                 .SetBool(TEXT("Success"), bSuccess);
 
             EventBus->Publish(
-                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.Reload")),
+                FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.ReloadCompleted")),
                 EventData
             );
         }
@@ -150,7 +150,7 @@ void ISuspenseCoreWeapon::BroadcastFireModeChanged(
                 .SetFloat(TEXT("CurrentSpread"), CurrentSpread);
 
             EventBus->Publish(
-                FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeChanged")),
+                FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.FireModeChanged")),
                 EventData
             );
         }

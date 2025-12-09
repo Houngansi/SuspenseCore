@@ -174,7 +174,7 @@ USuspenseDragDropOperation* USuspenseDragDropHandler::StartDragOperation(
     return DragOp;
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     USuspenseDragDropOperation* DragOperation,
     const FVector2D& ScreenPosition,
     UWidget* TargetWidget)
@@ -182,7 +182,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     // Validate operation
     if (!DragOperation || !DragOperation->IsValidOperation())
     {
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid drag operation")),
             TEXT("ProcessDrop"),
@@ -210,7 +210,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     {
         ClearAllVisualFeedback();
 
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidSlot,
             FText::FromString(TEXT("No valid drop target")),
             TEXT("ProcessDrop"),
@@ -227,7 +227,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     Request.ScreenPosition = ScreenPosition;
 
     // Process the drop
-    FSuspenseCoreInventoryOperationResult Result = ProcessDropRequest(Request);
+    FSuspenseInventoryOperationResult Result = ProcessDropRequest(Request);
 
     // Clear visual feedback
     ClearAllVisualFeedback();
@@ -245,12 +245,12 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     return Result;
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDropRequest(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDropRequest(const FDropRequest& Request)
 {
     // Validate request
     if (!Request.DragData.IsValidDragData())
     {
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid drag data")),
             TEXT("ProcessDropRequest"),
@@ -260,7 +260,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDropReque
 
     if (Request.TargetSlot < 0)
     {
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidSlot,
             FText::FromString(TEXT("Invalid target slot")),
             TEXT("ProcessDropRequest"),
@@ -468,7 +468,7 @@ bool USuspenseDragDropHandler::ProcessContainerDrop(
     Request.ScreenPosition = ScreenPosition;
 
     // Process drop
-    FSuspenseCoreInventoryOperationResult Result = ProcessDropRequest(Request);
+    FSuspenseInventoryOperationResult Result = ProcessDropRequest(Request);
 
     return Result.IsSuccess();
 }
@@ -913,7 +913,7 @@ FSlotValidationResult USuspenseDragDropHandler::ValidateDropPlacement(
     return FSlotValidationResult::Success();
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FDropRequest& Request)
 {
     // TODO: Migrate to EventBus - old delegate system removed
     // if (CachedEventManager)
@@ -936,10 +936,10 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(cons
     //     }
     // }
 
-    return FSuspenseCoreInventoryOperationResult::Success(TEXT("ExecuteDrop"));
+    return FSuspenseInventoryOperationResult::Success(TEXT("ExecuteDrop"));
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
 {
     // Determine operation type
     bool bSourceIsInventory = Request.SourceContainer.MatchesTag(
@@ -971,7 +971,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::RouteDropOperati
     }
     else
     {
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Unsupported drop operation")),
             TEXT("RouteDropOperation"),
@@ -980,13 +980,13 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::RouteDropOperati
     }
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInventory(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInventory(const FDropRequest& Request)
 {
     // Get inventory bridge
     TScriptInterface<ISuspenseInventoryUIBridgeInterface> Bridge = GetBridgeForContainer(Request.TargetContainer);
     if (!Bridge.GetInterface())
     {
-        return FSuspenseCoreInventoryOperationResult::Failure(
+        return FSuspenseInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("Inventory bridge not available")),
             TEXT("HandleInventoryToInventory"),
@@ -998,7 +998,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleInventoryT
     return ExecuteDrop(Request);
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInventory(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInventory(const FDropRequest& Request)
 {
     // Create unequip request (matching EquipmentTypes.h)
     FEquipmentOperationRequest UnequipRequest;
@@ -1022,10 +1022,10 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentT
     // if (CachedEventManager)
     // {
     //     CachedEventManager->BroadcastEquipmentOperationRequest(UnequipRequest);
-    //     return FSuspenseCoreInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
+    //     return FSuspenseInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
     // }
 
-    return FSuspenseCoreInventoryOperationResult::Failure(
+    return FSuspenseInventoryOperationResult::Failure(
         ESuspenseInventoryErrorCode::UnknownError,
         FText::FromString(TEXT("Event manager not available")),
         TEXT("HandleEquipmentToInventory"),
@@ -1033,7 +1033,7 @@ FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentT
     );
 }
 
-FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToEquipment(const FDropRequest& Request)
+FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToEquipment(const FDropRequest& Request)
 {
     // Execute through bridge/event system
     return ExecuteDrop(Request);

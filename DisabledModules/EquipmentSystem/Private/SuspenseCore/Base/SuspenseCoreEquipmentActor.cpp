@@ -447,9 +447,9 @@ bool ASuspenseCoreEquipmentActor::ValidateEquipmentRequirements_Implementation(T
 // Interface: operations
 // ==============================
 
-FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip)
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip)
 {
-    FSuspenseCoreInventoryOperationResult R;
+    FSuspenseInventoryOperationResult R;
 
     if (!ItemInstance.IsValid())
     {
@@ -479,9 +479,9 @@ FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInst
     return R;
 }
 
-FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance)
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance)
 {
-    FSuspenseCoreInventoryOperationResult R;
+    FSuspenseInventoryOperationResult R;
 
     if (!EquippedItemInstance.IsValid())
     {
@@ -499,9 +499,9 @@ FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_I
     return R;
 }
 
-FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
+FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
 {
-    FSuspenseCoreInventoryOperationResult R;
+    FSuspenseInventoryOperationResult R;
 
     if (!OtherEquipment)
     {

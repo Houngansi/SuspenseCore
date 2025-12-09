@@ -82,7 +82,7 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
     else if (Handler.IsValid())
     {
         // Delegate to handler
-        FSuspenseCoreInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
+        FSuspenseInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
         bWasSuccessful = Result.IsSuccess();
     }
     else

@@ -183,10 +183,11 @@ private:
 };
 
 /**
- * Inventory configuration
+ * Loadout inventory configuration
+ * Used for configuring inventories within loadout definitions
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreInventoryConfig
+struct BRIDGESYSTEM_API FSuspenseCoreLoadoutInventoryConfig
 {
     GENERATED_BODY()
 
@@ -211,7 +212,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Starting Items")
     TArray<FSuspenseCorePickupSpawnData> StartingItems;
 
-    FSuspenseCoreInventoryConfig()
+    FSuspenseCoreLoadoutInventoryConfig()
     {
         InventoryName = FText::FromString(TEXT("Inventory"));
         Width = 10;
@@ -221,7 +222,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryConfig
         DisallowedItemTypes.Reset();
     }
 
-    FSuspenseCoreInventoryConfig(const FText& InName, int32 InWidth, int32 InHeight, float InMaxWeight)
+    FSuspenseCoreLoadoutInventoryConfig(const FText& InName, int32 InWidth, int32 InHeight, float InMaxWeight)
         : InventoryName(InName)
         , Width(FMath::Clamp(InWidth, 1, 50))
         , Height(FMath::Clamp(InHeight, 1, 50))
@@ -287,10 +288,10 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
     TSoftObjectPtr<UTexture2D> LoadoutIcon;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Inventory")
-    FSuspenseCoreInventoryConfig MainInventory;
+    FSuspenseCoreLoadoutInventoryConfig MainInventory;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Inventory")
-    TMap<FName, FSuspenseCoreInventoryConfig> AdditionalInventories;
+    TMap<FName, FSuspenseCoreLoadoutInventoryConfig> AdditionalInventories;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Equipment")
     TArray<FEquipmentSlotConfig> EquipmentSlots;
@@ -318,7 +319,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         LoadoutName = FText::FromString(TEXT("Default PMC Loadout"));
         Description = FText::FromString(TEXT("Standard PMC loadout configuration"));
 
-        MainInventory = FSuspenseCoreInventoryConfig(
+        MainInventory = FSuspenseCoreLoadoutInventoryConfig(
             FText::FromString(TEXT("Pockets")),
             4, 1, 10.0f
         );
@@ -330,7 +331,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         SetupDefaultEquipmentSlots();
     }
 
-    const FSuspenseCoreInventoryConfig* GetInventoryConfig(const FName& InventoryName = NAME_None) const
+    const FSuspenseCoreLoadoutInventoryConfig* GetInventoryConfig(const FName& InventoryName = NAME_None) const
     {
         if (InventoryName.IsNone())
         {
@@ -351,7 +352,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         return nullptr;
     }
 
-    void AddAdditionalInventory(const FName& InventoryName, const FSuspenseCoreInventoryConfig& Config)
+    void AddAdditionalInventory(const FName& InventoryName, const FSuspenseCoreLoadoutInventoryConfig& Config)
     {
         AdditionalInventories.Add(InventoryName, Config);
     }

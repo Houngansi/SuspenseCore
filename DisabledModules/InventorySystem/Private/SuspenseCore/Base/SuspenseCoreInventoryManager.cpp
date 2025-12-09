@@ -123,11 +123,11 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	USuspenseCoreInventoryComponent* Target,
 	FName ItemID,
 	int32 Quantity,
-	FSuspenseCoreInventoryOperationResult& OutResult)
+	FSuspenseInventoryOperationResult& OutResult)
 {
 	if (!Source || !Target || ItemID.IsNone() || Quantity <= 0)
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::InvalidItem,
 			TEXT("Invalid transfer parameters"));
 		return false;
@@ -137,7 +137,7 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	int32 SourceCount = Source->Execute_GetItemCountByID(Source, ItemID);
 	if (SourceCount < Quantity)
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::InsufficientQuantity,
 			FString::Printf(TEXT("Source has %d, requested %d"), SourceCount, Quantity));
 		return false;
@@ -146,7 +146,7 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	// Check target can receive
 	if (!Target->Execute_CanReceiveItem(Target, ItemID, Quantity))
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::NoSpace,
 			TEXT("Target cannot receive item"));
 		return false;
@@ -155,7 +155,7 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	// Perform transfer
 	if (!Source->Execute_RemoveItemByID(Source, ItemID, Quantity))
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::Unknown,
 			TEXT("Failed to remove from source"));
 		return false;
@@ -165,13 +165,13 @@ bool USuspenseCoreInventoryManager::TransferItem(
 	{
 		// Rollback - add back to source
 		Source->Execute_AddItemByID(Source, ItemID, Quantity);
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::Unknown,
 			TEXT("Failed to add to target"));
 		return false;
 	}
 
-	OutResult = FSuspenseCoreInventoryOperationResult::Success(-1, Quantity);
+	OutResult = FSuspenseInventoryOperationResult::Success(-1, Quantity);
 
 	// Broadcast transfer event
 	BroadcastGlobalEvent(
@@ -191,11 +191,11 @@ bool USuspenseCoreInventoryManager::TransferItemInstance(
 	USuspenseCoreInventoryComponent* Target,
 	const FGuid& InstanceID,
 	int32 TargetSlot,
-	FSuspenseCoreInventoryOperationResult& OutResult)
+	FSuspenseInventoryOperationResult& OutResult)
 {
 	if (!Source || !Target || !InstanceID.IsValid())
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::InvalidItem,
 			TEXT("Invalid transfer parameters"));
 		return false;
@@ -205,7 +205,7 @@ bool USuspenseCoreInventoryManager::TransferItemInstance(
 	FSuspenseCoreItemInstance Instance;
 	if (!Source->FindItemInstance(InstanceID, Instance))
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::ItemNotFound,
 			TEXT("Instance not found in source"));
 		return false;
@@ -214,7 +214,7 @@ bool USuspenseCoreInventoryManager::TransferItemInstance(
 	// Check target can receive
 	if (!Target->Execute_CanReceiveItem(Target, Instance.ItemID, Instance.Quantity))
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::NoSpace,
 			TEXT("Target cannot receive item"));
 		return false;
@@ -224,7 +224,7 @@ bool USuspenseCoreInventoryManager::TransferItemInstance(
 	FSuspenseCoreItemInstance RemovedInstance;
 	if (!Source->RemoveItemInstance(InstanceID))
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::Unknown,
 			TEXT("Failed to remove from source"));
 		return false;
@@ -235,24 +235,24 @@ bool USuspenseCoreInventoryManager::TransferItemInstance(
 	{
 		// Rollback
 		Source->Execute_AddItemInstance(Source, Instance);
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::Unknown,
 			TEXT("Failed to add to target"));
 		return false;
 	}
 
-	OutResult = FSuspenseCoreInventoryOperationResult::Success(TargetSlot, Instance.Quantity, InstanceID);
+	OutResult = FSuspenseInventoryOperationResult::Success(TargetSlot, Instance.Quantity, InstanceID);
 	return true;
 }
 
 bool USuspenseCoreInventoryManager::ExecuteTransfer(
 	const FSuspenseCoreTransferOperation& Operation,
 	const FSuspenseCoreOperationContext& Context,
-	FSuspenseCoreInventoryOperationResult& OutResult)
+	FSuspenseInventoryOperationResult& OutResult)
 {
 	if (!Context.SourceInventory.IsValid() || !Context.TargetInventory.IsValid())
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized,
 			TEXT("Invalid inventory references in context"));
 		return false;
@@ -263,7 +263,7 @@ bool USuspenseCoreInventoryManager::ExecuteTransfer(
 
 	if (!SourceComp || !TargetComp)
 	{
-		OutResult = FSuspenseCoreInventoryOperationResult::Failure(
+		OutResult = FSuspenseInventoryOperationResult::Failure(
 			ESuspenseCoreInventoryResult::NotInitialized,
 			TEXT("Invalid inventory component cast"));
 		return false;

@@ -38,12 +38,13 @@ enum class ESuspenseCoreInventoryResult : uint8
 };
 
 /**
- * FSuspenseCoreInventoryOperationResult
+ * FSuspenseCoreInventorySimpleResult
  *
- * Detailed result of an inventory operation.
+ * Simple result of an inventory operation for InventorySystem.
+ * For full-featured result with AffectedItems, use FSuspenseInventoryOperationResult.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
+struct BRIDGESYSTEM_API FSuspenseCoreInventorySimpleResult
 {
 	GENERATED_BODY()
 
@@ -71,7 +72,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	FGuid AffectedInstanceID;
 
-	FSuspenseCoreInventoryOperationResult()
+	FSuspenseCoreInventorySimpleResult()
 		: bSuccess(false)
 		, ResultCode(ESuspenseCoreInventoryResult::Unknown)
 		, AffectedSlot(-1)
@@ -79,9 +80,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
 	{
 	}
 
-	static FSuspenseCoreInventoryOperationResult Success(int32 Slot = -1, int32 Quantity = 0, FGuid InstanceID = FGuid())
+	static FSuspenseCoreInventorySimpleResult Success(int32 Slot = -1, int32 Quantity = 0, FGuid InstanceID = FGuid())
 	{
-		FSuspenseCoreInventoryOperationResult Result;
+		FSuspenseCoreInventorySimpleResult Result;
 		Result.bSuccess = true;
 		Result.ResultCode = ESuspenseCoreInventoryResult::Success;
 		Result.AffectedSlot = Slot;
@@ -90,9 +91,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
 		return Result;
 	}
 
-	static FSuspenseCoreInventoryOperationResult Failure(ESuspenseCoreInventoryResult Code, const FString& Message = TEXT(""))
+	static FSuspenseCoreInventorySimpleResult Failure(ESuspenseCoreInventoryResult Code, const FString& Message = TEXT(""))
 	{
-		FSuspenseCoreInventoryOperationResult Result;
+		FSuspenseCoreInventorySimpleResult Result;
 		Result.bSuccess = false;
 		Result.ResultCode = Code;
 		Result.ErrorMessage = Message;

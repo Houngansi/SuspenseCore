@@ -122,18 +122,14 @@ void ASuspenseCorePlayerState::BeginPlay()
 	if (HasAuthority())
 	{
 		InitializeAbilitySystem();
-#if WITH_INVENTORY_SYSTEM
-		InitializeInventoryFromLoadout();
-#endif
-#if WITH_EQUIPMENT_SYSTEM
-		InitializeEquipmentComponents();
-#endif
+		InitializeInventoryFromLoadout();  // No-op if WITH_INVENTORY_SYSTEM=0
+		InitializeEquipmentComponents();   // No-op if WITH_EQUIPMENT_SYSTEM=0
 	}
 }
 
-#if WITH_INVENTORY_SYSTEM
 void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
 {
+#if WITH_INVENTORY_SYSTEM
 	if (!InventoryComponent)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::InitializeInventoryFromLoadout: InventoryComponent is null"));
@@ -156,18 +152,16 @@ void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: Failed to initialize inventory from loadout '%s'"), *DefaultLoadoutID.ToString());
 	}
+#endif // WITH_INVENTORY_SYSTEM
 }
-#endif
 
 void ASuspenseCorePlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-#if WITH_EQUIPMENT_SYSTEM
-	// Clear equipment wiring retry timer
+	// Clear equipment wiring retry timer (safe even if not used)
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
 	}
-#endif
 
 	CleanupAttributeCallbacks();
 
@@ -187,12 +181,8 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	// Core Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
 
-#if WITH_INVENTORY_SYSTEM
+	// Optional Module Components (properties always exist, may be nullptr)
 	DOREPLIFETIME(ASuspenseCorePlayerState, InventoryComponent);
-#endif
-
-#if WITH_EQUIPMENT_SYSTEM
-	// Equipment Module Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentDataStore);
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentTxnProcessor);
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentOps);
@@ -202,7 +192,6 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentEventDispatcher);
 	DOREPLIFETIME(ASuspenseCorePlayerState, WeaponStateManager);
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentInventoryBridge);
-#endif
 
 	// State
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, PlayerLevel, COND_None, REPNOTIFY_Always);
@@ -657,12 +646,13 @@ USuspenseCoreEventBus* ASuspenseCorePlayerState::GetEventBus() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// INTERNAL - EQUIPMENT MODULE (Conditional: WITH_EQUIPMENT_SYSTEM)
+// INTERNAL - EQUIPMENT MODULE
+// Functions always defined, implementation only active when WITH_EQUIPMENT_SYSTEM=1
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_EQUIPMENT_SYSTEM
 void ASuspenseCorePlayerState::InitializeEquipmentComponents()
 {
+#if WITH_EQUIPMENT_SYSTEM
 	if (bEquipmentModuleInitialized)
 	{
 		return;
@@ -674,10 +664,12 @@ void ASuspenseCorePlayerState::InitializeEquipmentComponents()
 	{
 		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Equipment wiring deferred, starting retry timer"));
 	}
+#endif // WITH_EQUIPMENT_SYSTEM
 }
 
 bool ASuspenseCorePlayerState::TryWireEquipmentModuleOnce()
 {
+#if WITH_EQUIPMENT_SYSTEM
 	// Attempt to wire
 	if (WireEquipmentModule(nullptr, NAME_None))
 	{
@@ -726,10 +718,14 @@ bool ASuspenseCorePlayerState::TryWireEquipmentModuleOnce()
 	}
 
 	return false;
+#else
+	return true; // No-op when equipment system is disabled
+#endif // WITH_EQUIPMENT_SYSTEM
 }
 
 bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
 {
+#if WITH_EQUIPMENT_SYSTEM
 	// Basic validation
 	if (!EquipmentDataStore || !EquipmentTxnProcessor || !EquipmentOps)
 	{
@@ -760,7 +756,6 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentOps ready"));
 	}
 
-#if WITH_INVENTORY_SYSTEM
 	// Initialize Inventory Bridge
 	// Connects equipment system to inventory component
 	if (EquipmentInventoryBridge && InventoryComponent)
@@ -768,7 +763,6 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 		// Bridge connects inventory to equipment data store
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge ready"));
 	}
-#endif
 
 	// Initialize Prediction System (client-side)
 	if (EquipmentPrediction && EquipmentDataStore)
@@ -811,5 +805,7 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 		*GetPlayerName());
 
 	return true;
-}
+#else
+	return true; // No-op when equipment system is disabled
 #endif // WITH_EQUIPMENT_SYSTEM
+}

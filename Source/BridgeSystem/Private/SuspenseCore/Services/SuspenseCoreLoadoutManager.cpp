@@ -195,11 +195,26 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToInventory(UObject* InventoryObje
         return false;
     }
 
-    InventoryInterface->InitializeInventory(*Config);
+    // Initialize inventory with grid size and weight
+    InventoryInterface->Initialize(Config->Width, Config->Height, Config->MaxWeight);
 
+    // Set allowed item types if specified
+    if (!Config->AllowedItemTypes.IsEmpty())
+    {
+        InventoryInterface->SetAllowedItemTypes(Config->AllowedItemTypes);
+    }
+
+    // Add starting items
+    int32 CreatedCount = 0;
     if (Config->StartingItems.Num() > 0)
     {
-        int32 CreatedCount = InventoryInterface->CreateItemsFromSpawnData(Config->StartingItems);
+        for (const FSuspensePickupSpawnData& SpawnData : Config->StartingItems)
+        {
+            if (InventoryInterface->AddItemByID(SpawnData.ItemID, SpawnData.Quantity))
+            {
+                CreatedCount++;
+            }
+        }
         UE_LOG(LogSuspenseCoreLoadout, Log, TEXT("ApplyLoadoutToInventory: Created %d starting items"), CreatedCount);
     }
 

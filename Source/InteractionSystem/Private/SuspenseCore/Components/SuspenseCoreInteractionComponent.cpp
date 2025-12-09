@@ -8,7 +8,6 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreInteractable.h"
-#include "Interfaces/Interaction/ISuspenseInteract.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
@@ -327,7 +326,7 @@ bool USuspenseCoreInteractionComponent::CanInteractNow() const
 	}
 
 	// Check interface implementation
-	if (!InteractableActor->GetClass()->ImplementsInterface(USuspenseInteract::StaticClass()))
+	if (!InteractableActor->GetClass()->ImplementsInterface(USuspenseCoreInteractable::StaticClass()))
 	{
 		LogInteraction(TEXT("Object doesn't support interaction interface"), true);
 		return false;
@@ -341,7 +340,7 @@ bool USuspenseCoreInteractionComponent::CanInteractNow() const
 		return false;
 	}
 
-	if (!ISuspenseInteract::Execute_CanInteract(InteractableActor, PC))
+	if (!ISuspenseCoreInteractable::Execute_CanInteract(InteractableActor, PC))
 	{
 		LogInteraction(TEXT("Object doesn't allow interaction at this moment"), true);
 		return false;
@@ -431,7 +430,7 @@ AActor* USuspenseCoreInteractionComponent::PerformUIInteractionTrace() const
 		AActor* HitActor = HitResult.GetActor();
 
 		// Check if actor implements interaction interface
-		if (HitActor->GetClass()->ImplementsInterface(USuspenseInteract::StaticClass()))
+		if (HitActor->GetClass()->ImplementsInterface(USuspenseCoreInteractable::StaticClass()))
 		{
 			return HitActor;
 		}
@@ -482,9 +481,9 @@ void USuspenseCoreInteractionComponent::HandleInteractionSuccess(const FGameplay
 	BroadcastInteractionResult(TargetActor, true);
 
 	// Update UI with interaction type
-	if (TargetActor->GetClass()->ImplementsInterface(USuspenseInteract::StaticClass()))
+	if (TargetActor->GetClass()->ImplementsInterface(USuspenseCoreInteractable::StaticClass()))
 	{
-		FGameplayTag InteractionType = ISuspenseInteract::Execute_GetInteractionType(TargetActor);
+		FGameplayTag InteractionType = ISuspenseCoreInteractable::Execute_GetInteractionType(TargetActor);
 		OnInteractionTypeChanged.Broadcast(TargetActor, InteractionType);
 	}
 
@@ -642,11 +641,11 @@ void USuspenseCoreInteractionComponent::UpdateInteractionFocus(AActor* NewFocusA
 	// Handle previous focus loss
 	if (LastInteractableActor.IsValid() && LastInteractableActor.Get() != NewFocusActor)
 	{
-		if (LastInteractableActor->GetClass()->ImplementsInterface(USuspenseInteract::StaticClass()))
+		if (LastInteractableActor->GetClass()->ImplementsInterface(USuspenseCoreInteractable::StaticClass()))
 		{
 			if (PC)
 			{
-				ISuspenseInteract::Execute_OnInteractionFocusLost(LastInteractableActor.Get(), PC);
+				ISuspenseCoreInteractable::Execute_OnFocusLost(LastInteractableActor.Get(), PC);
 			}
 
 			// Broadcast focus lost through EventBus
@@ -661,18 +660,18 @@ void USuspenseCoreInteractionComponent::UpdateInteractionFocus(AActor* NewFocusA
 	LastInteractableActor = NewFocusActor;
 
 	// Handle new focus gain
-	if (NewFocusActor && NewFocusActor->GetClass()->ImplementsInterface(USuspenseInteract::StaticClass()))
+	if (NewFocusActor && NewFocusActor->GetClass()->ImplementsInterface(USuspenseCoreInteractable::StaticClass()))
 	{
 		if (PC)
 		{
-			ISuspenseInteract::Execute_OnInteractionFocusGained(NewFocusActor, PC);
+			ISuspenseCoreInteractable::Execute_OnFocusGained(NewFocusActor, PC);
 		}
 
 		// Broadcast focus gained through EventBus
 		BroadcastFocusChanged(NewFocusActor, true);
 
 		// Notify UI
-		FGameplayTag InteractionType = ISuspenseInteract::Execute_GetInteractionType(NewFocusActor);
+		FGameplayTag InteractionType = ISuspenseCoreInteractable::Execute_GetInteractionType(NewFocusActor);
 		OnInteractionTypeChanged.Broadcast(NewFocusActor, InteractionType);
 	}
 }

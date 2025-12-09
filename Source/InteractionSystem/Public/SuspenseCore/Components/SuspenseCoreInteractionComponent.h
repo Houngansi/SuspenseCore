@@ -39,7 +39,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSuspenseCoreInteractionTypeChanged
  * - Gets ASC via Character→PlayerState delegation
  * - Uses centralized EventBus instead of direct delegate calls
  *
- * @see USuspenseInteractionComponent (Legacy reference)
+ * Migrated from legacy USuspenseInteractionComponent
  */
 UCLASS(ClassGroup = (SuspenseCore), meta = (BlueprintSpawnableComponent, DisplayName = "Suspense Core Interaction"))
 class INTERACTIONSYSTEM_API USuspenseCoreInteractionComponent
@@ -95,7 +95,7 @@ public:
 
 	/**
 	 * Perform trace for UI purposes (highlight, prompt).
-	 * @return Actor implementing ISuspenseInteract or nullptr
+	 * @return Actor implementing ISuspenseCoreInteractable or nullptr
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Interaction|UI")
 	AActor* PerformUIInteractionTrace() const;

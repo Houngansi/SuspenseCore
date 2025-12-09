@@ -36,7 +36,7 @@ INTERACTIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreInteraction, Lo
  * - Thread-safe operations for multiplayer
  * - Centralized access to subsystems
  *
- * @see USuspenseHelpers (Legacy reference)
+ * Migrated from legacy USuspenseHelpers
  */
 UCLASS()
 class INTERACTIONSYSTEM_API USuspenseCoreHelpers : public UBlueprintFunctionLibrary

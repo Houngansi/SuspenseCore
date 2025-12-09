@@ -1,9 +1,9 @@
-﻿{
+{
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "SuspenseCore",
-	"Description": "Plugin with GAS for FPS and other projects - PHASE 1: BridgeSystem Only",
+	"Description": "Plugin with GAS for FPS and other projects - PHASE 2: Core Modules",
 	"Category": "Other",
 	"CreatedBy": "Houngansi",
 	"CreatedByURL": "",
@@ -18,6 +18,16 @@
 			"Name": "BridgeSystem",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "GAS",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "PlayerCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

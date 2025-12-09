@@ -23,7 +23,8 @@ public class SuspenseCore : ModuleRules
 				"BridgeSystem",
 				"GAS",
 				"PlayerCore",
-				"InteractionSystem"
+				"InteractionSystem",
+				"InventorySystem"
 			}
 		);
 

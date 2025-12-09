@@ -13,7 +13,7 @@ class FSuspenseEquipmentCacheManager;
 
 /**
  * Глобальный реестр кэшей: регистрация, сводная статистика, инвалидция, аудит.
- * Символы реализованы в .cpp и экспортируются из MedComShared.
+ * Символы реализованы в .cpp и экспортируются из BridgeSystem.
  */
 class BRIDGESYSTEM_API FSuspenseGlobalCacheRegistry
 {

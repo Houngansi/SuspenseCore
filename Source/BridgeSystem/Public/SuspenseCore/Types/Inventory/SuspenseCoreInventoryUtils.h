@@ -1,5 +1,6 @@
-// MedComShared/Public/Types/Inventory/SuspenseInventoryUtils.h
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreInventoryUtils.h
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #pragma once
 

@@ -12,7 +12,7 @@ namespace InventoryUtils
     extern bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData);
 }
 
-DEFINE_LOG_CATEGORY_STATIC(LogMedComItemManager, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreItemManager, Log, All);
 
 //==================================================================
 // Subsystem lifecycle implementation
@@ -22,7 +22,7 @@ void USuspenseItemManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("=== ItemManager: Subsystem initialization START ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("=== ItemManager: Subsystem initialization START ==="));
     
     // Initialize internal state only - NO data loading here
     // Data loading must be done explicitly by GameInstance via LoadItemDataTable()
@@ -34,14 +34,14 @@ void USuspenseItemManager::Initialize(FSubsystemCollectionBase& Collection)
     bStrictValidationEnabled = false;
     UnifiedItemCache.Empty();
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Internal state initialized"));
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Waiting for explicit LoadItemDataTable() call from GameInstance"));
-    UE_LOG(LogMedComItemManager, Log, TEXT("=== ItemManager: Subsystem initialization COMPLETE ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Internal state initialized"));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Waiting for explicit LoadItemDataTable() call from GameInstance"));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("=== ItemManager: Subsystem initialization COMPLETE ==="));
 }
 
 void USuspenseItemManager::Deinitialize()
 {
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Shutting down subsystem"));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Shutting down subsystem"));
     
     // Clear cache and references
     UnifiedItemCache.Empty();
@@ -61,12 +61,12 @@ void USuspenseItemManager::Deinitialize()
 
 bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bStrictValidation)
 {
-    UE_LOG(LogMedComItemManager, Warning, TEXT("=== ItemManager: LoadItemDataTable START ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: LoadItemDataTable START ==="));
     
     if (!ItemDataTable)
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("LoadItemDataTable: DataTable is null"));
-        UE_LOG(LogMedComItemManager, Error, TEXT("ItemManager cannot function without item data"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("LoadItemDataTable: DataTable is null"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("ItemManager cannot function without item data"));
         return false;
     }
     
@@ -74,10 +74,10 @@ bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bSt
     const UScriptStruct* RowStruct = ItemDataTable->GetRowStruct();
     if (RowStruct != FSuspenseUnifiedItemData::StaticStruct())
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("LoadItemDataTable: Invalid row structure"));
-        UE_LOG(LogMedComItemManager, Error, TEXT("  Expected: %s"), *FSuspenseUnifiedItemData::StaticStruct()->GetName());
-        UE_LOG(LogMedComItemManager, Error, TEXT("  Got: %s"), RowStruct ? *RowStruct->GetName() : TEXT("nullptr"));
-        UE_LOG(LogMedComItemManager, Error, TEXT("  Please ensure your DataTable uses FSuspenseUnifiedItemData row structure"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("LoadItemDataTable: Invalid row structure"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Expected: %s"), *FSuspenseUnifiedItemData::StaticStruct()->GetName());
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Got: %s"), RowStruct ? *RowStruct->GetName() : TEXT("nullptr"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Please ensure your DataTable uses FSuspenseUnifiedItemData row structure"));
         return false;
     }
     
@@ -92,20 +92,20 @@ bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bSt
     bIsExplicitlyConfigured = true;
     bStrictValidationEnabled = bStrictValidation;
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Explicitly configured with DataTable: %s"), *ItemDataTable->GetName());
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Strict validation mode: %s"), bStrictValidation ? TEXT("ENABLED") : TEXT("DISABLED"));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Explicitly configured with DataTable: %s"), *ItemDataTable->GetName());
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Strict validation mode: %s"), bStrictValidation ? TEXT("ENABLED") : TEXT("DISABLED"));
     
     // Build cache from table data
     bool bBuildSuccess = BuildItemCache(bStrictValidation);
     
     if (!bBuildSuccess)
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("LoadItemDataTable: Failed to build item cache"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("LoadItemDataTable: Failed to build item cache"));
         
         if (bStrictValidation)
         {
-            UE_LOG(LogMedComItemManager, Error, TEXT("CRITICAL: Strict validation failed - ItemManager initialization blocked"));
-            UE_LOG(LogMedComItemManager, Error, TEXT("Game cannot start with invalid critical items"));
+            UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("CRITICAL: Strict validation failed - ItemManager initialization blocked"));
+            UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("Game cannot start with invalid critical items"));
             
             // Clear the cache to prevent using invalid data
             UnifiedItemCache.Empty();
@@ -117,17 +117,17 @@ bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bSt
         }
         else
         {
-            UE_LOG(LogMedComItemManager, Warning, TEXT("Cache building completed with warnings"));
-            UE_LOG(LogMedComItemManager, Warning, TEXT("Some items may not work correctly, but system will continue"));
+            UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("Cache building completed with warnings"));
+            UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("Some items may not work correctly, but system will continue"));
         }
     }
     
-    UE_LOG(LogMedComItemManager, Warning, TEXT("ItemManager: Successfully loaded and cached item data"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  DataTable Asset: %s"), *ItemDataTable->GetName());
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Total Items Cached: %d"), UnifiedItemCache.Num());
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Valid Items: %d"), ValidItemCount);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ItemManager: Successfully loaded and cached item data"));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  DataTable Asset: %s"), *ItemDataTable->GetName());
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Total Items Cached: %d"), UnifiedItemCache.Num());
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Valid Items: %d"), ValidItemCount);
     
-    UE_LOG(LogMedComItemManager, Warning, TEXT("=== ItemManager: LoadItemDataTable COMPLETE ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: LoadItemDataTable COMPLETE ==="));
     
     return true;
 }
@@ -142,14 +142,14 @@ bool USuspenseItemManager::GetUnifiedItemData(const FName& ItemID, FSuspenseUnif
         return true;
     }
     
-    UE_LOG(LogMedComItemManager, Warning, TEXT("GetUnifiedItemData: Item '%s' not found in cache"), 
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("GetUnifiedItemData: Item '%s' not found in cache"), 
         *ItemID.ToString());
     
     // If not explicitly configured, suggest fallback
     if (!bIsExplicitlyConfigured)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("  ItemManager was not explicitly configured by GameInstance"));
-        UE_LOG(LogMedComItemManager, Warning, TEXT("  Make sure ItemDataTable is set in BP_MedComGameInstance"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  ItemManager was not explicitly configured by GameInstance"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Make sure ItemDataTable is set in your GameInstance Blueprint"));
     }
     
     return false;
@@ -176,7 +176,7 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     // Verify item exists in our cache
     if (!HasItem(ItemID))
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("CreateItemInstance: Item not found: %s"), 
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("CreateItemInstance: Item not found: %s"), 
                *ItemID.ToString());
         return false;
     }
@@ -190,7 +190,7 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     FSuspenseUnifiedItemData ItemData;
     if (!GetUnifiedItemData(ItemID, ItemData))
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("CreateItemInstance: Failed to get item data for: %s"), 
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("CreateItemInstance: Failed to get item data for: %s"), 
                *ItemID.ToString());
         return false;
     }
@@ -205,12 +205,12 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     // Verify the instance was created successfully
     if (!OutInstance.IsValid())
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("CreateItemInstance: Failed to create valid instance for: %s"), 
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("CreateItemInstance: Failed to create valid instance for: %s"), 
                *ItemID.ToString());
         return false;
     }
     
-    UE_LOG(LogMedComItemManager, VeryVerbose, TEXT("ItemManager: Created item instance: %s"), 
+    UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, TEXT("ItemManager: Created item instance: %s"), 
         *OutInstance.GetShortDebugString());
     
     return true;
@@ -226,7 +226,7 @@ int32 USuspenseItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspe
     {
         if (!SpawnData.IsValid())
         {
-            UE_LOG(LogMedComItemManager, Warning, TEXT("CreateItemInstancesFromSpawnData: Invalid spawn data for item: %s"), 
+            UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("CreateItemInstancesFromSpawnData: Invalid spawn data for item: %s"), 
                 *SpawnData.ItemID.ToString());
             continue;
         }
@@ -245,7 +245,7 @@ int32 USuspenseItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspe
         }
     }
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Created %d/%d item instances from spawn data"), 
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Created %d/%d item instances from spawn data"), 
         SuccessfulCreations, SpawnDataArray.Num());
     
     return SuccessfulCreations;
@@ -269,7 +269,7 @@ TArray<FName> USuspenseItemManager::GetItemsByType(const FGameplayTag& ItemType)
         }
     }
     
-    UE_LOG(LogMedComItemManager, VeryVerbose, TEXT("GetItemsByType: Found %d items of type '%s'"), 
+    UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, TEXT("GetItemsByType: Found %d items of type '%s'"), 
         Result.Num(), *ItemType.ToString());
     
     return Result;
@@ -281,7 +281,7 @@ TArray<FName> USuspenseItemManager::GetItemsByTags(const FGameplayTagContainer& 
     
     if (Tags.IsEmpty())
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("GetItemsByTags: Empty tag container provided"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("GetItemsByTags: Empty tag container provided"));
         return Result;
     }
     
@@ -351,7 +351,7 @@ TArray<FName> USuspenseItemManager::GetCompatibleAmmoForWeapon(const FName& Weap
     const FSuspenseUnifiedItemData* WeaponData = GetCachedItemData(WeaponItemID);
     if (!WeaponData || !WeaponData->bIsWeapon)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("GetCompatibleAmmoForWeapon: Invalid weapon ID: %s"), 
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("GetCompatibleAmmoForWeapon: Invalid weapon ID: %s"), 
             *WeaponItemID.ToString());
         return Result;
     }
@@ -407,11 +407,11 @@ int32 USuspenseItemManager::ValidateAllItems(TArray<FString>& OutErrorMessages) 
     
     if (TotalErrors > 0)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("ValidateAllItems: Found %d items with validation errors"), TotalErrors);
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ValidateAllItems: Found %d items with validation errors"), TotalErrors);
     }
     else
     {
-        UE_LOG(LogMedComItemManager, Log, TEXT("ValidateAllItems: All items passed validation"));
+        UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ValidateAllItems: All items passed validation"));
     }
     
     return TotalErrors;
@@ -468,11 +468,11 @@ bool USuspenseItemManager::RefreshCache()
 {
     if (!ItemTable)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("RefreshCache: No DataTable loaded"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("RefreshCache: No DataTable loaded"));
         return false;
     }
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Refreshing item cache"));
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Refreshing item cache"));
     
     // Clear existing cache
     UnifiedItemCache.Empty();
@@ -485,11 +485,11 @@ bool USuspenseItemManager::RefreshCache()
     
     if (bSuccess)
     {
-        UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Cache refreshed successfully"));
+        UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Cache refreshed successfully"));
     }
     else
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("ItemManager: Cache refresh completed with warnings"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ItemManager: Cache refresh completed with warnings"));
     }
     
     return bSuccess;
@@ -501,7 +501,7 @@ bool USuspenseItemManager::RefreshCache()
 
 bool USuspenseItemManager::CreateInventoryItemData(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const
 {
-    UE_LOG(LogMedComItemManager, Warning, TEXT("CreateInventoryItemData: Using deprecated method. Please migrate to CreateItemInstance()."));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("CreateInventoryItemData: Using deprecated method. Please migrate to CreateItemInstance()."));
     
     // Forward to new method - this maintains compatibility while encouraging migration
     return CreateItemInstance(ItemID, Quantity, OutInstance);
@@ -513,18 +513,18 @@ bool USuspenseItemManager::CreateInventoryItemData(const FName& ItemID, int32 Qu
 
 bool USuspenseItemManager::TryLoadFallbackTable()
 {
-    UE_LOG(LogMedComItemManager, Warning, TEXT("=== ItemManager: TryLoadFallbackTable START ==="));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("WARNING: ItemManager was not explicitly configured by GameInstance"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("WARNING: Attempting fallback to default path: %s"), DefaultItemTablePath);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("WARNING: This is NOT recommended for production"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("RECOMMENDED: Set ItemDataTable in BP_MedComGameInstance instead"));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: TryLoadFallbackTable START ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("WARNING: ItemManager was not explicitly configured by GameInstance"));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("WARNING: Attempting fallback to default path: %s"), DefaultItemTablePath);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("WARNING: This is NOT recommended for production"));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("RECOMMENDED: Set ItemDataTable in your GameInstance Blueprint instead"));
     
     // Try to load from default path
     UDataTable* FallbackTable = LoadObject<UDataTable>(nullptr, DefaultItemTablePath);
     
     if (FallbackTable)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("ItemManager: Fallback table loaded from default path"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ItemManager: Fallback table loaded from default path"));
         
         // Use LoadItemDataTable with non-strict validation for fallback
         // We don't want to block startup for fallback scenarios
@@ -532,21 +532,21 @@ bool USuspenseItemManager::TryLoadFallbackTable()
         
         if (bLoadSuccess)
         {
-            UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Fallback initialization successful"));
-            UE_LOG(LogMedComItemManager, Warning, TEXT("=== ItemManager: TryLoadFallbackTable COMPLETE (SUCCESS) ==="));
+            UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Fallback initialization successful"));
+            UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: TryLoadFallbackTable COMPLETE (SUCCESS) ==="));
             return true;
         }
         else
         {
-            UE_LOG(LogMedComItemManager, Error, TEXT("ItemManager: Fallback table loaded but failed validation"));
+            UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("ItemManager: Fallback table loaded but failed validation"));
         }
     }
     else
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("ItemManager: Failed to load fallback table from: %s"), DefaultItemTablePath);
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("ItemManager: Failed to load fallback table from: %s"), DefaultItemTablePath);
     }
     
-    UE_LOG(LogMedComItemManager, Error, TEXT("=== ItemManager: TryLoadFallbackTable COMPLETE (FAILED) ==="));
+    UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("=== ItemManager: TryLoadFallbackTable COMPLETE (FAILED) ==="));
     return false;
 }
 
@@ -557,13 +557,13 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
     
     if (!ItemTable)
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("BuildItemCache: ItemTable is null"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("BuildItemCache: ItemTable is null"));
         return false;
     }
     
     TArray<FName> RowNames = ItemTable->GetRowNames();
     
-    UE_LOG(LogMedComItemManager, Log, TEXT("ItemManager: Building cache from %d rows (Strict mode: %s)"), 
+    UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Building cache from %d rows (Strict mode: %s)"), 
         RowNames.Num(), bStrictMode ? TEXT("ON") : TEXT("OFF"));
     
     int32 WeaponItems = 0;
@@ -581,7 +581,7 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
             if (ItemData->ItemID.IsNone())
             {
                 ItemData->ItemID = RowName;
-                UE_LOG(LogMedComItemManager, Warning, TEXT("ItemManager: Row '%s' has empty ItemID, using row name"), 
+                UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ItemManager: Row '%s' has empty ItemID, using row name"), 
                     *RowName.ToString());
             }
             
@@ -603,18 +603,18 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
             {
                 ValidationErrors++;
                 
-                UE_LOG(LogMedComItemManager, Warning, TEXT("ItemManager: Item '%s' has %d validation errors:"), 
+                UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("ItemManager: Item '%s' has %d validation errors:"), 
                     *ItemData->ItemID.ToString(), ItemValidationErrors.Num());
                     
                 for (const FString& Error : ItemValidationErrors)
                 {
-                    UE_LOG(LogMedComItemManager, Warning, TEXT("  - %s"), *Error);
+                    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  - %s"), *Error);
                 }
                 
                 // In strict mode, validation failure is critical
                 if (bStrictMode)
                 {
-                    UE_LOG(LogMedComItemManager, Error, TEXT("STRICT MODE: Item '%s' failed validation"), 
+                    UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("STRICT MODE: Item '%s' failed validation"), 
                         *ItemData->ItemID.ToString());
                 }
             }
@@ -625,13 +625,13 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
         }
         else
         {
-            UE_LOG(LogMedComItemManager, Error, TEXT("ItemManager: Failed to get data for row '%s'"), 
+            UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("ItemManager: Failed to get data for row '%s'"), 
                 *RowName.ToString());
             ValidationErrors++;
             
             if (bStrictMode)
             {
-                UE_LOG(LogMedComItemManager, Error, TEXT("STRICT MODE: Cannot read row '%s'"), *RowName.ToString());
+                UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("STRICT MODE: Cannot read row '%s'"), *RowName.ToString());
             }
         }
     }
@@ -642,16 +642,16 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
     // In strict mode, any validation errors = failure
     if (bStrictMode && ValidationErrors > 0)
     {
-        UE_LOG(LogMedComItemManager, Error, TEXT("STRICT MODE FAILURE: %d items failed validation"), ValidationErrors);
-        UE_LOG(LogMedComItemManager, Error, TEXT("Cache building blocked due to strict validation requirements"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("STRICT MODE FAILURE: %d items failed validation"), ValidationErrors);
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("Cache building blocked due to strict validation requirements"));
         return false;
     }
     
     // In non-strict mode, we continue but log warnings
     if (ValidationErrors > 0)
     {
-        UE_LOG(LogMedComItemManager, Warning, TEXT("Cache built with %d validation errors"), ValidationErrors);
-        UE_LOG(LogMedComItemManager, Warning, TEXT("Some items may not function correctly"));
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("Cache built with %d validation errors"), ValidationErrors);
+        UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("Some items may not function correctly"));
     }
     
     return true;
@@ -675,18 +675,18 @@ bool USuspenseItemManager::ValidateItemInternal(const FName& ItemID, const FSusp
 
 void USuspenseItemManager::LogCacheStatistics(int32 TotalItems, int32 WeaponItems, int32 ArmorItems, int32 ConsumableItems, int32 AmmoItems) const
 {
-    UE_LOG(LogMedComItemManager, Warning, TEXT("====== ItemManager: Cache Statistics ======"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Configuration: %s"), 
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("====== ItemManager: Cache Statistics ======"));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Configuration: %s"), 
         bIsExplicitlyConfigured ? TEXT("Explicit (via GameInstance)") : TEXT("Fallback (default path)"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Validation Mode: %s"), 
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Validation Mode: %s"), 
         bStrictValidationEnabled ? TEXT("STRICT") : TEXT("Standard"));
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Total Items Cached: %d"), UnifiedItemCache.Num());
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Valid Items: %d"), TotalItems);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Weapons: %d"), WeaponItems);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Armor: %d"), ArmorItems);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Consumables: %d"), ConsumableItems);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("  Ammunition: %d"), AmmoItems);
-    UE_LOG(LogMedComItemManager, Warning, TEXT("=========================================="));
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Total Items Cached: %d"), UnifiedItemCache.Num());
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Valid Items: %d"), TotalItems);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Weapons: %d"), WeaponItems);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Armor: %d"), ArmorItems);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Consumables: %d"), ConsumableItems);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Ammunition: %d"), AmmoItems);
+    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=========================================="));
 }
 
 const FSuspenseUnifiedItemData* USuspenseItemManager::GetCachedItemData(const FName& ItemID) const
@@ -734,7 +734,7 @@ void USuspenseItemManager::InitializeItemRuntimeProperties(FSuspenseInventoryIte
         Instance.SetRuntimeProperty(TEXT("MaxDurability"), MaxDurability);
         Instance.SetRuntimeProperty(TEXT("Durability"), MaxDurability); // Start at full durability
         
-        UE_LOG(LogMedComItemManager, VeryVerbose, 
+        UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, 
             TEXT("InitializeItemRuntimeProperties: Set durability for %s: %.1f/%.1f"), 
             *ItemData.ItemID.ToString(), MaxDurability, MaxDurability);
     }
@@ -780,7 +780,7 @@ void USuspenseItemManager::InitializeItemRuntimeProperties(FSuspenseInventoryIte
         Instance.SetRuntimeProperty(TEXT("MaxAmmo"), static_cast<float>(MaxAmmo));
         Instance.SetRuntimeProperty(TEXT("Ammo"), static_cast<float>(MaxAmmo)); // Start with full magazine
         
-        UE_LOG(LogMedComItemManager, VeryVerbose, 
+        UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, 
             TEXT("InitializeItemRuntimeProperties: Set ammo for %s: %d/%d"), 
             *ItemData.ItemID.ToString(), MaxAmmo, MaxAmmo);
     }
@@ -792,7 +792,7 @@ void USuspenseItemManager::InitializeItemRuntimeProperties(FSuspenseInventoryIte
         float InitialCharges = static_cast<float>(Instance.Quantity);
         Instance.SetRuntimeProperty(TEXT("Charges"), InitialCharges);
         
-        UE_LOG(LogMedComItemManager, VeryVerbose, 
+        UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, 
             TEXT("InitializeItemRuntimeProperties: Set charges for %s: %.0f"), 
             *ItemData.ItemID.ToString(), InitialCharges);
     }
@@ -801,7 +801,7 @@ void USuspenseItemManager::InitializeItemRuntimeProperties(FSuspenseInventoryIte
     // In future this may be replaced with more complex logic
     Instance.SetRuntimeProperty(TEXT("Condition"), 1.0f); // 1.0 = perfect condition
     
-    UE_LOG(LogMedComItemManager, VeryVerbose, 
+    UE_LOG(LogSuspenseCoreItemManager, VeryVerbose, 
         TEXT("InitializeItemRuntimeProperties: Initialized %d runtime properties for %s"),
         Instance.RuntimeProperties.Num(), *ItemData.ItemID.ToString());
 }

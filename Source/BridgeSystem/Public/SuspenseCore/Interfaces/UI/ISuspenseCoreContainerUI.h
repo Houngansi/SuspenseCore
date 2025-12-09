@@ -11,7 +11,7 @@
 
 // Forward declarations
 class USuspenseCoreEventManager;
-class UDragDropOperation; // Используем базовый класс вместо UMedComDragDropOperation
+class UDragDropOperation;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseContainerUI : public UInterface

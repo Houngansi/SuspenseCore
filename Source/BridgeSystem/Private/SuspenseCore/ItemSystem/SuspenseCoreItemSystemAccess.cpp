@@ -1,5 +1,6 @@
-// MedComShared/Private/ItemSystem/ItemSystemAccess.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreItemSystemAccess.cpp
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemSystemAccess.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
@@ -68,7 +69,7 @@ USuspenseItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldCont
         UE_LOG(LogItemSystemAccess, Error, 
             TEXT("    2. Module dependencies not set up correctly"));
         UE_LOG(LogItemSystemAccess, Error, 
-            TEXT("    3. GameInstance is not MedComGameInstance"));
+            TEXT("    3. GameInstance class mismatch"));
         UE_LOG(LogItemSystemAccess, Error, 
             TEXT("  Solution: Check that USuspenseItemManager is properly defined as GameInstanceSubsystem"));
         return nullptr;

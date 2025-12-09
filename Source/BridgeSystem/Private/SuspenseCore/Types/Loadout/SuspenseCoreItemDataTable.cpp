@@ -1,5 +1,6 @@
-// MedComItemDataTable.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreItemDataTable.cpp
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayTagsManager.h"

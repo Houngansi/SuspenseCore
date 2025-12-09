@@ -69,7 +69,7 @@ struct BRIDGESYSTEM_API FWeaponSocketData
  * Эти определения могут использоваться для специфичных случаев,
  * которые не покрываются основной системой DataTable
  */
-namespace MedComItemTypes
+namespace SuspenseCoreItemTypes
 {
     /** Типы способностей для категоризации */
     enum class EAbilityType : uint8

@@ -1,5 +1,6 @@
-// MedComCore/Abilities/Inventory/SuspenseInventoryGASIntegration.h
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreInventoryGASIntegration.h
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #pragma once
 

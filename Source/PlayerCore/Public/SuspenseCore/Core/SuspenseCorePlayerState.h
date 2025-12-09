@@ -19,13 +19,10 @@ class UGameplayEffect;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPTIONAL MODULE FORWARD DECLARATIONS
+// These are unconditional - classes may not exist but forward decls are safe
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_INVENTORY_SYSTEM
 class USuspenseCoreInventoryComponent;
-#endif
-
-#if WITH_EQUIPMENT_SYSTEM
 class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreEquipmentTransactionProcessor;
 class USuspenseCoreEquipmentReplicationManager;
@@ -37,7 +34,6 @@ class USuspenseCoreEquipmentEventDispatcher;
 class USuspenseCoreEquipmentOperationExecutor;
 class USuspenseCoreEquipmentSlotValidator;
 class USuspenseCoreLoadoutManager;
-#endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELEGATES (Internal use only - EventBus preferred for external communication)
@@ -82,6 +78,11 @@ struct FSuspenseCoreAbilityEntry
  * - Manages attributes through SuspenseCoreAttributeSet
  * - Broadcasts state changes via EventBus
  * - Persists across pawn respawns
+ *
+ * OPTIONAL MODULES:
+ * - InventorySystem: InventoryComponent (nullptr if disabled)
+ * - EquipmentSystem: Equipment components (nullptr if disabled)
+ * Components are created in constructor only if module is enabled (WITH_*_SYSTEM=1)
  */
 UCLASS()
 class PLAYERCORE_API ASuspenseCorePlayerState : public APlayerState, public IAbilitySystemInterface
@@ -130,20 +131,17 @@ public:
 	bool ApplyEffect(TSubclassOf<UGameplayEffect> EffectClass, float Level = 1.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - INVENTORY (Conditional: WITH_INVENTORY_SYSTEM)
+	// PUBLIC API - INVENTORY (Returns nullptr if WITH_INVENTORY_SYSTEM=0)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_INVENTORY_SYSTEM
-	/** Get the inventory component */
+	/** Get the inventory component (nullptr if InventorySystem disabled) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory")
 	USuspenseCoreInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
-#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - EQUIPMENT (Conditional: WITH_EQUIPMENT_SYSTEM)
+	// PUBLIC API - EQUIPMENT (Returns nullptr if WITH_EQUIPMENT_SYSTEM=0)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_EQUIPMENT_SYSTEM
 	/** Get the equipment data store (core equipment state) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
 	USuspenseCoreEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
@@ -167,7 +165,6 @@ public:
 	/** Get the weapon state manager (weapon FSM) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
 	USuspenseCoreWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
-#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
@@ -256,20 +253,19 @@ protected:
 	USuspenseCoreAttributeSet* AttributeSet = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// INVENTORY COMPONENT (Conditional: WITH_INVENTORY_SYSTEM)
+	// INVENTORY COMPONENT (nullptr if WITH_INVENTORY_SYSTEM=0)
+	// Created in constructor only if InventorySystem module is enabled
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_INVENTORY_SYSTEM
 	/** Inventory Component - created in constructor, persists across respawns */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
 	USuspenseCoreInventoryComponent* InventoryComponent = nullptr;
-#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT MODULE COMPONENTS (Conditional: WITH_EQUIPMENT_SYSTEM)
+	// EQUIPMENT MODULE COMPONENTS (nullptr if WITH_EQUIPMENT_SYSTEM=0)
+	// Created in constructor only if EquipmentSystem module is enabled
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_EQUIPMENT_SYSTEM
 	/** Core data store for equipment state (Server authoritative, replicated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
 	USuspenseCoreEquipmentDataStore* EquipmentDataStore = nullptr;
@@ -309,7 +305,6 @@ protected:
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()
 	USuspenseCoreEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
-#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -330,6 +325,14 @@ protected:
 	/** Passive effects to apply on startup (regen, etc.) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Config|GAS")
 	TArray<TSubclassOf<UGameplayEffect>> PassiveEffects;
+
+	/**
+	 * Default loadout ID for this player.
+	 * References row in SuspenseCoreDataManager's LoadoutDataTable.
+	 * Used only if InventorySystem or EquipmentSystem is enabled.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Loadout")
+	FName DefaultLoadoutID = TEXT("Default_Soldier");
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// STATE
@@ -389,51 +392,21 @@ protected:
 	void HandleAttributeChange(const FGameplayTag& AttributeTag, float NewValue, float OldValue);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT MODULE WIRING (Conditional: WITH_EQUIPMENT_SYSTEM)
+	// EQUIPMENT MODULE WIRING
+	// These methods exist but do nothing if WITH_EQUIPMENT_SYSTEM=0
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-#if WITH_EQUIPMENT_SYSTEM
-	/**
-	 * Wire up per-player equipment components with global services.
-	 * CRITICAL: Called AFTER loadout application to ensure slots are configured.
-	 * @param LoadoutManager - Manager containing loadout configuration (can be null for defaults)
-	 * @param AppliedLoadoutID - ID of loadout that was just applied (can be NAME_None)
-	 * @return true if wiring succeeded, false otherwise
-	 */
+	/** Wire up per-player equipment components with global services */
 	bool WireEquipmentModule(USuspenseCoreLoadoutManager* LoadoutManager = nullptr, const FName& AppliedLoadoutID = NAME_None);
 
-	/**
-	 * Attempt to wire equipment module once.
-	 * Checks if global services are ready and wires if so.
-	 * @return true if successfully wired, false if needs retry
-	 */
+	/** Attempt to wire equipment module once */
 	bool TryWireEquipmentModuleOnce();
 
 	/** Initialize all equipment module components */
 	void InitializeEquipmentComponents();
-#endif
 
-#if WITH_INVENTORY_SYSTEM
 	/** Initialize inventory component from loadout configuration */
 	void InitializeInventoryFromLoadout();
-#endif
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// CONFIGURATION (Conditional: WITH_INVENTORY_SYSTEM || WITH_EQUIPMENT_SYSTEM)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-#if WITH_INVENTORY_SYSTEM || WITH_EQUIPMENT_SYSTEM
-	/**
-	 * Default loadout ID for this player.
-	 * References row in SuspenseCoreDataManager's LoadoutDataTable.
-	 * LoadoutDataTable row (FSuspenseCoreTemplateLoadout) contains:
-	 * - InventoryWidth, InventoryHeight, MaxWeight for inventory config
-	 * - Equipment slots configuration
-	 * - Initial items
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Loadout")
-	FName DefaultLoadoutID = TEXT("Default_Soldier");
-#endif
 
 private:
 	/** Cached EventBus reference (mutable for const getter caching) */
@@ -449,24 +422,12 @@ private:
 	/** Flag for initialization state */
 	bool bAbilitySystemInitialized = false;
 
-#if WITH_EQUIPMENT_SYSTEM
 	/** Flag for equipment module initialization state */
 	bool bEquipmentModuleInitialized = false;
 
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT WIRING RETRY (Server-side)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Current retry count for equipment module wiring */
+	// Equipment wiring retry (non-reflected, can use #if in .cpp)
 	int32 EquipmentWireRetryCount = 0;
-
-	/** Timer handle for retry */
 	FTimerHandle EquipmentWireRetryHandle;
-
-	/** Maximum retry attempts (20 × 50ms = 1 second) */
 	static constexpr int32 MaxEquipmentWireRetries = 20;
-
-	/** Interval between retry attempts (50 milliseconds) */
 	static constexpr float EquipmentWireRetryInterval = 0.05f;
-#endif
 };

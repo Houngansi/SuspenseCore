@@ -19,7 +19,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreFactory, Log, All);
 // USubsystem Interface
 //==================================================================
 
-void USuspenseCoreItemFactory::Initialize(FSubsystemCollectionBase& Collection)
+void USuspenseCoreItemFactorySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -35,17 +35,17 @@ void USuspenseCoreItemFactory::Initialize(FSubsystemCollectionBase& Collection)
 
 	TotalPickupsCreated = 0;
 
-	UE_LOG(LogSuspenseCoreFactory, Log, TEXT("USuspenseCoreItemFactory: Initialized with default class %s"),
+	UE_LOG(LogSuspenseCoreFactory, Log, TEXT("USuspenseCoreItemFactorySubsystem: Initialized with default class %s"),
 		*GetNameSafe(DefaultPickupClass));
 }
 
-void USuspenseCoreItemFactory::Deinitialize()
+void USuspenseCoreItemFactorySubsystem::Deinitialize()
 {
 	// Clear cached references
 	CachedEventBus.Reset();
 	CachedItemManager.Reset();
 
-	UE_LOG(LogSuspenseCoreFactory, Log, TEXT("USuspenseCoreItemFactory: Deinitialized. Total pickups created: %d"),
+	UE_LOG(LogSuspenseCoreFactory, Log, TEXT("USuspenseCoreItemFactorySubsystem: Deinitialized. Total pickups created: %d"),
 		TotalPickupsCreated);
 
 	Super::Deinitialize();
@@ -55,7 +55,7 @@ void USuspenseCoreItemFactory::Deinitialize()
 // ISuspenseCoreEventEmitter Interface
 //==================================================================
 
-void USuspenseCoreItemFactory::EmitEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& Data)
+void USuspenseCoreItemFactorySubsystem::EmitEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& Data)
 {
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (EventBus && EventTag.IsValid())
@@ -64,7 +64,7 @@ void USuspenseCoreItemFactory::EmitEvent(FGameplayTag EventTag, const FSuspenseC
 	}
 }
 
-USuspenseCoreEventBus* USuspenseCoreItemFactory::GetEventBus() const
+USuspenseCoreEventBus* USuspenseCoreItemFactorySubsystem::GetEventBus() const
 {
 	if (CachedEventBus.IsValid())
 	{
@@ -97,7 +97,7 @@ USuspenseCoreEventBus* USuspenseCoreItemFactory::GetEventBus() const
 // ISuspenseCoreItemFactory Implementation
 //==================================================================
 
-AActor* USuspenseCoreItemFactory::CreatePickupFromItemID_Implementation(
+AActor* USuspenseCoreItemFactorySubsystem::CreatePickupFromItemID_Implementation(
 	FName ItemID,
 	UWorld* World,
 	const FTransform& Transform,
@@ -168,7 +168,7 @@ AActor* USuspenseCoreItemFactory::CreatePickupFromItemID_Implementation(
 	return PickupActor;
 }
 
-TSubclassOf<AActor> USuspenseCoreItemFactory::GetDefaultPickupClass_Implementation() const
+TSubclassOf<AActor> USuspenseCoreItemFactorySubsystem::GetDefaultPickupClass_Implementation() const
 {
 	return DefaultPickupClass;
 }
@@ -177,7 +177,7 @@ TSubclassOf<AActor> USuspenseCoreItemFactory::GetDefaultPickupClass_Implementati
 // Extended Factory Methods
 //==================================================================
 
-AActor* USuspenseCoreItemFactory::CreatePickupWithAmmo(
+AActor* USuspenseCoreItemFactorySubsystem::CreatePickupWithAmmo(
 	FName ItemID,
 	UWorld* World,
 	const FTransform& Transform,
@@ -215,7 +215,7 @@ AActor* USuspenseCoreItemFactory::CreatePickupWithAmmo(
 	return PickupActor;
 }
 
-AActor* USuspenseCoreItemFactory::CreatePickupWithProperties(
+AActor* USuspenseCoreItemFactorySubsystem::CreatePickupWithProperties(
 	FName ItemID,
 	UWorld* World,
 	const FTransform& Transform,
@@ -238,7 +238,7 @@ AActor* USuspenseCoreItemFactory::CreatePickupWithProperties(
 	return PickupActor;
 }
 
-void USuspenseCoreItemFactory::SetDefaultPickupClass(TSubclassOf<AActor> NewDefaultClass)
+void USuspenseCoreItemFactorySubsystem::SetDefaultPickupClass(TSubclassOf<AActor> NewDefaultClass)
 {
 	DefaultPickupClass = NewDefaultClass;
 
@@ -250,7 +250,7 @@ void USuspenseCoreItemFactory::SetDefaultPickupClass(TSubclassOf<AActor> NewDefa
 // Internal Methods
 //==================================================================
 
-USuspenseItemManager* USuspenseCoreItemFactory::GetItemManager() const
+USuspenseItemManager* USuspenseCoreItemFactorySubsystem::GetItemManager() const
 {
 	if (CachedItemManager.IsValid())
 	{
@@ -266,13 +266,13 @@ USuspenseItemManager* USuspenseCoreItemFactory::GetItemManager() const
 	USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
 	if (ItemManager)
 	{
-		const_cast<USuspenseCoreItemFactory*>(this)->CachedItemManager = ItemManager;
+		const_cast<USuspenseCoreItemFactorySubsystem*>(this)->CachedItemManager = ItemManager;
 	}
 
 	return ItemManager;
 }
 
-void USuspenseCoreItemFactory::ConfigurePickup(
+void USuspenseCoreItemFactorySubsystem::ConfigurePickup(
 	AActor* PickupActor,
 	const FSuspenseUnifiedItemData& ItemData,
 	int32 Quantity)
@@ -304,7 +304,7 @@ void USuspenseCoreItemFactory::ConfigurePickup(
 	}
 }
 
-void USuspenseCoreItemFactory::ConfigureWeaponPickup(
+void USuspenseCoreItemFactorySubsystem::ConfigureWeaponPickup(
 	AActor* PickupActor,
 	const FSuspenseUnifiedItemData& ItemData,
 	bool bWithAmmoState,
@@ -333,7 +333,7 @@ void USuspenseCoreItemFactory::ConfigureWeaponPickup(
 	}
 }
 
-void USuspenseCoreItemFactory::ApplyPresetProperties(
+void USuspenseCoreItemFactorySubsystem::ApplyPresetProperties(
 	AActor* PickupActor,
 	const TMap<FName, float>& PresetProperties)
 {
@@ -348,7 +348,7 @@ void USuspenseCoreItemFactory::ApplyPresetProperties(
 // EventBus Broadcasting
 //==================================================================
 
-void USuspenseCoreItemFactory::BroadcastItemCreated(
+void USuspenseCoreItemFactorySubsystem::BroadcastItemCreated(
 	AActor* CreatedActor,
 	FName ItemID,
 	int32 Quantity,
@@ -382,7 +382,7 @@ void USuspenseCoreItemFactory::BroadcastItemCreated(
 		*ItemID.ToString(), Quantity, *Transform.GetLocation().ToString());
 }
 
-void USuspenseCoreItemFactory::BroadcastSpawnFailed(
+void USuspenseCoreItemFactorySubsystem::BroadcastSpawnFailed(
 	FName ItemID,
 	const FString& Reason)
 {

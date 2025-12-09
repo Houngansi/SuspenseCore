@@ -202,12 +202,13 @@ struct BRIDGESYSTEM_API FSuspenseCoreLoadoutSlot
 };
 
 /**
- * FSuspenseCoreLoadout
+ * FSuspenseCoreLoadoutData
  *
- * Полный loadout.
+ * Полный loadout (data structure).
+ * Note: Renamed from FSuspenseCoreLoadout to avoid conflict with USuspenseCoreLoadout interface.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreLoadout
+struct BRIDGESYSTEM_API FSuspenseCoreLoadoutData
 {
 	GENERATED_BODY()
 
@@ -391,7 +392,7 @@ struct BRIDGESYSTEM_API FSuspenseCorePlayerData
 
 	/** Loadouts */
 	UPROPERTY(BlueprintReadWrite, Category = "Data")
-	TArray<FSuspenseCoreLoadout> Loadouts;
+	TArray<FSuspenseCoreLoadoutData> Loadouts;
 
 	/** Активный loadout */
 	UPROPERTY(BlueprintReadWrite, Category = "Data")
@@ -440,7 +441,7 @@ struct BRIDGESYSTEM_API FSuspenseCorePlayerData
 		Data.HardCurrency = 100;
 
 		// Дефолтный loadout
-		FSuspenseCoreLoadout DefaultLoadout;
+		FSuspenseCoreLoadoutData DefaultLoadout;
 		DefaultLoadout.Name = TEXT("Default");
 		Data.Loadouts.Add(DefaultLoadout);
 

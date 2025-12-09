@@ -240,7 +240,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreTemplateLoadoutSlot
  * FSuspenseCoreTemplateLoadout
  *
  * Complete loadout definition for inventory templates.
- * Note: Different from FSuspenseCoreLoadout in SuspenseCorePlayerData.h
+ * Note: Different from FSuspenseCoreLoadoutData in SuspenseCorePlayerData.h
  * which is used for player save data.
  */
 USTRUCT(BlueprintType)

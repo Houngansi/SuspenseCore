@@ -8,7 +8,7 @@
 #include "ISuspenseCoreTooltip.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseTooltip : public UInterface
+class USuspenseCoreTooltip : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -17,7 +17,7 @@ class USuspenseTooltip : public UInterface
  * Interface for tooltip widgets
  * Provides standardized methods for displaying item information
  */
-class BRIDGESYSTEM_API ISuspenseTooltip
+class BRIDGESYSTEM_API ISuspenseCoreTooltip
 {
 	GENERATED_BODY()
 

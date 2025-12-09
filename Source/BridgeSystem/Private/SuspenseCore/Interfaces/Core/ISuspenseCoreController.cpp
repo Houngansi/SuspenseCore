@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseController::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreController::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -27,7 +27,7 @@ USuspenseCoreEventManager* ISuspenseController::GetDelegateManagerStatic(const U
 	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseController::BroadcastControllerWeaponChanged(const UObject* Controller, AActor* NewWeapon)
+void ISuspenseCoreController::BroadcastControllerWeaponChanged(const UObject* Controller, AActor* NewWeapon)
 {
 	if (!Controller)
 	{

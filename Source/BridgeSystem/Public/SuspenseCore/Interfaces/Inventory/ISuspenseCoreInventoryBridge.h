@@ -27,7 +27,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBridgeTransferRequest
 
 	/** Item instance being transferred */
 	UPROPERTY(BlueprintReadWrite, Category = "Transfer")
-	FSuspenseInventoryItemInstance Item;
+	FSuspenseCoreInventoryItemInstance Item;
 
 	/** Source slot index (-1 if from inventory) */
 	UPROPERTY(BlueprintReadWrite, Category = "Transfer")
@@ -60,7 +60,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBridgeTransferRequest
 
 	/** Static factory: Create transfer FROM inventory */
 	static FSuspenseCoreBridgeTransferRequest FromInventory(
-		const FSuspenseInventoryItemInstance& InItem,
+		const FSuspenseCoreInventoryItemInstance& InItem,
 		int32 ToEquipmentSlot)
 	{
 		FSuspenseCoreBridgeTransferRequest Request;
@@ -74,7 +74,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBridgeTransferRequest
 
 	/** Static factory: Create transfer TO inventory */
 	static FSuspenseCoreBridgeTransferRequest ToInventory(
-		const FSuspenseInventoryItemInstance& InItem,
+		const FSuspenseCoreInventoryItemInstance& InItem,
 		int32 FromEquipmentSlot)
 	{
 		FSuspenseCoreBridgeTransferRequest Request;
@@ -105,7 +105,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferResult
 	FGameplayTag ErrorTag;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
-	FSuspenseInventoryItemInstance TransferredItem;
+	FSuspenseCoreInventoryItemInstance TransferredItem;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	int32 AffectedSlot = INDEX_NONE;
@@ -114,7 +114,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryTransferResult
 	FGuid RequestId;
 
 	static FSuspenseCoreInventoryTransferResult Success(
-		const FSuspenseInventoryItemInstance& Item,
+		const FSuspenseCoreInventoryItemInstance& Item,
 		int32 Slot,
 		const FGuid& InRequestId)
 	{
@@ -152,7 +152,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreSpaceReservation
 	FGuid ReservationId;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Reservation")
-	FSuspenseInventoryItemInstance ReservedItem;
+	FSuspenseCoreInventoryItemInstance ReservedItem;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Reservation")
 	float ExpirationTime = 0.0f;
@@ -237,7 +237,7 @@ public:
 	 * @param Item Item to check
 	 * @return True if space is available
 	 */
-	virtual bool InventoryHasSpace(const FSuspenseInventoryItemInstance& Item) const = 0;
+	virtual bool InventoryHasSpace(const FSuspenseCoreInventoryItemInstance& Item) const = 0;
 
 	/**
 	 * Reserve inventory space for upcoming transfer (atomic operation support)
@@ -246,7 +246,7 @@ public:
 	 * @return Reservation handle or invalid on failure
 	 */
 	virtual FSuspenseCoreSpaceReservation ReserveInventorySpace(
-		const FSuspenseInventoryItemInstance& Item,
+		const FSuspenseCoreInventoryItemInstance& Item,
 		float TimeoutSeconds = 5.0f) = 0;
 
 	/**
@@ -281,7 +281,7 @@ public:
 	 */
 	virtual bool FindItemInInventory(
 		const FName& ItemId,
-		FSuspenseInventoryItemInstance& OutInstance) const = 0;
+		FSuspenseCoreInventoryItemInstance& OutInstance) const = 0;
 
 	/**
 	 * Find item in inventory by instance ID
@@ -291,14 +291,14 @@ public:
 	 */
 	virtual bool FindItemByInstanceId(
 		const FGuid& InstanceId,
-		FSuspenseInventoryItemInstance& OutInstance) const = 0;
+		FSuspenseCoreInventoryItemInstance& OutInstance) const = 0;
 
 	/**
 	 * Get all items in inventory matching type
 	 * @param ItemType Type tag to match
 	 * @return Array of matching items
 	 */
-	virtual TArray<FSuspenseInventoryItemInstance> GetInventoryItemsByType(
+	virtual TArray<FSuspenseCoreInventoryItemInstance> GetInventoryItemsByType(
 		const FGameplayTag& ItemType) const = 0;
 
 	//========================================

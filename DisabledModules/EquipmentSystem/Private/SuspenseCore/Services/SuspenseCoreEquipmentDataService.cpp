@@ -24,9 +24,9 @@ USuspenseCoreEquipmentDataService::USuspenseCoreEquipmentDataService()
 {
     // Initialize caches with appropriate sizes for MMO scale
     // These sizes are tuned for ~100 concurrent players per server
-    SnapshotCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
-    ItemCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>(500));
-    ConfigCache = MakeShareable(new FSuspenseEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
+    SnapshotCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
+    ItemCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FSuspenseCoreInventoryItemInstance>(500));
+    ConfigCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
 
     InitializationTime = FDateTime::Now();
 }
@@ -55,7 +55,7 @@ void USuspenseCoreEquipmentDataService::InjectComponents(UObject* InDataStore, U
     }
 
     // Cast ItemManager (REQUIRED)
-    USuspenseItemManager* CastedItemManager = Cast<USuspenseItemManager>(InItemManager);
+    USuspenseCoreItemManager* CastedItemManager = Cast<USuspenseCoreItemManager>(InItemManager);
     if (!CastedItemManager)
     {
         UE_LOG(LogSuspenseCoreEquipmentData, Error,
@@ -365,15 +365,15 @@ bool USuspenseCoreEquipmentDataService::InitializeService(const FSuspenseCoreSer
         // Register caches in the global registry (pass raw pointers, not lambdas)
         if (SnapshotCache.IsValid())
         {
-            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Snapshots"), SnapshotCache.Get());
+            FSuspenseCoreGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Snapshots"), SnapshotCache.Get());
         }
         if (ItemCache.IsValid())
         {
-            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Items"), ItemCache.Get());
+            FSuspenseCoreGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Items"), ItemCache.Get());
         }
         if (ConfigCache.IsValid())
         {
-            FSuspenseGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Configs"), ConfigCache.Get());
+            FSuspenseCoreGlobalCacheRegistry::Get().RegisterCache(TEXT("EquipmentData.Configs"), ConfigCache.Get());
         }
         RECORD_SERVICE_METRIC("Data.Init.CachesRegistered", 3);
 
@@ -525,14 +525,14 @@ bool USuspenseCoreEquipmentDataService::ShutdownService(bool bForce)
     RECORD_SERVICE_METRIC("Data.Shutdown.CachesCleared", 3);
 
     // Unregister from global cache registry
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Snapshots"));
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Items"));
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Configs"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Snapshots"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Items"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentData.Configs"));
 
     // Unsubscribe global invalidation lambda
     if (GlobalCacheInvalidateHandle.IsValid())
     {
-        FSuspenseGlobalCacheRegistry::Get().OnGlobalInvalidate.Remove(GlobalCacheInvalidateHandle);
+        FSuspenseCoreGlobalCacheRegistry::Get().OnGlobalInvalidate.Remove(GlobalCacheInvalidateHandle);
         GlobalCacheInvalidateHandle.Reset();
     }
 
@@ -843,7 +843,7 @@ ISuspenseCoreTransactionManager* USuspenseCoreEquipmentDataService::GetTransacti
 // Data Operations (High-Level API)
 //========================================
 
-FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCached(int32 SlotIndex) const
+FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCached(int32 SlotIndex) const
 {
     SCOPED_SERVICE_TIMER("Data.GetSlotItemCached");
     bool bOk = false;
@@ -853,7 +853,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCac
     if (!IsValidSlotIndex(SlotIndex))
     {
         RECORD_SERVICE_METRIC("Data.Input.InvalidSlot", 1);
-        return FSuspenseInventoryItemInstance();
+        return FSuspenseCoreInventoryItemInstance();
     }
 
     if (bEnableDetailedLogging)
@@ -864,12 +864,12 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCac
     TotalReads.fetch_add(1);
     RECORD_SERVICE_METRIC("Data.Read.Op", 1);
 
-    FSuspenseInventoryItemInstance Item;
+    FSuspenseCoreInventoryItemInstance Item;
 
     // Step 1: Cache-first approach - check cache under read lock
     {
         FRWScopeLock CacheScopeLock(CacheLock, SLT_ReadOnly);
-        FSuspenseInventoryItemInstance CachedItem;
+        FSuspenseCoreInventoryItemInstance CachedItem;
         if (ItemCache->Get(SlotIndex, CachedItem))
         {
             CacheHits.fetch_add(1);
@@ -890,7 +890,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCac
 
         if (!DataStore)
         {
-            return FSuspenseInventoryItemInstance();
+            return FSuspenseCoreInventoryItemInstance();
         }
 
         Item = DataStore->GetSlotItem(SlotIndex);
@@ -902,7 +902,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCac
         FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
 
         // Double-checked locking pattern
-        FSuspenseInventoryItemInstance ExistingItem;
+        FSuspenseCoreInventoryItemInstance ExistingItem;
         if (!ItemCache->Get(SlotIndex, ExistingItem))
         {
             ItemCache->Set(SlotIndex, Item, DefaultCacheTTL);
@@ -920,7 +920,7 @@ FSuspenseInventoryItemInstance USuspenseCoreEquipmentDataService::GetSlotItemCac
     return Item;
 }
 
-TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataService::BatchGetSlotItems(const TArray<int32>& SlotIndices) const
+TMap<int32, FSuspenseCoreInventoryItemInstance> USuspenseCoreEquipmentDataService::BatchGetSlotItems(const TArray<int32>& SlotIndices) const
 {
     SCOPED_SERVICE_TIMER("Data.BatchGetSlotItems");
     bool bOk = false;
@@ -948,7 +948,7 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataService::B
     RECORD_SERVICE_METRIC("Data.Batch.Requested", SlotIndices.Num());
     RECORD_SERVICE_METRIC("Data.Batch.ValidUnique", ValidUnique.Num());
 
-    TMap<int32, FSuspenseInventoryItemInstance> Result;
+    TMap<int32, FSuspenseCoreInventoryItemInstance> Result;
     TArray<int32> CacheMissIndices;
 
     // Count reads for each requested slot
@@ -961,7 +961,7 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataService::B
 
         for (int32 SlotIndex : ValidUnique)
         {
-            FSuspenseInventoryItemInstance CachedItem;
+            FSuspenseCoreInventoryItemInstance CachedItem;
             if (ItemCache->Get(SlotIndex, CachedItem))
             {
                 Result.Add(SlotIndex, CachedItem);
@@ -980,7 +980,7 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataService::B
     // Second pass: if misses exist, read all of them under a single DataLock read
     if (CacheMissIndices.Num() > 0)
     {
-        TMap<int32, FSuspenseInventoryItemInstance> DataStoreItems;
+        TMap<int32, FSuspenseCoreInventoryItemInstance> DataStoreItems;
 
         {
             FRWScopeLock DataScopeLock(DataLock, SLT_ReadOnly);
@@ -992,7 +992,7 @@ TMap<int32, FSuspenseInventoryItemInstance> USuspenseCoreEquipmentDataService::B
 
             for (int32 SlotIndex : CacheMissIndices)
             {
-                FSuspenseInventoryItemInstance Item = DataStore->GetSlotItem(SlotIndex);
+                FSuspenseCoreInventoryItemInstance Item = DataStore->GetSlotItem(SlotIndex);
                 if (Item.IsValid())
                 {
                     DataStoreItems.Add(SlotIndex, Item);
@@ -1063,8 +1063,8 @@ FGuid USuspenseCoreEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
     RECORD_SERVICE_METRIC("Data.Tx.Started", 1);
 
     // Perform swap under DataLock write to guarantee atomicity at DataStore level
-    FSuspenseInventoryItemInstance ItemA;
-    FSuspenseInventoryItemInstance ItemB;
+    FSuspenseCoreInventoryItemInstance ItemA;
+    FSuspenseCoreInventoryItemInstance ItemB;
 
     {
         FRWScopeLock DataWriteLock(DataLock, SLT_Write);
@@ -1154,7 +1154,7 @@ FGuid USuspenseCoreEquipmentDataService::SwapSlotItems(int32 SlotA, int32 SlotB)
     return TransactionId;
 }
 
-FGuid USuspenseCoreEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspenseInventoryItemInstance>& Updates)
+FGuid USuspenseCoreEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSuspenseCoreInventoryItemInstance>& Updates)
 {
     SCOPED_SERVICE_TIMER("Data.BatchUpdateSlots");
     SCOPED_DIFF_TIMER("BatchUpdate");
@@ -1207,7 +1207,7 @@ FGuid USuspenseCoreEquipmentDataService::BatchUpdateSlots(const TMap<int32, FSus
         for (const auto& UpdatePair : Updates)
         {
             const int32 SlotIdx = UpdatePair.Key;
-            const FSuspenseInventoryItemInstance& NewItem = UpdatePair.Value;
+            const FSuspenseCoreInventoryItemInstance& NewItem = UpdatePair.Value;
 
             FTransactionOperation UpdateOp;
             UpdateOp.OperationType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Set"));
@@ -1582,7 +1582,7 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
     TWeakObjectPtr<USuspenseCoreEquipmentDataService> WeakThis(this);
 
     DataStore->OnSlotDataChanged().AddLambda(
-        [WeakThis](int32 SlotIndex, const FSuspenseInventoryItemInstance& NewItem)
+        [WeakThis](int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& NewItem)
         {
             if (!WeakThis.IsValid())
             {
@@ -1711,7 +1711,7 @@ void USuspenseCoreEquipmentDataService::SetupEventSubscriptions()
     // Подписка на глобальную инвалидацию кэшей
     // ===================================================================
 
-    GlobalCacheInvalidateHandle = FSuspenseGlobalCacheRegistry::Get().OnGlobalInvalidate.AddLambda(
+    GlobalCacheInvalidateHandle = FSuspenseCoreGlobalCacheRegistry::Get().OnGlobalInvalidate.AddLambda(
         [WeakThis]()
         {
             if (WeakThis.IsValid())
@@ -2035,7 +2035,7 @@ bool USuspenseCoreEquipmentDataService::PerformDeepValidation_Internal() const
 
     for (int32 i = 0; i < DataStore->GetSlotCount(); ++i)
     {
-        FSuspenseInventoryItemInstance Item = DataStore->GetSlotItem(i);
+        FSuspenseCoreInventoryItemInstance Item = DataStore->GetSlotItem(i);
 
         if (!Item.IsValid())
         {
@@ -2281,7 +2281,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     return EquipmentSlots;
 }
 
-void USuspenseCoreEquipmentDataService::UpdateCacheEntry(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const
+void USuspenseCoreEquipmentDataService::UpdateCacheEntry(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item) const
 {
     FRWScopeLock CacheWriteLock(CacheLock, SLT_Write);
 
@@ -2302,7 +2302,7 @@ void USuspenseCoreEquipmentDataService::UpdateCacheEntry(int32 SlotIndex, const 
     }
 }
 
-void USuspenseCoreEquipmentDataService::BatchUpdateCache(const TMap<int32, FSuspenseInventoryItemInstance>& Items) const
+void USuspenseCoreEquipmentDataService::BatchUpdateCache(const TMap<int32, FSuspenseCoreInventoryItemInstance>& Items) const
 {
     // Нечего обновлять
     if (Items.Num() == 0 || !ItemCache.IsValid())
@@ -2320,12 +2320,12 @@ void USuspenseCoreEquipmentDataService::BatchUpdateCache(const TMap<int32, FSusp
     for (const auto& Pair : Items)
     {
         const int32 SlotIndex = Pair.Key;
-        const FSuspenseInventoryItemInstance& Item = Pair.Value;
+        const FSuspenseCoreInventoryItemInstance& Item = Pair.Value;
 
         if (Item.IsValid())
         {
             // Double-checked: если кто-то уже положил значение параллельно — не перетираем
-            FSuspenseInventoryItemInstance Existing;
+            FSuspenseCoreInventoryItemInstance Existing;
             const bool bAlreadyCached = ItemCache->Get(SlotIndex, Existing);
 
             if (!bAlreadyCached)
@@ -2444,7 +2444,7 @@ void USuspenseCoreEquipmentDataService::WarmupCachesSafe()
         return;
     }
 
-    TMap<int32, FSuspenseInventoryItemInstance> WarmupItems;
+    TMap<int32, FSuspenseCoreInventoryItemInstance> WarmupItems;
     TMap<int32, FEquipmentSlotConfig>   WarmupConfigs;
 
     // 1) Собираем данные из DataStore под DataLock (read-only)
@@ -2454,7 +2454,7 @@ void USuspenseCoreEquipmentDataService::WarmupCachesSafe()
 
         for (int32 i = 0; i < Slots; ++i)
         {
-            const FSuspenseInventoryItemInstance Item = DataStore->GetSlotItem(i);
+            const FSuspenseCoreInventoryItemInstance Item = DataStore->GetSlotItem(i);
             if (Item.IsValid())
             {
                 WarmupItems.Add(i, Item);

@@ -19,7 +19,7 @@ class USuspenseEquipmentContainerWidget;
  * This is the main container shown when player opens character menu
  */
 UCLASS()
-class UISYSTEM_API USuspenseCharacterScreen : public USuspenseBaseWidget, public ISuspenseScreen
+class UISYSTEM_API USuspenseCharacterScreen : public USuspenseBaseWidget, public ISuspenseCoreScreen
 {
     GENERATED_BODY()
 
@@ -31,7 +31,7 @@ public:
     virtual void UninitializeWidget_Implementation() override;
     //~ End USuspenseBaseWidget Interface
 
-    //~ Begin ISuspenseScreenInterface Interface
+    //~ Begin ISuspenseCoreScreenInterface Interface
     virtual FGameplayTag GetScreenTag_Implementation() const override { return ScreenTag; }
     virtual void OnScreenActivated_Implementation() override;
     virtual void OnScreenDeactivated_Implementation() override;
@@ -39,7 +39,7 @@ public:
     virtual void UpdateScreen_Implementation(float DeltaTime) override;
     virtual void RefreshScreenContent_Implementation() override;
     virtual bool RequiresTick_Implementation() const override { return false; }
-    //~ End ISuspenseScreenInterface Interface
+    //~ End ISuspenseCoreScreenInterface Interface
 
     /**
      * Opens a specific tab by tag

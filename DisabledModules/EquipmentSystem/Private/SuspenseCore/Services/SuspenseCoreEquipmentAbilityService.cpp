@@ -19,7 +19,7 @@
 USuspenseCoreEquipmentAbilityService::USuspenseCoreEquipmentAbilityService()
 {
     // Initialize cache with reasonable size
-    MappingCache = MakeShareable(new FSuspenseEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>(100));
+    MappingCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>(100));
 }
 
 USuspenseCoreEquipmentAbilityService::~USuspenseCoreEquipmentAbilityService()
@@ -67,7 +67,7 @@ bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCore
     SetupEventHandlers();
 
     // Register cache for monitoring
-    FSuspenseGlobalCacheRegistry::Get().RegisterCache(
+    FSuspenseCoreGlobalCacheRegistry::Get().RegisterCache(
         TEXT("EquipmentAbilityService.Mappings"),
         [this]() {
             float HitRate = (CacheHits + CacheMisses) > 0
@@ -157,7 +157,7 @@ bool USuspenseCoreEquipmentAbilityService::ShutdownService(bool bForce)
     // ВАЖНО: во время выхода движка НЕ трогаем глобальные реестры/синглтоны
     if (bCacheRegistered && !IsEngineExitRequested())
     {
-        FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentAbilityService.Mappings"));
+        FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentAbilityService.Mappings"));
         bCacheRegistered = false;
     }
 
@@ -611,7 +611,7 @@ bool USuspenseCoreEquipmentAbilityService::ExportMetricsToCSV(const FString& Fil
 void USuspenseCoreEquipmentAbilityService::ProcessEquipmentSpawn(
     AActor* EquipmentActor,
     AActor* OwnerActor,
-    const FSuspenseInventoryItemInstance& ItemInstance)
+    const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
     SCOPED_SERVICE_TIMER("ProcessEquipmentSpawn");
 
@@ -755,7 +755,7 @@ void USuspenseCoreEquipmentAbilityService::ProcessEquipmentDestroy(AActor* Equip
 
 void USuspenseCoreEquipmentAbilityService::UpdateEquipmentAbilities(
     AActor* EquipmentActor,
-    const FSuspenseInventoryItemInstance& UpdatedItemInstance)
+    const FSuspenseCoreInventoryItemInstance& UpdatedItemInstance)
 {
     SCOPED_SERVICE_TIMER("UpdateEquipmentAbilities");
 
@@ -1004,7 +1004,7 @@ void USuspenseCoreEquipmentAbilityService::EnsureValidConfig()
 void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
     // Parse structured event data from SuspenseCore event
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
 
@@ -1037,7 +1037,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(FGameplayTag Eve
 
 void USuspenseCoreEquipmentAbilityService::OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
     if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
@@ -1056,7 +1056,7 @@ void USuspenseCoreEquipmentAbilityService::OnUnequipped(FGameplayTag EventTag, c
     if (!EquipmentActor)
     {
         // Try full parse (in case source differs)
-        FSuspenseInventoryItemInstance Item;
+        FSuspenseCoreInventoryItemInstance Item;
         AActor* Owner = nullptr;
         if (!ParseSuspenseCoreEventData(EventData, Item, EquipmentActor, Owner) || !EquipmentActor)
         {
@@ -1071,7 +1071,7 @@ void USuspenseCoreEquipmentAbilityService::OnUnequipped(FGameplayTag EventTag, c
 
 void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
     if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
@@ -1086,7 +1086,7 @@ void USuspenseCoreEquipmentAbilityService::OnAbilitiesRefresh(FGameplayTag Event
 
 void USuspenseCoreEquipmentAbilityService::OnCommit(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
     AActor* OwnerActor = nullptr;
     if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
@@ -1272,7 +1272,7 @@ FGameplayTagContainer USuspenseCoreEquipmentAbilityService::GetEquipmentTags(AAc
 
 bool USuspenseCoreEquipmentAbilityService::ParseSuspenseCoreEventData(
     const FSuspenseCoreEventData& EventData,
-    FSuspenseInventoryItemInstance& OutItem,
+    FSuspenseCoreInventoryItemInstance& OutItem,
     AActor*& OutEquipmentActor,
     AActor*& OutOwnerActor) const
 {

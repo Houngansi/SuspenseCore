@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseCrosshairWidgetInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreCrosshairWidgetInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -27,7 +27,7 @@ USuspenseCoreEventManager* ISuspenseCrosshairWidgetInterface::GetDelegateManager
 	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseCrosshairWidgetInterface::BroadcastCrosshairUpdated(const UObject* Widget, float Spread, float Recoil)
+void ISuspenseCoreCrosshairWidgetInterface::BroadcastCrosshairUpdated(const UObject* Widget, float Spread, float Recoil)
 {
 	if (!Widget)
 	{
@@ -42,7 +42,7 @@ void ISuspenseCrosshairWidgetInterface::BroadcastCrosshairUpdated(const UObject*
 	}
 }
 
-void ISuspenseCrosshairWidgetInterface::BroadcastCrosshairColorChanged(const UObject* Widget, const FLinearColor& NewColor)
+void ISuspenseCoreCrosshairWidgetInterface::BroadcastCrosshairColorChanged(const UObject* Widget, const FLinearColor& NewColor)
 {
 	if (!Widget)
 	{

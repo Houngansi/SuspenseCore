@@ -53,7 +53,7 @@ USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(WorldConte
 USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(WorldContextObject);
 
 // Usage
-FSuspenseUnifiedItemData ItemData;
+FSuspenseCoreUnifiedItemData ItemData;
 if (DataManager->GetItemData(ItemID, ItemData))
 {
     // Use item data
@@ -335,7 +335,7 @@ Examples:
 1. **Don't use legacy ItemManager directly**
    ```cpp
    // DEPRECATED - Don't do this:
-   USuspenseItemManager* ItemManager = USuspenseCoreHelpers::GetItemManager(this);
+   USuspenseCoreItemManager* ItemManager = USuspenseCoreHelpers::GetItemManager(this);
 
    // DO THIS INSTEAD:
    USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(this);
@@ -360,7 +360,7 @@ Examples:
 ### Before (Legacy):
 ```cpp
 // Getting item data
-USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
+USuspenseCoreItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
 ItemManager->GetUnifiedItemData(ItemID, OutData);
 
 // Configuration in Blueprint GameInstance

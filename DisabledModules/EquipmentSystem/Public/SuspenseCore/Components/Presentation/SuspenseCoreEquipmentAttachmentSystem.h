@@ -108,7 +108,7 @@ struct FSuspenseCoreSocketMappingConfig
  * Потокобезопасность — через FEquipmentRWLock, обмен — через EventBus, кеш — FEquipmentCacheManager.
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAttachmentSystem : public UActorComponent, public ISuspenseAttachmentProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAttachmentSystem : public UActorComponent, public ISuspenseCoreAttachmentProvider
 {
 	GENERATED_BODY()
 
@@ -121,7 +121,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent Interface
 
-	//~ Begin ISuspenseAttachmentProvider Interface
+	//~ Begin ISuspenseCoreAttachmentProvider Interface
 	virtual bool AttachEquipment(AActor* Equipment, USceneComponent* Target, const FEquipmentAttachmentConfig& Config) override;
 	virtual bool DetachEquipment(AActor* Equipment, bool bMaintainWorldTransform = false) override;
 	virtual bool UpdateAttachment(AActor* Equipment, const FEquipmentAttachmentConfig& NewConfig, bool bSmooth = false) override;
@@ -130,7 +130,7 @@ public:
 	virtual bool SwitchAttachmentState(AActor* Equipment, bool bMakeActive, float Duration = 0.0f) override;
 	virtual FEquipmentAttachmentConfig GetSlotAttachmentConfig(int32 SlotIndex, bool bIsActive) const override;
 	virtual bool ValidateSocket(USceneComponent* Target, const FName& SocketName) const override;
-	//~ End ISuspenseAttachmentProvider Interface
+	//~ End ISuspenseCoreAttachmentProvider Interface
 
 	// ===== High-level API для VisualizationService =====
 
@@ -223,7 +223,7 @@ protected:
 	/**
 	 * Cache for socket configurations (mutable — чтобы вызывать Get() в const методе)
 	 */
-	mutable FSuspenseEquipmentCacheManager<FGameplayTag, FSuspenseCoreSocketMappingConfig> SocketConfigCache;
+	mutable FSuspenseCoreEquipmentCacheManager<FGameplayTag, FSuspenseCoreSocketMappingConfig> SocketConfigCache;
 
 	/**
 	 * Thread synchronization (RW)

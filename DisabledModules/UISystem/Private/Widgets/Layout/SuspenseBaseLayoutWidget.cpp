@@ -123,9 +123,9 @@ bool USuspenseBaseLayoutWidget::AddWidgetToLayout_Implementation(UUserWidget* Wi
     // Initialize widget if it supports the interface and config says to
     if (Config && Config->bAutoInitialize)
     {
-        if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+        if (Widget->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
         {
-            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
+            ISuspenseCoreUIWidget::Execute_InitializeWidget(Widget);
         }
     }
 
@@ -177,9 +177,9 @@ bool USuspenseBaseLayoutWidget::RemoveWidgetFromLayout_Implementation(UUserWidge
     }
 
     // Uninitialize if supported
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
     {
-        ISuspenseUIWidget::Execute_UninitializeWidget(Widget);
+        ISuspenseCoreUIWidget::Execute_UninitializeWidget(Widget);
     }
 
     // Remove from layout
@@ -220,9 +220,9 @@ void USuspenseBaseLayoutWidget::RefreshLayout_Implementation()
     // Refresh all child widgets that support the screen interface
     for (const auto& Pair : LayoutWidgets)
     {
-        if (Pair.Value && Pair.Value->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+        if (Pair.Value && Pair.Value->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
         {
-            ISuspenseScreen::Execute_RefreshScreenContent(Pair.Value);
+            ISuspenseCoreScreen::Execute_RefreshScreenContent(Pair.Value);
         }
     }
 
@@ -354,13 +354,13 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
     }
 
     // Устанавливаем тег виджета
-    if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+    if (Widget->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
     {
-        ISuspenseUIWidget::Execute_SetWidgetTag(Widget, Config.WidgetTag);
+        ISuspenseCoreUIWidget::Execute_SetWidgetTag(Widget, Config.WidgetTag);
 
         if (Config.bAutoInitialize)
         {
-            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
+            ISuspenseCoreUIWidget::Execute_InitializeWidget(Widget);
         }
     }
 
@@ -460,9 +460,9 @@ void USuspenseBaseLayoutWidget::ClearCreatedWidgets()
             }
 
             // Uninitialize if supported
-            if (Pair.Value->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+            if (Pair.Value->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
             {
-                ISuspenseUIWidget::Execute_UninitializeWidget(Pair.Value);
+                ISuspenseCoreUIWidget::Execute_UninitializeWidget(Pair.Value);
             }
 
             // Notify about destruction

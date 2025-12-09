@@ -7,26 +7,26 @@
 #include "Misc/ScopeLock.h"
 #include "Templates/Function.h"
 
-// forward-declare шаблон, чтобы не тянуть весь FSuspenseEquipmentCacheManager.h сюда
+// forward-declare шаблон, чтобы не тянуть весь FSuspenseCoreEquipmentCacheManager.h сюда
 template<typename K, typename V>
-class FSuspenseEquipmentCacheManager;
+class FSuspenseCoreEquipmentCacheManager;
 
 /**
  * Глобальный реестр кэшей: регистрация, сводная статистика, инвалидция, аудит.
  * Символы реализованы в .cpp и экспортируются из BridgeSystem.
  */
-class BRIDGESYSTEM_API FSuspenseGlobalCacheRegistry
+class BRIDGESYSTEM_API FSuspenseCoreGlobalCacheRegistry
 {
 public:
 	// Singleton (реализация в .cpp)
-	static FSuspenseGlobalCacheRegistry& Get();
+	static FSuspenseCoreGlobalCacheRegistry& Get();
 
 	// Регистрация кэша произвольным getter'ом статистики
 	void RegisterCache(const FString& Name, TFunction<FString(void)> Getter);
 
 	// Удобная перегрузка: регистрируем указатель на кэш — берём DumpStats()
 	template<typename K, typename V>
-	void RegisterCache(const FString& Name, FSuspenseEquipmentCacheManager<K, V>* Cache)
+	void RegisterCache(const FString& Name, FSuspenseCoreEquipmentCacheManager<K, V>* Cache)
 	{
 		check(Cache != nullptr);
 		RegisterCache(Name, [Cache]() { return Cache->DumpStats(); });
@@ -49,7 +49,7 @@ public:
 	FOnGlobalInvalidate OnGlobalInvalidate;
 
 private:
-	FSuspenseGlobalCacheRegistry() = default;
+	FSuspenseCoreGlobalCacheRegistry() = default;
 
 private:
 	mutable FCriticalSection RegistryLock;

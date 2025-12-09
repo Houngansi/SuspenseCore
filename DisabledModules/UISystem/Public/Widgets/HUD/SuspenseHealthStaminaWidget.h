@@ -21,7 +21,7 @@ class UMaterialInstanceDynamic;
  * All visual customization should be done through Material Instances
  */
 UCLASS()
-class UISYSTEM_API USuspenseHealthStaminaWidget : public USuspenseBaseWidget, public ISuspenseHealthStaminaWidgetInterface
+class UISYSTEM_API USuspenseHealthStaminaWidget : public USuspenseBaseWidget, public ISuspenseCoreHealthStaminaWidgetInterface
 {
     GENERATED_BODY()
 
@@ -37,7 +37,7 @@ public:
     virtual void UninitializeWidget_Implementation() override;
     virtual void UpdateWidget_Implementation(float DeltaTime) override;
 
-    // ISuspenseHealthStaminaWidgetInterface implementation
+    // ISuspenseCoreHealthStaminaWidgetInterface implementation
     virtual void InitializeWithASC_Implementation(UAbilitySystemComponent* ASC) override;
     virtual void UpdateHealth_Implementation(float CurrentHealth, float MaxHealth) override;
     virtual float GetHealthPercentage_Implementation() const override;
@@ -50,7 +50,7 @@ public:
 
     // Attribute provider support
     UFUNCTION(BlueprintCallable, Category = "UI|Attributes")
-    void InitializeWithProvider(TScriptInterface<ISuspenseAttributeProvider> Provider);
+    void InitializeWithProvider(TScriptInterface<ISuspenseCoreAttributeProvider> Provider);
 
     UFUNCTION(BlueprintCallable, Category = "UI|Attributes")
     void ClearProvider();
@@ -59,7 +59,7 @@ public:
     bool HasValidProvider() const;
 
     UFUNCTION(BlueprintCallable, Category = "UI|Attributes")
-    void UpdateFromAttributeData(const FSuspenseAttributeData& HealthData, const FSuspenseAttributeData& StaminaData);
+    void UpdateFromAttributeData(const FSuspenseCoreAttributeData& HealthData, const FSuspenseCoreAttributeData& StaminaData);
 
     // Value getters
     UFUNCTION(BlueprintPure, Category = "UI|Health")
@@ -178,7 +178,7 @@ private:
     
     // Attribute provider reference
     UPROPERTY()
-    TScriptInterface<ISuspenseAttributeProvider> AttributeProvider;
+    TScriptInterface<ISuspenseCoreAttributeProvider> AttributeProvider;
     
     // Event subscription handles
     FDelegateHandle HealthUpdateHandle;

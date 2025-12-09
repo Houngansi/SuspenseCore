@@ -8,7 +8,7 @@
 #include "ISuspenseCoreDraggable.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseDraggable : public UInterface
+class USuspenseCoreDraggable : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -17,7 +17,7 @@ class USuspenseDraggable : public UInterface
  * Interface for draggable UI elements
  * Этот интерфейс остается без изменений, так как не использует DragDropOperation
  */
-class BRIDGESYSTEM_API ISuspenseDraggable
+class BRIDGESYSTEM_API ISuspenseCoreDraggable
 {
 	GENERATED_BODY()
 

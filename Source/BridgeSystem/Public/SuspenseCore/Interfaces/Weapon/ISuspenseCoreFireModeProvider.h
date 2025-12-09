@@ -12,7 +12,7 @@
 // Forward declarations
 class USuspenseCoreEventManager;
 struct FWeaponFireModeData;
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreUnifiedItemData;
 
 /**
  * Данные о режиме огня, загруженные из DataTable
@@ -72,7 +72,7 @@ struct BRIDGESYSTEM_API FFireModeRuntimeData
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseFireModeProvider : public UInterface
+class USuspenseCoreFireModeProvider : public UInterface
 {
     GENERATED_BODY()
 };
@@ -81,14 +81,14 @@ class USuspenseFireModeProvider : public UInterface
  * Интерфейс провайдера режимов огня
  *
  * Управляет режимами огня оружия, загруженными из DataTable
- * Работает в связке с ISuspenseWeapon для полной функциональности
+ * Работает в связке с ISuspenseCoreWeapon для полной функциональности
  *
  * Архитектура:
- * - Режимы огня определяются в FSuspenseUnifiedItemData.FireModes
+ * - Режимы огня определяются в FSuspenseCoreUnifiedItemData.FireModes
  * - Runtime состояние отслеживается через FFireModeRuntimeData
  * - Переключение режимов транслируется через EventDelegateManager
  */
-class BRIDGESYSTEM_API ISuspenseFireModeProvider
+class BRIDGESYSTEM_API ISuspenseCoreFireModeProvider
 {
     GENERATED_BODY()
 
@@ -103,7 +103,7 @@ public:
      * @return true если инициализация успешна
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FireMode|Initialization")
-    bool InitializeFromWeaponData(const FSuspenseUnifiedItemData& WeaponData);
+    bool InitializeFromWeaponData(const FSuspenseCoreUnifiedItemData& WeaponData);
 
     /**
      * Очистить все режимы огня

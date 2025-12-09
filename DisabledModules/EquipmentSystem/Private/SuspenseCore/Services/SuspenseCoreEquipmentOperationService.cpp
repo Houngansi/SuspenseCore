@@ -48,8 +48,8 @@ namespace EventTags
 
 USuspenseCoreEquipmentOperationService::USuspenseCoreEquipmentOperationService()
 {
-    ValidationCache = MakeShareable(new FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>(500));
-    ResultCache = MakeShareable(new FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
+    ValidationCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>(500));
+    ResultCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>(100));
     InitializationTime = FDateTime::Now();
 }
 
@@ -116,11 +116,11 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FSuspenseCo
 
     // Initialize caching systems with proper constructor signature
     // Format: FEquipmentCacheManager(float DefaultTTL, int32 MaxEntries)
-    ValidationCache = MakeShared<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>>(
+    ValidationCache = MakeShared<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>>(
         ValidationCacheTTL,  // Default TTL: 5.0s
         1000);               // Max entries: 1000
 
-    ResultCache = MakeShared<FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
+    ResultCache = MakeShared<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>>(
         ResultCacheTTL,      // Default TTL: 2.0s
         500);                // Max entries: 500
 
@@ -220,8 +220,8 @@ bool USuspenseCoreEquipmentOperationService::ShutdownService(bool bForce)
     ValidationCache->Clear();
     ResultCache->Clear();
 
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ValidationCache"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("Operations.ResultCache"));
 
     // Properly unsubscribe all EventHandles (SuspenseCore architecture)
     if (EventBus)
@@ -1369,7 +1369,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
         {
             case EEquipmentOperationType::Equip:
             {
-                FSuspenseInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
+                FSuspenseCoreInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
                 bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, Step.Request.ItemInstance, /*bNotify=*/false);
 
                 if (bApplied)
@@ -1391,8 +1391,8 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
 
             case EEquipmentOperationType::Unequip:
             {
-                FSuspenseInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
-                FSuspenseInventoryItemInstance ClearedItem = DataProvider->ClearSlot(Step.Request.SourceSlotIndex, /*bNotify=*/false);
+                FSuspenseCoreInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
+                FSuspenseCoreInventoryItemInstance ClearedItem = DataProvider->ClearSlot(Step.Request.SourceSlotIndex, /*bNotify=*/false);
                 bApplied = ClearedItem.IsValid();
 
                 if (bApplied)
@@ -1401,7 +1401,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
                     Delta.ChangeType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Change.Unequip"));
                     Delta.SlotIndex = Step.Request.SourceSlotIndex;
                     Delta.ItemBefore = OldItem;
-                    Delta.ItemAfter = FSuspenseInventoryItemInstance(); // Empty
+                    Delta.ItemAfter = FSuspenseCoreInventoryItemInstance(); // Empty
                     Delta.SourceTransactionId = TxnId;
                     Delta.OperationId = Step.Request.OperationId;
                     Delta.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Transaction"));
@@ -1413,8 +1413,8 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
 
             case EEquipmentOperationType::Move:
             {
-                FSuspenseInventoryItemInstance SourceItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
-                FSuspenseInventoryItemInstance TargetItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
+                FSuspenseCoreInventoryItemInstance SourceItem = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
+                FSuspenseCoreInventoryItemInstance TargetItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
 
                 // Clear source
                 DataProvider->ClearSlot(Step.Request.SourceSlotIndex, /*bNotify=*/false);
@@ -1428,7 +1428,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
                     Delta1.ChangeType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Change.Move"));
                     Delta1.SlotIndex = Step.Request.SourceSlotIndex;
                     Delta1.ItemBefore = SourceItem;
-                    Delta1.ItemAfter = FSuspenseInventoryItemInstance();
+                    Delta1.ItemAfter = FSuspenseCoreInventoryItemInstance();
                     Delta1.SourceTransactionId = TxnId;
                     Delta1.OperationId = Step.Request.OperationId;
                     Delta1.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Transaction"));
@@ -1451,8 +1451,8 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
 
             case EEquipmentOperationType::Swap:
             {
-                FSuspenseInventoryItemInstance ItemA = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
-                FSuspenseInventoryItemInstance ItemB = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
+                FSuspenseCoreInventoryItemInstance ItemA = DataProvider->GetSlotItem(Step.Request.SourceSlotIndex);
+                FSuspenseCoreInventoryItemInstance ItemB = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
 
                 // Perform swap
                 DataProvider->SetSlotItem(Step.Request.SourceSlotIndex, ItemB, /*bNotify=*/false);

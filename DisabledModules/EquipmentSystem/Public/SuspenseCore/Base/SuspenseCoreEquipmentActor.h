@@ -17,7 +17,7 @@ class UAttributeSet;
 class USuspenseCoreEquipmentMeshComponent;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreEquipmentAttachmentComponent;
-class USuspenseItemManager;
+class USuspenseCoreItemManager;
 
 /**
  * Thin equipment actor (S3): bridge between SSOT/data and services.
@@ -46,10 +46,10 @@ public:
     virtual void OnEquipped_Implementation(AActor* NewOwner) override;
     virtual void OnUnequipped_Implementation() override;
 
-    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
-    virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
-    virtual FSuspenseInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
+    virtual FSuspenseCoreInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
     virtual FEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
     virtual EEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
     virtual FGameplayTag           GetEquipmentSlotTag_Implementation() const override;
@@ -60,13 +60,13 @@ public:
     virtual FName      GetAttachmentSocket_Implementation() const override;
     virtual FTransform GetAttachmentOffset_Implementation() const override;
 
-    virtual bool CanEquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) const override;
+    virtual bool CanEquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
     virtual FGameplayTagContainer GetAllowedItemTypes_Implementation() const override;
     virtual bool ValidateEquipmentRequirements_Implementation(TArray<FString>& OutErrors) const override;
 
-    virtual FSuspenseInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip) override;
-    virtual FSuspenseInventoryOperationResult UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance) override;
-    virtual FSuspenseInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
+    virtual FSuspenseCoreInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip) override;
+    virtual FSuspenseCoreInventoryOperationResult UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance) override;
+    virtual FSuspenseCoreInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
 
     // GAS bridge (read-only / proxy)
     virtual UAbilitySystemComponent* GetAbilitySystemComponent_Implementation() const override;
@@ -96,14 +96,14 @@ public:
 
     // Utility for spawn-side initialization
     UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|Init")
-    bool InitializeFromItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+    bool InitializeFromItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
 protected:
     /** Initialize all internal components from item instance (SSOT-driven) */
-    void InitializeEquipmentComponents(const FSuspenseInventoryItemInstance& ItemInstance);
+    void InitializeEquipmentComponents(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /** Setup visual mesh defaults (does not attach) */
-    void SetupEquipmentMesh(const FSuspenseUnifiedItemData& ItemData);
+    void SetupEquipmentMesh(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /** Get slot configuration if available (base returns nullptr => default slot config) */
     const FEquipmentSlotConfig* GetSlotConfigurationPtr() const;
@@ -116,16 +116,16 @@ protected:
     void OnRep_ItemData();
 
     /** Publish equipment event with optional payload pointer (item instance) */
-    void NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseInventoryItemInstance* Payload = nullptr) const;
+    void NotifyEquipmentEvent(const FGameplayTag& EventTag, const FSuspenseCoreInventoryItemInstance* Payload = nullptr) const;
 
     /** Publish property-changed (State) via Equipment.Event.PropertyChanged */
     void NotifyEquipmentStateChanged(const FGameplayTag& NewState, bool bIsRefresh) const;
 
     /** SSOT helper */
-    bool GetUnifiedItemData(FSuspenseUnifiedItemData& OutData) const;
+    bool GetUnifiedItemData(FSuspenseCoreUnifiedItemData& OutData) const;
 
     /** Subsystem accessor */
-    USuspenseItemManager* GetItemManager() const;
+    USuspenseCoreItemManager* GetItemManager() const;
 
     // ===== S3: GA/GE hooks now NO-OP (keep for compatibility) =====
     void GrantAbilitiesFromItemData();          // NO-OP
@@ -163,7 +163,7 @@ protected:
     float ReplicatedItemCondition = 0.f;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="SuspenseCore|Equipment|Runtime")
-    FSuspenseInventoryItemInstance EquippedItemInstance;
+    FSuspenseCoreInventoryItemInstance EquippedItemInstance;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SuspenseCore|Equipment|Slot")
     FGameplayTag EquipmentSlotTag;
@@ -185,7 +185,7 @@ protected:
     {
         TWeakObjectPtr<AActor>                  PendingOwner;
         TWeakObjectPtr<UAbilitySystemComponent> PendingASC;
-        FSuspenseInventoryItemInstance                  PendingItemInstance;
+        FSuspenseCoreInventoryItemInstance                  PendingItemInstance;
 
         bool bHasOwnerData = false;
         bool bHasItemData  = false;
@@ -194,7 +194,7 @@ protected:
         {
             PendingOwner.Reset();
             PendingASC.Reset();
-            PendingItemInstance = FSuspenseInventoryItemInstance();
+            PendingItemInstance = FSuspenseCoreInventoryItemInstance();
             bHasOwnerData = false;
             bHasItemData  = false;
         }

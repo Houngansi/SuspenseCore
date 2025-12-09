@@ -8,7 +8,7 @@
 #include "ISuspenseCoreSlotUI.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseSlotUI : public UInterface
+class USuspenseCoreSlotUI : public UInterface
 {
     GENERATED_BODY()
 };
@@ -20,7 +20,7 @@ class USuspenseSlotUI : public UInterface
  * IMPORTANT: Always use Execute_ methods when calling interface functions from C++
  * Never call interface methods directly!
  */
-class BRIDGESYSTEM_API ISuspenseSlotUI
+class BRIDGESYSTEM_API ISuspenseCoreSlotUI
 {
     GENERATED_BODY()
 

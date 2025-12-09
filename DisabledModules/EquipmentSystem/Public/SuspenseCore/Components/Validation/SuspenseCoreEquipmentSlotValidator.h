@@ -27,7 +27,7 @@ class ISuspenseCoreItemDataProvider
 {
 public:
 	virtual ~ISuspenseCoreItemDataProvider() = default;
-	virtual bool GetUnifiedItemData(const FName& ItemID, struct FSuspenseUnifiedItemData& OutData) const = 0;
+	virtual bool GetUnifiedItemData(const FName& ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const = 0;
 };
 
 /** Extended validation result carrying diagnostics for UI/metrics */
@@ -168,7 +168,7 @@ struct FEquipmentValidationRule
 	bool bIsStrict = true;
 
 	// Rule function must be pure/read-only. No external locks inside.
-	TFunction<bool(const FSuspenseInventoryItemInstance&, const FEquipmentSlotConfig&, const FSuspenseCoreSlotRestrictionData*)> RuleFunction;
+	TFunction<bool(const FSuspenseCoreInventoryItemInstance&, const FEquipmentSlotConfig&, const FSuspenseCoreSlotRestrictionData*)> RuleFunction;
 };
 
 /** Cache entries with TTL and DataVersion pin
@@ -215,13 +215,13 @@ public:
 	//===============================
 	virtual FSlotValidationResult CanPlaceItemInSlot(
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSuspenseInventoryItemInstance& ItemInstance) const override;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
 
 	virtual FSlotValidationResult CanSwapItems(
 		const FEquipmentSlotConfig& SlotConfigA,
-		const FSuspenseInventoryItemInstance& ItemA,
+		const FSuspenseCoreInventoryItemInstance& ItemA,
 		const FEquipmentSlotConfig& SlotConfigB,
-		const FSuspenseInventoryItemInstance& ItemB) const override;
+		const FSuspenseCoreInventoryItemInstance& ItemB) const override;
 
 	virtual FSlotValidationResult ValidateSlotConfiguration(
 		const FEquipmentSlotConfig& SlotConfig) const override;
@@ -239,7 +239,7 @@ public:
 	//===============================
 	FSuspenseCoreSlotValidationResultEx CanPlaceItemInSlotEx(
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSuspenseInventoryItemInstance& ItemInstance) const;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
 	FSuspenseCoreBatchValidationResult ValidateBatch(const FSuspenseCoreBatchValidationRequest& Request) const;
 
@@ -295,15 +295,15 @@ protected:
 	//===============================
 	FSlotValidationResult CanPlaceItemInSlot_NoLock(
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSuspenseInventoryItemInstance& ItemInstance) const;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
 	FSlotValidationResult ExecuteValidationRules_NoLock(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreSlotRestrictionData* Restrictions) const;
 
 	FSuspenseCoreSlotValidationResultEx ExecuteValidationRulesEx_NoLock(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreSlotRestrictionData* Restrictions) const;
 
@@ -311,14 +311,14 @@ protected:
 	void InitializeBuiltInRules();
 
 	// Rule implementations
-	FSlotValidationResult ValidateItemType(const FSuspenseInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
-	FSlotValidationResult ValidateItemLevel(const FSuspenseInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
-	FSlotValidationResult ValidateItemWeight(const FSuspenseInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData& Restrictions) const;
-	FSlotValidationResult ValidateUniqueItem(const FSuspenseInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData* Restrictions, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider = TScriptInterface<ISuspenseCoreEquipmentDataProvider>()) const;
+	FSlotValidationResult ValidateItemType(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
+	FSlotValidationResult ValidateItemLevel(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig) const;
+	FSlotValidationResult ValidateItemWeight(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData& Restrictions) const;
+	FSlotValidationResult ValidateUniqueItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FEquipmentSlotConfig& SlotConfig, const FSuspenseCoreSlotRestrictionData* Restrictions, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider = TScriptInterface<ISuspenseCoreEquipmentDataProvider>()) const;
 
 	// Helpers
-	bool GetItemData(const FName& ItemID, struct FSuspenseUnifiedItemData& OutData) const;
-	bool ItemHasTag(const FSuspenseInventoryItemInstance& ItemInstance, const FGameplayTag& RequiredTag) const;
+	bool GetItemData(const FName& ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
+	bool ItemHasTag(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& RequiredTag) const;
 	TArray<FGameplayTag> GetCompatibleItemTypes(EEquipmentSlotType SlotType) const;
 	int32 GetResultCodeForFailure(EEquipmentValidationFailure FailureType) const;
 	bool CheckSlotCompatibilityConflicts(int32 SlotIndexA, int32 SlotIndexB, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
@@ -330,7 +330,7 @@ protected:
 	bool GetCachedValidationEx(const FString& CacheKey, FSuspenseCoreSlotValidationResultEx& OutResult) const;
 	void CacheValidationResult(const FString& CacheKey, const FSlotValidationResult& Result) const;
 	void CacheValidationResultEx(const FString& CacheKey, const FSuspenseCoreSlotValidationResultEx& Result) const;
-	FString GenerateCacheKey(const FSuspenseInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot) const;
+	FString GenerateCacheKey(const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot) const;
 	void CleanExpiredCacheEntries() const;
 
 	//===============================

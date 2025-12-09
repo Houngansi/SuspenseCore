@@ -52,7 +52,7 @@ enum class ESuspenseConflictResolution : uint8
  * Extended rule check result with detailed information
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseRuleCheckResult
+struct BRIDGESYSTEM_API FSuspenseCoreRuleCheckResult
 {
     GENERATED_BODY()
 
@@ -89,9 +89,9 @@ struct BRIDGESYSTEM_API FSuspenseRuleCheckResult
     bool bCanOverride = false;
 
     /** Helper to create success result */
-    static FSuspenseRuleCheckResult Success(const FText& InMessage = FText::GetEmpty())
+    static FSuspenseCoreRuleCheckResult Success(const FText& InMessage = FText::GetEmpty())
     {
-        FSuspenseRuleCheckResult Result;
+        FSuspenseCoreRuleCheckResult Result;
         Result.bPassed = true;
         Result.Message = InMessage;
         Result.ConfidenceScore = 1.0f;
@@ -99,9 +99,9 @@ struct BRIDGESYSTEM_API FSuspenseRuleCheckResult
     }
 
     /** Helper to create failure result */
-    static FSuspenseRuleCheckResult Failure(const FText& InMessage, ESuspenseRuleSeverity InSeverity = ESuspenseRuleSeverity::Error)
+    static FSuspenseCoreRuleCheckResult Failure(const FText& InMessage, ESuspenseRuleSeverity InSeverity = ESuspenseRuleSeverity::Error)
     {
-        FSuspenseRuleCheckResult Result;
+        FSuspenseCoreRuleCheckResult Result;
         Result.bPassed = false;
         Result.Message = InMessage;
         Result.Severity = InSeverity;
@@ -114,7 +114,7 @@ struct BRIDGESYSTEM_API FSuspenseRuleCheckResult
  * Aggregated rule evaluation result
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseAggregatedRuleResult
+struct BRIDGESYSTEM_API FSuspenseCoreAggregatedRuleResult
 {
     GENERATED_BODY()
 
@@ -124,15 +124,15 @@ struct BRIDGESYSTEM_API FSuspenseAggregatedRuleResult
 
     /** Individual rule results */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FSuspenseRuleCheckResult> Results;
+    TArray<FSuspenseCoreRuleCheckResult> Results;
 
     /** Critical failures that must be addressed */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FSuspenseRuleCheckResult> CriticalFailures;
+    TArray<FSuspenseCoreRuleCheckResult> CriticalFailures;
 
     /** Warnings that don't block operation */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
-    TArray<FSuspenseRuleCheckResult> Warnings;
+    TArray<FSuspenseCoreRuleCheckResult> Warnings;
 
     /** Combined confidence score */
     UPROPERTY(BlueprintReadOnly, Category = "Rules")
@@ -143,7 +143,7 @@ struct BRIDGESYSTEM_API FSuspenseAggregatedRuleResult
     FText PrimaryFailureReason;
 
     /** Add a rule result to aggregation */
-    void AddResult(const FSuspenseRuleCheckResult& Result)
+    void AddResult(const FSuspenseCoreRuleCheckResult& Result)
     {
         Results.Add(Result);
 
@@ -208,7 +208,7 @@ struct BRIDGESYSTEM_API FSuspenseAggregatedRuleResult
  * Rule evaluation context with all necessary data
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseRuleContext
+struct BRIDGESYSTEM_API FSuspenseCoreRuleContext
 {
     GENERATED_BODY()
 
@@ -218,7 +218,7 @@ struct BRIDGESYSTEM_API FSuspenseRuleContext
 
     /** Item being evaluated */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
 
     /** Target slot index */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
@@ -226,7 +226,7 @@ struct BRIDGESYSTEM_API FSuspenseRuleContext
 
     /** Current equipped items */
     UPROPERTY(BlueprintReadWrite, Category = "Context")
-    TArray<FSuspenseInventoryItemInstance> CurrentItems;
+    TArray<FSuspenseCoreInventoryItemInstance> CurrentItems;
 
     /** Force operation even with warnings */
     UPROPERTY(BlueprintReadWrite, Category = "Context")

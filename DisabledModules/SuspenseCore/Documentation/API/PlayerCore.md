@@ -424,7 +424,7 @@ class PLAYERCORE_API USuspenseGameInstance : public UGameInstance
 // REQUIRED: Установить в BP_SuspenseGameInstance!
 TObjectPtr<UDataTable> LoadoutConfigurationsTable;  // FLoadoutConfiguration
 TObjectPtr<UDataTable> WeaponAnimationsTable;       // FAnimationStateData
-TObjectPtr<UDataTable> ItemDataTable;               // FSuspenseUnifiedItemData
+TObjectPtr<UDataTable> ItemDataTable;               // FSuspenseCoreUnifiedItemData
 ```
 
 #### Subsystem Access
@@ -433,7 +433,7 @@ TObjectPtr<UDataTable> ItemDataTable;               // FSuspenseUnifiedItemData
 static USuspenseGameInstance* GetSuspenseGameInstance(const UObject* WorldContextObject);
 USuspenseLoadoutManager* GetLoadoutManager() const;
 UWeaponAnimationSubsystem* GetWeaponAnimationSubsystem() const;
-USuspenseItemManager* GetItemManager() const;
+USuspenseCoreItemManager* GetItemManager() const;
 FName GetDefaultLoadoutID() const;
 ```
 

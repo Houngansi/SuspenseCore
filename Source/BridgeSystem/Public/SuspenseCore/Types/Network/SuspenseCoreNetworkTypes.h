@@ -94,7 +94,7 @@ struct FCompressedItemData
 
     FCompressedItemData() = default;
 
-    explicit FCompressedItemData(const FSuspenseInventoryItemInstance& Instance, int32 Slot)
+    explicit FCompressedItemData(const FSuspenseCoreInventoryItemInstance& Instance, int32 Slot)
     {
         // NOTE: Key hashing must be deterministic across builds; FName hashing is stable in-process.
         ItemID = static_cast<uint16>(GetTypeHash(Instance.ItemID));
@@ -104,9 +104,9 @@ struct FCompressedItemData
         CompressProperties(Instance.RuntimeProperties);
     }
 
-    FSuspenseInventoryItemInstance Decompress() const
+    FSuspenseCoreInventoryItemInstance Decompress() const
     {
-        FSuspenseInventoryItemInstance Result;
+        FSuspenseCoreInventoryItemInstance Result;
         // Minimal restore; real reconstruction depends on your SSOT/catalog.
         Result.Quantity = Quantity;
         return Result;
@@ -540,7 +540,7 @@ struct BRIDGESYSTEM_API FReplicatedEquipmentData
     uint32 Version = 0;
 
     UPROPERTY()
-    TArray<FSuspenseInventoryItemInstance> SlotItems;
+    TArray<FSuspenseCoreInventoryItemInstance> SlotItems;
 
     UPROPERTY()
     TArray<int32> SlotIndices;

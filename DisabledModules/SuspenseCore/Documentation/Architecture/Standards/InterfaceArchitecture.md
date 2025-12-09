@@ -126,7 +126,7 @@ class ISuspenseCoreInteractable
 #include "SuspenseCore/Types/SuspenseCoreItemTypes.h"
 
 // ❌ НЕПРАВИЛЬНО: Зависимость от legacy типов
-#include "Types/Loadout/SuspenseItemDataTable.h"  // FSuspenseUnifiedItemData
+#include "Types/Loadout/SuspenseItemDataTable.h"  // FSuspenseCoreUnifiedItemData
 ```
 
 ### 4. Минимальный интерфейс
@@ -243,14 +243,14 @@ class ASuspenseCorePickupItem
 
 ## 🗂️ DataTable Architecture
 
-### Проблема: Монолитный FSuspenseUnifiedItemData
+### Проблема: Монолитный FSuspenseCoreUnifiedItemData
 
-Текущий `FSuspenseUnifiedItemData` (689 строк) - это антипаттерн:
+Текущий `FSuspenseCoreUnifiedItemData` (689 строк) - это антипаттерн:
 
 ```cpp
 // ❌ ПЛОХО: Монолитный struct с 50+ полями
 USTRUCT()
-struct FSuspenseUnifiedItemData : public FTableRowBase
+struct FSuspenseCoreUnifiedItemData : public FTableRowBase
 {
     // Core Identity (5 полей)
     // Type Classification (3 поля)

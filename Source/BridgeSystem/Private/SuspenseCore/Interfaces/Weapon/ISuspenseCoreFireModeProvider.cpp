@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseFireModeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreFireModeProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -17,7 +17,7 @@ USuspenseCoreEventManager* ISuspenseFireModeProvider::GetDelegateManagerStatic(c
 	return USuspenseCoreEventManager::Get(WorldContextObject);
 }
 
-void ISuspenseFireModeProvider::BroadcastFireModeChanged(
+void ISuspenseCoreFireModeProvider::BroadcastFireModeChanged(
 	const UObject* FireModeProvider,
 	const FGameplayTag& NewFireMode,
 	float CurrentSpread)
@@ -43,7 +43,7 @@ void ISuspenseFireModeProvider::BroadcastFireModeChanged(
 	}
 }
 
-void ISuspenseFireModeProvider::BroadcastFireModeAvailabilityChanged(
+void ISuspenseCoreFireModeProvider::BroadcastFireModeAvailabilityChanged(
 	const UObject* FireModeProvider,
 	const FGameplayTag& FireModeTag,
 	bool bEnabled)

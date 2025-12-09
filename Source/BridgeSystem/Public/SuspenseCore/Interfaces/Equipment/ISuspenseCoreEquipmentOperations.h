@@ -62,7 +62,7 @@ public:
      * @return Operation result
      */
     virtual FEquipmentOperationResult EquipItem(
-        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
         int32 SlotIndex) = 0;
 
     /**

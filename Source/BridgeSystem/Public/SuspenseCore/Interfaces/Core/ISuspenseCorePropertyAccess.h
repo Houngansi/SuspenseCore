@@ -11,7 +11,7 @@ class UClass;
 class UObject;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspensePropertyAccess : public UInterface
+class USuspenseCorePropertyAccess : public UInterface
 {
     GENERATED_BODY()
 };
@@ -20,7 +20,7 @@ class USuspensePropertyAccess : public UInterface
  * Interface for generic property access
  * Allows getting and setting property values by name
  */
-class BRIDGESYSTEM_API ISuspensePropertyAccess
+class BRIDGESYSTEM_API ISuspenseCorePropertyAccess
 {
     GENERATED_BODY()
 

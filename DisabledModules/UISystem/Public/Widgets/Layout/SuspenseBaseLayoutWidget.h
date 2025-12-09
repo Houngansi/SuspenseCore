@@ -96,7 +96,7 @@ struct FLayoutWidgetConfig
  * - Integrates with UIManager for widget registration
  */
 UCLASS(Abstract)
-class UISYSTEM_API USuspenseBaseLayoutWidget : public USuspenseBaseWidget, public ISuspenseLayout
+class UISYSTEM_API USuspenseBaseLayoutWidget : public USuspenseBaseWidget, public ISuspenseCoreLayout
 {
     GENERATED_BODY()
 
@@ -108,18 +108,18 @@ public:
     virtual void NativeDestruct() override;
     //~ End UUserWidget Interface
 
-    //~ Begin ISuspenseUIWidgetInterface Interface
+    //~ Begin ISuspenseCoreUIWidgetInterface Interface
     virtual void InitializeWidget_Implementation() override;
     virtual void UninitializeWidget_Implementation() override;
-    //~ End ISuspenseUIWidgetInterface Interface
+    //~ End ISuspenseCoreUIWidgetInterface Interface
 
-    //~ Begin ISuspenseLayoutInterface Interface
+    //~ Begin ISuspenseCoreLayoutInterface Interface
     virtual bool AddWidgetToLayout_Implementation(UUserWidget* Widget, FGameplayTag SlotTag) override;
     virtual bool RemoveWidgetFromLayout_Implementation(UUserWidget* Widget) override;
     virtual TArray<UUserWidget*> GetLayoutWidgets_Implementation() const override;
     virtual void ClearLayout_Implementation() override;
     virtual void RefreshLayout_Implementation() override;
-    //~ End ISuspenseLayoutInterface Interface
+    //~ End ISuspenseCoreLayoutInterface Interface
 
     /**
      * Initialize layout from configuration

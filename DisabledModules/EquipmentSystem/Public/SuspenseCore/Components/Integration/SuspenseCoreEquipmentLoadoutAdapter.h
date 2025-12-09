@@ -120,7 +120,7 @@ protected:
 	void LogAdapterState() const;
 
 	USuspenseCoreLoadoutManager* GetLoadoutManager() const;
-	USuspenseItemManager*    GetItemManager() const;
+	USuspenseCoreItemManager*    GetItemManager() const;
 
 	// Поиск централизованного OperationService (через ServiceLocator)
 	USuspenseCoreEquipmentOperationService* GetOperationService(); // <- больше НЕ const
@@ -156,7 +156,7 @@ private:
 
 	// Кэш сабсистем
 	mutable TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
-	mutable TWeakObjectPtr<USuspenseItemManager>   CachedItemManager;
+	mutable TWeakObjectPtr<USuspenseCoreItemManager>   CachedItemManager;
 	mutable float LastCacheTime = 0.0f;
 	static constexpr float CacheLifetime = 5.0f;
 

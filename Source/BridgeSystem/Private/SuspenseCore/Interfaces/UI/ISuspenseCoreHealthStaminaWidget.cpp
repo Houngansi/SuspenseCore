@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseHealthStaminaWidgetInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreHealthStaminaWidgetInterface::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -27,7 +27,7 @@ USuspenseCoreEventManager* ISuspenseHealthStaminaWidgetInterface::GetDelegateMan
 	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseHealthStaminaWidgetInterface::BroadcastHealthUpdated(const UObject* Widget, float CurrentHealth, float MaxHealth)
+void ISuspenseCoreHealthStaminaWidgetInterface::BroadcastHealthUpdated(const UObject* Widget, float CurrentHealth, float MaxHealth)
 {
 	if (!Widget)
 	{
@@ -43,7 +43,7 @@ void ISuspenseHealthStaminaWidgetInterface::BroadcastHealthUpdated(const UObject
 	}
 }
 
-void ISuspenseHealthStaminaWidgetInterface::BroadcastStaminaUpdated(const UObject* Widget, float CurrentStamina, float MaxStamina)
+void ISuspenseCoreHealthStaminaWidgetInterface::BroadcastStaminaUpdated(const UObject* Widget, float CurrentStamina, float MaxStamina)
 {
 	if (!Widget)
 	{

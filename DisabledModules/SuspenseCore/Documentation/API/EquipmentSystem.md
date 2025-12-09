@@ -86,17 +86,17 @@ DataStore — "тупой" контейнер данных:
 
 ```cpp
 // Read-only доступ
-FSuspenseInventoryItemInstance GetSlotItem(int32 SlotIndex) const;
+FSuspenseCoreInventoryItemInstance GetSlotItem(int32 SlotIndex) const;
 FEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const;
 TArray<FEquipmentSlotConfig> GetAllSlotConfigurations() const;
-TMap<int32, FSuspenseInventoryItemInstance> GetAllEquippedItems() const;
+TMap<int32, FSuspenseCoreInventoryItemInstance> GetAllEquippedItems() const;
 int32 GetSlotCount() const;
 bool IsValidSlotIndex(int32 SlotIndex) const;
 bool IsSlotOccupied(int32 SlotIndex) const;
 
 // Modification (без валидации!)
-bool SetSlotItem(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item, bool bNotify = true);
-FSuspenseInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotify = true);
+bool SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item, bool bNotify = true);
+FSuspenseCoreInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotify = true);
 bool InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations);
 ```
 
@@ -182,7 +182,7 @@ bool IsPlanIdempotent(const FTransactionPlan& Plan) const;
 ```cpp
 FEquipmentOperationResult ExecuteOperation(const FEquipmentOperationRequest& Request);
 FSlotValidationResult ValidateOperation(const FEquipmentOperationRequest& Request) const;
-FEquipmentOperationResult EquipItem(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex);
+FEquipmentOperationResult EquipItem(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex);
 FEquipmentOperationResult UnequipItem(int32 SlotIndex);
 FEquipmentOperationResult SwapItems(int32 SlotA, int32 SlotB);
 FEquipmentOperationResult MoveItem(int32 SourceSlot, int32 TargetSlot);
@@ -195,7 +195,7 @@ FEquipmentOperationResult QuickSwitchWeapon();
 ```cpp
 // Для Bridge — проверка ДО удаления из инвентаря
 FSlotValidationResult CanEquipItemToSlot(
-    const FSuspenseInventoryItemInstance& ItemInstance,
+    const FSuspenseCoreInventoryItemInstance& ItemInstance,
     int32 TargetSlotIndex) const;
 ```
 
@@ -293,8 +293,8 @@ UCameraComponent* ScopeCamera;                     // Опциональная �
 
 ```cpp
 // Инициализация
-FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseInventoryItemInstance& Item);
-FSuspenseInventoryItemInstance GetItemInstance_Implementation() const;
+FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& Item);
+FSuspenseCoreInventoryItemInstance GetItemInstance_Implementation() const;
 
 // Действия
 bool Fire_Implementation(const FWeaponFireParams& Params);
@@ -323,8 +323,8 @@ float GetRange_Implementation() const;
 float GetCurrentAmmo_Implementation() const;
 float GetRemainingAmmo_Implementation() const;
 float GetMagazineSize_Implementation() const;
-FSuspenseInventoryAmmoState GetAmmoState_Implementation() const;
-void SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& State);
+FSuspenseCoreInventoryAmmoState GetAmmoState_Implementation() const;
+void SetAmmoState_Implementation(const FSuspenseCoreInventoryAmmoState& State);
 bool CanReload_Implementation() const;
 ```
 
@@ -351,8 +351,8 @@ USuspenseRequirementRulesEngine* RequirementEngine;
 
 Проверка совместимости item ↔ slot:
 ```cpp
-bool IsItemCompatibleWithSlot(const FSuspenseInventoryItemInstance& Item, int32 SlotIndex) const;
-TArray<int32> FindCompatibleSlots(const FSuspenseInventoryItemInstance& Item) const;
+bool IsItemCompatibleWithSlot(const FSuspenseCoreInventoryItemInstance& Item, int32 SlotIndex) const;
+TArray<int32> FindCompatibleSlots(const FSuspenseCoreInventoryItemInstance& Item) const;
 ```
 
 #### USuspenseWeightRulesEngine
@@ -368,7 +368,7 @@ float GetMaxAllowedWeight() const;
 
 Проверка конфликтов между предметами:
 ```cpp
-bool HasConflict(const FSuspenseInventoryItemInstance& ItemA, const FSuspenseInventoryItemInstance& ItemB) const;
+bool HasConflict(const FSuspenseCoreInventoryItemInstance& ItemA, const FSuspenseCoreInventoryItemInstance& ItemB) const;
 TArray<FEquipmentConflict> GetAllConflicts() const;
 ```
 
@@ -461,8 +461,8 @@ struct FEquipmentDelta
     FGuid DeltaId;
     FGameplayTag ChangeType;
     int32 SlotIndex;
-    FSuspenseInventoryItemInstance Before;
-    FSuspenseInventoryItemInstance After;
+    FSuspenseCoreInventoryItemInstance Before;
+    FSuspenseCoreInventoryItemInstance After;
     FGameplayTag Reason;
     float Timestamp;
 };

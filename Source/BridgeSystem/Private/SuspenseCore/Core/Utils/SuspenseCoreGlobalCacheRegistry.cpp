@@ -1,25 +1,25 @@
 // Copyright Suspense Team. All Rights Reserved.
 #include "SuspenseCore/Core/Utils/SuspenseCoreGlobalCacheRegistry.h"
 
-FSuspenseGlobalCacheRegistry& FSuspenseGlobalCacheRegistry::Get()
+FSuspenseCoreGlobalCacheRegistry& FSuspenseCoreGlobalCacheRegistry::Get()
 {
-	static FSuspenseGlobalCacheRegistry Instance;
+	static FSuspenseCoreGlobalCacheRegistry Instance;
 	return Instance;
 }
 
-void FSuspenseGlobalCacheRegistry::RegisterCache(const FString& Name, TFunction<FString(void)> Getter)
+void FSuspenseCoreGlobalCacheRegistry::RegisterCache(const FString& Name, TFunction<FString(void)> Getter)
 {
 	FScopeLock Lock(&RegistryLock);
 	CacheStatsGetters.Add(Name, MoveTemp(Getter));
 }
 
-void FSuspenseGlobalCacheRegistry::UnregisterCache(const FString& Name)
+void FSuspenseCoreGlobalCacheRegistry::UnregisterCache(const FString& Name)
 {
 	FScopeLock Lock(&RegistryLock);
 	CacheStatsGetters.Remove(Name);
 }
 
-FString FSuspenseGlobalCacheRegistry::DumpAllStats() const
+FString FSuspenseCoreGlobalCacheRegistry::DumpAllStats() const
 {
 	FScopeLock Lock(&RegistryLock);
 	FString Out;
@@ -30,13 +30,13 @@ FString FSuspenseGlobalCacheRegistry::DumpAllStats() const
 	return Out;
 }
 
-void FSuspenseGlobalCacheRegistry::InvalidateAllCaches()
+void FSuspenseCoreGlobalCacheRegistry::InvalidateAllCaches()
 {
 	OnGlobalInvalidate.Broadcast();
 }
 
-void FSuspenseGlobalCacheRegistry::SecurityAudit()
+void FSuspenseCoreGlobalCacheRegistry::SecurityAudit()
 {
-	UE_LOG(LogTemp, Log, TEXT("FSuspenseGlobalCacheRegistry: Security audit requested"));
+	UE_LOG(LogTemp, Log, TEXT("FSuspenseCoreGlobalCacheRegistry: Security audit requested"));
 	// При необходимости — расширяем аудит проекта.
 }

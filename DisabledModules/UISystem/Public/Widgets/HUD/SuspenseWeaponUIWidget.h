@@ -15,18 +15,18 @@ class UTexture2D;
 class UProgressBar;
 
 UCLASS()
-class UISYSTEM_API USuspenseWeaponUIWidget : public USuspenseBaseWidget, public ISuspenseWeaponUIWidgetInterface
+class UISYSTEM_API USuspenseCoreWeaponUIWidget : public USuspenseBaseWidget, public ISuspenseCoreWeaponUIWidgetInterface
 {
     GENERATED_BODY()
     
 public:
-    USuspenseWeaponUIWidget(const FObjectInitializer& ObjectInitializer);
+    USuspenseCoreWeaponUIWidget(const FObjectInitializer& ObjectInitializer);
 
     virtual void InitializeWidget_Implementation() override;
     virtual void UninitializeWidget_Implementation() override;
     virtual void UpdateWidget_Implementation(float DeltaTime) override;
 
-    // ISuspenseWeaponUIWidgetInterface implementation - обновленные сигнатуры
+    // ISuspenseCoreWeaponUIWidgetInterface implementation - обновленные сигнатуры
     virtual void SetWeapon_Implementation(AActor* Weapon) override;
     virtual void ClearWeapon_Implementation() override;
     virtual AActor* GetWeapon_Implementation() const override;

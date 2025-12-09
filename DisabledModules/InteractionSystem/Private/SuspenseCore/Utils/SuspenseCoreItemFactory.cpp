@@ -111,7 +111,7 @@ AActor* USuspenseCoreItemFactorySubsystem::CreatePickupFromItemID_Implementation
 	}
 
 	// Get item data
-	USuspenseItemManager* ItemManager = GetItemManager();
+	USuspenseCoreItemManager* ItemManager = GetItemManager();
 	if (!ItemManager)
 	{
 		UE_LOG(LogSuspenseCoreFactory, Error, TEXT("CreatePickupFromItemID: ItemManager not found"));
@@ -119,7 +119,7 @@ AActor* USuspenseCoreItemFactorySubsystem::CreatePickupFromItemID_Implementation
 		return nullptr;
 	}
 
-	FSuspenseUnifiedItemData ItemData;
+	FSuspenseCoreUnifiedItemData ItemData;
 	if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
 	{
 		UE_LOG(LogSuspenseCoreFactory, Warning, TEXT("CreatePickupFromItemID: Item '%s' not found in DataTable"),
@@ -194,13 +194,13 @@ AActor* USuspenseCoreItemFactorySubsystem::CreatePickupWithAmmo(
 	}
 
 	// Get item data to check if weapon
-	USuspenseItemManager* ItemManager = GetItemManager();
+	USuspenseCoreItemManager* ItemManager = GetItemManager();
 	if (!ItemManager)
 	{
 		return PickupActor;
 	}
 
-	FSuspenseUnifiedItemData ItemData;
+	FSuspenseCoreUnifiedItemData ItemData;
 	if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
 	{
 		return PickupActor;
@@ -250,7 +250,7 @@ void USuspenseCoreItemFactorySubsystem::SetDefaultPickupClass(TSubclassOf<AActor
 // Internal Methods
 //==================================================================
 
-USuspenseItemManager* USuspenseCoreItemFactorySubsystem::GetItemManager() const
+USuspenseCoreItemManager* USuspenseCoreItemFactorySubsystem::GetItemManager() const
 {
 	if (CachedItemManager.IsValid())
 	{
@@ -263,7 +263,7 @@ USuspenseItemManager* USuspenseCoreItemFactorySubsystem::GetItemManager() const
 		return nullptr;
 	}
 
-	USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
+	USuspenseCoreItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
 	if (ItemManager)
 	{
 		const_cast<USuspenseCoreItemFactorySubsystem*>(this)->CachedItemManager = ItemManager;
@@ -274,7 +274,7 @@ USuspenseItemManager* USuspenseCoreItemFactorySubsystem::GetItemManager() const
 
 void USuspenseCoreItemFactorySubsystem::ConfigurePickup(
 	AActor* PickupActor,
-	const FSuspenseUnifiedItemData& ItemData,
+	const FSuspenseCoreUnifiedItemData& ItemData,
 	int32 Quantity)
 {
 	if (!PickupActor)
@@ -306,7 +306,7 @@ void USuspenseCoreItemFactorySubsystem::ConfigurePickup(
 
 void USuspenseCoreItemFactorySubsystem::ConfigureWeaponPickup(
 	AActor* PickupActor,
-	const FSuspenseUnifiedItemData& ItemData,
+	const FSuspenseCoreUnifiedItemData& ItemData,
 	bool bWithAmmoState,
 	float CurrentAmmo,
 	float RemainingAmmo)

@@ -1,4 +1,4 @@
-// FSuspenseEquipmentCacheManager.h
+// FSuspenseCoreEquipmentCacheManager.h
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -191,14 +191,14 @@ struct FCacheEntry
  * - All public methods acquire CacheLock (FCriticalSection) via FScopeLock.
  */
 template<typename KeyType, typename ValueType>
-class FSuspenseEquipmentCacheManager
+class FSuspenseCoreEquipmentCacheManager
 {
 public:
 	/**
 	 * Basic constructor with max entries only
 	 * @param MaxEntries Maximum number of cache entries before LRU eviction
 	 */
-	FSuspenseEquipmentCacheManager(int32 MaxEntries = 100)
+	FSuspenseCoreEquipmentCacheManager(int32 MaxEntries = 100)
 		: MaxCacheEntries(MaxEntries)
 		, DefaultTTL(0.0f)  // No expiration by default
 		, MaxValueSize(1024 * 1024)
@@ -218,7 +218,7 @@ public:
 	 * @param InDefaultTTL Default time-to-live for all entries (in seconds, 0 = no expiration)
 	 * @param MaxEntries Maximum number of cache entries before LRU eviction
 	 */
-	FSuspenseEquipmentCacheManager(float InDefaultTTL, int32 MaxEntries = 100)
+	FSuspenseCoreEquipmentCacheManager(float InDefaultTTL, int32 MaxEntries = 100)
 		: MaxCacheEntries(MaxEntries)
 		, DefaultTTL(FMath::Max(0.0f, InDefaultTTL))
 		, MaxValueSize(1024 * 1024)
@@ -251,7 +251,7 @@ public:
 		{
 			RejectedEntries.fetch_add(1);
 			UE_LOG(LogTemp, Warning,
-				TEXT("FSuspenseEquipmentCacheManager: Rejected cache set due to size constraint (KeyHash=%u)"),
+				TEXT("FSuspenseCoreEquipmentCacheManager: Rejected cache set due to size constraint (KeyHash=%u)"),
 				EquipmentCacheHash::Compute(Key));
 			return false;
 		}
@@ -269,7 +269,7 @@ public:
 				SuspiciousPatterns.fetch_add(1);
 
 				UE_LOG(LogTemp, Warning,
-					TEXT("FSuspenseEquipmentCacheManager: Rejected update due to excessive rate (KeyHash=%u, Rate=%d/s, Limit=%d/s)"),
+					TEXT("FSuspenseCoreEquipmentCacheManager: Rejected update due to excessive rate (KeyHash=%u, Rate=%d/s, Limit=%d/s)"),
 					EquipmentCacheHash::Compute(Key), FreqData.UpdateCount, MaxUpdateRatePerSecond);
 
 				return false;
@@ -279,7 +279,7 @@ public:
 			{
 				RejectedEntries.fetch_add(1);
 				UE_LOG(LogTemp, Warning,
-					TEXT("FSuspenseEquipmentCacheManager: External validation failed for cache entry (KeyHash=%u)"),
+					TEXT("FSuspenseCoreEquipmentCacheManager: External validation failed for cache entry (KeyHash=%u)"),
 					EquipmentCacheHash::Compute(Key));
 				return false;
 			}
@@ -289,7 +289,7 @@ public:
 				RejectedEntries.fetch_add(1);
 				SuspiciousPatterns.fetch_add(1);
 				UE_LOG(LogTemp, Warning,
-					TEXT("FSuspenseEquipmentCacheManager: Anomalous numeric value detected (KeyHash=%u)"),
+					TEXT("FSuspenseCoreEquipmentCacheManager: Anomalous numeric value detected (KeyHash=%u)"),
 					EquipmentCacheHash::Compute(Key));
 				return false;
 			}
@@ -329,7 +329,7 @@ public:
 			{
 				CacheMap.Remove(Key);
 				UE_LOG(LogTemp, Error,
-					TEXT("FSuspenseEquipmentCacheManager: Integrity check failed, entry removed (KeyHash=%u)"),
+					TEXT("FSuspenseCoreEquipmentCacheManager: Integrity check failed, entry removed (KeyHash=%u)"),
 					EquipmentCacheHash::Compute(Key));
 				RemoveFromAccess_NoLock(Key);
 				UpdateFrequency.Remove(Key);
@@ -419,7 +419,7 @@ public:
 	{
 		FScopeLock Lock(CacheLock.Get());
 		ValidationFunc = MoveTemp(InFunc);
-		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseEquipmentCacheManager: Validation function set"));
+		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreEquipmentCacheManager: Validation function set"));
 	}
 
 	void SetPoisoningProtectionEnabled(bool bEnabled)
@@ -651,5 +651,5 @@ private:
 };
 
 // Specialized caches
-using FTagQueryCache = FSuspenseEquipmentCacheManager<FGameplayTag, bool>;
-using FItemDataCache = FSuspenseEquipmentCacheManager<FName, TSharedPtr<struct FSuspenseInventoryItemInstance>>;
+using FTagQueryCache = FSuspenseCoreEquipmentCacheManager<FGameplayTag, bool>;
+using FItemDataCache = FSuspenseCoreEquipmentCacheManager<FName, TSharedPtr<struct FSuspenseCoreInventoryItemInstance>>;

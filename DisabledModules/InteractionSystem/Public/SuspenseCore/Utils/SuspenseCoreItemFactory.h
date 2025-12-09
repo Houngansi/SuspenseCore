@@ -15,8 +15,8 @@
 
 // Forward declarations
 class USuspenseCoreEventBus;
-class USuspenseItemManager;
-struct FSuspenseUnifiedItemData;
+class USuspenseCoreItemManager;
+struct FSuspenseCoreUnifiedItemData;
 
 /**
  * USuspenseCoreItemFactorySubsystem
@@ -178,7 +178,7 @@ protected:
 	//==================================================================
 
 	/** Get item manager subsystem */
-	USuspenseItemManager* GetItemManager() const;
+	USuspenseCoreItemManager* GetItemManager() const;
 
 	/**
 	 * Configure spawned pickup with item data.
@@ -188,7 +188,7 @@ protected:
 	 */
 	void ConfigurePickup(
 		AActor* PickupActor,
-		const FSuspenseUnifiedItemData& ItemData,
+		const FSuspenseCoreUnifiedItemData& ItemData,
 		int32 Quantity
 	);
 
@@ -202,7 +202,7 @@ protected:
 	 */
 	void ConfigureWeaponPickup(
 		AActor* PickupActor,
-		const FSuspenseUnifiedItemData& ItemData,
+		const FSuspenseCoreUnifiedItemData& ItemData,
 		bool bWithAmmoState,
 		float CurrentAmmo,
 		float RemainingAmmo

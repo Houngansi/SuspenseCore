@@ -164,9 +164,9 @@ void USuspenseUpperTabBar::UninitializeWidget_Implementation()
             {
                 LayoutWidget->ClearLayout_Implementation();
             }
-            else if (Content->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+            else if (Content->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
             {
-                ISuspenseScreen::Execute_OnScreenDeactivated(Content);
+                ISuspenseCoreScreen::Execute_OnScreenDeactivated(Content);
             }
         }
     }
@@ -217,15 +217,15 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                 // Layout виджеты обрабатывают деактивацию дочерних элементов самостоятельно
                 for (UUserWidget* ChildWidget : OldLayoutWidget->GetLayoutWidgets_Implementation())
                 {
-                    if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+                    if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                     {
-                        ISuspenseScreen::Execute_OnScreenDeactivated(ChildWidget);
+                        ISuspenseCoreScreen::Execute_OnScreenDeactivated(ChildWidget);
                     }
                 }
             }
-            else if (OldContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+            else if (OldContent->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
             {
-                ISuspenseScreen::Execute_OnScreenDeactivated(OldContent);
+                ISuspenseCoreScreen::Execute_OnScreenDeactivated(OldContent);
             }
         }
     }
@@ -249,9 +249,9 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
             // Активируем все дочерние виджеты
             for (UUserWidget* ChildWidget : LayoutWidget->GetLayoutWidgets_Implementation())
             {
-                if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+                if (ChildWidget && ChildWidget->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                 {
-                    ISuspenseScreen::Execute_OnScreenActivated(ChildWidget);
+                    ISuspenseCoreScreen::Execute_OnScreenActivated(ChildWidget);
                 }
             }
 
@@ -261,9 +261,9 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
         else
         {
             // Обычная активация для одиночных виджетов
-            if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+            if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
             {
-                ISuspenseScreen::Execute_OnScreenActivated(ContentWidgets[TabIndex]);
+                ISuspenseCoreScreen::Execute_OnScreenActivated(ContentWidgets[TabIndex]);
             }
         }
 
@@ -299,9 +299,9 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
                         {
                             LayoutWidget->RefreshLayout_Implementation();
                         }
-                        else if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+                        else if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                         {
-                            ISuspenseScreen::Execute_RefreshScreenContent(ContentWidgets[TabIndex]);
+                            ISuspenseCoreScreen::Execute_RefreshScreenContent(ContentWidgets[TabIndex]);
                         }
                     }
                 });
@@ -401,9 +401,9 @@ void USuspenseUpperTabBar::RefreshActiveTabContent()
             {
                 LayoutWidget->RefreshLayout_Implementation();
             }
-            else if (Content->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+            else if (Content->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
             {
-                ISuspenseScreen::Execute_RefreshScreenContent(Content);
+                ISuspenseCoreScreen::Execute_RefreshScreenContent(Content);
             }
         }
     }
@@ -507,9 +507,9 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
     if (Widget)
     {
         // Инициализируем виджет
-        if (Widget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+        if (Widget->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
         {
-            ISuspenseUIWidget::Execute_InitializeWidget(Widget);
+            ISuspenseCoreUIWidget::Execute_InitializeWidget(Widget);
         }
 
         // Специальная инициализация для Equipment Widget
@@ -550,9 +550,9 @@ UUserWidget* USuspenseUpperTabBar::CreateLayoutWidgetContent(const FSuspenseTabC
     if (LayoutWidget)
     {
         // Инициализируем layout
-        if (LayoutWidget->GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+        if (LayoutWidget->GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
         {
-            ISuspenseUIWidget::Execute_InitializeWidget(LayoutWidget);
+            ISuspenseCoreUIWidget::Execute_InitializeWidget(LayoutWidget);
         }
 
         UE_LOG(LogTemp, Log, TEXT("[TabBar] Created layout widget with %d child widgets"),

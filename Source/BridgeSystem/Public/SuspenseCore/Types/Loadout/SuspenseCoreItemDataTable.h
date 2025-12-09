@@ -268,7 +268,7 @@ struct BRIDGESYSTEM_API FGrantedAbilityData
  * Complete GAS integration with AttributeSets as single source of truth
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseUnifiedItemData : public FTableRowBase
+struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
 {
     GENERATED_BODY()
     
@@ -577,7 +577,7 @@ struct BRIDGESYSTEM_API FSuspenseUnifiedItemData : public FTableRowBase
     // Constructor
     //==================================================================
     
-    FSuspenseUnifiedItemData()
+    FSuspenseCoreUnifiedItemData()
     {
         DisplayName = FText::FromString(TEXT("New Item"));
         Description = FText::FromString(TEXT("Item description"));

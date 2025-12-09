@@ -199,7 +199,7 @@ migrate() {
     # ============================================
     # CLASSES (UObjects)
     # ============================================
-    sed -i 's/\bUMedComItemManager\b/USuspenseItemManager/g' "$dst_file"
+    sed -i 's/\bUMedComItemManager\b/USuspenseCoreItemManager/g' "$dst_file"
     sed -i 's/\bUEventDelegateManager\b/USuspenseEventManager/g' "$dst_file"
     sed -i 's/\bUMedComInventoryGASIntegration\b/USuspenseInventoryGASIntegration/g' "$dst_file"
     sed -i 's/\bUMedComLoadoutManager\b/USuspenseLoadoutManager/g' "$dst_file"
@@ -211,7 +211,7 @@ migrate() {
     # STRUCTS (F prefix)
     # ============================================
     # MedCom-prefixed structs
-    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseUnifiedItemData/g' "$dst_file"
+    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseCoreUnifiedItemData/g' "$dst_file"
     sed -i 's/\bFMedComItemDataTable\b/FSuspenseItemDataTable/g' "$dst_file"
     sed -i 's/\bFMCEquipmentSlot\b/FSuspenseEquipmentSlot/g' "$dst_file"
     sed -i 's/\bFMedComNetworkTypes\b/FSuspenseNetworkTypes/g' "$dst_file"

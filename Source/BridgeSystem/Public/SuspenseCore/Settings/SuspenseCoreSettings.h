@@ -89,14 +89,14 @@ public:
 
 	/**
 	 * DataTable containing all item definitions
-	 * Row Structure: FSuspenseUnifiedItemData (or FSuspenseCoreItemData)
+	 * Row Structure: FSuspenseCoreUnifiedItemData (or FSuspenseCoreItemData)
 	 *
 	 * This is the master item database for the entire game.
 	 * All pickups, inventory systems, and equipment reference items from this table.
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Item System",
 		meta = (AllowedClasses = "/Script/Engine.DataTable",
-				ToolTip = "Master item DataTable. Row Structure: FSuspenseUnifiedItemData"))
+				ToolTip = "Master item DataTable. Row Structure: FSuspenseCoreUnifiedItemData"))
 	TSoftObjectPtr<UDataTable> ItemDataTable;
 
 	/** Validate items on startup (recommended for development) */

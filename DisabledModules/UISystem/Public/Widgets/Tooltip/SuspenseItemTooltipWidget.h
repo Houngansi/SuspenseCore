@@ -21,14 +21,14 @@ class UGameplayEffect;
  * Enhanced with attribute display from DataTable
  */
 UCLASS()
-class UISYSTEM_API USuspenseItemTooltipWidget : public UUserWidget, public ISuspenseTooltip
+class UISYSTEM_API USuspenseItemTooltipWidget : public UUserWidget, public ISuspenseCoreTooltip
 {
     GENERATED_BODY()
 
 public:
     USuspenseItemTooltipWidget(const FObjectInitializer& ObjectInitializer);
 
-    // === ISuspenseTooltipInterface Implementation ===
+    // === ISuspenseCoreTooltipInterface Implementation ===
     virtual void ShowTooltip_Implementation(const FItemUIData& ItemData, const FVector2D& ScreenPosition) override;
     virtual void HideTooltip_Implementation() override;
     virtual void UpdateTooltipPosition_Implementation(const FVector2D& ScreenPosition) override;
@@ -134,7 +134,7 @@ private:
      * Full item data from DataTable - stored as pointer without UPROPERTY
      * This is a temporary reference that doesn't need serialization
      */
-    const FSuspenseUnifiedItemData* FullItemData;
+    const FSuspenseCoreUnifiedItemData* FullItemData;
 
     /** Current mouse position in viewport coordinates */
     FVector2D CurrentMousePosition;

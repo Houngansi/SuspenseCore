@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"          // FSuspenseInventoryItemInstance
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"          // FSuspenseCoreInventoryItemInstance
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"          // FEquipmentSlotConfig and tags
 #include "SuspenseCoreEquipmentSlot.generated.h"
 
@@ -15,7 +15,7 @@
  * contains no business logic and is safe for use in UPROPERTY/replication.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseEquipmentSlot
+struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlot
 {
     GENERATED_BODY()
 
@@ -46,7 +46,7 @@ struct BRIDGESYSTEM_API FSuspenseEquipmentSlot
      * remaining covered cells hold default instances.
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SuspenseCore|Equipment")
-    TArray<FSuspenseInventoryItemInstance> GridItems;
+    TArray<FSuspenseCoreInventoryItemInstance> GridItems;
 
     /** Returns linear index from (X,Y) coordinates in [0..Width-1],[0..Height-1] */
     int32 ToIndex(int32 X, int32 Y) const

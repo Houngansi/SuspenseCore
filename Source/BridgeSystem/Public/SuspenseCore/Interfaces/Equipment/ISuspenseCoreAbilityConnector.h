@@ -221,7 +221,7 @@ public:
 	 * @return Array of granted ability handles
 	 */
 	virtual TArray<FGameplayAbilitySpecHandle> GrantEquipmentAbilities(
-		const FSuspenseInventoryItemInstance& ItemInstance) = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) = 0;
 
 	/**
 	 * Grant abilities for specific slot
@@ -231,7 +231,7 @@ public:
 	 */
 	virtual TArray<FGameplayAbilitySpecHandle> GrantAbilitiesForSlot(
 		int32 SlotIndex,
-		const FSuspenseInventoryItemInstance& ItemInstance) = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) = 0;
 
 	/**
 	 * Remove previously granted abilities
@@ -280,7 +280,7 @@ public:
 	 * @return Array of active effect handles
 	 */
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEquipmentEffects(
-		const FSuspenseInventoryItemInstance& ItemInstance) = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) = 0;
 
 	/**
 	 * Apply effects for specific slot
@@ -290,7 +290,7 @@ public:
 	 */
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectsForSlot(
 		int32 SlotIndex,
-		const FSuspenseInventoryItemInstance& ItemInstance) = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) = 0;
 
 	/**
 	 * Remove previously applied effects
@@ -323,7 +323,7 @@ public:
 	 * @return True if attributes updated
 	 */
 	virtual bool UpdateEquipmentAttributes(
-		const FSuspenseInventoryItemInstance& ItemInstance) = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) = 0;
 
 	/**
 	 * Get attribute set for slot

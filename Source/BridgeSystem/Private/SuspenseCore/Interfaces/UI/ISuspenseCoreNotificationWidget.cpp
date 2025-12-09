@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseNotificationWidget::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreNotificationWidget::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -27,7 +27,7 @@ USuspenseCoreEventManager* ISuspenseNotificationWidget::GetDelegateManagerStatic
 	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseNotificationWidget::BroadcastNotification(const UObject* Widget, const FString& Message, float Duration)
+void ISuspenseCoreNotificationWidget::BroadcastNotification(const UObject* Widget, const FString& Message, float Duration)
 {
 	if (!Widget)
 	{

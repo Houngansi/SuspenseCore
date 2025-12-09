@@ -153,7 +153,7 @@ public:
     void ProcessEquipmentSpawn(
         AActor* EquipmentActor,
         AActor* OwnerActor,
-        const FSuspenseInventoryItemInstance& ItemInstance
+        const FSuspenseCoreInventoryItemInstance& ItemInstance
     );
 
     /** Process equipment destroy - removes connector and abilities */
@@ -164,7 +164,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Equipment|Abilities")
     void UpdateEquipmentAbilities(
         AActor* EquipmentActor,
-        const FSuspenseInventoryItemInstance& UpdatedItemInstance
+        const FSuspenseCoreInventoryItemInstance& UpdatedItemInstance
     );
 
     /** Clean up invalid/destroyed equipment connectors */
@@ -216,7 +216,7 @@ protected:
     /** Parse SuspenseCore event data (new architecture) */
     bool ParseSuspenseCoreEventData(
         const FSuspenseCoreEventData& EventData,
-        FSuspenseInventoryItemInstance& OutItem,
+        FSuspenseCoreInventoryItemInstance& OutItem,
         AActor*& OutEquipmentActor,
         AActor*& OutOwnerActor
     ) const;
@@ -262,7 +262,7 @@ private:
     UPROPERTY()
     TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AActor>> EquipmentToOwnerMap;
 
-    TSharedPtr<FSuspenseEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>> MappingCache;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FName, FSuspenseCoreEquipmentAbilityMapping>> MappingCache;
     FStreamableManager StreamableManager;
     FTimerHandle CleanupTimerHandle;
 

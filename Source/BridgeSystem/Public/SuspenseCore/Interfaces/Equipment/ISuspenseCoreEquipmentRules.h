@@ -152,7 +152,7 @@ public:
      */
     virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FSuspenseRuleContext& Context) const = 0;
+        const FSuspenseCoreRuleContext& Context) const = 0;
 
     //========================================
     // Specialized Checkers
@@ -162,7 +162,7 @@ public:
      * Check item compatibility with equipment slot
      */
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
-        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const = 0;
 
     /**
@@ -170,7 +170,7 @@ public:
      */
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
-        const FSuspenseInventoryItemInstance& ItemInstance) const = 0;
+        const FSuspenseCoreInventoryItemInstance& ItemInstance) const = 0;
 
     /**
      * Check weight capacity limits
@@ -183,8 +183,8 @@ public:
      * Check for equipment conflicts
      */
     virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
-        const FSuspenseInventoryItemInstance& NewItem) const = 0;
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
+        const FSuspenseCoreInventoryItemInstance& NewItem) const = 0;
 
     //========================================
     // Runtime Rule Management

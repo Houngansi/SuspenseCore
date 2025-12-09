@@ -104,7 +104,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreSlotBatchRequest
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "Validation")
-	TArray<FSuspenseInventoryItemInstance> Items;
+	TArray<FSuspenseCoreInventoryItemInstance> Items;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Validation")
 	TArray<FEquipmentSlotConfig> SlotConfigs;
@@ -228,7 +228,7 @@ public:
 	 */
 	virtual FSuspenseCoreSlotValidationResult CanPlaceItemInSlot(
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSuspenseInventoryItemInstance& ItemInstance) const = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) const = 0;
 
 	/**
 	 * Validate if items can be swapped between slots
@@ -240,9 +240,9 @@ public:
 	 */
 	virtual FSuspenseCoreSlotValidationResult CanSwapItems(
 		const FEquipmentSlotConfig& SlotConfigA,
-		const FSuspenseInventoryItemInstance& ItemA,
+		const FSuspenseCoreInventoryItemInstance& ItemA,
 		const FEquipmentSlotConfig& SlotConfigB,
-		const FSuspenseInventoryItemInstance& ItemB) const = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemB) const = 0;
 
 	/**
 	 * Validate slot configuration integrity
@@ -272,7 +272,7 @@ public:
 	 */
 	virtual bool QuickValidate(
 		const FEquipmentSlotConfig& SlotConfig,
-		const FSuspenseInventoryItemInstance& ItemInstance) const = 0;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance) const = 0;
 
 	//========================================
 	// Specialized Checks

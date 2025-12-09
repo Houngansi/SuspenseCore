@@ -12,7 +12,7 @@ class AActor;
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseWeaponUIWidgetInterface : public UInterface
+class USuspenseCoreWeaponUIWidgetInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -25,7 +25,7 @@ class USuspenseWeaponUIWidgetInterface : public UInterface
  * Widgets implementing this interface should NOT broadcast events - they only receive and display data.
  * Events should be broadcast by weapon components that own the actual data.
  */
-class BRIDGESYSTEM_API ISuspenseWeaponUIWidgetInterface
+class BRIDGESYSTEM_API ISuspenseCoreWeaponUIWidgetInterface
 {
     GENERATED_BODY()
 

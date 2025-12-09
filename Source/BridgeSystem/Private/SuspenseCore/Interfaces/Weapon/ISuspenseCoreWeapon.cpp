@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseWeapon::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreWeapon::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -17,7 +17,7 @@ USuspenseCoreEventManager* ISuspenseWeapon::GetDelegateManagerStatic(const UObje
     return USuspenseCoreEventManager::Get(WorldContextObject);
 }
 
-void ISuspenseWeapon::BroadcastWeaponFired(
+void ISuspenseCoreWeapon::BroadcastWeaponFired(
     const UObject* Weapon,
     const FVector& Origin,
     const FVector& Impact,
@@ -47,7 +47,7 @@ void ISuspenseWeapon::BroadcastWeaponFired(
     }
 }
 
-void ISuspenseWeapon::BroadcastAmmoChanged(
+void ISuspenseCoreWeapon::BroadcastAmmoChanged(
     const UObject* Weapon,
     float CurrentAmmo,
     float RemainingAmmo,
@@ -75,7 +75,7 @@ void ISuspenseWeapon::BroadcastAmmoChanged(
     }
 }
 
-void ISuspenseWeapon::BroadcastReloadStarted(
+void ISuspenseCoreWeapon::BroadcastReloadStarted(
     const UObject* Weapon,
     float ReloadDuration)
 {
@@ -100,7 +100,7 @@ void ISuspenseWeapon::BroadcastReloadStarted(
     }
 }
 
-void ISuspenseWeapon::BroadcastReloadCompleted(
+void ISuspenseCoreWeapon::BroadcastReloadCompleted(
     const UObject* Weapon,
     bool bSuccess)
 {
@@ -125,7 +125,7 @@ void ISuspenseWeapon::BroadcastReloadCompleted(
     }
 }
 
-void ISuspenseWeapon::BroadcastFireModeChanged(
+void ISuspenseCoreWeapon::BroadcastFireModeChanged(
     const UObject* Weapon,
     const FGameplayTag& NewFireMode)
 {
@@ -140,9 +140,9 @@ void ISuspenseWeapon::BroadcastFireModeChanged(
         {
             // Get current spread from weapon interface
             float CurrentSpread = 0.0f;
-            if (Weapon->GetClass()->ImplementsInterface(USuspenseWeapon::StaticClass()))
+            if (Weapon->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
             {
-                CurrentSpread = ISuspenseWeapon::Execute_GetCurrentSpread(Weapon);
+                CurrentSpread = ISuspenseCoreWeapon::Execute_GetCurrentSpread(Weapon);
             }
 
             FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<UObject*>(Weapon))

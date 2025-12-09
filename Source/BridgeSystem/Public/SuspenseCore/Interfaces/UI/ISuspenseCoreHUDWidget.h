@@ -13,7 +13,7 @@ class UUserWidget;
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseHUDWidget : public UInterface
+class USuspenseCoreHUDWidget : public UInterface
 {
     GENERATED_BODY()
 };
@@ -22,7 +22,7 @@ class USuspenseHUDWidget : public UInterface
  * Interface for main HUD widget
  * Manages and coordinates all HUD sub-widgets
  */
-class BRIDGESYSTEM_API ISuspenseHUDWidget
+class BRIDGESYSTEM_API ISuspenseCoreHUDWidget
 {
     GENERATED_BODY()
 

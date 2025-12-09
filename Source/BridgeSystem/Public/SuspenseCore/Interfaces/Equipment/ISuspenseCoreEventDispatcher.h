@@ -3,11 +3,11 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 //
 // This interface defines the contract for event dispatching using
-// the SuspenseCore EventBus architecture (NOT legacy FSuspenseEquipmentEventBus).
+// the SuspenseCore EventBus architecture (NOT legacy FSuspenseCoreEquipmentEventBus).
 //
 // Migration from legacy:
-// - FSuspenseEquipmentEventBus -> USuspenseCoreEventBus
-// - FSuspenseEquipmentEventData -> FSuspenseCoreEventData
+// - FSuspenseCoreEquipmentEventBus -> USuspenseCoreEventBus
+// - FSuspenseCoreEquipmentEventData -> FSuspenseCoreEventData
 // - FEventSubscriptionHandle -> FSuspenseCoreSubscriptionHandle
 
 #pragma once
@@ -39,8 +39,8 @@ class USuspenseCoreEventDispatcher : public UInterface
  * This is the NEW architecture - replaces legacy ISuspenseEventDispatcher.
  *
  * Key differences from legacy:
- * - Uses USuspenseCoreEventBus (UObject-based) instead of FSuspenseEquipmentEventBus (TSharedPtr singleton)
- * - Uses FSuspenseCoreEventData with flexible TMap payload instead of FSuspenseEquipmentEventData
+ * - Uses USuspenseCoreEventBus (UObject-based) instead of FSuspenseCoreEquipmentEventBus (TSharedPtr singleton)
+ * - Uses FSuspenseCoreEventData with flexible TMap payload instead of FSuspenseCoreEquipmentEventData
  * - Uses FSuspenseCoreSubscriptionHandle instead of FEventSubscriptionHandle
  * - Event tags follow SuspenseCore.Event.* format (per BestPractices.md)
  *

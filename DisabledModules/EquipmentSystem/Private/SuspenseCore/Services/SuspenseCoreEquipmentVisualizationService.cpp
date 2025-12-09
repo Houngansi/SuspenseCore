@@ -1026,12 +1026,12 @@ TSubclassOf<AActor> USuspenseCoreEquipmentVisualizationService::ResolveActorClas
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 			TEXT("  GameInstance available via ServiceLocator"));
 
-		if (USuspenseItemManager* ItemMgr = GI->GetSubsystem<USuspenseItemManager>())
+		if (USuspenseCoreItemManager* ItemMgr = GI->GetSubsystem<USuspenseCoreItemManager>())
 		{
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 				TEXT("  ItemManager subsystem found"));
 
-			FSuspenseUnifiedItemData ItemData;
+			FSuspenseCoreUnifiedItemData ItemData;
 			if (ItemMgr->GetUnifiedItemData(ItemID, ItemData))
 			{
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
@@ -1140,7 +1140,7 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
         return FName(TEXT("GripPoint"));
     }
 
-    USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
+    USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -1149,7 +1149,7 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
     }
 
     // Step 2: Load full item data from DataTable
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
@@ -1213,7 +1213,7 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
         return FTransform::Identity;
     }
 
-    USuspenseItemManager* ItemManager = GI->GetSubsystem<USuspenseItemManager>();
+    USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -1222,7 +1222,7 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
     }
 
     // Step 2: Load full item data from DataTable
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,

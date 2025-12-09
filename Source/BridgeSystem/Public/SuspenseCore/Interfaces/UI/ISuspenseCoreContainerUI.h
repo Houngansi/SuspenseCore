@@ -14,7 +14,7 @@ class USuspenseCoreEventManager;
 class UDragDropOperation;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseContainerUI : public UInterface
+class USuspenseCoreContainerUI : public UInterface
 {
     GENERATED_BODY()
 };
@@ -25,7 +25,7 @@ class USuspenseContainerUI : public UInterface
  * 
  * ОБНОВЛЕНО: Используем базовый UDragDropOperation для избежания циклических зависимостей
  */
-class BRIDGESYSTEM_API ISuspenseContainerUI
+class BRIDGESYSTEM_API ISuspenseCoreContainerUI
 {
     GENERATED_BODY()
 

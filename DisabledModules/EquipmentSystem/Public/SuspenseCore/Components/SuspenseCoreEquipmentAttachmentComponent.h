@@ -6,7 +6,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Interfaces/Weapon/ISuspenseWeaponAnimation.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentAttachmentComponent.generated.h"
 
@@ -139,7 +139,7 @@ public:
      * @param InASC Ability system component
      * @param ItemInstance Item instance with runtime data
      */
-    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     /**
      * Clean up attachment and resources
@@ -150,7 +150,7 @@ public:
      * Update attachment when item changes
      * @param NewItemInstance New item instance
      */
-    virtual void UpdateEquippedItem(const FSuspenseInventoryItemInstance& NewItemInstance) override;
+    virtual void UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& NewItemInstance) override;
 
     //==================================================================
     // Core Attachment Methods
@@ -200,7 +200,7 @@ public:
      * @return Animation interface or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Animation")
-    TScriptInterface<ISuspenseWeaponAnimation> GetAnimationInterface() const;
+    TScriptInterface<ISuspenseCoreWeaponAnimation> GetAnimationInterface() const;
 
     /**
      * Handle animation completion
@@ -330,7 +330,7 @@ public:
      * @param TargetMesh Mesh to search on
      * @return Array of valid sockets with scores
      */
-    TArray<FSuspenseCoreSocketSearchResult> GetValidSocketsForItem(const FSuspenseUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const;
+    TArray<FSuspenseCoreSocketSearchResult> GetValidSocketsForItem(const FSuspenseCoreUnifiedItemData& ItemData, USkeletalMeshComponent* TargetMesh) const;
 
     /**
      * Validate socket exists and is appropriate
@@ -350,14 +350,14 @@ protected:
     /**
      * Called when equipped item changes
      */
-    virtual void OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem) override;
+    virtual void OnEquippedItemChanged(const FSuspenseCoreInventoryItemInstance& OldItem, const FSuspenseCoreInventoryItemInstance& NewItem) override;
 
     /**
      * Spawn equipment actor from item data
      * @param ItemData Item data with actor class
      * @return Spawned actor or nullptr
      */
-    AActor* SpawnEquipmentActor(const FSuspenseUnifiedItemData& ItemData);
+    AActor* SpawnEquipmentActor(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Destroy spawned equipment actor
@@ -371,7 +371,7 @@ protected:
      * @param bForActive Whether looking for active or inactive socket
      * @return Best available socket name
      */
-    FName FindBestAttachmentSocket(USkeletalMeshComponent* TargetMesh, const FSuspenseUnifiedItemData& ItemData, bool bForActive) const;
+    FName FindBestAttachmentSocket(USkeletalMeshComponent* TargetMesh, const FSuspenseCoreUnifiedItemData& ItemData, bool bForActive) const;
 
     /**
      * Get default socket name based on equipment slot type
@@ -566,7 +566,7 @@ private:
     FTimerHandle AnimationCompletionTimer;
 
     /** Cached animation interface */
-    mutable TScriptInterface<ISuspenseWeaponAnimation> CachedAnimationInterface;
+    mutable TScriptInterface<ISuspenseCoreWeaponAnimation> CachedAnimationInterface;
 
     /** Last animation interface cache time */
     mutable float LastAnimationInterfaceCacheTime;

@@ -61,7 +61,7 @@ struct FSuspenseCoreRuleEngineRegistration
  *
  * АРХИТЕКТУРНЫЙ ПРИНЦИП:
  * Coordinator не хранит состояние игрока - он работает как чистая функция.
- * Все данные игрока передаются через FSuspenseRuleContext.
+ * Все данные игрока передаются через FSuspenseCoreRuleContext.
  * DataProvider опционален и используется только для вспомогательных операций.
  *
  * Philosophy: Orchestrates specialized rule engines in priority order.
@@ -92,19 +92,19 @@ public:
     virtual FSuspenseCoreRuleResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FSuspenseRuleContext& Context) const override;
+        const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
-        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
-        const FSuspenseInventoryItemInstance& ItemInstance) const override;
+        const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
     virtual FSuspenseCoreRuleResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
     virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
-        const FSuspenseInventoryItemInstance& NewItem) const override;
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
+        const FSuspenseCoreInventoryItemInstance& NewItem) const override;
     virtual TArray<FSuspenseCoreEquipmentRule> GetActiveRules() const override;
     virtual bool RegisterRule(const FSuspenseCoreEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
@@ -187,7 +187,7 @@ protected:
      * @param Context Rule evaluation context с CurrentItems
      * @return Equipment state snapshot
      */
-    FEquipmentStateSnapshot BuildShadowSnapshotFromContext(const FSuspenseRuleContext& Context) const;
+    FEquipmentStateSnapshot BuildShadowSnapshotFromContext(const FSuspenseCoreRuleContext& Context) const;
 
     /**
      * Record engine execution metrics
@@ -200,9 +200,9 @@ protected:
     // Result Conversion
     //========================================
 
-    FSuspenseCoreRuleResult ConvertToResult(const TArray<FSuspenseRuleCheckResult>& NewResults) const;
-    FSuspenseCoreRuleResult ConvertSingleResult(const FSuspenseRuleCheckResult& NewResult) const;
-    FSuspenseCoreRuleResult ConvertAggregatedResult(const FSuspenseAggregatedRuleResult& AggResult) const;
+    FSuspenseCoreRuleResult ConvertToResult(const TArray<FSuspenseCoreRuleCheckResult>& NewResults) const;
+    FSuspenseCoreRuleResult ConvertSingleResult(const FSuspenseCoreRuleCheckResult& NewResult) const;
+    FSuspenseCoreRuleResult ConvertAggregatedResult(const FSuspenseCoreAggregatedRuleResult& AggResult) const;
     TArray<FSuspenseCoreRuleEngineRegistration> GetSortedEngines() const;
 
 private:

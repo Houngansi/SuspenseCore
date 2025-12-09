@@ -34,7 +34,7 @@ enum class ESuspenseNotificationType : uint8
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseNotificationWidget : public UInterface
+class USuspenseCoreNotificationWidget : public UInterface
 {
     GENERATED_BODY()
 };
@@ -43,7 +43,7 @@ class USuspenseNotificationWidget : public UInterface
  * Interface for notification widgets
  * Provides standardized methods for displaying game notifications
  */
-class BRIDGESYSTEM_API ISuspenseNotificationWidget
+class BRIDGESYSTEM_API ISuspenseCoreNotificationWidget
 {
     GENERATED_BODY()
 

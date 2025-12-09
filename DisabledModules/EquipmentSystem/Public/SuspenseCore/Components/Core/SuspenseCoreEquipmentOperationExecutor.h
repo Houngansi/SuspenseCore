@@ -218,7 +218,7 @@ public:
 
 	virtual FEquipmentOperationResult ExecuteOperation(const FEquipmentOperationRequest& Request) override;
 	virtual FSlotValidationResult ValidateOperation(const FEquipmentOperationRequest& Request) const override;
-	virtual FEquipmentOperationResult EquipItem(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
+	virtual FEquipmentOperationResult EquipItem(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex) override;
 	virtual FEquipmentOperationResult UnequipItem(int32 SlotIndex) override;
 	virtual FEquipmentOperationResult SwapItems(int32 SlotIndexA, int32 SlotIndexB) override;
 	virtual FEquipmentOperationResult MoveItem(int32 SourceSlot, int32 TargetSlot) override;
@@ -301,7 +301,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="SuspenseCoreCore|Equipment|Operations|Validation")
 	FSlotValidationResult CanEquipItemToSlot(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		int32 TargetSlotIndex) const;
 
 protected:
@@ -346,7 +346,7 @@ protected:
 	FGuid GenerateOperationId() const;
 
 	/** Find best slot for item (read-only query) */
-	int32 FindBestSlotForItem(const FSuspenseInventoryItemInstance& ItemInstance) const;
+	int32 FindBestSlotForItem(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
 	/** Check if slot is weapon slot (read-only query) */
 	bool IsWeaponSlot(int32 SlotIndex) const;

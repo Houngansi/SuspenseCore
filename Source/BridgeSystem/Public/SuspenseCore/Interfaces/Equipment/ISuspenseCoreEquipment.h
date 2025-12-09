@@ -32,7 +32,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentLifecycleEvent
 	TWeakObjectPtr<AActor> Owner;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
-	FSuspenseInventoryItemInstance ItemInstance;
+	FSuspenseCoreInventoryItemInstance ItemInstance;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
 	int32 SlotIndex = INDEX_NONE;
@@ -53,7 +53,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentLifecycleEvent
 
 	static FSuspenseCoreEquipmentLifecycleEvent Create(
 		AActor* InOwner,
-		const FSuspenseInventoryItemInstance& InItem,
+		const FSuspenseCoreInventoryItemInstance& InItem,
 		int32 InSlotIndex,
 		const FGameplayTag& InEventType)
 	{
@@ -156,7 +156,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentOperationEvent
 	FGameplayTag OperationType;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Operation")
-	FSuspenseInventoryItemInstance ItemInstance;
+	FSuspenseCoreInventoryItemInstance ItemInstance;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Operation")
 	int32 SourceSlot = INDEX_NONE;
@@ -200,10 +200,10 @@ struct BRIDGESYSTEM_API FSuspenseCoreSlotSwitchEvent
 	int32 NewSlot = INDEX_NONE;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Switch")
-	FSuspenseInventoryItemInstance PreviousItem;
+	FSuspenseCoreInventoryItemInstance PreviousItem;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Switch")
-	FSuspenseInventoryItemInstance NewItem;
+	FSuspenseCoreInventoryItemInstance NewItem;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Switch")
 	float SwitchDuration = 0.0f;
@@ -420,14 +420,14 @@ public:
 	 * @param ItemInstance Runtime item instance with unique properties
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Lifecycle")
-	void OnItemInstanceEquipped(const FSuspenseInventoryItemInstance& ItemInstance);
+	void OnItemInstanceEquipped(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
 	/**
 	 * Called when a specific runtime item instance is unequipped
 	 * @param ItemInstance Runtime item instance being removed
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Lifecycle")
-	void OnItemInstanceUnequipped(const FSuspenseInventoryItemInstance& ItemInstance);
+	void OnItemInstanceUnequipped(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
 	//========================================
 	// Properties and Configuration
@@ -438,7 +438,7 @@ public:
 	 * @return Current item instance or invalid if slot is empty
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Properties")
-	FSuspenseInventoryItemInstance GetEquippedItemInstance() const;
+	FSuspenseCoreInventoryItemInstance GetEquippedItemInstance() const;
 
 	/**
 	 * Get copy of slot configuration (Blueprint-safe)
@@ -520,7 +520,7 @@ public:
 	 * @return True if item can be equipped
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Validation")
-	bool CanEquipItemInstance(const FSuspenseInventoryItemInstance& ItemInstance) const;
+	bool CanEquipItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
 	/**
 	 * Check compatibility with validation context
@@ -530,7 +530,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Validation")
 	FSuspenseCoreEquipmentValidationResult ValidateItemInstance(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FSuspenseCoreEquipmentValidationContext& Context) const;
 
 	/**
@@ -559,8 +559,8 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseInventoryOperationResult EquipItemInstance(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+	FSuspenseCoreInventoryOperationResult EquipItemInstance(
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		bool bForceEquip = false);
 
 	/**
@@ -569,7 +569,7 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseInventoryOperationResult UnequipItem(FSuspenseInventoryItemInstance& OutUnequippedInstance);
+	FSuspenseCoreInventoryOperationResult UnequipItem(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance);
 
 	/**
 	 * Swap items between this slot and another
@@ -577,7 +577,7 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseInventoryOperationResult SwapEquipmentWith(
+	FSuspenseCoreInventoryOperationResult SwapEquipmentWith(
 		const TScriptInterface<ISuspenseCoreEquipment>& OtherEquipment);
 
 	//========================================
@@ -800,7 +800,7 @@ public:
 	 * @return Item instance or invalid if empty
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|WeaponSlots")
-	FSuspenseInventoryItemInstance GetItemInSlot(int32 SlotIndex) const;
+	FSuspenseCoreInventoryItemInstance GetItemInSlot(int32 SlotIndex) const;
 
 	/**
 	 * Get all occupied weapon slot indices
@@ -858,7 +858,7 @@ public:
 	 */
 	virtual void BroadcastOperationEvent(
 		const FGameplayTag& EventTag,
-		const FSuspenseInventoryItemInstance* ItemInstance = nullptr,
+		const FSuspenseCoreInventoryItemInstance* ItemInstance = nullptr,
 		const FString& EventData = TEXT("")) {}
 
 	/**

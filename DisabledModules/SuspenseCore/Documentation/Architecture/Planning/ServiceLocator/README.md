@@ -630,7 +630,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "SuspenseCore|Legacy",
         meta = (WorldContext = "WorldContextObject", DeprecatedFunction,
                 DeprecationMessage = "Use GetDataManager instead"))
-    static class USuspenseItemManager* GetItemManager(const UObject* WorldContextObject);
+    static class USuspenseCoreItemManager* GetItemManager(const UObject* WorldContextObject);
 };
 ```
 

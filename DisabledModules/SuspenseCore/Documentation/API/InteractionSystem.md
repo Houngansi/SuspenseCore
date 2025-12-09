@@ -167,7 +167,7 @@ FName ItemID;                           // ID для DataTable lookup
 int32 Amount;                           // Количество
 
 // Полный runtime instance (для dropped items)
-FSuspenseInventoryItemInstance RuntimeInstance;
+FSuspenseCoreInventoryItemInstance RuntimeInstance;
 bool bUseRuntimeInstance = false;
 ```
 
@@ -223,7 +223,7 @@ void OnInteractionFocusLost_Implementation(APlayerController* Instigator);
 ```cpp
 FName GetItemID_Implementation() const;
 void SetItemID_Implementation(FName NewItemID);
-bool GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutData) const;
+bool GetUnifiedItemData_Implementation(FSuspenseCoreUnifiedItemData& OutData) const;
 int32 GetItemAmount_Implementation() const;
 void SetAmount_Implementation(int32 NewAmount);
 bool HasSavedAmmoState_Implementation() const;
@@ -232,7 +232,7 @@ void SetSavedAmmoState_Implementation(float Current, float Remaining);
 bool HandlePickedUp_Implementation(AActor* Instigator);
 bool CanBePickedUpBy_Implementation(AActor* Instigator) const;
 FGameplayTag GetItemType_Implementation() const;
-bool CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const;
+bool CreateItemInstance_Implementation(FSuspenseCoreInventoryItemInstance& OutInstance) const;
 FGameplayTag GetItemRarity_Implementation() const;
 FText GetDisplayName_Implementation() const;
 bool IsStackable_Implementation() const;
@@ -243,10 +243,10 @@ float GetItemWeight_Implementation() const;
 
 ```cpp
 // Из полного runtime instance
-void InitializeFromInstance(const FSuspenseInventoryItemInstance& Instance);
+void InitializeFromInstance(const FSuspenseCoreInventoryItemInstance& Instance);
 
 // Из spawn data
-void InitializeFromSpawnData(const FSuspensePickupSpawnData& SpawnData);
+void InitializeFromSpawnData(const FSuspenseCorePickupSpawnData& SpawnData);
 
 // Установка ammo state
 void SetAmmoState(bool bHasState, float CurrentAmmo, float RemainingAmmo);
@@ -313,7 +313,7 @@ public:
     // Item identity
     virtual FName GetItemID_Implementation() const = 0;
     virtual void SetItemID_Implementation(FName NewItemID) = 0;
-    virtual bool GetUnifiedItemData_Implementation(FSuspenseUnifiedItemData& OutData) const = 0;
+    virtual bool GetUnifiedItemData_Implementation(FSuspenseCoreUnifiedItemData& OutData) const = 0;
 
     // Quantity
     virtual int32 GetItemAmount_Implementation() const = 0;
@@ -330,7 +330,7 @@ public:
 
     // Item properties
     virtual FGameplayTag GetItemType_Implementation() const = 0;
-    virtual bool CreateItemInstance_Implementation(FSuspenseInventoryItemInstance& OutInstance) const = 0;
+    virtual bool CreateItemInstance_Implementation(FSuspenseCoreInventoryItemInstance& OutInstance) const = 0;
     virtual FGameplayTag GetItemRarity_Implementation() const = 0;
     virtual FText GetDisplayName_Implementation() const = 0;
     virtual bool IsStackable_Implementation() const = 0;
@@ -363,7 +363,7 @@ Pickup->SetAmmoState(true, 15.0f, 60.0f);
 
 ```cpp
 // При выбрасывании предмета из инвентаря
-FSuspenseInventoryItemInstance DroppedItem = InventoryComponent->RemoveItemFromSlot(SlotIndex);
+FSuspenseCoreInventoryItemInstance DroppedItem = InventoryComponent->RemoveItemFromSlot(SlotIndex);
 
 ASuspensePickupItem* Pickup = World->SpawnActor<ASuspensePickupItem>(PickupClass, DropLocation, FRotator::ZeroRotator);
 Pickup->InitializeFromInstance(DroppedItem); // Сохраняет все runtime свойства
@@ -376,7 +376,7 @@ Pickup->InitializeFromInstance(DroppedItem); // Сохраняет все runtim
 bool ASuspensePickupItem::HandlePickedUp_Implementation(AActor* Instigator)
 {
     // Создаём instance для инвентаря
-    FSuspenseInventoryItemInstance NewInstance;
+    FSuspenseCoreInventoryItemInstance NewInstance;
     if (!CreateItemInstance_Implementation(NewInstance))
     {
         return false;
@@ -414,7 +414,7 @@ float SavedCurrentAmmo;                 // Replicated
 float SavedRemainingAmmo;               // Replicated
 ```
 
-**Важно:** `FSuspenseInventoryItemInstance RuntimeInstance` НЕ реплицируется напрямую из-за TMap. Вместо этого используется `PresetRuntimeProperties` (TArray).
+**Важно:** `FSuspenseCoreInventoryItemInstance RuntimeInstance` НЕ реплицируется напрямую из-за TMap. Вместо этого используется `PresetRuntimeProperties` (TArray).
 
 ---
 
@@ -430,7 +430,7 @@ float SavedRemainingAmmo;               // Replicated
 
 **Рекомендации:**
 - Документировать ограничение
-- Рассмотреть полную замену TMap на TArray в FSuspenseInventoryItemInstance
+- Рассмотреть полную замену TMap на TArray в FSuspenseCoreInventoryItemInstance
 
 ### 2. Отсутствие Object Pooling
 

@@ -12,7 +12,7 @@ class UAbilitySystemComponent;
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCharacterInterface : public UInterface
+class USuspenseCoreCharacterInterface : public UInterface
 {
     GENERATED_BODY()
 };
@@ -21,7 +21,7 @@ class USuspenseCharacterInterface : public UInterface
  * Extended interface for character interaction
  * Includes methods for weapon management and AbilitySystemComponent access
  */
-class BRIDGESYSTEM_API ISuspenseCharacterInterface
+class BRIDGESYSTEM_API ISuspenseCoreCharacterInterface
 {
     GENERATED_BODY()
 

@@ -1,4 +1,4 @@
-// ISuspenseAttachmentProvider.h
+// ISuspenseCoreAttachmentProvider.h
 // Equipment Attachment Provider Interface
 // Copyright Suspense Team. All Rights Reserved.
 
@@ -11,18 +11,18 @@
 #include "ISuspenseCoreAttachmentProvider.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseAttachmentProvider : public UInterface
+class USuspenseCoreAttachmentProvider : public UInterface
 {
     GENERATED_BODY()
 };
 
 /**
- * ISuspenseAttachmentProvider
+ * ISuspenseCoreAttachmentProvider
  *
  * Interface for managing equipment visual attachment to characters.
  * Handles socket attachment, transforms, and visibility.
  */
-class BRIDGESYSTEM_API ISuspenseAttachmentProvider
+class BRIDGESYSTEM_API ISuspenseCoreAttachmentProvider
 {
     GENERATED_BODY()
 

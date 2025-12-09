@@ -33,27 +33,27 @@ public:
 
 	//------------- Public API -------------
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseRuleCheckResult CheckItemCompatibility(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+	FSuspenseCoreRuleCheckResult CheckItemCompatibility(
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseRuleCheckResult CheckTypeCompatibility(
+	FSuspenseCoreRuleCheckResult CheckTypeCompatibility(
 		const FGameplayTag& ItemType,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
-	FSuspenseAggregatedRuleResult EvaluateCompatibilityRules(
-		const FSuspenseRuleContext& Context) const;
+	FSuspenseCoreAggregatedRuleResult EvaluateCompatibilityRules(
+		const FSuspenseCoreRuleContext& Context) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	TArray<int32> FindCompatibleSlots(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const TArray<FEquipmentSlotConfig>& AvailableSlots) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	float GetCompatibilityScore(
-		const FSuspenseInventoryItemInstance& ItemInstance,
+		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig) const;
 
 	//------------- DI -------------
@@ -74,10 +74,10 @@ public:
 
 protected:
 	//------------- Internal helpers -------------
-	bool GetItemData(FName ItemID, struct FSuspenseUnifiedItemData& OutData) const;
+	bool GetItemData(FName ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
 
 	/** Convert SlotValidator result to rules-format (severity mapping). */
-	static FSuspenseRuleCheckResult Convert(const FSlotValidationResult& R);
+	static FSuspenseCoreRuleCheckResult Convert(const FSlotValidationResult& R);
 
 private:
 	UPROPERTY(Transient)

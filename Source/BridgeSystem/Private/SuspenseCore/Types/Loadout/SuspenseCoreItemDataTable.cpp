@@ -7,10 +7,10 @@
 #include "AbilitySystemGlobals.h"
 
 //==================================================================
-// FSuspenseUnifiedItemData Implementation
+// FSuspenseCoreUnifiedItemData Implementation
 //==================================================================
 
-FMCPickupData FSuspenseUnifiedItemData::ToPickupData(int32 Quantity) const
+FMCPickupData FSuspenseCoreUnifiedItemData::ToPickupData(int32 Quantity) const
 {
     FMCPickupData Result;
     
@@ -28,7 +28,7 @@ FMCPickupData FSuspenseUnifiedItemData::ToPickupData(int32 Quantity) const
     return Result;
 }
 
-FMCEquipmentData FSuspenseUnifiedItemData::ToEquipmentData() const
+FMCEquipmentData FSuspenseCoreUnifiedItemData::ToEquipmentData() const
 {
     FMCEquipmentData Result;
     
@@ -79,7 +79,7 @@ FMCEquipmentData FSuspenseUnifiedItemData::ToEquipmentData() const
     return Result;
 }
 
-bool FSuspenseUnifiedItemData::IsValid() const
+bool FSuspenseCoreUnifiedItemData::IsValid() const
 {
     // Базовая валидация
     if (ItemID.IsNone())
@@ -157,7 +157,7 @@ bool FSuspenseUnifiedItemData::IsValid() const
     return true;
 }
 
-TArray<FText> FSuspenseUnifiedItemData::GetValidationErrors() const
+TArray<FText> FSuspenseCoreUnifiedItemData::GetValidationErrors() const
 {
     TArray<FText> Errors;
     
@@ -339,7 +339,7 @@ TArray<FText> FSuspenseUnifiedItemData::GetValidationErrors() const
     return Errors;
 }
 
-void FSuspenseUnifiedItemData::SanitizeData()
+void FSuspenseCoreUnifiedItemData::SanitizeData()
 {
     // Автоматическая генерация ItemID если отсутствует
     if (ItemID.IsNone() && !DisplayName.IsEmpty())
@@ -433,7 +433,7 @@ void FSuspenseUnifiedItemData::SanitizeData()
     }
 }
 
-FGameplayTag FSuspenseUnifiedItemData::GetEffectiveItemType() const
+FGameplayTag FSuspenseCoreUnifiedItemData::GetEffectiveItemType() const
 {
     // Возвращаем наиболее специфичный тип предмета
     if (bIsWeapon && WeaponArchetype.IsValid())
@@ -454,7 +454,7 @@ FGameplayTag FSuspenseUnifiedItemData::GetEffectiveItemType() const
     return ItemType;
 }
 
-bool FSuspenseUnifiedItemData::MatchesTags(const FGameplayTagContainer& Tags) const
+bool FSuspenseCoreUnifiedItemData::MatchesTags(const FGameplayTagContainer& Tags) const
 {
     if (Tags.IsEmpty())
     {
@@ -507,7 +507,7 @@ bool FSuspenseUnifiedItemData::MatchesTags(const FGameplayTagContainer& Tags) co
     return ItemTagSet.HasAny(Tags);
 }
 
-FLinearColor FSuspenseUnifiedItemData::GetRarityColor() const
+FLinearColor FSuspenseCoreUnifiedItemData::GetRarityColor() const
 {
     // Стандартная цветовая схема редкости
     // Используем MatchesTag вместо MatchesTagExact для поддержки иерархии
@@ -537,7 +537,7 @@ FLinearColor FSuspenseUnifiedItemData::GetRarityColor() const
 }
 
 #if WITH_EDITOR
-void FSuspenseUnifiedItemData::OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName)
+void FSuspenseCoreUnifiedItemData::OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName)
 {
     // Автоматическая санитизация при редактировании
     SanitizeData();

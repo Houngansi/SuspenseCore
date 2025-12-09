@@ -207,7 +207,7 @@ void USuspenseHealthStaminaWidget::InitializeWithASC_Implementation(UAbilitySyst
     UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] InitializeWithASC is deprecated - use InitializeWithProvider instead"));
 }
 
-void USuspenseHealthStaminaWidget::InitializeWithProvider(TScriptInterface<ISuspenseAttributeProvider> Provider)
+void USuspenseHealthStaminaWidget::InitializeWithProvider(TScriptInterface<ISuspenseCoreAttributeProvider> Provider)
 {
     AttributeProvider = Provider;
 
@@ -215,8 +215,8 @@ void USuspenseHealthStaminaWidget::InitializeWithProvider(TScriptInterface<ISusp
 
     if (HasValidProvider())
     {
-        FSuspenseAttributeData HealthData = ISuspenseAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
-        FSuspenseAttributeData StaminaData = ISuspenseAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
+        FSuspenseCoreAttributeData HealthData = ISuspenseCoreAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
+        FSuspenseCoreAttributeData StaminaData = ISuspenseCoreAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
 
         UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Provider data received:"));
         UE_LOG(LogTemp, Log, TEXT("  - Health: Current=%.1f, Max=%.1f, Valid=%s"),
@@ -244,7 +244,7 @@ bool USuspenseHealthStaminaWidget::HasValidProvider() const
     return AttributeProvider.GetInterface() != nullptr;
 }
 
-void USuspenseHealthStaminaWidget::UpdateFromAttributeData(const FSuspenseAttributeData& HealthData, const FSuspenseAttributeData& StaminaData)
+void USuspenseHealthStaminaWidget::UpdateFromAttributeData(const FSuspenseCoreAttributeData& HealthData, const FSuspenseCoreAttributeData& StaminaData)
 {
     if (HealthData.bIsValid)
     {
@@ -419,8 +419,8 @@ void USuspenseHealthStaminaWidget::UpdateFromProvider()
     if (!HasValidProvider())
         return;
 
-    FSuspenseAttributeData HealthData = ISuspenseAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
-    FSuspenseAttributeData StaminaData = ISuspenseAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
+    FSuspenseCoreAttributeData HealthData = ISuspenseCoreAttributeProvider::Execute_GetHealthData(AttributeProvider.GetObject());
+    FSuspenseCoreAttributeData StaminaData = ISuspenseCoreAttributeProvider::Execute_GetStaminaData(AttributeProvider.GetObject());
 
     UpdateFromAttributeData(HealthData, StaminaData);
 }

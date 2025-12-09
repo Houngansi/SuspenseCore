@@ -49,10 +49,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout", DisplayName = "Get Loadout Config")
     bool GetLoadoutConfigBP(const FName& LoadoutID, FLoadoutConfiguration& OutConfig) const;
 
-    const FSuspenseInventoryConfig* GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName = NAME_None) const;
+    const FSuspenseCoreInventoryConfig* GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName = NAME_None) const;
 
     UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout", DisplayName = "Get Inventory Config")
-    bool GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseInventoryConfig& OutConfig) const;
+    bool GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseCoreInventoryConfig& OutConfig) const;
 
     UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout")
     TArray<FName> GetInventoryNames(const FName& LoadoutID) const;

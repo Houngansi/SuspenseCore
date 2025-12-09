@@ -195,19 +195,19 @@ public:
     virtual FSuspenseCoreRuleResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FSuspenseRuleContext& Context) const override;
+        const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
-        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
-        const FSuspenseInventoryItemInstance& ItemInstance) const override;
+        const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
     virtual FSuspenseCoreRuleResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
     virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
-        const FSuspenseInventoryItemInstance& NewItem) const override;
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
+        const FSuspenseCoreInventoryItemInstance& NewItem) const override;
     virtual TArray<FSuspenseCoreEquipmentRule> GetActiveRules() const override;
     virtual bool RegisterRule(const FSuspenseCoreEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;
@@ -292,7 +292,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FSuspenseCoreRuleResult CheckItemDurability(const FSuspenseInventoryItemInstance& ItemInstance) const;
+    FSuspenseCoreRuleResult CheckItemDurability(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
     /**
      * Check ammunition compatibility
@@ -302,8 +302,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
     FSuspenseCoreRuleResult CheckAmmoCompatibility(
-        const FSuspenseInventoryItemInstance& WeaponInstance,
-        const FSuspenseInventoryItemInstance& AmmoInstance) const;
+        const FSuspenseCoreInventoryItemInstance& WeaponInstance,
+        const FSuspenseCoreInventoryItemInstance& AmmoInstance) const;
 
     /**
      * Check modification compatibility
@@ -313,8 +313,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
     FSuspenseCoreRuleResult CheckModificationCompatibility(
-        const FSuspenseInventoryItemInstance& BaseItem,
-        const FSuspenseInventoryItemInstance& Modification) const;
+        const FSuspenseCoreInventoryItemInstance& BaseItem,
+        const FSuspenseCoreInventoryItemInstance& Modification) const;
 
     /**
      * Validate loadout configuration
@@ -322,7 +322,7 @@ public:
      * @return Evaluation result
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    FSuspenseCoreRuleResult ValidateLoadout(const TArray<FSuspenseInventoryItemInstance>& LoadoutItems) const;
+    FSuspenseCoreRuleResult ValidateLoadout(const TArray<FSuspenseCoreInventoryItemInstance>& LoadoutItems) const;
 
     //========================================
     // Character Requirements (DEV MODE)
@@ -334,7 +334,7 @@ public:
      * @return Requirements data
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Requirements")
-    FSuspenseCoreCharacterRequirements GetItemRequirements(const FSuspenseInventoryItemInstance& ItemInstance) const;
+    FSuspenseCoreCharacterRequirements GetItemRequirements(const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
     /**
      * Check if character meets requirements
@@ -367,8 +367,8 @@ public:
      */
     //UFUNCTION(BlueprintCallable, Category = "Equipment|Conflicts")
     TArray<FSuspenseCoreRuleViolation> FindItemConflicts(
-        const FSuspenseInventoryItemInstance& ItemInstance,
-        const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
+        const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
     /**
      * Resolve equipment conflicts
@@ -503,7 +503,7 @@ protected:
      * @param OutItemData Output data
      * @return True if found
      */
-    bool GetItemData(FName ItemID, struct FSuspenseUnifiedItemData& OutItemData) const;
+    bool GetItemData(FName ItemID, struct FSuspenseCoreUnifiedItemData& OutItemData) const;
 
     /**
      * Get character level
@@ -531,7 +531,7 @@ protected:
      * @param Items Items to calculate
      * @return Total weight
      */
-    float CalculateTotalWeight(const TArray<FSuspenseInventoryItemInstance>& Items) const;
+    float CalculateTotalWeight(const TArray<FSuspenseCoreInventoryItemInstance>& Items) const;
 
     /**
      * Record violation

@@ -188,8 +188,8 @@ protected:
 
 private:
 	// Конвертация DTO <-> доменная модель
-	static FSuspenseCoreInventoryItemInstanceNet   ToNet(const FSuspenseInventoryItemInstance& In);
-	static FSuspenseInventoryItemInstance      FromNet(const FSuspenseCoreInventoryItemInstanceNet& In);
+	static FSuspenseCoreInventoryItemInstanceNet   ToNet(const FSuspenseCoreInventoryItemInstance& In);
+	static FSuspenseCoreInventoryItemInstance      FromNet(const FSuspenseCoreInventoryItemInstanceNet& In);
 	static FSuspenseCoreNetworkOperationRequestNet ToNet(const FNetworkOperationRequest& In);
 	static FNetworkOperationRequest    FromNet(const FSuspenseCoreNetworkOperationRequestNet& In);
 

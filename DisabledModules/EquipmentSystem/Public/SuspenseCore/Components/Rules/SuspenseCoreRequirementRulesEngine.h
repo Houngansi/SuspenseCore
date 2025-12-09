@@ -105,47 +105,47 @@ public:
 
     /** Check all requirements; short-circuits on Error/Critical failure of a rule. */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseAggregatedRuleResult CheckAllRequirements(
+    FSuspenseCoreAggregatedRuleResult CheckAllRequirements(
         const AActor* Character,
         const FSuspenseCoreMedComItemRequirements& Requirements) const;
 
     /** Evaluate requirements using rule context (best-effort; read-only). */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseAggregatedRuleResult EvaluateRequirementRules(
-        const FSuspenseRuleContext& Context) const;
+    FSuspenseCoreAggregatedRuleResult EvaluateRequirementRules(
+        const FSuspenseCoreRuleContext& Context) const;
 
     //==================== Primitive checks ====================
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckCharacterLevel(
+    FSuspenseCoreRuleCheckResult CheckCharacterLevel(
         const AActor* Character,
         int32 RequiredLevel) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckSkillLevel(
+    FSuspenseCoreRuleCheckResult CheckSkillLevel(
         const AActor* Character,
         const FGameplayTag& SkillTag,
         int32 RequiredLevel) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckAttributeRequirements(
+    FSuspenseCoreRuleCheckResult CheckAttributeRequirements(
         const AActor* Character,
         const TArray<FSuspenseCoreMedComAttributeRequirement>& Requirements) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckSingleAttribute(
+    FSuspenseCoreRuleCheckResult CheckSingleAttribute(
         const AActor* Character,
         const FName& AttributeName,
         float RequiredValue,
         ESuspenseCoreComparisonOp Op) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckCharacterTags(
+    FSuspenseCoreRuleCheckResult CheckCharacterTags(
         const AActor* Character,
         const FGameplayTagContainer& RequiredTags) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckRequiredAbilities(
+    FSuspenseCoreRuleCheckResult CheckRequiredAbilities(
         const AActor* Character,
         const TArray<TSubclassOf<class UGameplayAbility>>& RequiredAbilities) const;
 
@@ -169,7 +169,7 @@ public:
     void UnregisterCustomRequirement(const FGameplayTag& RuleTag);
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
-    FSuspenseRuleCheckResult CheckCustomRequirement(
+    FSuspenseCoreRuleCheckResult CheckCustomRequirement(
         const AActor* Character,
         const FGameplayTag& RequirementTag,
         const FString& Parameters) const;

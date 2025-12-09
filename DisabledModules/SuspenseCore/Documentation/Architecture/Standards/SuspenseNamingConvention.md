@@ -123,7 +123,7 @@ class SUSPENSECORE_API USuspenseEquipmentComponent : public UActorComponent { ..
 
 // Subsystems
 class SUSPENSECORE_API USuspenseInventorySubsystem : public UGameInstanceSubsystem { ... };
-class SUSPENSECORE_API USuspenseItemManager : public UGameInstanceSubsystem { ... };
+class SUSPENSECORE_API USuspenseCoreItemManager : public UGameInstanceSubsystem { ... };
 
 // Blueprint Libraries
 class SUSPENSECORE_API USuspenseInventoryLibrary : public UBlueprintFunctionLibrary { ... };
@@ -381,7 +381,7 @@ using FInventoryItemInstance = FSuspenseItemInstance;  // Alias for compatibilit
 | Legacy Name | New Name | Reasoning |
 |-------------|----------|-----------|
 | `UInventoryManager` | `USuspenseInventorySubsystem` | Add brand, clarify as Subsystem |
-| `UMedComItemManager` | `USuspenseItemManager` | Keep "Manager" (manages DataTable) |
+| `UMedComItemManager` | `USuspenseCoreItemManager` | Keep "Manager" (manages DataTable) |
 | `UEventDelegateManager` | `USuspenseEventManager` | Simplify: remove "Delegate" |
 | `UMedComItemFactory` | `USuspenseItemFactory` | Direct rename |
 | `UMedComSystemCoordinatorSubsystem` | `USuspenseEquipmentSubsystem` | Simplify: remove "Coordinator" |
@@ -621,7 +621,7 @@ Content/
 | `IMedComInventoryInterface` | `ISuspenseInventory` | CRITICAL | Core interface, many implementations |
 | `FInventoryItemInstance` | `FSuspenseItemInstance` OR keep as-is | CRITICAL | Used everywhere, consider alias |
 | `UInventoryReplicator` | `USuspenseInventoryReplicator` | HIGH | Network critical |
-| `UMedComItemManager` | `USuspenseItemManager` | HIGH | DataTable manager |
+| `UMedComItemManager` | `USuspenseCoreItemManager` | HIGH | DataTable manager |
 
 **Medium Impact Classes:**
 

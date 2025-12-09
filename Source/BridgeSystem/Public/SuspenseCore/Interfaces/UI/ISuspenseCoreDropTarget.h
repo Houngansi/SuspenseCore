@@ -1,4 +1,4 @@
-// ISuspenseDropTarget.h
+// ISuspenseCoreDropTarget.h
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -13,7 +13,7 @@
 class UDragDropOperation; // Используем базовый класс
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseDropTarget : public UInterface
+class USuspenseCoreDropTarget : public UInterface
 {
     GENERATED_BODY()
 };
@@ -22,7 +22,7 @@ class USuspenseDropTarget : public UInterface
  * Interface for UI elements that can act as drop targets for drag-and-drop operations.
  * ОБНОВЛЕНО: Используем базовый UDragDropOperation для избежания циклических зависимостей
  */
-class BRIDGESYSTEM_API ISuspenseDropTarget
+class BRIDGESYSTEM_API ISuspenseCoreDropTarget
 {
     GENERATED_BODY()
 

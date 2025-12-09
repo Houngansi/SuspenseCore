@@ -186,7 +186,7 @@ private:
  * Inventory configuration
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseInventoryConfig
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryConfig
 {
     GENERATED_BODY()
 
@@ -209,9 +209,9 @@ struct BRIDGESYSTEM_API FSuspenseInventoryConfig
     FGameplayTagContainer DisallowedItemTypes;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Starting Items")
-    TArray<FSuspensePickupSpawnData> StartingItems;
+    TArray<FSuspenseCorePickupSpawnData> StartingItems;
 
-    FSuspenseInventoryConfig()
+    FSuspenseCoreInventoryConfig()
     {
         InventoryName = FText::FromString(TEXT("Inventory"));
         Width = 10;
@@ -221,7 +221,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryConfig
         DisallowedItemTypes.Reset();
     }
 
-    FSuspenseInventoryConfig(const FText& InName, int32 InWidth, int32 InHeight, float InMaxWeight)
+    FSuspenseCoreInventoryConfig(const FText& InName, int32 InWidth, int32 InHeight, float InMaxWeight)
         : InventoryName(InName)
         , Width(FMath::Clamp(InWidth, 1, 50))
         , Height(FMath::Clamp(InHeight, 1, 50))
@@ -287,10 +287,10 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
     TSoftObjectPtr<UTexture2D> LoadoutIcon;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Inventory")
-    FSuspenseInventoryConfig MainInventory;
+    FSuspenseCoreInventoryConfig MainInventory;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Inventory")
-    TMap<FName, FSuspenseInventoryConfig> AdditionalInventories;
+    TMap<FName, FSuspenseCoreInventoryConfig> AdditionalInventories;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Equipment")
     TArray<FEquipmentSlotConfig> EquipmentSlots;
@@ -318,7 +318,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         LoadoutName = FText::FromString(TEXT("Default PMC Loadout"));
         Description = FText::FromString(TEXT("Standard PMC loadout configuration"));
 
-        MainInventory = FSuspenseInventoryConfig(
+        MainInventory = FSuspenseCoreInventoryConfig(
             FText::FromString(TEXT("Pockets")),
             4, 1, 10.0f
         );
@@ -330,7 +330,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         SetupDefaultEquipmentSlots();
     }
 
-    const FSuspenseInventoryConfig* GetInventoryConfig(const FName& InventoryName = NAME_None) const
+    const FSuspenseCoreInventoryConfig* GetInventoryConfig(const FName& InventoryName = NAME_None) const
     {
         if (InventoryName.IsNone())
         {
@@ -351,7 +351,7 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         return nullptr;
     }
 
-    void AddAdditionalInventory(const FName& InventoryName, const FSuspenseInventoryConfig& Config)
+    void AddAdditionalInventory(const FName& InventoryName, const FSuspenseCoreInventoryConfig& Config)
     {
         AdditionalInventories.Add(InventoryName, Config);
     }
@@ -580,7 +580,7 @@ public:
             UE_LOG(LogTemp, Warning, TEXT("LoadoutConfiguration '%s' has validation errors"), *LoadoutID.ToString());
         }
 
-        for (const FSuspensePickupSpawnData& StartingItem : MainInventory.StartingItems)
+        for (const FSuspenseCorePickupSpawnData& StartingItem : MainInventory.StartingItems)
         {
             if (!StartingItem.IsValid())
             {

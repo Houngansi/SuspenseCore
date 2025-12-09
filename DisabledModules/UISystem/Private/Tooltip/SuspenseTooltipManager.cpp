@@ -16,7 +16,7 @@
 // Subsystem Lifecycle Implementation
 // ========================================
 
-void USuspenseTooltipManager::Initialize(FSubsystemCollectionBase& Collection)
+void USuspenseCoreTooltipManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
@@ -39,13 +39,13 @@ void USuspenseTooltipManager::Initialize(FSubsystemCollectionBase& Collection)
     // TODO: Migrate to EventBus - old delegate system removed
     // Subscribe to tooltip events
     // TooltipRequestHandle = CachedEventManager->OnTooltipRequestedNative.AddUObject(
-    //     this, &USuspenseTooltipManager::OnTooltipRequested);
+    //     this, &USuspenseCoreTooltipManager::OnTooltipRequested);
     //
     // TooltipHideHandle = CachedEventManager->OnTooltipHideRequestedNative.AddUObject(
-    //     this, &USuspenseTooltipManager::OnTooltipHideRequested);
+    //     this, &USuspenseCoreTooltipManager::OnTooltipHideRequested);
     //
     // TooltipUpdateHandle = CachedEventManager->OnTooltipUpdatePositionNative.AddUObject(
-    //     this, &USuspenseTooltipManager::OnTooltipUpdatePosition);
+    //     this, &USuspenseCoreTooltipManager::OnTooltipUpdatePosition);
 
     // Pre-create pool for default class if specified
     if (Configuration.DefaultTooltipClass && Configuration.MaxPooledTooltipsPerClass > 0)
@@ -62,7 +62,7 @@ void USuspenseTooltipManager::Initialize(FSubsystemCollectionBase& Collection)
         Configuration.bAllowMultipleTooltipClasses ? TEXT("Enabled") : TEXT("Disabled"));
 }
 
-void USuspenseTooltipManager::Deinitialize()
+void USuspenseCoreTooltipManager::Deinitialize()
 {
     // Unsubscribe from all events
     if (CachedEventManager)
@@ -102,7 +102,7 @@ void USuspenseTooltipManager::Deinitialize()
 // Configuration Management
 // ========================================
 
-void USuspenseTooltipManager::UpdateConfiguration(const FTooltipConfiguration& NewConfig)
+void USuspenseCoreTooltipManager::UpdateConfiguration(const FTooltipConfiguration& NewConfig)
 {
     Configuration = NewConfig;
 
@@ -121,7 +121,7 @@ void USuspenseTooltipManager::UpdateConfiguration(const FTooltipConfiguration& N
     }
 }
 
-void USuspenseTooltipManager::SetDefaultTooltipClass(TSubclassOf<USuspenseItemTooltipWidget> InTooltipClass)
+void USuspenseCoreTooltipManager::SetDefaultTooltipClass(TSubclassOf<USuspenseItemTooltipWidget> InTooltipClass)
 {
     if (Configuration.DefaultTooltipClass != InTooltipClass)
     {
@@ -138,7 +138,7 @@ void USuspenseTooltipManager::SetDefaultTooltipClass(TSubclassOf<USuspenseItemTo
     }
 }
 
-void USuspenseTooltipManager::RegisterTooltipClass(TSubclassOf<USuspenseItemTooltipWidget> TooltipClass, int32 PoolSize)
+void USuspenseCoreTooltipManager::RegisterTooltipClass(TSubclassOf<USuspenseItemTooltipWidget> TooltipClass, int32 PoolSize)
 {
     if (!TooltipClass)
     {
@@ -170,7 +170,7 @@ void USuspenseTooltipManager::RegisterTooltipClass(TSubclassOf<USuspenseItemTool
 // Event Handlers
 // ========================================
 
-void USuspenseTooltipManager::OnTooltipRequested(const FItemUIData& ItemData, const FVector2D& ScreenPosition)
+void USuspenseCoreTooltipManager::OnTooltipRequested(const FItemUIData& ItemData, const FVector2D& ScreenPosition)
 {
     LogVerbose(FString::Printf(TEXT("Tooltip requested for item: %s"), *ItemData.DisplayName.ToString()));
 
@@ -188,17 +188,17 @@ void USuspenseTooltipManager::OnTooltipRequested(const FItemUIData& ItemData, co
     ProcessTooltipRequest(nullptr, ItemData, ScreenPosition, TooltipClassToUse);
 }
 
-void USuspenseTooltipManager::OnTooltipHideRequested()
+void USuspenseCoreTooltipManager::OnTooltipHideRequested()
 {
     LogVerbose(TEXT("Tooltip hide requested via event"));
     ProcessTooltipHide(nullptr);
 }
 
-void USuspenseTooltipManager::OnTooltipUpdatePosition(const FVector2D& ScreenPosition)
+void USuspenseCoreTooltipManager::OnTooltipUpdatePosition(const FVector2D& ScreenPosition)
 {
-    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
+    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseCoreTooltip::StaticClass()))
     {
-        ISuspenseTooltip::Execute_UpdateTooltipPosition(ActiveTooltip, ScreenPosition);
+        ISuspenseCoreTooltip::Execute_UpdateTooltipPosition(ActiveTooltip, ScreenPosition);
     }
 }
 
@@ -206,7 +206,7 @@ void USuspenseTooltipManager::OnTooltipUpdatePosition(const FVector2D& ScreenPos
 // Tooltip Request Processing
 // ========================================
 
-void USuspenseTooltipManager::ProcessTooltipRequest(
+void USuspenseCoreTooltipManager::ProcessTooltipRequest(
     UUserWidget* SourceWidget,
     const FItemUIData& ItemData,
     const FVector2D& ScreenPosition,
@@ -229,9 +229,9 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     if (SourceWidget)
     {
         bool bCanShow = true;
-        if (SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
+        if (SourceWidget->GetClass()->ImplementsInterface(USuspenseCoreTooltipSource::StaticClass()))
         {
-            bCanShow = ISuspenseTooltipSource::Execute_CanShowTooltip(SourceWidget);
+            bCanShow = ISuspenseCoreTooltipSource::Execute_CanShowTooltip(SourceWidget);
         }
 
         if (!bCanShow)
@@ -263,9 +263,9 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     ActiveTooltipClass = TooltipClass;
 
     // Show tooltip with data
-    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
+    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseCoreTooltip::StaticClass()))
     {
-        ISuspenseTooltip::Execute_ShowTooltip(ActiveTooltip, ItemData, ScreenPosition);
+        ISuspenseCoreTooltip::Execute_ShowTooltip(ActiveTooltip, ItemData, ScreenPosition);
 
         ActiveTooltip->SetRenderOpacity(1.0f);
         ActiveTooltip->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -275,13 +275,13 @@ void USuspenseTooltipManager::ProcessTooltipRequest(
     }
 
     // Notify source widget if available
-    if (SourceWidget && SourceWidget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
+    if (SourceWidget && SourceWidget->GetClass()->ImplementsInterface(USuspenseCoreTooltipSource::StaticClass()))
     {
-        ISuspenseTooltipSource::Execute_OnTooltipShown(SourceWidget);
+        ISuspenseCoreTooltipSource::Execute_OnTooltipShown(SourceWidget);
     }
 }
 
-void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
+void USuspenseCoreTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
 {
     // If source widget provided, only hide if it owns the current tooltip
     if (SourceWidget && CurrentSourceWidget.IsValid() && CurrentSourceWidget.Get() != SourceWidget)
@@ -296,9 +296,9 @@ void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
     }
 
     // Hide the tooltip
-    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
+    if (ActiveTooltip->GetClass()->ImplementsInterface(USuspenseCoreTooltip::StaticClass()))
     {
-        ISuspenseTooltip::Execute_HideTooltip(ActiveTooltip);
+        ISuspenseCoreTooltip::Execute_HideTooltip(ActiveTooltip);
     }
 
     // Notify source widget
@@ -306,9 +306,9 @@ void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
     {
         if (UUserWidget* Widget = CurrentSourceWidget.Get())
         {
-            if (Widget->GetClass()->ImplementsInterface(USuspenseTooltipSource::StaticClass()))
+            if (Widget->GetClass()->ImplementsInterface(USuspenseCoreTooltipSource::StaticClass()))
             {
-                ISuspenseTooltipSource::Execute_OnTooltipHidden(Widget);
+                ISuspenseCoreTooltipSource::Execute_OnTooltipHidden(Widget);
             }
         }
     }
@@ -331,7 +331,7 @@ void USuspenseTooltipManager::ProcessTooltipHide(UUserWidget* SourceWidget)
 // Pool Management
 // ========================================
 
-FTooltipPool& USuspenseTooltipManager::GetOrCreatePool(UClass* TooltipClass)
+FTooltipPool& USuspenseCoreTooltipManager::GetOrCreatePool(UClass* TooltipClass)
 {
     // Теперь FTooltipPool - это не вложенная структура, а обычная структура
     if (!TooltipPools.Contains(TooltipClass))
@@ -344,7 +344,7 @@ FTooltipPool& USuspenseTooltipManager::GetOrCreatePool(UClass* TooltipClass)
     return TooltipPools[TooltipClass];
 }
 
-USuspenseItemTooltipWidget* USuspenseTooltipManager::AcquireTooltipWidget(TSubclassOf<UUserWidget> TooltipClass)
+USuspenseItemTooltipWidget* USuspenseCoreTooltipManager::AcquireTooltipWidget(TSubclassOf<UUserWidget> TooltipClass)
 {
     if (!TooltipClass)
     {
@@ -394,7 +394,7 @@ USuspenseItemTooltipWidget* USuspenseTooltipManager::AcquireTooltipWidget(TSubcl
     return TooltipWidget;
 }
 
-void USuspenseTooltipManager::ReleaseTooltipWidget(USuspenseItemTooltipWidget* Tooltip, UClass* TooltipClass)
+void USuspenseCoreTooltipManager::ReleaseTooltipWidget(USuspenseItemTooltipWidget* Tooltip, UClass* TooltipClass)
 {
     if (!IsValid(Tooltip) || !TooltipClass)
     {
@@ -432,7 +432,7 @@ void USuspenseTooltipManager::ReleaseTooltipWidget(USuspenseItemTooltipWidget* T
     }
 }
 
-USuspenseItemTooltipWidget* USuspenseTooltipManager::CreateTooltipWidget(TSubclassOf<UUserWidget> TooltipClass)
+USuspenseItemTooltipWidget* USuspenseCoreTooltipManager::CreateTooltipWidget(TSubclassOf<UUserWidget> TooltipClass)
 {
     if (!TooltipClass)
     {
@@ -536,7 +536,7 @@ USuspenseItemTooltipWidget* USuspenseTooltipManager::CreateTooltipWidget(TSubcla
 // Public Control Methods
 // ========================================
 
-void USuspenseTooltipManager::ForceHideTooltip()
+void USuspenseCoreTooltipManager::ForceHideTooltip()
 {
     if (ActiveTooltip)
     {
@@ -544,11 +544,11 @@ void USuspenseTooltipManager::ForceHideTooltip()
     }
 }
 
-bool USuspenseTooltipManager::IsTooltipActive() const
+bool USuspenseCoreTooltipManager::IsTooltipActive() const
 {
-    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseTooltip::StaticClass()))
+    if (ActiveTooltip && ActiveTooltip->GetClass()->ImplementsInterface(USuspenseCoreTooltip::StaticClass()))
     {
-        return ISuspenseTooltip::Execute_IsTooltipVisible(ActiveTooltip);
+        return ISuspenseCoreTooltip::Execute_IsTooltipVisible(ActiveTooltip);
     }
 
     return false;
@@ -558,7 +558,7 @@ bool USuspenseTooltipManager::IsTooltipActive() const
 // Statistics and Debug
 // ========================================
 
-int32 USuspenseTooltipManager::GetTotalTooltipCount() const
+int32 USuspenseCoreTooltipManager::GetTotalTooltipCount() const
 {
     int32 Total = 0;
 
@@ -571,7 +571,7 @@ int32 USuspenseTooltipManager::GetTotalTooltipCount() const
     return Total;
 }
 
-int32 USuspenseTooltipManager::GetActiveTooltipCount() const
+int32 USuspenseCoreTooltipManager::GetActiveTooltipCount() const
 {
     int32 Active = 0;
 
@@ -583,7 +583,7 @@ int32 USuspenseTooltipManager::GetActiveTooltipCount() const
     return Active;
 }
 
-void USuspenseTooltipManager::GetPoolStats(TSubclassOf<USuspenseItemTooltipWidget> TooltipClass,
+void USuspenseCoreTooltipManager::GetPoolStats(TSubclassOf<USuspenseItemTooltipWidget> TooltipClass,
     int32& OutPoolSize, int32& OutInUse) const
 {
     OutPoolSize = 0;
@@ -602,7 +602,7 @@ void USuspenseTooltipManager::GetPoolStats(TSubclassOf<USuspenseItemTooltipWidge
     }
 }
 
-void USuspenseTooltipManager::ClearAllPools()
+void USuspenseCoreTooltipManager::ClearAllPools()
 {
     UE_LOG(LogTemp, Log, TEXT("[TooltipManager] Clearing all tooltip pools"));
 
@@ -610,7 +610,7 @@ void USuspenseTooltipManager::ClearAllPools()
     CleanupAllPools();
 }
 
-void USuspenseTooltipManager::LogTooltipSystemState() const
+void USuspenseCoreTooltipManager::LogTooltipSystemState() const
 {
     UE_LOG(LogTemp, Warning, TEXT("[TooltipManager] === Tooltip System State ==="));
     UE_LOG(LogTemp, Warning, TEXT("Configuration:"));
@@ -648,7 +648,7 @@ void USuspenseTooltipManager::LogTooltipSystemState() const
 // Private Helper Methods
 // ========================================
 
-void USuspenseTooltipManager::CleanupTooltipPool(UClass* TooltipClass)
+void USuspenseCoreTooltipManager::CleanupTooltipPool(UClass* TooltipClass)
 {
     FTooltipPool* Pool = TooltipPools.Find(TooltipClass);
     if (!Pool)
@@ -679,7 +679,7 @@ void USuspenseTooltipManager::CleanupTooltipPool(UClass* TooltipClass)
     Pool->InUseWidgets.Empty();
 }
 
-void USuspenseTooltipManager::CleanupAllPools()
+void USuspenseCoreTooltipManager::CleanupAllPools()
 {
     for (auto& PoolPair : TooltipPools)
     {
@@ -689,7 +689,7 @@ void USuspenseTooltipManager::CleanupAllPools()
     TooltipPools.Empty();
 }
 
-APlayerController* USuspenseTooltipManager::GetOwningPlayerController() const
+APlayerController* USuspenseCoreTooltipManager::GetOwningPlayerController() const
 {
     if (UGameInstance* GameInstance = GetGameInstance())
     {
@@ -702,7 +702,7 @@ APlayerController* USuspenseTooltipManager::GetOwningPlayerController() const
     return nullptr;
 }
 
-USuspenseCoreEventManager* USuspenseTooltipManager::GetEventManager() const
+USuspenseCoreEventManager* USuspenseCoreTooltipManager::GetEventManager() const
 {
     if (CachedEventManager)
     {
@@ -717,7 +717,7 @@ USuspenseCoreEventManager* USuspenseTooltipManager::GetEventManager() const
     return nullptr;
 }
 
-TSubclassOf<UUserWidget> USuspenseTooltipManager::DetermineTooltipClass(const FItemUIData& ItemData) const
+TSubclassOf<UUserWidget> USuspenseCoreTooltipManager::DetermineTooltipClass(const FItemUIData& ItemData) const
 {
     // Priority 1: Custom class from item data (if set by slot)
     if (ItemData.PreferredTooltipClass && Configuration.bAllowMultipleTooltipClasses)
@@ -747,7 +747,7 @@ TSubclassOf<UUserWidget> USuspenseTooltipManager::DetermineTooltipClass(const FI
     return nullptr;
 }
 
-void USuspenseTooltipManager::LogVerbose(const FString& Message) const
+void USuspenseCoreTooltipManager::LogVerbose(const FString& Message) const
 {
     if (Configuration.bEnableDetailedLogging)
     {

@@ -12,7 +12,7 @@ class AActor;
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseEnemy : public UInterface
+class USuspenseCoreEnemy : public UInterface
 {
     GENERATED_BODY()
 };
@@ -21,7 +21,7 @@ class USuspenseEnemy : public UInterface
  * Interface for working with enemy characters (AI)
  * Provides access to basic AI functions
  */
-class BRIDGESYSTEM_API ISuspenseEnemy
+class BRIDGESYSTEM_API ISuspenseCoreEnemy
 {
     GENERATED_BODY()
 

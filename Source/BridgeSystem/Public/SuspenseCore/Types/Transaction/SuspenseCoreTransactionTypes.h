@@ -100,11 +100,11 @@ struct BRIDGESYSTEM_API FEquipmentDelta
 
     /** Состояние предмета до изменения */
     UPROPERTY(BlueprintReadOnly, Category = "Delta")
-    FSuspenseInventoryItemInstance ItemBefore;
+    FSuspenseCoreInventoryItemInstance ItemBefore;
 
     /** Состояние предмета после изменения */
     UPROPERTY(BlueprintReadOnly, Category = "Delta")
-    FSuspenseInventoryItemInstance ItemAfter;
+    FSuspenseCoreInventoryItemInstance ItemAfter;
 
     /** Причина изменения - тег для категоризации */
     UPROPERTY(BlueprintReadOnly, Category = "Delta")
@@ -198,19 +198,19 @@ struct BRIDGESYSTEM_API FTransactionOperation
 
     /** Состояние предмета до выполнения операции */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Operation")
-    FSuspenseInventoryItemInstance ItemBefore;
+    FSuspenseCoreInventoryItemInstance ItemBefore;
 
     /** Состояние предмета после выполнения операции */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Operation")
-    FSuspenseInventoryItemInstance ItemAfter;
+    FSuspenseCoreInventoryItemInstance ItemAfter;
 
     /** Дополнительное состояние предмета (для операций swap/move) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Operation")
-    FSuspenseInventoryItemInstance SecondaryItemBefore;
+    FSuspenseCoreInventoryItemInstance SecondaryItemBefore;
 
     /** Дополнительное состояние предмета после операции */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Operation")
-    FSuspenseInventoryItemInstance SecondaryItemAfter;
+    FSuspenseCoreInventoryItemInstance SecondaryItemAfter;
 
     /** Временная метка создания операции */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Operation")
@@ -253,8 +253,8 @@ struct BRIDGESYSTEM_API FTransactionOperation
     static FTransactionOperation Create(
         const FGameplayTag& InOperationType,
         int32 InSlotIndex,
-        const FSuspenseInventoryItemInstance& InItemBefore,
-        const FSuspenseInventoryItemInstance& InItemAfter)
+        const FSuspenseCoreInventoryItemInstance& InItemBefore,
+        const FSuspenseCoreInventoryItemInstance& InItemAfter)
     {
         FTransactionOperation Operation;
         Operation.OperationId = FGuid::NewGuid();

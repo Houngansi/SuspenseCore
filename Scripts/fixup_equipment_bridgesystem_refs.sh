@@ -53,7 +53,7 @@ fixup() {
     sed -i 's/\bUMedComStorageInterface\b/USuspenseStorageInterface/g' "$file"
 
     # BridgeSystem classes
-    sed -i 's/\bUMedComItemManager\b/USuspenseItemManager/g' "$file"
+    sed -i 's/\bUMedComItemManager\b/USuspenseCoreItemManager/g' "$file"
     sed -i 's/\bUEventDelegateManager\b/USuspenseEventManager/g' "$file"
     sed -i 's/\bUMedComItemSystemAccess\b/USuspenseItemSystemAccess/g' "$file"
     sed -i 's/\bUMedComEquipmentNetworkDispatcher\b/USuspenseEquipmentNetworkDispatcher/g' "$file"
@@ -82,7 +82,7 @@ fixup() {
     sed -i 's/\bUMedComEquipmentVisualController\b/USuspenseEquipmentVisualController/g' "$file"
 
     # BridgeSystem structs
-    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseUnifiedItemData/g' "$file"
+    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseCoreUnifiedItemData/g' "$file"
     sed -i 's/\bFInventoryItemInstance\b/FSuspenseInventoryItemInstance/g' "$file"
     sed -i 's/\bFInventoryOperationResult\b/FSuspenseInventoryOperationResult/g' "$file"
 

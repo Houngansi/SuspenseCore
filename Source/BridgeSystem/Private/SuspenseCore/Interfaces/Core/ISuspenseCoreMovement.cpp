@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-void ISuspenseMovement::NotifyMovementSpeedChanged(const UObject* Source, float OldSpeed, float NewSpeed, bool bIsSprinting)
+void ISuspenseCoreMovement::NotifyMovementSpeedChanged(const UObject* Source, float OldSpeed, float NewSpeed, bool bIsSprinting)
 {
     if (!Source)
     {
@@ -20,7 +20,7 @@ void ISuspenseMovement::NotifyMovementSpeedChanged(const UObject* Source, float 
     }
 }
 
-void ISuspenseMovement::NotifyMovementStateChanged(const UObject* Source, FGameplayTag NewState, bool bIsTransitioning)
+void ISuspenseCoreMovement::NotifyMovementStateChanged(const UObject* Source, FGameplayTag NewState, bool bIsTransitioning)
 {
     if (!Source)
     {
@@ -35,7 +35,7 @@ void ISuspenseMovement::NotifyMovementStateChanged(const UObject* Source, FGamep
     }
 }
 
-void ISuspenseMovement::NotifyJumpStateChanged(const UObject* Source, bool bIsJumping)
+void ISuspenseCoreMovement::NotifyJumpStateChanged(const UObject* Source, bool bIsJumping)
 {
     if (!Source)
     {
@@ -50,7 +50,7 @@ void ISuspenseMovement::NotifyJumpStateChanged(const UObject* Source, bool bIsJu
     }
 }
 
-void ISuspenseMovement::NotifyCrouchStateChanged(const UObject* Source, bool bIsCrouching)
+void ISuspenseCoreMovement::NotifyCrouchStateChanged(const UObject* Source, bool bIsCrouching)
 {
     if (!Source)
     {
@@ -65,7 +65,7 @@ void ISuspenseMovement::NotifyCrouchStateChanged(const UObject* Source, bool bIs
     }
 }
 
-void ISuspenseMovement::NotifyLanded(const UObject* Source, float ImpactVelocity)
+void ISuspenseCoreMovement::NotifyLanded(const UObject* Source, float ImpactVelocity)
 {
     if (!Source)
     {
@@ -80,7 +80,7 @@ void ISuspenseMovement::NotifyLanded(const UObject* Source, float ImpactVelocity
     }
 }
 
-USuspenseCoreEventManager* ISuspenseMovement::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreMovement::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {

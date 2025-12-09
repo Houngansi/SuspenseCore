@@ -8,7 +8,7 @@
 #include "ISuspenseCoreMovement.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseMovement : public UInterface
+class USuspenseCoreMovement : public UInterface
 {
     GENERATED_BODY()
 };
@@ -18,7 +18,7 @@ class USuspenseMovement : public UInterface
  * Provides unified API for all movement mechanics: walking, sprinting, jumping, crouching
  * Uses EventDelegateManager for all event notifications
  */
-class BRIDGESYSTEM_API ISuspenseMovement
+class BRIDGESYSTEM_API ISuspenseCoreMovement
 {
     GENERATED_BODY()
 

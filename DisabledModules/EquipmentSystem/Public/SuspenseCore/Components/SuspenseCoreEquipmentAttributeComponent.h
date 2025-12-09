@@ -109,7 +109,7 @@ public:
      * @param InASC Ability system component
      * @param ItemInstance Item instance with runtime data
      */
-    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     /**
      * Clean up resources and attribute sets
@@ -120,14 +120,14 @@ public:
      * Update attributes when item properties change
      * @param ItemInstance Updated item instance
      */
-    virtual void UpdateEquippedItem(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     /**
      * Apply all item effects and abilities
      * @param ItemData Unified item data from DataTable
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Attributes")
-    void ApplyItemEffects(const FSuspenseUnifiedItemData& ItemData);
+    void ApplyItemEffects(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Remove all applied item effects
@@ -247,13 +247,13 @@ protected:
     /**
      * Called when equipped item changes
      */
-    virtual void OnEquippedItemChanged(const FSuspenseInventoryItemInstance& OldItem, const FSuspenseInventoryItemInstance& NewItem) override;
+    virtual void OnEquippedItemChanged(const FSuspenseCoreInventoryItemInstance& OldItem, const FSuspenseCoreInventoryItemInstance& NewItem) override;
 
     /**
      * Create appropriate attribute sets based on item type
      * @param ItemData Item data from DataTable
      */
-    void CreateAttributeSetsForItem(const FSuspenseUnifiedItemData& ItemData);
+    void CreateAttributeSetsForItem(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Clean up all active attribute sets
@@ -266,19 +266,19 @@ protected:
      * @param InitEffect Effect class to apply
      * @param ItemData Item data for context
      */
-    void ApplyInitializationEffect(UAttributeSet* AttributeSet, TSubclassOf<UGameplayEffect> InitEffect, const FSuspenseUnifiedItemData& ItemData);
+    void ApplyInitializationEffect(UAttributeSet* AttributeSet, TSubclassOf<UGameplayEffect> InitEffect, const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Apply passive effects from item data
      * @param ItemData Item data containing effect classes
      */
-    void ApplyPassiveEffects(const FSuspenseUnifiedItemData& ItemData);
+    void ApplyPassiveEffects(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Apply granted abilities from item data
      * @param ItemData Item data containing abilities
      */
-    void ApplyGrantedAbilities(const FSuspenseUnifiedItemData& ItemData);
+    void ApplyGrantedAbilities(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /**
      * Collect all attributes for replication

@@ -5,7 +5,7 @@
 #include "GameplayAbilitySpec.h"
 #include "AttributeSet.h"
 
-void USuspenseInventoryGASIntegration::Initialize(UAbilitySystemComponent* InASC)
+void USuspenseCoreInventoryGASIntegration::Initialize(UAbilitySystemComponent* InASC)
 {
     // Store reference
     ASC = InASC;
@@ -18,7 +18,7 @@ void USuspenseInventoryGASIntegration::Initialize(UAbilitySystemComponent* InASC
     WeightEffectHandle = FActiveGameplayEffectHandle();
 }
 
-FActiveGameplayEffectHandle USuspenseInventoryGASIntegration::ApplyItemEffect(FName ItemID, TSubclassOf<UGameplayEffect> EffectClass, float Level)
+FActiveGameplayEffectHandle USuspenseCoreInventoryGASIntegration::ApplyItemEffect(FName ItemID, TSubclassOf<UGameplayEffect> EffectClass, float Level)
 {
     if (!ASC || !EffectClass)
     {
@@ -52,7 +52,7 @@ FActiveGameplayEffectHandle USuspenseInventoryGASIntegration::ApplyItemEffect(FN
 }
 
 // Исправленная функция GiveItemAbility
-FGameplayAbilitySpecHandle USuspenseInventoryGASIntegration::GiveItemAbility(FName ItemID, TSubclassOf<UGameplayAbility> AbilityClass, int32 Level)
+FGameplayAbilitySpecHandle USuspenseCoreInventoryGASIntegration::GiveItemAbility(FName ItemID, TSubclassOf<UGameplayAbility> AbilityClass, int32 Level)
 {
     if (!ASC || !AbilityClass)
     {
@@ -81,7 +81,7 @@ FGameplayAbilitySpecHandle USuspenseInventoryGASIntegration::GiveItemAbility(FNa
     return AbilityHandle;
 }
 
-bool USuspenseInventoryGASIntegration::RemoveItemEffect(FName ItemID, TSubclassOf<UGameplayEffect> EffectClass)
+bool USuspenseCoreInventoryGASIntegration::RemoveItemEffect(FName ItemID, TSubclassOf<UGameplayEffect> EffectClass)
 {
     if (!ASC || !EffectClass)
     {
@@ -123,7 +123,7 @@ bool USuspenseInventoryGASIntegration::RemoveItemEffect(FName ItemID, TSubclassO
     return bAnyRemoved;
 }
 
-bool USuspenseInventoryGASIntegration::RemoveItemAbility(FName ItemID, TSubclassOf<UGameplayAbility> AbilityClass)
+bool USuspenseCoreInventoryGASIntegration::RemoveItemAbility(FName ItemID, TSubclassOf<UGameplayAbility> AbilityClass)
 {
     if (!ASC || !AbilityClass)
     {
@@ -165,7 +165,7 @@ bool USuspenseInventoryGASIntegration::RemoveItemAbility(FName ItemID, TSubclass
     return bAnyRemoved;
 }
 
-TArray<FActiveGameplayEffectHandle> USuspenseInventoryGASIntegration::GetActiveItemEffects(FName ItemID) const
+TArray<FActiveGameplayEffectHandle> USuspenseCoreInventoryGASIntegration::GetActiveItemEffects(FName ItemID) const
 {
     // Return effects for item or empty array
     const TArray<FActiveGameplayEffectHandle>* Effects = ItemEffectMap.Find(ItemID);
@@ -177,7 +177,7 @@ TArray<FActiveGameplayEffectHandle> USuspenseInventoryGASIntegration::GetActiveI
     return TArray<FActiveGameplayEffectHandle>();
 }
 
-TArray<FGameplayAbilitySpecHandle> USuspenseInventoryGASIntegration::GetActiveItemAbilities(FName ItemID) const
+TArray<FGameplayAbilitySpecHandle> USuspenseCoreInventoryGASIntegration::GetActiveItemAbilities(FName ItemID) const
 {
     // Return abilities for item or empty array
     const TArray<FGameplayAbilitySpecHandle>* Abilities = ItemAbilityMap.Find(ItemID);
@@ -189,7 +189,7 @@ TArray<FGameplayAbilitySpecHandle> USuspenseInventoryGASIntegration::GetActiveIt
     return TArray<FGameplayAbilitySpecHandle>();
 }
 
-FActiveGameplayEffectHandle USuspenseInventoryGASIntegration::ApplyWeightEffect(float MaxWeight, float CurrentWeight)
+FActiveGameplayEffectHandle USuspenseCoreInventoryGASIntegration::ApplyWeightEffect(float MaxWeight, float CurrentWeight)
 {
     if (!ASC)
     {
@@ -209,7 +209,7 @@ FActiveGameplayEffectHandle USuspenseInventoryGASIntegration::ApplyWeightEffect(
     return WeightEffectHandle;
 }
 
-bool USuspenseInventoryGASIntegration::UpdateWeightEffect(float NewCurrentWeight)
+bool USuspenseCoreInventoryGASIntegration::UpdateWeightEffect(float NewCurrentWeight)
 {
     if (!ASC || !WeightEffectHandle.IsValid())
     {
@@ -222,7 +222,7 @@ bool USuspenseInventoryGASIntegration::UpdateWeightEffect(float NewCurrentWeight
     return true;
 }
 
-void USuspenseInventoryGASIntegration::ClearAllItemEffects()
+void USuspenseCoreInventoryGASIntegration::ClearAllItemEffects()
 {
     if (!ASC)
     {

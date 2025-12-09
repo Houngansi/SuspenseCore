@@ -9,7 +9,6 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Input/SuspenseAbilityInputID.h"
 #include "Kismet/GameplayStatics.h"
 
 USuspenseCoreCharacterCrouchAbility::USuspenseCoreCharacterCrouchAbility()

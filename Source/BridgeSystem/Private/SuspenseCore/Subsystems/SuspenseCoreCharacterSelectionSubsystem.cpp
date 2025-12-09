@@ -7,6 +7,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Engine/GameInstance.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreCharacterSelection, Log, All);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // UGAMEINSTANCESUBSYSTEM INTERFACE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -18,7 +20,7 @@ void USuspenseCoreCharacterSelectionSubsystem::Initialize(FSubsystemCollectionBa
 	SelectedClassData = nullptr;
 	SelectedClassId = NAME_None;
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Initialized"));
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("CharacterSelectionSubsystem initialized"));
 }
 
 void USuspenseCoreCharacterSelectionSubsystem::Deinitialize()
@@ -28,7 +30,7 @@ void USuspenseCoreCharacterSelectionSubsystem::Deinitialize()
 	ClassRegistry.Empty();
 	CachedEventBus.Reset();
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Deinitialized"));
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("CharacterSelectionSubsystem deinitialized"));
 
 	Super::Deinitialize();
 }
@@ -67,7 +69,7 @@ void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClass(UObject* Cla
 {
 	if (!ClassData || ClassId == NAME_None)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] SelectCharacterClass: Invalid parameters"));
+		UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("SelectCharacterClass: Invalid parameters"));
 		return;
 	}
 
@@ -86,7 +88,7 @@ void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClass(UObject* Cla
 		ClassRegistry.Add(SelectedClassId, ClassData);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Selected class: %s"), *SelectedClassId.ToString());
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("Selected class: %s"), *SelectedClassId.ToString());
 
 	// Publish event for PreviewActor and other listeners
 	PublishClassChangedEvent();
@@ -96,7 +98,7 @@ void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClassById(FName Cl
 {
 	if (ClassId == NAME_None)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] SelectCharacterClassById: ClassId is NAME_None"));
+		UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("SelectCharacterClassById: ClassId is NAME_None"));
 		return;
 	}
 
@@ -111,7 +113,7 @@ void USuspenseCoreCharacterSelectionSubsystem::SelectCharacterClassById(FName Cl
 		// Store the ID even if data not found (will be loaded later)
 		SelectedClassId = ClassId;
 		SelectedClassData = nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Class '%s' not found in registry, storing ID only"), *ClassId.ToString());
+		UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("Class '%s' not found in registry, storing ID only"), *ClassId.ToString());
 
 		// Still publish event so UI can react
 		PublishClassChangedEvent();
@@ -123,7 +125,7 @@ void USuspenseCoreCharacterSelectionSubsystem::ClearSelection()
 	SelectedClassData = nullptr;
 	SelectedClassId = NAME_None;
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Selection cleared"));
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("Selection cleared"));
 }
 
 UObject* USuspenseCoreCharacterSelectionSubsystem::LoadClassById(FName ClassId)
@@ -139,7 +141,7 @@ UObject* USuspenseCoreCharacterSelectionSubsystem::LoadClassById(FName ClassId)
 		return *FoundClass;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Class '%s' not found in registry"), *ClassId.ToString());
+	UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("Class '%s' not found in registry"), *ClassId.ToString());
 	return nullptr;
 }
 
@@ -147,13 +149,13 @@ void USuspenseCoreCharacterSelectionSubsystem::RegisterClassData(UObject* ClassD
 {
 	if (!ClassData || ClassId == NAME_None)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Cannot register class with invalid data or NAME_None ID"));
+		UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("Cannot register class with invalid data or NAME_None ID"));
 		return;
 	}
 
 	ClassRegistry.Add(ClassId, ClassData);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Registered class: %s"), *ClassId.ToString());
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("Registered class: %s"), *ClassId.ToString());
 }
 
 TArray<FName> USuspenseCoreCharacterSelectionSubsystem::GetAllRegisteredClassIds() const
@@ -199,7 +201,7 @@ void USuspenseCoreCharacterSelectionSubsystem::PublishClassChangedEvent()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectionSubsystem] Cannot publish event - EventBus not available"));
+		UE_LOG(LogSuspenseCoreCharacterSelection, Warning, TEXT("Cannot publish event - EventBus not available"));
 		return;
 	}
 
@@ -216,7 +218,7 @@ void USuspenseCoreCharacterSelectionSubsystem::PublishClassChangedEvent()
 		EventData
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Published CharacterClass.Changed event for: %s"), *SelectedClassId.ToString());
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("Published CharacterClass.Changed event for: %s"), *SelectedClassId.ToString());
 }
 
 void USuspenseCoreCharacterSelectionSubsystem::PublishClassSelectedEvent()
@@ -240,5 +242,5 @@ void USuspenseCoreCharacterSelectionSubsystem::PublishClassSelectedEvent()
 		EventData
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("[CharacterSelectionSubsystem] Published CharacterClass.Selected event for: %s"), *SelectedClassId.ToString());
+	UE_LOG(LogSuspenseCoreCharacterSelection, Log, TEXT("Published CharacterClass.Selected event for: %s"), *SelectedClassId.ToString());
 }

@@ -132,6 +132,12 @@ protected:
 	/** Handle для Tick */
 	FTSTicker::FDelegateHandle TickDelegateHandle;
 
+	/** Timer for periodic cleanup of stale subscriptions (thread-safe as class member) */
+	float CleanupTimer = 0.0f;
+
+	/** Cleanup interval in seconds */
+	static constexpr float CleanupIntervalSeconds = 10.0f;
+
 private:
 	/**
 	 * Создание подсистем.

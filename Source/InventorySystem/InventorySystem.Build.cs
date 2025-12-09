@@ -14,8 +14,7 @@ public class InventorySystem : ModuleRules
 				"Engine",
 				"GameplayTags",
 				"BridgeSystem",
-				"InteractionSystem",
-				"SuspenseCore"
+				"InteractionSystem"
 			}
 		);
 

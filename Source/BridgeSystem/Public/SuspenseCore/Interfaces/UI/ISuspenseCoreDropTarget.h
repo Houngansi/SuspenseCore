@@ -3,12 +3,11 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "ISuspenseDropTarget.generated.h"
+#include "ISuspenseCoreDropTarget.generated.h"
 
 // Forward declarations
 class UDragDropOperation; // Используем базовый класс

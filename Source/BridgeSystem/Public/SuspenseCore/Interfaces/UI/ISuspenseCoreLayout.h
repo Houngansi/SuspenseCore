@@ -3,11 +3,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseLayout.generated.h"
+#include "ISuspenseCoreLayout.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
 class USuspenseLayout : public UInterface

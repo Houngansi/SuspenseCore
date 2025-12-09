@@ -2,11 +2,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "ISuspenseTooltip.generated.h"
+#include "ISuspenseCoreTooltip.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseTooltip : public UInterface

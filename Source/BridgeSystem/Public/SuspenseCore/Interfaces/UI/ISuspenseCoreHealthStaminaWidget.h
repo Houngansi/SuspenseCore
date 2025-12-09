@@ -2,10 +2,9 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ISuspenseHealthStaminaWidget.generated.h"
+#include "ISuspenseCoreHealthStaminaWidget.generated.h"
 
 // Forward declarations - только базовые UE типы
 class UAbilitySystemComponent;

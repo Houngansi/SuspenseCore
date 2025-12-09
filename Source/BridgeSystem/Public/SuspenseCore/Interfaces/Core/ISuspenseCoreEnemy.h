@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseEnemy.generated.h"
+#include "ISuspenseCoreEnemy.generated.h"
 
 // Forward declarations
 class AActor;

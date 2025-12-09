@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseAttributeProvider.generated.h"
+#include "ISuspenseCoreAttributeProvider.generated.h"
 
 // Forward declarations
 class UAttributeSet;

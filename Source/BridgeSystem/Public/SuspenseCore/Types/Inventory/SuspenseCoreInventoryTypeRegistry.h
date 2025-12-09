@@ -2,10 +2,9 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseInventoryTypeRegistry.generated.h"
+#include "SuspenseCoreInventoryTypeRegistry.generated.h"
 
 /**
  * Structure representing a registered item type

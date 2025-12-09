@@ -2,11 +2,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseTabBar.generated.h"
+#include "ISuspenseCoreTabBar.generated.h"
 
 // Forward declarations
 class UUserWidget;

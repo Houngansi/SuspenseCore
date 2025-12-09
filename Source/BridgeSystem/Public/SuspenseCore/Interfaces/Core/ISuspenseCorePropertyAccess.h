@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ISuspensePropertyAccess.generated.h"
+#include "ISuspenseCorePropertyAccess.generated.h"
 
 // Forward declarations
 class UClass;

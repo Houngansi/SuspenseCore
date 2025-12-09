@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ISuspenseCharacter.generated.h"
+#include "ISuspenseCoreCharacter.generated.h"
 
 // Forward declarations
 class AActor;

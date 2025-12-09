@@ -181,10 +181,9 @@ bool USuspenseCoreEventManager::Tick(float DeltaTime)
 		EventBus->ProcessDeferredEvents();
 	}
 
-	// Periodically cleanup stale subscriptions (approximately every 10 seconds)
-	static float CleanupTimer = 0.0f;
+	// Periodically cleanup stale subscriptions
 	CleanupTimer += DeltaTime;
-	if (CleanupTimer > 10.0f)
+	if (CleanupTimer >= CleanupIntervalSeconds)
 	{
 		CleanupTimer = 0.0f;
 		if (EventBus)

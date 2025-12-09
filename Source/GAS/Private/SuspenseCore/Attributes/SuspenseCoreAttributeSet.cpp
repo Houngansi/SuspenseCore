@@ -193,6 +193,7 @@ void USuspenseCoreAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& Ol
 void USuspenseCoreAttributeSet::OnRep_HealthRegen(const FGameplayAttributeData& OldHealthRegen)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreAttributeSet, HealthRegen, OldHealthRegen);
+	BroadcastAttributeChange(GetHealthRegenAttribute(), OldHealthRegen.GetCurrentValue(), HealthRegen.GetCurrentValue());
 }
 
 void USuspenseCoreAttributeSet::OnRep_Stamina(const FGameplayAttributeData& OldStamina)
@@ -210,21 +211,25 @@ void USuspenseCoreAttributeSet::OnRep_MaxStamina(const FGameplayAttributeData& O
 void USuspenseCoreAttributeSet::OnRep_StaminaRegen(const FGameplayAttributeData& OldStaminaRegen)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreAttributeSet, StaminaRegen, OldStaminaRegen);
+	BroadcastAttributeChange(GetStaminaRegenAttribute(), OldStaminaRegen.GetCurrentValue(), StaminaRegen.GetCurrentValue());
 }
 
 void USuspenseCoreAttributeSet::OnRep_Armor(const FGameplayAttributeData& OldArmor)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreAttributeSet, Armor, OldArmor);
+	BroadcastAttributeChange(GetArmorAttribute(), OldArmor.GetCurrentValue(), Armor.GetCurrentValue());
 }
 
 void USuspenseCoreAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldAttackPower)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreAttributeSet, AttackPower, OldAttackPower);
+	BroadcastAttributeChange(GetAttackPowerAttribute(), OldAttackPower.GetCurrentValue(), AttackPower.GetCurrentValue());
 }
 
 void USuspenseCoreAttributeSet::OnRep_MovementSpeed(const FGameplayAttributeData& OldMovementSpeed)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreAttributeSet, MovementSpeed, OldMovementSpeed);
+	BroadcastAttributeChange(GetMovementSpeedAttribute(), OldMovementSpeed.GetCurrentValue(), MovementSpeed.GetCurrentValue());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

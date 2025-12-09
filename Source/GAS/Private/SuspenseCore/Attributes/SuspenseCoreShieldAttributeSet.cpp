@@ -166,41 +166,49 @@ bool USuspenseCoreShieldAttributeSet::IsShieldBroken() const
 void USuspenseCoreShieldAttributeSet::OnRep_Shield(const FGameplayAttributeData& OldShield)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, Shield, OldShield);
+	BroadcastShieldChange(OldShield.GetCurrentValue(), Shield.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_MaxShield(const FGameplayAttributeData& OldMaxShield)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, MaxShield, OldMaxShield);
+	BroadcastAttributeChange(GetMaxShieldAttribute(), OldMaxShield.GetCurrentValue(), MaxShield.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldRegen(const FGameplayAttributeData& OldShieldRegen)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldRegen, OldShieldRegen);
+	BroadcastAttributeChange(GetShieldRegenAttribute(), OldShieldRegen.GetCurrentValue(), ShieldRegen.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldRegenDelay(const FGameplayAttributeData& OldShieldRegenDelay)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldRegenDelay, OldShieldRegenDelay);
+	BroadcastAttributeChange(GetShieldRegenDelayAttribute(), OldShieldRegenDelay.GetCurrentValue(), ShieldRegenDelay.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldBreakCooldown(const FGameplayAttributeData& OldShieldBreakCooldown)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldBreakCooldown, OldShieldBreakCooldown);
+	BroadcastAttributeChange(GetShieldBreakCooldownAttribute(), OldShieldBreakCooldown.GetCurrentValue(), ShieldBreakCooldown.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldBreakRecoveryPercent(const FGameplayAttributeData& OldShieldBreakRecoveryPercent)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldBreakRecoveryPercent, OldShieldBreakRecoveryPercent);
+	BroadcastAttributeChange(GetShieldBreakRecoveryPercentAttribute(), OldShieldBreakRecoveryPercent.GetCurrentValue(), ShieldBreakRecoveryPercent.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldDamageReduction(const FGameplayAttributeData& OldShieldDamageReduction)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldDamageReduction, OldShieldDamageReduction);
+	BroadcastAttributeChange(GetShieldDamageReductionAttribute(), OldShieldDamageReduction.GetCurrentValue(), ShieldDamageReduction.GetCurrentValue());
 }
 
 void USuspenseCoreShieldAttributeSet::OnRep_ShieldOverflowDamage(const FGameplayAttributeData& OldShieldOverflowDamage)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USuspenseCoreShieldAttributeSet, ShieldOverflowDamage, OldShieldOverflowDamage);
+	BroadcastAttributeChange(GetShieldOverflowDamageAttribute(), OldShieldOverflowDamage.GetCurrentValue(), ShieldOverflowDamage.GetCurrentValue());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,6 +225,24 @@ void USuspenseCoreShieldAttributeSet::BroadcastShieldChange(float OldValue, floa
 			OldValue,
 			NewValue
 		);
+	}
+}
+
+void USuspenseCoreShieldAttributeSet::BroadcastAttributeChange(
+	const FGameplayAttribute& Attribute,
+	float OldValue,
+	float NewValue)
+{
+	// Skip if value didn't actually change
+	if (FMath::IsNearlyEqual(OldValue, NewValue))
+	{
+		return;
+	}
+
+	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
+	if (ASC)
+	{
+		ASC->PublishAttributeChangeEvent(Attribute, OldValue, NewValue);
 	}
 }
 

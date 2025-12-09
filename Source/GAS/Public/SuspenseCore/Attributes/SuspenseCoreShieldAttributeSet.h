@@ -171,8 +171,11 @@ protected:
 	// EVENTBUS HELPERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Публикует изменение щита в EventBus */
+	/** Публикует изменение щита в EventBus (specialized for Shield attribute) */
 	void BroadcastShieldChange(float OldValue, float NewValue);
+
+	/** Публикует изменение атрибута в EventBus (generic) */
+	void BroadcastAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue);
 
 	/** Обработка разрушения щита */
 	virtual void HandleShieldBroken(AActor* DamageInstigator, AActor* DamageCauser);

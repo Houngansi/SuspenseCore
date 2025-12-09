@@ -19,11 +19,12 @@ public class PlayerCore : ModuleRules
                 "GameplayTags",
                 "GameplayTasks",
                 "BridgeSystem",
-                "GAS",
-                "InventorySystem",
-                "EquipmentSystem",
-                "UISystem",
-                "InteractionSystem"
+                "GAS"
+                // Disabled modules (moved to DisabledModules/):
+                // "InventorySystem",
+                // "EquipmentSystem",
+                // "UISystem",
+                // "InteractionSystem"
             }
         );
 

@@ -140,18 +140,16 @@ public:
 	void RegisterClassesWithSelectionSubsystem();
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// EVENTS
+	// EVENTS (via EventBus)
 	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Called when classes are loaded */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClassesLoaded, int32, NumClasses);
-	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Events")
-	FOnClassesLoaded OnClassesLoaded;
-
-	/** Called when a class is applied to an actor */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClassApplied, AActor*, Actor, USuspenseCoreCharacterClassData*, ClassData);
-	UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Events")
-	FOnClassApplied OnClassApplied;
+	//
+	// All events are published through EventBus. Subscribe via:
+	//   EventBus->Subscribe(Tag, Handler)
+	//
+	// Event Tags:
+	//   - SuspenseCore.Event.Class.Loaded     (NumClasses in payload)
+	//   - SuspenseCore.Event.Player.ClassChanged (ClassID, ClassName in payload)
+	//
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -204,6 +202,9 @@ protected:
 
 	/** Apply passive effects */
 	void ApplyPassiveEffects(UAbilitySystemComponent* ASC, const USuspenseCoreCharacterClassData* ClassData);
+
+	/** Publish classes loaded event to EventBus */
+	void PublishClassesLoadedEvent(int32 NumClasses);
 
 	/** Publish class change to EventBus */
 	void PublishClassChangeEvent(AActor* Actor, USuspenseCoreCharacterClassData* ClassData);

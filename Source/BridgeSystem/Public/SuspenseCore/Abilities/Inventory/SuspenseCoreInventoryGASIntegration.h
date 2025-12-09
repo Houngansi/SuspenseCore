@@ -7,7 +7,7 @@
 #include "UObject/NoExportTypes.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayEffectTypes.h"
-#include "SuspenseInventoryGASIntegration.generated.h"
+#include "SuspenseCoreInventoryGASIntegration.generated.h"
 
 // Forward declarations
 class UAbilitySystemComponent;

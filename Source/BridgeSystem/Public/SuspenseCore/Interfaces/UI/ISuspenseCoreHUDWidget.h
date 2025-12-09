@@ -2,11 +2,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "GameFramework/PlayerState.h"  // Для APlayerState
-#include "ISuspenseHUDWidget.generated.h"
+#include "GameFramework/PlayerState.h"
+#include "ISuspenseCoreHUDWidget.generated.h"
 
 // Forward declarations
 class APawn;

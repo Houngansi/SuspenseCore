@@ -8,7 +8,7 @@
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "ISuspenseAttachmentProvider.generated.h"
+#include "ISuspenseCoreAttachmentProvider.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
 class USuspenseAttachmentProvider : public UInterface

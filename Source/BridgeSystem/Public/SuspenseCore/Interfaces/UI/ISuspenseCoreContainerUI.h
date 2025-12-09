@@ -2,13 +2,12 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "ISuspenseContainerUI.generated.h"
+#include "ISuspenseCoreContainerUI.generated.h"
 
 // Forward declarations
 class USuspenseEventManager;

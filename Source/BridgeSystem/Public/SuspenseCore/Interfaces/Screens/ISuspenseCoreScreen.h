@@ -2,11 +2,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseScreen.generated.h"
+#include "ISuspenseCoreScreen.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseScreen : public UInterface

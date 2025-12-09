@@ -2,11 +2,10 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "ISuspenseDraggable.generated.h"
+#include "ISuspenseCoreDraggable.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseDraggable : public UInterface

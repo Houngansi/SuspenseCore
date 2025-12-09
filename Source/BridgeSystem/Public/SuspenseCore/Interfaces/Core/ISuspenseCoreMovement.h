@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "ISuspenseMovement.generated.h"
+#include "ISuspenseCoreMovement.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
 class USuspenseMovement : public UInterface

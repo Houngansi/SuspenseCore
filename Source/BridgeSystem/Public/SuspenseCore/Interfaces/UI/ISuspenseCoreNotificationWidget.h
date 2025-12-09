@@ -2,10 +2,9 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ISuspenseNotificationWidget.generated.h"
+#include "ISuspenseCoreNotificationWidget.generated.h"
 
 // Forward declarations - только базовые UE типы
 class USuspenseEventManager;

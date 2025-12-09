@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "SuspenseWorldBindable.generated.h"
+#include "SuspenseCoreWorldBindable.generated.h"
 
 /**
  * Interface for services/components that must rebind to current UWorld

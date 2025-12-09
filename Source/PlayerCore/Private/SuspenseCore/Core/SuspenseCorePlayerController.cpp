@@ -8,7 +8,6 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
-#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -20,6 +19,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #if WITH_UI_SYSTEM
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
@@ -866,6 +866,7 @@ void ASuspenseCorePlayerController::HandleToggleInventory(const FInputActionValu
 
 void ASuspenseCorePlayerController::ToggleInventory()
 {
+#if WITH_UI_SYSTEM
 	UE_LOG(LogTemp, Warning, TEXT("=== ToggleInventory ==="));
 
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
@@ -883,10 +884,12 @@ void ASuspenseCorePlayerController::ToggleInventory()
 	{
 		ShowInventory();
 	}
+#endif // WITH_UI_SYSTEM
 }
 
 void ASuspenseCorePlayerController::ShowInventory()
 {
+#if WITH_UI_SYSTEM
 	UE_LOG(LogTemp, Warning, TEXT("=== ShowInventory ==="));
 
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
@@ -905,10 +908,12 @@ void ASuspenseCorePlayerController::ShowInventory()
 		ISuspenseCoreUIController::Execute_PushUIMode(this, TEXT("Inventory"));
 		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen shown"));
 	}
+#endif // WITH_UI_SYSTEM
 }
 
 void ASuspenseCorePlayerController::HideInventory()
 {
+#if WITH_UI_SYSTEM
 	UE_LOG(LogTemp, Warning, TEXT("=== HideInventory ==="));
 
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
@@ -923,10 +928,15 @@ void ASuspenseCorePlayerController::HideInventory()
 	// Pop UI mode
 	ISuspenseCoreUIController::Execute_PopUIMode(this, TEXT("Inventory"));
 	UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen hidden"));
+#endif // WITH_UI_SYSTEM
 }
 
 bool ASuspenseCorePlayerController::IsInventoryVisible() const
 {
+#if WITH_UI_SYSTEM
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	return UIManager && UIManager->IsContainerScreenVisible();
+#else
+	return false;
+#endif // WITH_UI_SYSTEM
 }

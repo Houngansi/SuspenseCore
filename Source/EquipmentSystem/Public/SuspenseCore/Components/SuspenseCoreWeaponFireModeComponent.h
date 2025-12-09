@@ -12,7 +12,6 @@
 
 // Forward declarations
 class UGameplayAbility;
-struct FSuspenseCoreFireModeRuntimeData;
 
 /**
  * Weapon Fire Mode Management Component

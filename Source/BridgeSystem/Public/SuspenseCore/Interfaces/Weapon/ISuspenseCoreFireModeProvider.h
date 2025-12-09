@@ -19,7 +19,7 @@ struct FSuspenseCoreUnifiedItemData;
  * Расширяет FWeaponFireModeData дополнительной runtime информацией
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FFireModeRuntimeData
+struct BRIDGESYSTEM_API FSuspenseCoreFireModeRuntimeData
 {
     GENERATED_BODY()
 
@@ -55,10 +55,10 @@ struct BRIDGESYSTEM_API FFireModeRuntimeData
     UPROPERTY(BlueprintReadOnly)
     int32 Index = -1;
 
-    FFireModeRuntimeData() = default;
+    FSuspenseCoreFireModeRuntimeData() = default;
 
     /** Конструктор из данных DataTable */
-    FFireModeRuntimeData(const FWeaponFireModeData& DataTableData, int32 InIndex)
+    FSuspenseCoreFireModeRuntimeData(const FWeaponFireModeData& DataTableData, int32 InIndex)
         : FireModeTag(DataTableData.FireModeTag)
         , DisplayName(DataTableData.DisplayName)
         , FireModeAbility(DataTableData.FireModeAbility)
@@ -85,7 +85,7 @@ class USuspenseCoreFireModeProvider : public UInterface
  *
  * Архитектура:
  * - Режимы огня определяются в FSuspenseCoreUnifiedItemData.FireModes
- * - Runtime состояние отслеживается через FFireModeRuntimeData
+ * - Runtime состояние отслеживается через FSuspenseCoreFireModeRuntimeData
  * - Переключение режимов транслируется через EventDelegateManager
  */
 class BRIDGESYSTEM_API ISuspenseCoreFireModeProvider
@@ -161,7 +161,7 @@ public:
      * @return Runtime данные активного режима
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FireMode|Query")
-    FFireModeRuntimeData GetCurrentFireModeData() const;
+    FSuspenseCoreFireModeRuntimeData GetCurrentFireModeData() const;
 
     /**
      * Проверить доступность режима огня
@@ -176,7 +176,7 @@ public:
      * @return Массив всех режимов с runtime данными
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FireMode|Query")
-    TArray<FFireModeRuntimeData> GetAllFireModes() const;
+    TArray<FSuspenseCoreFireModeRuntimeData> GetAllFireModes() const;
 
     /**
      * Получить только доступные режимы огня
@@ -232,7 +232,7 @@ public:
      * @return true если режим найден
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FireMode|Query")
-    bool GetFireModeData(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const;
+    bool GetFireModeData(const FGameplayTag& FireModeTag, FSuspenseCoreFireModeRuntimeData& OutData) const;
 
     /**
      * Получить способность для режима огня

@@ -92,10 +92,6 @@ struct FSuspenseCoreBatchValidationReport
     TArray<FText> HardErrors;
 };
 
-// Alias to keep external API consistent
-using FSlotValidationBatchResult = FSuspenseCoreBatchValidationReport;
-
-
 /**
  * Equipment Validation Service - Pure Coordination Layer
  */
@@ -162,7 +158,7 @@ public:
     /**
      * Detailed batch validation (C++ only). Renamed from BatchValidate(...) to avoid UHT overload ambiguity.
      */
-	FSlotValidationBatchResult BatchValidateEx(
+	FSuspenseCoreBatchValidationReport BatchValidateEx(
 	    const TArray<FEquipmentOperationRequest>& Operations,
 	    bool bFastPath = true,
 	    bool bServerAuthoritative = false,

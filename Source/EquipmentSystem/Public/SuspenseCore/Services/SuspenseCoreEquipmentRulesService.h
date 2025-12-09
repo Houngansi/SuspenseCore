@@ -22,7 +22,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentRules, Log, All);
 //========================================
 
 USTRUCT(BlueprintType)
-struct FRulesServiceConfig
+struct FSuspenseCoreRulesServiceConfig
 {
     GENERATED_BODY()
 
@@ -50,14 +50,14 @@ struct FRulesServiceConfig
     UPROPERTY(EditAnywhere, Config, Category = "Debug")
     bool bLogDetailedResults = false;
 
-    static FRulesServiceConfig LoadFromConfig(const FString& ConfigSection = TEXT("EquipmentRules"));
+    static FSuspenseCoreRulesServiceConfig LoadFromConfig(const FString& ConfigSection = TEXT("EquipmentRules"));
 };
 
 //========================================
 // RULES SERVICE METRICS
 //========================================
 
-struct EQUIPMENTSYSTEM_API FRulesServiceMetrics
+struct EQUIPMENTSYSTEM_API FSuspenseCoreRulesServiceMetrics
 {
     TAtomic<uint64> TotalEvaluations{0};
     TAtomic<uint64> CacheHits{0};
@@ -148,10 +148,10 @@ public:
     USuspenseCoreRulesCoordinator* GetCoordinator() const { return RulesCoordinator; }
 
     /** Get metrics */
-    const FRulesServiceMetrics& GetMetrics() const { return Metrics; }
+    const FSuspenseCoreRulesServiceMetrics& GetMetrics() const { return Metrics; }
 
     /** Get configuration */
-    const FRulesServiceConfig& GetConfiguration() const { return Config; }
+    const FSuspenseCoreRulesServiceConfig& GetConfiguration() const { return Config; }
 
     /** Invalidate cache for specific operation type */
     UFUNCTION(BlueprintCallable, Category = "Rules")
@@ -163,7 +163,7 @@ protected:
     FSuspenseCoreServiceInitParams ServiceParams;
 
     // Configuration
-    FRulesServiceConfig Config;
+    FSuspenseCoreRulesServiceConfig Config;
 
     // Core rules coordinator (owned)
     UPROPERTY()
@@ -191,7 +191,7 @@ protected:
     mutable FCriticalSection CacheLock;
 
     // Metrics
-    mutable FRulesServiceMetrics Metrics;
+    mutable FSuspenseCoreRulesServiceMetrics Metrics;
     mutable FSuspenseCoreServiceMetrics ServiceMetrics;
 
 private:

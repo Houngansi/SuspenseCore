@@ -15,12 +15,12 @@
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentRules);
 
 //========================================
-// FRulesServiceConfig
+// FSuspenseCoreRulesServiceConfig
 //========================================
 
-FRulesServiceConfig FRulesServiceConfig::LoadFromConfig(const FString& ConfigSection)
+FSuspenseCoreRulesServiceConfig FSuspenseCoreRulesServiceConfig::LoadFromConfig(const FString& ConfigSection)
 {
-    FRulesServiceConfig OutConfig;
+    FSuspenseCoreRulesServiceConfig OutConfig;
 
     if (!GConfig) return OutConfig;
 
@@ -35,10 +35,10 @@ FRulesServiceConfig FRulesServiceConfig::LoadFromConfig(const FString& ConfigSec
 }
 
 //========================================
-// FRulesServiceMetrics
+// FSuspenseCoreRulesServiceMetrics
 //========================================
 
-FString FRulesServiceMetrics::ToString() const
+FString FSuspenseCoreRulesServiceMetrics::ToString() const
 {
     return FString::Printf(
         TEXT("=== Rules Service Metrics ===\n")
@@ -60,7 +60,7 @@ FString FRulesServiceMetrics::ToString() const
     );
 }
 
-void FRulesServiceMetrics::Reset()
+void FSuspenseCoreRulesServiceMetrics::Reset()
 {
     TotalEvaluations.Store(0);
     CacheHits.Store(0);
@@ -77,7 +77,7 @@ void FRulesServiceMetrics::Reset()
 
 USuspenseCoreEquipmentRulesService::USuspenseCoreEquipmentRulesService()
 {
-    Config = FRulesServiceConfig::LoadFromConfig();
+    Config = FSuspenseCoreRulesServiceConfig::LoadFromConfig();
 }
 
 USuspenseCoreEquipmentRulesService::~USuspenseCoreEquipmentRulesService()
@@ -105,7 +105,7 @@ bool USuspenseCoreEquipmentRulesService::InitializeService(const FSuspenseCoreSe
     UE_LOG(LogSuspenseCoreEquipmentRules, Log, TEXT(">>> RulesService: Initializing..."));
 
     // Load configuration
-    Config = FRulesServiceConfig::LoadFromConfig();
+    Config = FSuspenseCoreRulesServiceConfig::LoadFromConfig();
 
     // Create and initialize RulesCoordinator
     RulesCoordinator = NewObject<USuspenseCoreRulesCoordinator>(this, TEXT("RulesCoordinator"));

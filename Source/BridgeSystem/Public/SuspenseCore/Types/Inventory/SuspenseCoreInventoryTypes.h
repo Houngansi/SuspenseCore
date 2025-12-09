@@ -517,5 +517,5 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryChange
 
 // Forward declaration - actual type defined in BridgeSystem's SuspenseInventoryTypes.h
 // The alias is declared at the top of this file after includes
-// See: Types/Inventory/SuspenseInventoryTypes.h for FSuspenseInventoryItemInstance
+// See: Types/Inventory/SuspenseInventoryTypes.h for FSuspenseCoreInventoryItemInstance
 

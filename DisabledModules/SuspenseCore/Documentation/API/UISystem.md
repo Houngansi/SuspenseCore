@@ -348,7 +348,7 @@ TArray<FEquipmentSlotUIData> GetAllEquipmentSlotData() const;
 
 ```cpp
 void OnEquipmentDragStarted(int32 SlotIndex);
-void OnEquipmentDropped(int32 TargetSlot, const FSuspenseInventoryItemInstance& Item);
+void OnEquipmentDropped(int32 TargetSlot, const FSuspenseCoreInventoryItemInstance& Item);
 ```
 
 ---
@@ -364,7 +364,7 @@ UCLASS()
 class UISYSTEM_API USuspenseDragDropOperation : public UDragDropOperation
 {
     // Данные перетаскиваемого предмета
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
 
     // Источник
     int32 SourceSlotIndex;
@@ -406,7 +406,7 @@ UCLASS()
 class UISYSTEM_API USuspenseTooltipManager : public UGameInstanceSubsystem
 {
     // Показать тултип для предмета
-    void ShowItemTooltip(const FSuspenseInventoryItemInstance& Item, const FVector2D& Position);
+    void ShowItemTooltip(const FSuspenseCoreInventoryItemInstance& Item, const FVector2D& Position);
 
     // Скрыть текущий тултип
     void HideTooltip();

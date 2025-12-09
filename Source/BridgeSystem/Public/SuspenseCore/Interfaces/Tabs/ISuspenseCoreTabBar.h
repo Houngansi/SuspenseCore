@@ -17,7 +17,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTabBarSelectionChanged, UObject* /*Tab
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTabBarClosed, UObject* /*TabBar*/);
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseTabBar : public UInterface
+class USuspenseCoreTabBar : public UInterface
 {
     GENERATED_BODY()
 };
@@ -26,7 +26,7 @@ class USuspenseTabBar : public UInterface
  * Interface for tab bar widgets
  * Provides standardized methods for tab management
  */
-class BRIDGESYSTEM_API ISuspenseTabBar
+class BRIDGESYSTEM_API ISuspenseCoreTabBar
 {
     GENERATED_BODY()
 

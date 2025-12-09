@@ -16,13 +16,13 @@ class UCanvasPanel;
  * 
  * Architecture principles:
  * - Inherits from USuspenseBaseWidget for standardized lifecycle
- * - Implements ISuspenseCrosshairWidgetInterface for crosshair-specific functionality
+ * - Implements ISuspenseCoreCrosshairWidgetInterface for crosshair-specific functionality
  * - Receives data only through interface methods and events
  * - No direct dependencies on weapon or game modules
  * - Uses EventDelegateManager for event subscription
  */
 UCLASS()
-class UISYSTEM_API USuspenseCrosshairWidget : public USuspenseBaseWidget, public ISuspenseCrosshairWidgetInterface
+class UISYSTEM_API USuspenseCrosshairWidget : public USuspenseBaseWidget, public ISuspenseCoreCrosshairWidgetInterface
 {
     GENERATED_BODY()
 

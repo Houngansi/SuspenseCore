@@ -15,7 +15,7 @@ class USuspenseCoreEventManager;
  * Base class for all UI widgets in MedCom game
  *
  * Key responsibilities:
- * - Implements ISuspenseUIWidget interface for standardized widget behavior
+ * - Implements ISuspenseCoreUIWidget interface for standardized widget behavior
  * - Provides lifecycle management (initialization, updates, cleanup)
  * - Handles animation support for show/hide operations
  * - Manages event system integration through EventDelegateManager
@@ -26,7 +26,7 @@ class USuspenseCoreEventManager;
  * - Follows Single Responsibility Principle - only base widget functionality
  */
 UCLASS(Abstract)
-class UISYSTEM_API USuspenseBaseWidget : public UUserWidget, public ISuspenseUIWidget
+class UISYSTEM_API USuspenseBaseWidget : public UUserWidget, public ISuspenseCoreUIWidget
 {
     GENERATED_BODY()
 
@@ -43,7 +43,7 @@ public:
     virtual void SetVisibility(ESlateVisibility InVisibility) override;
 
     //================================================
-    // ISuspenseUIWidget Interface Implementation
+    // ISuspenseCoreUIWidget Interface Implementation
     //================================================
 
     virtual void InitializeWidget_Implementation() override;

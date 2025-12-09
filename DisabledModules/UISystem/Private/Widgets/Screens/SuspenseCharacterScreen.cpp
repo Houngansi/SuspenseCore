@@ -34,7 +34,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
     }
 
     // Initialize tab bar through interface
-    if (ISuspenseTabBar* TabBarInterface = Cast<ISuspenseTabBar>(UpperTabBar))
+    if (ISuspenseCoreTabBar* TabBarInterface = Cast<ISuspenseCoreTabBar>(UpperTabBar))
     {
         // Subscribe to tab selection changes - это обычные C++ методы, не BlueprintNativeEvent
         if (FOnTabBarSelectionChanged* SelectionDelegate = TabBarInterface->GetOnTabSelectionChanged())
@@ -50,7 +50,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
     }
 
     // Verify tabs are properly configured
-    int32 TabCount = ISuspenseTabBar::Execute_GetTabCount(UpperTabBar);
+    int32 TabCount = ISuspenseCoreTabBar::Execute_GetTabCount(UpperTabBar);
     UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Tab bar initialized with %d tabs"), TabCount);
 
     // Log all tabs for debugging
@@ -63,7 +63,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
                 i, *TabConfig.TabName.ToString(), *TabConfig.TabTag.ToString());
 
             // Verify content widgets
-            UUserWidget* TabContent = ISuspenseTabBar::Execute_GetTabContent(UpperTabBar, i);
+            UUserWidget* TabContent = ISuspenseCoreTabBar::Execute_GetTabContent(UpperTabBar, i);
             if (TabContent)
             {
                 FString ContentType = TEXT("Unknown");
@@ -77,9 +77,9 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
                 {
                     ContentType = TEXT("EquipmentWidget");
                 }
-                else if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+                else if (TabContent->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                 {
-                    FGameplayTag ContentScreenTag = ISuspenseScreen::Execute_GetScreenTag(TabContent);
+                    FGameplayTag ContentScreenTag = ISuspenseCoreScreen::Execute_GetScreenTag(TabContent);
                     ContentType = FString::Printf(TEXT("Screen: %s"), *ContentScreenTag.ToString());
                 }
 
@@ -103,7 +103,7 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
         // Select first tab by default
         if (TabCount > 0)
         {
-            ISuspenseTabBar::Execute_SelectTabByIndex(UpperTabBar, 0);
+            ISuspenseCoreTabBar::Execute_SelectTabByIndex(UpperTabBar, 0);
         }
     }
 
@@ -118,7 +118,7 @@ void USuspenseCharacterScreen::UninitializeWidget_Implementation()
     // Unsubscribe from tab bar events
     if (UpperTabBar)
     {
-        if (ISuspenseTabBar* TabBarInterface = Cast<ISuspenseTabBar>(UpperTabBar))
+        if (ISuspenseCoreTabBar* TabBarInterface = Cast<ISuspenseCoreTabBar>(UpperTabBar))
         {
             if (FOnTabBarSelectionChanged* SelectionDelegate = TabBarInterface->GetOnTabSelectionChanged())
             {
@@ -185,9 +185,9 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
                     if (UUserWidget* TabContent = UpperTabBar->GetTabContent_Implementation(CurrentIndex))
                     {
                         // Use interface to refresh content instead of direct class access
-                        if (TabContent->GetClass()->ImplementsInterface(USuspenseScreen::StaticClass()))
+                        if (TabContent->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                         {
-                            ISuspenseScreen::Execute_RefreshScreenContent(TabContent);
+                            ISuspenseCoreScreen::Execute_RefreshScreenContent(TabContent);
                         }
                     }
                 }

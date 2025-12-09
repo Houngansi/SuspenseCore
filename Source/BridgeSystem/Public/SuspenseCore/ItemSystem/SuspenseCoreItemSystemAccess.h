@@ -8,7 +8,7 @@
 #include "CoreMinimal.h"
 
 // Forward declarations
-class USuspenseItemManager;
+class USuspenseCoreItemManager;
 class UWorld;
 class UGameInstance;
 
@@ -28,7 +28,7 @@ class UGameInstance;
  * USAGE PATTERN:
  * Always pass 'this' from your calling context (Component, Actor, Ability):
  * 
- *   USuspenseItemManager* ItemManager = FItemSystemAccess::GetItemManager(this);
+ *   USuspenseCoreItemManager* ItemManager = FItemSystemAccess::GetItemManager(this);
  *   if (!ItemManager)
  *   {
  *       // Handle error - ItemManager is critical for gameplay
@@ -50,7 +50,7 @@ public:
      * Performs full validation of each step in the chain and logs detailed errors.
      * 
      * NAVIGATION CHAIN:
-     * WorldContextObject → UWorld → UGameInstance → USuspenseItemManager (Subsystem)
+     * WorldContextObject → UWorld → UGameInstance → USuspenseCoreItemManager (Subsystem)
      * 
      * ERROR HANDLING:
      * Returns nullptr and logs detailed warning if any step fails.
@@ -63,7 +63,7 @@ public:
      * @param WorldContextObject - Any UObject with valid World context (Actor, Component, etc)
      * @return Valid ItemManager pointer or nullptr if chain is broken
      */
-    static USuspenseItemManager* GetItemManager(const UObject* WorldContextObject);
+    static USuspenseCoreItemManager* GetItemManager(const UObject* WorldContextObject);
     
     /**
      * Get ItemManager with comprehensive diagnostics
@@ -76,7 +76,7 @@ public:
      * @param OutDiagnostics - Detailed string describing each step of the attempt
      * @return Valid ItemManager pointer or nullptr if chain is broken
      */
-    static USuspenseItemManager* GetItemManagerWithDiagnostics(
+    static USuspenseCoreItemManager* GetItemManagerWithDiagnostics(
         const UObject* WorldContextObject, 
         FString& OutDiagnostics);
     

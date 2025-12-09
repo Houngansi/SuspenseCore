@@ -21,7 +21,7 @@
  * 
  * Usage Example:
  * @code
- * class UMyService : public UObject, public ISuspenseWorldBindable
+ * class UMyService : public UObject, public ISuspenseCoreWorldBindable
  * {
  *     virtual void RebindWorld_Implementation(UWorld* NewWorld) override
  *     {
@@ -33,12 +33,12 @@
  * @endcode
  */
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseWorldBindable : public UInterface
+class USuspenseCoreWorldBindable : public UInterface
 {
     GENERATED_BODY()
 };
 
-class BRIDGESYSTEM_API ISuspenseWorldBindable
+class BRIDGESYSTEM_API ISuspenseCoreWorldBindable
 {
     GENERATED_BODY()
 
@@ -51,7 +51,7 @@ public:
      */
     UFUNCTION(BlueprintNativeEvent, Category="SuspenseCore|World")
     void RebindWorld(UWorld* NewWorld);
-    virtual void RebindWorld_Implementation(UWorld* NewWorld) PURE_VIRTUAL(ISuspenseWorldBindable::RebindWorld_Implementation,);
+    virtual void RebindWorld_Implementation(UWorld* NewWorld) PURE_VIRTUAL(ISuspenseCoreWorldBindable::RebindWorld_Implementation,);
 
     /**
      * Optional readiness probe after rebind.

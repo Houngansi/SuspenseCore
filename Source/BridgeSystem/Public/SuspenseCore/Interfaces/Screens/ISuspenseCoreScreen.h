@@ -8,7 +8,7 @@
 #include "ISuspenseCoreScreen.generated.h"
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseScreen : public UInterface
+class USuspenseCoreScreen : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -17,7 +17,7 @@ class USuspenseScreen : public UInterface
  * Interface for screen/panel widgets
  * Provides standardized lifecycle for content panels
  */
-class BRIDGESYSTEM_API ISuspenseScreen
+class BRIDGESYSTEM_API ISuspenseCoreScreen
 {
 	GENERATED_BODY()
 

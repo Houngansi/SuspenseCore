@@ -5,13 +5,13 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "Interfaces/Weapon/ISuspenseWeapon.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Math/UnrealMathUtility.h"
 
-USuspenseWeaponUIWidget::USuspenseWeaponUIWidget(const FObjectInitializer& ObjectInitializer)
+USuspenseCoreWeaponUIWidget::USuspenseCoreWeaponUIWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
     bEnableTick = true;
@@ -36,7 +36,7 @@ USuspenseWeaponUIWidget::USuspenseWeaponUIWidget(const FObjectInitializer& Objec
     TimeSinceLastFireModeCheck = 0.0f;
 }
 
-void USuspenseWeaponUIWidget::InitializeWidget_Implementation()
+void USuspenseCoreWeaponUIWidget::InitializeWidget_Implementation()
 {
     Super::InitializeWidget_Implementation();
 
@@ -55,7 +55,7 @@ void USuspenseWeaponUIWidget::InitializeWidget_Implementation()
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Widget initialized"));
 }
 
-void USuspenseWeaponUIWidget::UninitializeWidget_Implementation()
+void USuspenseCoreWeaponUIWidget::UninitializeWidget_Implementation()
 {
     // Clear any active timers
     if (UWorld* World = GetWorld())
@@ -74,7 +74,7 @@ void USuspenseWeaponUIWidget::UninitializeWidget_Implementation()
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Widget uninitialized"));
 }
 
-void USuspenseWeaponUIWidget::UpdateWidget_Implementation(float DeltaTime)
+void USuspenseCoreWeaponUIWidget::UpdateWidget_Implementation(float DeltaTime)
 {
     Super::UpdateWidget_Implementation(DeltaTime);
 
@@ -101,12 +101,12 @@ void USuspenseWeaponUIWidget::UpdateWidget_Implementation(float DeltaTime)
     }
 }
 
-void USuspenseWeaponUIWidget::SetWeapon_Implementation(AActor* Weapon)
+void USuspenseCoreWeaponUIWidget::SetWeapon_Implementation(AActor* Weapon)
 {
     SetWeaponInternal(Weapon);
 }
 
-void USuspenseWeaponUIWidget::SetWeaponInternal(AActor* WeaponActor)
+void USuspenseCoreWeaponUIWidget::SetWeaponInternal(AActor* WeaponActor)
 {
     // Early exit if same weapon
     if (WeaponActor == CachedWeaponActor)
@@ -142,7 +142,7 @@ void USuspenseWeaponUIWidget::SetWeaponInternal(AActor* WeaponActor)
     }
 }
 
-void USuspenseWeaponUIWidget::ClearWeapon_Implementation()
+void USuspenseCoreWeaponUIWidget::ClearWeapon_Implementation()
 {
     if (CachedWeaponActor)
     {
@@ -174,12 +174,12 @@ void USuspenseWeaponUIWidget::ClearWeapon_Implementation()
     }
 }
 
-AActor* USuspenseWeaponUIWidget::GetWeapon_Implementation() const
+AActor* USuspenseCoreWeaponUIWidget::GetWeapon_Implementation() const
 {
     return CachedWeaponActor;
 }
 
-void USuspenseWeaponUIWidget::UpdateAmmoDisplay_Implementation(float CurrentAmmo, float RemainingAmmo, float MagazineSize)
+void USuspenseCoreWeaponUIWidget::UpdateAmmoDisplay_Implementation(float CurrentAmmo, float RemainingAmmo, float MagazineSize)
 {
     // Cache the values for later use
     LastCurrentAmmo = CurrentAmmo;
@@ -216,7 +216,7 @@ void USuspenseWeaponUIWidget::UpdateAmmoDisplay_Implementation(float CurrentAmmo
         CurrentAmmo, MagazineSize, RemainingAmmo);
 }
 
-void USuspenseWeaponUIWidget::SetAmmoDisplayFormat_Implementation(const FString& Format)
+void USuspenseCoreWeaponUIWidget::SetAmmoDisplayFormat_Implementation(const FString& Format)
 {
     AmmoDisplayFormat = Format;
 
@@ -226,7 +226,7 @@ void USuspenseWeaponUIWidget::SetAmmoDisplayFormat_Implementation(const FString&
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Ammo display format set to: %s"), *Format);
 }
 
-void USuspenseWeaponUIWidget::UpdateFireMode_Implementation(const FGameplayTag& FireModeTag, const FText& DisplayName)
+void USuspenseCoreWeaponUIWidget::UpdateFireMode_Implementation(const FGameplayTag& FireModeTag, const FText& DisplayName)
 {
     CurrentFireMode = FireModeTag;
 
@@ -265,13 +265,13 @@ void USuspenseWeaponUIWidget::UpdateFireMode_Implementation(const FGameplayTag& 
     UE_LOG(LogTemp, Verbose, TEXT("[MedComWeaponUIWidget] Fire mode updated: %s"), *FireModeTag.ToString());
 }
 
-void USuspenseWeaponUIWidget::SetAvailableFireModes_Implementation(const TArray<FGameplayTag>& AvailableModes)
+void USuspenseCoreWeaponUIWidget::SetAvailableFireModes_Implementation(const TArray<FGameplayTag>& AvailableModes)
 {
     AvailableFireModes = AvailableModes;
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Available fire modes set: %d modes"), AvailableModes.Num());
 }
 
-void USuspenseWeaponUIWidget::ShowReloadIndicator_Implementation(float ReloadTime, float ElapsedTime)
+void USuspenseCoreWeaponUIWidget::ShowReloadIndicator_Implementation(float ReloadTime, float ElapsedTime)
 {
     bIsReloading = true;
     TotalReloadTime = ReloadTime;
@@ -291,7 +291,7 @@ void USuspenseWeaponUIWidget::ShowReloadIndicator_Implementation(float ReloadTim
         ReloadTime, ElapsedTime);
 }
 
-void USuspenseWeaponUIWidget::HideReloadIndicator_Implementation()
+void USuspenseCoreWeaponUIWidget::HideReloadIndicator_Implementation()
 {
     bIsReloading = false;
     CurrentReloadTime = 0.0f;
@@ -311,7 +311,7 @@ void USuspenseWeaponUIWidget::HideReloadIndicator_Implementation()
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Reload indicator hidden"));
 }
 
-void USuspenseWeaponUIWidget::UpdateWeaponState_Implementation(const FGameplayTag& StateTag, bool bIsActive)
+void USuspenseCoreWeaponUIWidget::UpdateWeaponState_Implementation(const FGameplayTag& StateTag, bool bIsActive)
 {
     if (bIsActive)
     {
@@ -333,7 +333,7 @@ void USuspenseWeaponUIWidget::UpdateWeaponState_Implementation(const FGameplayTa
         *StateTag.ToString(), bIsActive ? TEXT("Yes") : TEXT("No"));
 }
 
-void USuspenseWeaponUIWidget::RefreshWeaponDisplay()
+void USuspenseCoreWeaponUIWidget::RefreshWeaponDisplay()
 {
     if (!CachedWeaponActor)
     {
@@ -357,7 +357,7 @@ void USuspenseWeaponUIWidget::RefreshWeaponDisplay()
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon display refreshed"));
 }
 
-float USuspenseWeaponUIWidget::GetAmmoPercentage() const
+float USuspenseCoreWeaponUIWidget::GetAmmoPercentage() const
 {
     if (LastMagazineSize > 0.0f)
     {
@@ -366,7 +366,7 @@ float USuspenseWeaponUIWidget::GetAmmoPercentage() const
     return 1.0f;
 }
 
-void USuspenseWeaponUIWidget::SubscribeToEvents()
+void USuspenseCoreWeaponUIWidget::SubscribeToEvents()
 {
     if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
@@ -409,7 +409,7 @@ void USuspenseWeaponUIWidget::SubscribeToEvents()
     }
 }
 
-void USuspenseWeaponUIWidget::UnsubscribeFromEvents()
+void USuspenseCoreWeaponUIWidget::UnsubscribeFromEvents()
 {
     if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
     {
@@ -448,18 +448,18 @@ void USuspenseWeaponUIWidget::UnsubscribeFromEvents()
     }
 }
 
-void USuspenseWeaponUIWidget::UpdateFromWeaponInterfaces()
+void USuspenseCoreWeaponUIWidget::UpdateFromWeaponInterfaces()
 {
     if (!CachedWeaponActor)
         return;
 
     // Check if weapon implements the weapon interface
-    if (CachedWeaponActor->Implements<USuspenseWeapon>())
+    if (CachedWeaponActor->Implements<USuspenseCoreWeapon>())
     {
         // Get current ammo values from weapon
-        float CurrentAmmo = ISuspenseWeapon::Execute_GetCurrentAmmo(CachedWeaponActor);
-        float RemainingAmmo = ISuspenseWeapon::Execute_GetRemainingAmmo(CachedWeaponActor);
-        float MagazineSize = ISuspenseWeapon::Execute_GetMagazineSize(CachedWeaponActor);
+        float CurrentAmmo = ISuspenseCoreWeapon::Execute_GetCurrentAmmo(CachedWeaponActor);
+        float RemainingAmmo = ISuspenseCoreWeapon::Execute_GetRemainingAmmo(CachedWeaponActor);
+        float MagazineSize = ISuspenseCoreWeapon::Execute_GetMagazineSize(CachedWeaponActor);
 
         // Only update if values have changed
         if (LastCurrentAmmo != CurrentAmmo ||
@@ -471,7 +471,7 @@ void USuspenseWeaponUIWidget::UpdateFromWeaponInterfaces()
     }
 }
 
-void USuspenseWeaponUIWidget::SetWeaponIcon(UTexture2D* Icon)
+void USuspenseCoreWeaponUIWidget::SetWeaponIcon(UTexture2D* Icon)
 {
     if (!WeaponIcon)
         return;
@@ -494,7 +494,7 @@ void USuspenseWeaponUIWidget::SetWeaponIcon(UTexture2D* Icon)
     }
 }
 
-void USuspenseWeaponUIWidget::UpdateAmmoTextStyle(float CurrentAmmo, float MaxAmmo)
+void USuspenseCoreWeaponUIWidget::UpdateAmmoTextStyle(float CurrentAmmo, float MaxAmmo)
 {
     if (!CurrentAmmoText)
         return;
@@ -515,7 +515,7 @@ void USuspenseWeaponUIWidget::UpdateAmmoTextStyle(float CurrentAmmo, float MaxAm
     CurrentAmmoText->SetColorAndOpacity(FSlateColor(TextColor));
 }
 
-void USuspenseWeaponUIWidget::ResetWeaponDisplay()
+void USuspenseCoreWeaponUIWidget::ResetWeaponDisplay()
 {
     // Hide all weapon UI elements
     if (WeaponNameText) WeaponNameText->SetVisibility(ESlateVisibility::Hidden);
@@ -529,7 +529,7 @@ void USuspenseWeaponUIWidget::ResetWeaponDisplay()
     UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Weapon display reset"));
 }
 
-void USuspenseWeaponUIWidget::UpdateCurrentFireMode()
+void USuspenseCoreWeaponUIWidget::UpdateCurrentFireMode()
 {
     if (!CachedWeaponActor)
         return;
@@ -542,7 +542,7 @@ void USuspenseWeaponUIWidget::UpdateCurrentFireMode()
     }
 }
 
-bool USuspenseWeaponUIWidget::ValidateWidgetBindings() const
+bool USuspenseCoreWeaponUIWidget::ValidateWidgetBindings() const
 {
     bool bValid = true;
 
@@ -569,30 +569,30 @@ bool USuspenseWeaponUIWidget::ValidateWidgetBindings() const
 }
 
 // Event handlers - these are called when events are received from the EventDelegateManager
-void USuspenseWeaponUIWidget::OnAmmoChanged(float CurrentAmmo, float RemainingAmmo, float MagazineSize)
+void USuspenseCoreWeaponUIWidget::OnAmmoChanged(float CurrentAmmo, float RemainingAmmo, float MagazineSize)
 {
     // Simply update the display - no event broadcasting!
     UpdateAmmoDisplay_Implementation(CurrentAmmo, RemainingAmmo, MagazineSize);
 }
 
-void USuspenseWeaponUIWidget::OnWeaponStateChanged(FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted)
+void USuspenseCoreWeaponUIWidget::OnWeaponStateChanged(FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted)
 {
     UpdateWeaponState_Implementation(NewState, true);
 }
 
-void USuspenseWeaponUIWidget::OnWeaponReloadStart()
+void USuspenseCoreWeaponUIWidget::OnWeaponReloadStart()
 {
     // Show reload indicator with estimated time
     float EstimatedReloadTime = 3.0f; // Default reload time
     ShowReloadIndicator_Implementation(EstimatedReloadTime, 0.0f);
 }
 
-void USuspenseWeaponUIWidget::OnWeaponReloadEnd()
+void USuspenseCoreWeaponUIWidget::OnWeaponReloadEnd()
 {
     HideReloadIndicator_Implementation();
 }
 
-void USuspenseWeaponUIWidget::OnActiveWeaponChanged(AActor* NewWeapon)
+void USuspenseCoreWeaponUIWidget::OnActiveWeaponChanged(AActor* NewWeapon)
 {
     SetWeaponInternal(NewWeapon);
 }

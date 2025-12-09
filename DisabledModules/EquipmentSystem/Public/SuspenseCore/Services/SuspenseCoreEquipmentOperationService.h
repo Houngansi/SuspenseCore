@@ -418,8 +418,8 @@ private:
     int32 MaxHistorySize = 50;
 
     // Caching
-    TSharedPtr<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>> ValidationCache;
-    TSharedPtr<FSuspenseEquipmentCacheManager<FGuid, FEquipmentOperationResult>> ResultCache;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>> ValidationCache;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentOperationResult>> ResultCache;
     float ValidationCacheTTL = 5.0f;
     float ResultCacheTTL = 2.0f;
 

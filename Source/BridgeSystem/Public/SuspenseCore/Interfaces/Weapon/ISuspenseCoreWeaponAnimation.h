@@ -12,10 +12,10 @@
 class UAnimMontage;
 class UBlendSpace;
 class UAnimSequence;
-struct FSuspenseInventoryItemInstance;
+struct FSuspenseCoreInventoryItemInstance;
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseWeaponAnimation : public UInterface
+class USuspenseCoreWeaponAnimation : public UInterface
 {
     GENERATED_BODY()
 };
@@ -38,7 +38,7 @@ class USuspenseWeaponAnimation : public UInterface
  * Implementations must ensure thread-safe access to animation data,
  * especially when caching is involved.
  */
-class BRIDGESYSTEM_API ISuspenseWeaponAnimation
+class BRIDGESYSTEM_API ISuspenseCoreWeaponAnimation
 {
     GENERATED_BODY()
 

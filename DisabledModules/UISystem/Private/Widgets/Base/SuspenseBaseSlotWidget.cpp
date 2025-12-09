@@ -406,7 +406,7 @@ FDragDropUIData USuspenseBaseSlotWidget::GetDragData_Implementation() const
     FGameplayTag SourceContainerType = FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"));
     if (IsValid(OwningContainer))
     {
-        SourceContainerType = ISuspenseContainerUI::Execute_GetContainerType(OwningContainer);
+        SourceContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(OwningContainer);
     }
 
     return FDragDropUIData::CreateValidated(
@@ -468,7 +468,7 @@ FSlotValidationResult USuspenseBaseSlotWidget::CanAcceptDrop_Implementation(cons
     }
 
     // Делегируем контейнеру (он возвращает FSlotValidationResult)
-    return ISuspenseContainerUI::Execute_CanAcceptDrop(
+    return ISuspenseCoreContainerUI::Execute_CanAcceptDrop(
         OwningContainer,
         DragOperation,
         CurrentSlotData.SlotIndex
@@ -927,7 +927,7 @@ void USuspenseBaseSlotWidget::HandleClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUI::Execute_OnSlotClicked(
+        ISuspenseCoreContainerUI::Execute_OnSlotClicked(
             OwningContainer,
             CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID
@@ -939,7 +939,7 @@ void USuspenseBaseSlotWidget::HandleDoubleClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUI::Execute_OnSlotDoubleClicked(
+        ISuspenseCoreContainerUI::Execute_OnSlotDoubleClicked(
             OwningContainer,
             CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID
@@ -951,7 +951,7 @@ void USuspenseBaseSlotWidget::HandleRightClick()
 {
     if (IsValid(OwningContainer))
     {
-        ISuspenseContainerUI::Execute_OnSlotRightClicked(
+        ISuspenseCoreContainerUI::Execute_OnSlotRightClicked(
             OwningContainer,
             CurrentSlotData.SlotIndex,
             CurrentItemData.ItemInstanceID

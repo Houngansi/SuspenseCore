@@ -22,11 +22,11 @@ fixup() {
     sed -i 's/\bIMedComWeaponInterface\b/ISuspenseWeaponInterface/g' "$file"
 
     # ===== BridgeSystem Classes =====
-    sed -i 's/\bUMedComItemManager\b/USuspenseItemManager/g' "$file"
+    sed -i 's/\bUMedComItemManager\b/USuspenseCoreItemManager/g' "$file"
     sed -i 's/\bUMedComLoadoutManager\b/USuspenseLoadoutManager/g' "$file"
 
     # ===== BridgeSystem Structs =====
-    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseUnifiedItemData/g' "$file"
+    sed -i 's/\bFMedComUnifiedItemData\b/FSuspenseCoreUnifiedItemData/g' "$file"
     sed -i 's/\bFInventoryItemInstance\b/FSuspenseInventoryItemInstance/g' "$file"
 
     # ===== EquipmentSystem Interfaces =====

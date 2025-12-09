@@ -17,7 +17,7 @@ InventorySystem — модуль grid-based инвентаря с поддерж
 InventorySystem реализует следующую функциональность:
 
 1. **Grid-based Storage** — сетка ячеек с поддержкой предметов различных размеров
-2. **Instance-based Architecture** — работа с FSuspenseInventoryItemInstance вместо UObject*
+2. **Instance-based Architecture** — работа с FSuspenseCoreInventoryItemInstance вместо UObject*
 3. **Transaction Support** — атомарные операции с rollback
 4. **DataTable Integration** — все статические данные из единого источника
 5. **Replication** — полная поддержка multiplayer
@@ -85,13 +85,13 @@ FName GetCurrentLoadoutID() const;
 ```cpp
 // Добавление предметов
 bool AddItemByID_Implementation(FName ItemID, int32 Quantity);
-FSuspenseInventoryOperationResult AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
-FSuspenseInventoryOperationResult AddItemInstanceToSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 TargetSlot);
+FSuspenseInventoryOperationResult AddItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
+FSuspenseInventoryOperationResult AddItemInstanceToSlot(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 TargetSlot);
 
 // Удаление предметов
 FSuspenseInventoryOperationResult RemoveItemByID(const FName& ItemID, int32 Amount);
 FSuspenseInventoryOperationResult RemoveItemInstance(const FGuid& InstanceID);
-bool RemoveItemFromSlot(int32 SlotIndex, FSuspenseInventoryItemInstance& OutRemovedInstance);
+bool RemoveItemFromSlot(int32 SlotIndex, FSuspenseCoreInventoryItemInstance& OutRemovedInstance);
 
 // Перемещение
 bool MoveItemBySlots_Implementation(int32 FromSlot, int32 ToSlot, bool bMaintainRotation);
@@ -108,8 +108,8 @@ FSuspenseInventoryOperationResult SplitStack(int32 SourceSlot, int32 SplitQuanti
 // Размещение
 int32 FindFreeSpaceForItem(const FVector2D& ItemSize, bool bAllowRotation = true) const;
 bool CanPlaceItemAtSlot(const FVector2D& ItemSize, int32 SlotIndex, bool bIgnoreRotation = false) const;
-bool PlaceItemInstanceAtSlot(const FSuspenseInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace = false);
-bool TryAutoPlaceItemInstance(const FSuspenseInventoryItemInstance& ItemInstance);
+bool PlaceItemInstanceAtSlot(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex, bool bForcePlace = false);
+bool TryAutoPlaceItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
 // Swap и Rotate
 bool SwapItemsInSlots(int32 Slot1, int32 Slot2, ESuspenseInventoryErrorCode& OutErrorCode);
@@ -137,10 +137,10 @@ void SetMaxWeight(float NewMaxWeight);
 #### Queries
 
 ```cpp
-bool GetItemInstanceAtSlot(int32 SlotIndex, FSuspenseInventoryItemInstance& OutInstance) const;
-TArray<FSuspenseInventoryItemInstance> GetAllItemInstances() const;
+bool GetItemInstanceAtSlot(int32 SlotIndex, FSuspenseCoreInventoryItemInstance& OutInstance) const;
+TArray<FSuspenseCoreInventoryItemInstance> GetAllItemInstances() const;
 int32 GetItemCountByID(const FName& ItemID) const;
-TArray<FSuspenseInventoryItemInstance> FindItemInstancesByType(const FGameplayTag& ItemType) const;
+TArray<FSuspenseCoreInventoryItemInstance> FindItemInstancesByType(const FGameplayTag& ItemType) const;
 int32 GetTotalItemCount() const;
 bool HasItem(const FName& ItemID, int32 Amount = 1) const;
 ```
@@ -197,11 +197,11 @@ int32 GetFreeCellCount() const;
 #### Item Instance Operations
 
 ```cpp
-bool AddItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, bool bAllowRotation = true);
+bool AddItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bAllowRotation = true);
 bool RemoveItemInstance(const FGuid& InstanceID);
-bool GetItemInstance(const FGuid& InstanceID, FSuspenseInventoryItemInstance& OutInstance) const;
-TArray<FSuspenseInventoryItemInstance> GetAllItemInstances() const;
-bool UpdateItemInstance(const FSuspenseInventoryItemInstance& UpdatedInstance);
+bool GetItemInstance(const FGuid& InstanceID, FSuspenseCoreInventoryItemInstance& OutInstance) const;
+TArray<FSuspenseCoreInventoryItemInstance> GetAllItemInstances() const;
+bool UpdateItemInstance(const FSuspenseCoreInventoryItemInstance& UpdatedInstance);
 ```
 
 #### Placement
@@ -209,7 +209,7 @@ bool UpdateItemInstance(const FSuspenseInventoryItemInstance& UpdatedInstance);
 ```cpp
 int32 FindFreeSpace(const FName& ItemID, bool bAllowRotation = true, bool bOptimizeFragmentation = true) const;
 bool AreCellsFreeForItem(int32 StartIndex, const FName& ItemID, bool bIsRotated = false) const;
-bool PlaceItemInstance(const FSuspenseInventoryItemInstance& ItemInstance, int32 AnchorIndex);
+bool PlaceItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 AnchorIndex);
 bool MoveItem(const FGuid& InstanceID, int32 NewAnchorIndex, bool bAllowRotation = false);
 ```
 
@@ -229,7 +229,7 @@ FString GetStorageDebugInfo() const;
 TArray<FInventoryCell> Cells;
 
 // Runtime instances в storage
-TArray<FSuspenseInventoryItemInstance> StoredInstances;
+TArray<FSuspenseCoreInventoryItemInstance> StoredInstances;
 
 // Bitmap для быстрого поиска свободных ячеек
 TBitArray<> FreeCellsBitmap;
@@ -255,7 +255,7 @@ class INVENTORYSYSTEM_API USuspenseInventoryValidator : public UObject
 
 ```cpp
 void Initialize(float InMaxWeight, const FGameplayTagContainer& InAllowedTypes,
-    int32 InGridWidth, int32 InGridHeight, USuspenseItemManager* InItemManager = nullptr);
+    int32 InGridWidth, int32 InGridHeight, USuspenseCoreItemManager* InItemManager = nullptr);
 
 bool InitializeFromLoadout(const FName& LoadoutID, const FName& InventoryName, const UObject* WorldContext);
 ```
@@ -264,23 +264,23 @@ bool InitializeFromLoadout(const FName& LoadoutID, const FName& InventoryName, c
 
 ```cpp
 FSuspenseInventoryOperationResult ValidateUnifiedItemData(
-    const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 
 FSuspenseInventoryOperationResult ValidateUnifiedItemDataWithRestrictions(
-    const FSuspenseUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 Amount, const FName& FunctionName) const;
 ```
 
 #### Instance Validation
 
 ```cpp
 FSuspenseInventoryOperationResult ValidateItemInstance(
-    const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    const FSuspenseCoreInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 
-int32 ValidateItemInstances(const TArray<FSuspenseInventoryItemInstance>& ItemInstances,
-    const FName& FunctionName, TArray<FSuspenseInventoryItemInstance>& OutFailedInstances) const;
+int32 ValidateItemInstances(const TArray<FSuspenseCoreInventoryItemInstance>& ItemInstances,
+    const FName& FunctionName, TArray<FSuspenseCoreInventoryItemInstance>& OutFailedInstances) const;
 
 FSuspenseInventoryOperationResult ValidateRuntimeProperties(
-    const FSuspenseInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
+    const FSuspenseCoreInventoryItemInstance& ItemInstance, const FName& FunctionName) const;
 ```
 
 #### Spatial Validation
@@ -289,10 +289,10 @@ FSuspenseInventoryOperationResult ValidateRuntimeProperties(
 FSuspenseInventoryOperationResult ValidateSlotIndex(int32 SlotIndex, const FName& FunctionName) const;
 
 FSuspenseInventoryOperationResult ValidateGridBoundsForUnified(
-    const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated, const FName& FunctionName) const;
 
 FSuspenseInventoryOperationResult ValidateItemPlacement(
-    const FSuspenseUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated,
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 AnchorIndex, bool bIsRotated,
     const TArray<bool>& OccupiedSlots, const FName& FunctionName) const;
 ```
 
@@ -300,17 +300,17 @@ FSuspenseInventoryOperationResult ValidateItemPlacement(
 
 ```cpp
 FSuspenseInventoryOperationResult ValidateWeightForUnified(
-    const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 Amount, float CurrentWeight, const FName& FunctionName) const;
 
 bool WouldExceedWeightLimitUnified(
-    const FSuspenseUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const;
+    const FSuspenseCoreUnifiedItemData& ItemData, int32 Amount, float CurrentWeight) const;
 ```
 
 #### Type Checking
 
 ```cpp
 bool IsItemTypeAllowed(const FGameplayTag& ItemType) const;
-bool IsItemAllowedByAllCriteria(const FSuspenseUnifiedItemData& ItemData) const;
+bool IsItemAllowedByAllCriteria(const FSuspenseCoreUnifiedItemData& ItemData) const;
 ```
 
 ---
@@ -356,13 +356,13 @@ void BroadcastItemSplit(const FGuid& SourceInstanceID, const FGuid& NewInstanceI
 
 ## Ключевые типы данных
 
-### FSuspenseInventoryItemInstance
+### FSuspenseCoreInventoryItemInstance
 
 **Файл:** `BridgeSystem/Public/Types/Inventory/SuspenseInventoryTypes.h`
 
 ```cpp
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
 {
     FName ItemID;                           // ID для DataTable lookup
     FGuid InstanceID;                       // Уникальный runtime ID
@@ -561,7 +561,7 @@ Client                           Server
 
 ### 4. Отсутствие Item Pooling
 
-**Проблема:** FSuspenseInventoryItemInstance создаётся каждый раз заново.
+**Проблема:** FSuspenseCoreInventoryItemInstance создаётся каждый раз заново.
 
 **Последствия:**
 - Memory churn при частых операциях
@@ -571,7 +571,7 @@ Client                           Server
 - Рассмотреть object pool для часто создаваемых instances
 - Предаллоцировать массивы для известного количества слотов
 
-### 5. Coupling с USuspenseItemManager
+### 5. Coupling с USuspenseCoreItemManager
 
 **Проблема:** Validator и Storage требуют ItemManager для работы.
 

@@ -27,7 +27,7 @@ class USuspenseCoreAbilityProvider : public UInterface
  * Philosophy: Provides ability system integration.
  * Manages abilities, effects, and tags.
  *
- * This is the SuspenseCore version of ISuspenseAbilityProvider.
+ * This is the SuspenseCore version of ISuspenseCoreAbilityProvider.
  */
 class BRIDGESYSTEM_API ISuspenseCoreAbilityProvider
 {

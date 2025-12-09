@@ -584,7 +584,7 @@ if (Data.Version == 2)
 
 ### 3.4 Phase 3: Core Services Migration
 
-#### Step 3.1: Migrate UMedComItemManager → USuspenseItemManager
+#### Step 3.1: Migrate UMedComItemManager → USuspenseCoreItemManager
 
 **Time Estimate:** 6 hours
 
@@ -608,12 +608,12 @@ public:
 
 // NEW:
 UCLASS()
-class SUSPENSECORE_API USuspenseItemManager : public UGameInstanceSubsystem
+class SUSPENSECORE_API USuspenseCoreItemManager : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
 
 public:
-    USuspenseItemManager();
+    USuspenseCoreItemManager();
 
     // Methods... (same signatures)
 };
@@ -625,13 +625,13 @@ public:
 
 #include "ItemSystem/SuspenseItemManager.h"
 
-USuspenseItemManager::USuspenseItemManager()
+USuspenseCoreItemManager::USuspenseCoreItemManager()
 {
     // Implementation stays the same
 }
 
 // Update all method implementations
-bool USuspenseItemManager::GetUnifiedItemData(FName ItemID, FSuspenseItemData& OutData) const
+bool USuspenseCoreItemManager::GetUnifiedItemData(FName ItemID, FSuspenseItemData& OutData) const
 {
     // ...
 }
@@ -647,7 +647,7 @@ grep -r "GetGameInstance()->GetSubsystem<UMedComItemManager>" Source/
 UMedComItemManager* ItemMgr = GetWorld()->GetGameInstance()->GetSubsystem<UMedComItemManager>();
 
 // NEW:
-USuspenseItemManager* ItemMgr = GetWorld()->GetGameInstance()->GetSubsystem<USuspenseItemManager>();
+USuspenseCoreItemManager* ItemMgr = GetWorld()->GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
 ```
 
 4. **Update cached references:**
@@ -660,7 +660,7 @@ TWeakObjectPtr<UMedComItemManager> CachedItemManager;
 
 // NEW:
 UPROPERTY(Transient)
-TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 ```
 
 5. **Validation:**

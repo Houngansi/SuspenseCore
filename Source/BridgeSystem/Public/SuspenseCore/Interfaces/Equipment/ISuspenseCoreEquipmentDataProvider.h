@@ -10,7 +10,7 @@
 #include "ISuspenseCoreEquipmentDataProvider.generated.h"
 
 // Delegates for data change notifications
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSuspenseCoreSlotDataChanged, int32 /*SlotIndex*/, const FSuspenseInventoryItemInstance& /*NewData*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSuspenseCoreSlotDataChanged, int32 /*SlotIndex*/, const FSuspenseCoreInventoryItemInstance& /*NewData*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSuspenseCoreSlotConfigurationChanged, int32 /*SlotIndex*/);
 DECLARE_MULTICAST_DELEGATE(FOnSuspenseCoreDataStoreReset);
 
@@ -43,7 +43,7 @@ public:
     //========================================
 
     /** Get item in slot (or invalid instance) */
-    virtual FSuspenseInventoryItemInstance GetSlotItem(int32 SlotIndex) const = 0;
+    virtual FSuspenseCoreInventoryItemInstance GetSlotItem(int32 SlotIndex) const = 0;
 
     /** Get slot configuration */
     virtual FEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const = 0;
@@ -52,7 +52,7 @@ public:
     virtual TArray<FEquipmentSlotConfig> GetAllSlotConfigurations() const = 0;
 
     /** Get all equipped items: SlotIndex -> Instance */
-    virtual TMap<int32, FSuspenseInventoryItemInstance> GetAllEquippedItems() const = 0;
+    virtual TMap<int32, FSuspenseCoreInventoryItemInstance> GetAllEquippedItems() const = 0;
 
     /** Get slot count */
     virtual int32 GetSlotCount() const = 0;
@@ -68,10 +68,10 @@ public:
     //========================================
 
     /** Set item in slot */
-    virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) = 0;
+    virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) = 0;
 
     /** Clear slot and return removed item */
-    virtual FSuspenseInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) = 0;
+    virtual FSuspenseCoreInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) = 0;
 
     /** Initialize slot configurations */
     virtual bool InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations) = 0;
@@ -202,7 +202,7 @@ public:
                 continue;
             }
 
-            const FSuspenseInventoryItemInstance Item = GetSlotItem(i);
+            const FSuspenseCoreInventoryItemInstance Item = GetSlotItem(i);
             Total += Item.GetRuntimeProperty(TEXT("Weight"), 0.0f);
         }
 
@@ -213,7 +213,7 @@ public:
      * Check item requirements for slot.
      * Base implementation allows all - override for custom logic.
      */
-    virtual bool MeetsItemRequirements(const FSuspenseInventoryItemInstance& /*ItemInstance*/, int32 /*SlotIndex*/) const
+    virtual bool MeetsItemRequirements(const FSuspenseCoreInventoryItemInstance& /*ItemInstance*/, int32 /*SlotIndex*/) const
     {
         return true;
     }

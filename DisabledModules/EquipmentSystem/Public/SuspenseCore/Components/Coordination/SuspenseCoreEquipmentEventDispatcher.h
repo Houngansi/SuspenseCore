@@ -2,7 +2,7 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 //
 // Equipment Event Dispatcher - Migrated to SuspenseCore EventBus architecture.
-// Uses USuspenseCoreEventBus instead of legacy FSuspenseEquipmentEventBus.
+// Uses USuspenseCoreEventBus instead of legacy FSuspenseCoreEquipmentEventBus.
 
 #pragma once
 
@@ -66,7 +66,7 @@ struct FSuspenseCoreEventDispatcherStats
  * USuspenseCoreEquipmentEventDispatcher
  *
  * Equipment event dispatcher component using SuspenseCore EventBus architecture.
- * This is the NEW implementation - uses USuspenseCoreEventBus instead of FSuspenseEquipmentEventBus.
+ * This is the NEW implementation - uses USuspenseCoreEventBus instead of FSuspenseCoreEquipmentEventBus.
  *
  * Key features:
  * - Integrates with USuspenseCoreEventBus via ServiceProvider

@@ -125,13 +125,13 @@ public:
         const FPointerEvent& MouseEvent);
 
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
-    FSuspenseInventoryOperationResult ProcessDrop(
+    FSuspenseCoreInventoryOperationResult ProcessDrop(
         USuspenseDragDropOperation* DragOperation,
         const FVector2D& ScreenPosition,
         UWidget* TargetWidget = nullptr);
 
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
-    FSuspenseInventoryOperationResult ProcessDropRequest(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult ProcessDropRequest(const FDropRequest& Request);
 
     UFUNCTION(BlueprintCallable, Category = "DragDrop")
     FDropTargetInfo CalculateDropTarget(
@@ -198,11 +198,11 @@ protected:
         const FDragDropUIData& DragData,
         int32 TargetSlot) const;
 
-    FSuspenseInventoryOperationResult ExecuteDrop(const FDropRequest& Request);
-    FSuspenseInventoryOperationResult RouteDropOperation(const FDropRequest& Request);
-    FSuspenseInventoryOperationResult HandleInventoryToInventory(const FDropRequest& Request);
-    FSuspenseInventoryOperationResult HandleEquipmentToInventory(const FDropRequest& Request);
-    FSuspenseInventoryOperationResult HandleInventoryToEquipment(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult ExecuteDrop(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult RouteDropOperation(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult HandleInventoryToInventory(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult HandleEquipmentToInventory(const FDropRequest& Request);
+    FSuspenseCoreInventoryOperationResult HandleInventoryToEquipment(const FDropRequest& Request);
 
     FDropTargetInfo FindContainerAtPosition(const FVector2D& ScreenPosition) const;
     FDropTargetInfo FindContainerInLayout(USuspenseBaseLayoutWidget* LayoutWidget, const FVector2D& ScreenPosition) const;

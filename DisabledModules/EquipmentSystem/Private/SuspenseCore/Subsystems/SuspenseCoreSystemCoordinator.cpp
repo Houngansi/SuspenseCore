@@ -236,10 +236,10 @@ void USuspenseCoreSystemCoordinator::RebindAllWorldBindableServices(UWorld* ForW
         UObject* SvcObj = ServiceLocator->TryGetService(Tag);
         if (!SvcObj) { ++Skipped; continue; }
 
-        if (SvcObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass()))
+        if (SvcObj->GetClass()->ImplementsInterface(USuspenseCoreWorldBindable::StaticClass()))
         {
             // Pure C++ call (no UFUNCTION-Execute - we don't need BP reflection here)
-            if (ISuspenseWorldBindable* Iface = Cast<ISuspenseWorldBindable>(SvcObj))
+            if (ISuspenseCoreWorldBindable* Iface = Cast<ISuspenseCoreWorldBindable>(SvcObj))
             {
                 Iface->RebindWorld(ForWorld);
             }
@@ -373,7 +373,7 @@ void USuspenseCoreSystemCoordinator::DebugDumpServicesState()
         for (const FGameplayTag& Tag : AllServiceTags)
         {
             UObject* ServiceObj = ServiceLocator->GetService(Tag);
-            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseWorldBindable::StaticClass());
+            const bool bIsWorldBindable = ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseCoreWorldBindable::StaticClass());
             const bool bIsReady = ServiceLocator->IsServiceReady(Tag);
 
             UE_LOG(LogMedComCoordinatorSubsystem, Display, TEXT("  - %s (Ready=%s, WorldBindable=%s)"),

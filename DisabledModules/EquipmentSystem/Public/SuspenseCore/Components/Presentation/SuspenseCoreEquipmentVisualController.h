@@ -285,8 +285,8 @@ protected:
 	TMap<FString, FSuspenseCoreEquipmentVisualProfile> ProfileCache;
 
 	/** Кэши */
-	FSuspenseEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
-	FSuspenseEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
+	FSuspenseCoreEquipmentCacheManager<FName, UMaterialInstanceDynamic*> MaterialInstanceCache;
+	FSuspenseCoreEquipmentCacheManager<FName, UNiagaraSystem*> EffectSystemCache;
 
 	/** Подписки на EventBus (SuspenseCore architecture) */
 	UPROPERTY(Transient)

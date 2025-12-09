@@ -95,9 +95,9 @@ void USuspenseBaseContainerWidget::NativeConstruct()
     SetVisibility(ESlateVisibility::Visible);
 
     // Initialize widget through interface
-    if (GetClass()->ImplementsInterface(USuspenseUIWidget::StaticClass()))
+    if (GetClass()->ImplementsInterface(USuspenseCoreUIWidget::StaticClass()))
     {
-        ISuspenseUIWidget::Execute_InitializeWidget(this);
+        ISuspenseCoreUIWidget::Execute_InitializeWidget(this);
     }
 }
 
@@ -116,7 +116,7 @@ void USuspenseBaseContainerWidget::NativeDestruct()
     SlotPool.Clear();
 
     // Uninitialize through interface
-    ISuspenseUIWidget::Execute_UninitializeWidget(this);
+    ISuspenseCoreUIWidget::Execute_UninitializeWidget(this);
 
     Super::NativeDestruct();
 }
@@ -198,7 +198,7 @@ USuspenseCoreEventManager* USuspenseBaseContainerWidget::GetDelegateManager() co
        return CachedDelegateManager;
    }
 
-   return ISuspenseUIWidget::GetDelegateManagerStatic(this);
+   return ISuspenseCoreUIWidget::GetDelegateManagerStatic(this);
 }
 
 void USuspenseBaseContainerWidget::InitializeContainer_Implementation(const FContainerUIData& ContainerData)
@@ -265,7 +265,7 @@ void USuspenseBaseContainerWidget::RequestDataRefresh_Implementation()
 {
    if (CachedDelegateManager)
    {
-       ISuspenseContainerUI::BroadcastContainerUpdateRequest(this, ContainerType);
+       ISuspenseCoreContainerUI::BroadcastContainerUpdateRequest(this, ContainerType);
    }
 }
 
@@ -279,9 +279,9 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
        {
            if (USuspenseBaseSlotWidget* PrevSlot = GetSlotWidget(SelectedSlotIndex))
            {
-               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
                {
-                   ISuspenseSlotUI::Execute_SetSelected(PrevSlot, false);
+                   ISuspenseCoreSlotUI::Execute_SetSelected(PrevSlot, false);
                }
            }
        }
@@ -290,9 +290,9 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
        SelectedSlotIndex = SlotIndex;
        if (USuspenseBaseSlotWidget* NewSlot = GetSlotWidget(SlotIndex))
        {
-           if (NewSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+           if (NewSlot->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
            {
-               ISuspenseSlotUI::Execute_SetSelected(NewSlot, true);
+               ISuspenseCoreSlotUI::Execute_SetSelected(NewSlot, true);
            }
        }
    }
@@ -308,13 +308,13 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
 void USuspenseBaseContainerWidget::OnSlotDoubleClicked_Implementation(int32 SlotIndex, const FGuid& ItemInstanceID)
 {
    FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.DoubleClick"));
-   ISuspenseContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
+   ISuspenseCoreContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
 }
 
 void USuspenseBaseContainerWidget::OnSlotRightClicked_Implementation(int32 SlotIndex, const FGuid& ItemInstanceID)
 {
    FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.RightClick"));
-   ISuspenseContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
+   ISuspenseCoreContainerUI::BroadcastSlotInteraction(this, SlotIndex, InteractionType);
 }
 
 FSlotValidationResult USuspenseBaseContainerWidget::CanAcceptDrop_Implementation(
@@ -352,7 +352,7 @@ void USuspenseBaseContainerWidget::HandleItemDropped_Implementation(
    if (CachedDelegateManager)
    {
        FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.Drop"));
-       ISuspenseContainerUI::BroadcastSlotInteraction(this, TargetSlotIndex, InteractionType);
+       ISuspenseCoreContainerUI::BroadcastSlotInteraction(this, TargetSlotIndex, InteractionType);
    }
 }
 
@@ -389,9 +389,9 @@ bool USuspenseBaseContainerWidget::ProcessDragOverSlot(
 
     // Get target slot
     int32 TargetSlot = INDEX_NONE;
-    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+    if (SlotWidget->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
     {
-        TargetSlot = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
+        TargetSlot = ISuspenseCoreSlotUI::Execute_GetSlotIndex(SlotWidget);
     }
 
     if (TargetSlot == INDEX_NONE)
@@ -490,9 +490,9 @@ void USuspenseBaseContainerWidget::OnSlotSelectionChanged(int32 SlotIndex, bool 
        {
            if (USuspenseBaseSlotWidget* PrevSlot = GetSlotWidget(SelectedSlotIndex))
            {
-               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+               if (PrevSlot->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
                {
-                   ISuspenseSlotUI::Execute_SetSelected(PrevSlot, false);
+                   ISuspenseCoreSlotUI::Execute_SetSelected(PrevSlot, false);
                }
            }
        }
@@ -533,9 +533,9 @@ FSmartDropZone USuspenseBaseContainerWidget::FindBestDropZone(
    // Simple implementation - just find slot at position
    if (USuspenseBaseSlotWidget* SlotWidget = GetSlotAtScreenPosition(ScreenPosition))
    {
-       if (SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+       if (SlotWidget->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
        {
-           Result.SlotIndex = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
+           Result.SlotIndex = ISuspenseCoreSlotUI::Execute_GetSlotIndex(SlotWidget);
            Result.bIsValid = true;
            Result.FeedbackPosition = SlotWidget->GetCachedGeometry().GetAbsolutePosition() +
                                     SlotWidget->GetCachedGeometry().GetLocalSize() * 0.5f;
@@ -572,7 +572,7 @@ void USuspenseBaseContainerWidget::CreateSlots()
 
        // Initialize slot
        FItemUIData EmptyItem;
-       ISuspenseSlotUI::Execute_InitializeSlot(SlotWidget, SlotData, EmptyItem);
+       ISuspenseCoreSlotUI::Execute_InitializeSlot(SlotWidget, SlotData, EmptyItem);
 
        // Add to panel
        Panel->AddChild(SlotWidget);
@@ -658,7 +658,7 @@ void USuspenseBaseContainerWidget::ProcessBatchedUpdates()
                SlotWidget->SetOwningContainer(this);
            }
 
-           ISuspenseSlotUI::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
+           ISuspenseCoreSlotUI::Execute_UpdateSlot(SlotWidget, SlotData, ItemData);
        }
    }
 

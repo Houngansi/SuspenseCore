@@ -43,7 +43,7 @@ struct FSuspenseCoreConflictResolution
 
     /** Items involved in conflict */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
-    TArray<FSuspenseInventoryItemInstance> ConflictingItems;
+    TArray<FSuspenseCoreInventoryItemInstance> ConflictingItems;
 
     /** Suggested resolution strategy */
     UPROPERTY(BlueprintReadOnly, Category = "Conflict")
@@ -102,7 +102,7 @@ struct FSuspenseCoreResolutionAction
 
 	/** Необязательный предмет, к которому относится действие (для Unequip/Set/и пр.) */
 	UPROPERTY(BlueprintReadOnly, Category="Resolution")
-	FSuspenseInventoryItemInstance ItemInstance;
+	FSuspenseCoreInventoryItemInstance ItemInstance;
 
 	/** Блокирующее ли действие (true = требуется UI/подтверждение) */
 	UPROPERTY(BlueprintReadOnly, Category="Resolution")
@@ -164,15 +164,15 @@ public:
      * @return Rule check result with conflict details
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FSuspenseRuleCheckResult CheckItemConflicts(
-        const FSuspenseInventoryItemInstance& NewItem,
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems) const;
+    FSuspenseCoreRuleCheckResult CheckItemConflicts(
+        const FSuspenseCoreInventoryItemInstance& NewItem,
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems) const;
 
     /**
      * Check for slot-specific conflicts - ОБНОВЛЕННАЯ СИГНАТУРА
      *
      * КРИТИЧЕСКИ ВАЖНОЕ ИЗМЕНЕНИЕ: теперь принимает реальные снапшоты слотов
-     * вместо самодельной карты TMap<int32, FSuspenseInventoryItemInstance>.
+     * вместо самодельной карты TMap<int32, FSuspenseCoreInventoryItemInstance>.
      *
      * Преимущества новой сигнатуры:
      * - Корректные индексы слотов (не позиции в массиве)
@@ -186,8 +186,8 @@ public:
      * @return Rule check result
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FSuspenseRuleCheckResult CheckSlotConflicts(
-        const FSuspenseInventoryItemInstance& NewItem,
+    FSuspenseCoreRuleCheckResult CheckSlotConflicts(
+        const FSuspenseCoreInventoryItemInstance& NewItem,
         int32 TargetSlot,
         const TArray<FEquipmentSlotSnapshot>& Slots) const;  // ИЗМЕНЕНО: новый тип параметра
 
@@ -202,8 +202,8 @@ public:
      * @return Aggregated conflict results (БЕЗ слотных проверок)
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FSuspenseAggregatedRuleResult EvaluateConflictRules(
-        const FSuspenseRuleContext& Context) const;
+    FSuspenseCoreAggregatedRuleResult EvaluateConflictRules(
+        const FSuspenseCoreRuleContext& Context) const;
 
     /**
      * Comprehensive conflict evaluation - НОВАЯ ВЕРСИЯ с корректными слотами
@@ -222,8 +222,8 @@ public:
      * @return Aggregated conflict results (включая корректные слотные проверки)
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FSuspenseAggregatedRuleResult EvaluateConflictRulesWithSlots(
-        const FSuspenseRuleContext& Context,
+    FSuspenseCoreAggregatedRuleResult EvaluateConflictRulesWithSlots(
+        const FSuspenseCoreRuleContext& Context,
         const TArray<FEquipmentSlotSnapshot>& Slots) const;  // НОВЫЙ МЕТОД
 
     //========================================
@@ -238,8 +238,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     TArray<FSuspenseCoreConflictResolution> FindAllConflicts(
-        const FSuspenseInventoryItemInstance& Item,
-        const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
+        const FSuspenseCoreInventoryItemInstance& Item,
+        const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
     /**
      * Predict conflicts for planned loadout
@@ -248,7 +248,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     TArray<FSuspenseCoreConflictResolution> PredictConflicts(
-        const TArray<FSuspenseInventoryItemInstance>& PlannedItems) const;
+        const TArray<FSuspenseCoreInventoryItemInstance>& PlannedItems) const;
 
     /**
      * Get conflict type between items
@@ -258,8 +258,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     ESuspenseCoreConflictType GetConflictType(
-        const FSuspenseInventoryItemInstance& Item1,
-        const FSuspenseInventoryItemInstance& Item2) const;
+        const FSuspenseCoreInventoryItemInstance& Item1,
+        const FSuspenseCoreInventoryItemInstance& Item2) const;
 
     //========================================
     // Compatibility Checks
@@ -273,8 +273,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     bool AreItemsCompatible(
-        const FSuspenseInventoryItemInstance& Item1,
-        const FSuspenseInventoryItemInstance& Item2) const;
+        const FSuspenseCoreInventoryItemInstance& Item1,
+        const FSuspenseCoreInventoryItemInstance& Item2) const;
 
     /**
      * Calculate compatibility score
@@ -284,8 +284,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     float CalculateCompatibilityScore(
-        const FSuspenseInventoryItemInstance& Item,
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems) const;
+        const FSuspenseCoreInventoryItemInstance& Item,
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems) const;
 
     /**
      * Check type exclusivity rules
@@ -294,7 +294,7 @@ public:
      * @return Rule check result
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
-    FSuspenseRuleCheckResult CheckTypeExclusivity(
+    FSuspenseCoreRuleCheckResult CheckTypeExclusivity(
         const FGameplayTag& NewItemType,
         const TArray<FGameplayTag>& ExistingTypes) const;
 
@@ -309,7 +309,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     TArray<FSuspenseCoreSetBonusInfo> DetectSetBonuses(
-        const TArray<FSuspenseInventoryItemInstance>& Items) const;
+        const TArray<FSuspenseCoreInventoryItemInstance>& Items) const;
 
     /**
      * Check if removing item breaks set bonus
@@ -319,8 +319,8 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     bool WouldBreakSetBonus(
-        const FSuspenseInventoryItemInstance& ItemToRemove,
-        const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
+        const FSuspenseCoreInventoryItemInstance& ItemToRemove,
+        const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
     /**
      * Get items needed to complete set
@@ -331,7 +331,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Conflict Rules")
     TArray<FName> GetMissingSetItems(
         const FGameplayTag& SetTag,
-        const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
+        const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
     //========================================
     // Conflict Resolution
@@ -443,22 +443,22 @@ protected:
      * @return True if companions present
      */
     bool CheckRequiredCompanions(
-        const FSuspenseInventoryItemInstance& Item,
-        const TArray<FSuspenseInventoryItemInstance>& CurrentItems) const;
+        const FSuspenseCoreInventoryItemInstance& Item,
+        const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const;
 
     /**
      * Get item type from unified data
      * @param Item Item instance
      * @return Item type tag
      */
-    FGameplayTag GetItemType(const FSuspenseInventoryItemInstance& Item) const;
+    FGameplayTag GetItemType(const FSuspenseCoreInventoryItemInstance& Item) const;
 
     /**
      * Get armor class from unified data
      * @param ItemData Item data
      * @return Armor class tag
      */
-    FGameplayTag GetArmorClass(const FSuspenseUnifiedItemData& ItemData) const;
+    FGameplayTag GetArmorClass(const FSuspenseCoreUnifiedItemData& ItemData) const;
 
     /**
      * Get conflict type string representation
@@ -473,7 +473,7 @@ protected:
      * @param OutData Output data structure
      * @return True if data retrieved successfully
      */
-    bool GetItemData(FName ItemID, FSuspenseUnifiedItemData& OutData) const;
+    bool GetItemData(FName ItemID, FSuspenseCoreUnifiedItemData& OutData) const;
 
 private:
     /** Data provider interface - single source of truth */

@@ -157,7 +157,7 @@ void USuspenseCrosshairWidget::UpdateCrosshair_Implementation(float Spread, floa
     TargetSpreadRadius = FMath::Min(SpreadRadius, MaximumSpread);
 
     // Broadcast crosshair update through interface
-    ISuspenseCrosshairWidgetInterface::BroadcastCrosshairUpdated(this, Spread, Recoil);
+    ISuspenseCoreCrosshairWidgetInterface::BroadcastCrosshairUpdated(this, Spread, Recoil);
 }
 
 void USuspenseCrosshairWidget::SetCrosshairVisibility_Implementation(bool bVisible)
@@ -185,7 +185,7 @@ void USuspenseCrosshairWidget::SetCrosshairColor_Implementation(const FLinearCol
     UpdateCrosshairPositions(); // This also updates colors
 
     // Broadcast color change through interface
-    ISuspenseCrosshairWidgetInterface::BroadcastCrosshairColorChanged(this, NewColor);
+    ISuspenseCoreCrosshairWidgetInterface::BroadcastCrosshairColorChanged(this, NewColor);
 
     UE_LOG(LogTemp, Log, TEXT("[MedComCrosshairWidget] Color changed to R=%.2f, G=%.2f, B=%.2f, A=%.2f"),
         NewColor.R, NewColor.G, NewColor.B, NewColor.A);

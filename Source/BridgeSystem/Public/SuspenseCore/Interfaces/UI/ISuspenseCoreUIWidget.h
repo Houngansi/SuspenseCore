@@ -11,7 +11,7 @@
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseUIWidget : public UInterface
+class USuspenseCoreUIWidget : public UInterface
 {
     GENERATED_BODY()
 };
@@ -20,7 +20,7 @@ class USuspenseUIWidget : public UInterface
  * Base interface for all UI widgets in the game
  * Provides standardized lifecycle and event handling
  */
-class BRIDGESYSTEM_API ISuspenseUIWidget
+class BRIDGESYSTEM_API ISuspenseCoreUIWidget
 {
     GENERATED_BODY()
 

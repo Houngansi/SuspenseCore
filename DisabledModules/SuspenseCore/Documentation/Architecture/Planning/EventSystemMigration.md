@@ -101,7 +101,7 @@ IEquipmentDataService* Service = ServiceLocator->GetServiceAs<IEquipmentDataServ
 
 **Структура события:**
 ```cpp
-struct FSuspenseEquipmentEventData
+struct FSuspenseCoreEquipmentEventData
 {
     FGameplayTag EventType;           // Тег типа события
     TWeakObjectPtr<UObject> Source;   // Источник

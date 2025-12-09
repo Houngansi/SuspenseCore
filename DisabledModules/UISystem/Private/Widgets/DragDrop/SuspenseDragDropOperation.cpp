@@ -82,7 +82,7 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
     else if (Handler.IsValid())
     {
         // Delegate to handler
-        FSuspenseInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
+        FSuspenseCoreInventoryOperationResult Result = Handler->ProcessDrop(this, ScreenPos);
         bWasSuccessful = Result.IsSuccess();
     }
     else
@@ -93,9 +93,9 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
 
     // Notify source about completion
     if (SourceWidget.IsValid() &&
-        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
+        SourceWidget->GetClass()->ImplementsInterface(USuspenseCoreDraggable::StaticClass()))
     {
-        ISuspenseDraggable::Execute_OnDragEnded(SourceWidget.Get(), bWasSuccessful);
+        ISuspenseCoreDraggable::Execute_OnDragEnded(SourceWidget.Get(), bWasSuccessful);
     }
 
     Super::Drop_Implementation(PointerEvent);
@@ -124,9 +124,9 @@ void USuspenseDragDropOperation::DragCancelled_Implementation(const FPointerEven
 
     // Notify source
     if (SourceWidget.IsValid() &&
-        SourceWidget->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
+        SourceWidget->GetClass()->ImplementsInterface(USuspenseCoreDraggable::StaticClass()))
     {
-        ISuspenseDraggable::Execute_OnDragEnded(SourceWidget.Get(), false);
+        ISuspenseCoreDraggable::Execute_OnDragEnded(SourceWidget.Get(), false);
     }
 
     Super::DragCancelled_Implementation(PointerEvent);

@@ -13,7 +13,7 @@ class APawn;
 class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseController : public UInterface
+class USuspenseCoreController : public UInterface
 {
     GENERATED_BODY()
 };
@@ -22,7 +22,7 @@ class USuspenseController : public UInterface
  * Interface for controllers that manage characters and their weapons
  * Provides methods for communication between different systems and controller
  */
-class BRIDGESYSTEM_API ISuspenseController
+class BRIDGESYSTEM_API ISuspenseCoreController
 {
     GENERATED_BODY()
 

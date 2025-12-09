@@ -16,7 +16,7 @@ class UGameplayAbility;
 class UAttributeSet;
 class UAbilitySystemComponent;
 class USuspenseCoreEventManager;
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreUnifiedItemData;
 struct FWeaponFireParams;
 
 /**
@@ -105,7 +105,7 @@ struct BRIDGESYSTEM_API FWeaponStateFlags
 };
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseWeapon : public UInterface
+class USuspenseCoreWeapon : public UInterface
 {
     GENERATED_BODY()
 };
@@ -119,9 +119,9 @@ class USuspenseWeapon : public UInterface
  * - Weapon attributes (damage, fire rate, etc.)
  * - Accuracy and spread
  *
- * Weapons should implement both ISuspenseEquipment and ISuspenseWeapon
+ * Weapons should implement both ISuspenseEquipment and ISuspenseCoreWeapon
  */
-class BRIDGESYSTEM_API ISuspenseWeapon
+class BRIDGESYSTEM_API ISuspenseCoreWeapon
 {
     GENERATED_BODY()
 
@@ -136,7 +136,7 @@ public:
      * @return Initialization result with details
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Initialization")
-    FWeaponInitializationResult InitializeFromItemData(const FSuspenseInventoryItemInstance& ItemInstance);
+    FWeaponInitializationResult InitializeFromItemData(const FSuspenseCoreInventoryItemInstance& ItemInstance);
 
     /**
      * Get cached weapon data from DataTable
@@ -144,14 +144,14 @@ public:
      * @return True if data is available
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Data")
-    bool GetWeaponItemData(FSuspenseUnifiedItemData& OutData) const;
+    bool GetWeaponItemData(FSuspenseCoreUnifiedItemData& OutData) const;
 
     /**
      * Get current item instance
      * @return Current weapon item instance
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Data")
-    FSuspenseInventoryItemInstance GetItemInstance() const;
+    FSuspenseCoreInventoryItemInstance GetItemInstance() const;
 
     //==================================================================
     // Core Weapon Actions
@@ -294,14 +294,14 @@ public:
      * @return Ammo state structure
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Ammo")
-    FSuspenseInventoryAmmoState GetAmmoState() const;
+    FSuspenseCoreInventoryAmmoState GetAmmoState() const;
 
     /**
      * Set ammo state
      * @param NewState New ammo state
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Ammo")
-    void SetAmmoState(const FSuspenseInventoryAmmoState& NewState);
+    void SetAmmoState(const FSuspenseCoreInventoryAmmoState& NewState);
 
     /**
      * Check if can reload

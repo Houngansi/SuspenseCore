@@ -238,7 +238,7 @@ void USuspenseItemTooltipWidget::LoadFullItemData()
     }
     
     // Find row in DataTable using the item ID
-    FSuspenseUnifiedItemData* FoundData = ItemDataTable->FindRow<FSuspenseUnifiedItemData>(
+    FSuspenseCoreUnifiedItemData* FoundData = ItemDataTable->FindRow<FSuspenseCoreUnifiedItemData>(
         CurrentItemData.ItemID, 
         TEXT("LoadFullItemData")
     );

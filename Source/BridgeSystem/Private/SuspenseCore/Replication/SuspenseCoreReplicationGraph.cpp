@@ -421,7 +421,7 @@ void USuspenseCoreReplicationGraph::SetupSuspenseCoreClassRouting()
 		{
 			GlobalActorReplicationInfoMap.SetClassInfo(LegacyPickupClass, PickupInfo);
 			SpatializedClasses.Add(LegacyPickupClass);
-			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspensePickupItem (legacy)"));
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCorePickupItem (legacy)"));
 		}
 	}
 
@@ -438,7 +438,7 @@ void USuspenseCoreReplicationGraph::SetupSuspenseCoreClassRouting()
 		{
 			GlobalActorReplicationInfoMap.SetClassInfo(EquipmentClass, EquipmentInfo);
 			DormancyClasses.Add(EquipmentClass);
-			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseEquipmentActor (Dormancy)"));
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCoreEquipmentActor (Dormancy)"));
 		}
 
 		// SuspenseWeaponActor
@@ -446,7 +446,7 @@ void USuspenseCoreReplicationGraph::SetupSuspenseCoreClassRouting()
 		{
 			GlobalActorReplicationInfoMap.SetClassInfo(WeaponClass, EquipmentInfo);
 			DormancyClasses.Add(WeaponClass);
-			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseWeaponActor (Dormancy)"));
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCoreWeaponActor (Dormancy)"));
 		}
 	}
 
@@ -459,7 +459,7 @@ void USuspenseCoreReplicationGraph::SetupSuspenseCoreClassRouting()
 		if (UClass* InventoryClass = FindObject<UClass>(nullptr, TEXT("/Script/InventorySystem.SuspenseInventoryItem")))
 		{
 			OwnerOnlyClasses.Add(InventoryClass);
-			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseInventoryItem (OwnerOnly)"));
+			UE_LOG(LogSuspenseCoreReplicationGraph, Log, TEXT("  Registered ASuspenseCoreInventoryItem (OwnerOnly)"));
 		}
 	}
 

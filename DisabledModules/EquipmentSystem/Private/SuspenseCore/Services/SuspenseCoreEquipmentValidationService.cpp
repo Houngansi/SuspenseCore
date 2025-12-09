@@ -50,7 +50,7 @@ bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperat
                 return false; // Source slot empty
             }
 
-            const FSuspenseInventoryItemInstance RemovedItem = SlotItems[Operation.SourceSlotIndex];
+            const FSuspenseCoreInventoryItemInstance RemovedItem = SlotItems[Operation.SourceSlotIndex];
             SlotItems.Remove(Operation.SourceSlotIndex);
 
             int32& Qty = ItemQuantities.FindOrAdd(RemovedItem.ItemID);
@@ -76,7 +76,7 @@ bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperat
                 return false; // Target occupied
             }
 
-            const FSuspenseInventoryItemInstance MovedItem = SlotItems[Operation.SourceSlotIndex];
+            const FSuspenseCoreInventoryItemInstance MovedItem = SlotItems[Operation.SourceSlotIndex];
             SlotItems.Remove(Operation.SourceSlotIndex);
             SlotItems.Add(Operation.TargetSlotIndex, MovedItem);
             return true;
@@ -90,7 +90,7 @@ bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperat
                 return false; // Both must be occupied
             }
 
-            const FSuspenseInventoryItemInstance Temp = SlotItems[Operation.SourceSlotIndex];
+            const FSuspenseCoreInventoryItemInstance Temp = SlotItems[Operation.SourceSlotIndex];
             SlotItems[Operation.SourceSlotIndex] = SlotItems[Operation.TargetSlotIndex];
             SlotItems[Operation.TargetSlotIndex] = Temp;
             return true;
@@ -106,13 +106,13 @@ bool FSuspenseCoreShadowEquipmentSnapshot::IsSlotOccupied(int32 SlotIndex) const
     return SlotItems.Contains(SlotIndex);
 }
 
-FSuspenseInventoryItemInstance FSuspenseCoreShadowEquipmentSnapshot::GetItemAtSlot(int32 SlotIndex) const
+FSuspenseCoreInventoryItemInstance FSuspenseCoreShadowEquipmentSnapshot::GetItemAtSlot(int32 SlotIndex) const
 {
-    if (const FSuspenseInventoryItemInstance* Found = SlotItems.Find(SlotIndex))
+    if (const FSuspenseCoreInventoryItemInstance* Found = SlotItems.Find(SlotIndex))
     {
         return *Found;
     }
-    return FSuspenseInventoryItemInstance();
+    return FSuspenseCoreInventoryItemInstance();
 }
 
 //========================================
@@ -231,7 +231,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FSuspenseC
 
     if (ResultCache.IsValid())
     {
-        FSuspenseGlobalCacheRegistry::Get().RegisterCache<uint32, FSlotValidationResult>(
+        FSuspenseCoreGlobalCacheRegistry::Get().RegisterCache<uint32, FSlotValidationResult>(
             TEXT("EquipmentValidation.Results"),
             ResultCache.Get());
     }
@@ -284,7 +284,7 @@ bool USuspenseCoreEquipmentValidationService::ShutdownService(bool bForce)
     }
 
     // Unregister from cache registry
-    FSuspenseGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentValidation.Results"));
+    FSuspenseCoreGlobalCacheRegistry::Get().UnregisterCache(TEXT("EquipmentValidation.Results"));
 
     // Clear event subscriptions (SuspenseCore EventBus)
     if (EventBus)
@@ -1151,7 +1151,7 @@ FSuspenseCoreBatchValidationReport USuspenseCoreEquipmentValidationService::Proc
     FSuspenseCoreShadowEquipmentSnapshot ShadowSnapshot;
     if (DataProvider.GetInterface())
     {
-        const TMap<int32, FSuspenseInventoryItemInstance> CurrentEquipment = DataProvider->GetAllEquippedItems();
+        const TMap<int32, FSuspenseCoreInventoryItemInstance> CurrentEquipment = DataProvider->GetAllEquippedItems();
         ShadowSnapshot.SlotItems = CurrentEquipment;
 
         // Compute initial weight
@@ -1289,7 +1289,7 @@ FSlotValidationResult USuspenseCoreEquipmentValidationService::ValidateAgainstSh
     }
 
     // Build explicit rule context from snapshot
-    FSuspenseRuleContext Ctx;
+    FSuspenseCoreRuleContext Ctx;
     Ctx.Character        = Request.Instigator.Get();
     Ctx.ItemInstance     = Request.ItemInstance;
     Ctx.TargetSlotIndex  = Request.TargetSlotIndex;

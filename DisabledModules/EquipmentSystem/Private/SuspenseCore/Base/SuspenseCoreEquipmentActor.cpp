@@ -273,7 +273,7 @@ void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseC
         UE_LOG(LogTemp, Warning, TEXT("[%s] InitializeEquipmentComponents: ASC not set"), *GetName());
     }
 
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetUnifiedItemData(ItemData))
     {
         UE_LOG(LogTemp, Error, TEXT("[%s] SSOT not found for %s"), *GetName(), *ItemInstance.ItemID.ToString());
@@ -298,7 +298,7 @@ void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseC
     SetupEquipmentMesh(ItemData);
 }
 
-void ASuspenseCoreEquipmentActor::SetupEquipmentMesh(const FSuspenseUnifiedItemData& ItemData)
+void ASuspenseCoreEquipmentActor::SetupEquipmentMesh(const FSuspenseCoreUnifiedItemData& ItemData)
 {
     if (!MeshComponent) { return; }
     if (USkeletalMesh* SK = MeshComponent->GetSkeletalMeshAsset())
@@ -382,14 +382,14 @@ FText ASuspenseCoreEquipmentActor::GetSlotDisplayName_Implementation() const
 FName ASuspenseCoreEquipmentActor::GetAttachmentSocket_Implementation() const
 {
     if (!EquippedItemInstance.IsValid()) { return NAME_None; }
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     return GetUnifiedItemData(ItemData) ? ItemData.AttachmentSocket : NAME_None;
 }
 
 FTransform ASuspenseCoreEquipmentActor::GetAttachmentOffset_Implementation() const
 {
     if (!EquippedItemInstance.IsValid()) { return FTransform::Identity; }
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     return GetUnifiedItemData(ItemData) ? ItemData.AttachmentOffset : FTransform::Identity;
 }
 
@@ -397,9 +397,9 @@ bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSus
 {
     if (!ItemInstance.IsValid()) { return false; }
 
-    if (const USuspenseItemManager* IM = GetItemManager())
+    if (const USuspenseCoreItemManager* IM = GetItemManager())
     {
-        FSuspenseUnifiedItemData Data;
+        FSuspenseCoreUnifiedItemData Data;
         if (!IM->GetUnifiedItemData(ItemInstance.ItemID, Data)) { return false; }
         if (!Data.bIsEquippable) { return false; }
         if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
@@ -428,7 +428,7 @@ bool ASuspenseCoreEquipmentActor::ValidateEquipmentRequirements_Implementation(T
         return true;
     }
 
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     if (!GetUnifiedItemData(Data))
     {
         OutErrors.Add(TEXT("Failed to load SSOT row"));
@@ -447,9 +447,9 @@ bool ASuspenseCoreEquipmentActor::ValidateEquipmentRequirements_Implementation(T
 // Interface: operations
 // ==============================
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseInventoryItemInstance& ItemInstance, bool bForceEquip)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!ItemInstance.IsValid())
     {
@@ -467,7 +467,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance
 
     if (EquippedItemInstance.IsValid())
     {
-        FSuspenseInventoryItemInstance Tmp;
+        FSuspenseCoreInventoryItemInstance Tmp;
         UnequipItem_Implementation(Tmp);
     }
 
@@ -479,9 +479,9 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::EquipItemInstance
     return R;
 }
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseInventoryItemInstance& OutUnequippedInstance)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!EquippedItemInstance.IsValid())
     {
@@ -499,9 +499,9 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::UnequipItem_Imple
     return R;
 }
 
-FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
+FSuspenseCoreInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment)
 {
-    FSuspenseInventoryOperationResult R;
+    FSuspenseCoreInventoryOperationResult R;
 
     if (!OtherEquipment)
     {
@@ -510,8 +510,8 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
         return R;
     }
 
-    const FSuspenseInventoryItemInstance ThisItem  = EquippedItemInstance;
-    const FSuspenseInventoryItemInstance OtherItem = ISuspenseEquipment::Execute_GetEquippedItemInstance(OtherEquipment.GetObject());
+    const FSuspenseCoreInventoryItemInstance ThisItem  = EquippedItemInstance;
+    const FSuspenseCoreInventoryItemInstance OtherItem = ISuspenseEquipment::Execute_GetEquippedItemInstance(OtherEquipment.GetObject());
 
     const bool bThisCanEquipOther  = !OtherItem.IsValid() || CanEquipItemInstance_Implementation(OtherItem);
     const bool bOtherCanEquipThis  = !ThisItem.IsValid() || ISuspenseEquipment::Execute_CanEquipItemInstance(OtherEquipment.GetObject(), ThisItem);
@@ -523,7 +523,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
         return R;
     }
 
-    FSuspenseInventoryItemInstance Tmp;
+    FSuspenseCoreInventoryItemInstance Tmp;
     if (ThisItem.IsValid())
     {
         UnequipItem_Implementation(Tmp);
@@ -531,7 +531,7 @@ FSuspenseInventoryOperationResult ASuspenseCoreEquipmentActor::SwapEquipmentWith
     }
     if (OtherItem.IsValid())
     {
-        FSuspenseInventoryItemInstance OtherUnequipped;
+        FSuspenseCoreInventoryItemInstance OtherUnequipped;
         ISuspenseEquipment::Execute_UnequipItem(OtherEquipment.GetObject(), OtherUnequipped);
         EquipItemInstance_Implementation(OtherUnequipped, false);
         R.AffectedItems.Add(OtherUnequipped);
@@ -565,7 +565,7 @@ TArray<TSubclassOf<UGameplayAbility>> ASuspenseCoreEquipmentActor::GetGrantedAbi
     TArray<TSubclassOf<UGameplayAbility>> Abilities;
     if (!EquippedItemInstance.IsValid()) { return Abilities; }
 
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     if (GetUnifiedItemData(Data))
     {
         for (const FGrantedAbilityData& GA : Data.GrantedAbilities)
@@ -581,7 +581,7 @@ TArray<TSubclassOf<UGameplayEffect>> ASuspenseCoreEquipmentActor::GetPassiveEffe
     TArray<TSubclassOf<UGameplayEffect>> Effects;
     if (!EquippedItemInstance.IsValid()) { return Effects; }
 
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     if (GetUnifiedItemData(Data))
     {
         Effects = Data.PassiveEffects;
@@ -678,14 +678,14 @@ float ASuspenseCoreEquipmentActor::GetEquipmentConditionPercent_Implementation()
 bool ASuspenseCoreEquipmentActor::IsWeaponEquipment_Implementation() const
 {
     if (!EquippedItemInstance.IsValid()) { return false; }
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     return GetUnifiedItemData(Data) ? Data.bIsWeapon : false;
 }
 
 FGameplayTag ASuspenseCoreEquipmentActor::GetWeaponArchetype_Implementation() const
 {
     if (!EquippedItemInstance.IsValid()) { return FGameplayTag(); }
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     return GetUnifiedItemData(Data) ? Data.WeaponArchetype : FGameplayTag();
 }
 
@@ -705,7 +705,7 @@ bool ASuspenseCoreEquipmentActor::InitializeFromItemInstance(const FSuspenseCore
 
     EquippedItemInstance = ItemInstance;
 
-    FSuspenseUnifiedItemData Data;
+    FSuspenseCoreUnifiedItemData Data;
     if (!GetUnifiedItemData(Data)) { return false; }
 
     EquipmentSlotTag = Data.EquipmentSlot;
@@ -733,9 +733,9 @@ void ASuspenseCoreEquipmentActor::OnRep_ItemData()
         EquippedItemInstance.SetRuntimeProperty(TEXT("Durability"), ReplicatedItemCondition);
     }
 
-    if (USuspenseItemManager* IM = GetItemManager())
+    if (USuspenseCoreItemManager* IM = GetItemManager())
     {
-        FSuspenseUnifiedItemData Data;
+        FSuspenseCoreUnifiedItemData Data;
         if (IM->GetUnifiedItemData(ReplicatedItemID, Data))
         {
             SetupEquipmentMesh(Data);
@@ -761,23 +761,23 @@ void ASuspenseCoreEquipmentActor::NotifyEquipmentStateChanged(const FGameplayTag
     ISuspenseEquipment::BroadcastEquipmentOperationEvent(this, EqTags().Event_PropertyChanged, Payload);
 }
 
-bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseUnifiedItemData& OutData) const
+bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseCoreUnifiedItemData& OutData) const
 {
     if (!EquippedItemInstance.IsValid()) { return false; }
-    if (USuspenseItemManager* IM = GetItemManager())
+    if (USuspenseCoreItemManager* IM = GetItemManager())
     {
         return IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData);
     }
     return false;
 }
 
-USuspenseItemManager* ASuspenseCoreEquipmentActor::GetItemManager() const
+USuspenseCoreItemManager* ASuspenseCoreEquipmentActor::GetItemManager() const
 {
     if (const UWorld* W = GetWorld())
     {
         if (UGameInstance* GI = W->GetGameInstance())
         {
-            return GI->GetSubsystem<USuspenseItemManager>();
+            return GI->GetSubsystem<USuspenseCoreItemManager>();
         }
     }
     return nullptr;

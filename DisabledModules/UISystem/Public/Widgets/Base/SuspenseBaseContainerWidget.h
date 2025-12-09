@@ -49,8 +49,8 @@ struct FSlotWidgetPool
  */
 UCLASS(Abstract)
 class UISYSTEM_API USuspenseBaseContainerWidget : public UUserWidget,
-    public ISuspenseContainerUI,
-    public ISuspenseUIWidget
+    public ISuspenseCoreContainerUI,
+    public ISuspenseCoreUIWidget
 {
     GENERATED_BODY()
 
@@ -180,7 +180,7 @@ protected:
 
 public:
     //========================================
-    // ISuspenseUIWidgetInterface
+    // ISuspenseCoreUIWidgetInterface
     //========================================
 
     virtual void InitializeWidget_Implementation() override;
@@ -192,7 +192,7 @@ public:
     virtual bool IsFullyInitialized() const { return bIsInitialized; }
 
     //========================================
-    // ISuspenseContainerUIInterface
+    // ISuspenseCoreContainerUIInterface
     //========================================
 
     virtual void InitializeContainer_Implementation(const FContainerUIData& ContainerData) override;

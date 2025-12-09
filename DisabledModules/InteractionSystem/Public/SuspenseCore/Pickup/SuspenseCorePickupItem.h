@@ -78,7 +78,7 @@ struct FSuspenseCorePresetProperty
  * - Runtime state stored as FSuspenseCoreItemInstance
  * - Preset properties applied to created item instance
  * - Uses TArray for replication instead of TMap
- * - NO dependency on legacy types (FSuspenseInventoryItemInstance)
+ * - NO dependency on legacy types (FSuspenseCoreInventoryItemInstance)
  */
 UCLASS(Blueprintable)
 class INTERACTIONSYSTEM_API ASuspenseCorePickupItem

@@ -91,7 +91,7 @@ const FLoadoutConfiguration* USuspenseCoreLoadoutManager::GetLoadoutConfig(const
     return CachedConfigurations.Find(LoadoutID);
 }
 
-const FSuspenseInventoryConfig* USuspenseCoreLoadoutManager::GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName) const
+const FSuspenseCoreInventoryConfig* USuspenseCoreLoadoutManager::GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName) const
 {
     const FLoadoutConfiguration* LoadoutConfig = GetLoadoutConfig(LoadoutID);
     if (!LoadoutConfig) return nullptr;
@@ -110,15 +110,15 @@ bool USuspenseCoreLoadoutManager::GetLoadoutConfigBP(const FName& LoadoutID, FLo
     return false;
 }
 
-bool USuspenseCoreLoadoutManager::GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseInventoryConfig& OutConfig) const
+bool USuspenseCoreLoadoutManager::GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseCoreInventoryConfig& OutConfig) const
 {
-    const FSuspenseInventoryConfig* ConfigPtr = GetInventoryConfig(LoadoutID, InventoryName);
+    const FSuspenseCoreInventoryConfig* ConfigPtr = GetInventoryConfig(LoadoutID, InventoryName);
     if (ConfigPtr)
     {
         OutConfig = *ConfigPtr;
         return true;
     }
-    OutConfig = FSuspenseInventoryConfig();
+    OutConfig = FSuspenseCoreInventoryConfig();
     return false;
 }
 
@@ -187,7 +187,7 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToInventory(UObject* InventoryObje
         return false;
     }
 
-    const FSuspenseInventoryConfig* Config = GetInventoryConfig(LoadoutID, InventoryName);
+    const FSuspenseCoreInventoryConfig* Config = GetInventoryConfig(LoadoutID, InventoryName);
     if (!Config)
     {
         UE_LOG(LogSuspenseCoreLoadout, Error, TEXT("ApplyLoadoutToInventory: Config not found for %s/%s"),
@@ -208,7 +208,7 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToInventory(UObject* InventoryObje
     int32 CreatedCount = 0;
     if (Config->StartingItems.Num() > 0)
     {
-        for (const FSuspensePickupSpawnData& SpawnData : Config->StartingItems)
+        for (const FSuspenseCorePickupSpawnData& SpawnData : Config->StartingItems)
         {
             if (InventoryInterface->AddItemByID(SpawnData.ItemID, SpawnData.Quantity))
             {
@@ -246,12 +246,12 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToEquipment(UObject* EquipmentObje
         {
             if (!EquipPair.Value.IsNone())
             {
-                FSuspenseInventoryItemInstance ItemInstance;
+                FSuspenseCoreInventoryItemInstance ItemInstance;
                 ItemInstance.ItemID = EquipPair.Value;
                 ItemInstance.InstanceID = FGuid::NewGuid();
                 ItemInstance.Quantity = 1;
 
-                FSuspenseInventoryOperationResult EquipResult = ISuspenseCoreEquipment::Execute_EquipItemInstance(
+                FSuspenseCoreInventoryOperationResult EquipResult = ISuspenseCoreEquipment::Execute_EquipItemInstance(
                     EquipmentObject, ItemInstance, true);
 
                 if (EquipResult.bSuccess) EquippedCount++;

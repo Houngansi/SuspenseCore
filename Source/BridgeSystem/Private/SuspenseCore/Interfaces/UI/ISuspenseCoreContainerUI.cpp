@@ -6,7 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h" 
 
-USuspenseCoreEventManager* ISuspenseContainerUI::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreContainerUI::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -28,7 +28,7 @@ USuspenseCoreEventManager* ISuspenseContainerUI::GetDelegateManagerStatic(const 
     return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseContainerUI::BroadcastContainerUpdateRequest(
+void ISuspenseCoreContainerUI::BroadcastContainerUpdateRequest(
     const UObject* Container,
     const FGameplayTag& ContainerType)
 {
@@ -51,7 +51,7 @@ void ISuspenseContainerUI::BroadcastContainerUpdateRequest(
     // }
 }
 
-void ISuspenseContainerUI::BroadcastSlotInteraction(
+void ISuspenseCoreContainerUI::BroadcastSlotInteraction(
     const UObject* Container,
     int32 SlotIndex,
     const FGameplayTag& InteractionType)

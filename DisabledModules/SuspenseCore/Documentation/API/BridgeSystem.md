@@ -171,7 +171,7 @@ bool RegisterServiceClassWithInjection(
 
 ---
 
-### 3. USuspenseItemManager
+### 3. USuspenseCoreItemManager
 
 **Файл:** `Public/ItemSystem/SuspenseItemManager.h`
 **Тип:** UGameInstanceSubsystem
@@ -179,7 +179,7 @@ bool RegisterServiceClassWithInjection(
 
 ```cpp
 UCLASS()
-class BRIDGESYSTEM_API USuspenseItemManager : public UGameInstanceSubsystem
+class BRIDGESYSTEM_API USuspenseCoreItemManager : public UGameInstanceSubsystem
 ```
 
 #### Архитектурные принципы
@@ -196,11 +196,11 @@ class BRIDGESYSTEM_API USuspenseItemManager : public UGameInstanceSubsystem
 bool LoadItemDataTable(UDataTable* ItemDataTable, bool bStrictValidation = false);
 
 // Получение данных предмета
-bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutItemData) const;
+bool GetUnifiedItemData(const FName& ItemID, FSuspenseCoreUnifiedItemData& OutItemData) const;
 
 // Создание экземпляра предмета
 bool CreateItemInstance(const FName& ItemID, int32 Quantity,
-                        FSuspenseInventoryItemInstance& OutInstance) const;
+                        FSuspenseCoreInventoryItemInstance& OutInstance) const;
 
 // Поиск по критериям
 TArray<FName> GetItemsByType(const FGameplayTag& ItemType) const;
@@ -212,7 +212,7 @@ TArray<FName> GetCompatibleAmmoForWeapon(const FName& WeaponItemID) const;
 
 ItemManager строит внутренний кеш для быстрого доступа:
 ```cpp
-TMap<FName, FSuspenseUnifiedItemData> UnifiedItemCache;
+TMap<FName, FSuspenseCoreUnifiedItemData> UnifiedItemCache;
 ```
 
 Статистика кеша доступна через `GetCacheStatistics()`.
@@ -271,7 +271,7 @@ virtual FGameplayTagContainer GetRequiredDependencies() const = 0;
 
 ### 5. Типы данных (Types)
 
-#### FSuspenseInventoryItemInstance
+#### FSuspenseCoreInventoryItemInstance
 
 **Файл:** `Public/Types/Inventory/SuspenseInventoryTypes.h`
 
@@ -279,7 +279,7 @@ virtual FGameplayTagContainer GetRequiredDependencies() const = 0;
 
 ```cpp
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
 {
     FName ItemID;                           // Связь с DataTable
     FGuid InstanceID;                       // Уникальный ID экземпляра
@@ -293,9 +293,9 @@ struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
 
 **Factory методы:**
 ```cpp
-static FSuspenseInventoryItemInstance Create();
-static FSuspenseInventoryItemInstance Create(const FName& InItemID, int32 InQuantity = 1);
-static FSuspenseInventoryItemInstance CreateWithID(const FName& InItemID, const FGuid& InInstanceID, int32 InQuantity = 1);
+static FSuspenseCoreInventoryItemInstance Create();
+static FSuspenseCoreInventoryItemInstance Create(const FName& InItemID, int32 InQuantity = 1);
+static FSuspenseCoreInventoryItemInstance CreateWithID(const FName& InItemID, const FGuid& InInstanceID, int32 InQuantity = 1);
 ```
 
 **Runtime Properties API:**
@@ -325,7 +325,7 @@ struct BRIDGESYSTEM_API FEquipmentOperationRequest
     FGuid OperationId;                              // Уникальный ID операции
     EEquipmentOperationType OperationType;          // Тип операции
     EEquipmentOperationPriority Priority;           // Приоритет
-    FSuspenseInventoryItemInstance ItemInstance;    // Предмет операции
+    FSuspenseCoreInventoryItemInstance ItemInstance;    // Предмет операции
     int32 SourceSlotIndex;                          // Исходный слот
     int32 TargetSlotIndex;                          // Целевой слот
     float Timestamp;                                // Время запроса
@@ -360,7 +360,7 @@ struct BRIDGESYSTEM_API FEquipmentOperationResult
     FGuid OperationId;
     FGuid TransactionId;
     TArray<int32> AffectedSlots;
-    TArray<FSuspenseInventoryItemInstance> AffectedItems;
+    TArray<FSuspenseCoreInventoryItemInstance> AffectedItems;
     TMap<FString, FString> ResultMetadata;
     float ExecutionTime;
     TArray<FText> Warnings;
@@ -428,11 +428,11 @@ if (Locator)
 ### Работа с предметами
 
 ```cpp
-USuspenseItemManager* ItemMgr = GetGameInstance()->GetSubsystem<USuspenseItemManager>();
+USuspenseCoreItemManager* ItemMgr = GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
 if (ItemMgr)
 {
     // Создание экземпляра предмета
-    FSuspenseInventoryItemInstance NewItem;
+    FSuspenseCoreInventoryItemInstance NewItem;
     if (ItemMgr->CreateItemInstance(TEXT("Weapon_Rifle"), 1, NewItem))
     {
         // Установка runtime свойств
@@ -504,7 +504,7 @@ if (ItemMgr)
 
 ### 5. Большой размер типов
 
-**Проблема:** FSuspenseInventoryItemInstance содержит TMap для RuntimeProperties.
+**Проблема:** FSuspenseCoreInventoryItemInstance содержит TMap для RuntimeProperties.
 
 **Последствия:**
 - Увеличенный overhead при репликации

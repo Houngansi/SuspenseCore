@@ -6,7 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 
-USuspenseCoreEventManager* ISuspenseUIWidget::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreUIWidget::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -28,7 +28,7 @@ USuspenseCoreEventManager* ISuspenseUIWidget::GetDelegateManagerStatic(const UOb
 	return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseUIWidget::BroadcastWidgetCreated(const UObject* Widget)
+void ISuspenseCoreUIWidget::BroadcastWidgetCreated(const UObject* Widget)
 {
 	if (!Widget)
 	{
@@ -46,7 +46,7 @@ void ISuspenseUIWidget::BroadcastWidgetCreated(const UObject* Widget)
 	}
 }
 
-void ISuspenseUIWidget::BroadcastWidgetDestroyed(const UObject* Widget)
+void ISuspenseCoreUIWidget::BroadcastWidgetDestroyed(const UObject* Widget)
 {
 	if (!Widget)
 	{
@@ -64,7 +64,7 @@ void ISuspenseUIWidget::BroadcastWidgetDestroyed(const UObject* Widget)
 	}
 }
 
-void ISuspenseUIWidget::BroadcastVisibilityChanged(const UObject* Widget, bool bIsVisible)
+void ISuspenseCoreUIWidget::BroadcastVisibilityChanged(const UObject* Widget, bool bIsVisible)
 {
 	if (!Widget)
 	{

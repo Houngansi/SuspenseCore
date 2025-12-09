@@ -25,7 +25,7 @@ void USuspenseBaseWidget::NativeConstruct()
     Execute_InitializeWidget(this);
 
     // Notify event system about widget creation
-    ISuspenseUIWidget::BroadcastWidgetCreated(this);
+    ISuspenseCoreUIWidget::BroadcastWidgetCreated(this);
 }
 
 void USuspenseBaseWidget::NativeDestruct()
@@ -34,7 +34,7 @@ void USuspenseBaseWidget::NativeDestruct()
     Execute_UninitializeWidget(this);
 
     // Notify event system about widget destruction
-    ISuspenseUIWidget::BroadcastWidgetDestroyed(this);
+    ISuspenseCoreUIWidget::BroadcastWidgetDestroyed(this);
 
     LogLifecycleEvent(TEXT("NativeDestruct"));
 
@@ -73,7 +73,7 @@ void USuspenseBaseWidget::SetVisibility(ESlateVisibility InVisibility)
     if (bWasVisible != bIsNowVisible)
     {
         Execute_OnVisibilityChanged(this, bIsNowVisible);
-        ISuspenseUIWidget::BroadcastVisibilityChanged(this, bIsNowVisible);
+        ISuspenseCoreUIWidget::BroadcastVisibilityChanged(this, bIsNowVisible);
     }
 }
 

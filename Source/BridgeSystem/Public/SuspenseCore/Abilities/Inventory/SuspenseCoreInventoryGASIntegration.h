@@ -20,7 +20,7 @@ class UAttributeSet;
  * Class for integrating inventory system with Gameplay Ability System
  */
 UCLASS(BlueprintType)
-class BRIDGESYSTEM_API USuspenseInventoryGASIntegration : public UObject
+class BRIDGESYSTEM_API USuspenseCoreInventoryGASIntegration : public UObject
 {
     GENERATED_BODY()
     

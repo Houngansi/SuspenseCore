@@ -38,7 +38,7 @@ EventBus->Subscribe(SUSPENSE_CORE_EVENT_INVENTORY_ITEM_ADDED, this, &MyClass::Ha
 ```cpp
 // Прямой доступ к подсистемам
 UGameInstance* GI = GetGameInstance();
-USuspenseItemManager* IM = GI->GetSubsystem<USuspenseItemManager>();
+USuspenseCoreItemManager* IM = GI->GetSubsystem<USuspenseCoreItemManager>();
 ```
 
 **Станет (SuspenseCore):**
@@ -156,7 +156,7 @@ BroadcastEquipmentEvent(
 **Пример миграции:**
 ```cpp
 // ДО
-USuspenseItemManager* IM = GetGameInstance()->GetSubsystem<USuspenseItemManager>();
+USuspenseCoreItemManager* IM = GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
 
 // ПОСЛЕ
 auto* Provider = USuspenseCoreServiceProvider::Get(this);

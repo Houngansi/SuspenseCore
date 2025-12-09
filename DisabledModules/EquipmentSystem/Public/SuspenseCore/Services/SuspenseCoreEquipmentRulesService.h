@@ -121,19 +121,19 @@ public:
     virtual FSuspenseCoreRuleResult EvaluateRules(const FEquipmentOperationRequest& Operation) const override;
     virtual FSuspenseCoreRuleResult EvaluateRulesWithContext(
         const FEquipmentOperationRequest& Operation,
-        const FSuspenseRuleContext& Context) const override;
+        const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
-        const FSuspenseInventoryItemInstance& ItemInstance,
+        const FSuspenseCoreInventoryItemInstance& ItemInstance,
         const FEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
-        const FSuspenseInventoryItemInstance& ItemInstance) const override;
+        const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
     virtual FSuspenseCoreRuleResult CheckWeightLimit(
         float CurrentWeight,
         float AdditionalWeight) const override;
     virtual FSuspenseCoreRuleResult CheckConflictingEquipment(
-        const TArray<FSuspenseInventoryItemInstance>& ExistingItems,
-        const FSuspenseInventoryItemInstance& NewItem) const override;
+        const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
+        const FSuspenseCoreInventoryItemInstance& NewItem) const override;
     virtual TArray<FSuspenseCoreEquipmentRule> GetActiveRules() const override;
     virtual bool RegisterRule(const FSuspenseCoreEquipmentRule& Rule) override;
     virtual bool UnregisterRule(const FGameplayTag& RuleTag) override;

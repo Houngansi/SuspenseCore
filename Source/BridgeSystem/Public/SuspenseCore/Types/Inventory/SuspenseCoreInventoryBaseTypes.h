@@ -8,7 +8,7 @@
 #include "SuspenseCoreInventoryBaseTypes.generated.h"
 
 // Forward declarations для структур из DataTable (единый источник истины)
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreUnifiedItemData;
 struct FMCPickupData;
 struct FMCEquipmentData;
 
@@ -43,7 +43,7 @@ enum class ESuspenseInventoryErrorCode : uint8
  * - Использует универсальную систему runtime свойств для расширяемости
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
 {
     GENERATED_BODY()
 
@@ -124,9 +124,9 @@ struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
      * Factory method для создания нового пустого экземпляра с генерацией InstanceID
      * Используется как замена конструктора по умолчанию
      */
-    static FSuspenseInventoryItemInstance Create()
+    static FSuspenseCoreInventoryItemInstance Create()
     {
-        FSuspenseInventoryItemInstance Instance;
+        FSuspenseCoreInventoryItemInstance Instance;
         Instance.ItemID = NAME_None;
         Instance.InstanceID = FGuid::NewGuid();
         Instance.Quantity = 1;
@@ -143,9 +143,9 @@ struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
      * @param InItemID ID предмета из DataTable
      * @param InQuantity Количество предметов в стеке (минимум 1)
      */
-    static FSuspenseInventoryItemInstance Create(const FName& InItemID, int32 InQuantity = 1)
+    static FSuspenseCoreInventoryItemInstance Create(const FName& InItemID, int32 InQuantity = 1)
     {
-        FSuspenseInventoryItemInstance Instance;
+        FSuspenseCoreInventoryItemInstance Instance;
         Instance.ItemID = InItemID;
         Instance.InstanceID = FGuid::NewGuid();
         Instance.Quantity = FMath::Max(1, InQuantity);
@@ -162,9 +162,9 @@ struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
      * @param InInstanceID Существующий GUID для восстановления состояния
      * @param InQuantity Количество предметов в стеке
      */
-    static FSuspenseInventoryItemInstance CreateWithID(const FName& InItemID, const FGuid& InInstanceID, int32 InQuantity = 1)
+    static FSuspenseCoreInventoryItemInstance CreateWithID(const FName& InItemID, const FGuid& InInstanceID, int32 InQuantity = 1)
     {
-        FSuspenseInventoryItemInstance Instance;
+        FSuspenseCoreInventoryItemInstance Instance;
         Instance.ItemID = InItemID;
         Instance.InstanceID = InInstanceID;
         Instance.Quantity = FMath::Max(1, InQuantity);
@@ -328,17 +328,17 @@ struct BRIDGESYSTEM_API FSuspenseInventoryItemInstance
     // Операторы для использования в контейнерах и сравнениях
     //==================================================================
 
-    bool operator==(const FSuspenseInventoryItemInstance& Other) const
+    bool operator==(const FSuspenseCoreInventoryItemInstance& Other) const
     {
         return InstanceID == Other.InstanceID;
     }
 
-    bool operator!=(const FSuspenseInventoryItemInstance& Other) const
+    bool operator!=(const FSuspenseCoreInventoryItemInstance& Other) const
     {
         return !(*this == Other);
     }
 
-    friend uint32 GetTypeHash(const FSuspenseInventoryItemInstance& Instance)
+    friend uint32 GetTypeHash(const FSuspenseCoreInventoryItemInstance& Instance)
     {
         return GetTypeHash(Instance.InstanceID);
     }
@@ -445,7 +445,7 @@ struct BRIDGESYSTEM_API FInventoryCell
  * Содержит минимальную информацию - основные данные берутся из DataTable
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspensePickupSpawnData
+struct BRIDGESYSTEM_API FSuspenseCorePickupSpawnData
 {
     GENERATED_BODY()
 
@@ -465,14 +465,14 @@ struct BRIDGESYSTEM_API FSuspensePickupSpawnData
     TMap<FName, float> PresetRuntimeProperties;
 
     /** Конструктор по умолчанию */
-    FSuspensePickupSpawnData() = default;
+    FSuspenseCorePickupSpawnData() = default;
 
     /**
      * Конструктор с базовыми параметрами
      * @param InItemID ID предмета из DataTable
      * @param InQuantity Количество предметов
      */
-    FSuspensePickupSpawnData(const FName& InItemID, int32 InQuantity = 1)
+    FSuspenseCorePickupSpawnData(const FName& InItemID, int32 InQuantity = 1)
         : ItemID(InItemID)
         , Quantity(FMath::Max(1, InQuantity))
     {
@@ -482,9 +482,9 @@ struct BRIDGESYSTEM_API FSuspensePickupSpawnData
      * Создать правильно инициализированный экземпляр инвентаря
      * @return Готовый к использованию экземпляр предмета
      */
-    FSuspenseInventoryItemInstance CreateInventoryInstance() const
+    FSuspenseCoreInventoryItemInstance CreateInventoryInstance() const
     {
-        FSuspenseInventoryItemInstance Instance = FSuspenseInventoryItemInstance::Create(ItemID, Quantity);
+        FSuspenseCoreInventoryItemInstance Instance = FSuspenseCoreInventoryItemInstance::Create(ItemID, Quantity);
 
         // Применяем предустановленные runtime свойства
         for (const auto& PropertyPair : PresetRuntimeProperties)
@@ -513,7 +513,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
 
     /** Runtime экземпляр экипированного предмета */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment")
-    FSuspenseInventoryItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
 
     /** Время когда предмет был экипирован (для кулдаунов смены) */
     UPROPERTY(BlueprintReadOnly, Category = "Equipment")
@@ -531,7 +531,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
      * @param InInstance Экземпляр предмета для экипировки
      * @param InEquipTime Время экипировки
      */
-    explicit FEquipmentSlotData(const FSuspenseInventoryItemInstance& InInstance, float InEquipTime = 0.0f)
+    explicit FEquipmentSlotData(const FSuspenseCoreInventoryItemInstance& InInstance, float InEquipTime = 0.0f)
         : ItemInstance(InInstance)
         , EquipTime(InEquipTime)
         , LastChangeTime(InEquipTime)
@@ -547,7 +547,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
     /** Очистить слот экипировки полностью */
     void Clear()
     {
-        ItemInstance = FSuspenseInventoryItemInstance::Create();
+        ItemInstance = FSuspenseCoreInventoryItemInstance::Create();
         EquipTime = 0.0f;
         LastChangeTime = 0.0f;
     }
@@ -573,7 +573,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
      * @param NewInstance Новый экземпляр для экипировки
      * @param CurrentTime Текущее время
      */
-    void EquipItem(const FSuspenseInventoryItemInstance& NewInstance, float CurrentTime)
+    void EquipItem(const FSuspenseCoreInventoryItemInstance& NewInstance, float CurrentTime)
     {
         ItemInstance = NewInstance;
         EquipTime = CurrentTime;

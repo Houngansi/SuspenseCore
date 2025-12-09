@@ -223,7 +223,7 @@ MedComShared (Wave 1)
 
 **Tasks:**
 - [ ] **Day 1-2: Item Manager**
-  - [ ] Migrate `UMedComItemManager` → `USuspenseItemManager`
+  - [ ] Migrate `UMedComItemManager` → `USuspenseCoreItemManager`
   - [ ] Update DataTable integration
   - [ ] Update cached item data system
   - [ ] Test item lookup performance

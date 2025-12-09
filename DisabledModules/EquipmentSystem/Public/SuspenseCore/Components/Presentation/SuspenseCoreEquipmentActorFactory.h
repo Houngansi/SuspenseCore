@@ -99,7 +99,7 @@ public:
     //~ Begin ISuspenseActorFactory Interface
     virtual FEquipmentActorSpawnResult SpawnEquipmentActor(const FEquipmentActorSpawnParams& Params) override;
     virtual bool DestroyEquipmentActor(AActor* Actor, bool bImmediate = false) override;
-    virtual bool ConfigureEquipmentActor(AActor* Actor, const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual bool ConfigureEquipmentActor(AActor* Actor, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual bool RecycleActor(AActor* Actor) override;
     virtual AActor* GetPooledActor(TSubclassOf<AActor> ActorClass) override;
     virtual bool PreloadActorClass(const FName& ItemId) override;
@@ -136,7 +136,7 @@ protected:
     TMap<int32, AActor*> SpawnedActorRegistry;
 
     /** Cache manager for actor classes */
-    FSuspenseEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
+    FSuspenseCoreEquipmentCacheManager<FName, TSubclassOf<AActor>> ActorClassCache;
 
     /** Streamable manager for async loading */
     FStreamableManager StreamableManager;

@@ -109,7 +109,7 @@ struct UISYSTEM_API FTooltipPool
  * - Integrates with existing event system
  */
 UCLASS(BlueprintType, Blueprintable, Config = Game)
-class UISYSTEM_API USuspenseTooltipManager : public UGameInstanceSubsystem
+class UISYSTEM_API USuspenseCoreTooltipManager : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
 

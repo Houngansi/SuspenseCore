@@ -114,12 +114,12 @@ USuspenseDragDropOperation* USuspenseDragDropHandler::StartDragOperation(
     }
 
     // Get drag data from slot
-    if (!SourceSlot->GetClass()->ImplementsInterface(USuspenseDraggable::StaticClass()))
+    if (!SourceSlot->GetClass()->ImplementsInterface(USuspenseCoreDraggable::StaticClass()))
     {
         return nullptr;
     }
 
-    FDragDropUIData DragData = ISuspenseDraggable::Execute_GetDragData(SourceSlot);
+    FDragDropUIData DragData = ISuspenseCoreDraggable::Execute_GetDragData(SourceSlot);
     if (!DragData.IsValidDragData())
     {
         return nullptr;
@@ -174,7 +174,7 @@ USuspenseDragDropOperation* USuspenseDragDropHandler::StartDragOperation(
     return DragOp;
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     USuspenseDragDropOperation* DragOperation,
     const FVector2D& ScreenPosition,
     UWidget* TargetWidget)
@@ -182,7 +182,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     // Validate operation
     if (!DragOperation || !DragOperation->IsValidOperation())
     {
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid drag operation")),
             TEXT("ProcessDrop"),
@@ -210,7 +210,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     {
         ClearAllVisualFeedback();
 
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidSlot,
             FText::FromString(TEXT("No valid drop target")),
             TEXT("ProcessDrop"),
@@ -227,7 +227,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     Request.ScreenPosition = ScreenPosition;
 
     // Process the drop
-    FSuspenseInventoryOperationResult Result = ProcessDropRequest(Request);
+    FSuspenseCoreInventoryOperationResult Result = ProcessDropRequest(Request);
 
     // Clear visual feedback
     ClearAllVisualFeedback();
@@ -245,12 +245,12 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDrop(
     return Result;
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDropRequest(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ProcessDropRequest(const FDropRequest& Request)
 {
     // Validate request
     if (!Request.DragData.IsValidDragData())
     {
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidItem,
             FText::FromString(TEXT("Invalid drag data")),
             TEXT("ProcessDropRequest"),
@@ -260,7 +260,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ProcessDropRequest(c
 
     if (Request.TargetSlot < 0)
     {
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::InvalidSlot,
             FText::FromString(TEXT("Invalid target slot")),
             TEXT("ProcessDropRequest"),
@@ -308,10 +308,10 @@ FDropTargetInfo USuspenseDragDropHandler::CalculateDropTarget(
     }
 
     // Get slot index
-    if (Result.SlotWidget->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+    if (Result.SlotWidget->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
     {
-        Result.SlotIndex = ISuspenseSlotUI::Execute_GetSlotIndex(Result.SlotWidget);
-        Result.ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Result.Container);
+        Result.SlotIndex = ISuspenseCoreSlotUI::Execute_GetSlotIndex(Result.SlotWidget);
+        Result.ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Result.Container);
     }
     else
     {
@@ -356,7 +356,7 @@ FDropTargetInfo USuspenseDragDropHandler::CalculateDropTarget(
         // Additional validation if needed
         if (bCanPlace && ActiveOperation.IsValid())
         {
-            FSlotValidationResult ValidationResult = ISuspenseContainerUI::Execute_CanAcceptDrop(
+            FSlotValidationResult ValidationResult = ISuspenseCoreContainerUI::Execute_CanAcceptDrop(
                 Result.Container,
                 ActiveOperation.Get(),
                 Result.SlotIndex
@@ -457,18 +457,18 @@ bool USuspenseDragDropHandler::ProcessContainerDrop(
     }
 
     // Get target slot index
-    int32 TargetSlot = ISuspenseSlotUI::Execute_GetSlotIndex(SlotWidget);
+    int32 TargetSlot = ISuspenseCoreSlotUI::Execute_GetSlotIndex(SlotWidget);
 
     // Create drop request
     FDropRequest Request;
     Request.DragData = DragOperation->GetDragData();
     Request.SourceContainer = Request.DragData.SourceContainerType;
-    Request.TargetContainer = ISuspenseContainerUI::Execute_GetContainerType(Container);
+    Request.TargetContainer = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
     Request.TargetSlot = TargetSlot;
     Request.ScreenPosition = ScreenPosition;
 
     // Process drop
-    FSuspenseInventoryOperationResult Result = ProcessDropRequest(Request);
+    FSuspenseCoreInventoryOperationResult Result = ProcessDropRequest(Request);
 
     return Result.IsSuccess();
 }
@@ -560,9 +560,9 @@ void USuspenseDragDropHandler::ProcessHighlightUpdate(USuspenseBaseContainerWidg
     {
         if (USuspenseBaseSlotWidget* Slot = Container->GetSlotWidget(SlotIdx))
         {
-            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+            if (Slot->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
             {
-                ISuspenseSlotUI::Execute_SetHighlighted(Slot, false, FLinearColor::White);
+                ISuspenseCoreSlotUI::Execute_SetHighlighted(Slot, false, FLinearColor::White);
             }
         }
     }
@@ -572,9 +572,9 @@ void USuspenseDragDropHandler::ProcessHighlightUpdate(USuspenseBaseContainerWidg
     {
         if (USuspenseBaseSlotWidget* Slot = Container->GetSlotWidget(SlotIdx))
         {
-            if (Slot->GetClass()->ImplementsInterface(USuspenseSlotUI::StaticClass()))
+            if (Slot->GetClass()->ImplementsInterface(USuspenseCoreSlotUI::StaticClass()))
             {
-                ISuspenseSlotUI::Execute_SetHighlighted(Slot, true, HighlightColor);
+                ISuspenseCoreSlotUI::Execute_SetHighlighted(Slot, true, HighlightColor);
 
                 UE_LOG(LogTemp, VeryVerbose, TEXT("[DragDropHandler] Highlighted slot %d with color (%.2f, %.2f, %.2f, %.2f)"),
                     SlotIdx,
@@ -609,7 +609,7 @@ void USuspenseDragDropHandler::ClearAllVisualFeedback()
         {
             if (USuspenseBaseSlotWidget* Slot = HighlightedContainer->GetSlotWidget(SlotIdx))
             {
-                ISuspenseSlotUI::Execute_SetHighlighted(Slot, false, FLinearColor::White);
+                ISuspenseCoreSlotUI::Execute_SetHighlighted(Slot, false, FLinearColor::White);
             }
         }
     }
@@ -644,7 +644,7 @@ FDropTargetInfo USuspenseDragDropHandler::FindContainerAtPosition(const FVector2
                 Container->GetCachedGeometry().IsUnderLocation(ScreenPosition))
             {
                 Result.Container = Container;
-                Result.ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+                Result.ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
                 Result.bIsValid = true;
                 return Result;
             }
@@ -713,7 +713,7 @@ FDropTargetInfo USuspenseDragDropHandler::FindContainerInLayout(
             if (ContainerGeometry.IsUnderLocation(ScreenPosition))
             {
                 Result.Container = Container;
-                Result.ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+                Result.ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
                 Result.bIsValid = true;
 
                 // Cache this container
@@ -735,7 +735,7 @@ FDropTargetInfo USuspenseDragDropHandler::FindContainerInLayout(
                 if (Container->IsVisible() && Container->GetCachedGeometry().IsUnderLocation(ScreenPosition))
                 {
                     Result.Container = Container;
-                    Result.ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+                    Result.ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
                     Result.bIsValid = true;
 
                     const_cast<USuspenseDragDropHandler*>(this)->CacheContainer(Container);
@@ -836,7 +836,7 @@ void USuspenseDragDropHandler::ForceUpdateAllContainers()
         {
             if (Container->IsVisible())
             {
-                FGameplayTag ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+                FGameplayTag ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
                 ContainerCache.Add(ContainerType, Container);
             }
         }
@@ -866,7 +866,7 @@ void USuspenseDragDropHandler::ForceUpdateAllContainers()
                 {
                     if (Container->IsVisible())
                     {
-                        FGameplayTag ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+                        FGameplayTag ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
                         ContainerCache.Add(ContainerType, Container);
                     }
                 }
@@ -913,7 +913,7 @@ FSlotValidationResult USuspenseDragDropHandler::ValidateDropPlacement(
     return FSlotValidationResult::Success();
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FDropRequest& Request)
 {
     // TODO: Migrate to EventBus - old delegate system removed
     // if (CachedEventManager)
@@ -936,10 +936,10 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FD
     //     }
     // }
 
-    return FSuspenseInventoryOperationResult::Success(TEXT("ExecuteDrop"));
+    return FSuspenseCoreInventoryOperationResult::Success(TEXT("ExecuteDrop"));
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
 {
     // Determine operation type
     bool bSourceIsInventory = Request.SourceContainer.MatchesTag(
@@ -971,7 +971,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(c
     }
     else
     {
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::UnknownError,
             FText::FromString(TEXT("Unsupported drop operation")),
             TEXT("RouteDropOperation"),
@@ -980,13 +980,13 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(c
     }
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInventory(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInventory(const FDropRequest& Request)
 {
     // Get inventory bridge
     TScriptInterface<ISuspenseInventoryUIBridgeInterface> Bridge = GetBridgeForContainer(Request.TargetContainer);
     if (!Bridge.GetInterface())
     {
-        return FSuspenseInventoryOperationResult::Failure(
+        return FSuspenseCoreInventoryOperationResult::Failure(
             ESuspenseInventoryErrorCode::NotInitialized,
             FText::FromString(TEXT("Inventory bridge not available")),
             TEXT("HandleInventoryToInventory"),
@@ -998,7 +998,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToInv
     return ExecuteDrop(Request);
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInventory(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInventory(const FDropRequest& Request)
 {
     // Create unequip request (matching EquipmentTypes.h)
     FEquipmentOperationRequest UnequipRequest;
@@ -1022,10 +1022,10 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInv
     // if (CachedEventManager)
     // {
     //     CachedEventManager->BroadcastEquipmentOperationRequest(UnequipRequest);
-    //     return FSuspenseInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
+    //     return FSuspenseCoreInventoryOperationResult::Success(TEXT("HandleEquipmentToInventory"));
     // }
 
-    return FSuspenseInventoryOperationResult::Failure(
+    return FSuspenseCoreInventoryOperationResult::Failure(
         ESuspenseInventoryErrorCode::UnknownError,
         FText::FromString(TEXT("Event manager not available")),
         TEXT("HandleEquipmentToInventory"),
@@ -1033,7 +1033,7 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleEquipmentToInv
     );
 }
 
-FSuspenseInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToEquipment(const FDropRequest& Request)
+FSuspenseCoreInventoryOperationResult USuspenseDragDropHandler::HandleInventoryToEquipment(const FDropRequest& Request)
 {
     // Execute through bridge/event system
     return ExecuteDrop(Request);
@@ -1083,7 +1083,7 @@ void USuspenseDragDropHandler::CacheContainer(USuspenseBaseContainerWidget* Cont
         return;
     }
 
-    FGameplayTag ContainerType = ISuspenseContainerUI::Execute_GetContainerType(Container);
+    FGameplayTag ContainerType = ISuspenseCoreContainerUI::Execute_GetContainerType(Container);
     ContainerCache.Add(ContainerType, Container);
 }
 

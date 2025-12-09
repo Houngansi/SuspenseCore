@@ -10,8 +10,8 @@
 #include "BridgeSystem.h"
 
 // Forward declarations to avoid circular dependencies
-struct FSuspenseInventoryItemInstance;
-struct FSuspenseUnifiedItemData;
+struct FSuspenseCoreInventoryItemInstance;
+struct FSuspenseCoreUnifiedItemData;
 
 /**
  * Utility namespace for inventory operations and DataTable integration
@@ -52,7 +52,7 @@ namespace InventoryUtils
     BRIDGESYSTEM_API bool GetUnifiedItemData(
         const UObject* WorldContextObject,
         const FName& ItemID,
-        FSuspenseUnifiedItemData& OutData);
+        FSuspenseCoreUnifiedItemData& OutData);
 
     /**
      * Create properly initialized item instance
@@ -71,7 +71,7 @@ namespace InventoryUtils
      * @param Quantity - Number of items in the stack (default: 1)
      * @return Fully initialized item instance with runtime properties
      */
-    BRIDGESYSTEM_API FSuspenseInventoryItemInstance CreateItemInstance(
+    BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance CreateItemInstance(
         const UObject* WorldContextObject,
         const FName& ItemID,
         int32 Quantity = 1);
@@ -114,7 +114,7 @@ namespace InventoryUtils
      */
     BRIDGESYSTEM_API bool CanPlaceItemAt(
         const UObject* WorldContextObject,
-        const FSuspenseInventoryItemInstance& Item,
+        const FSuspenseCoreInventoryItemInstance& Item,
         int32 AnchorIndex,
         int32 GridWidth,
         int32 GridHeight);
@@ -134,7 +134,7 @@ namespace InventoryUtils
      */
     BRIDGESYSTEM_API TArray<int32> GetOccupiedCellIndices(
         const UObject* WorldContextObject,
-        const FSuspenseInventoryItemInstance& Item,
+        const FSuspenseCoreInventoryItemInstance& Item,
         int32 GridWidth);
 
     /**
@@ -155,8 +155,8 @@ namespace InventoryUtils
      */
     BRIDGESYSTEM_API bool CanStackItems(
         const UObject* WorldContextObject,
-        const FSuspenseInventoryItemInstance& Item1,
-        const FSuspenseInventoryItemInstance& Item2);
+        const FSuspenseCoreInventoryItemInstance& Item1,
+        const FSuspenseCoreInventoryItemInstance& Item2);
 
     /**
      * Get maximum stack size for item from DataTable
@@ -195,7 +195,7 @@ namespace InventoryUtils
      */
     BRIDGESYSTEM_API float CalculateInstanceWeight(
         const UObject* WorldContextObject,
-        const FSuspenseInventoryItemInstance& Instance);
+        const FSuspenseCoreInventoryItemInstance& Instance);
 
     /**
      * Check if item is allowed in inventory based on type filters

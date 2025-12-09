@@ -10,7 +10,7 @@
 // Dedicated log category for ItemSystem access issues
 DEFINE_LOG_CATEGORY_STATIC(LogItemSystemAccess, Log, All);
 
-USuspenseItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldContextObject)
+USuspenseCoreItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldContextObject)
 {
     // Step 1: Validate input parameter
     if (!WorldContextObject)
@@ -54,7 +54,7 @@ USuspenseItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldCont
     }
     
     // Step 4: Get ItemManager subsystem from GameInstance
-    USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
+    USuspenseCoreItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
     if (!ItemManager)
     {
         UE_LOG(LogItemSystemAccess, Error, 
@@ -71,7 +71,7 @@ USuspenseItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldCont
         UE_LOG(LogItemSystemAccess, Error, 
             TEXT("    3. GameInstance class mismatch"));
         UE_LOG(LogItemSystemAccess, Error, 
-            TEXT("  Solution: Check that USuspenseItemManager is properly defined as GameInstanceSubsystem"));
+            TEXT("  Solution: Check that USuspenseCoreItemManager is properly defined as GameInstanceSubsystem"));
         return nullptr;
     }
     
@@ -83,7 +83,7 @@ USuspenseItemManager* FItemSystemAccess::GetItemManager(const UObject* WorldCont
     return ItemManager;
 }
 
-USuspenseItemManager* FItemSystemAccess::GetItemManagerWithDiagnostics(
+USuspenseCoreItemManager* FItemSystemAccess::GetItemManagerWithDiagnostics(
     const UObject* WorldContextObject,
     FString& OutDiagnostics)
 {
@@ -160,13 +160,13 @@ USuspenseItemManager* FItemSystemAccess::GetItemManagerWithDiagnostics(
     
     // Step 4: ItemManager subsystem retrieval  
     OutDiagnostics += TEXT("Step 4: ItemManager subsystem retrieval\n");
-    USuspenseItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseItemManager>();
+    USuspenseCoreItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
     if (!ItemManager)
     {
-        OutDiagnostics += TEXT("  FAILED: GetSubsystem<USuspenseItemManager>() returned nullptr\n");
+        OutDiagnostics += TEXT("  FAILED: GetSubsystem<USuspenseCoreItemManager>() returned nullptr\n");
         OutDiagnostics += TEXT("  CRITICAL FAILURE - Subsystem not registered!\n");
         OutDiagnostics += TEXT("  Check:\n");
-        OutDiagnostics += TEXT("    - USuspenseItemManager defined with UCLASS() macro\n");
+        OutDiagnostics += TEXT("    - USuspenseCoreItemManager defined with UCLASS() macro\n");
         OutDiagnostics += TEXT("    - Inherits from UGameInstanceSubsystem\n");
         OutDiagnostics += TEXT("    - Module properly linked in Build.cs\n");
         return nullptr;

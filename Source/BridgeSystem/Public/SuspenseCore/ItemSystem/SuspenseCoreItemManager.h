@@ -30,7 +30,7 @@
  * - Strict: Blocks initialization if critical items fail validation
  */
 UCLASS()
-class BRIDGESYSTEM_API USuspenseItemManager : public UGameInstanceSubsystem
+class BRIDGESYSTEM_API USuspenseCoreItemManager : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
     
@@ -50,7 +50,7 @@ public:
      * Load item data table and build cache (PRIMARY METHOD)
      * Should be called by GameInstance during initialization
      * 
-     * @param ItemDataTable DataTable with FSuspenseUnifiedItemData rows
+     * @param ItemDataTable DataTable with FSuspenseCoreUnifiedItemData rows
      * @param bStrictValidation If true, blocks on critical item validation failures
      * @return True if successfully loaded and validated
      */
@@ -64,7 +64,7 @@ public:
      * @return True if item found in cache
      */
     UFUNCTION(BlueprintCallable, Category = "Item Manager")
-    bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutItemData) const;
+    bool GetUnifiedItemData(const FName& ItemID, FSuspenseCoreUnifiedItemData& OutItemData) const;
     
     /**
      * Check if item exists in the data table
@@ -95,7 +95,7 @@ public:
      * @return True if instance created successfully
      */
     UFUNCTION(BlueprintCallable, Category = "Item Manager")
-    bool CreateItemInstance(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const;
+    bool CreateItemInstance(const FName& ItemID, int32 Quantity, FSuspenseCoreInventoryItemInstance& OutInstance) const;
     
     /**
      * Create multiple item instances from spawn data
@@ -106,7 +106,7 @@ public:
      * @return Number of successfully created instances
      */
     UFUNCTION(BlueprintCallable, Category = "Item Manager")
-    int32 CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray, TArray<FSuspenseInventoryItemInstance>& OutInstances) const;
+    int32 CreateItemInstancesFromSpawnData(const TArray<FSuspenseCorePickupSpawnData>& SpawnDataArray, TArray<FSuspenseCoreInventoryItemInstance>& OutInstances) const;
     
     //==================================================================
     // Query and filtering methods
@@ -236,25 +236,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Item Manager")
     int32 GetValidItemCount() const { return ValidItemCount; }
     
-    //==================================================================
-    // Legacy support methods (deprecated but maintained for compatibility)
-    //==================================================================
-    
-    /**
-     * DEPRECATED: Create legacy inventory item data
-     * 
-     * This method exists only for backwards compatibility during migration.
-     * New code should use CreateItemInstance() instead.
-     * 
-     * @param ItemID Item identifier
-     * @param Quantity Amount of items
-     * @param OutInstance Output item instance (replaces old inventory data)
-     * @return True if instance created successfully
-     */
-    UFUNCTION(BlueprintCallable, Category = "Item Manager|Legacy", 
-              meta = (DeprecatedFunction, DeprecationMessage = "Use CreateItemInstance instead. Legacy inventory data structures have been replaced with FSuspenseInventoryItemInstance."))
-    bool CreateInventoryItemData(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const;
-    
 private:
     //==================================================================
     // Internal data members
@@ -265,7 +246,7 @@ private:
     UDataTable* ItemTable;
     
     /** Fast access cache for item data */
-    TMap<FName, FSuspenseUnifiedItemData> UnifiedItemCache;
+    TMap<FName, FSuspenseCoreUnifiedItemData> UnifiedItemCache;
     
     /** Number of items that passed validation */
     int32 ValidItemCount;
@@ -310,7 +291,7 @@ private:
      * @param OutErrors Output array of validation errors
      * @return True if item passes validation
      */
-    bool ValidateItemInternal(const FName& ItemID, const FSuspenseUnifiedItemData& ItemData, TArray<FString>& OutErrors) const;
+    bool ValidateItemInternal(const FName& ItemID, const FSuspenseCoreUnifiedItemData& ItemData, TArray<FString>& OutErrors) const;
     
     /**
      * Log cache building statistics
@@ -328,7 +309,7 @@ private:
      * @param ItemID Item identifier
      * @return Pointer to cached item data or nullptr
      */
-    const FSuspenseUnifiedItemData* GetCachedItemData(const FName& ItemID) const;
+    const FSuspenseCoreUnifiedItemData* GetCachedItemData(const FName& ItemID) const;
 
  /**
      * Initialize runtime properties for item instance based on item type
@@ -337,5 +318,5 @@ private:
      * @param Instance Item instance to initialize (modified in place)
      * @param ItemData Static item data from DataTable
      */
- void InitializeItemRuntimeProperties(FSuspenseInventoryItemInstance& Instance, const FSuspenseUnifiedItemData& ItemData) const;
+ void InitializeItemRuntimeProperties(FSuspenseCoreInventoryItemInstance& Instance, const FSuspenseCoreUnifiedItemData& ItemData) const;
 };

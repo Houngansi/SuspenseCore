@@ -10,7 +10,7 @@
  * Структура для хранения состояния патронов в оружии
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
+struct BRIDGESYSTEM_API FSuspenseCoreInventoryAmmoState
 {
     GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
     /**
      * Конструктор по умолчанию
      */
-    FSuspenseInventoryAmmoState()
+    FSuspenseCoreInventoryAmmoState()
         : CurrentAmmo(0.0f)
         , RemainingAmmo(0.0f)
         , AmmoType(FGameplayTag::EmptyTag)
@@ -52,7 +52,7 @@ struct BRIDGESYSTEM_API FSuspenseInventoryAmmoState
     /**
      * Конструктор с параметрами
      */
-    FSuspenseInventoryAmmoState(float InCurrentAmmo, float InRemainingAmmo, const FGameplayTag& InAmmoType)
+    FSuspenseCoreInventoryAmmoState(float InCurrentAmmo, float InRemainingAmmo, const FGameplayTag& InAmmoType)
         : CurrentAmmo(InCurrentAmmo)
         , RemainingAmmo(InRemainingAmmo)
         , AmmoType(InAmmoType)

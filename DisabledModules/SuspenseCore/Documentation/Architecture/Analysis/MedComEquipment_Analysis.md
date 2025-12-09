@@ -982,7 +982,7 @@ WAVE 1: FOUNDATION (CRITICAL PATH)
 ├─ MedComEquipmentDataStore → USuspenseEquipmentDataStore
 ├─ MedComEquipmentTransactionProcessor → USuspenseEquipmentTransactionProcessor
 ├─ MedComEquipmentSlotValidator → USuspenseEquipmentSlotValidator
-└─ FEquipmentEventBus → FSuspenseEquipmentEventBus
+└─ FEquipmentEventBus → FSuspenseCoreEquipmentEventBus
 
 WAVE 2: CORE SERVICES
 ├─ UEquipmentDataServiceImpl → USuspenseEquipmentDataService

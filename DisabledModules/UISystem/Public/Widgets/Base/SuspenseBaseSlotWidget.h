@@ -30,10 +30,10 @@ class UTexture2D;
  */
 UCLASS(Abstract)
 class UISYSTEM_API USuspenseBaseSlotWidget : public UUserWidget,
-    public ISuspenseSlotUI,
-    public ISuspenseDraggable,
-    public ISuspenseDropTarget,
-    public ISuspenseTooltipSource
+    public ISuspenseCoreSlotUI,
+    public ISuspenseCoreDraggable,
+    public ISuspenseCoreDropTarget,
+    public ISuspenseCoreTooltipSource
 {
     GENERATED_BODY()
 
@@ -200,7 +200,7 @@ protected:
 
 public:
     //========================================
-    // ISuspenseSlotUIInterface
+    // ISuspenseCoreSlotUIInterface
     //========================================
 
     virtual void InitializeSlot_Implementation(const FSlotUIData& SlotData, const FItemUIData& ItemData) override;
@@ -214,7 +214,7 @@ public:
     virtual bool IsOccupied_Implementation() const override { return CurrentSlotData.bIsOccupied; }
 
     //========================================
-    // ISuspenseDraggableInterface
+    // ISuspenseCoreDraggableInterface
     //========================================
 
     virtual bool CanBeDragged_Implementation() const override;
@@ -224,7 +224,7 @@ public:
     virtual void UpdateDragVisual_Implementation(bool bIsValidTarget) override;
 
     //========================================
-    // ISuspenseDropTargetInterface
+    // ISuspenseCoreDropTargetInterface
     //========================================
 
     virtual FSlotValidationResult CanAcceptDrop_Implementation(const UDragDropOperation* DragOperation) const override;
@@ -234,7 +234,7 @@ public:
     virtual int32 GetDropTargetSlot_Implementation() const override { return CurrentSlotData.SlotIndex; }
 
     //========================================
-    // ISuspenseTooltipSourceInterface
+    // ISuspenseCoreTooltipSourceInterface
     //========================================
 
     virtual FItemUIData GetTooltipData_Implementation() const override;

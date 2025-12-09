@@ -86,7 +86,7 @@ struct FSuspenseTabConfig
  * Обеспечивает обратную совместимость с существующими конфигурациями
  */
 UCLASS()
-class UISYSTEM_API USuspenseUpperTabBar : public USuspenseBaseWidget, public ISuspenseTabBar
+class UISYSTEM_API USuspenseUpperTabBar : public USuspenseBaseWidget, public ISuspenseCoreTabBar
 {
     GENERATED_BODY()
 
@@ -94,7 +94,7 @@ public:
     USuspenseUpperTabBar(const FObjectInitializer& ObjectInitializer);
 
     //=============================================================================
-    // ISuspenseTabBarInterface Implementation
+    // ISuspenseCoreTabBarInterface Implementation
     //=============================================================================
 
     virtual int32 GetTabCount_Implementation() const override;
@@ -164,7 +164,7 @@ public:
     FSuspenseTabConfig GetTabConfig(int32 TabIndex) const;
 
     //=============================================================================
-    // ISuspenseUIWidgetInterface
+    // ISuspenseCoreUIWidgetInterface
     //=============================================================================
 
     virtual void NativePreConstruct() override;

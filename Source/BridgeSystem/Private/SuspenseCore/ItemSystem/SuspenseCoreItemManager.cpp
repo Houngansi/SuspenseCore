@@ -12,7 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreItemManager, Log, All);
 // Subsystem lifecycle implementation
 //==================================================================
 
-void USuspenseItemManager::Initialize(FSubsystemCollectionBase& Collection)
+void USuspenseCoreItemManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     
@@ -33,7 +33,7 @@ void USuspenseItemManager::Initialize(FSubsystemCollectionBase& Collection)
     UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("=== ItemManager: Subsystem initialization COMPLETE ==="));
 }
 
-void USuspenseItemManager::Deinitialize()
+void USuspenseCoreItemManager::Deinitialize()
 {
     UE_LOG(LogSuspenseCoreItemManager, Log, TEXT("ItemManager: Shutting down subsystem"));
     
@@ -53,7 +53,7 @@ void USuspenseItemManager::Deinitialize()
 // Core DataTable management implementation - PRIMARY API
 //==================================================================
 
-bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bStrictValidation)
+bool USuspenseCoreItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bStrictValidation)
 {
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: LoadItemDataTable START ==="));
     
@@ -66,12 +66,12 @@ bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bSt
     
     // Verify row structure matches our unified data format
     const UScriptStruct* RowStruct = ItemDataTable->GetRowStruct();
-    if (RowStruct != FSuspenseUnifiedItemData::StaticStruct())
+    if (RowStruct != FSuspenseCoreUnifiedItemData::StaticStruct())
     {
         UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("LoadItemDataTable: Invalid row structure"));
-        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Expected: %s"), *FSuspenseUnifiedItemData::StaticStruct()->GetName());
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Expected: %s"), *FSuspenseCoreUnifiedItemData::StaticStruct()->GetName());
         UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Got: %s"), RowStruct ? *RowStruct->GetName() : TEXT("nullptr"));
-        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Please ensure your DataTable uses FSuspenseUnifiedItemData row structure"));
+        UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("  Please ensure your DataTable uses FSuspenseCoreUnifiedItemData row structure"));
         return false;
     }
     
@@ -126,10 +126,10 @@ bool USuspenseItemManager::LoadItemDataTable(UDataTable* ItemDataTable, bool bSt
     return true;
 }
 
-bool USuspenseItemManager::GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutItemData) const
+bool USuspenseCoreItemManager::GetUnifiedItemData(const FName& ItemID, FSuspenseCoreUnifiedItemData& OutItemData) const
 {
     // Use helper method for cache statistics tracking
-    const FSuspenseUnifiedItemData* FoundItem = GetCachedItemData(ItemID);
+    const FSuspenseCoreUnifiedItemData* FoundItem = GetCachedItemData(ItemID);
     if (FoundItem)
     {
         OutItemData = *FoundItem;
@@ -149,12 +149,12 @@ bool USuspenseItemManager::GetUnifiedItemData(const FName& ItemID, FSuspenseUnif
     return false;
 }
 
-bool USuspenseItemManager::HasItem(const FName& ItemID) const
+bool USuspenseCoreItemManager::HasItem(const FName& ItemID) const
 {
     return UnifiedItemCache.Contains(ItemID);
 }
 
-TArray<FName> USuspenseItemManager::GetAllItemIDs() const
+TArray<FName> USuspenseCoreItemManager::GetAllItemIDs() const
 {
     TArray<FName> Result;
     UnifiedItemCache.GetKeys(Result);
@@ -165,7 +165,7 @@ TArray<FName> USuspenseItemManager::GetAllItemIDs() const
 // Item instance creation implementation
 //==================================================================
 
-bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const
+bool USuspenseCoreItemManager::CreateItemInstance(const FName& ItemID, int32 Quantity, FSuspenseCoreInventoryItemInstance& OutInstance) const
 {
     // Verify item exists in our cache
     if (!HasItem(ItemID))
@@ -181,7 +181,7 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     // Это устраняет циклическую зависимость и делает код более эффективным
     
     // Get item data directly from our cache
-    FSuspenseUnifiedItemData ItemData;
+    FSuspenseCoreUnifiedItemData ItemData;
     if (!GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogSuspenseCoreItemManager, Error, TEXT("CreateItemInstance: Failed to get item data for: %s"), 
@@ -190,7 +190,7 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     }
     
     // Create base instance with ID and quantity using factory method
-    OutInstance = FSuspenseInventoryItemInstance::Create(ItemID, Quantity);
+    OutInstance = FSuspenseCoreInventoryItemInstance::Create(ItemID, Quantity);
     
     // Initialize runtime properties based on item type
     // This logic mirrors what InventoryUtils does but without the circular dependency
@@ -209,14 +209,14 @@ bool USuspenseItemManager::CreateItemInstance(const FName& ItemID, int32 Quantit
     
     return true;
 }
-int32 USuspenseItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspensePickupSpawnData>& SpawnDataArray, TArray<FSuspenseInventoryItemInstance>& OutInstances) const
+int32 USuspenseCoreItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspenseCorePickupSpawnData>& SpawnDataArray, TArray<FSuspenseCoreInventoryItemInstance>& OutInstances) const
 {
     OutInstances.Empty();
     OutInstances.Reserve(SpawnDataArray.Num());
     
     int32 SuccessfulCreations = 0;
     
-    for (const FSuspensePickupSpawnData& SpawnData : SpawnDataArray)
+    for (const FSuspenseCorePickupSpawnData& SpawnData : SpawnDataArray)
     {
         if (!SpawnData.IsValid())
         {
@@ -225,7 +225,7 @@ int32 USuspenseItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspe
             continue;
         }
         
-        FSuspenseInventoryItemInstance NewInstance;
+        FSuspenseCoreInventoryItemInstance NewInstance;
         if (CreateItemInstance(SpawnData.ItemID, SpawnData.Quantity, NewInstance))
         {
             // Apply any preset runtime properties from spawn data
@@ -249,7 +249,7 @@ int32 USuspenseItemManager::CreateItemInstancesFromSpawnData(const TArray<FSuspe
 // Query and filtering methods implementation
 //==================================================================
 
-TArray<FName> USuspenseItemManager::GetItemsByType(const FGameplayTag& ItemType) const
+TArray<FName> USuspenseCoreItemManager::GetItemsByType(const FGameplayTag& ItemType) const
 {
     TArray<FName> Result;
     
@@ -269,7 +269,7 @@ TArray<FName> USuspenseItemManager::GetItemsByType(const FGameplayTag& ItemType)
     return Result;
 }
 
-TArray<FName> USuspenseItemManager::GetItemsByTags(const FGameplayTagContainer& Tags) const
+TArray<FName> USuspenseCoreItemManager::GetItemsByTags(const FGameplayTagContainer& Tags) const
 {
     TArray<FName> Result;
     
@@ -290,7 +290,7 @@ TArray<FName> USuspenseItemManager::GetItemsByTags(const FGameplayTagContainer& 
     return Result;
 }
 
-TArray<FName> USuspenseItemManager::GetItemsByRarity(const FGameplayTag& Rarity) const
+TArray<FName> USuspenseCoreItemManager::GetItemsByRarity(const FGameplayTag& Rarity) const
 {
     TArray<FName> Result;
     
@@ -305,13 +305,13 @@ TArray<FName> USuspenseItemManager::GetItemsByRarity(const FGameplayTag& Rarity)
     return Result;
 }
 
-TArray<FName> USuspenseItemManager::GetEquippableItemsForSlot(const FGameplayTag& SlotType) const
+TArray<FName> USuspenseCoreItemManager::GetEquippableItemsForSlot(const FGameplayTag& SlotType) const
 {
     TArray<FName> Result;
     
     for (const auto& Pair : UnifiedItemCache)
     {
-        const FSuspenseUnifiedItemData& ItemData = Pair.Value;
+        const FSuspenseCoreUnifiedItemData& ItemData = Pair.Value;
         if (ItemData.bIsEquippable && ItemData.EquipmentSlot.MatchesTagExact(SlotType))
         {
             Result.Add(Pair.Key);
@@ -321,13 +321,13 @@ TArray<FName> USuspenseItemManager::GetEquippableItemsForSlot(const FGameplayTag
     return Result;
 }
 
-TArray<FName> USuspenseItemManager::GetWeaponsByArchetype(const FGameplayTag& WeaponArchetype) const
+TArray<FName> USuspenseCoreItemManager::GetWeaponsByArchetype(const FGameplayTag& WeaponArchetype) const
 {
     TArray<FName> Result;
     
     for (const auto& Pair : UnifiedItemCache)
     {
-        const FSuspenseUnifiedItemData& ItemData = Pair.Value;
+        const FSuspenseCoreUnifiedItemData& ItemData = Pair.Value;
         if (ItemData.bIsWeapon && ItemData.WeaponArchetype.MatchesTag(WeaponArchetype))
         {
             Result.Add(Pair.Key);
@@ -337,12 +337,12 @@ TArray<FName> USuspenseItemManager::GetWeaponsByArchetype(const FGameplayTag& We
     return Result;
 }
 
-TArray<FName> USuspenseItemManager::GetCompatibleAmmoForWeapon(const FName& WeaponItemID) const
+TArray<FName> USuspenseCoreItemManager::GetCompatibleAmmoForWeapon(const FName& WeaponItemID) const
 {
     TArray<FName> Result;
     
     // First get the weapon data to find its ammo type
-    const FSuspenseUnifiedItemData* WeaponData = GetCachedItemData(WeaponItemID);
+    const FSuspenseCoreUnifiedItemData* WeaponData = GetCachedItemData(WeaponItemID);
     if (!WeaponData || !WeaponData->bIsWeapon)
     {
         UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("GetCompatibleAmmoForWeapon: Invalid weapon ID: %s"), 
@@ -353,7 +353,7 @@ TArray<FName> USuspenseItemManager::GetCompatibleAmmoForWeapon(const FName& Weap
     // Find ammo that matches the weapon's ammo type
     for (const auto& Pair : UnifiedItemCache)
     {
-        const FSuspenseUnifiedItemData& ItemData = Pair.Value;
+        const FSuspenseCoreUnifiedItemData& ItemData = Pair.Value;
         if (ItemData.bIsAmmo)
         {
             // Check if ammo caliber matches weapon's ammo type
@@ -376,7 +376,7 @@ TArray<FName> USuspenseItemManager::GetCompatibleAmmoForWeapon(const FName& Weap
 // Validation and debugging implementation
 //==================================================================
 
-int32 USuspenseItemManager::ValidateAllItems(TArray<FString>& OutErrorMessages) const
+int32 USuspenseCoreItemManager::ValidateAllItems(TArray<FString>& OutErrorMessages) const
 {
     OutErrorMessages.Empty();
     int32 TotalErrors = 0;
@@ -411,11 +411,11 @@ int32 USuspenseItemManager::ValidateAllItems(TArray<FString>& OutErrorMessages) 
     return TotalErrors;
 }
 
-bool USuspenseItemManager::ValidateItem(const FName& ItemID, TArray<FString>& OutErrorMessages) const
+bool USuspenseCoreItemManager::ValidateItem(const FName& ItemID, TArray<FString>& OutErrorMessages) const
 {
     OutErrorMessages.Empty();
     
-    const FSuspenseUnifiedItemData* ItemData = GetCachedItemData(ItemID);
+    const FSuspenseCoreUnifiedItemData* ItemData = GetCachedItemData(ItemID);
     if (!ItemData)
     {
         OutErrorMessages.Add(TEXT("Item not found in cache"));
@@ -425,7 +425,7 @@ bool USuspenseItemManager::ValidateItem(const FName& ItemID, TArray<FString>& Ou
     return ValidateItemInternal(ItemID, *ItemData, OutErrorMessages);
 }
 
-void USuspenseItemManager::GetCacheStatistics(FString& OutStats) const
+void USuspenseCoreItemManager::GetCacheStatistics(FString& OutStats) const
 {
     float HitRate = 0.0f;
     int32 TotalAccesses = CacheHits + CacheMisses;
@@ -458,7 +458,7 @@ void USuspenseItemManager::GetCacheStatistics(FString& OutStats) const
     OutStats = Stats;
 }
 
-bool USuspenseItemManager::RefreshCache()
+bool USuspenseCoreItemManager::RefreshCache()
 {
     if (!ItemTable)
     {
@@ -490,22 +490,10 @@ bool USuspenseItemManager::RefreshCache()
 }
 
 //==================================================================
-// Legacy support implementation
-//==================================================================
-
-bool USuspenseItemManager::CreateInventoryItemData(const FName& ItemID, int32 Quantity, FSuspenseInventoryItemInstance& OutInstance) const
-{
-    UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("CreateInventoryItemData: Using deprecated method. Please migrate to CreateItemInstance()."));
-    
-    // Forward to new method - this maintains compatibility while encouraging migration
-    return CreateItemInstance(ItemID, Quantity, OutInstance);
-}
-
-//==================================================================
 // Internal helper methods implementation
 //==================================================================
 
-bool USuspenseItemManager::TryLoadFallbackTable()
+bool USuspenseCoreItemManager::TryLoadFallbackTable()
 {
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=== ItemManager: TryLoadFallbackTable START ==="));
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("WARNING: ItemManager was not explicitly configured by GameInstance"));
@@ -544,7 +532,7 @@ bool USuspenseItemManager::TryLoadFallbackTable()
     return false;
 }
 
-bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
+bool USuspenseCoreItemManager::BuildItemCache(bool bStrictMode)
 {
     UnifiedItemCache.Empty();
     ValidItemCount = 0;
@@ -568,7 +556,7 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
     
     for (const FName& RowName : RowNames)
     {
-        FSuspenseUnifiedItemData* ItemData = ItemTable->FindRow<FSuspenseUnifiedItemData>(RowName, TEXT("ItemManager::BuildItemCache"));
+        FSuspenseCoreUnifiedItemData* ItemData = ItemTable->FindRow<FSuspenseCoreUnifiedItemData>(RowName, TEXT("ItemManager::BuildItemCache"));
         if (ItemData)
         {
             // Use row name as ItemID if not set
@@ -651,7 +639,7 @@ bool USuspenseItemManager::BuildItemCache(bool bStrictMode)
     return true;
 }
 
-bool USuspenseItemManager::ValidateItemInternal(const FName& ItemID, const FSuspenseUnifiedItemData& ItemData, TArray<FString>& OutErrors) const
+bool USuspenseCoreItemManager::ValidateItemInternal(const FName& ItemID, const FSuspenseCoreUnifiedItemData& ItemData, TArray<FString>& OutErrors) const
 {
     OutErrors.Empty();
     
@@ -667,7 +655,7 @@ bool USuspenseItemManager::ValidateItemInternal(const FName& ItemID, const FSusp
     return ValidationErrors.Num() == 0;
 }
 
-void USuspenseItemManager::LogCacheStatistics(int32 TotalItems, int32 WeaponItems, int32 ArmorItems, int32 ConsumableItems, int32 AmmoItems) const
+void USuspenseCoreItemManager::LogCacheStatistics(int32 TotalItems, int32 WeaponItems, int32 ArmorItems, int32 ConsumableItems, int32 AmmoItems) const
 {
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("====== ItemManager: Cache Statistics ======"));
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("  Configuration: %s"), 
@@ -683,9 +671,9 @@ void USuspenseItemManager::LogCacheStatistics(int32 TotalItems, int32 WeaponItem
     UE_LOG(LogSuspenseCoreItemManager, Warning, TEXT("=========================================="));
 }
 
-const FSuspenseUnifiedItemData* USuspenseItemManager::GetCachedItemData(const FName& ItemID) const
+const FSuspenseCoreUnifiedItemData* USuspenseCoreItemManager::GetCachedItemData(const FName& ItemID) const
 {
-    const FSuspenseUnifiedItemData* FoundItem = UnifiedItemCache.Find(ItemID);
+    const FSuspenseCoreUnifiedItemData* FoundItem = UnifiedItemCache.Find(ItemID);
     
     // Track cache statistics for performance monitoring
     if (FoundItem)
@@ -704,7 +692,7 @@ const FSuspenseUnifiedItemData* USuspenseItemManager::GetCachedItemData(const FN
 // Internal Item Instance Initialization
 //==================================================================
 
-void USuspenseItemManager::InitializeItemRuntimeProperties(FSuspenseInventoryItemInstance& Instance, const FSuspenseUnifiedItemData& ItemData) const
+void USuspenseCoreItemManager::InitializeItemRuntimeProperties(FSuspenseCoreInventoryItemInstance& Instance, const FSuspenseCoreUnifiedItemData& ItemData) const
 {
     // This method contains the SAME logic as InventoryUtils initialization functions
     // but is implemented directly in ItemManager to avoid circular dependencies

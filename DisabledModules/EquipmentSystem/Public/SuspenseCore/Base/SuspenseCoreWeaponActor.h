@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Weapon/ISuspenseWeapon.h"
-#include "Interfaces/Weapon/ISuspenseFireModeProvider.h"
+#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
 #include "Types/Weapon/SuspenseInventoryAmmoState.h"
 #include "Types/Loadout/SuspenseItemDataTable.h"
 #include "SuspenseCoreWeaponActor.generated.h"
@@ -27,8 +27,8 @@ class USuspenseCoreEquipmentMeshComponent;
  */
 UCLASS()
 class EQUIPMENTSYSTEM_API ASuspenseCoreWeaponActor : public ASuspenseCoreEquipmentActor,
-                                         public ISuspenseWeapon,
-                                         public ISuspenseFireModeProvider
+                                         public ISuspenseCoreWeapon,
+                                         public ISuspenseCoreFireModeProvider
 {
     GENERATED_BODY()
 
@@ -46,14 +46,14 @@ public:
     // ASuspenseCoreEquipmentActor overrides (S3/S4 pipeline)
     //================================================
     /** Weapon-specific init: extend base item-equip path with weapon setup */
-    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
+    virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     //================================================
-    // ISuspenseWeapon (facade -> components)
+    // ISuspenseCoreWeapon (facade -> components)
     //================================================
-    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseInventoryItemInstance& ItemInstance) override;
-    virtual bool GetWeaponItemData_Implementation(FSuspenseUnifiedItemData& OutData) const override;
-    virtual FSuspenseInventoryItemInstance GetItemInstance_Implementation() const override;
+    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual bool GetWeaponItemData_Implementation(FSuspenseCoreUnifiedItemData& OutData) const override;
+    virtual FSuspenseCoreInventoryItemInstance GetItemInstance_Implementation() const override;
 
     // Basic actions
     virtual bool Fire_Implementation(const FWeaponFireParams& Params) override;
@@ -90,8 +90,8 @@ public:
     virtual float GetCurrentAmmo_Implementation() const override;
     virtual float GetRemainingAmmo_Implementation() const override;
     virtual float GetMagazineSize_Implementation() const override;
-    virtual FSuspenseInventoryAmmoState GetAmmoState_Implementation() const override;
-    virtual void SetAmmoState_Implementation(const FSuspenseInventoryAmmoState& NewState) override;
+    virtual FSuspenseCoreInventoryAmmoState GetAmmoState_Implementation() const override;
+    virtual void SetAmmoState_Implementation(const FSuspenseCoreInventoryAmmoState& NewState) override;
     virtual bool CanReload_Implementation() const override;
     virtual bool IsMagazineFull_Implementation() const override;
 
@@ -101,9 +101,9 @@ public:
     virtual void SetWeaponState_Implementation(const FWeaponStateFlags& NewState, bool bEnabled) override;
 
     //================================================
-    // ISuspenseFireModeProvider (proxy to component)
+    // ISuspenseCoreFireModeProvider (proxy to component)
     //================================================
-    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseUnifiedItemData& WeaponData) override;
+    virtual bool InitializeFromWeaponData_Implementation(const FSuspenseCoreUnifiedItemData& WeaponData) override;
     virtual void ClearFireModes_Implementation() override;
     virtual bool CycleToNextFireMode_Implementation() override;
     virtual bool CycleToPreviousFireMode_Implementation() override;
@@ -143,14 +143,14 @@ public:
 
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
-    void SetupComponentsFromItemData(const FSuspenseUnifiedItemData& ItemData);
+    void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /** Read attribute with fallback default */
     float GetWeaponAttributeValue(const FName& AttributeName, float DefaultValue) const;
 
     /** Cached weapon data from SSOT */
     UPROPERTY(Transient)
-    FSuspenseUnifiedItemData CachedItemData;
+    FSuspenseCoreUnifiedItemData CachedItemData;
 
     /** Whether CachedItemData is valid */
     UPROPERTY(Transient)

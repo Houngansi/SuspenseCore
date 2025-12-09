@@ -48,7 +48,7 @@ struct FSuspenseCoreBufferedValidationEvent
  */
 struct FSuspenseCoreShadowEquipmentSnapshot
 {
-    TMap<int32, FSuspenseInventoryItemInstance> SlotItems;
+    TMap<int32, FSuspenseCoreInventoryItemInstance> SlotItems;
     TMap<FName, int32> ItemQuantities;
     float TotalWeight = 0.0f;
 
@@ -59,7 +59,7 @@ struct FSuspenseCoreShadowEquipmentSnapshot
     bool IsSlotOccupied(int32 SlotIndex) const;
 
     // Get item at slot
-    FSuspenseInventoryItemInstance GetItemAtSlot(int32 SlotIndex) const;
+    FSuspenseCoreInventoryItemInstance GetItemAtSlot(int32 SlotIndex) const;
 };
 
 /**
@@ -346,7 +346,7 @@ private:
     std::atomic<uint32> RulesEpoch{1};
 
     /** Result cache with versioning support */
-    TSharedPtr<FSuspenseEquipmentCacheManager<uint32, FSlotValidationResult>> ResultCache;
+    TSharedPtr<FSuspenseCoreEquipmentCacheManager<uint32, FSlotValidationResult>> ResultCache;
 
     //========================================
     // Event Management (SuspenseCore architecture)

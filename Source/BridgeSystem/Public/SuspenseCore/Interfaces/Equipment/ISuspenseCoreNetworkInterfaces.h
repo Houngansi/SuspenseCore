@@ -179,7 +179,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreReplicatedData
     GENERATED_BODY()
 
     UPROPERTY()
-    TArray<FSuspenseInventoryItemInstance> SlotInstances;
+    TArray<FSuspenseCoreInventoryItemInstance> SlotInstances;
 
     UPROPERTY()
     int32 ActiveWeaponSlot = INDEX_NONE;

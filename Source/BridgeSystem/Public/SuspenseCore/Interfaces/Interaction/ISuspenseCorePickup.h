@@ -35,7 +35,7 @@ class USuspenseCorePickup : public UInterface
  *
  * ARCHITECTURE PRINCIPLES:
  * - Single source of truth: ItemID references DataTable
- * - No legacy FSuspenseUnifiedItemData dependency in interface
+ * - No legacy FSuspenseCoreUnifiedItemData dependency in interface
  * - Runtime state (amount, ammo) managed separately
  * - Events broadcast through EventBus
  *
@@ -48,7 +48,7 @@ class USuspenseCorePickup : public UInterface
  * MIGRATION FROM LEGACY:
  * - Replace ISuspensePickup with ISuspenseCorePickup
  * - Remove GetUnifiedItemData() - use DataManager::GetItemData(ItemID)
- * - Use FSuspenseCoreItemInstance instead of FSuspenseInventoryItemInstance
+ * - Use FSuspenseCoreItemInstance instead of FSuspenseCoreInventoryItemInstance
  * - Use EventBus for pickup events
  *
  * @see ISuspensePickup (Legacy - DO NOT USE in new code)

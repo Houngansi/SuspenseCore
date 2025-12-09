@@ -23,7 +23,7 @@ class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreEquipmentTransactionProcessor;
 class USuspenseCoreEquipmentSlotValidator;
 struct FEquipmentDelta;
-class USuspenseItemManager;
+class USuspenseCoreItemManager;
 /** Delegate for equipment delta notifications from service */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceEquipmentDelta, const FEquipmentDelta&);
 
@@ -147,7 +147,7 @@ public:
      * @return Item instance (may be invalid if empty)
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    FSuspenseInventoryItemInstance GetSlotItemCached(int32 SlotIndex) const;
+    FSuspenseCoreInventoryItemInstance GetSlotItemCached(int32 SlotIndex) const;
 
     /**
      * Batch get multiple slot items with single lock acquisition
@@ -156,7 +156,7 @@ public:
      * @return Map of slot index to item instance
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    TMap<int32, FSuspenseInventoryItemInstance> BatchGetSlotItems(const TArray<int32>& SlotIndices) const;
+    TMap<int32, FSuspenseCoreInventoryItemInstance> BatchGetSlotItems(const TArray<int32>& SlotIndices) const;
 
     /**
      * Perform atomic swap of items between slots
@@ -173,7 +173,7 @@ public:
      * @return Transaction ID for tracking
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    FGuid BatchUpdateSlots(const TMap<int32, FSuspenseInventoryItemInstance>& Updates);
+    FGuid BatchUpdateSlots(const TMap<int32, FSuspenseCoreInventoryItemInstance>& Updates);
 
     /**
      * Create checkpoint for rollback capability
@@ -316,12 +316,12 @@ protected:
     /**
      * Update cache entry with TTL using proper locking
      */
-    void UpdateCacheEntry(int32 SlotIndex, const FSuspenseInventoryItemInstance& Item) const;
+    void UpdateCacheEntry(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item) const;
 
     /**
      * Batch update cache entries with single lock
      */
-    void BatchUpdateCache(const TMap<int32, FSuspenseInventoryItemInstance>& Items) const;
+    void BatchUpdateCache(const TMap<int32, FSuspenseCoreInventoryItemInstance>& Items) const;
 
     /**
      * Log data operation for debugging
@@ -399,13 +399,13 @@ private:
     //========================================
 
     /** Cache for state snapshots */
-    mutable TSharedPtr<FSuspenseEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>> SnapshotCache;
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>> SnapshotCache;
 
     /** Cache for individual item instances */
-    mutable TSharedPtr<FSuspenseEquipmentCacheManager<int32, FSuspenseInventoryItemInstance>> ItemCache;
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FSuspenseCoreInventoryItemInstance>> ItemCache;
 
     /** Cache for slot configurations */
-    mutable TSharedPtr<FSuspenseEquipmentCacheManager<int32, FEquipmentSlotConfig>> ConfigCache;
+    mutable TSharedPtr<FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>> ConfigCache;
 
     /** Default cache TTL in seconds */
     float DefaultCacheTTL = 60.0f;

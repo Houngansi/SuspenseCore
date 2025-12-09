@@ -1,4 +1,4 @@
-// ISuspenseLayout.h
+// ISuspenseCoreLayout.h
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
@@ -9,7 +9,7 @@
 #include "ISuspenseCoreLayout.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
-class USuspenseLayout : public UInterface
+class USuspenseCoreLayout : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -18,7 +18,7 @@ class USuspenseLayout : public UInterface
  * Interface for layout widgets that can contain multiple child widgets
  * Allows creating complex UI compositions while keeping widgets independent
  */
-class BRIDGESYSTEM_API ISuspenseLayout
+class BRIDGESYSTEM_API ISuspenseCoreLayout
 {
 	GENERATED_BODY()
 

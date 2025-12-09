@@ -36,7 +36,7 @@ void ISuspenseCoreFireModeProvider::BroadcastFireModeChanged(
 				.SetFloat(TEXT("CurrentSpread"), CurrentSpread);
 
 			EventBus->Publish(
-				FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeChanged")),
+				FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.FireModeChanged")),
 				EventData
 			);
 		}
@@ -62,7 +62,7 @@ void ISuspenseCoreFireModeProvider::BroadcastFireModeAvailabilityChanged(
 				.SetBool(TEXT("Enabled"), bEnabled);
 
 			EventBus->Publish(
-				FGameplayTag::RequestGameplayTag(TEXT("Weapon.Event.FireModeAvailabilityChanged")),
+				FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.FireModeAvailabilityChanged")),
 				EventData
 			);
 		}

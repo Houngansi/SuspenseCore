@@ -17,6 +17,11 @@ class USuspenseCoreEventBus;
 /**
  * Delegate for UI data changes
  * Broadcast when provider data changes (items added/removed/moved, etc.)
+ *
+ * ARCHITECTURE NOTE - Delegate vs EventBus:
+ * - Use C++ MULTICAST_DELEGATE for UI widget-to-widget communication (performance-critical)
+ * - Use EventBus (GameplayTags) for cross-system communication (decoupled)
+ * - Blueprint events should use DYNAMIC_MULTICAST_DELEGATE + BlueprintAssignable
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSuspenseCoreUIDataChanged, const FGameplayTag& /*ChangeType*/, const FGuid& /*AffectedItemID*/);
 

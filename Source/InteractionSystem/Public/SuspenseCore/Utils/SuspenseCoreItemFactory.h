@@ -18,7 +18,7 @@ class USuspenseItemManager;
 struct FSuspenseUnifiedItemData;
 
 /**
- * USuspenseCoreItemFactory
+ * USuspenseCoreItemFactorySubsystem
  *
  * Item factory subsystem for creating pickup actors with EventBus integration.
  * Works with unified DataTable system and broadcasts creation events.
@@ -29,10 +29,12 @@ struct FSuspenseUnifiedItemData;
  * - Broadcasts SuspenseCore.Event.Factory.SpawnFailed on failure
  * - Uses FSuspenseCoreEventData for typed payloads
  *
+ * Note: Renamed from USuspenseCoreItemFactory to avoid conflict with USuspenseCoreItemFactory interface.
+ *
  * @see USuspenseItemFactory (Legacy reference)
  */
 UCLASS()
-class INTERACTIONSYSTEM_API USuspenseCoreItemFactory
+class INTERACTIONSYSTEM_API USuspenseCoreItemFactorySubsystem
 	: public UGameInstanceSubsystem
 	, public ISuspenseCoreItemFactory
 	, public ISuspenseCoreEventEmitter

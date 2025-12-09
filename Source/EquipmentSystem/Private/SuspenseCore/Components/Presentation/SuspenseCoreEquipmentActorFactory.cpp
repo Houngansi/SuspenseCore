@@ -3,6 +3,8 @@
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
 #include "ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 #include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
@@ -977,12 +979,16 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
 {
     using namespace SuspenseCoreEquipmentTags;
 
-    // Get EventBus singleton
-    EventBus = FSuspenseEquipmentEventBus::Get();
-    if (!EventBus.IsValid())
+    // Get EventBus via EventManager (Clean Architecture)
+    if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
+    {
+        EventBus = EventMgr->GetEventBus();
+    }
+
+    if (!EventBus)
     {
         UE_LOG(LogEquipmentOperation, Warning,
-            TEXT("[ActorFactory] EventBus not available"));
+            TEXT("[ActorFactory] EventBus not available via EventManager"));
         return;
     }
 
@@ -996,20 +1002,18 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
 
 void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, const FName& ItemId, int32 SlotIndex)
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Visual_Spawned.IsValid())
+    if (!EventBus || !Tag_Visual_Spawned.IsValid())
     {
         return;
     }
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = Tag_Visual_Spawned;
-    EventData.Target = Actor;
-    EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());
-    EventData.AddMetadata(TEXT("SlotIndex"), FString::FromInt(SlotIndex));
-    EventData.AddMetadata(TEXT("ActorClass"), Actor ? Actor->GetClass()->GetName() : TEXT("None"));
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetObject(TEXT("Target"), Actor);
+    EventData.SetString(TEXT("ItemId"), ItemId.ToString());
+    EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+    EventData.SetString(TEXT("ActorClass"), Actor ? Actor->GetClass()->GetName() : TEXT("None"));
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Visual_Spawned, EventData);
 
     UE_LOG(LogEquipmentOperation, Verbose,
         TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Slot=%d"),
@@ -1018,18 +1022,16 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, co
 
 void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, const FName& ItemId)
 {
-    auto Bus = EventBus.Pin();
-    if (!Bus.IsValid() || !Tag_Visual_Destroyed.IsValid())
+    if (!EventBus || !Tag_Visual_Destroyed.IsValid())
     {
         return;
     }
 
-    FSuspenseEquipmentEventData EventData;
-    EventData.EventType = Tag_Visual_Destroyed;
-    EventData.Target = Actor;
-    EventData.AddMetadata(TEXT("ItemId"), ItemId.ToString());
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetObject(TEXT("Target"), Actor);
+    EventData.SetString(TEXT("ItemId"), ItemId.ToString());
 
-    Bus->Broadcast(EventData);
+    EventBus->Publish(Tag_Visual_Destroyed, EventData);
 
     UE_LOG(LogEquipmentOperation, Verbose,
         TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s"),

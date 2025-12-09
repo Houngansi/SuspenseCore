@@ -10,7 +10,38 @@
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentEventBus.h"
+// Event Bus - use new Clean Architecture types
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+
+// Helper for Equipment events - will be removed when EquipmentSystem is refactored
+namespace EquipmentEventHelper
+{
+	inline void BroadcastEquipmentEvent(
+		UObject* WorldContext,
+		const FGameplayTag& EventTag,
+		UObject* Source,
+		UObject* Target,
+		float NumericValue = 0.0f,
+		const FName& MetaKey = NAME_None,
+		const FString& MetaValue = TEXT(""))
+	{
+		if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(WorldContext))
+		{
+			FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Source);
+			if (Target)
+			{
+				EventData.SetObject(TEXT("Target"), Target);
+			}
+			EventData.SetFloat(TEXT("NumericData"), NumericValue);
+			if (!MetaKey.IsNone())
+			{
+				EventData.SetString(MetaKey, MetaValue);
+			}
+			EventMgr->PublishEventWithData(EventTag, EventData);
+		}
+	}
+}
 
 USuspenseCoreEquipmentAttachmentSystem::USuspenseCoreEquipmentAttachmentSystem()
 	: SocketConfigCache(50)
@@ -156,14 +187,11 @@ bool USuspenseCoreEquipmentAttachmentSystem::AttachEquipment(
 
 		MarkSocketOccupied(Config.SocketName, Equipment);
 
-		FSuspenseEquipmentEventData Ev;
-		Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
-		Ev.Source      = this;
-		Ev.Target      = Equipment;
-		Ev.Timestamp   = FPlatformTime::Seconds();
-		Ev.NumericData = 1.0f; // attached
-		Ev.AddMetadata(TEXT("Socket"), Config.SocketName.ToString());
-		FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
+		EquipmentEventHelper::BroadcastEquipmentEvent(
+			this,
+			FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed")),
+			this, Equipment, 1.0f, // attached
+			TEXT("Socket"), Config.SocketName.ToString());
 
 		LogAttachmentOperation(TEXT("AttachEquipment"),
 			FString::Printf(TEXT("Attached %s to '%s'"),
@@ -213,14 +241,11 @@ bool USuspenseCoreEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, 
 
 	AttachmentStates.Remove(Equipment);
 
-	FSuspenseEquipmentEventData Ev;
-	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
-	Ev.Source      = this;
-	Ev.Target      = Equipment;
-	Ev.Timestamp   = FPlatformTime::Seconds();
-	Ev.NumericData = 0.0f;
-	Ev.AddMetadata(TEXT("Socket"), OldSocket.ToString());
-	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
+	EquipmentEventHelper::BroadcastEquipmentEvent(
+		this,
+		FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed")),
+		this, Equipment, 0.0f, // detached
+		TEXT("Socket"), OldSocket.ToString());
 
 	LogAttachmentOperation(TEXT("DetachEquipment"),
 		FString::Printf(TEXT("Detached %s"), *Equipment->GetName()));
@@ -285,14 +310,11 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 
 			MarkSocketOccupied(NewConfig.SocketName, Equipment);
 
-			FSuspenseEquipmentEventData Ev;
-			Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed"));
-			Ev.Source      = this;
-			Ev.Target      = Equipment;
-			Ev.Timestamp   = FPlatformTime::Seconds();
-			Ev.NumericData = 1.0f;
-			Ev.AddMetadata(TEXT("Socket"), NewConfig.SocketName.ToString());
-			FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
+			EquipmentEventHelper::BroadcastEquipmentEvent(
+				this,
+				FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.Changed")),
+				this, Equipment, 1.0f,
+				TEXT("Socket"), NewConfig.SocketName.ToString());
 
 			LogAttachmentOperation(TEXT("UpdateAttachment"),
 				FString::Printf(TEXT("Immediate update for %s"), *Equipment->GetName()));
@@ -378,14 +400,12 @@ bool USuspenseCoreEquipmentAttachmentSystem::SwitchAttachmentState(
 
 	StateData->CurrentState.bIsActive = bMakeActive;
 
-	FSuspenseEquipmentEventData Ev;
-	Ev.EventType   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.StateChanged"));
-	Ev.Source      = this;
-	Ev.Target      = Equipment;
-	Ev.Timestamp   = FPlatformTime::Seconds();
-	Ev.NumericData = bMakeActive ? 1.0f : 0.0f;
-	Ev.AddMetadata(TEXT("IsActive"), bMakeActive ? TEXT("1") : TEXT("0"));
-	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
+	EquipmentEventHelper::BroadcastEquipmentEvent(
+		this,
+		FGameplayTag::RequestGameplayTag(TEXT("Equipment.Attachment.StateChanged")),
+		this, Equipment,
+		bMakeActive ? 1.0f : 0.0f,
+		TEXT("IsActive"), bMakeActive ? TEXT("1") : TEXT("0"));
 
 	LogAttachmentOperation(TEXT("SwitchAttachmentState"),
 		FString::Printf(TEXT("Switched %s to %s"),
@@ -663,13 +683,9 @@ void USuspenseCoreEquipmentAttachmentSystem::InitializeDefaultMappings()
 
 void USuspenseCoreEquipmentAttachmentSystem::BroadcastAttachmentEvent(const FGameplayTag& EventTag, AActor* Equipment, bool bSuccess)
 {
-	FSuspenseEquipmentEventData Ev;
-	Ev.EventType   = EventTag;
-	Ev.Source      = this;
-	Ev.Target      = Equipment;
-	Ev.Timestamp   = FPlatformTime::Seconds();
-	Ev.NumericData = bSuccess ? 1.0f : 0.0f;
-	FSuspenseEquipmentEventBus::Get()->Broadcast(Ev);
+	EquipmentEventHelper::BroadcastEquipmentEvent(
+		this, EventTag, this, Equipment,
+		bSuccess ? 1.0f : 0.0f);
 }
 
 void USuspenseCoreEquipmentAttachmentSystem::LogAttachmentOperation(const FString& Operation, const FString& Details) const

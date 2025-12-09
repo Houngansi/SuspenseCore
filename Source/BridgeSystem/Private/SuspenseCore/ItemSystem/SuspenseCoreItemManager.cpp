@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/AssetManager.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 

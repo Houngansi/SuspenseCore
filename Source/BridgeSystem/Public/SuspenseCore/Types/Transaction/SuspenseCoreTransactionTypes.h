@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseTransactionTypes.generated.h"
+#include "SuspenseCoreTransactionTypes.generated.h"
 
 /**
  * Transaction operation types enumeration

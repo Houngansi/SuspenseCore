@@ -7,7 +7,7 @@
 #include "ISuspenseCoreNotificationWidget.generated.h"
 
 // Forward declarations - только базовые UE типы
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 /**
  * Notification priority levels
@@ -137,7 +137,7 @@ public:
      * @param WorldContextObject Any object with valid world context
      * @return Event manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Helper to broadcast notification event

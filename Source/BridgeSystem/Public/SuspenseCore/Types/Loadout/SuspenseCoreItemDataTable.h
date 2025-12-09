@@ -11,7 +11,7 @@
 #include "GameplayEffect.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
-#include "SuspenseItemDataTable.generated.h"
+#include "SuspenseCoreItemDataTable.generated.h"
 
 // Forward declarations
 class UTexture2D;

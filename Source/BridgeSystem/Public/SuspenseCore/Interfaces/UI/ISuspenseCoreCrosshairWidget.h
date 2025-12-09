@@ -7,7 +7,7 @@
 #include "ISuspenseCoreCrosshairWidget.generated.h"
 
 // Forward declarations - только базовые UE типы
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseCrosshairWidgetInterface : public UInterface
@@ -122,7 +122,7 @@ public:
      * @param WorldContextObject Any object with valid world context
      * @return Event manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Helper to broadcast crosshair update event

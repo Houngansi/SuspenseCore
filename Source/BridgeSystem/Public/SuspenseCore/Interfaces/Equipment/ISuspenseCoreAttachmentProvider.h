@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "ISuspenseCoreAttachmentProvider.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)

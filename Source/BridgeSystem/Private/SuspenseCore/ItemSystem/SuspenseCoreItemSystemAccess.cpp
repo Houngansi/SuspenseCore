@@ -2,7 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemSystemAccess.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 

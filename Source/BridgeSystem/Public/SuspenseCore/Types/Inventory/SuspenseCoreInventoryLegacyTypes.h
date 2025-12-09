@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseInventoryTypes.generated.h"
+#include "SuspenseCoreInventoryLegacyTypes.generated.h"
 
 // Forward declarations для структур из DataTable (единый источник истины)
 struct FSuspenseUnifiedItemData;

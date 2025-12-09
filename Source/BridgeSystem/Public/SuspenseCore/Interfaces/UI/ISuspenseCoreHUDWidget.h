@@ -10,7 +10,7 @@
 // Forward declarations
 class APawn;
 class UUserWidget;
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseHUDWidget : public UInterface
@@ -169,6 +169,6 @@ public:
      * @param WorldContextObject Any object with valid world context
      * @return Event manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
 };
 

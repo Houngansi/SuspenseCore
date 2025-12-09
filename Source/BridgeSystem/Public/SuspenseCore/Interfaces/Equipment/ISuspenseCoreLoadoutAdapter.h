@@ -7,8 +7,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "ISuspenseCoreLoadoutAdapter.generated.h"
 
 // Forward declarations

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseRulesTypes.generated.h"
+#include "SuspenseCoreRulesTypes.generated.h"
 
 /**
  * Rule type enumeration for categorization

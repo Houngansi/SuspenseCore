@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/DataTable.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCoreItemManager.generated.h"
 
 /**

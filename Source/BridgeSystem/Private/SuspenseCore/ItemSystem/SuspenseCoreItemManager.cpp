@@ -4,7 +4,7 @@
 
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/AssetManager.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreItemManager, Log, All);
 

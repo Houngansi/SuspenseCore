@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCoreRulesTypes.generated.h"
 
 /**

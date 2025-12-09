@@ -130,6 +130,3 @@ protected:
     UFUNCTION() void OnRep_WeaponDegradationRate(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_MisfireChance(const FGameplayAttributeData& OldValue);
 };
-
-// Alias for compatibility
-using UAmmoAttributeSet = USuspenseCoreAmmoAttributeSet;

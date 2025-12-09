@@ -146,6 +146,3 @@ protected:
     UFUNCTION() void OnRep_AimDownSightTime(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_WeaponWeight(const FGameplayAttributeData& OldValue);
 };
-
-// Alias for compatibility
-using UWeaponAttributeSet = USuspenseCoreWeaponAttributeSet;

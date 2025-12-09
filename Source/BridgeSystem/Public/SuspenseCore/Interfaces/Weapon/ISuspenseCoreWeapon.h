@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 #include "ISuspenseCoreWeapon.generated.h"
 

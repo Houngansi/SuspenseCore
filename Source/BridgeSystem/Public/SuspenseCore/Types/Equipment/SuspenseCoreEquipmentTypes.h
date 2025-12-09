@@ -218,9 +218,6 @@ struct BRIDGESYSTEM_API FSlotValidationResult
     {FSlotValidationResult R;R.bIsValid=true;R.Warnings.Add(WarningText);R.ConfidenceScore=0.8f;R.bCanOverride=true;return R;}
 };
 
-// Type alias for migration compatibility
-using FSuspenseSlotValidationResult = FSlotValidationResult;
-
 USTRUCT(BlueprintType)
 struct BRIDGESYSTEM_API FEquipmentSlotSnapshot
 {

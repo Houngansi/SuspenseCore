@@ -502,8 +502,3 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlotConfig
 	}
 };
 
-/**
- * Type alias for backwards compatibility
- */
-using FSuspenseCoreContainerScreenConfig = FSuspenseCoreScreenConfig;
-

@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCoreInventoryLegacyTypes.generated.h"
+#include "SuspenseCoreInventoryBaseTypes.generated.h"
 
 // Forward declarations для структур из DataTable (единый источник истины)
 struct FSuspenseUnifiedItemData;
@@ -580,5 +580,3 @@ struct BRIDGESYSTEM_API FEquipmentSlotData
         LastChangeTime = CurrentTime;
     }
 };
-
-

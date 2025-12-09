@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "SuspenseCore",
-	"Description": "Plugin with GAS for FPS and other projects - PHASE 2: Core Modules",
+	"Description": "Plugin with GAS for FPS and other projects - PHASE 3: Equipment System",
 	"Category": "Other",
 	"CreatedBy": "Houngansi",
 	"CreatedByURL": "",
@@ -36,6 +36,11 @@
 		},
 		{
 			"Name": "InventorySystem",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "EquipmentSystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

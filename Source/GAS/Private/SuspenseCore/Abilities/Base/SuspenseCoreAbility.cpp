@@ -14,7 +14,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreAbility, Log, All);
 USuspenseCoreAbility::USuspenseCoreAbility()
 {
 	// Input binding - None by default, subclasses should set specific input
-	AbilityInputID = ESuspenseAbilityInputID::None;
+	AbilityInputID = ESuspenseCoreAbilityInputID::None;
 
 	bPublishAbilityEvents = true;
 

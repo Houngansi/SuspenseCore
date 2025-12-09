@@ -20,7 +20,7 @@ USuspenseCoreCharacterCrouchAbility::USuspenseCoreCharacterCrouchAbility()
 	CurrentActorInfo = nullptr;
 
 	// Configure ability
-	AbilityInputID = ESuspenseAbilityInputID::Crouch;
+	AbilityInputID = ESuspenseCoreAbilityInputID::Crouch;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = true; // Allow toggle behavior

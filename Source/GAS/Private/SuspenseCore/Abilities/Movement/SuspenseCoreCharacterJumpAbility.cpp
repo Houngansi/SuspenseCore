@@ -10,6 +10,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
+#include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 
 USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 {
@@ -21,7 +22,7 @@ USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 	bIsEnding = false;
 
 	// Configure ability
-	AbilityInputID = ESuspenseAbilityInputID::Jump;
+	AbilityInputID = ESuspenseCoreAbilityInputID::Jump;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 

@@ -51,7 +51,7 @@ public:
 	 * Set this in ability constructor to enable automatic input binding.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Input")
-	ESuspenseAbilityInputID AbilityInputID;
+	ESuspenseCoreAbilityInputID AbilityInputID;
 
 	//==================================================================
 	// EventBus Configuration

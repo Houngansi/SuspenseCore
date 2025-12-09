@@ -4,8 +4,8 @@
 #include "SuspenseCore/Components/Rules/SuspenseCoreCompatibilityRulesEngine.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 
 USuspenseCoreCompatibilityRulesEngine::USuspenseCoreCompatibilityRulesEngine()
 {

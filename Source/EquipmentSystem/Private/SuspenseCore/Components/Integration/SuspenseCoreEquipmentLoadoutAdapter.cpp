@@ -7,20 +7,16 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
 #include "GameplayTagContainer.h"
-
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
-
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore//Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLoadoutAdapter, Log, All);
 

@@ -5,7 +5,7 @@
 
 /** Официальный список InputID, который будет использоваться во всём проекте */
 UENUM(BlueprintType)
-enum class ESuspenseAbilityInputID : uint8
+enum class ESuspenseCoreAbilityInputID : uint8
 {
 	None      UMETA(DisplayName="None"),
 	Confirm   UMETA(DisplayName="Confirm"),

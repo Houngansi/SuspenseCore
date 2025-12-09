@@ -2,7 +2,7 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Core/SuspenseCoreSystemCoordinatorComponent.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 
 // Concrete service implementations

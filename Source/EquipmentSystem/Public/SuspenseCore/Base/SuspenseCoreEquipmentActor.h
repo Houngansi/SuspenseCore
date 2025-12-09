@@ -10,6 +10,7 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "SuspenseCoreEquipmentActor.generated.h"
 
 class UAbilitySystemComponent;

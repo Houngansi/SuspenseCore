@@ -11,6 +11,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
+#include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 
 USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 {
@@ -21,7 +22,7 @@ USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 	CurrentActorInfo = nullptr;
 
 	// Configure ability
-	AbilityInputID = ESuspenseAbilityInputID::Sprint;
+	AbilityInputID = ESuspenseCoreAbilityInputID::Sprint;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = false;

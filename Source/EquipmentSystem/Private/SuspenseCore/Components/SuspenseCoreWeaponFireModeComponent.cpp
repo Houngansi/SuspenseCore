@@ -5,7 +5,7 @@
 #include "GameplayAbilitySpec.h"
 #include "Net/UnrealNetwork.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 
@@ -13,7 +13,7 @@ USuspenseCoreWeaponFireModeComponent::USuspenseCoreWeaponFireModeComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     SetIsReplicatedByDefault(true);
-    
+
     // Initialize runtime state
     CurrentFireModeIndex = 0;
     bIsSwitching = false;
@@ -22,14 +22,14 @@ USuspenseCoreWeaponFireModeComponent::USuspenseCoreWeaponFireModeComponent()
 void USuspenseCoreWeaponFireModeComponent::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     EQUIPMENT_LOG(Log, TEXT("WeaponFireModeComponent initialized"));
 }
 
 void USuspenseCoreWeaponFireModeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    
+
     // Only replicate the current index - everything else comes from DataTable
     DOREPLIFETIME(USuspenseCoreWeaponFireModeComponent, CurrentFireModeIndex);
 }
@@ -38,16 +38,16 @@ void USuspenseCoreWeaponFireModeComponent::Cleanup()
 {
     // Remove granted abilities
     RemoveFireModeAbilities();
-    
+
     // Clear runtime state
     FireModes.Empty();
     BlockedFireModes.Empty();
     AbilityHandles.Empty();
     CurrentFireModeIndex = 0;
     CachedWeaponInterface = nullptr;
-    
+
     Super::Cleanup();
-    
+
     EQUIPMENT_LOG(Log, TEXT("WeaponFireModeComponent cleaned up"));
 }
 
@@ -58,13 +58,13 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Invalid weapon interface"));
         return false;
     }
-    
+
     CachedWeaponInterface = WeaponInterface;
-    
+
     // Get weapon data from interface using Execute_ version
     FSuspenseCoreUnifiedItemData WeaponData;
     bool bGotData = false;
-    
+
     // Проверяем, что объект реализует интерфейс
     if (WeaponInterface.GetObject() && WeaponInterface.GetObject()->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
     {
@@ -75,13 +75,13 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Object does not implement ISuspenseCoreWeapon"));
         return false;
     }
-    
+
     if (!bGotData)
     {
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeapon: Failed to get weapon data from interface"));
         return false;
     }
-    
+
     // Initialize from weapon data
     return InitializeFromWeaponData(WeaponData);
 }
@@ -93,20 +93,20 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementati
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeaponData: Item is not a weapon"));
         return false;
     }
-    
+
     // ИСПРАВЛЕНО: Используем Execute_ версию для вызова функции интерфейса
     // Это критически важно для BlueprintNativeEvent функций
     ISuspenseCoreFireModeProvider::Execute_ClearFireModes(this);
-    
+
     // Load fire modes from DataTable
     LoadFireModesFromData(WeaponData);
-    
+
     if (FireModes.Num() == 0)
     {
         EQUIPMENT_LOG(Error, TEXT("InitializeFromWeaponData: No fire modes found in weapon data"));
         return false;
     }
-    
+
     // Set default fire mode
     int32 DefaultIndex = 0;
     if (WeaponData.DefaultFireMode.IsValid())
@@ -120,21 +120,21 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementati
             }
         }
     }
-    
+
     CurrentFireModeIndex = DefaultIndex;
     FireModes[CurrentFireModeIndex].bIsActive = true;
-    
+
     // Grant abilities
     GrantFireModeAbilities();
-    
+
     // Initial broadcast
     BroadcastFireModeChanged();
-    
+
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: используем Execute_ версию для вызова метода интерфейса
-    EQUIPMENT_LOG(Log, TEXT("Initialized with %d fire modes, default: %s"), 
-        FireModes.Num(), 
+    EQUIPMENT_LOG(Log, TEXT("Initialized with %d fire modes, default: %s"),
+        FireModes.Num(),
         *ISuspenseCoreFireModeProvider::Execute_GetCurrentFireMode(this).ToString());
-    
+
     return true;
 }
 void USuspenseCoreWeaponFireModeComponent::ClearFireModes_Implementation()
@@ -151,21 +151,21 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToNextFireMode_Implementation()
     {
         return false;
     }
-    
+
     // Find next available fire mode
     int32 StartIndex = CurrentFireModeIndex;
     int32 NextIndex = (CurrentFireModeIndex + 1) % FireModes.Num();
-    
+
     while (NextIndex != StartIndex)
     {
         if (FireModes[NextIndex].bIsAvailable && !IsFireModeBlocked(FireModes[NextIndex].FireModeTag))
         {
             return SetFireModeByIndex(NextIndex);
         }
-        
+
         NextIndex = (NextIndex + 1) % FireModes.Num();
     }
-    
+
     return false;
 }
 
@@ -175,21 +175,21 @@ bool USuspenseCoreWeaponFireModeComponent::CycleToPreviousFireMode_Implementatio
     {
         return false;
     }
-    
+
     // Find previous available fire mode
     int32 StartIndex = CurrentFireModeIndex;
     int32 PrevIndex = (CurrentFireModeIndex - 1 + FireModes.Num()) % FireModes.Num();
-    
+
     while (PrevIndex != StartIndex)
     {
         if (FireModes[PrevIndex].bIsAvailable && !IsFireModeBlocked(FireModes[PrevIndex].FireModeTag))
         {
             return SetFireModeByIndex(PrevIndex);
         }
-        
+
         PrevIndex = (PrevIndex - 1 + FireModes.Num()) % FireModes.Num();
     }
-    
+
     return false;
 }
 
@@ -201,7 +201,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireMode_Implementation(const FGam
         EQUIPMENT_LOG(Warning, TEXT("SetFireMode: Fire mode not found: %s"), *FireModeTag.ToString());
         return false;
     }
-    
+
     return SetFireModeByIndex(Index);
 }
 
@@ -213,44 +213,44 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int
         EQUIPMENT_LOG(Warning, TEXT("SetFireModeByIndex: Invalid index %d"), Index);
         return false;
     }
-    
+
     // Check if already active
     if (Index == CurrentFireModeIndex)
     {
         return true;
     }
-    
+
     // Check availability
     const FFireModeRuntimeData& NewMode = FireModes[Index];
     if (!NewMode.bIsAvailable || IsFireModeBlocked(NewMode.FireModeTag))
     {
-        EQUIPMENT_LOG(Warning, TEXT("SetFireModeByIndex: Fire mode not available: %s"), 
+        EQUIPMENT_LOG(Warning, TEXT("SetFireModeByIndex: Fire mode not available: %s"),
             *NewMode.FireModeTag.ToString());
         return false;
     }
-    
+
     // Prevent recursion
     if (bIsSwitching)
     {
         return false;
     }
-    
+
     TGuardValue<bool> SwitchGuard(bIsSwitching, true);
-    
+
     // Update state
     if (FireModes.IsValidIndex(CurrentFireModeIndex))
     {
         FireModes[CurrentFireModeIndex].bIsActive = false;
     }
-    
+
     CurrentFireModeIndex = Index;
     FireModes[CurrentFireModeIndex].bIsActive = true;
-    
+
     // Broadcast change
     BroadcastFireModeChanged();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Fire mode changed to: %s"), *NewMode.FireModeTag.ToString());
-    
+
     return true;
 }
 
@@ -260,7 +260,7 @@ FGameplayTag USuspenseCoreWeaponFireModeComponent::GetCurrentFireMode_Implementa
     {
         return FireModes[CurrentFireModeIndex].FireModeTag;
     }
-    
+
     return FGameplayTag::EmptyTag;
 }
 
@@ -270,7 +270,7 @@ FFireModeRuntimeData USuspenseCoreWeaponFireModeComponent::GetCurrentFireModeDat
     {
         return FireModes[CurrentFireModeIndex];
     }
-    
+
     return FFireModeRuntimeData();
 }
 
@@ -281,7 +281,7 @@ bool USuspenseCoreWeaponFireModeComponent::IsFireModeAvailable_Implementation(co
     {
         return false;
     }
-    
+
     return FireModes[Index].bIsAvailable && !IsFireModeBlocked(FireModeTag);
 }
 
@@ -293,7 +293,7 @@ TArray<FFireModeRuntimeData> USuspenseCoreWeaponFireModeComponent::GetAllFireMod
 TArray<FGameplayTag> USuspenseCoreWeaponFireModeComponent::GetAvailableFireModes_Implementation() const
 {
     TArray<FGameplayTag> Available;
-    
+
     for (const FFireModeRuntimeData& Mode : FireModes)
     {
         if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
@@ -301,14 +301,14 @@ TArray<FGameplayTag> USuspenseCoreWeaponFireModeComponent::GetAvailableFireModes
             Available.Add(Mode.FireModeTag);
         }
     }
-    
+
     return Available;
 }
 
 int32 USuspenseCoreWeaponFireModeComponent::GetAvailableFireModeCount_Implementation() const
 {
     int32 Count = 0;
-    
+
     for (const FFireModeRuntimeData& Mode : FireModes)
     {
         if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
@@ -316,7 +316,7 @@ int32 USuspenseCoreWeaponFireModeComponent::GetAvailableFireModeCount_Implementa
             Count++;
         }
     }
-    
+
     return Count;
 }
 
@@ -327,18 +327,18 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeEnabled_Implementation(con
     {
         return false;
     }
-    
+
     FireModes[Index].bIsAvailable = bEnabled;
-    
+
     // Broadcast availability change
     ISuspenseCoreFireModeProvider::BroadcastFireModeAvailabilityChanged(this, FireModeTag, bEnabled);
-    
+
     // If disabling current mode, switch to another
     if (!bEnabled && Index == CurrentFireModeIndex)
     {
         CycleToNextFireMode();
     }
-    
+
     return true;
 }
 
@@ -352,7 +352,7 @@ void USuspenseCoreWeaponFireModeComponent::SetFireModeBlocked_Implementation(con
     {
         BlockedFireModes.Remove(FireModeTag);
     }
-    
+
     // If blocking current mode, switch
     if (bBlocked && GetCurrentFireMode() == FireModeTag)
     {
@@ -372,7 +372,7 @@ bool USuspenseCoreWeaponFireModeComponent::GetFireModeData_Implementation(const 
     {
         return false;
     }
-    
+
     OutData = FireModes[Index];
     return true;
 }
@@ -384,7 +384,7 @@ TSubclassOf<UGameplayAbility> USuspenseCoreWeaponFireModeComponent::GetFireModeA
     {
         return FireModes[Index].FireModeAbility;
     }
-    
+
     return nullptr;
 }
 
@@ -395,7 +395,7 @@ int32 USuspenseCoreWeaponFireModeComponent::GetFireModeInputID_Implementation(co
     {
         return FireModes[Index].InputID;
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -410,7 +410,7 @@ ISuspenseCoreWeapon* USuspenseCoreWeaponFireModeComponent::GetWeaponInterface() 
     {
         return Cast<ISuspenseCoreWeapon>(CachedWeaponInterface.GetInterface());
     }
-    
+
     // Try to get from owner
     if (AActor* Owner = GetOwner())
     {
@@ -419,7 +419,7 @@ ISuspenseCoreWeapon* USuspenseCoreWeaponFireModeComponent::GetWeaponInterface() 
             return Cast<ISuspenseCoreWeapon>(Owner);
         }
     }
-    
+
     return nullptr;
 }
 
@@ -430,9 +430,9 @@ bool USuspenseCoreWeaponFireModeComponent::GetWeaponData(FSuspenseCoreUnifiedIte
     {
         return false;
     }
-    
+
     return ISuspenseCoreWeapon::Execute_GetWeaponItemData(
-        Cast<UObject>(WeaponInterface), 
+        Cast<UObject>(WeaponInterface),
         OutData
     );
 }
@@ -441,7 +441,7 @@ void USuspenseCoreWeaponFireModeComponent::LoadFireModesFromData(const FSuspense
 {
     FireModes.Empty();
     FireModes.Reserve(WeaponData.FireModes.Num());
-    
+
     // Convert DataTable fire modes to runtime data
     for (int32 i = 0; i < WeaponData.FireModes.Num(); ++i)
     {
@@ -450,8 +450,8 @@ void USuspenseCoreWeaponFireModeComponent::LoadFireModesFromData(const FSuspense
         // Create runtime data
         FFireModeRuntimeData RuntimeMode(DataTableMode, i);
         FireModes.Add(RuntimeMode);
-        
-        EQUIPMENT_LOG(Verbose, TEXT("Loaded fire mode: %s (Input: %d, Enabled: %s)"), 
+
+        EQUIPMENT_LOG(Verbose, TEXT("Loaded fire mode: %s (Input: %d, Enabled: %s)"),
             *RuntimeMode.FireModeTag.ToString(),
             RuntimeMode.InputID,
             RuntimeMode.bEnabled ? TEXT("Yes") : TEXT("No"));
@@ -465,7 +465,7 @@ void USuspenseCoreWeaponFireModeComponent::GrantFireModeAbilities()
         EQUIPMENT_LOG(Warning, TEXT("GrantFireModeAbilities: No ASC available"));
         return;
     }
-    
+
     // Grant ability for each fire mode
     for (const FFireModeRuntimeData& Mode : FireModes)
     {
@@ -473,13 +473,13 @@ void USuspenseCoreWeaponFireModeComponent::GrantFireModeAbilities()
         {
             continue;
         }
-        
+
         // Skip if already granted
         if (AbilityHandles.Contains(Mode.FireModeTag))
         {
             continue;
         }
-        
+
         // Grant ability
         FGameplayAbilitySpec AbilitySpec(
             Mode.FireModeAbility,
@@ -487,19 +487,19 @@ void USuspenseCoreWeaponFireModeComponent::GrantFireModeAbilities()
             Mode.InputID,
             this
         );
-        
+
         FGameplayAbilitySpecHandle Handle = CachedASC->GiveAbility(AbilitySpec);
-        
+
         if (Handle.IsValid())
         {
             AbilityHandles.Add(Mode.FireModeTag, Handle);
-            
-            EQUIPMENT_LOG(Log, TEXT("Granted ability for fire mode: %s"), 
+
+            EQUIPMENT_LOG(Log, TEXT("Granted ability for fire mode: %s"),
                 *Mode.FireModeTag.ToString());
         }
         else
         {
-            EQUIPMENT_LOG(Error, TEXT("Failed to grant ability for fire mode: %s"), 
+            EQUIPMENT_LOG(Error, TEXT("Failed to grant ability for fire mode: %s"),
                 *Mode.FireModeTag.ToString());
         }
     }
@@ -511,7 +511,7 @@ void USuspenseCoreWeaponFireModeComponent::RemoveFireModeAbilities()
     {
         return;
     }
-    
+
     // Remove all granted abilities
     for (const auto& Pair : AbilityHandles)
     {
@@ -520,9 +520,9 @@ void USuspenseCoreWeaponFireModeComponent::RemoveFireModeAbilities()
             CachedASC->ClearAbility(Pair.Value);
         }
     }
-    
+
     AbilityHandles.Empty();
-    
+
     EQUIPMENT_LOG(Log, TEXT("Removed all fire mode abilities"));
 }
 
@@ -535,7 +535,7 @@ int32 USuspenseCoreWeaponFireModeComponent::FindFireModeIndex(const FGameplayTag
             return i;
         }
     }
-    
+
     return INDEX_NONE;
 }
 
@@ -545,9 +545,9 @@ void USuspenseCoreWeaponFireModeComponent::BroadcastFireModeChanged()
     {
         return;
     }
-    
+
     const FFireModeRuntimeData& CurrentMode = FireModes[CurrentFireModeIndex];
-    
+
     // Get current spread from weapon
     float CurrentSpread = 0.0f;
     if (ISuspenseCoreWeapon* WeaponInterface = GetWeaponInterface())
@@ -556,7 +556,7 @@ void USuspenseCoreWeaponFireModeComponent::BroadcastFireModeChanged()
             Cast<UObject>(WeaponInterface)
         );
     }
-    
+
     // Broadcast through interface helper
     ISuspenseCoreFireModeProvider::BroadcastFireModeChanged(
         this,
@@ -572,12 +572,12 @@ void USuspenseCoreWeaponFireModeComponent::OnRep_CurrentFireModeIndex()
     {
         FireModes[i].bIsActive = (i == CurrentFireModeIndex);
     }
-    
+
     // Broadcast change on client
     if (!GetOwner() || !GetOwner()->HasAuthority())
     {
         BroadcastFireModeChanged();
     }
-    
+
     EQUIPMENT_LOG(Verbose, TEXT("OnRep_CurrentFireModeIndex: %d"), CurrentFireModeIndex);
 }

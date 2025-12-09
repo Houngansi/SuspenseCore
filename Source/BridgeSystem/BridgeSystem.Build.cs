@@ -14,16 +14,16 @@ public class BridgeSystem : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
-                "InputCore",          // For FKey
-                "DeveloperSettings",  // For USuspenseCoreProjectSettings
+                "InputCore",
+                "DeveloperSettings",
                 "GameplayAbilities",
                 "GameplayTags",
                 "GameplayTasks",
                 "Niagara",
                 "UMG",
                 "PhysicsCore",
-                "NetCore",            // For FFastArraySerializer
-                "ReplicationGraph"    // For USuspenseCoreReplicationGraph
+                "NetCore",
+                "ReplicationGraph"
             }
         );
 
@@ -32,7 +32,7 @@ public class BridgeSystem : ModuleRules
             {
                 "Slate",
                 "SlateCore",
-                "Json",               // JSON serialization
+                "Json",
                 "JsonUtilities"
             }
         );

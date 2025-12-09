@@ -16,7 +16,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"

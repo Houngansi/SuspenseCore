@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayTagAssetInterface.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWeightRules, Log, All);
 

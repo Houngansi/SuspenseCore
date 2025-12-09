@@ -3,7 +3,7 @@
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "AbilitySystemComponent.h"
 #include "AttributeSet.h"
 #include "Abilities/GameplayAbility.h"

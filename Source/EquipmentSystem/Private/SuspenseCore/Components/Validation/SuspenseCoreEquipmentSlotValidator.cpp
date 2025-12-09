@@ -8,14 +8,14 @@
 #include "GameplayTagContainer.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/ScopeLock.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 // Единые макросы/логи проекта
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 // Типы/лоадаут
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 
 // ==============================================
 // Статическая матрица совместимости типов

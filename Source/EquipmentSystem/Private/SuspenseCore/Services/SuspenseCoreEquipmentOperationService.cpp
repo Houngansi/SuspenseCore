@@ -16,7 +16,7 @@
 #include "TimerManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Async/Async.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentOperations);

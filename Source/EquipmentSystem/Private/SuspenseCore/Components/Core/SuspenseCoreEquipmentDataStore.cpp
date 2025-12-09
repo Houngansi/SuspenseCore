@@ -10,7 +10,7 @@
 #include "GameFramework/PlayerState.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 
 // Define logging category
 DEFINE_LOG_CATEGORY(LogEquipmentDataStore);

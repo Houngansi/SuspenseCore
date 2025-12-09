@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Camera/CameraComponent.h"
 #include "DrawDebugHelpers.h"
+#include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 
 USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 {
@@ -22,7 +23,7 @@ USuspenseCoreInteractAbility::USuspenseCoreInteractAbility()
 	DebugTraceDuration = 2.0f;
 
 	// Configure ability
-	AbilityInputID = ESuspenseAbilityInputID::Interact;
+	AbilityInputID = ESuspenseCoreAbilityInputID::Interact;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	bRetriggerInstancedAbility = false;

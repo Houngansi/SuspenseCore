@@ -10,7 +10,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentRules);
 

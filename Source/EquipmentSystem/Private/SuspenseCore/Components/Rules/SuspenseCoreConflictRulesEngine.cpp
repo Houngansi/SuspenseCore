@@ -3,10 +3,10 @@
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreConflictRulesEngine.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Algo/Transform.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogConflictRules, Log, All);
 

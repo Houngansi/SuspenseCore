@@ -156,7 +156,7 @@ void USuspenseCoreCharacterClassSubsystem::LoadClassesFromAssetRegistry(const FS
 		UE_LOG(LogSuspenseCoreClass, Error, TEXT("═══════════════════════════════════════════════════════════════"));
 
 		bClassesLoaded = true;
-		OnClassesLoaded.Broadcast(0);
+		PublishClassesLoadedEvent(0);
 		return;
 	}
 
@@ -183,7 +183,7 @@ void USuspenseCoreCharacterClassSubsystem::LoadClassesFromAssetRegistry(const FS
 	RegisterClassesWithSelectionSubsystem();
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes"), LoadedClasses.Num());
-	OnClassesLoaded.Broadcast(LoadedClasses.Num());
+	PublishClassesLoadedEvent(LoadedClasses.Num());
 }
 
 void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
@@ -196,7 +196,7 @@ void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 	{
 		UE_LOG(LogSuspenseCoreClass, Error, TEXT("AssetManager not available in OnClassesLoadComplete!"));
 		bClassesLoaded = true;
-		OnClassesLoaded.Broadcast(0);
+		PublishClassesLoadedEvent(0);
 		return;
 	}
 
@@ -231,8 +231,8 @@ void USuspenseCoreCharacterClassSubsystem::OnClassesLoadComplete()
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("CharacterClassSubsystem loaded %d classes via AssetManager"), LoadedClasses.Num());
 
-	// Broadcast event
-	OnClassesLoaded.Broadcast(LoadedClasses.Num());
+	// Publish event via EventBus
+	PublishClassesLoadedEvent(LoadedClasses.Num());
 }
 
 TArray<USuspenseCoreCharacterClassData*> USuspenseCoreCharacterClassSubsystem::GetAllClasses() const
@@ -350,8 +350,7 @@ bool USuspenseCoreCharacterClassSubsystem::ApplyClassDataToActor(AActor* Actor, 
 	// 6. Add class tag
 	ASC->AddLooseGameplayTag(ClassData->ClassTag);
 
-	// 7. Broadcast events
-	OnClassApplied.Broadcast(Actor, ClassData);
+	// 7. Publish event via EventBus
 	PublishClassChangeEvent(Actor, ClassData);
 
 	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Class '%s' applied successfully"), *ClassData->ClassID.ToString());
@@ -576,6 +575,37 @@ void USuspenseCoreCharacterClassSubsystem::ApplyPassiveEffects(UAbilitySystemCom
 	}
 }
 
+void USuspenseCoreCharacterClassSubsystem::PublishClassesLoadedEvent(int32 NumClasses)
+{
+	// Get EventBus from GameInstance context
+	UGameInstance* GI = GetGameInstance();
+	if (!GI)
+	{
+		return;
+	}
+
+	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GI);
+	if (!Manager)
+	{
+		return;
+	}
+
+	USuspenseCoreEventBus* EventBus = Manager->GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+	EventData.SetInt(FName("NumClasses"), NumClasses);
+
+	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Class.Loaded"), false);
+	if (EventTag.IsValid())
+	{
+		EventBus->Publish(EventTag, EventData);
+	}
+}
+
 void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(AActor* Actor, USuspenseCoreCharacterClassData* ClassData)
 {
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(Actor);
@@ -594,8 +624,11 @@ void USuspenseCoreCharacterClassSubsystem::PublishClassChangeEvent(AActor* Actor
 	EventData.SetString(FName("ClassID"), ClassData->ClassID.ToString());
 	EventData.SetString(FName("ClassName"), ClassData->DisplayName.ToString());
 
-	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged"));
-	EventBus->Publish(EventTag, EventData);
+	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ClassChanged"), false);
+	if (EventTag.IsValid())
+	{
+		EventBus->Publish(EventTag, EventData);
+	}
 }
 
 void USuspenseCoreCharacterClassSubsystem::RegisterClassesWithSelectionSubsystem()

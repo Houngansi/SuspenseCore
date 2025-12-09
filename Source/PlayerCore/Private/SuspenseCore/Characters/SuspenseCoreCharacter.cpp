@@ -8,7 +8,10 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
+
+#if WITH_INTERACTION_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreInteractionComponent.h"
+#endif
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -98,8 +101,10 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	// Initialize focus distance
 	Camera->CurrentFocusDistance = ManualFocusDistance;
 
+#if WITH_INTERACTION_SYSTEM
 	// Create interaction component for world object interaction
 	InteractionComponent = CreateDefaultSubobject<USuspenseCoreInteractionComponent>(TEXT("InteractionComponent"));
+#endif
 
 	// Movement settings
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())

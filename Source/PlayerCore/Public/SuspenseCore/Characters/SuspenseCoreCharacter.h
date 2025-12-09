@@ -18,7 +18,10 @@ class UAbilitySystemComponent;
 class USuspenseCoreEventBus;
 class ASuspenseCorePlayerState;
 class USuspenseCoreCharacterClassData;
+
+#if WITH_INTERACTION_SYSTEM
 class USuspenseCoreInteractionComponent;
+#endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -202,8 +205,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Components")
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
+#if WITH_INTERACTION_SYSTEM
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Components")
 	USuspenseCoreInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - CINEMATIC CAMERA CONTROL
@@ -264,9 +269,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	UCineCameraComponent* Camera;
 
+#if WITH_INTERACTION_SYSTEM
 	/** Interaction component for interacting with world objects */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	USuspenseCoreInteractionComponent* InteractionComponent;
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - MOVEMENT

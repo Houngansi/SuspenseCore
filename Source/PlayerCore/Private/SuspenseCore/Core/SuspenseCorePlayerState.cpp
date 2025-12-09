@@ -3,7 +3,6 @@
 
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
-#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -14,7 +13,15 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
-// Equipment module includes
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPTIONAL MODULE INCLUDES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_INVENTORY_SYSTEM
+#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
+#endif
+
+#if WITH_EQUIPMENT_SYSTEM
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
@@ -26,6 +33,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTRUCTOR
@@ -40,17 +48,24 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Mixed replication mode - server controls gameplay, client predicts
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// INVENTORY COMPONENT (Conditional: WITH_INVENTORY_SYSTEM)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+#if WITH_INVENTORY_SYSTEM
 	// Create Inventory Component - lives on PlayerState for persistence across respawns
 	// Uses EventBus for all notifications (SuspenseCore.Event.Inventory.*)
 	InventoryComponent = CreateDefaultSubobject<USuspenseCoreInventoryComponent>(TEXT("InventoryComponent"));
 	InventoryComponent->SetIsReplicated(true);
+#endif
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// EQUIPMENT MODULE COMPONENTS
+	// EQUIPMENT MODULE COMPONENTS (Conditional: WITH_EQUIPMENT_SYSTEM)
 	// All equipment components live on PlayerState for persistence across respawns
 	// They integrate with the LoadoutManager and work with the InventoryComponent
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_EQUIPMENT_SYSTEM
 	// Core data store - server authoritative source of truth for equipment state
 	EquipmentDataStore = CreateDefaultSubobject<USuspenseCoreEquipmentDataStore>(TEXT("EquipmentDataStore"));
 	EquipmentDataStore->SetIsReplicated(true);
@@ -86,6 +101,7 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Inventory bridge - connects equipment system to inventory component
 	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseCoreEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
 	EquipmentInventoryBridge->SetIsReplicated(true);
+#endif
 
 	// Network settings - optimized for MMO scale
 	// 60Hz is optimal balance between responsiveness and bandwidth for shooters
@@ -106,11 +122,16 @@ void ASuspenseCorePlayerState::BeginPlay()
 	if (HasAuthority())
 	{
 		InitializeAbilitySystem();
+#if WITH_INVENTORY_SYSTEM
 		InitializeInventoryFromLoadout();
+#endif
+#if WITH_EQUIPMENT_SYSTEM
 		InitializeEquipmentComponents();
+#endif
 	}
 }
 
+#if WITH_INVENTORY_SYSTEM
 void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
 {
 	if (!InventoryComponent)
@@ -136,14 +157,17 @@ void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
 		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: Failed to initialize inventory from loadout '%s'"), *DefaultLoadoutID.ToString());
 	}
 }
+#endif
 
 void ASuspenseCorePlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+#if WITH_EQUIPMENT_SYSTEM
 	// Clear equipment wiring retry timer
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(EquipmentWireRetryHandle);
 	}
+#endif
 
 	CleanupAttributeCallbacks();
 
@@ -162,8 +186,12 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 
 	// Core Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, AbilitySystemComponent);
-	DOREPLIFETIME(ASuspenseCorePlayerState, InventoryComponent);
 
+#if WITH_INVENTORY_SYSTEM
+	DOREPLIFETIME(ASuspenseCorePlayerState, InventoryComponent);
+#endif
+
+#if WITH_EQUIPMENT_SYSTEM
 	// Equipment Module Components
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentDataStore);
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentTxnProcessor);
@@ -174,6 +202,7 @@ void ASuspenseCorePlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentEventDispatcher);
 	DOREPLIFETIME(ASuspenseCorePlayerState, WeaponStateManager);
 	DOREPLIFETIME(ASuspenseCorePlayerState, EquipmentInventoryBridge);
+#endif
 
 	// State
 	DOREPLIFETIME_CONDITION_NOTIFY(ASuspenseCorePlayerState, PlayerLevel, COND_None, REPNOTIFY_Always);
@@ -628,9 +657,10 @@ USuspenseCoreEventBus* ASuspenseCorePlayerState::GetEventBus() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// INTERNAL - EQUIPMENT MODULE
+// INTERNAL - EQUIPMENT MODULE (Conditional: WITH_EQUIPMENT_SYSTEM)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#if WITH_EQUIPMENT_SYSTEM
 void ASuspenseCorePlayerState::InitializeEquipmentComponents()
 {
 	if (bEquipmentModuleInitialized)
@@ -730,6 +760,7 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentOps ready"));
 	}
 
+#if WITH_INVENTORY_SYSTEM
 	// Initialize Inventory Bridge
 	// Connects equipment system to inventory component
 	if (EquipmentInventoryBridge && InventoryComponent)
@@ -737,6 +768,7 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 		// Bridge connects inventory to equipment data store
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge ready"));
 	}
+#endif
 
 	// Initialize Prediction System (client-side)
 	if (EquipmentPrediction && EquipmentDataStore)
@@ -780,3 +812,4 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 
 	return true;
 }
+#endif // WITH_EQUIPMENT_SYSTEM

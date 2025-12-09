@@ -9,7 +9,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCorePickup.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 

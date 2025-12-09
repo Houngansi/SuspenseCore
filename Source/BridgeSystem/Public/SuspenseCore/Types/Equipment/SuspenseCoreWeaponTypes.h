@@ -5,8 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Types/Weapon/SuspenseInventoryAmmoState.h"
-#include "SuspenseWeaponTypes.generated.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "SuspenseCoreWeaponTypes.generated.h"
 
 /**
  * Битовые флаги состояния оружия для оптимизированного хранения

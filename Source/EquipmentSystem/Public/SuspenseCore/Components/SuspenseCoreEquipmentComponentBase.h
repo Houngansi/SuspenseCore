@@ -8,9 +8,9 @@
 #include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCoreEquipmentComponentBase.generated.h"
 
 // Forward declarations
@@ -150,7 +150,7 @@ public:
      * @return Item manager or nullptr if not available
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    USuspenseItemManager* GetItemManager() const;
+    USuspenseCoreItemManager* GetItemManager() const;
 
     /**
      * Get currently equipped item instance

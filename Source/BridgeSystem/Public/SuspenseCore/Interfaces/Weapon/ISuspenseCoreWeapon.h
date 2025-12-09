@@ -7,8 +7,8 @@
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Weapon/SuspenseInventoryAmmoState.h"
-#include "ISuspenseWeapon.generated.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "ISuspenseCoreWeapon.generated.h"
 
 // Forward declarations
 class UGameplayEffect;

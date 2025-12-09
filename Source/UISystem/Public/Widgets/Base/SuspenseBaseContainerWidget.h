@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreContainerUI.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "Widgets/DragDrop/SuspenseDragVisualWidget.h"
@@ -167,7 +168,7 @@ protected:
 
     /** Cached delegate manager */
     UPROPERTY()
-    USuspenseEventManager* CachedDelegateManager;
+    USuspenseCoreEventManager* CachedDelegateManager;
 
     //========================================
     // Native Widget Overrides
@@ -186,7 +187,7 @@ public:
     virtual void UninitializeWidget_Implementation() override;
     virtual void UpdateWidget_Implementation(float DeltaTime) override;
     virtual FGameplayTag GetWidgetTag_Implementation() const override;
-    virtual USuspenseEventManager* GetDelegateManager() const override;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const override;
 
     virtual bool IsFullyInitialized() const { return bIsInitialized; }
 

@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 #include "ISuspenseCoreEquipmentRules.generated.h"
 
 // Forward declarations

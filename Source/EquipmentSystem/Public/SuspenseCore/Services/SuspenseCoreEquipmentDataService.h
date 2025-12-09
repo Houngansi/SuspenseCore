@@ -11,9 +11,10 @@
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Delegates/Delegate.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreEquipmentDataService.generated.h"
 
@@ -379,7 +380,7 @@ private:
     TScriptInterface<ISuspenseCoreTransactionManager> TransactionManagerInterface;
 
  UPROPERTY(Transient)
-    TObjectPtr<USuspenseItemManager> ItemManager = nullptr;
+    TObjectPtr<USuspenseCoreItemManager> ItemManager = nullptr;
     //========================================
     // Thread Safety
     //========================================

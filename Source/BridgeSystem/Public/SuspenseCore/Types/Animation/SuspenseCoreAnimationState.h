@@ -8,7 +8,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "Animation/AnimComposite.h"
-#include "SuspenseAnimationState.generated.h"
+#include "SuspenseCoreAnimationState.generated.h"
 
 /**
  * Структура анимационных данных для оружия

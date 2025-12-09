@@ -191,14 +191,14 @@ public:
      * @return Weapon AttributeSet or null
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
-    UWeaponAttributeSet* GetWeaponAttributeSet() const;
+    USuspenseCoreWeaponAttributeSet* GetWeaponAttributeSet() const;
 
     /**
      * Get linked ammo AttributeSet
      * @return Ammo AttributeSet or null
      */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ammo|GAS")
-    UAmmoAttributeSet* GetAmmoAttributeSet() const;
+    USuspenseCoreAmmoAttributeSet* GetAmmoAttributeSet() const;
 
 protected:
     /**
@@ -297,11 +297,11 @@ private:
 
     /** Cached weapon AttributeSet for performance */
     UPROPERTY()
-    UWeaponAttributeSet* CachedWeaponAttributeSet;
+    USuspenseCoreWeaponAttributeSet* CachedWeaponAttributeSet;
 
     /** Cached ammo AttributeSet for performance */
     UPROPERTY()
-    UAmmoAttributeSet* CachedAmmoAttributeSet;
+    USuspenseCoreAmmoAttributeSet* CachedAmmoAttributeSet;
 
     /** Cached magazine size for performance */
     mutable float CachedMagazineSize;

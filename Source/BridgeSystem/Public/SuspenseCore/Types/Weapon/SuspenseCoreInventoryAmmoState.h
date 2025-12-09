@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseInventoryAmmoState.generated.h"
+#include "SuspenseCoreInventoryAmmoState.generated.h"
 
 /**
  * Структура для хранения состояния патронов в оружии

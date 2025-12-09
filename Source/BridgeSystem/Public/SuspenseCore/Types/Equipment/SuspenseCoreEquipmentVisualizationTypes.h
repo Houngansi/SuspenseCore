@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseEquipmentVisualizationTypes.generated.h"
+#include "SuspenseCoreEquipmentVisualizationTypes.generated.h"
 
 /**
  * Visual performance metrics for monitoring

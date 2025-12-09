@@ -10,6 +10,7 @@
 #include "Widgets/Tooltip/SuspenseItemTooltipWidget.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "Engine/StreamableManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseBaseSlotWidget.generated.h"
 
 // Forward declarations
@@ -175,7 +176,7 @@ protected:
 
     /** Cached event manager */
     UPROPERTY()
-    USuspenseEventManager* CachedEventManager;
+    USuspenseCoreEventManager* CachedEventManager;
 
     //========================================
     // Native Widget Overrides

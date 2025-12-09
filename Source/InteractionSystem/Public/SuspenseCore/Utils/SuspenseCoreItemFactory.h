@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/Interaction/ISuspenseCoreItemFactory.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCoreItemFactory.generated.h"
 
@@ -163,7 +164,7 @@ protected:
 
 	/** Cached ItemManager reference */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+	TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 
 	//==================================================================
 	// Statistics

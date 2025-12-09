@@ -11,7 +11,7 @@
 #include "Misc/Crc.h"             // FCrc::MemCrc32
 #include "Misc/SecureHash.h"      // FSHA1::HashBuffer
 #include "Misc/CString.h"         // BytesToHex overloads
-#include "SuspenseNetworkTypes.generated.h"
+#include "SuspenseCoreNetworkTypes.generated.h"
 
 /**
  * Network operation priority

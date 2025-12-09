@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
 
@@ -14,7 +14,7 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-class USuspenseItemManager;
+class USuspenseCoreItemManager;
 class USuspenseCoreEventManager;
 
 /**
@@ -503,7 +503,7 @@ private:
 
     /** Cached item manager reference */
     UPROPERTY()
-    mutable TWeakObjectPtr<USuspenseItemManager> CachedItemManager;
+    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 
     /** Cached delegate manager reference */
     UPROPERTY()

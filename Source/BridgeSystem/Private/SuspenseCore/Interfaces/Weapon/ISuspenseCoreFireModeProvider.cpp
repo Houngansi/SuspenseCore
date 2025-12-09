@@ -1,6 +1,6 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Interfaces/Weapon/ISuspenseFireModeProvider.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"

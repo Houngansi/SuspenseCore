@@ -1,41 +1,41 @@
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Interfaces/Abilities/ISuspenseAbilityProvider.h"
+#include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "GameplayEffect.h"
 #include "GameplayAbilities/Public/AbilitySystemComponent.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
-USuspenseCoreEventManager* ISuspenseAbilityProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
+USuspenseCoreEventManager* ISuspenseCoreAbilityProvider::GetDelegateManagerStatic(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
         return nullptr;
     }
-    
+
     UWorld* World = WorldContextObject->GetWorld();
     if (!World)
     {
         return nullptr;
     }
-    
+
     UGameInstance* GameInstance = World->GetGameInstance();
     if (!GameInstance)
     {
         return nullptr;
     }
-    
+
     return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
 }
 
-void ISuspenseAbilityProvider::BroadcastAbilityGranted(const UObject* Provider, FGameplayAbilitySpecHandle AbilityHandle, TSubclassOf<UGameplayAbility> AbilityClass)
+void ISuspenseCoreAbilityProvider::BroadcastAbilityGranted(const UObject* Provider, FGameplayAbilitySpecHandle AbilityHandle, TSubclassOf<UGameplayAbility> AbilityClass)
 {
     if (!Provider || !AbilityHandle.IsValid() || !AbilityClass)
     {
         return;
     }
-    
+
     USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
     if (Manager)
     {
@@ -50,13 +50,13 @@ void ISuspenseAbilityProvider::BroadcastAbilityGranted(const UObject* Provider, 
     }
 }
 
-void ISuspenseAbilityProvider::BroadcastEffectApplied(const UObject* Provider, FActiveGameplayEffectHandle EffectHandle, TSubclassOf<UGameplayEffect> EffectClass)
+void ISuspenseCoreAbilityProvider::BroadcastEffectApplied(const UObject* Provider, FActiveGameplayEffectHandle EffectHandle, TSubclassOf<UGameplayEffect> EffectClass)
 {
     if (!Provider || !EffectHandle.IsValid() || !EffectClass)
     {
         return;
     }
-    
+
     USuspenseCoreEventManager* Manager = GetDelegateManagerStatic(Provider);
     if (Manager)
     {

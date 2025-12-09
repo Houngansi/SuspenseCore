@@ -543,3 +543,23 @@ Proprietary - All rights reserved
 **Расположение:** Source/SuspenseCore/Documentation/
 
 ---
+{
+"Name": "InteractionSystem",
+"Type": "Runtime",
+"LoadingPhase": "Default"
+},
+{
+"Name": "InventorySystem",
+"Type": "Runtime",
+"LoadingPhase": "Default"
+},
+{
+"Name": "EquipmentSystem",
+"Type": "Runtime",
+"LoadingPhase": "Default"
+},
+{
+"Name": "UISystem",
+"Type": "Runtime",
+"LoadingPhase": "Default"
+}

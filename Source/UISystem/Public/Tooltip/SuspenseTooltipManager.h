@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "SuspenseTooltipManager.generated.h"
 
@@ -254,7 +255,7 @@ private:
 
     /** Cached reference to event manager */
     UPROPERTY()
-    USuspenseEventManager* CachedEventManager;
+    USuspenseCoreEventManager* CachedEventManager;
 
     /** Event subscription handles for cleanup */
     FDelegateHandle TooltipRequestHandle;

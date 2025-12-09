@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SuspenseAbilityInputID.generated.h"
+#include "SuspenseCoreAbilityInputID.generated.h"
 
 /** Официальный список InputID, который будет использоваться во всём проекте */
 UENUM(BlueprintType)

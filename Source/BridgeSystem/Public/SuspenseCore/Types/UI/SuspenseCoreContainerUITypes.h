@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Engine/Texture2D.h"
-#include "SuspenseContainerUITypes.generated.h"
+#include "SuspenseCoreContainerUITypes.generated.h"
 
 // Forward declaration для избежания циклических зависимостей
 class UUserWidget;

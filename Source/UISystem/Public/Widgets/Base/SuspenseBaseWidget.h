@@ -9,7 +9,7 @@
 #include "SuspenseBaseWidget.generated.h"
 
 // Forward declarations
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 /**
  * Base class for all UI widgets in MedCom game
@@ -108,7 +108,7 @@ protected:
 
     /** Cached event manager reference for performance */
     UPROPERTY()
-    mutable USuspenseEventManager* CachedEventManager = nullptr;
+    mutable USuspenseCoreEventManager* CachedEventManager = nullptr;
 
     //================================================
     // Helper Methods

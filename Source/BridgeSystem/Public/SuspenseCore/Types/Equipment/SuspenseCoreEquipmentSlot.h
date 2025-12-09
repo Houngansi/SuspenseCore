@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"          // FSuspenseInventoryItemInstance
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"          // FEquipmentSlotConfig and tags
-#include "SuspenseEquipmentSlot.generated.h"
+#include "SuspenseCoreEquipmentSlot.generated.h"
 
 /**
  * Lightweight data-only description of a single equipment slot that can host

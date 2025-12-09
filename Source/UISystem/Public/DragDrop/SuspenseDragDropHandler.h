@@ -9,7 +9,7 @@
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/UI/ISuspenseEquipmentUIBridge.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "UObject/WeakInterfacePtr.h"
 #include "SuspenseDragDropHandler.generated.h"
 
@@ -261,10 +261,10 @@ private:
     // Cached references
     TMap<FGameplayTag, TWeakObjectPtr<USuspenseBaseContainerWidget>> ContainerCache;
     TWeakInterfacePtr<ISuspenseInventoryUIBridgeInterface> InventoryBridge;
-    TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterface> EquipmentBridge;
+    //TWeakInterfacePtr<ISuspenseEquipmentUIBridgeInterface> EquipmentBridge;
 
     UPROPERTY()
-    USuspenseEventManager* CachedEventManager;
+    USuspenseCoreEventManager* CachedEventManager;
 
     float LastCacheValidationTime;
     static constexpr float CACHE_LIFETIME = 5.0f;

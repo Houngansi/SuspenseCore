@@ -11,41 +11,84 @@
 /**
  * FSuspenseCoreSubscription
  *
- * Внутренняя структура подписки.
+ * Internal subscription structure holding callback info and filtering.
+ * Sorted by Priority (System=0 first, Lowest=200 last).
  */
 USTRUCT()
 struct FSuspenseCoreSubscription
 {
 	GENERATED_BODY()
 
+	/** Unique subscription ID for handle management */
 	uint64 Id = 0;
+
+	/** Subscriber object (weak ref for automatic cleanup) */
 	TWeakObjectPtr<UObject> Subscriber;
+
+	/** Execution priority (lower value = higher priority) */
 	ESuspenseCoreEventPriority Priority = ESuspenseCoreEventPriority::Normal;
+
+	/** Optional source filter - only receive events from this source */
 	TWeakObjectPtr<UObject> SourceFilter;
+
+	/** Native C++ callback (faster, no reflection) */
 	FSuspenseCoreNativeEventCallback NativeCallback;
+
+	/** Dynamic callback (Blueprint-compatible) */
 	FSuspenseCoreEventCallback DynamicCallback;
+
+	/** True if using NativeCallback, false for DynamicCallback */
 	bool bUseNativeCallback = false;
 
+	/** Check if subscription is still valid */
 	bool IsValid() const
 	{
 		return Id != 0 && Subscriber.IsValid();
+	}
+
+	/** Comparison for priority sorting (lower priority value = first in execution order) */
+	bool operator<(const FSuspenseCoreSubscription& Other) const
+	{
+		return static_cast<uint8>(Priority) < static_cast<uint8>(Other.Priority);
 	}
 };
 
 /**
  * USuspenseCoreEventBus
  *
- * Центральная шина событий. Все модули общаются ТОЛЬКО через неё.
+ * Central event bus for SuspenseCore. All modules communicate ONLY through this.
+ * Part of Clean Architecture Foundation.
  *
- * Ключевые особенности:
- * - События идентифицируются через GameplayTags
- * - Поддержка приоритетов обработки
- * - Фильтрация по источнику события
- * - Thread-safe операции
- * - Отложенные события (deferred)
+ * Key Features:
+ * - GameplayTag-based event identification (hierarchical, Blueprint-friendly)
+ * - Priority-based handler execution (System > High > Normal > Low > Lowest)
+ * - Source filtering (receive events only from specific objects)
+ * - Thread-safe operations (copy-then-notify pattern to avoid deadlocks)
+ * - Deferred events (processed at end of frame via EventManager)
+ * - Child tag subscription (subscribe to parent, receive all children)
  *
- * Это НОВЫЙ класс, написанный С НУЛЯ.
- * Legacy: SuspenseEquipmentEventBus (не трогаем)
+ * Thread Safety:
+ * - All public methods are thread-safe
+ * - Uses copy-then-notify: subscribers are copied under lock, then notified without lock
+ * - Subscriptions are sorted once on add, not on every publish
+ *
+ * Performance Optimizations:
+ * - O(1) subscription lookup via TMap<FGameplayTag, TArray<...>>
+ * - Subscriptions sorted by priority at registration time
+ * - Native C++ callbacks avoid reflection overhead
+ *
+ * Usage:
+ *   // Subscribe
+ *   Handle = EventBus->SubscribeNative(MyTag, this,
+ *       FSuspenseCoreNativeEventCallback::CreateUObject(this, &UMyClass::OnEvent));
+ *
+ *   // Publish
+ *   FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(this);
+ *   Data.SetFloat(TEXT("Damage"), 50.0f);
+ *   EventBus->Publish(MyTag, Data);
+ *
+ *   // Unsubscribe
+ *   EventBus->Unsubscribe(Handle);
  */
 UCLASS(BlueprintType)
 class BRIDGESYSTEM_API USuspenseCoreEventBus : public UObject

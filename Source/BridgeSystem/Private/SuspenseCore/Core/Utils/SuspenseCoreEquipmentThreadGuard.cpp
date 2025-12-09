@@ -1,102 +1,92 @@
 // Copyright Suspense Team. All Rights Reserved.
-#include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
+// SuspenseCore - Clean Architecture Foundation
+// Threading primitives implementation
 
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 
-// =========================
-// FEquipmentRWLock
-// =========================
+DEFINE_LOG_CATEGORY_STATIC(LogEquipmentThreadGuard, Log, All);
 
-FEquipmentRWLock::FEquipmentRWLock() = default;
-FEquipmentRWLock::~FEquipmentRWLock() = default;
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEquipmentRWLock - Native FRWLock Composition
+// ═══════════════════════════════════════════════════════════════════════════════
+
+FEquipmentRWLock::FEquipmentRWLock()
+{
+	// FRWLock is default-constructed and ready to use
+}
+
+FEquipmentRWLock::~FEquipmentRWLock()
+{
+	// FRWLock handles cleanup automatically
+}
 
 void FEquipmentRWLock::AcquireRead()
 {
-	ReaderCountMutex.Lock();
-	++ReaderCount;
-	if (ReaderCount == 1)
-	{
-		// first reader blocks writers
-		WriterMutex.Lock();
-	}
-	ReaderCountMutex.Unlock();
+	NativeLock.ReadLock();
 }
 
 void FEquipmentRWLock::ReleaseRead()
 {
-	ReaderCountMutex.Lock();
-	--ReaderCount;
-	if (ReaderCount == 0)
-	{
-		// last reader releases writers
-		WriterMutex.Unlock();
-	}
-	ReaderCountMutex.Unlock();
+	NativeLock.ReadUnlock();
 }
 
 void FEquipmentRWLock::AcquireWrite()
 {
-	WriterMutex.Lock();
+	NativeLock.WriteLock();
 }
 
 void FEquipmentRWLock::ReleaseWrite()
 {
-	WriterMutex.Unlock();
+	NativeLock.WriteUnlock();
 }
 
 bool FEquipmentRWLock::TryAcquireRead()
 {
-	if (!ReaderCountMutex.TryLock())
-	{
-		return false;
-	}
-
-	bool bLockedWriters = true;
-	if (ReaderCount == 0)
-	{
-		// first reader must non-blockingly lock writers
-		bLockedWriters = WriterMutex.TryLock();
-		if (!bLockedWriters)
-		{
-			ReaderCountMutex.Unlock();
-			return false;
-		}
-	}
-
-	++ReaderCount;
-	ReaderCountMutex.Unlock();
-	return true;
+	return NativeLock.TryReadLock();
 }
 
 bool FEquipmentRWLock::TryAcquireWrite()
 {
-	return WriterMutex.TryLock();
+	return NativeLock.TryWriteLock();
 }
 
-// =========================
-// FEquipmentRWGuard
-// =========================
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEquipmentRWGuard - RAII Guard
+// ═══════════════════════════════════════════════════════════════════════════════
 
 FEquipmentRWGuard::FEquipmentRWGuard(FEquipmentRWLock& InLock, ELockType InType)
 	: LockPtr(&InLock)
 	, Type(InType)
 	, bLocked(true)
 {
-	if (Type == ELockType::Read)  { LockPtr->AcquireRead(); }
-	else                          { LockPtr->AcquireWrite(); }
+	if (Type == ELockType::Read)
+	{
+		LockPtr->AcquireRead();
+	}
+	else
+	{
+		LockPtr->AcquireWrite();
+	}
 }
 
 FEquipmentRWGuard::~FEquipmentRWGuard()
 {
-	if (!LockPtr || !bLocked) return;
-	if (Type == ELockType::Read)  { LockPtr->ReleaseRead(); }
-	else                          { LockPtr->ReleaseWrite(); }
-	bLocked = false;
+	if (LockPtr && bLocked)
+	{
+		if (Type == ELockType::Read)
+		{
+			LockPtr->ReleaseRead();
+		}
+		else
+		{
+			LockPtr->ReleaseWrite();
+		}
+	}
 }
 
-// =========================
-// FEquipmentScopeLock
-// =========================
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEquipmentScopeLock - FCriticalSection Guard
+// ═══════════════════════════════════════════════════════════════════════════════
 
 FEquipmentScopeLock::FEquipmentScopeLock(FCriticalSection& InCS, const TCHAR* /*Label*/)
 	: CS(&InCS)

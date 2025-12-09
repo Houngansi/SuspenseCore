@@ -432,8 +432,6 @@ bool USuspenseCoreEventBus::HasSubscribers(FGameplayTag EventTag) const
 
 void USuspenseCoreEventBus::SortSubscriptionsByPriority(TArray<FSuspenseCoreSubscription>& Subs)
 {
-	Subs.Sort([](const FSuspenseCoreSubscription& A, const FSuspenseCoreSubscription& B)
-	{
-		return static_cast<uint8>(A.Priority) < static_cast<uint8>(B.Priority);
-	});
+	// Uses FSuspenseCoreSubscription::operator< for sorting
+	Subs.Sort();
 }

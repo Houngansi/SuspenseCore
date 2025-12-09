@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Input/SuspenseCoreAbilityInputID.h"
 #include "SuspenseCoreAbility.generated.h"
 
 class USuspenseCoreEventBus;
@@ -39,6 +40,18 @@ class GAS_API USuspenseCoreAbility : public UGameplayAbility
 
 public:
 	USuspenseCoreAbility();
+
+	//==================================================================
+	// Input Binding
+	//==================================================================
+
+	/**
+	 * Input ID for ability activation binding.
+	 * Used to map input actions to specific abilities via AbilitySystemComponent.
+	 * Set this in ability constructor to enable automatic input binding.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Input")
+	ESuspenseAbilityInputID AbilityInputID;
 
 	//==================================================================
 	// EventBus Configuration

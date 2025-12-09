@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CoreMinimal.h"
 #include "SuspenseCoreAbilityInputID.generated.h"
 
 /** Официальный список InputID, который будет использоваться во всём проекте */

@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseEquipmentTypes.generated.h"
 

@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseInventoryResult.generated.h"
+#include "SuspenseCoreInventoryResult.generated.h"
 
 /**
  * Структура для хранения результата операции с инвентарем

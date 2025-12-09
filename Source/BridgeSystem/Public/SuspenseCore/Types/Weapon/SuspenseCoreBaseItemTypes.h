@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseBaseItemTypes.generated.h"
+#include "SuspenseCoreBaseItemTypes.generated.h"
 
 /**
  * Структура для хранения информации о сокетах оружия для разных видов камеры

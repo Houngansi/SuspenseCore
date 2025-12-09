@@ -1,7 +1,7 @@
 // MedComItemDataTable.cpp
 // Copyright Suspense Team. All Rights Reserved.
 
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayTagsManager.h"
 #include "AbilitySystemGlobals.h"
 

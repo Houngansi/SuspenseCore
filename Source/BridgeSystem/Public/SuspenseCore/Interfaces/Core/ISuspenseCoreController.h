@@ -10,7 +10,7 @@
 // Forward declarations
 class AActor;
 class APawn;
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseController : public UInterface
@@ -102,14 +102,14 @@ public:
      * Gets the central delegate manager for controller events
      * @return Pointer to delegate manager or nullptr if not available
      */
-    virtual USuspenseEventManager* GetDelegateManager() const = 0;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const = 0;
     
     /**
      * Static helper to get delegate manager
      * @param WorldContextObject Any object with valid world context
      * @return Delegate manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Helper to broadcast controller weapon events

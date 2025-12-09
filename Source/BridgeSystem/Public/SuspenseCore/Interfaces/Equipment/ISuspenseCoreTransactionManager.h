@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Types/Transaction/SuspenseCoreTransactionTypes.h"
 #include "ISuspenseCoreTransactionManager.generated.h"
 

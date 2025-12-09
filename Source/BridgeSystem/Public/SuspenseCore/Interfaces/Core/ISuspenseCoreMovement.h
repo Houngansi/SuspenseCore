@@ -179,5 +179,5 @@ public:
     static void NotifyLanded(const UObject* Source, float ImpactVelocity);
 
     /** Get delegate manager for movement events */
-    static class USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static class USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
 };

@@ -7,7 +7,7 @@
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "SuspenseLoadoutSettings.generated.h"
+#include "SuspenseCoreLoadoutSettings.generated.h"
 
 /**
  * Equipment slot types for Tarkov-style MMO FPS

@@ -2,8 +2,8 @@
 
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryUtils.h" 
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemSystemAccess.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"

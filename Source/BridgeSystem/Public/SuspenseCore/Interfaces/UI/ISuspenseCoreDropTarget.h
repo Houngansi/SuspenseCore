@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
 #include "ISuspenseCoreDropTarget.generated.h"

@@ -6,11 +6,11 @@
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "ISuspenseCoreContainerUI.generated.h"
 
 // Forward declarations
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 class UDragDropOperation; // Используем базовый класс вместо UMedComDragDropOperation
 
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -102,14 +102,14 @@ public:
      * Get delegate manager for event communication
      * @return Delegate manager instance
      */
-    virtual USuspenseEventManager* GetDelegateManager() const = 0;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const = 0;
 
     /**
      * Static helper to get delegate manager from world context
      * @param WorldContextObject Object with world context
      * @return Delegate manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
 
     /**
      * Static helper to broadcast container update request

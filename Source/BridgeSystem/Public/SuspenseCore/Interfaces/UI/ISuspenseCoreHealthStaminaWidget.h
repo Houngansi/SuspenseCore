@@ -8,7 +8,7 @@
 
 // Forward declarations - только базовые UE типы
 class UAbilitySystemComponent;
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseHealthStaminaWidgetInterface : public UInterface
@@ -116,7 +116,7 @@ public:
      * @param WorldContextObject Any object with valid world context
      * @return Event manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Helper to broadcast health update event

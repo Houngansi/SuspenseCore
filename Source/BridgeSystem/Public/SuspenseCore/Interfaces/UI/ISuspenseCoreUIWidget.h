@@ -8,7 +8,7 @@
 #include "ISuspenseCoreUIWidget.generated.h"
 
 // Forward declarations - только базовые UE типы
-class USuspenseEventManager;
+class USuspenseCoreEventManager;
 
 UINTERFACE(MinimalAPI, BlueprintType)
 class USuspenseUIWidget : public UInterface
@@ -108,14 +108,14 @@ public:
      * Gets the event delegate manager
      * @return Event manager or nullptr
      */
-    virtual USuspenseEventManager* GetDelegateManager() const = 0;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const = 0;
 
     /**
      * Static helper to get event manager
      * @param WorldContextObject Any object with valid world context
      * @return Event manager or nullptr
      */
-    static USuspenseEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
+    static USuspenseCoreEventManager* GetDelegateManagerStatic(const UObject* WorldContextObject);
     
     /**
      * Helper to broadcast widget created event

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"          // FSuspenseInventoryItemInstance
-#include "Types/Equipment/SuspenseEquipmentTypes.h"          // FEquipmentSlotConfig and tags
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"          // FEquipmentSlotConfig and tags
 #include "SuspenseEquipmentSlot.generated.h"
 
 /**

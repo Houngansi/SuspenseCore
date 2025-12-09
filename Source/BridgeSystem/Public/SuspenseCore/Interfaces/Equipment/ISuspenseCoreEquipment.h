@@ -9,7 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "ISuspenseCoreEquipment.generated.h"
 
 // Forward declarations

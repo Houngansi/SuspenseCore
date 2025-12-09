@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "ISuspenseCoreNetworkInterfaces.generated.h"

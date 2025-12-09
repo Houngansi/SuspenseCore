@@ -10,7 +10,7 @@
 #include "SuspenseCoreSystemCoordinator.generated.h"
 
 class USuspenseCoreSystemCoordinatorComponent;
-class USuspenseEquipmentServiceLocator;
+class USuspenseCoreEquipmentServiceLocator;
 
 /**
  * GameInstance-level subsystem that owns and manages global equipment services.
@@ -37,7 +37,7 @@ class USuspenseEquipmentServiceLocator;
  * - Works with Listen/Dedicated servers
  * - Services are per-GameInstance, components are per-PlayerState
  */
-UCLASS(DisplayName="MedCom System Coordinator Subsystem", meta=(Comment="Owns global equipment services and manages their lifecycle"))
+UCLASS(DisplayName="SuspenseCore System Coordinator Subsystem", meta=(Comment="Owns global equipment services and manages their lifecycle"))
 class EQUIPMENTSYSTEM_API USuspenseCoreSystemCoordinator : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
@@ -66,14 +66,14 @@ public:
      * Check if global services are ready
      * @return true if services passed validation and are operational
      */
-    UFUNCTION(BlueprintPure, Category="MedCom|Services")
+    UFUNCTION(BlueprintPure, Category="SuspenseCore|Services")
     bool AreGlobalServicesReady() const { return bServicesReady; }
 
     /**
      * Get ServiceLocator instance (read-only)
      * @return ServiceLocator or nullptr if not initialized
      */
-    UFUNCTION(BlueprintPure, Category="MedCom|Services")
+    UFUNCTION(BlueprintPure, Category="SuspenseCore|Services")
     USuspenseCoreEquipmentServiceLocator* GetServiceLocator() const { return ServiceLocator; }
 
     //========================================
@@ -85,7 +85,7 @@ public:
      * Use case: manual recovery after abnormal travel, testing
      * @param World - World to rebind to, nullptr = use current world
      */
-    UFUNCTION(BlueprintCallable, Category="MedCom|Services")
+    UFUNCTION(BlueprintCallable, Category="SuspenseCore|Services")
     void ForceRebindWorld(UWorld* World = nullptr);
 
     //========================================
@@ -96,14 +96,14 @@ public:
      * Dump current services state to log
      * Usage: ~ DebugDumpServicesState
      */
-    UFUNCTION(Exec, Category="MedCom|Debug")
+    UFUNCTION(Exec, Category="SuspenseCore|Debug")
     void DebugDumpServicesState();
 
     /**
      * Force rebind to current world
      * Usage: ~ DebugForceRebind
      */
-    UFUNCTION(Exec, Category="MedCom|Debug")
+    UFUNCTION(Exec, Category="SuspenseCore|Debug")
     void DebugForceRebind();
 
     //========================================

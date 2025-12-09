@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "HAL/PlatformTime.h"
-#include "Interfaces/Equipment/ISuspenseEquipmentRules.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Types/Rules/SuspenseCoreRulesTypes.h"
@@ -321,7 +321,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRulesWithConte
 
 FRuleEvaluationResult USuspenseCoreEquipmentRulesService::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FEquipmentSlotConfig& SlotConfig) const
+    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
     if (!RulesCoordinator) return FRuleEvaluationResult();
     return RulesCoordinator->CheckItemCompatibility(ItemInstance, SlotConfig);

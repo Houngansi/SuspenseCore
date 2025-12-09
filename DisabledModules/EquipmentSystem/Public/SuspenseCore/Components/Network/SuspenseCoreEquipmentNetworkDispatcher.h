@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Delegates/Delegate.h"
-#include "Interfaces/Equipment/ISuspenseNetworkDispatcher.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkDispatcher.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
 #include "SuspenseCoreEquipmentNetworkDispatcher.generated.h"
 
@@ -114,7 +114,7 @@ struct FSuspenseCoreNetworkDispatcherStats
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentNetworkDispatcher
 	: public UActorComponent
-	, public ISuspenseNetworkDispatcher
+	, public ISuspenseCoreNetworkDispatcher
 {
 	GENERATED_BODY()
 public:

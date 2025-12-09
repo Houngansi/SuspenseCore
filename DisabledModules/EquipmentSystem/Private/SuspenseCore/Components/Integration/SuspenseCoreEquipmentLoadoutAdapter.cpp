@@ -509,7 +509,7 @@ FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::Appl
 	}
 
 	// Convert SlotTypeToItem to equipment map
-	TMap<EEquipmentSlotType, FName> StartingEquipment;
+	TMap<ESuspenseCoreEquipmentSlotType, FName> StartingEquipment;
 	for (const auto& Pair : Config.SlotTypeToItem)
 	{
 		StartingEquipment.Add(Pair.Key, Pair.Value);
@@ -545,11 +545,11 @@ TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::CreateO
 
 		if (!ItemId.IsNone())
 		{
-			FEquipmentSlotConfig SlotConfig;
+			FSuspenseCoreEquipmentSlotConfig SlotConfig;
 			// Get slot config from DataProvider if available
 			if (DataProvider.GetInterface())
 			{
-				const TArray<FEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
+				const TArray<FSuspenseCoreEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
 				if (AllSlots.IsValidIndex(SlotIndex))
 				{
 					SlotConfig = AllSlots[SlotIndex];
@@ -561,7 +561,7 @@ TArray<FEquipmentOperationRequest> USuspenseCoreEquipmentLoadoutAdapter::CreateO
 	return Ops;
 }
 
-FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOperation(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const
+FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOperation(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const
 {
 	FEquipmentOperationRequest Req;
 	Req.OperationType   = EEquipmentOperationType::Equip;
@@ -575,7 +575,7 @@ FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOper
 	ItemInstance.Quantity = 1;
 	Req.ItemInstance      = ItemInstance;
 
-	const UEnum* EnumPtr     = StaticEnum<EEquipmentSlotType>();
+	const UEnum* EnumPtr     = StaticEnum<ESuspenseCoreEquipmentSlotType>();
 	const FString SlotTypeNm = EnumPtr ? EnumPtr->GetNameStringByValue((int64)SlotConfig.SlotType) : TEXT("Unknown");
 
 	Req.Parameters.Add(TEXT("SlotType"), SlotTypeNm);
@@ -593,15 +593,15 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FS
 	{
 		for (const auto& Pair : Config.SlotTypeToItem)
 		{
-			const EEquipmentSlotType SlotType = Pair.Key;
+			const ESuspenseCoreEquipmentSlotType SlotType = Pair.Key;
 			const FName ItemId = Pair.Value;
 
 			// Get slot config from DataProvider
-			FEquipmentSlotConfig SlotConfig;
+			FSuspenseCoreEquipmentSlotConfig SlotConfig;
 			bool bFoundSlot = false;
 			if (DataProvider.GetInterface())
 			{
-				for (const FEquipmentSlotConfig& Slot : DataProvider->GetAllSlotConfigurations())
+				for (const FSuspenseCoreEquipmentSlotConfig& Slot : DataProvider->GetAllSlotConfigurations())
 				{
 					if (Slot.SlotType == SlotType) { SlotConfig = Slot; bFoundSlot = true; break; }
 				}
@@ -654,7 +654,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutConfiguration(const FS
 	return bValid;
 }
 
-bool USuspenseCoreEquipmentLoadoutAdapter::CheckSlotCompatibility(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId) const
+bool USuspenseCoreEquipmentLoadoutAdapter::CheckSlotCompatibility(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId) const
 {
 	USuspenseCoreItemManager* ItemManager = GetItemManager();
 	if (!ItemManager) { return false; }
@@ -688,7 +688,7 @@ FSuspenseCoreLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::BuildLoa
 
 	if (!DataProvider.GetInterface()) { return Loadout; }
 
-	const TArray<FEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
+	const TArray<FSuspenseCoreEquipmentSlotConfig> AllSlots = DataProvider->GetAllSlotConfigurations();
 	const TMap<int32, FSuspenseCoreInventoryItemInstance> Equipped = DataProvider->GetAllEquippedItems();
 	for (const auto& Pair : Equipped)
 	{
@@ -699,7 +699,7 @@ FSuspenseCoreLoadoutConfiguration USuspenseCoreEquipmentLoadoutAdapter::BuildLoa
 
 		if (AllSlots.IsValidIndex(SlotIndex))
 		{
-			const FEquipmentSlotConfig& SlotCfg = AllSlots[SlotIndex];
+			const FSuspenseCoreEquipmentSlotConfig& SlotCfg = AllSlots[SlotIndex];
 			Loadout.SlotTypeToItem.Add(SlotCfg.SlotType, Instance.ItemID);
 		}
 	}
@@ -716,7 +716,7 @@ FString USuspenseCoreEquipmentLoadoutAdapter::GenerateLoadoutPreview(const FSusp
 
 	for (const auto& Pair : Config.SlotTypeToItem)
 	{
-		const FString SlotName = StaticEnum<EEquipmentSlotType>()->GetNameStringByValue((int64)Pair.Key);
+		const FString SlotName = StaticEnum<ESuspenseCoreEquipmentSlotType>()->GetNameStringByValue((int64)Pair.Key);
 		S += FString::Printf(TEXT("  %s: %s\n"), *SlotName, *Pair.Value.ToString());
 	}
 	return S;
@@ -739,7 +739,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ClearCurrentEquipment()
 	return true;
 }
 
-int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EEquipmentSlotType, FName>& StartingEquipment)
+int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<ESuspenseCoreEquipmentSlotType, FName>& StartingEquipment)
 {
 	// Предпочитаем централизованный батч через OperationService
 	if (bPreferOperationService)
@@ -750,10 +750,10 @@ int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EE
 			Requests.Reserve(StartingEquipment.Num());
 
 			// Подготовим сопоставление SlotType -> SlotIndex из текущих конфигураций
-			TMap<EEquipmentSlotType, int32> SlotTypeToIndex;
+			TMap<ESuspenseCoreEquipmentSlotType, int32> SlotTypeToIndex;
 			if (DataProvider.GetInterface())
 			{
-				const TArray<FEquipmentSlotConfig> Slots = DataProvider->GetAllSlotConfigurations();
+				const TArray<FSuspenseCoreEquipmentSlotConfig> Slots = DataProvider->GetAllSlotConfigurations();
 				for (int32 i = 0; i < Slots.Num(); ++i)
 				{
 					SlotTypeToIndex.Add(Slots[i].SlotType, i);
@@ -776,7 +776,7 @@ int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EE
 				ItemInstance.Quantity = 1;
 				Req.ItemInstance      = ItemInstance;
 
-				Req.Parameters.Add(TEXT("SlotType"), StaticEnum<EEquipmentSlotType>()->GetNameStringByValue((int64)Pair.Key));
+				Req.Parameters.Add(TEXT("SlotType"), StaticEnum<ESuspenseCoreEquipmentSlotType>()->GetNameStringByValue((int64)Pair.Key));
 				Requests.Add(Req);
 			}
 
@@ -795,10 +795,10 @@ int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<EE
 	int32 Success = 0;
 
 	// Карта SlotType -> Index на базе текущей конфигурации
-	TMap<EEquipmentSlotType, int32> SlotTypeToIndex;
+	TMap<ESuspenseCoreEquipmentSlotType, int32> SlotTypeToIndex;
 	if (DataProvider.GetInterface())
 	{
-		const TArray<FEquipmentSlotConfig> Slots = DataProvider->GetAllSlotConfigurations();
+		const TArray<FSuspenseCoreEquipmentSlotConfig> Slots = DataProvider->GetAllSlotConfigurations();
 		for (int32 i = 0; i < Slots.Num(); ++i)
 		{
 			SlotTypeToIndex.Add(Slots[i].SlotType, i);

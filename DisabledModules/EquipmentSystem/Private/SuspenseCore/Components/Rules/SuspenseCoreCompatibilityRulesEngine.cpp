@@ -1,4 +1,5 @@
-// MedComCompatibilityRulesEngine.cpp © MedCom Team
+// SuspenseCoreCompatibilityRulesEngine.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreCompatibilityRulesEngine.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
@@ -74,7 +75,7 @@ bool USuspenseCoreCompatibilityRulesEngine::GetItemData(FName ItemID, FSuspenseC
 
 FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::CheckItemCompatibility(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& SlotConfig) const
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
 	// Base: delegate to SlotValidator (public API, no access to protected methods)
 	if (IsValid(SlotValidator))
@@ -138,7 +139,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::CheckItemCom
 
 FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::CheckTypeCompatibility(
 	const FGameplayTag& ItemType,
-	const FEquipmentSlotConfig& SlotConfig) const
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
 	// Simple gate: Allowed/Disallowed sets only (validator covers strict rules)
 	const bool bTypeAllowed = SlotConfig.AllowedItemTypes.IsEmpty() || SlotConfig.AllowedItemTypes.HasTag(ItemType);
@@ -197,7 +198,7 @@ FSuspenseCoreAggregatedRuleResult USuspenseCoreCompatibilityRulesEngine::Evaluat
 		Agg.AddResult(R);
 		return Agg;
 	}
-	const FEquipmentSlotConfig SlotCfg = EquipProvider.GetInterface()->GetSlotConfiguration(Context.TargetSlotIndex);
+	const FSuspenseCoreEquipmentSlotConfig SlotCfg = EquipProvider.GetInterface()->GetSlotConfiguration(Context.TargetSlotIndex);
 
 	// Base hard checks via SlotValidator (short-circuit on fail)
 	if (IsValid(SlotValidator))
@@ -232,13 +233,13 @@ FSuspenseCoreAggregatedRuleResult USuspenseCoreCompatibilityRulesEngine::Evaluat
 
 TArray<int32> USuspenseCoreCompatibilityRulesEngine::FindCompatibleSlots(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const TArray<FEquipmentSlotConfig>& AvailableSlots) const
+	const TArray<FSuspenseCoreEquipmentSlotConfig>& AvailableSlots) const
 {
 	TArray<int32> Out;
 
 	for (int32 i = 0; i < AvailableSlots.Num(); ++i)
 	{
-		const FEquipmentSlotConfig& SlotCfg = AvailableSlots[i];
+		const FSuspenseCoreEquipmentSlotConfig& SlotCfg = AvailableSlots[i];
 
 		if (IsValid(SlotValidator))
 		{
@@ -263,7 +264,7 @@ TArray<int32> USuspenseCoreCompatibilityRulesEngine::FindCompatibleSlots(
 
 float USuspenseCoreCompatibilityRulesEngine::GetCompatibilityScore(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& SlotConfig) const
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
 	// Start from base check confidence
 	float Score = 1.0f;

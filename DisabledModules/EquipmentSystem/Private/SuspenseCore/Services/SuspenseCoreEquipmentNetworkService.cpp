@@ -1068,7 +1068,7 @@ FGuid USuspenseCoreEquipmentNetworkService::CreatePlayerGuid(const FUniqueNetIdR
     uint8   HashResult[20];
     FSHA1   Sha1Gen;
     Sha1Gen.Update((const uint8*)TCHAR_TO_UTF8(*UniqueIdString), UniqueIdString.Len());
-    FString EntropyString = FString::Printf(TEXT("MedCom_Equipment_%s_Salt"), *UniqueIdString);
+    FString EntropyString = FString::Printf(TEXT("SuspenseCore_Equipment_%s_Salt"), *UniqueIdString);
     Sha1Gen.Update((const uint8*)TCHAR_TO_UTF8(*EntropyString), EntropyString.Len());
     Sha1Gen.Final();
     Sha1Gen.GetHash(HashResult);

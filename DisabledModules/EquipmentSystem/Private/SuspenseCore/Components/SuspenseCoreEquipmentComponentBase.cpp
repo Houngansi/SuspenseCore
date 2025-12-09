@@ -14,7 +14,7 @@
 #include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
 
-DEFINE_LOG_CATEGORY(LogMedComEquipment);
+DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipment);
 
 USuspenseCoreEquipmentComponentBase::USuspenseCoreEquipmentComponentBase()
 {

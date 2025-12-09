@@ -813,8 +813,8 @@ void USuspenseCoreEquipmentReplicationManager::UpdateSlotPriority(int32 SlotInde
     S.ReplicationPriority=1.0f;
     if(DataProvider.GetInterface())
     {
-        FEquipmentSlotConfig Cfg=DataProvider->GetSlotConfiguration(SlotIndex);
-        if(Cfg.SlotType==EEquipmentSlotType::PrimaryWeapon||Cfg.SlotType==EEquipmentSlotType::SecondaryWeapon){S.ReplicationPriority*=2.0f;}
+        FSuspenseCoreEquipmentSlotConfig Cfg=DataProvider->GetSlotConfiguration(SlotIndex);
+        if(Cfg.SlotType==ESuspenseCoreEquipmentSlotType::PrimaryWeapon||Cfg.SlotType==ESuspenseCoreEquipmentSlotType::SecondaryWeapon){S.ReplicationPriority*=2.0f;}
     }
     if(S.bIsDirty){S.ReplicationPriority*=3.0f;}
     if(S.ChangeCount>5){S.ReplicationPriority*=1.5f;}

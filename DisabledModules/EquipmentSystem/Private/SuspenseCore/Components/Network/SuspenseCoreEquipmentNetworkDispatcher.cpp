@@ -1,5 +1,5 @@
-// MedComEquipmentNetworkDispatcher.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentNetworkDispatcher.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentNetworkService.h"

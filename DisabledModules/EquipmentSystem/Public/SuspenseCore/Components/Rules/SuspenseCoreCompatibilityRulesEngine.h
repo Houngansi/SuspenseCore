@@ -1,14 +1,15 @@
-// SuspenseCoreCompatibilityRulesEngine.h © MedCom Team
+// SuspenseCoreCompatibilityRulesEngine.h
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCoreCompatibilityRulesEngine.generated.h"
 
@@ -35,12 +36,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreRuleCheckResult CheckItemCompatibility(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const FEquipmentSlotConfig& SlotConfig) const;
+		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreRuleCheckResult CheckTypeCompatibility(
 		const FGameplayTag& ItemType,
-		const FEquipmentSlotConfig& SlotConfig) const;
+		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreAggregatedRuleResult EvaluateCompatibilityRules(
@@ -49,12 +50,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	TArray<int32> FindCompatibleSlots(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const TArray<FEquipmentSlotConfig>& AvailableSlots) const;
+		const TArray<FSuspenseCoreEquipmentSlotConfig>& AvailableSlots) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	float GetCompatibilityScore(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const FEquipmentSlotConfig& SlotConfig) const;
+		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
 
 	//------------- DI -------------
 	/** Provide SlotValidator for base checks (no duplication). */

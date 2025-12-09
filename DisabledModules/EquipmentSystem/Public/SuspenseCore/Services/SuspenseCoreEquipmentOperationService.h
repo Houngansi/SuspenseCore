@@ -12,7 +12,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"

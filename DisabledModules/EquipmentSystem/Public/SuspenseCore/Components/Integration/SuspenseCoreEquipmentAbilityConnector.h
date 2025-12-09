@@ -5,8 +5,8 @@
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreAbilityConnector.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "ItemSystem/SuspenseCoreItemManager.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
@@ -64,7 +64,7 @@ struct FSuspenseCoreManagedAttributeSet
 /**
  * Production connector component that bridges equipment system with GAS.
  */
-UCLASS(ClassGroup=(MedCom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentAbilityConnector : public UActorComponent, public ISuspenseCoreAbilityConnector
 {
     GENERATED_BODY()

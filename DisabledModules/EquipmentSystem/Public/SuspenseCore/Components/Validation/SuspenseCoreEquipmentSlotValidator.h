@@ -1,5 +1,5 @@
 // SuspenseCoreEquipmentSlotValidator.h
-// Copyright MedCom
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
@@ -14,8 +14,8 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 
 #include "SuspenseCoreEquipmentSlotValidator.generated.h"
 
@@ -232,7 +232,7 @@ public:
 
 	virtual bool IsItemTypeCompatibleWithSlot(
 		const FGameplayTag& ItemType,
-		EEquipmentSlotType SlotType) const override;
+		ESuspenseCoreEquipmentSlotType SlotType) const override;
 
 	//===============================
 	// Extended API
@@ -259,11 +259,11 @@ public:
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
 	TArray<int32> GetSlotsByType(
-		EEquipmentSlotType EquipmentType,
+		ESuspenseCoreEquipmentSlotType EquipmentType,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
 	int32 GetFirstEmptySlotOfType(
-		EEquipmentSlotType EquipmentType,
+		ESuspenseCoreEquipmentSlotType EquipmentType,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
 	//===============================
@@ -319,7 +319,7 @@ protected:
 	// Helpers
 	bool GetItemData(const FName& ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
 	bool ItemHasTag(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& RequiredTag) const;
-	TArray<FGameplayTag> GetCompatibleItemTypes(EEquipmentSlotType SlotType) const;
+	TArray<FGameplayTag> GetCompatibleItemTypes(ESuspenseCoreEquipmentSlotType SlotType) const;
 	int32 GetResultCodeForFailure(EEquipmentValidationFailure FailureType) const;
 	bool CheckSlotCompatibilityConflicts(int32 SlotIndexA, int32 SlotIndexB, const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
@@ -336,8 +336,8 @@ protected:
 	//===============================
 	// Type compatibility matrix
 	//===============================
-	static TMap<EEquipmentSlotType, TArray<FGameplayTag>> CreateTypeCompatibilityMatrix();
-	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>> TypeCompatibilityMatrix;
+	static TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> CreateTypeCompatibilityMatrix();
+	static const TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> TypeCompatibilityMatrix;
 
 private:
 	//---------------- Rules storage (split lock) ----------------

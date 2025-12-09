@@ -1,4 +1,4 @@
-// Copyright MedCom
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
@@ -12,7 +12,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreVisualProvider.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCoreEquipmentVisualController.generated.h"
 
 class UNiagaraComponent;

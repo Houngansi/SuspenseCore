@@ -1,5 +1,5 @@
-// MedComEquipmentTransactionProcessor.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentTransactionProcessor.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"

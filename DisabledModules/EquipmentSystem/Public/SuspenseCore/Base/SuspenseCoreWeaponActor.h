@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
-#include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
-#include "Types/Weapon/SuspenseInventoryAmmoState.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreWeaponActor.generated.h"
 
 // Forward declarations
@@ -51,12 +51,12 @@ public:
     //================================================
     // ISuspenseCoreWeapon (facade -> components)
     //================================================
-    virtual FWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual FSuspenseCoreWeaponInitializationResult InitializeFromItemData_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual bool GetWeaponItemData_Implementation(FSuspenseCoreUnifiedItemData& OutData) const override;
     virtual FSuspenseCoreInventoryItemInstance GetItemInstance_Implementation() const override;
 
     // Basic actions
-    virtual bool Fire_Implementation(const FWeaponFireParams& Params) override;
+    virtual bool Fire_Implementation(const FSuspenseCoreWeaponFireParams& Params) override;
     virtual void StopFire_Implementation() override;
     virtual bool Reload_Implementation(bool bForce) override;
     virtual void CancelReload_Implementation() override;
@@ -96,9 +96,9 @@ public:
     virtual bool IsMagazineFull_Implementation() const override;
 
     // Weapon state (flags)
-    virtual FWeaponStateFlags GetWeaponState_Implementation() const override;
-    virtual bool IsInWeaponState_Implementation(const FWeaponStateFlags& State) const override;
-    virtual void SetWeaponState_Implementation(const FWeaponStateFlags& NewState, bool bEnabled) override;
+    virtual FSuspenseCoreWeaponStateFlags GetWeaponState_Implementation() const override;
+    virtual bool IsInWeaponState_Implementation(const FSuspenseCoreWeaponStateFlags& State) const override;
+    virtual void SetWeaponState_Implementation(const FSuspenseCoreWeaponStateFlags& NewState, bool bEnabled) override;
 
     //================================================
     // ISuspenseCoreFireModeProvider (proxy to component)
@@ -110,15 +110,15 @@ public:
     virtual bool SetFireMode_Implementation(const FGameplayTag& FireModeTag) override;
     virtual bool SetFireModeByIndex_Implementation(int32 Index) override;
     virtual FGameplayTag GetCurrentFireMode_Implementation() const override;
-    virtual FFireModeRuntimeData GetCurrentFireModeData_Implementation() const override;
+    virtual FSuspenseCoreFireModeRuntimeData GetCurrentFireModeData_Implementation() const override;
     virtual bool IsFireModeAvailable_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual TArray<FFireModeRuntimeData> GetAllFireModes_Implementation() const override;
+    virtual TArray<FSuspenseCoreFireModeRuntimeData> GetAllFireModes_Implementation() const override;
     virtual TArray<FGameplayTag> GetAvailableFireModes_Implementation() const override;
     virtual int32 GetAvailableFireModeCount_Implementation() const override;
     virtual bool SetFireModeEnabled_Implementation(const FGameplayTag& FireModeTag, bool bEnabled) override;
     virtual void SetFireModeBlocked_Implementation(const FGameplayTag& FireModeTag, bool bBlocked) override;
     virtual bool IsFireModeBlocked_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const override;
+    virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FSuspenseCoreFireModeRuntimeData& OutData) const override;
     virtual TSubclassOf<UGameplayAbility> GetFireModeAbility_Implementation(const FGameplayTag& FireModeTag) const override;
     virtual int32 GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const override;
 

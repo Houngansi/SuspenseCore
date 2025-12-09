@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "AttributeSet.h"
 #include "SuspenseCoreEquipmentAttributeComponent.generated.h"
 

@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 #include "SuspenseCoreRulesCoordinator.generated.h"
 
 class USuspenseCoreWeightRulesEngine;
@@ -95,7 +95,7 @@ public:
         const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
         const FSuspenseCoreInventoryItemInstance& ItemInstance,
-        const FEquipmentSlotConfig& SlotConfig) const override;
+        const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;

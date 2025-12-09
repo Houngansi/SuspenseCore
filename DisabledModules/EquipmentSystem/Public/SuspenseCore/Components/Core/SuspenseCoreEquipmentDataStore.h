@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/Transaction/SuspenseCoreTransactionTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
@@ -48,7 +48,7 @@ struct FSuspenseCoreEquipmentDataStorage
 
     /** Slot configurations */
     UPROPERTY()
-    TArray<FEquipmentSlotConfig> SlotConfigurations;
+    TArray<FSuspenseCoreEquipmentSlotConfig> SlotConfigurations;
 
     /** Items in slots */
     UPROPERTY()
@@ -119,8 +119,8 @@ public:
 
 	// High-level queries required by ISuspenseCoreEquipmentDataProvider
 	virtual TArray<int32> FindCompatibleSlots(const FGameplayTag& ItemSlotTag) const override;
-	virtual TArray<int32> GetSlotsByType(EEquipmentSlotType SlotType) const override;
-	virtual int32 GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const override;
+	virtual TArray<int32> GetSlotsByType(ESuspenseCoreEquipmentSlotType SlotType) const override;
+	virtual int32 GetFirstEmptySlotOfType(ESuspenseCoreEquipmentSlotType SlotType) const override;
 	virtual float GetTotalEquippedWeight() const override;
 	virtual bool MeetsItemRequirements(const FSuspenseCoreInventoryItemInstance& Item, int32 TargetSlotIndex) const override;
 	virtual FString GetDebugInfo() const override;
@@ -128,8 +128,8 @@ public:
 
     // Pure Data Access - No Logic
     virtual FSuspenseCoreInventoryItemInstance GetSlotItem(int32 SlotIndex) const override;
-    virtual FEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const override;
-    virtual TArray<FEquipmentSlotConfig> GetAllSlotConfigurations() const override;
+    virtual FSuspenseCoreEquipmentSlotConfig GetSlotConfiguration(int32 SlotIndex) const override;
+    virtual TArray<FSuspenseCoreEquipmentSlotConfig> GetAllSlotConfigurations() const override;
     virtual TMap<int32, FSuspenseCoreInventoryItemInstance> GetAllEquippedItems() const override;
     virtual int32 GetSlotCount() const override;
     virtual bool IsValidSlotIndex(int32 SlotIndex) const override;
@@ -138,7 +138,7 @@ public:
     // Data Modification - No Validation
     virtual bool SetSlotItem(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bNotifyObservers = true) override;
     virtual FSuspenseCoreInventoryItemInstance ClearSlot(int32 SlotIndex, bool bNotifyObservers = true) override;
-    virtual bool InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations) override;
+    virtual bool InitializeSlots(const TArray<FSuspenseCoreEquipmentSlotConfig>& Configurations) override;
 
     // State Management
     virtual int32 GetActiveWeaponSlot() const override;
@@ -219,7 +219,7 @@ public:
 		* @return Fresh configuration from LoadoutManager or cached if unavailable
 		*/
 	UFUNCTION(BlueprintCallable, Category = "Equipment|DataStore")
-	FEquipmentSlotConfig GetFreshSlotConfiguration(int32 SlotIndex) const;
+	FSuspenseCoreEquipmentSlotConfig GetFreshSlotConfiguration(int32 SlotIndex) const;
 
 	/**
 	 * Refresh all cached slot configurations from LoadoutManager

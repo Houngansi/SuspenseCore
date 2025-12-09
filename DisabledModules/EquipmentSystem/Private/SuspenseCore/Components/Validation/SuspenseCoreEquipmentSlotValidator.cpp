@@ -1,5 +1,5 @@
-// MedComEquipmentSlotValidator.cpp
-// Copyright MedCom
+// SuspenseCoreEquipmentSlotValidator.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 
@@ -20,7 +20,7 @@
 // ==============================================
 // Статическая матрица совместимости типов
 // ==============================================
-const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
+const TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
 	USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix();
 
 // ==============================================
@@ -36,7 +36,7 @@ USuspenseCoreEquipmentSlotValidator::USuspenseCoreEquipmentSlotValidator()
 // ==============================================
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
-    const FEquipmentSlotConfig& SlotConfig,
+    const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
     const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     // ДИАГНОСТИКА: Логируем ВСЕ попытки валидации
@@ -118,9 +118,9 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
 }
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
-	const FEquipmentSlotConfig& SlotConfigA,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfigA,
 	const FSuspenseCoreInventoryItemInstance& ItemA,
-	const FEquipmentSlotConfig& SlotConfigB,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfigB,
 	const FSuspenseCoreInventoryItemInstance& ItemB) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
@@ -148,7 +148,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
 }
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfiguration(
-	const FEquipmentSlotConfig& SlotConfig) const
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
 
@@ -164,7 +164,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfigura
 		return R;
 	}
 
-	// Без AllowedItemTypes разрешаем всё (см. реализацию FEquipmentSlotConfig::CanEquipItemType)
+	// Без AllowedItemTypes разрешаем всё (см. реализацию FSuspenseCoreEquipmentSlotConfig::CanEquipItemType)
 	if (SlotConfig.AllowedItemTypes.IsEmpty())
 	{
 		R.Warnings.Add(FText::FromString(TEXT("AllowedItemTypes is empty — falls back to allow all")));
@@ -174,7 +174,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfigura
 }
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements(
-	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
 	const FGameplayTagContainer& Requirements) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
@@ -202,9 +202,9 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements
 
 bool USuspenseCoreEquipmentSlotValidator::IsItemTypeCompatibleWithSlot(
 	const FGameplayTag& ItemType,
-	EEquipmentSlotType SlotType) const
+	ESuspenseCoreEquipmentSlotType SlotType) const
 {
-	if (SlotType == EEquipmentSlotType::None)
+	if (SlotType == ESuspenseCoreEquipmentSlotType::None)
 	{
 		return true;
 	}
@@ -226,7 +226,7 @@ bool USuspenseCoreEquipmentSlotValidator::IsItemTypeCompatibleWithSlot(
 // ==============================================
 
 FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlotEx(
-	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
 	const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
 	const double Start = FPlatformTime::Seconds();
@@ -304,7 +304,7 @@ FBatchValidationResult USuspenseCoreEquipmentSlotValidator::ValidateBatch(const 
 			continue;
 		}
 
-		const FEquipmentSlotConfig SlotCfg = Request.DataProvider->GetSlotConfiguration(Op.SlotIndex);
+		const FSuspenseCoreEquipmentSlotConfig SlotCfg = Request.DataProvider->GetSlotConfiguration(Op.SlotIndex);
 		FSlotValidationResultEx R = CanPlaceItemInSlotEx(SlotCfg, Op.ItemAfter);
 		R.Details.Add(TEXT("OperationIndex"), FString::FromInt(i));
 		Out.OperationResults.Add(R);
@@ -366,7 +366,7 @@ bool USuspenseCoreEquipmentSlotValidator::QuickValidateOperations(
 	{
 		if (!DataProvider->IsValidSlotIndex(Op.SlotIndex)) return false;
 
-		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(Op.SlotIndex);
+		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(Op.SlotIndex);
 		const FSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotCfg, Op.ItemAfter);
 		if (!R.bIsValid) return false;
 	}
@@ -458,7 +458,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::FindCompatibleSlots(
 	const int32 Count = DataProvider->GetSlotCount();
 	for (int32 i = 0; i < Count; ++i)
 	{
-		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
+		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
 		if (SlotCfg.CanEquipItemType(ItemType))
 		{
 			Out.Add(i);
@@ -468,7 +468,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::FindCompatibleSlots(
 }
 
 TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
-	EEquipmentSlotType EquipmentType,
+	ESuspenseCoreEquipmentSlotType EquipmentType,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
 	TArray<int32> Out;
@@ -477,7 +477,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
 	const int32 Count = DataProvider->GetSlotCount();
 	for (int32 i = 0; i < Count; ++i)
 	{
-		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
+		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
 		if (SlotCfg.SlotType == EquipmentType)
 		{
 			Out.Add(i);
@@ -487,7 +487,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
 }
 
 int32 USuspenseCoreEquipmentSlotValidator::GetFirstEmptySlotOfType(
-	EEquipmentSlotType EquipmentType,
+	ESuspenseCoreEquipmentSlotType EquipmentType,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
 	if (!DataProvider.GetInterface()) return INDEX_NONE;
@@ -665,7 +665,7 @@ uint32 USuspenseCoreEquipmentSlotValidator::GetCurrentDataVersion() const
 // ==============================================
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot_NoLock(
-	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
 	const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
 	if (!ItemInstance.IsValid())
@@ -684,7 +684,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot_No
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ExecuteValidationRules_NoLock(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
 	const FSlotRestrictionData* Restrictions) const
 {
 	FSlotValidationResult Out;
@@ -736,7 +736,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ExecuteValidationRule
 
 FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::ExecuteValidationRulesEx_NoLock(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
 	const FSlotRestrictionData* Restrictions) const
 {
 	const FSlotValidationResult Base = ExecuteValidationRules_NoLock(ItemInstance, SlotConfig, Restrictions);
@@ -783,7 +783,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	TypeRule.Priority = 100;
 	TypeRule.ErrorMessage = FText::FromString(TEXT("Item type is not compatible with slot"));
 	TypeRule.bIsStrict = true;
-	TypeRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
+	TypeRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
 	{
 		UE_LOG(LogEquipmentValidation, Error, TEXT("    🔵 TypeRule executing..."));
 
@@ -827,7 +827,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	LevelRule.Priority = 90;
 	LevelRule.ErrorMessage = FText::FromString(TEXT("Level requirement not met"));
 	LevelRule.bIsStrict = true;
-	LevelRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig&, const FSlotRestrictionData*)
+	LevelRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig&, const FSlotRestrictionData*)
 	{
 		// Валидация без доступа к персонажу — используем runtime prop, 0 — нет требования
 		const float RequiredLevel = Item.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f);
@@ -847,7 +847,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	WeightRule.Priority = 80;
 	WeightRule.ErrorMessage = FText::FromString(TEXT("Item exceeds slot restrictions"));
 	WeightRule.bIsStrict = false; // предупреждение по умолчанию
-	WeightRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig&, const FSlotRestrictionData* R)
+	WeightRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig&, const FSlotRestrictionData* R)
 	{
 		if (!R) return true;
 
@@ -878,7 +878,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	UniqueRule.Priority = 70;
 	UniqueRule.ErrorMessage = FText::FromString(TEXT("Unique item constraint violated"));
 	UniqueRule.bIsStrict = true;
-	UniqueRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData* R)
+	UniqueRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig& Slot, const FSlotRestrictionData* R)
 	{
 		if (!R || !R->UniqueGroupTag.IsValid())
 		{
@@ -900,7 +900,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemType(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& SlotConfig) const
+	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
 	FSuspenseCoreUnifiedItemData Data;
 	if (!GetItemData(ItemInstance.ItemID, Data))
@@ -931,7 +931,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemType(
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemLevel(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& /*SlotConfig*/) const
+	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/) const
 {
 	const float RequiredLevel = ItemInstance.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f);
 	if (RequiredLevel <= 0.0f)
@@ -944,7 +944,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemLevel(
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemWeight(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& /*SlotConfig*/,
+	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/,
 	const FSlotRestrictionData& Restrictions) const
 {
 	const float ItemWeight = ItemInstance.GetRuntimeProperty(TEXT("Weight"), 0.0f);
@@ -974,7 +974,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemWeight(
 
 FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateUniqueItem(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FEquipmentSlotConfig& /*SlotConfig*/,
+	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/,
 	const FSlotRestrictionData* Restrictions,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
@@ -1056,7 +1056,7 @@ bool USuspenseCoreEquipmentSlotValidator::ItemHasTag(
 	return GetItemData(ItemInstance.ItemID, Data) && Data.ItemType.MatchesTag(RequiredTag);
 }
 
-TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetCompatibleItemTypes(EEquipmentSlotType SlotType) const
+TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetCompatibleItemTypes(ESuspenseCoreEquipmentSlotType SlotType) const
 {
 	if (const TArray<FGameplayTag>* Found = TypeCompatibilityMatrix.Find(SlotType))
 	{
@@ -1220,7 +1220,7 @@ void USuspenseCoreEquipmentSlotValidator::CacheValidationResultEx(
 
 FString USuspenseCoreEquipmentSlotValidator::GenerateCacheKey(
 	const FSuspenseCoreInventoryItemInstance& Item,
-	const FEquipmentSlotConfig& Slot) const
+	const FSuspenseCoreEquipmentSlotConfig& Slot) const
 {
 	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Включаем ItemType в ключ кеша
 	// чтобы инвалидировать кеш при изменении типа предмета в DataTable
@@ -1294,12 +1294,12 @@ void USuspenseCoreEquipmentSlotValidator::CleanExpiredCacheEntries() const
 // Static: Type compatibility matrix
 // ==============================================
 
-TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix()
+TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix()
 {
-    TMap<EEquipmentSlotType, TArray<FGameplayTag>> M;
+    TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> M;
 
     // Weapon classes
-    M.Add(EEquipmentSlotType::PrimaryWeapon, {
+    M.Add(ESuspenseCoreEquipmentSlotType::PrimaryWeapon, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Rifle")),    // ← ДОБАВЛЕНО!
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.AR")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.DMR")),
@@ -1310,54 +1310,54 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidat
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))   // ← ДОБАВЛЕНО родительский тег
     });
 
-    M.Add(EEquipmentSlotType::SecondaryWeapon, {
+    M.Add(ESuspenseCoreEquipmentSlotType::SecondaryWeapon, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.PDW"))
     });
 
-    M.Add(EEquipmentSlotType::Holster, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Holster, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Revolver"))
     });
 
-    M.Add(EEquipmentSlotType::Scabbard, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Scabbard, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife"))
     });
 
     // Head gear
-    M.Add(EEquipmentSlotType::Headwear, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Headwear, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Headwear"))
     });
 
-    M.Add(EEquipmentSlotType::Earpiece, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Earpiece, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece"))
     });
 
-    M.Add(EEquipmentSlotType::Eyewear, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Eyewear, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear"))
     });
 
-    M.Add(EEquipmentSlotType::FaceCover, {
+    M.Add(ESuspenseCoreEquipmentSlotType::FaceCover, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover"))
     });
 
     // Body gear
-    M.Add(EEquipmentSlotType::BodyArmor, {
+    M.Add(ESuspenseCoreEquipmentSlotType::BodyArmor, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor"))
     });
 
-    M.Add(EEquipmentSlotType::TacticalRig, {
+    M.Add(ESuspenseCoreEquipmentSlotType::TacticalRig, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig"))
     });
 
     // Storage
-    M.Add(EEquipmentSlotType::Backpack, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Backpack, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack"))
     });
 
-    M.Add(EEquipmentSlotType::SecureContainer, {
+    M.Add(ESuspenseCoreEquipmentSlotType::SecureContainer, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer"))
     });
 
@@ -1368,13 +1368,13 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidat
         FGameplayTag::RequestGameplayTag(TEXT("Item.Throwable")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Ammo"))
     };
-    M.Add(EEquipmentSlotType::QuickSlot1, QuickTypes);
-    M.Add(EEquipmentSlotType::QuickSlot2, QuickTypes);
-    M.Add(EEquipmentSlotType::QuickSlot3, QuickTypes);
-    M.Add(EEquipmentSlotType::QuickSlot4, QuickTypes);
+    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot1, QuickTypes);
+    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot2, QuickTypes);
+    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot3, QuickTypes);
+    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot4, QuickTypes);
 
     // Special
-    M.Add(EEquipmentSlotType::Armband, {
+    M.Add(ESuspenseCoreEquipmentSlotType::Armband, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Armband"))
     });
 

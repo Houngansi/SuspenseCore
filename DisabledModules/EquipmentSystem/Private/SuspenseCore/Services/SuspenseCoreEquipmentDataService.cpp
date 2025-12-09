@@ -26,7 +26,7 @@ USuspenseCoreEquipmentDataService::USuspenseCoreEquipmentDataService()
     // These sizes are tuned for ~100 concurrent players per server
     SnapshotCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<FGuid, FEquipmentStateSnapshot>(100));
     ItemCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FSuspenseCoreInventoryItemInstance>(500));
-    ConfigCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FEquipmentSlotConfig>(MaxSlotCount));
+    ConfigCache = MakeShareable(new FSuspenseCoreEquipmentCacheManager<int32, FSuspenseCoreEquipmentSlotConfig>(MaxSlotCount));
 
     InitializationTime = FDateTime::Now();
 }
@@ -2055,7 +2055,7 @@ bool USuspenseCoreEquipmentDataService::PerformDeepValidation_Internal() const
         InstanceIdToSlot.Add(Item.InstanceID, i);
 
         // Validate item configuration matches slot
-        FEquipmentSlotConfig SlotConfig = DataStore->GetSlotConfiguration(i);
+        FSuspenseCoreEquipmentSlotConfig SlotConfig = DataStore->GetSlotConfiguration(i);
         if (!SlotConfig.IsValid())
         {
             UE_LOG(LogSuspenseCoreEquipmentData, Error,
@@ -2125,15 +2125,15 @@ bool USuspenseCoreEquipmentDataService::ValidateDataIntegrity_Internal(bool bDee
 //  LogDataOperation, ResetDataStore, IsValidSlotIndex, WarmupCachesSafe
 //  остаются такими же как в оригинальном файле]
 
-TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlotConfiguration() const
+TArray<FSuspenseCoreEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlotConfiguration() const
 {
-    TArray<FEquipmentSlotConfig> EquipmentSlots;
+    TArray<FSuspenseCoreEquipmentSlotConfig> EquipmentSlots;
     EquipmentSlots.Empty();
 
     // Primary
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::PrimaryWeapon,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::PrimaryWeapon,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.PrimaryWeapon")));
         Slot.AttachmentSocket = TEXT("weapon_r");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.AR")));
@@ -2146,8 +2146,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Secondary
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::SecondaryWeapon,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::SecondaryWeapon,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon")));
         Slot.AttachmentSocket = TEXT("spine_03");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG")));
@@ -2158,8 +2158,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Holster
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Holster,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Holster,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster")));
         Slot.AttachmentSocket = TEXT("thigh_r");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol")));
@@ -2169,8 +2169,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Scabbard
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Scabbard,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Scabbard,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Scabbard")));
         Slot.AttachmentSocket = TEXT("spine_02");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife")));
@@ -2179,8 +2179,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Head
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Headwear,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Headwear,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Headwear")));
         Slot.AttachmentSocket = TEXT("head");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet")));
@@ -2189,8 +2189,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     }
 
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Earpiece,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Earpiece,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Earpiece")));
         Slot.AttachmentSocket = TEXT("head");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece")));
@@ -2198,8 +2198,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     }
 
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Eyewear,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Eyewear,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Eyewear")));
         Slot.AttachmentSocket = TEXT("head");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear")));
@@ -2207,8 +2207,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     }
 
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::FaceCover,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::FaceCover,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.FaceCover")));
         Slot.AttachmentSocket = TEXT("head");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover")));
@@ -2217,8 +2217,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Body
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::BodyArmor,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::BodyArmor,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.BodyArmor")));
         Slot.AttachmentSocket = TEXT("spine_03");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor")));
@@ -2226,8 +2226,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     }
 
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::TacticalRig,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::TacticalRig,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.TacticalRig")));
         Slot.AttachmentSocket = TEXT("spine_03");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig")));
@@ -2236,8 +2236,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Storage
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Backpack,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Backpack,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Backpack")));
         Slot.AttachmentSocket = TEXT("spine_02");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack")));
@@ -2245,8 +2245,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     }
 
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::SecureContainer,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::SecureContainer,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecureContainer")));
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer")));
         EquipmentSlots.Add(Slot);
@@ -2255,12 +2255,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
     // Quick slots (1..4)
     for (int32 i = 1; i <= 4; ++i)
     {
-        const EEquipmentSlotType QuickType = static_cast<EEquipmentSlotType>(
-            static_cast<int32>(EEquipmentSlotType::QuickSlot1) + (i - 1)
+        const ESuspenseCoreEquipmentSlotType QuickType = static_cast<ESuspenseCoreEquipmentSlotType>(
+            static_cast<int32>(ESuspenseCoreEquipmentSlotType::QuickSlot1) + (i - 1)
         );
         const FString TagName = FString::Printf(TEXT("Equipment.Slot.QuickSlot%d"), i);
 
-        FEquipmentSlotConfig Slot(QuickType, FGameplayTag::RequestGameplayTag(*TagName));
+        FSuspenseCoreEquipmentSlotConfig Slot(QuickType, FGameplayTag::RequestGameplayTag(*TagName));
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Consumable")));
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Medical")));
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Throwable")));
@@ -2270,8 +2270,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataService::CreateDefaultSlo
 
     // Armband
     {
-        FEquipmentSlotConfig Slot(
-            EEquipmentSlotType::Armband,
+        FSuspenseCoreEquipmentSlotConfig Slot(
+            ESuspenseCoreEquipmentSlotType::Armband,
             FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Armband")));
         Slot.AttachmentSocket = TEXT("upperarm_l");
         Slot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Armband")));
@@ -2445,7 +2445,7 @@ void USuspenseCoreEquipmentDataService::WarmupCachesSafe()
     }
 
     TMap<int32, FSuspenseCoreInventoryItemInstance> WarmupItems;
-    TMap<int32, FEquipmentSlotConfig>   WarmupConfigs;
+    TMap<int32, FSuspenseCoreEquipmentSlotConfig>   WarmupConfigs;
 
     // 1) Собираем данные из DataStore под DataLock (read-only)
     {

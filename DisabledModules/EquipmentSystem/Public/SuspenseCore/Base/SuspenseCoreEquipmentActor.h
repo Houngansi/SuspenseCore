@@ -6,9 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCoreEquipmentActor.generated.h"
 
@@ -42,7 +42,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="SuspenseCore|Equipment|GAS")
     void SetCachedASC(UAbilitySystemComponent* InASC);
 
-    // ===== ISuspenseEquipment (BlueprintNativeEvent) overrides =====
+    // ===== ISuspenseCoreEquipment (BlueprintNativeEvent) overrides =====
     virtual void OnEquipped_Implementation(AActor* NewOwner) override;
     virtual void OnUnequipped_Implementation() override;
 
@@ -50,8 +50,8 @@ public:
     virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     virtual FSuspenseCoreInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
-    virtual FEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
-    virtual EEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
+    virtual FSuspenseCoreEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
+    virtual ESuspenseCoreEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
     virtual FGameplayTag           GetEquipmentSlotTag_Implementation() const override;
     virtual bool                   IsEquipped_Implementation() const override;
     virtual bool                   IsRequiredSlot_Implementation() const override;
@@ -64,9 +64,9 @@ public:
     virtual FGameplayTagContainer GetAllowedItemTypes_Implementation() const override;
     virtual bool ValidateEquipmentRequirements_Implementation(TArray<FString>& OutErrors) const override;
 
-    virtual FSuspenseInventoryOperationResult EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip) override;
-    virtual FSuspenseInventoryOperationResult UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance) override;
-    virtual FSuspenseInventoryOperationResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseEquipment>& OtherEquipment) override;
+    virtual FSuspenseCoreInventorySimpleResult EquipItemInstance_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance, bool bForceEquip) override;
+    virtual FSuspenseCoreInventorySimpleResult UnequipItem_Implementation(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance) override;
+    virtual FSuspenseCoreInventorySimpleResult SwapEquipmentWith_Implementation(const TScriptInterface<ISuspenseCoreEquipment>& OtherEquipment) override;
 
     // GAS bridge (read-only / proxy)
     virtual UAbilitySystemComponent* GetAbilitySystemComponent_Implementation() const override;
@@ -106,7 +106,7 @@ protected:
     void SetupEquipmentMesh(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /** Get slot configuration if available (base returns nullptr => default slot config) */
-    const FEquipmentSlotConfig* GetSlotConfigurationPtr() const;
+    const FSuspenseCoreEquipmentSlotConfig* GetSlotConfigurationPtr() const;
 
     /** Internal helper to change state without re-entry checks */
     void SetEquipmentStateInternal(const FGameplayTag& NewState);

@@ -1,4 +1,4 @@
-// Copyright MedCom
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentVisualController.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"

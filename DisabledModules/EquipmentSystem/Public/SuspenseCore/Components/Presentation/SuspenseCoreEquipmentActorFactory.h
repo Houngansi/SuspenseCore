@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Interfaces/Equipment/ISuspenseActorFactory.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Engine/StreamableManager.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "SuspenseCoreEquipmentActorFactory.generated.h"
@@ -83,7 +83,7 @@ struct FSuspenseCoreActorFactoryConfig
  * - Efficient caching through FEquipmentCacheManager
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseActorFactory
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseCoreActorFactory
 {
     GENERATED_BODY()
 

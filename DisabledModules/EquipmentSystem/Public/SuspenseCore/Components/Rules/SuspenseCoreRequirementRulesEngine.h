@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreRequirementRulesEngine.generated.h"
 
 /**
@@ -28,7 +28,7 @@ enum class ESuspenseCoreComparisonOp : uint8
  * Single attribute requirement (ASC-backed; reflection-based lookup).
  */
 USTRUCT(BlueprintType)
-struct FSuspenseCoreMedComAttributeRequirement
+struct FSuspenseCoreAttributeRequirement
 {
     GENERATED_BODY()
 
@@ -54,7 +54,7 @@ struct FSuspenseCoreMedComAttributeRequirement
  * NOTE: The engine never mutates this structure.
  */
 USTRUCT(BlueprintType)
-struct FSuspenseCoreMedComItemRequirements
+struct FSuspenseCoreItemRequirements
 {
     GENERATED_BODY()
 
@@ -72,7 +72,7 @@ struct FSuspenseCoreMedComItemRequirements
 
     /** Attribute requirements (ASC-backed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Requirements")
-    TArray<FSuspenseCoreMedComAttributeRequirement> AttributeRequirements;
+    TArray<FSuspenseCoreAttributeRequirement> AttributeRequirements;
 
     /** Required abilities (must be granted on ASC) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Requirements")
@@ -107,7 +107,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     FSuspenseCoreAggregatedRuleResult CheckAllRequirements(
         const AActor* Character,
-        const FSuspenseCoreMedComItemRequirements& Requirements) const;
+        const FSuspenseCoreItemRequirements& Requirements) const;
 
     /** Evaluate requirements using rule context (best-effort; read-only). */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
@@ -130,7 +130,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     FSuspenseCoreRuleCheckResult CheckAttributeRequirements(
         const AActor* Character,
-        const TArray<FSuspenseCoreMedComAttributeRequirement>& Requirements) const;
+        const TArray<FSuspenseCoreAttributeRequirement>& Requirements) const;
 
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     FSuspenseCoreRuleCheckResult CheckSingleAttribute(
@@ -155,13 +155,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     float CalculateRequirementProgress(
         const AActor* Character,
-        const FSuspenseCoreMedComItemRequirements& Requirements) const;
+        const FSuspenseCoreItemRequirements& Requirements) const;
 
     /** Returns -1.0f if estimation is not supported. */
     UFUNCTION(BlueprintCallable, Category="Requirement Rules")
     float EstimateTimeToMeetRequirements(
         const AActor* Character,
-        const FSuspenseCoreMedComItemRequirements& Requirements) const;
+        const FSuspenseCoreItemRequirements& Requirements) const;
 
     //==================== Custom validators ====================
 

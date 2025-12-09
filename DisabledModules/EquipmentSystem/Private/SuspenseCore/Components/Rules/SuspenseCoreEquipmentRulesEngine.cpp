@@ -1,5 +1,5 @@
-// MedComEquipmentRulesEngine.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentRulesEngine.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreEquipmentRulesEngine.h"
 #include "Types/Loadout/SuspenseCoreItemDataTable.h"
@@ -17,8 +17,8 @@
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentRules, Log, All);
 
 // Console variable for dev fallback control
-static TAutoConsoleVariable<int32> CVarMedComUseMonolith(
-    TEXT("medcom.rules.use_monolith"),
+static TAutoConsoleVariable<int32> CVarSuspenseCoreUseMonolith(
+    TEXT("suspensecore.rules.use_monolith"),
     0,
     TEXT("Enable monolithic rules engine for development/debugging.\n")
     TEXT("0: Disabled (production path through coordinator)\n")
@@ -96,7 +96,7 @@ void USuspenseCoreEquipmentRulesEngine::EndPlay(const EEndPlayReason::Type EndPl
 
 bool USuspenseCoreEquipmentRulesEngine::ShouldUseDevFallback() const
 {
-    return bDevFallbackEnabled && CVarMedComUseMonolith.GetValueOnGameThread() != 0;
+    return bDevFallbackEnabled && CVarSuspenseCoreUseMonolith.GetValueOnGameThread() != 0;
 }
 
 FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CreateDisabledResult(const FString& MethodName) const
@@ -109,7 +109,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CreateDisabledResult(co
         *MethodName));
     Result.ConfidenceScore = 1.0f;
     Result.Details.Add(TEXT("Production path: Use USuspenseCoreRulesCoordinator"));
-    Result.Details.Add(FString::Printf(TEXT("Enable with: medcom.rules.use_monolith 1 or bDevFallbackEnabled=true")));
+    Result.Details.Add(FString::Printf(TEXT("Enable with: suspensecore.rules.use_monolith 1 or bDevFallbackEnabled=true")));
 
     return Result;
 }
@@ -215,7 +215,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRulesWithContex
 
 FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FEquipmentSlotConfig& SlotConfig) const
+    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
     if (!ShouldUseDevFallback())
     {
@@ -592,7 +592,7 @@ FString USuspenseCoreEquipmentRulesEngine::GenerateComplianceReport(const FEquip
                TEXT("==========================================\n\n")
                TEXT("Status: DISABLED (Production path uses USuspenseCoreRulesCoordinator)\n\n")
                TEXT("To enable dev fallback mode:\n")
-               TEXT("  - Set medcom.rules.use_monolith 1\n")
+               TEXT("  - Set suspensecore.rules.use_monolith 1\n")
                TEXT("  - Or enable bDevFallbackEnabled in component properties\n\n")
                TEXT("This is a development tool only. Production validation\n")
                TEXT("is handled by the specialized rules coordinator.\n");
@@ -1613,7 +1613,7 @@ FString USuspenseCoreEquipmentRulesEngine::GetDebugInfo() const
                                "Version: %d\n"
                                "Status: %s"),
                           ShouldUseDevFallback() ? TEXT("true") : TEXT("false"),
-                          CVarMedComUseMonolith.GetValueOnGameThread(),
+                          CVarSuspenseCoreUseMonolith.GetValueOnGameThread(),
                           RegisteredRules.Num(),
                           EnabledRules.Num(),
                           ViolationHistory.Num(),

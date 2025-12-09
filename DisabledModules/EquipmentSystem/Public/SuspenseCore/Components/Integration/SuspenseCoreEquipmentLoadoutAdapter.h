@@ -11,12 +11,11 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
-#include "Types/Loadout/SuspenseLoadoutManager.h"
-#include "ItemSystem/SuspenseItemManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventoryBridge.h"
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
 
 class USuspenseCoreEquipmentOperationService;
 class USuspenseCoreEventBus;
@@ -103,11 +102,11 @@ public:
 protected:
 	// Построение операций для OperationService
 	TArray<FEquipmentOperationRequest> CreateOperationsFromLoadout(const FSuspenseCoreLoadoutConfiguration& Config) const;
-	FEquipmentOperationRequest CreateEquipOperation(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const;
+	FEquipmentOperationRequest CreateEquipOperation(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const;
 
 	// Валидация
 	bool ValidateLoadoutConfiguration(const FSuspenseCoreLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const;
-	bool CheckSlotCompatibility(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId) const;
+	bool CheckSlotCompatibility(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId) const;
 	bool CheckInventorySpace(const FSuspenseCoreLoadoutConfiguration& Config) const;
 	bool CheckItemAvailability(const FName& ItemId) const;
 
@@ -115,7 +114,7 @@ protected:
 	FSuspenseCoreLoadoutConfiguration BuildLoadoutFromCurrentState(const FName& LoadoutId) const;
 	FString GenerateLoadoutPreview(const FSuspenseCoreLoadoutConfiguration& Config) const;
 	bool ClearCurrentEquipment();
-	int32 ApplyStartingEquipment(const TMap<EEquipmentSlotType, FName>& StartingEquipment);
+	int32 ApplyStartingEquipment(const TMap<ESuspenseCoreEquipmentSlotType, FName>& StartingEquipment);
 	void NotifyLoadoutChange(const FName& LoadoutId, bool bSuccess);
 	void LogAdapterState() const;
 

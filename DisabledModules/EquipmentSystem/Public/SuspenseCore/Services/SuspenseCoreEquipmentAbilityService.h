@@ -11,7 +11,7 @@
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "GameplayTagContainer.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Engine/DataTable.h"
 #include "Engine/StreamableManager.h"
 #include <atomic>

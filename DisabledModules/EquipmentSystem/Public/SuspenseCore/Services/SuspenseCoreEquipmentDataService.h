@@ -10,7 +10,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Delegates/Delegate.h"
@@ -118,7 +118,7 @@ public:
   * Inject ready components into the service
   *
   * IMPLEMENTATION NOTE: Receives type-erased UObject* from interface,
-  * casts to actual types here in MedComEquipment module.
+  * casts to actual types here in SuspenseCoreEquipment module.
   *
   * This method is critical for proper architecture of the system.
   * The service does NOT create components, but receives them from outside already configured.

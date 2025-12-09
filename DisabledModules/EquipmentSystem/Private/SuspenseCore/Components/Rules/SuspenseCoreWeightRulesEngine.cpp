@@ -1,4 +1,5 @@
-// MedComWeightRulesEngine.cpp © MedCom Team. All Rights Reserved.
+// SuspenseCoreWeightRulesEngine.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreWeightRulesEngine.h"
 #include "AbilitySystemInterface.h"
@@ -16,7 +17,7 @@ USuspenseCoreWeightRulesEngine::USuspenseCoreWeightRulesEngine()
     // Configuration has sensible defaults
 }
 
-void USuspenseCoreWeightRulesEngine::Initialize(const FMedComWeightConfig& InConfig)
+void USuspenseCoreWeightRulesEngine::Initialize(const FSuspenseCoreWeightConfig& InConfig)
 {
     Configuration = InConfig;
     UE_LOG(LogWeightRules, Log, TEXT("WeightRulesEngine initialized: BaseCapacity=%.2f, CapacityPerStrength=%.2f"),

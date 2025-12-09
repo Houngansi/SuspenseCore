@@ -96,7 +96,7 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
 {
     if (!ItemInstance.IsValid())
     {
-        UE_LOG(LogMedComEquipment, Warning, TEXT("InitializeFromItemInstance: Invalid item instance"));
+        UE_LOG(LogSuspenseCoreEquipment, Warning, TEXT("InitializeFromItemInstance: Invalid item instance"));
         return false;
     }
 
@@ -107,13 +107,13 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
     USuspenseCoreItemManager* ItemManager = GetItemManager();
     if (!ItemManager)
     {
-        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
+        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
         return false;
     }
 
     if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
     {
-        UE_LOG(LogMedComEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
+        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
             *ItemInstance.ItemID.ToString());
         return false;
     }
@@ -136,7 +136,7 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
     // Request initial state sync
     RequestStateSync();
 
-    UE_LOG(LogMedComEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"),
+    UE_LOG(LogSuspenseCoreEquipment, Log, TEXT("Initialized mesh for item: %s (Mesh loaded: %s)"),
         *CachedItemData.DisplayName.ToString(),
         bMeshLoaded ? TEXT("Yes") : TEXT("No"));
 
@@ -308,7 +308,7 @@ void USuspenseCoreEquipmentMeshComponent::ApplyVisualState(const FSuspenseCoreEq
         });
     }
 
-    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
+    UE_LOG(LogSuspenseCoreEquipment, VeryVerbose, TEXT("Applied visual state v%d"), CurrentVisualState.StateVersion);
 }
 
 bool USuspenseCoreEquipmentMeshComponent::HasVisualStateChanged(const FSuspenseCoreEquipmentVisualState& OtherState) const
@@ -399,7 +399,7 @@ bool USuspenseCoreEquipmentMeshComponent::LoadMeshFromItemData(const FSuspenseCo
     if (!ItemData.WorldMesh.IsNull())
     {
         // Log that we have a mesh reference but it's static mesh
-        UE_LOG(LogMedComEquipment, Warning,
+        UE_LOG(LogSuspenseCoreEquipment, Warning,
             TEXT("Item %s has WorldMesh but it's a static mesh reference. Equipment typically uses skeletal meshes."),
             *ItemData.DisplayName.ToString());
     }
@@ -487,7 +487,7 @@ FVector USuspenseCoreEquipmentMeshComponent::GetSocketLocationSafe(const FName& 
         return GetSocketLocation(SocketName);
     }
 
-    UE_LOG(LogMedComEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"),
+    UE_LOG(LogSuspenseCoreEquipment, VeryVerbose, TEXT("Socket %s not found, using component location"),
            *SocketName.ToString());
     return GetComponentLocation();
 }

@@ -1,5 +1,5 @@
-// MedComRulesCoordinator.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreRulesCoordinator.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreRulesCoordinator.h"
 #include "SuspenseCore/Components/Rules/SuspenseCoreWeightRulesEngine.h"
@@ -108,7 +108,7 @@ void USuspenseCoreRulesCoordinator::CreateSpecializedEngines()
     WeightEngine = NewObject<USuspenseCoreWeightRulesEngine>(this, TEXT("WeightRulesEngine"));
     if (WeightEngine)
     {
-        FMedComWeightConfig Cfg;
+        FSuspenseCoreWeightConfig Cfg;
         Cfg.BaseCarryCapacity    = 40.0f;
         Cfg.CapacityPerStrength  = 2.0f;
         Cfg.EncumberedThreshold  = 0.75f;
@@ -489,7 +489,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::EvaluateRulesWithContext(
 
 FRuleEvaluationResult USuspenseCoreRulesCoordinator::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FEquipmentSlotConfig& SlotConfig) const
+    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
 {
     if (CompatibilityEngine)
     {
@@ -509,7 +509,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::CheckCharacterRequirements(
 {
     if (RequirementEngine)
     {
-        FMedComItemRequirements Requirements;
+        FSuspenseCoreItemRequirements Requirements;
 
         Requirements.RequiredLevel = FMath::RoundToInt(ItemInstance.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f));
 
@@ -528,7 +528,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::CheckCharacterRequirements(
         const float ItemWeight = ItemInstance.GetRuntimeProperty(TEXT("Weight"), 0.0f);
         if (ItemWeight > 8.0f)
         {
-            FMedComAttributeRequirement StrengthReq;
+            FSuspenseCoreAttributeRequirement StrengthReq;
             StrengthReq.AttributeName = TEXT("Strength");
             StrengthReq.RequiredValue = 12.0f + (ItemWeight - 8.0f) * 0.5f;
             StrengthReq.ComparisonOp = ESuspenseCoreComparisonOp::GreaterOrEqual;

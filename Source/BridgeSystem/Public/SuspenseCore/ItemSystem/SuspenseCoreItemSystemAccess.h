@@ -1,5 +1,6 @@
-// MedComShared/Public/ItemSystem/SuspenseItemSystemAccess.h
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreItemSystemAccess.h
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #pragma once
 

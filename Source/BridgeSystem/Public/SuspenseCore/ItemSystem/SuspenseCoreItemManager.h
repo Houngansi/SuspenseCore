@@ -281,7 +281,7 @@ private:
     bool bStrictValidationEnabled;
     
     /** Default table path for fallback loading (backwards compatibility) */
-    static constexpr const TCHAR* DefaultItemTablePath = TEXT("/Game/MEDCOM/Data/DT_MedComItems");
+    static constexpr const TCHAR* DefaultItemTablePath = TEXT("/Game/SuspenseCore/Data/DT_Items");
     
     //==================================================================
     // Internal helper methods

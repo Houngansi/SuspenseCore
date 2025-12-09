@@ -51,8 +51,6 @@ FActiveGameplayEffectHandle USuspenseInventoryGASIntegration::ApplyItemEffect(FN
     return EffectHandle;
 }
 
-// MedComInventory/Abilities/Inventory/MedComInventoryGASIntegration.cpp
-
 // Исправленная функция GiveItemAbility
 FGameplayAbilitySpecHandle USuspenseInventoryGASIntegration::GiveItemAbility(FName ItemID, TSubclassOf<UGameplayAbility> AbilityClass, int32 Level)
 {

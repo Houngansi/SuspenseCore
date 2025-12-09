@@ -1,5 +1,6 @@
-// MedComShared/Types/Inventory/InventoryTypeRegistry.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreInventoryTypeRegistry.cpp
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypeRegistry.h"
 #include "GameplayTagsManager.h" 

@@ -1,5 +1,5 @@
-// MedComEquipmentDataStore.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentDataStore.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "Engine/World.h"
@@ -73,10 +73,10 @@ FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::GetSlotItem(
     return DataStorage.SlotItems[SlotIndex];
 }
 
-FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetSlotConfiguration(int32 SlotIndex) const
+FSuspenseCoreEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetSlotConfiguration(int32 SlotIndex) const
 {
     // CRITICAL FIX: Always try to get fresh configuration from LoadoutManager
-    FEquipmentSlotConfig FreshConfig = GetFreshSlotConfiguration(SlotIndex);
+    FSuspenseCoreEquipmentSlotConfig FreshConfig = GetFreshSlotConfiguration(SlotIndex);
     if (FreshConfig.IsValid())
     {
         return FreshConfig;
@@ -87,7 +87,7 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetSlotConfiguration(int32
 
     if (!ValidateSlotIndexInternal(SlotIndex, TEXT("GetSlotConfiguration")))
     {
-        return FEquipmentSlotConfig();
+        return FSuspenseCoreEquipmentSlotConfig();
     }
 
     UE_LOG(LogEquipmentDataStore, Warning,
@@ -97,31 +97,31 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetSlotConfiguration(int32
     return DataStorage.SlotConfigurations[SlotIndex];
 }
 
-FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(int32 SlotIndex) const
+FSuspenseCoreEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(int32 SlotIndex) const
 {
     // Validate slot index first
     if (SlotIndex < 0)
     {
-        return FEquipmentSlotConfig();
+        return FSuspenseCoreEquipmentSlotConfig();
     }
 
     // Get LoadoutManager from GameInstance
     UWorld* World = GetWorld();
     if (!World)
     {
-        return FEquipmentSlotConfig();
+        return FSuspenseCoreEquipmentSlotConfig();
     }
 
     UGameInstance* GameInstance = World->GetGameInstance();
     if (!GameInstance)
     {
-        return FEquipmentSlotConfig();
+        return FSuspenseCoreEquipmentSlotConfig();
     }
 
     USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>();
     if (!LoadoutManager)
     {
-        return FEquipmentSlotConfig();
+        return FSuspenseCoreEquipmentSlotConfig();
     }
 
     // Determine which loadout to use
@@ -162,7 +162,7 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(
     }
 
     // Get fresh slot configurations from LoadoutManager
-    TArray<FEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
+    TArray<FSuspenseCoreEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
 
     if (FreshSlots.IsValidIndex(SlotIndex))
     {
@@ -178,7 +178,7 @@ FEquipmentSlotConfig USuspenseCoreEquipmentDataStore::GetFreshSlotConfiguration(
         SlotIndex);
 
     // Return invalid config if can't get fresh data
-    return FEquipmentSlotConfig();
+    return FSuspenseCoreEquipmentSlotConfig();
 }
 
 void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
@@ -208,7 +208,7 @@ void USuspenseCoreEquipmentDataStore::RefreshSlotConfigurations()
         LoadoutToUse = FName(TEXT("Default_Soldier"));
     }
 
-    TArray<FEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
+    TArray<FSuspenseCoreEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
 
     if (FreshSlots.Num() > 0)
     {
@@ -257,7 +257,7 @@ void USuspenseCoreEquipmentDataStore::SetCurrentLoadoutID(const FName& LoadoutID
     }
 }
 
-TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataStore::GetAllSlotConfigurations() const
+TArray<FSuspenseCoreEquipmentSlotConfig> USuspenseCoreEquipmentDataStore::GetAllSlotConfigurations() const
 {
     // Try to get all fresh configurations
     UWorld* World = GetWorld();
@@ -270,7 +270,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentDataStore::GetAllSlotConfigur
                 FName LoadoutToUse = CurrentLoadoutID.IsNone() ?
                     FName(TEXT("Default_Soldier")) : CurrentLoadoutID;
 
-                TArray<FEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
+                TArray<FSuspenseCoreEquipmentSlotConfig> FreshSlots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
 
                 if (FreshSlots.Num() > 0)
                 {
@@ -454,7 +454,7 @@ FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDataStore::ClearSlot(in
     return RemovedItem;
 }
 
-bool USuspenseCoreEquipmentDataStore::InitializeSlots(const TArray<FEquipmentSlotConfig>& Configurations)
+bool USuspenseCoreEquipmentDataStore::InitializeSlots(const TArray<FSuspenseCoreEquipmentSlotConfig>& Configurations)
 {
     return ModifyDataWithEvents(
         [this, Configurations](FSuspenseCoreEquipmentDataStorage& Data, TArray<FSuspenseCorePendingEventData>& PendingEvents) -> bool
@@ -1027,7 +1027,7 @@ int32 USuspenseCoreEquipmentDataStore::GetMemoryUsage() const
     int32 TotalBytes = sizeof(FSuspenseCoreEquipmentDataStorage);
 
     // Add slot configurations size
-    TotalBytes += DataStorage.SlotConfigurations.Num() * sizeof(FEquipmentSlotConfig);
+    TotalBytes += DataStorage.SlotConfigurations.Num() * sizeof(FSuspenseCoreEquipmentSlotConfig);
 
     // Add slot items size
     TotalBytes += DataStorage.SlotItems.Num() * sizeof(FSuspenseCoreInventoryItemInstance);
@@ -1139,7 +1139,7 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
                         {
                             // Get slot configuration SAFELY through public method
                             // This will take the lock internally if needed
-                            FEquipmentSlotConfig Config = GetSlotConfiguration(Event.SlotIndex);
+                            FSuspenseCoreEquipmentSlotConfig Config = GetSlotConfiguration(Event.SlotIndex);
 
                             FGameplayTag SlotType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Unknown"));
                             if (Config.IsValid())
@@ -1298,16 +1298,16 @@ TArray<int32> USuspenseCoreEquipmentDataStore::FindCompatibleSlots(const FGamepl
     if (!ItemSlotTag.IsValid()) { return Result; }
 
     // Try map tag name to slot type enum
-    EEquipmentSlotType MappedType = EEquipmentSlotType::None;
-    if (const UEnum* Enum = StaticEnum<EEquipmentSlotType>())
+    ESuspenseCoreEquipmentSlotType MappedType = ESuspenseCoreEquipmentSlotType::None;
+    if (const UEnum* Enum = StaticEnum<ESuspenseCoreEquipmentSlotType>())
     {
         const int64 Val = Enum->GetValueByName(ItemSlotTag.GetTagName());
         if (Val != INDEX_NONE)
         {
-            MappedType = static_cast<EEquipmentSlotType>(Val);
+            MappedType = static_cast<ESuspenseCoreEquipmentSlotType>(Val);
         }
     }
-    if (MappedType != EEquipmentSlotType::None)
+    if (MappedType != ESuspenseCoreEquipmentSlotType::None)
     {
         return GetSlotsByType(MappedType);
     }
@@ -1319,14 +1319,14 @@ TArray<int32> USuspenseCoreEquipmentDataStore::FindCompatibleSlots(const FGamepl
     return Result;
 }
 
-TArray<int32> USuspenseCoreEquipmentDataStore::GetSlotsByType(EEquipmentSlotType SlotType) const
+TArray<int32> USuspenseCoreEquipmentDataStore::GetSlotsByType(ESuspenseCoreEquipmentSlotType SlotType) const
 {
     TArray<int32> Out;
     const int32 Num = GetSlotCount();
 
     for (int32 i = 0; i < Num; ++i)
     {
-        const FEquipmentSlotConfig Config = GetSlotConfiguration(i); // <-- возвращает по значению
+        const FSuspenseCoreEquipmentSlotConfig Config = GetSlotConfiguration(i); // <-- возвращает по значению
         // Если в конфиге поле SlotType присутствует (как в ваших LoadoutSettings) — сравниваем:
         if (Config.SlotType == SlotType)
         {
@@ -1336,7 +1336,7 @@ TArray<int32> USuspenseCoreEquipmentDataStore::GetSlotsByType(EEquipmentSlotType
     return Out;
 }
 
-int32 USuspenseCoreEquipmentDataStore::GetFirstEmptySlotOfType(EEquipmentSlotType SlotType) const
+int32 USuspenseCoreEquipmentDataStore::GetFirstEmptySlotOfType(ESuspenseCoreEquipmentSlotType SlotType) const
 {
     const TArray<int32> Slots = GetSlotsByType(SlotType);
     for (int32 Index : Slots)

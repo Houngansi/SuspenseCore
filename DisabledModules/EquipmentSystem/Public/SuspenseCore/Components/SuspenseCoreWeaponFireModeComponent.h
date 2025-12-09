@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreWeaponFireModeComponent.generated.h"
 
 // Forward declarations
 class UGameplayAbility;
-struct FSuspenseCoreWeaponFireModeData;
+struct FSuspenseCoreFireModeRuntimeData;
 
 /**
  * Weapon Fire Mode Management Component
@@ -20,7 +20,7 @@ struct FSuspenseCoreWeaponFireModeData;
  * VERSION 4.0 - COMPLETE REWRITE:
  * - All fire mode definitions come from DataTable via weapon interface
  * - No local storage of fire mode configurations
- * - Uses FFireModeRuntimeData for runtime state only
+ * - Uses FSuspenseCoreFireModeRuntimeData for runtime state only
  * - Fully integrated with ISuspenseCoreWeapon and ISuspenseCoreFireModeProvider
  * - Simplified architecture with single source of truth
  */
@@ -59,15 +59,15 @@ public:
     virtual bool SetFireMode_Implementation(const FGameplayTag& FireModeTag) override;
     virtual bool SetFireModeByIndex_Implementation(int32 Index) override;
     virtual FGameplayTag GetCurrentFireMode_Implementation() const override;
-    virtual FFireModeRuntimeData GetCurrentFireModeData_Implementation() const override;
+    virtual FSuspenseCoreFireModeRuntimeData GetCurrentFireModeData_Implementation() const override;
     virtual bool IsFireModeAvailable_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual TArray<FFireModeRuntimeData> GetAllFireModes_Implementation() const override;
+    virtual TArray<FSuspenseCoreFireModeRuntimeData> GetAllFireModes_Implementation() const override;
     virtual TArray<FGameplayTag> GetAvailableFireModes_Implementation() const override;
     virtual int32 GetAvailableFireModeCount_Implementation() const override;
     virtual bool SetFireModeEnabled_Implementation(const FGameplayTag& FireModeTag, bool bEnabled) override;
     virtual void SetFireModeBlocked_Implementation(const FGameplayTag& FireModeTag, bool bBlocked) override;
     virtual bool IsFireModeBlocked_Implementation(const FGameplayTag& FireModeTag) const override;
-    virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const override;
+    virtual bool GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FSuspenseCoreFireModeRuntimeData& OutData) const override;
     virtual TSubclassOf<UGameplayAbility> GetFireModeAbility_Implementation(const FGameplayTag& FireModeTag) const override;
     virtual int32 GetFireModeInputID_Implementation(const FGameplayTag& FireModeTag) const override;
     virtual USuspenseCoreEventManager* GetDelegateManager() const override;
@@ -131,7 +131,7 @@ private:
 
     /** Fire modes loaded from DataTable */
     UPROPERTY()
-    TArray<FFireModeRuntimeData> FireModes;
+    TArray<FSuspenseCoreFireModeRuntimeData> FireModes;
 
     /** Blocked fire modes (temporary state) */
     UPROPERTY()

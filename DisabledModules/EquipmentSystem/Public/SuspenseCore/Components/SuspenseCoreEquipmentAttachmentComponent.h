@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentAttachmentComponent.generated.h"
 

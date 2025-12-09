@@ -1,5 +1,5 @@
-// MedComEquipmentPredictionSystem.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentPredictionSystem.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentPredictionSystem.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentNetworkDispatcher.h"
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"

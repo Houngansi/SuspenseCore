@@ -14,7 +14,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Queue.h"

@@ -8,9 +8,9 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Equipment/SuspenseCoreEquipmentTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h" // For updated ESuspenseCoreEquipmentSlotType (Primary/Secondary/Holster/Scabbard)
 #include "GameplayTagContainer.h"
 #include <atomic>
 #include "SuspenseCoreEquipmentOperationExecutor.generated.h"
@@ -358,10 +358,10 @@ protected:
 	bool IsMeleeWeaponSlot(int32 SlotIndex) const;
 
 	/** Get weapon slot type for a given slot index */
-	EEquipmentSlotType GetWeaponSlotType(int32 SlotIndex) const;
+	ESuspenseCoreEquipmentSlotType GetWeaponSlotType(int32 SlotIndex) const;
 
 	/** Get priority for weapon slot type (lower = higher priority) */
-	int32 GetWeaponSlotPriority(EEquipmentSlotType SlotType) const;
+	int32 GetWeaponSlotPriority(ESuspenseCoreEquipmentSlotType SlotType) const;
 
 	/** Get currently active weapon slot (read-only query) */
 	int32 GetCurrentActiveWeaponSlot() const;

@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreConflictRulesEngine.generated.h"

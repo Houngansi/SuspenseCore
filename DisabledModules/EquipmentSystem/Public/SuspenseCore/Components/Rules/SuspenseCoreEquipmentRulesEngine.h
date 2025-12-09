@@ -7,8 +7,8 @@
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-#include "Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentRulesEngine.generated.h"
 
@@ -198,7 +198,7 @@ public:
         const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
         const FSuspenseCoreInventoryItemInstance& ItemInstance,
-        const FEquipmentSlotConfig& SlotConfig) const override;
+        const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;

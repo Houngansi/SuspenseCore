@@ -6,9 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
-#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCoreEquipmentComponentBase.generated.h"
@@ -20,11 +18,11 @@ class UGameplayEffect;
 class USuspenseCoreEventManager;
 
 // Equipment logging category definition
-DECLARE_LOG_CATEGORY_EXTERN(LogMedComEquipment, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipment, Log, All);
 
 // Helper macro for equipment logging with context
 #define EQUIPMENT_LOG(Verbosity, Format, ...) \
-UE_LOG(LogMedComEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
+UE_LOG(LogSuspenseCoreEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
 
 // Client prediction data structure
 USTRUCT()

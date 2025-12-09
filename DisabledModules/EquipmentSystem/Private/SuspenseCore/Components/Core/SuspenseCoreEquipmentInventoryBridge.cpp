@@ -754,7 +754,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         FGameplayTag SlotType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Unknown"));
         if (EquipmentDataProvider.GetInterface())
         {
-            FEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(Request.SourceSlot);
+            FSuspenseCoreEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(Request.SourceSlot);
             if (Config.IsValid())
             {
                 SlotType = Config.SlotTag;
@@ -1135,7 +1135,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         FGameplayTag SlotType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Unknown"));
         if (EquipmentDataProvider.GetInterface())
         {
-            FEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(Request.TargetSlot);
+            FSuspenseCoreEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(Request.TargetSlot);
             if (Config.IsValid())
             {
                 SlotType = Config.SlotTag;
@@ -1473,7 +1473,7 @@ FSuspenseInventoryOperationResult USuspenseCoreEquipmentInventoryBridge::Execute
         FGameplayTag SlotType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Unknown"));
         if (EquipmentDataProvider.GetInterface())
         {
-            FEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(EquipmentSlot);
+            FSuspenseCoreEquipmentSlotConfig Config = EquipmentDataProvider->GetSlotConfiguration(EquipmentSlot);
             if (Config.IsValid())
             {
                 SlotType = Config.SlotTag;

@@ -152,7 +152,7 @@ void USuspenseCoreEquipmentActorFactory::TickComponent(
 /* ISuspenseCoreActorFactory Implementation */
 //========================================
 
-// MedComEquipmentActorFactory.cpp
+// SuspenseCoreEquipmentActorFactory - SpawnEquipmentActor Implementation
 
 FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentActor(const FEquipmentActorSpawnParams& Params)
 {

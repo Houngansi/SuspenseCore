@@ -1,5 +1,5 @@
-// MedComRequirementRulesEngine.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreRequirementRulesEngine.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreRequirementRulesEngine.h"
 #include "AbilitySystemInterface.h"
@@ -20,7 +20,7 @@ USuspenseCoreRequirementRulesEngine::USuspenseCoreRequirementRulesEngine()
 
 FSuspenseCoreAggregatedRuleResult USuspenseCoreRequirementRulesEngine::CheckAllRequirements(
     const AActor* Character,
-    const FMedComItemRequirements& Requirements) const
+    const FSuspenseCoreItemRequirements& Requirements) const
 {
     FSuspenseCoreAggregatedRuleResult Agg;
 
@@ -254,12 +254,12 @@ FSuspenseCoreRuleCheckResult USuspenseCoreRequirementRulesEngine::CheckSkillLeve
 
 FSuspenseCoreRuleCheckResult USuspenseCoreRequirementRulesEngine::CheckAttributeRequirements(
     const AActor* Character,
-    const TArray<FMedComAttributeRequirement>& Requirements) const
+    const TArray<FSuspenseCoreAttributeRequirement>& Requirements) const
 {
     bool bAllOk = true;
     FString FailureDetails;
     
-    for (const FMedComAttributeRequirement& Rq : Requirements)
+    for (const FSuspenseCoreAttributeRequirement& Rq : Requirements)
     {
         const FSuspenseCoreRuleCheckResult R = CheckSingleAttribute(Character, Rq.AttributeName, Rq.RequiredValue, Rq.ComparisonOp);
         if (!R.bPassed && (R.Severity == ESuspenseCoreRuleSeverity::Error || R.Severity == ESuspenseCoreRuleSeverity::Critical))
@@ -484,7 +484,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreRequirementRulesEngine::CheckRequiredA
 
 float USuspenseCoreRequirementRulesEngine::CalculateRequirementProgress(
     const AActor* Character,
-    const FMedComItemRequirements& Requirements) const
+    const FSuspenseCoreItemRequirements& Requirements) const
 {
     int32 NumChecks = 0;
     int32 NumPassed = 0;
@@ -503,7 +503,7 @@ float USuspenseCoreRequirementRulesEngine::CalculateRequirementProgress(
 
     if (Requirements.AttributeRequirements.Num() > 0)
     {
-        for (const FMedComAttributeRequirement& Rq : Requirements.AttributeRequirements)
+        for (const FSuspenseCoreAttributeRequirement& Rq : Requirements.AttributeRequirements)
         {
             ++NumChecks;
             NumPassed += CheckSingleAttribute(Character, Rq.AttributeName, Rq.RequiredValue, Rq.ComparisonOp).bPassed ? 1 : 0;
@@ -525,7 +525,7 @@ float USuspenseCoreRequirementRulesEngine::CalculateRequirementProgress(
 
 float USuspenseCoreRequirementRulesEngine::EstimateTimeToMeetRequirements(
     const AActor* /*Character*/,
-    const FMedComItemRequirements& /*Requirements*/) const
+    const FSuspenseCoreItemRequirements& /*Requirements*/) const
 {
     // Estimation depends on external progression systems that are not available to this engine
     return -1.0f;

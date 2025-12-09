@@ -13,7 +13,7 @@
 /**
  * System Coordinator - Service registration orchestrator
  * Services pull their own dependencies via ServiceLocator
- * Owned by UMedComSystemCoordinatorSubsystem for persistent lifecycle
+ * Owned by USuspenseCoreSystemCoordinatorSubsystem for persistent lifecycle
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreSystemCoordinatorComponent : public UActorComponent
@@ -55,7 +55,7 @@ public:
 
 protected:
     /** Get ServiceLocator */
-    USuspenseEquipmentServiceLocator* GetLocator() const;
+    USuspenseCoreEquipmentServiceLocator* GetLocator() const;
 
     /** Extract service tag from CDO */
     FGameplayTag GetServiceTagFromClass(UClass* ServiceClass) const;

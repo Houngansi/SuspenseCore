@@ -1,5 +1,5 @@
 // SuspenseEquipmentVisualizationService.h
-// Copyright MedCom
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
@@ -15,9 +15,9 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
-#include "Types/Equipment/SuspenseEquipmentTypes.h"
+#include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentVisualizationTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreEquipmentVisualizationService.generated.h"
 
 /**

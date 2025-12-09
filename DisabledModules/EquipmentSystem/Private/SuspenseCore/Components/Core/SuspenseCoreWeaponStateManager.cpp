@@ -78,7 +78,7 @@ void USuspenseCoreWeaponStateManager::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: BeginPlay - Weapon state manager started"));
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: BeginPlay - Weapon state manager started"));
 }
 
 void USuspenseCoreWeaponStateManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -88,7 +88,7 @@ void USuspenseCoreWeaponStateManager::EndPlay(const EEndPlayReason::Type EndPlay
     StateMachines.Empty();
     StateHistory.Empty();
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: EndPlay - Weapon state manager stopped"));
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: EndPlay - Weapon state manager stopped"));
 
     Super::EndPlay(EndPlayReason);
 }
@@ -110,7 +110,7 @@ bool USuspenseCoreWeaponStateManager::Initialize(
 
     if (!DataProvider.GetInterface())
     {
-        UE_LOG(LogTemp, Error, TEXT("MedComWeaponStateManager: Initialize failed - DataProvider is null"));
+        UE_LOG(LogTemp, Error, TEXT("SuspenseCoreWeaponStateManager: Initialize failed - DataProvider is null"));
         return false;
     }
 
@@ -122,10 +122,10 @@ bool USuspenseCoreWeaponStateManager::Initialize(
         const FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(i);
 
         const bool bIsWeaponSlot =
-            (SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon)  ||
-            (SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon)||
-            (SlotConfig.SlotType == EEquipmentSlotType::Holster)        ||
-            (SlotConfig.SlotType == EEquipmentSlotType::Scabbard);
+            (SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::PrimaryWeapon)  ||
+            (SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::SecondaryWeapon)||
+            (SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Holster)        ||
+            (SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Scabbard);
 
         if (bIsWeaponSlot)
         {
@@ -135,7 +135,7 @@ bool USuspenseCoreWeaponStateManager::Initialize(
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Initialized with %d weapon slots"), StateMachines.Num());
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Initialized with %d weapon slots"), StateMachines.Num());
     return true;
 }
 
@@ -289,7 +289,7 @@ bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, i
     RecordStateChange(SlotIndex, NewState);
     BroadcastStateChange(SlotIndex, StateMachine.PreviousState, NewState);
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Forced slot %d to state %s"),
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Forced slot %d to state %s"),
         SlotIndex, *NewState.ToString());
 
     return true;
@@ -407,7 +407,7 @@ bool USuspenseCoreWeaponStateManager::AbortTransition(int32 SlotIndex)
     StateMachine->TransitionStartTime = 0.0f;
     StateMachine->TransitionDuration = 0.0f;
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Aborted transition for slot %d"), SlotIndex);
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Aborted transition for slot %d"), SlotIndex);
 
     return true;
 }
@@ -445,7 +445,7 @@ void USuspenseCoreWeaponStateManager::RegisterTransition(const FSuspenseCoreStat
     // Add new transition
     TransitionDefinitions.Add(Transition);
 
-    UE_LOG(LogTemp, Log, TEXT("MedComWeaponStateManager: Registered transition %s -> %s"),
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Registered transition %s -> %s"),
         *Transition.FromState.ToString(), *Transition.ToState.ToString());
 }
 
@@ -492,7 +492,7 @@ void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
     StateMachine->TransitionStartTime = 0.0f;
     StateMachine->TransitionDuration = 0.0f;
 
-    UE_LOG(LogTemp, Verbose, TEXT("MedComWeaponStateManager: Completed transition for slot %d to state %s"),
+    UE_LOG(LogTemp, Verbose, TEXT("SuspenseCoreWeaponStateManager: Completed transition for slot %d to state %s"),
         SlotIndex, *StateMachine->CurrentState.ToString());
 
     // Check for chained transitions

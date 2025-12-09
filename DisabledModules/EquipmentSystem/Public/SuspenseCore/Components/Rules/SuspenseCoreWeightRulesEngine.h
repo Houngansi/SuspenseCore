@@ -1,19 +1,20 @@
-// SuspenseCoreWeightRulesEngine.h © MedCom Team. All Rights Reserved.
+// SuspenseCoreWeightRulesEngine.h
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GameplayTagContainer.h"
-#include "Types/Rules/SuspenseRulesTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCoreWeightRulesEngine.generated.h"
 
 /**
  * Rules configuration for weight/encumbrance evaluation.
  */
 USTRUCT(BlueprintType)
-struct FSuspenseCoreMedComWeightConfig
+struct FSuspenseCoreWeightConfig
 {
     GENERATED_BODY()
 
@@ -61,7 +62,7 @@ public:
     USuspenseCoreWeightRulesEngine();
 
     /** Set configuration (copy); thread-safe snapshot usage. */
-    void Initialize(const FSuspenseCoreMedComWeightConfig& InConfig);
+    void Initialize(const FSuspenseCoreWeightConfig& InConfig);
 
     //==================== Top-level evaluation ====================
 
@@ -126,5 +127,5 @@ protected:
 
 private:
     /** Immutable configuration snapshot (updated via Initialize). */
-    FSuspenseCoreMedComWeightConfig Configuration;
+    FSuspenseCoreWeightConfig Configuration;
 };

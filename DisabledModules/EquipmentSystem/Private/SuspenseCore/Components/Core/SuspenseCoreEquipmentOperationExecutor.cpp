@@ -1,5 +1,5 @@
-// MedComEquipmentOperationExecutor.cpp
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreEquipmentOperationExecutor.cpp
+// Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
@@ -460,8 +460,8 @@ void USuspenseCoreEquipmentOperationExecutor::Expand_QuickSwitch(
     SwitchRequest.TargetSlotIndex = TargetSlot;
 
     // Описание шага (если есть типы — показываем их; на случай отсутствия GetWeaponSlotType можно заменить на краткое)
-    const EEquipmentSlotType FromType = GetWeaponSlotType(CurrentActive);
-    const EEquipmentSlotType ToType   = GetWeaponSlotType(TargetSlot);
+    const ESuspenseCoreEquipmentSlotType FromType = GetWeaponSlotType(CurrentActive);
+    const ESuspenseCoreEquipmentSlotType ToType   = GetWeaponSlotType(TargetSlot);
 
     const FString Description = FString::Printf(
         TEXT("Quick switch weapon: %s (slot %d) -> %s (slot %d)"),
@@ -1182,26 +1182,26 @@ bool USuspenseCoreEquipmentOperationExecutor::IsWeaponSlot(int32 SlotIndex) cons
     // SecondaryWeapon - вторичное оружие (SMG, PDW, Shotgun)
     // Holster - пистолеты и револьверы
     // Scabbard - холодное оружие (ножи)
-    return SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon ||
-           SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon ||
-           SlotConfig.SlotType == EEquipmentSlotType::Holster ||
-           SlotConfig.SlotType == EEquipmentSlotType::Scabbard;
+    return SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::PrimaryWeapon ||
+           SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::SecondaryWeapon ||
+           SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Holster ||
+           SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Scabbard;
 }
 
 // Статический метод для оптимизации - определение приоритета слотов
-static inline int32 GetWeaponSlotPriorityStatic(EEquipmentSlotType SlotType)
+static inline int32 GetWeaponSlotPriorityStatic(ESuspenseCoreEquipmentSlotType SlotType)
 {
     // Приоритетность переключения оружия для Tarkov-style геймплея
     // Меньшее значение = выше приоритет при quick switch
     switch (SlotType)
     {
-        case EEquipmentSlotType::PrimaryWeapon:
+        case ESuspenseCoreEquipmentSlotType::PrimaryWeapon:
             return 1; // Высший приоритет - основное оружие
-        case EEquipmentSlotType::SecondaryWeapon:
+        case ESuspenseCoreEquipmentSlotType::SecondaryWeapon:
             return 2; // Вторичное оружие
-        case EEquipmentSlotType::Holster:
+        case ESuspenseCoreEquipmentSlotType::Holster:
             return 3; // Пистолет в кобуре
-        case EEquipmentSlotType::Scabbard:
+        case ESuspenseCoreEquipmentSlotType::Scabbard:
             return 4; // Нож - низший приоритет
         default:
             return 999; // Не оружейный слот
@@ -1209,7 +1209,7 @@ static inline int32 GetWeaponSlotPriorityStatic(EEquipmentSlotType SlotType)
 }
 
 // Публичный метод-обертка
-int32 USuspenseCoreEquipmentOperationExecutor::GetWeaponSlotPriority(EEquipmentSlotType SlotType) const
+int32 USuspenseCoreEquipmentOperationExecutor::GetWeaponSlotPriority(ESuspenseCoreEquipmentSlotType SlotType) const
 {
     return GetWeaponSlotPriorityStatic(SlotType);
 }
@@ -1238,7 +1238,7 @@ int32 USuspenseCoreEquipmentOperationExecutor::FindNextWeaponSlot(int32 CurrentS
     struct FWeaponSlotInfo
     {
         int32 SlotIndex;
-        EEquipmentSlotType SlotType;
+        ESuspenseCoreEquipmentSlotType SlotType;
         int32 Priority;
     };
 
@@ -1309,9 +1309,9 @@ bool USuspenseCoreEquipmentOperationExecutor::IsFirearmSlot(int32 SlotIndex) con
 
     // Только слоты для огнестрельного оружия (исключаем холодное)
     // Используется для определения возможности прицеливания и показа UI амуниции
-    return SlotConfig.SlotType == EEquipmentSlotType::PrimaryWeapon ||
-           SlotConfig.SlotType == EEquipmentSlotType::SecondaryWeapon ||
-           SlotConfig.SlotType == EEquipmentSlotType::Holster;
+    return SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::PrimaryWeapon ||
+           SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::SecondaryWeapon ||
+           SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Holster;
 }
 
 // Проверка на холодное оружие
@@ -1327,15 +1327,15 @@ bool USuspenseCoreEquipmentOperationExecutor::IsMeleeWeaponSlot(int32 SlotIndex)
 
     // Только слот для холодного оружия
     // Используется для переключения на melee combat mode
-    return SlotConfig.SlotType == EEquipmentSlotType::Scabbard;
+    return SlotConfig.SlotType == ESuspenseCoreEquipmentSlotType::Scabbard;
 }
 
 // Получение типа оружейного слота
-EEquipmentSlotType USuspenseCoreEquipmentOperationExecutor::GetWeaponSlotType(int32 SlotIndex) const
+ESuspenseCoreEquipmentSlotType USuspenseCoreEquipmentOperationExecutor::GetWeaponSlotType(int32 SlotIndex) const
 {
     if (!DataProvider.GetInterface() || !DataProvider->IsValidSlotIndex(SlotIndex))
     {
-        return EEquipmentSlotType::None;
+        return ESuspenseCoreEquipmentSlotType::None;
     }
 
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(SlotIndex);
@@ -1346,5 +1346,5 @@ EEquipmentSlotType USuspenseCoreEquipmentOperationExecutor::GetWeaponSlotType(in
         return SlotConfig.SlotType;
     }
 
-    return EEquipmentSlotType::None;
+    return ESuspenseCoreEquipmentSlotType::None;
 }

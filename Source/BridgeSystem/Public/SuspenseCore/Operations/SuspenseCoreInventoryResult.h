@@ -4,7 +4,7 @@
 
 
 #include "CoreMinimal.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCoreInventoryResult.generated.h"
 
 /**

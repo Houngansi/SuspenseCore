@@ -8,12 +8,8 @@
 #include "GameplayTagContainer.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCoreInventoryTypes.generated.h"
-
-// Compatibility alias for FSuspenseInventoryItemInstance
-// Used by EquipmentSystem components that expect SuspenseCore* naming convention
-using FSuspenseCoreInventoryItemInstance = FSuspenseInventoryItemInstance;
 
 // Forward declaration
 class USuspenseCoreInventoryComponent;

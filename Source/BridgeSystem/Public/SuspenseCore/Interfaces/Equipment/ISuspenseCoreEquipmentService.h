@@ -127,9 +127,6 @@ public:
     virtual FString GetServiceStats() const = 0;
 };
 
-// Alias for backward compatibility with existing code
-using IEquipmentService = ISuspenseCoreEquipmentService;
-
 //========================================
 // Specialized Service Interfaces
 //========================================

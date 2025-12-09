@@ -36,17 +36,13 @@
 #include "SuspenseCore/Utils/SuspenseCoreHelpers.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// INVENTORY SYSTEM - Re-exported from InventorySystem module
+// INVENTORY SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// Inventory Component
-#include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
-
-// Inventory Manager
-#include "SuspenseCore/Base/SuspenseCoreInventoryManager.h"
-
-// Inventory Events
-#include "SuspenseCore/Events/Inventory/SuspenseCoreInventoryEvents.h"
+// InventorySystem module is available through SuspenseCore dependency.
+// Include directly when needed:
+//   #include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"
+//   #include "SuspenseCore/Base/SuspenseCoreInventoryManager.h"
+//   #include "SuspenseCore/Events/Inventory/SuspenseCoreInventoryEvents.h"
 
 /**
  * FSuspenseCoreModule

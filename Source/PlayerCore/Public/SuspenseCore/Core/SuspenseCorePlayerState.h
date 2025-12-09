@@ -19,20 +19,10 @@ class UGameplayEffect;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPTIONAL MODULE FORWARD DECLARATIONS
-// These are unconditional - classes may not exist but forward decls are safe
+// Note: These classes may not exist if modules are disabled.
+// We use UActorComponent* base types for UPROPERTY to satisfy UHT.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class USuspenseCoreInventoryComponent;
-class USuspenseCoreEquipmentDataStore;
-class USuspenseCoreEquipmentTransactionProcessor;
-class USuspenseCoreEquipmentReplicationManager;
-class USuspenseCoreEquipmentPredictionSystem;
-class USuspenseCoreWeaponStateManager;
-class USuspenseCoreEquipmentNetworkDispatcher;
-class USuspenseCoreEquipmentInventoryBridge;
-class USuspenseCoreEquipmentEventDispatcher;
-class USuspenseCoreEquipmentOperationExecutor;
-class USuspenseCoreEquipmentSlotValidator;
 class USuspenseCoreLoadoutManager;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -132,39 +122,41 @@ public:
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - INVENTORY (Returns nullptr if WITH_INVENTORY_SYSTEM=0)
+	// Cast to USuspenseCoreInventoryComponent* in code when module is enabled
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Get the inventory component (nullptr if InventorySystem disabled) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory")
-	USuspenseCoreInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+	UActorComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - EQUIPMENT (Returns nullptr if WITH_EQUIPMENT_SYSTEM=0)
+	// Cast to specific equipment component types in code when module is enabled
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Get the equipment data store (core equipment state) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreEquipmentDataStore* GetEquipmentDataStore() const { return EquipmentDataStore; }
+	UActorComponent* GetEquipmentDataStore() const { return EquipmentDataStore; }
 
 	/** Get the equipment transaction processor (atomic operations) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreEquipmentTransactionProcessor* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
+	UActorComponent* GetEquipmentTxnProcessor() const { return EquipmentTxnProcessor; }
 
 	/** Get the equipment operation executor (validated operations) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreEquipmentOperationExecutor* GetEquipmentOps() const { return EquipmentOps; }
+	UActorComponent* GetEquipmentOps() const { return EquipmentOps; }
 
 	/** Get the equipment prediction system (client-side prediction) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreEquipmentPredictionSystem* GetEquipmentPrediction() const { return EquipmentPrediction; }
+	UActorComponent* GetEquipmentPrediction() const { return EquipmentPrediction; }
 
 	/** Get the equipment inventory bridge (connects equipment to inventory) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreEquipmentInventoryBridge* GetEquipmentInventoryBridge() const { return EquipmentInventoryBridge; }
+	UActorComponent* GetEquipmentInventoryBridge() const { return EquipmentInventoryBridge; }
 
 	/** Get the weapon state manager (weapon FSM) */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
-	USuspenseCoreWeaponStateManager* GetWeaponStateManager() const { return WeaponStateManager; }
+	UActorComponent* GetWeaponStateManager() const { return WeaponStateManager; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
@@ -254,57 +246,59 @@ protected:
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INVENTORY COMPONENT (nullptr if WITH_INVENTORY_SYSTEM=0)
-	// Created in constructor only if InventorySystem module is enabled
+	// Created in constructor only if InventorySystem module is enabled.
+	// Use base type UActorComponent* to satisfy UHT when module is disabled.
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Inventory Component - created in constructor, persists across respawns */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "SuspenseCore|Components")
-	USuspenseCoreInventoryComponent* InventoryComponent = nullptr;
+	UActorComponent* InventoryComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// EQUIPMENT MODULE COMPONENTS (nullptr if WITH_EQUIPMENT_SYSTEM=0)
-	// Created in constructor only if EquipmentSystem module is enabled
+	// Created in constructor only if EquipmentSystem module is enabled.
+	// Use base type UActorComponent* to satisfy UHT when module is disabled.
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Core data store for equipment state (Server authoritative, replicated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseCoreEquipmentDataStore* EquipmentDataStore = nullptr;
+	UActorComponent* EquipmentDataStore = nullptr;
 
 	/** Transaction processor for atomic equipment changes */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseCoreEquipmentTransactionProcessor* EquipmentTxnProcessor = nullptr;
+	UActorComponent* EquipmentTxnProcessor = nullptr;
 
 	/** Operation executor (deterministic, validated) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Core")
-	USuspenseCoreEquipmentOperationExecutor* EquipmentOps = nullptr;
+	UActorComponent* EquipmentOps = nullptr;
 
 	/** Prediction system (client owning) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseCoreEquipmentPredictionSystem* EquipmentPrediction = nullptr;
+	UActorComponent* EquipmentPrediction = nullptr;
 
 	/** Replication manager (delta-based replication) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseCoreEquipmentReplicationManager* EquipmentReplication = nullptr;
+	UActorComponent* EquipmentReplication = nullptr;
 
 	/** Network dispatcher (RPC/request queue) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Networking")
-	USuspenseCoreEquipmentNetworkDispatcher* EquipmentNetworkDispatcher = nullptr;
+	UActorComponent* EquipmentNetworkDispatcher = nullptr;
 
 	/** Event dispatcher / equipment event bus (local) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Events")
-	USuspenseCoreEquipmentEventDispatcher* EquipmentEventDispatcher = nullptr;
+	UActorComponent* EquipmentEventDispatcher = nullptr;
 
 	/** Weapon state manager (FSM) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Weapon")
-	USuspenseCoreWeaponStateManager* WeaponStateManager = nullptr;
+	UActorComponent* WeaponStateManager = nullptr;
 
 	/** Inventory bridge (connects equipment to existing inventory) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Inventory")
-	USuspenseCoreEquipmentInventoryBridge* EquipmentInventoryBridge = nullptr;
+	UActorComponent* EquipmentInventoryBridge = nullptr;
 
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()
-	USuspenseCoreEquipmentSlotValidator* EquipmentSlotValidator = nullptr;
+	UObject* EquipmentSlotValidator = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION

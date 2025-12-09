@@ -23,7 +23,7 @@ class USuspenseCoreEventBus;
  * - Uses FSuspenseCoreEventData for typed payload delivery
  * - Allows UI and gameplay systems to react to settings changes
  *
- * @see USuspenseInteractionSettings (Legacy reference)
+ * Migrated from legacy USuspenseInteractionSettings
  */
 UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Suspense Core Interaction Settings"))
 class INTERACTIONSYSTEM_API USuspenseCoreInteractionSettings : public UDeveloperSettings

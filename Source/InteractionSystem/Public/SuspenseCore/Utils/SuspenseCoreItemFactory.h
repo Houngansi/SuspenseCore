@@ -32,7 +32,7 @@ struct FSuspenseCoreUnifiedItemData;
  *
  * Note: Renamed from USuspenseCoreItemFactory to avoid conflict with USuspenseCoreItemFactory interface.
  *
- * @see USuspenseItemFactory (Legacy reference)
+ * Migrated from legacy USuspenseItemFactory
  */
 UCLASS()
 class INTERACTIONSYSTEM_API USuspenseCoreItemFactorySubsystem
@@ -61,7 +61,7 @@ public:
 	virtual USuspenseCoreEventBus* GetEventBus() const override;
 
 	//==================================================================
-	// ISuspenseItemFactoryInterface Implementation
+	// ISuspenseCoreItemFactory Implementation
 	//==================================================================
 
 	/**

@@ -8,8 +8,6 @@
 #include "GameFramework/GameModeBase.h"
 #include "SuspenseCoreMenuGameMode.generated.h"
 
-class USuspenseCoreMainMenuWidget;
-
 /**
  * ASuspenseCoreMenuGameMode
  *
@@ -44,19 +42,13 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Get the main menu widget.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
-	USuspenseCoreMainMenuWidget* GetMainMenuWidget() const { return MainMenuWidget; }
-
-	/**
-	 * Show the main menu widget.
+	 * Show the main menu (widget creation to be added when UISystem enabled).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
 	void ShowMainMenu();
 
 	/**
-	 * Hide the main menu widget.
+	 * Hide the main menu.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
 	void HideMainMenu();
@@ -78,10 +70,6 @@ protected:
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Class of main menu widget to create */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	TSubclassOf<USuspenseCoreMainMenuWidget> MainMenuWidgetClass;
-
 	/** Name of the main menu map (for returning from game) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FName MainMenuMapName = TEXT("MainMenuMap");
@@ -90,20 +78,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FName DefaultGameMapName = TEXT("GameMap");
 
-	/** Should create widget automatically on StartPlay? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
-	bool bAutoCreateMainMenu = true;
-
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL
 	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Created main menu widget instance */
-	UPROPERTY()
-	USuspenseCoreMainMenuWidget* MainMenuWidget;
-
-	/** Create the main menu widget */
-	void CreateMainMenuWidget();
 
 	/** Setup input mode for menu */
 	void SetupMenuInputMode();

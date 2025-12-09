@@ -1,16 +1,10 @@
-// Copyright Suspense Team. All Rights Reserved.
+// SuspenseCoreItemManager.cpp
+// SuspenseCore - Clean Architecture Foundation
+// Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/AssetManager.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
-
-// Include InventoryUtils for item instance creation
-// This ensures proper initialization of runtime properties
-namespace InventoryUtils
-{
-    extern FSuspenseInventoryItemInstance CreateItemInstance(const FName& ItemID, int32 Quantity);
-    extern bool GetUnifiedItemData(const FName& ItemID, FSuspenseUnifiedItemData& OutData);
-}
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreItemManager, Log, All);
 

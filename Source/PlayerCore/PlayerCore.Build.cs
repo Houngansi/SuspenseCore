@@ -10,6 +10,7 @@ public class PlayerCore : ModuleRules
     private static readonly bool bWithEquipmentSystem = false;
     private static readonly bool bWithInventorySystem = false;
     private static readonly bool bWithInteractionSystem = false;
+    private static readonly bool bWithUISystem = false;
 
     public PlayerCore(ReadOnlyTargetRules Target) : base(Target)
     {
@@ -68,6 +69,16 @@ public class PlayerCore : ModuleRules
         else
         {
             PublicDefinitions.Add("WITH_INTERACTION_SYSTEM=0");
+        }
+
+        if (bWithUISystem)
+        {
+            PublicDependencyModuleNames.Add("UISystem");
+            PublicDefinitions.Add("WITH_UI_SYSTEM=1");
+        }
+        else
+        {
+            PublicDefinitions.Add("WITH_UI_SYSTEM=0");
         }
 
         // UMG for widgets

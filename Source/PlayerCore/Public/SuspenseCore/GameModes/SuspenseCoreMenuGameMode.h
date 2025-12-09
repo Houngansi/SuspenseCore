@@ -8,6 +8,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "SuspenseCoreMenuGameMode.generated.h"
 
+class UUserWidget;
+
 /**
  * ASuspenseCoreMenuGameMode
  *
@@ -42,7 +44,13 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Show the main menu (widget creation to be added when UISystem enabled).
+	 * Get the main menu widget (nullptr if WITH_UI_SYSTEM=0).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
+	UUserWidget* GetMainMenuWidget() const { return MainMenuWidget; }
+
+	/**
+	 * Show the main menu widget.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
 	void ShowMainMenu();
@@ -70,6 +78,10 @@ protected:
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
+	/** Class of main menu widget to create (nullptr if WITH_UI_SYSTEM=0) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	TSubclassOf<UUserWidget> MainMenuWidgetClass;
+
 	/** Name of the main menu map (for returning from game) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FName MainMenuMapName = TEXT("MainMenuMap");
@@ -78,9 +90,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
 	FName DefaultGameMapName = TEXT("GameMap");
 
+	/** Should create widget automatically on StartPlay? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Config")
+	bool bAutoCreateMainMenu = true;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Created main menu widget instance */
+	UPROPERTY()
+	UUserWidget* MainMenuWidget = nullptr;
+
+	/** Create the main menu widget */
+	void CreateMainMenuWidget();
 
 	/** Setup input mode for menu */
 	void SetupMenuInputMode();

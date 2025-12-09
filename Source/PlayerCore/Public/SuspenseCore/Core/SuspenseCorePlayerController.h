@@ -17,6 +17,7 @@ class USuspenseCoreEventBus;
 class UAbilitySystemComponent;
 class ASuspenseCorePlayerState;
 class ASuspenseCoreCharacter;
+class UUserWidget;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INPUT CONFIGURATION
@@ -138,6 +139,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
 	bool IsPauseMenuVisible() const;
 
+	/** Get pause menu widget (nullptr if WITH_UI_SYSTEM=0) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	UUserWidget* GetPauseMenuWidget() const { return PauseMenuWidget; }
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - HUD WIDGET (nullptr if WITH_UI_SYSTEM=0)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Get HUD widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	UUserWidget* GetHUDWidget() const { return HUDWidget; }
+
+	/** Show HUD widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void ShowHUD();
+
+	/** Hide HUD widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	void HideHUD();
+
+	/** Check if HUD is visible */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
+	bool IsHUDVisible() const;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - INVENTORY/CONTAINER SCREEN
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -237,8 +262,33 @@ protected:
 	TArray<FSuspenseCoreInputBinding> AbilityInputBindings;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// UI CONFIGURATION (Widget classes to be added when UISystem module is enabled)
+	// UI CONFIGURATION (nullptr if WITH_UI_SYSTEM=0)
+	// Widget classes using base UUserWidget* to satisfy UHT when module is disabled
 	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Pause menu widget class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<UUserWidget> PauseMenuWidgetClass;
+
+	/** Spawned pause menu widget */
+	UPROPERTY()
+	UUserWidget* PauseMenuWidget = nullptr;
+
+	/** HUD widget class to spawn (vitals display: HP/Shield/Stamina) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<UUserWidget> HUDWidgetClass;
+
+	/** Spawned HUD widget */
+	UPROPERTY()
+	UUserWidget* HUDWidget = nullptr;
+
+	/** Container screen widget class (inventory, equipment, stash) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<UUserWidget> ContainerScreenWidgetClass;
+
+	/** Tooltip widget class for items */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<UUserWidget> TooltipWidgetClass;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS
@@ -277,6 +327,8 @@ protected:
 
 	void SetupEnhancedInput();
 	void BindAbilityInputs();
+	void CreatePauseMenu();
+	void CreateHUDWidget();
 
 	/** Handle ability input by binding index */
 	void HandleAbilityInputByIndex(const FInputActionValue& Value, int32 BindingIndex);

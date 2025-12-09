@@ -91,7 +91,7 @@ const FLoadoutConfiguration* USuspenseCoreLoadoutManager::GetLoadoutConfig(const
     return CachedConfigurations.Find(LoadoutID);
 }
 
-const FSuspenseCoreInventoryConfig* USuspenseCoreLoadoutManager::GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName) const
+const FSuspenseCoreLoadoutInventoryConfig* USuspenseCoreLoadoutManager::GetInventoryConfig(const FName& LoadoutID, const FName& InventoryName) const
 {
     const FLoadoutConfiguration* LoadoutConfig = GetLoadoutConfig(LoadoutID);
     if (!LoadoutConfig) return nullptr;
@@ -110,15 +110,15 @@ bool USuspenseCoreLoadoutManager::GetLoadoutConfigBP(const FName& LoadoutID, FLo
     return false;
 }
 
-bool USuspenseCoreLoadoutManager::GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseCoreInventoryConfig& OutConfig) const
+bool USuspenseCoreLoadoutManager::GetInventoryConfigBP(const FName& LoadoutID, const FName& InventoryName, FSuspenseCoreLoadoutInventoryConfig& OutConfig) const
 {
-    const FSuspenseCoreInventoryConfig* ConfigPtr = GetInventoryConfig(LoadoutID, InventoryName);
+    const FSuspenseCoreLoadoutInventoryConfig* ConfigPtr = GetInventoryConfig(LoadoutID, InventoryName);
     if (ConfigPtr)
     {
         OutConfig = *ConfigPtr;
         return true;
     }
-    OutConfig = FSuspenseCoreInventoryConfig();
+    OutConfig = FSuspenseCoreLoadoutInventoryConfig();
     return false;
 }
 
@@ -187,7 +187,7 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToInventory(UObject* InventoryObje
         return false;
     }
 
-    const FSuspenseCoreInventoryConfig* Config = GetInventoryConfig(LoadoutID, InventoryName);
+    const FSuspenseCoreLoadoutInventoryConfig* Config = GetInventoryConfig(LoadoutID, InventoryName);
     if (!Config)
     {
         UE_LOG(LogSuspenseCoreLoadout, Error, TEXT("ApplyLoadoutToInventory: Config not found for %s/%s"),
@@ -251,7 +251,7 @@ bool USuspenseCoreLoadoutManager::ApplyLoadoutToEquipment(UObject* EquipmentObje
                 ItemInstance.InstanceID = FGuid::NewGuid();
                 ItemInstance.Quantity = 1;
 
-                FSuspenseCoreInventoryOperationResult EquipResult = ISuspenseCoreEquipment::Execute_EquipItemInstance(
+                FSuspenseInventoryOperationResult EquipResult = ISuspenseCoreEquipment::Execute_EquipItemInstance(
                     EquipmentObject, ItemInstance, true);
 
                 if (EquipResult.bSuccess) EquippedCount++;

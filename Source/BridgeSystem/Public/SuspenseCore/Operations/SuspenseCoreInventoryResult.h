@@ -21,7 +21,7 @@
  * - Возможность передачи связанных объектов
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
+struct BRIDGESYSTEM_API FSuspenseInventoryOperationResult
 {
     GENERATED_BODY()
 
@@ -57,7 +57,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
     //==================================================================
 
     /** Конструктор по умолчанию создает неуспешный результат */
-    FSuspenseCoreInventoryOperationResult() = default;
+    FSuspenseInventoryOperationResult() = default;
 
     /**
      * Конструктор с полным набором параметров
@@ -67,7 +67,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param InContext Контекст операции
      * @param InResultObject Связанный объект
      */
-    FSuspenseCoreInventoryOperationResult(bool InSuccess, ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
+    FSuspenseInventoryOperationResult(bool InSuccess, ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
                              const FName& InContext, UObject* InResultObject = nullptr)
         : bSuccess(InSuccess)
         , ErrorCode(InErrorCode)
@@ -127,9 +127,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param InResultObject Связанный объект (опционально)
      * @return Структура успешного результата
      */
-    static FSuspenseCoreInventoryOperationResult Success(const FName& InContext, UObject* InResultObject = nullptr)
+    static FSuspenseInventoryOperationResult Success(const FName& InContext, UObject* InResultObject = nullptr)
     {
-        return FSuspenseCoreInventoryOperationResult(
+        return FSuspenseInventoryOperationResult(
             true,
             ESuspenseInventoryErrorCode::Success,
             FText::GetEmpty(),
@@ -146,10 +146,10 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param InResultObject Связанный объект (опционально)
      * @return Структура неудачного результата
      */
-    static FSuspenseCoreInventoryOperationResult Failure(ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
+    static FSuspenseInventoryOperationResult Failure(ESuspenseInventoryErrorCode InErrorCode, const FText& InErrorMessage,
                                            const FName& InContext, UObject* InResultObject = nullptr)
     {
-        return FSuspenseCoreInventoryOperationResult(
+        return FSuspenseInventoryOperationResult(
             false,
             InErrorCode,
             InErrorMessage,
@@ -164,7 +164,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param InErrorMessage Дополнительное сообщение (опционально)
      * @return Результат ошибки недостатка места
      */
-    static FSuspenseCoreInventoryOperationResult NoSpace(const FName& InContext, const FText& InErrorMessage = FText())
+    static FSuspenseInventoryOperationResult NoSpace(const FName& InContext, const FText& InErrorMessage = FText())
     {
         FText Message = InErrorMessage.IsEmpty()
             ? FText::FromString(TEXT("Not enough space in inventory"))
@@ -179,7 +179,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param InErrorMessage Дополнительное сообщение (опционально)
      * @return Результат ошибки превышения веса
      */
-    static FSuspenseCoreInventoryOperationResult WeightLimit(const FName& InContext, const FText& InErrorMessage = FText())
+    static FSuspenseInventoryOperationResult WeightLimit(const FName& InContext, const FText& InErrorMessage = FText())
     {
         FText Message = InErrorMessage.IsEmpty()
             ? FText::FromString(TEXT("Weight limit exceeded"))
@@ -194,7 +194,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryOperationResult
      * @param ItemID ID предмета который не найден
      * @return Результат ошибки отсутствия предмета
      */
-    static FSuspenseCoreInventoryOperationResult ItemNotFound(const FName& InContext, const FName& ItemID = NAME_None)
+    static FSuspenseInventoryOperationResult ItemNotFound(const FName& InContext, const FName& ItemID = NAME_None)
     {
         FText Message = ItemID.IsNone()
             ? FText::FromString(TEXT("Item not found"))

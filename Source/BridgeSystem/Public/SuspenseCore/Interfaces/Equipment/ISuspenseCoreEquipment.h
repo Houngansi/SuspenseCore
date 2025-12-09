@@ -559,7 +559,7 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseCoreInventoryOperationResult EquipItemInstance(
+	FSuspenseInventoryOperationResult EquipItemInstance(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		bool bForceEquip = false);
 
@@ -569,7 +569,7 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseCoreInventoryOperationResult UnequipItem(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance);
+	FSuspenseInventoryOperationResult UnequipItem(FSuspenseCoreInventoryItemInstance& OutUnequippedInstance);
 
 	/**
 	 * Swap items between this slot and another
@@ -577,7 +577,7 @@ public:
 	 * @return Operation result
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment|Operations")
-	FSuspenseCoreInventoryOperationResult SwapEquipmentWith(
+	FSuspenseInventoryOperationResult SwapEquipmentWith(
 		const TScriptInterface<ISuspenseCoreEquipment>& OtherEquipment);
 
 	//========================================

@@ -13,6 +13,32 @@
 // ----------------------------------------------------
 // Helpers: DTO <-> Domain (локальные, без сторонних зависимостей)
 // ----------------------------------------------------
+
+// Overload for FSuspenseCoreItemInstance (used in FEquipmentOperationRequest)
+static FSuspenseCoreInventoryItemInstanceNet ItemInstanceToNet(const FSuspenseCoreItemInstance& In)
+{
+	FSuspenseCoreInventoryItemInstanceNet Out;
+	Out.ItemID       = In.ItemID;
+	Out.InstanceID   = In.UniqueInstanceID;  // FSuspenseCoreItemInstance uses UniqueInstanceID
+	Out.Quantity     = In.Quantity;
+	Out.AnchorIndex  = In.SlotIndex;  // Map SlotIndex to AnchorIndex for network
+	Out.bIsRotated   = (In.Rotation != 0);
+	Out.LastUsedTime = 0.f;  // Not tracked in FSuspenseCoreItemInstance
+	return Out;
+}
+
+static FSuspenseCoreItemInstance ItemInstanceFromNet(const FSuspenseCoreInventoryItemInstanceNet& In)
+{
+	FSuspenseCoreItemInstance Out;
+	Out.ItemID           = In.ItemID;
+	Out.UniqueInstanceID = In.InstanceID;
+	Out.Quantity         = In.Quantity;
+	Out.SlotIndex        = In.AnchorIndex;
+	Out.Rotation         = In.bIsRotated ? 90 : 0;
+	// RuntimeProperties умышленно не передаём по сети через RPC
+	return Out;
+}
+
 FSuspenseCoreInventoryItemInstanceNet USuspenseCoreEquipmentNetworkDispatcher::ToNet(const FSuspenseCoreInventoryItemInstance& In)
 {
 	FSuspenseCoreInventoryItemInstanceNet Out;
@@ -46,7 +72,7 @@ FSuspenseCoreNetworkOperationRequestNet USuspenseCoreEquipmentNetworkDispatcher:
 	Out.Operation.OperationType   = In.Operation.OperationType;
 	Out.Operation.SourceSlotIndex = In.Operation.SourceSlotIndex;
 	Out.Operation.TargetSlotIndex = In.Operation.TargetSlotIndex;
-	Out.Operation.ItemInstance    = ToNet(In.Operation.ItemInstance);
+	Out.Operation.ItemInstance    = ItemInstanceToNet(In.Operation.ItemInstance);  // Use FSuspenseCoreItemInstance overload
 	Out.Operation.Priority        = In.Priority;
 	return Out;
 }
@@ -61,7 +87,7 @@ FNetworkOperationRequest USuspenseCoreEquipmentNetworkDispatcher::FromNet(const 
 	Out.Operation.OperationType    = In.Operation.OperationType;
 	Out.Operation.SourceSlotIndex  = In.Operation.SourceSlotIndex;
 	Out.Operation.TargetSlotIndex  = In.Operation.TargetSlotIndex;
-	Out.Operation.ItemInstance     = FromNet(In.Operation.ItemInstance);
+	Out.Operation.ItemInstance     = ItemInstanceFromNet(In.Operation.ItemInstance);  // Returns FSuspenseCoreItemInstance
 	return Out;
 }
 
@@ -622,7 +648,7 @@ uint64 USuspenseCoreEquipmentNetworkDispatcher::CalculateRequestHash(const FNetw
 	Sha.Update((const uint8*)&Request.Operation.TargetSlotIndex, sizeof(int32));
 	const uint32 ItemIdHash     = GetTypeHash(Request.Operation.ItemInstance.ItemID);
 	Sha.Update((const uint8*)&ItemIdHash, sizeof(uint32));
-	const uint32 InstanceIdHash = GetTypeHash(Request.Operation.ItemInstance.InstanceID);
+	const uint32 InstanceIdHash = GetTypeHash(Request.Operation.ItemInstance.UniqueInstanceID);
 	Sha.Update((const uint8*)&InstanceIdHash, sizeof(uint32));
 	Sha.Update((const uint8*)&Request.Timestamp, sizeof(float));
 	Sha.Final();

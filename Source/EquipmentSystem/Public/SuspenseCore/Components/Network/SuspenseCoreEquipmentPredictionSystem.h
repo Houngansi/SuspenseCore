@@ -7,8 +7,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCorePredictionManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentPredictionSystem.generated.h"
 
@@ -54,7 +53,7 @@ struct FSuspenseCoreReconciliationState
 {
     GENERATED_BODY()
     UPROPERTY() FEquipmentStateSnapshot ServerState;
-    UPROPERTY() TArray<FEquipmentPrediction> PendingReapplication;
+    UPROPERTY() TArray<FSuspenseCorePrediction> PendingReapplication;
     UPROPERTY() bool bInProgress=false;
     UPROPERTY() float StartTime=0.0f;
     UPROPERTY() int32 ReconciliationCount=0;
@@ -74,7 +73,7 @@ struct FSuspenseCorePredictionStatistics
 };
 
 UCLASS(ClassGroup=(Equipment),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentPredictionSystem : public UActorComponent, public ISuspensePredictionManager
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentPredictionSystem : public UActorComponent, public ISuspenseCorePredictionManager
 {
     GENERATED_BODY()
 public:
@@ -88,7 +87,7 @@ public:
     virtual bool ConfirmPrediction(const FGuid& PredictionId,const FEquipmentOperationResult& ServerResult) override;
     virtual bool RollbackPrediction(const FGuid& PredictionId,const FText& Reason=FText::GetEmpty()) override;
     virtual void ReconcileWithServer(const FEquipmentStateSnapshot& ServerState) override;
-    virtual TArray<FEquipmentPrediction> GetActivePredictions() const override;
+    virtual TArray<FSuspenseCorePrediction> GetActivePredictions() const override;
     virtual int32 ClearExpiredPredictions(float MaxAge=2.0f) override;
     virtual bool IsPredictionActive(const FGuid& PredictionId) const override;
     virtual float GetPredictionConfidence(const FGuid& PredictionId) const override;
@@ -125,18 +124,18 @@ public:
 protected:
     UFUNCTION() void HandleServerResponse(const FGuid& OperationId,const FEquipmentOperationResult& Result);
     UFUNCTION() void HandleOperationTimeout(const FGuid& OperationId);
-    UFUNCTION() void HandleReplicatedStateApplied(const FReplicatedEquipmentData& ReplicatedData);
+    UFUNCTION() void HandleReplicatedStateApplied(const FSuspenseCoreReplicatedData& ReplicatedData);
 
-    bool ExecutePredictionLocally(FEquipmentPrediction& Prediction);
-    bool RewindPrediction(const FEquipmentPrediction& Prediction);
-    int32 ReapplyPredictions(const TArray<FEquipmentPrediction>& Predictions);
+    bool ExecutePredictionLocally(FSuspenseCorePrediction& Prediction);
+    bool RewindPrediction(const FSuspenseCorePrediction& Prediction);
+    int32 ReapplyPredictions(const TArray<FSuspenseCorePrediction>& Predictions);
     void UpdateConfidence(bool bSuccess);
     bool ShouldAllowPrediction(const FEquipmentOperationRequest& Operation) const;
     float CalculatePredictionPriority(const FEquipmentOperationRequest& Operation) const;
     void AddToTimeline(const FSuspenseCorePredictionTimelineEntry& Entry);
     FSuspenseCorePredictionTimelineEntry* FindTimelineEntry(const FGuid& PredictionId);
     void CleanupTimeline();
-    bool ValidatePrediction(const FEquipmentPrediction& Prediction,const FEquipmentOperationResult& ServerResult) const;
+    bool ValidatePrediction(const FSuspenseCorePrediction& Prediction,const FEquipmentOperationResult& ServerResult) const;
     void HandlePredictionTimeout(const FGuid& PredictionId);
     void UpdateLatencyTracking(float Latency);
     float GetAdjustedConfidence(EEquipmentOperationType OperationType) const;
@@ -157,7 +156,7 @@ private:
     UPROPERTY() USuspenseCoreEquipmentNetworkDispatcher* NetworkDispatcher=nullptr;
     UPROPERTY() USuspenseCoreEquipmentReplicationManager* ReplicationManager=nullptr;
 
-    UPROPERTY() TArray<FEquipmentPrediction> ActivePredictions;
+    UPROPERTY() TArray<FSuspenseCorePrediction> ActivePredictions;
     UPROPERTY() TMap<FGuid,FGuid> OperationToPredictionMap;
     UPROPERTY() TArray<FSuspenseCorePredictionTimelineEntry> PredictionTimeline;
     UPROPERTY() FSuspenseCoreReconciliationState ReconciliationState;

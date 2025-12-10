@@ -186,7 +186,7 @@ void USuspenseCoreEquipmentReplicationManager::PreReplication(IRepChangedPropert
         bActiveCompressed=bForceFullReplication||(SlotCount>0 && DirtyCount>=FMath::Max(1,SlotCount/2));
         if(bActiveCompressed)
         {
-            const FReplicatedEquipmentData Full=GetReplicatedData();
+            const FSuspenseCoreReplicatedData Full=GetReplicatedData();
             CompressedData=CompressData(Full);
         }
     }
@@ -220,10 +220,10 @@ void USuspenseCoreEquipmentReplicationManager::MarkForReplication(int32 SlotInde
     UE_LOG(LogEquipmentReplication,Verbose,TEXT("MarkForReplication: Slot %d dirty, version %d"),SlotIndex,CurrentVersion);
 }
 
-FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicatedData()const
+FSuspenseCoreReplicatedData USuspenseCoreEquipmentReplicationManager::GetReplicatedData()const
 {
     FScopeLock Lock(&SlotStateLock);
-    FReplicatedEquipmentData Data;
+    FSuspenseCoreReplicatedData Data;
     for(const FSuspenseCoreReplicatedSlotItem& Item:ReplicatedSlotArray.Items)
     {
         if(Data.SlotInstances.Num()<=Item.SlotIndex){Data.SlotInstances.SetNum(Item.SlotIndex+1);}
@@ -236,7 +236,7 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicated
     return Data;
 }
 
-void USuspenseCoreEquipmentReplicationManager::ApplyReplicatedData(const FReplicatedEquipmentData& Data,bool bIsInitialReplication)
+void USuspenseCoreEquipmentReplicationManager::ApplyReplicatedData(const FSuspenseCoreReplicatedData& Data,bool bIsInitialReplication)
 {
     if(GetOwnerRole()==ROLE_Authority){return;}
     if(DataProvider.GetInterface())
@@ -253,7 +253,7 @@ void USuspenseCoreEquipmentReplicationManager::ApplyReplicatedData(const FReplic
     UE_LOG(LogEquipmentReplication,Verbose,TEXT("ApplyReplicatedData: Applied version %d, Initial: %s"),Data.ReplicationVersion,bIsInitialReplication?TEXT("Yes"):TEXT("No"));
 }
 
-void USuspenseCoreEquipmentReplicationManager::SetReplicationPolicy(EEquipmentReplicationPolicy Policy)
+void USuspenseCoreEquipmentReplicationManager::SetReplicationPolicy(ESuspenseCoreReplicationPolicy Policy)
 {
     CurrentPolicy=Policy;
     UE_LOG(LogEquipmentReplication,Log,TEXT("SetReplicationPolicy: %s"),*UEnum::GetValueAsString(Policy));
@@ -283,23 +283,23 @@ bool USuspenseCoreEquipmentReplicationManager::ShouldReplicateTo(APlayerControll
     if(!ViewTarget){return false;}
     switch(CurrentPolicy)
     {
-        case EEquipmentReplicationPolicy::Always: return true;
-        case EEquipmentReplicationPolicy::OnlyToOwner:
+        case ESuspenseCoreReplicationPolicy::Always: return true;
+        case ESuspenseCoreReplicationPolicy::OnlyToOwner:
         {
             APlayerController* OwnerPC=ResolveOwnerPC(GetOwner());
             return OwnerPC && OwnerPC==ViewTarget;
         }
-        case EEquipmentReplicationPolicy::OnlyToRelevant:
+        case ESuspenseCoreReplicationPolicy::OnlyToRelevant:
         {
             const float R=bUseEnhancedRelevancy?CalculateEnhancedRelevancy(ViewTarget):CalculateEnhancedRelevancy(ViewTarget);
             return R>0.1f;
         }
-        case EEquipmentReplicationPolicy::SkipOwner:
+        case ESuspenseCoreReplicationPolicy::SkipOwner:
         {
             APlayerController* OwnerPC=ResolveOwnerPC(GetOwner());
             return !OwnerPC || OwnerPC!=ViewTarget;
         }
-        case EEquipmentReplicationPolicy::Custom: return true;
+        case ESuspenseCoreReplicationPolicy::Custom: return true;
         default: return true;
     }
 }
@@ -333,9 +333,9 @@ bool USuspenseCoreEquipmentReplicationManager::GetReplicationPriority(APlayerCon
     return true;
 }
 
-FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::OptimizeReplicationData(const FReplicatedEquipmentData& Data)const
+FSuspenseCoreReplicatedData USuspenseCoreEquipmentReplicationManager::OptimizeReplicationData(const FSuspenseCoreReplicatedData& Data)const
 {
-    FReplicatedEquipmentData O=Data;
+    FSuspenseCoreReplicatedData O=Data;
     while(O.SlotInstances.Num()>0 && !O.SlotInstances.Last().IsValid()){O.SlotInstances.RemoveAt(O.SlotInstances.Num()-1);}
     for(FSuspenseCoreInventoryItemInstance& I:O.SlotInstances)
     {
@@ -349,16 +349,16 @@ FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::OptimizeRepli
     return O;
 }
 
-FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::GetReplicationDelta(uint32 LastVersion)const
+FSuspenseCoreReplicatedData USuspenseCoreEquipmentReplicationManager::GetReplicationDelta(uint32 LastVersion)const
 {
     FScopeLock Lock(&SlotStateLock);
-    if(LastVersion==CurrentVersion){return FReplicatedEquipmentData();}
+    if(LastVersion==CurrentVersion){return FSuspenseCoreReplicatedData();}
     // фикс: каст к беззнаковому при сравнении со счетчиком дельт
     if(bForceFullReplication || (static_cast<uint32>(CurrentVersion - LastVersion) > static_cast<uint32>(DynamicMaxDeltasBeforeFull)))
     {
         return GetReplicatedData();
     }
-    FReplicatedEquipmentData Delta;
+    FSuspenseCoreReplicatedData Delta;
     Delta.ReplicationVersion=CurrentVersion;
     Delta.ActiveWeaponSlot=ReplicatedActiveWeaponSlot;
     Delta.CurrentState=ReplicatedEquipmentState;
@@ -458,7 +458,7 @@ void USuspenseCoreEquipmentReplicationManager::OnRep_SlotArray()
 {
     if(GetOwnerRole()!=ROLE_Authority)
     {
-        const FReplicatedEquipmentData Data=GetReplicatedData();
+        const FSuspenseCoreReplicatedData Data=GetReplicatedData();
         Statistics.TotalUpdates++;
         Statistics.DeltaUpdates++;
         APlayerController* LocalPC=GetWorld()?GetWorld()->GetFirstPlayerController():nullptr;
@@ -531,14 +531,14 @@ void USuspenseCoreEquipmentReplicationManager::ProcessReplication()
         }
     }
     FScopeLock ClientLock(&ClientStateLock);
-    for(FClientReplicationState& CS:ClientStates)
+    for(FSuspenseCoreClientReplicationState& CS:ClientStates)
     {
         if(CS.Client && CS.Client->GetNetConnection()){UpdateClientReplication(CS);}
     }
     Statistics.ActiveClients=ClientStates.Num();
 }
 
-void USuspenseCoreEquipmentReplicationManager::UpdateClientReplication(FClientReplicationState& ClientState)
+void USuspenseCoreEquipmentReplicationManager::UpdateClientReplication(FSuspenseCoreClientReplicationState& ClientState)
 {
     if(!ClientState.Client || !ShouldReplicateTo(ClientState.Client)){return;}
     const float Now=GetWorld()?GetWorld()->GetTimeSeconds():0.0f;
@@ -562,10 +562,10 @@ void USuspenseCoreEquipmentReplicationManager::UpdateClientReplication(FClientRe
     Statistics.TotalUpdates++;
 }
 
-FReplicatedEquipmentData USuspenseCoreEquipmentReplicationManager::BuildReplicationData(APlayerController* Client,bool bForceFull)const
+FSuspenseCoreReplicatedData USuspenseCoreEquipmentReplicationManager::BuildReplicationData(APlayerController* Client,bool bForceFull)const
 {
     if(bForceFull){return OptimizeReplicationData(GetReplicatedData());}
-    const FClientReplicationState* CS=ClientStates.FindByPredicate([Client](const FClientReplicationState& S){return S.Client==Client;});
+    const FSuspenseCoreClientReplicationState* CS=ClientStates.FindByPredicate([Client](const FSuspenseCoreClientReplicationState& S){return S.Client==Client;});
     if(!CS){return OptimizeReplicationData(GetReplicatedData());}
     return GetReplicationDelta(CS->LastAcknowledgedVersion);
 }
@@ -599,9 +599,9 @@ bool USuspenseCoreEquipmentReplicationManager::VerifySlotHMAC(const FSuspenseCor
     return Expected.Equals(HMACSignature);
 }
 
-FCompressedReplicationData USuspenseCoreEquipmentReplicationManager::CompressData(const FReplicatedEquipmentData& Data)const
+FSuspenseCoreCompressedReplicationData USuspenseCoreEquipmentReplicationManager::CompressData(const FSuspenseCoreReplicatedData& Data)const
 {
-    FCompressedReplicationData C;
+    FSuspenseCoreCompressedReplicationData C;
 
     // --- безопасная сериализация в Raw ---
     TArray<uint8> Raw;
@@ -689,7 +689,7 @@ FCompressedReplicationData USuspenseCoreEquipmentReplicationManager::CompressDat
 }
 
 
-bool USuspenseCoreEquipmentReplicationManager::DecompressData(const FCompressedReplicationData& Compressed,FReplicatedEquipmentData& OutData)const
+bool USuspenseCoreEquipmentReplicationManager::DecompressData(const FSuspenseCoreCompressedReplicationData& Compressed,FSuspenseCoreReplicatedData& OutData)const
 {
     if(bUseHMACSecurity && !Compressed.HMACSignature.IsEmpty())
     {
@@ -813,8 +813,8 @@ void USuspenseCoreEquipmentReplicationManager::UpdateSlotPriority(int32 SlotInde
     S.ReplicationPriority=1.0f;
     if(DataProvider.GetInterface())
     {
-        FSuspenseCoreEquipmentSlotConfig Cfg=DataProvider->GetSlotConfiguration(SlotIndex);
-        if(Cfg.SlotType==ESuspenseCoreEquipmentSlotType::PrimaryWeapon||Cfg.SlotType==ESuspenseCoreEquipmentSlotType::SecondaryWeapon){S.ReplicationPriority*=2.0f;}
+        FEquipmentSlotConfig Cfg=DataProvider->GetSlotConfiguration(SlotIndex);
+        if(Cfg.SlotType==EEquipmentSlotType::PrimaryWeapon||Cfg.SlotType==EEquipmentSlotType::SecondaryWeapon){S.ReplicationPriority*=2.0f;}
     }
     if(S.bIsDirty){S.ReplicationPriority*=3.0f;}
     if(S.ChangeCount>5){S.ReplicationPriority*=1.5f;}
@@ -830,7 +830,7 @@ bool USuspenseCoreEquipmentReplicationManager::SlotNeedsReplication(int32 SlotIn
     return false;
 }
 
-uint32 USuspenseCoreEquipmentReplicationManager::CalculateChecksum(const FReplicatedEquipmentData& Data)const
+uint32 USuspenseCoreEquipmentReplicationManager::CalculateChecksum(const FSuspenseCoreReplicatedData& Data)const
 {
     TArray<uint8> Bytes;
     Bytes.Reset(256);
@@ -889,8 +889,8 @@ void USuspenseCoreEquipmentReplicationManager::OnDataChanged(int32 SlotIndex,con
 void USuspenseCoreEquipmentReplicationManager::CleanupClientStates()
 {
     FScopeLock Lock(&ClientStateLock);
-    ClientStates.RemoveAll([](const FClientReplicationState& S){return !S.Client||!S.Client->GetNetConnection();});
-    for(FClientReplicationState& S:ClientStates)
+    ClientStates.RemoveAll([](const FSuspenseCoreClientReplicationState& S){return !S.Client||!S.Client->GetNetConnection();});
+    for(FSuspenseCoreClientReplicationState& S:ClientStates)
     {
         if(S.Client && S.Client->GetNetConnection())
         {

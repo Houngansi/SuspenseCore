@@ -36,12 +36,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreRuleCheckResult CheckItemCompatibility(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
+		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreRuleCheckResult CheckTypeCompatibility(
 		const FGameplayTag& ItemType,
-		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
+		const FEquipmentSlotConfig& SlotConfig) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	FSuspenseCoreAggregatedRuleResult EvaluateCompatibilityRules(
@@ -50,12 +50,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	TArray<int32> FindCompatibleSlots(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const TArray<FSuspenseCoreEquipmentSlotConfig>& AvailableSlots) const;
+		const TArray<FEquipmentSlotConfig>& AvailableSlots) const;
 
 	UFUNCTION(BlueprintCallable, Category="Compatibility")
 	float GetCompatibilityScore(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
-		const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const;
+		const FEquipmentSlotConfig& SlotConfig) const;
 
 	//------------- DI -------------
 	/** Provide SlotValidator for base checks (no duplication). */
@@ -78,7 +78,7 @@ protected:
 	bool GetItemData(FName ItemID, struct FSuspenseCoreUnifiedItemData& OutData) const;
 
 	/** Convert SlotValidator result to rules-format (severity mapping). */
-	static FSuspenseCoreRuleCheckResult Convert(const FSlotValidationResult& R);
+	static FSuspenseCoreRuleCheckResult Convert(const FSuspenseCoreSlotValidationResult& R);
 
 private:
 	UPROPERTY(Transient)

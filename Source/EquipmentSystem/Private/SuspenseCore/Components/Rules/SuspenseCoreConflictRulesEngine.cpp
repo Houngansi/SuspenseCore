@@ -68,13 +68,13 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckItemConflict
 {
     FSuspenseCoreRuleCheckResult Result = FSuspenseCoreRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.ItemCheck"));
-    Result.RuleType = ESuspenseCoreRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
 
     // Проверка инициализации движка
     if (!bIsInitialized || !DataProvider.GetInterface())
     {
         Result.bPassed = false;
-        Result.Severity = ESuspenseCoreRuleSeverity::Critical;
+        Result.Severity = ESuspenseRuleSeverity::Critical;
         Result.Message = NSLOCTEXT("ConflictRules", "NotInitialized", "Conflict engine not properly initialized");
         Result.ConfidenceScore = 0.0f;
         return Result;
@@ -107,7 +107,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckItemConflict
             if (GetItemData(ExistingItem.ItemID, ExistingData))
             {
                 Result.bPassed = false;
-                Result.Severity = ESuspenseCoreRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = FText::Format(
                     NSLOCTEXT("ConflictRules", "MutuallyExclusive", "{0} cannot be equipped with {1}"),
                     FText::FromString(NewItemType.ToString()),
@@ -132,7 +132,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckItemConflict
             if (GetItemData(NewItem.ItemID, NewData) && GetItemData(ExistingItem.ItemID, ExistingData))
             {
                 Result.bPassed = false;
-                Result.Severity = ESuspenseCoreRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = FText::Format(
                     NSLOCTEXT("ConflictRules", "ItemsIncompatible", "{0} is incompatible with {1}"),
                     NewData.DisplayName,
@@ -152,7 +152,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckItemConflict
     if (!CheckRequiredCompanions(NewItem, ExistingItems))
     {
         Result.bPassed = false;
-        Result.Severity = ESuspenseCoreRuleSeverity::Warning;
+        Result.Severity = ESuspenseRuleSeverity::Warning;
         Result.Message = NSLOCTEXT("ConflictRules", "MissingCompanion", "This item requires companion items to function properly");
         Result.ConfidenceScore = 0.5f;
         Result.bCanOverride = true;
@@ -165,7 +165,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckItemConflict
     {
         if (Result.bPassed) // Добавлять предупреждение только если нет других ошибок
         {
-            Result.Severity = ESuspenseCoreRuleSeverity::Warning;
+            Result.Severity = ESuspenseRuleSeverity::Warning;
             Result.Message = NSLOCTEXT("ConflictRules", "BreaksSetBonus", "Equipping this item will break an active set bonus");
             Result.ConfidenceScore = 0.7f;
             Result.bCanOverride = true;
@@ -190,7 +190,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckSlotConflict
 {
     FSuspenseCoreRuleCheckResult Result = FSuspenseCoreRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.SlotCheck"));
-    Result.RuleType = ESuspenseCoreRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
 
     // Критическая разница: теперь работаем с реальными снапшотами слотов из координатора,
     // а не с самодельной картой TMap<int32, FSuspenseCoreInventoryItemInstance>, которая давала ложные индексы
@@ -212,7 +212,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckSlotConflict
             ExistingType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))))
         {
             Result.bPassed = false;
-            Result.Severity = ESuspenseCoreRuleSeverity::Error;
+            Result.Severity = ESuspenseRuleSeverity::Error;
             Result.Message = NSLOCTEXT("ConflictRules", "SlotOccupied", "Cannot equip multiple primary weapons in the same slot");
             Result.ConfidenceScore = 0.0f;
             Result.bCanOverride = false;
@@ -253,7 +253,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckSlotConflict
             if (bBlocksOtherHand)
             {
                 Result.bPassed = false;
-                Result.Severity = ESuspenseCoreRuleSeverity::Error;
+                Result.Severity = ESuspenseRuleSeverity::Error;
                 Result.Message = NSLOCTEXT("ConflictRules", "RequiresBothHands", "Two-handed items require both hand slots to be free");
                 Result.ConfidenceScore = 0.0f;
                 Result.Context.Add(TEXT("RequiredSlots"), TEXT("BothHands"));
@@ -295,11 +295,11 @@ FSuspenseCoreAggregatedRuleResult USuspenseCoreConflictRulesEngine::EvaluateConf
     {
         FSuspenseCoreRuleCheckResult CompatResult;
         CompatResult.bPassed = false;
-        CompatResult.Severity = ESuspenseCoreRuleSeverity::Warning;
+        CompatResult.Severity = ESuspenseRuleSeverity::Warning;
         CompatResult.Message = NSLOCTEXT("ConflictRules", "PoorCompatibility", "Item has poor compatibility with current equipment");
         CompatResult.ConfidenceScore = CompatibilityScore;
         CompatResult.bCanOverride = true;
-        CompatResult.RuleType = ESuspenseCoreRuleType::Conflict;
+        CompatResult.RuleType = ESuspenseRuleType::Conflict;
 
         AggregatedResult.AddResult(CompatResult);
     }
@@ -337,31 +337,31 @@ TArray<FSuspenseCoreConflictResolution> USuspenseCoreConflictRulesEngine::FindAl
             switch (ConflictType)
             {
                 case ESuspenseCoreConflictType::MutualExclusion:
-                    Conflict.Strategy = ESuspenseCoreConflictResolution::Replace;
+                    Conflict.Strategy = ESuspenseConflictResolution::Replace;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "MustReplace", "Must replace existing item");
                     Conflict.bCanAutoResolve = true;
                     break;
 
                 case ESuspenseCoreConflictType::SlotConflict:
-                    Conflict.Strategy = ESuspenseCoreConflictResolution::Replace;
+                    Conflict.Strategy = ESuspenseConflictResolution::Replace;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "SlotConflictReplace", "Replace item in slot");
                     Conflict.bCanAutoResolve = true;
                     break;
 
                 case ESuspenseCoreConflictType::TypeIncompatibility:
-                    Conflict.Strategy = ESuspenseCoreConflictResolution::Reject;
+                    Conflict.Strategy = ESuspenseConflictResolution::Reject;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "CannotEquipTogether", "Items cannot be equipped together");
                     Conflict.bCanAutoResolve = false;
                     break;
 
                 case ESuspenseCoreConflictType::SetInterference:
-                    Conflict.Strategy = ESuspenseCoreConflictResolution::Prompt;
+                    Conflict.Strategy = ESuspenseConflictResolution::Prompt;
                     Conflict.Description = NSLOCTEXT("ConflictRules", "WouldBreakSet", "Would break equipment set bonus");
                     Conflict.bCanAutoResolve = false;
                     break;
 
                 default:
-                    Conflict.Strategy = ESuspenseCoreConflictResolution::Prompt;
+                    Conflict.Strategy = ESuspenseConflictResolution::Prompt;
                     Conflict.bCanAutoResolve = false;
                     break;
             }
@@ -566,14 +566,14 @@ FSuspenseCoreRuleCheckResult USuspenseCoreConflictRulesEngine::CheckTypeExclusiv
 {
     FSuspenseCoreRuleCheckResult Result = FSuspenseCoreRuleCheckResult::Success();
     Result.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.Conflict.TypeExclusivity"));
-    Result.RuleType = ESuspenseCoreRuleType::Conflict;
+    Result.RuleType = ESuspenseRuleType::Conflict;
 
     for (const FGameplayTag& ExistingType : ExistingTypes)
     {
         if (CheckMutualExclusion(NewItemType, ExistingType))
         {
             Result.bPassed = false;
-            Result.Severity = ESuspenseCoreRuleSeverity::Error;
+            Result.Severity = ESuspenseRuleSeverity::Error;
             Result.Message = FText::Format(
                 NSLOCTEXT("ConflictRules", "TypesExclusive", "Item type {0} cannot be equipped with {1}"),
                 FText::FromString(NewItemType.ToString()),
@@ -716,17 +716,17 @@ TArray<FName> USuspenseCoreConflictRulesEngine::GetMissingSetItems(
 
 bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
     const TArray<FSuspenseCoreConflictResolution>& Conflicts,
-    ESuspenseCoreConflictResolution Strategy,
+    ESuspenseConflictResolution Strategy,
     TArray<FSuspenseCoreResolutionAction>& OutActions) const
 {
     OutActions.Reset();
 
-    if (Strategy == ESuspenseCoreConflictResolution::Auto)
+    if (Strategy == ESuspenseConflictResolution::Auto)
     {
         Strategy = SuggestResolutionStrategy(Conflicts);
-        if (Strategy == ESuspenseCoreConflictResolution::Auto)
+        if (Strategy == ESuspenseConflictResolution::Auto)
         {
-            Strategy = ESuspenseCoreConflictResolution::Prompt;
+            Strategy = ESuspenseConflictResolution::Prompt;
         }
     }
 
@@ -734,7 +734,7 @@ bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
     {
         switch (Strategy)
         {
-            case ESuspenseCoreConflictResolution::Reject:
+            case ESuspenseConflictResolution::Reject:
             {
                 FSuspenseCoreResolutionAction A;
                 A.ActionTag = FGameplayTag::RequestGameplayTag(TEXT("Resolution.Action.Reject"));
@@ -744,7 +744,7 @@ bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
                 return false; // немедленный отказ
             }
 
-            case ESuspenseCoreConflictResolution::Replace:
+            case ESuspenseConflictResolution::Replace:
             {
                 for (const FSuspenseCoreInventoryItemInstance& It : C.ConflictingItems)
                 {
@@ -757,7 +757,7 @@ bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
                 break;
             }
 
-            case ESuspenseCoreConflictResolution::Stack:
+            case ESuspenseConflictResolution::Stack:
             {
                 if (C.ConflictingItems.Num() > 0)
                 {
@@ -770,7 +770,7 @@ bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
                 break;
             }
 
-            case ESuspenseCoreConflictResolution::Prompt:
+            case ESuspenseConflictResolution::Prompt:
             {
                 FSuspenseCoreResolutionAction A;
                 A.ActionTag = FGameplayTag::RequestGameplayTag(TEXT("Resolution.Action.Prompt"));
@@ -788,12 +788,12 @@ bool USuspenseCoreConflictRulesEngine::SuggestResolutions(
     return true;
 }
 
-ESuspenseCoreConflictResolution USuspenseCoreConflictRulesEngine::SuggestResolutionStrategy(
+ESuspenseConflictResolution USuspenseCoreConflictRulesEngine::SuggestResolutionStrategy(
     const TArray<FSuspenseCoreConflictResolution>& Conflicts) const
 {
     if (Conflicts.Num() == 0)
     {
-        return ESuspenseCoreConflictResolution::Auto;
+        return ESuspenseConflictResolution::Auto;
     }
 
     // Проверка возможности автоматического разрешения всех конфликтов
@@ -823,12 +823,12 @@ ESuspenseCoreConflictResolution USuspenseCoreConflictRulesEngine::SuggestResolut
 
         if (bAllReplaceable)
         {
-            return ESuspenseCoreConflictResolution::Replace;
+            return ESuspenseConflictResolution::Replace;
         }
     }
 
     // По умолчанию запросить решение пользователя
-    return ESuspenseCoreConflictResolution::Prompt;
+    return ESuspenseConflictResolution::Prompt;
 }
 
 FText USuspenseCoreConflictRulesEngine::GetConflictDescription(const FSuspenseCoreConflictResolution& Conflict) const
@@ -1093,11 +1093,11 @@ FSuspenseCoreAggregatedRuleResult USuspenseCoreConflictRulesEngine::EvaluateConf
     {
         FSuspenseCoreRuleCheckResult CompatResult;
         CompatResult.bPassed = false;  // Технически провал, но с возможностью переопределения
-        CompatResult.Severity = ESuspenseCoreRuleSeverity::Warning;  // Предупреждение, не критическая ошибка
+        CompatResult.Severity = ESuspenseRuleSeverity::Warning;  // Предупреждение, не критическая ошибка
         CompatResult.Message = NSLOCTEXT("ConflictRules", "PoorCompatibility", "Item has poor compatibility with current equipment");
         CompatResult.ConfidenceScore = CompatibilityScore;  // Передаем реальный скор
         CompatResult.bCanOverride = true;  // Пользователь может проигнорировать
-        CompatResult.RuleType = ESuspenseCoreRuleType::Conflict;
+        CompatResult.RuleType = ESuspenseRuleType::Conflict;
 
         AggregatedResult.AddResult(CompatResult);
     }

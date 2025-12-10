@@ -47,7 +47,7 @@ FSuspenseCoreAggregatedRuleResult USuspenseCoreWeightRulesEngine::EvaluateWeight
     {
         const FSuspenseCoreRuleCheckResult R = CheckWeightLimit(CurrentWeight, AdditionalWeight, Capacity);
         Agg.AddResult(R);
-        if (!R.bPassed && (R.Severity == ESuspenseCoreRuleSeverity::Error || R.Severity == ESuspenseCoreRuleSeverity::Critical))
+        if (!R.bPassed && (R.Severity == ESuspenseRuleSeverity::Error || R.Severity == ESuspenseRuleSeverity::Critical))
         {
             return Agg; // Critical failure - stop processing
         }
@@ -73,7 +73,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreWeightRulesEngine::CheckWeightLimit(fl
             FText::Format(NSLOCTEXT("WeightRules", "WithinCapacity", "Weight within capacity: {0}/{1} kg"),
                 FText::AsNumber(FMath::RoundToFloat(NewTotal * 10.0f) / 10.0f),
                 FText::AsNumber(FMath::RoundToFloat(MaxCapacity * 10.0f) / 10.0f)));
-        OK.RuleType = ESuspenseCoreRuleType::Weight;
+        OK.RuleType = ESuspenseRuleType::Weight;
         OK.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Weight.Capacity.OK"));
         OK.Context.Add(TEXT("Current"), FString::SanitizeFloat(CurrentWeight));
         OK.Context.Add(TEXT("Additional"), FString::SanitizeFloat(AdditionalWeight));
@@ -90,8 +90,8 @@ FSuspenseCoreRuleCheckResult USuspenseCoreWeightRulesEngine::CheckWeightLimit(fl
             FText::Format(NSLOCTEXT("WeightRules", "OverCapacity", "Exceeds carry capacity: {0}/{1} kg"),
                 FText::AsNumber(FMath::RoundToFloat(NewTotal * 10.0f) / 10.0f),
                 FText::AsNumber(FMath::RoundToFloat(MaxCapacity * 10.0f) / 10.0f)),
-            ESuspenseCoreRuleSeverity::Error);
-        R.RuleType = ESuspenseCoreRuleType::Weight;
+            ESuspenseRuleSeverity::Error);
+        R.RuleType = ESuspenseRuleType::Weight;
         R.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Weight.Capacity.Exceeded"));
         R.Context.Add(TEXT("TotalWeight"), FString::SanitizeFloat(NewTotal));
         R.Context.Add(TEXT("Capacity"), FString::SanitizeFloat(MaxCapacity));
@@ -104,9 +104,9 @@ FSuspenseCoreRuleCheckResult USuspenseCoreWeightRulesEngine::CheckWeightLimit(fl
         FText::Format(NSLOCTEXT("WeightRules", "OverweightAllowed", "Overweight but allowed: {0}/{1} kg"),
             FText::AsNumber(FMath::RoundToFloat(NewTotal * 10.0f) / 10.0f),
             FText::AsNumber(FMath::RoundToFloat(MaxCapacity * 10.0f) / 10.0f)));
-    W.RuleType = ESuspenseCoreRuleType::Weight;
+    W.RuleType = ESuspenseRuleType::Weight;
     W.RuleTag  = FGameplayTag::RequestGameplayTag(TEXT("Weight.Capacity.Overweight"));
-    W.Severity = ESuspenseCoreRuleSeverity::Warning;
+    W.Severity = ESuspenseRuleSeverity::Warning;
     W.bCanOverride = true;
     W.Context.Add(TEXT("TotalWeight"), FString::SanitizeFloat(NewTotal));
     W.Context.Add(TEXT("Capacity"), FString::SanitizeFloat(MaxCapacity));
@@ -119,21 +119,21 @@ FSuspenseCoreRuleCheckResult USuspenseCoreWeightRulesEngine::CheckEncumbrance(co
     const float Ratio = CalculateEncumbranceLevel(TotalWeight, Capacity);
     const FGameplayTag EncumbranceTag = GetEncumbranceTag(Ratio);
 
-    ESuspenseCoreRuleSeverity Severity = ESuspenseCoreRuleSeverity::Info;
+    ESuspenseRuleSeverity Severity = ESuspenseRuleSeverity::Info;
     if (Ratio >= Configuration.OverweightThreshold)
     {
-        Severity = ESuspenseCoreRuleSeverity::Warning;
+        Severity = ESuspenseRuleSeverity::Warning;
     }
     else if (Ratio >= Configuration.EncumberedThreshold)
     {
-        Severity = ESuspenseCoreRuleSeverity::Info;
+        Severity = ESuspenseRuleSeverity::Info;
     }
 
     FSuspenseCoreRuleCheckResult R = FSuspenseCoreRuleCheckResult::Success(
         FText::Format(NSLOCTEXT("WeightRules", "EncumbranceInfo", "Encumbrance level: {0}% ({1})"),
             FText::AsNumber(FMath::RoundToInt(Ratio * 100.0f)),
             FText::FromString(EncumbranceTag.ToString())));
-    R.RuleType = ESuspenseCoreRuleType::Weight;
+    R.RuleType = ESuspenseRuleType::Weight;
     R.RuleTag = EncumbranceTag;
     R.Severity = Severity;
     R.Context.Add(TEXT("EncumbranceRatio"), FString::SanitizeFloat(Ratio));

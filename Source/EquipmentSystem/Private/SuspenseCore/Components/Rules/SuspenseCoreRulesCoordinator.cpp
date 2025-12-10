@@ -955,12 +955,12 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::ConvertToLegacyResult(
         {
             LegacyResult.bPassed = false;
 
-            if (Result.Severity == ESuspenseCoreRuleSeverity::Critical && LegacyResult.FailureReason.IsEmpty())
+            if (Result.Severity == ESuspenseRuleSeverity::Critical && LegacyResult.FailureReason.IsEmpty())
             {
                 LegacyResult.FailureReason = Result.Message;
                 LegacyResult.RuleType = Result.RuleTag;
             }
-            else if (Result.Severity == ESuspenseCoreRuleSeverity::Error && LegacyResult.FailureReason.IsEmpty())
+            else if (Result.Severity == ESuspenseRuleSeverity::Error && LegacyResult.FailureReason.IsEmpty())
             {
                 LegacyResult.FailureReason = Result.Message;
                 LegacyResult.RuleType = Result.RuleTag;

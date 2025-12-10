@@ -10,6 +10,8 @@
 #include "SuspenseCore/Components/Network/SuspenseCoreEquipmentReplicationManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
 #include "HAL/PlatformProcess.h"
 #include "Engine/World.h"
 #include "Engine/NetConnection.h"
@@ -185,9 +187,9 @@ bool USuspenseCoreEquipmentNetworkService::ResolveDependencies(
         UObject* ServiceObj = ServiceLocator->GetService(DataServiceTag);
 
         // NB: нижеследующие интерфейсы приведены как пример; используем безопасные проверки
-        if (ServiceObj && ServiceObj->GetClass()->ImplementsInterface(UEquipmentDataService::StaticClass()))
+        if (ServiceObj && ServiceObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataServiceInterface::StaticClass()))
         {
-            IEquipmentDataService* DataService = Cast<IEquipmentDataService>(ServiceObj);
+            ISuspenseCoreEquipmentDataServiceInterface* DataService = Cast<ISuspenseCoreEquipmentDataServiceInterface>(ServiceObj);
             if (DataService)
             {
                 ISuspenseCoreEquipmentDataProvider* Provider = DataService->GetDataProvider();
@@ -355,7 +357,7 @@ USuspenseCoreEquipmentReplicationManager* USuspenseCoreEquipmentNetworkService::
     Replication->SetUpdateRate(10.0f);
     Replication->SetRelevancyDistance(5000.0f);
     Replication->SetCompressionEnabled(true);
-    Replication->SetReplicationPolicy(EEquipmentReplicationPolicy::OnlyToRelevant);
+    Replication->SetReplicationPolicy(ESuspenseCoreReplicationPolicy::OnlyToRelevant);
 
     UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("ReplicationManager created & initialized"));
 
@@ -1153,7 +1155,7 @@ void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
 
         if (ReplicationProvider)
         {
-            ReplicationProvider->SetReplicationPolicy(EEquipmentReplicationPolicy::OnlyToOwner);
+            ReplicationProvider->SetReplicationPolicy(ESuspenseCoreReplicationPolicy::OnlyToOwner);
         }
 
         RECORD_SERVICE_METRIC("strategy_poor_network", 1);
@@ -1168,7 +1170,7 @@ void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
 
         if (ReplicationProvider)
         {
-            ReplicationProvider->SetReplicationPolicy(EEquipmentReplicationPolicy::OnlyToRelevant);
+            ReplicationProvider->SetReplicationPolicy(ESuspenseCoreReplicationPolicy::OnlyToRelevant);
         }
 
         RECORD_SERVICE_METRIC("strategy_medium_network", 1);
@@ -1183,7 +1185,7 @@ void USuspenseCoreEquipmentNetworkService::AdaptNetworkStrategies()
 
         if (ReplicationProvider)
         {
-            ReplicationProvider->SetReplicationPolicy(EEquipmentReplicationPolicy::Always);
+            ReplicationProvider->SetReplicationPolicy(ESuspenseCoreReplicationPolicy::Always);
         }
 
         RECORD_SERVICE_METRIC("strategy_good_network", 1);

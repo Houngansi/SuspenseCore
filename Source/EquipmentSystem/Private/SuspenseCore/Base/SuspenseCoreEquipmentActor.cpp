@@ -317,45 +317,45 @@ FSuspenseCoreInventoryItemInstance ASuspenseCoreEquipmentActor::GetEquippedItemI
     return EquippedItemInstance;
 }
 
-FSuspenseCoreEquipmentSlotConfig ASuspenseCoreEquipmentActor::GetSlotConfiguration_Implementation() const
+FEquipmentSlotConfig ASuspenseCoreEquipmentActor::GetSlotConfiguration_Implementation() const
 {
-    const FSuspenseCoreEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
-    return Cfg ? *Cfg : FSuspenseCoreEquipmentSlotConfig();
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    return Cfg ? *Cfg : FEquipmentSlotConfig();
 }
 
-const FSuspenseCoreEquipmentSlotConfig* ASuspenseCoreEquipmentActor::GetSlotConfigurationPtr() const
+const FEquipmentSlotConfig* ASuspenseCoreEquipmentActor::GetSlotConfigurationPtr() const
 {
     return nullptr; // base has no predefined slot profile
 }
 
-ESuspenseCoreEquipmentSlotType ASuspenseCoreEquipmentActor::GetEquipmentSlotType_Implementation() const
+EEquipmentSlotType ASuspenseCoreEquipmentActor::GetEquipmentSlotType_Implementation() const
 {
     const FGameplayTag& T = EquipmentSlotTag;
 
-    if (T.MatchesTagExact(EqTags().Slot_PrimaryWeapon))    return ESuspenseCoreEquipmentSlotType::PrimaryWeapon;
-    if (T.MatchesTagExact(EqTags().Slot_SecondaryWeapon))  return ESuspenseCoreEquipmentSlotType::SecondaryWeapon;
-    if (T.MatchesTagExact(EqTags().Slot_Holster))          return ESuspenseCoreEquipmentSlotType::Holster;
-    if (T.MatchesTagExact(EqTags().Slot_Scabbard))         return ESuspenseCoreEquipmentSlotType::Scabbard;
+    if (T.MatchesTagExact(EqTags().Slot_PrimaryWeapon))    return EEquipmentSlotType::PrimaryWeapon;
+    if (T.MatchesTagExact(EqTags().Slot_SecondaryWeapon))  return EEquipmentSlotType::SecondaryWeapon;
+    if (T.MatchesTagExact(EqTags().Slot_Holster))          return EEquipmentSlotType::Holster;
+    if (T.MatchesTagExact(EqTags().Slot_Scabbard))         return EEquipmentSlotType::Scabbard;
 
-    if (T.MatchesTagExact(EqTags().Slot_Headwear))         return ESuspenseCoreEquipmentSlotType::Headwear;
-    if (T.MatchesTagExact(EqTags().Slot_Earpiece))         return ESuspenseCoreEquipmentSlotType::Earpiece;
-    if (T.MatchesTagExact(EqTags().Slot_Eyewear))          return ESuspenseCoreEquipmentSlotType::Eyewear;
-    if (T.MatchesTagExact(EqTags().Slot_FaceCover))        return ESuspenseCoreEquipmentSlotType::FaceCover;
+    if (T.MatchesTagExact(EqTags().Slot_Headwear))         return EEquipmentSlotType::Headwear;
+    if (T.MatchesTagExact(EqTags().Slot_Earpiece))         return EEquipmentSlotType::Earpiece;
+    if (T.MatchesTagExact(EqTags().Slot_Eyewear))          return EEquipmentSlotType::Eyewear;
+    if (T.MatchesTagExact(EqTags().Slot_FaceCover))        return EEquipmentSlotType::FaceCover;
 
-    if (T.MatchesTagExact(EqTags().Slot_BodyArmor))        return ESuspenseCoreEquipmentSlotType::BodyArmor;
-    if (T.MatchesTagExact(EqTags().Slot_TacticalRig))      return ESuspenseCoreEquipmentSlotType::TacticalRig;
+    if (T.MatchesTagExact(EqTags().Slot_BodyArmor))        return EEquipmentSlotType::BodyArmor;
+    if (T.MatchesTagExact(EqTags().Slot_TacticalRig))      return EEquipmentSlotType::TacticalRig;
 
-    if (T.MatchesTagExact(EqTags().Slot_Backpack))         return ESuspenseCoreEquipmentSlotType::Backpack;
-    if (T.MatchesTagExact(EqTags().Slot_SecureContainer))  return ESuspenseCoreEquipmentSlotType::SecureContainer;
+    if (T.MatchesTagExact(EqTags().Slot_Backpack))         return EEquipmentSlotType::Backpack;
+    if (T.MatchesTagExact(EqTags().Slot_SecureContainer))  return EEquipmentSlotType::SecureContainer;
 
-    if (T.MatchesTagExact(EqTags().Slot_Quick1))           return ESuspenseCoreEquipmentSlotType::QuickSlot1;
-    if (T.MatchesTagExact(EqTags().Slot_Quick2))           return ESuspenseCoreEquipmentSlotType::QuickSlot2;
-    if (T.MatchesTagExact(EqTags().Slot_Quick3))           return ESuspenseCoreEquipmentSlotType::QuickSlot3;
-    if (T.MatchesTagExact(EqTags().Slot_Quick4))           return ESuspenseCoreEquipmentSlotType::QuickSlot4;
+    if (T.MatchesTagExact(EqTags().Slot_Quick1))           return EEquipmentSlotType::QuickSlot1;
+    if (T.MatchesTagExact(EqTags().Slot_Quick2))           return EEquipmentSlotType::QuickSlot2;
+    if (T.MatchesTagExact(EqTags().Slot_Quick3))           return EEquipmentSlotType::QuickSlot3;
+    if (T.MatchesTagExact(EqTags().Slot_Quick4))           return EEquipmentSlotType::QuickSlot4;
 
-    if (T.MatchesTagExact(EqTags().Slot_Armband))          return ESuspenseCoreEquipmentSlotType::Armband;
+    if (T.MatchesTagExact(EqTags().Slot_Armband))          return EEquipmentSlotType::Armband;
 
-    return ESuspenseCoreEquipmentSlotType::None;
+    return EEquipmentSlotType::None;
 }
 
 FGameplayTag ASuspenseCoreEquipmentActor::GetEquipmentSlotTag_Implementation() const
@@ -370,13 +370,13 @@ bool ASuspenseCoreEquipmentActor::IsEquipped_Implementation() const
 
 bool ASuspenseCoreEquipmentActor::IsRequiredSlot_Implementation() const
 {
-    const FSuspenseCoreEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
     return Cfg ? Cfg->bIsRequired : false;
 }
 
 FText ASuspenseCoreEquipmentActor::GetSlotDisplayName_Implementation() const
 {
-    const FSuspenseCoreEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
     return Cfg ? Cfg->DisplayName : FText::GetEmpty();
 }
 
@@ -411,7 +411,7 @@ bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSus
 
 FGameplayTagContainer ASuspenseCoreEquipmentActor::GetAllowedItemTypes_Implementation() const
 {
-    const FSuspenseCoreEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
+    const FEquipmentSlotConfig* Cfg = GetSlotConfigurationPtr();
     return Cfg ? Cfg->AllowedItemTypes : FGameplayTagContainer();
 }
 

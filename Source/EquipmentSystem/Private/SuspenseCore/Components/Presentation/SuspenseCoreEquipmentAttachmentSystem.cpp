@@ -740,3 +740,67 @@ FString USuspenseCoreEquipmentAttachmentSystem::GetAttachmentStatistics() const
 	return FString::Printf(TEXT("Attached=%d, Transitions=%d"),
 		AttachmentStates.Num(), ActiveTransitionCount);
 }
+
+//==================== ISuspenseCoreAttachmentProvider Interface ====================
+
+bool USuspenseCoreEquipmentAttachmentSystem::AttachToSocket(int32 SlotIndex, const FName& SocketName, const FTransform& Offset)
+{
+	// Stub implementation - slot-based attachment not yet supported
+	UE_LOG(LogEquipmentOperation, Warning, TEXT("AttachToSocket: Slot-based attachment not implemented. Use AttachEquipment instead."));
+	return false;
+}
+
+bool USuspenseCoreEquipmentAttachmentSystem::Detach(int32 SlotIndex)
+{
+	// Stub implementation - slot-based detachment not yet supported
+	UE_LOG(LogEquipmentOperation, Warning, TEXT("Detach: Slot-based detachment not implemented. Use DetachEquipment instead."));
+	return false;
+}
+
+FEquipmentAttachmentState USuspenseCoreEquipmentAttachmentSystem::GetAttachmentState(int32 SlotIndex) const
+{
+	// Stub implementation - returns empty state for slot-based query
+	return FEquipmentAttachmentState();
+}
+
+TArray<FEquipmentAttachmentState> USuspenseCoreEquipmentAttachmentSystem::GetAllAttachmentStates() const
+{
+	TArray<FEquipmentAttachmentState> States;
+	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Read);
+
+	for (const auto& Pair : AttachmentStates)
+	{
+		States.Add(Pair.Value.CurrentState);
+	}
+	return States;
+}
+
+void USuspenseCoreEquipmentAttachmentSystem::SetAttachmentVisibility(int32 SlotIndex, bool bVisible)
+{
+	// Stub implementation
+	UE_LOG(LogEquipmentOperation, Verbose, TEXT("SetAttachmentVisibility: Slot %d visibility=%d"), SlotIndex, bVisible);
+}
+
+void USuspenseCoreEquipmentAttachmentSystem::UpdateAttachmentTransform(int32 SlotIndex, const FTransform& NewTransform)
+{
+	// Stub implementation
+	UE_LOG(LogEquipmentOperation, Verbose, TEXT("UpdateAttachmentTransform: Slot %d"), SlotIndex);
+}
+
+bool USuspenseCoreEquipmentAttachmentSystem::IsAttached(int32 SlotIndex) const
+{
+	// Stub implementation
+	return false;
+}
+
+FName USuspenseCoreEquipmentAttachmentSystem::GetSocketForSlot(int32 SlotIndex) const
+{
+	// Stub implementation
+	return NAME_None;
+}
+
+void USuspenseCoreEquipmentAttachmentSystem::SetSocketForSlot(int32 SlotIndex, const FName& SocketName)
+{
+	// Stub implementation
+	SlotToSocketMap.Add(SlotIndex, SocketName);
+}

@@ -51,8 +51,8 @@ public:
     virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
     virtual FSuspenseCoreInventoryItemInstance GetEquippedItemInstance_Implementation() const override;
-    virtual FSuspenseCoreEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
-    virtual ESuspenseCoreEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
+    virtual FEquipmentSlotConfig   GetSlotConfiguration_Implementation() const override;
+    virtual EEquipmentSlotType     GetEquipmentSlotType_Implementation() const override;
     virtual FGameplayTag           GetEquipmentSlotTag_Implementation() const override;
     virtual bool                   IsEquipped_Implementation() const override;
     virtual bool                   IsRequiredSlot_Implementation() const override;
@@ -107,7 +107,7 @@ protected:
     void SetupEquipmentMesh(const FSuspenseCoreUnifiedItemData& ItemData);
 
     /** Get slot configuration if available (base returns nullptr => default slot config) */
-    const FSuspenseCoreEquipmentSlotConfig* GetSlotConfigurationPtr() const;
+    const FEquipmentSlotConfig* GetSlotConfigurationPtr() const;
 
     /** Internal helper to change state without re-entry checks */
     void SetEquipmentStateInternal(const FGameplayTag& NewState);

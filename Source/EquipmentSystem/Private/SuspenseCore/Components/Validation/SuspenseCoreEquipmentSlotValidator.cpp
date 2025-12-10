@@ -20,7 +20,7 @@
 // ==============================================
 // Статическая матрица совместимости типов
 // ==============================================
-const TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
+const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
 	USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix();
 
 // ==============================================
@@ -35,8 +35,8 @@ USuspenseCoreEquipmentSlotValidator::USuspenseCoreEquipmentSlotValidator()
 // ISuspenseCoreSlotValidator
 // ==============================================
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
-    const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
+    const FEquipmentSlotConfig& SlotConfig,
     const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     // ДИАГНОСТИКА: Логируем ВСЕ попытки валидации
@@ -58,7 +58,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
         UE_LOG(LogEquipmentValidation, Warning,
             TEXT("   Cache Key: %s"), *CacheKey);
 
-        FSlotValidationResult Cached;
+        FSuspenseCoreSlotValidationResult Cached;
         if (GetCachedValidation(CacheKey, Cached))
         {
             CacheHitCount.fetch_add(1, std::memory_order_relaxed);
@@ -85,7 +85,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
     }
 
     // 2) Без локов — сама валидация
-    const FSlotValidationResult Result = CanPlaceItemInSlot_NoLock(SlotConfig, ItemInstance);
+    const FSuspenseCoreSlotValidationResult Result = CanPlaceItemInSlot_NoLock(SlotConfig, ItemInstance);
 
     // ДИАГНОСТИКА: Логируем результат реальной валидации
     UE_LOG(LogEquipmentValidation, Warning,
@@ -117,17 +117,17 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot(
     return Result;
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfigA,
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
+	const FEquipmentSlotConfig& SlotConfigA,
 	const FSuspenseCoreInventoryItemInstance& ItemA,
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfigB,
+	const FEquipmentSlotConfig& SlotConfigB,
 	const FSuspenseCoreInventoryItemInstance& ItemB) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
 
 	if (ItemA.IsValid())
 	{
-		FSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotConfigB, ItemA);
+		FSuspenseCoreSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotConfigB, ItemA);
 		if (!R.bIsValid)
 		{
 			R.Context.Add(TEXT("SwapDirection"), TEXT("A->B"));
@@ -136,7 +136,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
 	}
 	if (ItemB.IsValid())
 	{
-		FSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotConfigA, ItemB);
+		FSuspenseCoreSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotConfigA, ItemB);
 		if (!R.bIsValid)
 		{
 			R.Context.Add(TEXT("SwapDirection"), TEXT("B->A"));
@@ -144,27 +144,27 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanSwapItems(
 		}
 	}
 
-	return FSlotValidationResult::Success();
+	return FSuspenseCoreSlotValidationResult::Success();
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfiguration(
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfiguration(
+	const FEquipmentSlotConfig& SlotConfig) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
 
-	FSlotValidationResult R;
+	FSuspenseCoreSlotValidationResult R;
 	R.bIsValid = true;
 
 	if (!SlotConfig.IsValid())
 	{
-		R = FSlotValidationResult::Failure(
+		R = FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Invalid slot configuration")),
 			EEquipmentValidationFailure::InvalidSlot,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.InvalidSlotConfig")));
 		return R;
 	}
 
-	// Без AllowedItemTypes разрешаем всё (см. реализацию FSuspenseCoreEquipmentSlotConfig::CanEquipItemType)
+	// Без AllowedItemTypes разрешаем всё (см. реализацию FEquipmentSlotConfig::CanEquipItemType)
 	if (SlotConfig.AllowedItemTypes.IsEmpty())
 	{
 		R.Warnings.Add(FText::FromString(TEXT("AllowedItemTypes is empty — falls back to allow all")));
@@ -173,13 +173,13 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateSlotConfigura
 	return R;
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements(
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements(
+	const FEquipmentSlotConfig& SlotConfig,
 	const FGameplayTagContainer& Requirements) const
 {
 	ValidationCallCount.fetch_add(1, std::memory_order_relaxed);
 
-	FSlotValidationResult R;
+	FSuspenseCoreSlotValidationResult R;
 	R.bIsValid = true;
 
 	for (const FGameplayTag& Need : Requirements)
@@ -188,7 +188,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements
 		const bool bAllowedTypesOk = SlotConfig.AllowedItemTypes.HasTag(Need);
 		if (!bSlotTagOk && !bAllowedTypesOk)
 		{
-			R = FSlotValidationResult::Failure(
+			R = FSuspenseCoreSlotValidationResult::Failure(
 				FText::Format(FText::FromString(TEXT("Slot requirement not met: {0}")), FText::FromString(Need.ToString())),
 				EEquipmentValidationFailure::RequirementsNotMet,
 				FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.RequirementNotMet")));
@@ -202,9 +202,9 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckSlotRequirements
 
 bool USuspenseCoreEquipmentSlotValidator::IsItemTypeCompatibleWithSlot(
 	const FGameplayTag& ItemType,
-	ESuspenseCoreEquipmentSlotType SlotType) const
+	EEquipmentSlotType SlotType) const
 {
-	if (SlotType == ESuspenseCoreEquipmentSlotType::None)
+	if (SlotType == EEquipmentSlotType::None)
 	{
 		return true;
 	}
@@ -225,8 +225,8 @@ bool USuspenseCoreEquipmentSlotValidator::IsItemTypeCompatibleWithSlot(
 // Extended API
 // ==============================================
 
-FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlotEx(
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+FSuspenseCoreSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlotEx(
+	const FEquipmentSlotConfig& SlotConfig,
 	const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
 	const double Start = FPlatformTime::Seconds();
@@ -237,7 +237,7 @@ FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlotE
 		FScopeLock L(&CacheLock);
 		CacheKey = GenerateCacheKey(ItemInstance, SlotConfig);
 
-		FSlotValidationResultEx Cached;
+		FSuspenseCoreSlotValidationResultEx Cached;
 		if (GetCachedValidationEx(CacheKey, Cached))
 		{
 			CacheHitCount.fetch_add(1, std::memory_order_relaxed);
@@ -249,7 +249,7 @@ FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlotE
 	// Достаём ограничения слота (копия — без удержания DataLock в валидаторах правил)
 	FSlotRestrictionData Restrictions = GetSlotRestrictions(SlotConfig.SlotTag);
 
-	FSlotValidationResultEx Result = ExecuteValidationRulesEx_NoLock(ItemInstance, SlotConfig, &Restrictions);
+	FSuspenseCoreSlotValidationResultEx Result = ExecuteValidationRulesEx_NoLock(ItemInstance, SlotConfig, &Restrictions);
 	Result.ValidationDurationMs = float((FPlatformTime::Seconds() - Start) * 1000.0);
 
 	// Обогащаем диагностикой
@@ -294,7 +294,7 @@ FBatchValidationResult USuspenseCoreEquipmentSlotValidator::ValidateBatch(const 
 		const FTransactionOperation& Op = Request.Operations[i];
 		if (!Request.DataProvider->IsValidSlotIndex(Op.SlotIndex))
 		{
-			FSlotValidationResultEx Fail;
+			FSuspenseCoreSlotValidationResultEx Fail;
 			Fail.bIsValid = false;
 			Fail.ErrorMessage = FText::FromString(TEXT("Invalid slot index in operation"));
 			Fail.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.InvalidSlotIndex"));
@@ -304,8 +304,8 @@ FBatchValidationResult USuspenseCoreEquipmentSlotValidator::ValidateBatch(const 
 			continue;
 		}
 
-		const FSuspenseCoreEquipmentSlotConfig SlotCfg = Request.DataProvider->GetSlotConfiguration(Op.SlotIndex);
-		FSlotValidationResultEx R = CanPlaceItemInSlotEx(SlotCfg, Op.ItemAfter);
+		const FEquipmentSlotConfig SlotCfg = Request.DataProvider->GetSlotConfiguration(Op.SlotIndex);
+		FSuspenseCoreSlotValidationResultEx R = CanPlaceItemInSlotEx(SlotCfg, Op.ItemAfter);
 		R.Details.Add(TEXT("OperationIndex"), FString::FromInt(i));
 		Out.OperationResults.Add(R);
 		if (!R.bIsValid)
@@ -366,8 +366,8 @@ bool USuspenseCoreEquipmentSlotValidator::QuickValidateOperations(
 	{
 		if (!DataProvider->IsValidSlotIndex(Op.SlotIndex)) return false;
 
-		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(Op.SlotIndex);
-		const FSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotCfg, Op.ItemAfter);
+		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(Op.SlotIndex);
+		const FSuspenseCoreSlotValidationResult R = CanPlaceItemInSlot_NoLock(SlotCfg, Op.ItemAfter);
 		if (!R.bIsValid) return false;
 	}
 
@@ -458,7 +458,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::FindCompatibleSlots(
 	const int32 Count = DataProvider->GetSlotCount();
 	for (int32 i = 0; i < Count; ++i)
 	{
-		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
+		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
 		if (SlotCfg.CanEquipItemType(ItemType))
 		{
 			Out.Add(i);
@@ -468,7 +468,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::FindCompatibleSlots(
 }
 
 TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
-	ESuspenseCoreEquipmentSlotType EquipmentType,
+	EEquipmentSlotType EquipmentType,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
 	TArray<int32> Out;
@@ -477,7 +477,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
 	const int32 Count = DataProvider->GetSlotCount();
 	for (int32 i = 0; i < Count; ++i)
 	{
-		const FSuspenseCoreEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
+		const FEquipmentSlotConfig SlotCfg = DataProvider->GetSlotConfiguration(i);
 		if (SlotCfg.SlotType == EquipmentType)
 		{
 			Out.Add(i);
@@ -487,7 +487,7 @@ TArray<int32> USuspenseCoreEquipmentSlotValidator::GetSlotsByType(
 }
 
 int32 USuspenseCoreEquipmentSlotValidator::GetFirstEmptySlotOfType(
-	ESuspenseCoreEquipmentSlotType EquipmentType,
+	EEquipmentSlotType EquipmentType,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
 	if (!DataProvider.GetInterface()) return INDEX_NONE;
@@ -664,13 +664,13 @@ uint32 USuspenseCoreEquipmentSlotValidator::GetCurrentDataVersion() const
 // No-lock core
 // ==============================================
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot_NoLock(
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot_NoLock(
+	const FEquipmentSlotConfig& SlotConfig,
 	const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
 	if (!ItemInstance.IsValid())
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Invalid item instance")),
 			EEquipmentValidationFailure::InvalidSlot,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.InvalidItem")));
@@ -682,12 +682,12 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceItemInSlot_No
 	return ExecuteValidationRules_NoLock(ItemInstance, SlotConfig, &Restrictions);
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ExecuteValidationRules_NoLock(
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ExecuteValidationRules_NoLock(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+	const FEquipmentSlotConfig& SlotConfig,
 	const FSlotRestrictionData* Restrictions) const
 {
-	FSlotValidationResult Out;
+	FSuspenseCoreSlotValidationResult Out;
 	Out.bIsValid = true;
 
 	// Копируем правила под локом, чтобы не держать его на выполнении лямбд
@@ -734,14 +734,14 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ExecuteValidationRule
 	return Out;
 }
 
-FSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::ExecuteValidationRulesEx_NoLock(
+FSuspenseCoreSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::ExecuteValidationRulesEx_NoLock(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig,
+	const FEquipmentSlotConfig& SlotConfig,
 	const FSlotRestrictionData* Restrictions) const
 {
-	const FSlotValidationResult Base = ExecuteValidationRules_NoLock(ItemInstance, SlotConfig, Restrictions);
+	const FSuspenseCoreSlotValidationResult Base = ExecuteValidationRules_NoLock(ItemInstance, SlotConfig, Restrictions);
 
-	FSlotValidationResultEx Ex(Base);
+	FSuspenseCoreSlotValidationResultEx Ex(Base);
 	Ex.ResultCode = GetResultCodeForFailure(Base.FailureType);
 	Ex.ReasonTag = Base.ErrorTag;
 
@@ -783,7 +783,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	TypeRule.Priority = 100;
 	TypeRule.ErrorMessage = FText::FromString(TEXT("Item type is not compatible with slot"));
 	TypeRule.bIsStrict = true;
-	TypeRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
+	TypeRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
 	{
 		UE_LOG(LogEquipmentValidation, Error, TEXT("    🔵 TypeRule executing..."));
 
@@ -827,7 +827,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	LevelRule.Priority = 90;
 	LevelRule.ErrorMessage = FText::FromString(TEXT("Level requirement not met"));
 	LevelRule.bIsStrict = true;
-	LevelRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig&, const FSlotRestrictionData*)
+	LevelRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig&, const FSlotRestrictionData*)
 	{
 		// Валидация без доступа к персонажу — используем runtime prop, 0 — нет требования
 		const float RequiredLevel = Item.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f);
@@ -847,7 +847,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	WeightRule.Priority = 80;
 	WeightRule.ErrorMessage = FText::FromString(TEXT("Item exceeds slot restrictions"));
 	WeightRule.bIsStrict = false; // предупреждение по умолчанию
-	WeightRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig&, const FSlotRestrictionData* R)
+	WeightRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig&, const FSlotRestrictionData* R)
 	{
 		if (!R) return true;
 
@@ -878,7 +878,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	UniqueRule.Priority = 70;
 	UniqueRule.ErrorMessage = FText::FromString(TEXT("Unique item constraint violated"));
 	UniqueRule.bIsStrict = true;
-	UniqueRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FSuspenseCoreEquipmentSlotConfig& Slot, const FSlotRestrictionData* R)
+	UniqueRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData* R)
 	{
 		if (!R || !R->UniqueGroupTag.IsValid())
 		{
@@ -898,14 +898,14 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 // Helper impl
 // ==============================================
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemType(
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemType(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
+	const FEquipmentSlotConfig& SlotConfig) const
 {
 	FSuspenseCoreUnifiedItemData Data;
 	if (!GetItemData(ItemInstance.ItemID, Data))
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("No item data")),
 			EEquipmentValidationFailure::InvalidSlot,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.NoItemData")));
@@ -913,44 +913,44 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemType(
 
 	if (!SlotConfig.CanEquipItemType(Data.ItemType))
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Item type not allowed by slot config")),
 			EEquipmentValidationFailure::IncompatibleType,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.TypeDisallowed")));
 	}
 	if (!IsItemTypeCompatibleWithSlot(Data.ItemType, SlotConfig.SlotType))
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Item type not compatible with slot type")),
 			EEquipmentValidationFailure::IncompatibleType,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.TypeMatrix")));
 	}
 
-	return FSlotValidationResult::Success();
+	return FSuspenseCoreSlotValidationResult::Success();
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemLevel(
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemLevel(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/) const
+	const FEquipmentSlotConfig& /*SlotConfig*/) const
 {
 	const float RequiredLevel = ItemInstance.GetRuntimeProperty(TEXT("RequiredLevel"), 0.0f);
 	if (RequiredLevel <= 0.0f)
 	{
-		return FSlotValidationResult::Success();
+		return FSuspenseCoreSlotValidationResult::Success();
 	}
 	// Без источника уровня персонажа считаем правило пройденным.
-	return FSlotValidationResult::Success();
+	return FSuspenseCoreSlotValidationResult::Success();
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemWeight(
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemWeight(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/,
+	const FEquipmentSlotConfig& /*SlotConfig*/,
 	const FSlotRestrictionData& Restrictions) const
 {
 	const float ItemWeight = ItemInstance.GetRuntimeProperty(TEXT("Weight"), 0.0f);
 	if (Restrictions.MaxWeight > 0.0f && ItemWeight > Restrictions.MaxWeight)
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Item overweight for slot")),
 			EEquipmentValidationFailure::WeightLimit,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.TooHeavy")));
@@ -963,24 +963,24 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateItemWeight(
 		(Restrictions.MaxSize.Y > 0 && SY > Restrictions.MaxSize.Y) ||
 		(Restrictions.MaxSize.Z > 0 && SZ > Restrictions.MaxSize.Z))
 	{
-		return FSlotValidationResult::Failure(
+		return FSuspenseCoreSlotValidationResult::Failure(
 			FText::FromString(TEXT("Item size exceeds slot bounds")),
 			EEquipmentValidationFailure::RequirementsNotMet,
 			FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.TooLarge")));
 	}
 
-	return FSlotValidationResult::Success();
+	return FSuspenseCoreSlotValidationResult::Success();
 }
 
-FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateUniqueItem(
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateUniqueItem(
 	const FSuspenseCoreInventoryItemInstance& ItemInstance,
-	const FSuspenseCoreEquipmentSlotConfig& /*SlotConfig*/,
+	const FEquipmentSlotConfig& /*SlotConfig*/,
 	const FSlotRestrictionData* Restrictions,
 	const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const
 {
 	if (!Restrictions || !Restrictions->UniqueGroupTag.IsValid() || !DataProvider.GetInterface())
 	{
-		return FSlotValidationResult::Success();
+		return FSuspenseCoreSlotValidationResult::Success();
 	}
 
 	const int32 Count = DataProvider->GetSlotCount();
@@ -1005,7 +1005,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateUniqueItem(
 		{
 			if (Data.ItemType.MatchesTag(Restrictions->UniqueGroupTag))
 			{
-				return FSlotValidationResult::Failure(
+				return FSuspenseCoreSlotValidationResult::Failure(
 					FText::FromString(TEXT("Unique item of the same group already equipped")),
 					EEquipmentValidationFailure::UniqueConstraint,
 					FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.UniqueGroup")));
@@ -1013,7 +1013,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateUniqueItem(
 		}
 	}
 
-	return FSlotValidationResult::Success();
+	return FSuspenseCoreSlotValidationResult::Success();
 }
 
 bool USuspenseCoreEquipmentSlotValidator::GetItemData(const FName& ItemID, FSuspenseCoreUnifiedItemData& OutData) const
@@ -1056,7 +1056,7 @@ bool USuspenseCoreEquipmentSlotValidator::ItemHasTag(
 	return GetItemData(ItemInstance.ItemID, Data) && Data.ItemType.MatchesTag(RequiredTag);
 }
 
-TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetCompatibleItemTypes(ESuspenseCoreEquipmentSlotType SlotType) const
+TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetCompatibleItemTypes(EEquipmentSlotType SlotType) const
 {
 	if (const TArray<FGameplayTag>* Found = TypeCompatibilityMatrix.Find(SlotType))
 	{
@@ -1137,7 +1137,7 @@ bool USuspenseCoreEquipmentSlotValidator::CheckSlotCompatibilityConflicts(
 
 bool USuspenseCoreEquipmentSlotValidator::GetCachedValidation(
 	const FString& CacheKey,
-	FSlotValidationResult& OutResult) const
+	FSuspenseCoreSlotValidationResult& OutResult) const
 {
 	const uint32 Version = GetCurrentDataVersion();
 
@@ -1158,7 +1158,7 @@ bool USuspenseCoreEquipmentSlotValidator::GetCachedValidation(
 
 bool USuspenseCoreEquipmentSlotValidator::GetCachedValidationEx(
 	const FString& CacheKey,
-	FSlotValidationResultEx& OutResult) const
+	FSuspenseCoreSlotValidationResultEx& OutResult) const
 {
 	const uint32 Version = GetCurrentDataVersion();
 
@@ -1179,7 +1179,7 @@ bool USuspenseCoreEquipmentSlotValidator::GetCachedValidationEx(
 
 void USuspenseCoreEquipmentSlotValidator::CacheValidationResult(
 	const FString& CacheKey,
-	const FSlotValidationResult& Result) const
+	const FSuspenseCoreSlotValidationResult& Result) const
 {
 	// Простой контроль размера
 	if (ValidationCache.Num() >= MaxCacheSize)
@@ -1200,7 +1200,7 @@ void USuspenseCoreEquipmentSlotValidator::CacheValidationResult(
 
 void USuspenseCoreEquipmentSlotValidator::CacheValidationResultEx(
 	const FString& CacheKey,
-	const FSlotValidationResultEx& Result) const
+	const FSuspenseCoreSlotValidationResultEx& Result) const
 {
 	if (ExtendedCache.Num() >= MaxCacheSize)
 	{
@@ -1220,7 +1220,7 @@ void USuspenseCoreEquipmentSlotValidator::CacheValidationResultEx(
 
 FString USuspenseCoreEquipmentSlotValidator::GenerateCacheKey(
 	const FSuspenseCoreInventoryItemInstance& Item,
-	const FSuspenseCoreEquipmentSlotConfig& Slot) const
+	const FEquipmentSlotConfig& Slot) const
 {
 	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Включаем ItemType в ключ кеша
 	// чтобы инвалидировать кеш при изменении типа предмета в DataTable
@@ -1294,12 +1294,12 @@ void USuspenseCoreEquipmentSlotValidator::CleanExpiredCacheEntries() const
 // Static: Type compatibility matrix
 // ==============================================
 
-TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix()
+TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix()
 {
-    TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> M;
+    TMap<EEquipmentSlotType, TArray<FGameplayTag>> M;
 
     // Weapon classes
-    M.Add(ESuspenseCoreEquipmentSlotType::PrimaryWeapon, {
+    M.Add(EEquipmentSlotType::PrimaryWeapon, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Rifle")),    // ← ДОБАВЛЕНО!
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.AR")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.DMR")),
@@ -1310,54 +1310,54 @@ TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmen
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))   // ← ДОБАВЛЕНО родительский тег
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::SecondaryWeapon, {
+    M.Add(EEquipmentSlotType::SecondaryWeapon, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.PDW"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::Holster, {
+    M.Add(EEquipmentSlotType::Holster, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Revolver"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::Scabbard, {
+    M.Add(EEquipmentSlotType::Scabbard, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife"))
     });
 
     // Head gear
-    M.Add(ESuspenseCoreEquipmentSlotType::Headwear, {
+    M.Add(EEquipmentSlotType::Headwear, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Headwear"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::Earpiece, {
+    M.Add(EEquipmentSlotType::Earpiece, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::Eyewear, {
+    M.Add(EEquipmentSlotType::Eyewear, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::FaceCover, {
+    M.Add(EEquipmentSlotType::FaceCover, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover"))
     });
 
     // Body gear
-    M.Add(ESuspenseCoreEquipmentSlotType::BodyArmor, {
+    M.Add(EEquipmentSlotType::BodyArmor, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::TacticalRig, {
+    M.Add(EEquipmentSlotType::TacticalRig, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig"))
     });
 
     // Storage
-    M.Add(ESuspenseCoreEquipmentSlotType::Backpack, {
+    M.Add(EEquipmentSlotType::Backpack, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack"))
     });
 
-    M.Add(ESuspenseCoreEquipmentSlotType::SecureContainer, {
+    M.Add(EEquipmentSlotType::SecureContainer, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer"))
     });
 
@@ -1368,15 +1368,288 @@ TMap<ESuspenseCoreEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmen
         FGameplayTag::RequestGameplayTag(TEXT("Item.Throwable")),
         FGameplayTag::RequestGameplayTag(TEXT("Item.Ammo"))
     };
-    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot1, QuickTypes);
-    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot2, QuickTypes);
-    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot3, QuickTypes);
-    M.Add(ESuspenseCoreEquipmentSlotType::QuickSlot4, QuickTypes);
+    M.Add(EEquipmentSlotType::QuickSlot1, QuickTypes);
+    M.Add(EEquipmentSlotType::QuickSlot2, QuickTypes);
+    M.Add(EEquipmentSlotType::QuickSlot3, QuickTypes);
+    M.Add(EEquipmentSlotType::QuickSlot4, QuickTypes);
 
     // Special
-    M.Add(ESuspenseCoreEquipmentSlotType::Armband, {
+    M.Add(EEquipmentSlotType::Armband, {
         FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Armband"))
     });
 
     return M;
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Batch Validation
+// ==============================================
+
+FSuspenseCoreSlotBatchResult USuspenseCoreEquipmentSlotValidator::ValidateBatch(
+	const FSuspenseCoreSlotBatchRequest& Request) const
+{
+	FSuspenseCoreSlotBatchResult Result;
+	Result.RequestId = Request.RequestId;
+
+	const double StartTime = FPlatformTime::Seconds();
+
+	const int32 NumItems = FMath::Min(Request.Items.Num(), Request.SlotConfigs.Num());
+	Result.Results.Reserve(NumItems);
+
+	for (int32 i = 0; i < NumItems; ++i)
+	{
+		FSuspenseCoreSlotValidationResult ItemResult = CanPlaceItemInSlot(Request.SlotConfigs[i], Request.Items[i]);
+		Result.Results.Add(ItemResult);
+
+		if (!ItemResult.bIsValid)
+		{
+			Result.bAllValid = false;
+			Result.FailedIndices.Add(i);
+
+			if (Request.bStopOnFirstFailure)
+			{
+				break;
+			}
+		}
+	}
+
+	Result.TotalValidationTimeMs = static_cast<float>((FPlatformTime::Seconds() - StartTime) * 1000.0);
+	return Result;
+}
+
+bool USuspenseCoreEquipmentSlotValidator::QuickValidate(
+	const FEquipmentSlotConfig& SlotConfig,
+	const FSuspenseCoreInventoryItemInstance& ItemInstance) const
+{
+	return CanPlaceItemInSlot(SlotConfig, ItemInstance).bIsValid;
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Specialized Checks
+// ==============================================
+
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckWeightLimit(
+	float ItemWeight,
+	float SlotMaxWeight) const
+{
+	if (SlotMaxWeight > 0.0f && ItemWeight > SlotMaxWeight)
+	{
+		return FSuspenseCoreSlotValidationResult::Failure(
+			ESuspenseCoreValidationFailure::WeightLimitExceeded,
+			FText::FromString(FString::Printf(TEXT("Item weight %.2f exceeds slot limit %.2f"), ItemWeight, SlotMaxWeight)));
+	}
+	return FSuspenseCoreSlotValidationResult::Success();
+}
+
+FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CheckLevelRequirement(
+	int32 RequiredLevel,
+	int32 ActualLevel) const
+{
+	if (RequiredLevel > 0 && ActualLevel < RequiredLevel)
+	{
+		return FSuspenseCoreSlotValidationResult::Failure(
+			ESuspenseCoreValidationFailure::LevelRequirementNotMet,
+			FText::FromString(FString::Printf(TEXT("Level %d required, have %d"), RequiredLevel, ActualLevel)));
+	}
+	return FSuspenseCoreSlotValidationResult::Success();
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Slot Query
+// ==============================================
+
+TArray<EEquipmentSlotType> USuspenseCoreEquipmentSlotValidator::GetCompatibleSlotTypes(
+	const FGameplayTag& ItemType) const
+{
+	TArray<EEquipmentSlotType> CompatibleSlots;
+
+	for (const auto& Pair : TypeCompatibilityMatrix)
+	{
+		for (const FGameplayTag& CompatType : Pair.Value)
+		{
+			if (CompatType.MatchesTag(ItemType) || ItemType.MatchesTag(CompatType))
+			{
+				CompatibleSlots.AddUnique(Pair.Key);
+				break;
+			}
+		}
+	}
+
+	return CompatibleSlots;
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Restrictions Management
+// ==============================================
+
+void USuspenseCoreEquipmentSlotValidator::SetSlotRestrictions(
+	const FGameplayTag& SlotTag,
+	const FSuspenseCoreSlotRestrictions& Restrictions)
+{
+	FScopeLock Lock(&DataLock);
+
+	// Convert FSuspenseCoreSlotRestrictions to internal format
+	TSharedPtr<FSuspenseCoreSlotRestrictionData> InternalRestrictions = MakeShared<FSuspenseCoreSlotRestrictionData>();
+	InternalRestrictions->MaxWeight = Restrictions.MaxWeight;
+	InternalRestrictions->MaxSize = Restrictions.MaxSize;
+	InternalRestrictions->MinLevel = Restrictions.MinLevel;
+	InternalRestrictions->RequiredTags = Restrictions.RequiredTags;
+	InternalRestrictions->ExcludedTags = Restrictions.ExcludedTags;
+	InternalRestrictions->UniqueGroupTag = Restrictions.UniqueGroupTag;
+	InternalRestrictions->bIsLocked = Restrictions.bIsLocked;
+	InternalRestrictions->bIsDisabled = Restrictions.bIsDisabled;
+
+	SlotRestrictionsByTag.Add(SlotTag, InternalRestrictions);
+}
+
+FSuspenseCoreSlotRestrictions USuspenseCoreEquipmentSlotValidator::GetSlotRestrictions(
+	const FGameplayTag& SlotTag) const
+{
+	FScopeLock Lock(&DataLock);
+
+	FSuspenseCoreSlotRestrictions Result;
+
+	if (const TSharedPtr<FSuspenseCoreSlotRestrictionData>* DataPtr = SlotRestrictionsByTag.Find(SlotTag))
+	{
+		if (DataPtr->IsValid())
+		{
+			const FSuspenseCoreSlotRestrictionData& Data = **DataPtr;
+			Result.MaxWeight = Data.MaxWeight;
+			Result.MaxSize = Data.MaxSize;
+			Result.MinLevel = Data.MinLevel;
+			Result.RequiredTags = Data.RequiredTags;
+			Result.ExcludedTags = Data.ExcludedTags;
+			Result.UniqueGroupTag = Data.UniqueGroupTag;
+			Result.bIsLocked = Data.bIsLocked;
+			Result.bIsDisabled = Data.bIsDisabled;
+		}
+	}
+
+	return Result;
+}
+
+void USuspenseCoreEquipmentSlotValidator::ClearSlotRestrictions(const FGameplayTag& SlotTag)
+{
+	FScopeLock Lock(&DataLock);
+	SlotRestrictionsByTag.Remove(SlotTag);
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Cache Management
+// ==============================================
+
+void USuspenseCoreEquipmentSlotValidator::ClearValidationCache()
+{
+	FScopeLock Lock(&CacheLock);
+	ValidationCache.Empty();
+	ExtendedCache.Empty();
+}
+
+FString USuspenseCoreEquipmentSlotValidator::GetCacheStatistics() const
+{
+	FScopeLock Lock(&CacheLock);
+	return FString::Printf(TEXT("Cache: Entries=%d, Hits=%d, Misses=%d"),
+		ValidationCache.Num(),
+		CacheHitCount.load(),
+		CacheMissCount.load());
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Custom Rules
+// ==============================================
+
+bool USuspenseCoreEquipmentSlotValidator::RegisterValidationRule(
+	const FGameplayTag& RuleTag,
+	int32 Priority,
+	const FText& ErrorMessage)
+{
+	FScopeLock Lock(&RulesLock);
+
+	// Check if rule already exists
+	for (const FEquipmentValidationRule& Rule : ValidationRules)
+	{
+		if (Rule.RuleTag == RuleTag)
+		{
+			return false;
+		}
+	}
+
+	FEquipmentValidationRule NewRule;
+	NewRule.RuleTag = RuleTag;
+	NewRule.Priority = Priority;
+	NewRule.ErrorMessage = ErrorMessage;
+	NewRule.bIsStrict = true;
+
+	ValidationRules.Add(NewRule);
+	ValidationRules.Sort([](const FEquipmentValidationRule& A, const FEquipmentValidationRule& B)
+	{
+		return A.Priority > B.Priority;
+	});
+
+	return true;
+}
+
+bool USuspenseCoreEquipmentSlotValidator::UnregisterValidationRule(const FGameplayTag& RuleTag)
+{
+	FScopeLock Lock(&RulesLock);
+
+	for (int32 i = ValidationRules.Num() - 1; i >= 0; --i)
+	{
+		if (ValidationRules[i].RuleTag == RuleTag)
+		{
+			ValidationRules.RemoveAt(i);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void USuspenseCoreEquipmentSlotValidator::SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled)
+{
+	FScopeLock Lock(&RulesLock);
+
+	if (bEnabled)
+	{
+		DisabledRules.Remove(RuleTag);
+	}
+	else
+	{
+		DisabledRules.Add(RuleTag);
+	}
+}
+
+TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetRegisteredRules() const
+{
+	FScopeLock Lock(&RulesLock);
+
+	TArray<FGameplayTag> Result;
+	Result.Reserve(ValidationRules.Num());
+
+	for (const FEquipmentValidationRule& Rule : ValidationRules)
+	{
+		Result.Add(Rule.RuleTag);
+	}
+
+	return Result;
+}
+
+// ==============================================
+// ISuspenseCoreSlotValidator - Diagnostics
+// ==============================================
+
+FString USuspenseCoreEquipmentSlotValidator::GetValidationStatistics() const
+{
+	return FString::Printf(TEXT("Validator Stats: Calls=%d, CacheHits=%d, CacheMisses=%d, Rules=%d"),
+		ValidationCallCount.load(),
+		CacheHitCount.load(),
+		CacheMissCount.load(),
+		ValidationRules.Num());
+}
+
+void USuspenseCoreEquipmentSlotValidator::ResetStatistics()
+{
+	ValidationCallCount.store(0);
+	CacheHitCount.store(0);
+	CacheMissCount.store(0);
 }

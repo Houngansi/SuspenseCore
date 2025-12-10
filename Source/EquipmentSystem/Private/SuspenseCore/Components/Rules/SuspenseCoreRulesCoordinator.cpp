@@ -489,7 +489,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::EvaluateRulesWithContext(
 
 FRuleEvaluationResult USuspenseCoreRulesCoordinator::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
+    const FEquipmentSlotConfig& SlotConfig) const
 {
     if (CompatibilityEngine)
     {

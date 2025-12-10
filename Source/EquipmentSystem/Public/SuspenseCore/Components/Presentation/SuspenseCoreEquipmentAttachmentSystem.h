@@ -122,15 +122,26 @@ public:
 	//~ End UActorComponent Interface
 
 	//~ Begin ISuspenseCoreAttachmentProvider Interface
-	virtual bool AttachEquipment(AActor* Equipment, USceneComponent* Target, const FEquipmentAttachmentConfig& Config) override;
-	virtual bool DetachEquipment(AActor* Equipment, bool bMaintainWorldTransform = false) override;
-	virtual bool UpdateAttachment(AActor* Equipment, const FEquipmentAttachmentConfig& NewConfig, bool bSmooth = false) override;
-	virtual FEquipmentAttachmentState GetAttachmentState(AActor* Equipment) const override;
-	virtual FName FindBestSocket(USkeletalMeshComponent* Target, const FGameplayTag& ItemType, bool bIsActive) const override;
-	virtual bool SwitchAttachmentState(AActor* Equipment, bool bMakeActive, float Duration = 0.0f) override;
-	virtual FEquipmentAttachmentConfig GetSlotAttachmentConfig(int32 SlotIndex, bool bIsActive) const override;
-	virtual bool ValidateSocket(USceneComponent* Target, const FName& SocketName) const override;
+	virtual bool AttachToSocket(int32 SlotIndex, const FName& SocketName, const FTransform& Offset = FTransform::Identity) override;
+	virtual bool Detach(int32 SlotIndex) override;
+	virtual FEquipmentAttachmentState GetAttachmentState(int32 SlotIndex) const override;
+	virtual TArray<FEquipmentAttachmentState> GetAllAttachmentStates() const override;
+	virtual void SetAttachmentVisibility(int32 SlotIndex, bool bVisible) override;
+	virtual void UpdateAttachmentTransform(int32 SlotIndex, const FTransform& NewTransform) override;
+	virtual bool IsAttached(int32 SlotIndex) const override;
+	virtual FName GetSocketForSlot(int32 SlotIndex) const override;
+	virtual void SetSocketForSlot(int32 SlotIndex, const FName& SocketName) override;
 	//~ End ISuspenseCoreAttachmentProvider Interface
+
+	//========================================
+	// Extended Attachment API
+	//========================================
+	bool AttachEquipment(AActor* Equipment, USceneComponent* Target, const FName& SocketName, const FTransform& Offset = FTransform::Identity);
+	bool DetachEquipment(AActor* Equipment, bool bMaintainWorldTransform = false);
+	FEquipmentAttachmentState GetAttachmentStateForActor(AActor* Equipment) const;
+	FName FindBestSocket(USkeletalMeshComponent* Target, const FGameplayTag& ItemType, bool bIsActive) const;
+	bool SwitchAttachmentState(AActor* Equipment, bool bMakeActive, float Duration = 0.0f);
+	bool ValidateSocket(USceneComponent* Target, const FName& SocketName) const;
 
 	// ===== High-level API для VisualizationService =====
 
@@ -219,6 +230,11 @@ protected:
 	 * Socket occupation tracking
 	 */
 	TMap<FName, AActor*> OccupiedSockets;
+
+	/**
+	 * Slot to socket mapping for ISuspenseCoreAttachmentProvider interface
+	 */
+	mutable TMap<int32, FName> SlotToSocketMap;
 
 	/**
 	 * Cache for socket configurations (mutable — чтобы вызывать Get() в const методе)

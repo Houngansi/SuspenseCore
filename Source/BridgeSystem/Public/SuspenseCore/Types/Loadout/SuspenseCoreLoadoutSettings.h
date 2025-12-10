@@ -49,6 +49,15 @@ enum class EEquipmentSlotType : uint8
     MAX                     UMETA(Hidden)
 };
 
+/** Aliases for consistent SuspenseCore naming conventions */
+using ESuspenseCoreEquipmentSlotType = EEquipmentSlotType;
+
+// Forward declaration of FEquipmentSlotConfig (defined below)
+struct FEquipmentSlotConfig;
+
+/** SuspenseCore prefixed alias for slot configuration */
+using FSuspenseCoreEquipmentSlotConfig = FEquipmentSlotConfig;
+
 /**
  * Equipment slot configuration
  */

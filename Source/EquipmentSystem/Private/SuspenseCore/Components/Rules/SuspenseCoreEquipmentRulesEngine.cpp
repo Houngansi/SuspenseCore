@@ -99,9 +99,9 @@ bool USuspenseCoreEquipmentRulesEngine::ShouldUseDevFallback() const
     return bDevFallbackEnabled && CVarSuspenseCoreUseMonolith.GetValueOnGameThread() != 0;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CreateDisabledResult(const FString& MethodName) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CreateDisabledResult(const FString& MethodName) const
 {
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.bPassed = true;  // Don't block operations in production
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Dev.Monolith.Disabled"));
     Result.FailureReason = FText::FromString(FString::Printf(
@@ -129,7 +129,7 @@ bool USuspenseCoreEquipmentRulesEngine::IsDevFallbackEnabled() const
 // ISuspenseCoreEquipmentRules Implementation (DEV FALLBACK)
 //========================================
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEquipmentOperationRequest& Operation) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEquipmentOperationRequest& Operation) const
 {
     if (!ShouldUseDevFallback())
     {
@@ -139,7 +139,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEq
     FScopeLock Lock(&RuleCriticalSection);
     const double StartTime = FPlatformTime::Seconds();
 
-    FRuleExecutionContext Context;
+    FSuspenseCoreRuleExecutionContext Context;
     Context.Character = Operation.Instigator.Get();
     Context.Operation = Operation;
     Context.Timestamp = StartTime;
@@ -149,7 +149,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEq
         Context.CurrentState = DataProvider->CreateSnapshot();
     }
 
-    TArray<FEquipmentRule> ApplicableRules;
+    TArray<FSuspenseCoreEquipmentRule> ApplicableRules;
     for (const auto& Pair : RegisteredRules)
     {
         if (EnabledRules.Contains(Pair.Key))
@@ -159,13 +159,13 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEq
     }
     ApplicableRules = PrioritizeRules(ApplicableRules);
 
-    FRuleEvaluationResult Overall;
+    FSuspenseCoreRuleResult Overall;
     Overall.bPassed = true;
     Overall.ConfidenceScore = 1.0f;
 
-    for (const FEquipmentRule& Rule : ApplicableRules)
+    for (const FSuspenseCoreEquipmentRule& Rule : ApplicableRules)
     {
-        const FRuleEvaluationResult RuleResult = ExecuteRule(Rule, Context);
+        const FSuspenseCoreRuleResult RuleResult = ExecuteRule(Rule, Context);
 
         if (!RuleResult.bPassed)
         {
@@ -174,7 +174,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEq
                 Overall = RuleResult;
                 Overall.RuleType = Rule.RuleTag;
 
-                FRuleViolation V;
+                FSuspenseCoreRuleViolation V;
                 V.ViolatedRule     = Rule;
                 V.EvaluationResult = RuleResult;
                 V.ViolationTime    = FDateTime::Now();
@@ -199,7 +199,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRules(const FEq
     return Overall;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRulesWithContext(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
     const FSuspenseCoreRuleContext& Context) const
 {
@@ -213,16 +213,16 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateRulesWithContex
     return EvaluateRules(Operation);
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckItemCompatibility(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
+    const FEquipmentSlotConfig& SlotConfig) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("CheckItemCompatibility"));
     }
 
-    FRuleEvaluationResult R;
+    FSuspenseCoreRuleResult R;
     R.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.Compatibility"));
 
     FSuspenseCoreUnifiedItemData ItemData;
@@ -303,7 +303,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckItemCompatibility(
     return R;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckCharacterRequirements(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckCharacterRequirements(
     const AActor* Character,
     const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
@@ -312,7 +312,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckCharacterRequireme
         return CreateDisabledResult(TEXT("CheckCharacterRequirements"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.CharacterRequirements"));
 
     if (!Character)
@@ -324,7 +324,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckCharacterRequireme
     }
 
     // Get item requirements
-    FCharacterRequirements Requirements = GetItemRequirements(ItemInstance);
+    FSuspenseCoreCharacterRequirements Requirements = GetItemRequirements(ItemInstance);
 
     // Check character meets requirements
     Result = CheckCharacterMeetsRequirements(Character, Requirements);
@@ -332,7 +332,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckCharacterRequireme
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckWeightLimit(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckWeightLimit(
     float CurrentWeight,
     float AdditionalWeight) const
 {
@@ -341,7 +341,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckWeightLimit(
         return CreateDisabledResult(TEXT("CheckWeightLimit"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.WeightLimit"));
 
     // Calculate weight capacity
@@ -387,7 +387,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckWeightLimit(
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckConflictingEquipment(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckConflictingEquipment(
     const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
     const FSuspenseCoreInventoryItemInstance& NewItem) const
 {
@@ -396,7 +396,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckConflictingEquipme
         return CreateDisabledResult(TEXT("CheckConflictingEquipment"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ConflictDetection"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
@@ -467,16 +467,16 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckConflictingEquipme
     return Result;
 }
 
-TArray<FEquipmentRule> USuspenseCoreEquipmentRulesEngine::GetActiveRules() const
+TArray<FSuspenseCoreEquipmentRule> USuspenseCoreEquipmentRulesEngine::GetActiveRules() const
 {
     if (!ShouldUseDevFallback())
     {
-        return TArray<FEquipmentRule>(); // Empty array for production
+        return TArray<FSuspenseCoreEquipmentRule>(); // Empty array for production
     }
 
     FScopeLock Lock(&RuleCriticalSection);
 
-    TArray<FEquipmentRule> ActiveRules;
+    TArray<FSuspenseCoreEquipmentRule> ActiveRules;
 
     for (const auto& RulePair : RegisteredRules)
     {
@@ -489,7 +489,7 @@ TArray<FEquipmentRule> USuspenseCoreEquipmentRulesEngine::GetActiveRules() const
     return PrioritizeRules(ActiveRules);
 }
 
-bool USuspenseCoreEquipmentRulesEngine::RegisterRule(const FEquipmentRule& Rule)
+bool USuspenseCoreEquipmentRulesEngine::RegisterRule(const FSuspenseCoreEquipmentRule& Rule)
 {
     if (!ShouldUseDevFallback())
     {
@@ -512,7 +512,7 @@ bool USuspenseCoreEquipmentRulesEngine::RegisterRule(const FEquipmentRule& Rule)
     // Initialize statistics
     if (!RuleStats.Contains(Rule.RuleTag))
     {
-        FRuleStatistics Stats;
+        FSuspenseCoreRuleStatistics Stats;
         Stats.LastEvaluationTime = FDateTime::Now();
         RuleStats.Add(Rule.RuleTag, Stats);
     }
@@ -625,7 +625,7 @@ FString USuspenseCoreEquipmentRulesEngine::GenerateComplianceReport(const FEquip
     Report += TEXT("Rule Compliance:\n");
     Report += TEXT("----------------\n");
 
-    FRuleExecutionContext Context;
+    FSuspenseCoreRuleExecutionContext Context;
     Context.Character = GetOwner();
     Context.CurrentState = CurrentState;
     Context.Timestamp = FPlatformTime::Seconds();
@@ -641,7 +641,7 @@ FString USuspenseCoreEquipmentRulesEngine::GenerateComplianceReport(const FEquip
             continue;  // Пропускаем отключенные правила
         }
 
-        FRuleEvaluationResult Result = ExecuteRule(RulePair.Value, Context);
+        FSuspenseCoreRuleResult Result = ExecuteRule(RulePair.Value, Context);
 
         if (Result.bPassed)
         {
@@ -693,7 +693,7 @@ FString USuspenseCoreEquipmentRulesEngine::GenerateComplianceReport(const FEquip
         // Показываем самые свежие нарушения
         for (int32 i = ViolationHistory.Num() - 1; i >= 0 && Count < MaxViolationsToShow; i--, Count++)
         {
-            const FRuleViolation& Violation = ViolationHistory[i];
+            const FSuspenseCoreRuleViolation& Violation = ViolationHistory[i];
             Report += FString::Printf(TEXT("  - %s: %s\n"),
                 *Violation.ViolatedRule.RuleTag.ToString(),
                 *Violation.EvaluationResult.FailureReason.ToString());
@@ -746,7 +746,7 @@ int32 USuspenseCoreEquipmentRulesEngine::LoadRulesFromDataTable(UDataTable* Rule
 
     for (const auto& Row : RowMap)
     {
-        const FEquipmentRule* RuleData = reinterpret_cast<const FEquipmentRule*>(Row.Value);
+        const FSuspenseCoreEquipmentRule* RuleData = reinterpret_cast<const FSuspenseCoreEquipmentRule*>(Row.Value);
         if (RuleData && RegisterRule(*RuleData))
         {
             LoadedCount++;
@@ -758,19 +758,19 @@ int32 USuspenseCoreEquipmentRulesEngine::LoadRulesFromDataTable(UDataTable* Rule
     return LoadedCount;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateSpecificRule(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::EvaluateSpecificRule(
     const FGameplayTag& RuleTag,
-    const FRuleExecutionContext& Context) const
+    const FSuspenseCoreRuleExecutionContext& Context) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("EvaluateSpecificRule"));
     }
 
-    const FEquipmentRule* Rule = RegisteredRules.Find(RuleTag);
+    const FSuspenseCoreEquipmentRule* Rule = RegisteredRules.Find(RuleTag);
     if (!Rule)
     {
-        FRuleEvaluationResult Result;
+        FSuspenseCoreRuleResult Result;
         Result.bPassed = false;
         Result.FailureReason = FText::FromString(TEXT("Rule not found"));
         Result.RuleType = RuleTag;
@@ -780,11 +780,11 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::EvaluateSpecificRule(
     return ExecuteRule(*Rule, Context);
 }
 
-TArray<FRuleEvaluationResult> USuspenseCoreEquipmentRulesEngine::BatchEvaluateRules(
+TArray<FSuspenseCoreRuleResult> USuspenseCoreEquipmentRulesEngine::BatchEvaluateRules(
     const TArray<FGameplayTag>& RuleTags,
-    const FRuleExecutionContext& Context) const
+    const FSuspenseCoreRuleExecutionContext& Context) const
 {
-    TArray<FRuleEvaluationResult> Results;
+    TArray<FSuspenseCoreRuleResult> Results;
 
     if (!ShouldUseDevFallback())
     {
@@ -871,7 +871,7 @@ bool USuspenseCoreEquipmentRulesEngine::GetItemData(FName ItemID, FSuspenseCoreU
     return false;
 }
 
-bool USuspenseCoreEquipmentRulesEngine::EvaluateExpression(const FString& Expression, const FRuleExecutionContext& Context) const
+bool USuspenseCoreEquipmentRulesEngine::EvaluateExpression(const FString& Expression, const FSuspenseCoreRuleExecutionContext& Context) const
 {
     if (!ShouldUseDevFallback())
     {
@@ -914,11 +914,11 @@ bool USuspenseCoreEquipmentRulesEngine::EvaluateExpression(const FString& Expres
     return true;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::ExecuteRule(
-    const FEquipmentRule& Rule,
-    const FRuleExecutionContext& Context) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::ExecuteRule(
+    const FSuspenseCoreEquipmentRule& Rule,
+    const FSuspenseCoreRuleExecutionContext& Context) const
 {
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = Rule.RuleTag;
 
     if (!ShouldUseDevFallback())
@@ -970,8 +970,8 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::ExecuteRule(
 }
 
 bool USuspenseCoreEquipmentRulesEngine::CheckPreconditions(
-    const FEquipmentRule& Rule,
-    const FRuleExecutionContext& Context) const
+    const FSuspenseCoreEquipmentRule& Rule,
+    const FSuspenseCoreRuleExecutionContext& Context) const
 {
     // Check dependencies
     if (const FGameplayTagContainer* Dependencies = RuleDependencies.Find(Rule.RuleTag))
@@ -981,7 +981,7 @@ bool USuspenseCoreEquipmentRulesEngine::CheckPreconditions(
 
         for (const FGameplayTag& DependencyTag : DepArray)
         {
-            const FRuleEvaluationResult DependencyResult = EvaluateSpecificRule(DependencyTag, Context);
+            const FSuspenseCoreRuleResult DependencyResult = EvaluateSpecificRule(DependencyTag, Context);
             if (!DependencyResult.bPassed)
             {
                 return false;
@@ -992,11 +992,11 @@ bool USuspenseCoreEquipmentRulesEngine::CheckPreconditions(
     return true;
 }
 
-TArray<FEquipmentRule> USuspenseCoreEquipmentRulesEngine::PrioritizeRules(const TArray<FEquipmentRule>& Rules) const
+TArray<FSuspenseCoreEquipmentRule> USuspenseCoreEquipmentRulesEngine::PrioritizeRules(const TArray<FSuspenseCoreEquipmentRule>& Rules) const
 {
-    TArray<FEquipmentRule> SortedRules = Rules;
+    TArray<FSuspenseCoreEquipmentRule> SortedRules = Rules;
 
-    SortedRules.Sort([](const FEquipmentRule& A, const FEquipmentRule& B)
+    SortedRules.Sort([](const FSuspenseCoreEquipmentRule& A, const FSuspenseCoreEquipmentRule& B)
     {
         return A.Priority > B.Priority;
     });
@@ -1004,7 +1004,7 @@ TArray<FEquipmentRule> USuspenseCoreEquipmentRulesEngine::PrioritizeRules(const 
     return SortedRules;
 }
 
-void USuspenseCoreEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag, const FRuleEvaluationResult& Result) const
+void USuspenseCoreEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& RuleTag, const FSuspenseCoreRuleResult& Result) const
 {
     if (!bEnableCaching)
     {
@@ -1037,7 +1037,7 @@ void USuspenseCoreEquipmentRulesEngine::CacheRuleResult(const FGameplayTag& Rule
     }
 }
 
-bool USuspenseCoreEquipmentRulesEngine::GetCachedResult(const FGameplayTag& RuleTag, FRuleEvaluationResult& OutResult) const
+bool USuspenseCoreEquipmentRulesEngine::GetCachedResult(const FGameplayTag& RuleTag, FSuspenseCoreRuleResult& OutResult) const
 {
     if (!bEnableCaching)
     {
@@ -1045,7 +1045,7 @@ bool USuspenseCoreEquipmentRulesEngine::GetCachedResult(const FGameplayTag& Rule
     }
 
     uint32 CacheKey = GetTypeHash(RuleTag);
-    const FRuleEvaluationResult* CachedResult = ResultCache.Find(CacheKey);
+    const FSuspenseCoreRuleResult* CachedResult = ResultCache.Find(CacheKey);
 
     if (CachedResult)
     {
@@ -1147,7 +1147,7 @@ float USuspenseCoreEquipmentRulesEngine::CalculateTotalWeight(const TArray<FSusp
     return TotalWeight;
 }
 
-void USuspenseCoreEquipmentRulesEngine::RecordViolation(const FRuleViolation& Violation) const
+void USuspenseCoreEquipmentRulesEngine::RecordViolation(const FSuspenseCoreRuleViolation& Violation) const
 {
     if (!ShouldUseDevFallback())
     {
@@ -1176,7 +1176,7 @@ void USuspenseCoreEquipmentRulesEngine::UpdateStatistics(const FGameplayTag& Rul
         return;
     }
 
-    FRuleStatistics& Stats = RuleStats.FindOrAdd(RuleTag);
+    FSuspenseCoreRuleStatistics& Stats = RuleStats.FindOrAdd(RuleTag);
 
     Stats.TotalEvaluations++;
     if (bPassed)
@@ -1203,7 +1203,7 @@ void USuspenseCoreEquipmentRulesEngine::RegisterDefaultRules()
     }
 
     // Register weight limit rule
-    FEquipmentRule WeightRule;
+    FSuspenseCoreEquipmentRule WeightRule;
     WeightRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.WeightLimit"));
     WeightRule.RuleExpression = TEXT("WEIGHT<=MAX_WEIGHT");
     WeightRule.Priority = 100;
@@ -1212,7 +1212,7 @@ void USuspenseCoreEquipmentRulesEngine::RegisterDefaultRules()
     RegisterRule(WeightRule);
 
     // Register durability rule
-    FEquipmentRule DurabilityRule;
+    FSuspenseCoreEquipmentRule DurabilityRule;
     DurabilityRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.Durability"));
     DurabilityRule.RuleExpression = TEXT("DURABILITY>0");
     DurabilityRule.Priority = 90;
@@ -1221,7 +1221,7 @@ void USuspenseCoreEquipmentRulesEngine::RegisterDefaultRules()
     RegisterRule(DurabilityRule);
 
     // Register level requirement rule
-    FEquipmentRule LevelRule;
+    FSuspenseCoreEquipmentRule LevelRule;
     LevelRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Rule.System.LevelRequirement"));
     LevelRule.RuleExpression = TEXT("LEVEL>=REQUIRED_LEVEL");
     LevelRule.Priority = 80;
@@ -1230,9 +1230,9 @@ void USuspenseCoreEquipmentRulesEngine::RegisterDefaultRules()
     RegisterRule(LevelRule);
 }
 
-FCharacterRequirements USuspenseCoreEquipmentRulesEngine::GetItemRequirements(const FSuspenseCoreInventoryItemInstance& ItemInstance) const
+FSuspenseCoreCharacterRequirements USuspenseCoreEquipmentRulesEngine::GetItemRequirements(const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
-    FCharacterRequirements Req;
+    FSuspenseCoreCharacterRequirements Req;
 
     if (!ShouldUseDevFallback())
     {
@@ -1264,11 +1264,11 @@ FCharacterRequirements USuspenseCoreEquipmentRulesEngine::GetItemRequirements(co
     return Req;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckCharacterMeetsRequirements(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckCharacterMeetsRequirements(
     const AActor* Character,
-    const FCharacterRequirements& Requirements) const
+    const FSuspenseCoreCharacterRequirements& Requirements) const
 {
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.CharacterRequirements"));
@@ -1356,14 +1356,14 @@ float USuspenseCoreEquipmentRulesEngine::CalculateWeightCapacity(const AActor* C
     return Capacity;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckItemDurability(const FSuspenseCoreInventoryItemInstance& ItemInstance) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckItemDurability(const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("CheckItemDurability"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ItemDurability"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
@@ -1385,7 +1385,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckItemDurability(con
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckAmmoCompatibility(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckAmmoCompatibility(
     const FSuspenseCoreInventoryItemInstance& WeaponInstance,
     const FSuspenseCoreInventoryItemInstance& AmmoInstance) const
 {
@@ -1394,7 +1394,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckAmmoCompatibility(
         return CreateDisabledResult(TEXT("CheckAmmoCompatibility"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.AmmoCompatibility"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
@@ -1432,7 +1432,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckAmmoCompatibility(
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckModificationCompatibility(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::CheckModificationCompatibility(
     const FSuspenseCoreInventoryItemInstance& BaseItem,
     const FSuspenseCoreInventoryItemInstance& Modification) const
 {
@@ -1441,7 +1441,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckModificationCompat
         return CreateDisabledResult(TEXT("CheckModificationCompatibility"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.ModificationCompatibility"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
@@ -1452,14 +1452,14 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::CheckModificationCompat
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::ValidateLoadout(const TArray<FSuspenseCoreInventoryItemInstance>& LoadoutItems) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesEngine::ValidateLoadout(const TArray<FSuspenseCoreInventoryItemInstance>& LoadoutItems) const
 {
     if (!ShouldUseDevFallback())
     {
         return CreateDisabledResult(TEXT("ValidateLoadout"));
     }
 
-    FRuleEvaluationResult Result;
+    FSuspenseCoreRuleResult Result;
     Result.RuleType = FGameplayTag::RequestGameplayTag(TEXT("Rule.LoadoutValidation"));
     Result.bPassed = true;
     Result.ConfidenceScore = 1.0f;
@@ -1483,7 +1483,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::ValidateLoadout(const T
     {
         for (int32 j = i + 1; j < LoadoutItems.Num(); j++)
         {
-            FRuleEvaluationResult ConflictCheck = CheckConflictingEquipment({LoadoutItems[i]}, LoadoutItems[j]);
+            FSuspenseCoreRuleResult ConflictCheck = CheckConflictingEquipment({LoadoutItems[i]}, LoadoutItems[j]);
             if (!ConflictCheck.bPassed)
             {
                 Result.bPassed = false;
@@ -1498,11 +1498,11 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesEngine::ValidateLoadout(const T
     return Result;
 }
 
-TArray<FRuleViolation> USuspenseCoreEquipmentRulesEngine::FindItemConflicts(
+TArray<FSuspenseCoreRuleViolation> USuspenseCoreEquipmentRulesEngine::FindItemConflicts(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
     const TArray<FSuspenseCoreInventoryItemInstance>& CurrentItems) const
 {
-    TArray<FRuleViolation> Conflicts;
+    TArray<FSuspenseCoreRuleViolation> Conflicts;
 
     if (!ShouldUseDevFallback())
     {
@@ -1511,11 +1511,11 @@ TArray<FRuleViolation> USuspenseCoreEquipmentRulesEngine::FindItemConflicts(
 
     // This would contain more sophisticated conflict detection
     // For now, return basic conflicts based on CheckConflictingEquipment
-    FRuleEvaluationResult ConflictResult = CheckConflictingEquipment(CurrentItems, ItemInstance);
+    FSuspenseCoreRuleResult ConflictResult = CheckConflictingEquipment(CurrentItems, ItemInstance);
 
     if (!ConflictResult.bPassed)
     {
-        FRuleViolation Violation;
+        FSuspenseCoreRuleViolation Violation;
         Violation.EvaluationResult = ConflictResult;
         Violation.ViolationTime = FDateTime::Now();
         Violation.Context = TEXT("Item conflict detection");
@@ -1526,7 +1526,7 @@ TArray<FRuleViolation> USuspenseCoreEquipmentRulesEngine::FindItemConflicts(
     return Conflicts;
 }
 
-bool USuspenseCoreEquipmentRulesEngine::ResolveConflicts(const TArray<FRuleViolation>& Conflicts, int32 ResolutionStrategy)
+bool USuspenseCoreEquipmentRulesEngine::ResolveConflicts(const TArray<FSuspenseCoreRuleViolation>& Conflicts, int32 ResolutionStrategy)
 {
     if (!ShouldUseDevFallback())
     {
@@ -1551,25 +1551,25 @@ bool USuspenseCoreEquipmentRulesEngine::ResolveConflicts(const TArray<FRuleViola
     }
 }
 
-FRuleStatistics USuspenseCoreEquipmentRulesEngine::GetRuleStatistics(const FGameplayTag& RuleTag) const
+FSuspenseCoreRuleStatistics USuspenseCoreEquipmentRulesEngine::GetRuleStatistics(const FGameplayTag& RuleTag) const
 {
     if (!ShouldUseDevFallback())
     {
-        return FRuleStatistics();
+        return FSuspenseCoreRuleStatistics();
     }
 
-    const FRuleStatistics* Stats = RuleStats.Find(RuleTag);
-    return Stats ? *Stats : FRuleStatistics();
+    const FSuspenseCoreRuleStatistics* Stats = RuleStats.Find(RuleTag);
+    return Stats ? *Stats : FSuspenseCoreRuleStatistics();
 }
 
-TArray<FRuleViolation> USuspenseCoreEquipmentRulesEngine::GetViolationHistory(int32 MaxCount) const
+TArray<FSuspenseCoreRuleViolation> USuspenseCoreEquipmentRulesEngine::GetViolationHistory(int32 MaxCount) const
 {
     if (!ShouldUseDevFallback())
     {
-        return TArray<FRuleViolation>();
+        return TArray<FSuspenseCoreRuleViolation>();
     }
 
-    TArray<FRuleViolation> Result = ViolationHistory;
+    TArray<FSuspenseCoreRuleViolation> Result = ViolationHistory;
 
     if (Result.Num() > MaxCount)
     {

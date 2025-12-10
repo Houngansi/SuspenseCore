@@ -11,6 +11,7 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "SuspenseCoreCompatibilityRulesEngine.generated.h"
 
 // Forward declarations

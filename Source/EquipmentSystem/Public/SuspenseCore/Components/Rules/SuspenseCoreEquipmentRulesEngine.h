@@ -198,7 +198,7 @@ public:
         const FSuspenseCoreRuleContext& Context) const override;
     virtual FSuspenseCoreRuleResult CheckItemCompatibility(
         const FSuspenseCoreInventoryItemInstance& ItemInstance,
-        const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const override;
+        const FEquipmentSlotConfig& SlotConfig) const override;
     virtual FSuspenseCoreRuleResult CheckCharacterRequirements(
         const AActor* Character,
         const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;

@@ -42,13 +42,15 @@ FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::Convert(cons
 	ESuspenseRuleSeverity Sev = ESuspenseRuleSeverity::Error;
 	switch (R.FailureType)
 	{
-	case EEquipmentValidationFailure::InvalidSlot:
-	case EEquipmentValidationFailure::UniqueConstraint:
-	case EEquipmentValidationFailure::IncompatibleType:
+	case ESuspenseCoreValidationFailure::InvalidSlot:
+	case ESuspenseCoreValidationFailure::UniqueConstraintViolation:
+	case ESuspenseCoreValidationFailure::ItemTypeIncompatible:
+	case ESuspenseCoreValidationFailure::SlotTypeIncompatible:
 		Sev = ESuspenseRuleSeverity::Critical; break;
-	case EEquipmentValidationFailure::RequirementsNotMet:
-	case EEquipmentValidationFailure::WeightLimit:
-	case EEquipmentValidationFailure::LevelRequirement:
+	case ESuspenseCoreValidationFailure::LevelRequirementNotMet:
+	case ESuspenseCoreValidationFailure::ClassRequirementNotMet:
+	case ESuspenseCoreValidationFailure::WeightLimitExceeded:
+	case ESuspenseCoreValidationFailure::RequiredTagMissing:
 		Sev = ESuspenseRuleSeverity::Error; break;
 	default:
 		Sev = ESuspenseRuleSeverity::Error; break;
@@ -60,10 +62,10 @@ FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::Convert(cons
 	Fail.RuleType = ESuspenseRuleType::Compatibility;
 	Fail.RuleTag = R.ErrorTag.IsValid() ? R.ErrorTag : FGameplayTag::RequestGameplayTag(TEXT("Rule.Compatibility.Fail"));
 
-	// Copy context
-	for (const auto& Kvp : R.Context)
+	// Copy validation details to context
+	for (int32 i = 0; i < R.ValidationDetails.Num(); ++i)
 	{
-		Fail.Context.Add(Kvp.Key, Kvp.Value);
+		Fail.Context.Add(FString::Printf(TEXT("Detail_%d"), i), R.ValidationDetails[i]);
 	}
 	return Fail;
 }

@@ -30,7 +30,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentValidation, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentAbility, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentPrediction, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentReplication, Log, All);
-DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentDelta, Log, All);  // New category for delta logging
+DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentDelta, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentTransaction, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentRules, Log, All);
 
 
 //========================================

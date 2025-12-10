@@ -11,6 +11,8 @@ DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentAbility);
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentPrediction);
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentReplication);
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentDelta);
+DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentTransaction);
+DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentRules);
 
 #define LOCTEXT_NAMESPACE "FSuspenseCoreEquipmentSystemModule"
 

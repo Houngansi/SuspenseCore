@@ -79,7 +79,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogEquipmentNetwork, Log, TEXT("NetworkDispatcher: Initialized for %s with role %s"),
+	UE_LOG(LogSuspenseCoreEquipmentNetwork, Log, TEXT("NetworkDispatcher: Initialized for %s with role %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(GetOwnerRole()));
 }
@@ -144,13 +144,13 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::SendOperationToServer(const FNetw
 	if (bSecurityEnabled && !ValidateRequestSecurity(Request))
 	{
 		Statistics.SecurityRejects++;
-		UE_LOG(LogEquipmentNetwork, Warning, TEXT("SendOperationToServer: Security validation failed"));
+		UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("SendOperationToServer: Security validation failed"));
 		return FGuid();
 	}
 
 	if (Request.Operation.OperationType == EEquipmentOperationType::None)
 	{
-		UE_LOG(LogEquipmentNetwork, Warning, TEXT("SendOperationToServer: Invalid operation type"));
+		UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("SendOperationToServer: Invalid operation type"));
 		return FGuid();
 	}
 
@@ -159,7 +159,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::SendOperationToServer(const FNetw
 
 		if (OperationQueue.Num() >= MaxQueueSize)
 		{
-			UE_LOG(LogEquipmentNetwork, Warning, TEXT("SendOperationToServer: Queue is full"));
+			UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("SendOperationToServer: Queue is full"));
 			return FGuid();
 		}
 
@@ -177,7 +177,7 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::SendOperationToServer(const FNetw
 
 void USuspenseCoreEquipmentNetworkDispatcher::SendOperationToClients(const FNetworkOperationRequest& /*Request*/, const TArray<APlayerController*>& /*TargetClients*/)
 {
-	UE_LOG(LogEquipmentNetwork, Verbose, TEXT("SendOperationToClients: Not implemented at dispatcher level"));
+	UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("SendOperationToClients: Not implemented at dispatcher level"));
 }
 
 void USuspenseCoreEquipmentNetworkDispatcher::HandleServerResponse(const FNetworkOperationResponse& Response)
@@ -248,12 +248,12 @@ FGuid USuspenseCoreEquipmentNetworkDispatcher::BatchOperations(const TArray<FNet
 			if (bSecurityEnabled && !ValidateRequestSecurity(R))
 			{
 				Statistics.SecurityRejects++;
-				UE_LOG(LogEquipmentNetwork, Warning, TEXT("BatchOperations: security failed for %s"), *R.RequestId.ToString());
+				UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("BatchOperations: security failed for %s"), *R.RequestId.ToString());
 				continue;
 			}
 			if (OperationQueue.Num() >= MaxQueueSize)
 			{
-				UE_LOG(LogEquipmentNetwork, Warning, TEXT("BatchOperations: queue full"));
+				UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("BatchOperations: queue full"));
 				break;
 			}
 
@@ -374,7 +374,7 @@ bool USuspenseCoreEquipmentNetworkDispatcher::ValidateRequestSecurity(const FNet
 	if (!PC && GetOwner()) { PC = Cast<APlayerController>(GetOwner()->GetInstigatorController()); }
 	if (!PC)
 	{
-		UE_LOG(LogEquipmentNetwork, Warning, TEXT("ValidateRequestSecurity: No PlayerController found"));
+		UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("ValidateRequestSecurity: No PlayerController found"));
 		return false;
 	}
 
@@ -428,7 +428,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ProcessQueue()
 						{
 							bAllValid = false;
 							Statistics.SecurityRejects++;
-							UE_LOG(LogEquipmentNetwork, Warning, TEXT("ProcessQueue: Security validation failed for batched request %s"), *R.RequestId.ToString());
+							UE_LOG(LogSuspenseCoreEquipmentNetwork, Warning, TEXT("ProcessQueue: Security validation failed for batched request %s"), *R.RequestId.ToString());
 						}
 					}
 				}
@@ -823,7 +823,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::ClientReceiveBatchResponse_Impleme
 		HandleServerResponse(Resp);
 	}
 
-	UE_LOG(LogEquipmentNetwork, Verbose, TEXT("ClientReceiveBatchResponse: Batch %s, Ops=%d"),
+	UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose, TEXT("ClientReceiveBatchResponse: Batch %s, Ops=%d"),
 		*BatchId.ToString(), N);
 }
 
@@ -831,7 +831,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::MulticastOperationResult_Implement
 {
 	// Минимальная реакция на всех клиентах (и на сервере), без дублирования делегатов,
 	// т.к. владеющий клиент получает полный результат через ClientReceiveResponse.
-	UE_LOG(LogEquipmentNetwork, Verbose,
+	UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
 		TEXT("MulticastOperationResult: OpId=%s, Success=%s"),
 		*OperationId.ToString(),
 		bSuccess ? TEXT("true") : TEXT("false"));
@@ -839,7 +839,7 @@ void USuspenseCoreEquipmentNetworkDispatcher::MulticastOperationResult_Implement
 
 void USuspenseCoreEquipmentNetworkDispatcher::MulticastLowPriorityResult_Implementation(const FGuid& OperationId, bool bSuccess)
 {
-	UE_LOG(LogEquipmentNetwork, Verbose,
+	UE_LOG(LogSuspenseCoreEquipmentNetwork, Verbose,
 		TEXT("MulticastLowPriorityResult: OpId=%s, Success=%s"),
 		*OperationId.ToString(),
 		bSuccess ? TEXT("true") : TEXT("false"));

@@ -63,13 +63,13 @@ void USuspenseCoreEquipmentAttachmentSystem::BeginPlay()
 		{
 			Locator->RegisterServiceInstance(AttachmentTag, this);
 
-			UE_LOG(LogEquipmentOperation, Log,
+			UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
 				TEXT("✓ AttachmentSystem registered as service: Service.AttachmentSystem"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogEquipmentOperation, Error,
+		UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
 			TEXT("❌ Failed to get ServiceLocator - AttachmentSystem NOT registered!"));
 	}
 
@@ -98,7 +98,7 @@ void USuspenseCoreEquipmentAttachmentSystem::EndPlay(const EEndPlayReason::Type 
 		{
 			Locator->UnregisterService(AttachmentTag, /*bForceShutdown=*/false);
 
-			UE_LOG(LogEquipmentOperation, Log,
+			UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
 				TEXT("AttachmentSystem unregistered from ServiceLocator"));
 		}
 	}
@@ -499,7 +499,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::AttachToCharacter(AActor* Equipment
 	// Валидация
 	if (SystemConfig.bValidateSockets && !ValidateSocket(Target, Cfg.SocketName))
 	{
-		UE_LOG(LogEquipmentOperation, Warning, TEXT("[AttachToCharacter] Invalid socket '%s' on %s"),
+		UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("[AttachToCharacter] Invalid socket '%s' on %s"),
 			*Cfg.SocketName.ToString(), *GetNameSafe(Target));
 		Cfg.SocketName = NAME_None;
 	}
@@ -690,7 +690,7 @@ void USuspenseCoreEquipmentAttachmentSystem::BroadcastAttachmentEvent(const FGam
 
 void USuspenseCoreEquipmentAttachmentSystem::LogAttachmentOperation(const FString& Operation, const FString& Details) const
 {
-	UE_LOG(LogEquipmentOperation, Verbose, TEXT("[AttachmentSystem] %s: %s"), *Operation, *Details);
+	UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose, TEXT("[AttachmentSystem] %s: %s"), *Operation, *Details);
 }
 
 void USuspenseCoreEquipmentAttachmentSystem::RemoveSocketMapping(const FGameplayTag& ItemType)
@@ -746,14 +746,14 @@ FString USuspenseCoreEquipmentAttachmentSystem::GetAttachmentStatistics() const
 bool USuspenseCoreEquipmentAttachmentSystem::AttachToSocket(int32 SlotIndex, const FName& SocketName, const FTransform& Offset)
 {
 	// Stub implementation - slot-based attachment not yet supported
-	UE_LOG(LogEquipmentOperation, Warning, TEXT("AttachToSocket: Slot-based attachment not implemented. Use AttachEquipment instead."));
+	UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("AttachToSocket: Slot-based attachment not implemented. Use AttachEquipment instead."));
 	return false;
 }
 
 bool USuspenseCoreEquipmentAttachmentSystem::Detach(int32 SlotIndex)
 {
 	// Stub implementation - slot-based detachment not yet supported
-	UE_LOG(LogEquipmentOperation, Warning, TEXT("Detach: Slot-based detachment not implemented. Use DetachEquipment instead."));
+	UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("Detach: Slot-based detachment not implemented. Use DetachEquipment instead."));
 	return false;
 }
 
@@ -778,13 +778,13 @@ TArray<FEquipmentAttachmentState> USuspenseCoreEquipmentAttachmentSystem::GetAll
 void USuspenseCoreEquipmentAttachmentSystem::SetAttachmentVisibility(int32 SlotIndex, bool bVisible)
 {
 	// Stub implementation
-	UE_LOG(LogEquipmentOperation, Verbose, TEXT("SetAttachmentVisibility: Slot %d visibility=%d"), SlotIndex, bVisible);
+	UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose, TEXT("SetAttachmentVisibility: Slot %d visibility=%d"), SlotIndex, bVisible);
 }
 
 void USuspenseCoreEquipmentAttachmentSystem::UpdateAttachmentTransform(int32 SlotIndex, const FTransform& NewTransform)
 {
 	// Stub implementation
-	UE_LOG(LogEquipmentOperation, Verbose, TEXT("UpdateAttachmentTransform: Slot %d"), SlotIndex);
+	UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose, TEXT("UpdateAttachmentTransform: Slot %d"), SlotIndex);
 }
 
 bool USuspenseCoreEquipmentAttachmentSystem::IsAttached(int32 SlotIndex) const

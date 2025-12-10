@@ -3,13 +3,11 @@
 
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
-
-// Define logging category
-DEFINE_LOG_CATEGORY_STATIC(LogEquipmentTransaction, Log, All);
 
 //========================================
 // Constructor/Destructor
@@ -50,7 +48,7 @@ USuspenseCoreEquipmentTransactionProcessor::~USuspenseCoreEquipmentTransactionPr
     // Ensure cleanup of active transactions
     if (ActiveTransactions.Num() > 0)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("Destructor: %d active transactions will be forcibly rolled back"),
             ActiveTransactions.Num());
     }
@@ -71,7 +69,7 @@ void USuspenseCoreEquipmentTransactionProcessor::BeginPlay()
         SetComponentTickInterval(CleanupInterval);
     }
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("Transaction Processor initialized on %s with timeout: %.1fs, max depth: %d"), 
         GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
         TransactionTimeout, MaxNestedDepth);
@@ -82,7 +80,7 @@ void USuspenseCoreEquipmentTransactionProcessor::EndPlay(const EEndPlayReason::T
     // Rollback all active transactions before shutdown
     if (ActiveTransactions.Num() > 0)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("EndPlay: Rolling back %d active transactions"), 
             ActiveTransactions.Num());
         RollbackAllTransactions();
@@ -94,7 +92,7 @@ void USuspenseCoreEquipmentTransactionProcessor::EndPlay(const EEndPlayReason::T
     TransactionStack.Empty();
     SavepointToTransaction.Empty();
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("Transaction Processor shutdown (reason: %s)"), 
         *UEnum::GetValueAsString(EndPlayReason));
     
@@ -133,7 +131,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::BeginTransaction(const FString
         // Check initialization
         if (!bIsInitialized || !DataProvider.GetInterface())
         {
-            UE_LOG(LogEquipmentTransaction, Error, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
                 TEXT("BeginTransaction: Processor not initialized"));
             return FGuid();
         }
@@ -141,7 +139,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::BeginTransaction(const FString
         // Check nesting depth
         if (TransactionStack.Num() >= MaxNestedDepth)
         {
-            UE_LOG(LogEquipmentTransaction, Error,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error,
                 TEXT("BeginTransaction: Maximum nesting depth %d exceeded"), 
                 MaxNestedDepth);
             return FGuid();
@@ -164,7 +162,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::BeginTransaction(const FString
         // Double-check depth (could have changed)
         if (TransactionStack.Num() >= MaxNestedDepth)
         {
-            UE_LOG(LogEquipmentTransaction, Error,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error,
                 TEXT("BeginTransaction: Maximum nesting depth %d exceeded (post-capture)"), 
                 MaxNestedDepth);
             return FGuid();
@@ -214,7 +212,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         
         if (!TransactionId.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction: Invalid transaction ID"));
             return false;
         }
@@ -223,7 +221,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         FTransactionExecutionContext* Context = FindExecutionContext(TransactionId);
         if (!Context)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction: Transaction %s not found"), 
                 *TransactionId.ToString());
             return false;
@@ -233,7 +231,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         OldState = Context->TransactionData.State;
         if (Context->TransactionData.State != ETransactionState::Active)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction: Transaction %s is not active (state: %d)"), 
                 *TransactionId.ToString(), (int32)Context->TransactionData.State);
             return false;
@@ -242,7 +240,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         // Check if current transaction (must be top of stack for proper nesting)
         if (TransactionStack.Num() > 0 && TransactionStack.Last() != TransactionId)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction: Transaction %s is not the current transaction"), 
                 *TransactionId.ToString());
             return false;
@@ -251,7 +249,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         // Validate transaction
         if (!ValidateTransaction_NoLock(TransactionId))
         {
-            UE_LOG(LogEquipmentTransaction, Error,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error,
                 TEXT("CommitTransaction: Transaction %s validation failed"),
                 *TransactionId.ToString());
             Context->TransactionData.State = ETransactionState::Failed;
@@ -343,7 +341,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
             // Auto-recovery attempt
             if (bAutoRecovery)
             {
-                UE_LOG(LogEquipmentTransaction, Warning, 
+                UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                     TEXT("CommitTransaction: Attempting auto-recovery for transaction %s"), 
                     *TransactionId.ToString());
                 
@@ -384,7 +382,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackTransaction(const FGuid
         
         if (!TransactionId.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackTransaction: Invalid transaction ID"));
             return false;
         }
@@ -393,7 +391,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackTransaction(const FGuid
         FTransactionExecutionContext* Context = FindExecutionContext(TransactionId);
         if (!Context)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackTransaction: Transaction %s not found"), 
                 *TransactionId.ToString());
             return false;
@@ -404,7 +402,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackTransaction(const FGuid
         if (Context->TransactionData.State == ETransactionState::Committed || 
             Context->TransactionData.State == ETransactionState::RolledBack)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackTransaction: Transaction %s already finalized (state: %d)"), 
                 *TransactionId.ToString(), (int32)Context->TransactionData.State);
             return false;
@@ -510,7 +508,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackTransaction(const FGuid
             Context->TransactionData.State = ETransactionState::Failed;
             TotalTransactionsFailed++;
             
-            UE_LOG(LogEquipmentTransaction, Error, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
                 TEXT("RollbackTransaction: Failed to rollback transaction %s"), 
                 *TransactionId.ToString());
             
@@ -543,7 +541,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::BeginNestedTransaction(const F
         
         if (TransactionStack.Num() == 0)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("BeginNestedTransaction: No parent transaction active"));
             return FGuid();
         }
@@ -575,7 +573,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RegisterOperation(const FGuid& 
     
     if (TransactionStack.Num() == 0)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("RegisterOperation: No active transaction"));
         return false;
     }
@@ -641,20 +639,20 @@ bool USuspenseCoreEquipmentTransactionProcessor::RegisterOperation(
 
     if (!TransactionId.IsValid())
     {
-        UE_LOG(LogEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): invalid TxnId"));
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): invalid TxnId"));
         return false;
     }
 
     FTransactionExecutionContext* Ctx = FindExecutionContext(TransactionId);
     if (!Ctx)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): transaction not found"));
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): transaction not found"));
         return false;
     }
 
     if (Ctx->TransactionData.State != ETransactionState::Active)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): transaction is not active"));
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("RegisterOperation(Txn,Op): transaction is not active"));
         return false;
     }
 
@@ -685,7 +683,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RegisterOperation(
 
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
             TEXT("RegisterOperation: Txn=%s, Op=%s, Slot=%d, Type=%s"),
             *TransactionId.ToString().Left(8),
             *Op.OperationId.ToString().Left(8),
@@ -707,20 +705,20 @@ bool USuspenseCoreEquipmentTransactionProcessor::ApplyOperation(
 
         if (!TransactionId.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): invalid TxnId"));
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): invalid TxnId"));
             return false;
         }
 
         FTransactionExecutionContext* Ctx = FindExecutionContext(TransactionId);
         if (!Ctx)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): transaction not found"));
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): transaction not found"));
             return false;
         }
 
         if (Ctx->TransactionData.State != ETransactionState::Active)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): transaction is not active"));
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("ApplyOperation(Txn,Op): transaction is not active"));
             return false;
         }
 
@@ -737,7 +735,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ApplyOperation(
 
         if (Index == INDEX_NONE)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, TEXT("ApplyOperation: op not registered (id=%s)"),
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, TEXT("ApplyOperation: op not registered (id=%s)"),
                 *Operation.OperationId.ToString());
             return false;
         }
@@ -787,7 +785,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ApplyOperation(
         const bool bOk = ApplyOperation(OpForApply, Ctx->CurrentSnapshot);
         if (!bOk)
         {
-            UE_LOG(LogEquipmentTransaction, Warning,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
                 TEXT("ApplyOperation: failed to update working snapshot for op %s"),
                 *OpForApply.OperationId.ToString());
             return false;
@@ -806,7 +804,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ApplyOperation(
 
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
             TEXT("ApplyOperation: Txn=%s, Op=%s applied to working snapshot"),
             *TransactionId.ToString().Left(8),
             *Operation.OperationId.ToString().Left(8));
@@ -843,7 +841,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::CreateSavepoint(const FString&
         
         if (TransactionStack.Num() == 0)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CreateSavepoint: No active transaction"));
             return FGuid();
         }
@@ -872,7 +870,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::CreateSavepoint(const FString&
         FTransactionExecutionContext* Context = FindExecutionContext(CurrentTransactionId);
         if (!Context)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CreateSavepoint: Transaction disappeared while creating savepoint"));
             return FGuid();
         }
@@ -911,7 +909,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackToSavepoint(const FGuid
         
         if (!SavepointId.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackToSavepoint: Invalid savepoint ID"));
             return false;
         }
@@ -920,7 +918,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackToSavepoint(const FGuid
         const FGuid* TransactionIdPtr = SavepointToTransaction.Find(SavepointId);
         if (!TransactionIdPtr)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackToSavepoint: Savepoint %s not found"), 
                 *SavepointId.ToString());
             return false;
@@ -938,7 +936,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackToSavepoint(const FGuid
         FTransactionSavepoint* Savepoint = FindSavepoint(*Context, SavepointId);
         if (!Savepoint)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("RollbackToSavepoint: Savepoint %s not found in transaction"), 
                 *SavepointId.ToString());
             return false;
@@ -958,7 +956,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RollbackToSavepoint(const FGuid
     
     if (!bSuccess)
     {
-        UE_LOG(LogEquipmentTransaction, Error, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
             TEXT("RollbackToSavepoint: Failed to restore snapshot"));
         return false;
     }
@@ -1088,7 +1086,7 @@ int32 USuspenseCoreEquipmentTransactionProcessor::CommitAllTransactions()
             TransactionsToCommit.Add(TransactionStack[i]);
         }
         
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("CommitAllTransactions: Preparing to commit %d transactions"), 
             TransactionsToCommit.Num());
     }
@@ -1104,21 +1102,21 @@ int32 USuspenseCoreEquipmentTransactionProcessor::CommitAllTransactions()
         if (bSuccess)
         {
             CommittedCount++;
-            UE_LOG(LogEquipmentTransaction, Verbose, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose, 
                 TEXT("CommitAllTransactions: Successfully committed transaction %s"), 
                 *TransactionId.ToString());
         }
         else
         {
             // Stop on first failure
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitAllTransactions: Failed to commit transaction %s, stopping"), 
                 *TransactionId.ToString());
             break;
         }
     }
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("CommitAllTransactions: Committed %d of %d transactions"), 
         CommittedCount, TransactionsToCommit.Num());
     
@@ -1138,7 +1136,7 @@ int32 USuspenseCoreEquipmentTransactionProcessor::RollbackAllTransactions()
             TransactionsToRollback.Add(TransactionStack[i]);
         }
         
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("RollbackAllTransactions: Preparing to rollback %d transactions"), 
             TransactionsToRollback.Num());
     }
@@ -1154,14 +1152,14 @@ int32 USuspenseCoreEquipmentTransactionProcessor::RollbackAllTransactions()
         if (bSuccess)
         {
             RolledBackCount++;
-            UE_LOG(LogEquipmentTransaction, Verbose, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose, 
                 TEXT("RollbackAllTransactions: Successfully rolled back transaction %s"), 
                 *TransactionId.ToString());
         }
         else
         {
             // Try to force cleanup on failure
-            UE_LOG(LogEquipmentTransaction, Error, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
                 TEXT("RollbackAllTransactions: Failed to rollback transaction %s, forcing cleanup"), 
                 *TransactionId.ToString());
             
@@ -1198,7 +1196,7 @@ int32 USuspenseCoreEquipmentTransactionProcessor::RollbackAllTransactions()
         
         if (TransactionStack.Num() > 0)
         {
-            UE_LOG(LogEquipmentTransaction, Error, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
                 TEXT("RollbackAllTransactions: %d transactions remain in stack after rollback"), 
                 TransactionStack.Num());
             
@@ -1207,7 +1205,7 @@ int32 USuspenseCoreEquipmentTransactionProcessor::RollbackAllTransactions()
         }
     }
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("RollbackAllTransactions: Rolled back %d of %d transactions"), 
         RolledBackCount, TransactionsToRollback.Num());
     
@@ -1220,7 +1218,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::RecordDetailedOperation(const 
     
     if (TransactionStack.Num() == 0)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("RecordDetailedOperation: No active transaction"));
         return FGuid();
     }
@@ -1253,7 +1251,7 @@ FGuid USuspenseCoreEquipmentTransactionProcessor::RecordDetailedOperation(const 
     
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
             TEXT("Operation %s recorded for transaction %s"),
             *OpWithId.OperationId.ToString(),
             *CurrentTransactionId.ToString());
@@ -1327,7 +1325,7 @@ void USuspenseCoreEquipmentTransactionProcessor::ClearTransactionHistory(bool bK
         SavepointToTransaction.Empty();
     }
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("Transaction history cleared (keep active: %s)"),
         bKeepActive ? TEXT("true") : TEXT("false"));
 }
@@ -1503,7 +1501,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ResolveConflicts(const FGuid& T
         }
         
         default:
-            UE_LOG(LogEquipmentTransaction, Warning,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
                 TEXT("ResolveConflicts: Unknown resolution strategy %d"), 
                 ResolutionStrategy);
             return false;
@@ -1545,7 +1543,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RecoverTransaction(const FGuid&
         Operations = Context->Operations;
     }
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("RecoverTransaction: Attempting recovery for transaction %s"), 
         *TransactionId.ToString());
     
@@ -1571,7 +1569,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RecoverTransaction(const FGuid&
             {
                 if (!ApplyOperation(Op, Context->CurrentSnapshot))
                 {
-                    UE_LOG(LogEquipmentTransaction, Warning, 
+                    UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                         TEXT("RecoverTransaction: Failed to replay operation %s"), 
                         *Op.OperationId.ToString());
                     bRecovered = false;
@@ -1584,7 +1582,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RecoverTransaction(const FGuid&
         {
             Context->TransactionData.State = ETransactionState::Active;
             
-            UE_LOG(LogEquipmentTransaction, Log, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
                 TEXT("RecoverTransaction: Successfully recovered transaction %s"), 
                 *TransactionId.ToString());
         }
@@ -1608,7 +1606,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::Initialize(TScriptInterface<ISu
     
     if (!InDataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentTransaction, Error, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
             TEXT("Initialize: Invalid data provider"));
         return false;
     }
@@ -1616,7 +1614,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::Initialize(TScriptInterface<ISu
     DataProvider = InDataProvider;
     bIsInitialized = true;
     
-    UE_LOG(LogEquipmentTransaction, Log, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
         TEXT("Transaction processor initialized with data provider"));
     
     return true;
@@ -1628,7 +1626,7 @@ void USuspenseCoreEquipmentTransactionProcessor::SetTransactionTimeout(float Sec
     
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("Transaction timeout set to %.1f seconds"), TransactionTimeout);
     }
 }
@@ -1639,7 +1637,7 @@ void USuspenseCoreEquipmentTransactionProcessor::SetMaxNestedDepth(int32 MaxDept
     
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("Maximum nested depth set to %d"), MaxNestedDepth);
     }
 }
@@ -1650,7 +1648,7 @@ void USuspenseCoreEquipmentTransactionProcessor::SetAutoRecovery(bool bEnable)
     
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("Auto-recovery %s"), bAutoRecovery ? TEXT("enabled") : TEXT("disabled"));
     }
 }
@@ -1773,7 +1771,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ExecuteCommit(FTransactionExecu
     // ВАЖНО: здесь НЕТ глобального лока; можно звать DataProvider.
     if (!DataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentTransaction, Error, TEXT("ExecuteCommit: No data provider"));
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, TEXT("ExecuteCommit: No data provider"));
         return false;
     }
 
@@ -1802,7 +1800,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ExecuteCommit(FTransactionExecu
             {
                 if (!DataProvider->SetSlotItem(Op.SlotIndex, Op.ItemAfter, /*bNotify=*/false))
                 {
-                    UE_LOG(LogEquipmentTransaction, Error,
+                    UE_LOG(LogSuspenseCoreEquipmentTransaction, Error,
                         TEXT("ExecuteCommit: SetSlotItem failed (slot=%d)"), Op.SlotIndex);
                     return false;
                 }
@@ -1845,11 +1843,11 @@ bool USuspenseCoreEquipmentTransactionProcessor::ExecuteCommit(FTransactionExecu
         }
 
         // Неизвестные тэги — не валим транзакцию, только логируем (расширяйте по мере добавления типов)
-        UE_LOG(LogEquipmentTransaction, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
             TEXT("ExecuteCommit: Unknown op tag %s; skipping"), *Op.OperationType.ToString());
     }
 
-    UE_LOG(LogEquipmentTransaction, Verbose,
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
         TEXT("ExecuteCommit: applied %d ops (notify=false)"), Context.Operations.Num());
     return true;
 }
@@ -1861,7 +1859,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ExecuteRollback(FTransactionExe
     
     if (!DataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentTransaction, Error, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
             TEXT("ExecuteRollback: No data provider"));
         return false;
     }
@@ -1871,12 +1869,12 @@ bool USuspenseCoreEquipmentTransactionProcessor::ExecuteRollback(FTransactionExe
     
     if (!bSuccess)
     {
-        UE_LOG(LogEquipmentTransaction, Error, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
             TEXT("ExecuteRollback: Failed to restore initial snapshot"));
         return false;
     }
     
-    UE_LOG(LogEquipmentTransaction, Verbose, 
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose, 
         TEXT("ExecuteRollback: Successfully restored initial state"));
     
     return true;
@@ -1975,7 +1973,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ApplyOperation(
         return true;
     }
 
-    UE_LOG(LogEquipmentTransaction, Verbose,
+    UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
         TEXT("ApplyOperation: unknown tag %s"), *Operation.OperationType.ToString());
     return false;
 }
@@ -1984,7 +1982,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ReverseOperation(const FTransac
 {
     if (!Operation.bReversible)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("ReverseOperation: Operation %s is not reversible"), 
             *Operation.OperationId.ToString());
         return false;
@@ -2022,7 +2020,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::RestoreStateSnapshot(const FEqu
 {
     if (!DataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentTransaction, Error, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Error, 
             TEXT("RestoreStateSnapshot: No data provider"));
         return false;
     }
@@ -2036,7 +2034,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ValidateStateConsistency(const 
     // Basic validation
     if (!State.IsValid())
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("ValidateStateConsistency: Invalid snapshot"));
         return false;
     }
@@ -2049,7 +2047,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ValidateStateConsistency(const 
         {
             if (InstanceIds.Contains(SlotSnapshot.ItemInstance.InstanceID))
             {
-                UE_LOG(LogEquipmentTransaction, Warning, 
+                UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                     TEXT("ValidateStateConsistency: Duplicate instance ID %s found"), 
                     *SlotSnapshot.ItemInstance.InstanceID.ToString());
                 return false;
@@ -2063,7 +2061,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::ValidateStateConsistency(const 
     {
         if (!SlotSnapshot.Configuration.SlotTag.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("ValidateStateConsistency: Invalid slot tag at index %d"), 
                 SlotSnapshot.SlotIndex);
             return false;
@@ -2136,7 +2134,7 @@ void USuspenseCoreEquipmentTransactionProcessor::CleanupExpiredTransactions()
     // Rollback expired transactions WITHOUT lock
     for (const FGuid& TransactionId : ExpiredTransactions)
     {
-        UE_LOG(LogEquipmentTransaction, Warning, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
             TEXT("CleanupExpiredTransactions: Rolling back expired transaction %s"), 
             *TransactionId.ToString());
         
@@ -2145,7 +2143,7 @@ void USuspenseCoreEquipmentTransactionProcessor::CleanupExpiredTransactions()
     
     if (ExpiredTransactions.Num() > 0)
     {
-        UE_LOG(LogEquipmentTransaction, Log, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Log, 
             TEXT("CleanupExpiredTransactions: Cleaned up %d expired transactions"), 
             ExpiredTransactions.Num());
     }
@@ -2157,7 +2155,7 @@ void USuspenseCoreEquipmentTransactionProcessor::LogTransactionEvent(
 {
     if (bEnableLogging)
     {
-        UE_LOG(LogEquipmentTransaction, Verbose, 
+        UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose, 
             TEXT("[Transaction %s] %s"), 
             *TransactionId.ToString().Left(8), 
             *Event);
@@ -2257,7 +2255,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         
         if (!TransactionId.IsValid())
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction(Deltas): Invalid transaction ID"));
             return false;
         }
@@ -2266,7 +2264,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         FTransactionExecutionContext* Context = FindExecutionContext(TransactionId);
         if (!Context)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction(Deltas): Transaction %s not found"), 
                 *TransactionId.ToString());
             return false;
@@ -2276,7 +2274,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         OldState = Context->TransactionData.State;
         if (Context->TransactionData.State != ETransactionState::Active)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction(Deltas): Transaction %s is not active (state: %d)"), 
                 *TransactionId.ToString(), (int32)Context->TransactionData.State);
             return false;
@@ -2285,7 +2283,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         // Check if current transaction (must be top of stack for proper nesting)
         if (TransactionStack.Num() > 0 && TransactionStack.Last() != TransactionId)
         {
-            UE_LOG(LogEquipmentTransaction, Warning, 
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                 TEXT("CommitTransaction(Deltas): Transaction %s is not the current transaction"), 
                 *TransactionId.ToString());
             return false;
@@ -2294,7 +2292,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         // Validate transaction
         if (!ValidateTransaction_NoLock(TransactionId))
         {
-            UE_LOG(LogEquipmentTransaction, Error,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Error,
                 TEXT("CommitTransaction(Deltas): Transaction %s validation failed"),
                 *TransactionId.ToString());
             Context->TransactionData.State = ETransactionState::Failed;
@@ -2381,7 +2379,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
             // Auto-recovery attempt
             if (bAutoRecovery)
             {
-                UE_LOG(LogEquipmentTransaction, Warning, 
+                UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning, 
                     TEXT("CommitTransaction(Deltas): Attempting auto-recovery for transaction %s"), 
                     *TransactionId.ToString());
                 
@@ -2413,7 +2411,7 @@ bool USuspenseCoreEquipmentTransactionProcessor::CommitTransaction(const FGuid& 
         
         if (bEnableLogging)
         {
-            UE_LOG(LogEquipmentTransaction, Verbose,
+            UE_LOG(LogSuspenseCoreEquipmentTransaction, Verbose,
                 TEXT("CommitTransaction(Deltas): Published %d deltas in %.2fms"),
                 Deltas.Num(), DeltaPublishMs);
         }

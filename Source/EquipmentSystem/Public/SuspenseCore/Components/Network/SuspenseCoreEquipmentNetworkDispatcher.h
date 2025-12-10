@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Delegates/Delegate.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkDispatcher.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"

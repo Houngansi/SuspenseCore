@@ -2,9 +2,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreReplicationProvider.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Serialization/FastArraySerializer.h"
@@ -106,7 +106,7 @@ struct FSuspenseCoreReplicationStatistics
 };
 
 UCLASS(ClassGroup=(Equipment),meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentReplicationManager : public UActorComponent, public ISuspenseReplicationProvider
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentReplicationManager : public UActorComponent, public ISuspenseCoreReplicationProvider
 {
     GENERATED_BODY()
 public:
@@ -118,14 +118,14 @@ public:
     virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
     virtual void MarkForReplication(int32 SlotIndex,bool bForceUpdate=false) override;
-    virtual FReplicatedEquipmentData GetReplicatedData()const override;
-    virtual void ApplyReplicatedData(const FReplicatedEquipmentData& Data,bool bIsInitialReplication=false) override;
-    virtual void SetReplicationPolicy(EEquipmentReplicationPolicy Policy) override;
+    virtual FSuspenseCoreReplicatedData GetReplicatedData()const override;
+    virtual void ApplyReplicatedData(const FSuspenseCoreReplicatedData& Data,bool bIsInitialReplication=false) override;
+    virtual void SetReplicationPolicy(ESuspenseCoreReplicationPolicy Policy) override;
     virtual void ForceFullReplication() override;
     virtual bool ShouldReplicateTo(APlayerController* ViewTarget)const override;
     virtual bool GetReplicationPriority(APlayerController* ViewTarget,float& OutPriority)const override;
-    virtual FReplicatedEquipmentData OptimizeReplicationData(const FReplicatedEquipmentData& Data)const override;
-    virtual FReplicatedEquipmentData GetReplicationDelta(uint32 LastVersion)const override;
+    virtual FSuspenseCoreReplicatedData OptimizeReplicationData(const FSuspenseCoreReplicatedData& Data)const override;
+    virtual FSuspenseCoreReplicatedData GetReplicationDelta(uint32 LastVersion)const override;
     virtual void OnReplicationCallback(const FName& PropertyName) override;
 
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Replication")
@@ -143,11 +143,11 @@ public:
     UFUNCTION(BlueprintCallable,Category="SuspenseCoreCore|Equipment|Replication")
     FSuspenseCoreReplicationStatistics GetStatistics()const{return Statistics;}
 
-    DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataReplicated,APlayerController*,const FReplicatedEquipmentData&);
+    DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataReplicated,APlayerController*,const FSuspenseCoreReplicatedData&);
     FOnDataReplicated OnDataReplicated;
     DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplicationFailed,APlayerController*,const FText&);
     FOnReplicationFailed OnReplicationFailed;
-    DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplicatedStateApplied,const FReplicatedEquipmentData&);
+    DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplicatedStateApplied,const FSuspenseCoreReplicatedData&);
     FOnReplicatedStateApplied OnReplicatedStateApplied;
 
     friend struct FSuspenseCoreReplicatedSlotItem;
@@ -167,16 +167,16 @@ protected:
 
     void ProcessReplication();
     void UpdateClientReplication(FSuspenseCoreClientReplicationState& ClientState);
-    FReplicatedEquipmentData BuildReplicationData(APlayerController* Client,bool bForceFull)const;
+    FSuspenseCoreReplicatedData BuildReplicationData(APlayerController* Client,bool bForceFull)const;
     FSuspenseCoreReplicationDeltaMask BuildDeltaMask(uint32 FromVersion,uint32 ToVersion)const;
     FString GenerateSlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData)const;
     bool VerifySlotHMAC(const FSuspenseCoreInventoryItemInstance& SlotData,const FString& HMACSignature)const;
-    FSuspenseCoreCompressedReplicationData CompressData(const FReplicatedEquipmentData& Data)const;
-    bool DecompressData(const FSuspenseCoreCompressedReplicationData& Compressed,FReplicatedEquipmentData& OutData)const;
+    FSuspenseCoreCompressedReplicationData CompressData(const FSuspenseCoreReplicatedData& Data)const;
+    bool DecompressData(const FSuspenseCoreCompressedReplicationData& Compressed,FSuspenseCoreReplicatedData& OutData)const;
     float CalculateEnhancedRelevancy(APlayerController* ViewTarget)const;
     void UpdateSlotPriority(int32 SlotIndex);
     bool SlotNeedsReplication(int32 SlotIndex,uint32 ClientVersion)const;
-    uint32 CalculateChecksum(const FReplicatedEquipmentData& Data)const;
+    uint32 CalculateChecksum(const FSuspenseCoreReplicatedData& Data)const;
     void OnDataChanged(int32 SlotIndex,const FSuspenseCoreInventoryItemInstance& NewData);
     void CleanupClientStates();
     void UpdateStatistics(int32 BytesSent,bool bWasDelta);
@@ -194,7 +194,7 @@ private:
     UPROPERTY() TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
     UPROPERTY() USuspenseCoreEquipmentNetworkService* SecurityService=nullptr;
 
-    UPROPERTY() EEquipmentReplicationPolicy CurrentPolicy=EEquipmentReplicationPolicy::OnlyToRelevant;
+    UPROPERTY() ESuspenseCoreReplicationPolicy CurrentPolicy=ESuspenseCoreReplicationPolicy::OnlyToRelevant;
     UPROPERTY() TArray<FSuspenseCoreSlotReplicationState> SlotStates;
     TArray<FSuspenseCoreClientReplicationState> ClientStates;
     TSet<int32> DirtySlots;

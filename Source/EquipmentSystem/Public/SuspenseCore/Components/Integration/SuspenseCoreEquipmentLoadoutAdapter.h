@@ -12,7 +12,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
-#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventoryBridge.h"
@@ -102,11 +102,11 @@ public:
 protected:
 	// Построение операций для OperationService
 	TArray<FEquipmentOperationRequest> CreateOperationsFromLoadout(const FSuspenseCoreLoadoutConfiguration& Config) const;
-	FEquipmentOperationRequest CreateEquipOperation(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const;
+	FEquipmentOperationRequest CreateEquipOperation(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId, int32 SlotIndex) const;
 
 	// Валидация
 	bool ValidateLoadoutConfiguration(const FSuspenseCoreLoadoutConfiguration& Config, const FSuspenseCoreLoadoutValidationOptions& Options, TArray<FText>& OutErrors) const;
-	bool CheckSlotCompatibility(const FSuspenseCoreEquipmentSlotConfig& SlotConfig, const FName& ItemId) const;
+	bool CheckSlotCompatibility(const FEquipmentSlotConfig& SlotConfig, const FName& ItemId) const;
 	bool CheckInventorySpace(const FSuspenseCoreLoadoutConfiguration& Config) const;
 	bool CheckItemAvailability(const FName& ItemId) const;
 

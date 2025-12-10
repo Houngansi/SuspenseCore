@@ -80,7 +80,7 @@ FSuspenseCoreRuleCheckResult USuspenseCoreCompatibilityRulesEngine::CheckItemCom
 	// Base: delegate to SlotValidator (public API, no access to protected methods)
 	if (IsValid(SlotValidator))
 	{
-		const FSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
+		const FSuspenseCoreSlotValidationResult VR = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
 		FSuspenseCoreRuleCheckResult R = Convert(VR);
 		if (!R.bPassed) { return R; } // short-circuit on hard fail
 	}

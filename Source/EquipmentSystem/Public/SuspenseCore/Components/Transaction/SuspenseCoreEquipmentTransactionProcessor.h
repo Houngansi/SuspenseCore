@@ -65,7 +65,7 @@ struct FSuspenseCoreTransactionExecutionContext
 
     /** Operations in this transaction */
     UPROPERTY()
-    TArray<FTransactionOperation> Operations;
+    TArray<FSuspenseCoreTransactionOperation> Operations;
 
     /** Savepoints in this transaction */
     UPROPERTY()
@@ -85,7 +85,7 @@ struct FSuspenseCoreTransactionExecutionContext
 
     /** Generated deltas during this transaction */
     UPROPERTY()
-    TArray<FEquipmentDelta> GeneratedDeltas;
+    TArray<FSuspenseCoreEquipmentDelta> GeneratedDeltas;
 };
 
 /**
@@ -110,7 +110,7 @@ struct FSuspenseCoreTransactionValidationResult
 
     /** Conflicting operations */
     UPROPERTY()
-    TArray<FTransactionOperation> Conflicts;
+    TArray<FSuspenseCoreTransactionOperation> Conflicts;
 };
 
 /** Delegate for transaction delta notifications */
@@ -229,7 +229,7 @@ public:
      * @return Operation ID
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Transaction")
-    FGuid RecordDetailedOperation(const FTransactionOperation& Operation);
+    FGuid RecordDetailedOperation(const FSuspenseCoreTransactionOperation& Operation);
 
     /**
      * Release savepoint
@@ -289,7 +289,7 @@ public:
      * @return Array of conflicting operations
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Validation")
-    TArray<FTransactionOperation> CheckForConflicts(const FGuid& TransactionId) const;
+    TArray<FSuspenseCoreTransactionOperation> CheckForConflicts(const FGuid& TransactionId) const;
 
     /**
      * Resolve transaction conflicts

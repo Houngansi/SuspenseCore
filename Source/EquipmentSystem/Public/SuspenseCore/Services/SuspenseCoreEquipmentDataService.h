@@ -22,7 +22,7 @@
 class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreEquipmentTransactionProcessor;
 class USuspenseCoreEquipmentSlotValidator;
-struct FEquipmentDelta;
+struct FSuspenseCoreEquipmentDelta;
 class USuspenseCoreItemManager;
 /** Delegate for equipment delta notifications from service */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnServiceEquipmentDelta, const FEquipmentDelta&);
@@ -237,7 +237,7 @@ public:
      * @return Recent deltas in reverse chronological order
      */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Delta")
-    TArray<FEquipmentDelta> GetRecentDeltas(int32 MaxCount = 10) const;
+    TArray<FSuspenseCoreEquipmentDelta> GetRecentDeltas(int32 MaxCount = 10) const;
 
     /**
      * Get delta statistics
@@ -436,7 +436,7 @@ private:
 
     /** Recent delta history for debugging/replay */
     UPROPERTY()
-    TArray<FEquipmentDelta> RecentDeltaHistory;
+    TArray<FSuspenseCoreEquipmentDelta> RecentDeltaHistory;
 
     /** Maximum deltas to keep in history */
     static constexpr int32 MaxDeltaHistory = 100;

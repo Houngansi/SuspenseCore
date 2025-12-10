@@ -79,7 +79,7 @@ struct FSuspenseCoreBatchValidationRequest
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite)
-	TArray<FTransactionOperation> Operations;
+	TArray<FSuspenseCoreTransactionOperation> Operations;
 
 	UPROPERTY()
 	TScriptInterface<ISuspenseCoreEquipmentDataProvider> DataProvider;
@@ -213,20 +213,20 @@ public:
 	//===============================
 	// ISuspenseSlotValidator
 	//===============================
-	virtual FSlotValidationResult CanPlaceItemInSlot(
+	virtual FSuspenseCoreSlotValidationResult CanPlaceItemInSlot(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
 
-	virtual FSlotValidationResult CanSwapItems(
+	virtual FSuspenseCoreSlotValidationResult CanSwapItems(
 		const FEquipmentSlotConfig& SlotConfigA,
 		const FSuspenseCoreInventoryItemInstance& ItemA,
 		const FEquipmentSlotConfig& SlotConfigB,
 		const FSuspenseCoreInventoryItemInstance& ItemB) const override;
 
-	virtual FSlotValidationResult ValidateSlotConfiguration(
+	virtual FSuspenseCoreSlotValidationResult ValidateSlotConfiguration(
 		const FEquipmentSlotConfig& SlotConfig) const override;
 
-	virtual FSlotValidationResult CheckSlotRequirements(
+	virtual FSuspenseCoreSlotValidationResult CheckSlotRequirements(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FGameplayTagContainer& Requirements) const override;
 
@@ -293,11 +293,11 @@ protected:
 	//===============================
 	// No-lock core (read-only path)
 	//===============================
-	FSlotValidationResult CanPlaceItemInSlot_NoLock(
+	FSuspenseCoreSlotValidationResult CanPlaceItemInSlot_NoLock(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
-	FSlotValidationResult ExecuteValidationRules_NoLock(
+	FSuspenseCoreSlotValidationResult ExecuteValidationRules_NoLock(
 		const FSuspenseCoreInventoryItemInstance& ItemInstance,
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreSlotRestrictionData* Restrictions) const;

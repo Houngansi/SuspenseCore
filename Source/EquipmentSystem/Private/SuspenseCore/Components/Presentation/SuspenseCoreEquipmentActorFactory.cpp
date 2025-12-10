@@ -58,20 +58,20 @@ void USuspenseCoreEquipmentActorFactory::BeginPlay()
         {
             Locator->RegisterServiceInstance(FactoryTag, this);
 
-            UE_LOG(LogEquipmentOperation, Log,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
                 TEXT("✓ ActorFactory registered as service: Service.ActorFactory"));
         }
         else
         {
-            UE_LOG(LogEquipmentOperation, Warning,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
                 TEXT("ActorFactory already registered in ServiceLocator"));
         }
     }
     else
     {
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("❌ Failed to get ServiceLocator - ActorFactory NOT registered!"));
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("   VisualizationService will use fallback spawn and actors won't be pooled"));
     }
 
@@ -106,7 +106,7 @@ void USuspenseCoreEquipmentActorFactory::EndPlay(const EEndPlayReason::Type EndP
         {
             Locator->UnregisterService(FactoryTag, /*bForceShutdown=*/false);
 
-            UE_LOG(LogEquipmentOperation, Log,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
                 TEXT("ActorFactory unregistered from ServiceLocator"));
         }
     }
@@ -168,7 +168,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     {
         Result.bSuccess = false;
         Result.FailureReason = FText::FromString(TEXT("ItemManager subsystem not available"));
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] ItemManager not found - cannot load item data"));
         return Result;
     }
@@ -181,13 +181,13 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         Result.FailureReason = FText::FromString(
             FString::Printf(TEXT("Item data not found for ItemID: %s"),
             *Params.ItemInstance.ItemID.ToString()));
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] Failed to load item data for ItemID: %s"),
             *Params.ItemInstance.ItemID.ToString());
         return Result;
     }
 
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] Loaded ItemData for %s: Type=%s, IsWeapon=%d, IsEquippable=%d"),
         *Params.ItemInstance.ItemID.ToString(),
         *ItemData.ItemType.ToString(),
@@ -216,7 +216,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
             // These keys match ConfigureEquipmentActor expectations
             EnrichedInstance.SetRuntimeProperty(TEXT("CurrentAmmo"), 30.0f);
 
-            UE_LOG(LogEquipmentOperation, Verbose,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Initialized CurrentAmmo=30 for weapon %s"),
                 *ItemData.ItemID.ToString());
         }
@@ -225,7 +225,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         {
             EnrichedInstance.SetRuntimeProperty(TEXT("RemainingAmmo"), 90.0f);
 
-            UE_LOG(LogEquipmentOperation, Verbose,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Initialized RemainingAmmo=90 for weapon %s"),
                 *ItemData.ItemID.ToString());
         }
@@ -244,7 +244,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         {
             ActorClass = ItemData.EquipmentActorClass.Get();
 
-            UE_LOG(LogEquipmentOperation, Verbose,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
                 TEXT("[SpawnEquipmentActor] Using already loaded ActorClass: %s"),
                 *ActorClass->GetName());
         }
@@ -255,7 +255,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
 
             if (ActorClass)
             {
-                UE_LOG(LogEquipmentOperation, Log,
+                UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
                     TEXT("[SpawnEquipmentActor] Loaded ActorClass synchronously: %s"),
                     *ActorClass->GetName());
             }
@@ -265,7 +265,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     if (!ActorClass)
     {
         // Fallback to cache-based resolution (last resort)
-        UE_LOG(LogEquipmentOperation, Warning,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
             TEXT("[SpawnEquipmentActor] EquipmentActorClass is null in DataTable, trying cache fallback"));
 
         ActorClass = GetActorClassForItem(Params.ItemInstance.ItemID);
@@ -275,13 +275,13 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     {
         Result.bSuccess = false;
         Result.FailureReason = FText::FromString(TEXT("Actor class not found"));
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] No valid ActorClass for ItemID: %s - DataTable EquipmentActorClass is null or invalid"),
             *Params.ItemInstance.ItemID.ToString());
         return Result;
     }
 
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] Resolved ActorClass: %s for ItemID: %s"),
         *ActorClass->GetName(),
         *Params.ItemInstance.ItemID.ToString());
@@ -297,13 +297,13 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         {
             Result.bSuccess = false;
             Result.FailureReason = FText::FromString(TEXT("Failed to spawn actor"));
-            UE_LOG(LogEquipmentOperation, Error,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
                 TEXT("[SpawnEquipmentActor] SpawnActorInternal failed for class: %s"),
                 *ActorClass->GetName());
             return Result;
         }
 
-        UE_LOG(LogEquipmentOperation, Log,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
             TEXT("[SpawnEquipmentActor] ✓ Spawned new actor: %s"),
             *SpawnedActor->GetName());
     }
@@ -315,7 +315,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         SpawnedActor->SetActorEnableCollision(true);
         SpawnedActor->SetActorTickEnabled(true);
 
-        UE_LOG(LogEquipmentOperation, Log,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
             TEXT("[SpawnEquipmentActor] ✓ Reused pooled actor: %s"),
             *SpawnedActor->GetName());
     }
@@ -327,7 +327,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     // Actor will internally query ItemManager for full DataTable data via ItemID
     if (!ConfigureEquipmentActor(SpawnedActor, EnrichedInstance))
     {
-        UE_LOG(LogEquipmentOperation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] ConfigureEquipmentActor failed for actor: %s"),
             *SpawnedActor->GetName());
         DestroyEquipmentActor(SpawnedActor, true);
@@ -336,7 +336,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
         return Result;
     }
 
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓ Successfully configured actor: %s"),
         *SpawnedActor->GetName());
 
@@ -354,7 +354,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     {
         RegisterSpawnedActor(SpawnedActor, SlotIndex);
 
-        UE_LOG(LogEquipmentOperation, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
             TEXT("[SpawnEquipmentActor] ✓ Registered actor in slot: %d"), SlotIndex);
     }
 
@@ -367,15 +367,15 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     // Broadcast event via EventBus for inter-component communication
     BroadcastActorSpawned(SpawnedActor, EnrichedInstance.ItemID, SlotIndex);
 
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓✓✓ SUCCESS ✓✓✓"));
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("  Spawned: %s"), *SpawnedActor->GetName());
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("  ItemID: %s"), *EnrichedInstance.ItemID.ToString());
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("  InstanceID: %s"), *EnrichedInstance.InstanceID.ToString());
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("  RuntimeProperties: %d"), EnrichedInstance.RuntimeProperties.Num());
 
     return Result;
@@ -968,7 +968,7 @@ bool USuspenseCoreEquipmentActorFactory::IsActorValid(AActor* Actor) const
 void USuspenseCoreEquipmentActorFactory::LogFactoryOperation(const FString& Operation, const FString& Details) const
 {
     // Категория логов актуализирована под EquipmentServiceMacros.h
-    UE_LOG(LogEquipmentOperation, Verbose, TEXT("[EquipmentActorFactory] %s: %s"), *Operation, *Details);
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose, TEXT("[EquipmentActorFactory] %s: %s"), *Operation, *Details);
 }
 
 // ============================================================================
@@ -987,7 +987,7 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
 
     if (!EventBus)
     {
-        UE_LOG(LogEquipmentOperation, Warning,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
             TEXT("[ActorFactory] EventBus not available via EventManager"));
         return;
     }
@@ -996,7 +996,7 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
     Tag_Visual_Destroyed = Event::TAG_Equipment_Event_Visual_Detached;
 
-    UE_LOG(LogEquipmentOperation, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[ActorFactory] EventBus integration initialized"));
 }
 
@@ -1015,7 +1015,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, co
 
     EventBus->Publish(Tag_Visual_Spawned, EventData);
 
-    UE_LOG(LogEquipmentOperation, Verbose,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
         TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Slot=%d"),
         *ItemId.ToString(), SlotIndex);
 }
@@ -1033,7 +1033,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, 
 
     EventBus->Publish(Tag_Visual_Destroyed, EventData);
 
-    UE_LOG(LogEquipmentOperation, Verbose,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
         TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s"),
         *ItemId.ToString());
 }

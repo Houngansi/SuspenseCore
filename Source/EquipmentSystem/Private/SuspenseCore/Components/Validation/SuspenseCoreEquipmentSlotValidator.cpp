@@ -40,7 +40,7 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
     const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
     // ДИАГНОСТИКА: Логируем ВСЕ попытки валидации
-    UE_LOG(LogEquipmentValidation, Warning,
+    UE_LOG(LogSuspenseCoreEquipmentValidation, Warning,
         TEXT("🔴 VALIDATOR CALLED: Item=%s, Slot=%s"),
         *ItemInstance.ItemID.ToString(),
         *SlotConfig.SlotTag.ToString());
@@ -55,7 +55,7 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
         CacheKey = GenerateCacheKey(ItemInstance, SlotConfig);
 
         // ДИАГНОСТИКА: Логируем ключ кеша
-        UE_LOG(LogEquipmentValidation, Warning,
+        UE_LOG(LogSuspenseCoreEquipmentValidation, Warning,
             TEXT("   Cache Key: %s"), *CacheKey);
 
         FSuspenseCoreSlotValidationResult Cached;
@@ -64,13 +64,13 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
             CacheHitCount.fetch_add(1, std::memory_order_relaxed);
 
             // ДИАГНОСТИКА: Логируем кеш-хит
-            UE_LOG(LogEquipmentValidation, Error,
+            UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
                 TEXT("   🟡 CACHE HIT! Returning cached result: %s"),
                 Cached.bIsValid ? TEXT("PASS") : TEXT("FAIL"));
 
             if (!Cached.bIsValid)
             {
-                UE_LOG(LogEquipmentValidation, Error,
+                UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
                     TEXT("   ❌ Cached FAIL reason: %s"),
                     *Cached.ErrorMessage.ToString());
             }
@@ -80,7 +80,7 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
         CacheMissCount.fetch_add(1, std::memory_order_relaxed);
 
         // ДИАГНОСТИКА: Логируем кеш-мисс
-        UE_LOG(LogEquipmentValidation, Warning,
+        UE_LOG(LogSuspenseCoreEquipmentValidation, Warning,
             TEXT("   🟢 CACHE MISS - Will perform real validation"));
     }
 
@@ -88,13 +88,13 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
     const FSuspenseCoreSlotValidationResult Result = CanPlaceItemInSlot_NoLock(SlotConfig, ItemInstance);
 
     // ДИАГНОСТИКА: Логируем результат реальной валидации
-    UE_LOG(LogEquipmentValidation, Warning,
+    UE_LOG(LogSuspenseCoreEquipmentValidation, Warning,
         TEXT("   Real validation result: %s"),
         Result.bIsValid ? TEXT("✅ PASS") : TEXT("❌ FAIL"));
 
     if (!Result.bIsValid)
     {
-        UE_LOG(LogEquipmentValidation, Error,
+        UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
             TEXT("   FAIL reason: %s"),
             *Result.ErrorMessage.ToString());
     }
@@ -104,7 +104,7 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
         FScopeLock L(&CacheLock);
         CacheValidationResult(CacheKey, Result);
 
-        UE_LOG(LogEquipmentValidation, Log,
+        UE_LOG(LogSuspenseCoreEquipmentValidation, Log,
             TEXT("   Cached new result: %s"),
             Result.bIsValid ? TEXT("PASS") : TEXT("FAIL"));
     }
@@ -517,7 +517,7 @@ bool USuspenseCoreEquipmentSlotValidator::RegisterValidationRule(
 	{
 		if (R.RuleTag == RuleTag)
 		{
-			UE_LOG(LogEquipmentValidation, Warning, TEXT("Rule already registered: %s"), *RuleTag.ToString());
+			UE_LOG(LogSuspenseCoreEquipmentValidation, Warning, TEXT("Rule already registered: %s"), *RuleTag.ToString());
 			return false;
 		}
 	}
@@ -576,7 +576,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeDefaultRules()
 
 void USuspenseCoreEquipmentSlotValidator::ClearValidationCache()
 {
-	UE_LOG(LogEquipmentValidation, Error,
+	UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
 		TEXT("=== CLEARING VALIDATION CACHE ==="));
 
 	FScopeLock L(&CacheLock);
@@ -587,7 +587,7 @@ void USuspenseCoreEquipmentSlotValidator::ClearValidationCache()
 	ValidationCache.Empty();
 	ExtendedCache.Empty();
 
-	UE_LOG(LogEquipmentValidation, Error,
+	UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
 		TEXT("Cache cleared: Base(%d) + Extended(%d) entries removed"),
 		OldCacheSize, OldExtendedSize);
 }
@@ -785,36 +785,36 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 	TypeRule.bIsStrict = true;
 	TypeRule.RuleFunction = [this](const FSuspenseCoreInventoryItemInstance& Item, const FEquipmentSlotConfig& Slot, const FSlotRestrictionData*)
 	{
-		UE_LOG(LogEquipmentValidation, Error, TEXT("    🔵 TypeRule executing..."));
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("    🔵 TypeRule executing..."));
 
 		// Достаём тип из unified item data
 		FSuspenseCoreUnifiedItemData Data;
 		const bool bGotData = GetItemData(Item.ItemID, Data);
 
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       GetItemData result: %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       GetItemData result: %s"),
 			bGotData ? TEXT("SUCCESS") : TEXT("FAILED"));
 
 		if (!bGotData)
 		{
-			UE_LOG(LogEquipmentValidation, Error, TEXT("       ❌ Cannot get item data for: %s"),
+			UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       ❌ Cannot get item data for: %s"),
 				*Item.ItemID.ToString());
 			return false;
 		}
 
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       Item Type: %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       Item Type: %s"),
 			Data.ItemType.IsValid() ? *Data.ItemType.ToString() : TEXT("NONE"));
 
 		// Проверяем Allowed/Disallowed в конфиге + матрицу
 		const bool bSlotAllows = Slot.CanEquipItemType(Data.ItemType);
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       Slot.CanEquipItemType: %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       Slot.CanEquipItemType: %s"),
 			bSlotAllows ? TEXT("TRUE") : TEXT("FALSE"));
 
 		const bool bMatrixOk = IsItemTypeCompatibleWithSlot(Data.ItemType, Slot.SlotType);
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       IsItemTypeCompatibleWithSlot: %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       IsItemTypeCompatibleWithSlot: %s"),
 			bMatrixOk ? TEXT("TRUE") : TEXT("FALSE"));
 
 		const bool bFinalResult = bSlotAllows && bMatrixOk;
-		UE_LOG(LogEquipmentValidation, Error, TEXT("       🎯 TypeRule FINAL: %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("       🎯 TypeRule FINAL: %s"),
 			bFinalResult ? TEXT("✅ PASS") : TEXT("❌ FAIL"));
 
 		return bFinalResult;
@@ -1018,25 +1018,25 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::ValidateU
 
 bool USuspenseCoreEquipmentSlotValidator::GetItemData(const FName& ItemID, FSuspenseCoreUnifiedItemData& OutData) const
 {
-	UE_LOG(LogEquipmentValidation, Error, TEXT("      GetItemData called for: %s"), *ItemID.ToString());
+	UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("      GetItemData called for: %s"), *ItemID.ToString());
 
 	// Внедрённый провайдер — авторитетный источник
 	{
 		FScopeLock DL(&DataLock);
 
-		UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider.IsValid(): %s"),
+		UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("      ItemDataProvider.IsValid(): %s"),
 			ItemDataProvider.IsValid() ? TEXT("TRUE") : TEXT("FALSE"));
 
 		if (ItemDataProvider.IsValid())
 		{
 			const bool bResult = ItemDataProvider->GetUnifiedItemData(ItemID, OutData);
 
-			UE_LOG(LogEquipmentValidation, Error, TEXT("      ItemDataProvider->GetUnifiedItemData result: %s"),
+			UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("      ItemDataProvider->GetUnifiedItemData result: %s"),
 				bResult ? TEXT("SUCCESS") : TEXT("FAILED"));
 
 			if (bResult)
 			{
-				UE_LOG(LogEquipmentValidation, Error, TEXT("      Retrieved ItemType: %s"),
+				UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("      Retrieved ItemType: %s"),
 					OutData.ItemType.IsValid() ? *OutData.ItemType.ToString() : TEXT("NONE"));
 			}
 
@@ -1044,7 +1044,7 @@ bool USuspenseCoreEquipmentSlotValidator::GetItemData(const FName& ItemID, FSusp
 		}
 	}
 
-	UE_LOG(LogEquipmentValidation, Error, TEXT("      ❌ No ItemDataProvider available!"));
+	UE_LOG(LogSuspenseCoreEquipmentValidation, Error, TEXT("      ❌ No ItemDataProvider available!"));
 	return false;
 }
 

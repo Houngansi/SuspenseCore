@@ -23,11 +23,11 @@ void USuspenseCoreEquipmentPredictionSystem::BeginPlay()
     {
         bPredictionEnabled=false;
         SetComponentTickEnabled(false);
-        UE_LOG(LogEquipmentPrediction,Log,TEXT("PredictionSystem: Disabled on server"));
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("PredictionSystem: Disabled on server"));
         return;
     }
     SubscribeToNetworkEvents();
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("PredictionSystem: Initialized for client prediction"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("PredictionSystem: Initialized for client prediction"));
 }
 
 void USuspenseCoreEquipmentPredictionSystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -88,13 +88,13 @@ FGuid USuspenseCoreEquipmentPredictionSystem::CreatePrediction(const FEquipmentO
     if(!bPredictionEnabled || GetOwnerRole()==ROLE_Authority){return FGuid();}
     if(!ShouldAllowPrediction(Operation))
     {
-        UE_LOG(LogEquipmentPrediction,Verbose,TEXT("CreatePrediction: denied for %s"),*UEnum::GetValueAsString(Operation.OperationType));
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("CreatePrediction: denied for %s"),*UEnum::GetValueAsString(Operation.OperationType));
         return FGuid();
     }
     FScopeLock Lock(&PredictionLock);
     if(ActivePredictions.Num()>=MaxActivePredictions)
     {
-        UE_LOG(LogEquipmentPrediction,Warning,TEXT("CreatePrediction: limit reached %d"),MaxActivePredictions);
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("CreatePrediction: limit reached %d"),MaxActivePredictions);
         return FGuid();
     }
     FSuspenseCorePrediction NewPrediction;
@@ -118,7 +118,7 @@ FGuid USuspenseCoreEquipmentPredictionSystem::CreatePrediction(const FEquipmentO
         LogPredictionEvent(TEXT("Created"),NewPrediction.PredictionId);
         return NewPrediction.PredictionId;
     }
-    UE_LOG(LogEquipmentPrediction,Warning,TEXT("CreatePrediction: local execution failed"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("CreatePrediction: local execution failed"));
     return FGuid();
 }
 
@@ -126,7 +126,7 @@ bool USuspenseCoreEquipmentPredictionSystem::ApplyPrediction(const FGuid& Predic
 {
     FScopeLock Lock(&PredictionLock);
     FSuspenseCorePrediction* P=ActivePredictions.FindByPredicate([&PredictionId](const FSuspenseCorePrediction& X){return X.PredictionId==PredictionId;});
-    if(!P){UE_LOG(LogEquipmentPrediction,Warning,TEXT("ApplyPrediction: not found %s"),*PredictionId.ToString());return false;}
+    if(!P){UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("ApplyPrediction: not found %s"),*PredictionId.ToString());return false;}
     if(DataProvider.GetInterface())
     {
         const bool bOk=DataProvider->RestoreSnapshot(P->PredictedState);
@@ -142,7 +142,7 @@ bool USuspenseCoreEquipmentPredictionSystem::ConfirmPrediction(const FGuid& Pred
     const int32 Index=ActivePredictions.IndexOfByPredicate([&PredictionId](const FSuspenseCorePrediction& X){return X.PredictionId==PredictionId;});
     if(Index==INDEX_NONE)
     {
-        UE_LOG(LogEquipmentPrediction,Verbose,TEXT("ConfirmPrediction: %s not found"),*PredictionId.ToString());
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("ConfirmPrediction: %s not found"),*PredictionId.ToString());
         return false;
     }
     FSuspenseCorePrediction& P=ActivePredictions[Index];
@@ -164,7 +164,7 @@ bool USuspenseCoreEquipmentPredictionSystem::ConfirmPrediction(const FGuid& Pred
     }
     else
     {
-        UE_LOG(LogEquipmentPrediction,Warning,TEXT("ConfirmPrediction: mismatch %s"),*PredictionId.ToString());
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("ConfirmPrediction: mismatch %s"),*PredictionId.ToString());
         RollbackPrediction(PredictionId,FText::FromString(TEXT("Server result mismatch")));
     }
     ActivePredictions.RemoveAt(Index);
@@ -199,10 +199,10 @@ bool USuspenseCoreEquipmentPredictionSystem::RollbackPrediction(const FGuid& Pre
         if(Later.Num()>0)
         {
             const int32 Reapplied=ReapplyPredictions(Later);
-            UE_LOG(LogEquipmentPrediction,Verbose,TEXT("RollbackPrediction: reapplied %d"),Reapplied);
+            UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("RollbackPrediction: reapplied %d"),Reapplied);
         }
     }
-    else{UE_LOG(LogEquipmentPrediction,Error,TEXT("RollbackPrediction: rewind failed %s"),*PredictionId.ToString());}
+    else{UE_LOG(LogSuspenseCoreEquipmentPrediction,Error,TEXT("RollbackPrediction: rewind failed %s"),*PredictionId.ToString());}
     return bOk;
 }
 
@@ -214,7 +214,7 @@ void USuspenseCoreEquipmentPredictionSystem::ReconcileWithServer(const FEquipmen
     ReconciliationState.StartTime=GetWorld()?GetWorld()->GetTimeSeconds():0.0f;
     ReconciliationState.ReconciliationCount++;
     OnReconciliationStarted.Broadcast();
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("ReconcileWithServer: start #%d"),ReconciliationState.ReconciliationCount);
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("ReconcileWithServer: start #%d"),ReconciliationState.ReconciliationCount);
     FScopeLock Lock(&PredictionLock);
     ReconciliationState.PendingReapplication.Empty();
     for(const FSuspenseCorePrediction& P:ActivePredictions){if(!P.bConfirmed && !P.bRolledBack){ReconciliationState.PendingReapplication.Add(P);}}
@@ -244,7 +244,7 @@ void USuspenseCoreEquipmentPredictionSystem::ReconcileWithServer(const FEquipmen
     ReconciliationState.bInProgress=false;
     ReconciliationState.PendingReapplication.Empty();
     OnReconciliationCompleted.Broadcast(Reapplied);
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("ReconcileWithServer: done, reapplied %d"),Reapplied);
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("ReconcileWithServer: done, reapplied %d"),Reapplied);
 }
 
 TArray<FSuspenseCorePrediction> USuspenseCoreEquipmentPredictionSystem::GetActivePredictions() const
@@ -270,7 +270,7 @@ int32 USuspenseCoreEquipmentPredictionSystem::ClearExpiredPredictions(float MaxA
     if(Removed>0)
     {
         Statistics.ActivePredictions=ActivePredictions.Num();
-        UE_LOG(LogEquipmentPrediction,Verbose,TEXT("ClearExpiredPredictions: removed %d"),Removed);
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("ClearExpiredPredictions: removed %d"),Removed);
     }
     return Removed;
 }
@@ -309,20 +309,20 @@ void USuspenseCoreEquipmentPredictionSystem::SetPredictionEnabled(bool bEnabled)
         OperationToPredictionMap.Empty();
         Statistics.ActivePredictions=0;
     }
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("SetPredictionEnabled: %s"),bEnabled?TEXT("enabled"):TEXT("disabled"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("SetPredictionEnabled: %s"),bEnabled?TEXT("enabled"):TEXT("disabled"));
 }
 
 bool USuspenseCoreEquipmentPredictionSystem::Initialize(TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider,TScriptInterface<ISuspenseCoreEquipmentOperations> InOperationExecutor)
 {
     if(!InDataProvider.GetInterface()||!InOperationExecutor.GetInterface())
     {
-        UE_LOG(LogEquipmentPrediction,Error,TEXT("Initialize: invalid deps"));
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Error,TEXT("Initialize: invalid deps"));
         return false;
     }
     DataProvider=InDataProvider;
     OperationExecutor=InOperationExecutor;
     ResetPredictionSystem();
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("Initialize: ok"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("Initialize: ok"));
     return true;
 }
 
@@ -335,7 +335,7 @@ void USuspenseCoreEquipmentPredictionSystem::SetNetworkDispatcher(USuspenseCoreE
     }
     NetworkDispatcher=InDispatcher;
     if(HasBegunPlay()){SubscribeToNetworkEvents();}
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("SetNetworkDispatcher: updated"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("SetNetworkDispatcher: updated"));
 }
 
 void USuspenseCoreEquipmentPredictionSystem::SetReplicationManager(USuspenseCoreEquipmentReplicationManager* InReplicationManager)
@@ -343,7 +343,7 @@ void USuspenseCoreEquipmentPredictionSystem::SetReplicationManager(USuspenseCore
     if(ReplicationManager){ReplicationManager->OnReplicatedStateApplied.RemoveAll(this);}
     ReplicationManager=InReplicationManager;
     if(HasBegunPlay()){SubscribeToNetworkEvents();}
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("SetReplicationManager: updated"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("SetReplicationManager: updated"));
 }
 
 void USuspenseCoreEquipmentPredictionSystem::ResetPredictionSystem()
@@ -363,7 +363,7 @@ void USuspenseCoreEquipmentPredictionSystem::ResetPredictionSystem()
     Statistics=FSuspenseCorePredictionStatistics();
     ReconciliationState=FSuspenseCoreReconciliationState();
     LatencySamples.Empty();
-    UE_LOG(LogEquipmentPrediction,Log,TEXT("ResetPredictionSystem: clean"));
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Log,TEXT("ResetPredictionSystem: clean"));
 }
 
 void USuspenseCoreEquipmentPredictionSystem::HandleServerResponse(const FGuid& OperationId,const FEquipmentOperationResult& Result)
@@ -379,7 +379,7 @@ void USuspenseCoreEquipmentPredictionSystem::HandleServerResponse(const FGuid& O
     }
     if(!PredictionId.IsValid())
     {
-        UE_LOG(LogEquipmentPrediction,Verbose,TEXT("HandleServerResponse: no mapping for op=%s"),*OperationId.ToString());
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("HandleServerResponse: no mapping for op=%s"),*OperationId.ToString());
         return;
     }
     if(Result.bSuccess){ConfirmPrediction(PredictionId,Result);}
@@ -389,7 +389,7 @@ void USuspenseCoreEquipmentPredictionSystem::HandleServerResponse(const FGuid& O
         FScopeLock Lock(&PredictionLock);
         OperationToPredictionMap.Remove(OperationId);
     }
-    UE_LOG(LogEquipmentPrediction,Verbose,TEXT("HandleServerResponse: processed op=%s"),*OperationId.ToString());
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("HandleServerResponse: processed op=%s"),*OperationId.ToString());
 }
 
 void USuspenseCoreEquipmentPredictionSystem::HandleOperationTimeout(const FGuid& OperationId)
@@ -399,7 +399,7 @@ void USuspenseCoreEquipmentPredictionSystem::HandleOperationTimeout(const FGuid&
     {
         HandlePredictionTimeout(*Pred);
         OperationToPredictionMap.Remove(OperationId);
-        UE_LOG(LogEquipmentPrediction,Warning,TEXT("HandleOperationTimeout: op=%s"),*OperationId.ToString());
+        UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("HandleOperationTimeout: op=%s"),*OperationId.ToString());
     }
 }
 
@@ -408,7 +408,7 @@ void USuspenseCoreEquipmentPredictionSystem::HandleReplicatedStateApplied(const 
     if(!DataProvider.GetInterface()){return;}
     FEquipmentStateSnapshot ServerState=DataProvider->CreateSnapshot();
     ReconcileWithServer(ServerState);
-    UE_LOG(LogEquipmentPrediction,Verbose,TEXT("HandleReplicatedStateApplied: version %d"),ReplicatedData.ReplicationVersion);
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("HandleReplicatedStateApplied: version %d"),ReplicatedData.ReplicationVersion);
 }
 
 bool USuspenseCoreEquipmentPredictionSystem::ExecutePredictionLocally(FSuspenseCorePrediction& Prediction)
@@ -431,7 +431,7 @@ int32 USuspenseCoreEquipmentPredictionSystem::ReapplyPredictions(const TArray<FS
     {
         FSuspenseCorePrediction Tmp=P;
         if(ExecutePredictionLocally(Tmp)){Count++;}
-        else{UE_LOG(LogEquipmentPrediction,Warning,TEXT("ReapplyPredictions: failed %s"),*P.PredictionId.ToString());}
+        else{UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("ReapplyPredictions: failed %s"),*P.PredictionId.ToString());}
     }
     return Count;
 }
@@ -439,7 +439,7 @@ int32 USuspenseCoreEquipmentPredictionSystem::ReapplyPredictions(const TArray<FS
 void USuspenseCoreEquipmentPredictionSystem::UpdateConfidence(bool bSuccess)
 {
     ConfidenceMetrics.UpdateMetrics(bSuccess);
-    UE_LOG(LogEquipmentPrediction,Verbose,TEXT("UpdateConfidence: SR=%.2f C=%.2f"),ConfidenceMetrics.SuccessRate,ConfidenceMetrics.ConfidenceLevel);
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("UpdateConfidence: SR=%.2f C=%.2f"),ConfidenceMetrics.SuccessRate,ConfidenceMetrics.ConfidenceLevel);
 }
 
 bool USuspenseCoreEquipmentPredictionSystem::ShouldAllowPrediction(const FEquipmentOperationRequest& Operation) const
@@ -502,7 +502,7 @@ bool USuspenseCoreEquipmentPredictionSystem::ValidatePrediction(const FSuspenseC
 
 void USuspenseCoreEquipmentPredictionSystem::HandlePredictionTimeout(const FGuid& PredictionId)
 {
-    UE_LOG(LogEquipmentPrediction,Warning,TEXT("HandlePredictionTimeout: %s"),*PredictionId.ToString());
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Warning,TEXT("HandlePredictionTimeout: %s"),*PredictionId.ToString());
     RollbackPrediction(PredictionId,FText::FromString(TEXT("Timeout")));
     UpdateConfidence(false);
 }
@@ -529,7 +529,7 @@ float USuspenseCoreEquipmentPredictionSystem::GetAdjustedConfidence(EEquipmentOp
 
 void USuspenseCoreEquipmentPredictionSystem::LogPredictionEvent(const FString& Event,const FGuid& PredictionId) const
 {
-    UE_LOG(LogEquipmentPrediction,Verbose,TEXT("[%s] Prediction %s C=%.2f Active=%d"),*Event,*PredictionId.ToString(),ConfidenceMetrics.ConfidenceLevel,Statistics.ActivePredictions);
+    UE_LOG(LogSuspenseCoreEquipmentPrediction,Verbose,TEXT("[%s] Prediction %s C=%.2f Active=%d"),*Event,*PredictionId.ToString(),ConfidenceMetrics.ConfidenceLevel,Statistics.ActivePredictions);
 }
 
 void USuspenseCoreEquipmentPredictionSystem::SubscribeToNetworkEvents()

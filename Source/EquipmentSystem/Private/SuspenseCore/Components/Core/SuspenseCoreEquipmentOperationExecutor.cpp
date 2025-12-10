@@ -9,9 +9,6 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
 
-// Define proper log category
-DEFINE_LOG_CATEGORY_STATIC(LogEquipmentExecutor, Log, All);
-
 // Constructor
 USuspenseCoreEquipmentOperationExecutor::USuspenseCoreEquipmentOperationExecutor()
 {
@@ -27,7 +24,7 @@ void USuspenseCoreEquipmentOperationExecutor::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(LogEquipmentExecutor, Log, TEXT("EquipmentOperationExecutor: Initialized as pure planner"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log, TEXT("EquipmentOperationExecutor: Initialized as pure planner"));
 }
 
 void USuspenseCoreEquipmentOperationExecutor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -165,7 +162,7 @@ bool USuspenseCoreEquipmentOperationExecutor::BuildPlan(
 
     if (bEnableDetailedLogging)
     {
-        UE_LOG(LogEquipmentExecutor, Verbose,
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
             TEXT("Built plan [%s]: %d steps, ~%.1fms, Idempotent=%s"),
             *OutPlan.PlanId.ToString(),
             OutPlan.Num(),
@@ -195,7 +192,7 @@ bool USuspenseCoreEquipmentOperationExecutor::ValidatePlan(
     {
         if (bRequireValidation)
         {
-            UE_LOG(LogEquipmentExecutor, Warning,
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
                 TEXT("Validation required but no validator available"));
         }
         SuccessfulValidations.fetch_add(1);
@@ -908,16 +905,16 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateQuickSwit
 FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperation(
     const FEquipmentOperationRequest& Request)
 {
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("╔═══════════════════════════════════════════════════════════╗"));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("║  ExecuteOperation START (PLANNER MODE)                   ║"));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Operation Type: %s"),
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("╔═══════════════════════════════════════════════════════════╗"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("║  ExecuteOperation START (PLANNER MODE)                   ║"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Operation Type: %s"),
         *UEnum::GetValueAsString(Request.OperationType));
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Item ID:        %s"),
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Item ID:        %s"),
         *Request.ItemInstance.ItemID.ToString());
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Instance ID:    %s"),
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Instance ID:    %s"),
         *Request.ItemInstance.InstanceID.ToString());
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("Target Slot:    %d"),
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Target Slot:    %d"),
         Request.TargetSlotIndex);
 
     FScopeLock Lock(&PlanningCriticalSection);
@@ -926,11 +923,11 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
     FSuspenseCoreTransactionPlan Plan;
     FText PlanError;
 
-    UE_LOG(LogEquipmentExecutor, Warning, TEXT("Building execution plan..."));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("Building execution plan..."));
 
     if (!BuildPlan(Request, Plan, PlanError))
     {
-        UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan building FAILED: %s"),
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("❌ Plan building FAILED: %s"),
             *PlanError.ToString());
 
         return FEquipmentOperationResult::CreateFailure(
@@ -940,18 +937,18 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
         );
     }
 
-    UE_LOG(LogEquipmentExecutor, Log, TEXT("✓ Plan built successfully: %d steps"),
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log, TEXT("✓ Plan built successfully: %d steps"),
         Plan.Num());
 
     // Validate plan if required
     if (bRequireValidation && SlotValidator.GetInterface())
     {
-        UE_LOG(LogEquipmentExecutor, Warning, TEXT("Validating plan..."));
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("Validating plan..."));
 
         FText ValidationError;
         if (!ValidatePlan(Plan, ValidationError))
         {
-            UE_LOG(LogEquipmentExecutor, Error, TEXT("❌ Plan validation FAILED: %s"),
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("❌ Plan validation FAILED: %s"),
                 *ValidationError.ToString());
 
             return FEquipmentOperationResult::CreateFailure(
@@ -961,7 +958,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
             );
         }
 
-        UE_LOG(LogEquipmentExecutor, Log, TEXT("✓ Plan validated successfully"));
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Log, TEXT("✓ Plan validated successfully"));
     }
 
     // Return success with plan metadata
@@ -972,11 +969,11 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
     Result.ResultMetadata.Add(TEXT("EstimatedMs"), FString::SanitizeFloat(Plan.EstimatedExecutionTimeMs));
     Result.ResultMetadata.Add(TEXT("Idempotent"), Plan.bIdempotent ? TEXT("true") : TEXT("false"));
 
-    UE_LOG(LogEquipmentExecutor, Warning, TEXT("⚠️ ExecuteOperation returns SUCCESS (plan created)"));
-    UE_LOG(LogEquipmentExecutor, Warning, TEXT("   BUT actual execution must happen in SERVICE LAYER!"));
-    UE_LOG(LogEquipmentExecutor, Warning, TEXT("   Plan ID: %s"), *Plan.PlanId.ToString());
-    UE_LOG(LogEquipmentExecutor, Warning, TEXT("   Steps: %d"), Plan.Num());
-    UE_LOG(LogEquipmentExecutor, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("⚠️ ExecuteOperation returns SUCCESS (plan created)"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("   BUT actual execution must happen in SERVICE LAYER!"));
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("   Plan ID: %s"), *Plan.PlanId.ToString());
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning, TEXT("   Steps: %d"), Plan.Num());
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("╚═══════════════════════════════════════════════════════════╝"));
 
     return Result;
 }
@@ -1089,14 +1086,14 @@ bool USuspenseCoreEquipmentOperationExecutor::Initialize(
 {
     if (!InDataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentExecutor, Error, TEXT("Invalid data provider provided"));
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Invalid data provider provided"));
         return false;
     }
 
     DataProvider = InDataProvider;
     SlotValidator = InValidator; // Validator is optional
 
-    UE_LOG(LogEquipmentExecutor, Log,
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("Executor initialized with data provider. Validator: %s"),
         SlotValidator.GetInterface() ? TEXT("Present") : TEXT("Absent"));
 

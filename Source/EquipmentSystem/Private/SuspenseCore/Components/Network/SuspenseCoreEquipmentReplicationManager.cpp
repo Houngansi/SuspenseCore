@@ -18,18 +18,18 @@
 // FSuspenseCoreReplicatedSlotItem
 void FSuspenseCoreReplicatedSlotItem::PreReplicatedRemove(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("PreReplicatedRemove: Slot %d removed"),SlotIndex);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("PreReplicatedRemove: Slot %d removed"),SlotIndex);
 }
 void FSuspenseCoreReplicatedSlotItem::PostReplicatedAdd(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("PostReplicatedAdd: Slot %d added"),SlotIndex);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("PostReplicatedAdd: Slot %d added"),SlotIndex);
     if(InArraySerializer.OwnerManager)
     {
         if(InArraySerializer.OwnerManager->bUseHMACSecurity && !ItemHMAC.IsEmpty())
         {
             if(!InArraySerializer.OwnerManager->VerifySlotHMAC(ItemInstance,ItemHMAC))
             {
-                UE_LOG(LogEquipmentReplication,Error,TEXT("HMAC verification failed for slot %d"),SlotIndex);
+                UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("HMAC verification failed for slot %d"),SlotIndex);
                 InArraySerializer.OwnerManager->Statistics.HMACFailures++;
                 return;
             }
@@ -39,14 +39,14 @@ void FSuspenseCoreReplicatedSlotItem::PostReplicatedAdd(const FSuspenseCoreRepli
 }
 void FSuspenseCoreReplicatedSlotItem::PostReplicatedChange(const FSuspenseCoreReplicatedSlotArray& InArraySerializer)
 {
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("PostReplicatedChange: Slot %d changed"),SlotIndex);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("PostReplicatedChange: Slot %d changed"),SlotIndex);
     if(InArraySerializer.OwnerManager)
     {
         if(InArraySerializer.OwnerManager->bUseHMACSecurity && !ItemHMAC.IsEmpty())
         {
             if(!InArraySerializer.OwnerManager->VerifySlotHMAC(ItemInstance,ItemHMAC))
             {
-                UE_LOG(LogEquipmentReplication,Error,TEXT("HMAC verification failed for slot %d"),SlotIndex);
+                UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("HMAC verification failed for slot %d"),SlotIndex);
                 InArraySerializer.OwnerManager->Statistics.HMACFailures++;
                 return;
             }
@@ -117,7 +117,7 @@ void USuspenseCoreEquipmentReplicationManager::BeginPlay()
     {
         DataProvider->OnSlotDataChanged().AddUObject(this,&USuspenseCoreEquipmentReplicationManager::OnDataChanged);
     }
-    UE_LOG(LogEquipmentReplication,Log,TEXT("ReplicationManager: Initialized for %s with FFastArraySerializer"),*GetNameSafe(GetOwner()));
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("ReplicationManager: Initialized for %s with FFastArraySerializer"),*GetNameSafe(GetOwner()));
 }
 
 void USuspenseCoreEquipmentReplicationManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -198,7 +198,7 @@ void USuspenseCoreEquipmentReplicationManager::MarkForReplication(int32 SlotInde
 {
     if(!DataProvider.GetInterface()||!DataProvider->IsValidSlotIndex(SlotIndex))
     {
-        UE_LOG(LogEquipmentReplication,Warning,TEXT("MarkForReplication: Invalid slot index %d"),SlotIndex);
+        UE_LOG(LogSuspenseCoreEquipmentReplication,Warning,TEXT("MarkForReplication: Invalid slot index %d"),SlotIndex);
         return;
     }
     {FScopeLock Lock(&DirtySlotLock);DirtySlots.Add(SlotIndex);}
@@ -217,7 +217,7 @@ void USuspenseCoreEquipmentReplicationManager::MarkForReplication(int32 SlotInde
     CurrentVersion++;
     VersionHistory.Add(CurrentVersion,CurrentDeltaMask);
     MARK_PROPERTY_DIRTY_FROM_NAME(USuspenseCoreEquipmentReplicationManager,CurrentVersion,this);
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("MarkForReplication: Slot %d dirty, version %d"),SlotIndex,CurrentVersion);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("MarkForReplication: Slot %d dirty, version %d"),SlotIndex,CurrentVersion);
 }
 
 FSuspenseCoreReplicatedData USuspenseCoreEquipmentReplicationManager::GetReplicatedData()const
@@ -250,13 +250,13 @@ void USuspenseCoreEquipmentReplicationManager::ApplyReplicatedData(const FSuspen
     }
     CurrentVersion=Data.ReplicationVersion;
     OnReplicatedStateApplied.Broadcast(Data);
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("ApplyReplicatedData: Applied version %d, Initial: %s"),Data.ReplicationVersion,bIsInitialReplication?TEXT("Yes"):TEXT("No"));
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("ApplyReplicatedData: Applied version %d, Initial: %s"),Data.ReplicationVersion,bIsInitialReplication?TEXT("Yes"):TEXT("No"));
 }
 
 void USuspenseCoreEquipmentReplicationManager::SetReplicationPolicy(ESuspenseCoreReplicationPolicy Policy)
 {
     CurrentPolicy=Policy;
-    UE_LOG(LogEquipmentReplication,Log,TEXT("SetReplicationPolicy: %s"),*UEnum::GetValueAsString(Policy));
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("SetReplicationPolicy: %s"),*UEnum::GetValueAsString(Policy));
 }
 
 void USuspenseCoreEquipmentReplicationManager::ForceFullReplication()
@@ -268,7 +268,7 @@ void USuspenseCoreEquipmentReplicationManager::ForceFullReplication()
     CurrentVersion++;
     MARK_PROPERTY_DIRTY_FROM_NAME(USuspenseCoreEquipmentReplicationManager,CurrentVersion,this);
     ProcessReplication();
-    UE_LOG(LogEquipmentReplication,Log,TEXT("ForceFullReplication: version %d"),CurrentVersion);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("ForceFullReplication: version %d"),CurrentVersion);
 }
 
 static APlayerController* ResolveOwnerPC(const AActor* Owner)
@@ -395,7 +395,7 @@ bool USuspenseCoreEquipmentReplicationManager::Initialize(TScriptInterface<ISusp
 {
     if(!InDataProvider.GetInterface())
     {
-        UE_LOG(LogEquipmentReplication,Error,TEXT("Initialize: Invalid data provider"));
+        UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("Initialize: Invalid data provider"));
         return false;
     }
     DataProvider=InDataProvider;
@@ -429,28 +429,28 @@ bool USuspenseCoreEquipmentReplicationManager::Initialize(TScriptInterface<ISusp
         CurrentVersion=1;
     }
     DataProvider->OnSlotDataChanged().AddUObject(this,&USuspenseCoreEquipmentReplicationManager::OnDataChanged);
-    UE_LOG(LogEquipmentReplication,Log,TEXT("Initialize: %d slots with FastArray"),DataProvider->GetSlotCount());
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("Initialize: %d slots with FastArray"),DataProvider->GetSlotCount());
     return true;
 }
 
 void USuspenseCoreEquipmentReplicationManager::SetSecurityService(USuspenseCoreEquipmentNetworkService* InSecurityService)
 {
     SecurityService=InSecurityService;
-    UE_LOG(LogEquipmentReplication,Log,TEXT("SetSecurityService: integrated"));
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("SetSecurityService: integrated"));
 }
 
 void USuspenseCoreEquipmentReplicationManager::SetUpdateRate(float UpdatesPerSecond)
 {
     UpdatesPerSecond=FMath::Clamp(UpdatesPerSecond,1.0f,60.0f);
     UpdateInterval=1.0f/UpdatesPerSecond;
-    UE_LOG(LogEquipmentReplication,Log,TEXT("SetUpdateRate: %.1f Hz"),UpdatesPerSecond);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("SetUpdateRate: %.1f Hz"),UpdatesPerSecond);
 }
 
 void USuspenseCoreEquipmentReplicationManager::OnNetworkQualityUpdated(float Quality)
 {
     CurrentNetworkQuality=FMath::Clamp(Quality,0.0f,1.0f);
     AdaptReplicationStrategy(CurrentNetworkQuality);
-    UE_LOG(LogEquipmentReplication,Log,TEXT("OnNetworkQualityUpdated: %.2f"),CurrentNetworkQuality);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("OnNetworkQualityUpdated: %.2f"),CurrentNetworkQuality);
 }
 
 // OnRep callbacks
@@ -464,12 +464,12 @@ void USuspenseCoreEquipmentReplicationManager::OnRep_SlotArray()
         APlayerController* LocalPC=GetWorld()?GetWorld()->GetFirstPlayerController():nullptr;
         OnDataReplicated.Broadcast(LocalPC,Data);
         OnReplicatedStateApplied.Broadcast(Data);
-        UE_LOG(LogEquipmentReplication,Verbose,TEXT("OnRep_SlotArray: applied via FastArray, version %d"),CurrentVersion);
+        UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("OnRep_SlotArray: applied via FastArray, version %d"),CurrentVersion);
     }
 }
 void USuspenseCoreEquipmentReplicationManager::OnRep_Version()
 {
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("OnRep_Version: %d"),CurrentVersion);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("OnRep_Version: %d"),CurrentVersion);
 }
 void USuspenseCoreEquipmentReplicationManager::OnRep_ActiveWeaponSlot()
 {
@@ -697,7 +697,7 @@ bool USuspenseCoreEquipmentReplicationManager::DecompressData(const FSuspenseCor
         const FString Expected=BytesToHex(Hash.Hash,20);
         if(!Expected.Equals(Compressed.HMACSignature))
         {
-            UE_LOG(LogEquipmentReplication,Error,TEXT("DecompressData: HMAC verification failed"));
+            UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("DecompressData: HMAC verification failed"));
             Statistics.HMACFailures++;
             return false;
         }
@@ -706,7 +706,7 @@ bool USuspenseCoreEquipmentReplicationManager::DecompressData(const FSuspenseCor
     const uint32 Crc=FCrc::MemCrc32(Compressed.CompressedBytes.GetData(),Compressed.CompressedBytes.Num());
     if(Crc!=Compressed.Checksum)
     {
-        UE_LOG(LogEquipmentReplication,Error,TEXT("DecompressData: Checksum mismatch"));
+        UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("DecompressData: Checksum mismatch"));
         return false;
     }
 
@@ -715,7 +715,7 @@ bool USuspenseCoreEquipmentReplicationManager::DecompressData(const FSuspenseCor
     {
         Raw.SetNum(Compressed.OriginalSize);
         const bool bOk=FCompression::UncompressMemory(NAME_Zlib,Raw.GetData(),Compressed.OriginalSize,Compressed.CompressedBytes.GetData(),Compressed.CompressedBytes.Num());
-        if(!bOk){UE_LOG(LogEquipmentReplication,Error,TEXT("DecompressData: Decompression failed"));return false;}
+        if(!bOk){UE_LOG(LogSuspenseCoreEquipmentReplication,Error,TEXT("DecompressData: Decompression failed"));return false;}
     }
     else{Raw=Compressed.CompressedBytes;}
 
@@ -883,7 +883,7 @@ uint32 USuspenseCoreEquipmentReplicationManager::CalculateChecksum(const FSuspen
 void USuspenseCoreEquipmentReplicationManager::OnDataChanged(int32 SlotIndex,const FSuspenseCoreInventoryItemInstance& NewData)
 {
     MarkForReplication(SlotIndex,false);
-    UE_LOG(LogEquipmentReplication,Verbose,TEXT("OnDataChanged: Slot %d changed"),SlotIndex);
+    UE_LOG(LogSuspenseCoreEquipmentReplication,Verbose,TEXT("OnDataChanged: Slot %d changed"),SlotIndex);
 }
 
 void USuspenseCoreEquipmentReplicationManager::CleanupClientStates()
@@ -911,7 +911,7 @@ void USuspenseCoreEquipmentReplicationManager::UpdateStatistics(int32 BytesSent,
 
 void USuspenseCoreEquipmentReplicationManager::AdaptReplicationStrategy(float NetworkQuality)
 {
-    if(NetworkQuality<0.3f){SetUpdateRate(5.0f);DynamicMaxDeltasBeforeFull=20;UE_LOG(LogEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: poor network"));}
-    else if(NetworkQuality<0.7f){SetUpdateRate(10.0f);DynamicMaxDeltasBeforeFull=MaxDeltasBeforeFull;UE_LOG(LogEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: medium network"));}
-    else{SetUpdateRate(20.0f);DynamicMaxDeltasBeforeFull=5;UE_LOG(LogEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: good network"));}
+    if(NetworkQuality<0.3f){SetUpdateRate(5.0f);DynamicMaxDeltasBeforeFull=20;UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: poor network"));}
+    else if(NetworkQuality<0.7f){SetUpdateRate(10.0f);DynamicMaxDeltasBeforeFull=MaxDeltasBeforeFull;UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: medium network"));}
+    else{SetUpdateRate(20.0f);DynamicMaxDeltasBeforeFull=5;UE_LOG(LogSuspenseCoreEquipmentReplication,Log,TEXT("AdaptReplicationStrategy: good network"));}
 }

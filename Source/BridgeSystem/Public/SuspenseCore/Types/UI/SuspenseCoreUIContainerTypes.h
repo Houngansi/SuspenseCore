@@ -457,11 +457,12 @@ struct BRIDGESYSTEM_API FSuspenseCoreScreenConfig
 };
 
 /**
- * FSuspenseCoreEquipmentSlotConfig
- * Configuration for a single equipment slot
+ * FSuspenseCoreEquipmentSlotUIConfig
+ * UI-specific configuration for a single equipment slot
+ * Note: For loadout slot configuration, use FEquipmentSlotConfig from SuspenseCoreLoadoutSettings.h
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlotConfig
+struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlotUIConfig
 {
 	GENERATED_BODY()
 
@@ -493,7 +494,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentSlotConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot")
 	bool bIsRequired;
 
-	FSuspenseCoreEquipmentSlotConfig()
+	FSuspenseCoreEquipmentSlotUIConfig()
 		: DisplayName(FText::GetEmpty())
 		, SlotSize(1, 1)
 		, LayoutPosition(FVector2D::ZeroVector)

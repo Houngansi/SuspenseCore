@@ -1220,7 +1220,7 @@ FGameplayAbilitySpecHandle USuspenseCoreEquipmentAbilityConnector::GrantSingleAb
 
     if (InputTag.IsValid())
     {
-        AbilitySpec.DynamicAbilityTags.AddTag(InputTag);
+        AbilitySpec.GetDynamicSpecSourceTags().AddTag(InputTag);
     }
 
     FGameplayAbilitySpecHandle Handle = AbilitySystemComponent->GiveAbility(AbilitySpec);

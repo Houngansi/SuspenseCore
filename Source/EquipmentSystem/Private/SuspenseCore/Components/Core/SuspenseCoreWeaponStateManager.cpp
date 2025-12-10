@@ -3,6 +3,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -266,7 +267,7 @@ bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, i
 {
     FScopeLock Lock(&StateMachineLock);
 
-    if (SlotIndex == -1)
+    if (SlotIndex == INDEX_NONE)
     {
         SlotIndex = ActiveWeaponSlot;
     }
@@ -284,6 +285,9 @@ bool USuspenseCoreWeaponStateManager::ForceState(const FGameplayTag& NewState, i
     StateMachine.bIsTransitioning = false;
     StateMachine.TransitionStartTime = 0.0f;
     StateMachine.TransitionDuration = 0.0f;
+
+    // Track statistics
+    TotalForceStates++;
 
     // Record and broadcast
     RecordStateChange(SlotIndex, NewState);
@@ -407,16 +411,19 @@ bool USuspenseCoreWeaponStateManager::AbortTransition(int32 SlotIndex)
     StateMachine->TransitionStartTime = 0.0f;
     StateMachine->TransitionDuration = 0.0f;
 
+    // Track statistics
+    TotalTransitionsAborted++;
+
     UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Aborted transition for slot %d"), SlotIndex);
 
     return true;
 }
 
-TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetStateHistory(int32 MaxCount) const
+TArray<FSuspenseCoreWSPHistoryEntry> USuspenseCoreWeaponStateManager::GetStateHistory(int32 MaxCount) const
 {
     FScopeLock Lock(&StateMachineLock);
 
-    TArray<FGameplayTag> History;
+    TArray<FSuspenseCoreWSPHistoryEntry> History;
     if (MaxCount <= 0 || StateHistory.Num() == 0)
     {
         return History;
@@ -425,11 +432,36 @@ TArray<FGameplayTag> USuspenseCoreWeaponStateManager::GetStateHistory(int32 MaxC
     const int32 StartIndex = FMath::Max(0, StateHistory.Num() - MaxCount);
     for (int32 i = StartIndex; i < StateHistory.Num(); ++i)
     {
-        // В вашей структуре FSuspenseCoreWeaponStateHistoryEntry поля называются State/TimeSeconds
-        History.Add(StateHistory[i].State);
+        FSuspenseCoreWSPHistoryEntry Entry;
+        Entry.State = StateHistory[i].State;
+        Entry.Timestamp = StateHistory[i].TimeSeconds;
+        Entry.SlotIndex = INDEX_NONE; // Global history doesn't track per-slot
+        History.Add(Entry);
     }
 
     return History;
+}
+
+TArray<FSuspenseCoreWSPHistoryEntry> USuspenseCoreWeaponStateManager::GetSlotStateHistory(int32 SlotIndex, int32 MaxCount) const
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    TArray<FSuspenseCoreWSPHistoryEntry> History;
+    if (MaxCount <= 0 || StateHistory.Num() == 0)
+    {
+        return History;
+    }
+
+    // Filter history by slot if tracking per-slot is implemented
+    // For now, return global history (same as GetStateHistory)
+    return GetStateHistory(MaxCount);
+}
+
+void USuspenseCoreWeaponStateManager::ClearStateHistory()
+{
+    FScopeLock Lock(&StateMachineLock);
+    StateHistory.Empty();
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: State history cleared"));
 }
 
 void USuspenseCoreWeaponStateManager::RegisterTransition(const FSuspenseCoreStateTransitionDef& Transition)
@@ -491,6 +523,9 @@ void USuspenseCoreWeaponStateManager::CompleteTransition(int32 SlotIndex)
     StateMachine->bIsTransitioning = false;
     StateMachine->TransitionStartTime = 0.0f;
     StateMachine->TransitionDuration = 0.0f;
+
+    // Track statistics
+    TotalTransitionsCompleted++;
 
     UE_LOG(LogTemp, Verbose, TEXT("SuspenseCoreWeaponStateManager: Completed transition for slot %d to state %s"),
         SlotIndex, *StateMachine->CurrentState.ToString());
@@ -576,4 +611,252 @@ void USuspenseCoreWeaponStateManager::BroadcastStateChange(int32 SlotIndex, cons
     Ev.SetString(FName("To"), NewState.ToString());
 
     EventDispatcher->Publish(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.StateChanged")), Ev);
+}
+
+//==================================================================
+// Additional ISuspenseCoreWeaponStateProvider Interface Methods
+//==================================================================
+
+FSuspenseCoreWeaponStateSnapshot USuspenseCoreWeaponStateManager::GetStateSnapshot(int32 SlotIndex) const
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    FSuspenseCoreWeaponStateSnapshot Snapshot;
+
+    if (SlotIndex == INDEX_NONE)
+    {
+        SlotIndex = ActiveWeaponSlot;
+    }
+
+    if (SlotIndex == INDEX_NONE)
+    {
+        return Snapshot;
+    }
+
+    const FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+        [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+    if (StateMachine)
+    {
+        Snapshot.SlotIndex = StateMachine->SlotIndex;
+        Snapshot.CurrentState = StateMachine->CurrentState;
+        Snapshot.PreviousState = StateMachine->PreviousState;
+        Snapshot.bIsTransitioning = StateMachine->bIsTransitioning;
+        Snapshot.TransitionProgress = GetTransitionProgress(SlotIndex);
+        Snapshot.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    }
+
+    return Snapshot;
+}
+
+TArray<FSuspenseCoreWeaponStateSnapshot> USuspenseCoreWeaponStateManager::GetAllStateSnapshots() const
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    TArray<FSuspenseCoreWeaponStateSnapshot> Snapshots;
+    Snapshots.Reserve(StateMachines.Num());
+
+    for (const FSuspenseCoreWeaponStateMachine& StateMachine : StateMachines)
+    {
+        FSuspenseCoreWeaponStateSnapshot Snapshot;
+        Snapshot.SlotIndex = StateMachine.SlotIndex;
+        Snapshot.CurrentState = StateMachine.CurrentState;
+        Snapshot.PreviousState = StateMachine.PreviousState;
+        Snapshot.bIsTransitioning = StateMachine.bIsTransitioning;
+        Snapshot.TransitionProgress = GetTransitionProgress(StateMachine.SlotIndex);
+        Snapshot.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+        Snapshots.Add(Snapshot);
+    }
+
+    return Snapshots;
+}
+
+FSuspenseCoreWeaponStateTransitionResult USuspenseCoreWeaponStateManager::TransitionTo(const FGameplayTag& NewState, int32 SlotIndex)
+{
+    FSuspenseCoreWeaponStateTransitionRequest Request;
+    Request.ToState = NewState;
+    Request.WeaponSlotIndex = SlotIndex;
+
+    TotalTransitionsRequested++;
+    return RequestStateTransition(Request);
+}
+
+bool USuspenseCoreWeaponStateManager::ResetToDefaultState(int32 SlotIndex)
+{
+    return ForceState(DefaultIdleState, SlotIndex);
+}
+
+bool USuspenseCoreWeaponStateManager::RegisterTransitionRule(const FSuspenseCoreStateTransitionRule& Rule)
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    // Convert Rule to TransitionDef
+    FSuspenseCoreStateTransitionDef Def;
+    Def.FromState = Rule.FromState;
+    Def.ToState = Rule.ToState;
+    Def.Duration = Rule.Duration;
+    Def.bInterruptible = Rule.bInterruptible;
+
+    // Remove existing transition if present
+    TransitionDefinitions.RemoveAll([&Rule](const FSuspenseCoreStateTransitionDef& Existing)
+    {
+        return Existing.FromState == Rule.FromState && Existing.ToState == Rule.ToState;
+    });
+
+    TransitionDefinitions.Add(Def);
+
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Registered transition rule %s -> %s"),
+        *Rule.FromState.ToString(), *Rule.ToState.ToString());
+
+    return true;
+}
+
+bool USuspenseCoreWeaponStateManager::UnregisterTransitionRule(const FGameplayTag& FromState, const FGameplayTag& ToState)
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    int32 RemovedCount = TransitionDefinitions.RemoveAll([&FromState, &ToState](const FSuspenseCoreStateTransitionDef& Def)
+    {
+        return Def.FromState == FromState && Def.ToState == ToState;
+    });
+
+    if (RemovedCount > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Unregistered transition rule %s -> %s"),
+            *FromState.ToString(), *ToState.ToString());
+    }
+
+    return RemovedCount > 0;
+}
+
+bool USuspenseCoreWeaponStateManager::GetTransitionRule(const FGameplayTag& FromState, const FGameplayTag& ToState, FSuspenseCoreStateTransitionRule& OutRule) const
+{
+    const FSuspenseCoreStateTransitionDef* Def = FindTransitionDef(FromState, ToState);
+    if (!Def)
+    {
+        return false;
+    }
+
+    OutRule.FromState = Def->FromState;
+    OutRule.ToState = Def->ToState;
+    OutRule.Duration = Def->Duration;
+    OutRule.bInterruptible = Def->bInterruptible;
+
+    return true;
+}
+
+TArray<FSuspenseCoreStateTransitionRule> USuspenseCoreWeaponStateManager::GetAllTransitionRules() const
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    TArray<FSuspenseCoreStateTransitionRule> Rules;
+    Rules.Reserve(TransitionDefinitions.Num());
+
+    for (const FSuspenseCoreStateTransitionDef& Def : TransitionDefinitions)
+    {
+        FSuspenseCoreStateTransitionRule Rule;
+        Rule.FromState = Def.FromState;
+        Rule.ToState = Def.ToState;
+        Rule.Duration = Def.Duration;
+        Rule.bInterruptible = Def.bInterruptible;
+        Rules.Add(Rule);
+    }
+
+    return Rules;
+}
+
+int32 USuspenseCoreWeaponStateManager::GetActiveWeaponSlot() const
+{
+    return ActiveWeaponSlot;
+}
+
+bool USuspenseCoreWeaponStateManager::SetActiveWeaponSlot(int32 SlotIndex)
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    if (SlotIndex != INDEX_NONE)
+    {
+        // Validate slot exists
+        const FSuspenseCoreWeaponStateMachine* StateMachine = StateMachines.FindByPredicate(
+            [SlotIndex](const FSuspenseCoreWeaponStateMachine& SM) { return SM.SlotIndex == SlotIndex; });
+
+        if (!StateMachine)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreWeaponStateManager: SetActiveWeaponSlot failed - slot %d not found"), SlotIndex);
+            return false;
+        }
+    }
+
+    int32 PreviousSlot = ActiveWeaponSlot;
+    ActiveWeaponSlot = SlotIndex;
+
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Active weapon slot changed from %d to %d"),
+        PreviousSlot, ActiveWeaponSlot);
+
+    return true;
+}
+
+USuspenseCoreEventBus* USuspenseCoreWeaponStateManager::GetEventBus() const
+{
+    return EventBus;
+}
+
+void USuspenseCoreWeaponStateManager::SetEventBus(USuspenseCoreEventBus* InEventBus)
+{
+    EventBus = InEventBus;
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: EventBus set: %s"),
+        EventBus ? *EventBus->GetName() : TEXT("None"));
+}
+
+FString USuspenseCoreWeaponStateManager::GetDebugInfo() const
+{
+    FScopeLock Lock(&StateMachineLock);
+
+    FString DebugInfo;
+    DebugInfo += TEXT("=== Weapon State Manager Debug ===\n");
+    DebugInfo += FString::Printf(TEXT("Component: %s\n"), *GetName());
+    DebugInfo += FString::Printf(TEXT("Owner: %s\n"), GetOwner() ? *GetOwner()->GetName() : TEXT("None"));
+    DebugInfo += FString::Printf(TEXT("Active Weapon Slot: %d\n"), ActiveWeaponSlot);
+    DebugInfo += FString::Printf(TEXT("State Machines: %d\n"), StateMachines.Num());
+    DebugInfo += FString::Printf(TEXT("Transition Definitions: %d\n"), TransitionDefinitions.Num());
+    DebugInfo += FString::Printf(TEXT("History Entries: %d\n"), StateHistory.Num());
+
+    DebugInfo += TEXT("\n--- State Machines ---\n");
+    for (const FSuspenseCoreWeaponStateMachine& SM : StateMachines)
+    {
+        DebugInfo += FString::Printf(TEXT("  Slot %d: %s%s\n"),
+            SM.SlotIndex,
+            *SM.CurrentState.ToString(),
+            SM.bIsTransitioning ? TEXT(" (Transitioning)") : TEXT(""));
+    }
+
+    return DebugInfo;
+}
+
+FString USuspenseCoreWeaponStateManager::GetStatistics() const
+{
+    FString Stats;
+    Stats += TEXT("=== Weapon State Manager Statistics ===\n");
+    Stats += FString::Printf(TEXT("Transitions Requested: %d\n"), TotalTransitionsRequested);
+    Stats += FString::Printf(TEXT("Transitions Completed: %d\n"), TotalTransitionsCompleted);
+    Stats += FString::Printf(TEXT("Transitions Aborted: %d\n"), TotalTransitionsAborted);
+    Stats += FString::Printf(TEXT("Force States: %d\n"), TotalForceStates);
+
+    if (TotalTransitionsRequested > 0)
+    {
+        float SuccessRate = (float)TotalTransitionsCompleted / TotalTransitionsRequested * 100.0f;
+        Stats += FString::Printf(TEXT("Success Rate: %.1f%%\n"), SuccessRate);
+    }
+
+    return Stats;
+}
+
+void USuspenseCoreWeaponStateManager::ResetStatistics()
+{
+    TotalTransitionsRequested = 0;
+    TotalTransitionsCompleted = 0;
+    TotalTransitionsAborted = 0;
+    TotalForceStates = 0;
+
+    UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: Statistics reset"));
 }

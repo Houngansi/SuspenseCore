@@ -76,26 +76,36 @@ public:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    // ISuspenseAbilityConnector (via ISuspenseCoreAbilityConnector alias)
+    //~ Begin ISuspenseCoreAbilityConnector Interface
     virtual bool Initialize(UAbilitySystemComponent* InASC, TScriptInterface<ISuspenseCoreEquipmentDataProvider> InDataProvider) override;
+    virtual bool IsInitialized() const override;
+    virtual void Shutdown() override;
     virtual TArray<FGameplayAbilitySpecHandle> GrantEquipmentAbilities(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual TArray<FGameplayAbilitySpecHandle> GrantAbilitiesForSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual int32 RemoveGrantedAbilities(const TArray<FGameplayAbilitySpecHandle>& Handles) override;
+    virtual int32 RemoveAbilitiesForSlot(int32 SlotIndex) override;
+    virtual bool ActivateEquipmentAbility(const FGameplayAbilitySpecHandle& AbilityHandle) override;
+    virtual TArray<FSuspenseCoreGrantedAbility> GetGrantedAbilities() const override;
+    virtual TArray<FGameplayAbilitySpecHandle> GetAbilitiesForSlot(int32 SlotIndex) const override;
     virtual TArray<FActiveGameplayEffectHandle> ApplyEquipmentEffects(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+    virtual TArray<FActiveGameplayEffectHandle> ApplyEffectsForSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual int32 RemoveAppliedEffects(const TArray<FActiveGameplayEffectHandle>& Handles) override;
+    virtual int32 RemoveEffectsForSlot(int32 SlotIndex) override;
+    virtual TArray<FSuspenseCoreAppliedEffect> GetAppliedEffects() const override;
     virtual bool UpdateEquipmentAttributes(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
     virtual UAttributeSet* GetEquipmentAttributeSet(int32 SlotIndex) const override;
-    virtual bool ActivateEquipmentAbility(const FGameplayAbilitySpecHandle& AbilityHandle) override;
+    virtual TArray<FSuspenseCoreConnectorAttributeSet> GetManagedAttributeSets() const override;
     virtual void ClearAll() override;
     virtual int32 CleanupInvalidHandles() override;
+    virtual void ClearSlot(int32 SlotIndex) override;
+    virtual USuspenseCoreEventBus* GetEventBus() const override;
+    virtual void SetEventBus(USuspenseCoreEventBus* InEventBus) override;
     virtual bool ValidateConnector(TArray<FString>& OutErrors) const override;
     virtual FString GetDebugInfo() const override;
+    virtual FSuspenseCoreAbilityConnectorStats GetStatistics() const override;
     virtual void LogStatistics() const override;
-
-    /** Slot-scoped helpers */
-    TArray<FGameplayAbilitySpecHandle> GrantAbilitiesForSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance);
-    int32 RemoveAbilitiesForSlot(int32 SlotIndex);
-    TArray<FActiveGameplayEffectHandle> ApplyEffectsForSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& ItemInstance);
-    int32 RemoveEffectsForSlot(int32 SlotIndex);
+    virtual void ResetStatistics() override;
+    //~ End ISuspenseCoreAbilityConnector Interface
 
 protected:
     // Internal operations used by public API
@@ -137,6 +147,10 @@ private:
     mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
     mutable float LastCacheTime = 0.f;
     static constexpr float CacheLifetime = 5.f;
+
+    /** EventBus for inter-component communication */
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
 
     // Thread safety
     mutable FCriticalSection ConnectorCriticalSection;

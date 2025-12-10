@@ -103,16 +103,33 @@ public:
     //~ End UActorComponent Interface
 
     //~ Begin ISuspenseCoreWeaponStateProvider Interface
-    virtual FGameplayTag GetWeaponState(int32 SlotIndex = -1) const override;
+    virtual FGameplayTag GetWeaponState(int32 SlotIndex = INDEX_NONE) const override;
+    virtual FSuspenseCoreWeaponStateSnapshot GetStateSnapshot(int32 SlotIndex = INDEX_NONE) const override;
+    virtual TArray<FSuspenseCoreWeaponStateSnapshot> GetAllStateSnapshots() const override;
     virtual FSuspenseCoreWeaponStateTransitionResult RequestStateTransition(const FSuspenseCoreWeaponStateTransitionRequest& Request) override;
+    virtual FSuspenseCoreWeaponStateTransitionResult TransitionTo(const FGameplayTag& NewState, int32 SlotIndex = INDEX_NONE) override;
     virtual bool CanTransitionTo(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
     virtual TArray<FGameplayTag> GetValidTransitions(const FGameplayTag& CurrentState) const override;
-    virtual bool ForceState(const FGameplayTag& NewState, int32 SlotIndex = -1) override;
+    virtual bool ForceState(const FGameplayTag& NewState, int32 SlotIndex = INDEX_NONE) override;
+    virtual bool ResetToDefaultState(int32 SlotIndex = INDEX_NONE) override;
     virtual float GetTransitionDuration(const FGameplayTag& FromState, const FGameplayTag& ToState) const override;
-    virtual bool IsTransitioning(int32 SlotIndex = -1) const override;
-    virtual float GetTransitionProgress(int32 SlotIndex = -1) const override;
-    virtual bool AbortTransition(int32 SlotIndex = -1) override;
-    virtual TArray<FGameplayTag> GetStateHistory(int32 MaxCount = 10) const override;
+    virtual bool IsTransitioning(int32 SlotIndex = INDEX_NONE) const override;
+    virtual float GetTransitionProgress(int32 SlotIndex = INDEX_NONE) const override;
+    virtual bool AbortTransition(int32 SlotIndex = INDEX_NONE) override;
+    virtual bool RegisterTransitionRule(const FSuspenseCoreStateTransitionRule& Rule) override;
+    virtual bool UnregisterTransitionRule(const FGameplayTag& FromState, const FGameplayTag& ToState) override;
+    virtual bool GetTransitionRule(const FGameplayTag& FromState, const FGameplayTag& ToState, FSuspenseCoreStateTransitionRule& OutRule) const override;
+    virtual TArray<FSuspenseCoreStateTransitionRule> GetAllTransitionRules() const override;
+    virtual int32 GetActiveWeaponSlot() const override;
+    virtual bool SetActiveWeaponSlot(int32 SlotIndex) override;
+    virtual TArray<FSuspenseCoreWSPHistoryEntry> GetStateHistory(int32 MaxCount = 10) const override;
+    virtual TArray<FSuspenseCoreWSPHistoryEntry> GetSlotStateHistory(int32 SlotIndex, int32 MaxCount = 10) const override;
+    virtual void ClearStateHistory() override;
+    virtual USuspenseCoreEventBus* GetEventBus() const override;
+    virtual void SetEventBus(USuspenseCoreEventBus* InEventBus) override;
+    virtual FString GetDebugInfo() const override;
+    virtual FString GetStatistics() const override;
+    virtual void ResetStatistics() override;
     //~ End ISuspenseCoreWeaponStateProvider Interface
 
     /**
@@ -188,6 +205,16 @@ private:
     // Active weapon slot tracking
     UPROPERTY()
     int32 ActiveWeaponSlot = INDEX_NONE;
+
+    /** EventBus for inter-component communication */
+    UPROPERTY(Transient)
+    TObjectPtr<USuspenseCoreEventBus> EventBus = nullptr;
+
+    // Statistics
+    mutable int32 TotalTransitionsRequested = 0;
+    mutable int32 TotalTransitionsCompleted = 0;
+    mutable int32 TotalTransitionsAborted = 0;
+    mutable int32 TotalForceStates = 0;
 
     // Thread safety
     mutable FCriticalSection StateMachineLock;

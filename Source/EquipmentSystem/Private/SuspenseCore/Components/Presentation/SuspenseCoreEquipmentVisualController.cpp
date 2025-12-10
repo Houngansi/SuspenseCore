@@ -157,7 +157,7 @@ void USuspenseCoreEquipmentVisualController::TickComponent(float DeltaTime, ELev
 
 //==================== ISuspenseCoreVisualProvider ====================
 
-FGuid USuspenseCoreEquipmentVisualController::ApplyVisualEffect(AActor* Equipment, const FEquipmentVisualEffect& Effect)
+FGuid USuspenseCoreEquipmentVisualController::ApplyVisualEffect(AActor* Equipment, const FSuspenseCoreVisualEffect& Effect)
 {
 	if (!IsValid(Equipment) || (!Effect.NiagaraEffect && !Effect.CascadeEffect))
 	{
@@ -270,7 +270,7 @@ bool USuspenseCoreEquipmentVisualController::RemoveVisualEffect(const FGuid& Eff
 	return false;
 }
 
-bool USuspenseCoreEquipmentVisualController::ApplyMaterialOverride(AActor* Equipment, const FEquipmentMaterialOverride& Override)
+bool USuspenseCoreEquipmentVisualController::ApplyMaterialOverride(AActor* Equipment, const FSuspenseCoreMaterialOverride& Override)
 {
 	if (!IsValid(Equipment)) return false;
 
@@ -481,7 +481,7 @@ int32 USuspenseCoreEquipmentVisualController::BatchProcessVisualRequests(const T
 			{
 				case FBatchVisualRequest::EOperationType::ApplyEffect:
 				{
-					FEquipmentVisualEffect E; E.EffectType = R.ProfileTag;
+					FSuspenseCoreVisualEffect E; E.EffectType = R.ProfileTag;
 					if (ApplyVisualEffect(R.TargetActor, E).IsValid()) { ++Success; }
 					break;
 				}
@@ -650,7 +650,7 @@ void USuspenseCoreEquipmentVisualController::OnWeaponFired(FGameplayTag EventTag
 {
 	if (AActor* Wep = EventData.GetObject<AActor>(FName("Target")))
 	{
-		FEquipmentVisualEffect Fx;
+		FSuspenseCoreVisualEffect Fx;
 		Fx.EffectType = FGameplayTag::RequestGameplayTag(TEXT("Effect.Weapon.MuzzleFlash"));
 		Fx.AttachSocket = TEXT("Muzzle");
 		Fx.Duration = 0.1f;
@@ -697,7 +697,7 @@ void USuspenseCoreEquipmentVisualController::ProcessBatchQueue()
 		{
 			case FBatchVisualRequest::EOperationType::ApplyEffect:
 			{
-				FEquipmentVisualEffect Fx; Fx.EffectType = R.ProfileTag;
+				FSuspenseCoreVisualEffect Fx; Fx.EffectType = R.ProfileTag;
 				ApplyVisualEffect(R.TargetActor, Fx);
 				break;
 			}
@@ -947,7 +947,7 @@ void USuspenseCoreEquipmentVisualController::ApplyProfileEffects(AActor* Equipme
 	{
 		if (UNiagaraSystem* S = Profile.NiagaraEffects[i].LoadSynchronous())
 		{
-			FEquipmentVisualEffect Fx;
+			FSuspenseCoreVisualEffect Fx;
 			Fx.NiagaraEffect = S;
 			Fx.EffectType = Profile.StateTag;
 			Fx.AttachSocket = Profile.EffectSockets.IsValidIndex(i) ? Profile.EffectSockets[i] : NAME_None;

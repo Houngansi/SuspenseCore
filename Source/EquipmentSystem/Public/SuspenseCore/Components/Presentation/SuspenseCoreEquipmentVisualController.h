@@ -214,9 +214,9 @@ public:
 	//~ End UActorComponent
 
 	//~ ISuspenseCoreVisualProvider
-	virtual FGuid ApplyVisualEffect(AActor* Equipment, const FEquipmentVisualEffect& Effect) override;
+	virtual FGuid ApplyVisualEffect(AActor* Equipment, const FSuspenseCoreVisualEffect& Effect) override;
 	virtual bool RemoveVisualEffect(const FGuid& EffectId) override;
-	virtual bool ApplyMaterialOverride(AActor* Equipment, const FEquipmentMaterialOverride& Override) override;
+	virtual bool ApplyMaterialOverride(AActor* Equipment, const FSuspenseCoreMaterialOverride& Override) override;
 	virtual void ResetMaterials(AActor* Equipment) override;
 	virtual void UpdateWearState(AActor* Equipment, float WearPercent) override;
 	virtual void SetHighlighted(AActor* Equipment, bool bHighlighted, const FLinearColor& HighlightColor = FLinearColor::White) override;

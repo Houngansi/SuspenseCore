@@ -4,6 +4,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "AbilitySystemComponent.h"
 #include "AttributeSet.h"
 #include "Abilities/GameplayAbility.h"
@@ -61,6 +62,26 @@ void USuspenseCoreEquipmentAbilityConnector::EndPlay(const EEndPlayReason::Type 
 //==================================================================
 // Initialization
 //==================================================================
+
+bool USuspenseCoreEquipmentAbilityConnector::IsInitialized() const
+{
+    return bIsInitialized;
+}
+
+void USuspenseCoreEquipmentAbilityConnector::Shutdown()
+{
+    UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Shutting down"), *GetName());
+
+    ClearAll();
+
+    AbilitySystemComponent = nullptr;
+    DataProvider.SetInterface(nullptr);
+    DataProvider.SetObject(nullptr);
+    EventBus = nullptr;
+    bIsInitialized = false;
+
+    UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Shutdown complete"), *GetName());
+}
 
 bool USuspenseCoreEquipmentAbilityConnector::Initialize(
     UAbilitySystemComponent* InASC,
@@ -782,6 +803,147 @@ void USuspenseCoreEquipmentAbilityConnector::LogStatistics() const
         float SuccessRate = (float)TotalActivations / (TotalActivations + FailedActivateOperations) * 100.0f;
         UE_LOG(LogAbilityConnector, Log, TEXT("  Activation Success Rate: %.1f%%"), SuccessRate);
     }
+}
+
+FSuspenseCoreAbilityConnectorStats USuspenseCoreEquipmentAbilityConnector::GetStatistics() const
+{
+    FSuspenseCoreAbilityConnectorStats Stats;
+    Stats.TotalAbilitiesGranted = TotalAbilitiesGranted;
+    Stats.TotalEffectsApplied = TotalEffectsApplied;
+    Stats.TotalAttributeSetsCreated = TotalAttributeSetsCreated;
+    Stats.TotalActivations = TotalActivations;
+    Stats.FailedGrantOperations = FailedGrantOperations;
+    Stats.FailedApplyOperations = FailedApplyOperations;
+    Stats.FailedActivateOperations = FailedActivateOperations;
+    Stats.CurrentActiveAbilities = GrantedAbilities.Num();
+    Stats.CurrentActiveEffects = AppliedEffects.Num();
+    return Stats;
+}
+
+void USuspenseCoreEquipmentAbilityConnector::ResetStatistics()
+{
+    TotalAbilitiesGranted = 0;
+    TotalEffectsApplied = 0;
+    TotalAttributeSetsCreated = 0;
+    TotalActivations = 0;
+    FailedGrantOperations = 0;
+    FailedApplyOperations = 0;
+    FailedActivateOperations = 0;
+
+    UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Statistics reset"), *GetName());
+}
+
+TArray<FSuspenseCoreGrantedAbility> USuspenseCoreEquipmentAbilityConnector::GetGrantedAbilities() const
+{
+    TArray<FSuspenseCoreGrantedAbility> Result;
+    Result.Reserve(GrantedAbilities.Num());
+
+    for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
+    {
+        FSuspenseCoreGrantedAbility Entry;
+        Entry.AbilityHandle = Record.AbilityHandle;
+        Entry.AbilityClass = Record.AbilityClass;
+        Entry.ItemInstanceId = Record.ItemInstanceId;
+        Entry.SlotIndex = Record.SlotIndex;
+        Entry.AbilityLevel = Record.AbilityLevel;
+        Entry.InputTag = Record.InputTag;
+        Entry.GrantTime = Record.GrantTime;
+        Entry.Source = Record.Source;
+        Result.Add(Entry);
+    }
+
+    return Result;
+}
+
+TArray<FGameplayAbilitySpecHandle> USuspenseCoreEquipmentAbilityConnector::GetAbilitiesForSlot(int32 SlotIndex) const
+{
+    TArray<FGameplayAbilitySpecHandle> Result;
+
+    for (const FSuspenseCoreGrantedAbilityRecord& Record : GrantedAbilities)
+    {
+        if (Record.SlotIndex == SlotIndex)
+        {
+            Result.Add(Record.AbilityHandle);
+        }
+    }
+
+    return Result;
+}
+
+TArray<FSuspenseCoreAppliedEffect> USuspenseCoreEquipmentAbilityConnector::GetAppliedEffects() const
+{
+    TArray<FSuspenseCoreAppliedEffect> Result;
+    Result.Reserve(AppliedEffects.Num());
+
+    for (const FSuspenseCoreAppliedEffectRecord& Record : AppliedEffects)
+    {
+        FSuspenseCoreAppliedEffect Entry;
+        Entry.EffectHandle = Record.EffectHandle;
+        Entry.EffectClass = Record.EffectClass;
+        Entry.ItemInstanceId = Record.ItemInstanceId;
+        Entry.SlotIndex = Record.SlotIndex;
+        Entry.ApplicationTime = Record.ApplicationTime;
+        Entry.Duration = Record.Duration;
+        Entry.Source = Record.Source;
+        Result.Add(Entry);
+    }
+
+    return Result;
+}
+
+TArray<FSuspenseCoreConnectorAttributeSet> USuspenseCoreEquipmentAbilityConnector::GetManagedAttributeSets() const
+{
+    TArray<FSuspenseCoreConnectorAttributeSet> Result;
+    Result.Reserve(ManagedAttributeSets.Num());
+
+    for (const FSuspenseCoreManagedAttributeSet& Record : ManagedAttributeSets)
+    {
+        FSuspenseCoreConnectorAttributeSet Entry;
+        Entry.AttributeSet = Record.AttributeSet;
+        Entry.AttributeClass = Record.AttributeClass;
+        Entry.ItemInstanceId = Record.ItemInstanceId;
+        Entry.SlotIndex = Record.SlotIndex;
+        Entry.bIsInitialized = Record.bIsInitialized;
+        Entry.AttributeType = Record.AttributeType;
+        Result.Add(Entry);
+    }
+
+    return Result;
+}
+
+void USuspenseCoreEquipmentAbilityConnector::ClearSlot(int32 SlotIndex)
+{
+    if (!EnsureValidExecution(TEXT("ClearSlot")))
+    {
+        return;
+    }
+
+    UE_LOG(LogAbilityConnector, Log, TEXT("[%s] Clearing slot %d"), *GetName(), SlotIndex);
+
+    RemoveAbilitiesForSlot(SlotIndex);
+    RemoveEffectsForSlot(SlotIndex);
+
+    // Remove attribute sets for this slot
+    FScopeLock Lock(&ConnectorCriticalSection);
+    for (int32 i = ManagedAttributeSets.Num() - 1; i >= 0; i--)
+    {
+        if (ManagedAttributeSets[i].SlotIndex == SlotIndex)
+        {
+            ManagedAttributeSets.RemoveAt(i);
+        }
+    }
+}
+
+USuspenseCoreEventBus* USuspenseCoreEquipmentAbilityConnector::GetEventBus() const
+{
+    return EventBus;
+}
+
+void USuspenseCoreEquipmentAbilityConnector::SetEventBus(USuspenseCoreEventBus* InEventBus)
+{
+    EventBus = InEventBus;
+    UE_LOG(LogAbilityConnector, Log, TEXT("[%s] EventBus set: %s"),
+        *GetName(), EventBus ? *EventBus->GetName() : TEXT("None"));
 }
 
 //==================================================================

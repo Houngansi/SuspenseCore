@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
 #include "SuspenseCoreEquipmentTypes.generated.h"
@@ -227,7 +228,7 @@ struct BRIDGESYSTEM_API FEquipmentSlotSnapshot
     int32 SlotIndex=INDEX_NONE;
 
     UPROPERTY(BlueprintReadWrite,Category="Snapshot")
-    FSuspenseCoreItemInstance ItemInstance;
+    FSuspenseCoreInventoryItemInstance ItemInstance;
 
     UPROPERTY(BlueprintReadWrite,Category="Snapshot")
     FEquipmentSlotConfig Configuration;

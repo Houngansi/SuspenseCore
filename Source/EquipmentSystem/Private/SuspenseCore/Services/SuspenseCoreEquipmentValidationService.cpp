@@ -852,7 +852,7 @@ FSlotValidationResult USuspenseCoreEquipmentValidationService::ValidateInTransac
 
 
 
-FSlotValidationBatchResult USuspenseCoreEquipmentValidationService::BatchValidateEx(
+FSuspenseCoreBatchValidationReport USuspenseCoreEquipmentValidationService::BatchValidateEx(
     const TArray<FEquipmentOperationRequest>& Operations,
     bool /*bFastPath*/,
     bool /*bServerAuthoritative*/,

@@ -86,7 +86,7 @@ enum class ETransactionPriority : uint8
  * Philosophy: Unified delta representation для всех компонентов системы экипировки.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FEquipmentDelta
+struct BRIDGESYSTEM_API FSuspenseCoreEquipmentDelta
 {
     GENERATED_BODY()
 
@@ -127,18 +127,18 @@ struct BRIDGESYSTEM_API FEquipmentDelta
     TMap<FString, FString> Metadata;
 
     /** Static factory method to create delta with generated ID */
-    static FEquipmentDelta Create()
+    static FSuspenseCoreEquipmentDelta Create()
     {
-        FEquipmentDelta Delta;
+        FSuspenseCoreEquipmentDelta Delta;
         Delta.OperationId = FGuid::NewGuid();
         Delta.Timestamp = FDateTime::Now();
         return Delta;
     }
 
     /** Static factory method to create delta with specific ID */
-    static FEquipmentDelta CreateWithID(const FGuid& InOperationId)
+    static FSuspenseCoreEquipmentDelta CreateWithID(const FGuid& InOperationId)
     {
-        FEquipmentDelta Delta;
+        FSuspenseCoreEquipmentDelta Delta;
         Delta.OperationId = InOperationId;
         Delta.Timestamp = FDateTime::Now();
         return Delta;
@@ -163,7 +163,11 @@ struct BRIDGESYSTEM_API FEquipmentDelta
 };
 
 /** Delegate for equipment delta notifications */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentDelta, const FEquipmentDelta&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FSuspenseCoreOnEquipmentDelta, const FSuspenseCoreEquipmentDelta&);
+
+/** Backwards compatibility alias - will be removed in future version */
+using FEquipmentDelta = FSuspenseCoreEquipmentDelta;
+using FOnEquipmentDelta = FSuspenseCoreOnEquipmentDelta;
 
 /**
  * Transaction operation record
@@ -172,7 +176,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentDelta, const FEquipmentDelta&);
  * Содержит всю информацию, необходимую для выполнения и отката операции.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FTransactionOperation
+struct BRIDGESYSTEM_API FSuspenseCoreTransactionOperation
 {
     GENERATED_BODY()
 
@@ -241,22 +245,22 @@ struct BRIDGESYSTEM_API FTransactionOperation
     bool bGeneratesEvents = true;
 
     /** Static factory method to create operation with generated ID */
-    static FTransactionOperation Create()
+    static FSuspenseCoreTransactionOperation Create()
     {
-        FTransactionOperation Operation;
+        FSuspenseCoreTransactionOperation Operation;
         Operation.OperationId = FGuid::NewGuid();
         Operation.Timestamp = FPlatformTime::Seconds();
         return Operation;
     }
 
     /** Static factory method for simple operations */
-    static FTransactionOperation Create(
+    static FSuspenseCoreTransactionOperation Create(
         const FGameplayTag& InOperationType,
         int32 InSlotIndex,
         const FSuspenseCoreInventoryItemInstance& InItemBefore,
         const FSuspenseCoreInventoryItemInstance& InItemAfter)
     {
-        FTransactionOperation Operation;
+        FSuspenseCoreTransactionOperation Operation;
         Operation.OperationId = FGuid::NewGuid();
         Operation.OperationType = InOperationType;
         Operation.SlotIndex = InSlotIndex;
@@ -283,7 +287,7 @@ struct BRIDGESYSTEM_API FTransactionOperation
     }
 
     /** Операторы сравнения для сортировки по приоритету и времени */
-    bool operator<(const FTransactionOperation& Other) const
+    bool operator<(const FSuspenseCoreTransactionOperation& Other) const
     {
         if (Priority != Other.Priority)
         {
@@ -292,17 +296,20 @@ struct BRIDGESYSTEM_API FTransactionOperation
         return Timestamp < Other.Timestamp; // Ранние операции первыми
     }
 
-    bool operator==(const FTransactionOperation& Other) const
+    bool operator==(const FSuspenseCoreTransactionOperation& Other) const
     {
         return OperationId == Other.OperationId;
     }
 
     /** Хеширование для использования в контейнерах */
-    friend uint32 GetTypeHash(const FTransactionOperation& Operation)
+    friend uint32 GetTypeHash(const FSuspenseCoreTransactionOperation& Operation)
     {
         return GetTypeHash(Operation.OperationId);
     }
 };
+
+/** Backwards compatibility alias */
+using FTransactionOperation = FSuspenseCoreTransactionOperation;
 
 /**
  * Transaction conflict information
@@ -310,7 +317,7 @@ struct BRIDGESYSTEM_API FTransactionOperation
  * Описывает конфликт между транзакциями для системы разрешения конфликтов.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FTransactionConflict
+struct BRIDGESYSTEM_API FSuspenseCoreTransactionConflict
 {
     GENERATED_BODY()
 
@@ -320,11 +327,11 @@ struct BRIDGESYSTEM_API FTransactionConflict
 
     /** Первая конфликтующая операция */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conflict")
-    FTransactionOperation FirstOperation;
+    FSuspenseCoreTransactionOperation FirstOperation;
 
     /** Вторая конфликтующая операция */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conflict")
-    FTransactionOperation SecondOperation;
+    FSuspenseCoreTransactionOperation SecondOperation;
 
     /** Тип конфликта */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conflict")
@@ -343,14 +350,17 @@ struct BRIDGESYSTEM_API FTransactionConflict
     float DetectionTimestamp = 0.0f;
 
     /** Static factory method to create conflict with generated ID */
-    static FTransactionConflict Create()
+    static FSuspenseCoreTransactionConflict Create()
     {
-        FTransactionConflict Conflict;
+        FSuspenseCoreTransactionConflict Conflict;
         Conflict.ConflictId = FGuid::NewGuid();
         Conflict.DetectionTimestamp = FPlatformTime::Seconds();
         return Conflict;
     }
 };
+
+/** Backwards compatibility alias */
+using FTransactionConflict = FSuspenseCoreTransactionConflict;
 
 /**
  * Transaction performance metrics
@@ -358,7 +368,7 @@ struct BRIDGESYSTEM_API FTransactionConflict
  * Метрики производительности для мониторинга транзакционной системы.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FTransactionMetrics
+struct BRIDGESYSTEM_API FSuspenseCoreTransactionMetrics
 {
     GENERATED_BODY()
 
@@ -400,4 +410,5 @@ struct BRIDGESYSTEM_API FTransactionMetrics
     }
 };
 
-
+/** Backwards compatibility alias */
+using FTransactionMetrics = FSuspenseCoreTransactionMetrics;

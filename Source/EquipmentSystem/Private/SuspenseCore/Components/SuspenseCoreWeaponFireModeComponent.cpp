@@ -221,7 +221,7 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int
     }
 
     // Check availability
-    const FFireModeRuntimeData& NewMode = FireModes[Index];
+    const FSuspenseCoreFireModeRuntimeData& NewMode = FireModes[Index];
     if (!NewMode.bIsAvailable || IsFireModeBlocked(NewMode.FireModeTag))
     {
         EQUIPMENT_LOG(Warning, TEXT("SetFireModeByIndex: Fire mode not available: %s"),
@@ -264,14 +264,14 @@ FGameplayTag USuspenseCoreWeaponFireModeComponent::GetCurrentFireMode_Implementa
     return FGameplayTag::EmptyTag;
 }
 
-FFireModeRuntimeData USuspenseCoreWeaponFireModeComponent::GetCurrentFireModeData_Implementation() const
+FSuspenseCoreFireModeRuntimeData USuspenseCoreWeaponFireModeComponent::GetCurrentFireModeData_Implementation() const
 {
     if (FireModes.IsValidIndex(CurrentFireModeIndex))
     {
         return FireModes[CurrentFireModeIndex];
     }
 
-    return FFireModeRuntimeData();
+    return FSuspenseCoreFireModeRuntimeData();
 }
 
 bool USuspenseCoreWeaponFireModeComponent::IsFireModeAvailable_Implementation(const FGameplayTag& FireModeTag) const
@@ -285,7 +285,7 @@ bool USuspenseCoreWeaponFireModeComponent::IsFireModeAvailable_Implementation(co
     return FireModes[Index].bIsAvailable && !IsFireModeBlocked(FireModeTag);
 }
 
-TArray<FFireModeRuntimeData> USuspenseCoreWeaponFireModeComponent::GetAllFireModes_Implementation() const
+TArray<FSuspenseCoreFireModeRuntimeData> USuspenseCoreWeaponFireModeComponent::GetAllFireModes_Implementation() const
 {
     return FireModes;
 }
@@ -294,7 +294,7 @@ TArray<FGameplayTag> USuspenseCoreWeaponFireModeComponent::GetAvailableFireModes
 {
     TArray<FGameplayTag> Available;
 
-    for (const FFireModeRuntimeData& Mode : FireModes)
+    for (const FSuspenseCoreFireModeRuntimeData& Mode : FireModes)
     {
         if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
         {
@@ -309,7 +309,7 @@ int32 USuspenseCoreWeaponFireModeComponent::GetAvailableFireModeCount_Implementa
 {
     int32 Count = 0;
 
-    for (const FFireModeRuntimeData& Mode : FireModes)
+    for (const FSuspenseCoreFireModeRuntimeData& Mode : FireModes)
     {
         if (Mode.bIsAvailable && !IsFireModeBlocked(Mode.FireModeTag))
         {
@@ -365,7 +365,7 @@ bool USuspenseCoreWeaponFireModeComponent::IsFireModeBlocked_Implementation(cons
     return BlockedFireModes.Contains(FireModeTag);
 }
 
-bool USuspenseCoreWeaponFireModeComponent::GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FFireModeRuntimeData& OutData) const
+bool USuspenseCoreWeaponFireModeComponent::GetFireModeData_Implementation(const FGameplayTag& FireModeTag, FSuspenseCoreFireModeRuntimeData& OutData) const
 {
     int32 Index = FindFireModeIndex(FireModeTag);
     if (Index == INDEX_NONE)
@@ -448,7 +448,7 @@ void USuspenseCoreWeaponFireModeComponent::LoadFireModesFromData(const FSuspense
         const FWeaponFireModeData& DataTableMode = WeaponData.FireModes[i];
 
         // Create runtime data
-        FFireModeRuntimeData RuntimeMode(DataTableMode, i);
+        FSuspenseCoreFireModeRuntimeData RuntimeMode(DataTableMode, i);
         FireModes.Add(RuntimeMode);
 
         EQUIPMENT_LOG(Verbose, TEXT("Loaded fire mode: %s (Input: %d, Enabled: %s)"),
@@ -467,7 +467,7 @@ void USuspenseCoreWeaponFireModeComponent::GrantFireModeAbilities()
     }
 
     // Grant ability for each fire mode
-    for (const FFireModeRuntimeData& Mode : FireModes)
+    for (const FSuspenseCoreFireModeRuntimeData& Mode : FireModes)
     {
         if (!Mode.FireModeAbility)
         {
@@ -546,7 +546,7 @@ void USuspenseCoreWeaponFireModeComponent::BroadcastFireModeChanged()
         return;
     }
 
-    const FFireModeRuntimeData& CurrentMode = FireModes[CurrentFireModeIndex];
+    const FSuspenseCoreFireModeRuntimeData& CurrentMode = FireModes[CurrentFireModeIndex];
 
     // Get current spread from weapon
     float CurrentSpread = 0.0f;

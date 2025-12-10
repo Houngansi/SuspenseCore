@@ -2498,7 +2498,7 @@ void USuspenseCoreEquipmentDataService::OnResendRequested(FGameplayTag EventTag,
     UE_LOG(LogTemp, Verbose,
         TEXT("[EquipmentDataService] Resend requested: EventTag=%s, Source=%s"),
         *EventTag.ToString(),
-        *GetNameSafe(EventData.GetObject(FName("Source"))));
+        *GetNameSafe(EventData.GetObject<UObject>(FName("Source"))));
 
     // If you have an internal resend procedure - call it here.
     // For example, you can reuse your queue/mechanism:

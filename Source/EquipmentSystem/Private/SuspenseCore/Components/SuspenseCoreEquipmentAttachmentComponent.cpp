@@ -4,7 +4,6 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
-#include "Subsystems/WeaponAnimationSubsystem.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "GameFramework/Character.h"
@@ -704,18 +703,8 @@ TScriptInterface<ISuspenseCoreWeaponAnimation> USuspenseCoreEquipmentAttachmentC
         }
     }
 
-    // Get from subsystem
-    if (UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
-    {
-        if (UWeaponAnimationSubsystem* AnimSubsystem = GameInstance->GetSubsystem<UWeaponAnimationSubsystem>())
-        {
-            CachedAnimationInterface.SetObject(AnimSubsystem);
-            CachedAnimationInterface.SetInterface(AnimSubsystem);
-            LastAnimationInterfaceCacheTime = CurrentTime;
-
-            return CachedAnimationInterface;
-        }
-    }
+    // TODO: Add weapon animation subsystem when implemented
+    // For now, animations are provided through the stance component
 
     return nullptr;
 }

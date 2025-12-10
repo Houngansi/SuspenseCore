@@ -52,14 +52,10 @@ enum class EEquipmentSlotType : uint8
 /** Aliases for consistent SuspenseCore naming conventions */
 using ESuspenseCoreEquipmentSlotType = EEquipmentSlotType;
 
-// Forward declaration of FEquipmentSlotConfig (defined below)
-struct FEquipmentSlotConfig;
-
-/** SuspenseCore prefixed alias for slot configuration */
-using FSuspenseCoreEquipmentSlotConfig = FEquipmentSlotConfig;
-
 /**
- * Equipment slot configuration
+ * Equipment slot configuration for loadout system
+ * Use FSuspenseCoreEquipmentSlotConfig alias for consistent naming
+ * Note: For UI-specific slot config, see FSuspenseCoreEquipmentSlotUIConfig in SuspenseCoreUIContainerTypes.h
  */
 USTRUCT(BlueprintType)
 struct BRIDGESYSTEM_API FEquipmentSlotConfig
@@ -190,6 +186,9 @@ private:
         }
     }
 };
+
+/** SuspenseCore prefixed alias for slot configuration */
+using FSuspenseCoreEquipmentSlotConfig = FEquipmentSlotConfig;
 
 /**
  * Loadout inventory configuration

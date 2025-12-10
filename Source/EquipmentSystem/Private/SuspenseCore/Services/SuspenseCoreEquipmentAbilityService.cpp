@@ -4,6 +4,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -1022,7 +1023,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(FGameplayTag Event
 
 void USuspenseCoreEquipmentAbilityService::OnEquipmentDestroyed(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
+    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject<UObject>(FName("Source")));
     if (!EquipmentActor)
     {
         ServiceMetrics.Inc(FName("Ability.Events.InvalidSource"));
@@ -1052,7 +1053,7 @@ void USuspenseCoreEquipmentAbilityService::OnEquipped(FGameplayTag EventTag, con
 
 void USuspenseCoreEquipmentAbilityService::OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
+    AActor* EquipmentActor = Cast<AActor>(EventData.GetObject<UObject>(FName("Source")));
     if (!EquipmentActor)
     {
         // Try full parse (in case source differs)
@@ -1277,14 +1278,14 @@ bool USuspenseCoreEquipmentAbilityService::ParseSuspenseCoreEventData(
     AActor*& OutOwnerActor) const
 {
     // Equipment actor should be in Source (using FSuspenseCoreEventData API)
-    OutEquipmentActor = Cast<AActor>(EventData.GetObject(FName("Source")));
+    OutEquipmentActor = Cast<AActor>(EventData.GetObject<UObject>(FName("Source")));
     if (!OutEquipmentActor)
     {
         return false;
     }
 
     // Owner should be in Target
-    OutOwnerActor = Cast<AActor>(EventData.GetObject(FName("Target")));
+    OutOwnerActor = Cast<AActor>(EventData.GetObject<UObject>(FName("Target")));
     if (!OutOwnerActor)
     {
         return false;

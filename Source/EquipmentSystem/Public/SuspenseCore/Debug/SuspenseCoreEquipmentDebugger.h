@@ -17,12 +17,13 @@ class USuspenseCoreEquipmentTransactionProcessor;
 class AActor;
 
 /**
- * FSuspenseCoreEquipmentDebugInfo
+ * FSuspenseCoreEquipmentDebugSnapshot
  *
- * Debug information snapshot for equipment system.
+ * Debug information snapshot for equipment system diagnostics.
+ * Named differently to avoid conflict with FSuspenseCoreEquipmentDebugInfo in ISuspenseCoreEquipment.h
  */
 USTRUCT(BlueprintType)
-struct EQUIPMENTSYSTEM_API FSuspenseCoreEquipmentDebugInfo
+struct EQUIPMENTSYSTEM_API FSuspenseCoreEquipmentDebugSnapshot
 {
 	GENERATED_BODY()
 
@@ -91,7 +92,7 @@ public:
 	 * @return Debug info snapshot
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment|Debug")
-	static FSuspenseCoreEquipmentDebugInfo GetDebugInfo(AActor* EquipmentOwner);
+	static FSuspenseCoreEquipmentDebugSnapshot GetDebugInfo(AActor* EquipmentOwner);
 
 	/**
 	 * Get debug string for equipment system.

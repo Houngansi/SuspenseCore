@@ -88,6 +88,9 @@ struct FSuspenseCoreTransactionExecutionContext
     TArray<FSuspenseCoreEquipmentDelta> GeneratedDeltas;
 };
 
+/** Backward-compatibility alias for legacy code */
+using FTransactionExecutionContext = FSuspenseCoreTransactionExecutionContext;
+
 /**
  * Transaction validation result
  */

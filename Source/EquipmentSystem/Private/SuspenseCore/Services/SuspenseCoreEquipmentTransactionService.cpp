@@ -7,7 +7,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/ConfigCacheIni.h"
 
-DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentTransaction);
+// Log category defined in EquipmentSystem.cpp
 
 //========================================
 // FTransactionServiceConfig

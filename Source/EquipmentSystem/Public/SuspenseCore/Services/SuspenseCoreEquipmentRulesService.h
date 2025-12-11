@@ -15,7 +15,7 @@
 class USuspenseCoreRulesCoordinator;
 class ISuspenseCoreEquipmentDataProvider;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentRules, Log, All);
+// Log category declared in SuspenseCoreEquipmentServiceMacros.h
 
 //========================================
 // RULES SERVICE CONFIGURATION

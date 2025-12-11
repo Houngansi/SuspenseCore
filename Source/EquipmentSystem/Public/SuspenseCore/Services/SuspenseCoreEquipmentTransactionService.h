@@ -15,7 +15,7 @@
 class USuspenseCoreEquipmentTransactionProcessor;
 class ISuspenseCoreEquipmentDataProvider;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipmentTransaction, Log, All);
+// Log category declared in SuspenseCoreEquipmentServiceMacros.h
 
 //========================================
 // TRANSACTION SERVICE CONFIGURATION

@@ -73,6 +73,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreRuleResult
     bool IsValid() const { return bPassed; }
 };
 
+/** Backward-compatibility alias for legacy code */
+using FRuleEvaluationResult = FSuspenseCoreRuleResult;
+
 /**
  * Equipment rule definition - SuspenseCore version
  */

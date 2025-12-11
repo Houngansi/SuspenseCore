@@ -12,6 +12,30 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRulesCoordinator, Log, All);
 
+// ==============================================
+// Helper: Convert FSuspenseCoreItemInstance to FSuspenseCoreInventoryItemInstance
+// ==============================================
+static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const FSuspenseCoreItemInstance& Source)
+{
+	FSuspenseCoreInventoryItemInstance Result;
+	Result.ItemID = Source.ItemID;
+	Result.InstanceID = Source.UniqueInstanceID;
+	Result.Quantity = Source.Quantity;
+	return Result;
+}
+
+// ==============================================
+// Helper: Convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
+// ==============================================
+static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInventoryItemInstance& Source)
+{
+	FSuspenseCoreItemInstance Result;
+	Result.ItemID = Source.ItemID;
+	Result.UniqueInstanceID = Source.InstanceID;
+	Result.Quantity = Source.Quantity;
+	return Result;
+}
+
 USuspenseCoreRulesCoordinator::USuspenseCoreRulesCoordinator()
 {
     InitializationTime = FDateTime::Now();
@@ -242,7 +266,7 @@ static void ApplyOperationToSnapshot(const FEquipmentOperationRequest& Op, FEqui
         {
             if (S.SlotIndex == Op.TargetSlotIndex)
             {
-                S.ItemInstance = Op.ItemInstance;
+                S.ItemInstance = ConvertToInventoryItemInstance(Op.ItemInstance);
                 break;
             }
         }
@@ -345,7 +369,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::EvaluateRules(const FEquipm
     // Строим минимальный контекст
     FSuspenseCoreRuleContext Context;
     Context.Character       = Operation.Instigator.Get();
-    Context.ItemInstance    = Operation.ItemInstance;
+    Context.ItemInstance    = ConvertToInventoryItemInstance(Operation.ItemInstance);
     Context.TargetSlotIndex = Operation.TargetSlotIndex;
     Context.bForceOperation = Operation.bForceOperation;
 
@@ -733,7 +757,7 @@ FString USuspenseCoreRulesCoordinator::GenerateComplianceReport(const FEquipment
         {
             FEquipmentOperationRequest TestOperation;
             TestOperation.OperationType   = EEquipmentOperationType::Equip;
-            TestOperation.ItemInstance    = SlotSnapshot.ItemInstance;
+            TestOperation.ItemInstance    = ConvertToItemInstance(SlotSnapshot.ItemInstance);
             TestOperation.TargetSlotIndex = SlotSnapshot.SlotIndex;
             TestOperation.Instigator      = nullptr;
             TestOperation.bForceOperation = false;

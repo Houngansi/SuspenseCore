@@ -7,8 +7,8 @@ public class PlayerCore : ModuleRules
     // Set to true to enable optional module dependencies
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    private static readonly bool bWithEquipmentSystem = false;
-    private static readonly bool bWithInventorySystem = false;
+    private static readonly bool bWithEquipmentSystem = true;
+    private static readonly bool bWithInventorySystem = true;
     private static readonly bool bWithInteractionSystem = false;
     private static readonly bool bWithUISystem = false;
 

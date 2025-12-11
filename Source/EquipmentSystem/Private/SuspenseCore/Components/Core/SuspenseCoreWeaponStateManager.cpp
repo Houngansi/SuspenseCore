@@ -5,6 +5,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "GameplayTagsManager.h"
+#include "Modules/ModuleManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -21,10 +22,10 @@ USuspenseCoreWeaponStateManager::USuspenseCoreWeaponStateManager()
 
 void USuspenseCoreWeaponStateManager::InitializeDefaultTransitions()
 {
-    // Only initialize if tag manager is ready
-    if (!UGameplayTagsManager::IsValidPtr())
+    // Only initialize if GameplayTags module is loaded
+    if (!FModuleManager::Get().IsModuleLoaded(TEXT("GameplayTags")))
     {
-        UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreWeaponStateManager: Tag manager not ready, skipping transition initialization"));
+        UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreWeaponStateManager: GameplayTags module not ready, skipping transition initialization"));
         return;
     }
 

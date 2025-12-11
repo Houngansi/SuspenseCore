@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Components/Rules/SuspenseCoreEquipmentRulesEngine.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "Modules/ModuleManager.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -61,7 +62,7 @@ void USuspenseCoreEquipmentRulesEngine::BeginPlay()
     Super::BeginPlay();
 
     // Initialize encumbrance thresholds (deferred from constructor to avoid static init order issues)
-    if (UGameplayTagsManager::IsValidPtr() && WeightConfig.EncumbranceThresholds.Num() == 0)
+    if (FModuleManager::Get().IsModuleLoaded(TEXT("GameplayTags")) && WeightConfig.EncumbranceThresholds.Num() == 0)
     {
         WeightConfig.EncumbranceThresholds.Add(0.5f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Light")), false));
         WeightConfig.EncumbranceThresholds.Add(0.75f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Medium")), false));

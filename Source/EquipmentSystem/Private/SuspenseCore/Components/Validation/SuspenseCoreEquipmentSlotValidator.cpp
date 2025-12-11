@@ -18,6 +18,23 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 
 // ==============================================
+// Helper: Convert FSuspenseCoreSlotRestrictions to FSuspenseCoreSlotRestrictionData
+// ==============================================
+static FSuspenseCoreSlotRestrictionData ConvertToRestrictionData(const FSuspenseCoreSlotRestrictions& Source)
+{
+	FSuspenseCoreSlotRestrictionData Result;
+	Result.MaxWeight = Source.MaxWeight;
+	Result.MaxSize = Source.MaxSize;
+	Result.MinLevel = Source.MinLevel;
+	Result.RequiredTags = Source.RequiredTags;
+	Result.ExcludedTags = Source.ExcludedTags;
+	Result.UniqueGroupTag = Source.UniqueGroupTag;
+	Result.bIsLocked = Source.bIsLocked;
+	Result.bIsDisabled = Source.bIsDisabled;
+	return Result;
+}
+
+// ==============================================
 // Статическая матрица совместимости типов
 // ==============================================
 const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
@@ -247,7 +264,7 @@ FSuspenseCoreSlotValidationResultEx USuspenseCoreEquipmentSlotValidator::CanPlac
 	}
 
 	// Достаём ограничения слота (копия — без удержания DataLock в валидаторах правил)
-	FSlotRestrictionData Restrictions = GetSlotRestrictions(SlotConfig.SlotTag);
+	FSlotRestrictionData Restrictions = ConvertToRestrictionData(GetSlotRestrictions(SlotConfig.SlotTag));
 
 	FSuspenseCoreSlotValidationResultEx Result = ExecuteValidationRulesEx_NoLock(ItemInstance, SlotConfig, &Restrictions);
 	Result.ValidationDurationMs = float((FPlatformTime::Seconds() - Start) * 1000.0);
@@ -683,7 +700,7 @@ FSuspenseCoreSlotValidationResult USuspenseCoreEquipmentSlotValidator::CanPlaceI
 	}
 
 	// Снепшот ограничений
-	const FSlotRestrictionData Restrictions = GetSlotRestrictions(SlotConfig.SlotTag);
+	const FSlotRestrictionData Restrictions = ConvertToRestrictionData(GetSlotRestrictions(SlotConfig.SlotTag));
 
 	return ExecuteValidationRules_NoLock(ItemInstance, SlotConfig, &Restrictions);
 }

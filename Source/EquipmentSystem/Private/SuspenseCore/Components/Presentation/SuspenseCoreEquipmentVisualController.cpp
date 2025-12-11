@@ -3,6 +3,7 @@
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentVisualController.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -63,7 +64,7 @@ void USuspenseCoreEquipmentVisualController::BeginPlay()
 		TArray<UNiagaraSystem*> Systems;
 		for (auto It = ProfileCache.CreateConstIterator(); It; ++It)
 		{
-			const FEquipmentVisualProfile& Row = It.Value();
+			const FSuspenseCoreEquipmentVisualProfile& Row = It.Value();
 			const TArray<TSoftObjectPtr<UNiagaraSystem>>& Effects = Row.NiagaraEffects;
 			for (int32 i = 0; i < Effects.Num(); ++i)
 			{
@@ -105,7 +106,7 @@ void USuspenseCoreEquipmentVisualController::EndPlay(const EEndPlayReason::Type 
 	// Эффекты
 	for (auto It = ActiveEffects.CreateIterator(); It; ++It)
 	{
-		FEnhancedActiveVisualEffect& AE = It.Value();
+		FSuspenseCoreEnhancedActiveVisualEffect& AE = It.Value();
 		if (AE.EffectComponent)
 		{
 			AE.EffectComponent->Deactivate();
@@ -210,7 +211,7 @@ FGuid USuspenseCoreEquipmentVisualController::ApplyVisualEffect(AActor* Equipmen
 	const FGuid Id = GenerateEffectId();
 	{
 		EQUIPMENT_WRITE_LOCK(EffectLock);
-		FEnhancedActiveVisualEffect& AE = ActiveEffects.Add(Id);
+		FSuspenseCoreEnhancedActiveVisualEffect& AE = ActiveEffects.Add(Id);
 		AE.EffectId = Id;
 		AE.TargetActor = Equipment;
 		AE.EffectComponent = Comp;
@@ -241,7 +242,7 @@ bool USuspenseCoreEquipmentVisualController::RemoveVisualEffect(const FGuid& Eff
 {
 	EQUIPMENT_WRITE_LOCK(EffectLock);
 
-	if (FEnhancedActiveVisualEffect* AE = ActiveEffects.Find(EffectId))
+	if (FSuspenseCoreEnhancedActiveVisualEffect* AE = ActiveEffects.Find(EffectId))
 	{
 		if (IsValid(AE->EffectComponent))
 		{
@@ -278,7 +279,7 @@ bool USuspenseCoreEquipmentVisualController::ApplyMaterialOverride(AActor* Equip
 	if (MeshComps.Num() == 0) return false;
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	FEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
+	FSuspenseCoreEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
 
 	if (!MS.bHasOverride)
 	{
@@ -327,7 +328,7 @@ void USuspenseCoreEquipmentVisualController::ResetMaterials(AActor* Equipment)
 	if (!IsValid(Equipment)) return;
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	FEnhancedMaterialState* MS = MaterialStates.Find(Equipment);
+	FSuspenseCoreEnhancedMaterialState* MS = MaterialStates.Find(Equipment);
 	if (!MS || !MS->bHasOverride) return;
 
 	MS->ActiveTransitions.Empty();
@@ -379,7 +380,7 @@ void USuspenseCoreEquipmentVisualController::UpdateWearState(AActor* Equipment, 
 	}
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	if (FEnhancedMaterialState* MS = MaterialStates.Find(Equipment))
+	if (FSuspenseCoreEnhancedMaterialState* MS = MaterialStates.Find(Equipment))
 	{
 		MS->WearLevel = WearPercent;
 	}
@@ -390,7 +391,7 @@ void USuspenseCoreEquipmentVisualController::SetHighlighted(AActor* Equipment, b
 	if (!IsValid(Equipment)) return;
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	FEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
+	FSuspenseCoreEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
 	MS.bIsHighlighted = bHighlighted;
 	MS.HighlightColor = HighlightColor;
 
@@ -418,7 +419,7 @@ bool USuspenseCoreEquipmentVisualController::PlayEquipmentAnimation(AActor* Equi
 {
 	if (!IsValid(Equipment)) return false;
 
-	if (const FEquipmentVisualProfile* Profile = FindBestVisualProfile(
+	if (const FSuspenseCoreEquipmentVisualProfile* Profile = FindBestVisualProfile(
 		FGameplayTag::RequestGameplayTag(TEXT("Item.Equipment")), AnimationTag))
 	{
 		ApplyProfileEffects(Equipment, *Profile);
@@ -445,10 +446,10 @@ bool USuspenseCoreEquipmentVisualController::ApplyVisualProfile(AActor* Equipmen
 {
 	if (!IsValid(Equipment)) return false;
 
-	const FEquipmentVisualProfile* Profile = nullptr;
+	const FSuspenseCoreEquipmentVisualProfile* Profile = nullptr;
 	for (auto It = ProfileCache.CreateConstIterator(); It; ++It)
 	{
-		const FEquipmentVisualProfile& Row = It.Value();
+		const FSuspenseCoreEquipmentVisualProfile& Row = It.Value();
 		if (Row.StateTag.MatchesTagExact(ProfileTag))
 		{
 			Profile = &Row;
@@ -465,29 +466,29 @@ bool USuspenseCoreEquipmentVisualController::ApplyVisualProfile(AActor* Equipmen
 	ApplyProfileEffects(Equipment, *Profile);
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	if (FEnhancedMaterialState* MS = MaterialStates.Find(Equipment)) { MS->ActiveProfile = *Profile; }
+	if (FSuspenseCoreEnhancedMaterialState* MS = MaterialStates.Find(Equipment)) { MS->ActiveProfile = *Profile; }
 	return true;
 }
 
 
-int32 USuspenseCoreEquipmentVisualController::BatchProcessVisualRequests(const TArray<FBatchVisualRequest>& Requests)
+int32 USuspenseCoreEquipmentVisualController::BatchProcessVisualRequests(const TArray<FSuspenseCoreBatchVisualRequest>& Requests)
 {
 	if (!ControllerConfig.bEnableBatching || Requests.Num() < ControllerConfig.BatchThreshold)
 	{
 		int32 Success = 0;
-		for (const FBatchVisualRequest& R : Requests)
+		for (const FSuspenseCoreBatchVisualRequest& R : Requests)
 		{
 			switch (R.Operation)
 			{
-				case FBatchVisualRequest::EOperationType::ApplyEffect:
+				case FSuspenseCoreBatchVisualRequest::EOperationType::ApplyEffect:
 				{
 					FSuspenseCoreVisualEffect E; E.EffectType = R.ProfileTag;
 					if (ApplyVisualEffect(R.TargetActor, E).IsValid()) { ++Success; }
 					break;
 				}
-				case FBatchVisualRequest::EOperationType::UpdateWear:
+				case FSuspenseCoreBatchVisualRequest::EOperationType::UpdateWear:
 					UpdateWearState(R.TargetActor, R.FloatParam); ++Success; break;
-				case FBatchVisualRequest::EOperationType::SetHighlight:
+				case FSuspenseCoreBatchVisualRequest::EOperationType::SetHighlight:
 					SetHighlighted(R.TargetActor, R.FloatParam > 0.0f, R.ColorParam); ++Success; break;
 				default: break;
 			}
@@ -496,7 +497,7 @@ int32 USuspenseCoreEquipmentVisualController::BatchProcessVisualRequests(const T
 	}
 
 	EQUIPMENT_WRITE_LOCK(BatchLock);
-	for (const FBatchVisualRequest& R : Requests) { BatchQueue.Add(R); }
+	for (const FSuspenseCoreBatchVisualRequest& R : Requests) { BatchQueue.Add(R); }
 	if (BatchQueue.Num() >= ControllerConfig.BatchThreshold * 2) { ProcessBatchQueue(); }
 	return Requests.Num();
 }
@@ -518,7 +519,7 @@ void USuspenseCoreEquipmentVisualController::StartMaterialTransition(AActor* Equ
 	if (!IsValid(Equipment) || Duration <= 0.0f) return;
 
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
-	FEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
+	FSuspenseCoreEnhancedMaterialState& MS = MaterialStates.FindOrAdd(Equipment);
 
 	for (UMaterialInstanceDynamic* Dyn : MS.DynamicMaterials)
 	{
@@ -526,8 +527,8 @@ void USuspenseCoreEquipmentVisualController::StartMaterialTransition(AActor* Equ
 
 		float Current = 0.0f; Dyn->GetScalarParameterValue(ParameterName, Current);
 
-		FMaterialTransition* Existing = nullptr;
-		for (FMaterialTransition& T : MS.ActiveTransitions)
+		FSuspenseCoreMaterialTransition* Existing = nullptr;
+		for (FSuspenseCoreMaterialTransition& T : MS.ActiveTransitions)
 		{
 			if (T.Material == Dyn && T.ParameterName == ParameterName) { Existing = &T; break; }
 		}
@@ -541,7 +542,7 @@ void USuspenseCoreEquipmentVisualController::StartMaterialTransition(AActor* Equ
 		}
 		else
 		{
-			FMaterialTransition NewT;
+			FSuspenseCoreMaterialTransition NewT;
 			NewT.Material = Dyn;
 			NewT.ParameterName = ParameterName;
 			NewT.StartValue = Current;
@@ -685,26 +686,26 @@ void USuspenseCoreEquipmentVisualController::ProcessBatchQueue()
 	EQUIPMENT_WRITE_LOCK(BatchLock);
 	if (BatchQueue.Num() == 0) return;
 
-	BatchQueue.Sort([](const FBatchVisualRequest& A, const FBatchVisualRequest& B)
+	BatchQueue.Sort([](const FSuspenseCoreBatchVisualRequest& A, const FSuspenseCoreBatchVisualRequest& B)
 	{
 		return A.Priority > B.Priority;
 	});
 
 	int32 Processed = 0;
-	for (const FBatchVisualRequest& R : BatchQueue)
+	for (const FSuspenseCoreBatchVisualRequest& R : BatchQueue)
 	{
 		switch (R.Operation)
 		{
-			case FBatchVisualRequest::EOperationType::ApplyEffect:
+			case FSuspenseCoreBatchVisualRequest::EOperationType::ApplyEffect:
 			{
 				FSuspenseCoreVisualEffect Fx; Fx.EffectType = R.ProfileTag;
 				ApplyVisualEffect(R.TargetActor, Fx);
 				break;
 			}
-			case FBatchVisualRequest::EOperationType::UpdateWear:
+			case FSuspenseCoreBatchVisualRequest::EOperationType::UpdateWear:
 				UpdateWearState(R.TargetActor, R.FloatParam);
 				break;
-			case FBatchVisualRequest::EOperationType::SetHighlight:
+			case FSuspenseCoreBatchVisualRequest::EOperationType::SetHighlight:
 				SetHighlighted(R.TargetActor, R.FloatParam > 0.0f, R.ColorParam);
 				break;
 			default: break;
@@ -719,10 +720,10 @@ void USuspenseCoreEquipmentVisualController::UpdateMaterialTransitions(float Del
 	EQUIPMENT_WRITE_LOCK(MaterialLock);
 	for (auto& P : MaterialStates)
 	{
-		FEnhancedMaterialState& MS = P.Value;
+		FSuspenseCoreEnhancedMaterialState& MS = P.Value;
 		for (int32 i = MS.ActiveTransitions.Num() - 1; i >= 0; --i)
 		{
-			FMaterialTransition& T = MS.ActiveTransitions[i];
+			FSuspenseCoreMaterialTransition& T = MS.ActiveTransitions[i];
 			T.ElapsedTime += DeltaTime;
 			if (T.Material)
 			{
@@ -769,7 +770,7 @@ void USuspenseCoreEquipmentVisualController::UpdateActiveEffects(float DeltaTime
 	TArray<FGuid> Remove;
 	for (auto& P : ActiveEffects)
 	{
-		FEnhancedActiveVisualEffect& E = P.Value;
+		FSuspenseCoreEnhancedActiveVisualEffect& E = P.Value;
 		if ((!E.bIsLooping && E.Duration > 0.0f && (Now - E.StartTime) >= E.Duration) || !IsValid(E.TargetActor))
 		{
 			Remove.Add(P.Key);
@@ -783,7 +784,7 @@ void USuspenseCoreEquipmentVisualController::UpdateActiveEffects(float DeltaTime
 UNiagaraComponent* USuspenseCoreEquipmentVisualController::GetPooledEffectComponent(UNiagaraSystem* System, const FGameplayTag& /*ProfileTag*/)
 {
 	EQUIPMENT_WRITE_LOCK(EffectLock);
-	for (FEnhancedVisualEffectPoolEntry& E : EffectPool)
+	for (FSuspenseCoreEnhancedVisualEffectPoolEntry& E : EffectPool)
 	{
 		if (E.System == System && !E.bInUse && IsValid(E.Component))
 		{
@@ -808,7 +809,7 @@ bool USuspenseCoreEquipmentVisualController::ReturnEffectToPool(UNiagaraComponen
 		return false;
 	}
 
-	for (FEnhancedVisualEffectPoolEntry& E : EffectPool)
+	for (FSuspenseCoreEnhancedVisualEffectPoolEntry& E : EffectPool)
 	{
 		if (E.Component == Component)
 		{
@@ -819,7 +820,7 @@ bool USuspenseCoreEquipmentVisualController::ReturnEffectToPool(UNiagaraComponen
 		}
 	}
 
-	FEnhancedVisualEffectPoolEntry NewE;
+	FSuspenseCoreEnhancedVisualEffectPoolEntry NewE;
 	NewE.Component = Component;
 	NewE.System = Component->GetAsset();
 	NewE.bInUse = false;
@@ -846,7 +847,7 @@ void USuspenseCoreEquipmentVisualController::CleanupEffectPool()
 
 	for (int32 i = EffectPool.Num()-1; i >= 0; --i)
 	{
-		FEnhancedVisualEffectPoolEntry& E = EffectPool[i];
+		FSuspenseCoreEnhancedVisualEffectPoolEntry& E = EffectPool[i];
 		if (!E.bInUse && (Now - E.LastUsedTime) > ControllerConfig.EffectIdleTimeout)
 		{
 			if (IsValid(E.Component)) { E.Component->DestroyComponent(); }
@@ -855,15 +856,15 @@ void USuspenseCoreEquipmentVisualController::CleanupEffectPool()
 	}
 }
 
-const FEquipmentVisualProfile* USuspenseCoreEquipmentVisualController::FindBestVisualProfile(const FGameplayTag& ItemType, const FGameplayTag& StateTag) const
+const FSuspenseCoreEquipmentVisualProfile* USuspenseCoreEquipmentVisualController::FindBestVisualProfile(const FGameplayTag& ItemType, const FGameplayTag& StateTag) const
 {
-	const FEquipmentVisualProfile* Best = nullptr;
+	const FSuspenseCoreEquipmentVisualProfile* Best = nullptr;
 	int32 BestScore = -1;
 	const FGameplayTag Quality = GetQualityTag();
 
 	for (auto It = ProfileCache.CreateConstIterator(); It; ++It)
 	{
-		const FEquipmentVisualProfile& R = It.Value();
+		const FSuspenseCoreEquipmentVisualProfile& R = It.Value();
 		int32 Score = 0;
 
 		if (R.ItemType.MatchesTagExact(ItemType))        { Score += 100; }
@@ -887,12 +888,12 @@ void USuspenseCoreEquipmentVisualController::LoadVisualProfiles()
 
 	ProfileCache.Empty();
 	const FString Ctx(TEXT("LoadVisualProfiles"));
-	TArray<FEquipmentVisualProfile*> Rows;
-	VisualProfileTable->GetAllRows<FEquipmentVisualProfile>(Ctx, Rows);
+	TArray<FSuspenseCoreEquipmentVisualProfile*> Rows;
+	VisualProfileTable->GetAllRows<FSuspenseCoreEquipmentVisualProfile>(Ctx, Rows);
 
 	for (int32 i = 0; i < Rows.Num(); ++i)
 	{
-		const FEquipmentVisualProfile* R = Rows[i];
+		const FSuspenseCoreEquipmentVisualProfile* R = Rows[i];
 		if (R)
 		{
 			ProfileCache.Add(R->GetProfileKey(), *R);
@@ -900,7 +901,7 @@ void USuspenseCoreEquipmentVisualController::LoadVisualProfiles()
 	}
 }
 
-void USuspenseCoreEquipmentVisualController::ApplyProfileToMaterials(AActor* Equipment, const FEquipmentVisualProfile& Profile, bool bSmooth)
+void USuspenseCoreEquipmentVisualController::ApplyProfileToMaterials(AActor* Equipment, const FSuspenseCoreEquipmentVisualProfile& Profile, bool bSmooth)
 {
 	if (!IsValid(Equipment)) return;
 
@@ -939,7 +940,7 @@ void USuspenseCoreEquipmentVisualController::ApplyProfileToMaterials(AActor* Equ
 	}
 }
 
-void USuspenseCoreEquipmentVisualController::ApplyProfileEffects(AActor* Equipment, const FEquipmentVisualProfile& Profile)
+void USuspenseCoreEquipmentVisualController::ApplyProfileEffects(AActor* Equipment, const FSuspenseCoreEquipmentVisualProfile& Profile)
 {
 	if (!IsValid(Equipment)) return;
 
@@ -1087,7 +1088,7 @@ void USuspenseCoreEquipmentVisualController::LogVisualMetrics() const
 		(EffectPoolHits + EffectPoolMisses) > 0 ? (float)EffectPoolHits / (EffectPoolMisses + EffectPoolHits) * 100.0f : 0.0f);
 }
 
-void USuspenseCoreEquipmentVisualController::SetControllerConfiguration(const FVisualControllerConfig& NewConfig)
+void USuspenseCoreEquipmentVisualController::SetControllerConfiguration(const FSuspenseCoreVisualControllerConfig& NewConfig)
 {
 	ControllerConfig = NewConfig;
 

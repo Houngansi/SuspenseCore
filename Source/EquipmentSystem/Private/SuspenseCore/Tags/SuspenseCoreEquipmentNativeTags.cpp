@@ -97,6 +97,26 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_ReloadEnd, "SuspenseCore.Event.Equipment.Weapon.ReloadEnd");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_SpreadUpdated, "SuspenseCore.Event.Equipment.Weapon.SpreadUpdated");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_AmmoChanged, "SuspenseCore.Event.Equipment.Weapon.AmmoChanged");
+
+        // Property Events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_PropertyChanged, "Equipment.Event.PropertyChanged");
+    }
+
+    //========================================
+    // WEAPON STATE TAGS
+    //========================================
+    namespace WeaponState
+    {
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State, "Weapon.State");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Ready, "Weapon.State.Ready");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Holstered, "Weapon.State.Holstered");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Drawing, "Weapon.State.Drawing");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Holstering, "Weapon.State.Holstering");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Firing, "Weapon.State.Firing");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Reloading, "Weapon.State.Reloading");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Empty, "Weapon.State.Empty");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Jammed, "Weapon.State.Jammed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_State_Inspecting, "Weapon.State.Inspecting");
     }
 
     //========================================
@@ -121,6 +141,9 @@ namespace SuspenseCoreEquipmentTags
     {
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State, "Equipment.State");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Idle, "Equipment.State.Idle");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Inactive, "Equipment.State.Inactive");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Equipped, "Equipment.State.Equipped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Ready, "Equipment.State.Ready");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Equipping, "Equipment.State.Equipping");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_Unequipping, "Equipment.State.Unequipping");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_State_InUse, "Equipment.State.InUse");
@@ -130,20 +153,50 @@ namespace SuspenseCoreEquipmentTags
     }
 
     //========================================
-    // SLOT TYPE TAGS
+    // SLOT TYPE TAGS (AAA MMO FPS style)
     //========================================
     namespace Slot
     {
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot, "Equipment.Slot");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_None, "Equipment.Slot.None");
+
+        // Weapons
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Primary, "Equipment.Slot.Primary");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_PrimaryWeapon, "Equipment.Slot.PrimaryWeapon");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Secondary, "Equipment.Slot.Secondary");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_SecondaryWeapon, "Equipment.Slot.SecondaryWeapon");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Sidearm, "Equipment.Slot.Sidearm");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Holster, "Equipment.Slot.Holster");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Melee, "Equipment.Slot.Melee");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Scabbard, "Equipment.Slot.Scabbard");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Grenade, "Equipment.Slot.Grenade");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Tactical, "Equipment.Slot.Tactical");
+
+        // Head gear
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Armor_Head, "Equipment.Slot.Armor.Head");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Headwear, "Equipment.Slot.Headwear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Earpiece, "Equipment.Slot.Earpiece");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Eyewear, "Equipment.Slot.Eyewear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_FaceCover, "Equipment.Slot.FaceCover");
+
+        // Body gear
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Armor_Body, "Equipment.Slot.Armor.Body");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_BodyArmor, "Equipment.Slot.BodyArmor");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_TacticalRig, "Equipment.Slot.TacticalRig");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Armor_Legs, "Equipment.Slot.Armor.Legs");
+
+        // Storage
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Backpack, "Equipment.Slot.Backpack");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_SecureContainer, "Equipment.Slot.SecureContainer");
+
+        // Quick slots
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_QuickSlot1, "Equipment.Slot.QuickSlot1");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_QuickSlot2, "Equipment.Slot.QuickSlot2");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_QuickSlot3, "Equipment.Slot.QuickSlot3");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_QuickSlot4, "Equipment.Slot.QuickSlot4");
+
+        // Special
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Armband, "Equipment.Slot.Armband");
     }
 
     //========================================

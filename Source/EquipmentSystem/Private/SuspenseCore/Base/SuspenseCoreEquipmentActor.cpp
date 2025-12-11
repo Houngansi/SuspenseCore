@@ -3,6 +3,7 @@
 #include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
 
 #include "GameplayTagsManager.h"
+#include "Modules/ModuleManager.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
@@ -72,8 +73,8 @@ namespace
                 return;
             }
 
-            // Only request tags if tag manager is available (avoids static init order crash)
-            if (!UGameplayTagsManager::IsValidPtr())
+            // Only request tags if GameplayTags module is loaded (avoids static init order crash)
+            if (!FModuleManager::Get().IsModuleLoaded(TEXT("GameplayTags")))
             {
                 return;
             }

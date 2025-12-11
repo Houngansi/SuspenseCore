@@ -3,10 +3,13 @@
 
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 
+#include <mutex>
+
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
+#include "Modules/ModuleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/ScopeLock.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
@@ -38,17 +41,20 @@ static FSuspenseCoreSlotRestrictionData ConvertToRestrictionData(const FSuspense
 // ==============================================
 // Type Compatibility Matrix - Lazy initialization to avoid static init order issues
 // NOTE: The matrix is now populated on first access (after GameplayTag system is ready)
+// Thread-safe initialization using std::call_once
 // ==============================================
 static TMap<EEquipmentSlotType, TArray<FGameplayTag>> LazyTypeCompatibilityMatrix;
-static bool bTypeMatrixInitialized = false;
+static std::once_flag TypeMatrixInitFlag;
 
 const TMap<EEquipmentSlotType, TArray<FGameplayTag>>& USuspenseCoreEquipmentSlotValidator::GetTypeCompatibilityMatrix()
 {
-	if (!bTypeMatrixInitialized && UGameplayTagsManager::IsValidPtr())
+	std::call_once(TypeMatrixInitFlag, []()
 	{
-		LazyTypeCompatibilityMatrix = CreateTypeCompatibilityMatrix();
-		bTypeMatrixInitialized = true;
-	}
+		if (FModuleManager::Get().IsModuleLoaded(TEXT("GameplayTags")))
+		{
+			LazyTypeCompatibilityMatrix = CreateTypeCompatibilityMatrix();
+		}
+	});
 	return LazyTypeCompatibilityMatrix;
 }
 

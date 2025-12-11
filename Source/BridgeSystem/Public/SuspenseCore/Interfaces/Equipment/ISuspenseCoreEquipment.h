@@ -43,7 +43,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentLifecycleEvent
 	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
 	float EventTime = 0.0f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
+	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle", meta = (IgnoreForMemberInitializationTest))
 	FGuid EventId;
 
 	FSuspenseCoreEquipmentLifecycleEvent()
@@ -176,7 +176,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreEquipmentOperationEvent
 	UPROPERTY(BlueprintReadOnly, Category = "Operation")
 	float EventTime = 0.0f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Operation")
+	UPROPERTY(BlueprintReadOnly, Category = "Operation", meta = (IgnoreForMemberInitializationTest))
 	FGuid OperationId;
 
 	FSuspenseCoreEquipmentOperationEvent()

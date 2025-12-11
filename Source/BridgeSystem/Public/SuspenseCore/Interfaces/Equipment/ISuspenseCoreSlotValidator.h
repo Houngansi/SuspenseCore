@@ -109,7 +109,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreSlotBatchRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Validation")
 	TArray<FEquipmentSlotConfig> SlotConfigs;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Validation")
+	UPROPERTY(BlueprintReadWrite, Category = "Validation", meta = (IgnoreForMemberInitializationTest))
 	FGuid RequestId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Validation")

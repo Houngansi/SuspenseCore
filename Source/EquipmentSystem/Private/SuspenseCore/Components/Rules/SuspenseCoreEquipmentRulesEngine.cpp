@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayTagsManager.h"
 #include "UObject/UnrealType.h"
 #include "Engine/DataTable.h"
 #include "Dom/JsonObject.h"
@@ -46,11 +47,8 @@ USuspenseCoreEquipmentRulesEngine::USuspenseCoreEquipmentRulesEngine()
     CurrentEvaluationDepth = 0;
     LastUpdateTime = FDateTime::Now();
 
-    // Setup default encumbrance thresholds
-    WeightConfig.EncumbranceThresholds.Add(0.5f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Light")));
-    WeightConfig.EncumbranceThresholds.Add(0.75f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Medium")));
-    WeightConfig.EncumbranceThresholds.Add(1.0f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Heavy")));
-    WeightConfig.EncumbranceThresholds.Add(1.25f, FGameplayTag::RequestGameplayTag(TEXT("Status.Encumbered.Overloaded")));
+    // NOTE: EncumbranceThresholds initialization deferred to BeginPlay
+    // to avoid static initialization order issues with GameplayTag system
 }
 
 USuspenseCoreEquipmentRulesEngine::~USuspenseCoreEquipmentRulesEngine()
@@ -61,6 +59,15 @@ USuspenseCoreEquipmentRulesEngine::~USuspenseCoreEquipmentRulesEngine()
 void USuspenseCoreEquipmentRulesEngine::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Initialize encumbrance thresholds (deferred from constructor to avoid static init order issues)
+    if (UGameplayTagsManager::IsValidPtr() && WeightConfig.EncumbranceThresholds.Num() == 0)
+    {
+        WeightConfig.EncumbranceThresholds.Add(0.5f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Light")), false));
+        WeightConfig.EncumbranceThresholds.Add(0.75f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Medium")), false));
+        WeightConfig.EncumbranceThresholds.Add(1.0f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Heavy")), false));
+        WeightConfig.EncumbranceThresholds.Add(1.25f, FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Encumbered.Overloaded")), false));
+    }
 
     // Only register default rules if dev mode is enabled
     if (ShouldUseDevFallback())

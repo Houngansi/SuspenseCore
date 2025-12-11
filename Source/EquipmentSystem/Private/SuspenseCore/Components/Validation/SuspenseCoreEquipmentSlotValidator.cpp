@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
+#include "GameplayTagsManager.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/ScopeLock.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
@@ -35,10 +36,24 @@ static FSuspenseCoreSlotRestrictionData ConvertToRestrictionData(const FSuspense
 }
 
 // ==============================================
-// Статическая матрица совместимости типов
+// Type Compatibility Matrix - Lazy initialization to avoid static init order issues
+// NOTE: The matrix is now populated on first access (after GameplayTag system is ready)
 // ==============================================
-const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix =
-	USuspenseCoreEquipmentSlotValidator::CreateTypeCompatibilityMatrix();
+static TMap<EEquipmentSlotType, TArray<FGameplayTag>> LazyTypeCompatibilityMatrix;
+static bool bTypeMatrixInitialized = false;
+
+const TMap<EEquipmentSlotType, TArray<FGameplayTag>>& USuspenseCoreEquipmentSlotValidator::GetTypeCompatibilityMatrix()
+{
+	if (!bTypeMatrixInitialized && UGameplayTagsManager::IsValidPtr())
+	{
+		LazyTypeCompatibilityMatrix = CreateTypeCompatibilityMatrix();
+		bTypeMatrixInitialized = true;
+	}
+	return LazyTypeCompatibilityMatrix;
+}
+
+// Legacy static member - now empty, use GetTypeCompatibilityMatrix() instead
+const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix;
 
 // ==============================================
 // ctor
@@ -225,7 +240,7 @@ bool USuspenseCoreEquipmentSlotValidator::IsItemTypeCompatibleWithSlot(
 	{
 		return true;
 	}
-	if (const TArray<FGameplayTag>* Types = TypeCompatibilityMatrix.Find(SlotType))
+	if (const TArray<FGameplayTag>* Types = GetTypeCompatibilityMatrix().Find(SlotType))
 	{
 		for (const FGameplayTag& T : *Types)
 		{
@@ -1081,7 +1096,7 @@ bool USuspenseCoreEquipmentSlotValidator::ItemHasTag(
 
 TArray<FGameplayTag> USuspenseCoreEquipmentSlotValidator::GetCompatibleItemTypes(EEquipmentSlotType SlotType) const
 {
-	if (const TArray<FGameplayTag>* Found = TypeCompatibilityMatrix.Find(SlotType))
+	if (const TArray<FGameplayTag>* Found = GetTypeCompatibilityMatrix().Find(SlotType))
 	{
 		return *Found;
 	}
@@ -1323,75 +1338,80 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidat
 {
     TMap<EEquipmentSlotType, TArray<FGameplayTag>> M;
 
+    // Helper lambda for safe tag request (bErrorIfNotFound=false to avoid crashes if tag doesn't exist)
+    auto SafeTag = [](const TCHAR* TagName) -> FGameplayTag {
+        return FGameplayTag::RequestGameplayTag(FName(TagName), false);
+    };
+
     // Weapon classes
     M.Add(EEquipmentSlotType::PrimaryWeapon, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Rifle")),    // ← ДОБАВЛЕНО!
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.AR")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.DMR")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SR")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Sniper")),   // ← ДОБАВЛЕНО для совместимости
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.LMG")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Primary"))   // ← ДОБАВЛЕНО родительский тег
+        SafeTag(TEXT("Item.Weapon.Rifle")),
+        SafeTag(TEXT("Item.Weapon.AR")),
+        SafeTag(TEXT("Item.Weapon.DMR")),
+        SafeTag(TEXT("Item.Weapon.SR")),
+        SafeTag(TEXT("Item.Weapon.Sniper")),
+        SafeTag(TEXT("Item.Weapon.LMG")),
+        SafeTag(TEXT("Item.Weapon.Shotgun")),
+        SafeTag(TEXT("Item.Weapon.Primary"))
     });
 
     M.Add(EEquipmentSlotType::SecondaryWeapon, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.PDW"))
+        SafeTag(TEXT("Item.Weapon.SMG")),
+        SafeTag(TEXT("Item.Weapon.Shotgun")),
+        SafeTag(TEXT("Item.Weapon.PDW"))
     });
 
     M.Add(EEquipmentSlotType::Holster, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Revolver"))
+        SafeTag(TEXT("Item.Weapon.Pistol")),
+        SafeTag(TEXT("Item.Weapon.Revolver"))
     });
 
     M.Add(EEquipmentSlotType::Scabbard, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife"))
+        SafeTag(TEXT("Item.Weapon.Melee.Knife"))
     });
 
     // Head gear
     M.Add(EEquipmentSlotType::Headwear, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Headwear"))
+        SafeTag(TEXT("Item.Armor.Helmet")),
+        SafeTag(TEXT("Item.Gear.Headwear"))
     });
 
     M.Add(EEquipmentSlotType::Earpiece, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece"))
+        SafeTag(TEXT("Item.Gear.Earpiece"))
     });
 
     M.Add(EEquipmentSlotType::Eyewear, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear"))
+        SafeTag(TEXT("Item.Gear.Eyewear"))
     });
 
     M.Add(EEquipmentSlotType::FaceCover, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover"))
+        SafeTag(TEXT("Item.Gear.FaceCover"))
     });
 
     // Body gear
     M.Add(EEquipmentSlotType::BodyArmor, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor"))
+        SafeTag(TEXT("Item.Armor.BodyArmor"))
     });
 
     M.Add(EEquipmentSlotType::TacticalRig, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig"))
+        SafeTag(TEXT("Item.Gear.TacticalRig"))
     });
 
     // Storage
     M.Add(EEquipmentSlotType::Backpack, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack"))
+        SafeTag(TEXT("Item.Gear.Backpack"))
     });
 
     M.Add(EEquipmentSlotType::SecureContainer, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer"))
+        SafeTag(TEXT("Item.Gear.SecureContainer"))
     });
 
     // Quick slots — широкая категория
     TArray<FGameplayTag> QuickTypes = {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Consumable")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Medical")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Throwable")),
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Ammo"))
+        SafeTag(TEXT("Item.Consumable")),
+        SafeTag(TEXT("Item.Medical")),
+        SafeTag(TEXT("Item.Throwable")),
+        SafeTag(TEXT("Item.Ammo"))
     };
     M.Add(EEquipmentSlotType::QuickSlot1, QuickTypes);
     M.Add(EEquipmentSlotType::QuickSlot2, QuickTypes);
@@ -1400,7 +1420,7 @@ TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidat
 
     // Special
     M.Add(EEquipmentSlotType::Armband, {
-        FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Armband"))
+        SafeTag(TEXT("Item.Gear.Armband"))
     });
 
     return M;
@@ -1488,7 +1508,7 @@ TArray<EEquipmentSlotType> USuspenseCoreEquipmentSlotValidator::GetCompatibleSlo
 {
 	TArray<EEquipmentSlotType> CompatibleSlots;
 
-	for (const auto& Pair : TypeCompatibilityMatrix)
+	for (const auto& Pair : GetTypeCompatibilityMatrix())
 	{
 		for (const FGameplayTag& CompatType : Pair.Value)
 		{

@@ -2,6 +2,7 @@
 
 #include "SuspenseCore/Base/SuspenseCoreEquipmentActor.h"
 
+#include "GameplayTagsManager.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
@@ -21,6 +22,8 @@
 
 // ==============================
 // Local tag cache (perf/stability)
+// Using lazy initialization to avoid static initialization order issues
+// Tags are only requested after GameplayTag system is initialized
 // ==============================
 
 namespace
@@ -58,45 +61,64 @@ namespace
         FGameplayTag Slot_Quick4;
         FGameplayTag Slot_Armband;
 
-        FEquipmentTagCache()
+        bool bIsInitialized = false;
+
+        FEquipmentTagCache() = default;
+
+        void EnsureInitialized()
         {
-            // states
-            State_Inactive = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Inactive"));
-            State_Equipped = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Equipped"));
-            State_Ready    = FGameplayTag::RequestGameplayTag(TEXT("Equipment.State.Ready"));
+            if (bIsInitialized)
+            {
+                return;
+            }
+
+            // Only request tags if tag manager is available (avoids static init order crash)
+            if (!UGameplayTagsManager::IsValidPtr())
+            {
+                return;
+            }
+
+            // states - use bErrorIfNotFound=false to handle gracefully
+            State_Inactive = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.State.Inactive")), false);
+            State_Equipped = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.State.Equipped")), false);
+            State_Ready    = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.State.Ready")), false);
 
             // events
-            Event_Equipped        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"));
-            Event_Unequipped      = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"));
-            Event_PropertyChanged = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.PropertyChanged"));
-            UI_DataReady          = FGameplayTag::RequestGameplayTag(TEXT("UI.Equipment.DataReady"));
+            Event_Equipped        = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Event.Equipped")), false);
+            Event_Unequipped      = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Event.Unequipped")), false);
+            Event_PropertyChanged = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Event.PropertyChanged")), false);
+            UI_DataReady          = FGameplayTag::RequestGameplayTag(FName(TEXT("UI.Equipment.DataReady")), false);
 
             // slots
-            Slot_None            = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.None"));
-            Slot_PrimaryWeapon   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.PrimaryWeapon"));
-            Slot_SecondaryWeapon = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"));
-            Slot_Holster         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"));
-            Slot_Scabbard        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Scabbard"));
-            Slot_Headwear        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Headwear"));
-            Slot_Earpiece        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Earpiece"));
-            Slot_Eyewear         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Eyewear"));
-            Slot_FaceCover       = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.FaceCover"));
-            Slot_BodyArmor       = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.BodyArmor"));
-            Slot_TacticalRig     = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.TacticalRig"));
-            Slot_Backpack        = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Backpack"));
-            Slot_SecureContainer = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecureContainer"));
-            Slot_Quick1          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot1"));
-            Slot_Quick2          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot2"));
-            Slot_Quick3          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot3"));
-            Slot_Quick4          = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.QuickSlot4"));
-            Slot_Armband         = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Armband"));
+            Slot_None            = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.None")), false);
+            Slot_PrimaryWeapon   = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.PrimaryWeapon")), false);
+            Slot_SecondaryWeapon = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.SecondaryWeapon")), false);
+            Slot_Holster         = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Holster")), false);
+            Slot_Scabbard        = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Scabbard")), false);
+            Slot_Headwear        = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Headwear")), false);
+            Slot_Earpiece        = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Earpiece")), false);
+            Slot_Eyewear         = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Eyewear")), false);
+            Slot_FaceCover       = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.FaceCover")), false);
+            Slot_BodyArmor       = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.BodyArmor")), false);
+            Slot_TacticalRig     = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.TacticalRig")), false);
+            Slot_Backpack        = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Backpack")), false);
+            Slot_SecureContainer = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.SecureContainer")), false);
+            Slot_Quick1          = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.QuickSlot1")), false);
+            Slot_Quick2          = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.QuickSlot2")), false);
+            Slot_Quick3          = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.QuickSlot3")), false);
+            Slot_Quick4          = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.QuickSlot4")), false);
+            Slot_Armband         = FGameplayTag::RequestGameplayTag(FName(TEXT("Equipment.Slot.Armband")), false);
+
+            bIsInitialized = true;
         }
     };
 
-    // renamed to avoid clash with AActor::Tags field
-    static const FEquipmentTagCache& EqTags()
+    // Renamed to avoid clash with AActor::Tags field
+    // Lazy initialization - only initializes tags on first access AFTER engine startup
+    static FEquipmentTagCache& EqTags()
     {
         static FEquipmentTagCache S;
+        S.EnsureInitialized();
         return S;
     }
 }

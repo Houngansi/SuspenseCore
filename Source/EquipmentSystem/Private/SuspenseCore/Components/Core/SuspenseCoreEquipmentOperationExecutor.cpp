@@ -9,6 +9,75 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
 
+//========================================
+// Type Conversion Helpers
+//========================================
+
+/**
+ * Convert FSuspenseCoreItemInstance to FSuspenseCoreInventoryItemInstance
+ * Used when passing item data to slot validators
+ */
+static FSuspenseCoreInventoryItemInstance ToInventoryItemInstance(const FSuspenseCoreItemInstance& In)
+{
+    FSuspenseCoreInventoryItemInstance Out;
+    Out.ItemID = In.ItemID;
+    Out.InstanceID = In.UniqueInstanceID;
+    Out.Quantity = In.Quantity;
+    Out.AnchorIndex = In.SlotIndex;
+    Out.bIsRotated = (In.Rotation != 0);
+    Out.LastUsedTime = 0.f;
+    // RuntimeProperties: FSuspenseCoreItemInstance uses TArray<FSuspenseCoreRuntimeProperty>
+    // FSuspenseCoreInventoryItemInstance uses TMap<FName, float> - conversion omitted for performance
+    return Out;
+}
+
+/**
+ * Convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
+ * Used when creating operation requests from inventory items
+ */
+static FSuspenseCoreItemInstance ToItemInstance(const FSuspenseCoreInventoryItemInstance& In)
+{
+    FSuspenseCoreItemInstance Out;
+    Out.ItemID = In.ItemID;
+    Out.UniqueInstanceID = In.InstanceID;
+    Out.Quantity = In.Quantity;
+    Out.SlotIndex = In.AnchorIndex;
+    Out.Rotation = In.bIsRotated ? 90 : 0;
+    // RuntimeProperties conversion omitted for performance
+    return Out;
+}
+
+/**
+ * Convert FSuspenseCoreSlotValidationResult to FSlotValidationResult
+ * Used when validators return SuspenseCore types but executor expects legacy types
+ */
+static FSlotValidationResult ToLegacyValidationResult(const FSuspenseCoreSlotValidationResult& In)
+{
+    FSlotValidationResult Out;
+    Out.bIsValid = In.bIsValid;
+    Out.ErrorMessage = In.ErrorMessage;
+    Out.ErrorTag = In.ErrorTag;
+    Out.ConfidenceScore = In.ConfidenceScore;
+    // Map ESuspenseCoreValidationFailure to EEquipmentValidationFailure
+    switch (In.FailureType)
+    {
+    case ESuspenseCoreValidationFailure::None: Out.FailureType = EEquipmentValidationFailure::None; break;
+    case ESuspenseCoreValidationFailure::SlotTypeIncompatible: Out.FailureType = EEquipmentValidationFailure::IncompatibleType; break;
+    case ESuspenseCoreValidationFailure::ItemTypeIncompatible: Out.FailureType = EEquipmentValidationFailure::IncompatibleType; break;
+    case ESuspenseCoreValidationFailure::LevelRequirementNotMet: Out.FailureType = EEquipmentValidationFailure::LevelRequirement; break;
+    case ESuspenseCoreValidationFailure::ClassRequirementNotMet: Out.FailureType = EEquipmentValidationFailure::ClassRestriction; break;
+    case ESuspenseCoreValidationFailure::WeightLimitExceeded: Out.FailureType = EEquipmentValidationFailure::WeightLimit; break;
+    case ESuspenseCoreValidationFailure::SlotLocked: Out.FailureType = EEquipmentValidationFailure::InvalidSlot; break;
+    case ESuspenseCoreValidationFailure::SlotDisabled: Out.FailureType = EEquipmentValidationFailure::InvalidSlot; break;
+    case ESuspenseCoreValidationFailure::ItemConflict: Out.FailureType = EEquipmentValidationFailure::ConflictingItem; break;
+    case ESuspenseCoreValidationFailure::UniqueConstraintViolation: Out.FailureType = EEquipmentValidationFailure::UniqueConstraint; break;
+    case ESuspenseCoreValidationFailure::InvalidItem: Out.FailureType = EEquipmentValidationFailure::RequirementsNotMet; break;
+    case ESuspenseCoreValidationFailure::InvalidSlot: Out.FailureType = EEquipmentValidationFailure::InvalidSlot; break;
+    default: Out.FailureType = EEquipmentValidationFailure::SystemError; break;
+    }
+    return Out;
+}
+
 // Constructor
 USuspenseCoreEquipmentOperationExecutor::USuspenseCoreEquipmentOperationExecutor()
 {
@@ -708,10 +777,12 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateEquip(
     FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
 
     // Perform detailed validation (type, level, weight, etc.)
-    FSlotValidationResult ValidationResult = SlotValidator->CanPlaceItemInSlot(
+    // Convert FSuspenseCoreItemInstance to FSuspenseCoreInventoryItemInstance for validator
+    FSuspenseCoreSlotValidationResult SuspenseResult = SlotValidator->CanPlaceItemInSlot(
         SlotConfig,
-        Request.ItemInstance
+        ToInventoryItemInstance(Request.ItemInstance)
     );
+    FSlotValidationResult ValidationResult = ToLegacyValidationResult(SuspenseResult);
 
     if (!ValidationResult.bIsValid)
     {
@@ -791,7 +862,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateSwap(
     FEquipmentSlotConfig ConfigA = DataProvider->GetSlotConfiguration(Request.SourceSlotIndex);
     FEquipmentSlotConfig ConfigB = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
 
-    return SlotValidator->CanSwapItems(ConfigA, ItemA, ConfigB, ItemB);
+    return ToLegacyValidationResult(SlotValidator->CanSwapItems(ConfigA, ItemA, ConfigB, ItemB));
 }
 
 FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateMove(
@@ -838,7 +909,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateMove(
     FSuspenseCoreInventoryItemInstance Item = DataProvider->GetSlotItem(Request.SourceSlotIndex);
     FEquipmentSlotConfig TargetConfig = DataProvider->GetSlotConfiguration(Request.TargetSlotIndex);
 
-    return SlotValidator->CanPlaceItemInSlot(TargetConfig, Item);
+    return ToLegacyValidationResult(SlotValidator->CanPlaceItemInSlot(TargetConfig, Item));
 }
 
 FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateDrop(
@@ -913,7 +984,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::ExecuteOperat
     UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Item ID:        %s"),
         *Request.ItemInstance.ItemID.ToString());
     UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Instance ID:    %s"),
-        *Request.ItemInstance.InstanceID.ToString());
+        *Request.ItemInstance.UniqueInstanceID.ToString());
     UE_LOG(LogSuspenseCoreEquipmentOperation, Error, TEXT("Target Slot:    %d"),
         Request.TargetSlotIndex);
 
@@ -984,7 +1055,7 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationExecutor::EquipItem(
 {
     FEquipmentOperationRequest Request;
     Request.OperationType = EEquipmentOperationType::Equip;
-    Request.ItemInstance = ItemInstance;
+    Request.ItemInstance = ToItemInstance(ItemInstance);  // Convert to FSuspenseCoreItemInstance
     Request.TargetSlotIndex = SlotIndex;
     Request.OperationId = GenerateOperationId();
     Request.Timestamp = FPlatformTime::Seconds();
@@ -1152,7 +1223,7 @@ int32 USuspenseCoreEquipmentOperationExecutor::FindBestSlotForItem(
             }
 
             FEquipmentSlotConfig SlotConfig = DataProvider->GetSlotConfiguration(i);
-            FSlotValidationResult ValidationResult = SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance);
+            FSlotValidationResult ValidationResult = ToLegacyValidationResult(SlotValidator->CanPlaceItemInSlot(SlotConfig, ItemInstance));
 
             if (ValidationResult.bIsValid)
             {

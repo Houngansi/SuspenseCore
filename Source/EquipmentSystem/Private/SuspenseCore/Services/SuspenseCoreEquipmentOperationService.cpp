@@ -80,7 +80,7 @@ bool USuspenseCoreEquipmentOperationService::InitializeService(const FSuspenseCo
     InitializationTime = FDateTime::Now();
 
     // CRITICAL FIX: Store ServiceLocator reference from params
-    CachedServiceLocator = Cast<USuspenseEquipmentServiceLocator>(Params.ServiceLocator);
+    CachedServiceLocator = Cast<USuspenseCoreEquipmentServiceLocator>(Params.ServiceLocator);
 
     if (!CachedServiceLocator.IsValid())
     {

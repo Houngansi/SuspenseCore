@@ -1,6 +1,7 @@
 // Copyright SuspenseCore Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentTransactionService.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -236,7 +237,7 @@ FGuid USuspenseCoreEquipmentTransactionService::BeginTransaction(const FString& 
 
     // SECURITY: Transactions must only be started on server (authoritative side)
     // Client-side code should use prediction system, not direct transactions
-    UWorld* World = ServiceParams.WorldContext.Get();
+    UWorld* World = ServiceParams.Owner ? ServiceParams.Owner->GetWorld() : nullptr;
     if (World && World->GetNetMode() == NM_Client)
     {
         UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
@@ -303,7 +304,7 @@ bool USuspenseCoreEquipmentTransactionService::CommitTransaction(const FGuid& Tr
     }
 
     // SECURITY: Only server can commit transactions (authoritative state changes)
-    UWorld* World = ServiceParams.WorldContext.Get();
+    UWorld* World = ServiceParams.Owner ? ServiceParams.Owner->GetWorld() : nullptr;
     if (World && World->GetNetMode() == NM_Client)
     {
         UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,
@@ -384,7 +385,7 @@ bool USuspenseCoreEquipmentTransactionService::RollbackTransaction(const FGuid& 
     }
 
     // SECURITY: Only server can rollback transactions (authoritative state changes)
-    UWorld* World = ServiceParams.WorldContext.Get();
+    UWorld* World = ServiceParams.Owner ? ServiceParams.Owner->GetWorld() : nullptr;
     if (World && World->GetNetMode() == NM_Client)
     {
         UE_LOG(LogSuspenseCoreEquipmentTransaction, Warning,

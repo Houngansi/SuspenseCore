@@ -9,6 +9,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreNetworkInterfaces.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentRules.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
 #include "SuspenseCore/Types/Network/SuspenseCoreNetworkTypes.h"
@@ -20,6 +21,25 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentOperations);
+
+// ===== Type Conversion Helpers =====
+static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const FSuspenseCoreItemInstance& Source)
+{
+    FSuspenseCoreInventoryItemInstance Result;
+    Result.ItemID = Source.ItemID;
+    Result.InstanceID = Source.UniqueInstanceID;
+    Result.Quantity = Source.Quantity;
+    return Result;
+}
+
+static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInventoryItemInstance& Source)
+{
+    FSuspenseCoreItemInstance Result;
+    Result.ItemID = Source.ItemID;
+    Result.UniqueInstanceID = Source.InstanceID;
+    Result.Quantity = Source.Quantity;
+    return Result;
+}
 
 // Service identification tags - using native compile-time tags
 namespace ServiceTags
@@ -1174,7 +1194,7 @@ FTransactionOperation USuspenseCoreEquipmentOperationService::MakeTxnOpFromStep(
     if (DataProvider.GetInterface() && Op.SlotIndex != INDEX_NONE)
     {
         Op.ItemBefore = DataProvider->GetSlotItem(Op.SlotIndex);
-        Op.ItemAfter = Step.Request.ItemInstance; // Expected after state
+        Op.ItemAfter = ConvertToInventoryItemInstance(Step.Request.ItemInstance); // Expected after state
     }
 
     Op.Timestamp = Step.Request.Timestamp;
@@ -1370,7 +1390,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
             case EEquipmentOperationType::Equip:
             {
                 FSuspenseCoreInventoryItemInstance OldItem = DataProvider->GetSlotItem(Step.Request.TargetSlotIndex);
-                bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, Step.Request.ItemInstance, /*bNotify=*/false);
+                bApplied = DataProvider->SetSlotItem(Step.Request.TargetSlotIndex, ConvertToInventoryItemInstance(Step.Request.ItemInstance), /*bNotify=*/false);
 
                 if (bApplied)
                 {
@@ -1379,7 +1399,7 @@ bool USuspenseCoreEquipmentOperationService::ExecutePlanTransactional(
                     Delta.ChangeType = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Change.Equip"));
                     Delta.SlotIndex = Step.Request.TargetSlotIndex;
                     Delta.ItemBefore = OldItem;
-                    Delta.ItemAfter = Step.Request.ItemInstance;
+                    Delta.ItemAfter = ConvertToInventoryItemInstance(Step.Request.ItemInstance);
                     Delta.SourceTransactionId = TxnId;
                     Delta.OperationId = Step.Request.OperationId;
                     Delta.ReasonTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Reason.Transaction"));
@@ -2176,8 +2196,8 @@ FEquipmentOperationResult USuspenseCoreEquipmentOperationService::DelegateOperat
             *Request.OperationId.ToString());
     }
 
-    // Используем NetworkDispatcher через интерфейс IEquipmentNetworkService
-    if (IEquipmentNetworkService* NetService = Cast<IEquipmentNetworkService>(NetworkServiceObject.Get()))
+    // Используем NetworkDispatcher через интерфейс ISuspenseCoreEquipmentNetworkServiceInterface
+    if (ISuspenseCoreEquipmentNetworkServiceInterface* NetService = Cast<ISuspenseCoreEquipmentNetworkServiceInterface>(NetworkServiceObject.Get()))
     {
         if (ISuspenseCoreNetworkDispatcher* Dispatcher = NetService->GetNetworkDispatcher())
         {
@@ -2869,7 +2889,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationService::ValidateOperationC
 
     if (RulesEngine.GetInterface())
     {
-        FSuspenseCoreRuleEvaluationResult RuleResult = RulesEngine->EvaluateRules(Request);
+        FSuspenseCoreRuleResult RuleResult = RulesEngine->EvaluateRules(Request);
 
         Result.bIsValid = RuleResult.bPassed;
         Result.ErrorMessage = RuleResult.FailureReason;

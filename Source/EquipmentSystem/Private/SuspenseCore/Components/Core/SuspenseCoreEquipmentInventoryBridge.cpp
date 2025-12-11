@@ -2,7 +2,7 @@
 
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentOperationExecutor.h"
-#include "Core/Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"

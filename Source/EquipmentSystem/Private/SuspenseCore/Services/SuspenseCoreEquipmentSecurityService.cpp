@@ -19,6 +19,25 @@
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentSecurity);
 
 //========================================
+// Bit Rotation Helper (UE doesn't have FMath::RotateLeft64)
+//========================================
+
+static FORCEINLINE uint64 RotateLeft64(uint64 Value, int32 Shift)
+{
+    Shift &= 63; // Ensure shift is in valid range
+    return (Value << Shift) | (Value >> (64 - Shift));
+}
+
+//========================================
+// SHA256 Helper Struct (UE doesn't have FSHA256Signature)
+//========================================
+
+struct FSHA256Signature
+{
+    uint8 Signature[32];
+};
+
+//========================================
 // FSecurityServiceConfig
 //========================================
 
@@ -229,8 +248,13 @@ bool USuspenseCoreEquipmentSecurityService::InitializeService(const FSuspenseCor
         return false;
     }
 
-    // Setup cleanup timer
-    if (UWorld* World = Params.WorldContext.IsValid() ? Params.WorldContext.Get() : nullptr)
+    // Setup cleanup timer - get World from Owner since FSuspenseCoreServiceInitParams doesn't have WorldContext
+    UWorld* World = nullptr;
+    if (Params.Owner)
+    {
+        World = Params.Owner->GetWorld();
+    }
+    if (World)
     {
         World->GetTimerManager().SetTimer(
             CleanupTimerHandle,
@@ -266,10 +290,11 @@ bool USuspenseCoreEquipmentSecurityService::ShutdownService(bool bForce)
 
     UE_LOG(LogSuspenseCoreEquipmentSecurity, Log, TEXT(">>> SecurityService: Shutting down..."));
 
-    // Clear timers
+    // Clear timers - get World from Owner since FSuspenseCoreServiceInitParams doesn't have WorldContext
     if (CleanupTimerHandle.IsValid())
     {
-        if (UWorld* World = ServiceParams.WorldContext.Get())
+        UWorld* World = ServiceParams.Owner ? ServiceParams.Owner->GetWorld() : nullptr;
+        if (World)
         {
             World->GetTimerManager().ClearTimer(CleanupTimerHandle);
             World->GetTimerManager().ClearTimer(MetricsExportTimerHandle);
@@ -378,7 +403,7 @@ FSecurityValidationResponse USuspenseCoreEquipmentSecurityService::ValidateReque
     bool bIsCritical)
 {
     // SECURITY: Validation must only run on server (authoritative side)
-    UWorld* World = ServiceParams.WorldContext.Get();
+    UWorld* World = ServiceParams.Owner ? ServiceParams.Owner->GetWorld() : nullptr;
     if (World && World->GetNetMode() == NM_Client)
     {
         FSecurityValidationResponse ClientResponse;
@@ -497,9 +522,9 @@ uint64 USuspenseCoreEquipmentSecurityService::GenerateNonce()
     // Mix all entropy sources using XOR and rotation
     // This ensures even if one source is weak, others provide security
     Nonce = GuidHigh;
-    Nonce ^= FMath::RotateLeft64(GuidLow, 17);
-    Nonce ^= FMath::RotateLeft64(CycleEntropy, 31);
-    Nonce ^= FMath::RotateLeft64(ProcessEntropy ^ ThreadEntropy, 47);
+    Nonce ^= RotateLeft64(GuidLow, 17);
+    Nonce ^= RotateLeft64(CycleEntropy, 31);
+    Nonce ^= RotateLeft64(ProcessEntropy ^ ThreadEntropy, 47);
 
     // Final mixing step - multiply by large prime and XOR high/low
     constexpr uint64 MixPrime = 0x9E3779B97F4A7C15ULL; // Golden ratio prime

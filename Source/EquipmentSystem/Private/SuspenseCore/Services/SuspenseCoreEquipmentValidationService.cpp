@@ -5,6 +5,7 @@
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreGlobalCacheRegistry.h"
 #include "SuspenseCore/Components/Rules/SuspenseCoreRulesCoordinator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
@@ -20,11 +21,34 @@
 #include "Misc/Crc.h"
 
 //========================================
+// Helper: Convert FSuspenseCoreItemInstance to FSuspenseCoreInventoryItemInstance
+//========================================
+
+static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const FSuspenseCoreItemInstance& Source)
+{
+    FSuspenseCoreInventoryItemInstance Result;
+    Result.ItemID = Source.ItemID;
+    Result.InstanceID = Source.UniqueInstanceID;
+    Result.Quantity = Source.Quantity;
+
+    // Copy runtime properties
+    for (const FSuspenseCoreRuntimeProperty& Prop : Source.RuntimeProperties)
+    {
+        Result.SetRuntimeProperty(Prop.PropertyName.ToString(), Prop.Value);
+    }
+
+    return Result;
+}
+
+//========================================
 // Shadow Snapshot Implementation
 //========================================
 
 bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperationRequest& Operation)
 {
+    // Convert FSuspenseCoreItemInstance to FSuspenseCoreInventoryItemInstance
+    const FSuspenseCoreInventoryItemInstance ItemInstance = ConvertToInventoryItemInstance(Operation.ItemInstance);
+
     switch (Operation.OperationType)
     {
         case EEquipmentOperationType::Equip:
@@ -33,12 +57,12 @@ bool FSuspenseCoreShadowEquipmentSnapshot::ApplyOperation(const FEquipmentOperat
             {
                 return false; // Target slot occupied
             }
-            SlotItems.Add(Operation.TargetSlotIndex, Operation.ItemInstance);
-            ItemQuantities.FindOrAdd(Operation.ItemInstance.ItemID) += Operation.ItemInstance.Quantity;
+            SlotItems.Add(Operation.TargetSlotIndex, ItemInstance);
+            ItemQuantities.FindOrAdd(ItemInstance.ItemID) += ItemInstance.Quantity;
 
             // Weight
-            const float ItemWeight = Operation.ItemInstance.GetRuntimeProperty(TEXT("Weight"), 1.0f);
-            TotalWeight += ItemWeight * Operation.ItemInstance.Quantity;
+            const float ItemWeight = ItemInstance.GetRuntimeProperty(TEXT("Weight"), 1.0f);
+            TotalWeight += ItemWeight * ItemInstance.Quantity;
             return true;
         }
 
@@ -494,7 +518,7 @@ FString USuspenseCoreEquipmentValidationService::GetServiceStats() const
 // IEquipmentValidationService Implementation
 //========================================
 
-ISuspenseEquipmentRules* USuspenseCoreEquipmentValidationService::GetRulesEngine()
+ISuspenseCoreEquipmentRules* USuspenseCoreEquipmentValidationService::GetRulesEngine()
 {
     SCOPED_SERVICE_TIMER("Validation.GetRulesEngine");
     return Rules.GetInterface();
@@ -1291,7 +1315,7 @@ FSlotValidationResult USuspenseCoreEquipmentValidationService::ValidateAgainstSh
     // Build explicit rule context from snapshot
     FSuspenseCoreRuleContext Ctx;
     Ctx.Character        = Request.Instigator.Get();
-    Ctx.ItemInstance     = Request.ItemInstance;
+    Ctx.ItemInstance     = ConvertToInventoryItemInstance(Request.ItemInstance);
     Ctx.TargetSlotIndex  = Request.TargetSlotIndex;
     Ctx.bForceOperation  = Request.bForceOperation;
     Ctx.CurrentItems.Reserve(Snapshot.SlotItems.Num());
@@ -1440,28 +1464,28 @@ bool USuspenseCoreEquipmentValidationService::InitializeDependencies()
         *DataServiceObject->GetName(),
         *DataServiceObject->GetClass()->GetName());
 
-    // Cast to IEquipmentDataService
-    if (!DataServiceObject->GetClass()->ImplementsInterface(UEquipmentDataService::StaticClass()))
+    // Cast to ISuspenseCoreEquipmentDataServiceInterface
+    if (!DataServiceObject->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataServiceInterface::StaticClass()))
     {
         UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
-            TEXT("InitializeDependencies: DataService does not implement IEquipmentDataService"));
+            TEXT("InitializeDependencies: DataService does not implement ISuspenseCoreEquipmentDataServiceInterface"));
         return false;
     }
 
-    IEquipmentDataService* DataServiceInterface = Cast<IEquipmentDataService>(DataServiceObject);
+    ISuspenseCoreEquipmentDataServiceInterface* DataServiceInterface = Cast<ISuspenseCoreEquipmentDataServiceInterface>(DataServiceObject);
     if (!DataServiceInterface)
     {
         UE_LOG(LogSuspenseCoreEquipmentValidation, Error,
-            TEXT("InitializeDependencies: Failed to cast DataService to IEquipmentDataService"));
+            TEXT("InitializeDependencies: Failed to cast DataService to ISuspenseCoreEquipmentDataServiceInterface"));
         return false;
     }
 
     UE_LOG(LogSuspenseCoreEquipmentValidation, Verbose,
-        TEXT("InitializeDependencies: Successfully cast to IEquipmentDataService"));
+        TEXT("InitializeDependencies: Successfully cast to ISuspenseCoreEquipmentDataServiceInterface"));
 
     // ✅ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: DataProvider теперь ОПЦИОНАЛЬНЫЙ
     // В stateless режиме DataService не имеет компонентов и GetDataProvider() вернёт null
-    ISuspenseEquipmentDataProvider* RawDataProvider = DataServiceInterface->GetDataProvider();
+    ISuspenseCoreEquipmentDataProvider* RawDataProvider = DataServiceInterface->GetDataProvider();
 
     if (RawDataProvider)
     {
@@ -1494,7 +1518,7 @@ bool USuspenseCoreEquipmentValidationService::InitializeDependencies()
     }
 
     // Try to get TransactionManager (optional)
-    ISuspenseTransactionManager* RawTransactionManager = DataServiceInterface->GetTransactionManager();
+    ISuspenseCoreTransactionManager* RawTransactionManager = DataServiceInterface->GetTransactionManager();
     if (RawTransactionManager)
     {
         UObject* TransactionManagerObject = Cast<UObject>(RawTransactionManager);

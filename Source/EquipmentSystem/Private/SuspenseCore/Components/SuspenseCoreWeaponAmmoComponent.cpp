@@ -9,8 +9,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Engine/World.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
-#include "Attributes/SuspenseCoreWeaponAttributeSet.h"
-#include "Attributes/SuspenseCoreAmmoAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"
 
 USuspenseCoreWeaponAmmoComponent::USuspenseCoreWeaponAmmoComponent()

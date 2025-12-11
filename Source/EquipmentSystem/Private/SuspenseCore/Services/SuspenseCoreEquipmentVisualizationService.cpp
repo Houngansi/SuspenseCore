@@ -4,6 +4,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -740,28 +741,25 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 				Params.ItemInstance.ItemID = ItemID;
 				Params.SpawnTransform      = Character->GetActorTransform();
 				Params.Owner               = Character;
-				Params.Instigator          = Cast<APawn>(Character);
-				Params.bDeferredSpawn      = false;
-				Params.bNoCollisionFail    = true;
-				Params.CustomParameters.Add(TEXT("SlotIndex"), LexToString(SlotIndex));
+				Params.SlotIndex           = SlotIndex;
 
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 					TEXT("  Calling Factory->SpawnEquipmentActor..."));
 
 				const FEquipmentActorSpawnResult R = Factory->SpawnEquipmentActor(Params);
 
-				if (R.bSuccess && R.SpawnedActor)
+				if (R.bSuccess && R.SpawnedActor.IsValid())
 				{
 					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 						TEXT("✓ ActorFactory SUCCESS: Spawned %s"),
 						*R.SpawnedActor->GetName());
-					return R.SpawnedActor;
+					return R.SpawnedActor.Get();
 				}
 				else
 				{
 					UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 						TEXT("✗ ActorFactory FAILED: %s"),
-						*R.FailureReason.ToString());
+						*R.ErrorMessage.ToString());
 				}
 			}
 			else

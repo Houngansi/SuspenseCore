@@ -12,7 +12,7 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Rules/SuspenseCoreRulesTypes.h"
 
-DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipmentRules);
+// Log category defined in EquipmentSystem.cpp
 
 //========================================
 // FSuspenseCoreRulesServiceConfig

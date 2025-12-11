@@ -18,6 +18,33 @@
 #include "SuspenseCoreEquipmentAttachmentSystem.generated.h"
 
 /**
+ * Equipment attachment configuration
+ */
+USTRUCT(BlueprintType)
+struct FEquipmentAttachmentConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	FName SocketName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	FTransform RelativeTransform = FTransform::Identity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	EAttachmentRule LocationRule = EAttachmentRule::SnapToTarget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	EAttachmentRule RotationRule = EAttachmentRule::SnapToTarget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	EAttachmentRule ScaleRule = EAttachmentRule::KeepRelative;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attachment")
+	bool bWeldSimulatedBodies = true;
+};
+
+/**
  * Attachment state tracking data
  */
 USTRUCT()
@@ -27,6 +54,10 @@ struct FSuspenseCoreAttachmentStateData
 
 	UPROPERTY()
 	FEquipmentAttachmentState CurrentState;
+
+	/** Whether the equipment is in active (vs holstered) position */
+	UPROPERTY()
+	bool bIsActive = false;
 
 	UPROPERTY()
 	bool bIsTransitioning = false;
@@ -137,8 +168,11 @@ public:
 	// Extended Attachment API
 	//========================================
 	bool AttachEquipment(AActor* Equipment, USceneComponent* Target, const FName& SocketName, const FTransform& Offset = FTransform::Identity);
+	bool AttachEquipment(AActor* Equipment, USceneComponent* Target, const FEquipmentAttachmentConfig& Config);
 	bool DetachEquipment(AActor* Equipment, bool bMaintainWorldTransform = false);
+	bool UpdateAttachment(AActor* Equipment, const FEquipmentAttachmentConfig& NewConfig, bool bSmooth = true);
 	FEquipmentAttachmentState GetAttachmentStateForActor(AActor* Equipment) const;
+	FEquipmentAttachmentConfig GetSlotAttachmentConfig(int32 SlotIndex, bool bIsActive) const;
 	FName FindBestSocket(USkeletalMeshComponent* Target, const FGameplayTag& ItemType, bool bIsActive) const;
 	bool SwitchAttachmentState(AActor* Equipment, bool bMakeActive, float Duration = 0.0f);
 	bool ValidateSocket(USceneComponent* Target, const FName& SocketName) const;

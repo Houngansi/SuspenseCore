@@ -179,10 +179,10 @@ bool USuspenseCoreEquipmentAttachmentSystem::AttachEquipment(
 
 		FSuspenseCoreAttachmentStateData& StateData = AttachmentStates.FindOrAdd(Equipment);
 		StateData.CurrentState.bIsAttached = true;
-		StateData.CurrentState.AttachedTo = Target;
-		StateData.CurrentState.CurrentSocket = Config.SocketName;
-		StateData.CurrentState.CurrentOffset = Config.RelativeTransform;
-		StateData.CurrentState.bIsActive = true;
+		StateData.CurrentState.AttachParent = Target;
+		StateData.CurrentState.AttachmentSocket = Config.SocketName;
+		StateData.CurrentState.AttachmentTransform = Config.RelativeTransform;
+		StateData.bIsActive = true;
 		StateData.bIsTransitioning = false;
 
 		MarkSocketOccupied(Config.SocketName, Equipment);
@@ -223,7 +223,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, 
 		return false;
 	}
 
-	ClearSocketOccupation(StateData->CurrentState.CurrentSocket);
+	ClearSocketOccupation(StateData->CurrentState.AttachmentSocket);
 
 	FDetachmentTransformRules DetachRules(
 		bMaintainWorldTransform ? EDetachmentRule::KeepWorld : EDetachmentRule::KeepRelative,
@@ -234,10 +234,10 @@ bool USuspenseCoreEquipmentAttachmentSystem::DetachEquipment(AActor* Equipment, 
 
 	RootComp->DetachFromComponent(DetachRules);
 
-	const FName OldSocket = StateData->CurrentState.CurrentSocket;
+	const FName OldSocket = StateData->CurrentState.AttachmentSocket;
 	StateData->CurrentState.bIsAttached = false;
-	StateData->CurrentState.AttachedTo = nullptr;
-	StateData->CurrentState.CurrentSocket = NAME_None;
+	StateData->CurrentState.AttachParent = nullptr;
+	StateData->CurrentState.AttachmentSocket = NAME_None;
 
 	AttachmentStates.Remove(Equipment);
 
@@ -276,9 +276,9 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 		StateData->bIsTransitioning   = true;
 		StateData->TransitionStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 		StateData->TransitionDuration  = SystemConfig.DefaultTransitionDuration;
-		StateData->StartTransform      = StateData->CurrentState.CurrentOffset;
+		StateData->StartTransform      = StateData->CurrentState.AttachmentTransform;
 		StateData->TargetTransform     = NewConfig.RelativeTransform;
-		StateData->PreviousSocket      = StateData->CurrentState.CurrentSocket;
+		StateData->PreviousSocket      = StateData->CurrentState.AttachmentSocket;
 
 		ActiveTransitionCount++;
 		SetComponentTickEnabled(true);
@@ -288,9 +288,9 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 	}
 	else
 	{
-		USceneComponent* Target = StateData->CurrentState.AttachedTo;
+		USceneComponent* Target = StateData->CurrentState.AttachParent.Get();
 
-		ClearSocketOccupation(StateData->CurrentState.CurrentSocket);
+		ClearSocketOccupation(StateData->CurrentState.AttachmentSocket);
 
 		const bool bSuccess = InternalAttach(
 			Equipment,
@@ -305,8 +305,8 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 
 		if (bSuccess)
 		{
-			StateData->CurrentState.CurrentSocket = NewConfig.SocketName;
-			StateData->CurrentState.CurrentOffset = NewConfig.RelativeTransform;
+			StateData->CurrentState.AttachmentSocket = NewConfig.SocketName;
+			StateData->CurrentState.AttachmentTransform = NewConfig.RelativeTransform;
 
 			MarkSocketOccupied(NewConfig.SocketName, Equipment);
 
@@ -326,7 +326,7 @@ bool USuspenseCoreEquipmentAttachmentSystem::UpdateAttachment(
 	return true;
 }
 
-FEquipmentAttachmentState USuspenseCoreEquipmentAttachmentSystem::GetAttachmentState(AActor* Equipment) const
+FEquipmentAttachmentState USuspenseCoreEquipmentAttachmentSystem::GetAttachmentStateForActor(AActor* Equipment) const
 {
 	FEquipmentRWGuard Rw(AttachmentStateLock, ELockType::Read);
 
@@ -393,12 +393,12 @@ bool USuspenseCoreEquipmentAttachmentSystem::SwitchAttachmentState(
 		return false;
 	}
 
-	if (StateData->CurrentState.bIsActive == bMakeActive)
+	if (StateData->bIsActive == bMakeActive)
 	{
 		return true;
 	}
 
-	StateData->CurrentState.bIsActive = bMakeActive;
+	StateData->bIsActive = bMakeActive;
 
 	EquipmentEventHelper::BroadcastEquipmentEvent(
 		this,
@@ -564,7 +564,7 @@ void USuspenseCoreEquipmentAttachmentSystem::UpdateTransitions(float DeltaTime)
 
 			if (Progress >= 1.0f)
 			{
-				StateData.CurrentState.CurrentOffset = StateData.TargetTransform;
+				StateData.CurrentState.AttachmentTransform = StateData.TargetTransform;
 				StateData.bIsTransitioning = false;
 				CompletedTransitions++;
 
@@ -729,7 +729,7 @@ void USuspenseCoreEquipmentAttachmentSystem::ForceUpdateAllAttachments()
 	{
 		if (USceneComponent* RootComp = GetEquipmentRootComponent(Pair.Key))
 		{
-			RootComp->SetRelativeTransform(Pair.Value.CurrentState.CurrentOffset);
+			RootComp->SetRelativeTransform(Pair.Value.CurrentState.AttachmentTransform);
 		}
 	}
 }

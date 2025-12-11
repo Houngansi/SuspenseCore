@@ -213,4 +213,78 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_UI_Equipment_ContextMenu, "SuspenseCore.Event.UI.Equipment.ContextMenu");
     }
 
+    //========================================
+    // VALIDATION RULE TAGS
+    //========================================
+    namespace Validation
+    {
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Rule, "Validation.Rule");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Rule_ItemType, "Validation.Rule.ItemType");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Rule_Level, "Validation.Rule.Level");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Rule_Weight, "Validation.Rule.Weight");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Rule_Unique, "Validation.Rule.Unique");
+
+        // Validation error tags
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error, "Validation.Error");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_InvalidSlotConfig, "Validation.Error.InvalidSlotConfig");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_RequirementNotMet, "Validation.Error.RequirementNotMet");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_InvalidItem, "Validation.Error.InvalidItem");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_InvalidSlotIndex, "Validation.Error.InvalidSlotIndex");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_Conflict, "Validation.Error.Conflict");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_NoItemData, "Validation.Error.NoItemData");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_TypeDisallowed, "Validation.Error.TypeDisallowed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_TypeMatrix, "Validation.Error.TypeMatrix");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_TooHeavy, "Validation.Error.TooHeavy");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_TooLarge, "Validation.Error.TooLarge");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_UniqueGroup, "Validation.Error.UniqueGroup");
+    }
+
+    //========================================
+    // ITEM TYPE TAGS
+    //========================================
+    namespace Item
+    {
+        // Root item tag
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item, "Item");
+
+        // Weapon tags
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon, "Item.Weapon");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Rifle, "Item.Weapon.Rifle");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_AR, "Item.Weapon.AR");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_DMR, "Item.Weapon.DMR");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_SR, "Item.Weapon.SR");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Sniper, "Item.Weapon.Sniper");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_LMG, "Item.Weapon.LMG");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_SMG, "Item.Weapon.SMG");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Shotgun, "Item.Weapon.Shotgun");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_PDW, "Item.Weapon.PDW");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Primary, "Item.Weapon.Primary");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Pistol, "Item.Weapon.Pistol");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Revolver, "Item.Weapon.Revolver");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Melee, "Item.Weapon.Melee");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Weapon_Melee_Knife, "Item.Weapon.Melee.Knife");
+
+        // Gear tags (head, body, storage, special)
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear, "Item.Gear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_Headwear, "Item.Gear.Headwear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_Earpiece, "Item.Gear.Earpiece");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_Eyewear, "Item.Gear.Eyewear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_FaceCover, "Item.Gear.FaceCover");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_TacticalRig, "Item.Gear.TacticalRig");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_Backpack, "Item.Gear.Backpack");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_SecureContainer, "Item.Gear.SecureContainer");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Gear_Armband, "Item.Gear.Armband");
+
+        // Armor tags
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Armor, "Item.Armor");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Armor_Helmet, "Item.Armor.Helmet");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Armor_BodyArmor, "Item.Armor.BodyArmor");
+
+        // Consumable/utility tags
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Consumable, "Item.Consumable");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Medical, "Item.Medical");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Throwable, "Item.Throwable");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Ammo, "Item.Ammo");
+    }
+
 } // namespace SuspenseCoreEquipmentTags

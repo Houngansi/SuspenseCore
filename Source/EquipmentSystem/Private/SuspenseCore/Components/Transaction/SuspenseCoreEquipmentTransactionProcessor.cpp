@@ -4,10 +4,27 @@
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
+
+//========================================
+// Helper: Convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
+//========================================
+
+static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInventoryItemInstance& Source)
+{
+    FSuspenseCoreItemInstance Result;
+    Result.ItemID = Source.ItemID;
+    Result.UniqueInstanceID = Source.InstanceID;
+    Result.Quantity = Source.Quantity;
+
+    // Note: We don't copy all runtime properties as FSuspenseCoreItemInstance uses a different format
+    // This is a minimal conversion for operation request purposes
+    return Result;
+}
 
 //========================================
 // Constructor/Destructor
@@ -2208,7 +2225,7 @@ FEquipmentTransaction USuspenseCoreEquipmentTransactionProcessor::ConvertToTrans
         FEquipmentOperationRequest Request;
         Request.OperationId = Op.OperationId;
         Request.TargetSlotIndex = Op.SlotIndex;
-        Request.ItemInstance = Op.ItemAfter;
+        Request.ItemInstance = ConvertToItemInstance(Op.ItemAfter);
         Request.Timestamp = Op.Timestamp;
         Request.Parameters = Op.Metadata;
         

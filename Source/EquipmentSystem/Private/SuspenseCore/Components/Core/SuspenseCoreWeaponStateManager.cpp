@@ -434,7 +434,7 @@ TArray<FSuspenseCoreWSPHistoryEntry> USuspenseCoreWeaponStateManager::GetStateHi
     {
         FSuspenseCoreWSPHistoryEntry Entry;
         Entry.State = StateHistory[i].State;
-        Entry.Timestamp = StateHistory[i].TimeSeconds;
+        Entry.EntryTime = StateHistory[i].TimeSeconds;
         Entry.SlotIndex = INDEX_NONE; // Global history doesn't track per-slot
         History.Add(Entry);
     }
@@ -640,10 +640,10 @@ FSuspenseCoreWeaponStateSnapshot USuspenseCoreWeaponStateManager::GetStateSnapsh
     {
         Snapshot.SlotIndex = StateMachine->SlotIndex;
         Snapshot.CurrentState = StateMachine->CurrentState;
-        Snapshot.PreviousState = StateMachine->PreviousState;
+        Snapshot.TargetState = StateMachine->TargetState;
         Snapshot.bIsTransitioning = StateMachine->bIsTransitioning;
         Snapshot.TransitionProgress = GetTransitionProgress(SlotIndex);
-        Snapshot.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+        Snapshot.StateEntryTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
     }
 
     return Snapshot;
@@ -661,10 +661,10 @@ TArray<FSuspenseCoreWeaponStateSnapshot> USuspenseCoreWeaponStateManager::GetAll
         FSuspenseCoreWeaponStateSnapshot Snapshot;
         Snapshot.SlotIndex = StateMachine.SlotIndex;
         Snapshot.CurrentState = StateMachine.CurrentState;
-        Snapshot.PreviousState = StateMachine.PreviousState;
+        Snapshot.TargetState = StateMachine.TargetState;
         Snapshot.bIsTransitioning = StateMachine.bIsTransitioning;
         Snapshot.TransitionProgress = GetTransitionProgress(StateMachine.SlotIndex);
-        Snapshot.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+        Snapshot.StateEntryTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
         Snapshots.Add(Snapshot);
     }
 
@@ -694,8 +694,8 @@ bool USuspenseCoreWeaponStateManager::RegisterTransitionRule(const FSuspenseCore
     FSuspenseCoreStateTransitionDef Def;
     Def.FromState = Rule.FromState;
     Def.ToState = Rule.ToState;
-    Def.Duration = Rule.Duration;
-    Def.bInterruptible = Rule.bInterruptible;
+    Def.Duration = Rule.DefaultDuration;
+    Def.bInterruptible = Rule.bCanInterrupt;
 
     // Remove existing transition if present
     TransitionDefinitions.RemoveAll([&Rule](const FSuspenseCoreStateTransitionDef& Existing)
@@ -739,8 +739,8 @@ bool USuspenseCoreWeaponStateManager::GetTransitionRule(const FGameplayTag& From
 
     OutRule.FromState = Def->FromState;
     OutRule.ToState = Def->ToState;
-    OutRule.Duration = Def->Duration;
-    OutRule.bInterruptible = Def->bInterruptible;
+    OutRule.DefaultDuration = Def->Duration;
+    OutRule.bCanInterrupt = Def->bInterruptible;
 
     return true;
 }
@@ -757,8 +757,8 @@ TArray<FSuspenseCoreStateTransitionRule> USuspenseCoreWeaponStateManager::GetAll
         FSuspenseCoreStateTransitionRule Rule;
         Rule.FromState = Def.FromState;
         Rule.ToState = Def.ToState;
-        Rule.Duration = Def.Duration;
-        Rule.bInterruptible = Def.bInterruptible;
+        Rule.DefaultDuration = Def.Duration;
+        Rule.bCanInterrupt = Def.bInterruptible;
         Rules.Add(Rule);
     }
 

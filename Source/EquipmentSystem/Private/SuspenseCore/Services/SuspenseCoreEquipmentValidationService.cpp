@@ -34,7 +34,7 @@ static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const F
     // Copy runtime properties
     for (const FSuspenseCoreRuntimeProperty& Prop : Source.RuntimeProperties)
     {
-        Result.SetRuntimeProperty(Prop.PropertyName.ToString(), Prop.Value);
+        Result.SetRuntimeProperty(FName(*Prop.PropertyName.ToString()), Prop.Value);
     }
 
     return Result;

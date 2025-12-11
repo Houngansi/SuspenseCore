@@ -823,7 +823,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 
 	// 1) Совместимость типа предмета со слотом
 	FEquipmentValidationRule TypeRule;
-	TypeRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.ItemType"));
+	TypeRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.ItemType"), false);
 	TypeRule.Priority = 100;
 	TypeRule.ErrorMessage = FText::FromString(TEXT("Item type is not compatible with slot"));
 	TypeRule.bIsStrict = true;
@@ -867,7 +867,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 
 	// 2) Уровень/требования (минимально — RequiredLevel свойство айтема)
 	FEquipmentValidationRule LevelRule;
-	LevelRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Level"));
+	LevelRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Level"), false);
 	LevelRule.Priority = 90;
 	LevelRule.ErrorMessage = FText::FromString(TEXT("Level requirement not met"));
 	LevelRule.bIsStrict = true;
@@ -887,7 +887,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 
 	// 3) Ограничения слота (вес/размер)
 	FEquipmentValidationRule WeightRule;
-	WeightRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Weight"));
+	WeightRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Weight"), false);
 	WeightRule.Priority = 80;
 	WeightRule.ErrorMessage = FText::FromString(TEXT("Item exceeds slot restrictions"));
 	WeightRule.bIsStrict = false; // предупреждение по умолчанию
@@ -918,7 +918,7 @@ void USuspenseCoreEquipmentSlotValidator::InitializeBuiltInRules()
 
 	// 4) Уникальность предмета в группе (по тегу UniqueGroupTag слота)
 	FEquipmentValidationRule UniqueRule;
-	UniqueRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Unique"));
+	UniqueRule.RuleTag = FGameplayTag::RequestGameplayTag(TEXT("Validation.Rule.Unique"), false);
 	UniqueRule.Priority = 70;
 	UniqueRule.ErrorMessage = FText::FromString(TEXT("Unique item constraint violated"));
 	UniqueRule.bIsStrict = true;

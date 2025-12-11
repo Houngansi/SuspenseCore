@@ -164,6 +164,12 @@ struct FSuspenseCoreBatchVisualRequest
 	UPROPERTY() int32 Priority = 0;
 };
 
+/** Backward compatibility aliases */
+using FEquipmentVisualProfile = FSuspenseCoreEquipmentVisualProfile;
+using FEnhancedActiveVisualEffect = FSuspenseCoreEnhancedActiveVisualEffect;
+using FEnhancedMaterialState = FSuspenseCoreEnhancedMaterialState;
+using FBatchVisualRequest = FSuspenseCoreBatchVisualRequest;
+
 /** Controller config (добавлен троттлинг эффектов) */
 USTRUCT(BlueprintType)
 struct FSuspenseCoreVisualControllerConfig

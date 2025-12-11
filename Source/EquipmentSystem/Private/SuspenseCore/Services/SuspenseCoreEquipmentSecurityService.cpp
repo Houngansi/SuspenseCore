@@ -29,13 +29,12 @@ static FORCEINLINE uint64 RotateLeft64(uint64 Value, int32 Shift)
 }
 
 //========================================
-// SHA256 Helper Struct (UE doesn't have FSHA256Signature)
+// SHA-1 based hashing (UE provides FSHA1, not FSHA256)
+// Using SHA-1 for HMAC since UE doesn't provide SHA-256 API
 //========================================
 
-struct FSHA256Signature
-{
-    uint8 Signature[32];
-};
+// SHA-1 output size is 20 bytes
+static constexpr int32 SHA1_HASH_SIZE = 20;
 
 //========================================
 // FSecurityServiceConfig
@@ -377,6 +376,8 @@ FString USuspenseCoreEquipmentSecurityService::GetServiceStats() const
 {
     FRWScopeLock Lock(SecurityLock, SLT_ReadOnly);
 
+    const FString NonceCacheStats = NonceCache.IsValid() ? NonceCache->GetStats().ToString() : TEXT("N/A");
+
     return FString::Printf(
         TEXT("SecurityService Stats:\n")
         TEXT("  Players Tracked: %d\n")
@@ -387,7 +388,7 @@ FString USuspenseCoreEquipmentSecurityService::GetServiceStats() const
         RateLimitPerPlayer.Num(),
         RateLimitPerIP.Num(),
         SuspiciousActivityCount.Num(),
-        NonceCache.IsValid() ? *NonceCache->GetStatistics() : TEXT("N/A"),
+        *NonceCacheStats,
         *Metrics.ToString()
     );
 }
@@ -555,13 +556,14 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
     }
 
     // Build canonical string from request (deterministic ordering)
+    // Use correct field names from FNetworkOperationRequest structure
     const FString CanonicalString = FString::Printf(
         TEXT("%s|%llu|%s|%d|%d"),
-        *Request.OperationId.ToString(),
-        Request.Timestamp,
-        *Request.Request.ItemInstance.ItemID.ToString(),
-        static_cast<int32>(Request.Request.OperationType),
-        Request.Request.TargetSlotIndex
+        *Request.RequestId.ToString(),
+        static_cast<unsigned long long>(Request.Nonce),
+        *Request.Operation.ItemInstance.ItemID.ToString(),
+        static_cast<int32>(Request.Operation.OperationType),
+        Request.Operation.TargetSlotIndex
     );
 
     // Get key bytes
@@ -579,12 +581,12 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
     const int32 MessageLen = Utf8Converter.Length();
 
     // ========================================
-    // RFC 2104 HMAC-SHA256 Implementation
+    // RFC 2104 HMAC-SHA1 Implementation (UE provides FSHA1)
     // HMAC(K, m) = H((K' ⊕ opad) || H((K' ⊕ ipad) || m))
     // ========================================
 
-    constexpr int32 BlockSize = 64;  // SHA-256 block size in bytes
-    constexpr int32 HashSize = 32;   // SHA-256 output size in bytes
+    constexpr int32 BlockSize = 64;  // SHA-1 block size in bytes
+    constexpr int32 HashSize = 20;   // SHA-1 output size in bytes
     constexpr uint8 IPAD = 0x36;
     constexpr uint8 OPAD = 0x5C;
 
@@ -596,9 +598,9 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
     if (KeyBytes.Num() > BlockSize)
     {
         // Hash the key if too long
-        FSHA256Signature KeyHash;
-        FSHA256::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash.Signature);
-        FMemory::Memcpy(KeyPrime.GetData(), KeyHash.Signature, HashSize);
+        uint8 KeyHash[20];
+        FSHA1::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash);
+        FMemory::Memcpy(KeyPrime.GetData(), KeyHash, HashSize);
     }
     else
     {
@@ -616,10 +618,13 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
         InnerData[i] = KeyPrime[i] ^ IPAD;
     }
     // Append message
-    FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+    if (MessageLen > 0)
+    {
+        FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+    }
 
-    FSHA256Signature InnerHash;
-    FSHA256::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash.Signature);
+    uint8 InnerHash[20];
+    FSHA1::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash);
 
     // Step 3: Compute outer hash: H((K' ⊕ opad) || inner_hash)
     TArray<uint8> OuterData;
@@ -631,17 +636,20 @@ FString USuspenseCoreEquipmentSecurityService::GenerateHMAC(const FNetworkOperat
         OuterData[i] = KeyPrime[i] ^ OPAD;
     }
     // Append inner hash
-    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash.Signature, HashSize);
+    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash, HashSize);
 
-    FSHA256Signature FinalHash;
-    FSHA256::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash.Signature);
+    uint8 FinalHash[20];
+    FSHA1::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash);
 
     // Secure cleanup of sensitive data
     FMemory::Memzero(KeyPrime.GetData(), KeyPrime.Num());
     FMemory::Memzero(InnerData.GetData(), InnerData.Num());
     FMemory::Memzero(OuterData.GetData(), OuterData.Num());
 
-    return BytesToHex(FinalHash.Signature, HashSize);
+    // Convert to hex string
+    FString Result;
+    BytesToHex(FinalHash, HashSize, Result);
+    return Result;
 }
 
 bool USuspenseCoreEquipmentSecurityService::VerifyHMAC(const FNetworkOperationRequest& Request) const
@@ -657,22 +665,26 @@ bool USuspenseCoreEquipmentSecurityService::VerifyHMAC(const FNetworkOperationRe
         return false;
     }
 
+    // Use HMACSignature field from FNetworkOperationRequest
+    const FString& ProvidedHMAC = Request.HMACSignature;
+
     // Constant-time comparison to prevent timing attacks
-    if (ExpectedHMAC.Len() != Request.HMAC.Len())
+    if (ExpectedHMAC.Len() != ProvidedHMAC.Len())
     {
-        Metrics.RequestsRejectedHMAC++;
+        // Use atomic fetch_add instead of operator++ for const-correctness
+        const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC.fetch_add(1, std::memory_order_relaxed);
         return false;
     }
 
     int32 Result = 0;
     for (int32 i = 0; i < ExpectedHMAC.Len(); i++)
     {
-        Result |= ExpectedHMAC[i] ^ Request.HMAC[i];
+        Result |= ExpectedHMAC[i] ^ ProvidedHMAC[i];
     }
 
     if (Result != 0)
     {
-        Metrics.RequestsRejectedHMAC++;
+        const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC.fetch_add(1, std::memory_order_relaxed);
     }
 
     return Result == 0;
@@ -790,7 +802,7 @@ bool USuspenseCoreEquipmentSecurityService::MarkNoncePending(uint64 Nonce)
     {
         return false;
     }
-    return NonceCache->Insert(Nonce, ENonceState::Pending);
+    return NonceCache->AddPending(Nonce);
 }
 
 void USuspenseCoreEquipmentSecurityService::ConfirmNonce(uint64 Nonce)
@@ -805,7 +817,7 @@ void USuspenseCoreEquipmentSecurityService::RejectNonce(uint64 Nonce)
 {
     if (NonceCache.IsValid())
     {
-        NonceCache->Remove(Nonce);
+        NonceCache->Reject(Nonce);
     }
 }
 
@@ -868,7 +880,7 @@ void USuspenseCoreEquipmentSecurityService::CleanupExpiredData()
     // Cleanup nonce cache (LRU handles TTL internally)
     if (NonceCache.IsValid())
     {
-        NonceCache->CleanupExpired();
+        NonceCache->CleanExpired();
     }
 
     UE_LOG(LogSuspenseCoreEquipmentSecurity, Verbose,
@@ -986,7 +998,7 @@ void USuspenseCoreEquipmentSecurityService::LogSecurityEvent(const FString& Even
         TEXT("[SECURITY] %s: %s"), *EventType, *Details);
 
     // Also write to security log file
-    const FString LogPath = FPaths::ProjectLogDir() / TEXT("SecurityEvents.log");
+    const FString SecurityLogFilePath = FPaths::ProjectLogDir() / TEXT("SecurityEvents.log");
     const FString LogEntry = FString::Printf(
         TEXT("[%s] %s: %s\n"),
         *FDateTime::Now().ToString(),
@@ -996,7 +1008,7 @@ void USuspenseCoreEquipmentSecurityService::LogSecurityEvent(const FString& Even
 
     FFileHelper::SaveStringToFile(
         LogEntry,
-        *LogPath,
+        *SecurityLogFilePath,
         FFileHelper::EEncodingOptions::AutoDetect,
         &IFileManager::Get(),
         EFileWrite::FILEWRITE_Append

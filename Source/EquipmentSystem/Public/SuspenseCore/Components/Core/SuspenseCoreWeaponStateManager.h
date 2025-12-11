@@ -96,6 +96,9 @@ class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStateManager : public UActorCompone
 public:
     USuspenseCoreWeaponStateManager();
 
+    /** Initialize default state transitions - called from BeginPlay to avoid static init order issues */
+    void InitializeDefaultTransitions();
+
     //~ Begin UActorComponent Interface
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

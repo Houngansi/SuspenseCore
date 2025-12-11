@@ -575,7 +575,7 @@ struct BRIDGESYSTEM_API FEquipmentPrediction
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    UPROPERTY(meta = (IgnoreForMemberInitializationTest))
     FGuid PredictionId;
 
     UPROPERTY()

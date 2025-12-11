@@ -38,7 +38,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreWeaponStateTransitionRequest
 	UPROPERTY(BlueprintReadWrite, Category = "Transition")
 	FGameplayTag ContextTag;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Transition")
+	UPROPERTY(BlueprintReadOnly, Category = "Transition", meta = (IgnoreForMemberInitializationTest))
 	FGuid RequestId;
 
 	FSuspenseCoreWeaponStateTransitionRequest()

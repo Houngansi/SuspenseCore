@@ -4,6 +4,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEventDispatcher.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "GameplayTagsManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -13,63 +14,77 @@ USuspenseCoreWeaponStateManager::USuspenseCoreWeaponStateManager()
     PrimaryComponentTick.TickInterval = 0.016f; // 60 FPS for smooth transitions
     SetIsReplicatedByDefault(false);
 
-    // Initialize default states
-    DefaultIdleState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
-    DefaultHolsteredState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+    // NOTE: Do NOT call FGameplayTag::RequestGameplayTag() in constructor!
+    // Tags must be initialized in BeginPlay to avoid static initialization order issues.
+    // DefaultIdleState and DefaultHolsteredState will be set in InitializeDefaultTransitions()
+}
 
-    // Setup default transitions
+void USuspenseCoreWeaponStateManager::InitializeDefaultTransitions()
+{
+    // Only initialize if tag manager is ready
+    if (!UGameplayTagsManager::IsValidPtr())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreWeaponStateManager: Tag manager not ready, skipping transition initialization"));
+        return;
+    }
+
+    // Initialize default states (deferred from constructor)
+    DefaultIdleState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
+    DefaultHolsteredState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Holstered")), false);
+
+    // Setup default transitions (deferred from constructor to avoid static init order issues)
     FSuspenseCoreStateTransitionDef DrawTransition;
-    DrawTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
-    DrawTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
+    DrawTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Holstered")), false);
+    DrawTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Drawing")), false);
     DrawTransition.Duration = 0.5f;
     DrawTransition.bInterruptible = false;
     TransitionDefinitions.Add(DrawTransition);
 
     FSuspenseCoreStateTransitionDef DrawCompleteTransition;
-    DrawCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Drawing"));
-    DrawCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    DrawCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Drawing")), false);
+    DrawCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
     DrawCompleteTransition.Duration = 0.1f;
     DrawCompleteTransition.bInterruptible = false;
     TransitionDefinitions.Add(DrawCompleteTransition);
 
     FSuspenseCoreStateTransitionDef HolsterTransition;
-    HolsterTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
-    HolsterTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
+    HolsterTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
+    HolsterTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Holstering")), false);
     HolsterTransition.Duration = 0.4f;
     HolsterTransition.bInterruptible = true;
     TransitionDefinitions.Add(HolsterTransition);
 
     FSuspenseCoreStateTransitionDef HolsterCompleteTransition;
-    HolsterCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstering"));
-    HolsterCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Holstered"));
+    HolsterCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Holstering")), false);
+    HolsterCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Holstered")), false);
     HolsterCompleteTransition.Duration = 0.1f;
     HolsterCompleteTransition.bInterruptible = false;
     TransitionDefinitions.Add(HolsterCompleteTransition);
 
     FSuspenseCoreStateTransitionDef FireTransition;
-    FireTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
-    FireTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
+    FireTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
+    FireTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Firing")), false);
     FireTransition.Duration = 0.0f; // Instant
     FireTransition.bInterruptible = true;
     TransitionDefinitions.Add(FireTransition);
 
     FSuspenseCoreStateTransitionDef FireEndTransition;
-    FireEndTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Firing"));
-    FireEndTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    FireEndTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Firing")), false);
+    FireEndTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
     FireEndTransition.Duration = 0.1f;
     FireEndTransition.bInterruptible = true;
     TransitionDefinitions.Add(FireEndTransition);
 
     FSuspenseCoreStateTransitionDef ReloadTransition;
-    ReloadTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
-    ReloadTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
+    ReloadTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
+    ReloadTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Reloading")), false);
     ReloadTransition.Duration = 2.0f;
     ReloadTransition.bInterruptible = false;
     TransitionDefinitions.Add(ReloadTransition);
 
     FSuspenseCoreStateTransitionDef ReloadCompleteTransition;
-    ReloadCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Reloading"));
-    ReloadCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(TEXT("Weapon.State.Ready"));
+    ReloadCompleteTransition.FromState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Reloading")), false);
+    ReloadCompleteTransition.ToState = FGameplayTag::RequestGameplayTag(FName(TEXT("Weapon.State.Ready")), false);
     ReloadCompleteTransition.Duration = 0.2f;
     ReloadCompleteTransition.bInterruptible = false;
     TransitionDefinitions.Add(ReloadCompleteTransition);
@@ -78,6 +93,9 @@ USuspenseCoreWeaponStateManager::USuspenseCoreWeaponStateManager()
 void USuspenseCoreWeaponStateManager::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Initialize default transitions here (deferred from constructor)
+    InitializeDefaultTransitions();
 
     UE_LOG(LogTemp, Log, TEXT("SuspenseCoreWeaponStateManager: BeginPlay - Weapon state manager started"));
 }

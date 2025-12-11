@@ -419,9 +419,12 @@ protected:
 
 	//===============================
 	// Type compatibility matrix
+	// NOTE: Use GetTypeCompatibilityMatrix() instead of TypeCompatibilityMatrix directly
+	// to ensure lazy initialization after GameplayTag system is ready
 	//===============================
 	static TMap<EEquipmentSlotType, TArray<FGameplayTag>> CreateTypeCompatibilityMatrix();
-	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>> TypeCompatibilityMatrix;
+	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>>& GetTypeCompatibilityMatrix();
+	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>> TypeCompatibilityMatrix; // Deprecated: use GetTypeCompatibilityMatrix()
 
 private:
 	//---------------- Rules storage (split lock) ----------------

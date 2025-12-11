@@ -640,7 +640,7 @@ FSuspenseCoreWeaponStateSnapshot USuspenseCoreWeaponStateManager::GetStateSnapsh
     {
         Snapshot.SlotIndex = StateMachine->SlotIndex;
         Snapshot.CurrentState = StateMachine->CurrentState;
-        Snapshot.TargetState = StateMachine->TargetState;
+        Snapshot.TargetState = StateMachine->ActiveTransition.ToState;
         Snapshot.bIsTransitioning = StateMachine->bIsTransitioning;
         Snapshot.TransitionProgress = GetTransitionProgress(SlotIndex);
         Snapshot.StateEntryTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -661,7 +661,7 @@ TArray<FSuspenseCoreWeaponStateSnapshot> USuspenseCoreWeaponStateManager::GetAll
         FSuspenseCoreWeaponStateSnapshot Snapshot;
         Snapshot.SlotIndex = StateMachine.SlotIndex;
         Snapshot.CurrentState = StateMachine.CurrentState;
-        Snapshot.TargetState = StateMachine.TargetState;
+        Snapshot.TargetState = StateMachine.ActiveTransition.ToState;
         Snapshot.bIsTransitioning = StateMachine.bIsTransitioning;
         Snapshot.TransitionProgress = GetTransitionProgress(StateMachine.SlotIndex);
         Snapshot.StateEntryTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;

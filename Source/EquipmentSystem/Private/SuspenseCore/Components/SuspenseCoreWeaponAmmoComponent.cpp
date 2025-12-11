@@ -7,11 +7,15 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"
+
+using namespace SuspenseCoreEquipmentTags;
 
 USuspenseCoreWeaponAmmoComponent::USuspenseCoreWeaponAmmoComponent()
 {
@@ -121,8 +125,8 @@ void USuspenseCoreWeaponAmmoComponent::LinkAttributeComponent(USuspenseCoreEquip
     if (LinkedAttributeComponent)
     {
         // Cache AttributeSets for performance
-        CachedWeaponAttributeSet = Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
-        CachedAmmoAttributeSet = Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
+        CachedWeaponAttributeSet = Cast<USuspenseCoreWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
+        CachedAmmoAttributeSet = Cast<USuspenseCoreAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
 
         // Invalidate cache to force update
         bMagazineSizeCached = false;
@@ -133,7 +137,7 @@ void USuspenseCoreWeaponAmmoComponent::LinkAttributeComponent(USuspenseCoreEquip
     }
 }
 
-UWeaponAttributeSet* USuspenseCoreWeaponAmmoComponent::GetWeaponAttributeSet() const
+USuspenseCoreWeaponAttributeSet* USuspenseCoreWeaponAmmoComponent::GetWeaponAttributeSet() const
 {
     // Return cached if available
     if (CachedWeaponAttributeSet)
@@ -144,7 +148,7 @@ UWeaponAttributeSet* USuspenseCoreWeaponAmmoComponent::GetWeaponAttributeSet() c
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
-        return Cast<UWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
+        return Cast<USuspenseCoreWeaponAttributeSet>(LinkedAttributeComponent->GetWeaponAttributeSet());
     }
 
     // Try to find from ASC on owner
@@ -154,7 +158,7 @@ UWeaponAttributeSet* USuspenseCoreWeaponAmmoComponent::GetWeaponAttributeSet() c
         {
             for (UAttributeSet* Set : ASC->GetSpawnedAttributes())
             {
-                if (UWeaponAttributeSet* WeaponSet = Cast<UWeaponAttributeSet>(Set))
+                if (USuspenseCoreWeaponAttributeSet* WeaponSet = Cast<USuspenseCoreWeaponAttributeSet>(Set))
                 {
                     return WeaponSet;
                 }
@@ -165,7 +169,7 @@ UWeaponAttributeSet* USuspenseCoreWeaponAmmoComponent::GetWeaponAttributeSet() c
     return nullptr;
 }
 
-UAmmoAttributeSet* USuspenseCoreWeaponAmmoComponent::GetAmmoAttributeSet() const
+USuspenseCoreAmmoAttributeSet* USuspenseCoreWeaponAmmoComponent::GetAmmoAttributeSet() const
 {
     // Return cached if available
     if (CachedAmmoAttributeSet)
@@ -176,7 +180,7 @@ UAmmoAttributeSet* USuspenseCoreWeaponAmmoComponent::GetAmmoAttributeSet() const
     // Try to get from linked component
     if (LinkedAttributeComponent)
     {
-        return Cast<UAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
+        return Cast<USuspenseCoreAmmoAttributeSet>(LinkedAttributeComponent->GetAmmoAttributeSet());
     }
 
     // Try to find from ASC on owner
@@ -186,7 +190,7 @@ UAmmoAttributeSet* USuspenseCoreWeaponAmmoComponent::GetAmmoAttributeSet() const
         {
             for (UAttributeSet* Set : ASC->GetSpawnedAttributes())
             {
-                if (UAmmoAttributeSet* AmmoSet = Cast<UAmmoAttributeSet>(Set))
+                if (USuspenseCoreAmmoAttributeSet* AmmoSet = Cast<USuspenseCoreAmmoAttributeSet>(Set))
                 {
                     return AmmoSet;
                 }
@@ -319,10 +323,13 @@ bool USuspenseCoreWeaponAmmoComponent::StartReload(bool bForce)
     // Apply reload effect
     ApplyReloadEffect();
 
-    // Broadcast reload start
+    // Broadcast reload start event
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        Manager->NotifyWeaponReloadStart();
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadStart, FSuspenseCoreEventData::Create(GetOwner()));
+        }
     }
 
     float ReloadDuration = GetReloadTime(bIsTacticalReload);
@@ -373,7 +380,10 @@ void USuspenseCoreWeaponAmmoComponent::CompleteReload()
     // Уведомляем о завершении перезарядки
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        Manager->NotifyWeaponReloadEnd();
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, FSuspenseCoreEventData::Create(GetOwner()));
+        }
     }
 
     BroadcastAmmoChanged();
@@ -399,10 +409,13 @@ void USuspenseCoreWeaponAmmoComponent::CancelReload()
         ReloadEffectHandle.Invalidate();
     }
 
-    // Broadcast cancel
+    // Broadcast cancel event
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        Manager->NotifyWeaponReloadEnd();
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
+        {
+            EventBus->Publish(TAG_Equipment_Event_Weapon_ReloadEnd, FSuspenseCoreEventData::Create(GetOwner()));
+        }
     }
 
     EQUIPMENT_LOG(Log, TEXT("Reload cancelled"));
@@ -473,7 +486,7 @@ float USuspenseCoreWeaponAmmoComponent::GetMagazineSize() const
     }
 
     // First priority: Get from WeaponAttributeSet
-    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (USuspenseCoreWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         CachedMagazineSize = WeaponAS->GetMagazineSize();
         bMagazineSizeCached = true;
@@ -481,7 +494,7 @@ float USuspenseCoreWeaponAmmoComponent::GetMagazineSize() const
     }
 
     // Second priority: Get from AmmoAttributeSet (for special ammo types that modify magazine)
-    if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
+    if (USuspenseCoreAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
         float AmmoMagazineSize = AmmoAS->GetMagazineSize();
         if (AmmoMagazineSize > 0.0f)
@@ -538,7 +551,7 @@ float USuspenseCoreWeaponAmmoComponent::GetMagazineSize() const
 float USuspenseCoreWeaponAmmoComponent::GetReloadTime(bool bTactical) const
 {
     // First priority: Get from WeaponAttributeSet
-    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (USuspenseCoreWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         if (bTactical)
         {
@@ -551,7 +564,7 @@ float USuspenseCoreWeaponAmmoComponent::GetReloadTime(bool bTactical) const
     }
 
     // Second priority: Get from AmmoAttributeSet (special ammo might affect reload)
-    if (UAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
+    if (USuspenseCoreAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
     {
         float ReloadTimeModifier = AmmoAS->GetReloadTime();
         if (ReloadTimeModifier > 0.0f)
@@ -626,7 +639,7 @@ void USuspenseCoreWeaponAmmoComponent::UpdateMagazineSizeFromAttributes()
 void USuspenseCoreWeaponAmmoComponent::ApplyDurabilityModifiers()
 {
     // Check weapon durability and apply malfunction chances
-    if (UWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
+    if (USuspenseCoreWeaponAttributeSet* WeaponAS = GetWeaponAttributeSet())
     {
         float Durability = WeaponAS->GetDurability();
         float MaxDurability = WeaponAS->GetMaxDurability();
@@ -774,18 +787,14 @@ void USuspenseCoreWeaponAmmoComponent::OnRep_AmmoState()
 
 void USuspenseCoreWeaponAmmoComponent::OnRep_ReloadState()
 {
-    if (bIsReloading)
+    if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
-        if (USuspenseCoreEventManager* Manager = GetDelegateManager())
+        if (USuspenseCoreEventBus* EventBus = Manager->GetEventBus())
         {
-            Manager->NotifyWeaponReloadStart();
-        }
-    }
-    else
-    {
-        if (USuspenseCoreEventManager* Manager = GetDelegateManager())
-        {
-            Manager->NotifyWeaponReloadEnd();
+            FGameplayTag EventTag = bIsReloading
+                ? TAG_Equipment_Event_Weapon_ReloadStart
+                : TAG_Equipment_Event_Weapon_ReloadEnd;
+            EventBus->Publish(EventTag, FSuspenseCoreEventData::Create(GetOwner()));
         }
     }
 

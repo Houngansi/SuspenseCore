@@ -22,9 +22,9 @@ USuspenseCoreEquipmentDebugger::USuspenseCoreEquipmentDebugger()
 // Debug Info Collection
 //==================================================================
 
-FSuspenseCoreEquipmentDebugInfo USuspenseCoreEquipmentDebugger::GetDebugInfo(AActor* EquipmentOwner)
+FSuspenseCoreEquipmentDebugSnapshot USuspenseCoreEquipmentDebugger::GetDebugInfo(AActor* EquipmentOwner)
 {
-	FSuspenseCoreEquipmentDebugInfo Info;
+	FSuspenseCoreEquipmentDebugSnapshot Info;
 
 	if (!EquipmentOwner)
 	{
@@ -84,7 +84,7 @@ FSuspenseCoreEquipmentDebugInfo USuspenseCoreEquipmentDebugger::GetDebugInfo(AAc
 
 FString USuspenseCoreEquipmentDebugger::GetDebugString(AActor* EquipmentOwner)
 {
-	FSuspenseCoreEquipmentDebugInfo Info = GetDebugInfo(EquipmentOwner);
+	FSuspenseCoreEquipmentDebugSnapshot Info = GetDebugInfo(EquipmentOwner);
 
 	FString Result;
 	Result += TEXT("========== EQUIPMENT DEBUG ==========\n");

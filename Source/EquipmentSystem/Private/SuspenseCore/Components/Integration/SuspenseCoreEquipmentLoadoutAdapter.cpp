@@ -102,11 +102,10 @@ FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::Appl
 	if (!bIsInitialized) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Adapter not initialized"))); }
 	if (bIsApplying)      { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Another loadout is being applied"))); }
 
-	const USuspenseCoreLoadoutManager* Manager = GetLoadoutManager();
-	if (!Manager) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("LoadoutManager not found"))); }
+	if (!GetLoadoutManager()) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("LoadoutManager not found"))); }
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!Manager->GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
+	if (!GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
 
 	// ——— optional centralized path via OperationService (S8 pipeline) ———
 	if (bPreferOperationService)
@@ -210,15 +209,14 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadout(const FName& LoadoutI
 	FScopeLock Lock(&AdapterCriticalSection);
 	OutErrors.Empty();
 
-	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
-	if (!LoadoutManager)
+	if (!GetLoadoutManager())
 	{
 		OutErrors.Add(FText::FromString(TEXT("LoadoutManager not available")));
 		return false;
 	}
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config))
+	if (!GetLoadoutConfiguration(LoadoutId, Config))
 	{
 		OutErrors.Add(FText::Format(FText::FromString(TEXT("Loadout '{0}' not found")), FText::FromName(LoadoutId)));
 		return false;
@@ -233,15 +231,14 @@ bool USuspenseCoreEquipmentLoadoutAdapter::ValidateLoadoutWithOptions(const FNam
 	OutErrors.Empty();
 	OutWarnings.Empty();
 
-	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
-	if (!LoadoutManager)
+	if (!GetLoadoutManager())
 	{
 		OutErrors.Add(FText::FromString(TEXT("LoadoutManager not available")));
 		return false;
 	}
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config))
+	if (!GetLoadoutConfiguration(LoadoutId, Config))
 	{
 		OutErrors.Add(FText::Format(FText::FromString(TEXT("Loadout '{0}' not found")), FText::FromName(LoadoutId)));
 		return false;
@@ -269,7 +266,34 @@ bool USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutConfiguration(const FName& 
 	USuspenseCoreLoadoutManager* LoadoutManager = GetLoadoutManager();
 	if (!LoadoutManager) { return false; }
 
-	return LoadoutManager->GetLoadoutConfiguration(LoadoutId, OutConfiguration);
+	// Get the raw loadout config from manager
+	const FLoadoutConfiguration* RawConfig = LoadoutManager->GetLoadoutConfig(LoadoutId);
+	if (!RawConfig) { return false; }
+
+	// Convert FLoadoutConfiguration to FSuspenseCoreLoadoutConfiguration
+	OutConfiguration.LoadoutId = RawConfig->LoadoutID;
+	OutConfiguration.DisplayName = RawConfig->LoadoutName;
+	OutConfiguration.RequiredTags = RawConfig->LoadoutTags;
+
+	// Extract first compatible class as character class
+	if (!RawConfig->CompatibleClasses.IsEmpty())
+	{
+		TArray<FGameplayTag> ClassTags;
+		RawConfig->CompatibleClasses.GetGameplayTagArray(ClassTags);
+		if (ClassTags.Num() > 0)
+		{
+			OutConfiguration.CharacterClass = ClassTags[0];
+		}
+	}
+
+	// Populate SlotTypeToItem from starting equipment if available
+	for (const auto& SlotPair : RawConfig->StartingEquipment)
+	{
+		OutConfiguration.SlotTypeToItem.Add(SlotPair.Key, SlotPair.Value);
+	}
+
+	OutConfiguration.ModifiedTime = FDateTime::Now();
+	return true;
 }
 
 TArray<FName> USuspenseCoreEquipmentLoadoutAdapter::GetAvailableLoadouts() const
@@ -309,7 +333,7 @@ FString USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutPreview(const FName& Loa
 	if (!LoadoutManager) { return TEXT("LoadoutManager not available"); }
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return FString::Printf(TEXT("Loadout '%s' not found"), *LoadoutId.ToString()); }
+	if (!GetLoadoutConfiguration(LoadoutId, Config)) { return FString::Printf(TEXT("Loadout '%s' not found"), *LoadoutId.ToString()); }
 
 	return GenerateLoadoutPreview(Config);
 }
@@ -323,7 +347,7 @@ bool USuspenseCoreEquipmentLoadoutAdapter::GetLoadoutDiff(const FName& LoadoutId
 	if (!LoadoutManager || !DataProvider.GetInterface()) { return false; }
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return false; }
+	if (!GetLoadoutConfiguration(LoadoutId, Config)) { return false; }
 
 	// Get current equipped items
 	TSet<FName> CurrentItems;
@@ -408,7 +432,7 @@ FSuspenseCoreLoadoutApplicationResult USuspenseCoreEquipmentLoadoutAdapter::Appl
 	if (!LoadoutManager) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("LoadoutManager not found"))); }
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
+	if (!GetLoadoutConfiguration(LoadoutId, Config)) { return FSuspenseCoreLoadoutApplicationResult::Failure(LoadoutId, FText::FromString(TEXT("Loadout not found"))); }
 
 	return ApplyLoadoutConfiguration(Config, Strategy);
 }
@@ -447,7 +471,7 @@ float USuspenseCoreEquipmentLoadoutAdapter::EstimateApplicationTime(const FName&
 	if (!LoadoutManager) { return 0.0f; }
 
 	FSuspenseCoreLoadoutConfiguration Config;
-	if (!LoadoutManager->GetLoadoutConfiguration(LoadoutId, Config)) { return 0.0f; }
+	if (!GetLoadoutConfiguration(LoadoutId, Config)) { return 0.0f; }
 
 	int32 OperationCount = Config.SlotToItem.Num();
 	if (ApplicationStrategy == ESuspenseCoreLoadoutApplicationStrategy::Replace)

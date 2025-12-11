@@ -67,7 +67,7 @@ bool USuspenseCoreSystemCoordinator::ShouldCreateSubsystem(UObject* Outer) const
     // Гарантируем порядок: сперва создаётся ServiceLocator (GI Subsystem), затем — координатор.
     if (UGameInstance* GI = Cast<UGameInstance>(Outer))
     {
-        (void)GI->GetSubsystem<USuspenseEquipmentServiceLocator>(); // намеренно ради side-effect, чтобы не плодить warning
+        (void)GI->GetSubsystem<USuspenseCoreEquipmentServiceLocator>(); // намеренно ради side-effect, чтобы не плодить warning
     }
     return Super::ShouldCreateSubsystem(Outer);
 }
@@ -81,13 +81,13 @@ void USuspenseCoreSystemCoordinator::Initialize(FSubsystemCollectionBase& Collec
     // 1) Получаем локатор (ServiceLocator is also a GI Subsystem)
     if (UGameInstance* GI = GetGameInstance())
     {
-        ServiceLocator = GI->GetSubsystem<USuspenseEquipmentServiceLocator>();
+        ServiceLocator = GI->GetSubsystem<USuspenseCoreEquipmentServiceLocator>();
     }
 
     if (!ServiceLocator)
     {
         UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error,
-            TEXT("ServiceLocator subsystem not found! Ensure USuspenseEquipmentServiceLocator is properly configured."));
+            TEXT("ServiceLocator subsystem not found! Ensure USuspenseCoreEquipmentServiceLocator is properly configured."));
     }
     else
     {

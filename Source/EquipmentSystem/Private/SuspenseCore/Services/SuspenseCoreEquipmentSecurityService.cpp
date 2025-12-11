@@ -671,8 +671,8 @@ bool USuspenseCoreEquipmentSecurityService::VerifyHMAC(const FNetworkOperationRe
     // Constant-time comparison to prevent timing attacks
     if (ExpectedHMAC.Len() != ProvidedHMAC.Len())
     {
-        // Use atomic fetch_add instead of operator++ for const-correctness
-        const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC.fetch_add(1, std::memory_order_relaxed);
+        // Use atomic increment for const-correctness
+        ++const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC;
         return false;
     }
 
@@ -684,7 +684,7 @@ bool USuspenseCoreEquipmentSecurityService::VerifyHMAC(const FNetworkOperationRe
 
     if (Result != 0)
     {
-        const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC.fetch_add(1, std::memory_order_relaxed);
+        ++const_cast<FSecurityServiceMetrics&>(Metrics).RequestsRejectedHMAC;
     }
 
     return Result == 0;

@@ -15,7 +15,7 @@
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "AbilitySystemGlobals.h"
 
-using namespace SuspenseCoreEquipmentTags;
+using namespace SuspenseCoreEquipmentTags::Event;
 
 USuspenseCoreWeaponAmmoComponent::USuspenseCoreWeaponAmmoComponent()
 {
@@ -493,17 +493,8 @@ float USuspenseCoreWeaponAmmoComponent::GetMagazineSize() const
         return CachedMagazineSize;
     }
 
-    // Second priority: Get from AmmoAttributeSet (for special ammo types that modify magazine)
-    if (USuspenseCoreAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
-    {
-        float AmmoMagazineSize = AmmoAS->GetMagazineSize();
-        if (AmmoMagazineSize > 0.0f)
-        {
-            CachedMagazineSize = AmmoMagazineSize;
-            bMagazineSizeCached = true;
-            return CachedMagazineSize;
-        }
-    }
+    // NOTE: AmmoAttributeSet does not have MagazineSize - that's a weapon property
+    // Special ammo types can modify other characteristics (damage, penetration, etc.)
 
     // Fallback: Get base values from DataTable for weapon archetype
     FSuspenseCoreUnifiedItemData WeaponData;
@@ -563,17 +554,8 @@ float USuspenseCoreWeaponAmmoComponent::GetReloadTime(bool bTactical) const
         }
     }
 
-    // Second priority: Get from AmmoAttributeSet (special ammo might affect reload)
-    if (USuspenseCoreAmmoAttributeSet* AmmoAS = GetAmmoAttributeSet())
-    {
-        float ReloadTimeModifier = AmmoAS->GetReloadTime();
-        if (ReloadTimeModifier > 0.0f)
-        {
-            // AmmoAS stores a modifier, not absolute time
-            float BaseTime = bTactical ? 2.5f : 3.5f;
-            return BaseTime * ReloadTimeModifier;
-        }
-    }
+    // NOTE: AmmoAttributeSet does not have ReloadTime - that's a weapon property
+    // Ammo types affect damage/penetration characteristics, not reload times
 
     // Fallback: Get base values from weapon archetype
     FSuspenseCoreUnifiedItemData WeaponData;

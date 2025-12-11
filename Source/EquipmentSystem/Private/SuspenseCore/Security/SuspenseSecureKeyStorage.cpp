@@ -16,6 +16,15 @@
 DEFINE_LOG_CATEGORY_STATIC(LogSecureKeyStorage, Log, All);
 
 //========================================
+// SHA256 Helper Struct (UE doesn't have FSHA256Signature)
+//========================================
+
+struct FSHA256Signature
+{
+    uint8 Signature[32];
+};
+
+//========================================
 // FSuspenseSecureKeyStorage
 //========================================
 

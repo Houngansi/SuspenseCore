@@ -233,13 +233,13 @@ FString USuspenseCoreEquipmentRulesService::GetServiceStats() const
 // ISuspenseCoreEquipmentRules Implementation (Delegated)
 //========================================
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRules(const FEquipmentOperationRequest& Operation) const
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::EvaluateRules(const FEquipmentOperationRequest& Operation) const
 {
     if (!RulesCoordinator || !IsServiceReady())
     {
-        FRuleEvaluationResult ErrorResult;
+        FSuspenseCoreRuleResult ErrorResult;
         ErrorResult.bPassed = false;
-        ErrorResult.FailureReason = TEXT("RulesService not ready");
+        ErrorResult.FailureReason = FText::FromString(TEXT("RulesService not ready"));
         return ErrorResult;
     }
 
@@ -256,7 +256,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRules(const FE
     if (Config.bEnableCaching)
     {
         const uint32 RequestHash = ComputeRequestHash(Operation);
-        FRuleEvaluationResult CachedResult;
+        FSuspenseCoreRuleResult CachedResult;
         if (TryGetCachedResult(RequestHash, CachedResult))
         {
             Metrics.CacheHits++;
@@ -266,7 +266,7 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRules(const FE
     }
 
     // Delegate to coordinator
-    FRuleEvaluationResult Result = RulesCoordinator->EvaluateRules(Operation);
+    FSuspenseCoreRuleResult Result = RulesCoordinator->EvaluateRules(Operation);
 
     // Cache result
     if (Config.bEnableCaching)
@@ -290,21 +290,21 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRules(const FE
         UE_LOG(LogSuspenseCoreEquipmentRules, Log,
             TEXT("EvaluateRules: %s - %s"),
             Result.bPassed ? TEXT("PASSED") : TEXT("FAILED"),
-            *Result.FailureReason);
+            *Result.FailureReason.ToString());
     }
 
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRulesWithContext(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::EvaluateRulesWithContext(
     const FEquipmentOperationRequest& Operation,
     const FSuspenseCoreRuleContext& Context) const
 {
     if (!RulesCoordinator || !IsServiceReady())
     {
-        FRuleEvaluationResult ErrorResult;
+        FSuspenseCoreRuleResult ErrorResult;
         ErrorResult.bPassed = false;
-        ErrorResult.FailureReason = TEXT("RulesService not ready");
+        ErrorResult.FailureReason = FText::FromString(TEXT("RulesService not ready"));
         return ErrorResult;
     }
 
@@ -312,52 +312,52 @@ FRuleEvaluationResult USuspenseCoreEquipmentRulesService::EvaluateRulesWithConte
     Metrics.TotalEvaluations++;
 
     // Note: No caching for context-based evaluation (context may vary)
-    FRuleEvaluationResult Result = RulesCoordinator->EvaluateRulesWithContext(Operation, Context);
+    FSuspenseCoreRuleResult Result = RulesCoordinator->EvaluateRulesWithContext(Operation, Context);
 
     UpdateMetrics(StartTime, Result.bPassed);
 
     return Result;
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::CheckItemCompatibility(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::CheckItemCompatibility(
     const FSuspenseCoreInventoryItemInstance& ItemInstance,
-    const FSuspenseCoreEquipmentSlotConfig& SlotConfig) const
+    const FEquipmentSlotConfig& SlotConfig) const
 {
-    if (!RulesCoordinator) return FRuleEvaluationResult();
+    if (!RulesCoordinator) return FSuspenseCoreRuleResult();
     return RulesCoordinator->CheckItemCompatibility(ItemInstance, SlotConfig);
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::CheckCharacterRequirements(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::CheckCharacterRequirements(
     const AActor* Character,
     const FSuspenseCoreInventoryItemInstance& ItemInstance) const
 {
-    if (!RulesCoordinator) return FRuleEvaluationResult();
+    if (!RulesCoordinator) return FSuspenseCoreRuleResult();
     return RulesCoordinator->CheckCharacterRequirements(Character, ItemInstance);
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::CheckWeightLimit(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::CheckWeightLimit(
     float CurrentWeight,
     float AdditionalWeight) const
 {
-    if (!RulesCoordinator) return FRuleEvaluationResult();
+    if (!RulesCoordinator) return FSuspenseCoreRuleResult();
     return RulesCoordinator->CheckWeightLimit(CurrentWeight, AdditionalWeight);
 }
 
-FRuleEvaluationResult USuspenseCoreEquipmentRulesService::CheckConflictingEquipment(
+FSuspenseCoreRuleResult USuspenseCoreEquipmentRulesService::CheckConflictingEquipment(
     const TArray<FSuspenseCoreInventoryItemInstance>& ExistingItems,
     const FSuspenseCoreInventoryItemInstance& NewItem) const
 {
-    if (!RulesCoordinator) return FRuleEvaluationResult();
+    if (!RulesCoordinator) return FSuspenseCoreRuleResult();
     return RulesCoordinator->CheckConflictingEquipment(ExistingItems, NewItem);
 }
 
-TArray<FEquipmentRule> USuspenseCoreEquipmentRulesService::GetActiveRules() const
+TArray<FSuspenseCoreEquipmentRule> USuspenseCoreEquipmentRulesService::GetActiveRules() const
 {
-    if (!RulesCoordinator) return TArray<FEquipmentRule>();
+    if (!RulesCoordinator) return TArray<FSuspenseCoreEquipmentRule>();
     return RulesCoordinator->GetActiveRules();
 }
 
-bool USuspenseCoreEquipmentRulesService::RegisterRule(const FEquipmentRule& Rule)
+bool USuspenseCoreEquipmentRulesService::RegisterRule(const FSuspenseCoreEquipmentRule& Rule)
 {
     if (!RulesCoordinator) return false;
     InvalidateCache();
@@ -438,7 +438,7 @@ uint32 USuspenseCoreEquipmentRulesService::ComputeRequestHash(const FEquipmentOp
     return Hash;
 }
 
-bool USuspenseCoreEquipmentRulesService::TryGetCachedResult(uint32 Hash, FRuleEvaluationResult& OutResult) const
+bool USuspenseCoreEquipmentRulesService::TryGetCachedResult(uint32 Hash, FSuspenseCoreRuleResult& OutResult) const
 {
     FScopeLock Lock(&CacheLock);
 
@@ -457,7 +457,7 @@ bool USuspenseCoreEquipmentRulesService::TryGetCachedResult(uint32 Hash, FRuleEv
     return false;
 }
 
-void USuspenseCoreEquipmentRulesService::CacheResult(uint32 Hash, const FRuleEvaluationResult& Result) const
+void USuspenseCoreEquipmentRulesService::CacheResult(uint32 Hash, const FSuspenseCoreRuleResult& Result) const
 {
     FScopeLock Lock(&CacheLock);
 
@@ -569,7 +569,7 @@ void USuspenseCoreEquipmentRulesService::BroadcastValidationResult(
     EventData.SetString(FName("Passed"), Result.bPassed ? TEXT("true") : TEXT("false"));
     if (!Result.bPassed)
     {
-        EventData.SetString(FName("FailureReason"), Result.FailureReason);
+        EventData.SetString(FName("FailureReason"), Result.FailureReason.ToString());
     }
 
     EventBus->Publish(ResultTag, EventData);

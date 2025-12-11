@@ -88,8 +88,9 @@ struct FSuspenseCoreTransactionExecutionContext
     TArray<FSuspenseCoreEquipmentDelta> GeneratedDeltas;
 };
 
-/** Backward-compatibility alias for legacy code */
+/** Backward-compatibility aliases for legacy code */
 using FTransactionExecutionContext = FSuspenseCoreTransactionExecutionContext;
+using FTransactionSavepoint = FSuspenseCoreTransactionSavepoint;
 
 /**
  * Transaction validation result
@@ -115,6 +116,9 @@ struct FSuspenseCoreTransactionValidationResult
     UPROPERTY()
     TArray<FSuspenseCoreTransactionOperation> Conflicts;
 };
+
+/** Backward-compatibility alias */
+using FTransactionValidationResult = FSuspenseCoreTransactionValidationResult;
 
 /** Delegate for transaction delta notifications */
 DECLARE_DELEGATE_OneParam(FOnTransactionDelta, const TArray<FEquipmentDelta>&);

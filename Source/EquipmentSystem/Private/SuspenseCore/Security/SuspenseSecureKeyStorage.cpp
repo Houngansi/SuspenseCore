@@ -16,13 +16,12 @@
 DEFINE_LOG_CATEGORY_STATIC(LogSecureKeyStorage, Log, All);
 
 //========================================
-// SHA256 Helper Struct (UE doesn't have FSHA256Signature)
+// SHA-1 based hashing (UE provides FSHA1, not FSHA256)
+// Using SHA-1 for HMAC since UE doesn't provide SHA-256 API
 //========================================
 
-struct FSHA256Signature
-{
-    uint8 Signature[32];
-};
+// SHA-1 output size is 20 bytes
+static constexpr int32 SHA1_DIGEST_SIZE = 20;
 
 //========================================
 // FSuspenseSecureKeyStorage
@@ -159,12 +158,12 @@ FString FSuspenseSecureKeyStorage::GenerateHMAC(const FString& Data) const
     }
 
     // ========================================
-    // RFC 2104 HMAC-SHA256 Implementation
+    // RFC 2104 HMAC-SHA1 Implementation (UE provides FSHA1)
     // HMAC(K, m) = H((K' ⊕ opad) || H((K' ⊕ ipad) || m))
     // ========================================
 
-    constexpr int32 BlockSize = 64;  // SHA-256 block size in bytes
-    constexpr int32 HashSize = 32;   // SHA-256 output size in bytes
+    constexpr int32 BlockSize = 64;  // SHA-1 block size in bytes
+    constexpr int32 HashSize = 20;   // SHA-1 output size in bytes
     constexpr uint8 IPAD = 0x36;
     constexpr uint8 OPAD = 0x5C;
 
@@ -188,9 +187,9 @@ FString FSuspenseSecureKeyStorage::GenerateHMAC(const FString& Data) const
     if (KeyBytes.Num() > BlockSize)
     {
         // Hash the key if too long
-        FSHA256Signature KeyHash;
-        FSHA256::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash.Signature);
-        FMemory::Memcpy(KeyPrime.GetData(), KeyHash.Signature, HashSize);
+        uint8 KeyHash[20];
+        FSHA1::HashBuffer(KeyBytes.GetData(), KeyBytes.Num(), KeyHash);
+        FMemory::Memcpy(KeyPrime.GetData(), KeyHash, HashSize);
     }
     else
     {
@@ -205,10 +204,13 @@ FString FSuspenseSecureKeyStorage::GenerateHMAC(const FString& Data) const
     {
         InnerData[i] = KeyPrime[i] ^ IPAD;
     }
-    FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+    if (MessageLen > 0)
+    {
+        FMemory::Memcpy(InnerData.GetData() + BlockSize, MessageData, MessageLen);
+    }
 
-    FSHA256Signature InnerHash;
-    FSHA256::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash.Signature);
+    uint8 InnerHash[20];
+    FSHA1::HashBuffer(InnerData.GetData(), InnerData.Num(), InnerHash);
 
     // Step 3: Compute outer hash: H((K' ⊕ opad) || inner_hash)
     TArray<uint8> OuterData;
@@ -218,18 +220,14 @@ FString FSuspenseSecureKeyStorage::GenerateHMAC(const FString& Data) const
     {
         OuterData[i] = KeyPrime[i] ^ OPAD;
     }
-    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash.Signature, HashSize);
+    FMemory::Memcpy(OuterData.GetData() + BlockSize, InnerHash, HashSize);
 
-    FSHA256Signature FinalHash;
-    FSHA256::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash.Signature);
+    uint8 FinalHash[20];
+    FSHA1::HashBuffer(OuterData.GetData(), OuterData.Num(), FinalHash);
 
-    // Convert to hex string (64 chars for SHA-256)
+    // Convert to hex string (40 chars for SHA-1)
     FString Result;
-    Result.Reserve(HashSize * 2);
-    for (int32 i = 0; i < HashSize; ++i)
-    {
-        Result += FString::Printf(TEXT("%02x"), FinalHash.Signature[i]);
-    }
+    BytesToHex(FinalHash, HashSize, Result);
 
     // Secure cleanup
     FMemory::Memzero(KeyBytes.GetData(), KeyBytes.Num());
@@ -492,6 +490,114 @@ void FSuspenseSecureKeyStorage::SecureZero(TArray<uint8>& Data)
 uint32 FSuspenseSecureKeyStorage::CalculateChecksum(const TArray<uint8>& Data) const
 {
     return FCrc::MemCrc32(Data.GetData(), Data.Num());
+}
+
+void FSuspenseSecureKeyStorage::GetKeyBytes(TArray<uint8>& OutBytes) const
+{
+    FScopeLock Lock(&KeyLock);
+
+    OutBytes.Reset();
+
+    if (ObfuscatedKeyData.Num() == 0)
+    {
+        return;
+    }
+
+    // Deobfuscate
+    OutBytes = ObfuscatedKeyData;
+    ApplyXOR(OutBytes, SecondaryMask);
+    ApplyXOR(OutBytes, ObfuscationMask);
+
+    // Verify integrity
+    uint32 CurrentChecksum = CalculateChecksum(OutBytes);
+    if (CurrentChecksum != KeyChecksum)
+    {
+        UE_LOG(LogSecureKeyStorage, Error, TEXT("Key integrity check failed in GetKeyBytes!"));
+        OutBytes.Reset();
+        return;
+    }
+
+    // Increment access counter and rotate if needed
+    AccessCounter++;
+    if (AccessCounter >= RotationThreshold)
+    {
+        RotateMask();
+    }
+}
+
+bool FSuspenseSecureKeyStorage::LoadFromFile(const FString& FilePath)
+{
+    if (!FPaths::FileExists(FilePath))
+    {
+        UE_LOG(LogSecureKeyStorage, Warning, TEXT("Key file not found: %s"), *FilePath);
+        return false;
+    }
+
+    FString FileKey;
+    if (!FFileHelper::LoadFileToString(FileKey, *FilePath))
+    {
+        UE_LOG(LogSecureKeyStorage, Error, TEXT("Failed to read key file: %s"), *FilePath);
+        return false;
+    }
+
+    FileKey = FileKey.TrimStartAndEnd();
+    if (FileKey.IsEmpty() || FileKey.Len() < 32)
+    {
+        UE_LOG(LogSecureKeyStorage, Error, TEXT("Invalid key in file (too short): %s"), *FilePath);
+        return false;
+    }
+
+    SetKey(FileKey);
+
+    // Secure zero local copy
+    for (int32 i = 0; i < FileKey.Len(); ++i)
+    {
+        const_cast<TCHAR*>(*FileKey)[i] = 0;
+    }
+
+    UE_LOG(LogSecureKeyStorage, Log, TEXT("Key loaded from file: %s"), *FilePath);
+    return true;
+}
+
+bool FSuspenseSecureKeyStorage::SaveToFile(const FString& FilePath) const
+{
+    FString Key = GetKey();
+    if (Key.IsEmpty())
+    {
+        UE_LOG(LogSecureKeyStorage, Error, TEXT("No key to save"));
+        return false;
+    }
+
+    // Ensure directory exists
+    FString Directory = FPaths::GetPath(FilePath);
+    if (!FPaths::DirectoryExists(Directory))
+    {
+        IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+        if (!PlatformFile.CreateDirectoryTree(*Directory))
+        {
+            UE_LOG(LogSecureKeyStorage, Error, TEXT("Failed to create directory: %s"), *Directory);
+            return false;
+        }
+    }
+
+    bool bSuccess = FFileHelper::SaveStringToFile(Key, *FilePath);
+
+    // Secure zero local copy
+    for (int32 i = 0; i < Key.Len(); ++i)
+    {
+        const_cast<TCHAR*>(*Key)[i] = 0;
+    }
+
+    if (bSuccess)
+    {
+        UE_LOG(LogSecureKeyStorage, Log, TEXT("Key saved to file: %s"), *FilePath);
+    }
+    else
+    {
+        UE_LOG(LogSecureKeyStorage, Error, TEXT("Failed to save key to file: %s"), *FilePath);
+    }
+
+    return bSuccess;
 }
 
 //========================================

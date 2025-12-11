@@ -56,6 +56,12 @@ struct FSuspenseCoreRuleEngineRegistration
     bool bEnabled = true;
 };
 
+/** Backward compatibility aliases */
+using ERuleExecutionPriority = ESuspenseCoreRuleExecutionPriority;
+using FRuleEngineRegistration = FSuspenseCoreRuleEngineRegistration;
+using FEquipmentRule = FSuspenseCoreEquipmentRule;
+using FRuleEvaluationResult = FSuspenseCoreRuleResult;
+
 /**
  * Production Rules Coordinator - STATELESS для глобального использования
  *

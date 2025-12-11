@@ -85,6 +85,33 @@ public:
      */
     bool GenerateNewKey(int32 KeyLength = 64);
 
+    /**
+     * Alias for GenerateNewKey for compatibility
+     * @param KeyLength Desired key length in bytes (default 32)
+     * @return true if key was generated successfully
+     */
+    bool GenerateKey(int32 KeyLength = 32) { return GenerateNewKey(KeyLength); }
+
+    /**
+     * Get the raw key bytes (for HMAC computation)
+     * @param OutBytes Array to receive the key bytes
+     */
+    void GetKeyBytes(TArray<uint8>& OutBytes) const;
+
+    /**
+     * Load key from file
+     * @param FilePath Path to the key file
+     * @return true if key was loaded successfully
+     */
+    bool LoadFromFile(const FString& FilePath);
+
+    /**
+     * Save key to file
+     * @param FilePath Path to save the key
+     * @return true if key was saved successfully
+     */
+    bool SaveToFile(const FString& FilePath) const;
+
 private:
     /** XOR mask for obfuscation */
     TArray<uint8> ObfuscationMask;

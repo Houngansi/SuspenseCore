@@ -480,7 +480,7 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::EvaluateRulesWithContext(
         LastExecutionTime = FDateTime::Now();
     }
 
-    return ConvertToLegacyResult(AllResults);
+    return ConvertToResult(AllResults);
 }
 
 // ============================================================================
@@ -942,7 +942,7 @@ FString USuspenseCoreRulesCoordinator::GetPipelineHealth() const
     return Health;
 }
 
-FRuleEvaluationResult USuspenseCoreRulesCoordinator::ConvertToLegacyResult(
+FRuleEvaluationResult USuspenseCoreRulesCoordinator::ConvertToResult(
     const TArray<FSuspenseCoreRuleCheckResult>& NewResults) const
 {
     FRuleEvaluationResult LegacyResult;
@@ -1006,5 +1006,5 @@ FRuleEvaluationResult USuspenseCoreRulesCoordinator::ConvertSingleResult(const F
 
 FRuleEvaluationResult USuspenseCoreRulesCoordinator::ConvertAggregatedResult(const FSuspenseCoreAggregatedRuleResult& AggregatedResult) const
 {
-    return ConvertToLegacyResult(AggregatedResult.Results);
+    return ConvertToResult(AggregatedResult.Results);
 }

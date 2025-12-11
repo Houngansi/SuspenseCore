@@ -125,6 +125,10 @@ struct FSuspenseCoreBatchValidationResult
 	FText SummaryMessage;
 };
 
+/** Backward compatibility aliases */
+using FBatchValidationRequest = FSuspenseCoreBatchValidationRequest;
+using FBatchValidationResult = FSuspenseCoreBatchValidationResult;
+
 /** Runtime slot restriction snapshot (lightweight copy for read path) */
 USTRUCT(BlueprintType)
 struct FSuspenseCoreSlotRestrictionData
@@ -137,10 +141,33 @@ struct FSuspenseCoreSlotRestrictionData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FIntVector MaxSize = FIntVector::ZeroValue;
 
+	/** Minimum level requirement */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 MinLevel = 0;
+
+	/** Required tags for items */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTagContainer RequiredTags;
+
+	/** Excluded tags for items */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTagContainer ExcludedTags;
+
 	/** Optional unique group tag; item group that must be unique across inventory/section */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag UniqueGroupTag;
+
+	/** Slot is locked (cannot modify) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsLocked = false;
+
+	/** Slot is disabled (cannot use) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsDisabled = false;
 };
+
+/** Backward compatibility alias */
+using FSlotRestrictionData = FSuspenseCoreSlotRestrictionData;
 
 /** Slot ↔ Slot compatibility entry (mutual exclusion, dependencies, etc.) */
 USTRUCT(BlueprintType)
@@ -158,6 +185,9 @@ struct FSuspenseCoreSlotCompatibilityEntry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bRequiresTargetFilled = false;
 };
+
+/** Backward compatibility alias */
+using FSlotCompatibilityEntry = FSuspenseCoreSlotCompatibilityEntry;
 
 /** Internal rule descriptor */
 struct FEquipmentValidationRule

@@ -15,7 +15,7 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
-#include "SuspenseCore//Services/SuspenseCoreEquipmentServiceLocator.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLoadoutAdapter, Log, All);

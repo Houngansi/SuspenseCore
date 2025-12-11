@@ -199,9 +199,9 @@ bool USuspenseCoreEquipmentValidationService::InitializeService(const FSuspenseC
     }
 
     // ✅ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: RulesCoordinator работает БЕЗ обязательного DataProvider
-    USuspenseRulesCoordinator* Coordinator = NewObject<USuspenseRulesCoordinator>(
+    USuspenseCoreRulesCoordinator* Coordinator = NewObject<USuspenseCoreRulesCoordinator>(
         this,
-        USuspenseRulesCoordinator::StaticClass(),
+        USuspenseCoreRulesCoordinator::StaticClass(),
         TEXT("RulesCoordinator"),
         RF_Transient
     );

@@ -157,7 +157,8 @@ enum class ESecurityValidationResult : uint8
     HMACVerificationFailed,
     PlayerBanned,
     IPBanned,
-    InvalidRequest
+    InvalidRequest,
+    ServiceUnavailable
 };
 
 USTRUCT(BlueprintType)

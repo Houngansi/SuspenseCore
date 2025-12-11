@@ -589,8 +589,8 @@ FEquipmentOperationRequest USuspenseCoreEquipmentLoadoutAdapter::CreateEquipOper
 	Req.OperationId     = FGuid::NewGuid();
 	Req.Timestamp       = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-	// создаём валидный инстанс
-	FSuspenseCoreInventoryItemInstance ItemInstance;
+	// создаём валидный инстанс (FSuspenseCoreItemInstance для FEquipmentOperationRequest)
+	FSuspenseCoreItemInstance ItemInstance;
 	ItemInstance.ItemID   = ItemId;
 	ItemInstance.Quantity = 1;
 	Req.ItemInstance      = ItemInstance;
@@ -791,7 +791,7 @@ int32 USuspenseCoreEquipmentLoadoutAdapter::ApplyStartingEquipment(const TMap<ES
 				Req.OperationType   = EEquipmentOperationType::Equip;
 				Req.TargetSlotIndex = *SlotIndexPtr;
 
-				FSuspenseCoreInventoryItemInstance ItemInstance;
+				FSuspenseCoreItemInstance ItemInstance;
 				ItemInstance.ItemID   = Pair.Value;
 				ItemInstance.Quantity = 1;
 				Req.ItemInstance      = ItemInstance;

@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -726,14 +727,14 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 			TEXT("  ActorFactory service found: %s"),
 			*FactoryObj->GetClass()->GetName());
 
-		// PREFERRED: via C++ interface ISuspenseActorFactory
-		if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactory::StaticClass()))
+		// PREFERRED: via C++ interface ISuspenseCoreActorFactory
+		if (FactoryObj->GetClass()->ImplementsInterface(USuspenseCoreActorFactory::StaticClass()))
 		{
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-				TEXT("  Using C++ interface ISuspenseActorFactory"));
+				TEXT("  Using C++ interface ISuspenseCoreActorFactory"));
 
-			if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-				FactoryObj->GetInterfaceAddress(USuspenseActorFactory::StaticClass())))
+			if (ISuspenseCoreActorFactory* Factory = static_cast<ISuspenseCoreActorFactory*>(
+				FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass())))
 			{
 				FEquipmentActorSpawnParams Params;
 				Params.ItemInstance.ItemID = ItemID;
@@ -766,7 +767,7 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 			else
 			{
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-					TEXT("  Failed to get interface address for ISuspenseActorFactory"));
+					TEXT("  Failed to get interface address for ISuspenseCoreActorFactory"));
 			}
 		}
 
@@ -854,10 +855,10 @@ void USuspenseCoreEquipmentVisualizationService::ReleaseVisualActor(AActor* Char
 		if (UObject* FactoryObj = CachedServiceLocator->TryGetService(Tag_ActorFactory))
 		{
 			// Via interface
-			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseActorFactory::StaticClass()))
+			if (FactoryObj->GetClass()->ImplementsInterface(USuspenseCoreActorFactory::StaticClass()))
 			{
-				if (ISuspenseActorFactory* Factory = static_cast<ISuspenseActorFactory*>(
-					FactoryObj->GetInterfaceAddress(USuspenseActorFactory::StaticClass())))
+				if (ISuspenseCoreActorFactory* Factory = static_cast<ISuspenseCoreActorFactory*>(
+					FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass())))
 				{
 					if (Factory->DestroyEquipmentActor(Visual, bInstant))
 					{

@@ -894,7 +894,7 @@ bool USuspenseCoreEquipmentInventoryBridge::CanEquipFromInventory(const FSuspens
     if (USuspenseCoreEquipmentOperationExecutor* Executor =
         Cast<USuspenseCoreEquipmentOperationExecutor>(EquipmentOperations.GetObject()))
     {
-        FSlotValidationResult ValidationResult = Executor->CanEquipItemToSlot(Item, TargetSlot);
+        FSlotValidationResult ValidationResult = Executor->CanEquipItemToSlot(ConvertToInventoryItemInstance(Item), TargetSlot);
         return ValidationResult.bIsValid;
     }
 
@@ -970,7 +970,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
             if (USuspenseCoreEquipmentOperationExecutor* Executor =
                 Cast<USuspenseCoreEquipmentOperationExecutor>(EquipmentOperations.GetObject()))
             {
-                FSlotValidationResult NewItemValidation = Executor->CanEquipItemToSlot(Item, Request.TargetSlot);
+                FSlotValidationResult NewItemValidation = Executor->CanEquipItemToSlot(ConvertToInventoryItemInstance(Item), Request.TargetSlot);
 
                 const FString ErrStr = NewItemValidation.ErrorMessage.ToString();
                 const bool bOnlyOccupiedReason =
@@ -1016,7 +1016,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         if (USuspenseCoreEquipmentOperationExecutor* Executor =
             Cast<USuspenseCoreEquipmentOperationExecutor>(EquipmentOperations.GetObject()))
         {
-            FSlotValidationResult ValidationResult = Executor->CanEquipItemToSlot(Item, Request.TargetSlot);
+            FSlotValidationResult ValidationResult = Executor->CanEquipItemToSlot(ConvertToInventoryItemInstance(Item), Request.TargetSlot);
 
             if (!ValidationResult.bIsValid)
             {
@@ -1885,20 +1885,4 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
 
     // Broadcast Equipped event for new item
     BroadcastEquippedEvent(NewItem, SlotIndex);
-}
-
-FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::CanEquipItemToSlot(
-    const FSuspenseCoreItemInstance& ItemInstance,
-    int32 TargetSlotIndex) const
-{
-    FEquipmentOperationRequest TempRequest;
-    TempRequest.OperationType = EEquipmentOperationType::Equip;
-    TempRequest.ItemInstance = ItemInstance;
-    TempRequest.TargetSlotIndex = TargetSlotIndex;
-    TempRequest.OperationId = FGuid::NewGuid();
-    TempRequest.Timestamp = FPlatformTime::Seconds();
-
-    FSlotValidationResult Result = ValidateEquip(TempRequest);
-
-    return Result;
 }

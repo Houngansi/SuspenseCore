@@ -1416,3 +1416,24 @@ ESuspenseCoreEquipmentSlotType USuspenseCoreEquipmentOperationExecutor::GetWeapo
 
     return ESuspenseCoreEquipmentSlotType::None;
 }
+
+//========================================
+// Validation Methods
+//========================================
+
+FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::CanEquipItemToSlot(
+    const FSuspenseCoreInventoryItemInstance& ItemInstance,
+    int32 TargetSlotIndex) const
+{
+    // Convert inventory item to operation request format
+    FEquipmentOperationRequest TempRequest;
+    TempRequest.OperationType = EEquipmentOperationType::Equip;
+    TempRequest.ItemInstance = ToItemInstance(ItemInstance);
+    TempRequest.TargetSlotIndex = TargetSlotIndex;
+    TempRequest.OperationId = FGuid::NewGuid();
+    TempRequest.Timestamp = FPlatformTime::Seconds();
+
+    FSlotValidationResult Result = ValidateEquip(TempRequest);
+
+    return Result;
+}

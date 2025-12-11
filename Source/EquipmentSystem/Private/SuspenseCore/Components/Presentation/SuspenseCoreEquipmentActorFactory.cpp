@@ -167,7 +167,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     if (!ItemManager)
     {
         Result.bSuccess = false;
-        Result.FailureReason = FText::FromString(TEXT("ItemManager subsystem not available"));
+        Result.ErrorMessage = FText::FromString(TEXT("ItemManager subsystem not available"));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] ItemManager not found - cannot load item data"));
         return Result;
@@ -178,7 +178,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     if (!ItemManager->GetUnifiedItemData(Params.ItemInstance.ItemID, ItemData))
     {
         Result.bSuccess = false;
-        Result.FailureReason = FText::FromString(
+        Result.ErrorMessage = FText::FromString(
             FString::Printf(TEXT("Item data not found for ItemID: %s"),
             *Params.ItemInstance.ItemID.ToString()));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
@@ -274,7 +274,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     if (!ActorClass)
     {
         Result.bSuccess = false;
-        Result.FailureReason = FText::FromString(TEXT("Actor class not found"));
+        Result.ErrorMessage = FText::FromString(TEXT("Actor class not found"));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
             TEXT("[SpawnEquipmentActor] No valid ActorClass for ItemID: %s - DataTable EquipmentActorClass is null or invalid"),
             *Params.ItemInstance.ItemID.ToString());
@@ -292,11 +292,11 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     AActor* SpawnedActor = GetPooledActor(ActorClass);
     if (!SpawnedActor)
     {
-        SpawnedActor = SpawnActorInternal(ActorClass, Params.SpawnTransform, Params.Owner);
+        SpawnedActor = SpawnActorInternal(ActorClass, Params.SpawnTransform, Params.Owner.Get());
         if (!SpawnedActor)
         {
             Result.bSuccess = false;
-            Result.FailureReason = FText::FromString(TEXT("Failed to spawn actor"));
+            Result.ErrorMessage = FText::FromString(TEXT("Failed to spawn actor"));
             UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
                 TEXT("[SpawnEquipmentActor] SpawnActorInternal failed for class: %s"),
                 *ActorClass->GetName());
@@ -332,7 +332,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
             *SpawnedActor->GetName());
         DestroyEquipmentActor(SpawnedActor, true);
         Result.bSuccess = false;
-        Result.FailureReason = FText::FromString(TEXT("Failed to configure actor"));
+        Result.ErrorMessage = FText::FromString(TEXT("Failed to configure actor"));
         return Result;
     }
 
@@ -343,12 +343,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     // ============================================================================
     // Register spawned actor in slot registry
     // ============================================================================
-    // Extract SlotIndex from custom parameters if available
-    int32 SlotIndex = INDEX_NONE;
-    if (const FString* SlotStr = Params.CustomParameters.Find(TEXT("SlotIndex")))
-    {
-        SlotIndex = FCString::Atoi(**SlotStr);
-    }
+    int32 SlotIndex = Params.SlotIndex;
 
     if (SlotIndex != INDEX_NONE)
     {

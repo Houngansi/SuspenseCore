@@ -198,10 +198,10 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
     // Data Service
     if (!Locator->IsServiceRegistered(TagData))
     {
-        FServiceInitParams DataParams;
+        FSuspenseCoreServiceInitParams DataParams;
         DataParams.bAutoStart = true;
 
-        FServiceInjectionDelegate DataInjection;
+        FSuspenseCoreServiceInjectionDelegate DataInjection;
         DataInjection.BindLambda([](UObject* ServiceInstance, USuspenseCoreEquipmentServiceLocator* ServiceLocator)
         {
             if (!ServiceInstance)
@@ -255,7 +255,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
     // Validation Service
     if (!Locator->IsServiceRegistered(TagValidation))
     {
-        FServiceInitParams ValidationParams;
+        FSuspenseCoreServiceInitParams ValidationParams;
         ValidationParams.bAutoStart = true;
         ValidationParams.RequiredServices.AddTag(TagData);
 
@@ -270,7 +270,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
     // Operation Service
     if (!Locator->IsServiceRegistered(TagOperations))
     {
-        FServiceInitParams OperationParams;
+        FSuspenseCoreServiceInitParams OperationParams;
         OperationParams.bAutoStart = true;
         OperationParams.RequiredServices.AddTag(TagData);
         OperationParams.RequiredServices.AddTag(TagValidation);
@@ -286,7 +286,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
     // Visualization Service
     if (!Locator->IsServiceRegistered(TagVisualization))
     {
-        FServiceInitParams VisualizationParams;
+        FSuspenseCoreServiceInitParams VisualizationParams;
         VisualizationParams.bAutoStart = true;
         VisualizationParams.RequiredServices.AddTag(TagData);
 
@@ -301,7 +301,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterCoreServices()
     // Ability Service
     if (!Locator->IsServiceRegistered(TagAbility))
     {
-        FServiceInitParams AbilityParams;
+        FSuspenseCoreServiceInitParams AbilityParams;
         AbilityParams.bAutoStart = true;
 
         Locator->RegisterServiceClass(

@@ -1,8 +1,8 @@
-// SuspenseCoreHUDWidget.cpp
+// SuspenseCoreVitalsWidget.cpp
 // SuspenseCore - Clean Architecture UI Layer
 // Copyright (c) 2025. All Rights Reserved.
 
-#include "SuspenseCore/Widgets/SuspenseCoreHUDWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreVitalsWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreAttributesWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
@@ -10,12 +10,12 @@
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
 
-USuspenseCoreHUDWidget::USuspenseCoreHUDWidget(const FObjectInitializer& ObjectInitializer)
+USuspenseCoreVitalsWidget::USuspenseCoreVitalsWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-void USuspenseCoreHUDWidget::NativeConstruct()
+void USuspenseCoreVitalsWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
@@ -28,13 +28,13 @@ void USuspenseCoreHUDWidget::NativeConstruct()
 	UpdateStaminaUI();
 }
 
-void USuspenseCoreHUDWidget::NativeDestruct()
+void USuspenseCoreVitalsWidget::NativeDestruct()
 {
 	TeardownEventSubscriptions();
 	Super::NativeDestruct();
 }
 
-void USuspenseCoreHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+void USuspenseCoreVitalsWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
@@ -58,90 +58,90 @@ void USuspenseCoreHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDel
 	}
 }
 
-void USuspenseCoreHUDWidget::SetupEventSubscriptions()
+void USuspenseCoreVitalsWidget::SetupEventSubscriptions()
 {
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
 	if (!Manager)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreHUDWidget: EventManager not found"));
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreVitalsWidget: EventManager not found"));
 		return;
 	}
 
 	CachedEventBus = Manager->GetEventBus();
 	if (!CachedEventBus.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreHUDWidget: EventBus not found"));
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreVitalsWidget: EventBus not found"));
 		return;
 	}
 
 	// Subscribe to Health attribute events
 	HealthEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Health")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnHealthEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnHealthEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to MaxHealth attribute events
 	MaxHealthEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxHealth")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxHealthEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnMaxHealthEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to Shield attribute events
 	ShieldEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Shield")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnShieldEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnShieldEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to MaxShield attribute events
 	MaxShieldEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxShield")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxShieldEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnMaxShieldEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to Stamina attribute events
 	StaminaEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnStaminaEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnStaminaEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to MaxStamina attribute events
 	MaxStaminaEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxStamina")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnMaxStaminaEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnMaxStaminaEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to LowHealth event
 	LowHealthEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.LowHealth")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnLowHealthEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnLowHealthEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
 	// Subscribe to ShieldBroken event
 	ShieldBrokenEventHandle = CachedEventBus->SubscribeNative(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Shield.Broken")),
-		const_cast<USuspenseCoreHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreHUDWidget::OnShieldBrokenEvent),
+		const_cast<USuspenseCoreVitalsWidget*>(this),
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreVitalsWidget::OnShieldBrokenEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreHUDWidget: EventBus subscriptions setup complete"));
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreVitalsWidget: EventBus subscriptions setup complete"));
 }
 
-void USuspenseCoreHUDWidget::TeardownEventSubscriptions()
+void USuspenseCoreVitalsWidget::TeardownEventSubscriptions()
 {
 	if (!CachedEventBus.IsValid())
 	{
@@ -186,7 +186,7 @@ void USuspenseCoreHUDWidget::TeardownEventSubscriptions()
 // EVENTBUS HANDLERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-void USuspenseCoreHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	float OldHealth = CachedHealth;
 
@@ -208,7 +208,7 @@ void USuspenseCoreHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspens
 	bWasHealthCritical = bIsCritical;
 }
 
-void USuspenseCoreHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxHealth = EventData.GetFloat(FName("Value"), CachedMaxHealth);
 
@@ -216,7 +216,7 @@ void USuspenseCoreHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSusp
 	UpdateHealthUI();
 }
 
-void USuspenseCoreHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	float OldShield = CachedShield;
 
@@ -237,7 +237,7 @@ void USuspenseCoreHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspens
 	bWasShieldBroken = bIsBroken;
 }
 
-void USuspenseCoreHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxShield = EventData.GetFloat(FName("Value"), CachedMaxShield);
 
@@ -245,7 +245,7 @@ void USuspenseCoreHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSusp
 	UpdateShieldUI();
 }
 
-void USuspenseCoreHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	float OldStamina = CachedStamina;
 
@@ -258,7 +258,7 @@ void USuspenseCoreHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspen
 	OnStaminaChanged(CachedStamina, CachedMaxStamina, OldStamina);
 }
 
-void USuspenseCoreHUDWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxStamina = EventData.GetFloat(FName("Value"), CachedMaxStamina);
 
@@ -266,12 +266,12 @@ void USuspenseCoreHUDWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSus
 	UpdateStaminaUI();
 }
 
-void USuspenseCoreHUDWidget::OnLowHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnLowHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	OnHealthCritical();
 }
 
-void USuspenseCoreHUDWidget::OnShieldBrokenEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+void USuspenseCoreVitalsWidget::OnShieldBrokenEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	bWasShieldBroken = true;
 	OnShieldBroken();
@@ -281,7 +281,7 @@ void USuspenseCoreHUDWidget::OnShieldBrokenEvent(FGameplayTag EventTag, const FS
 // PUBLIC API
 // ═══════════════════════════════════════════════════════════════════════════
 
-void USuspenseCoreHUDWidget::RefreshAllValues()
+void USuspenseCoreVitalsWidget::RefreshAllValues()
 {
 	// Calculate target percentages
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
@@ -302,7 +302,7 @@ void USuspenseCoreHUDWidget::RefreshAllValues()
 	UpdateStaminaUI();
 }
 
-void USuspenseCoreHUDWidget::SetHealthValues(float Current, float Max)
+void USuspenseCoreVitalsWidget::SetHealthValues(float Current, float Max)
 {
 	float OldHealth = CachedHealth;
 	CachedHealth = Current;
@@ -312,7 +312,7 @@ void USuspenseCoreHUDWidget::SetHealthValues(float Current, float Max)
 	OnHealthChanged(CachedHealth, CachedMaxHealth, OldHealth);
 }
 
-void USuspenseCoreHUDWidget::SetShieldValues(float Current, float Max)
+void USuspenseCoreVitalsWidget::SetShieldValues(float Current, float Max)
 {
 	float OldShield = CachedShield;
 	CachedShield = Current;
@@ -322,7 +322,7 @@ void USuspenseCoreHUDWidget::SetShieldValues(float Current, float Max)
 	OnShieldChanged(CachedShield, CachedMaxShield, OldShield);
 }
 
-void USuspenseCoreHUDWidget::SetStaminaValues(float Current, float Max)
+void USuspenseCoreVitalsWidget::SetStaminaValues(float Current, float Max)
 {
 	float OldStamina = CachedStamina;
 	CachedStamina = Current;
@@ -336,7 +336,7 @@ void USuspenseCoreHUDWidget::SetStaminaValues(float Current, float Max)
 // UI UPDATE METHODS
 // ═══════════════════════════════════════════════════════════════════════════
 
-void USuspenseCoreHUDWidget::UpdateHealthUI()
+void USuspenseCoreVitalsWidget::UpdateHealthUI()
 {
 	// Update progress bar
 	if (HealthProgressBar && !bSmoothProgressBars)
@@ -375,7 +375,7 @@ void USuspenseCoreHUDWidget::UpdateHealthUI()
 	}
 }
 
-void USuspenseCoreHUDWidget::UpdateShieldUI()
+void USuspenseCoreVitalsWidget::UpdateShieldUI()
 {
 	// Update progress bar
 	if (ShieldProgressBar && !bSmoothProgressBars)
@@ -414,7 +414,7 @@ void USuspenseCoreHUDWidget::UpdateShieldUI()
 	}
 }
 
-void USuspenseCoreHUDWidget::UpdateStaminaUI()
+void USuspenseCoreVitalsWidget::UpdateStaminaUI()
 {
 	// Update progress bar
 	if (StaminaProgressBar && !bSmoothProgressBars)
@@ -453,7 +453,7 @@ void USuspenseCoreHUDWidget::UpdateStaminaUI()
 	}
 }
 
-void USuspenseCoreHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, float& DisplayedPercent, float TargetPercent, float DeltaTime)
+void USuspenseCoreVitalsWidget::UpdateProgressBar(UProgressBar* ProgressBar, float& DisplayedPercent, float TargetPercent, float DeltaTime)
 {
 	if (!ProgressBar)
 	{
@@ -465,7 +465,7 @@ void USuspenseCoreHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, float&
 	ProgressBar->SetPercent(DisplayedPercent);
 }
 
-FString USuspenseCoreHUDWidget::FormatValueText(float Current, float Max) const
+FString USuspenseCoreVitalsWidget::FormatValueText(float Current, float Max) const
 {
 	FString Result = ValueFormatPattern;
 

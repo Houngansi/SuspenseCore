@@ -4,9 +4,12 @@
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
 #include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 
 USuspenseDragDropOperation::USuspenseDragDropOperation()
 {
@@ -70,12 +73,19 @@ void USuspenseDragDropOperation::Drop_Implementation(const FPointerEvent& Pointe
         UE_LOG(LogTemp, Warning, TEXT("[DragDropOperation] Drop called on invalid operation"));
         bWasSuccessful = false;
 
-        // Refresh source container even on invalid operation
+        // Refresh source container even on invalid operation through EventBus
         if (Handler.IsValid())
         {
             if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(Handler.Get()))
             {
-                EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
+                if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+                {
+                    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Handler.Get());
+                    EventData.SetString(TEXT("ContainerType"), DragData.SourceContainerType.ToString());
+
+                    FGameplayTag RefreshTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Inventory.RefreshRequested"));
+                    EventBus->Publish(RefreshTag, EventData);
+                }
             }
         }
     }
@@ -112,13 +122,20 @@ void USuspenseDragDropOperation::DragCancelled_Implementation(const FPointerEven
     {
         Handler->ClearAllVisualFeedback();
 
-        // Ensure source container refreshes to show item in original position
+        // Ensure source container refreshes through EventBus
         if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(Handler.Get()))
         {
-            EventManager->NotifyInventoryUIRefreshRequested(DragData.SourceContainerType);
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Handler.Get());
+                EventData.SetString(TEXT("ContainerType"), DragData.SourceContainerType.ToString());
 
-            UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Requested refresh for source container: %s"),
-                *DragData.SourceContainerType.ToString());
+                FGameplayTag RefreshTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Inventory.RefreshRequested"));
+                EventBus->Publish(RefreshTag, EventData);
+
+                UE_LOG(LogTemp, Log, TEXT("[DragDropOperation] Requested refresh for source container: %s via EventBus"),
+                    *DragData.SourceContainerType.ToString());
+            }
         }
     }
 

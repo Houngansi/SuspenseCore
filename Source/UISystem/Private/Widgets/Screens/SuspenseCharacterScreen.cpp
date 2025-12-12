@@ -8,7 +8,10 @@
 #include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
 
 USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -161,13 +164,21 @@ void USuspenseCharacterScreen::OnScreenActivated_Implementation()
     // Call Blueprint event
     K2_OnCharacterScreenOpened();
 
-    // Notify event system
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    // Notify event system through EventBus
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        EventManager->NotifyScreenActivated(this, ScreenTag);
+        // Publish screen activated event
+        FSuspenseCoreEventData ActivatedData = FSuspenseCoreEventData::Create(this);
+        ActivatedData.SetObject(TEXT("Screen"), this);
+        ActivatedData.SetString(TEXT("ScreenTag"), ScreenTag.ToString());
 
-        FGameplayTag OpenedTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Opened"));
-        EventManager->NotifyUIEventGeneric(this, OpenedTag, TEXT(""));
+        FGameplayTag ScreenActivatedTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Screen.Activated"));
+        EventBus->Publish(ScreenActivatedTag, ActivatedData);
+
+        // Publish character screen opened event
+        FSuspenseCoreEventData OpenedData = FSuspenseCoreEventData::Create(this);
+        FGameplayTag OpenedTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.CharacterScreen.Opened"));
+        EventBus->Publish(OpenedTag, OpenedData);
 
         // Force refresh active tab content after a short delay
         FTimerHandle RefreshHandle;
@@ -221,13 +232,21 @@ void USuspenseCharacterScreen::OnScreenDeactivated_Implementation()
     // Call Blueprint event
     K2_OnCharacterScreenClosed();
 
-    // Notify event system
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    // Notify event system through EventBus
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        EventManager->NotifyScreenDeactivated(this, ScreenTag);
+        // Publish screen deactivated event
+        FSuspenseCoreEventData DeactivatedData = FSuspenseCoreEventData::Create(this);
+        DeactivatedData.SetObject(TEXT("Screen"), this);
+        DeactivatedData.SetString(TEXT("ScreenTag"), ScreenTag.ToString());
 
-        FGameplayTag ClosedTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Closed"));
-        EventManager->NotifyUIEventGeneric(this, ClosedTag, TEXT(""));
+        FGameplayTag ScreenDeactivatedTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Screen.Deactivated"));
+        EventBus->Publish(ScreenDeactivatedTag, DeactivatedData);
+
+        // Publish character screen closed event
+        FSuspenseCoreEventData ClosedData = FSuspenseCoreEventData::Create(this);
+        FGameplayTag ClosedTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.CharacterScreen.Closed"));
+        EventBus->Publish(ClosedTag, ClosedData);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[CharacterScreen] Deactivated"));
@@ -322,11 +341,12 @@ void USuspenseCharacterScreen::OnTabBarClosed(UObject* TabBar)
         // Hide the character screen
         SetVisibility(ESlateVisibility::Collapsed);
 
-        // Notify about close
-        if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+        // Notify about close through EventBus
+        if (USuspenseCoreEventBus* EventBus = GetEventBus())
         {
-            FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.CharacterScreen.Closed"));
-            EventManager->NotifyUIEventGeneric(this, EventTag, TEXT(""));
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+            FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.CharacterScreen.Closed"));
+            EventBus->Publish(EventTag, EventData);
         }
     }
 }
@@ -371,4 +391,13 @@ void USuspenseCharacterScreen::UpdateInputMode()
             PC->bShowMouseCursor = false;
         }
     }
+}
+
+USuspenseCoreEventBus* USuspenseCharacterScreen::GetEventBus() const
+{
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    {
+        return EventManager->GetEventBus();
+    }
+    return nullptr;
 }

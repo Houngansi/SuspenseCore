@@ -137,4 +137,7 @@ private:
 
     /** Update input mode based on screen state */
     void UpdateInputMode();
+
+    /** Get event bus */
+    class USuspenseCoreEventBus* GetEventBus() const;
 };

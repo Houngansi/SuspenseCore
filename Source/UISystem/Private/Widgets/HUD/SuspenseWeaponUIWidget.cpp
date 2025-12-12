@@ -5,9 +5,12 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -368,84 +371,133 @@ float USuspenseCoreWeaponUIWidget::GetAmmoPercentage() const
 
 void USuspenseCoreWeaponUIWidget::SubscribeToEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    CachedEventBus = GetEventBus();
+    if (!CachedEventBus.IsValid())
     {
-        // Subscribe to ammo changed events
-        AmmoChangedHandle = EventManager->SubscribeToAmmoChanged(
-            [this](float CurrentAmmo, float RemainingAmmo, float MagazineSize)
-            {
-                OnAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
-            });
-
-        // Subscribe to weapon state changed events
-        WeaponStateChangedHandle = EventManager->SubscribeToWeaponStateChanged(
-            [this](FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted)
-            {
-                OnWeaponStateChanged(OldState, NewState, bInterrupted);
-            });
-
-        // Subscribe to reload start events
-        WeaponReloadStartHandle = EventManager->SubscribeToWeaponReloadStart(
-            [this]()
-            {
-                OnWeaponReloadStart();
-            });
-
-        // Subscribe to reload end events
-        WeaponReloadEndHandle = EventManager->SubscribeToWeaponReloadEnd(
-            [this]()
-            {
-                OnWeaponReloadEnd();
-            });
-
-        // Subscribe to active weapon changed events
-        ActiveWeaponChangedHandle = EventManager->SubscribeToActiveWeaponChanged(
-            [this](AActor* NewWeapon)
-            {
-                OnActiveWeaponChanged(NewWeapon);
-            });
-
-        UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Subscribed to events"));
+        UE_LOG(LogTemp, Warning, TEXT("[MedComWeaponUIWidget] Failed to get EventBus for subscription"));
+        return;
     }
+
+    // Subscribe to ammo changed events
+    FGameplayTag AmmoTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.AmmoChanged"));
+    AmmoChangedHandle = CachedEventBus->SubscribeNative(
+        AmmoTag,
+        const_cast<USuspenseCoreWeaponUIWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponUIWidget::OnAmmoChangedEvent),
+        ESuspenseCoreEventPriority::Low
+    );
+
+    // Subscribe to weapon state changed events
+    FGameplayTag StateTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.StateChanged"));
+    WeaponStateChangedHandle = CachedEventBus->SubscribeNative(
+        StateTag,
+        const_cast<USuspenseCoreWeaponUIWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponUIWidget::OnWeaponStateChangedEvent),
+        ESuspenseCoreEventPriority::Low
+    );
+
+    // Subscribe to reload events (using Weapon.Reloaded tag)
+    FGameplayTag ReloadTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.Reloaded"));
+    WeaponReloadHandle = CachedEventBus->SubscribeNative(
+        ReloadTag,
+        const_cast<USuspenseCoreWeaponUIWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponUIWidget::OnWeaponReloadEvent),
+        ESuspenseCoreEventPriority::Low
+    );
+
+    // Subscribe to active weapon changed events
+    FGameplayTag WeaponChangedTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Weapon.Changed"));
+    ActiveWeaponChangedHandle = CachedEventBus->SubscribeNative(
+        WeaponChangedTag,
+        const_cast<USuspenseCoreWeaponUIWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreWeaponUIWidget::OnActiveWeaponChangedEvent),
+        ESuspenseCoreEventPriority::Low
+    );
+
+    UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Subscribed to weapon events via EventBus"));
 }
 
 void USuspenseCoreWeaponUIWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (CachedEventBus.IsValid())
     {
         // Unsubscribe from all events
         if (AmmoChangedHandle.IsValid())
         {
-            EventManager->UniversalUnsubscribe(AmmoChangedHandle);
-            AmmoChangedHandle.Reset();
+            CachedEventBus->Unsubscribe(AmmoChangedHandle);
+            AmmoChangedHandle.Invalidate();
         }
 
         if (WeaponStateChangedHandle.IsValid())
         {
-            EventManager->UniversalUnsubscribe(WeaponStateChangedHandle);
-            WeaponStateChangedHandle.Reset();
+            CachedEventBus->Unsubscribe(WeaponStateChangedHandle);
+            WeaponStateChangedHandle.Invalidate();
         }
 
-        if (WeaponReloadStartHandle.IsValid())
+        if (WeaponReloadHandle.IsValid())
         {
-            EventManager->UniversalUnsubscribe(WeaponReloadStartHandle);
-            WeaponReloadStartHandle.Reset();
-        }
-
-        if (WeaponReloadEndHandle.IsValid())
-        {
-            EventManager->UniversalUnsubscribe(WeaponReloadEndHandle);
-            WeaponReloadEndHandle.Reset();
+            CachedEventBus->Unsubscribe(WeaponReloadHandle);
+            WeaponReloadHandle.Invalidate();
         }
 
         if (ActiveWeaponChangedHandle.IsValid())
         {
-            EventManager->UniversalUnsubscribe(ActiveWeaponChangedHandle);
-            ActiveWeaponChangedHandle.Reset();
+            CachedEventBus->Unsubscribe(ActiveWeaponChangedHandle);
+            ActiveWeaponChangedHandle.Invalidate();
         }
 
-        UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Unsubscribed from events"));
+        UE_LOG(LogTemp, Log, TEXT("[MedComWeaponUIWidget] Unsubscribed from weapon events"));
     }
+}
+
+USuspenseCoreEventBus* USuspenseCoreWeaponUIWidget::GetEventBus() const
+{
+    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    {
+        return EventManager->GetEventBus();
+    }
+    return nullptr;
+}
+
+void USuspenseCoreWeaponUIWidget::OnAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    float CurrentAmmo = EventData.GetFloat(TEXT("CurrentAmmo"), 0.0f);
+    float RemainingAmmo = EventData.GetFloat(TEXT("RemainingAmmo"), 0.0f);
+    float MagazineSize = EventData.GetFloat(TEXT("MagazineSize"), 0.0f);
+
+    OnAmmoChanged(CurrentAmmo, RemainingAmmo, MagazineSize);
+}
+
+void USuspenseCoreWeaponUIWidget::OnWeaponStateChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    FString OldStateStr = EventData.GetString(TEXT("OldState"), TEXT(""));
+    FString NewStateStr = EventData.GetString(TEXT("NewState"), TEXT(""));
+    bool bInterrupted = EventData.GetBool(TEXT("Interrupted"), false);
+
+    FGameplayTag OldState = FGameplayTag::RequestGameplayTag(FName(*OldStateStr));
+    FGameplayTag NewState = FGameplayTag::RequestGameplayTag(FName(*NewStateStr));
+
+    OnWeaponStateChanged(OldState, NewState, bInterrupted);
+}
+
+void USuspenseCoreWeaponUIWidget::OnWeaponReloadEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    bool bReloadStarted = EventData.GetBool(TEXT("Started"), false);
+
+    if (bReloadStarted)
+    {
+        OnWeaponReloadStart();
+    }
+    else
+    {
+        OnWeaponReloadEnd();
+    }
+}
+
+void USuspenseCoreWeaponUIWidget::OnActiveWeaponChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    AActor* NewWeapon = EventData.GetObject<AActor>(TEXT("Weapon"));
+    OnActiveWeaponChanged(NewWeapon);
 }
 
 void USuspenseCoreWeaponUIWidget::UpdateFromWeaponInterfaces()

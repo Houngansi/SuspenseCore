@@ -352,7 +352,7 @@ private:
     /**
      * Get event manager subsystem
      */
-    USuspenseEventManager* GetEventManager() const;
+    USuspenseCoreEventManager* GetEventManager() const;
 
     /**
      * Determine tooltip class from item data

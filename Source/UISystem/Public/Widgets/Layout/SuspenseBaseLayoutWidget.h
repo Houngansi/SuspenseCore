@@ -286,8 +286,11 @@ private:
     void NotifyWidgetDestroyed(const FGameplayTag& WidgetTag);
 
     /** Get UIManager instance */
-    class USuspenseUIManager* GetUIManager() const;
+    class USuspenseCoreUIManager* GetUIManager() const;
 
-    /** Get EventDelegateManager instance */
-    class USuspenseEventManager* GetEventManager() const;
+    /** Get EventManager instance */
+    class USuspenseCoreEventManager* GetEventManager() const;
+
+    /** Get EventBus instance */
+    class USuspenseCoreEventBus* GetEventBus() const;
 };

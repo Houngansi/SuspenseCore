@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
 #include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseUpperTabBar.generated.h"
 
@@ -18,6 +19,7 @@ class UBorder;
 class UImage;
 class UWidgetTree;
 class USuspenseBaseLayoutWidget;
+class USuspenseCoreEventBus;
 
 /**
  * Layout type for tab content
@@ -336,7 +338,17 @@ private:
     UPROPERTY(Transient)
     TArray<UUserWidget*> ContentWidgets;
 
-    /** Хэндлы подписок на события */
-    FDelegateHandle CharacterLevelUpdateHandle;
-    FDelegateHandle InventoryUpdateHandle;
+    /** EventBus event handlers */
+    void OnInventoryEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnCharacterLevelEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /** Event subscription handles */
+    FSuspenseCoreSubscriptionHandle CharacterLevelEventHandle;
+    FSuspenseCoreSubscriptionHandle InventoryEventHandle;
+
+    /** Cached EventBus reference */
+    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
+    /** Get event bus */
+    class USuspenseCoreEventBus* GetEventBus() const;
 };

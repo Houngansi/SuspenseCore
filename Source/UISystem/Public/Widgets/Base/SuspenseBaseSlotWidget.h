@@ -325,7 +325,10 @@ protected:
     USuspenseDragDropHandler* GetDragDropHandler() const;
 
     /** Get event manager */
-    USuspenseEventManager* GetEventManager() const;
+    USuspenseCoreEventManager* GetEventManager() const;
+
+    /** Get event bus */
+    class USuspenseCoreEventBus* GetEventBus() const;
 
     /** Validate widget bindings */
     bool ValidateWidgetBindings() const;

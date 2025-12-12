@@ -6,9 +6,12 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 
 USuspenseBaseLayoutWidget::USuspenseBaseLayoutWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -40,13 +43,20 @@ void USuspenseBaseLayoutWidget::InitializeWidget_Implementation()
         return;
     }
 
-    // Register this layout in UIManager if needed
+    // Notify about layout registration through EventBus
     if (bRegisterLayoutInUIManager && WidgetTag.IsValid())
     {
-        if (USuspenseUIManager* UIManager = GetUIManager())
+        if (USuspenseCoreEventBus* EventBus = GetEventBus())
         {
-            UIManager->RegisterExternalWidget(this, WidgetTag);
-            UE_LOG(LogTemp, Log, TEXT("[%s] Layout registered in UIManager with tag %s"),
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+            EventData.SetObject(TEXT("Widget"), this);
+            EventData.SetString(TEXT("WidgetTag"), WidgetTag.ToString());
+            EventData.SetString(TEXT("WidgetName"), GetName());
+
+            FGameplayTag RegisterTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Layout.Registered"));
+            EventBus->Publish(RegisterTag, EventData);
+
+            UE_LOG(LogTemp, Log, TEXT("[%s] Layout registered via EventBus with tag %s"),
                 *GetName(), *WidgetTag.ToString());
         }
     }
@@ -65,12 +75,16 @@ void USuspenseBaseLayoutWidget::UninitializeWidget_Implementation()
 {
     ClearCreatedWidgets();
 
-    // Unregister from UIManager if registered
+    // Notify about layout unregistration through EventBus
     if (bRegisterLayoutInUIManager && WidgetTag.IsValid())
     {
-        if (USuspenseUIManager* UIManager = GetUIManager())
+        if (USuspenseCoreEventBus* EventBus = GetEventBus())
         {
-            UIManager->UnregisterWidget(WidgetTag);
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+            EventData.SetString(TEXT("WidgetTag"), WidgetTag.ToString());
+
+            FGameplayTag UnregisterTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Layout.Unregistered"));
+            EventBus->Publish(UnregisterTag, EventData);
         }
     }
 
@@ -364,24 +378,37 @@ void USuspenseBaseLayoutWidget::InitializeLayoutWidget(UUserWidget* Widget, cons
         }
     }
 
-    // ИСПРАВЛЕНИЕ: Отправляем событие готовности для обоих типов виджетов
-    if (USuspenseCoreEventManager* EventManager = GetEventManager())
+    // Notify about widget ready through EventBus
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
         FTimerHandle InitTimerHandle;
-        GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget, Config, this]()
+        TWeakObjectPtr<USuspenseCoreEventBus> WeakEventBus = EventBus;
+        TWeakObjectPtr<UUserWidget> WeakWidget = Widget;
+        FGameplayTag WidgetTagCopy = Config.WidgetTag;
+
+        GetWorld()->GetTimerManager().SetTimerForNextTick([WeakEventBus, WeakWidget, WidgetTagCopy]()
         {
-            // Для инвентаря
-            if (Config.WidgetTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Inventory"))))
+            if (!WeakEventBus.IsValid() || !WeakWidget.IsValid())
             {
-                FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Inventory.ReadyToDisplay"));
-                EventManager->NotifyUIEventGeneric(Widget, ReadyTag, TEXT(""));
+                return;
             }
 
-            // НОВОЕ: Для экипировки тоже отправляем событие готовности
-            if (Config.WidgetTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Equipment"))))
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(WeakWidget.Get());
+            EventData.SetObject(TEXT("Widget"), WeakWidget.Get());
+            EventData.SetString(TEXT("WidgetTag"), WidgetTagCopy.ToString());
+
+            // Для инвентаря
+            if (WidgetTagCopy.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Inventory"))))
             {
-                FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Equipment.ReadyToDisplay"));
-                EventManager->NotifyUIEventGeneric(Widget, ReadyTag, TEXT(""));
+                FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Inventory.Ready"));
+                WeakEventBus->Publish(ReadyTag, EventData);
+            }
+
+            // Для экипировки
+            if (WidgetTagCopy.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Widget.Equipment"))))
+            {
+                FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Equipment.Ready"));
+                WeakEventBus->Publish(ReadyTag, EventData);
 
                 UE_LOG(LogTemp, Log, TEXT("[Layout] Equipment widget ready for display"));
             }
@@ -562,10 +589,17 @@ void USuspenseBaseLayoutWidget::RegisterWidgetInUIManager(UUserWidget* Widget, c
         return;
     }
 
-    if (USuspenseUIManager* UIManager = GetUIManager())
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        UIManager->RegisterLayoutWidget(Widget, InWidgetTag, this);
-        UE_LOG(LogTemp, Log, TEXT("[%s] Registered widget %s in UIManager"),
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Widget);
+        EventData.SetObject(TEXT("Widget"), Widget);
+        EventData.SetObject(TEXT("ParentLayout"), this);
+        EventData.SetString(TEXT("WidgetTag"), InWidgetTag.ToString());
+
+        FGameplayTag RegisterTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Widget.Registered"));
+        EventBus->Publish(RegisterTag, EventData);
+
+        UE_LOG(LogTemp, Log, TEXT("[%s] Registered widget %s via EventBus"),
             *GetName(), *InWidgetTag.ToString());
     }
 }
@@ -577,46 +611,60 @@ void USuspenseBaseLayoutWidget::UnregisterWidgetFromUIManager(const FGameplayTag
         return;
     }
 
-    if (USuspenseUIManager* UIManager = GetUIManager())
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        UIManager->UnregisterLayoutWidget(InWidgetTag);
-        UE_LOG(LogTemp, Log, TEXT("[%s] Unregistered widget %s from UIManager"),
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetString(TEXT("WidgetTag"), InWidgetTag.ToString());
+
+        FGameplayTag UnregisterTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Widget.Unregistered"));
+        EventBus->Publish(UnregisterTag, EventData);
+
+        UE_LOG(LogTemp, Log, TEXT("[%s] Unregistered widget %s via EventBus"),
             *GetName(), *InWidgetTag.ToString());
     }
 }
 
 void USuspenseBaseLayoutWidget::NotifyWidgetCreated(UUserWidget* Widget, const FGameplayTag& InWidgetTag)
 {
-    if (USuspenseCoreEventManager* EventManager = GetEventManager())
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        // Create event data string
-        FString EventData = FString::Printf(TEXT("Widget:%s,Tag:%s,Parent:%s"),
-            *Widget->GetName(),
-            *InWidgetTag.ToString(),
-            *GetName());
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Widget);
+        EventData.SetObject(TEXT("Widget"), Widget);
+        EventData.SetString(TEXT("WidgetTag"), InWidgetTag.ToString());
+        EventData.SetString(TEXT("WidgetName"), Widget->GetName());
+        EventData.SetString(TEXT("ParentName"), GetName());
+        EventData.SetObject(TEXT("ParentLayout"), this);
 
-        // Send creation event
-        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Layout.WidgetCreated"));
-        EventManager->NotifyUIEvent(Widget, EventTag, EventData);
+        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Layout.WidgetCreated"));
+        EventBus->Publish(EventTag, EventData);
     }
 }
 
 void USuspenseBaseLayoutWidget::NotifyWidgetDestroyed(const FGameplayTag& InWidgetTag)
 {
-    if (USuspenseCoreEventManager* EventManager = GetEventManager())
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        // Create event data string
-        FString EventData = FString::Printf(TEXT("Tag:%s"), *InWidgetTag.ToString());
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetString(TEXT("WidgetTag"), InWidgetTag.ToString());
+        EventData.SetString(TEXT("ParentName"), GetName());
 
-        // Send destruction event
-        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Layout.WidgetDestroyed"));
-        EventManager->NotifyUIEvent(this, EventTag, EventData);
+        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Layout.WidgetDestroyed"));
+        EventBus->Publish(EventTag, EventData);
     }
 }
 
-USuspenseUIManager* USuspenseBaseLayoutWidget::GetUIManager() const
+USuspenseCoreUIManager* USuspenseBaseLayoutWidget::GetUIManager() const
 {
-    return USuspenseUIManager::Get(this);
+    return USuspenseCoreUIManager::Get(this);
+}
+
+USuspenseCoreEventBus* USuspenseBaseLayoutWidget::GetEventBus() const
+{
+    if (USuspenseCoreEventManager* EventManager = GetEventManager())
+    {
+        return EventManager->GetEventBus();
+    }
+    return nullptr;
 }
 
 USuspenseCoreEventManager* USuspenseBaseLayoutWidget::GetEventManager() const

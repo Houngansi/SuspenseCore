@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreWeaponUIWidget.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseWeaponUIWidget.generated.h"
 
@@ -13,6 +14,7 @@ class UTextBlock;
 class UImage;
 class UTexture2D;
 class UProgressBar;
+class USuspenseCoreEventBus;
 
 UCLASS()
 class UISYSTEM_API USuspenseCoreWeaponUIWidget : public USuspenseBaseWidget, public ISuspenseCoreWeaponUIWidgetInterface
@@ -107,34 +109,47 @@ private:
     void UpdateCurrentFireMode();
     bool ValidateWidgetBindings() const;
 
+    // Legacy event handlers
     void OnAmmoChanged(float CurrentAmmo, float RemainingAmmo, float MagazineSize);
     void OnWeaponStateChanged(FGameplayTag OldState, FGameplayTag NewState, bool bInterrupted);
     void OnWeaponReloadStart();
     void OnWeaponReloadEnd();
     void OnActiveWeaponChanged(AActor* NewWeapon);
 
+    // EventBus event handlers
+    void OnAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnWeaponStateChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnWeaponReloadEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void OnActiveWeaponChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    // Get EventBus
+    USuspenseCoreEventBus* GetEventBus() const;
+
     UPROPERTY()
     AActor* CachedWeaponActor = nullptr;
-    
+
+    // Cached EventBus reference
+    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
     FGameplayTag CurrentWeaponState;
     FGameplayTag CurrentFireMode;
     TArray<FGameplayTag> AvailableFireModes;
-    
+
     bool bIsReloading = false;
     float CurrentReloadTime = 0.0f;
     float TotalReloadTime = 0.0f;
-    
+
     float LastCurrentAmmo = 0.0f;
     float LastRemainingAmmo = 0.0f;
     float LastMagazineSize = 0.0f;
-    
+
     float FireModeCheckInterval = 0.5f;
     float TimeSinceLastFireModeCheck = 0.0f;
 
-    FDelegateHandle AmmoChangedHandle;
-    FDelegateHandle WeaponStateChangedHandle;
-    FDelegateHandle WeaponReloadStartHandle;
-    FDelegateHandle WeaponReloadEndHandle;
-    FDelegateHandle ActiveWeaponChangedHandle;
+    // Event subscription handles
+    FSuspenseCoreSubscriptionHandle AmmoChangedHandle;
+    FSuspenseCoreSubscriptionHandle WeaponStateChangedHandle;
+    FSuspenseCoreSubscriptionHandle WeaponReloadHandle;
+    FSuspenseCoreSubscriptionHandle ActiveWeaponChangedHandle;
     FTimerHandle ReloadTimerHandle;
 };

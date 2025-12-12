@@ -1,9 +1,11 @@
-// MedComBaseSlotWidget.cpp - Optimized version with tooltip support through EventDelegateManager
+// MedComBaseSlotWidget.cpp - Optimized version with tooltip support through EventBus
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "Widgets/DragDrop/SuspenseDragDropOperation.h"
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -564,14 +566,10 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
         return;
     }
 
-    if (!CachedEventManager)
+    USuspenseCoreEventBus* EventBus = GetEventBus();
+    if (!EventBus)
     {
-        CachedEventManager = GetEventManager();
-    }
-
-    if (!CachedEventManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Slot %d] No EventDelegateManager available for tooltip"),
+        UE_LOG(LogTemp, Warning, TEXT("[Slot %d] No EventBus available for tooltip"),
             CurrentSlotData.SlotIndex);
         return;
     }
@@ -597,15 +595,25 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
     // Convert to viewport space (no additional scaling needed for raw mouse position)
     FVector2D ViewportPosition = FVector2D(MouseX, MouseY);
 
-    // НОВОЕ: Передаём информацию о кастомном классе тултипа через ItemData
-    FItemUIData TooltipItemData = CurrentItemData;
+    // Create event data for tooltip request
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetObject(TEXT("SourceWidget"), this);
+    EventData.SetString(TEXT("ItemInstanceID"), CurrentItemData.ItemInstanceID.ToString());
+    EventData.SetString(TEXT("DisplayName"), CurrentItemData.DisplayName.ToString());
+    EventData.SetString(TEXT("Description"), CurrentItemData.Description.ToString());
+    EventData.SetString(TEXT("Rarity"), UEnum::GetValueAsString(CurrentItemData.Rarity));
+    EventData.SetFloat(TEXT("PositionX"), ViewportPosition.X);
+    EventData.SetFloat(TEXT("PositionY"), ViewportPosition.Y);
+    EventData.SetInt(TEXT("Quantity"), CurrentItemData.Quantity);
+
     if (CustomTooltipClass)
     {
-        TooltipItemData.PreferredTooltipClass = CustomTooltipClass;
+        EventData.SetObject(TEXT("CustomTooltipClass"), CustomTooltipClass.GetDefaultObject());
     }
 
-    // Request tooltip through EventDelegateManager
-    CachedEventManager->NotifyTooltipRequested(TooltipItemData, ViewportPosition);
+    // Publish tooltip request event
+    FGameplayTag TooltipTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.Requested"));
+    EventBus->Publish(TooltipTag, EventData);
 
     // Mark as active
     bIsTooltipActive = true;
@@ -624,17 +632,15 @@ void USuspenseBaseSlotWidget::HideTooltip()
 
     if (bIsTooltipActive)
     {
-        if (!CachedEventManager)
+        if (USuspenseCoreEventBus* EventBus = GetEventBus())
         {
-            CachedEventManager = GetEventManager();
-        }
+            // Hide tooltip through EventBus
+            FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
 
-        if (CachedEventManager)
-        {
-            // Hide tooltip through EventDelegateManager instead of direct TooltipManager call
-            CachedEventManager->NotifyTooltipHideRequested();
+            FGameplayTag HideTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.Hide"));
+            EventBus->Publish(HideTag, EventData);
 
-            UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip hide through EventDelegateManager"),
+            UE_LOG(LogTemp, Verbose, TEXT("[Slot %d] Requested tooltip hide through EventBus"),
                 CurrentSlotData.SlotIndex);
         }
 
@@ -644,7 +650,13 @@ void USuspenseBaseSlotWidget::HideTooltip()
 
 void USuspenseBaseSlotWidget::UpdateTooltipPosition()
 {
-    if (!bIsTooltipActive || !CachedEventManager)
+    if (!bIsTooltipActive)
+    {
+        return;
+    }
+
+    USuspenseCoreEventBus* EventBus = GetEventBus();
+    if (!EventBus)
     {
         return;
     }
@@ -668,8 +680,13 @@ void USuspenseBaseSlotWidget::UpdateTooltipPosition()
 
     FVector2D ViewportPosition = FVector2D(MouseX, MouseY);
 
-    // Update position through EventDelegateManager
-    CachedEventManager->NotifyTooltipUpdatePosition(ViewportPosition);
+    // Update position through EventBus
+    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+    EventData.SetFloat(TEXT("PositionX"), ViewportPosition.X);
+    EventData.SetFloat(TEXT("PositionY"), ViewportPosition.Y);
+
+    FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.UpdatePosition"));
+    EventBus->Publish(UpdateTag, EventData);
 }
 
 // === Other Methods ===
@@ -981,6 +998,15 @@ USuspenseCoreEventManager* USuspenseBaseSlotWidget::GetEventManager() const
         return GameInstance->GetSubsystem<USuspenseCoreEventManager>();
     }
 
+    return nullptr;
+}
+
+USuspenseCoreEventBus* USuspenseBaseSlotWidget::GetEventBus() const
+{
+    if (USuspenseCoreEventManager* EventManager = GetEventManager())
+    {
+        return EventManager->GetEventBus();
+    }
     return nullptr;
 }
 

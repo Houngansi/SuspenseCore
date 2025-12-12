@@ -12,11 +12,14 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 // TODO: Create SuspenseEquipmentContainerWidget - Equipment widget is not yet implemented
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/GameInstance.h"
 
 USuspenseUpperTabBar::USuspenseUpperTabBar(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -277,31 +280,47 @@ bool USuspenseUpperTabBar::SelectTabByIndex_Implementation(int32 TabIndex)
             {
                 // Даем время виджету полностью активироваться
                 FTimerHandle RefreshTimerHandle;
-                GetWorld()->GetTimerManager().SetTimerForNextTick([this, TabIndex]()
+                TWeakObjectPtr<USuspenseUpperTabBar> WeakThis = this;
+                GetWorld()->GetTimerManager().SetTimerForNextTick([WeakThis, TabIndex]()
                 {
-                    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+                    if (!WeakThis.IsValid())
                     {
-                        // Отправляем событие обновления инвентаря
-                        FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"));
-                        EventManager->NotifyUIEventGeneric(this, UpdateTag, TEXT("TabSelected"));
+                        return;
+                    }
 
-                        // Также отправляем запрос на обновление UI контейнера
-                        FGameplayTag ContainerTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Container.Inventory"));
-                        EventManager->NotifyUIContainerUpdateRequested(ContentWidgets[TabIndex], ContainerTag);
+                    if (USuspenseCoreEventBus* EventBus = WeakThis->GetEventBus())
+                    {
+                        // Publish inventory update event
+                        FSuspenseCoreEventData UpdateData = FSuspenseCoreEventData::Create(WeakThis.Get());
+                        UpdateData.SetString(TEXT("Reason"), TEXT("TabSelected"));
+
+                        FGameplayTag UpdateTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory.Updated"));
+                        EventBus->Publish(UpdateTag, UpdateData);
+
+                        // Publish container update request event
+                        FSuspenseCoreEventData ContainerData = FSuspenseCoreEventData::Create(WeakThis.Get());
+                        if (WeakThis->ContentWidgets.IsValidIndex(TabIndex) && WeakThis->ContentWidgets[TabIndex])
+                        {
+                            ContainerData.SetObject(TEXT("Widget"), WeakThis->ContentWidgets[TabIndex]);
+                        }
+                        ContainerData.SetString(TEXT("ContainerType"), TEXT("Inventory"));
+
+                        FGameplayTag ContainerTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Container.UpdateRequested"));
+                        EventBus->Publish(ContainerTag, ContainerData);
 
                         UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Sent inventory update request for tab selection"));
                     }
 
                     // Принудительно обновляем контент
-                    if (ContentWidgets[TabIndex])
+                    if (WeakThis->ContentWidgets.IsValidIndex(TabIndex) && WeakThis->ContentWidgets[TabIndex])
                     {
-                        if (USuspenseBaseLayoutWidget* LayoutWidget = Cast<USuspenseBaseLayoutWidget>(ContentWidgets[TabIndex]))
+                        if (USuspenseBaseLayoutWidget* LayoutWidget = Cast<USuspenseBaseLayoutWidget>(WeakThis->ContentWidgets[TabIndex]))
                         {
                             LayoutWidget->RefreshLayout_Implementation();
                         }
-                        else if (ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
+                        else if (WeakThis->ContentWidgets[TabIndex]->GetClass()->ImplementsInterface(USuspenseCoreScreen::StaticClass()))
                         {
-                            ISuspenseCoreScreen::Execute_RefreshScreenContent(ContentWidgets[TabIndex]);
+                            ISuspenseCoreScreen::Execute_RefreshScreenContent(WeakThis->ContentWidgets[TabIndex]);
                         }
                     }
                 });
@@ -519,14 +538,25 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
             {
                 UE_LOG(LogTemp, Log, TEXT("[TabBar] Equipment Widget created, will be initialized by bridge"));
 
-                // Отправляем событие готовности Equipment виджета
-                if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+                // Publish equipment widget ready event through EventBus
+                if (USuspenseCoreEventBus* EventBus = GetEventBus())
                 {
+                    TWeakObjectPtr<USuspenseCoreEventBus> WeakEventBus = EventBus;
+                    TWeakObjectPtr<UUserWidget> WeakWidget = Widget;
+
                     FTimerHandle InitTimerHandle;
-                    GetWorld()->GetTimerManager().SetTimerForNextTick([EventManager, Widget]()
+                    GetWorld()->GetTimerManager().SetTimerForNextTick([WeakEventBus, WeakWidget]()
                     {
-                        FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Equipment.ReadyToDisplay"));
-                        EventManager->NotifyUIEventGeneric(Widget, ReadyTag, TEXT(""));
+                        if (!WeakEventBus.IsValid() || !WeakWidget.IsValid())
+                        {
+                            return;
+                        }
+
+                        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(WeakWidget.Get());
+                        EventData.SetObject(TEXT("Widget"), WeakWidget.Get());
+
+                        FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Equipment.Ready"));
+                        WeakEventBus->Publish(ReadyTag, EventData);
                     });
                 }
             }
@@ -586,11 +616,14 @@ void USuspenseUpperTabBar::OnCloseButtonClicked()
     // Broadcast close event
     OnTabBarClosed.Broadcast(this);
 
-    // Notify event system
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    // Notify event system through EventBus
+    if (USuspenseCoreEventBus* EventBus = GetEventBus())
     {
-        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("UI.TabBar.CloseClicked"));
-        EventManager->NotifyUIEventGeneric(this, EventTag, TabBarTag.ToString());
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetString(TEXT("TabBarTag"), TabBarTag.ToString());
+
+        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.TabBar.CloseClicked"));
+        EventBus->Publish(EventTag, EventData);
     }
 }
 
@@ -713,66 +746,84 @@ void USuspenseUpperTabBar::ApplyButtonStyle(UButton* Button, bool bSelected)
 
 void USuspenseUpperTabBar::SubscribeToEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    CachedEventBus = GetEventBus();
+    if (!CachedEventBus.IsValid())
     {
-        // ВАЖНОЕ ИЗМЕНЕНИЕ: Подписываемся на правильные события инвентаря
-
-        // Подписка на обновления инвентаря
-        InventoryUpdateHandle = EventManager->SubscribeToUIEvent([this, EventManager](UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
-        {
-            // Проверяем различные события инвентаря
-            bool bShouldUpdate = false;
-
-            if (EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.Updated"))) ||
-                EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.ItemAdded"))) ||
-                EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.ItemRemoved"))) ||
-                EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("Inventory.Event.ItemMoved"))))
-            {
-                bShouldUpdate = true;
-            }
-
-            if (bShouldUpdate)
-            {
-                // Обновляем вкладку инвентаря, если она активна
-                if (CurrentTabIndex >= 0 && TabConfigs.IsValidIndex(CurrentTabIndex))
-                {
-                    if (TabConfigs[CurrentTabIndex].TabTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"))))
-                    {
-                        UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Inventory event received: %s, refreshing content"),
-                             *EventTag.ToString());
-
-                        // Обновляем контент вкладки
-                        RefreshActiveTabContent();
-
-                        // Также отправляем событие обновления контейнера
-                        if (ContentWidgets.IsValidIndex(CurrentTabIndex) && ContentWidgets[CurrentTabIndex])
-                        {
-                            FGameplayTag ContainerTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Container.Inventory"));
-                            EventManager->NotifyUIContainerUpdateRequested(ContentWidgets[CurrentTabIndex], ContainerTag);
-                        }
-                    }
-                }
-            }
-        });
-
-        // Подписка на обновления уровня персонажа
-        CharacterLevelUpdateHandle = EventManager->SubscribeToUIEvent([this](UObject* Source, const FGameplayTag& EventTag, const FString& EventData)
-        {
-            if (EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Character.LevelUpdated"))))
-            {
-                OnCharacterDataUpdated();
-            }
-        });
+        return;
     }
+
+    // Subscribe to inventory events through EventBus
+    FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory"));
+    InventoryEventHandle = CachedEventBus->SubscribeNative(
+        InventoryTag,
+        const_cast<USuspenseUpperTabBar*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseUpperTabBar::OnInventoryEvent),
+        ESuspenseCoreEventPriority::Low
+    );
+
+    // Subscribe to character level events
+    FGameplayTag CharacterTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Character.LevelUpdated"));
+    CharacterLevelEventHandle = CachedEventBus->SubscribeNative(
+        CharacterTag,
+        const_cast<USuspenseUpperTabBar*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseUpperTabBar::OnCharacterLevelEvent),
+        ESuspenseCoreEventPriority::Low
+    );
 }
 
 void USuspenseUpperTabBar::UnsubscribeFromEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    if (CachedEventBus.IsValid())
     {
-        EventManager->UniversalUnsubscribe(CharacterLevelUpdateHandle);
-        EventManager->UniversalUnsubscribe(InventoryUpdateHandle);
+        if (CharacterLevelEventHandle.IsValid())
+        {
+            CachedEventBus->Unsubscribe(CharacterLevelEventHandle);
+            CharacterLevelEventHandle.Invalidate();
+        }
+        if (InventoryEventHandle.IsValid())
+        {
+            CachedEventBus->Unsubscribe(InventoryEventHandle);
+            InventoryEventHandle.Invalidate();
+        }
     }
+}
+
+void USuspenseUpperTabBar::OnInventoryEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    // Проверяем различные события инвентаря
+    bool bShouldUpdate = EventTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Inventory")));
+
+    if (bShouldUpdate)
+    {
+        // Обновляем вкладку инвентаря, если она активна
+        if (CurrentTabIndex >= 0 && TabConfigs.IsValidIndex(CurrentTabIndex))
+        {
+            if (TabConfigs[CurrentTabIndex].TabTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"))))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[UpperTabBar] Inventory event received: %s, refreshing content"),
+                     *EventTag.ToString());
+
+                // Обновляем контент вкладки
+                RefreshActiveTabContent();
+
+                // Publish container update request through EventBus
+                if (ContentWidgets.IsValidIndex(CurrentTabIndex) && ContentWidgets[CurrentTabIndex] && CachedEventBus.IsValid())
+                {
+                    FSuspenseCoreEventData ContainerData = FSuspenseCoreEventData::Create(this);
+                    ContainerData.SetObject(TEXT("Widget"), ContentWidgets[CurrentTabIndex]);
+                    ContainerData.SetString(TEXT("ContainerType"), TEXT("Inventory"));
+
+                    FGameplayTag ContainerTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Container.UpdateRequested"));
+                    CachedEventBus->Publish(ContainerTag, ContainerData);
+                }
+            }
+        }
+    }
+}
+
+void USuspenseUpperTabBar::OnCharacterLevelEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    OnCharacterDataUpdated();
 }
 
 void USuspenseUpperTabBar::BroadcastTabSelectionChanged(int32 OldIndex, int32 NewIndex)
@@ -780,14 +831,20 @@ void USuspenseUpperTabBar::BroadcastTabSelectionChanged(int32 OldIndex, int32 Ne
     // Broadcast native delegate
     OnTabSelectionChanged.Broadcast(this, OldIndex, NewIndex);
 
-    // Notify event system with detailed info
-    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    // Notify event system through EventBus
+    if (CachedEventBus.IsValid())
     {
         FGameplayTag OldTag = TabConfigs.IsValidIndex(OldIndex) ? TabConfigs[OldIndex].TabTag : FGameplayTag();
         FGameplayTag NewTag = TabConfigs.IsValidIndex(NewIndex) ? TabConfigs[NewIndex].TabTag : FGameplayTag();
 
-        // Уведомляем через EventManager
-        EventManager->NotifyTabSelectionChanged(this, OldTag, NewTag);
+        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+        EventData.SetString(TEXT("OldTag"), OldTag.ToString());
+        EventData.SetString(TEXT("NewTag"), NewTag.ToString());
+        EventData.SetInt(TEXT("OldIndex"), OldIndex);
+        EventData.SetInt(TEXT("NewIndex"), NewIndex);
+
+        FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tab.SelectionChanged"));
+        CachedEventBus->Publish(EventTag, EventData);
     }
 }
 
@@ -888,5 +945,14 @@ FOnTabBarSelectionChanged* USuspenseUpperTabBar::GetOnTabSelectionChanged()
 FOnTabBarClosed* USuspenseUpperTabBar::GetOnTabBarClosed()
 {
     return &OnTabBarClosed;
+}
+
+USuspenseCoreEventBus* USuspenseUpperTabBar::GetEventBus() const
+{
+    if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+    {
+        return EventManager->GetEventBus();
+    }
+    return nullptr;
 }
 

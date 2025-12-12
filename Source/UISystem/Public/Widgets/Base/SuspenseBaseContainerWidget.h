@@ -322,6 +322,9 @@ protected:
     /** Get drag drop handler */
     USuspenseDragDropHandler* GetDragDropHandler() const;
 
+    /** Get event bus */
+    class USuspenseCoreEventBus* GetEventBus() const;
+
     // =====================================================
     // Drag & Drop Visual Configuration
     // =====================================================

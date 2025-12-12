@@ -6,7 +6,10 @@
 #include "DragDrop/SuspenseDragDropHandler.h"
 #include "Components/PanelWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 #include "TimerManager.h"
 
 // =====================================================
@@ -297,11 +300,17 @@ void USuspenseBaseContainerWidget::OnSlotClicked_Implementation(int32 SlotIndex,
        }
    }
 
-   // Notify through event system
-   if (USuspenseCoreEventManager* Manager = GetDelegateManager())
+   // Notify through EventBus
+   if (USuspenseCoreEventBus* EventBus = GetEventBus())
    {
-       FGameplayTag InteractionType = FGameplayTag::RequestGameplayTag(TEXT("UI.Interaction.Click"));
-       Manager->OnUISlotInteraction.Broadcast(this, SlotIndex, InteractionType);
+       FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+       EventData.SetObject(TEXT("Container"), this);
+       EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+       EventData.SetString(TEXT("ContainerType"), ContainerType.ToString());
+       EventData.SetString(TEXT("InteractionType"), TEXT("Click"));
+
+       FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Slot.Interaction"));
+       EventBus->Publish(EventTag, EventData);
    }
 }
 
@@ -737,6 +746,21 @@ void USuspenseBaseContainerWidget::SubscribeToEvents()
 void USuspenseBaseContainerWidget::UnsubscribeFromEvents()
 {
    // Base implementation - derived classes override
+}
+
+USuspenseCoreEventBus* USuspenseBaseContainerWidget::GetEventBus() const
+{
+   if (CachedDelegateManager)
+   {
+       return CachedDelegateManager->GetEventBus();
+   }
+
+   if (USuspenseCoreEventManager* EventManager = GetDelegateManager())
+   {
+       return EventManager->GetEventBus();
+   }
+
+   return nullptr;
 }
 
 USuspenseDragDropHandler* USuspenseBaseContainerWidget::GetDragDropHandler() const

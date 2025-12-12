@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "SuspenseCore",
-	"Description": "Plugin with GAS for FPS and other projects - PHASE 3: Equipment System",
+	"Description": "Plugin with GAS for FPS and other projects - PHASE 4: UI System",
 	"Category": "Other",
 	"CreatedBy": "Houngansi",
 	"CreatedByURL": "",
@@ -46,6 +46,11 @@
 		},
 		{
 			"Name": "SuspenseCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UISystem",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}

@@ -1,0 +1,789 @@
+// SuspenseCoreUIManager.cpp
+// SuspenseCore - UI Manager Subsystem Implementation
+// Copyright Suspense Team. All Rights Reserved.
+
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
+#include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#include "Components/ActorComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "Blueprint/UserWidget.h"
+
+//==================================================================
+// Static Access
+//==================================================================
+
+USuspenseCoreUIManager* USuspenseCoreUIManager::Get(const UObject* WorldContext)
+{
+	if (!WorldContext)
+	{
+		return nullptr;
+	}
+
+	const UWorld* World = WorldContext->GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!GameInstance)
+	{
+		return nullptr;
+	}
+
+	return GameInstance->GetSubsystem<USuspenseCoreUIManager>();
+}
+
+//==================================================================
+// Lifecycle
+//==================================================================
+
+void USuspenseCoreUIManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	bIsContainerScreenVisible = false;
+
+	// Setup default screen config
+	SetupDefaultScreenConfig();
+
+	// Subscribe to EventBus
+	SubscribeToEvents();
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreUIManager initialized"));
+}
+
+void USuspenseCoreUIManager::Deinitialize()
+{
+	UnsubscribeFromEvents();
+
+	// Clean up widgets
+	if (ContainerScreen)
+	{
+		ContainerScreen->RemoveFromParent();
+		ContainerScreen = nullptr;
+	}
+
+	if (TooltipWidget)
+	{
+		TooltipWidget->RemoveFromParent();
+		TooltipWidget = nullptr;
+	}
+
+	RegisteredProviders.Empty();
+
+	Super::Deinitialize();
+}
+
+bool USuspenseCoreUIManager::ShouldCreateSubsystem(UObject* Outer) const
+{
+	// Create for all game instances
+	return true;
+}
+
+void USuspenseCoreUIManager::SetupDefaultScreenConfig()
+{
+	// Static tags - use RequestGameplayTag for cross-module compatibility
+	static const FGameplayTag PanelInventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Inventory"));
+	static const FGameplayTag PanelStashTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Stash"));
+	static const FGameplayTag PanelTraderTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Trader"));
+
+	// Inventory panel - ONLY shows player inventory
+	// Equipment slots should be a separate widget overlay or sidebar
+	FSuspenseCorePanelConfig InventoryPanel;
+	InventoryPanel.PanelTag = PanelInventoryTag;
+	InventoryPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Inventory", "INVENTORY");
+	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
+	InventoryPanel.SortOrder = 0;
+	InventoryPanel.bIsEnabled = true;
+	ScreenConfig.Panels.Add(InventoryPanel);
+
+	// Stash panel - shows stash container (only when near a stash)
+	FSuspenseCorePanelConfig StashPanel;
+	StashPanel.PanelTag = PanelStashTag;
+	StashPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Stash", "STASH");
+	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Stash);
+	StashPanel.SortOrder = 1;
+	StashPanel.bIsEnabled = false; // Disabled by default, enabled when near stash
+	ScreenConfig.Panels.Add(StashPanel);
+
+	// Trader panel - shows trader inventory (only when trading)
+	FSuspenseCorePanelConfig TraderPanel;
+	TraderPanel.PanelTag = PanelTraderTag;
+	TraderPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Trader", "TRADER");
+	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Trader);
+	TraderPanel.SortOrder = 2;
+	TraderPanel.bIsEnabled = false; // Disabled by default, enabled when trading
+	ScreenConfig.Panels.Add(TraderPanel);
+
+	ScreenConfig.DefaultPanelTag = PanelInventoryTag;
+	ScreenConfig.bAllowCrossPanelDrag = true;
+	ScreenConfig.bShowWeight = true;
+	ScreenConfig.bShowCurrency = true;
+}
+
+void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
+{
+	if (!ContainerScreen || !PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No ContainerScreen or PC"));
+		return;
+	}
+
+	// Get PanelSwitcher from ContainerScreen
+	USuspenseCorePanelSwitcherWidget* PanelSwitcher = ContainerScreen->GetPanelSwitcher();
+	if (!PanelSwitcher)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No PanelSwitcher on ContainerScreen"));
+		return;
+	}
+
+	// Get player's pawn
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No pawn"));
+		return;
+	}
+
+	// Find all providers on player (Pawn and PlayerState)
+	TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> AllProviders = FindAllProvidersOnActor(Pawn);
+
+	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+	{
+		TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> StateProviders = FindAllProvidersOnActor(PS);
+		AllProviders.Append(StateProviders);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Found %d providers"), AllProviders.Num());
+
+	// Create provider lookup by container type
+	TMap<ESuspenseCoreContainerType, TScriptInterface<ISuspenseCoreUIDataProvider>> ProvidersByType;
+	for (const TScriptInterface<ISuspenseCoreUIDataProvider>& Provider : AllProviders)
+	{
+		if (ISuspenseCoreUIDataProvider* ProviderInterface = Provider.GetInterface())
+		{
+			ESuspenseCoreContainerType Type = ProviderInterface->GetContainerType();
+			ProvidersByType.Add(Type, Provider);
+			UE_LOG(LogTemp, Log, TEXT("  Provider type: %d"), static_cast<int32>(Type));
+		}
+	}
+
+	// Iterate all content widgets in PanelSwitcher
+	int32 TabCount = PanelSwitcher->GetTabCount();
+	int32 BoundCount = 0;
+
+	for (int32 TabIndex = 0; TabIndex < TabCount; ++TabIndex)
+	{
+		UUserWidget* ContentWidget = PanelSwitcher->GetTabContent(TabIndex);
+		if (!ContentWidget)
+		{
+			continue;
+		}
+
+		// Check if this widget implements ISuspenseCoreUIContainer
+		// First try cast to base container widget (which has ExpectedContainerType)
+		USuspenseCoreBaseContainerWidget* ContainerWidget = Cast<USuspenseCoreBaseContainerWidget>(ContentWidget);
+		if (ContainerWidget)
+		{
+			// Get expected container type
+			ESuspenseCoreContainerType ExpectedType = ContainerWidget->GetExpectedContainerType();
+
+			// Find matching provider
+			if (TScriptInterface<ISuspenseCoreUIDataProvider>* FoundProvider = ProvidersByType.Find(ExpectedType))
+			{
+				// Bind provider to widget
+				ContainerWidget->BindToProvider(*FoundProvider);
+				BoundCount++;
+
+				UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Bound provider (type=%d) to tab %d (%s)"),
+					static_cast<int32>(ExpectedType), TabIndex, *ContentWidget->GetClass()->GetName());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No provider for container type %d (tab %d)"),
+					static_cast<int32>(ExpectedType), TabIndex);
+			}
+		}
+		else
+		{
+			// Widget doesn't implement base container - might be custom widget
+			UE_LOG(LogTemp, Verbose, TEXT("BindProvidersToScreen: Tab %d (%s) is not a container widget"),
+				TabIndex, *ContentWidget->GetClass()->GetName());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Bound %d/%d container widgets"), BoundCount, TabCount);
+}
+
+//==================================================================
+// Container Screen Management
+//==================================================================
+
+bool USuspenseCoreUIManager::ShowContainerScreen(APlayerController* PC, const FGameplayTag& PanelTag)
+{
+	TArray<FGameplayTag> Panels;
+	Panels.Add(PanelTag);
+	return ShowContainerScreenMulti(PC, Panels, PanelTag);
+}
+
+bool USuspenseCoreUIManager::ShowContainerScreenMulti(
+	APlayerController* PC,
+	const TArray<FGameplayTag>& PanelTags,
+	const FGameplayTag& DefaultPanel)
+{
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ShowContainerScreen: No PlayerController"));
+		return false;
+	}
+
+	// Create screen if needed
+	if (!ContainerScreen)
+	{
+		ContainerScreen = CreateContainerScreen(PC);
+		if (!ContainerScreen)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ShowContainerScreen: Failed to create screen widget"));
+			return false;
+		}
+	}
+
+	OwningPC = PC;
+
+	// NEW ARCHITECTURE: Screen is configured via Blueprint (PanelSwitcher.TabConfigs)
+	// No need to call InitializeScreen() - PanelSwitcher handles everything
+
+	// Add to viewport FIRST (NativeConstruct creates content widgets in PanelSwitcher)
+	ContainerScreen->AddToViewport(100);
+
+	// Find providers and bind to content widgets AFTER widgets are created
+	BindProvidersToScreen(PC);
+
+	// Activate screen (sets input mode, opens default/remembered panel)
+	ContainerScreen->ActivateScreen();
+
+	// Override with requested panel if specified
+	if (DefaultPanel.IsValid())
+	{
+		ContainerScreen->OpenPanelByTag(DefaultPanel);
+	}
+
+	bIsContainerScreenVisible = true;
+
+	// Broadcast event
+	OnContainerScreenVisibilityChanged.Broadcast(true);
+
+	// Broadcast via EventBus
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		static const FGameplayTag ContainerOpenedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.Opened"));
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventBus->Publish(ContainerOpenedTag, EventData);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Container screen shown"));
+	return true;
+}
+
+void USuspenseCoreUIManager::HideContainerScreen()
+{
+	if (!ContainerScreen || !bIsContainerScreenVisible)
+	{
+		return;
+	}
+
+	ContainerScreen->RemoveFromParent();
+	bIsContainerScreenVisible = false;
+
+	// Update input mode
+	if (APlayerController* PC = OwningPC.Get())
+	{
+		UpdateInputMode(PC, false);
+	}
+
+	// Cancel any drag
+	CancelDragOperation();
+
+	// Hide tooltip
+	HideTooltip();
+
+	// Broadcast event
+	OnContainerScreenVisibilityChanged.Broadcast(false);
+
+	// Broadcast via EventBus
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		static const FGameplayTag ContainerClosedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.Closed"));
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventBus->Publish(ContainerClosedTag, EventData);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Container screen hidden"));
+}
+
+void USuspenseCoreUIManager::CloseContainerScreen(APlayerController* PC)
+{
+	// Verify this is the owning player
+	if (PC && OwningPC.Get() == PC)
+	{
+		HideContainerScreen();
+	}
+}
+
+bool USuspenseCoreUIManager::ToggleContainerScreen(APlayerController* PC, const FGameplayTag& PanelTag)
+{
+	if (bIsContainerScreenVisible)
+	{
+		HideContainerScreen();
+		return false;
+	}
+	else
+	{
+		ShowContainerScreen(PC, PanelTag);
+		return true;
+	}
+}
+
+bool USuspenseCoreUIManager::IsContainerScreenVisible() const
+{
+	return bIsContainerScreenVisible && ContainerScreen && ContainerScreen->IsInViewport();
+}
+
+//==================================================================
+// Provider Discovery
+//==================================================================
+
+TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::FindProviderOnActor(
+	AActor* Actor,
+	ESuspenseCoreContainerType ContainerType)
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
+	// Get all components
+	TArray<UActorComponent*> Components;
+	Actor->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (!Component)
+		{
+			continue;
+		}
+
+		// Check if implements interface
+		if (Component->Implements<USuspenseCoreUIDataProvider>())
+		{
+			ISuspenseCoreUIDataProvider* Provider = Cast<ISuspenseCoreUIDataProvider>(Component);
+			if (Provider && Provider->GetContainerType() == ContainerType)
+			{
+				TScriptInterface<ISuspenseCoreUIDataProvider> Result;
+				Result.SetInterface(Provider);
+				Result.SetObject(Component);
+
+				// Register for lookup
+				RegisteredProviders.Add(Provider->GetProviderID(), Component);
+
+				return Result;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> USuspenseCoreUIManager::FindAllProvidersOnActor(AActor* Actor)
+{
+	TArray<TScriptInterface<ISuspenseCoreUIDataProvider>> Result;
+
+	if (!Actor)
+	{
+		return Result;
+	}
+
+	TArray<UActorComponent*> Components;
+	Actor->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (!Component)
+		{
+			continue;
+		}
+
+		if (Component->Implements<USuspenseCoreUIDataProvider>())
+		{
+			ISuspenseCoreUIDataProvider* Provider = Cast<ISuspenseCoreUIDataProvider>(Component);
+			if (Provider)
+			{
+				TScriptInterface<ISuspenseCoreUIDataProvider> Interface;
+				Interface.SetInterface(Provider);
+				Interface.SetObject(Component);
+				Result.Add(Interface);
+
+				// Register for lookup
+				RegisteredProviders.Add(Provider->GetProviderID(), Component);
+			}
+		}
+	}
+
+	return Result;
+}
+
+TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::FindProviderByID(const FGuid& ProviderID)
+{
+	TWeakObjectPtr<UObject>* Found = RegisteredProviders.Find(ProviderID);
+	if (Found && Found->IsValid())
+	{
+		UObject* Object = Found->Get();
+		if (Object && Object->Implements<USuspenseCoreUIDataProvider>())
+		{
+			ISuspenseCoreUIDataProvider* Provider = Cast<ISuspenseCoreUIDataProvider>(Object);
+			TScriptInterface<ISuspenseCoreUIDataProvider> Result;
+			Result.SetInterface(Provider);
+			Result.SetObject(Object);
+			return Result;
+		}
+	}
+
+	return nullptr;
+}
+
+TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::GetPlayerInventoryProvider(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	// Try PlayerState first
+	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+	{
+		TScriptInterface<ISuspenseCoreUIDataProvider> Provider = FindProviderOnActor(
+			PS, ESuspenseCoreContainerType::Inventory);
+		if (Provider)
+		{
+			return Provider;
+		}
+	}
+
+	// Try Pawn
+	if (APawn* Pawn = PC->GetPawn())
+	{
+		return FindProviderOnActor(Pawn, ESuspenseCoreContainerType::Inventory);
+	}
+
+	return nullptr;
+}
+
+TScriptInterface<ISuspenseCoreUIDataProvider> USuspenseCoreUIManager::GetPlayerEquipmentProvider(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	// Try Pawn first for equipment (typically on character)
+	if (APawn* Pawn = PC->GetPawn())
+	{
+		TScriptInterface<ISuspenseCoreUIDataProvider> Provider = FindProviderOnActor(
+			Pawn, ESuspenseCoreContainerType::Equipment);
+		if (Provider)
+		{
+			return Provider;
+		}
+	}
+
+	// Try PlayerState
+	if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+	{
+		return FindProviderOnActor(PS, ESuspenseCoreContainerType::Equipment);
+	}
+
+	return nullptr;
+}
+
+//==================================================================
+// Notifications
+//==================================================================
+
+void USuspenseCoreUIManager::ShowNotification(const FSuspenseCoreUINotification& Notification)
+{
+	// Broadcast delegate for UI to handle
+	OnUINotification.Broadcast(Notification);
+
+	// Also broadcast via EventBus
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		FGameplayTag FeedbackTag = USuspenseCoreUIEventHelpers::GetFeedbackTypeTag(Notification.Type);
+
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.SetString(FName("Message"), Notification.Message.ToString());
+		EventData.SetInt(FName("FeedbackType"), static_cast<int32>(Notification.Type));
+
+		EventBus->Publish(FeedbackTag, EventData);
+	}
+}
+
+void USuspenseCoreUIManager::ShowSimpleNotification(ESuspenseCoreUIFeedbackType Type, const FText& Message)
+{
+	FSuspenseCoreUINotification Notification;
+	Notification.Type = Type;
+	Notification.Message = Message;
+	Notification.Duration = 3.0f;
+
+	ShowNotification(Notification);
+}
+
+void USuspenseCoreUIManager::ShowItemPickupNotification(const FSuspenseCoreItemUIData& Item, int32 Quantity)
+{
+	FSuspenseCoreUINotification Notification = FSuspenseCoreUINotification::CreateItemPickup(Item, Quantity);
+	ShowNotification(Notification);
+}
+
+//==================================================================
+// Tooltip Management
+//==================================================================
+
+void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item, const FVector2D& ScreenPosition)
+{
+	// TODO: Create/show tooltip widget
+	// For now just log
+	UE_LOG(LogTemp, Verbose, TEXT("ShowItemTooltip: %s at (%.0f, %.0f)"),
+		*Item.DisplayName.ToString(), ScreenPosition.X, ScreenPosition.Y);
+}
+
+void USuspenseCoreUIManager::HideTooltip()
+{
+	if (TooltipWidget && TooltipWidget->IsInViewport())
+	{
+		TooltipWidget->RemoveFromParent();
+	}
+}
+
+bool USuspenseCoreUIManager::IsTooltipVisible() const
+{
+	return TooltipWidget && TooltipWidget->IsInViewport();
+}
+
+//==================================================================
+// Drag-Drop Support
+//==================================================================
+
+bool USuspenseCoreUIManager::StartDragOperation(const FSuspenseCoreDragData& DragData)
+{
+	if (!DragData.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("StartDragOperation: Invalid drag data"));
+		return false;
+	}
+
+	CurrentDragData = DragData;
+
+	// Broadcast drag started event
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		static const FGameplayTag DragStartedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.DragStarted"));
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.SetString(FName("ItemInstanceID"), DragData.Item.InstanceID.ToString());
+		EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
+
+		EventBus->Publish(DragStartedTag, EventData);
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("Drag started: %s from slot %d"),
+		*DragData.Item.DisplayName.ToString(), DragData.SourceSlot);
+
+	return true;
+}
+
+void USuspenseCoreUIManager::CancelDragOperation()
+{
+	if (!CurrentDragData.bIsValid)
+	{
+		return;
+	}
+
+	// Broadcast drag ended event
+	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	{
+		static const FGameplayTag DragEndedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIContainer.DragEnded"));
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.SetBool(FName("Cancelled"), true);
+
+		EventBus->Publish(DragEndedTag, EventData);
+	}
+
+	CurrentDragData = FSuspenseCoreDragData();
+
+	UE_LOG(LogTemp, Verbose, TEXT("Drag cancelled"));
+}
+
+//==================================================================
+// Configuration
+//==================================================================
+
+void USuspenseCoreUIManager::SetScreenConfig(const FSuspenseCoreScreenConfig& NewConfig)
+{
+	ScreenConfig = NewConfig;
+}
+
+//==================================================================
+// EventBus Integration
+//==================================================================
+
+void USuspenseCoreUIManager::SubscribeToEvents()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	// Subscribe to UI feedback events
+	// Note: Actual subscription mechanism depends on EventBus implementation
+}
+
+void USuspenseCoreUIManager::UnsubscribeFromEvents()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	for (FDelegateHandle& Handle : EventSubscriptions)
+	{
+		// Unsubscribe logic
+	}
+	EventSubscriptions.Empty();
+}
+
+void USuspenseCoreUIManager::OnUIFeedbackEvent(const FSuspenseCoreEventData& EventData)
+{
+	// Handle feedback from game systems
+	FString Message = EventData.GetString(FName("Message"));
+	int32 FeedbackType = EventData.GetInt(FName("FeedbackType"));
+
+	ShowSimpleNotification(
+		static_cast<ESuspenseCoreUIFeedbackType>(FeedbackType),
+		FText::FromString(Message));
+}
+
+void USuspenseCoreUIManager::OnContainerOpenedEvent(const FSuspenseCoreEventData& EventData)
+{
+	// External request to open container
+}
+
+void USuspenseCoreUIManager::OnContainerClosedEvent(const FSuspenseCoreEventData& EventData)
+{
+	// External request to close container
+}
+
+USuspenseCoreEventBus* USuspenseCoreUIManager::GetEventBus() const
+{
+	if (CachedEventBus.IsValid())
+	{
+		return CachedEventBus.Get();
+	}
+
+	UGameInstance* GI = GetGameInstance();
+	if (!GI)
+	{
+		return nullptr;
+	}
+
+	USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>();
+	if (!EventManager)
+	{
+		return nullptr;
+	}
+
+	const_cast<USuspenseCoreUIManager*>(this)->CachedEventBus = EventManager->GetEventBus();
+	return CachedEventBus.Get();
+}
+
+//==================================================================
+// Internal
+//==================================================================
+
+USuspenseCoreContainerScreenWidget* USuspenseCoreUIManager::CreateContainerScreen(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	// If we have a configured class, create it
+	if (ContainerScreenClass)
+	{
+		USuspenseCoreContainerScreenWidget* Widget = CreateWidget<USuspenseCoreContainerScreenWidget>(PC, ContainerScreenClass);
+		return Widget;
+	}
+
+	// TODO: Create default screen widget
+	// For now return nullptr - will be implemented in Phase 7.4
+	UE_LOG(LogTemp, Warning, TEXT("CreateContainerScreen: No ContainerScreenClass configured"));
+	return nullptr;
+}
+
+USuspenseCoreTooltipWidget* USuspenseCoreUIManager::CreateTooltipWidget(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	if (TooltipWidgetClass)
+	{
+		return CreateWidget<USuspenseCoreTooltipWidget>(PC, TooltipWidgetClass);
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreUIManager::UpdateInputMode(APlayerController* PC, bool bShowingUI)
+{
+	if (!PC)
+	{
+		return;
+	}
+
+	if (bShowingUI)
+	{
+		// Game and UI input
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(true);
+	}
+	else
+	{
+		// Game only
+		FInputModeGameOnly InputMode;
+		PC->SetInputMode(InputMode);
+		PC->SetShowMouseCursor(false);
+	}
+}

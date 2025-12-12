@@ -144,7 +144,9 @@ void ASuspenseCorePlayerState::InitializeInventoryFromLoadout()
 
 	// Initialize inventory from loadout DataTable
 	// This reads InventoryWidth, InventoryHeight, MaxWeight from FSuspenseCoreTemplateLoadout
-	if (InventoryComponent->InitializeFromLoadout(DefaultLoadoutID))
+	// Cast from UActorComponent* to actual type
+	USuspenseCoreInventoryComponent* InvComp = Cast<USuspenseCoreInventoryComponent>(InventoryComponent);
+	if (InvComp && InvComp->InitializeFromLoadout(DefaultLoadoutID))
 	{
 		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Inventory initialized from loadout '%s'"), *DefaultLoadoutID.ToString());
 	}

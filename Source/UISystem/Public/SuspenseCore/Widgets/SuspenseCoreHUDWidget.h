@@ -1,4 +1,4 @@
-// SuspenseCoreVitalsWidget.h
+// SuspenseCoreHUDWidget.h
 // SuspenseCore - Clean Architecture UI Layer
 // Copyright (c) 2025. All Rights Reserved.
 
@@ -8,16 +8,15 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCoreVitalsWidget.generated.h"
+#include "SuspenseCoreHUDWidget.generated.h"
 
 class UTextBlock;
 class UProgressBar;
 class UImage;
 class USuspenseCoreEventBus;
-class USuspenseCoreAttributesWidget;
 
 /**
- * USuspenseCoreVitalsWidget
+ * USuspenseCoreHUDWidget
  *
  * In-game HUD widget displaying player vital stats:
  * - Health (HP) with progress bar and numeric value
@@ -45,12 +44,12 @@ class USuspenseCoreAttributesWidget;
  * 3. Add to PlayerController's HUD
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreVitalsWidget : public UUserWidget
+class UISYSTEM_API USuspenseCoreHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	USuspenseCoreVitalsWidget(const FObjectInitializer& ObjectInitializer);
+	USuspenseCoreHUDWidget(const FObjectInitializer& ObjectInitializer);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UUserWidget Interface
@@ -143,25 +142,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|HUD|Events")
 	void OnShieldBroken();
 
-	/** Get the embedded Attributes widget (if bound) */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|HUD")
-	USuspenseCoreAttributesWidget* GetAttributesWidget() const { return AttributesWidget.Get(); }
-
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - CHILD WIDGETS
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/**
-	 * Optional embedded Attributes widget (WBP_Attributes).
-	 * If bound, this widget will handle its own EventBus subscriptions.
-	 * Use this for modular HUD design where AttributesWidget is a reusable component.
-	 */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<USuspenseCoreAttributesWidget> AttributesWidget;
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - HEALTH (Direct bindings, use if not using AttributesWidget)
+	// UI BINDINGS - HEALTH
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Health progress bar */

@@ -6,6 +6,7 @@
 #include "Camera/CameraActor.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Blueprint/UserWidget.h"
 
 ASuspenseCoreMenuPlayerController::ASuspenseCoreMenuPlayerController()
 {
@@ -38,6 +39,24 @@ void ASuspenseCoreMenuPlayerController::BeginPlay()
 	{
 		SetViewToLevelCamera();
 	}
+
+	// Auto-create main menu widget
+	if (bAutoCreateMainMenu)
+	{
+		CreateMainMenuWidget();
+	}
+}
+
+void ASuspenseCoreMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Clean up main menu widget
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->RemoveFromParent();
+		MainMenuWidget = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void ASuspenseCoreMenuPlayerController::SetupInputComponent()
@@ -152,4 +171,65 @@ ACameraActor* ASuspenseCoreMenuPlayerController::FindLevelCamera()
 	}
 
 	return nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN MENU WIDGET
+// ═══════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreMenuPlayerController::CreateMainMenuWidget()
+{
+	if (!MainMenuWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MenuPlayerController] MainMenuWidgetClass is not set! "
+			"Set it in the Blueprint to spawn the main menu."));
+		return;
+	}
+
+	if (MainMenuWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MenuPlayerController] MainMenuWidget already exists"));
+		return;
+	}
+
+	MainMenuWidget = CreateWidget<UUserWidget>(this, MainMenuWidgetClass);
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->AddToViewport(0);
+		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		UE_LOG(LogTemp, Log, TEXT("[MenuPlayerController] MainMenuWidget created: %s"), *MainMenuWidgetClass->GetName());
+
+		// Notify Blueprint
+		OnMainMenuCreated();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MenuPlayerController] Failed to create MainMenuWidget"));
+	}
+}
+
+void ASuspenseCoreMenuPlayerController::ShowMainMenu()
+{
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+	else if (MainMenuWidgetClass)
+	{
+		// Try to create if not exists
+		CreateMainMenuWidget();
+	}
+}
+
+void ASuspenseCoreMenuPlayerController::HideMainMenu()
+{
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+bool ASuspenseCoreMenuPlayerController::IsMainMenuVisible() const
+{
+	return MainMenuWidget && MainMenuWidget->GetVisibility() == ESlateVisibility::Visible;
 }

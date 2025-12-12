@@ -9,6 +9,7 @@
 #include "SuspenseCoreMenuPlayerController.generated.h"
 
 class ACameraActor;
+class UUserWidget;
 
 /**
  * ASuspenseCoreMenuPlayerController
@@ -21,6 +22,7 @@ class ACameraActor;
  * - No pawn control
  * - Handles Escape key for back/quit actions
  * - Auto-finds and uses CameraActor in level (tag: "MenuCamera")
+ * - Creates and manages MainMenuWidget
  */
 UCLASS()
 class PLAYERCORE_API ASuspenseCoreMenuPlayerController : public APlayerController
@@ -35,6 +37,7 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -72,6 +75,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu")
 	void SetViewToCamera(ACameraActor* CameraActor);
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - MAIN MENU WIDGET
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Get main menu widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu|UI")
+	UUserWidget* GetMainMenuWidget() const { return MainMenuWidget; }
+
+	/** Show main menu widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu|UI")
+	void ShowMainMenu();
+
+	/** Hide main menu widget */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu|UI")
+	void HideMainMenu();
+
+	/** Check if main menu is visible */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Menu|UI")
+	bool IsMainMenuVisible() const;
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -98,6 +121,22 @@ protected:
 	FName MenuCameraTag = TEXT("MenuCamera");
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// UI CONFIGURATION
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Main menu widget class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
+	TSubclassOf<UUserWidget> MainMenuWidgetClass;
+
+	/** Spawned main menu widget */
+	UPROPERTY()
+	UUserWidget* MainMenuWidget = nullptr;
+
+	/** Should auto-create main menu widget on begin play? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|UI")
+	bool bAutoCreateMainMenu = true;
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// INPUT HANDLERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
@@ -110,6 +149,9 @@ protected:
 
 	/** Find camera actor in level by tag or first available */
 	ACameraActor* FindLevelCamera();
+
+	/** Create main menu widget */
+	void CreateMainMenuWidget();
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
@@ -126,4 +168,8 @@ protected:
 	/** Called when camera view target is set */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Menu")
 	void OnCameraSet(ACameraActor* Camera);
+
+	/** Called when main menu widget is created */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Menu|UI")
+	void OnMainMenuCreated();
 };

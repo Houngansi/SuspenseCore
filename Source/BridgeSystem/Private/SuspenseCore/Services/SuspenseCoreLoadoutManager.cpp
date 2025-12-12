@@ -2,6 +2,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreLoadout.h"
@@ -20,15 +21,39 @@ void USuspenseCoreLoadoutManager::Initialize(FSubsystemCollectionBase& Collectio
 
     UE_LOG(LogSuspenseCoreLoadout, Log, TEXT("Initializing SuspenseCoreLoadoutManager"));
 
-    if (!DefaultLoadoutTablePath.IsEmpty())
+    // PRIORITY 1: Load from SuspenseCoreSettings->LoadoutDataTable (SINGLE SOURCE OF TRUTH)
+    const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+    if (Settings && Settings->LoadoutDataTable.IsValid())
+    {
+        UDataTable* LoadoutDT = Settings->LoadoutDataTable.LoadSynchronous();
+        if (LoadoutDT)
+        {
+            int32 LoadedCount = LoadLoadoutTable(LoadoutDT);
+            UE_LOG(LogSuspenseCoreLoadout, Log, TEXT("Loaded %d loadouts from SuspenseCoreSettings->LoadoutDataTable"), LoadedCount);
+        }
+        else
+        {
+            UE_LOG(LogSuspenseCoreLoadout, Warning, TEXT("Failed to load LoadoutDataTable from SuspenseCoreSettings"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Warning, TEXT("SuspenseCoreSettings->LoadoutDataTable is not configured! Please set it in Project Settings → Game → SuspenseCore"));
+    }
+
+    // PRIORITY 2: Legacy path support (DefaultLoadoutTablePath)
+    if (CachedConfigurations.Num() == 0 && !DefaultLoadoutTablePath.IsEmpty())
     {
         TryLoadDefaultTable();
     }
 
-    // ALWAYS register default loadout to ensure equipment slots are available
-    // even without a DataTable being loaded. This creates all 17 Tarkov-style
-    // equipment slots with proper tags.
-    RegisterDefaultLoadout(FName(TEXT("Default_Soldier")));
+    // FALLBACK: Register programmatic default ONLY if no DataTable was loaded
+    // This ensures the system can still work during development without a DataTable
+    if (CachedConfigurations.Num() == 0)
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Warning, TEXT("No LoadoutDataTable configured! Using programmatic fallback. Configure LoadoutDataTable in Project Settings → Game → SuspenseCore"));
+        RegisterDefaultLoadout(FName(TEXT("Default_Soldier")));
+    }
 
     bIsInitialized = true;
 }

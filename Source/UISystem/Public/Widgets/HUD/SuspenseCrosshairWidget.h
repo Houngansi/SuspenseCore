@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/Base/SuspenseBaseWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreCrosshairWidget.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCrosshairWidget.generated.h"
 
 // Forward declarations
 class UImage;
 class UCanvasPanel;
+class USuspenseCoreEventBus;
 
 /**
  * Dynamic crosshair widget that adjusts based on weapon spread and recoil
@@ -173,9 +175,15 @@ private:
     /** Unsubscribe from all events */
     void UnsubscribeFromEvents();
     
+    /** EventBus handler for crosshair updates */
+    void HandleCrosshairEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /** EventBus handler for crosshair color changes */
+    void HandleCrosshairColorEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
     /** Event handler for crosshair updates */
     void OnCrosshairUpdated(float Spread, float Recoil);
-    
+
     /** Event handler for crosshair color changes */
     void OnCrosshairColorChanged(FLinearColor NewColor);
     
@@ -219,10 +227,14 @@ private:
     //================================================
     // Event Subscription Handles
     //================================================
-    
+
+    /** Cached EventBus */
+    UPROPERTY()
+    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
     /** Handle for crosshair update events */
-    FDelegateHandle CrosshairUpdateHandle;
-    
+    FSuspenseCoreSubscriptionHandle CrosshairUpdateHandle;
+
     /** Handle for crosshair color change events */
-    FDelegateHandle CrosshairColorHandle;
+    FSuspenseCoreSubscriptionHandle CrosshairColorHandle;
 };

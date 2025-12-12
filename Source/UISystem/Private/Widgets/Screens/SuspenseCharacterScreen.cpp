@@ -3,8 +3,8 @@
 
 #include "Widgets/Screens/SuspenseCharacterScreen.h"
 #include "Widgets/Tabs/SuspenseUpperTabBar.h"
-#include "Widgets/Inventory/SuspenseInventoryWidget.h"
-#include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
+#include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventoryWidget.h"
+// TODO: Create SuspenseEquipmentContainerWidget - Equipment widget is not yet implemented
 #include "SuspenseCore/Interfaces/Tabs/ISuspenseCoreTabBar.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"

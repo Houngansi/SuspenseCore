@@ -55,7 +55,7 @@ public:
     virtual void ShowWidget_Implementation(bool bAnimate) override;
     virtual void HideWidget_Implementation(bool bAnimate) override;
     virtual void OnVisibilityChanged_Implementation(bool bIsVisible) override;
-    virtual USuspenseEventManager* GetDelegateManager() const override;
+    virtual USuspenseCoreEventManager* GetDelegateManager() const override;
 
     //================================================
     // Animation Support

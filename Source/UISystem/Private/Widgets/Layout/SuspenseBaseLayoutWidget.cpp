@@ -6,7 +6,7 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIWidget.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "Components/SuspenseUIManager.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 

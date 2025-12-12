@@ -5,7 +5,7 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "TimerManager.h"

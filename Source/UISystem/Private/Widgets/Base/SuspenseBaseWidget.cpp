@@ -164,9 +164,9 @@ void USuspenseBaseWidget::PlayShowAnimation()
         SetVisibility(ESlateVisibility::Visible);
         bIsShowing = true;
 
-        // Bind animation finished callback
+        // Bind animation finished callback using UObject binding
         FWidgetAnimationDynamicEvent AnimationFinished;
-        AnimationFinished.BindDynamic(this, &USuspenseBaseWidget::OnShowAnimationFinished);
+        AnimationFinished.BindUFunction(this, FName("OnShowAnimationFinished"));
         BindToAnimationFinished(ShowAnimation, AnimationFinished);
     }
 }
@@ -178,9 +178,9 @@ void USuspenseBaseWidget::PlayHideAnimation()
         PlayAnimation(HideAnimation);
         bIsShowing = false;
 
-        // Bind animation finished callback
+        // Bind animation finished callback using UObject binding
         FWidgetAnimationDynamicEvent AnimationFinished;
-        AnimationFinished.BindDynamic(this, &USuspenseBaseWidget::OnHideAnimationFinished);
+        AnimationFinished.BindUFunction(this, FName("OnHideAnimationFinished"));
         BindToAnimationFinished(HideAnimation, AnimationFinished);
     }
 }

@@ -6,6 +6,7 @@
 #include "Widgets/Base/SuspenseBaseWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreHealthStaminaWidget.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreAttributeProvider.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseHealthStaminaWidget.generated.h"
 
 // Forward declarations
@@ -14,6 +15,7 @@ class UTextBlock;
 class UAbilitySystemComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class USuspenseCoreEventBus;
 
 /**
  * Health and Stamina display widget with material support
@@ -156,6 +158,11 @@ private:
     // Event handling
     void SubscribeToEvents();
     void UnsubscribeFromEvents();
+
+    // EventBus handlers
+    void HandleHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+    void HandleStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
     void OnHealthUpdated(float Current, float Max, float Percent);
     void OnStaminaUpdated(float Current, float Max, float Percent);
 
@@ -179,10 +186,14 @@ private:
     // Attribute provider reference
     UPROPERTY()
     TScriptInterface<ISuspenseCoreAttributeProvider> AttributeProvider;
-    
+
+    // Cached EventBus
+    UPROPERTY()
+    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
     // Event subscription handles
-    FDelegateHandle HealthUpdateHandle;
-    FDelegateHandle StaminaUpdateHandle;
+    FSuspenseCoreSubscriptionHandle HealthUpdateHandle;
+    FSuspenseCoreSubscriptionHandle StaminaUpdateHandle;
     
     // Dynamic material instances created at runtime
     UPROPERTY()

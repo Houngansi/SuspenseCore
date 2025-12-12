@@ -6,7 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltip.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "Types/Loadout/SuspenseItemDataTable.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseItemTooltipWidget.generated.h"
 
 // Forward declarations

@@ -5,6 +5,8 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltip.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreTooltipSource.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "Engine/World.h"
 #include "Components/PanelWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -36,16 +38,39 @@ void USuspenseCoreTooltipManager::Initialize(FSubsystemCollectionBase& Collectio
             "Tooltips will not work until a default class is set."));
     }
 
-    // TODO: Migrate to EventBus - old delegate system removed
-    // Subscribe to tooltip events
-    // TooltipRequestHandle = CachedEventManager->OnTooltipRequestedNative.AddUObject(
-    //     this, &USuspenseCoreTooltipManager::OnTooltipRequested);
-    //
-    // TooltipHideHandle = CachedEventManager->OnTooltipHideRequestedNative.AddUObject(
-    //     this, &USuspenseCoreTooltipManager::OnTooltipHideRequested);
-    //
-    // TooltipUpdateHandle = CachedEventManager->OnTooltipUpdatePositionNative.AddUObject(
-    //     this, &USuspenseCoreTooltipManager::OnTooltipUpdatePosition);
+    // Subscribe to tooltip events through EventBus
+    CachedEventBus = CachedEventManager->GetEventBus();
+    if (CachedEventBus.IsValid())
+    {
+        // Subscribe to tooltip request events
+        FGameplayTag TooltipRequestTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.Requested"));
+        TooltipRequestHandle = CachedEventBus->SubscribeNative(
+            TooltipRequestTag,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreTooltipManager::OnTooltipRequestedEvent),
+            ESuspenseCoreEventPriority::Normal
+        );
+
+        // Subscribe to tooltip hide events
+        FGameplayTag TooltipHideTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.Hide"));
+        TooltipHideHandle = CachedEventBus->SubscribeNative(
+            TooltipHideTag,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreTooltipManager::OnTooltipHideRequestedEvent),
+            ESuspenseCoreEventPriority::Normal
+        );
+
+        // Subscribe to tooltip update position events
+        FGameplayTag TooltipUpdateTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Tooltip.UpdatePosition"));
+        TooltipUpdateHandle = CachedEventBus->SubscribeNative(
+            TooltipUpdateTag,
+            this,
+            FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreTooltipManager::OnTooltipUpdatePositionEvent),
+            ESuspenseCoreEventPriority::Normal
+        );
+
+        UE_LOG(LogTemp, Log, TEXT("[TooltipManager] Subscribed to tooltip events via EventBus"));
+    }
 
     // Pre-create pool for default class if specified
     if (Configuration.DefaultTooltipClass && Configuration.MaxPooledTooltipsPerClass > 0)
@@ -64,20 +89,23 @@ void USuspenseCoreTooltipManager::Initialize(FSubsystemCollectionBase& Collectio
 
 void USuspenseCoreTooltipManager::Deinitialize()
 {
-    // Unsubscribe from all events
-    if (CachedEventManager)
+    // Unsubscribe from all events through EventBus
+    if (CachedEventBus.IsValid())
     {
         if (TooltipRequestHandle.IsValid())
         {
-            CachedEventManager->OnTooltipRequestedNative.Remove(TooltipRequestHandle);
+            CachedEventBus->Unsubscribe(TooltipRequestHandle);
+            TooltipRequestHandle.Invalidate();
         }
         if (TooltipHideHandle.IsValid())
         {
-            CachedEventManager->OnTooltipHideRequestedNative.Remove(TooltipHideHandle);
+            CachedEventBus->Unsubscribe(TooltipHideHandle);
+            TooltipHideHandle.Invalidate();
         }
         if (TooltipUpdateHandle.IsValid())
         {
-            CachedEventManager->OnTooltipUpdatePositionNative.Remove(TooltipUpdateHandle);
+            CachedEventBus->Unsubscribe(TooltipUpdateHandle);
+            TooltipUpdateHandle.Invalidate();
         }
     }
 
@@ -92,6 +120,7 @@ void USuspenseCoreTooltipManager::Deinitialize()
     ActiveTooltipClass = nullptr;
     CurrentSourceWidget.Reset();
     CachedEventManager = nullptr;
+    CachedEventBus.Reset();
 
     UE_LOG(LogTemp, Log, TEXT("[TooltipManager] Tooltip system deinitialized"));
 
@@ -753,4 +782,40 @@ void USuspenseCoreTooltipManager::LogVerbose(const FString& Message) const
     {
         UE_LOG(LogTemp, Verbose, TEXT("[TooltipManager] %s"), *Message);
     }
+}
+
+// ========================================
+// EventBus Event Handlers
+// ========================================
+
+void USuspenseCoreTooltipManager::OnTooltipRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    // Extract item data from event
+    FItemUIData ItemData;
+    ItemData.ItemInstanceID = FGuid::NewGuid(); // Default
+    ItemData.DisplayName = FText::FromString(EventData.GetString(FName("DisplayName"), TEXT("")));
+    ItemData.Description = FText::FromString(EventData.GetString(FName("Description"), TEXT("")));
+    ItemData.Quantity = EventData.GetInt(FName("Quantity"), 1);
+
+    // Get position
+    FVector2D Position;
+    Position.X = EventData.GetFloat(FName("PositionX"), 0.0f);
+    Position.Y = EventData.GetFloat(FName("PositionY"), 0.0f);
+
+    // Call the existing OnTooltipRequested method
+    OnTooltipRequested(ItemData, Position);
+}
+
+void USuspenseCoreTooltipManager::OnTooltipHideRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    OnTooltipHideRequested();
+}
+
+void USuspenseCoreTooltipManager::OnTooltipUpdatePositionEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    FVector2D NewPosition;
+    NewPosition.X = EventData.GetFloat(FName("PositionX"), 0.0f);
+    NewPosition.Y = EventData.GetFloat(FName("PositionY"), 0.0f);
+
+    OnTooltipUpdatePosition(NewPosition);
 }

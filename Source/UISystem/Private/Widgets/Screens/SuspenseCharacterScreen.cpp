@@ -70,13 +70,14 @@ void USuspenseCharacterScreen::InitializeWidget_Implementation()
             if (TabContent)
             {
                 FString ContentType = TEXT("Unknown");
+                FString ClassName = TabContent->GetClass()->GetName();
 
-                // Check content type
-                if (TabContent->IsA<USuspenseInventoryWidget>())
+                // Check content type by class name
+                if (ClassName.Contains(TEXT("Inventory")))
                 {
                     ContentType = TEXT("InventoryWidget");
                 }
-                else if (TabContent->IsA<USuspenseEquipmentContainerWidget>())
+                else if (ClassName.Contains(TEXT("Equipment")))
                 {
                     ContentType = TEXT("EquipmentWidget");
                 }

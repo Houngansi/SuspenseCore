@@ -597,18 +597,17 @@ void USuspenseBaseSlotWidget::ShowTooltipDelayed()
 
     // Create event data for tooltip request
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-    EventData.SetObject(TEXT("SourceWidget"), this);
-    EventData.SetString(TEXT("ItemInstanceID"), CurrentItemData.ItemInstanceID.ToString());
-    EventData.SetString(TEXT("DisplayName"), CurrentItemData.DisplayName.ToString());
-    EventData.SetString(TEXT("Description"), CurrentItemData.Description.ToString());
-    EventData.SetString(TEXT("Rarity"), UEnum::GetValueAsString(CurrentItemData.Rarity));
-    EventData.SetFloat(TEXT("PositionX"), ViewportPosition.X);
-    EventData.SetFloat(TEXT("PositionY"), ViewportPosition.Y);
-    EventData.SetInt(TEXT("Quantity"), CurrentItemData.Quantity);
+    EventData.SetObject(FName("SourceWidget"), this);
+    EventData.SetString(FName("ItemInstanceID"), CurrentItemData.ItemInstanceID.ToString());
+    EventData.SetString(FName("DisplayName"), CurrentItemData.DisplayName.ToString());
+    EventData.SetString(FName("Description"), CurrentItemData.Description.ToString());
+    EventData.SetFloat(FName("PositionX"), ViewportPosition.X);
+    EventData.SetFloat(FName("PositionY"), ViewportPosition.Y);
+    EventData.SetInt(FName("Quantity"), CurrentItemData.Quantity);
 
     if (CustomTooltipClass)
     {
-        EventData.SetObject(TEXT("CustomTooltipClass"), CustomTooltipClass.GetDefaultObject());
+        EventData.SetObject(FName("CustomTooltipClass"), CustomTooltipClass.GetDefaultObject());
     }
 
     // Publish tooltip request event

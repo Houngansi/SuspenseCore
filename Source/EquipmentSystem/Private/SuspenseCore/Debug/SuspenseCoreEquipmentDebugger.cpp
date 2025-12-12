@@ -557,11 +557,12 @@ USuspenseCoreEquipmentOperationExecutor* USuspenseCoreEquipmentDebugger::GetOper
 
 FSuspenseCoreInventoryItemInstance USuspenseCoreEquipmentDebugger::CreateTestItemInstance(FName ItemID)
 {
-	FSuspenseCoreInventoryItemInstance TestItem;
-	TestItem.InstanceID = FGuid::NewGuid();
+	// Use the static factory method as per SuspenseCoreDeveloperGuide pattern
+	FSuspenseCoreInventoryItemInstance TestItem = FSuspenseCoreInventoryItemInstance::Create();
 	TestItem.ItemID = ItemID;
-	TestItem.StackCount = 1;
-	TestItem.Durability = 100.0f;
-	TestItem.MaxDurability = 100.0f;
+	// Quantity is already 1 from Create()
+	// RuntimeProperties for durability can be set via:
+	TestItem.RuntimeProperties.Add(FName("Durability"), 100.0f);
+	TestItem.RuntimeProperties.Add(FName("MaxDurability"), 100.0f);
 	return TestItem;
 }

@@ -32,7 +32,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #endif
 
 // ═══════════════════════════════════════════════════════════════════════════════

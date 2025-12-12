@@ -12,7 +12,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "Widgets/Equipment/SuspenseEquipmentContainerWidget.h"
+// TODO: Create SuspenseEquipmentContainerWidget - Equipment widget is not yet implemented
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "SuspenseCore/Interfaces/Screens/ISuspenseCoreScreen.h"

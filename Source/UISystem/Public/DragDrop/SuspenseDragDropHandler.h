@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
-#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryLegacyTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "SuspenseCore/Operations/SuspenseCoreInventoryResult.h"
 #include "GameplayTagContainer.h"

@@ -5,6 +5,7 @@
 #include "Components/TextBlock.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreAttributeProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Math/UnrealMathUtility.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -427,42 +428,73 @@ void USuspenseHealthStaminaWidget::UpdateFromProvider()
 
 void USuspenseHealthStaminaWidget::SubscribeToEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    USuspenseCoreEventManager* EventManager = GetDelegateManager();
+    if (!EventManager)
     {
-        HealthUpdateHandle = EventManager->SubscribeToHealthUpdated(
-            [this](float Current, float Max, float Percent)
-            {
-                OnHealthUpdated(Current, Max, Percent);
-            });
-
-        StaminaUpdateHandle = EventManager->SubscribeToStaminaUpdated(
-            [this](float Current, float Max, float Percent)
-            {
-                OnStaminaUpdated(Current, Max, Percent);
-            });
-
-        UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Subscribed to attribute update events"));
+        UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] EventManager not found"));
+        return;
     }
+
+    CachedEventBus = EventManager->GetEventBus();
+    if (!CachedEventBus.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[HealthStaminaWidget] EventBus not found"));
+        return;
+    }
+
+    // Subscribe to Health attribute events via EventBus
+    HealthUpdateHandle = CachedEventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Health")),
+        const_cast<USuspenseHealthStaminaWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseHealthStaminaWidget::HandleHealthEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    // Subscribe to Stamina attribute events via EventBus
+    StaminaUpdateHandle = CachedEventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina")),
+        const_cast<USuspenseHealthStaminaWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseHealthStaminaWidget::HandleStaminaEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] EventBus subscriptions complete"));
 }
 
 void USuspenseHealthStaminaWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (!CachedEventBus.IsValid())
     {
-        if (HealthUpdateHandle.IsValid())
-        {
-            EventManager->UniversalUnsubscribe(HealthUpdateHandle);
-            HealthUpdateHandle.Reset();
-        }
-
-        if (StaminaUpdateHandle.IsValid())
-        {
-            EventManager->UniversalUnsubscribe(StaminaUpdateHandle);
-            StaminaUpdateHandle.Reset();
-        }
-
-        UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Unsubscribed from attribute update events"));
+        return;
     }
+
+    if (HealthUpdateHandle.IsValid())
+    {
+        CachedEventBus->Unsubscribe(HealthUpdateHandle);
+    }
+
+    if (StaminaUpdateHandle.IsValid())
+    {
+        CachedEventBus->Unsubscribe(StaminaUpdateHandle);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[HealthStaminaWidget] Unsubscribed from events"));
+}
+
+void USuspenseHealthStaminaWidget::HandleHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    float Current = EventData.GetFloat(FName("Value"), 100.0f);
+    float Max = EventData.GetFloat(FName("MaxValue"), 100.0f);
+    float Percent = (Max > 0.0f) ? (Current / Max) : 1.0f;
+    OnHealthUpdated(Current, Max, Percent);
+}
+
+void USuspenseHealthStaminaWidget::HandleStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    float Current = EventData.GetFloat(FName("Value"), 100.0f);
+    float Max = EventData.GetFloat(FName("MaxValue"), 100.0f);
+    float Percent = (Max > 0.0f) ? (Current / Max) : 1.0f;
+    OnStaminaUpdated(Current, Max, Percent);
 }
 
 void USuspenseHealthStaminaWidget::OnHealthUpdated(float Current, float Max, float Percent)

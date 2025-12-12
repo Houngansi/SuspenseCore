@@ -5,6 +5,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "Math/UnrealMathUtility.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -318,44 +319,70 @@ void USuspenseCrosshairWidget::UpdateCrosshairPositions()
 
 void USuspenseCrosshairWidget::SubscribeToEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    USuspenseCoreEventManager* EventManager = GetDelegateManager();
+    if (!EventManager)
     {
-        // Subscribe to crosshair updates
-        CrosshairUpdateHandle = EventManager->SubscribeToCrosshairUpdated(
-            [this](float Spread, float Recoil)
-            {
-                OnCrosshairUpdated(Spread, Recoil);
-            });
-
-        // Subscribe to crosshair color changes
-        CrosshairColorHandle = EventManager->SubscribeToCrosshairColorChanged(
-            [this](FLinearColor NewColor)
-            {
-                OnCrosshairColorChanged(NewColor);
-            });
-
-        UE_LOG(LogTemp, Log, TEXT("[MedComCrosshairWidget] Subscribed to events"));
+        UE_LOG(LogTemp, Warning, TEXT("[SuspenseCrosshairWidget] EventManager not found"));
+        return;
     }
+
+    CachedEventBus = EventManager->GetEventBus();
+    if (!CachedEventBus.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SuspenseCrosshairWidget] EventBus not found"));
+        return;
+    }
+
+    // Subscribe to crosshair update events via EventBus
+    CrosshairUpdateHandle = CachedEventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Crosshair.Updated")),
+        const_cast<USuspenseCrosshairWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCrosshairWidget::HandleCrosshairEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    // Subscribe to crosshair color change events via EventBus
+    CrosshairColorHandle = CachedEventBus->SubscribeNative(
+        FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UI.Crosshair.ColorChanged")),
+        const_cast<USuspenseCrosshairWidget*>(this),
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCrosshairWidget::HandleCrosshairColorEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    UE_LOG(LogTemp, Log, TEXT("[SuspenseCrosshairWidget] EventBus subscriptions complete"));
 }
 
 void USuspenseCrosshairWidget::UnsubscribeFromEvents()
 {
-    if (USuspenseCoreEventManager* EventManager = USuspenseBaseWidget::GetDelegateManager())
+    if (!CachedEventBus.IsValid())
     {
-        if (CrosshairUpdateHandle.IsValid())
-        {
-            EventManager->UniversalUnsubscribe(CrosshairUpdateHandle);
-            CrosshairUpdateHandle.Reset();
-        }
-
-        if (CrosshairColorHandle.IsValid())
-        {
-            EventManager->UniversalUnsubscribe(CrosshairColorHandle);
-            CrosshairColorHandle.Reset();
-        }
-
-        UE_LOG(LogTemp, Log, TEXT("[MedComCrosshairWidget] Unsubscribed from events"));
+        return;
     }
+
+    if (CrosshairUpdateHandle.IsValid())
+    {
+        CachedEventBus->Unsubscribe(CrosshairUpdateHandle);
+    }
+
+    if (CrosshairColorHandle.IsValid())
+    {
+        CachedEventBus->Unsubscribe(CrosshairColorHandle);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[SuspenseCrosshairWidget] Unsubscribed from events"));
+}
+
+void USuspenseCrosshairWidget::HandleCrosshairEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    float Spread = EventData.GetFloat(FName("Spread"), 0.0f);
+    float Recoil = EventData.GetFloat(FName("Recoil"), 0.0f);
+    OnCrosshairUpdated(Spread, Recoil);
+}
+
+void USuspenseCrosshairWidget::HandleCrosshairColorEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    FLinearColor NewColor = EventData.GetLinearColor(FName("Color"), FLinearColor::White);
+    OnCrosshairColorChanged(NewColor);
 }
 
 void USuspenseCrosshairWidget::OnCrosshairUpdated(float Spread, float Recoil)

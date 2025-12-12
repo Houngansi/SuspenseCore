@@ -93,6 +93,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout|Config")
     void SetDefaultDataTablePath(const FString& Path);
 
+    /**
+     * Register a default loadout configuration programmatically.
+     * This creates a standard PMC loadout with all 17 equipment slots
+     * if no DataTable is available. Safe to call multiple times.
+     *
+     * @param LoadoutID The ID to register the loadout under (default: "Default_Soldier")
+     * @return True if registration successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout")
+    bool RegisterDefaultLoadout(const FName& LoadoutID = FName(TEXT("Default_Soldier")));
+
+    /**
+     * Check if LoadoutManager has any loadouts configured
+     * @return True if at least one loadout is available
+     */
+    UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Loadout", BlueprintPure)
+    bool HasLoadoutsConfigured() const;
+
     void BroadcastLoadoutChange(const FName& LoadoutID, APlayerState* PlayerState, bool bSuccess) const;
 
     UPROPERTY(BlueprintAssignable, Category = "SuspenseCore|Loadout|Events")

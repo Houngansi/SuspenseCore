@@ -36,6 +36,60 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Auto-initialize slots from LoadoutManager if not already configured
+    if (DataStorage.SlotConfigurations.Num() == 0)
+    {
+        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Auto-initializing equipment slots..."));
+
+        // Try to get slots from LoadoutManager
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            if (UGameInstance* GameInstance = World->GetGameInstance())
+            {
+                if (USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>())
+                {
+                    // Use Default_Soldier loadout if CurrentLoadoutID not set
+                    FName LoadoutToUse = CurrentLoadoutID.IsNone() ? FName(TEXT("Default_Soldier")) : CurrentLoadoutID;
+
+                    // Ensure default loadout is registered
+                    if (!LoadoutManager->HasLoadoutsConfigured())
+                    {
+                        LoadoutManager->RegisterDefaultLoadout(LoadoutToUse);
+                    }
+
+                    // Get equipment slots from LoadoutManager
+                    TArray<FEquipmentSlotConfig> Slots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
+
+                    if (Slots.Num() > 0)
+                    {
+                        InitializeSlots(Slots);
+                        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Initialized %d equipment slots from LoadoutManager"), Slots.Num());
+
+                        // Log slot details
+                        for (int32 i = 0; i < Slots.Num(); ++i)
+                        {
+                            const FEquipmentSlotConfig& Slot = Slots[i];
+                            UE_LOG(LogEquipmentDataStore, Verbose, TEXT("  [%d] %s - Tag: %s, Type: %d"),
+                                i,
+                                *Slot.DisplayName.ToString(),
+                                *Slot.SlotTag.ToString(),
+                                static_cast<int32>(Slot.SlotType));
+                        }
+                    }
+                    else
+                    {
+                        UE_LOG(LogEquipmentDataStore, Warning, TEXT("DataStore: LoadoutManager returned 0 slots for %s"), *LoadoutToUse.ToString());
+                    }
+                }
+                else
+                {
+                    UE_LOG(LogEquipmentDataStore, Warning, TEXT("DataStore: LoadoutManager subsystem not available"));
+                }
+            }
+        }
+    }
+
     UE_LOG(LogEquipmentDataStore, Log,
         TEXT("DataStore initialized with %d slots on %s"),
         DataStorage.SlotConfigurations.Num(),

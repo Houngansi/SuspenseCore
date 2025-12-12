@@ -144,11 +144,11 @@ public:
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - HEALTH
+	// UI BINDINGS - HEALTH (HealthProgressBar is REQUIRED!)
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Health progress bar */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	/** Health progress bar - REQUIRED! Widget must have ProgressBar named "HealthProgressBar" */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> HealthProgressBar;
 
 	/** Current health text (e.g., "75") */

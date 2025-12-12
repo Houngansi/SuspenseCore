@@ -728,10 +728,77 @@ bool ASuspenseCorePlayerState::TryWireEquipmentModuleOnce()
 bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* LoadoutManager, const FName& AppliedLoadoutID)
 {
 #if WITH_EQUIPMENT_SYSTEM
-	// Basic validation
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// BLUEPRINT COMPATIBILITY FIX
+	// If Blueprint BP_SuspenseCorePlayerState has cached old class references,
+	// the UPROPERTY variables will be null even though components exist.
+	// Use FindComponentByClass as fallback to recover the components.
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (!EquipmentDataStore)
+	{
+		EquipmentDataStore = FindComponentByClass<USuspenseCoreEquipmentDataStore>();
+		if (EquipmentDataStore)
+		{
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Recovered EquipmentDataStore via FindComponentByClass"));
+		}
+	}
+
+	if (!EquipmentTxnProcessor)
+	{
+		EquipmentTxnProcessor = FindComponentByClass<USuspenseCoreEquipmentTransactionProcessor>();
+		if (EquipmentTxnProcessor)
+		{
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Recovered EquipmentTxnProcessor via FindComponentByClass"));
+		}
+	}
+
+	if (!EquipmentOps)
+	{
+		EquipmentOps = FindComponentByClass<USuspenseCoreEquipmentOperationExecutor>();
+		if (EquipmentOps)
+		{
+			UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: Recovered EquipmentOps via FindComponentByClass"));
+		}
+	}
+
+	if (!EquipmentPrediction)
+	{
+		EquipmentPrediction = FindComponentByClass<USuspenseCoreEquipmentPredictionSystem>();
+	}
+
+	if (!EquipmentReplication)
+	{
+		EquipmentReplication = FindComponentByClass<USuspenseCoreEquipmentReplicationManager>();
+	}
+
+	if (!EquipmentNetworkDispatcher)
+	{
+		EquipmentNetworkDispatcher = FindComponentByClass<USuspenseCoreEquipmentNetworkDispatcher>();
+	}
+
+	if (!EquipmentEventDispatcher)
+	{
+		EquipmentEventDispatcher = FindComponentByClass<USuspenseCoreEquipmentEventDispatcher>();
+	}
+
+	if (!WeaponStateManager)
+	{
+		WeaponStateManager = FindComponentByClass<USuspenseCoreWeaponStateManager>();
+	}
+
+	if (!EquipmentInventoryBridge)
+	{
+		EquipmentInventoryBridge = FindComponentByClass<USuspenseCoreEquipmentInventoryBridge>();
+	}
+
+	// Basic validation after recovery attempt
 	if (!EquipmentDataStore || !EquipmentTxnProcessor || !EquipmentOps)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::WireEquipmentModule: Core equipment components not created"));
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::WireEquipmentModule: Core equipment components not found (DataStore=%s, TxnProcessor=%s, Ops=%s)"),
+			EquipmentDataStore ? TEXT("OK") : TEXT("NULL"),
+			EquipmentTxnProcessor ? TEXT("OK") : TEXT("NULL"),
+			EquipmentOps ? TEXT("OK") : TEXT("NULL"));
 		return false;
 	}
 

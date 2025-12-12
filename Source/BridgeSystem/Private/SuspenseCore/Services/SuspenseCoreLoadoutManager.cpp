@@ -25,6 +25,11 @@ void USuspenseCoreLoadoutManager::Initialize(FSubsystemCollectionBase& Collectio
         TryLoadDefaultTable();
     }
 
+    // ALWAYS register default loadout to ensure equipment slots are available
+    // even without a DataTable being loaded. This creates all 17 Tarkov-style
+    // equipment slots with proper tags.
+    RegisterDefaultLoadout(FName(TEXT("Default_Soldier")));
+
     bIsInitialized = true;
 }
 
@@ -334,6 +339,60 @@ void USuspenseCoreLoadoutManager::SetDefaultDataTablePath(const FString& Path)
     {
         TryLoadDefaultTable();
     }
+}
+
+bool USuspenseCoreLoadoutManager::RegisterDefaultLoadout(const FName& LoadoutID)
+{
+    FScopeLock Lock(&CacheCriticalSection);
+
+    // Check if already exists
+    if (CachedConfigurations.Contains(LoadoutID))
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Verbose, TEXT("RegisterDefaultLoadout: Loadout %s already exists"), *LoadoutID.ToString());
+        return true;
+    }
+
+    // Create default configuration - this automatically calls SetupDefaultEquipmentSlots()
+    FLoadoutConfiguration DefaultConfig;
+    DefaultConfig.LoadoutID = LoadoutID;
+    DefaultConfig.LoadoutName = FText::FromString(TEXT("Default Soldier Loadout"));
+    DefaultConfig.Description = FText::FromString(TEXT("Standard PMC equipment configuration with all 17 slots"));
+
+    // The constructor already calls SetupDefaultEquipmentSlots() which creates all slots:
+    // - 4 Weapon slots (PrimaryWeapon, SecondaryWeapon, Holster, Scabbard)
+    // - 4 Head gear slots (Headwear, Earpiece, Eyewear, FaceCover)
+    // - 2 Body gear slots (BodyArmor, TacticalRig)
+    // - 2 Storage slots (Backpack, SecureContainer)
+    // - 4 Quick slots (QuickSlot1-4)
+    // - 1 Special slot (Armband)
+
+    if (!DefaultConfig.IsValid())
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Error, TEXT("RegisterDefaultLoadout: Failed to create valid default configuration"));
+        return false;
+    }
+
+    CachedConfigurations.Add(LoadoutID, DefaultConfig);
+
+    UE_LOG(LogSuspenseCoreLoadout, Log, TEXT("RegisterDefaultLoadout: Registered %s with %d equipment slots"),
+        *LoadoutID.ToString(), DefaultConfig.EquipmentSlots.Num());
+
+    // Log slot details for debugging
+    for (const FEquipmentSlotConfig& SlotConfig : DefaultConfig.EquipmentSlots)
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Verbose, TEXT("  - Slot: %s (Type: %d, Tag: %s)"),
+            *SlotConfig.DisplayName.ToString(),
+            static_cast<int32>(SlotConfig.SlotType),
+            *SlotConfig.SlotTag.ToString());
+    }
+
+    return true;
+}
+
+bool USuspenseCoreLoadoutManager::HasLoadoutsConfigured() const
+{
+    FScopeLock Lock(&CacheCriticalSection);
+    return CachedConfigurations.Num() > 0;
 }
 
 void USuspenseCoreLoadoutManager::BroadcastLoadoutChange(const FName& LoadoutID, APlayerState* PlayerState, bool bSuccess) const

@@ -381,7 +381,12 @@ void USuspenseCrosshairWidget::HandleCrosshairEvent(FGameplayTag EventTag, const
 
 void USuspenseCrosshairWidget::HandleCrosshairColorEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    FLinearColor NewColor = EventData.GetLinearColor(FName("Color"), FLinearColor::White);
+    // Extract color components from event data
+    FLinearColor NewColor;
+    NewColor.R = EventData.GetFloat(FName("ColorR"), 1.0f);
+    NewColor.G = EventData.GetFloat(FName("ColorG"), 1.0f);
+    NewColor.B = EventData.GetFloat(FName("ColorB"), 1.0f);
+    NewColor.A = EventData.GetFloat(FName("ColorA"), 1.0f);
     OnCrosshairColorChanged(NewColor);
 }
 

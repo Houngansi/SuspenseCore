@@ -534,31 +534,28 @@ UUserWidget* USuspenseUpperTabBar::CreateSingleWidgetContent(const FSuspenseTabC
         // Специальная инициализация для Equipment Widget
         if (Config.TabTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Equipment"))))
         {
-            if (USuspenseEquipmentContainerWidget* EquipWidget = Cast<USuspenseEquipmentContainerWidget>(Widget))
+            UE_LOG(LogTemp, Log, TEXT("[TabBar] Equipment Widget created, will be initialized by bridge"));
+
+            // Publish equipment widget ready event through EventBus
+            if (USuspenseCoreEventBus* EventBus = GetEventBus())
             {
-                UE_LOG(LogTemp, Log, TEXT("[TabBar] Equipment Widget created, will be initialized by bridge"));
+                TWeakObjectPtr<USuspenseCoreEventBus> WeakEventBus = EventBus;
+                TWeakObjectPtr<UUserWidget> WeakWidget = Widget;
 
-                // Publish equipment widget ready event through EventBus
-                if (USuspenseCoreEventBus* EventBus = GetEventBus())
+                FTimerHandle InitTimerHandle;
+                GetWorld()->GetTimerManager().SetTimerForNextTick([WeakEventBus, WeakWidget]()
                 {
-                    TWeakObjectPtr<USuspenseCoreEventBus> WeakEventBus = EventBus;
-                    TWeakObjectPtr<UUserWidget> WeakWidget = Widget;
-
-                    FTimerHandle InitTimerHandle;
-                    GetWorld()->GetTimerManager().SetTimerForNextTick([WeakEventBus, WeakWidget]()
+                    if (!WeakEventBus.IsValid() || !WeakWidget.IsValid())
                     {
-                        if (!WeakEventBus.IsValid() || !WeakWidget.IsValid())
-                        {
-                            return;
-                        }
+                        return;
+                    }
 
-                        FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(WeakWidget.Get());
-                        EventData.SetObject(TEXT("Widget"), WeakWidget.Get());
+                    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(WeakWidget.Get());
+                    EventData.SetObject(FName("Widget"), WeakWidget.Get());
 
-                        FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Equipment.Ready"));
-                        WeakEventBus->Publish(ReadyTag, EventData);
-                    });
-                }
+                    FGameplayTag ReadyTag = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.Equipment.Ready"));
+                    WeakEventBus->Publish(ReadyTag, EventData);
+                });
             }
         }
     }

@@ -11,8 +11,6 @@
 
 // Forward declarations
 class USuspenseUpperTabBar;
-class USuspenseInventoryWidget;
-class USuspenseEquipmentContainerWidget;
 
 /**
  * Main character screen that contains the upper tab bar

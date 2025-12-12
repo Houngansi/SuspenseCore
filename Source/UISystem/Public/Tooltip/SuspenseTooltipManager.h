@@ -4,15 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "GameplayTagContainer.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreContainerUITypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseTooltipManager.generated.h"
 
 // Forward declarations
 class USuspenseItemTooltipWidget;
 class UUserWidget;
 class APlayerController;
-class USuspenseEventManager;
 
 /**
  * Configuration structure for tooltip behavior
@@ -257,28 +259,50 @@ private:
     UPROPERTY()
     USuspenseCoreEventManager* CachedEventManager;
 
+    /** Cached reference to EventBus */
+    TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+
     /** Event subscription handles for cleanup */
-    FDelegateHandle TooltipRequestHandle;
-    FDelegateHandle TooltipHideHandle;
-    FDelegateHandle TooltipUpdateHandle;
+    FSuspenseCoreSubscriptionHandle TooltipRequestHandle;
+    FSuspenseCoreSubscriptionHandle TooltipHideHandle;
+    FSuspenseCoreSubscriptionHandle TooltipUpdateHandle;
 
     // ========================================
-    // Event Handlers
+    // EventBus Event Handlers
     // ========================================
 
     /**
-     * Handle tooltip request from EventDelegateManager
-     * Determines which tooltip class to use based on item data
+     * Handle tooltip request from EventBus
+     * Determines which tooltip class to use based on event data
+     */
+    void OnTooltipRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /**
+     * Handle tooltip hide request from EventBus
+     */
+    void OnTooltipHideRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /**
+     * Handle tooltip position update from EventBus
+     */
+    void OnTooltipUpdatePositionEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    // ========================================
+    // Internal Event Processing Helpers
+    // ========================================
+
+    /**
+     * Process tooltip request with extracted data
      */
     void OnTooltipRequested(const FItemUIData& ItemData, const FVector2D& ScreenPosition);
 
     /**
-     * Handle tooltip hide request
+     * Process tooltip hide request
      */
     void OnTooltipHideRequested();
 
     /**
-     * Handle tooltip position update
+     * Process tooltip position update
      */
     void OnTooltipUpdatePosition(const FVector2D& ScreenPosition);
 

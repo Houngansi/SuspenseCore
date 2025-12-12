@@ -153,6 +153,39 @@ namespace SuspenseCoreEquipmentTags
     }
 
     //========================================
+    // DELTA TAGS - For change tracking
+    //========================================
+    namespace Delta
+    {
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta, "Equipment.Delta");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_Initialize, "Equipment.Delta.Initialize");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_ItemSet, "Equipment.Delta.ItemSet");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_ItemClear, "Equipment.Delta.ItemClear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_ActiveWeapon, "Equipment.Delta.ActiveWeapon");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_StateChange, "Equipment.Delta.StateChange");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_SnapshotRestore, "Equipment.Delta.SnapshotRestore");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_Reset, "Equipment.Delta.Reset");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Delta_Revert, "Equipment.Delta.Revert");
+    }
+
+    //========================================
+    // REASON TAGS - For operation reasons
+    //========================================
+    namespace Reason
+    {
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason, "Equipment.Reason");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_Initialize, "Equipment.Reason.Initialize");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_DirectSet, "Equipment.Reason.DirectSet");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_DirectClear, "Equipment.Reason.DirectClear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_ActiveChange, "Equipment.Reason.ActiveChange");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_StateTransition, "Equipment.Reason.StateTransition");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_SnapshotRestore, "Equipment.Reason.SnapshotRestore");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_ResetToDefault, "Equipment.Reason.ResetToDefault");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_Rollback, "Equipment.Reason.Rollback");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Reason_Transaction, "Equipment.Reason.Transaction");
+    }
+
+    //========================================
     // SLOT TYPE TAGS (AAA MMO FPS style)
     //========================================
     namespace Slot

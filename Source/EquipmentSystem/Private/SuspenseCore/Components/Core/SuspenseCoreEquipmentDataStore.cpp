@@ -37,11 +37,11 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
     Super::BeginPlay();
 
     // Auto-initialize slots from LoadoutManager if not already configured
+    // SINGLE SOURCE OF TRUTH: LoadoutDataTable in SuspenseCoreSettings
     if (DataStorage.SlotConfigurations.Num() == 0)
     {
-        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Auto-initializing equipment slots..."));
+        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Auto-initializing equipment slots from LoadoutManager..."));
 
-        // Try to get slots from LoadoutManager
         UWorld* World = GetWorld();
         if (World)
         {
@@ -50,21 +50,16 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
                 if (USuspenseCoreLoadoutManager* LoadoutManager = GameInstance->GetSubsystem<USuspenseCoreLoadoutManager>())
                 {
                     // Use Default_Soldier loadout if CurrentLoadoutID not set
+                    // NOTE: LoadoutManager loads from SuspenseCoreSettings->LoadoutDataTable
                     FName LoadoutToUse = CurrentLoadoutID.IsNone() ? FName(TEXT("Default_Soldier")) : CurrentLoadoutID;
 
-                    // Ensure default loadout is registered
-                    if (!LoadoutManager->HasLoadoutsConfigured())
-                    {
-                        LoadoutManager->RegisterDefaultLoadout(LoadoutToUse);
-                    }
-
-                    // Get equipment slots from LoadoutManager
+                    // Get equipment slots from LoadoutManager (from DataTable)
                     TArray<FEquipmentSlotConfig> Slots = LoadoutManager->GetEquipmentSlots(LoadoutToUse);
 
                     if (Slots.Num() > 0)
                     {
                         InitializeSlots(Slots);
-                        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Initialized %d equipment slots from LoadoutManager"), Slots.Num());
+                        UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Initialized %d equipment slots from loadout '%s'"), Slots.Num(), *LoadoutToUse.ToString());
 
                         // Log slot details
                         for (int32 i = 0; i < Slots.Num(); ++i)
@@ -79,12 +74,12 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
                     }
                     else
                     {
-                        UE_LOG(LogEquipmentDataStore, Warning, TEXT("DataStore: LoadoutManager returned 0 slots for %s"), *LoadoutToUse.ToString());
+                        UE_LOG(LogEquipmentDataStore, Error, TEXT("DataStore: LoadoutManager returned 0 slots for '%s'. Configure LoadoutDataTable in Project Settings → Game → SuspenseCore!"), *LoadoutToUse.ToString());
                     }
                 }
                 else
                 {
-                    UE_LOG(LogEquipmentDataStore, Warning, TEXT("DataStore: LoadoutManager subsystem not available"));
+                    UE_LOG(LogEquipmentDataStore, Error, TEXT("DataStore: LoadoutManager subsystem not available!"));
                 }
             }
         }

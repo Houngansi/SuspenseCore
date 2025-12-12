@@ -1,4 +1,4 @@
-// SuspenseCoreHUDWidget.h
+// SuspenseCoreGameHUDWidget.h
 // SuspenseCore - Clean Architecture UI Layer
 // Copyright (c) 2025. All Rights Reserved.
 
@@ -8,7 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCoreHUDWidget.generated.h"
+#include "SuspenseCoreGameHUDWidget.generated.h"
 
 class UTextBlock;
 class UProgressBar;
@@ -16,7 +16,7 @@ class UImage;
 class USuspenseCoreEventBus;
 
 /**
- * USuspenseCoreHUDWidget
+ * USuspenseCoreGameHUDWidget
  *
  * In-game HUD widget displaying player vital stats:
  * - Health (HP) with progress bar and numeric value
@@ -44,12 +44,12 @@ class USuspenseCoreEventBus;
  * 3. Add to PlayerController's HUD
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreHUDWidget : public UUserWidget
+class UISYSTEM_API USuspenseCoreGameHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	USuspenseCoreHUDWidget(const FObjectInitializer& ObjectInitializer);
+	USuspenseCoreGameHUDWidget(const FObjectInitializer& ObjectInitializer);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UUserWidget Interface

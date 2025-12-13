@@ -18,7 +18,6 @@ class UAbilitySystemComponent;
 class ASuspenseCorePlayerState;
 class ASuspenseCoreCharacter;
 class UUserWidget;
-class USuspenseCoreGameHUDWidget;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INPUT CONFIGURATION
@@ -276,13 +275,13 @@ protected:
 	UUserWidget* PauseMenuWidget = nullptr;
 
 	/** HUD widget class to spawn (vitals display: HP/Shield/Stamina)
-	 * MUST inherit from USuspenseCoreGameHUDWidget! */
+	 * Blueprint MUST inherit from USuspenseCoreGameHUDWidget! */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")
-	TSubclassOf<USuspenseCoreGameHUDWidget> HUDWidgetClass;
+	TSubclassOf<UUserWidget> HUDWidgetClass;
 
 	/** Spawned HUD widget */
 	UPROPERTY()
-	USuspenseCoreGameHUDWidget* HUDWidget = nullptr;
+	UUserWidget* HUDWidget = nullptr;
 
 	/** Container screen widget class (inventory, equipment, stash) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|UI")

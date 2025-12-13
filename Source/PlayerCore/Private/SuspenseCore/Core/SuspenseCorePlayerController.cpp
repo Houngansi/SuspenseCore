@@ -21,7 +21,6 @@
 #if WITH_UI_SYSTEM
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Widgets/SuspenseCorePauseMenuWidget.h"
-#include "SuspenseCore/Widgets/SuspenseCoreGameHUDWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #endif
@@ -690,7 +689,7 @@ void ASuspenseCorePlayerController::CreateHUDWidget()
 		return;
 	}
 
-	HUDWidget = CreateWidget<USuspenseCoreGameHUDWidget>(this, HUDWidgetClass);
+	HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
 	if (HUDWidget)
 	{
 		HUDWidget->AddToViewport(0); // Low Z-order for HUD (under pause menu)

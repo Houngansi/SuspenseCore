@@ -10,7 +10,7 @@ public class PlayerCore : ModuleRules
     private static readonly bool bWithEquipmentSystem = true;
     private static readonly bool bWithInventorySystem = true;
     private static readonly bool bWithInteractionSystem = false;
-    private static readonly bool bWithUISystem = false;
+    private static readonly bool bWithUISystem = true;
 
     public PlayerCore(ReadOnlyTargetRules Target) : base(Target)
     {

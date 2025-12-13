@@ -683,23 +683,30 @@ bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
 void ASuspenseCorePlayerController::CreateHUDWidget()
 {
 #if WITH_UI_SYSTEM
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreateHUDWidget ==="));
+	UE_LOG(LogTemp, Warning, TEXT("  HUDWidgetClass: %s"), HUDWidgetClass ? *HUDWidgetClass->GetName() : TEXT("NOT SET!"));
+
 	if (!HUDWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerController: HUDWidgetClass is not set"));
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: HUDWidgetClass is not set in BP_SuspenseCorePlayerController!"));
 		return;
 	}
 
 	HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
 	if (HUDWidget)
 	{
-		HUDWidget->AddToViewport(0); // Low Z-order for HUD (under pause menu)
+		HUDWidget->AddToViewport(10); // Z-order 10 for HUD (under pause menu at 100)
 		HUDWidget->SetVisibility(ESlateVisibility::Visible);
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerController: HUD widget created and added to viewport"));
+		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: HUD widget created and added to viewport"));
+		UE_LOG(LogTemp, Warning, TEXT("  Widget: %s"), *HUDWidget->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("  Visibility: %s"), HUDWidget->IsVisible() ? TEXT("Visible") : TEXT("Hidden"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("SuspenseCorePlayerController: Failed to create HUD widget"));
+		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not create HUD widget!"));
 	}
+#else
+	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreateHUDWidget - SKIPPED (WITH_UI_SYSTEM=0) ==="));
 #endif // WITH_UI_SYSTEM
 }
 

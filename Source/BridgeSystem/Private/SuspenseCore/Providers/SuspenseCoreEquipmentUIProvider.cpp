@@ -246,13 +246,9 @@ FSuspenseCoreDropValidation USuspenseCoreEquipmentUIProvider::ValidateDrop(
 	int32 TargetSlot,
 	bool bRotated) const
 {
-	FSuspenseCoreDropValidation Validation;
-
 	if (!IsSlotValid(TargetSlot))
 	{
-		Validation.bCanDrop = false;
-		Validation.FailReason = FText::FromString(TEXT("Invalid slot"));
-		return Validation;
+		return FSuspenseCoreDropValidation::Invalid(FText::FromString(TEXT("Invalid slot")));
 	}
 
 	const FEquipmentSlotConfig& SlotConfig = SlotConfigs[TargetSlot];
@@ -262,23 +258,20 @@ FSuspenseCoreDropValidation USuspenseCoreEquipmentUIProvider::ValidateDrop(
 	{
 		if (!SlotConfig.AllowedItemTypes.HasTag(DragData.Item.ItemType))
 		{
-			Validation.bCanDrop = false;
-			Validation.FailReason = FText::FromString(TEXT("Item type not allowed in this slot"));
-			return Validation;
+			return FSuspenseCoreDropValidation::Invalid(FText::FromString(TEXT("Item type not allowed in this slot")));
 		}
 	}
 
 	// Check disallowed types
 	if (SlotConfig.DisallowedItemTypes.HasTag(DragData.Item.ItemType))
 	{
-		Validation.bCanDrop = false;
-		Validation.FailReason = FText::FromString(TEXT("Item type is not allowed"));
-		return Validation;
+		return FSuspenseCoreDropValidation::Invalid(FText::FromString(TEXT("Item type is not allowed")));
 	}
 
-	Validation.bCanDrop = true;
-	Validation.TargetSlot = TargetSlot;
-	Validation.bRequiresSwap = false; // TODO: Check if slot is occupied
+	// Valid drop
+	FSuspenseCoreDropValidation Validation = FSuspenseCoreDropValidation::Valid();
+	Validation.AlternativeSlot = TargetSlot;
+	Validation.bWouldSwap = false; // TODO: Check if slot is occupied
 
 	return Validation;
 }
@@ -397,8 +390,8 @@ bool USuspenseCoreEquipmentUIProvider::RequestUseItem(int32 SlotIndex)
 
 	FSuspenseCoreEventData EventData;
 	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
-	EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
-	EventData.SetGuid(TEXT("ProviderID"), ProviderID);
+	EventData.IntPayload.Add(TEXT("SlotIndex"), SlotIndex);
+	EventData.StringPayload.Add(TEXT("ProviderID"), ProviderID.ToString());
 
 	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_UseItem, EventData);
 
@@ -443,11 +436,11 @@ bool USuspenseCoreEquipmentUIProvider::RequestTransferItem(int32 SlotIndex, cons
 
 	FSuspenseCoreEventData EventData;
 	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
-	EventData.SetInt(TEXT("SourceSlot"), SlotIndex);
-	EventData.SetGuid(TEXT("SourceProviderID"), ProviderID);
-	EventData.SetGuid(TEXT("TargetProviderID"), TargetProviderID);
-	EventData.SetInt(TEXT("TargetSlot"), TargetSlot);
-	EventData.SetInt(TEXT("Quantity"), Quantity);
+	EventData.IntPayload.Add(TEXT("SourceSlot"), SlotIndex);
+	EventData.StringPayload.Add(TEXT("SourceProviderID"), ProviderID.ToString());
+	EventData.StringPayload.Add(TEXT("TargetProviderID"), TargetProviderID.ToString());
+	EventData.IntPayload.Add(TEXT("TargetSlot"), TargetSlot);
+	EventData.IntPayload.Add(TEXT("Quantity"), Quantity);
 
 	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_TransferItem, EventData);
 
@@ -476,7 +469,7 @@ TArray<FGameplayTag> USuspenseCoreEquipmentUIProvider::GetItemContextActions(int
 		Actions.Add(TAG_SuspenseCore_UIAction_Examine);
 
 		// If item is usable (like meds in quick slots)
-		if (ItemData.bIsConsumable)
+		if (ItemData.bIsUsable)
 		{
 			Actions.Add(TAG_SuspenseCore_UIAction_Use);
 		}
@@ -597,12 +590,23 @@ FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::ConvertToSlotUIData(EE
 		const FEquipmentSlotConfig& Config = SlotConfigs[SlotIndex];
 		SlotData.SlotTypeTag = Config.SlotTag;
 		SlotData.AllowedItemTypes = Config.AllowedItemTypes;
-		SlotData.bIsLocked = !Config.bIsVisible;
-	}
 
-	// TODO: Query actual equipped item from BoundDataStore
-	// For now, return empty slot
-	SlotData.State = ESuspenseCoreUISlotState::Empty;
+		// Set locked state if slot is not visible
+		if (!Config.bIsVisible)
+		{
+			SlotData.State = ESuspenseCoreUISlotState::Locked;
+		}
+		else
+		{
+			// TODO: Query actual equipped item from BoundDataStore
+			// For now, return empty slot
+			SlotData.State = ESuspenseCoreUISlotState::Empty;
+		}
+	}
+	else
+	{
+		SlotData.State = ESuspenseCoreUISlotState::Empty;
+	}
 	SlotData.bIsAnchor = true; // Equipment slots are always anchor
 
 	return SlotData;

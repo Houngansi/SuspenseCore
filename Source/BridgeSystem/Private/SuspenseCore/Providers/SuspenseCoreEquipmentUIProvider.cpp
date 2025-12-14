@@ -7,11 +7,10 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
-
-// Native GameplayTags
-#include "SuspenseCore/Events/SuspenseCoreUIEvents.h"
+#include "GameFramework/Actor.h"
 
 //==================================================================
 // Constructor
@@ -27,7 +26,7 @@ USuspenseCoreEquipmentUIProvider::USuspenseCoreEquipmentUIProvider()
 // Initialization
 //==================================================================
 
-bool USuspenseCoreEquipmentUIProvider::Initialize(UActorComponent* InDataStore, FName InLoadoutID)
+bool USuspenseCoreEquipmentUIProvider::Initialize(AActor* InOwningActor, FName InLoadoutID)
 {
 	if (bIsInitialized)
 	{
@@ -35,13 +34,7 @@ bool USuspenseCoreEquipmentUIProvider::Initialize(UActorComponent* InDataStore, 
 		return true;
 	}
 
-	if (!InDataStore)
-	{
-		UE_LOG(LogTemp, Error, TEXT("EquipmentUIProvider: Invalid data store"));
-		return false;
-	}
-
-	BoundDataStore = InDataStore;
+	OwningActor = InOwningActor;
 	LoadoutID = InLoadoutID;
 
 	// Get slot configurations from LoadoutManager
@@ -90,9 +83,6 @@ bool USuspenseCoreEquipmentUIProvider::Initialize(UActorComponent* InDataStore, 
 		}
 	}
 
-	// Bind to data store events
-	BindToDataStore();
-
 	bIsInitialized = true;
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Initialized with %d equipment slots"), SlotConfigs.Num());
@@ -107,9 +97,7 @@ void USuspenseCoreEquipmentUIProvider::Shutdown()
 		return;
 	}
 
-	UnbindFromDataStore();
-
-	BoundDataStore.Reset();
+	OwningActor.Reset();
 	SlotConfigs.Empty();
 	SlotTypeToIndex.Empty();
 	bIsInitialized = false;
@@ -118,15 +106,19 @@ void USuspenseCoreEquipmentUIProvider::Shutdown()
 }
 
 //==================================================================
-// ISuspenseCoreUIDataProvider Interface
+// ISuspenseCoreUIDataProvider Interface - Identity
 //==================================================================
 
 FGameplayTag USuspenseCoreEquipmentUIProvider::GetContainerTypeTag() const
 {
-	return FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.UIProvider.Type.Equipment"), false);
+	return TAG_SuspenseCore_UIProvider_Type_Equipment;
 }
 
-FSuspenseCoreContainerUIData USuspenseCoreEquipmentUIProvider::GetContainerData() const
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Container Data
+//==================================================================
+
+FSuspenseCoreContainerUIData USuspenseCoreEquipmentUIProvider::GetContainerUIData() const
 {
 	FSuspenseCoreContainerUIData Data;
 
@@ -136,27 +128,55 @@ FSuspenseCoreContainerUIData USuspenseCoreEquipmentUIProvider::GetContainerData(
 	Data.DisplayName = FText::FromString(TEXT("Equipment"));
 	Data.LayoutType = ESuspenseCoreSlotLayoutType::Named;
 	Data.TotalSlots = SlotConfigs.Num();
-	Data.bHasWeightLimit = false; // Equipment doesn't have weight limit on container level
+	Data.bHasWeightLimit = false;
 	Data.bIsLocked = false;
 	Data.bIsReadOnly = false;
 
+	// Get all slot data
+	Data.Slots = GetAllSlotUIData();
+
 	// Count occupied slots
 	int32 OccupiedCount = 0;
-	for (int32 Index = 0; Index < SlotConfigs.Num(); ++Index)
+	for (const FSuspenseCoreSlotUIData& SlotData : Data.Slots)
 	{
-		FSuspenseCoreSlotUIData SlotData = GetSlotData(Index);
 		if (SlotData.IsOccupied())
 		{
 			OccupiedCount++;
 		}
-		Data.Slots.Add(SlotData);
 	}
 	Data.OccupiedSlots = OccupiedCount;
+
+	// Get all items
+	Data.Items = GetAllItemUIData();
 
 	return Data;
 }
 
-FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::GetSlotData(int32 SlotIndex) const
+FIntPoint USuspenseCoreEquipmentUIProvider::GetGridSize() const
+{
+	// Equipment uses named slots, not grid
+	// Return slot count as "grid" for compatibility
+	return FIntPoint(SlotConfigs.Num(), 1);
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Slot Data
+//==================================================================
+
+TArray<FSuspenseCoreSlotUIData> USuspenseCoreEquipmentUIProvider::GetAllSlotUIData() const
+{
+	TArray<FSuspenseCoreSlotUIData> AllSlots;
+	AllSlots.Reserve(SlotConfigs.Num());
+
+	for (int32 Index = 0; Index < SlotConfigs.Num(); ++Index)
+	{
+		AllSlots.Add(GetSlotUIData(Index));
+	}
+
+	return AllSlots;
+}
+
+FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::GetSlotUIData(int32 SlotIndex) const
 {
 	if (!SlotConfigs.IsValidIndex(SlotIndex))
 	{
@@ -166,76 +186,372 @@ FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::GetSlotData(int32 Slot
 	return ConvertToSlotUIData(SlotConfigs[SlotIndex].SlotType, SlotIndex);
 }
 
-FSuspenseCoreItemUIData USuspenseCoreEquipmentUIProvider::GetItemData(const FGuid& InstanceID) const
+bool USuspenseCoreEquipmentUIProvider::IsSlotValid(int32 SlotIndex) const
+{
+	return SlotConfigs.IsValidIndex(SlotIndex);
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Item Data
+//==================================================================
+
+TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIData() const
+{
+	TArray<FSuspenseCoreItemUIData> Items;
+
+	// TODO: Query actual equipped items from EquipmentDataStore
+	// For now, return empty array
+
+	return Items;
+}
+
+bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSuspenseCoreItemUIData& OutItem) const
+{
+	if (!IsSlotValid(SlotIndex))
+	{
+		return false;
+	}
+
+	// TODO: Query actual equipped item from EquipmentDataStore
+	// For now, return false (empty slot)
+
+	return false;
+}
+
+bool USuspenseCoreEquipmentUIProvider::FindItemUIData(const FGuid& InstanceID, FSuspenseCoreItemUIData& OutItem) const
 {
 	if (!InstanceID.IsValid())
 	{
-		return FSuspenseCoreItemUIData();
+		return false;
 	}
 
-	return ConvertToItemUIData(InstanceID);
+	// TODO: Query item from EquipmentDataStore
+	// For now, return false
+
+	return false;
 }
 
-TArray<FSuspenseCoreSlotUIData> USuspenseCoreEquipmentUIProvider::GetAllSlotData() const
+int32 USuspenseCoreEquipmentUIProvider::GetItemCount() const
 {
-	TArray<FSuspenseCoreSlotUIData> AllSlots;
-	AllSlots.Reserve(SlotConfigs.Num());
+	// TODO: Count actual equipped items
+	return 0;
+}
 
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Validation
+//==================================================================
+
+FSuspenseCoreDropValidation USuspenseCoreEquipmentUIProvider::ValidateDrop(
+	const FSuspenseCoreDragData& DragData,
+	int32 TargetSlot,
+	bool bRotated) const
+{
+	FSuspenseCoreDropValidation Validation;
+
+	if (!IsSlotValid(TargetSlot))
+	{
+		Validation.bCanDrop = false;
+		Validation.FailReason = FText::FromString(TEXT("Invalid slot"));
+		return Validation;
+	}
+
+	const FEquipmentSlotConfig& SlotConfig = SlotConfigs[TargetSlot];
+
+	// Check if item type is allowed in this slot
+	if (!SlotConfig.AllowedItemTypes.IsEmpty())
+	{
+		if (!SlotConfig.AllowedItemTypes.HasTag(DragData.Item.ItemType))
+		{
+			Validation.bCanDrop = false;
+			Validation.FailReason = FText::FromString(TEXT("Item type not allowed in this slot"));
+			return Validation;
+		}
+	}
+
+	// Check disallowed types
+	if (SlotConfig.DisallowedItemTypes.HasTag(DragData.Item.ItemType))
+	{
+		Validation.bCanDrop = false;
+		Validation.FailReason = FText::FromString(TEXT("Item type is not allowed"));
+		return Validation;
+	}
+
+	Validation.bCanDrop = true;
+	Validation.TargetSlot = TargetSlot;
+	Validation.bRequiresSwap = false; // TODO: Check if slot is occupied
+
+	return Validation;
+}
+
+bool USuspenseCoreEquipmentUIProvider::CanAcceptItemType(const FGameplayTag& ItemType) const
+{
+	// Check if any slot can accept this item type
+	for (const FEquipmentSlotConfig& SlotConfig : SlotConfigs)
+	{
+		if (SlotConfig.AllowedItemTypes.IsEmpty() || SlotConfig.AllowedItemTypes.HasTag(ItemType))
+		{
+			if (!SlotConfig.DisallowedItemTypes.HasTag(ItemType))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+int32 USuspenseCoreEquipmentUIProvider::FindBestSlotForItem(FIntPoint ItemSize, bool bAllowRotation) const
+{
+	// Equipment slots are fixed - this method is more relevant for grid inventory
+	// Return INDEX_NONE as equipment requires explicit slot selection
+	return INDEX_NONE;
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Grid Position Calculations
+//==================================================================
+
+int32 USuspenseCoreEquipmentUIProvider::GetSlotAtLocalPosition(const FVector2D& LocalPos, float CellSize, float CellGap) const
+{
+	// Equipment uses named slots, not grid positions
+	// This would be handled by the widget's hit testing
+	return INDEX_NONE;
+}
+
+TArray<int32> USuspenseCoreEquipmentUIProvider::GetOccupiedSlotsForItem(const FGuid& ItemInstanceID) const
+{
+	TArray<int32> OccupiedSlots;
+
+	// Equipment items occupy exactly one slot
 	for (int32 Index = 0; Index < SlotConfigs.Num(); ++Index)
 	{
-		AllSlots.Add(GetSlotData(Index));
+		FSuspenseCoreItemUIData ItemData;
+		if (GetItemUIDataAtSlot(Index, ItemData) && ItemData.InstanceID == ItemInstanceID)
+		{
+			OccupiedSlots.Add(Index);
+			break;
+		}
 	}
 
-	return AllSlots;
+	return OccupiedSlots;
 }
 
-bool USuspenseCoreEquipmentUIProvider::CanPerformAction(const FGameplayTag& ActionTag, int32 SlotIndex) const
+int32 USuspenseCoreEquipmentUIProvider::GetAnchorSlotForPosition(int32 AnySlotIndex) const
 {
-	if (!bIsInitialized || !BoundDataStore.IsValid())
+	// Equipment slots are always anchors (no multi-cell spanning)
+	return AnySlotIndex;
+}
+
+bool USuspenseCoreEquipmentUIProvider::CanPlaceItemAtSlot(const FGuid& ItemID, int32 SlotIndex, bool bRotated) const
+{
+	if (!IsSlotValid(SlotIndex))
 	{
 		return false;
 	}
 
-	// Check basic slot validity
-	if (!SlotConfigs.IsValidIndex(SlotIndex))
-	{
-		return false;
-	}
-
-	// TODO: Implement action validation via EquipmentDataStore interface
-	// For now, allow basic actions
+	// TODO: Check if slot is occupied and if swap is possible
 	return true;
 }
 
-bool USuspenseCoreEquipmentUIProvider::RequestAction(const FGameplayTag& ActionTag, int32 SlotIndex, const FSuspenseCoreDragData* DragData)
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Operations
+//==================================================================
+
+bool USuspenseCoreEquipmentUIProvider::RequestMoveItem(int32 FromSlot, int32 ToSlot, bool bRotate)
 {
-	if (!CanPerformAction(ActionTag, SlotIndex))
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
 	{
 		return false;
 	}
 
-	// Publish action request via EventBus
-	if (USuspenseCoreEventBus* EventBus = GetEventBus())
+	// Create event payload
+	FSuspenseCoreUIEventPayload Payload = FSuspenseCoreUIEventPayload::CreateMoveRequest(
+		ProviderID,
+		ESuspenseCoreContainerType::Equipment,
+		FromSlot,
+		ToSlot,
+		bRotate
+	);
+
+	// Publish via EventBus
+	FSuspenseCoreEventData EventData;
+	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
+	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_MoveItem, EventData);
+
+	return true;
+}
+
+bool USuspenseCoreEquipmentUIProvider::RequestRotateItem(int32 SlotIndex)
+{
+	// Equipment items don't rotate
+	return false;
+}
+
+bool USuspenseCoreEquipmentUIProvider::RequestUseItem(int32 SlotIndex)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
 	{
-		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-		EventData.SetInt(FName("SlotIndex"), SlotIndex);
-
-		if (SlotConfigs.IsValidIndex(SlotIndex))
-		{
-			EventData.SetTag(FName("SlotType"), SlotConfigs[SlotIndex].SlotTag);
-		}
-
-		if (DragData)
-		{
-			EventData.SetGuid(FName("ItemInstanceID"), DragData->Item.InstanceID);
-			EventData.SetInt(FName("SourceSlot"), DragData->SourceSlot);
-		}
-
-		EventBus->Publish(ActionTag, EventData);
-		return true;
+		return false;
 	}
 
+	FSuspenseCoreEventData EventData;
+	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
+	EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+	EventData.SetGuid(TEXT("ProviderID"), ProviderID);
+
+	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_UseItem, EventData);
+
+	return true;
+}
+
+bool USuspenseCoreEquipmentUIProvider::RequestDropItem(int32 SlotIndex, int32 Quantity)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return false;
+	}
+
+	FSuspenseCoreUIEventPayload Payload = FSuspenseCoreUIEventPayload::CreateDropRequest(
+		ProviderID,
+		ESuspenseCoreContainerType::Equipment,
+		SlotIndex,
+		Quantity
+	);
+
+	FSuspenseCoreEventData EventData;
+	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
+	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_DropItem, EventData);
+
+	return true;
+}
+
+bool USuspenseCoreEquipmentUIProvider::RequestSplitStack(int32 SlotIndex, int32 SplitQuantity, int32 TargetSlot)
+{
+	// Equipment items don't stack
 	return false;
+}
+
+bool USuspenseCoreEquipmentUIProvider::RequestTransferItem(int32 SlotIndex, const FGuid& TargetProviderID, int32 TargetSlot, int32 Quantity)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return false;
+	}
+
+	FSuspenseCoreEventData EventData;
+	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
+	EventData.SetInt(TEXT("SourceSlot"), SlotIndex);
+	EventData.SetGuid(TEXT("SourceProviderID"), ProviderID);
+	EventData.SetGuid(TEXT("TargetProviderID"), TargetProviderID);
+	EventData.SetInt(TEXT("TargetSlot"), TargetSlot);
+	EventData.SetInt(TEXT("Quantity"), Quantity);
+
+	EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_TransferItem, EventData);
+
+	return true;
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - Context Menu
+//==================================================================
+
+TArray<FGameplayTag> USuspenseCoreEquipmentUIProvider::GetItemContextActions(int32 SlotIndex) const
+{
+	TArray<FGameplayTag> Actions;
+
+	if (!IsSlotValid(SlotIndex))
+	{
+		return Actions;
+	}
+
+	FSuspenseCoreItemUIData ItemData;
+	if (GetItemUIDataAtSlot(SlotIndex, ItemData))
+	{
+		// Item is equipped - show unequip, drop, examine
+		Actions.Add(TAG_SuspenseCore_UIAction_Unequip);
+		Actions.Add(TAG_SuspenseCore_UIAction_Drop);
+		Actions.Add(TAG_SuspenseCore_UIAction_Examine);
+
+		// If item is usable (like meds in quick slots)
+		if (ItemData.bIsConsumable)
+		{
+			Actions.Add(TAG_SuspenseCore_UIAction_Use);
+		}
+	}
+
+	return Actions;
+}
+
+bool USuspenseCoreEquipmentUIProvider::ExecuteContextAction(int32 SlotIndex, const FGameplayTag& ActionTag)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return false;
+	}
+
+	FSuspenseCoreItemUIData ItemData;
+	GetItemUIDataAtSlot(SlotIndex, ItemData);
+
+	FSuspenseCoreUIEventPayload Payload = FSuspenseCoreUIEventPayload::CreateActionRequest(
+		ProviderID,
+		ESuspenseCoreContainerType::Equipment,
+		SlotIndex,
+		ItemData.InstanceID,
+		ActionTag
+	);
+
+	FSuspenseCoreEventData EventData;
+	EventData.Source = const_cast<USuspenseCoreEquipmentUIProvider*>(this);
+
+	// Route to appropriate handler
+	if (ActionTag == TAG_SuspenseCore_UIAction_Unequip)
+	{
+		EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_UnequipItem, EventData);
+	}
+	else if (ActionTag == TAG_SuspenseCore_UIAction_Drop)
+	{
+		EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_DropItem, EventData);
+	}
+	else if (ActionTag == TAG_SuspenseCore_UIAction_Use)
+	{
+		EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_UseItem, EventData);
+	}
+
+	return true;
+}
+
+//==================================================================
+// ISuspenseCoreUIDataProvider Interface - EventBus
+//==================================================================
+
+USuspenseCoreEventBus* USuspenseCoreEquipmentUIProvider::GetEventBus() const
+{
+	if (CachedEventBus.IsValid())
+	{
+		return CachedEventBus.Get();
+	}
+
+	// Get from EventManager
+	if (OwningActor.IsValid())
+	{
+		if (UWorld* World = OwningActor->GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				if (USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>())
+				{
+					CachedEventBus = EventManager->GetEventBus();
+					return CachedEventBus.Get();
+				}
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 //==================================================================
@@ -247,31 +563,9 @@ FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::GetSlotDataByType(EEqu
 	int32 SlotIndex = GetSlotIndexForType(SlotType);
 	if (SlotIndex != INDEX_NONE)
 	{
-		return GetSlotData(SlotIndex);
+		return GetSlotUIData(SlotIndex);
 	}
 	return FSuspenseCoreSlotUIData();
-}
-
-FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::GetSlotDataByTag(const FGameplayTag& SlotTag) const
-{
-	for (int32 Index = 0; Index < SlotConfigs.Num(); ++Index)
-	{
-		if (SlotConfigs[Index].SlotTag == SlotTag)
-		{
-			return GetSlotData(Index);
-		}
-	}
-	return FSuspenseCoreSlotUIData();
-}
-
-FSuspenseCoreItemUIData USuspenseCoreEquipmentUIProvider::GetEquippedItemByType(EEquipmentSlotType SlotType) const
-{
-	FSuspenseCoreSlotUIData SlotData = GetSlotDataByType(SlotType);
-	if (SlotData.IsOccupied() && SlotData.ItemInstanceID.IsValid())
-	{
-		return GetItemData(SlotData.ItemInstanceID);
-	}
-	return FSuspenseCoreItemUIData();
 }
 
 void USuspenseCoreEquipmentUIProvider::RefreshAllSlots()
@@ -283,58 +577,9 @@ void USuspenseCoreEquipmentUIProvider::RefreshAllSlots()
 
 	// Broadcast full refresh
 	UIDataChangedDelegate.Broadcast(
-		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.UI.FullRefresh"), false),
+		TAG_SuspenseCore_Event_UIProvider_DataChanged,
 		FGuid()
 	);
-}
-
-//==================================================================
-// Data Store Binding
-//==================================================================
-
-void USuspenseCoreEquipmentUIProvider::BindToDataStore()
-{
-	if (!BoundDataStore.IsValid())
-	{
-		return;
-	}
-
-	// Subscribe to equipment events via EventBus
-	if (USuspenseCoreEventBus* EventBus = GetEventBus())
-	{
-		// Subscribe to equipment change events
-		// TODO: Add specific equipment event subscriptions when EquipmentDataStore broadcasts them
-		UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Bound to EventBus for equipment events"));
-	}
-}
-
-void USuspenseCoreEquipmentUIProvider::UnbindFromDataStore()
-{
-	// Unsubscribe from EventBus events
-	// TODO: Remove subscriptions when proper event system is in place
-}
-
-void USuspenseCoreEquipmentUIProvider::OnEquipmentSlotChanged(EEquipmentSlotType SlotType, const FGuid& ItemInstanceID)
-{
-	// Find slot index
-	int32 SlotIndex = GetSlotIndexForType(SlotType);
-	if (SlotIndex == INDEX_NONE)
-	{
-		return;
-	}
-
-	// Get slot tag for event
-	FGameplayTag SlotTag;
-	if (SlotConfigs.IsValidIndex(SlotIndex))
-	{
-		SlotTag = SlotConfigs[SlotIndex].SlotTag;
-	}
-
-	// Broadcast slot changed event
-	UIDataChangedDelegate.Broadcast(SlotTag, ItemInstanceID);
-
-	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Slot %s changed (ItemID: %s)"),
-		*SlotTag.ToString(), *ItemInstanceID.ToString());
 }
 
 //==================================================================
@@ -404,32 +649,6 @@ EEquipmentSlotType USuspenseCoreEquipmentUIProvider::GetSlotTypeForIndex(int32 S
 // Private Helpers
 //==================================================================
 
-USuspenseCoreEventBus* USuspenseCoreEquipmentUIProvider::GetEventBus() const
-{
-	if (CachedEventBus.IsValid())
-	{
-		return CachedEventBus.Get();
-	}
-
-	// Get from EventManager
-	if (GEngine && GEngine->GameViewport)
-	{
-		if (UWorld* World = GEngine->GameViewport->GetWorld())
-		{
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				if (USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>())
-				{
-					const_cast<USuspenseCoreEquipmentUIProvider*>(this)->CachedEventBus = EventManager->GetEventBus();
-					return CachedEventBus.Get();
-				}
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 USuspenseCoreLoadoutManager* USuspenseCoreEquipmentUIProvider::GetLoadoutManager() const
 {
 	if (CachedLoadoutManager.IsValid())
@@ -438,16 +657,16 @@ USuspenseCoreLoadoutManager* USuspenseCoreEquipmentUIProvider::GetLoadoutManager
 	}
 
 	// Get from GameInstance subsystem
-	if (GEngine && GEngine->GameViewport)
+	if (OwningActor.IsValid())
 	{
-		if (UWorld* World = GEngine->GameViewport->GetWorld())
+		if (UWorld* World = OwningActor->GetWorld())
 		{
 			if (UGameInstance* GI = World->GetGameInstance())
 			{
 				USuspenseCoreLoadoutManager* LoadoutManager = GI->GetSubsystem<USuspenseCoreLoadoutManager>();
 				if (LoadoutManager)
 				{
-					const_cast<USuspenseCoreEquipmentUIProvider*>(this)->CachedLoadoutManager = LoadoutManager;
+					CachedLoadoutManager = LoadoutManager;
 					return LoadoutManager;
 				}
 			}

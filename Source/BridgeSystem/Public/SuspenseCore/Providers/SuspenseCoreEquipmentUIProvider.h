@@ -13,15 +13,13 @@
 #include "SuspenseCoreEquipmentUIProvider.generated.h"
 
 // Forward declarations
-class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreEventBus;
 class USuspenseCoreLoadoutManager;
 
 /**
  * USuspenseCoreEquipmentUIProvider
  *
- * Adapter that wraps USuspenseCoreEquipmentDataStore to provide
- * ISuspenseCoreUIDataProvider interface for UI widgets.
+ * Adapter that wraps equipment data to provide ISuspenseCoreUIDataProvider interface for UI widgets.
  *
  * PURPOSE:
  * - Bridges EquipmentSystem data layer with UISystem widgets
@@ -36,7 +34,6 @@ class USuspenseCoreLoadoutManager;
  * 4. Widget refreshes automatically
  *
  * @see ISuspenseCoreUIDataProvider
- * @see USuspenseCoreEquipmentDataStore
  * @see USuspenseCoreEquipmentWidget
  */
 UCLASS(BlueprintType, Blueprintable)
@@ -53,12 +50,12 @@ public:
 
 	/**
 	 * Initialize provider with equipment data store
-	 * @param InDataStore Equipment data store component
+	 * @param InOwningActor Actor that owns the equipment
 	 * @param InLoadoutID Loadout ID for slot configuration
 	 * @return True if initialized successfully
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Provider")
-	bool Initialize(UActorComponent* InDataStore, FName InLoadoutID = NAME_None);
+	bool Initialize(AActor* InOwningActor, FName InLoadoutID = NAME_None);
 
 	/**
 	 * Check if provider is initialized
@@ -73,22 +70,92 @@ public:
 	void Shutdown();
 
 	//==================================================================
-	// ISuspenseCoreUIDataProvider Interface
+	// ISuspenseCoreUIDataProvider Interface - Identity
 	//==================================================================
 
 	virtual FGuid GetProviderID() const override { return ProviderID; }
 	virtual ESuspenseCoreContainerType GetContainerType() const override { return ESuspenseCoreContainerType::Equipment; }
 	virtual FGameplayTag GetContainerTypeTag() const override;
+	virtual AActor* GetOwningActor() const override { return OwningActor.Get(); }
 
-	virtual FSuspenseCoreContainerUIData GetContainerData() const override;
-	virtual FSuspenseCoreSlotUIData GetSlotData(int32 SlotIndex) const override;
-	virtual FSuspenseCoreItemUIData GetItemData(const FGuid& InstanceID) const override;
-	virtual TArray<FSuspenseCoreSlotUIData> GetAllSlotData() const override;
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Container Data
+	//==================================================================
 
-	virtual bool CanPerformAction(const FGameplayTag& ActionTag, int32 SlotIndex) const override;
-	virtual bool RequestAction(const FGameplayTag& ActionTag, int32 SlotIndex, const FSuspenseCoreDragData* DragData = nullptr) override;
+	virtual FSuspenseCoreContainerUIData GetContainerUIData() const override;
+	virtual FIntPoint GetGridSize() const override;
+	virtual int32 GetSlotCount() const override { return SlotConfigs.Num(); }
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Slot Data
+	//==================================================================
+
+	virtual TArray<FSuspenseCoreSlotUIData> GetAllSlotUIData() const override;
+	virtual FSuspenseCoreSlotUIData GetSlotUIData(int32 SlotIndex) const override;
+	virtual bool IsSlotValid(int32 SlotIndex) const override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Item Data
+	//==================================================================
+
+	virtual TArray<FSuspenseCoreItemUIData> GetAllItemUIData() const override;
+	virtual bool GetItemUIDataAtSlot(int32 SlotIndex, FSuspenseCoreItemUIData& OutItem) const override;
+	virtual bool FindItemUIData(const FGuid& InstanceID, FSuspenseCoreItemUIData& OutItem) const override;
+	virtual int32 GetItemCount() const override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Weight System
+	//==================================================================
+
+	virtual bool HasWeightLimit() const override { return false; }
+	virtual float GetCurrentWeight() const override { return 0.0f; }
+	virtual float GetMaxWeight() const override { return 0.0f; }
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Validation
+	//==================================================================
+
+	virtual FSuspenseCoreDropValidation ValidateDrop(
+		const FSuspenseCoreDragData& DragData,
+		int32 TargetSlot,
+		bool bRotated = false) const override;
+
+	virtual bool CanAcceptItemType(const FGameplayTag& ItemType) const override;
+	virtual int32 FindBestSlotForItem(FIntPoint ItemSize, bool bAllowRotation = true) const override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Grid Position Calculations
+	//==================================================================
+
+	virtual int32 GetSlotAtLocalPosition(const FVector2D& LocalPos, float CellSize, float CellGap) const override;
+	virtual TArray<int32> GetOccupiedSlotsForItem(const FGuid& ItemInstanceID) const override;
+	virtual int32 GetAnchorSlotForPosition(int32 AnySlotIndex) const override;
+	virtual bool CanPlaceItemAtSlot(const FGuid& ItemID, int32 SlotIndex, bool bRotated) const override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Operations
+	//==================================================================
+
+	virtual bool RequestMoveItem(int32 FromSlot, int32 ToSlot, bool bRotate = false) override;
+	virtual bool RequestRotateItem(int32 SlotIndex) override;
+	virtual bool RequestUseItem(int32 SlotIndex) override;
+	virtual bool RequestDropItem(int32 SlotIndex, int32 Quantity = 0) override;
+	virtual bool RequestSplitStack(int32 SlotIndex, int32 SplitQuantity, int32 TargetSlot = INDEX_NONE) override;
+	virtual bool RequestTransferItem(int32 SlotIndex, const FGuid& TargetProviderID, int32 TargetSlot = INDEX_NONE, int32 Quantity = 0) override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Context Menu
+	//==================================================================
+
+	virtual TArray<FGameplayTag> GetItemContextActions(int32 SlotIndex) const override;
+	virtual bool ExecuteContextAction(int32 SlotIndex, const FGameplayTag& ActionTag) override;
+
+	//==================================================================
+	// ISuspenseCoreUIDataProvider Interface - Delegates & EventBus
+	//==================================================================
 
 	virtual FOnSuspenseCoreUIDataChanged& OnUIDataChanged() override { return UIDataChangedDelegate; }
+	virtual USuspenseCoreEventBus* GetEventBus() const override;
 
 	//==================================================================
 	// Equipment-Specific API
@@ -103,32 +170,10 @@ public:
 	FSuspenseCoreSlotUIData GetSlotDataByType(EEquipmentSlotType SlotType) const;
 
 	/**
-	 * Get slot data by slot tag
-	 * @param SlotTag GameplayTag (Equipment.Slot.*)
-	 * @return Slot UI data
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Provider")
-	FSuspenseCoreSlotUIData GetSlotDataByTag(const FGameplayTag& SlotTag) const;
-
-	/**
-	 * Get equipped item data by slot type
-	 * @param SlotType Equipment slot type
-	 * @return Item UI data (invalid if slot empty)
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Provider")
-	FSuspenseCoreItemUIData GetEquippedItemByType(EEquipmentSlotType SlotType) const;
-
-	/**
 	 * Get all equipment slot configurations
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Provider")
 	TArray<FEquipmentSlotConfig> GetSlotConfigs() const { return SlotConfigs; }
-
-	/**
-	 * Get number of equipment slots
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Provider")
-	int32 GetSlotCount() const { return SlotConfigs.Num(); }
 
 	/**
 	 * Force refresh all slot data
@@ -137,20 +182,6 @@ public:
 	void RefreshAllSlots();
 
 protected:
-	//==================================================================
-	// Data Store Binding
-	//==================================================================
-
-	/** Subscribe to equipment data store events */
-	virtual void BindToDataStore();
-
-	/** Unsubscribe from equipment data store events */
-	virtual void UnbindFromDataStore();
-
-	/** Handle equipment slot changed event */
-	UFUNCTION()
-	void OnEquipmentSlotChanged(EEquipmentSlotType SlotType, const FGuid& ItemInstanceID);
-
 	//==================================================================
 	// Data Conversion
 	//==================================================================
@@ -175,9 +206,9 @@ protected:
 	UPROPERTY()
 	FGuid ProviderID;
 
-	/** Bound equipment data store */
+	/** Owning actor */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UActorComponent> BoundDataStore;
+	TWeakObjectPtr<AActor> OwningActor;
 
 	/** Loadout ID for configuration */
 	UPROPERTY()
@@ -194,17 +225,12 @@ protected:
 	FOnSuspenseCoreUIDataChanged UIDataChangedDelegate;
 
 	/** Cached EventBus reference */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
+	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	/** Cached LoadoutManager reference */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
+	mutable TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
 
 private:
-	/** Get EventBus */
-	USuspenseCoreEventBus* GetEventBus() const;
-
 	/** Get LoadoutManager */
 	USuspenseCoreLoadoutManager* GetLoadoutManager() const;
 

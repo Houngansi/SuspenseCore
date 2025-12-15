@@ -86,22 +86,18 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
     {
         FProgressBarStyle UpdatedStyle = HealthBar->GetWidgetStyle();
 
-        // Configure background
+        // Configure background - NO color changes! Colors from material in Editor
         if (bUseCustomBackground && HealthBarBackgroundTexture)
         {
             UpdatedStyle.BackgroundImage.SetResourceObject(HealthBarBackgroundTexture);
             UpdatedStyle.BackgroundImage.DrawAs = ESlateBrushDrawType::Box;
             UpdatedStyle.BackgroundImage.Tiling = ESlateBrushTileType::NoTile;
-            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(BackgroundTintColor);
+            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor::White); // No tint - use material colors
             UpdatedStyle.BackgroundImage.Margin = FMargin(0.0f);
         }
-        else
-        {
-            // Dark default background
-            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.05f, BackgroundOpacity));
-        }
+        // If no custom background, don't override - let Editor material handle it
 
-        // Configure fill material
+        // Configure fill material - NO color changes! Colors from material in Editor
         if (HealthBarMaterial)
         {
             HealthBarDynamicMaterial = UMaterialInstanceDynamic::Create(HealthBarMaterial, this);
@@ -110,7 +106,7 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
                 UpdatedStyle.FillImage.SetResourceObject(HealthBarDynamicMaterial);
                 UpdatedStyle.FillImage.DrawAs = ESlateBrushDrawType::Box;
                 UpdatedStyle.FillImage.Tiling = ESlateBrushTileType::NoTile;
-                UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White);
+                UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White); // No tint - use material colors
 
                 // Set initial parameters
                 UpdateHealthMaterialParameters();
@@ -125,21 +121,18 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
     {
         FProgressBarStyle UpdatedStyle = StaminaBar->GetWidgetStyle();
 
-        // Configure background
+        // Configure background - NO color changes! Colors from material in Editor
         if (bUseCustomBackground && StaminaBarBackgroundTexture)
         {
             UpdatedStyle.BackgroundImage.SetResourceObject(StaminaBarBackgroundTexture);
             UpdatedStyle.BackgroundImage.DrawAs = ESlateBrushDrawType::Box;
             UpdatedStyle.BackgroundImage.Tiling = ESlateBrushTileType::NoTile;
-            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(BackgroundTintColor);
+            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor::White); // No tint - use material colors
             UpdatedStyle.BackgroundImage.Margin = FMargin(0.0f);
         }
-        else
-        {
-            UpdatedStyle.BackgroundImage.TintColor = FSlateColor(FLinearColor(0.05f, 0.05f, 0.05f, BackgroundOpacity));
-        }
+        // If no custom background, don't override - let Editor material handle it
 
-        // Configure fill material
+        // Configure fill material - NO color changes! Colors from material in Editor
         if (StaminaBarMaterial)
         {
             StaminaBarDynamicMaterial = UMaterialInstanceDynamic::Create(StaminaBarMaterial, this);
@@ -148,7 +141,7 @@ void USuspenseHealthStaminaWidget::InitializeMaterials()
                 UpdatedStyle.FillImage.SetResourceObject(StaminaBarDynamicMaterial);
                 UpdatedStyle.FillImage.DrawAs = ESlateBrushDrawType::Box;
                 UpdatedStyle.FillImage.Tiling = ESlateBrushTileType::NoTile;
-                UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White);
+                UpdatedStyle.FillImage.TintColor = FSlateColor(FLinearColor::White); // No tint - use material colors
 
                 // Set initial parameters
                 UpdateStaminaMaterialParameters();

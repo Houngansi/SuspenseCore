@@ -20,7 +20,11 @@ class USuspenseCoreEventBus;
 /**
  * Health and Stamina display widget with material support
  * Handles progress bar animations and basic material parameter updates
- * All visual customization should be done through Material Instances
+ *
+ * IMPORTANT - Material-Based Colors:
+ * This widget does NOT set any colors programmatically. All visual styling
+ * (colors, gradients, effects) must be configured via materials assigned
+ * in the Editor. The code only updates FillAmount and Time parameters.
  */
 UCLASS()
 class UISYSTEM_API USuspenseHealthStaminaWidget : public USuspenseBaseWidget, public ISuspenseCoreHealthStaminaWidgetInterface
@@ -124,21 +128,15 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Materials|Parameters", meta = (DisplayName = "Time Parameter"))
     FName TimeParameterName = TEXT("Time");
 
-    // Background settings
+    // Background settings - colors come from materials/textures, NO code color changes!
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Background", meta = (DisplayName = "Use Custom Background"))
     bool bUseCustomBackground = true;
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Background", meta = (DisplayName = "Health Bar Background Texture", EditCondition = "bUseCustomBackground"))
     UTexture2D* HealthBarBackgroundTexture;
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Background", meta = (DisplayName = "Stamina Bar Background Texture", EditCondition = "bUseCustomBackground"))
     UTexture2D* StaminaBarBackgroundTexture;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Background", meta = (DisplayName = "Background Tint Color"))
-    FLinearColor BackgroundTintColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI|Background", meta = (DisplayName = "Background Opacity", ClampMin = 0.0, ClampMax = 1.0))
-    float BackgroundOpacity = 0.8f;
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

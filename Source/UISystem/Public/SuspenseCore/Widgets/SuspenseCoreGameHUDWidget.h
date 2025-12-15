@@ -20,13 +20,20 @@ class USuspenseCoreEventBus;
  *
  * In-game HUD widget displaying player vital stats:
  * - Health (HP) with progress bar and numeric value
- * - Shield with progress bar and numeric value
- * - Stamina with progress bar and numeric value
+ * - Shield with progress bar and numeric value (optional)
+ * - Stamina with progress bar and numeric value (optional)
  *
  * Features:
  * - Real-time updates via EventBus (NO direct GAS delegates!)
- * - Smooth progress bar animations
- * - Color coding based on values (critical health = red, etc.)
+ * - Smooth progress bar animations with configurable interpolation speed
+ * - Numeric value display showing current/max values
+ * - NO programmatic color changes - ALL colors come from materials assigned in Editor!
+ *
+ * IMPORTANT - Material-Based Colors:
+ * This widget does NOT set any colors programmatically. All visual styling
+ * (colors, gradients, effects) must be configured via materials assigned to
+ * the ProgressBar widgets in the UMG Editor. This allows designers full control
+ * over the visual appearance without code changes.
  *
  * EventBus Events (subscribed):
  * - SuspenseCore.Event.GAS.Attribute.Health
@@ -41,7 +48,8 @@ class USuspenseCoreEventBus;
  * Usage in Blueprint:
  * 1. Create Widget BP inheriting from this class
  * 2. Bind UI elements (ProgressBar, TextBlock)
- * 3. Add to PlayerController's HUD
+ * 3. Assign materials to ProgressBars for desired colors/effects
+ * 4. Add to PlayerController's HUD
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreGameHUDWidget : public UUserWidget
@@ -145,9 +153,10 @@ public:
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// UI BINDINGS - HEALTH (HealthProgressBar is REQUIRED!)
+	// NOTE: All colors come from materials assigned in Editor - no code color changes!
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Health progress bar - REQUIRED! Widget must have ProgressBar named "HealthProgressBar" */
+	/** Health progress bar - REQUIRED! Colors from material assigned in Editor */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> HealthProgressBar;
 
@@ -168,10 +177,11 @@ protected:
 	TObjectPtr<UImage> HealthIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - SHIELD
+	// UI BINDINGS - SHIELD (Optional)
+	// NOTE: All colors come from materials assigned in Editor - no code color changes!
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Shield progress bar */
+	/** Shield progress bar - colors from material assigned in Editor */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> ShieldProgressBar;
 
@@ -192,10 +202,11 @@ protected:
 	TObjectPtr<UImage> ShieldIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - STAMINA
+	// UI BINDINGS - STAMINA (Optional)
+	// NOTE: All colors come from materials assigned in Editor - no code color changes!
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Stamina progress bar */
+	/** Stamina progress bar - colors from material assigned in Editor */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> StaminaProgressBar;
 

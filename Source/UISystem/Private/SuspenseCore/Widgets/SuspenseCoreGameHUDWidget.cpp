@@ -18,6 +18,21 @@ void USuspenseCoreGameHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Reset FillColorAndOpacity to White so materials display correctly!
+	// UE5 ProgressBar default colors TINT the material - we want pure material colors
+	if (HealthProgressBar)
+	{
+		HealthProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+	}
+	if (ShieldProgressBar)
+	{
+		ShieldProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+	}
+	if (StaminaProgressBar)
+	{
+		StaminaProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+	}
+
 	// Setup EventBus subscriptions - the ONLY way to receive attribute updates!
 	SetupEventSubscriptions();
 

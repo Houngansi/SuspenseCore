@@ -459,7 +459,8 @@ void USuspenseCoreGameHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, fl
 		return;
 	}
 
-	// Smooth interpolation
+	// Smooth interpolation for fluid fill/drain animation
+	// NOTE: Only SetPercent is called - NO color changes! Colors from material in Editor
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
 	ProgressBar->SetPercent(DisplayedPercent);
 }

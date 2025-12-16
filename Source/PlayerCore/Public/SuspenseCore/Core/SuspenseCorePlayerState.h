@@ -158,6 +158,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
 	UActorComponent* GetWeaponStateManager() const { return WeaponStateManager; }
 
+	/** Get the equipment UI provider (ISuspenseCoreUIDataProvider for widget binding) */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Equipment")
+	UActorComponent* GetEquipmentUIProvider() const { return EquipmentUIProvider; }
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -295,6 +299,10 @@ protected:
 	/** Inventory bridge (connects equipment to existing inventory) */
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|Inventory")
 	UActorComponent* EquipmentInventoryBridge = nullptr;
+
+	/** UI Provider for Equipment Widget binding (ISuspenseCoreUIDataProvider) */
+	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|UI")
+	UActorComponent* EquipmentUIProvider = nullptr;
 
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()

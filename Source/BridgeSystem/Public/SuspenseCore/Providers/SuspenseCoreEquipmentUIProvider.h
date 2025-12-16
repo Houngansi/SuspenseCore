@@ -1,11 +1,11 @@
 // SuspenseCoreEquipmentUIProvider.h
-// SuspenseCore - UI Data Provider Adapter for Equipment System
+// SuspenseCore - UI Data Provider Component for Equipment System
 // Copyright Suspense Team. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
@@ -19,7 +19,8 @@ class USuspenseCoreLoadoutManager;
 /**
  * USuspenseCoreEquipmentUIProvider
  *
- * Adapter that wraps equipment data to provide ISuspenseCoreUIDataProvider interface for UI widgets.
+ * ActorComponent that provides ISuspenseCoreUIDataProvider interface for Equipment UI.
+ * Auto-discovered by UIManager::FindAllProvidersOnActor() when attached to PlayerState.
  *
  * PURPOSE:
  * - Bridges EquipmentSystem data layer with UISystem widgets
@@ -27,17 +28,18 @@ class USuspenseCoreLoadoutManager;
  * - Publishes UI update events when equipment changes
  * - Does NOT modify equipment state (read-only for UI)
  *
- * USAGE:
- * 1. Create instance and call Initialize() with EquipmentDataStore
- * 2. Bind USuspenseCoreEquipmentWidget to this provider
- * 3. Provider broadcasts OnUIDataChanged when equipment changes
- * 4. Widget refreshes automatically
+ * ARCHITECTURE:
+ * - Created in PlayerState constructor (alongside EquipmentDataStore)
+ * - Initialized in PlayerState::BeginPlay after equipment wiring
+ * - Auto-discovered by UIManager when ShowContainerScreen is called
+ * - Bound to EquipmentWidget via BindToProvider()
  *
  * @see ISuspenseCoreUIDataProvider
  * @see USuspenseCoreEquipmentWidget
+ * @see ASuspenseCorePlayerState
  */
-UCLASS(BlueprintType, Blueprintable)
-class BRIDGESYSTEM_API USuspenseCoreEquipmentUIProvider : public UObject, public ISuspenseCoreUIDataProvider
+UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
+class BRIDGESYSTEM_API USuspenseCoreEquipmentUIProvider : public UActorComponent, public ISuspenseCoreUIDataProvider
 {
 	GENERATED_BODY()
 
@@ -45,17 +47,24 @@ public:
 	USuspenseCoreEquipmentUIProvider();
 
 	//==================================================================
+	// UActorComponent Interface
+	//==================================================================
+
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	//==================================================================
 	// Initialization
 	//==================================================================
 
 	/**
-	 * Initialize provider with equipment data store
-	 * @param InOwningActor Actor that owns the equipment
-	 * @param InLoadoutID Loadout ID for slot configuration
+	 * Initialize provider with loadout configuration.
+	 * Called automatically in BeginPlay, but can be called manually for custom setup.
+	 * @param InLoadoutID Loadout ID for slot configuration (uses owner's DefaultLoadoutID if empty)
 	 * @return True if initialized successfully
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Provider")
-	bool Initialize(AActor* InOwningActor, FName InLoadoutID = NAME_None);
+	bool InitializeProvider(FName InLoadoutID = NAME_None);
 
 	/**
 	 * Check if provider is initialized
@@ -64,7 +73,7 @@ public:
 	bool IsInitialized() const { return bIsInitialized; }
 
 	/**
-	 * Shutdown provider and unbind from data store
+	 * Shutdown provider and clear cached data
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Provider")
 	void Shutdown();
@@ -76,7 +85,7 @@ public:
 	virtual FGuid GetProviderID() const override { return ProviderID; }
 	virtual ESuspenseCoreContainerType GetContainerType() const override { return ESuspenseCoreContainerType::Equipment; }
 	virtual FGameplayTag GetContainerTypeTag() const override;
-	virtual AActor* GetOwningActor() const override { return OwningActor.Get(); }
+	virtual AActor* GetOwningActor() const override { return GetOwner(); }
 
 	//==================================================================
 	// ISuspenseCoreUIDataProvider Interface - Container Data
@@ -206,12 +215,8 @@ protected:
 	UPROPERTY()
 	FGuid ProviderID;
 
-	/** Owning actor */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<AActor> OwningActor;
-
 	/** Loadout ID for configuration */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FName LoadoutID;
 
 	/** Cached slot configurations */

@@ -1,5 +1,5 @@
 // SuspenseCoreEquipmentUIProvider.cpp
-// SuspenseCore - UI Data Provider Adapter Implementation
+// SuspenseCore - UI Data Provider Component Implementation
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Providers/SuspenseCoreEquipmentUIProvider.h"
@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/PlayerState.h"
 
 //==================================================================
 // Constructor
@@ -20,13 +21,58 @@ USuspenseCoreEquipmentUIProvider::USuspenseCoreEquipmentUIProvider()
 	: ProviderID(FGuid::NewGuid())
 	, bIsInitialized(false)
 {
+	// This component should replicate
+	SetIsReplicatedByDefault(true);
+}
+
+//==================================================================
+// UActorComponent Interface
+//==================================================================
+
+void USuspenseCoreEquipmentUIProvider::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Auto-initialize if not already done
+	if (!bIsInitialized)
+	{
+		// Try to get LoadoutID from owning PlayerState
+		FName EffectiveLoadoutID = LoadoutID;
+		if (EffectiveLoadoutID.IsNone())
+		{
+			// Check if owner has a DefaultLoadoutID property (PlayerState)
+			if (AActor* Owner = GetOwner())
+			{
+				// Use reflection to find DefaultLoadoutID property
+				FProperty* LoadoutProp = Owner->GetClass()->FindPropertyByName(TEXT("DefaultLoadoutID"));
+				if (LoadoutProp && LoadoutProp->IsA<FNameProperty>())
+				{
+					FNameProperty* NameProp = CastField<FNameProperty>(LoadoutProp);
+					EffectiveLoadoutID = NameProp->GetPropertyValue_InContainer(Owner);
+				}
+			}
+		}
+
+		InitializeProvider(EffectiveLoadoutID);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: BeginPlay on %s, Initialized=%s, SlotCount=%d"),
+		GetOwner() ? *GetOwner()->GetName() : TEXT("None"),
+		bIsInitialized ? TEXT("true") : TEXT("false"),
+		SlotConfigs.Num());
+}
+
+void USuspenseCoreEquipmentUIProvider::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Shutdown();
+	Super::EndPlay(EndPlayReason);
 }
 
 //==================================================================
 // Initialization
 //==================================================================
 
-bool USuspenseCoreEquipmentUIProvider::Initialize(AActor* InOwningActor, FName InLoadoutID)
+bool USuspenseCoreEquipmentUIProvider::InitializeProvider(FName InLoadoutID)
 {
 	if (bIsInitialized)
 	{
@@ -34,7 +80,6 @@ bool USuspenseCoreEquipmentUIProvider::Initialize(AActor* InOwningActor, FName I
 		return true;
 	}
 
-	OwningActor = InOwningActor;
 	LoadoutID = InLoadoutID;
 
 	// Get slot configurations from LoadoutManager
@@ -71,7 +116,7 @@ bool USuspenseCoreEquipmentUIProvider::Initialize(AActor* InOwningActor, FName I
 	// If no configs from loadout, create default
 	if (SlotConfigs.Num() == 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: No slot configs from loadout, using defaults"));
+		UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: No slot configs from loadout, using defaults (17 Tarkov-style slots)"));
 
 		// Create default slot configs for all 17 slots
 		FLoadoutConfiguration DefaultConfig;
@@ -97,9 +142,10 @@ void USuspenseCoreEquipmentUIProvider::Shutdown()
 		return;
 	}
 
-	OwningActor.Reset();
 	SlotConfigs.Empty();
 	SlotTypeToIndex.Empty();
+	CachedEventBus.Reset();
+	CachedLoadoutManager.Reset();
 	bIsInitialized = false;
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Shutdown complete"));
@@ -529,17 +575,14 @@ USuspenseCoreEventBus* USuspenseCoreEquipmentUIProvider::GetEventBus() const
 	}
 
 	// Get from EventManager
-	if (OwningActor.IsValid())
+	if (UWorld* World = GetWorld())
 	{
-		if (UWorld* World = OwningActor->GetWorld())
+		if (UGameInstance* GI = World->GetGameInstance())
 		{
-			if (UGameInstance* GI = World->GetGameInstance())
+			if (USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>())
 			{
-				if (USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>())
-				{
-					CachedEventBus = EventManager->GetEventBus();
-					return CachedEventBus.Get();
-				}
+				CachedEventBus = EventManager->GetEventBus();
+				return CachedEventBus.Get();
 			}
 		}
 	}
@@ -661,18 +704,15 @@ USuspenseCoreLoadoutManager* USuspenseCoreEquipmentUIProvider::GetLoadoutManager
 	}
 
 	// Get from GameInstance subsystem
-	if (OwningActor.IsValid())
+	if (UWorld* World = GetWorld())
 	{
-		if (UWorld* World = OwningActor->GetWorld())
+		if (UGameInstance* GI = World->GetGameInstance())
 		{
-			if (UGameInstance* GI = World->GetGameInstance())
+			USuspenseCoreLoadoutManager* LoadoutManager = GI->GetSubsystem<USuspenseCoreLoadoutManager>();
+			if (LoadoutManager)
 			{
-				USuspenseCoreLoadoutManager* LoadoutManager = GI->GetSubsystem<USuspenseCoreLoadoutManager>();
-				if (LoadoutManager)
-				{
-					CachedLoadoutManager = LoadoutManager;
-					return LoadoutManager;
-				}
+				CachedLoadoutManager = LoadoutManager;
+				return LoadoutManager;
 			}
 		}
 	}

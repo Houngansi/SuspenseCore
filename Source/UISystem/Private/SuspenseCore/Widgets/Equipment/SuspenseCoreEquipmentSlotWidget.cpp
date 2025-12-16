@@ -23,6 +23,7 @@ USuspenseCoreEquipmentSlotWidget::USuspenseCoreEquipmentSlotWidget(const FObject
 	, SlotType(EEquipmentSlotType::None)
 	, EmptySlotIconTint(FLinearColor(0.3f, 0.3f, 0.3f, 0.5f))
 	, bHadItemBefore(false)
+	, bIsSelected(false)
 {
 	// Equipment slots are typically larger than inventory slots
 	SlotSize = FVector2D(80.0f, 80.0f);
@@ -514,7 +515,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotWidget::CanAcceptDrop_Implementa
 	const FSuspenseCoreDragData& DragData = SuspenseDragOp->GetDragData();
 
 	// Check if slot can accept this item type
-	if (!CanAcceptItemType(DragData.Item.ItemTypeTag))
+	if (!CanAcceptItemType(DragData.Item.ItemType))
 	{
 		Result.ErrorMessage = FText::Format(
 			NSLOCTEXT("SuspenseCore", "ItemTypeNotAllowed", "Cannot equip {0} in this slot"),

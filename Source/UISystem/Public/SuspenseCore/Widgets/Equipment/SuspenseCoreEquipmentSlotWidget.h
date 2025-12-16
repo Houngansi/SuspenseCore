@@ -270,4 +270,7 @@ private:
 
 	/** Track if we had item before (for equipped/unequipped events) */
 	bool bHadItemBefore;
+
+	/** Track selection state */
+	bool bIsSelected;
 };

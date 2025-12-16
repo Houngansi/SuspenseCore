@@ -9,7 +9,6 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
-#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
 #include "SuspenseCoreEquipmentWidget.generated.h"
 
 // Forward declarations

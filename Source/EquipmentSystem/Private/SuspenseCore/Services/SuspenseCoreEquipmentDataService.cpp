@@ -8,7 +8,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Components/Transaction/SuspenseCoreEquipmentTransactionProcessor.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
-#include "SuspenseCore/Types/Loadout/SuspenseLoadoutSettings.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Async/Async.h"

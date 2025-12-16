@@ -8,6 +8,7 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCoreEquipmentWidget.generated.h"
 

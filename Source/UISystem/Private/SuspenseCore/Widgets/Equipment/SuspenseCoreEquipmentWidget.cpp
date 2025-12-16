@@ -4,9 +4,13 @@
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentWidget.h"
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 
 //==================================================================
 // Constructor
@@ -28,11 +32,28 @@ void USuspenseCoreEquipmentWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// Setup EventBus subscriptions (REQUIRED per documentation)
+	SetupEventSubscriptions();
+
 	// If slot configs were set before construction, create widgets now
 	if (SlotConfigs.Num() > 0 && SlotWidgetsByType.Num() == 0)
 	{
 		CreateSlotWidgets();
 	}
+}
+
+void USuspenseCoreEquipmentWidget::NativeDestruct()
+{
+	// Teardown EventBus subscriptions (REQUIRED per documentation)
+	TeardownEventSubscriptions();
+
+	// Clear slot widgets
+	ClearSlotWidgets();
+
+	// Clear cached references
+	CachedEventBus.Reset();
+
+	Super::NativeDestruct();
 }
 
 //==================================================================
@@ -341,4 +362,162 @@ int32 USuspenseCoreEquipmentWidget::GetSlotIndexForType(EEquipmentSlotType SlotT
 		}
 	}
 	return INDEX_NONE;
+}
+
+//==================================================================
+// EventBus Integration (REQUIRED pattern per documentation)
+//==================================================================
+
+void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: EventBus not available for subscriptions"));
+		return;
+	}
+
+	// Subscribe to equipment item equipped events (using Native Tags)
+	FSuspenseCoreSubscriptionHandle EquipHandle = EventBus->SubscribeNative(
+		TAG_SuspenseCore_Event_UIRequest_EquipItem,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(EquipHandle);
+
+	// Subscribe to equipment item unequipped events
+	FSuspenseCoreSubscriptionHandle UnequipHandle = EventBus->SubscribeNative(
+		TAG_SuspenseCore_Event_UIRequest_UnequipItem,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(UnequipHandle);
+
+	// Subscribe to provider data changed events
+	FSuspenseCoreSubscriptionHandle DataChangedHandle = EventBus->SubscribeNative(
+		TAG_SuspenseCore_Event_UIProvider_DataChanged,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(DataChangedHandle);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions"), SubscriptionHandles.Num());
+}
+
+void USuspenseCoreEquipmentWidget::TeardownEventSubscriptions()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		for (const FSuspenseCoreSubscriptionHandle& Handle : SubscriptionHandles)
+		{
+			EventBus->Unsubscribe(Handle);
+		}
+	}
+
+	SubscriptionHandles.Empty();
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Teardown EventBus subscriptions"));
+}
+
+USuspenseCoreEventBus* USuspenseCoreEquipmentWidget::GetEventBus() const
+{
+	if (CachedEventBus.IsValid())
+	{
+		return CachedEventBus.Get();
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI)
+	{
+		return nullptr;
+	}
+
+	if (USuspenseCoreEventManager* EventManager = GI->GetSubsystem<USuspenseCoreEventManager>())
+	{
+		CachedEventBus = EventManager->GetEventBus();
+		return CachedEventBus.Get();
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(const FSuspenseCoreUIEventPayload& Payload)
+{
+	// Check if this event is for our container
+	if (Payload.TargetContainerType != ESuspenseCoreContainerType::Equipment)
+	{
+		return;
+	}
+
+	// Find the slot by index and refresh
+	if (Payload.TargetSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(Payload.TargetSlot))
+	{
+		RefreshFromProvider();
+
+		// Notify Blueprint
+		if (SlotWidgetsArray.IsValidIndex(Payload.TargetSlot))
+		{
+			USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Payload.TargetSlot];
+			if (SlotWidget)
+			{
+				FSuspenseCoreItemUIData ItemData;
+				ItemData.InstanceID = Payload.ItemInstanceID;
+				ItemData.ItemID = Payload.ItemID;
+				K2_OnEquipRequested(SlotWidget->GetSlotType(), ItemData);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item equipped to slot %d"), Payload.TargetSlot);
+}
+
+void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(const FSuspenseCoreUIEventPayload& Payload)
+{
+	// Check if this event is for our container
+	if (Payload.SourceContainerType != ESuspenseCoreContainerType::Equipment)
+	{
+		return;
+	}
+
+	// Find the slot by index and refresh
+	if (Payload.SourceSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(Payload.SourceSlot))
+	{
+		RefreshFromProvider();
+
+		// Notify Blueprint
+		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Payload.SourceSlot];
+		if (SlotWidget)
+		{
+			K2_OnUnequipRequested(SlotWidget->GetSlotType());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item unequipped from slot %d"), Payload.SourceSlot);
+}
+
+void USuspenseCoreEquipmentWidget::OnProviderDataChanged(const FSuspenseCoreUIEventPayload& Payload)
+{
+	// Check if this event is for our container type
+	if (Payload.TargetContainerType != ESuspenseCoreContainerType::Equipment &&
+		Payload.SourceContainerType != ESuspenseCoreContainerType::Equipment)
+	{
+		return;
+	}
+
+	// Refresh all slots from provider
+	RefreshFromProvider();
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Provider data changed, refreshed from provider"));
 }

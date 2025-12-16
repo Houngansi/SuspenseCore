@@ -7,6 +7,9 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseSlotWidget.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreSlotUI.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreDropTarget.h"
 #include "SuspenseCoreEquipmentSlotWidget.generated.h"
 
 // Forward declarations
@@ -38,6 +41,9 @@ class UImage;
  */
 UCLASS(BlueprintType, Blueprintable)
 class UISYSTEM_API USuspenseCoreEquipmentSlotWidget : public USuspenseCoreBaseSlotWidget
+	, public ISuspenseCoreSlotUI
+	, public ISuspenseCoreDraggable
+	, public ISuspenseCoreDropTarget
 {
 	GENERATED_BODY()
 
@@ -50,6 +56,39 @@ public:
 
 	virtual void NativeConstruct() override;
 	virtual void NativePreConstruct() override;
+
+	//==================================================================
+	// ISuspenseCoreSlotUI Interface (REQUIRED per documentation)
+	//==================================================================
+
+	virtual void InitializeSlot_Implementation(const FSlotUIData& SlotData, const FItemUIData& ItemData) override;
+	virtual void UpdateSlot_Implementation(const FSlotUIData& SlotData, const FItemUIData& ItemData) override;
+	virtual void SetSelected_Implementation(bool bIsSelected) override;
+	virtual void SetHighlighted_Implementation(bool bIsHighlighted, const FLinearColor& HighlightColor) override;
+	virtual int32 GetSlotIndex_Implementation() const override;
+	virtual FGuid GetItemInstanceID_Implementation() const override;
+	virtual bool IsOccupied_Implementation() const override;
+	virtual void SetLocked_Implementation(bool bIsLocked) override;
+
+	//==================================================================
+	// ISuspenseCoreDraggable Interface (REQUIRED per documentation)
+	//==================================================================
+
+	virtual bool CanBeDragged_Implementation() const override;
+	virtual FDragDropUIData GetDragData_Implementation() const override;
+	virtual void OnDragStarted_Implementation() override;
+	virtual void OnDragEnded_Implementation(bool bWasDropped) override;
+	virtual void UpdateDragVisual_Implementation(bool bIsValidTarget) override;
+
+	//==================================================================
+	// ISuspenseCoreDropTarget Interface (REQUIRED per documentation)
+	//==================================================================
+
+	virtual FSlotValidationResult CanAcceptDrop_Implementation(const UDragDropOperation* DragOperation) const override;
+	virtual bool HandleDrop_Implementation(UDragDropOperation* DragOperation) override;
+	virtual void OnDragEnter_Implementation(UDragDropOperation* DragOperation) override;
+	virtual void OnDragLeave_Implementation() override;
+	virtual int32 GetDropTargetSlot_Implementation() const override;
 
 	//==================================================================
 	// Equipment Slot Configuration

@@ -376,11 +376,12 @@ void USuspenseCoreInventorySlotWidget::InitializeSlot_Implementation(const FSlot
 	CachedSlotData.State = SlotData.bIsOccupied ? ESuspenseCoreUISlotState::Occupied : ESuspenseCoreUISlotState::Empty;
 	CachedSlotData.bIsAnchor = SlotData.bIsAnchor;
 
-	if (ItemData.bIsValid)
+	// Check if item data is valid (by checking if ItemID is valid)
+	if (!ItemData.ItemID.IsNone())
 	{
-		CachedItemData.InstanceID = ItemData.InstanceID;
+		CachedItemData.InstanceID = ItemData.ItemInstanceID;
 		CachedItemData.ItemID = ItemData.ItemID;
-		CachedItemData.IconPath = ItemData.IconPath;
+		CachedItemData.IconPath = FSoftObjectPath(ItemData.IconAssetPath);
 		CachedItemData.DisplayName = ItemData.DisplayName;
 		CachedItemData.Quantity = ItemData.Quantity;
 		CachedItemData.bIsRotated = ItemData.bIsRotated;
@@ -391,9 +392,9 @@ void USuspenseCoreInventorySlotWidget::InitializeSlot_Implementation(const FSlot
 	}
 
 	// Set multi-cell size if provided
-	if (ItemData.ItemSize.X > 0 && ItemData.ItemSize.Y > 0)
+	if (ItemData.GridSize.X > 0 && ItemData.GridSize.Y > 0)
 	{
-		SetMultiCellItemSize(ItemData.ItemSize);
+		SetMultiCellItemSize(ItemData.GridSize);
 	}
 
 	UpdateVisuals();
@@ -471,12 +472,17 @@ FDragDropUIData USuspenseCoreInventorySlotWidget::GetDragData_Implementation() c
 	if (CachedSlotData.bIsAnchor && CachedSlotData.IsOccupied())
 	{
 		DragData.SourceSlotIndex = SlotIndex;
-		DragData.ItemInstanceID = CachedItemData.InstanceID;
-		DragData.ItemID = CachedItemData.ItemID;
-		DragData.IconPath = CachedItemData.IconPath;
-		DragData.DisplayName = CachedItemData.DisplayName;
-		DragData.ItemSize = MultiCellItemSize;
-		DragData.SourceContainerType = ESuspenseCoreContainerType::Inventory;
+		// Convert cached internal data to interface FItemUIData
+		DragData.ItemData.ItemInstanceID = CachedItemData.InstanceID;
+		DragData.ItemData.ItemID = CachedItemData.ItemID;
+		DragData.ItemData.IconAssetPath = CachedItemData.IconPath.ToString();
+		DragData.ItemData.DisplayName = CachedItemData.DisplayName;
+		DragData.ItemData.GridSize = MultiCellItemSize;
+		DragData.ItemData.Quantity = CachedItemData.Quantity;
+		DragData.ItemData.bIsRotated = CachedItemData.bIsRotated;
+		// SourceContainerType is FGameplayTag, use Inventory tag
+		DragData.SourceContainerType = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Inventory"));
+		DragData.DraggedQuantity = CachedItemData.Quantity;
 		DragData.bIsValid = true;
 	}
 
@@ -520,21 +526,21 @@ FSlotValidationResult USuspenseCoreInventorySlotWidget::CanAcceptDrop_Implementa
 	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
 	if (!SuspenseDragOp)
 	{
-		Result.Reason = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
+		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
 		return Result;
 	}
 
 	// Check if slot is locked
 	if (CachedSlotData.State == ESuspenseCoreUISlotState::Locked)
 	{
-		Result.Reason = NSLOCTEXT("SuspenseCore", "SlotLocked", "Slot is locked");
+		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "SlotLocked", "Slot is locked");
 		return Result;
 	}
 
 	// Further validation would be done by the container/provider
 	// This is basic slot-level validation
 	Result.bIsValid = true;
-	Result.Reason = FText::GetEmpty();
+	Result.ErrorMessage = FText::GetEmpty();
 	return Result;
 }
 
@@ -544,7 +550,7 @@ bool USuspenseCoreInventorySlotWidget::HandleDrop_Implementation(UDragDropOperat
 	if (!Validation.bIsValid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("InventorySlot[%d]: Drop rejected - %s"),
-			SlotIndex, *Validation.Reason.ToString());
+			SlotIndex, *Validation.ErrorMessage.ToString());
 		return false;
 	}
 

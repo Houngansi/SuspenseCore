@@ -12,8 +12,8 @@
 #include "Engine/GameInstance.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
-#include "Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "Types/Loadout/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 
 // === Includes for EventBus and character resolution ===
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"

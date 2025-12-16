@@ -21,6 +21,7 @@ enum class ESuspenseCoreUISlotState : uint8
 	Highlighted			UMETA(DisplayName = "Highlighted"),
 	Selected			UMETA(DisplayName = "Selected"),
 	Invalid				UMETA(DisplayName = "Invalid"),
+	Dragging			UMETA(DisplayName = "Dragging"),
 	DropTarget			UMETA(DisplayName = "Drop Target"),
 	DropTargetValid		UMETA(DisplayName = "Drop Target Valid"),
 	DropTargetInvalid	UMETA(DisplayName = "Drop Target Invalid")

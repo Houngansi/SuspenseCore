@@ -765,7 +765,7 @@ void USuspenseCoreInventoryWidget::UpdateSlotWidget_Implementation(
 	}
 
 	// Update slot content with data
-	SlotWidget->UpdateSlot(SlotData, ItemData);
+	SlotWidget->UpdateSlotData(SlotData, ItemData);
 }
 
 void USuspenseCoreInventoryWidget::ClearSlotWidgets_Implementation()

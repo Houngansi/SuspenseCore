@@ -81,7 +81,7 @@ void USuspenseCoreInventorySlotWidget::SetSlotSize(const FVector2D& InSize)
 // Slot Data
 //==================================================================
 
-void USuspenseCoreInventorySlotWidget::UpdateSlot(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData)
+void USuspenseCoreInventorySlotWidget::UpdateSlotData(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData)
 {
 	CachedSlotData = SlotData;
 	CachedItemData = ItemData;

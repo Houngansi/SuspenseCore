@@ -104,10 +104,9 @@ public:
 	void SetSlotIndex(int32 InIndex) { SlotIndex = InIndex; }
 
 	/**
-	 * Get slot index
+	 * Get cached slot index (use interface GetSlotIndex for general access)
 	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Slot")
-	int32 GetSlotIndex() const { return SlotIndex; }
+	int32 GetCachedSlotIndex() const { return SlotIndex; }
 
 	/**
 	 * Set grid position
@@ -168,12 +167,12 @@ public:
 	//==================================================================
 
 	/**
-	 * Update slot with data
+	 * Update slot with extended data (internal use, prefer interface UpdateSlot)
 	 * @param SlotData Slot state data
 	 * @param ItemData Item data (if occupied)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Slot")
-	void UpdateSlot(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData);
+	void UpdateSlotData(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData);
 
 	/**
 	 * Clear slot content

@@ -358,6 +358,28 @@ void USuspenseCoreEquipmentSlotWidget::UpdateSlot_Implementation(const FSlotUIDa
 	InitializeSlot_Implementation(SlotData, ItemData);
 }
 
+void USuspenseCoreEquipmentSlotWidget::UpdateSlotData(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData)
+{
+	// Update cached data with extended types
+	CachedSlotData = SlotData;
+	CachedItemData = ItemData;
+
+	// Update visuals
+	UpdateVisuals();
+
+	// Notify Blueprint about equipped/unequipped state changes
+	bool bHasItemNow = SlotData.IsOccupied();
+	if (bHasItemNow && !bHadItemBefore)
+	{
+		K2_OnItemEquipped(ItemData);
+	}
+	else if (!bHasItemNow && bHadItemBefore)
+	{
+		K2_OnItemUnequipped();
+	}
+	bHadItemBefore = bHasItemNow;
+}
+
 void USuspenseCoreEquipmentSlotWidget::SetSelected_Implementation(bool bIsSelected)
 {
 	SetSelectedState(bIsSelected);

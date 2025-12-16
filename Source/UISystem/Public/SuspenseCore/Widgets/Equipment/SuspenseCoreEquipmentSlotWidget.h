@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseSlotWidget.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreSlotUI.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreDraggable.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreDropTarget.h"
@@ -160,6 +161,18 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Equipment")
 	FText GetDisplayName() const { return DisplayName; }
+
+	//==================================================================
+	// Slot Data (Extended Types)
+	//==================================================================
+
+	/**
+	 * Update slot with extended data (uses FSuspenseCore types)
+	 * @param SlotData Slot state data
+	 * @param ItemData Item data (if occupied)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment")
+	void UpdateSlotData(const FSuspenseCoreSlotUIData& SlotData, const FSuspenseCoreItemUIData& ItemData);
 
 	//==================================================================
 	// Empty Slot Icon

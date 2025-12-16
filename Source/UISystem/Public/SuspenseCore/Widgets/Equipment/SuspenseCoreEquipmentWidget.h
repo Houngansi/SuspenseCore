@@ -245,9 +245,9 @@ private:
 	USuspenseCoreEventBus* GetEventBus() const;
 
 	/** EventBus event handlers */
-	void OnEquipmentItemEquipped(const FSuspenseCoreUIEventPayload& Payload);
-	void OnEquipmentItemUnequipped(const FSuspenseCoreUIEventPayload& Payload);
-	void OnProviderDataChanged(const FSuspenseCoreUIEventPayload& Payload);
+	void OnEquipmentItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnEquipmentItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnProviderDataChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Active EventBus subscriptions */
 	TArray<FSuspenseCoreSubscriptionHandle> SubscriptionHandles;

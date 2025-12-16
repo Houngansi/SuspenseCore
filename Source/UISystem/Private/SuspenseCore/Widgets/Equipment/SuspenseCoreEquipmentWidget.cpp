@@ -453,70 +453,65 @@ USuspenseCoreEventBus* USuspenseCoreEquipmentWidget::GetEventBus() const
 	return nullptr;
 }
 
-void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(const FSuspenseCoreUIEventPayload& Payload)
+void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Check if this event is for our container
-	if (Payload.TargetContainerType != ESuspenseCoreContainerType::Equipment)
+	// Extract slot index from event data if available
+	int32 TargetSlot = INDEX_NONE;
+	if (const int32* SlotPtr = EventData.IntPayload.Find(FName("TargetSlot")))
 	{
-		return;
+		TargetSlot = *SlotPtr;
 	}
 
-	// Find the slot by index and refresh
-	if (Payload.TargetSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(Payload.TargetSlot))
-	{
-		RefreshFromProvider();
+	// Refresh from provider to update all slots
+	RefreshFromProvider();
 
-		// Notify Blueprint
-		if (SlotWidgetsArray.IsValidIndex(Payload.TargetSlot))
+	// Notify Blueprint if we have a valid slot
+	if (TargetSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(TargetSlot))
+	{
+		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[TargetSlot];
+		if (SlotWidget)
 		{
-			USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Payload.TargetSlot];
-			if (SlotWidget)
+			FSuspenseCoreItemUIData ItemData;
+			// Extract item info from event data if available
+			if (const FString* ItemIDStr = EventData.StringPayload.Find(FName("ItemID")))
 			{
-				FSuspenseCoreItemUIData ItemData;
-				ItemData.InstanceID = Payload.ItemInstanceID;
-				ItemData.ItemID = Payload.ItemID;
-				K2_OnEquipRequested(SlotWidget->GetSlotType(), ItemData);
+				ItemData.ItemID = FName(**ItemIDStr);
 			}
+			K2_OnEquipRequested(SlotWidget->GetSlotType(), ItemData);
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item equipped to slot %d"), Payload.TargetSlot);
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item equipped event received (slot %d)"), TargetSlot);
 }
 
-void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(const FSuspenseCoreUIEventPayload& Payload)
+void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Check if this event is for our container
-	if (Payload.SourceContainerType != ESuspenseCoreContainerType::Equipment)
+	// Extract slot index from event data if available
+	int32 SourceSlot = INDEX_NONE;
+	if (const int32* SlotPtr = EventData.IntPayload.Find(FName("SourceSlot")))
 	{
-		return;
+		SourceSlot = *SlotPtr;
 	}
 
-	// Find the slot by index and refresh
-	if (Payload.SourceSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(Payload.SourceSlot))
-	{
-		RefreshFromProvider();
+	// Refresh from provider to update all slots
+	RefreshFromProvider();
 
-		// Notify Blueprint
-		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Payload.SourceSlot];
+	// Notify Blueprint if we have a valid slot
+	if (SourceSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(SourceSlot))
+	{
+		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[SourceSlot];
 		if (SlotWidget)
 		{
 			K2_OnUnequipRequested(SlotWidget->GetSlotType());
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item unequipped from slot %d"), Payload.SourceSlot);
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Item unequipped event received (slot %d)"), SourceSlot);
 }
 
-void USuspenseCoreEquipmentWidget::OnProviderDataChanged(const FSuspenseCoreUIEventPayload& Payload)
+void USuspenseCoreEquipmentWidget::OnProviderDataChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Check if this event is for our container type
-	if (Payload.TargetContainerType != ESuspenseCoreContainerType::Equipment &&
-		Payload.SourceContainerType != ESuspenseCoreContainerType::Equipment)
-	{
-		return;
-	}
-
-	// Refresh all slots from provider
+	// Refresh all slots from provider when data changes
 	RefreshFromProvider();
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Provider data changed, refreshed from provider"));

@@ -8,12 +8,15 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
+#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
 #include "SuspenseCoreEquipmentWidget.generated.h"
 
 // Forward declarations
 class USuspenseCoreEquipmentSlotWidget;
 class UCanvasPanel;
 class UOverlay;
+class USuspenseCoreEventBus;
 
 /**
  * USuspenseCoreEquipmentWidget
@@ -51,6 +54,7 @@ public:
 	//==================================================================
 
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	//==================================================================
 	// ISuspenseCoreUIContainer Overrides
@@ -175,11 +179,14 @@ protected:
 	virtual void PositionSlotWidget(USuspenseCoreEquipmentSlotWidget* SlotWidget, const FSuspenseCoreEquipmentSlotUIConfig& UIConfig);
 
 	//==================================================================
-	// Widget References (Bind in Blueprint)
+	// Widget References (Bind in Blueprint) - REQUIRED components
 	//==================================================================
 
-	/** Container for slot widgets (CanvasPanel for absolute positioning) */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/**
+	 * Container for slot widgets (CanvasPanel for absolute positioning)
+	 * REQUIRED: Blueprint MUST have a CanvasPanel named 'SlotContainer'
+	 */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UCanvasPanel> SlotContainer;
 
 	//==================================================================
@@ -223,4 +230,28 @@ private:
 
 	/** Get index for slot type (for compatibility with base class) */
 	int32 GetSlotIndexForType(EEquipmentSlotType SlotType) const;
+
+	//==================================================================
+	// EventBus Integration (REQUIRED pattern per documentation)
+	//==================================================================
+
+	/** Setup EventBus subscriptions - called in NativeConstruct */
+	void SetupEventSubscriptions();
+
+	/** Teardown EventBus subscriptions - called in NativeDestruct */
+	void TeardownEventSubscriptions();
+
+	/** Get EventBus instance (cached) */
+	USuspenseCoreEventBus* GetEventBus() const;
+
+	/** EventBus event handlers */
+	void OnEquipmentItemEquipped(const FSuspenseCoreUIEventPayload& Payload);
+	void OnEquipmentItemUnequipped(const FSuspenseCoreUIEventPayload& Payload);
+	void OnProviderDataChanged(const FSuspenseCoreUIEventPayload& Payload);
+
+	/** Active EventBus subscriptions */
+	TArray<FSuspenseCoreSubscriptionHandle> SubscriptionHandles;
+
+	/** Cached EventBus reference */
+	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 };

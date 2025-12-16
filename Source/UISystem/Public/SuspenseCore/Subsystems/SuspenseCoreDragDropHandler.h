@@ -428,6 +428,13 @@ protected:
 	FSuspenseCoreDropResult HandleEquipmentToInventory(const FSuspenseCoreDropRequest& Request);
 
 	/**
+	 * Handle equipment-to-equipment drop (swap or transfer between slots)
+	 * @param Request Drop request
+	 * @return Result
+	 */
+	FSuspenseCoreDropResult HandleEquipmentToEquipment(const FSuspenseCoreDropRequest& Request);
+
+	/**
 	 * Execute the actual drop via provider
 	 * @param Request Drop request
 	 * @return Result

@@ -9,6 +9,7 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -352,16 +353,14 @@ bool USuspenseCoreDragDropHandler::IsCurrentDragRotated() const
 
 FSuspenseCoreDropResult USuspenseCoreDragDropHandler::RouteDropOperation(const FSuspenseCoreDropRequest& Request)
 {
-	static const FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(
-		FName(TEXT("SuspenseCore.UIProvider.Type.Inventory")));
-	static const FGameplayTag EquipmentTag = FGameplayTag::RequestGameplayTag(
-		FName(TEXT("SuspenseCore.UIProvider.Type.Equipment")));
+	// Use Native Tags instead of RequestGameplayTag (per documentation)
+	// These tags are defined in SuspenseCoreUIEvents.h
 
-	// Route based on source/target types
-	bool bSourceIsInventory = Request.SourceContainerTag.MatchesTag(InventoryTag);
-	bool bSourceIsEquipment = Request.SourceContainerTag.MatchesTag(EquipmentTag);
-	bool bTargetIsInventory = Request.TargetContainerTag.MatchesTag(InventoryTag);
-	bool bTargetIsEquipment = Request.TargetContainerTag.MatchesTag(EquipmentTag);
+	// Route based on source/target types using Native Tags
+	bool bSourceIsInventory = Request.SourceContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Inventory);
+	bool bSourceIsEquipment = Request.SourceContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Equipment);
+	bool bTargetIsInventory = Request.TargetContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Inventory);
+	bool bTargetIsEquipment = Request.TargetContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Equipment);
 
 	// Inventory -> Inventory
 	if (bSourceIsInventory && bTargetIsInventory)
@@ -379,6 +378,12 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::RouteDropOperation(const F
 	if (bSourceIsEquipment && bTargetIsInventory)
 	{
 		return HandleEquipmentToInventory(Request);
+	}
+
+	// Equipment -> Equipment (swap or move between equipment slots)
+	if (bSourceIsEquipment && bTargetIsEquipment)
+	{
+		return HandleEquipmentToEquipment(Request);
 	}
 
 	// Default: Try generic drop
@@ -470,6 +475,74 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::HandleEquipmentToInventory
 
 	return FSuspenseCoreDropResult::Failure(
 		NSLOCTEXT("SuspenseCore", "UnequipFailed", "Failed to unequip item"));
+}
+
+FSuspenseCoreDropResult USuspenseCoreDragDropHandler::HandleEquipmentToEquipment(
+	const FSuspenseCoreDropRequest& Request)
+{
+	// Swap or move between equipment slots (same or different providers)
+	TScriptInterface<ISuspenseCoreUIDataProvider> SourceProvider = FindProviderByID(Request.SourceProviderID);
+	TScriptInterface<ISuspenseCoreUIDataProvider> TargetProvider = FindProviderByID(Request.TargetProviderID);
+
+	if (!SourceProvider.GetInterface())
+	{
+		return FSuspenseCoreDropResult::Failure(
+			NSLOCTEXT("SuspenseCore", "SourceNotFound", "Source equipment provider not found"));
+	}
+
+	if (!TargetProvider.GetInterface())
+	{
+		return FSuspenseCoreDropResult::Failure(
+			NSLOCTEXT("SuspenseCore", "TargetNotFound", "Target equipment provider not found"));
+	}
+
+	// Validate that target slot can accept this item type
+	FSuspenseCoreDropValidation Validation = TargetProvider->ValidateDrop(
+		Request.DragData,
+		Request.TargetSlot,
+		false // Equipment items don't rotate
+	);
+
+	if (!Validation.bIsValid)
+	{
+		return FSuspenseCoreDropResult::Failure(Validation.Reason);
+	}
+
+	// Same provider - swap slots
+	if (Request.SourceProviderID == Request.TargetProviderID)
+	{
+		bool bSuccess = SourceProvider->RequestMoveItem(
+			Request.SourceSlot,
+			Request.TargetSlot,
+			false // No rotation for equipment
+		);
+
+		if (bSuccess)
+		{
+			return FSuspenseCoreDropResult::Success(
+				NSLOCTEXT("SuspenseCore", "EquipmentSwapped", "Equipment slots swapped"));
+		}
+
+		return FSuspenseCoreDropResult::Failure(
+			NSLOCTEXT("SuspenseCore", "SwapFailed", "Failed to swap equipment"));
+	}
+
+	// Different providers - transfer between characters/loadouts
+	bool bSuccess = SourceProvider->RequestTransferItem(
+		Request.SourceSlot,
+		Request.TargetProviderID,
+		Request.TargetSlot,
+		0 // Transfer all (equipment is always quantity 1)
+	);
+
+	if (bSuccess)
+	{
+		return FSuspenseCoreDropResult::Success(
+			NSLOCTEXT("SuspenseCore", "EquipmentTransferred", "Equipment transferred"));
+	}
+
+	return FSuspenseCoreDropResult::Failure(
+		NSLOCTEXT("SuspenseCore", "TransferFailed", "Failed to transfer equipment"));
 }
 
 FSuspenseCoreDropResult USuspenseCoreDragDropHandler::ExecuteDrop(const FSuspenseCoreDropRequest& Request)

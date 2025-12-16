@@ -3,6 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
@@ -11,6 +12,7 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "Styling/SlateBrush.h"
+#include "Blueprint/DragDropOperation.h"
 
 //==================================================================
 // Constructor
@@ -322,4 +324,219 @@ void USuspenseCoreEquipmentSlotWidget::UpdateEmptySlotIcon()
 		// Slot occupied - hide empty slot icon
 		EmptySlotIcon->SetVisibility(ESlateVisibility::Collapsed);
 	}
+}
+
+//==================================================================
+// ISuspenseCoreSlotUI Interface Implementation
+//==================================================================
+
+void USuspenseCoreEquipmentSlotWidget::InitializeSlot_Implementation(const FSlotUIData& SlotData, const FItemUIData& ItemData)
+{
+	// Convert from interface types to internal types
+	CachedSlotData.SlotIndex = SlotData.SlotIndex;
+	CachedSlotData.SlotTypeTag = SlotData.SlotTypeTag;
+	CachedSlotData.State = SlotData.bIsOccupied ? ESuspenseCoreUISlotState::Occupied : ESuspenseCoreUISlotState::Empty;
+
+	if (ItemData.bIsValid)
+	{
+		CachedItemData.InstanceID = ItemData.InstanceID;
+		CachedItemData.ItemID = ItemData.ItemID;
+		CachedItemData.IconPath = ItemData.IconPath;
+		CachedItemData.DisplayName = ItemData.DisplayName;
+	}
+	else
+	{
+		CachedItemData = FSuspenseCoreItemUIData();
+	}
+
+	UpdateVisuals();
+}
+
+void USuspenseCoreEquipmentSlotWidget::UpdateSlot_Implementation(const FSlotUIData& SlotData, const FItemUIData& ItemData)
+{
+	// Same as Initialize for equipment slots
+	InitializeSlot_Implementation(SlotData, ItemData);
+}
+
+void USuspenseCoreEquipmentSlotWidget::SetSelected_Implementation(bool bIsSelected)
+{
+	SetSelectedState(bIsSelected);
+}
+
+void USuspenseCoreEquipmentSlotWidget::SetHighlighted_Implementation(bool bIsHighlighted, const FLinearColor& HighlightColor)
+{
+	if (bIsHighlighted)
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::Highlighted);
+	}
+	else
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::Empty);
+	}
+}
+
+int32 USuspenseCoreEquipmentSlotWidget::GetSlotIndex_Implementation() const
+{
+	return CachedSlotData.SlotIndex;
+}
+
+FGuid USuspenseCoreEquipmentSlotWidget::GetItemInstanceID_Implementation() const
+{
+	return CachedItemData.InstanceID;
+}
+
+bool USuspenseCoreEquipmentSlotWidget::IsOccupied_Implementation() const
+{
+	return !IsEmpty();
+}
+
+void USuspenseCoreEquipmentSlotWidget::SetLocked_Implementation(bool bIsLocked)
+{
+	if (bIsLocked)
+	{
+		CachedSlotData.State = ESuspenseCoreUISlotState::Locked;
+	}
+	UpdateVisuals();
+}
+
+//==================================================================
+// ISuspenseCoreDraggable Interface Implementation
+//==================================================================
+
+bool USuspenseCoreEquipmentSlotWidget::CanBeDragged_Implementation() const
+{
+	// Can drag if slot has an item and is not locked
+	return !IsEmpty() && CachedSlotData.State != ESuspenseCoreUISlotState::Locked;
+}
+
+FDragDropUIData USuspenseCoreEquipmentSlotWidget::GetDragData_Implementation() const
+{
+	FDragDropUIData DragData;
+
+	if (!IsEmpty())
+	{
+		DragData.SourceSlotIndex = CachedSlotData.SlotIndex;
+		DragData.ItemInstanceID = CachedItemData.InstanceID;
+		DragData.ItemID = CachedItemData.ItemID;
+		DragData.IconPath = CachedItemData.IconPath;
+		DragData.DisplayName = CachedItemData.DisplayName;
+		DragData.SourceContainerType = ESuspenseCoreContainerType::Equipment;
+		DragData.bIsValid = true;
+	}
+
+	return DragData;
+}
+
+void USuspenseCoreEquipmentSlotWidget::OnDragStarted_Implementation()
+{
+	// Visual feedback when drag starts
+	SetHighlightState(ESuspenseCoreUISlotState::Dragging);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: Drag started"), *SlotTypeTag.ToString());
+}
+
+void USuspenseCoreEquipmentSlotWidget::OnDragEnded_Implementation(bool bWasDropped)
+{
+	// Clear drag visual feedback
+	SetHighlightState(ESuspenseCoreUISlotState::Empty);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: Drag ended, dropped=%d"), *SlotTypeTag.ToString(), bWasDropped ? 1 : 0);
+}
+
+void USuspenseCoreEquipmentSlotWidget::UpdateDragVisual_Implementation(bool bIsValidTarget)
+{
+	// Update visual during drag based on target validity
+	if (bIsValidTarget)
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::DropTargetValid);
+	}
+	else
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
+	}
+}
+
+//==================================================================
+// ISuspenseCoreDropTarget Interface Implementation
+//==================================================================
+
+FSlotValidationResult USuspenseCoreEquipmentSlotWidget::CanAcceptDrop_Implementation(const UDragDropOperation* DragOperation) const
+{
+	FSlotValidationResult Result;
+	Result.bIsValid = false;
+
+	// Cast to our drag operation type
+	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
+	if (!SuspenseDragOp)
+	{
+		Result.Reason = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
+		return Result;
+	}
+
+	const FSuspenseCoreDragData& DragData = SuspenseDragOp->GetDragData();
+
+	// Check if slot can accept this item type
+	if (!CanAcceptItemType(DragData.Item.ItemTypeTag))
+	{
+		Result.Reason = FText::Format(
+			NSLOCTEXT("SuspenseCore", "ItemTypeNotAllowed", "Cannot equip {0} in this slot"),
+			DragData.Item.DisplayName
+		);
+		return Result;
+	}
+
+	// Check if slot is locked
+	if (CachedSlotData.State == ESuspenseCoreUISlotState::Locked)
+	{
+		Result.Reason = NSLOCTEXT("SuspenseCore", "SlotLocked", "Slot is locked");
+		return Result;
+	}
+
+	// Valid drop target
+	Result.bIsValid = true;
+	Result.Reason = FText::GetEmpty();
+	return Result;
+}
+
+bool USuspenseCoreEquipmentSlotWidget::HandleDrop_Implementation(UDragDropOperation* DragOperation)
+{
+	// Validate drop first
+	FSlotValidationResult Validation = CanAcceptDrop_Implementation(DragOperation);
+	if (!Validation.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: Drop rejected - %s"),
+			*SlotTypeTag.ToString(), *Validation.Reason.ToString());
+		return false;
+	}
+
+	// Drop handling is delegated to the container widget via provider
+	// This method mainly validates - actual transfer happens through provider
+	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: Drop accepted"), *SlotTypeTag.ToString());
+	return true;
+}
+
+void USuspenseCoreEquipmentSlotWidget::OnDragEnter_Implementation(UDragDropOperation* DragOperation)
+{
+	// Show visual feedback when drag enters slot
+	FSlotValidationResult Validation = CanAcceptDrop_Implementation(DragOperation);
+
+	if (Validation.bIsValid)
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::DropTargetValid);
+	}
+	else
+	{
+		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
+	}
+}
+
+void USuspenseCoreEquipmentSlotWidget::OnDragLeave_Implementation()
+{
+	// Clear highlight when drag leaves
+	SetHighlightState(ESuspenseCoreUISlotState::Empty);
+}
+
+int32 USuspenseCoreEquipmentSlotWidget::GetDropTargetSlot_Implementation() const
+{
+	return CachedSlotData.SlotIndex;
 }

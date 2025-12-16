@@ -150,6 +150,21 @@ public:
 	FName DefaultLoadoutID = TEXT("Default_Soldier");
 
 	//========================================================================
+	// Equipment Slot Configuration
+	//========================================================================
+
+	/**
+	 * DataAsset containing equipment slot presets.
+	 * If not set, uses programmatic defaults with Native Tags.
+	 *
+	 * Create via: Content Browser → Miscellaneous → Data Asset → USuspenseCoreEquipmentSlotPresets
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Loadout System",
+		meta = (AllowedClasses = "/Script/BridgeSystem.SuspenseCoreEquipmentSlotPresets",
+				ToolTip = "Equipment slot presets DataAsset (optional - fallback to defaults if not set)"))
+	TSoftObjectPtr<UDataAsset> EquipmentSlotPresetsAsset;
+
+	//========================================================================
 	// Animation System Configuration (Future)
 	//========================================================================
 

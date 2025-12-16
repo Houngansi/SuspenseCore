@@ -353,14 +353,15 @@ bool USuspenseCoreDragDropHandler::IsCurrentDragRotated() const
 
 FSuspenseCoreDropResult USuspenseCoreDragDropHandler::RouteDropOperation(const FSuspenseCoreDropRequest& Request)
 {
-	// Use Native Tags instead of RequestGameplayTag (per documentation)
-	// These tags are defined in SuspenseCoreUIEvents.h
+	// Use FGameplayTag::RequestGameplayTag for cross-module compatibility
+	static const FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIProvider.Type.Inventory"));
+	static const FGameplayTag EquipmentTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UIProvider.Type.Equipment"));
 
-	// Route based on source/target types using Native Tags
-	bool bSourceIsInventory = Request.SourceContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Inventory);
-	bool bSourceIsEquipment = Request.SourceContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Equipment);
-	bool bTargetIsInventory = Request.TargetContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Inventory);
-	bool bTargetIsEquipment = Request.TargetContainerTag.MatchesTag(TAG_SuspenseCore_UIProvider_Type_Equipment);
+	// Route based on source/target types
+	bool bSourceIsInventory = Request.SourceContainerTag.MatchesTag(InventoryTag);
+	bool bSourceIsEquipment = Request.SourceContainerTag.MatchesTag(EquipmentTag);
+	bool bTargetIsInventory = Request.TargetContainerTag.MatchesTag(InventoryTag);
+	bool bTargetIsEquipment = Request.TargetContainerTag.MatchesTag(EquipmentTag);
 
 	// Inventory -> Inventory
 	if (bSourceIsInventory && bTargetIsInventory)

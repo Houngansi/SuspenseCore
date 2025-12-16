@@ -134,7 +134,7 @@ void USuspenseCoreEquipmentWidget::UpdateSlotByType(EEquipmentSlotType SlotType,
 {
 	if (USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotByType(SlotType))
 	{
-		SlotWidget->UpdateSlot(SlotData, ItemData);
+		SlotWidget->UpdateSlotData(SlotData, ItemData);
 	}
 }
 
@@ -142,7 +142,7 @@ void USuspenseCoreEquipmentWidget::UpdateSlotByTag(const FGameplayTag& SlotTag, 
 {
 	if (USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotByTag(SlotTag))
 	{
-		SlotWidget->UpdateSlot(SlotData, ItemData);
+		SlotWidget->UpdateSlotData(SlotData, ItemData);
 	}
 }
 
@@ -230,7 +230,7 @@ void USuspenseCoreEquipmentWidget::UpdateSlotWidget_Implementation(int32 SlotInd
 {
 	if (SlotWidgetsArray.IsValidIndex(SlotIndex))
 	{
-		SlotWidgetsArray[SlotIndex]->UpdateSlot(SlotData, ItemData);
+		SlotWidgetsArray[SlotIndex]->UpdateSlotData(SlotData, ItemData);
 	}
 }
 

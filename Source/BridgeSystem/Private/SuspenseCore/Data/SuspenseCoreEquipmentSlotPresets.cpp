@@ -14,28 +14,30 @@ USuspenseCoreEquipmentSlotPresets::USuspenseCoreEquipmentSlotPresets()
 	}
 }
 
-const FEquipmentSlotConfig* USuspenseCoreEquipmentSlotPresets::GetPresetByType(EEquipmentSlotType SlotType) const
+bool USuspenseCoreEquipmentSlotPresets::GetPresetByType(EEquipmentSlotType SlotType, FEquipmentSlotConfig& OutConfig) const
 {
 	for (const FEquipmentSlotConfig& Preset : SlotPresets)
 	{
 		if (Preset.SlotType == SlotType)
 		{
-			return &Preset;
+			OutConfig = Preset;
+			return true;
 		}
 	}
-	return nullptr;
+	return false;
 }
 
-const FEquipmentSlotConfig* USuspenseCoreEquipmentSlotPresets::GetPresetByTag(const FGameplayTag& SlotTag) const
+bool USuspenseCoreEquipmentSlotPresets::GetPresetByTag(const FGameplayTag& SlotTag, FEquipmentSlotConfig& OutConfig) const
 {
 	for (const FEquipmentSlotConfig& Preset : SlotPresets)
 	{
 		if (Preset.SlotTag == SlotTag)
 		{
-			return &Preset;
+			OutConfig = Preset;
+			return true;
 		}
 	}
-	return nullptr;
+	return false;
 }
 
 bool USuspenseCoreEquipmentSlotPresets::ValidatePresets() const

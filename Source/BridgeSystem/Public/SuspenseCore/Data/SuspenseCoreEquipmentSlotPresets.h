@@ -45,18 +45,20 @@ public:
 	/**
 	 * Get slot preset by slot type
 	 * @param SlotType The equipment slot type to find
-	 * @return Pointer to config or nullptr if not found
+	 * @param OutConfig Output config if found
+	 * @return True if found, false otherwise
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment")
-	const FEquipmentSlotConfig* GetPresetByType(EEquipmentSlotType SlotType) const;
+	bool GetPresetByType(EEquipmentSlotType SlotType, FEquipmentSlotConfig& OutConfig) const;
 
 	/**
 	 * Get slot preset by gameplay tag
 	 * @param SlotTag The slot's gameplay tag (Equipment.Slot.*)
-	 * @return Pointer to config or nullptr if not found
+	 * @param OutConfig Output config if found
+	 * @return True if found, false otherwise
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Equipment")
-	const FEquipmentSlotConfig* GetPresetByTag(const FGameplayTag& SlotTag) const;
+	bool GetPresetByTag(const FGameplayTag& SlotTag, FEquipmentSlotConfig& OutConfig) const;
 
 	/**
 	 * Get all slot presets

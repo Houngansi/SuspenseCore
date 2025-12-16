@@ -33,6 +33,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Providers/SuspenseCoreEquipmentUIProvider.h"
 #endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -101,6 +102,11 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Inventory bridge - connects equipment system to inventory component
 	EquipmentInventoryBridge = CreateDefaultSubobject<USuspenseCoreEquipmentInventoryBridge>(TEXT("EquipmentInventoryBridge"));
 	EquipmentInventoryBridge->SetIsReplicated(true);
+
+	// UI Provider - provides ISuspenseCoreUIDataProvider for EquipmentWidget binding
+	// Auto-discovered by UIManager::FindAllProvidersOnActor() when ShowContainerScreen is called
+	EquipmentUIProvider = CreateDefaultSubobject<USuspenseCoreEquipmentUIProvider>(TEXT("EquipmentUIProvider"));
+	EquipmentUIProvider->SetIsReplicated(true);
 #endif
 
 	// Network settings - optimized for MMO scale

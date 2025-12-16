@@ -377,9 +377,14 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 		return;
 	}
 
-	// Subscribe to equipment item equipped events (using Native Tags)
+	// Use FGameplayTag::RequestGameplayTag for cross-module compatibility
+	static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
+	static const FGameplayTag UnequipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.UnequipItem"));
+	static const FGameplayTag DataChangedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIProvider.DataChanged"));
+
+	// Subscribe to equipment item equipped events
 	FSuspenseCoreSubscriptionHandle EquipHandle = EventBus->SubscribeNative(
-		TAG_SuspenseCore_Event_UIRequest_EquipItem,
+		EquipItemTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(
 			this, &USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped),
@@ -389,7 +394,7 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 
 	// Subscribe to equipment item unequipped events
 	FSuspenseCoreSubscriptionHandle UnequipHandle = EventBus->SubscribeNative(
-		TAG_SuspenseCore_Event_UIRequest_UnequipItem,
+		UnequipItemTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(
 			this, &USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped),
@@ -399,7 +404,7 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 
 	// Subscribe to provider data changed events
 	FSuspenseCoreSubscriptionHandle DataChangedHandle = EventBus->SubscribeNative(
-		TAG_SuspenseCore_Event_UIProvider_DataChanged,
+		DataChangedTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(
 			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),

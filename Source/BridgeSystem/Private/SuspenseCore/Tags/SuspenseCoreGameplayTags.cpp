@@ -268,6 +268,51 @@ namespace SuspenseCoreTags
 	{
 		UE_DEFINE_GAMEPLAY_TAG(Generic, "Item.Generic");
 		UE_DEFINE_GAMEPLAY_TAG(Root, "Item");
+
+		// Weapon types
+		namespace Weapon
+		{
+			UE_DEFINE_GAMEPLAY_TAG(AR, "Item.Weapon.AR");
+			UE_DEFINE_GAMEPLAY_TAG(DMR, "Item.Weapon.DMR");
+			UE_DEFINE_GAMEPLAY_TAG(SR, "Item.Weapon.SR");
+			UE_DEFINE_GAMEPLAY_TAG(LMG, "Item.Weapon.LMG");
+			UE_DEFINE_GAMEPLAY_TAG(SMG, "Item.Weapon.SMG");
+			UE_DEFINE_GAMEPLAY_TAG(Shotgun, "Item.Weapon.Shotgun");
+			UE_DEFINE_GAMEPLAY_TAG(PDW, "Item.Weapon.PDW");
+			UE_DEFINE_GAMEPLAY_TAG(Pistol, "Item.Weapon.Pistol");
+			UE_DEFINE_GAMEPLAY_TAG(Revolver, "Item.Weapon.Revolver");
+
+			namespace Melee
+			{
+				UE_DEFINE_GAMEPLAY_TAG(Knife, "Item.Weapon.Melee.Knife");
+			}
+		}
+
+		// Armor types
+		namespace Armor
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Helmet, "Item.Armor.Helmet");
+			UE_DEFINE_GAMEPLAY_TAG(BodyArmor, "Item.Armor.BodyArmor");
+		}
+
+		// Gear types
+		namespace Gear
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Headwear, "Item.Gear.Headwear");
+			UE_DEFINE_GAMEPLAY_TAG(Earpiece, "Item.Gear.Earpiece");
+			UE_DEFINE_GAMEPLAY_TAG(Eyewear, "Item.Gear.Eyewear");
+			UE_DEFINE_GAMEPLAY_TAG(FaceCover, "Item.Gear.FaceCover");
+			UE_DEFINE_GAMEPLAY_TAG(TacticalRig, "Item.Gear.TacticalRig");
+			UE_DEFINE_GAMEPLAY_TAG(Backpack, "Item.Gear.Backpack");
+			UE_DEFINE_GAMEPLAY_TAG(SecureContainer, "Item.Gear.SecureContainer");
+			UE_DEFINE_GAMEPLAY_TAG(Armband, "Item.Gear.Armband");
+		}
+
+		// Consumable types
+		UE_DEFINE_GAMEPLAY_TAG(Consumable, "Item.Consumable");
+		UE_DEFINE_GAMEPLAY_TAG(Medical, "Item.Medical");
+		UE_DEFINE_GAMEPLAY_TAG(Throwable, "Item.Throwable");
+		UE_DEFINE_GAMEPLAY_TAG(Ammo, "Item.Ammo");
 	}
 
 	//==================================================================
@@ -283,14 +328,36 @@ namespace SuspenseCoreTags
 	//==================================================================
 	namespace EquipmentSlot
 	{
+		// Weapons
 		UE_DEFINE_GAMEPLAY_TAG(PrimaryWeapon, "Equipment.Slot.PrimaryWeapon");
 		UE_DEFINE_GAMEPLAY_TAG(SecondaryWeapon, "Equipment.Slot.SecondaryWeapon");
 		UE_DEFINE_GAMEPLAY_TAG(Sidearm, "Equipment.Slot.Sidearm");
+		UE_DEFINE_GAMEPLAY_TAG(Holster, "Equipment.Slot.Holster");
 		UE_DEFINE_GAMEPLAY_TAG(Melee, "Equipment.Slot.Melee");
-		UE_DEFINE_GAMEPLAY_TAG(BodyArmor, "Equipment.Slot.BodyArmor");
+		UE_DEFINE_GAMEPLAY_TAG(Scabbard, "Equipment.Slot.Scabbard");
+
+		// Head gear
 		UE_DEFINE_GAMEPLAY_TAG(Headwear, "Equipment.Slot.Headwear");
+		UE_DEFINE_GAMEPLAY_TAG(Earpiece, "Equipment.Slot.Earpiece");
+		UE_DEFINE_GAMEPLAY_TAG(Eyewear, "Equipment.Slot.Eyewear");
+		UE_DEFINE_GAMEPLAY_TAG(FaceCover, "Equipment.Slot.FaceCover");
+
+		// Body gear
+		UE_DEFINE_GAMEPLAY_TAG(BodyArmor, "Equipment.Slot.BodyArmor");
 		UE_DEFINE_GAMEPLAY_TAG(TacticalRig, "Equipment.Slot.TacticalRig");
+
+		// Storage
 		UE_DEFINE_GAMEPLAY_TAG(Backpack, "Equipment.Slot.Backpack");
+		UE_DEFINE_GAMEPLAY_TAG(SecureContainer, "Equipment.Slot.SecureContainer");
+
+		// Quick slots
+		UE_DEFINE_GAMEPLAY_TAG(QuickSlot1, "Equipment.Slot.QuickSlot1");
+		UE_DEFINE_GAMEPLAY_TAG(QuickSlot2, "Equipment.Slot.QuickSlot2");
+		UE_DEFINE_GAMEPLAY_TAG(QuickSlot3, "Equipment.Slot.QuickSlot3");
+		UE_DEFINE_GAMEPLAY_TAG(QuickSlot4, "Equipment.Slot.QuickSlot4");
+
+		// Special
+		UE_DEFINE_GAMEPLAY_TAG(Armband, "Equipment.Slot.Armband");
 	}
 }
 

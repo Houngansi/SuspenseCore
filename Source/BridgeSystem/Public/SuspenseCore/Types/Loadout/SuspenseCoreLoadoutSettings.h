@@ -7,7 +7,11 @@
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCoreLoadoutSettings.generated.h"
+
+// Forward declaration
+class USuspenseCoreEquipmentSlotPresets;
 
 /**
  * Equipment slot types for Tarkov-style MMO FPS
@@ -439,144 +443,147 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
     }
 
 private:
+    /**
+     * Setup default equipment slots using Native Tags.
+     * Called from constructor as fallback when no DataAsset is configured.
+     *
+     * NOTE: Prefer using USuspenseCoreEquipmentSlotPresets DataAsset
+     * configured in Project Settings -> Game -> SuspenseCore -> EquipmentSlotPresetsAsset
+     */
     void SetupDefaultEquipmentSlots()
     {
-        EquipmentSlots.Empty();
+        using namespace SuspenseCoreTags;
 
-        // WEAPONS
-        FEquipmentSlotConfig PrimaryWeaponSlot(
-            EEquipmentSlotType::PrimaryWeapon,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.PrimaryWeapon"), false)
-        );
+        EquipmentSlots.Empty();
+        EquipmentSlots.Reserve(17);
+
+        // ===== WEAPONS =====
+
+        // Primary Weapon (AR, DMR, SR, Shotgun, LMG)
+        FEquipmentSlotConfig PrimaryWeaponSlot(EEquipmentSlotType::PrimaryWeapon, EquipmentSlot::PrimaryWeapon);
         PrimaryWeaponSlot.AttachmentSocket = TEXT("weapon_r");
-        PrimaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.AR"), false));
-        PrimaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.DMR"), false));
-        PrimaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SR"), false));
-        PrimaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun"), false));
-        PrimaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.LMG"), false));
+        PrimaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::AR);
+        PrimaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::DMR);
+        PrimaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::SR);
+        PrimaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::Shotgun);
+        PrimaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::LMG);
         EquipmentSlots.Add(PrimaryWeaponSlot);
 
-        FEquipmentSlotConfig SecondaryWeaponSlot(
-            EEquipmentSlotType::SecondaryWeapon,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"), false)
-        );
+        // Secondary Weapon (SMG, Shotgun, PDW)
+        FEquipmentSlotConfig SecondaryWeaponSlot(EEquipmentSlotType::SecondaryWeapon, EquipmentSlot::SecondaryWeapon);
         SecondaryWeaponSlot.AttachmentSocket = TEXT("spine_03");
-        SecondaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.SMG"), false));
-        SecondaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Shotgun"), false));
-        SecondaryWeaponSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.PDW"), false));
+        SecondaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::SMG);
+        SecondaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::Shotgun);
+        SecondaryWeaponSlot.AllowedItemTypes.AddTag(Item::Weapon::PDW);
         EquipmentSlots.Add(SecondaryWeaponSlot);
 
-        FEquipmentSlotConfig HolsterSlot(
-            EEquipmentSlotType::Holster,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"), false)
-        );
+        // Holster (Pistol, Revolver)
+        FEquipmentSlotConfig HolsterSlot(EEquipmentSlotType::Holster, EquipmentSlot::Holster);
         HolsterSlot.AttachmentSocket = TEXT("thigh_r");
-        HolsterSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Pistol"), false));
-        HolsterSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Revolver"), false));
+        HolsterSlot.AllowedItemTypes.AddTag(Item::Weapon::Pistol);
+        HolsterSlot.AllowedItemTypes.AddTag(Item::Weapon::Revolver);
         EquipmentSlots.Add(HolsterSlot);
 
-        FEquipmentSlotConfig ScabbardSlot(
-            EEquipmentSlotType::Scabbard,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Scabbard"), false)
-        );
+        // Scabbard (Melee/Knife)
+        FEquipmentSlotConfig ScabbardSlot(EEquipmentSlotType::Scabbard, EquipmentSlot::Scabbard);
         ScabbardSlot.AttachmentSocket = TEXT("spine_02");
-        ScabbardSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Weapon.Melee.Knife"), false));
+        ScabbardSlot.AllowedItemTypes.AddTag(Item::Weapon::Melee::Knife);
         EquipmentSlots.Add(ScabbardSlot);
 
-        // HEAD GEAR
-        FEquipmentSlotConfig HeadwearSlot(
-            EEquipmentSlotType::Headwear,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Headwear"), false)
-        );
+        // ===== HEAD GEAR =====
+
+        // Headwear (Helmet, Headwear)
+        FEquipmentSlotConfig HeadwearSlot(EEquipmentSlotType::Headwear, EquipmentSlot::Headwear);
         HeadwearSlot.AttachmentSocket = TEXT("head");
-        HeadwearSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.Helmet"), false));
-        HeadwearSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Headwear"), false));
+        HeadwearSlot.AllowedItemTypes.AddTag(Item::Armor::Helmet);
+        HeadwearSlot.AllowedItemTypes.AddTag(Item::Gear::Headwear);
         EquipmentSlots.Add(HeadwearSlot);
 
-        FEquipmentSlotConfig EarpieceSlot(
-            EEquipmentSlotType::Earpiece,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Earpiece"), false)
-        );
+        // Earpiece
+        FEquipmentSlotConfig EarpieceSlot(EEquipmentSlotType::Earpiece, EquipmentSlot::Earpiece);
         EarpieceSlot.AttachmentSocket = TEXT("head");
-        EarpieceSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Earpiece"), false));
+        EarpieceSlot.AllowedItemTypes.AddTag(Item::Gear::Earpiece);
         EquipmentSlots.Add(EarpieceSlot);
 
-        FEquipmentSlotConfig EyewearSlot(
-            EEquipmentSlotType::Eyewear,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Eyewear"), false)
-        );
+        // Eyewear
+        FEquipmentSlotConfig EyewearSlot(EEquipmentSlotType::Eyewear, EquipmentSlot::Eyewear);
         EyewearSlot.AttachmentSocket = TEXT("head");
-        EyewearSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Eyewear"), false));
+        EyewearSlot.AllowedItemTypes.AddTag(Item::Gear::Eyewear);
         EquipmentSlots.Add(EyewearSlot);
 
-        FEquipmentSlotConfig FaceCoverSlot(
-            EEquipmentSlotType::FaceCover,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.FaceCover"), false)
-        );
+        // Face Cover
+        FEquipmentSlotConfig FaceCoverSlot(EEquipmentSlotType::FaceCover, EquipmentSlot::FaceCover);
         FaceCoverSlot.AttachmentSocket = TEXT("head");
-        FaceCoverSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.FaceCover"), false));
+        FaceCoverSlot.AllowedItemTypes.AddTag(Item::Gear::FaceCover);
         EquipmentSlots.Add(FaceCoverSlot);
 
-        // BODY GEAR
-        FEquipmentSlotConfig BodyArmorSlot(
-            EEquipmentSlotType::BodyArmor,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.BodyArmor"), false)
-        );
+        // ===== BODY GEAR =====
+
+        // Body Armor
+        FEquipmentSlotConfig BodyArmorSlot(EEquipmentSlotType::BodyArmor, EquipmentSlot::BodyArmor);
         BodyArmorSlot.AttachmentSocket = TEXT("spine_03");
-        BodyArmorSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Armor.BodyArmor"), false));
+        BodyArmorSlot.AllowedItemTypes.AddTag(Item::Armor::BodyArmor);
         EquipmentSlots.Add(BodyArmorSlot);
 
-        FEquipmentSlotConfig TacticalRigSlot(
-            EEquipmentSlotType::TacticalRig,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.TacticalRig"), false)
-        );
+        // Tactical Rig
+        FEquipmentSlotConfig TacticalRigSlot(EEquipmentSlotType::TacticalRig, EquipmentSlot::TacticalRig);
         TacticalRigSlot.AttachmentSocket = TEXT("spine_03");
-        TacticalRigSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.TacticalRig"), false));
+        TacticalRigSlot.AllowedItemTypes.AddTag(Item::Gear::TacticalRig);
         EquipmentSlots.Add(TacticalRigSlot);
 
-        // STORAGE
-        FEquipmentSlotConfig BackpackSlot(
-            EEquipmentSlotType::Backpack,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Backpack"), false)
-        );
+        // ===== STORAGE =====
+
+        // Backpack
+        FEquipmentSlotConfig BackpackSlot(EEquipmentSlotType::Backpack, EquipmentSlot::Backpack);
         BackpackSlot.AttachmentSocket = TEXT("spine_02");
-        BackpackSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Backpack"), false));
+        BackpackSlot.AllowedItemTypes.AddTag(Item::Gear::Backpack);
         EquipmentSlots.Add(BackpackSlot);
 
-        FEquipmentSlotConfig SecureContainerSlot(
-            EEquipmentSlotType::SecureContainer,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecureContainer"), false)
-        );
-        SecureContainerSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.SecureContainer"), false));
+        // Secure Container
+        FEquipmentSlotConfig SecureContainerSlot(EEquipmentSlotType::SecureContainer, EquipmentSlot::SecureContainer);
+        SecureContainerSlot.AllowedItemTypes.AddTag(Item::Gear::SecureContainer);
         EquipmentSlots.Add(SecureContainerSlot);
 
-        // QUICK SLOTS
-        for (int32 i = 1; i <= 4; ++i)
-        {
-            EEquipmentSlotType QuickSlotType = static_cast<EEquipmentSlotType>(
-                static_cast<int32>(EEquipmentSlotType::QuickSlot1) + i - 1
-            );
+        // ===== QUICK SLOTS =====
 
-            FString SlotName = FString::Printf(TEXT("Equipment.Slot.QuickSlot%d"), i);
-            FEquipmentSlotConfig QuickSlot(
-                QuickSlotType,
-                FGameplayTag::RequestGameplayTag(*SlotName, false)
-            );
+        // Quick Slot 1
+        FEquipmentSlotConfig QuickSlot1(EEquipmentSlotType::QuickSlot1, EquipmentSlot::QuickSlot1);
+        QuickSlot1.AllowedItemTypes.AddTag(Item::Consumable);
+        QuickSlot1.AllowedItemTypes.AddTag(Item::Medical);
+        QuickSlot1.AllowedItemTypes.AddTag(Item::Throwable);
+        QuickSlot1.AllowedItemTypes.AddTag(Item::Ammo);
+        EquipmentSlots.Add(QuickSlot1);
 
-            QuickSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Consumable"), false));
-            QuickSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Medical"), false));
-            QuickSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Throwable"), false));
-            QuickSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Ammo"), false));
-            EquipmentSlots.Add(QuickSlot);
-        }
+        // Quick Slot 2
+        FEquipmentSlotConfig QuickSlot2(EEquipmentSlotType::QuickSlot2, EquipmentSlot::QuickSlot2);
+        QuickSlot2.AllowedItemTypes.AddTag(Item::Consumable);
+        QuickSlot2.AllowedItemTypes.AddTag(Item::Medical);
+        QuickSlot2.AllowedItemTypes.AddTag(Item::Throwable);
+        QuickSlot2.AllowedItemTypes.AddTag(Item::Ammo);
+        EquipmentSlots.Add(QuickSlot2);
 
-        // SPECIAL
-        FEquipmentSlotConfig ArmbandSlot(
-            EEquipmentSlotType::Armband,
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Armband"), false)
-        );
+        // Quick Slot 3
+        FEquipmentSlotConfig QuickSlot3(EEquipmentSlotType::QuickSlot3, EquipmentSlot::QuickSlot3);
+        QuickSlot3.AllowedItemTypes.AddTag(Item::Consumable);
+        QuickSlot3.AllowedItemTypes.AddTag(Item::Medical);
+        QuickSlot3.AllowedItemTypes.AddTag(Item::Throwable);
+        QuickSlot3.AllowedItemTypes.AddTag(Item::Ammo);
+        EquipmentSlots.Add(QuickSlot3);
+
+        // Quick Slot 4
+        FEquipmentSlotConfig QuickSlot4(EEquipmentSlotType::QuickSlot4, EquipmentSlot::QuickSlot4);
+        QuickSlot4.AllowedItemTypes.AddTag(Item::Consumable);
+        QuickSlot4.AllowedItemTypes.AddTag(Item::Medical);
+        QuickSlot4.AllowedItemTypes.AddTag(Item::Throwable);
+        QuickSlot4.AllowedItemTypes.AddTag(Item::Ammo);
+        EquipmentSlots.Add(QuickSlot4);
+
+        // ===== SPECIAL =====
+
+        // Armband
+        FEquipmentSlotConfig ArmbandSlot(EEquipmentSlotType::Armband, EquipmentSlot::Armband);
         ArmbandSlot.AttachmentSocket = TEXT("upperarm_l");
-        ArmbandSlot.AllowedItemTypes.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Item.Gear.Armband"), false));
+        ArmbandSlot.AllowedItemTypes.AddTag(Item::Gear::Armband);
         EquipmentSlots.Add(ArmbandSlot);
     }
 

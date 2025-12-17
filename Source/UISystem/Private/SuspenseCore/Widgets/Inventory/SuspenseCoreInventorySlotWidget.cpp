@@ -522,16 +522,20 @@ FSlotValidationResult USuspenseCoreInventorySlotWidget::CanAcceptDrop_Implementa
 	FSlotValidationResult Result;
 	Result.bIsValid = false;
 
-	// Check for null or obviously invalid pointer values (garbage like 0xFFFFFFFF...)
-	// Can't use IsValid() on garbage pointers - it will crash trying to access memory
+	// CRITICAL: Check for garbage pointers before ANY operation
+	// 0xFFFFFFFFFFFFFFFF = -1, high addresses > 0x7FFF... are kernel space on Windows
 	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	if (!DragOperation || PtrValue < 0x10000 || PtrValue == static_cast<uintptr_t>(-1))
+	const bool bIsGarbagePointer = (PtrValue == 0) ||
+								   (PtrValue < 0x10000) ||
+								   (PtrValue > 0x00007FFFFFFFFFFF);  // Above user space on 64-bit Windows
+
+	if (bIsGarbagePointer)
 	{
 		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
 		return Result;
 	}
 
-	// Cast to our drag operation type
+	// Cast to our drag operation type - use dynamic_cast alternative
 	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
 	if (!SuspenseDragOp)
 	{
@@ -570,10 +574,13 @@ bool USuspenseCoreInventorySlotWidget::HandleDrop_Implementation(UDragDropOperat
 
 void USuspenseCoreInventorySlotWidget::OnDragEnter_Implementation(UDragDropOperation* DragOperation)
 {
-	// Check for null or obviously invalid pointer values (garbage like 0xFFFFFFFF...)
-	// This prevents crash when Blueprint passes garbage pointer
+	// CRITICAL: Check for garbage pointers before ANY operation
 	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	if (!DragOperation || PtrValue < 0x10000 || PtrValue == static_cast<uintptr_t>(-1))
+	const bool bIsGarbagePointer = (PtrValue == 0) ||
+								   (PtrValue < 0x10000) ||
+								   (PtrValue > 0x00007FFFFFFFFFFF);
+
+	if (bIsGarbagePointer)
 	{
 		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
 		return;

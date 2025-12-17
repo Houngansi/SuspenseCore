@@ -255,29 +255,30 @@ protected:
 
 	//==================================================================
 	// Widget References (Bind in Blueprint)
+	// REQUIRED: SlotSizeBox, BackgroundBorder, HighlightBorder, ItemIcon
 	//==================================================================
 
-	/** Size container */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Size container - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<USizeBox> SlotSizeBox;
 
-	/** Background border */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Background border - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UBorder> BackgroundBorder;
 
-	/** Highlight border */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Highlight border - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UBorder> HighlightBorder;
 
-	/** Item icon image */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Item icon image - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UImage> ItemIcon;
 
-	/** Stack count text */
+	/** Stack count text (optional - only for stackable items) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UTextBlock> StackCountText;
 
-	/** Condition indicator */
+	/** Condition indicator (optional) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UImage> ConditionIndicator;
 

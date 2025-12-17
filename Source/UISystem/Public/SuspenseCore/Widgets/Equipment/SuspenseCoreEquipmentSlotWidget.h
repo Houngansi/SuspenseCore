@@ -223,8 +223,8 @@ protected:
 	// Additional Widget References (Bind in Blueprint)
 	//==================================================================
 
-	/** Empty slot icon - shown when no item equipped (silhouette) */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Empty slot icon - shown when no item equipped (silhouette) - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UImage> EmptySlotIcon;
 
 	/** Slot type indicator icon (optional, small icon in corner) */

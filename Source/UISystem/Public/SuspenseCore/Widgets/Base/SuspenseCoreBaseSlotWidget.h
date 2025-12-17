@@ -164,22 +164,22 @@ protected:
 	//==================================================================
 
 	/** Size container - controls slot dimensions */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<USizeBox> SlotSizeBox;
 
 	/** Background border - state-based background color */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UBorder> BackgroundBorder;
 
 	/** Highlight border - selection/hover overlay */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UBorder> HighlightBorder;
 
 	/** Item icon image */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UImage> ItemIcon;
 
-	/** Stack count text */
+	/** Stack count text (optional - only for stackable items) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UTextBlock> StackCountText;
 

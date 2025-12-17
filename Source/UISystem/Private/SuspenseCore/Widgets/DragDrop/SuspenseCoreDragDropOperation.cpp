@@ -227,12 +227,12 @@ USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 		return nullptr;
 	}
 
-	// Use provided class or default
+	// Use provided class - MUST be a Blueprint with BindWidget components
 	TSubclassOf<USuspenseCoreDragVisualWidget> WidgetClass = VisualWidgetClass;
 	if (!WidgetClass)
 	{
-		// Use default class - should be configured in project
-		WidgetClass = USuspenseCoreDragVisualWidget::StaticClass();
+		UE_LOG(LogTemp, Error, TEXT("CreateDragVisual: VisualWidgetClass is null! DragVisualWidgetClass must be set in container widget Blueprint defaults."));
+		return nullptr;
 	}
 
 	// Create widget

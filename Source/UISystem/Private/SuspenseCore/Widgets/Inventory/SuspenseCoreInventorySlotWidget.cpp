@@ -580,8 +580,12 @@ void USuspenseCoreInventorySlotWidget::OnDragEnter_Implementation(UDragDropOpera
 								   (PtrValue < 0x10000) ||
 								   (PtrValue > 0x00007FFFFFFFFFFF);
 
+	UE_LOG(LogTemp, Warning, TEXT("OnDragEnter_Implementation: Slot=%d, PtrValue=0x%llX, IsGarbage=%d"),
+		SlotIndex, PtrValue, bIsGarbagePointer ? 1 : 0);
+
 	if (bIsGarbagePointer)
 	{
+		UE_LOG(LogTemp, Error, TEXT("OnDragEnter_Implementation: GARBAGE POINTER DETECTED! Slot=%d"), SlotIndex);
 		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
 		return;
 	}

@@ -503,6 +503,13 @@ FSlotValidationResult USuspenseCoreEquipmentSlotWidget::CanAcceptDrop_Implementa
 	FSlotValidationResult Result;
 	Result.bIsValid = false;
 
+	// Validate pointer before Cast to prevent crash on invalid/garbage pointers
+	if (!DragOperation || !IsValid(DragOperation))
+	{
+		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
+		return Result;
+	}
+
 	// Cast to our drag operation type
 	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
 	if (!SuspenseDragOp)
@@ -514,7 +521,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotWidget::CanAcceptDrop_Implementa
 	const FSuspenseCoreDragData& DragData = SuspenseDragOp->GetDragData();
 
 	// Check if slot can accept this item type
-	if (!CanAcceptItemType(DragData.Item.ItemTypeTag))
+	if (!CanAcceptItemType(DragData.Item.ItemType))
 	{
 		Result.ErrorMessage = FText::Format(
 			NSLOCTEXT("SuspenseCore", "ItemTypeNotAllowed", "Cannot equip {0} in this slot"),

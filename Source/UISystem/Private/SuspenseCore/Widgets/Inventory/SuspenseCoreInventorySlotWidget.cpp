@@ -522,20 +522,13 @@ FSlotValidationResult USuspenseCoreInventorySlotWidget::CanAcceptDrop_Implementa
 	FSlotValidationResult Result;
 	Result.bIsValid = false;
 
-	// CRITICAL: Check for garbage pointers before ANY operation
-	// 0xFFFFFFFFFFFFFFFF = -1, high addresses > 0x7FFF... are kernel space on Windows
-	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	const bool bIsGarbagePointer = (PtrValue == 0) ||
-								   (PtrValue < 0x10000) ||
-								   (PtrValue > 0x00007FFFFFFFFFFF);  // Above user space on 64-bit Windows
-
-	if (bIsGarbagePointer)
+	if (!DragOperation)
 	{
 		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
 		return Result;
 	}
 
-	// Cast to our drag operation type - use dynamic_cast alternative
+	// Cast to our drag operation type
 	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
 	if (!SuspenseDragOp)
 	{
@@ -572,20 +565,10 @@ bool USuspenseCoreInventorySlotWidget::HandleDrop_Implementation(UDragDropOperat
 	return true;
 }
 
-void USuspenseCoreInventorySlotWidget::OnDragEnter_Implementation(UDragDropOperation* DragOperation)
+void USuspenseCoreInventorySlotWidget::NotifyDragEnter_Implementation(UDragDropOperation* DragOperation)
 {
-	// CRITICAL: Check for garbage pointers before ANY operation
-	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	const bool bIsGarbagePointer = (PtrValue == 0) ||
-								   (PtrValue < 0x10000) ||
-								   (PtrValue > 0x00007FFFFFFFFFFF);
-
-	UE_LOG(LogTemp, Warning, TEXT("OnDragEnter_Implementation: Slot=%d, PtrValue=0x%llX, IsGarbage=%d"),
-		SlotIndex, PtrValue, bIsGarbagePointer ? 1 : 0);
-
-	if (bIsGarbagePointer)
+	if (!DragOperation)
 	{
-		UE_LOG(LogTemp, Error, TEXT("OnDragEnter_Implementation: GARBAGE POINTER DETECTED! Slot=%d"), SlotIndex);
 		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
 		return;
 	}
@@ -602,7 +585,7 @@ void USuspenseCoreInventorySlotWidget::OnDragEnter_Implementation(UDragDropOpera
 	}
 }
 
-void USuspenseCoreInventorySlotWidget::OnDragLeave_Implementation()
+void USuspenseCoreInventorySlotWidget::NotifyDragLeave_Implementation()
 {
 	SetHighlightState(ESuspenseCoreUISlotState::Empty);
 }

@@ -45,17 +45,18 @@ public:
 
     /**
      * Called when a drag operation enters this target's bounds.
-     * ВАЖНО: Убираем const для корректной работы с Blueprint
+     * NOTE: Named NotifyDragEnter to avoid conflict with UUserWidget::OnDragEnter
      * @param DragOperation Current drag operation (базовый класс)
      */
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI|DragDrop")
-    void OnDragEnter(UDragDropOperation* DragOperation);
+    void NotifyDragEnter(UDragDropOperation* DragOperation);
 
     /**
      * Called when a drag operation leaves this target's bounds.
+     * NOTE: Named NotifyDragLeave to avoid conflict with UUserWidget::OnDragLeave
      */
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI|DragDrop")
-    void OnDragLeave();
+    void NotifyDragLeave();
 
     /**
      * Retrieves the slot index or identifier for this drop target.

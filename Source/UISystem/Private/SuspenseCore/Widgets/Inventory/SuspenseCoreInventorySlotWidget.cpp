@@ -522,6 +522,13 @@ FSlotValidationResult USuspenseCoreInventorySlotWidget::CanAcceptDrop_Implementa
 	FSlotValidationResult Result;
 	Result.bIsValid = false;
 
+	// Validate pointer before Cast to prevent crash on invalid/garbage pointers
+	if (!DragOperation || !IsValid(DragOperation))
+	{
+		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
+		return Result;
+	}
+
 	// Cast to our drag operation type
 	const USuspenseCoreDragDropOperation* SuspenseDragOp = Cast<USuspenseCoreDragDropOperation>(DragOperation);
 	if (!SuspenseDragOp)

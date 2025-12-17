@@ -4,13 +4,49 @@
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentWidget.h"
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
+#include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+
+namespace
+{
+	/**
+	 * Helper to get native tag for equipment slot type
+	 * Use native tags instead of RequestGameplayTag per EventBus architecture documentation
+	 */
+	FGameplayTag GetNativeTagForSlotType(EEquipmentSlotType SlotType)
+	{
+		using namespace SuspenseCoreEquipmentTags::Slot;
+
+		switch (SlotType)
+		{
+		case EEquipmentSlotType::PrimaryWeapon:    return TAG_Equipment_Slot_PrimaryWeapon;
+		case EEquipmentSlotType::SecondaryWeapon:  return TAG_Equipment_Slot_SecondaryWeapon;
+		case EEquipmentSlotType::Holster:          return TAG_Equipment_Slot_Holster;
+		case EEquipmentSlotType::Scabbard:         return TAG_Equipment_Slot_Scabbard;
+		case EEquipmentSlotType::Headwear:         return TAG_Equipment_Slot_Headwear;
+		case EEquipmentSlotType::Earpiece:         return TAG_Equipment_Slot_Earpiece;
+		case EEquipmentSlotType::Eyewear:          return TAG_Equipment_Slot_Eyewear;
+		case EEquipmentSlotType::FaceCover:        return TAG_Equipment_Slot_FaceCover;
+		case EEquipmentSlotType::BodyArmor:        return TAG_Equipment_Slot_BodyArmor;
+		case EEquipmentSlotType::TacticalRig:      return TAG_Equipment_Slot_TacticalRig;
+		case EEquipmentSlotType::Backpack:         return TAG_Equipment_Slot_Backpack;
+		case EEquipmentSlotType::SecureContainer:  return TAG_Equipment_Slot_SecureContainer;
+		case EEquipmentSlotType::QuickSlot1:       return TAG_Equipment_Slot_QuickSlot1;
+		case EEquipmentSlotType::QuickSlot2:       return TAG_Equipment_Slot_QuickSlot2;
+		case EEquipmentSlotType::QuickSlot3:       return TAG_Equipment_Slot_QuickSlot3;
+		case EEquipmentSlotType::QuickSlot4:       return TAG_Equipment_Slot_QuickSlot4;
+		case EEquipmentSlotType::Armband:          return TAG_Equipment_Slot_Armband;
+		default:                                   return TAG_Equipment_Slot_None;
+		}
+	}
+}
 
 //==================================================================
 // Constructor
@@ -337,13 +373,15 @@ void USuspenseCoreEquipmentWidget::PositionSlotWidget(USuspenseCoreEquipmentSlot
 
 const FSuspenseCoreEquipmentSlotUIConfig* USuspenseCoreEquipmentWidget::FindUIConfigForSlot(EEquipmentSlotType SlotType) const
 {
+	// Use native tags instead of RequestGameplayTag per EventBus architecture documentation
+	FGameplayTag ExpectedTag = GetNativeTagForSlotType(SlotType);
+	if (!ExpectedTag.IsValid())
+	{
+		return nullptr;
+	}
+
 	for (const FSuspenseCoreEquipmentSlotUIConfig& Config : SlotUIConfigs)
 	{
-		// Match by slot type tag
-		FString ExpectedTagName = FString::Printf(TEXT("Equipment.Slot.%s"),
-			*UEnum::GetValueAsString(SlotType).RightChop(FString(TEXT("EEquipmentSlotType::")).Len()));
-		FGameplayTag ExpectedTag = FGameplayTag::RequestGameplayTag(*ExpectedTagName, false);
-
 		if (Config.SlotTypeTag == ExpectedTag)
 		{
 			return &Config;
@@ -519,5 +557,66 @@ void USuspenseCoreEquipmentWidget::OnProviderDataChanged(const FSuspenseCoreUIEv
 	// Refresh all slots from provider
 	RefreshFromProvider();
 
+	// Also refresh character preview if available
+	RefreshCharacterPreview();
+
 	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Provider data changed, refreshed from provider"));
+}
+
+//==================================================================
+// Character Preview
+//==================================================================
+
+ASuspenseCoreCharacterPreviewActor* USuspenseCoreEquipmentWidget::SpawnCharacterPreview(
+	TSubclassOf<ASuspenseCoreCharacterPreviewActor> PreviewActorClass)
+{
+	if (!PreviewActorClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: SpawnCharacterPreview - No PreviewActorClass specified"));
+		return nullptr;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: SpawnCharacterPreview - No World context"));
+		return nullptr;
+	}
+
+	// Spawn the preview actor
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ASuspenseCoreCharacterPreviewActor* SpawnedActor = World->SpawnActor<ASuspenseCoreCharacterPreviewActor>(
+		PreviewActorClass,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	if (SpawnedActor)
+	{
+		CharacterPreview = SpawnedActor;
+		RefreshCharacterPreview();
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Spawned character preview actor"));
+	}
+
+	return SpawnedActor;
+}
+
+void USuspenseCoreEquipmentWidget::RefreshCharacterPreview()
+{
+	if (!CharacterPreview.IsValid())
+	{
+		return;
+	}
+
+	// Get equipped items from provider and update preview
+	if (!BoundProvider)
+	{
+		return;
+	}
+
+	// TODO: Implement actual character preview update
+	// This should iterate through equipped items and update the preview actor's mesh/attachments
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: RefreshCharacterPreview called"));
 }

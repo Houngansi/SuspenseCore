@@ -82,6 +82,14 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Event_UIPanel_Equipment);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Event_UIPanel_Stash);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Event_UIPanel_Trader);
 
+// Container Type Tags (for Drag-Drop source/target identification)
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container_Inventory);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container_Equipment);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container_Stash);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container_Trader);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_Container_Loot);
+
 // Context Menu Actions
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_UIAction);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_SuspenseCore_UIAction_Use);

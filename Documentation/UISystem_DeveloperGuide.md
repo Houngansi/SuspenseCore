@@ -590,6 +590,89 @@ FSuspenseCoreDropResult USuspenseCoreDragDropHandler::HandleEquipmentToEquipment
 
 ---
 
+## 8.5. Critical Implementation Notes
+
+### ⚠️ CRITICAL: UUserWidget Method Name Conflicts
+
+When implementing `ISuspenseCoreDropTarget` interface on widgets that inherit from `UUserWidget`, **DO NOT** use method names that conflict with UUserWidget's built-in Blueprint events.
+
+#### The Problem
+
+`UUserWidget` already defines these Blueprint events:
+- `OnDragEnter(FGeometry, FDragDropEvent)`
+- `OnDragLeave(FDragDropEvent)`
+- `OnDrop(FGeometry, FDragDropEvent, UDragDropOperation*)`
+
+If your interface defines methods with the **same names but different signatures**:
+```cpp
+// ❌ WRONG - Conflicts with UUserWidget::OnDragEnter
+void OnDragEnter(UDragDropOperation* DragOperation);
+```
+
+The Blueprint system will **incorrectly marshal parameters**, causing:
+- `FGeometry` data (slot coordinates like 64.0, 64.0) passed as `UDragDropOperation*`
+- Crash with `EXCEPTION_ACCESS_VIOLATION reading address 0xFFFFFFFFFFFFFFFF`
+- Garbage pointer values like `0x4280000042800000` (two floats)
+
+#### The Solution
+
+**Rename interface methods to avoid conflicts:**
+
+```cpp
+// ✅ CORRECT - ISuspenseCoreDropTarget.h
+UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI|DragDrop")
+void NotifyDragEnter(UDragDropOperation* DragOperation);  // ← NOT OnDragEnter!
+
+UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI|DragDrop")
+void NotifyDragLeave();  // ← NOT OnDragLeave!
+```
+
+#### Implementation Pattern
+
+```cpp
+// Header
+virtual void NotifyDragEnter_Implementation(UDragDropOperation* DragOperation) override;
+virtual void NotifyDragLeave_Implementation() override;
+
+// Implementation
+void USuspenseCoreInventorySlotWidget::NotifyDragEnter_Implementation(UDragDropOperation* DragOperation)
+{
+    if (!DragOperation)
+    {
+        SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
+        return;
+    }
+
+    FSlotValidationResult Validation = CanAcceptDrop_Implementation(DragOperation);
+    SetHighlightState(Validation.bIsValid
+        ? ESuspenseCoreUISlotState::DropTargetValid
+        : ESuspenseCoreUISlotState::DropTargetInvalid);
+}
+```
+
+#### Affected Files
+
+| File | Method | Status |
+|------|--------|--------|
+| `ISuspenseCoreDropTarget.h` | `NotifyDragEnter`, `NotifyDragLeave` | ✅ Fixed |
+| `SuspenseCoreInventorySlotWidget.cpp` | `NotifyDragEnter_Implementation` | ✅ Fixed |
+| `SuspenseCoreEquipmentSlotWidget.cpp` | `NotifyDragEnter_Implementation` | ✅ Fixed |
+| `SuspenseBaseSlotWidget.cpp` | `NotifyDragEnter_Implementation` | ✅ Fixed |
+
+### Safe Method Names for UUserWidget Interfaces
+
+**Avoid these names (UUserWidget conflicts):**
+- `OnDragEnter`, `OnDragLeave`, `OnDrop`
+- `OnMouseEnter`, `OnMouseLeave`
+- `OnFocusReceived`, `OnFocusLost`
+
+**Use these naming patterns instead:**
+- `NotifyDragEnter`, `NotifyDragLeave`
+- `HandleDropTarget`, `ProcessDragEnter`
+- `OnSlotDragEnter`, `OnSlotDragLeave`
+
+---
+
 ## 9. Task List & Issues
 
 ### Priority 0 - Blockers (Must Fix)

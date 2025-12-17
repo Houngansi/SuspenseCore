@@ -64,6 +64,14 @@ UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIPanel_Equipment, "SuspenseCore.E
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIPanel_Stash, "SuspenseCore.Event.UIPanel.Stash");
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIPanel_Trader, "SuspenseCore.Event.UIPanel.Trader");
 
+// Container Type Tags (for Drag-Drop source/target identification)
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container, "SuspenseCore.Container");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container_Inventory, "SuspenseCore.Container.Inventory");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container_Equipment, "SuspenseCore.Container.Equipment");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container_Stash, "SuspenseCore.Container.Stash");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container_Trader, "SuspenseCore.Container.Trader");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Container_Loot, "SuspenseCore.Container.Loot");
+
 // Context Menu Actions
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_UIAction, "SuspenseCore.UIAction");
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_UIAction_Use, "SuspenseCore.UIAction.Use");

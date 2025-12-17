@@ -129,22 +129,23 @@ protected:
 	virtual void UpdateSize_Implementation();
 
 	//==================================================================
-	// Widget References (Bind in Blueprint)
+	// Widget References (Bind in Blueprint) - REQUIRED components
+	// Blueprint MUST have widgets with these EXACT names or compilation will fail
 	//==================================================================
 
-	/** Size container */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Size container - REQUIRED for multi-cell item sizing */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<USizeBox> SizeContainer;
 
-	/** Border for drop validity indicator */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Border for drop validity indicator - REQUIRED for valid/invalid drop feedback */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UBorder> ValidityBorder;
 
-	/** Item icon */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Item icon - REQUIRED for visual representation */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UImage> ItemIcon;
 
-	/** Quantity text */
+	/** Quantity text - optional (not all items have quantity) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UTextBlock> QuantityText;
 

@@ -37,6 +37,12 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Validate required BindWidget components
+	// If any of these are missing, Blueprint is misconfigured
+	checkf(SizeContainer, TEXT("USuspenseCoreDragVisualWidget: SizeContainer is REQUIRED! Add USizeBox named 'SizeContainer' to your Blueprint."));
+	checkf(ValidityBorder, TEXT("USuspenseCoreDragVisualWidget: ValidityBorder is REQUIRED! Add UBorder named 'ValidityBorder' to your Blueprint."));
+	checkf(ItemIcon, TEXT("USuspenseCoreDragVisualWidget: ItemIcon is REQUIRED! Add UImage named 'ItemIcon' to your Blueprint."));
+
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
 }

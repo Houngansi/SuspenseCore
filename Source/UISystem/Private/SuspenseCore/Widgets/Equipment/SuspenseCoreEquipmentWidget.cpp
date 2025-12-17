@@ -68,6 +68,9 @@ void USuspenseCoreEquipmentWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Validate required BindWidget components
+	checkf(SlotContainer, TEXT("%s: SlotContainer is REQUIRED! Add UCanvasPanel named 'SlotContainer' to your Blueprint."), *GetClass()->GetName());
+
 	// Setup EventBus subscriptions (REQUIRED per documentation)
 	SetupEventSubscriptions();
 

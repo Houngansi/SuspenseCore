@@ -40,6 +40,13 @@ void USuspenseCoreBaseSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Validate required BindWidget components
+	// If any of these are missing, Blueprint is misconfigured - WILL CRASH INTENTIONALLY
+	checkf(SlotSizeBox, TEXT("%s: SlotSizeBox is REQUIRED! Add USizeBox named 'SlotSizeBox' to your Blueprint."), *GetClass()->GetName());
+	checkf(BackgroundBorder, TEXT("%s: BackgroundBorder is REQUIRED! Add UBorder named 'BackgroundBorder' to your Blueprint."), *GetClass()->GetName());
+	checkf(HighlightBorder, TEXT("%s: HighlightBorder is REQUIRED! Add UBorder named 'HighlightBorder' to your Blueprint."), *GetClass()->GetName());
+	checkf(ItemIcon, TEXT("%s: ItemIcon is REQUIRED! Add UImage named 'ItemIcon' to your Blueprint."), *GetClass()->GetName());
+
 	// Initialize visual state
 	UpdateVisuals();
 	UpdateHighlightVisual(ESuspenseCoreUISlotState::Empty);

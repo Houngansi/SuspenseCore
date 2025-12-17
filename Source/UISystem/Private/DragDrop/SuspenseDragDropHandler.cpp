@@ -942,12 +942,15 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FD
 
 FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
 {
-    // Determine operation type - use native tags (DO NOT use RequestGameplayTag per documentation)
-    bool bSourceIsInventory = Request.SourceContainer.MatchesTag(TAG_SuspenseCore_Container_Inventory);
-    bool bTargetIsInventory = Request.TargetContainer.MatchesTag(TAG_SuspenseCore_Container_Inventory);
+    // Determine operation type - use RequestGameplayTag for cross-module Container tags
+    static const FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Inventory"));
+    static const FGameplayTag EquipmentTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Equipment"));
 
-    bool bSourceIsEquipment = Request.SourceContainer.MatchesTag(TAG_SuspenseCore_Container_Equipment);
-    bool bTargetIsEquipment = Request.TargetContainer.MatchesTag(TAG_SuspenseCore_Container_Equipment);
+    bool bSourceIsInventory = Request.SourceContainer.MatchesTag(InventoryTag);
+    bool bTargetIsInventory = Request.TargetContainer.MatchesTag(InventoryTag);
+
+    bool bSourceIsEquipment = Request.SourceContainer.MatchesTag(EquipmentTag);
+    bool bTargetIsEquipment = Request.TargetContainer.MatchesTag(EquipmentTag);
 
     // Route to appropriate handler
     if (bSourceIsInventory && bTargetIsInventory)
@@ -1050,8 +1053,9 @@ bool USuspenseDragDropHandler::CalculateOccupiedSlots(
 TScriptInterface<ISuspenseInventoryUIBridgeInterface> USuspenseDragDropHandler::GetBridgeForContainer(
     const FGameplayTag& ContainerType) const
 {
-    // Check if it's inventory container - use native tags (DO NOT use RequestGameplayTag)
-    if (ContainerType.MatchesTag(TAG_SuspenseCore_Container_Inventory))
+    // Check if it's inventory container - use RequestGameplayTag for cross-module tags
+    static const FGameplayTag InventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Inventory"));
+    if (ContainerType.MatchesTag(InventoryTag))
     {
         if (InventoryBridge.IsValid())
         {

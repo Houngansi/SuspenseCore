@@ -14,6 +14,7 @@
 // Forward declarations
 class ISuspenseCoreUIDataProvider;
 class USuspenseCoreEventBus;
+class USuspenseCoreDragVisualWidget;
 
 /**
  * USuspenseCoreBaseContainerWidget
@@ -203,6 +204,14 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	ESuspenseCoreContainerType ExpectedContainerType = ESuspenseCoreContainerType::Inventory;
+
+	/**
+	 * Blueprint class to use for drag visual widget.
+	 * REQUIRED: Must be set to a Blueprint with proper BindWidget components.
+	 * If not set, drag operations will fail with assertion.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	TSubclassOf<USuspenseCoreDragVisualWidget> DragVisualWidgetClass;
 
 	//==================================================================
 	// Protected State (accessible to derived classes)

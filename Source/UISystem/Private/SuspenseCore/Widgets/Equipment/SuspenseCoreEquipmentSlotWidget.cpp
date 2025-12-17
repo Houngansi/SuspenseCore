@@ -504,14 +504,7 @@ FSlotValidationResult USuspenseCoreEquipmentSlotWidget::CanAcceptDrop_Implementa
 	FSlotValidationResult Result;
 	Result.bIsValid = false;
 
-	// CRITICAL: Check for garbage pointers before ANY operation
-	// 0xFFFFFFFFFFFFFFFF = -1, high addresses > 0x7FFF... are kernel space on Windows
-	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	const bool bIsGarbagePointer = (PtrValue == 0) ||
-								   (PtrValue < 0x10000) ||
-								   (PtrValue > 0x00007FFFFFFFFFFF);  // Above user space on 64-bit Windows
-
-	if (bIsGarbagePointer)
+	if (!DragOperation)
 	{
 		Result.ErrorMessage = NSLOCTEXT("SuspenseCore", "InvalidDragOp", "Invalid drag operation");
 		return Result;
@@ -567,15 +560,9 @@ bool USuspenseCoreEquipmentSlotWidget::HandleDrop_Implementation(UDragDropOperat
 	return true;
 }
 
-void USuspenseCoreEquipmentSlotWidget::OnDragEnter_Implementation(UDragDropOperation* DragOperation)
+void USuspenseCoreEquipmentSlotWidget::NotifyDragEnter_Implementation(UDragDropOperation* DragOperation)
 {
-	// CRITICAL: Check for garbage pointers before ANY operation
-	const uintptr_t PtrValue = reinterpret_cast<uintptr_t>(DragOperation);
-	const bool bIsGarbagePointer = (PtrValue == 0) ||
-								   (PtrValue < 0x10000) ||
-								   (PtrValue > 0x00007FFFFFFFFFFF);
-
-	if (bIsGarbagePointer)
+	if (!DragOperation)
 	{
 		SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
 		return;
@@ -594,7 +581,7 @@ void USuspenseCoreEquipmentSlotWidget::OnDragEnter_Implementation(UDragDropOpera
 	}
 }
 
-void USuspenseCoreEquipmentSlotWidget::OnDragLeave_Implementation()
+void USuspenseCoreEquipmentSlotWidget::NotifyDragLeave_Implementation()
 {
 	// Clear highlight when drag leaves
 	SetHighlightState(ESuspenseCoreUISlotState::Empty);

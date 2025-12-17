@@ -87,8 +87,8 @@ public:
 
 	virtual FSlotValidationResult CanAcceptDrop_Implementation(const UDragDropOperation* DragOperation) const override;
 	virtual bool HandleDrop_Implementation(UDragDropOperation* DragOperation) override;
-	virtual void OnDragEnter_Implementation(UDragDropOperation* DragOperation) override;
-	virtual void OnDragLeave_Implementation() override;
+	virtual void NotifyDragEnter_Implementation(UDragDropOperation* DragOperation) override;
+	virtual void NotifyDragLeave_Implementation() override;
 	virtual int32 GetDropTargetSlot_Implementation() const override;
 
 	//==================================================================

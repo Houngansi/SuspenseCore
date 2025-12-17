@@ -483,12 +483,12 @@ bool USuspenseBaseSlotWidget::HandleDrop_Implementation(UDragDropOperation* Drag
     return false;
 }
 
-void USuspenseBaseSlotWidget::OnDragEnter_Implementation(UDragDropOperation* DragOperation)
+void USuspenseBaseSlotWidget::NotifyDragEnter_Implementation(UDragDropOperation* DragOperation)
 {
     // Handled in NativeOnDragEnter
 }
 
-void USuspenseBaseSlotWidget::OnDragLeave_Implementation()
+void USuspenseBaseSlotWidget::NotifyDragLeave_Implementation()
 {
     if (IsValid(OwningContainer))
     {

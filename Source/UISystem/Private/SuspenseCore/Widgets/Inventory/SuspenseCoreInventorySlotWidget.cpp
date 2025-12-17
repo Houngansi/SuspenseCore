@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventorySlotWidget.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
@@ -42,6 +43,13 @@ USuspenseCoreInventorySlotWidget::USuspenseCoreInventorySlotWidget(const FObject
 void USuspenseCoreInventorySlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// CRITICAL: Validate required BindWidget components
+	// If any of these are missing, Blueprint is misconfigured - WILL CRASH INTENTIONALLY
+	checkf(SlotSizeBox, TEXT("%s: SlotSizeBox is REQUIRED! Add USizeBox named 'SlotSizeBox' to your Blueprint."), *GetClass()->GetName());
+	checkf(BackgroundBorder, TEXT("%s: BackgroundBorder is REQUIRED! Add UBorder named 'BackgroundBorder' to your Blueprint."), *GetClass()->GetName());
+	checkf(HighlightBorder, TEXT("%s: HighlightBorder is REQUIRED! Add UBorder named 'HighlightBorder' to your Blueprint."), *GetClass()->GetName());
+	checkf(ItemIcon, TEXT("%s: ItemIcon is REQUIRED! Add UImage named 'ItemIcon' to your Blueprint."), *GetClass()->GetName());
 
 	// Initialize visual state
 	UpdateVisuals();
@@ -480,8 +488,8 @@ FDragDropUIData USuspenseCoreInventorySlotWidget::GetDragData_Implementation() c
 		DragData.ItemData.GridSize = MultiCellItemSize;
 		DragData.ItemData.Quantity = CachedItemData.Quantity;
 		DragData.ItemData.bIsRotated = CachedItemData.bIsRotated;
-		// SourceContainerType is FGameplayTag, use Inventory tag
-		DragData.SourceContainerType = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Inventory"));
+		// SourceContainerType is FGameplayTag - use native tag (DO NOT use RequestGameplayTag per documentation)
+		DragData.SourceContainerType = TAG_SuspenseCore_Container_Inventory;
 		DragData.DraggedQuantity = CachedItemData.Quantity;
 		DragData.bIsValid = true;
 	}

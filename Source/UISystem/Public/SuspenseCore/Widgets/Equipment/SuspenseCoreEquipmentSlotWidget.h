@@ -15,6 +15,8 @@
 
 // Forward declarations
 class UImage;
+class UTextBlock;
+class UBorder;
 
 /**
  * USuspenseCoreEquipmentSlotWidget
@@ -221,15 +223,24 @@ protected:
 
 	//==================================================================
 	// Additional Widget References (Bind in Blueprint)
+	// REQUIRED: EmptySlotIcon, RarityBorder
 	//==================================================================
 
-	/** Empty slot icon - shown when no item equipped (silhouette) */
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	/** Empty slot icon - shown when no item equipped (silhouette) - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UImage> EmptySlotIcon;
+
+	/** Rarity border - colored based on item rarity tag - REQUIRED */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
+	TObjectPtr<UBorder> RarityBorder;
 
 	/** Slot type indicator icon (optional, small icon in corner) */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
 	TObjectPtr<UImage> SlotTypeIndicator;
+
+	/** Slot name text (optional, displays slot display name) */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget, OptionalWidget = true), Category = "Widgets")
+	TObjectPtr<UTextBlock> SlotNameText;
 
 	//==================================================================
 	// Configuration
@@ -250,6 +261,14 @@ protected:
 	/** Allowed item types for this slot */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Slot", meta = (Categories = "Item"))
 	FGameplayTagContainer AllowedItemTypes;
+
+	/** Base cell size for multi-cell slot calculations (pixels) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Size")
+	float BaseCellSize = 64.0f;
+
+	/** Padding between icon and slot border (pixels) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Size")
+	float IconPadding = 4.0f;
 
 	/** Path to empty slot icon texture */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|Visuals")

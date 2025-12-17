@@ -17,6 +17,7 @@ class USuspenseCoreEquipmentSlotWidget;
 class UCanvasPanel;
 class UOverlay;
 class USuspenseCoreEventBus;
+class ASuspenseCoreCharacterPreviewActor;
 
 /**
  * USuspenseCoreEquipmentWidget
@@ -188,6 +189,31 @@ protected:
 	 */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Widgets")
 	TObjectPtr<UCanvasPanel> SlotContainer;
+
+	//==================================================================
+	// Character Preview (3D Model Display)
+	//==================================================================
+
+	/**
+	 * Reference to character preview actor for 3D model display
+	 * Set via Blueprint or spawned programmatically
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Preview")
+	TWeakObjectPtr<ASuspenseCoreCharacterPreviewActor> CharacterPreview;
+
+	/**
+	 * Spawn and setup character preview actor
+	 * @param PreviewActorClass Class to spawn for preview
+	 * @return Spawned actor or nullptr
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment")
+	ASuspenseCoreCharacterPreviewActor* SpawnCharacterPreview(TSubclassOf<ASuspenseCoreCharacterPreviewActor> PreviewActorClass);
+
+	/**
+	 * Update character preview to show current equipment
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Equipment")
+	void RefreshCharacterPreview();
 
 	//==================================================================
 	// Configuration

@@ -37,6 +37,11 @@ void USuspenseCoreEquipmentSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Validate equipment-specific required BindWidget components
+	// Base class already validates SlotSizeBox, BackgroundBorder, HighlightBorder, ItemIcon
+	checkf(EmptySlotIcon, TEXT("%s: EmptySlotIcon is REQUIRED! Add UImage named 'EmptySlotIcon' to your Blueprint."), *GetClass()->GetName());
+	checkf(RarityBorder, TEXT("%s: RarityBorder is REQUIRED! Add UBorder named 'RarityBorder' to your Blueprint."), *GetClass()->GetName());
+
 	// Show empty slot icon initially
 	UpdateEmptySlotIcon();
 }

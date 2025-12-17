@@ -6,6 +6,7 @@
 #include "Widgets/Base/SuspenseBaseSlotWidget.h"
 #include "Widgets/Base/SuspenseBaseContainerWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreContainerUI.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreSlotUI.h"
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
@@ -941,20 +942,12 @@ FSuspenseInventoryOperationResult USuspenseDragDropHandler::ExecuteDrop(const FD
 
 FSuspenseInventoryOperationResult USuspenseDragDropHandler::RouteDropOperation(const FDropRequest& Request)
 {
-    // Determine operation type
-    bool bSourceIsInventory = Request.SourceContainer.MatchesTag(
-        FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"))
-    );
-    bool bTargetIsInventory = Request.TargetContainer.MatchesTag(
-        FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"))
-    );
+    // Determine operation type - use native tags (DO NOT use RequestGameplayTag per documentation)
+    bool bSourceIsInventory = Request.SourceContainer.MatchesTag(TAG_SuspenseCore_Container_Inventory);
+    bool bTargetIsInventory = Request.TargetContainer.MatchesTag(TAG_SuspenseCore_Container_Inventory);
 
-    bool bSourceIsEquipment = Request.SourceContainer.MatchesTag(
-        FGameplayTag::RequestGameplayTag(TEXT("Container.Equipment"))
-    );
-    bool bTargetIsEquipment = Request.TargetContainer.MatchesTag(
-        FGameplayTag::RequestGameplayTag(TEXT("Container.Equipment"))
-    );
+    bool bSourceIsEquipment = Request.SourceContainer.MatchesTag(TAG_SuspenseCore_Container_Equipment);
+    bool bTargetIsEquipment = Request.TargetContainer.MatchesTag(TAG_SuspenseCore_Container_Equipment);
 
     // Route to appropriate handler
     if (bSourceIsInventory && bTargetIsInventory)
@@ -1057,8 +1050,8 @@ bool USuspenseDragDropHandler::CalculateOccupiedSlots(
 TScriptInterface<ISuspenseInventoryUIBridgeInterface> USuspenseDragDropHandler::GetBridgeForContainer(
     const FGameplayTag& ContainerType) const
 {
-    // Check if it's inventory container
-    if (ContainerType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Container.Inventory"))))
+    // Check if it's inventory container - use native tags (DO NOT use RequestGameplayTag)
+    if (ContainerType.MatchesTag(TAG_SuspenseCore_Container_Inventory))
     {
         if (InventoryBridge.IsValid())
         {

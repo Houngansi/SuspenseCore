@@ -614,7 +614,7 @@ void USuspenseCoreEquipmentWidget::RefreshCharacterPreview()
 	}
 
 	// Get equipped items from provider and update preview
-	if (!BoundProvider)
+	if (!GetBoundProvider())
 	{
 		return;
 	}

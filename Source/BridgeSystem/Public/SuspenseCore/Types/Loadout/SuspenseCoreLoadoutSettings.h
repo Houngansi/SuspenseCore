@@ -96,6 +96,22 @@ struct BRIDGESYSTEM_API FEquipmentSlotConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Config")
     FName DefaultItemID = NAME_None;
 
+    //========================================
+    // UI Layout (for auto-positioning in canvas)
+    //========================================
+
+    /** Position on canvas panel (pixels) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Layout")
+    FVector2D UIPosition = FVector2D::ZeroVector;
+
+    /** Size of slot widget (pixels). If zero, uses DefaultSlotSize from widget. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Layout")
+    FVector2D UISize = FVector2D(64.0f, 64.0f);
+
+    /** Icon to show when slot is empty */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Layout")
+    TSoftObjectPtr<UTexture2D> EmptySlotIcon;
+
     FEquipmentSlotConfig() = default;
 
     FEquipmentSlotConfig(EEquipmentSlotType InSlotType, const FGameplayTag& InSlotTag)

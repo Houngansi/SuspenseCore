@@ -240,11 +240,8 @@ void USuspenseCoreEquipmentWidget::CreateSlotWidgets_Implementation()
 			continue;
 		}
 
-		// Find UI config for this slot
-		const FSuspenseCoreEquipmentSlotUIConfig* UIConfig = FindUIConfigForSlot(Config.SlotType);
-
-		// Create slot widget
-		USuspenseCoreEquipmentSlotWidget* SlotWidget = CreateSlotWidget(Config, UIConfig);
+		// Create slot widget using UIPosition and UISize from Config
+		USuspenseCoreEquipmentSlotWidget* SlotWidget = CreateSlotWidget(Config, nullptr);
 		if (SlotWidget)
 		{
 			// Store references
@@ -252,14 +249,13 @@ void USuspenseCoreEquipmentWidget::CreateSlotWidgets_Implementation()
 			SlotWidgetsByTag.Add(Config.SlotTag, SlotWidget);
 			SlotWidgetsArray.Add(SlotWidget);
 
-			// Position if UI config available
-			if (UIConfig)
-			{
-				PositionSlotWidget(SlotWidget, *UIConfig);
-			}
+			// Position slot using UIPosition and UISize from FEquipmentSlotConfig
+			PositionSlotWidgetFromConfig(SlotWidget, Config);
 
-			UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Created slot %s (Index: %d)"),
-				*Config.DisplayName.ToString(), Index);
+			UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Created slot %s at (%.0f, %.0f) size (%.0f, %.0f)"),
+				*Config.DisplayName.ToString(),
+				Config.UIPosition.X, Config.UIPosition.Y,
+				Config.UISize.X, Config.UISize.Y);
 		}
 	}
 
@@ -371,6 +367,43 @@ void USuspenseCoreEquipmentWidget::PositionSlotWidget(USuspenseCoreEquipmentSlot
 			SlotSize.Y = UIConfig.SlotSize.Y * DefaultSlotSize.Y;
 		}
 		CanvasSlot->SetSize(SlotSize);
+
+		// Anchor to top-left for absolute positioning
+		CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+		CanvasSlot->SetAlignment(FVector2D(0.0f, 0.0f));
+	}
+}
+
+void USuspenseCoreEquipmentWidget::PositionSlotWidgetFromConfig(USuspenseCoreEquipmentSlotWidget* SlotWidget, const FEquipmentSlotConfig& Config)
+{
+	if (!SlotWidget || !SlotContainer)
+	{
+		return;
+	}
+
+	// Get canvas slot
+	UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(SlotWidget->Slot);
+	if (CanvasSlot)
+	{
+		// Set position directly from FEquipmentSlotConfig (SSOT)
+		CanvasSlot->SetPosition(Config.UIPosition);
+
+		// Set size - use UISize from config, fallback to DefaultSlotSize
+		FVector2D SlotSize = Config.UISize;
+		if (SlotSize.X <= 0 || SlotSize.Y <= 0)
+		{
+			SlotSize = DefaultSlotSize;
+		}
+		CanvasSlot->SetSize(SlotSize);
+
+		// Update slot widget's internal size
+		SlotWidget->SetSlotSize(SlotSize);
+
+		// Set empty slot icon if provided
+		if (Config.EmptySlotIcon.IsValid())
+		{
+			SlotWidget->SetEmptySlotIconPath(Config.EmptySlotIcon);
+		}
 
 		// Anchor to top-left for absolute positioning
 		CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));

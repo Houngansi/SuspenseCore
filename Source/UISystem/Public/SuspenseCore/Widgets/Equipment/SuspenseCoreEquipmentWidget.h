@@ -178,6 +178,14 @@ protected:
 	 */
 	virtual void PositionSlotWidget(USuspenseCoreEquipmentSlotWidget* SlotWidget, const FSuspenseCoreEquipmentSlotUIConfig& UIConfig);
 
+	/**
+	 * Position slot widget using FEquipmentSlotConfig (SSOT)
+	 * Uses UIPosition and UISize directly from the config
+	 * @param SlotWidget Widget to position
+	 * @param Config Equipment slot config with UI layout data
+	 */
+	virtual void PositionSlotWidgetFromConfig(USuspenseCoreEquipmentSlotWidget* SlotWidget, const FEquipmentSlotConfig& Config);
+
 	//==================================================================
 	// Widget References (Bind in Blueprint) - REQUIRED components
 	//==================================================================

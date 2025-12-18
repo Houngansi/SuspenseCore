@@ -97,8 +97,7 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& AbsolutePosi
 	// Apply offset (both in absolute/DPI-scaled coordinates from LocalToAbsolute and GetCursorPos)
 	FVector2D AbsolutePos = AbsolutePosition + DragOffset;
 
-	// Convert ABSOLUTE (DPI-scaled) to VIEWPORT-LOCAL coordinates
-	// This properly handles DPI scaling, window position, and nested widget transforms
+	// Convert ABSOLUTE (screen) to VIEWPORT coordinates for SetPositionInViewport
 	FVector2D ViewportPos = AbsolutePos;
 
 	if (GEngine && GEngine->GameViewport)
@@ -113,7 +112,9 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& AbsolutePosi
 		}
 	}
 
-	SetRenderTranslation(ViewportPos);
+	// Use SetPositionInViewport for widgets added via AddToViewport
+	// This works correctly with viewport coordinate system
+	SetPositionInViewport(ViewportPos);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

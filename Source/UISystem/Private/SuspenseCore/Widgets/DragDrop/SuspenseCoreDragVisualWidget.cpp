@@ -57,7 +57,18 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	// Update position every tick
-	if (IsVisible())
+	ESlateVisibility CurrentVis = GetVisibility();
+	bool bShouldUpdate = (CurrentVis == ESlateVisibility::Visible || CurrentVis == ESlateVisibility::HitTestInvisible);
+
+	// Debug log once to verify tick is running
+	static bool bLoggedOnce = false;
+	if (!bLoggedOnce && bShouldUpdate)
+	{
+		UE_LOG(LogTemp, Log, TEXT("DragVisual NativeTick: Visibility=%d, Updating position"), (int32)CurrentVis);
+		bLoggedOnce = true;
+	}
+
+	if (bShouldUpdate)
 	{
 		UpdatePosition(FVector2D::ZeroVector); // Parameter not used anymore
 	}
@@ -100,6 +111,7 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPositi
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdatePosition: No PlayerController!"));
 		return;
 	}
 
@@ -111,6 +123,18 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPositi
 		// Add DragOffset (also in viewport-relative units)
 		FVector2D ViewportPos(MouseX + DragOffset.X, MouseY + DragOffset.Y);
 		SetPositionInViewport(ViewportPos);
+
+		// Debug log every ~60 frames (once per second at 60fps)
+		static int32 DebugCounter = 0;
+		if (++DebugCounter % 60 == 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("UpdatePosition: Mouse=(%.1f, %.1f), Offset=(%.1f, %.1f), Final=(%.1f, %.1f)"),
+				MouseX, MouseY, DragOffset.X, DragOffset.Y, ViewportPos.X, ViewportPos.Y);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdatePosition: GetMousePosition failed!"));
 	}
 }
 

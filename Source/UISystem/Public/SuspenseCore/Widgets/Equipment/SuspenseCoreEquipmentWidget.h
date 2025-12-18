@@ -219,18 +219,12 @@ protected:
 	//==================================================================
 
 	/**
-	 * If true, automatically load slot configs from LoadoutManager on NativeConstruct.
-	 * Uses LoadoutIDForAutoInit to get slot configurations from SSOT.
+	 * If true, automatically load slot configs from SSOT on NativeConstruct.
+	 * Reads from: Project Settings → Game → SuspenseCore → EquipmentSlotPresetsAsset
+	 * No manual configuration needed in widget - just enable this flag.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|SSOT")
 	bool bAutoInitializeFromSSoT = true;
-
-	/**
-	 * Loadout ID to use for auto-initialization from SSOT.
-	 * If empty, uses DefaultLoadoutID from SuspenseCoreSettings.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|SSOT")
-	FName LoadoutIDForAutoInit;
 
 	/** Slot widget class to instantiate */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")

@@ -69,6 +69,11 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	// Update size based on item
 	CurrentSize = DragData.Item.GetEffectiveSize();
 
+	UE_LOG(LogTemp, Log, TEXT("DragVisual: InitializeDrag - Item='%s', GridSize=%dx%d, EffectiveSize=%dx%d"),
+		*DragData.Item.DisplayName.ToString(),
+		DragData.Item.GridSize.X, DragData.Item.GridSize.Y,
+		CurrentSize.X, CurrentSize.Y);
+
 	// Update visuals
 	UpdateVisuals();
 	UpdateSize();
@@ -184,10 +189,17 @@ void USuspenseCoreDragVisualWidget::UpdateSize_Implementation()
 {
 	if (SizeContainer)
 	{
-		float Width = CurrentSize.X * CellSizePixels;
-		float Height = CurrentSize.Y * CellSizePixels;
+		// Ensure minimum size of 1x1
+		int32 EffectiveX = FMath::Max(1, CurrentSize.X);
+		int32 EffectiveY = FMath::Max(1, CurrentSize.Y);
+
+		float Width = EffectiveX * CellSizePixels;
+		float Height = EffectiveY * CellSizePixels;
 
 		SizeContainer->SetWidthOverride(Width);
 		SizeContainer->SetHeightOverride(Height);
+
+		UE_LOG(LogTemp, Log, TEXT("DragVisual: UpdateSize - CurrentSize=%dx%d, Pixels=%.0fx%.0f"),
+			CurrentSize.X, CurrentSize.Y, Width, Height);
 	}
 }

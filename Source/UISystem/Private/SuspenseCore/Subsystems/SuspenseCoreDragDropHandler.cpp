@@ -11,8 +11,10 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/Widget.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Layout/Geometry.h"
 
 //==================================================================
 // Static Access
@@ -106,6 +108,23 @@ USuspenseCoreDragDropOperation* USuspenseCoreDragDropHandler::StartDragOperation
 		Provider->GetProviderID(),
 		SourceSlot
 	);
+
+	// Calculate DragOffset for proper visual positioning
+	// DragOffset = SlotAbsolutePos - CursorAbsolutePos
+	// This ensures the drag visual appears at the slot's position, not at cursor
+	FVector2D CursorAbsolutePos = MouseEvent.GetScreenSpacePosition();
+	FVector2D SlotAbsolutePos = CursorAbsolutePos; // Default to cursor if slot not found
+
+	// Get slot widget from container to calculate absolute position
+	UWidget* SlotWidget = SourceContainer->GetSlotWidget(SourceSlot);
+	if (SlotWidget)
+	{
+		FGeometry SlotGeometry = SlotWidget->GetCachedGeometry();
+		SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
+	}
+
+	// Offset is negative: from cursor to slot top-left
+	DragData.DragOffset = SlotAbsolutePos - CursorAbsolutePos;
 
 	if (!DragData.bIsValid)
 	{

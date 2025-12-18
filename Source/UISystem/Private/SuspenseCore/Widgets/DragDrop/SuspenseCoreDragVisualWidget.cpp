@@ -30,8 +30,8 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
 {
-	// Start invisible - will be shown when InitializeDrag is called
-	SetVisibility(ESlateVisibility::Collapsed);
+	// Visibility is managed by UE5's DefaultDragVisual system
+	// DO NOT set collapsed here - it breaks DefaultDragVisual display
 }
 
 //==================================================================
@@ -56,40 +56,33 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Continuous position update following cursor
-	// CRITICAL: Use GetCursorPos() which returns SCREEN coordinates
-	// This matches GetScreenSpacePosition() used in offset calculation
-	// DO NOT use GetMousePosition() - it returns VIEWPORT coords (different!)
-	if (IsVisible())
-	{
-		FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
-		UpdatePosition(CursorPos);
-	}
+	// Position is now managed automatically by UE5's DefaultDragVisual system
+	// No manual position update needed - UE5 handles cursor following
 }
 
 //==================================================================
 // Drag Visual Control
 //==================================================================
 
-void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& DragData)
+void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& InDragData)
 {
-	CurrentDragData = DragData;
-	DragOffset = DragData.DragOffset;
-	bIsRotated = DragData.bIsRotatedDuringDrag;
+	CurrentDragData = InDragData;
+	DragOffset = InDragData.DragOffset;
+	bIsRotated = InDragData.bIsRotatedDuringDrag;
 	bCurrentDropValid = true;
 
 	// Update size based on item
-	CurrentSize = DragData.Item.GetEffectiveSize();
+	CurrentSize = InDragData.Item.GetEffectiveSize();
 
 	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
 	UpdateSize();
 
-	// Show the widget - we manage visibility manually (legacy approach)
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// Visibility is managed by UE5's DefaultDragVisual system
+	// No manual SetVisibility needed
 
 	// Notify Blueprint
-	K2_OnDragInitialized(DragData);
+	K2_OnDragInitialized(InDragData);
 }
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& AbsolutePosition)

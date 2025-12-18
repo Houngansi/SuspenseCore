@@ -118,12 +118,8 @@ void USuspenseCoreDragDropOperation::Dragged_Implementation(const FPointerEvent&
 {
 	Super::Dragged_Implementation(PointerEvent);
 
-	// Update visual position manually - legacy approach
-	// We use AddToViewport + SetRenderTranslation instead of DefaultDragVisual
-	if (DragVisual)
-	{
-		DragVisual->UpdatePosition(PointerEvent.GetScreenSpacePosition());
-	}
+	// Position is now managed automatically by UE5's DefaultDragVisual system
+	// No manual position update needed
 }
 
 void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointerEvent& PointerEvent)
@@ -133,11 +129,8 @@ void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointer
 	// Clear hover state
 	SetHoverTarget(nullptr, INDEX_NONE);
 
-	// Hide visual
-	if (DragVisual)
-	{
-		DragVisual->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	// Visibility is managed by UE5's DefaultDragVisual system
+	// No manual hide needed - UE5 handles cleanup
 
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(OwningPC.Get()))
@@ -170,11 +163,8 @@ void USuspenseCoreDragDropOperation::Drop_Implementation(const FPointerEvent& Po
 	// Clear hover state
 	SetHoverTarget(nullptr, INDEX_NONE);
 
-	// Hide visual
-	if (DragVisual)
-	{
-		DragVisual->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	// Visibility is managed by UE5's DefaultDragVisual system
+	// No manual hide needed - UE5 handles cleanup
 
 	// Broadcast event
 	OnDropCompleted.Broadcast(DragData, bSuccess);
@@ -198,13 +188,17 @@ void USuspenseCoreDragDropOperation::Initialize(
 	DragData = InDragData;
 	CurrentHoverSlot = INDEX_NONE;
 
-	// Create drag visual - uses legacy AddToViewport approach (NOT DefaultDragVisual)
+	// Create drag visual - uses UE5's DefaultDragVisual system for automatic positioning
 	DragVisual = CreateDragVisual(PC, VisualWidgetClass);
 
 	if (DragVisual)
 	{
-		// DO NOT set DefaultDragVisual - we manage position manually via AddToViewport + SetRenderTranslation
-		// This avoids UE5's buggy DefaultDragVisual positioning system
+		// Set offset from DragData - this is the offset from cursor to widget top-left
+		// DragData.DragOffset was calculated as: SlotAbsolutePos - InitialClickPos
+		// UE5's DefaultDragVisual will position widget at: CursorPos + Offset
+		Offset = DragData.DragOffset;
+
+		// Initialize visual (updates icon, size, etc.)
 		DragVisual->InitializeDrag(DragData);
 	}
 
@@ -217,8 +211,8 @@ void USuspenseCoreDragDropOperation::Initialize(
 	// Broadcast event
 	OnDragStarted.Broadcast(DragData);
 
-	UE_LOG(LogTemp, Verbose, TEXT("Drag started for item: %s from slot %d"),
-		*DragData.Item.DisplayName.ToString(), DragData.SourceSlot);
+	UE_LOG(LogTemp, Log, TEXT("Drag started for item: %s from slot %d, Offset: (%.1f, %.1f)"),
+		*DragData.Item.DisplayName.ToString(), DragData.SourceSlot, Offset.X, Offset.Y);
 }
 
 USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
@@ -238,18 +232,21 @@ USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 		return nullptr;
 	}
 
-	// Create widget and add to viewport with high Z-order (legacy approach)
-	// We manage positioning manually via SetRenderTranslation, NOT via DefaultDragVisual
+	// Create widget - DO NOT add to viewport manually!
+	// We'll use UE5's DefaultDragVisual system which handles positioning automatically
 	USuspenseCoreDragVisualWidget* Visual = CreateWidget<USuspenseCoreDragVisualWidget>(PC, WidgetClass);
 	if (Visual)
 	{
-		// Add to viewport at high Z-order so it renders above everything
-		Visual->AddToViewport(1000);
+		// Use UE5's built-in DefaultDragVisual system instead of manual positioning
+		// This properly handles all coordinate systems and DPI scaling
+		DefaultDragVisual = Visual;
 
-		// CRITICAL: Set anchors to top-left so widget doesn't stretch to fill screen
-		// Without this, viewport canvas slot defaults to "Fill" which makes widget full screen
-		Visual->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
-		Visual->SetAlignmentInViewport(FVector2D(0.f, 0.f));
+		// Pivot determines where on the widget the cursor attaches
+		// (0,0) = top-left, (0.5, 0.5) = center, (1,1) = bottom-right
+		Pivot = EDragPivot::TopLeft;
+
+		// Offset from cursor position (in local widget coordinates)
+		// We'll update this in Initialize after we have DragData with the calculated offset
 	}
 
 	return Visual;

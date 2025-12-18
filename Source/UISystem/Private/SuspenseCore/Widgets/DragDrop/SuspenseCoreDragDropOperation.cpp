@@ -116,10 +116,12 @@ void USuspenseCoreDragDropOperation::Dragged_Implementation(const FPointerEvent&
 {
 	Super::Dragged_Implementation(PointerEvent);
 
-	// NOTE: Do NOT manually update visual position here!
-	// UE5's DefaultDragVisual system handles positioning automatically via Pivot and Offset.
-	// Calling SetRenderTranslation() or UpdatePosition() would CONFLICT with UE5's positioning,
-	// causing the visual to appear in wrong location (e.g., bottom-right corner instead of cursor).
+	// Update visual position manually - legacy approach
+	// We use AddToViewport + SetRenderTranslation instead of DefaultDragVisual
+	if (DragVisual)
+	{
+		DragVisual->UpdatePosition(PointerEvent.GetScreenSpacePosition());
+	}
 }
 
 void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointerEvent& PointerEvent)
@@ -194,20 +196,15 @@ void USuspenseCoreDragDropOperation::Initialize(
 	DragData = InDragData;
 	CurrentHoverSlot = INDEX_NONE;
 
-	// Create drag visual
+	// Create drag visual - uses legacy AddToViewport approach (NOT DefaultDragVisual)
 	DragVisual = CreateDragVisual(PC, VisualWidgetClass);
 
-	// Set default visual widget for base DragDropOperation
 	if (DragVisual)
 	{
-		DefaultDragVisual = DragVisual;
+		// DO NOT set DefaultDragVisual - we manage position manually via AddToViewport + SetRenderTranslation
+		// This avoids UE5's buggy DefaultDragVisual positioning system
 		DragVisual->InitializeDrag(DragData);
 	}
-
-	// NOTE: Do NOT set Pivot and Offset here!
-	// These are set by the calling code (e.g., SuspenseCoreInventoryWidget::NativeOnDragDetected)
-	// AFTER CreateDrag() returns, based on the calculated cursor-to-item offset.
-	// Setting them here would override those values and break visual positioning.
 
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))
@@ -239,10 +236,14 @@ USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 		return nullptr;
 	}
 
-	// Create widget - DO NOT AddToViewport!
-	// UE5's DragDropOperation automatically displays DefaultDragVisual during drag.
-	// Adding to viewport manually causes DUPLICATE visuals (one huge at 0,0 and one normal following cursor).
+	// Create widget and add to viewport with high Z-order (legacy approach)
+	// We manage positioning manually via SetRenderTranslation, NOT via DefaultDragVisual
 	USuspenseCoreDragVisualWidget* Visual = CreateWidget<USuspenseCoreDragVisualWidget>(PC, WidgetClass);
+	if (Visual)
+	{
+		// Add to viewport at high Z-order so it renders above everything
+		Visual->AddToViewport(1000);
+	}
 
 	return Visual;
 }

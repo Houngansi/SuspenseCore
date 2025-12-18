@@ -25,8 +25,8 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
 {
-	// NOTE: Visibility is controlled by UE5's DragDropOperation when used as DefaultDragVisual.
-	// Widget is automatically shown during drag and hidden when drag ends.
+	// Start invisible - will be shown when InitializeDrag is called
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 //==================================================================
@@ -45,10 +45,24 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
+}
 
-	// NOTE: Do NOT set visibility here!
-	// UE5's DefaultDragVisual system manages visibility automatically.
-	// Setting Collapsed here prevents UE5 from showing the widget at all.
+void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Continuous position update following cursor (legacy approach)
+	if (IsVisible())
+	{
+		if (APlayerController* PC = GetOwningPlayer())
+		{
+			float MouseX, MouseY;
+			if (PC->GetMousePosition(MouseX, MouseY))
+			{
+				UpdatePosition(FVector2D(MouseX, MouseY));
+			}
+		}
+	}
 }
 
 //==================================================================
@@ -69,8 +83,8 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	UpdateVisuals();
 	UpdateSize();
 
-	// NOTE: Visibility is managed by UE5's DefaultDragVisual system.
-	// Do NOT call SetVisibility here - it interferes with UE5's management.
+	// Show the widget - we manage visibility manually (legacy approach)
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	// Notify Blueprint
 	K2_OnDragInitialized(DragData);
@@ -78,11 +92,10 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// NOTE: This function is intentionally empty!
-	// UE5's DefaultDragVisual system manages positioning automatically via UDragDropOperation::Pivot and Offset.
-	// Calling SetRenderTranslation() here would CONFLICT with UE5's native positioning,
-	// causing the visual to appear at wrong location (e.g., stuck at 0,0 or double-offset).
-	// See: SuspenseCoreInventoryWidget::NativeOnDragDetected where we set Offset and Pivot.
+	// Apply offset and set position via RenderTranslation (legacy approach)
+	// DragOffset is calculated in NativeOnDragDetected as SlotTopLeft - MouseLocalPos
+	FVector2D Position = ScreenPosition + DragOffset;
+	SetRenderTranslation(Position);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

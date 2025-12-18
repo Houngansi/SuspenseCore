@@ -56,8 +56,11 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Position is now managed automatically by UE5's DefaultDragVisual system
-	// No manual position update needed - UE5 handles cursor following
+	// Update position every tick
+	if (IsVisible())
+	{
+		UpdatePosition(FVector2D::ZeroVector); // Parameter not used anymore
+	}
 }
 
 //==================================================================
@@ -78,36 +81,37 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	UpdateVisuals();
 	UpdateSize();
 
-	// Visibility is managed by UE5's DefaultDragVisual system
-	// No manual SetVisibility needed
+	// Show the widget
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// Position immediately
+	UpdatePosition(FVector2D::ZeroVector);
 
 	// Notify Blueprint
 	K2_OnDragInitialized(InDragData);
+
+	UE_LOG(LogTemp, Log, TEXT("InitializeDrag: DragOffset=(%.1f, %.1f)"), DragOffset.X, DragOffset.Y);
 }
 
-void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& AbsolutePosition)
+void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// Apply offset (both in absolute/DPI-scaled coordinates from LocalToAbsolute and GetCursorPos)
-	FVector2D AbsolutePos = AbsolutePosition + DragOffset;
-
-	// Convert ABSOLUTE (screen) to VIEWPORT coordinates for SetPositionInViewport
-	FVector2D ViewportPos = AbsolutePos;
-
-	if (GEngine && GEngine->GameViewport)
+	// SIMPLE: Get mouse position in viewport coordinates from PlayerController
+	// and use SetPositionInViewport directly - NO conversions needed!
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
 	{
-		// Get the viewport widget's geometry - this knows the absolute-to-local transform
-		TSharedPtr<SViewport> ViewportWidget = GEngine->GameViewport->GetGameViewportWidget();
-		if (ViewportWidget.IsValid())
-		{
-			FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
-			// AbsoluteToLocal converts from absolute (screen/DPI-scaled) to viewport-local coords
-			ViewportPos = ViewportGeometry.AbsoluteToLocal(AbsolutePos);
-		}
+		return;
 	}
 
-	// Use SetPositionInViewport for widgets added via AddToViewport
-	// This works correctly with viewport coordinate system
-	SetPositionInViewport(ViewportPos);
+	float MouseX, MouseY;
+	if (PC->GetMousePosition(MouseX, MouseY))
+	{
+		// GetMousePosition returns VIEWPORT coordinates
+		// SetPositionInViewport accepts VIEWPORT coordinates
+		// Add DragOffset (also in viewport-relative units)
+		FVector2D ViewportPos(MouseX + DragOffset.X, MouseY + DragOffset.Y);
+		SetPositionInViewport(ViewportPos);
+	}
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

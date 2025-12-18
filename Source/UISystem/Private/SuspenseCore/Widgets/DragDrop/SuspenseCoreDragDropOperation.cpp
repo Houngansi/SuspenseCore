@@ -205,6 +205,15 @@ void USuspenseCoreDragDropOperation::Initialize(
 		DragVisual->InitializeDrag(DragData);
 	}
 
+	// CRITICAL: Set Pivot for cursor-relative positioning
+	// (0,0) = top-left corner at cursor, (0.5,0.5) = center at cursor
+	// Use top-left so drag visual appears below and right of cursor
+	Pivot = FVector2D(0.0f, 0.0f);
+
+	// Set Offset to account for where user clicked within the item slot
+	// DragOffset should be negative if we want the visual to appear at original item position
+	Offset = DragData.DragOffset;
+
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))
 	{

@@ -425,6 +425,9 @@ private:
 	/** Slot index where drag started from */
 	int32 DragSourceSlot;
 
+	/** Mouse position when drag started (screen space) - needed for correct DragOffset calculation */
+	FVector2D DragStartMousePosition;
+
 	/** Double click threshold in seconds */
 	static constexpr double DoubleClickThreshold = 0.3;
 

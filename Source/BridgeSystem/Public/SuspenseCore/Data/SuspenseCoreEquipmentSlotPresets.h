@@ -96,11 +96,13 @@ public:
 	static TArray<FEquipmentSlotConfig> CreateDefaultPresets();
 
 private:
-	/** Internal helper to create a single slot config with Native Tags */
+	/** Internal helper to create a single slot config with Native Tags and UI layout */
 	static FEquipmentSlotConfig CreateSlotPreset(
 		EEquipmentSlotType SlotType,
 		const FGameplayTag& SlotTag,
 		const FName& AttachmentSocket,
-		const FGameplayTagContainer& AllowedTypes
+		const FGameplayTagContainer& AllowedTypes,
+		const FVector2D& UIPos = FVector2D::ZeroVector,
+		const FVector2D& UISlotSize = FVector2D(64.0f, 64.0f)
 	);
 };

@@ -73,7 +73,9 @@ FEquipmentSlotConfig USuspenseCoreEquipmentSlotPresets::CreateSlotPreset(
 	EEquipmentSlotType SlotType,
 	const FGameplayTag& SlotTag,
 	const FName& AttachmentSocket,
-	const FGameplayTagContainer& AllowedTypes)
+	const FGameplayTagContainer& AllowedTypes,
+	const FVector2D& UIPos,
+	const FVector2D& UISlotSize)
 {
 	FEquipmentSlotConfig Config;
 	Config.SlotType = SlotType;
@@ -82,6 +84,8 @@ FEquipmentSlotConfig USuspenseCoreEquipmentSlotPresets::CreateSlotPreset(
 	Config.AllowedItemTypes = AllowedTypes;
 	Config.bIsRequired = false;
 	Config.bIsVisible = true;
+	Config.UIPosition = UIPos;
+	Config.UISize = UISlotSize;
 
 	// Set display name based on slot type
 	switch (SlotType)
@@ -152,9 +156,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 	TArray<FEquipmentSlotConfig> Presets;
 	Presets.Reserve(17);
 
-	// ===== WEAPONS =====
+	// ===== WEAPONS (Left Side) =====
 
-	// Primary Weapon (AR, DMR, SR, Shotgun, LMG)
+	// Primary Weapon (AR, DMR, SR, Shotgun, LMG) - Horizontal slot
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::AR);
@@ -167,11 +171,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::PrimaryWeapon,
 			EquipmentSlot::PrimaryWeapon,
 			TEXT("weapon_r"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(20, 50),      // Position
+			FVector2D(120, 50)      // Size (horizontal)
 		));
 	}
 
-	// Secondary Weapon (SMG, Shotgun, PDW)
+	// Secondary Weapon (SMG, Shotgun, PDW) - Horizontal slot
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::SMG);
@@ -182,7 +188,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::SecondaryWeapon,
 			EquipmentSlot::SecondaryWeapon,
 			TEXT("spine_03"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(20, 110),     // Position
+			FVector2D(120, 50)      // Size (horizontal)
 		));
 	}
 
@@ -196,7 +204,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Holster,
 			EquipmentSlot::Holster,
 			TEXT("thigh_r"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(20, 170),     // Position
+			FVector2D(64, 64)       // Size
 		));
 	}
 
@@ -209,13 +219,15 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Scabbard,
 			EquipmentSlot::Scabbard,
 			TEXT("spine_02"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(20, 244),     // Position
+			FVector2D(64, 64)       // Size
 		));
 	}
 
-	// ===== HEAD GEAR =====
+	// ===== HEAD GEAR (Center Top) =====
 
-	// Headwear (Helmet, Headwear)
+	// Headwear (Helmet)
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Armor::Helmet);
@@ -225,7 +237,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Headwear,
 			EquipmentSlot::Headwear,
 			TEXT("head"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(200, 20),     // Position
+			FVector2D(64, 64)       // Size
 		));
 	}
 
@@ -238,7 +252,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Earpiece,
 			EquipmentSlot::Earpiece,
 			TEXT("head"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(274, 20),     // Position
+			FVector2D(48, 48)       // Size (smaller)
 		));
 	}
 
@@ -251,7 +267,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Eyewear,
 			EquipmentSlot::Eyewear,
 			TEXT("head"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(200, 94),     // Position
+			FVector2D(48, 48)       // Size (smaller)
 		));
 	}
 
@@ -264,11 +282,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::FaceCover,
 			EquipmentSlot::FaceCover,
 			TEXT("head"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(258, 94),     // Position
+			FVector2D(48, 48)       // Size (smaller)
 		));
 	}
 
-	// ===== BODY GEAR =====
+	// ===== BODY GEAR (Center) =====
 
 	// Body Armor
 	{
@@ -279,7 +299,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::BodyArmor,
 			EquipmentSlot::BodyArmor,
 			TEXT("spine_03"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(200, 152),    // Position
+			FVector2D(80, 100)      // Size (vertical)
 		));
 	}
 
@@ -292,11 +314,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::TacticalRig,
 			EquipmentSlot::TacticalRig,
 			TEXT("spine_03"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(290, 152),    // Position
+			FVector2D(80, 100)      // Size (vertical)
 		));
 	}
 
-	// ===== STORAGE =====
+	// ===== STORAGE (Right Side) =====
 
 	// Backpack
 	{
@@ -307,7 +331,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Backpack,
 			EquipmentSlot::Backpack,
 			TEXT("spine_02"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(400, 50),     // Position
+			FVector2D(100, 100)     // Size (large)
 		));
 	}
 
@@ -320,11 +346,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::SecureContainer,
 			EquipmentSlot::SecureContainer,
 			NAME_None,
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(400, 160),    // Position
+			FVector2D(80, 80)       // Size
 		));
 	}
 
-	// ===== QUICK SLOTS =====
+	// ===== QUICK SLOTS (Bottom Row) =====
 	{
 		FGameplayTagContainer QuickSlotAllowedTypes;
 		QuickSlotAllowedTypes.AddTag(Item::Consumable);
@@ -336,28 +364,36 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::QuickSlot1,
 			EquipmentSlot::QuickSlot1,
 			NAME_None,
-			QuickSlotAllowedTypes
+			QuickSlotAllowedTypes,
+			FVector2D(150, 300),    // Position
+			FVector2D(50, 50)       // Size
 		));
 
 		Presets.Add(CreateSlotPreset(
 			EEquipmentSlotType::QuickSlot2,
 			EquipmentSlot::QuickSlot2,
 			NAME_None,
-			QuickSlotAllowedTypes
+			QuickSlotAllowedTypes,
+			FVector2D(210, 300),    // Position
+			FVector2D(50, 50)       // Size
 		));
 
 		Presets.Add(CreateSlotPreset(
 			EEquipmentSlotType::QuickSlot3,
 			EquipmentSlot::QuickSlot3,
 			NAME_None,
-			QuickSlotAllowedTypes
+			QuickSlotAllowedTypes,
+			FVector2D(270, 300),    // Position
+			FVector2D(50, 50)       // Size
 		));
 
 		Presets.Add(CreateSlotPreset(
 			EEquipmentSlotType::QuickSlot4,
 			EquipmentSlot::QuickSlot4,
 			NAME_None,
-			QuickSlotAllowedTypes
+			QuickSlotAllowedTypes,
+			FVector2D(330, 300),    // Position
+			FVector2D(50, 50)       // Size
 		));
 	}
 
@@ -372,7 +408,9 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EEquipmentSlotType::Armband,
 			EquipmentSlot::Armband,
 			TEXT("upperarm_l"),
-			AllowedTypes
+			AllowedTypes,
+			FVector2D(400, 250),    // Position
+			FVector2D(50, 50)       // Size
 		));
 	}
 

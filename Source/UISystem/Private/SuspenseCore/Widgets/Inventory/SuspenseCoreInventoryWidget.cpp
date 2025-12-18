@@ -240,9 +240,25 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 		return;
 	}
 
-	// SIMPLE TEST: No offset - widget follows cursor directly
-	// If this works, we can add offset later
-	DragData.DragOffset = FVector2D::ZeroVector;
+	// Calculate DragOffset: difference between slot's top-left and initial click position
+	// This makes the item appear to be "picked up" from where it was clicked
+	if (DragSourceSlot >= 0 && DragSourceSlot < SlotWidgets.Num() && SlotWidgets[DragSourceSlot])
+	{
+		// Get slot widget's absolute position (screen space)
+		FVector2D SlotAbsolutePos = SlotWidgets[DragSourceSlot]->GetCachedGeometry().GetAbsolutePosition();
+
+		// DragOffset = SlotTopLeft - ClickPosition (negative offset to move widget up/left from cursor)
+		DragData.DragOffset = SlotAbsolutePos - DragStartMousePosition;
+
+		UE_LOG(LogTemp, Log, TEXT("DragOffset calculation: SlotPos=(%.1f, %.1f), ClickPos=(%.1f, %.1f), Offset=(%.1f, %.1f)"),
+			SlotAbsolutePos.X, SlotAbsolutePos.Y,
+			DragStartMousePosition.X, DragStartMousePosition.Y,
+			DragData.DragOffset.X, DragData.DragOffset.Y);
+	}
+	else
+	{
+		DragData.DragOffset = FVector2D::ZeroVector;
+	}
 
 	// Create the drag-drop operation
 	// Access protected member from base class - use explicit base class qualification

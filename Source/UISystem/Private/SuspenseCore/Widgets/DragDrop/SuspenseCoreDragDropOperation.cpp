@@ -8,6 +8,8 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
+#include "Slate/SlateBrushAsset.h"
+#include "Components/CanvasPanelSlot.h"
 
 //==================================================================
 // Constructor
@@ -243,6 +245,11 @@ USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 	{
 		// Add to viewport at high Z-order so it renders above everything
 		Visual->AddToViewport(1000);
+
+		// CRITICAL: Set anchors to top-left so widget doesn't stretch to fill screen
+		// Without this, viewport canvas slot defaults to "Fill" which makes widget full screen
+		Visual->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
+		Visual->SetAlignmentInViewport(FVector2D(0.f, 0.f));
 	}
 
 	return Visual;

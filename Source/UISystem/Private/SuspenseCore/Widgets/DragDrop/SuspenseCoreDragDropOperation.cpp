@@ -116,11 +116,10 @@ void USuspenseCoreDragDropOperation::Dragged_Implementation(const FPointerEvent&
 {
 	Super::Dragged_Implementation(PointerEvent);
 
-	// Update visual position
-	if (DragVisual)
-	{
-		DragVisual->UpdatePosition(PointerEvent.GetScreenSpacePosition());
-	}
+	// NOTE: Do NOT manually update visual position here!
+	// UE5's DefaultDragVisual system handles positioning automatically via Pivot and Offset.
+	// Calling SetRenderTranslation() or UpdatePosition() would CONFLICT with UE5's positioning,
+	// causing the visual to appear in wrong location (e.g., bottom-right corner instead of cursor).
 }
 
 void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointerEvent& PointerEvent)

@@ -25,8 +25,8 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
 {
-	// NOTE: Visibility is controlled by UE5's DragDropOperation when used as DefaultDragVisual.
-	// Widget is automatically shown during drag and hidden when drag ends.
+	// Start invisible - will be shown when InitializeDrag is called
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 //==================================================================
@@ -45,19 +45,24 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
+}
 
-	// CRITICAL: Force initial size so Slate knows widget dimensions BEFORE first frame
-	// Without this, widget reports size (0,0) and UE5 can't position it correctly
-	if (SizeContainer)
+void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Continuous position update following cursor (legacy approach)
+	if (IsVisible())
 	{
-		// Set default 1x1 cell size - will be updated in InitializeDrag
-		SizeContainer->SetWidthOverride(CellSizePixels);
-		SizeContainer->SetHeightOverride(CellSizePixels);
+		if (APlayerController* PC = GetOwningPlayer())
+		{
+			float MouseX, MouseY;
+			if (PC->GetMousePosition(MouseX, MouseY))
+			{
+				UpdatePosition(FVector2D(MouseX, MouseY));
+			}
+		}
 	}
-
-	// CRITICAL: Set visibility to HitTestInvisible so widget is visible but doesn't block mouse events
-	// This ensures the widget shows during drag but doesn't interfere with drop targets
-	SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 //==================================================================
@@ -74,14 +79,11 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	// Update size based on item
 	CurrentSize = DragData.Item.GetEffectiveSize();
 
-	// CRITICAL: Update size FIRST so Slate knows correct dimensions
-	UpdateSize();
-
 	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
+	UpdateSize();
 
-	// CRITICAL: Ensure widget is visible during drag
-	// HitTestInvisible = visible but doesn't block mouse events on drop targets
+	// Show the widget - we manage visibility manually (legacy approach)
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	// Notify Blueprint
@@ -90,11 +92,10 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// NOTE: This function is intentionally empty!
-	// UE5's DefaultDragVisual system manages positioning automatically via UDragDropOperation::Pivot and Offset.
-	// Calling SetRenderTranslation() here would CONFLICT with UE5's native positioning,
-	// causing the visual to appear at wrong location (e.g., stuck at 0,0 or double-offset).
-	// See: SuspenseCoreInventoryWidget::NativeOnDragDetected where we set Offset and Pivot.
+	// Apply offset and set position via RenderTranslation (legacy approach)
+	// DragOffset is calculated in NativeOnDragDetected as SlotTopLeft - MouseLocalPos
+	FVector2D Position = ScreenPosition + DragOffset;
+	SetRenderTranslation(Position);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

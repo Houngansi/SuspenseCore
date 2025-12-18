@@ -235,13 +235,10 @@ USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 		return nullptr;
 	}
 
-	// Create widget
+	// Create widget - DO NOT AddToViewport!
+	// UE5's DragDropOperation automatically displays DefaultDragVisual during drag.
+	// Adding to viewport manually causes DUPLICATE visuals (one huge at 0,0 and one normal following cursor).
 	USuspenseCoreDragVisualWidget* Visual = CreateWidget<USuspenseCoreDragVisualWidget>(PC, WidgetClass);
-	if (Visual)
-	{
-		// Add to viewport at high Z-order
-		Visual->AddToViewport(1000);
-	}
 
 	return Visual;
 }

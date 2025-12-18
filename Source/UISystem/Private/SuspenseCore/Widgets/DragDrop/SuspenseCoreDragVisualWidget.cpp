@@ -25,8 +25,8 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
 {
-	// Start invisible
-	SetVisibility(ESlateVisibility::Collapsed);
+	// NOTE: Visibility is controlled by UE5's DragDropOperation when used as DefaultDragVisual.
+	// Widget is automatically shown during drag and hidden when drag ends.
 }
 
 //==================================================================
@@ -51,18 +51,8 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Continuous position update following cursor
-	if (IsVisible())
-	{
-		if (APlayerController* PC = GetOwningPlayer())
-		{
-			float MouseX, MouseY;
-			if (PC->GetMousePosition(MouseX, MouseY))
-			{
-				UpdatePosition(FVector2D(MouseX, MouseY));
-			}
-		}
-	}
+	// NOTE: Position is handled automatically by UE5's DragDropOperation when used as DefaultDragVisual.
+	// No manual cursor tracking needed here.
 }
 
 //==================================================================
@@ -83,8 +73,8 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	UpdateVisuals();
 	UpdateSize();
 
-	// Show the widget
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// NOTE: Visibility is handled by UE5's DragDropOperation automatically.
+	// No manual SetVisibility needed.
 
 	// Notify Blueprint
 	K2_OnDragInitialized(DragData);

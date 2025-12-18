@@ -11,7 +11,8 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/SWindow.h"
+#include "Slate/SGameLayerManager.h"
+#include "Widgets/SViewport.h"
 
 //==================================================================
 // Constructor
@@ -91,23 +92,24 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	K2_OnDragInitialized(DragData);
 }
 
-void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
+void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& AbsolutePosition)
 {
-	// Apply offset (both in screen/absolute coordinates)
-	FVector2D ScreenPos = ScreenPosition + DragOffset;
+	// Apply offset (both in absolute/DPI-scaled coordinates from LocalToAbsolute and GetCursorPos)
+	FVector2D AbsolutePos = AbsolutePosition + DragOffset;
 
-	// CRITICAL: Convert from SCREEN to VIEWPORT coordinates
-	// SetRenderTranslation works in viewport space, not screen space
-	// Screen coords include window position on desktop, viewport coords are relative to game window
-	FVector2D ViewportPos = ScreenPos;
+	// Convert ABSOLUTE (DPI-scaled) to VIEWPORT-LOCAL coordinates
+	// This properly handles DPI scaling, window position, and nested widget transforms
+	FVector2D ViewportPos = AbsolutePos;
+
 	if (GEngine && GEngine->GameViewport)
 	{
-		TSharedPtr<SWindow> Window = GEngine->GameViewport->GetWindow();
-		if (Window.IsValid())
+		// Get the viewport widget's geometry - this knows the absolute-to-local transform
+		TSharedPtr<SViewport> ViewportWidget = GEngine->GameViewport->GetGameViewportWidget();
+		if (ViewportWidget.IsValid())
 		{
-			// Subtract window's screen position to get viewport-relative coords
-			FVector2D WindowScreenPos = Window->GetPositionInScreen();
-			ViewportPos = ScreenPos - WindowScreenPos;
+			FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
+			// AbsoluteToLocal converts from absolute (screen/DPI-scaled) to viewport-local coords
+			ViewportPos = ViewportGeometry.AbsoluteToLocal(AbsolutePos);
 		}
 	}
 

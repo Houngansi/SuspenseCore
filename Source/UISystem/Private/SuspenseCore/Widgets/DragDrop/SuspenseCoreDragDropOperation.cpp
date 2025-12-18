@@ -206,9 +206,9 @@ void USuspenseCoreDragDropOperation::Initialize(
 	}
 
 	// CRITICAL: Set Pivot for cursor-relative positioning
-	// (0,0) = top-left corner at cursor, (0.5,0.5) = center at cursor
-	// Use top-left so drag visual appears below and right of cursor
-	Pivot = FVector2D(0.0f, 0.0f);
+	// MouseDown = pivot where mouse clicked (best for accurate drag feel)
+	// TopLeft = top-left corner at cursor position
+	Pivot = EDragPivot::MouseDown;
 
 	// Set Offset to account for where user clicked within the item slot
 	// DragOffset should be negative if we want the visual to appear at original item position

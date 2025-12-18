@@ -6,6 +6,7 @@
 #include "SuspenseCore/Widgets/Inventory/SuspenseCoreInventorySlotWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "Components/GridPanel.h"

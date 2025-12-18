@@ -400,9 +400,9 @@ void USuspenseCoreEquipmentWidget::PositionSlotWidgetFromConfig(USuspenseCoreEqu
 		SlotWidget->SetSlotSize(SlotSize);
 
 		// Set empty slot icon if provided
-		if (Config.EmptySlotIcon.IsValid())
+		if (!Config.EmptySlotIcon.IsNull())
 		{
-			SlotWidget->SetEmptySlotIconPath(Config.EmptySlotIcon);
+			SlotWidget->SetEmptySlotIconPath(Config.EmptySlotIcon.ToSoftObjectPath());
 		}
 
 		// Anchor to top-left for absolute positioning

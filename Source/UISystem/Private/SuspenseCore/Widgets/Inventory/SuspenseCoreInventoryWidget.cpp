@@ -237,19 +237,21 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 
 	// Calculate drag offset IN SCREEN/ABSOLUTE COORDINATES
 	// This is critical because the drag visual is positioned in viewport (screen space)
-	// while the inventory widget may be nested inside other widgets
-	FVector2D ScreenPos = InMouseEvent.GetScreenSpacePosition();
-	FIntPoint GridPos = SlotIndexToGridPos(DragSourceSlot);
-	float TotalSlotSize = SlotSizePixels + SlotGapPixels;
+	// DragOffset = SlotAbsolutePos - CursorAbsolutePos
+	// This ensures the drag visual appears at the slot's position, not at cursor
+	FVector2D CursorAbsolutePos = InMouseEvent.GetScreenSpacePosition();
+	FVector2D SlotAbsolutePos = CursorAbsolutePos; // Default to cursor if slot not found
 
-	// Calculate slot position in LOCAL coordinates first
-	FVector2D LocalSlotTopLeft(GridPos.X * TotalSlotSize, GridPos.Y * TotalSlotSize);
+	// Get absolute position directly from slot widget geometry
+	// This correctly handles any padding/margins between inventory widget and grid
+	if (SlotWidgets.IsValidIndex(DragSourceSlot) && SlotWidgets[DragSourceSlot])
+	{
+		FGeometry SlotGeometry = SlotWidgets[DragSourceSlot]->GetCachedGeometry();
+		SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
+	}
 
-	// Convert to ABSOLUTE/SCREEN coordinates using widget geometry
-	FVector2D AbsoluteSlotTopLeft = InGeometry.LocalToAbsolute(LocalSlotTopLeft);
-
-	// Now calculate offset in SCREEN SPACE (both values are in screen coords)
-	DragData.DragOffset = AbsoluteSlotTopLeft - ScreenPos;
+	// Offset is: from cursor to slot top-left (negative values move visual left/up from cursor)
+	DragData.DragOffset = SlotAbsolutePos - CursorAbsolutePos;
 
 	// Create the drag-drop operation
 	checkf(DragVisualWidgetClass, TEXT("%s: DragVisualWidgetClass must be set! Configure it in Blueprint defaults."), *GetClass()->GetName());

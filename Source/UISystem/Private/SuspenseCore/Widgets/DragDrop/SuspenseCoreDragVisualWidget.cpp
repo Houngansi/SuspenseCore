@@ -45,14 +45,10 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
-}
 
-void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
-{
-	Super::NativeTick(MyGeometry, InDeltaTime);
-
-	// NOTE: Position is handled automatically by UE5's DragDropOperation when used as DefaultDragVisual.
-	// No manual cursor tracking needed here.
+	// CRITICAL: Start hidden to prevent flash at 0,0 before UE5 positions the widget
+	// UE5's DefaultDragVisual system will show the widget once it's positioned at cursor
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 //==================================================================
@@ -69,17 +65,13 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	// Update size based on item
 	CurrentSize = DragData.Item.GetEffectiveSize();
 
-	UE_LOG(LogTemp, Log, TEXT("DragVisual: InitializeDrag - Item='%s', GridSize=%dx%d, EffectiveSize=%dx%d"),
-		*DragData.Item.DisplayName.ToString(),
-		DragData.Item.GridSize.X, DragData.Item.GridSize.Y,
-		CurrentSize.X, CurrentSize.Y);
-
-	// Update visuals
+	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
 	UpdateSize();
 
-	// NOTE: Visibility is handled by UE5's DragDropOperation automatically.
-	// No manual SetVisibility needed.
+	// Show widget now that it's fully initialized
+	// HitTestInvisible = visible but doesn't block input (drag needs to pass through)
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	// Notify Blueprint
 	K2_OnDragInitialized(DragData);
@@ -198,8 +190,5 @@ void USuspenseCoreDragVisualWidget::UpdateSize_Implementation()
 
 		SizeContainer->SetWidthOverride(Width);
 		SizeContainer->SetHeightOverride(Height);
-
-		UE_LOG(LogTemp, Log, TEXT("DragVisual: UpdateSize - CurrentSize=%dx%d, Pixels=%.0fx%.0f"),
-			CurrentSize.X, CurrentSize.Y, Width, Height);
 	}
 }

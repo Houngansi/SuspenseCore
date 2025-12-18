@@ -211,9 +211,6 @@ void USuspenseCoreDragDropOperation::Initialize(
 	// Reset offset - Pivot handles positioning
 	Offset = FVector2D::ZeroVector;
 
-	UE_LOG(LogTemp, Log, TEXT("DragDropOperation: Created with Pivot=CenterCenter, VisualSize=%dx%d"),
-		DragData.Item.GridSize.X, DragData.Item.GridSize.Y);
-
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))
 	{

@@ -46,18 +46,9 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
 
-	// CRITICAL: Force initial size so Slate knows widget dimensions BEFORE first frame
-	// Without this, widget reports size (0,0) and UE5 can't position it correctly
-	if (SizeContainer)
-	{
-		// Set default 1x1 cell size - will be updated in InitializeDrag
-		SizeContainer->SetWidthOverride(CellSizePixels);
-		SizeContainer->SetHeightOverride(CellSizePixels);
-	}
-
-	// CRITICAL: Set visibility to HitTestInvisible so widget is visible but doesn't block mouse events
-	// This ensures the widget shows during drag but doesn't interfere with drop targets
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// NOTE: Do NOT set visibility here!
+	// UE5's DefaultDragVisual system manages visibility automatically.
+	// Setting Collapsed here prevents UE5 from showing the widget at all.
 }
 
 //==================================================================
@@ -74,15 +65,12 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	// Update size based on item
 	CurrentSize = DragData.Item.GetEffectiveSize();
 
-	// CRITICAL: Update size FIRST so Slate knows correct dimensions
-	UpdateSize();
-
 	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
+	UpdateSize();
 
-	// CRITICAL: Ensure widget is visible during drag
-	// HitTestInvisible = visible but doesn't block mouse events on drop targets
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// NOTE: Visibility is managed by UE5's DefaultDragVisual system.
+	// Do NOT call SetVisibility here - it interferes with UE5's management.
 
 	// Notify Blueprint
 	K2_OnDragInitialized(DragData);

@@ -8,6 +8,10 @@
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/SWindow.h"
 
 //==================================================================
 // Constructor
@@ -51,17 +55,14 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Continuous position update following cursor (legacy approach)
+	// Continuous position update following cursor
+	// CRITICAL: Use GetCursorPos() which returns SCREEN coordinates
+	// This matches GetScreenSpacePosition() used in offset calculation
+	// DO NOT use GetMousePosition() - it returns VIEWPORT coords (different!)
 	if (IsVisible())
 	{
-		if (APlayerController* PC = GetOwningPlayer())
-		{
-			float MouseX, MouseY;
-			if (PC->GetMousePosition(MouseX, MouseY))
-			{
-				UpdatePosition(FVector2D(MouseX, MouseY));
-			}
-		}
+		FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
+		UpdatePosition(CursorPos);
 	}
 }
 
@@ -92,10 +93,25 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// Apply offset and set position via RenderTranslation (legacy approach)
-	// DragOffset is calculated in NativeOnDragDetected as SlotTopLeft - MouseLocalPos
-	FVector2D Position = ScreenPosition + DragOffset;
-	SetRenderTranslation(Position);
+	// Apply offset (both in screen/absolute coordinates)
+	FVector2D ScreenPos = ScreenPosition + DragOffset;
+
+	// CRITICAL: Convert from SCREEN to VIEWPORT coordinates
+	// SetRenderTranslation works in viewport space, not screen space
+	// Screen coords include window position on desktop, viewport coords are relative to game window
+	FVector2D ViewportPos = ScreenPos;
+	if (GEngine && GEngine->GameViewport)
+	{
+		TSharedPtr<SWindow> Window = GEngine->GameViewport->GetWindow();
+		if (Window.IsValid())
+		{
+			// Subtract window's screen position to get viewport-relative coords
+			FVector2D WindowScreenPos = Window->GetPositionInScreen();
+			ViewportPos = ScreenPos - WindowScreenPos;
+		}
+	}
+
+	SetRenderTranslation(ViewportPos);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

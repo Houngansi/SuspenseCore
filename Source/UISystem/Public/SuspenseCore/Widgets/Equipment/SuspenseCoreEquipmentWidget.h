@@ -219,6 +219,20 @@ protected:
 	// Configuration
 	//==================================================================
 
+	/**
+	 * If true, automatically load slot configs from LoadoutManager on NativeConstruct.
+	 * Uses LoadoutIDForAutoInit to get slot configurations from SSOT.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|SSOT")
+	bool bAutoInitializeFromSSoT = true;
+
+	/**
+	 * Loadout ID to use for auto-initialization from SSOT.
+	 * If empty, uses DefaultLoadoutID from SuspenseCoreSettings.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration|SSOT")
+	FName LoadoutIDForAutoInit;
+
 	/** Slot widget class to instantiate */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	TSubclassOf<USuspenseCoreEquipmentSlotWidget> SlotWidgetClass;
@@ -256,6 +270,9 @@ private:
 
 	/** Get index for slot type (for compatibility with base class) */
 	int32 GetSlotIndexForType(EEquipmentSlotType SlotType) const;
+
+	/** Auto-initialize slot configs from LoadoutManager (SSOT) */
+	void AutoInitializeFromLoadoutManager();
 
 	//==================================================================
 	// EventBus Integration (REQUIRED pattern per documentation)

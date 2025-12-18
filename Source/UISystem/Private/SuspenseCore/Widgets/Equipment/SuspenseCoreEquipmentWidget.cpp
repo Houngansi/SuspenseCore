@@ -8,6 +8,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
@@ -74,7 +76,13 @@ void USuspenseCoreEquipmentWidget::NativeConstruct()
 	// Setup EventBus subscriptions (REQUIRED per documentation)
 	SetupEventSubscriptions();
 
-	// If slot configs were set before construction, create widgets now
+	// Auto-initialize from SSOT if enabled
+	if (bAutoInitializeFromSSoT && SlotConfigs.Num() == 0)
+	{
+		AutoInitializeFromLoadoutManager();
+	}
+
+	// If slot configs were set (either manually or from SSOT), create widgets now
 	if (SlotConfigs.Num() > 0 && SlotWidgetsByType.Num() == 0)
 	{
 		CreateSlotWidgets();
@@ -622,4 +630,65 @@ void USuspenseCoreEquipmentWidget::RefreshCharacterPreview()
 	// TODO: Implement actual character preview update
 	// This should iterate through equipped items and update the preview actor's mesh/attachments
 	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: RefreshCharacterPreview called"));
+}
+
+//==================================================================
+// SSOT Auto-Initialization
+//==================================================================
+
+void USuspenseCoreEquipmentWidget::AutoInitializeFromLoadoutManager()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - No World context"));
+		return;
+	}
+
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - No GameInstance"));
+		return;
+	}
+
+	// Get LoadoutManager subsystem
+	USuspenseCoreLoadoutManager* LoadoutManager = GI->GetSubsystem<USuspenseCoreLoadoutManager>();
+	if (!LoadoutManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - LoadoutManager not found"));
+		return;
+	}
+
+	// Determine which LoadoutID to use
+	FName EffectiveLoadoutID = LoadoutIDForAutoInit;
+	if (EffectiveLoadoutID.IsNone())
+	{
+		// Use default from settings
+		if (const USuspenseCoreSettings* Settings = GetDefault<USuspenseCoreSettings>())
+		{
+			EffectiveLoadoutID = Settings->DefaultLoadoutID;
+		}
+	}
+
+	if (EffectiveLoadoutID.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - No LoadoutID specified and no default in settings"));
+		return;
+	}
+
+	// Get equipment slots from LoadoutManager
+	TArray<FEquipmentSlotConfig> LoadoutSlots = LoadoutManager->GetEquipmentSlots(EffectiveLoadoutID);
+
+	if (LoadoutSlots.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - No equipment slots in loadout '%s'"), *EffectiveLoadoutID.ToString());
+		return;
+	}
+
+	// Store slot configs
+	SlotConfigs = LoadoutSlots;
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: AutoInit - Loaded %d equipment slots from loadout '%s'"),
+		SlotConfigs.Num(), *EffectiveLoadoutID.ToString());
 }

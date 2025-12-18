@@ -245,11 +245,13 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 	DragData.DragOffset = FVector2D::ZeroVector;
 
 	// Create the drag-drop operation
-	checkf(this->DragVisualWidgetClass, TEXT("%s: DragVisualWidgetClass must be set! Configure it in Blueprint defaults."), *GetClass()->GetName());
+	// Access protected member from base class - use explicit base class qualification
+	TSubclassOf<USuspenseCoreDragVisualWidget> VisualClass = USuspenseCoreBaseContainerWidget::DragVisualWidgetClass;
+	checkf(VisualClass, TEXT("%s: DragVisualWidgetClass must be set! Configure it in Blueprint defaults."), *GetClass()->GetName());
 	USuspenseCoreDragDropOperation* DragOperation = USuspenseCoreDragDropOperation::CreateDrag(
 		GetOwningPlayer(),
 		DragData,
-		this->DragVisualWidgetClass
+		VisualClass
 	);
 
 	if (DragOperation)

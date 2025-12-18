@@ -204,12 +204,10 @@ void USuspenseCoreDragDropOperation::Initialize(
 		DragVisual->InitializeDrag(DragData);
 	}
 
-	// CRITICAL: Set Pivot for cursor-relative positioning
-	// CenterCenter = center of visual at cursor (most intuitive for dragging)
-	Pivot = EDragPivot::CenterCenter;
-
-	// Reset offset - Pivot handles positioning
-	Offset = FVector2D::ZeroVector;
+	// NOTE: Do NOT set Pivot and Offset here!
+	// These are set by the calling code (e.g., SuspenseCoreInventoryWidget::NativeOnDragDetected)
+	// AFTER CreateDrag() returns, based on the calculated cursor-to-item offset.
+	// Setting them here would override those values and break visual positioning.
 
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))

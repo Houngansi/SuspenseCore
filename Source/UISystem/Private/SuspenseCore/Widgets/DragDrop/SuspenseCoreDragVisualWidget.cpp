@@ -78,8 +78,11 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	FVector2D Position = ScreenPosition + DragOffset;
-	SetRenderTranslation(Position);
+	// NOTE: This function is intentionally empty!
+	// UE5's DefaultDragVisual system manages positioning automatically via UDragDropOperation::Pivot and Offset.
+	// Calling SetRenderTranslation() here would CONFLICT with UE5's native positioning,
+	// causing the visual to appear at wrong location (e.g., stuck at 0,0 or double-offset).
+	// See: SuspenseCoreInventoryWidget::NativeOnDragDetected where we set Offset and Pivot.
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

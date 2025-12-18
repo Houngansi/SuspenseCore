@@ -12,8 +12,9 @@ public class UISystem : ModuleRules
 				"Core",
 				"GameplayTags",
 				"GameplayAbilities",
-				"BridgeSystem",   // SuspenseCore UI architecture hub
-				"GAS",            // For USuspenseCoreCharacterClassData, USuspenseCoreCharacterClassSubsystem
+				"BridgeSystem",
+				"EquipmentSystem",
+				"GAS",
 				"InputCore",
 				"UMG"
 			}

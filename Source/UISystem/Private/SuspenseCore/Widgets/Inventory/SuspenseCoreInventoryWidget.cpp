@@ -239,28 +239,9 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 		return;
 	}
 
-	// Calculate drag offset using INITIAL click position (not current cursor position!)
-	// NativeOnDragDetected is called AFTER cursor has moved from initial click point,
-	// so using InMouseEvent.GetScreenSpacePosition() here would give wrong offset.
-	// Instead, we use DragStartMousePosition saved in NativeOnMouseButtonDown.
-	//
-	// DragOffset = SlotAbsolutePos - InitialClickPos
-	// This ensures drag visual appears offset from cursor by same amount as
-	// the slot was offset from where user initially clicked.
-	FVector2D SlotAbsolutePos = DragStartMousePosition; // Default to click position if slot not found
-
-	// Get absolute position directly from slot widget geometry
-	// This correctly handles any padding/margins between inventory widget and grid
-	if (SlotWidgets.IsValidIndex(DragSourceSlot) && SlotWidgets[DragSourceSlot])
-	{
-		FGeometry SlotGeometry = SlotWidgets[DragSourceSlot]->GetCachedGeometry();
-		SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
-	}
-
-	// Offset is: from initial click position to slot top-left
-	// When cursor moves, visual will maintain same relative position to cursor
-	// as slot had relative to initial click point
-	DragData.DragOffset = SlotAbsolutePos - DragStartMousePosition;
+	// SIMPLE TEST: No offset - widget follows cursor directly
+	// If this works, we can add offset later
+	DragData.DragOffset = FVector2D::ZeroVector;
 
 	// Create the drag-drop operation
 	checkf(DragVisualWidgetClass, TEXT("%s: DragVisualWidgetClass must be set! Configure it in Blueprint defaults."), *GetClass()->GetName());

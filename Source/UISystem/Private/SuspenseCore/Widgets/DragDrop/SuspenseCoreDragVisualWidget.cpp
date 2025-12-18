@@ -46,9 +46,9 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
 
-	// CRITICAL: Start hidden to prevent flash at 0,0 before UE5 positions the widget
-	// UE5's DefaultDragVisual system will show the widget once it's positioned at cursor
-	SetVisibility(ESlateVisibility::Collapsed);
+	// NOTE: Do NOT set visibility here!
+	// UE5's DefaultDragVisual system manages visibility automatically.
+	// Setting Collapsed here prevents UE5 from showing the widget at all.
 }
 
 //==================================================================
@@ -69,9 +69,8 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	UpdateVisuals();
 	UpdateSize();
 
-	// Show widget now that it's fully initialized
-	// HitTestInvisible = visible but doesn't block input (drag needs to pass through)
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	// NOTE: Visibility is managed by UE5's DefaultDragVisual system.
+	// Do NOT call SetVisibility here - it interferes with UE5's management.
 
 	// Notify Blueprint
 	K2_OnDragInitialized(DragData);

@@ -252,15 +252,17 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 
 	if (DragOperation)
 	{
-		// CRITICAL: Pass offset to UDragDropOperation for UE5 native positioning
-		// DragData.DragOffset = SlotTopLeft - LocalPos (distance from cursor to item's top-left corner)
-		// Using TopLeft pivot means UE5 will position the visual at cursor + Offset
-		DragOperation->Offset = DragData.DragOffset;
-		DragOperation->Pivot = EDragPivot::TopLeft;
+		// CRITICAL: Use MouseDown pivot - UE5 automatically calculates grab point
+		// This is the most stable option that doesn't require manual offset calculation
+		// MouseDown = widget stays exactly where you grabbed it relative to cursor
+		DragOperation->Pivot = EDragPivot::MouseDown;
+
+		// Offset not needed with MouseDown - UE5 handles it internally
+		DragOperation->Offset = FVector2D::ZeroVector;
 
 		OutOperation = DragOperation;
-		UE_LOG(LogTemp, Log, TEXT("NativeOnDragDetected: Started drag for item '%s' from slot %d (Offset: %.1f, %.1f)"),
-			*ItemData.DisplayName.ToString(), DragSourceSlot, DragData.DragOffset.X, DragData.DragOffset.Y);
+		UE_LOG(LogTemp, Log, TEXT("NativeOnDragDetected: Started drag for item '%s' from slot %d (Pivot: MouseDown)"),
+			*ItemData.DisplayName.ToString(), DragSourceSlot);
 	}
 	else
 	{

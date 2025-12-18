@@ -9,12 +9,12 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCoreBaseContainerWidget.generated.h"
 
 // Forward declarations
 class ISuspenseCoreUIDataProvider;
 class USuspenseCoreEventBus;
-class USuspenseCoreDragVisualWidget;
 
 /**
  * USuspenseCoreBaseContainerWidget

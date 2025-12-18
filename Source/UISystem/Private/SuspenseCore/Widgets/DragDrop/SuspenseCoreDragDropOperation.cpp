@@ -206,13 +206,14 @@ void USuspenseCoreDragDropOperation::Initialize(
 	}
 
 	// CRITICAL: Set Pivot for cursor-relative positioning
-	// MouseDown = pivot where mouse clicked (best for accurate drag feel)
-	// TopLeft = top-left corner at cursor position
-	Pivot = EDragPivot::MouseDown;
+	// CenterCenter = center of visual at cursor (most intuitive for dragging)
+	Pivot = EDragPivot::CenterCenter;
 
-	// Set Offset to account for where user clicked within the item slot
-	// DragOffset should be negative if we want the visual to appear at original item position
-	Offset = DragData.DragOffset;
+	// Reset offset - Pivot handles positioning
+	Offset = FVector2D::ZeroVector;
+
+	UE_LOG(LogTemp, Log, TEXT("DragDropOperation: Created with Pivot=CenterCenter, VisualSize=%dx%d"),
+		DragData.Item.GridSize.X, DragData.Item.GridSize.Y);
 
 	// Notify UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))

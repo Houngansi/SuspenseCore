@@ -156,9 +156,30 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 	TArray<FEquipmentSlotConfig> Presets;
 	Presets.Reserve(17);
 
-	// ===== WEAPONS (Left Side) =====
+	// =============================================================================
+	// TARKOV-STYLE EQUIPMENT SLOT LAYOUT
+	// =============================================================================
+	// Base cell size: 64x64 pixels (industry standard for grid inventories at 1080p)
+	// All slots use multiples of 64px for consistent grid alignment
+	// Layout designed for ~600x500 pixel equipment panel
+	//
+	// Reference: Escape from Tarkov uses 64px base grid cells
+	// Items occupy NxM cells based on their physical size
+	// =============================================================================
 
-	// Primary Weapon (AR, DMR, SR, Shotgun, LMG) - Horizontal slot
+	constexpr float CellSize = 64.0f;  // Base grid cell (1x1)
+	constexpr float Gap = 8.0f;        // Gap between slots
+
+	// Layout regions (X positions):
+	// - Weapons column: X = 16
+	// - Character/Head column: X = 200
+	// - Storage column: X = 408
+
+	// ===== WEAPONS (Left Column) =====
+	// Long weapons displayed horizontally, emphasizing their length
+
+	// Primary Weapon (AR, DMR, SR, Shotgun, LMG) - 5x1 cells = 320x64
+	// Horizontal slot for long rifles/shotguns
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::AR);
@@ -172,12 +193,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::PrimaryWeapon,
 			TEXT("weapon_r"),
 			AllowedTypes,
-			FVector2D(20, 50),      // Position
-			FVector2D(120, 50)      // Size (horizontal)
+			FVector2D(16, 24),                    // Position
+			FVector2D(CellSize * 5, CellSize)    // 320x64 (5x1 cells)
 		));
 	}
 
-	// Secondary Weapon (SMG, Shotgun, PDW) - Horizontal slot
+	// Secondary Weapon (SMG, Shotgun, PDW) - 4x1 cells = 256x64
+	// Slightly shorter horizontal slot for compact weapons
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::SMG);
@@ -189,12 +211,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::SecondaryWeapon,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(20, 110),     // Position
-			FVector2D(120, 50)      // Size (horizontal)
+			FVector2D(16, 24 + CellSize + Gap),  // Below primary
+			FVector2D(CellSize * 4, CellSize)    // 256x64 (4x1 cells)
 		));
 	}
 
-	// Holster (Pistol, Revolver)
+	// Holster (Pistol, Revolver) - 2x1 cells = 128x64
+	// Horizontal slot for sidearms
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::Pistol);
@@ -205,12 +228,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Holster,
 			TEXT("thigh_r"),
 			AllowedTypes,
-			FVector2D(20, 170),     // Position
-			FVector2D(64, 64)       // Size
+			FVector2D(16, 24 + (CellSize + Gap) * 2),  // Below secondary
+			FVector2D(CellSize * 2, CellSize)          // 128x64 (2x1 cells)
 		));
 	}
 
-	// Scabbard (Melee/Knife)
+	// Scabbard (Melee/Knife) - 1x2 cells = 64x128
+	// Vertical slot for bladed weapons
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Weapon::Melee::Knife);
@@ -220,14 +244,16 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Scabbard,
 			TEXT("spine_02"),
 			AllowedTypes,
-			FVector2D(20, 244),     // Position
-			FVector2D(64, 64)       // Size
+			FVector2D(16 + CellSize * 2 + Gap, 24 + (CellSize + Gap) * 2),  // Right of holster
+			FVector2D(CellSize, CellSize * 2)    // 64x128 (1x2 cells)
 		));
 	}
 
-	// ===== HEAD GEAR (Center Top) =====
+	// ===== HEAD GEAR (Center-Top) =====
+	// Positioned around where character head would be shown
 
-	// Headwear (Helmet)
+	// Headwear (Helmet) - 2x2 cells = 128x128
+	// Large slot for helmets/hats - dominant head slot
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Armor::Helmet);
@@ -238,12 +264,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Headwear,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(200, 20),     // Position
-			FVector2D(64, 64)       // Size
+			FVector2D(216, 16),                   // Center-top
+			FVector2D(CellSize * 2, CellSize * 2) // 128x128 (2x2 cells)
 		));
 	}
 
-	// Earpiece
+	// Earpiece - 1x1 cell = 64x64
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::Earpiece);
@@ -253,12 +279,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Earpiece,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(274, 20),     // Position
-			FVector2D(48, 48)       // Size (smaller)
+			FVector2D(216 + CellSize * 2 + Gap, 16),  // Right of headwear
+			FVector2D(CellSize, CellSize)             // 64x64 (1x1 cell)
 		));
 	}
 
-	// Eyewear
+	// Eyewear - 1x1 cell = 64x64
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::Eyewear);
@@ -268,12 +294,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Eyewear,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(200, 94),     // Position
-			FVector2D(48, 48)       // Size (smaller)
+			FVector2D(216 + CellSize * 2 + Gap, 16 + CellSize + Gap),  // Below earpiece
+			FVector2D(CellSize, CellSize)             // 64x64 (1x1 cell)
 		));
 	}
 
-	// Face Cover
+	// Face Cover - 1x1 cell = 64x64
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::FaceCover);
@@ -283,14 +309,16 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::FaceCover,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(258, 94),     // Position
-			FVector2D(48, 48)       // Size (smaller)
+			FVector2D(216, 16 + CellSize * 2 + Gap),  // Below headwear
+			FVector2D(CellSize, CellSize)             // 64x64 (1x1 cell)
 		));
 	}
 
 	// ===== BODY GEAR (Center) =====
+	// Large prominent slots for armor and rig - visual hierarchy
 
-	// Body Armor
+	// Body Armor - 3x3 cells = 192x192
+	// Dominant center slot showing equipped armor
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Armor::BodyArmor);
@@ -300,12 +328,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::BodyArmor,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(200, 152),    // Position
-			FVector2D(80, 100)      // Size (vertical)
+			FVector2D(200, 160),                     // Center body area
+			FVector2D(CellSize * 3, CellSize * 3)   // 192x192 (3x3 cells)
 		));
 	}
 
-	// Tactical Rig
+	// Tactical Rig - 2x3 cells = 128x192
+	// Tall slot next to body armor
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::TacticalRig);
@@ -315,14 +344,15 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::TacticalRig,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(290, 152),    // Position
-			FVector2D(80, 100)      // Size (vertical)
+			FVector2D(200 + CellSize * 3 + Gap, 160),  // Right of body armor
+			FVector2D(CellSize * 2, CellSize * 3)      // 128x192 (2x3 cells)
 		));
 	}
 
-	// ===== STORAGE (Right Side) =====
+	// ===== STORAGE (Right Column) =====
 
-	// Backpack
+	// Backpack - 3x3 cells = 192x192
+	// Large slot showing backpack (indicates storage capacity)
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::Backpack);
@@ -332,12 +362,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Backpack,
 			TEXT("spine_02"),
 			AllowedTypes,
-			FVector2D(400, 50),     // Position
-			FVector2D(100, 100)     // Size (large)
+			FVector2D(424, 16),                      // Top-right
+			FVector2D(CellSize * 3, CellSize * 3)   // 192x192 (3x3 cells)
 		));
 	}
 
-	// Secure Container
+	// Secure Container - 2x2 cells = 128x128
+	// Protected storage slot
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::SecureContainer);
@@ -347,12 +378,13 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::SecureContainer,
 			NAME_None,
 			AllowedTypes,
-			FVector2D(400, 160),    // Position
-			FVector2D(80, 80)       // Size
+			FVector2D(424, 16 + CellSize * 3 + Gap),  // Below backpack
+			FVector2D(CellSize * 2, CellSize * 2)     // 128x128 (2x2 cells)
 		));
 	}
 
 	// ===== QUICK SLOTS (Bottom Row) =====
+	// 1x1 cells for quick access items (meds, grenades, etc.)
 	{
 		FGameplayTagContainer QuickSlotAllowedTypes;
 		QuickSlotAllowedTypes.AddTag(Item::Consumable);
@@ -360,13 +392,16 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 		QuickSlotAllowedTypes.AddTag(Item::Throwable);
 		QuickSlotAllowedTypes.AddTag(Item::Ammo);
 
+		const float QuickSlotY = 376;  // Bottom row
+		const float QuickSlotStartX = 200;  // Centered under body
+
 		Presets.Add(CreateSlotPreset(
 			EEquipmentSlotType::QuickSlot1,
 			EquipmentSlot::QuickSlot1,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(150, 300),    // Position
-			FVector2D(50, 50)       // Size
+			FVector2D(QuickSlotStartX, QuickSlotY),
+			FVector2D(CellSize, CellSize)  // 64x64 (1x1 cell)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -374,8 +409,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot2,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(210, 300),    // Position
-			FVector2D(50, 50)       // Size
+			FVector2D(QuickSlotStartX + CellSize + Gap, QuickSlotY),
+			FVector2D(CellSize, CellSize)  // 64x64 (1x1 cell)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -383,8 +418,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot3,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(270, 300),    // Position
-			FVector2D(50, 50)       // Size
+			FVector2D(QuickSlotStartX + (CellSize + Gap) * 2, QuickSlotY),
+			FVector2D(CellSize, CellSize)  // 64x64 (1x1 cell)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -392,14 +427,15 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot4,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(330, 300),    // Position
-			FVector2D(50, 50)       // Size
+			FVector2D(QuickSlotStartX + (CellSize + Gap) * 3, QuickSlotY),
+			FVector2D(CellSize, CellSize)  // 64x64 (1x1 cell)
 		));
 	}
 
 	// ===== SPECIAL =====
 
-	// Armband
+	// Armband - 1x1 cell = 64x64
+	// Team identification
 	{
 		FGameplayTagContainer AllowedTypes;
 		AllowedTypes.AddTag(Item::Gear::Armband);
@@ -409,8 +445,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Armband,
 			TEXT("upperarm_l"),
 			AllowedTypes,
-			FVector2D(400, 250),    // Position
-			FVector2D(50, 50)       // Size
+			FVector2D(424 + CellSize * 2 + Gap, 16 + CellSize * 3 + Gap),  // Right of secure
+			FVector2D(CellSize, CellSize)  // 64x64 (1x1 cell)
 		));
 	}
 

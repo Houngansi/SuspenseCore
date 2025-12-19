@@ -96,40 +96,50 @@ bool USuspenseCoreUIManager::ShouldCreateSubsystem(UObject* Outer) const
 
 void USuspenseCoreUIManager::SetupDefaultScreenConfig()
 {
-	// Static tags - use RequestGameplayTag for cross-module compatibility
-	static const FGameplayTag PanelInventoryTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Inventory"));
-	static const FGameplayTag PanelStashTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Stash"));
-	static const FGameplayTag PanelTraderTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Trader"));
+	// Panel identification tags - use SuspenseCore.UI.Panel.* namespace
+	// These are for panel identification, not EventBus events
+	static const FGameplayTag PanelEquipmentTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Equipment"));
+	static const FGameplayTag PanelStashTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Stash"));
+	static const FGameplayTag PanelTradingTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Trading"));
 
-	// Inventory panel - ONLY shows player inventory
-	// Equipment slots should be a separate widget overlay or sidebar
-	FSuspenseCorePanelConfig InventoryPanel;
-	InventoryPanel.PanelTag = PanelInventoryTag;
-	InventoryPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Inventory", "INVENTORY");
-	InventoryPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
-	InventoryPanel.SortOrder = 0;
-	InventoryPanel.bIsEnabled = true;
-	ScreenConfig.Panels.Add(InventoryPanel);
+	// Equipment panel - shows Equipment (left) + Inventory (right) side by side
+	// This is the default/main panel for character management
+	FSuspenseCorePanelConfig EquipmentPanel;
+	EquipmentPanel.PanelTag = PanelEquipmentTag;
+	EquipmentPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Equipment", "EQUIPMENT");
+	EquipmentPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Equipment);
+	EquipmentPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
+	EquipmentPanel.bHorizontalLayout = true;
+	EquipmentPanel.SortOrder = 0;
+	EquipmentPanel.bIsEnabled = true;
+	ScreenConfig.Panels.Add(EquipmentPanel);
 
-	// Stash panel - shows stash container (only when near a stash)
+	// Stash panel - shows Stash (left) + Inventory (right) side by side
+	// Enabled when near a stash container
 	FSuspenseCorePanelConfig StashPanel;
 	StashPanel.PanelTag = PanelStashTag;
 	StashPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Stash", "STASH");
 	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Stash);
+	StashPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
+	StashPanel.bHorizontalLayout = true;
 	StashPanel.SortOrder = 1;
 	StashPanel.bIsEnabled = false; // Disabled by default, enabled when near stash
 	ScreenConfig.Panels.Add(StashPanel);
 
-	// Trader panel - shows trader inventory (only when trading)
+	// Trader panel - shows Trader (left) + Inventory (right) side by side
+	// Enabled when interacting with a trader NPC
 	FSuspenseCorePanelConfig TraderPanel;
-	TraderPanel.PanelTag = PanelTraderTag;
+	TraderPanel.PanelTag = PanelTradingTag;
 	TraderPanel.DisplayName = NSLOCTEXT("SuspenseCore", "Panel_Trader", "TRADER");
 	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Trader);
+	TraderPanel.ContainerTypes.Add(ESuspenseCoreContainerType::Inventory);
+	TraderPanel.bHorizontalLayout = true;
 	TraderPanel.SortOrder = 2;
 	TraderPanel.bIsEnabled = false; // Disabled by default, enabled when trading
 	ScreenConfig.Panels.Add(TraderPanel);
 
-	ScreenConfig.DefaultPanelTag = PanelInventoryTag;
+	// Default to Equipment panel (combined Equipment + Inventory view)
+	ScreenConfig.DefaultPanelTag = PanelEquipmentTag;
 	ScreenConfig.bAllowCrossPanelDrag = true;
 	ScreenConfig.bShowWeight = true;
 	ScreenConfig.bShowCurrency = true;

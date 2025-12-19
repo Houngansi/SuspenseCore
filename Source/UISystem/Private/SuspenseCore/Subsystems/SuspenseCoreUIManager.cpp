@@ -13,6 +13,7 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelWidget.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
+#include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -230,9 +231,38 @@ void USuspenseCoreUIManager::BindProvidersToScreen(APlayerController* PC)
 		}
 		else
 		{
-			// Widget doesn't implement base container - might be custom widget
-			UE_LOG(LogTemp, Verbose, TEXT("BindProvidersToScreen: Tab %d (%s) is not a container widget"),
-				TabIndex, *ContentWidget->GetClass()->GetName());
+			// Try ContainerPairLayoutWidget (holds two containers like Equipment+Inventory)
+			USuspenseCoreContainerPairLayoutWidget* PairLayout = Cast<USuspenseCoreContainerPairLayoutWidget>(ContentWidget);
+			if (PairLayout)
+			{
+				// ContainerPairLayoutWidget handles its own provider binding
+				// Pass the provider map so it can bind both containers
+				for (USuspenseCoreBaseContainerWidget* ChildContainer : PairLayout->GetAllContainers())
+				{
+					if (ChildContainer)
+					{
+						ESuspenseCoreContainerType ExpectedType = ChildContainer->GetExpectedContainerType();
+						if (TScriptInterface<ISuspenseCoreUIDataProvider>* FoundProvider = ProvidersByType.Find(ExpectedType))
+						{
+							ChildContainer->BindToProvider(*FoundProvider);
+							BoundCount++;
+							UE_LOG(LogTemp, Log, TEXT("BindProvidersToScreen: Bound provider (type=%d) to PairLayout child container (%s)"),
+								static_cast<int32>(ExpectedType), *ChildContainer->GetClass()->GetName());
+						}
+						else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("BindProvidersToScreen: No provider for PairLayout child type %d"),
+								static_cast<int32>(ExpectedType));
+						}
+					}
+				}
+			}
+			else
+			{
+				// Widget doesn't implement base container - might be custom widget
+				UE_LOG(LogTemp, Verbose, TEXT("BindProvidersToScreen: Tab %d (%s) is not a container widget"),
+					TabIndex, *ContentWidget->GetClass()->GetName());
+			}
 		}
 	}
 

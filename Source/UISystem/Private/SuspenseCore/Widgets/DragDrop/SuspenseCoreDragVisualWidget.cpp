@@ -26,12 +26,12 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, InvalidDropColor(FLinearColor(1.0f, 0.0f, 0.0f, 0.5f))
 	, NeutralColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.3f))
 	, DragOffset(FVector2D::ZeroVector)
+	, CachedViewportOrigin(FVector2D::ZeroVector)
+	, bDragInitialized(false)
 	, bIsRotated(false)
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
 {
-	// Visibility is managed by UE5's DefaultDragVisual system
-	// DO NOT set collapsed here - it breaks DefaultDragVisual display
 }
 
 //==================================================================
@@ -56,21 +56,10 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Update position every tick
-	ESlateVisibility CurrentVis = GetVisibility();
-	bool bShouldUpdate = (CurrentVis == ESlateVisibility::Visible || CurrentVis == ESlateVisibility::HitTestInvisible);
-
-	// Debug log once to verify tick is running
-	static bool bLoggedOnce = false;
-	if (!bLoggedOnce && bShouldUpdate)
+	// Update position every tick if drag is active
+	if (bDragInitialized)
 	{
-		UE_LOG(LogTemp, Log, TEXT("DragVisual NativeTick: Visibility=%d, Updating position"), (int32)CurrentVis);
-		bLoggedOnce = true;
-	}
-
-	if (bShouldUpdate)
-	{
-		UpdatePosition(FVector2D::ZeroVector); // Parameter not used anymore
+		UpdatePosition(FVector2D::ZeroVector);
 	}
 }
 
@@ -84,74 +73,63 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	DragOffset = InDragData.DragOffset;
 	bIsRotated = InDragData.bIsRotatedDuringDrag;
 	bCurrentDropValid = true;
+	bDragInitialized = true;
 
 	// Update size based on item
 	CurrentSize = InDragData.Item.GetEffectiveSize();
+
+	// Cache viewport origin ONCE at drag start (expensive lookup)
+	CachedViewportOrigin = FVector2D::ZeroVector;
+	UGameViewportClient* ViewportClient = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
+	if (ViewportClient)
+	{
+		TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
+		if (ViewportWidget.IsValid())
+		{
+			FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
+			CachedViewportOrigin = ViewportGeometry.GetAbsolutePosition();
+		}
+	}
 
 	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
 	UpdateSize();
 
+	// Position widget at (0,0) - we'll use RenderTranslation to move it
+	SetPositionInViewport(FVector2D::ZeroVector);
+
 	// Show the widget
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	// Position immediately
+	// Position immediately using RenderTranslation
 	UpdatePosition(FVector2D::ZeroVector);
 
 	// Notify Blueprint
 	K2_OnDragInitialized(InDragData);
 
-	UE_LOG(LogTemp, Log, TEXT("InitializeDrag: DragOffset=(%.1f, %.1f)"), DragOffset.X, DragOffset.Y);
+	UE_LOG(LogTemp, Log, TEXT("InitializeDrag: DragOffset=(%.1f, %.1f), ViewportOrigin=(%.1f, %.1f)"),
+		DragOffset.X, DragOffset.Y, CachedViewportOrigin.X, CachedViewportOrigin.Y);
 }
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// Use FSlateApplication to get cursor position - works during drag when PC->GetMousePosition fails
-	// GetCursorPos returns SCREEN coordinates (absolute), need to convert to viewport
-	FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
-
-	// Convert screen position to viewport position
-	// Get the game viewport
-	UGameViewportClient* ViewportClient = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
-	if (!ViewportClient)
+	if (!bDragInitialized)
 	{
-		// Fallback: use screen position directly with offset
-		FVector2D FinalPos = CursorScreenPos + DragOffset;
-		SetPositionInViewport(FinalPos);
 		return;
 	}
 
-	// Get viewport origin in screen space
-	FVector2D ViewportOrigin;
-	FVector2D ViewportSize;
-	ViewportClient->GetViewportSize(ViewportSize);
+	// Get cursor position from Slate - works during drag operations
+	FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
 
-	// Get the viewport widget to find its screen position
-	TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
-	if (ViewportWidget.IsValid())
-	{
-		FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
-		ViewportOrigin = ViewportGeometry.GetAbsolutePosition();
-	}
+	// Convert to viewport-local using cached viewport origin (no expensive lookups!)
+	FVector2D ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
 
-	// Convert cursor screen position to viewport-local position
-	FVector2D ViewportLocalPos = CursorScreenPos - ViewportOrigin;
-
-	// Apply drag offset and set position
+	// Final position = cursor position + drag offset
 	FVector2D FinalPos = ViewportLocalPos + DragOffset;
-	SetPositionInViewport(FinalPos);
 
-	// Debug log every ~60 frames
-	static int32 DebugCounter = 0;
-	if (++DebugCounter % 60 == 0)
-	{
-		UE_LOG(LogTemp, Log, TEXT("UpdatePosition: CursorScreen=(%.1f, %.1f), ViewportOrigin=(%.1f, %.1f), Local=(%.1f, %.1f), Offset=(%.1f, %.1f), Final=(%.1f, %.1f)"),
-			CursorScreenPos.X, CursorScreenPos.Y,
-			ViewportOrigin.X, ViewportOrigin.Y,
-			ViewportLocalPos.X, ViewportLocalPos.Y,
-			DragOffset.X, DragOffset.Y,
-			FinalPos.X, FinalPos.Y);
-	}
+	// Use SetRenderTranslation for INSTANT updates (no layout recalculation!)
+	// Widget is positioned at (0,0) in viewport, RenderTranslation moves it visually
+	SetRenderTranslation(FinalPos);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

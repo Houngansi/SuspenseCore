@@ -184,6 +184,12 @@ private:
 	/** Drag offset from cursor */
 	FVector2D DragOffset;
 
+	/** Cached viewport origin in screen coordinates - computed once at drag start */
+	FVector2D CachedViewportOrigin;
+
+	/** Whether drag has been initialized */
+	bool bDragInitialized;
+
 	/** Is item currently rotated */
 	bool bIsRotated;
 

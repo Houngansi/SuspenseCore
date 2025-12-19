@@ -6,6 +6,9 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "Components/CanvasPanel.h"
+#include "Components/PanelWidget.h"
+#include "Components/Widget.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
@@ -19,6 +22,19 @@ void USuspenseCoreContainerPairLayoutWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// If BindWidget didn't find containers, try auto-discovery from child widgets
+	if (!PrimaryContainer || !SecondaryContainer)
+	{
+		AutoDiscoverContainers();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Constructed - LayoutTag: %s, Primary: %d, Secondary: %d, PrimaryContainer: %s, SecondaryContainer: %s"),
+		*LayoutTag.ToString(),
+		static_cast<int32>(PrimaryContainerType),
+		static_cast<int32>(SecondaryContainerType),
+		PrimaryContainer ? *PrimaryContainer->GetClass()->GetName() : TEXT("NULL"),
+		SecondaryContainer ? *SecondaryContainer->GetClass()->GetName() : TEXT("NULL"));
+
 	// Validate container types match expected configuration
 	ValidateContainerTypes();
 
@@ -30,11 +46,6 @@ void USuspenseCoreContainerPairLayoutWidget::NativeConstruct()
 
 	bIsInitialized = true;
 	bIsActive = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Constructed - LayoutTag: %s, Primary: %d, Secondary: %d"),
-		*LayoutTag.ToString(),
-		static_cast<int32>(PrimaryContainerType),
-		static_cast<int32>(SecondaryContainerType));
 
 	K2_OnLayoutConstructed();
 }
@@ -312,6 +323,104 @@ void USuspenseCoreContainerPairLayoutWidget::ValidateContainerTypes()
 				static_cast<int32>(ActualType));
 			// Use the widget's type as authoritative
 			SecondaryContainerType = ActualType;
+		}
+	}
+}
+
+void USuspenseCoreContainerPairLayoutWidget::AutoDiscoverContainers()
+{
+	UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] AutoDiscoverContainers - scanning child widgets..."));
+
+	// Get root widget (usually CanvasPanel or similar)
+	UWidget* RootWidget = GetRootWidget();
+	if (!RootWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ContainerPairLayout] No root widget found"));
+		return;
+	}
+
+	// Recursively scan all child widgets
+	TArray<USuspenseCoreBaseContainerWidget*> FoundContainers;
+	ScanWidgetTreeForContainers(RootWidget, FoundContainers);
+
+	UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Found %d container widgets"), FoundContainers.Num());
+
+	// Assign containers based on their ExpectedContainerType matching our configured types
+	for (USuspenseCoreBaseContainerWidget* Container : FoundContainers)
+	{
+		ESuspenseCoreContainerType ContainerType = Container->GetExpectedContainerType();
+
+		UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Found container: %s (type=%d)"),
+			*Container->GetClass()->GetName(), static_cast<int32>(ContainerType));
+
+		if (!PrimaryContainer && ContainerType == PrimaryContainerType)
+		{
+			PrimaryContainer = Container;
+			UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Assigned as PrimaryContainer"));
+		}
+		else if (!SecondaryContainer && ContainerType == SecondaryContainerType)
+		{
+			SecondaryContainer = Container;
+			UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Assigned as SecondaryContainer"));
+		}
+	}
+
+	// If we still don't have both, try assigning by order (first = primary, second = secondary)
+	if ((!PrimaryContainer || !SecondaryContainer) && FoundContainers.Num() >= 2)
+	{
+		if (!PrimaryContainer)
+		{
+			PrimaryContainer = FoundContainers[0];
+			UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Assigned first container as PrimaryContainer (fallback)"));
+		}
+		if (!SecondaryContainer)
+		{
+			for (USuspenseCoreBaseContainerWidget* Container : FoundContainers)
+			{
+				if (Container != PrimaryContainer)
+				{
+					SecondaryContainer = Container;
+					UE_LOG(LogTemp, Log, TEXT("[ContainerPairLayout] Assigned second container as SecondaryContainer (fallback)"));
+					break;
+				}
+			}
+		}
+	}
+}
+
+void USuspenseCoreContainerPairLayoutWidget::ScanWidgetTreeForContainers(UWidget* Widget, TArray<USuspenseCoreBaseContainerWidget*>& OutContainers)
+{
+	if (!Widget)
+	{
+		return;
+	}
+
+	// Check if this widget is a container
+	if (USuspenseCoreBaseContainerWidget* Container = Cast<USuspenseCoreBaseContainerWidget>(Widget))
+	{
+		OutContainers.Add(Container);
+	}
+
+	// Check if it's a panel with children
+	if (UPanelWidget* Panel = Cast<UPanelWidget>(Widget))
+	{
+		for (int32 i = 0; i < Panel->GetChildrenCount(); ++i)
+		{
+			ScanWidgetTreeForContainers(Panel->GetChildAt(i), OutContainers);
+		}
+	}
+
+	// Check if it's a UserWidget with nested content
+	if (UUserWidget* UserWidget = Cast<UUserWidget>(Widget))
+	{
+		// Don't recurse into the same widget
+		if (UserWidget != this)
+		{
+			UWidget* NestedRoot = UserWidget->GetRootWidget();
+			if (NestedRoot)
+			{
+				ScanWidgetTreeForContainers(NestedRoot, OutContainers);
+			}
 		}
 	}
 }

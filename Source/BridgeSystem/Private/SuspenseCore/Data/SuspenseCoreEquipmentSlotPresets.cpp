@@ -177,7 +177,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 	// Column X positions:
 	constexpr float ColWeapons = 16.0f;      // Weapons column
 	constexpr float ColCenter = 352.0f;      // Head + Body column
-	constexpr float ColStorage = 568.0f;     // Storage column
+	// Storage must be after Tactical Rig: 352 + 192 (armor) + 8 + 128 (rig) + 8 = 688
+	constexpr float ColStorage = 688.0f;     // Storage column
 
 	// ===== WEAPONS (Left Column) =====
 	// Long weapons displayed horizontally, 2 cells tall for better visibility

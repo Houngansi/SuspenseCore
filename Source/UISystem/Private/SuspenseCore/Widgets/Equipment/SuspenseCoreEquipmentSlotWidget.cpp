@@ -71,6 +71,13 @@ void USuspenseCoreEquipmentSlotWidget::InitializeFromConfig(const FEquipmentSlot
 	// Update slot data with slot type info
 	CachedSlotData.SlotTypeTag = SlotTypeTag;
 
+	// Update slot name text if available
+	if (SlotNameText)
+	{
+		SlotNameText->SetText(DisplayName);
+		SlotNameText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
 	// Notify Blueprint
 	K2_OnConfigInitialized(InSlotConfig);
 

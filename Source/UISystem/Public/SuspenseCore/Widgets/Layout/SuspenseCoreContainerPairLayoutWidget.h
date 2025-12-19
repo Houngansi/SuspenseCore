@@ -250,6 +250,12 @@ protected:
 	/** Validate container types match configuration */
 	void ValidateContainerTypes();
 
+	/** Auto-discover container widgets from child hierarchy if BindWidget didn't find them */
+	void AutoDiscoverContainers();
+
+	/** Recursively scan widget tree for container widgets */
+	void ScanWidgetTreeForContainers(UWidget* Widget, TArray<USuspenseCoreBaseContainerWidget*>& OutContainers);
+
 private:
 	//==================================================================
 	// State

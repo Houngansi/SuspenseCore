@@ -95,13 +95,10 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	UpdateVisuals();
 	UpdateSize();
 
-	// Position widget at (0,0) - we'll use RenderTranslation to move it
-	SetPositionInViewport(FVector2D::ZeroVector);
-
 	// Show the widget
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	// Position immediately using RenderTranslation
+	// Position immediately
 	UpdatePosition(FVector2D::ZeroVector);
 
 	// Notify Blueprint
@@ -121,15 +118,14 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPositi
 	// Get cursor position from Slate - works during drag operations
 	FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
 
-	// Convert to viewport-local using cached viewport origin (no expensive lookups!)
+	// Convert to viewport-local using cached viewport origin
 	FVector2D ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
 
 	// Final position = cursor position + drag offset
 	FVector2D FinalPos = ViewportLocalPos + DragOffset;
 
-	// Use SetRenderTranslation for INSTANT updates (no layout recalculation!)
-	// Widget is positioned at (0,0) in viewport, RenderTranslation moves it visually
-	SetRenderTranslation(FinalPos);
+	// Use SetPositionInViewport - it works correctly with viewport coordinates
+	SetPositionInViewport(FinalPos);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

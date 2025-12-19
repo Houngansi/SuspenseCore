@@ -244,16 +244,31 @@ void USuspenseCoreInventoryWidget::NativeOnDragDetected(const FGeometry& InGeome
 	// This makes the item appear to be "picked up" from where it was clicked
 	if (DragSourceSlot >= 0 && DragSourceSlot < SlotWidgets.Num() && SlotWidgets[DragSourceSlot])
 	{
-		// Get slot widget's absolute position (screen space)
-		FVector2D SlotAbsolutePos = SlotWidgets[DragSourceSlot]->GetCachedGeometry().GetAbsolutePosition();
+		// Get slot widget's cached geometry
+		FGeometry SlotGeometry = SlotWidgets[DragSourceSlot]->GetCachedGeometry();
+		FVector2D SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
+		FVector2D SlotLocalSize = SlotGeometry.GetLocalSize();
 
-		// DragOffset = SlotTopLeft - ClickPosition (negative offset to move widget up/left from cursor)
-		DragData.DragOffset = SlotAbsolutePos - DragStartMousePosition;
+		// Check if geometry is valid (not cached yet on first frame after widget creation)
+		// Invalid geometry has position (0,0) AND zero/near-zero size
+		const bool bGeometryValid = !SlotAbsolutePos.IsNearlyZero() || !SlotLocalSize.IsNearlyZero();
 
-		UE_LOG(LogTemp, Log, TEXT("DragOffset calculation: SlotPos=(%.1f, %.1f), ClickPos=(%.1f, %.1f), Offset=(%.1f, %.1f)"),
-			SlotAbsolutePos.X, SlotAbsolutePos.Y,
-			DragStartMousePosition.X, DragStartMousePosition.Y,
-			DragData.DragOffset.X, DragData.DragOffset.Y);
+		if (bGeometryValid)
+		{
+			// DragOffset = SlotTopLeft - ClickPosition (negative offset to move widget up/left from cursor)
+			DragData.DragOffset = SlotAbsolutePos - DragStartMousePosition;
+
+			UE_LOG(LogTemp, Log, TEXT("DragOffset calculation: SlotPos=(%.1f, %.1f), ClickPos=(%.1f, %.1f), Offset=(%.1f, %.1f)"),
+				SlotAbsolutePos.X, SlotAbsolutePos.Y,
+				DragStartMousePosition.X, DragStartMousePosition.Y,
+				DragData.DragOffset.X, DragData.DragOffset.Y);
+		}
+		else
+		{
+			// Geometry not yet cached (first frame) - use zero offset so drag visual stays at cursor
+			DragData.DragOffset = FVector2D::ZeroVector;
+			UE_LOG(LogTemp, Warning, TEXT("DragOffset calculation: Geometry not cached yet, using zero offset"));
+		}
 	}
 	else
 	{

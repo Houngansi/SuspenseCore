@@ -905,10 +905,10 @@ void ASuspenseCorePlayerController::ShowInventory()
 		return;
 	}
 
-	// Default to inventory panel
-	static const FGameplayTag InventoryPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIPanel.Inventory"));
+	// Default to equipment panel (shows Equipment + Inventory side by side)
+	static const FGameplayTag EquipmentPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Equipment"));
 
-	if (UIManager->ShowContainerScreen(this, InventoryPanelTag))
+	if (UIManager->ShowContainerScreen(this, EquipmentPanelTag))
 	{
 		// Push UI mode for cursor management
 		ISuspenseCoreUIController::Execute_PushUIMode(this, TEXT("Inventory"));

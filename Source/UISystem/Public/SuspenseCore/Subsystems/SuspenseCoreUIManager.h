@@ -94,7 +94,7 @@ public:
 	/**
 	 * Show container screen with specified panels
 	 * @param PC Owning player controller
-	 * @param PanelTag Panel to show (SuspenseCore.Event.UIPanel.*)
+	 * @param PanelTag Panel to show (SuspenseCore.UI.Panel.*)
 	 * @return true if screen shown
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")

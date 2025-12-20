@@ -4,6 +4,9 @@
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
+#include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
+#include "InputCoreTypes.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
@@ -54,6 +57,107 @@ void USuspenseCoreEquipmentSlotWidget::NativePreConstruct()
 	if (EmptySlotIcon)
 	{
 		EmptySlotIcon->SetColorAndOpacity(EmptySlotIconTint);
+	}
+}
+
+FReply USuspenseCoreEquipmentSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
+
+	// Left click - check if we can start drag
+	if (bLeftClick && Execute_CanBeDragged(this))
+	{
+		UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: MouseDown, starting drag detection"), *SlotTypeTag.ToString());
+		return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+void USuspenseCoreEquipmentSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	// Check if we can be dragged
+	if (!Execute_CanBeDragged(this))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - Cannot be dragged"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	// Get item data from cached data
+	if (!CachedItemData.InstanceID.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No item data"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	// Find parent container widget to get provider
+	USuspenseCoreBaseContainerWidget* ParentContainer = nullptr;
+	UWidget* Parent = GetParent();
+	while (Parent)
+	{
+		ParentContainer = Cast<USuspenseCoreBaseContainerWidget>(Parent);
+		if (ParentContainer)
+		{
+			break;
+		}
+		Parent = Parent->GetParent();
+	}
+
+	if (!ParentContainer || !ParentContainer->IsBoundToProvider())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No parent container or provider"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = ParentContainer->GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - Provider interface null"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	// Create drag data using factory method
+	FSuspenseCoreDragData DragData = FSuspenseCoreDragData::Create(
+		CachedItemData,
+		ProviderInterface->GetContainerType(),
+		ProviderInterface->GetContainerTypeTag(),
+		ProviderInterface->GetProviderID(),
+		CachedSlotData.SlotIndex
+	);
+
+	if (!DragData.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - Failed to create drag data"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	// Calculate drag offset
+	FGeometry SlotGeometry = GetCachedGeometry();
+	FVector2D SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
+	FVector2D ClickPos = InMouseEvent.GetScreenSpacePosition();
+	DragData.DragOffset = SlotAbsolutePos - ClickPos;
+
+	// Get player controller
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No player controller"), *SlotTypeTag.ToString());
+		return;
+	}
+
+	// Create drag operation
+	OutOperation = USuspenseCoreDragDropOperation::CreateDrag(PC, DragData);
+	if (OutOperation)
+	{
+		Execute_OnDragStarted(this);
+		UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: Started drag for item '%s'"),
+			*SlotTypeTag.ToString(), *CachedItemData.DisplayName.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: Failed to create drag operation"), *SlotTypeTag.ToString());
 	}
 }
 

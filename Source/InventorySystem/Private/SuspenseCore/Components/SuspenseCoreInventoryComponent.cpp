@@ -181,8 +181,15 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	// Check type restrictions
 	if (Config.AllowedItemTypes.Num() > 0 && !Config.AllowedItemTypes.HasTag(ItemData.Classification.ItemType))
 	{
-		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Type %s not in allowed types (%d types)"),
-			*ItemData.Classification.ItemType.ToString(), Config.AllowedItemTypes.Num());
+		// Log all allowed types for debugging
+		FString AllowedTypesStr;
+		for (const FGameplayTag& Tag : Config.AllowedItemTypes)
+		{
+			if (!AllowedTypesStr.IsEmpty()) AllowedTypesStr += TEXT(", ");
+			AllowedTypesStr += Tag.ToString();
+		}
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Type %s not in allowed types. Allowed: [%s]"),
+			*ItemData.Classification.ItemType.ToString(), *AllowedTypesStr);
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::TypeNotAllowed,
 			FString::Printf(TEXT("Item type %s not allowed"), *ItemData.Classification.ItemType.ToString()));
 		return false;
@@ -942,6 +949,11 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 	Config.GridHeight = FMath::Clamp(GridHeight, 1, 20);
 	Config.MaxWeight = FMath::Max(0.0f, InMaxWeight);
 
+	// Clear item type restrictions - they should be set explicitly after initialization
+	// via SetAllowedItemTypes() if needed. This ensures a clean slate.
+	Config.AllowedItemTypes.Reset();
+	Config.DisallowedItemTypes.Reset();
+
 	int32 TotalSlots = Config.GridWidth * Config.GridHeight;
 	GridSlots.SetNum(TotalSlots);
 	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
@@ -966,7 +978,7 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 		EventBus->Publish(SUSPENSE_INV_EVENT_INITIALIZED, EventData);
 	}
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Inventory initialized: %dx%d grid, %.1f max weight"),
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Inventory initialized: %dx%d grid, %.1f max weight (type restrictions cleared)"),
 		Config.GridWidth, Config.GridHeight, Config.MaxWeight);
 }
 

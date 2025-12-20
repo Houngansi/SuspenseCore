@@ -833,10 +833,27 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 
 	// Initialize Inventory Bridge
 	// Connects equipment system to inventory component
-	if (EquipmentInventoryBridge && InventoryComponent)
+	// CRITICAL: Must call Initialize() to set up EventBus subscription!
+	if (EquipmentInventoryBridge && EquipmentDataStore && EquipmentOps && EquipmentTxnProcessor)
 	{
-		// Bridge connects inventory to equipment data store
-		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge ready"));
+		USuspenseCoreEquipmentInventoryBridge* Bridge = Cast<USuspenseCoreEquipmentInventoryBridge>(EquipmentInventoryBridge);
+		if (Bridge)
+		{
+			bool bInitialized = Bridge->Initialize(
+				TScriptInterface<ISuspenseCoreEquipmentDataProvider>(EquipmentDataStore),
+				TScriptInterface<ISuspenseCoreEquipmentOperations>(EquipmentOps),
+				TScriptInterface<ISuspenseCoreTransactionManager>(EquipmentTxnProcessor)
+			);
+
+			if (bInitialized)
+			{
+				UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge initialized successfully"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge initialization failed"));
+			}
+		}
 	}
 
 	// Initialize Prediction System (client-side)

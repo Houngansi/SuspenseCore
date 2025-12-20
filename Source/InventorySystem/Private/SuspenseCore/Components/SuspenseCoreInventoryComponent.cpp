@@ -76,9 +76,12 @@ bool USuspenseCoreInventoryComponent::AddItemByID_Implementation(FName ItemID, i
 {
 	check(IsInGameThread());
 
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemByID: Starting for %s x%d"), *ItemID.ToString(), Quantity);
+
 	// Security: Check authority - redirect to Server RPC if client
 	if (!CheckInventoryAuthority(TEXT("AddItemByID")))
 	{
+		UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemByID: No authority, sending to Server RPC"));
 		Server_AddItemByID(ItemID, Quantity);
 		return false; // Client returns false, server will process
 	}
@@ -107,8 +110,12 @@ bool USuspenseCoreInventoryComponent::AddItemByID_Implementation(FName ItemID, i
 		return false;
 	}
 
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemByID: Instance created, calling AddItemInstance"));
+
 	// Try to add
-	return AddItemInstance_Implementation(NewInstance);
+	bool bResult = AddItemInstance_Implementation(NewInstance);
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemByID: AddItemInstance returned %s"), bResult ? TEXT("true") : TEXT("false"));
+	return bResult;
 }
 
 bool USuspenseCoreInventoryComponent::AddItemInstance_Implementation(const FSuspenseCoreItemInstance& ItemInstance)
@@ -120,14 +127,19 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 {
 	check(IsInGameThread());
 
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemID=%s, TargetSlot=%d"),
+		*ItemInstance.ItemID.ToString(), TargetSlot);
+
 	if (!bIsInitialized)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Not initialized"));
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::NotInitialized, TEXT("Inventory not initialized"));
 		return false;
 	}
 
 	if (!ItemInstance.IsValid())
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Invalid instance"));
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::InvalidItem, TEXT("Invalid item instance"));
 		return false;
 	}
@@ -135,17 +147,31 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	// Get item data for validation
 	FSuspenseCoreItemData ItemData;
 	USuspenseCoreDataManager* DataManager = GetDataManager();
-	if (!DataManager || !DataManager->GetItemData(ItemInstance.ItemID, ItemData))
+	if (!DataManager)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: DataManager is null"));
+		BroadcastErrorEvent(ESuspenseCoreInventoryResult::ItemNotFound, TEXT("DataManager not available"));
+		return false;
+	}
+
+	if (!DataManager->GetItemData(ItemInstance.ItemID, ItemData))
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Item %s not found in DataManager"),
+			*ItemInstance.ItemID.ToString());
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::ItemNotFound,
 			FString::Printf(TEXT("Item %s not found in DataTable"), *ItemInstance.ItemID.ToString()));
 		return false;
 	}
 
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemData loaded - GridSize=%dx%d, Weight=%.2f"),
+		ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y, ItemData.InventoryProps.Weight);
+
 	// Check weight
 	float ItemWeight = ItemData.InventoryProps.Weight * ItemInstance.Quantity;
 	if (CurrentWeight + ItemWeight > Config.MaxWeight)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Weight exceeded (%.1f + %.1f > %.1f)"),
+			CurrentWeight, ItemWeight, Config.MaxWeight);
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::WeightLimitExceeded,
 			FString::Printf(TEXT("Weight limit exceeded (Current: %.1f, Adding: %.1f, Max: %.1f)"),
 				CurrentWeight, ItemWeight, Config.MaxWeight));
@@ -155,6 +181,8 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	// Check type restrictions
 	if (Config.AllowedItemTypes.Num() > 0 && !Config.AllowedItemTypes.HasTag(ItemData.Classification.ItemType))
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Type %s not in allowed types (%d types)"),
+			*ItemData.Classification.ItemType.ToString(), Config.AllowedItemTypes.Num());
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::TypeNotAllowed,
 			FString::Printf(TEXT("Item type %s not allowed"), *ItemData.Classification.ItemType.ToString()));
 		return false;
@@ -162,6 +190,8 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 
 	if (Config.DisallowedItemTypes.HasTag(ItemData.Classification.ItemType))
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Type %s is disallowed"),
+			*ItemData.Classification.ItemType.ToString());
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::TypeNotAllowed,
 			FString::Printf(TEXT("Item type %s is disallowed"), *ItemData.Classification.ItemType.ToString()));
 		return false;
@@ -206,18 +236,25 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	int32 PlacementSlot = TargetSlot;
 	if (PlacementSlot == INDEX_NONE)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: Finding free slot for %dx%d item in %dx%d grid"),
+			ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y,
+			Config.GridWidth, Config.GridHeight);
 		PlacementSlot = FindFreeSlot(ItemData.InventoryProps.GridSize, Config.bAllowRotation);
 	}
 
 	if (PlacementSlot == INDEX_NONE)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: No free slot found"));
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::NoSpace, TEXT("No space available in inventory"));
 		return false;
 	}
 
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: Using slot %d"), PlacementSlot);
+
 	// Check placement validity
 	if (!CanPlaceItemAtSlot(ItemData.InventoryProps.GridSize, PlacementSlot, false))
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Cannot place at slot %d"), PlacementSlot);
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::SlotOccupied,
 			FString::Printf(TEXT("Cannot place item at slot %d"), PlacementSlot));
 		return false;

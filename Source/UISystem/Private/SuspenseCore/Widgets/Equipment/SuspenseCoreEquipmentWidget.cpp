@@ -810,13 +810,37 @@ void USuspenseCoreEquipmentWidget::NativeOnDragDetected(const FGeometry& InGeome
 		return;
 	}
 
-	// Create drag data
-	FSuspenseCoreDragData DragData;
-	DragData.Item = CachedItemData;
-	DragData.SourceContainerType = ESuspenseCoreContainerType::Equipment;
-	DragData.SourceContainerTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Equipment"));
-	DragData.SourceSlot = DragSourceSlot;
-	DragData.bIsValid = true;
+	// Get provider interface for SourceContainerID
+	if (!IsBoundToProvider())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - No bound provider"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - Provider interface is null"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Create drag data using the proper factory method (like InventoryWidget does)
+	FSuspenseCoreDragData DragData = FSuspenseCoreDragData::Create(
+		CachedItemData,
+		ProviderInterface->GetContainerType(),
+		ProviderInterface->GetContainerTypeTag(),
+		ProviderInterface->GetProviderID(),
+		DragSourceSlot
+	);
+
+	if (!DragData.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - Failed to create drag data"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
 
 	// Calculate DragOffset: difference between slot's top-left and initial click position
 	FGeometry SlotGeometry = SlotWidget->GetCachedGeometry();

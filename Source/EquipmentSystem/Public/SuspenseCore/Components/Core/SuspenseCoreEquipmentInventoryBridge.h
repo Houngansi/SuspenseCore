@@ -193,12 +193,30 @@ private:
     /** Handle for equipment operation request subscription */
     FSuspenseCoreSubscriptionHandle EquipmentOperationRequestHandle;
 
+    /** Handle for TransferItem request subscription (Equipment→Inventory drag-drop) */
+    FSuspenseCoreSubscriptionHandle TransferItemRequestHandle;
+
+    /** Handle for UnequipItem request subscription (context menu unequip) */
+    FSuspenseCoreSubscriptionHandle UnequipItemRequestHandle;
+
     /**
      * Handler for equipment operation requests from UI
      * Processes requests and broadcasts results back through EventDelegateManager
      * @param Request - Equipment operation request from UI layer
      */
     void HandleEquipmentOperationRequest(const FEquipmentOperationRequest& Request);
+
+    /**
+     * Handler for TransferItem requests (cross-container drag-drop)
+     * Called when item is dragged from equipment to inventory
+     */
+    void OnTransferItemRequest(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /**
+     * Handler for UnequipItem requests (context menu)
+     * Called when user selects "Unequip" from context menu
+     */
+    void OnUnequipItemRequest(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
     // ===== Transaction Support =====
 

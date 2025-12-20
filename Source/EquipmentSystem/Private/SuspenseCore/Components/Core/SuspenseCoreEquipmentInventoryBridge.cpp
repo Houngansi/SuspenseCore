@@ -198,7 +198,8 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     }
 
     // Subscribe to equipment operation requests via EventBus (using native callback)
-    const FGameplayTag RequestTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Request"), false);
+    // CRITICAL: Use true to create tag if not found - ensures subscription works
+    const FGameplayTag RequestTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Operation.Request"), true);
     if (RequestTag.IsValid() && EventDelegateManager->GetEventBus())
     {
         FSuspenseCoreNativeEventCallback Callback;
@@ -211,14 +212,40 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
             Request.TargetSlotIndex = static_cast<int32>(EventData.GetFloat(FName(TEXT("TargetSlot"))));
             Request.SourceSlotIndex = static_cast<int32>(EventData.GetFloat(FName(TEXT("SourceSlot"))));
 
-            UE_LOG(LogEquipmentBridge, Log, TEXT("EventBus callback - Operation: %d"),
-                static_cast<int32>(Request.OperationType));
+            // CRITICAL: Extract ItemInstance data from event (sent by EquipmentWidget)
+            const FString* ItemIDStr = EventData.StringPayload.Find(FName(TEXT("ItemID")));
+            const FString* InstanceIDStr = EventData.StringPayload.Find(FName(TEXT("InstanceID")));
+
+            if (ItemIDStr)
+            {
+                Request.ItemInstance.ItemID = FName(**ItemIDStr);
+            }
+            if (InstanceIDStr)
+            {
+                FGuid::Parse(*InstanceIDStr, Request.ItemInstance.UniqueInstanceID);
+            }
+            Request.ItemInstance.Quantity = 1;
+
+            // Generate operation ID if not present
+            Request.OperationId = FGuid::NewGuid();
+
+            UE_LOG(LogEquipmentBridge, Warning, TEXT("EventBus callback - Operation: %d, ItemID: %s, InstanceID: %s, TargetSlot: %d"),
+                static_cast<int32>(Request.OperationType),
+                *Request.ItemInstance.ItemID.ToString(),
+                *Request.ItemInstance.UniqueInstanceID.ToString(),
+                Request.TargetSlotIndex);
 
             HandleEquipmentOperationRequest(Request);
         });
 
         EquipmentOperationRequestHandle = EventDelegateManager->GetEventBus()->SubscribeNative(
             RequestTag, this, Callback);
+
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to Equipment.Operation.Request tag"));
+    }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to subscribe to Equipment.Operation.Request - tag invalid or EventBus null"));
     }
 
     UE_LOG(LogEquipmentBridge, Log, TEXT("EventBus subscription configured"));

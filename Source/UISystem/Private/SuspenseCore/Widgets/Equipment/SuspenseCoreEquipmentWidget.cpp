@@ -5,6 +5,7 @@
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentWidget.h"
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "InputCoreTypes.h"
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"

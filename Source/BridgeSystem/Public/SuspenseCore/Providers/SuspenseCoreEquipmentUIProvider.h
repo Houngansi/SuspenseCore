@@ -10,13 +10,16 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCoreEquipmentUIProvider.generated.h"
 
 // Forward declarations
 class USuspenseCoreEventBus;
 class USuspenseCoreLoadoutManager;
-class USuspenseCoreEquipmentDataStore;
 class USuspenseCoreDataManager;
+
+struct FSuspenseCoreEventData;
 
 /**
  * USuspenseCoreEquipmentUIProvider
@@ -237,22 +240,46 @@ protected:
 	/** Cached LoadoutManager reference */
 	mutable TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
 
-	/** Cached DataStore reference (found on owner) */
-	mutable TWeakObjectPtr<USuspenseCoreEquipmentDataStore> CachedDataStore;
-
 	/** Cached DataManager reference */
 	mutable TWeakObjectPtr<USuspenseCoreDataManager> CachedDataManager;
+
+	/**
+	 * Cached equipped items - pushed via EventBus, not pulled from DataStore
+	 * Key: SlotIndex, Value: Item instance data
+	 * This avoids circular dependency: BridgeSystem <- EquipmentSystem -> BridgeSystem
+	 */
+	UPROPERTY()
+	TMap<int32, FSuspenseCoreInventoryItemInstance> CachedEquippedItems;
+
+	/** EventBus subscription handles */
+	TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
 private:
 	/** Get LoadoutManager */
 	USuspenseCoreLoadoutManager* GetLoadoutManager() const;
-
-	/** Get DataStore from owner actor */
-	USuspenseCoreEquipmentDataStore* GetDataStore() const;
 
 	/** Get DataManager for item lookups */
 	USuspenseCoreDataManager* GetDataManager() const;
 
 	/** Map slot type to index for quick lookup */
 	TMap<EEquipmentSlotType, int32> SlotTypeToIndex;
+
+	//==================================================================
+	// EventBus Handlers (Push-based data sync)
+	//==================================================================
+
+	/** Setup EventBus subscriptions */
+	void SetupEventSubscriptions();
+
+	/** Teardown EventBus subscriptions */
+	void TeardownEventSubscriptions();
+
+	/** Handle item equipped event - add to cache */
+	void OnItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle item unequipped event - remove from cache */
+	void OnItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle slot updated event - update slot state */
+	void OnSlotUpdated(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 };

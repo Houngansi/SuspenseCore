@@ -7,12 +7,25 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
-#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerState.h"
+
+// EventBus tags for equipment events (published by EquipmentSystem)
+namespace EquipmentEventTags
+{
+	// Primary events from EquipmentInventoryBridge
+	static const FName Equipped = TEXT("Equipment.Event.Equipped");
+	static const FName Unequipped = TEXT("Equipment.Event.Unequipped");
+	// Alternative events from EquipmentComponentBase
+	static const FName ItemEquipped = TEXT("Equipment.Event.ItemEquipped");
+	static const FName ItemUnequipped = TEXT("Equipment.Event.ItemUnequipped");
+	// Slot/general updates
+	static const FName SlotUpdated = TEXT("Equipment.Slot.Updated");
+	static const FName EquipmentUpdated = TEXT("Equipment.Updated");
+}
 
 //==================================================================
 // Constructor
@@ -57,6 +70,9 @@ void USuspenseCoreEquipmentUIProvider::BeginPlay()
 		InitializeProvider(EffectiveLoadoutID);
 	}
 
+	// Setup EventBus subscriptions for push-based data sync
+	SetupEventSubscriptions();
+
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: BeginPlay on %s, Initialized=%s, SlotCount=%d"),
 		GetOwner() ? *GetOwner()->GetName() : TEXT("None"),
 		bIsInitialized ? TEXT("true") : TEXT("false"),
@@ -65,6 +81,7 @@ void USuspenseCoreEquipmentUIProvider::BeginPlay()
 
 void USuspenseCoreEquipmentUIProvider::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	TeardownEventSubscriptions();
 	Shutdown();
 	Super::EndPlay(EndPlayReason);
 }
@@ -145,8 +162,10 @@ void USuspenseCoreEquipmentUIProvider::Shutdown()
 
 	SlotConfigs.Empty();
 	SlotTypeToIndex.Empty();
+	CachedEquippedItems.Empty();
 	CachedEventBus.Reset();
 	CachedLoadoutManager.Reset();
+	CachedDataManager.Reset();
 	bIsInitialized = false;
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Shutdown complete"));
@@ -245,20 +264,12 @@ bool USuspenseCoreEquipmentUIProvider::IsSlotValid(int32 SlotIndex) const
 TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIData() const
 {
 	TArray<FSuspenseCoreItemUIData> Items;
-
-	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
-	if (!DataStore)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider::GetAllItemUIData - DataStore not found!"));
-		return Items;
-	}
+	Items.Reserve(CachedEquippedItems.Num());
 
 	USuspenseCoreDataManager* DataManager = GetDataManager();
 
-	// Get all equipped items from DataStore
-	TMap<int32, FSuspenseCoreInventoryItemInstance> EquippedItems = DataStore->GetAllEquippedItems();
-
-	for (const auto& Pair : EquippedItems)
+	// Use cached equipped items (pushed via EventBus, not pulled from DataStore)
+	for (const auto& Pair : CachedEquippedItems)
 	{
 		const int32 SlotIndex = Pair.Key;
 		const FSuspenseCoreInventoryItemInstance& ItemInstance = Pair.Value;
@@ -295,7 +306,7 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 		Items.Add(ItemData);
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("EquipmentUIProvider::GetAllItemUIData - Found %d equipped items"), Items.Num());
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentUIProvider::GetAllItemUIData - Returning %d cached items"), Items.Num());
 
 	return Items;
 }
@@ -307,26 +318,18 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 		return false;
 	}
 
-	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
-	if (!DataStore)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider::GetItemUIDataAtSlot - DataStore not found!"));
-		return false;
-	}
-
-	// Get item from DataStore
-	FSuspenseCoreInventoryItemInstance ItemInstance = DataStore->GetSlotItem(SlotIndex);
-
-	if (!ItemInstance.IsValid())
+	// Get item from cache (pushed via EventBus, not pulled from DataStore)
+	const FSuspenseCoreInventoryItemInstance* ItemInstance = CachedEquippedItems.Find(SlotIndex);
+	if (!ItemInstance || !ItemInstance->IsValid())
 	{
 		// Slot is empty
 		return false;
 	}
 
 	// Convert to UI data
-	OutItem.InstanceID = ItemInstance.UniqueInstanceID;
-	OutItem.ItemID = ItemInstance.ItemID;
-	OutItem.Quantity = ItemInstance.Quantity;
+	OutItem.InstanceID = ItemInstance->UniqueInstanceID;
+	OutItem.ItemID = ItemInstance->ItemID;
+	OutItem.Quantity = ItemInstance->Quantity;
 	OutItem.SlotIndex = SlotIndex;
 	OutItem.GridSize = FIntPoint(1, 1);
 
@@ -335,7 +338,7 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 	if (DataManager)
 	{
 		FSuspenseCoreItemData ItemTableData;
-		if (DataManager->GetItemData(ItemInstance.ItemID, ItemTableData))
+		if (DataManager->GetItemData(ItemInstance->ItemID, ItemTableData))
 		{
 			OutItem.DisplayName = ItemTableData.DisplayName;
 			OutItem.Description = ItemTableData.Description;
@@ -377,14 +380,8 @@ bool USuspenseCoreEquipmentUIProvider::FindItemUIData(const FGuid& InstanceID, F
 
 int32 USuspenseCoreEquipmentUIProvider::GetItemCount() const
 {
-	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
-	if (!DataStore)
-	{
-		return 0;
-	}
-
-	TMap<int32, FSuspenseCoreInventoryItemInstance> EquippedItems = DataStore->GetAllEquippedItems();
-	return EquippedItems.Num();
+	// Use cached equipped items count
+	return CachedEquippedItems.Num();
 }
 
 //==================================================================
@@ -745,9 +742,9 @@ FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::ConvertToSlotUIData(EE
 		}
 		else
 		{
-			// Query actual equipped item from DataStore
-			USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
-			if (DataStore && DataStore->IsSlotOccupied(SlotIndex))
+			// Check cached equipped items (pushed via EventBus, not pulled from DataStore)
+			const FSuspenseCoreInventoryItemInstance* CachedItem = CachedEquippedItems.Find(SlotIndex);
+			if (CachedItem && CachedItem->IsValid())
 			{
 				SlotData.State = ESuspenseCoreUISlotState::Occupied;
 			}
@@ -831,26 +828,179 @@ USuspenseCoreLoadoutManager* USuspenseCoreEquipmentUIProvider::GetLoadoutManager
 	return nullptr;
 }
 
-USuspenseCoreEquipmentDataStore* USuspenseCoreEquipmentUIProvider::GetDataStore() const
+//==================================================================
+// EventBus Handlers (Push-based data sync)
+//==================================================================
+
+void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 {
-	if (CachedDataStore.IsValid())
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
 	{
-		return CachedDataStore.Get();
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: Cannot setup subscriptions - EventBus not found"));
+		return;
 	}
 
-	// DataStore is a sibling component on the same owner actor (PlayerState)
-	AActor* Owner = GetOwner();
-	if (Owner)
+	// Subscribe to Equipment.Event.Equipped (from EquipmentInventoryBridge)
+	FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::Equipped);
+	if (EquippedTag.IsValid())
 	{
-		USuspenseCoreEquipmentDataStore* DataStore = Owner->FindComponentByClass<USuspenseCoreEquipmentDataStore>();
-		if (DataStore)
+		FSuspenseCoreSubscriptionHandle EquippedHandle = EventBus->Subscribe(
+			EquippedTag,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemEquipped)
+		);
+		EventSubscriptions.Add(EquippedHandle);
+	}
+
+	// Also subscribe to Equipment.Event.ItemEquipped (from EquipmentComponentBase)
+	FGameplayTag ItemEquippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::ItemEquipped);
+	if (ItemEquippedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle ItemEquippedHandle = EventBus->Subscribe(
+			ItemEquippedTag,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemEquipped)
+		);
+		EventSubscriptions.Add(ItemEquippedHandle);
+	}
+
+	// Subscribe to Equipment.Event.Unequipped (from EquipmentInventoryBridge)
+	FGameplayTag UnequippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::Unequipped);
+	if (UnequippedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle UnequippedHandle = EventBus->Subscribe(
+			UnequippedTag,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemUnequipped)
+		);
+		EventSubscriptions.Add(UnequippedHandle);
+	}
+
+	// Also subscribe to Equipment.Event.ItemUnequipped (from EquipmentComponentBase)
+	FGameplayTag ItemUnequippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::ItemUnequipped);
+	if (ItemUnequippedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle ItemUnequippedHandle = EventBus->Subscribe(
+			ItemUnequippedTag,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemUnequipped)
+		);
+		EventSubscriptions.Add(ItemUnequippedHandle);
+	}
+
+	// Subscribe to Equipment.Slot.Updated for slot state changes
+	FGameplayTag SlotUpdatedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::SlotUpdated);
+	if (SlotUpdatedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle SlotHandle = EventBus->Subscribe(
+			SlotUpdatedTag,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnSlotUpdated)
+		);
+		EventSubscriptions.Add(SlotHandle);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Subscribed to %d equipment events"), EventSubscriptions.Num());
+}
+
+void USuspenseCoreEquipmentUIProvider::TeardownEventSubscriptions()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		for (const FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
 		{
-			CachedDataStore = DataStore;
-			return DataStore;
+			EventBus->Unsubscribe(Handle);
 		}
 	}
+	EventSubscriptions.Empty();
+}
 
-	return nullptr;
+void USuspenseCoreEquipmentUIProvider::OnItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Extract slot index and item data from event
+	// Try both "Slot" (Bridge) and "SlotIndex" (ComponentBase) field names
+	int32 SlotIndex = EventData.GetInt(FName(TEXT("Slot")), INDEX_NONE);
+	if (SlotIndex == INDEX_NONE)
+	{
+		SlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+	}
+
+	FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
+	FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
+
+	// Create item instance from event data
+	FSuspenseCoreInventoryItemInstance ItemInstance;
+	ItemInstance.ItemID = FName(*ItemIDStr);
+	FGuid::Parse(InstanceIDStr, ItemInstance.UniqueInstanceID);
+	ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
+	if (ItemInstance.Quantity <= 0)
+	{
+		ItemInstance.Quantity = 1;
+	}
+
+	if (SlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnItemEquipped - Invalid SlotIndex, cannot cache item %s"), *ItemIDStr);
+		return;
+	}
+
+	// Add to cache
+	CachedEquippedItems.Add(SlotIndex, ItemInstance);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnItemEquipped - Slot %d, Item %s, CacheSize=%d"),
+		SlotIndex, *ItemIDStr, CachedEquippedItems.Num());
+
+	// Broadcast UI update
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.UniqueInstanceID);
+}
+
+void USuspenseCoreEquipmentUIProvider::OnItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Extract slot index from event
+	// Try both "Slot" (Bridge) and "SlotIndex" (ComponentBase) field names
+	int32 SlotIndex = EventData.GetInt(FName(TEXT("Slot")), INDEX_NONE);
+	if (SlotIndex == INDEX_NONE)
+	{
+		SlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+	}
+
+	if (SlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnItemUnequipped - Invalid SlotIndex"));
+		return;
+	}
+
+	// Get instance ID before removing for delegate
+	FGuid RemovedInstanceID;
+	if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(SlotIndex))
+	{
+		RemovedInstanceID = ExistingItem->UniqueInstanceID;
+	}
+
+	// Remove from cache
+	CachedEquippedItems.Remove(SlotIndex);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnItemUnequipped - Slot %d, CacheSize=%d"),
+		SlotIndex, CachedEquippedItems.Num());
+
+	// Broadcast UI update
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, RemovedInstanceID);
+}
+
+void USuspenseCoreEquipmentUIProvider::OnSlotUpdated(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// This is a general slot update - refresh the affected slot
+	// Try both "SlotIndex" and "Slot" field names
+	int32 SlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+	if (SlotIndex == INDEX_NONE)
+	{
+		// Also try float (some systems may use float)
+		SlotIndex = static_cast<int32>(EventData.GetFloat(FName(TEXT("SlotIndex")), -1.0f));
+	}
+	bool bOccupied = EventData.GetBool(FName(TEXT("Occupied")));
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentUIProvider: OnSlotUpdated - Slot %d, Occupied=%s"),
+		SlotIndex, bOccupied ? TEXT("true") : TEXT("false"));
+
+	// Broadcast UI update for the slot
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, FGuid());
 }
 
 USuspenseCoreDataManager* USuspenseCoreEquipmentUIProvider::GetDataManager() const

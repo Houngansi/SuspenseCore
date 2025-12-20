@@ -23,9 +23,7 @@ public class BridgeSystem : ModuleRules
                 "UMG",
                 "PhysicsCore",
                 "NetCore",
-                "ReplicationGraph",
-                // Equipment system for EquipmentDataStore access in UIProvider
-                "EquipmentSystem"
+                "ReplicationGraph"
             }
         );
 

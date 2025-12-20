@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "InputCoreTypes.h"
@@ -144,8 +145,15 @@ void USuspenseCoreEquipmentSlotWidget::NativeOnDragDetected(const FGeometry& InG
 		return;
 	}
 
+	// Get visual widget class from parent container
+	TSubclassOf<USuspenseCoreDragVisualWidget> VisualClass = ParentContainer->GetDragVisualWidgetClass();
+	if (!VisualClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No DragVisualWidgetClass configured on container"), *SlotTypeTag.ToString());
+	}
+
 	// Create drag operation
-	OutOperation = USuspenseCoreDragDropOperation::CreateDrag(PC, DragData);
+	OutOperation = USuspenseCoreDragDropOperation::CreateDrag(PC, DragData, VisualClass);
 	if (OutOperation)
 	{
 		Execute_OnDragStarted(this);

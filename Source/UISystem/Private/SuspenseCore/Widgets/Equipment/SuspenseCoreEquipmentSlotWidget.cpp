@@ -93,21 +93,18 @@ void USuspenseCoreEquipmentSlotWidget::NativeOnDragDetected(const FGeometry& InG
 	}
 
 	// Find parent container widget to get provider
-	USuspenseCoreBaseContainerWidget* ParentContainer = nullptr;
-	UWidget* Parent = GetParent();
-	while (Parent)
+	// Use GetTypedOuter because slot widgets created with CreateWidget have EquipmentWidget as Outer
+	USuspenseCoreBaseContainerWidget* ParentContainer = GetTypedOuter<USuspenseCoreBaseContainerWidget>();
+
+	if (!ParentContainer)
 	{
-		ParentContainer = Cast<USuspenseCoreBaseContainerWidget>(Parent);
-		if (ParentContainer)
-		{
-			break;
-		}
-		Parent = Parent->GetParent();
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No parent container (Outer chain)"), *SlotTypeTag.ToString());
+		return;
 	}
 
-	if (!ParentContainer || !ParentContainer->IsBoundToProvider())
+	if (!ParentContainer->IsBoundToProvider())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - No parent container or provider"), *SlotTypeTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentSlot[%s]: NativeOnDragDetected - Parent container has no provider"), *SlotTypeTag.ToString());
 		return;
 	}
 

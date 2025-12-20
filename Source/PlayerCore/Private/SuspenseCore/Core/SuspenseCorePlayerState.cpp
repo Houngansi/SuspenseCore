@@ -830,6 +830,25 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 	if (EquipmentOps && EquipmentTxnProcessor && EquipmentDataStore)
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentOps ready"));
+
+		// CRITICAL: Initialize the EquipmentOperationExecutor with DataProvider
+		// The Executor needs its own DataProvider reference for validation operations
+		if (USuspenseCoreEquipmentOperationExecutor* Executor = Cast<USuspenseCoreEquipmentOperationExecutor>(EquipmentOps))
+		{
+			bool bExecutorInitialized = Executor->Initialize(
+				TScriptInterface<ISuspenseCoreEquipmentDataProvider>(EquipmentDataStore),
+				nullptr  // Validator is optional
+			);
+
+			if (bExecutorInitialized)
+			{
+				UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: EquipmentOperationExecutor initialized with DataProvider"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("SuspenseCorePlayerState: Failed to initialize EquipmentOperationExecutor!"));
+			}
+		}
 	}
 
 	// Initialize Inventory Bridge

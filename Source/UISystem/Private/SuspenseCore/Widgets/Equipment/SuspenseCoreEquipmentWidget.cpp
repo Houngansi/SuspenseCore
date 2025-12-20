@@ -8,7 +8,6 @@
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Data/SuspenseCoreEquipmentSlotPresets.h"
 #include "SuspenseCore/Settings/SuspenseCoreSettings.h"
@@ -825,7 +824,7 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 	}
 
 	// Request equip through EventBus
-	// CRITICAL: Use native tag TAG_SuspenseCore_Event_UIRequest_EquipItem per documentation
+	// Use RequestGameplayTag - tag is registered in DefaultGameplayTags.ini
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (EventBus)
 	{
@@ -840,8 +839,9 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 		EventData.SetInt(FName("SourceContainerType"), static_cast<int32>(DragData.SourceContainerType));
 		EventData.SetInt(FName("TargetContainerType"), static_cast<int32>(ESuspenseCoreContainerType::Equipment));
 
-		// Use native tag - guaranteed to be registered
-		EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_EquipItem, EventData);
+		// Tag is registered in DefaultGameplayTags.ini line 639
+		static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
+		EventBus->Publish(EquipItemTag, EventData);
 
 		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - UIRequest.EquipItem sent for item %s (InstanceID=%s) to slot %d"),
 			*DragData.Item.ItemID.ToString(),

@@ -17,7 +17,6 @@
 
 // === Includes for EventBus and character resolution ===
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
@@ -199,7 +198,7 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     }
 
     // Subscribe to UI equip requests via EventBus (using native callback)
-    // CRITICAL: Use native tag TAG_SuspenseCore_Event_UIRequest_EquipItem per documentation
+    // Tag is registered in DefaultGameplayTags.ini line 639
     if (EventDelegateManager->GetEventBus())
     {
         FSuspenseCoreNativeEventCallback Callback;
@@ -236,9 +235,10 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
             HandleEquipmentOperationRequest(Request);
         });
 
-        // Use native tag - guaranteed to be registered
+        // Use RequestGameplayTag - tag is registered in DefaultGameplayTags.ini
+        static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
         EquipmentOperationRequestHandle = EventDelegateManager->GetEventBus()->SubscribeNative(
-            TAG_SuspenseCore_Event_UIRequest_EquipItem, this, Callback);
+            EquipItemTag, this, Callback);
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to SuspenseCore.Event.UIRequest.EquipItem tag"));
     }

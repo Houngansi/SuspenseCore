@@ -5,6 +5,7 @@
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentWidget.h"
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
+#include "InputCoreTypes.h"
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
@@ -728,6 +729,138 @@ void USuspenseCoreEquipmentWidget::AutoInitializeFromLoadoutManager()
 //==================================================================
 // Drag-Drop Handling
 //==================================================================
+
+FReply USuspenseCoreEquipmentWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// Get screen space position for accurate slot detection
+	FVector2D ScreenSpacePos = InMouseEvent.GetScreenSpacePosition();
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtScreenPosition(ScreenSpacePos);
+
+	if (SlotWidget)
+	{
+		int32 SlotIndex = SlotWidgetsArray.IndexOfByKey(SlotWidget);
+		bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
+		bool bRightClick = InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
+
+		// Right-click could open context menu (handled elsewhere)
+		if (bRightClick)
+		{
+			// TODO: Fire context menu event if needed
+			return FReply::Handled();
+		}
+
+		// Left click on slot - check if item exists for potential drag
+		if (bLeftClick)
+		{
+			// Check if slot has an item that can be dragged
+			if (SlotWidget->Execute_CanBeDragged(SlotWidget))
+			{
+				// Store drag source info for NativeOnDragDetected
+				DragSourceSlot = SlotIndex;
+				DragStartMousePosition = ScreenSpacePos;
+
+				UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: MouseDown on slot %d (%s), starting drag detection"),
+					SlotIndex, *SlotWidget->GetSlotTypeTag().ToString());
+
+				// Return with DetectDrag to enable drag detection
+				return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+			}
+		}
+
+		return FReply::Handled();
+	}
+
+	DragSourceSlot = INDEX_NONE;
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+void USuspenseCoreEquipmentWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	// Check if we have a valid drag source slot
+	if (DragSourceSlot == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: NativeOnDragDetected - No drag source slot"));
+		return;
+	}
+
+	// Validate slot index
+	if (!SlotWidgetsArray.IsValidIndex(DragSourceSlot))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - Invalid slot index %d"), DragSourceSlot);
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[DragSourceSlot];
+	if (!SlotWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - Null slot widget at index %d"), DragSourceSlot);
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Get item data from slot widget's cached data
+	const FSuspenseCoreItemUIData& CachedItemData = SlotWidget->GetItemData();
+	if (!CachedItemData.InstanceID.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - No item in slot %d"), DragSourceSlot);
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
+	// Create drag data
+	FSuspenseCoreDragData DragData;
+	DragData.Item = CachedItemData;
+	DragData.SourceContainerType = ESuspenseCoreContainerType::Equipment;
+	DragData.SourceContainerTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Equipment"));
+	DragData.SourceSlot = DragSourceSlot;
+	DragData.bIsValid = true;
+
+	// Calculate DragOffset: difference between slot's top-left and initial click position
+	FGeometry SlotGeometry = SlotWidget->GetCachedGeometry();
+	FVector2D SlotAbsolutePos = SlotGeometry.GetAbsolutePosition();
+	FVector2D SlotLocalSize = SlotGeometry.GetLocalSize();
+
+	// Check if geometry is valid
+	const bool bGeometryValid = !SlotAbsolutePos.IsNearlyZero() || !SlotLocalSize.IsNearlyZero();
+	if (bGeometryValid)
+	{
+		DragData.DragOffset = SlotAbsolutePos - DragStartMousePosition;
+
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: DragOffset calculation: SlotPos=(%.1f, %.1f), ClickPos=(%.1f, %.1f), Offset=(%.1f, %.1f)"),
+			SlotAbsolutePos.X, SlotAbsolutePos.Y,
+			DragStartMousePosition.X, DragStartMousePosition.Y,
+			DragData.DragOffset.X, DragData.DragOffset.Y);
+	}
+	else
+	{
+		// Geometry not cached yet - use zero offset
+		DragData.DragOffset = FVector2D::ZeroVector;
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Slot geometry not cached, using zero DragOffset"));
+	}
+
+	// Create drag operation
+	OutOperation = USuspenseCoreDragDropOperation::CreateDragOperation(DragData);
+	if (OutOperation)
+	{
+		// Notify slot that drag started
+		SlotWidget->Execute_OnDragStarted(SlotWidget);
+
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDragDetected - Started drag for item '%s' (InstanceID=%s) from slot %d"),
+			*CachedItemData.DisplayName.ToString(),
+			*CachedItemData.InstanceID.ToString(),
+			DragSourceSlot);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - Failed to create drag operation"));
+	}
+
+	// Clear drag source (operation will handle the rest)
+	DragSourceSlot = INDEX_NONE;
+}
 
 void USuspenseCoreEquipmentWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {

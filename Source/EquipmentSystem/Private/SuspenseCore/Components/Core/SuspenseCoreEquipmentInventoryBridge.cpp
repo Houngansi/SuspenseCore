@@ -246,28 +246,34 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to SuspenseCore.Event.UIRequest.EquipItem tag"));
 
         // Subscribe to TransferItem for Equipment→Inventory transfers (unequip via drag-drop)
-        auto TransferCallback = FSuspenseCoreEventCallback::CreateUObject(this,
-            &USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest);
-
         static const FGameplayTag TransferItemTag = FGameplayTag::RequestGameplayTag(
             FName("SuspenseCore.Event.UIRequest.TransferItem"), /*bErrorIfNotFound*/ false);
 
         if (TransferItemTag.IsValid())
         {
+            FSuspenseCoreNativeEventCallback TransferCallback;
+            TransferCallback.BindLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+            {
+                OnTransferItemRequest(EventTag, EventData);
+            });
+
             TransferItemRequestHandle = EventDelegateManager->GetEventBus()->SubscribeNative(
                 TransferItemTag, this, TransferCallback);
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to SuspenseCore.Event.UIRequest.TransferItem tag"));
         }
 
         // Subscribe to UnequipItem for context menu unequip
-        auto UnequipCallback = FSuspenseCoreEventCallback::CreateUObject(this,
-            &USuspenseCoreEquipmentInventoryBridge::OnUnequipItemRequest);
-
         static const FGameplayTag UnequipItemTag = FGameplayTag::RequestGameplayTag(
             FName("SuspenseCore.Event.UIRequest.UnequipItem"), /*bErrorIfNotFound*/ false);
 
         if (UnequipItemTag.IsValid())
         {
+            FSuspenseCoreNativeEventCallback UnequipCallback;
+            UnequipCallback.BindLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+            {
+                OnUnequipItemRequest(EventTag, EventData);
+            });
+
             UnequipItemRequestHandle = EventDelegateManager->GetEventBus()->SubscribeNative(
                 UnequipItemTag, this, UnequipCallback);
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to SuspenseCore.Event.UIRequest.UnequipItem tag"));
@@ -323,18 +329,19 @@ void USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest(FGameplayTag E
     }
 
     // Try to get item from equipment slot
-    FSuspenseCoreEquipmentSlotData SlotData;
-    if (!EquipmentDataProvider->GetSlotData(SourceSlot, SlotData))
+    if (!EquipmentDataProvider->IsValidSlotIndex(SourceSlot) || !EquipmentDataProvider->IsSlotOccupied(SourceSlot))
     {
-        UE_LOG(LogEquipmentBridge, Verbose, TEXT("TransferItem: SourceSlot %d not valid in equipment - not our transfer"), SourceSlot);
+        UE_LOG(LogEquipmentBridge, Verbose, TEXT("TransferItem: SourceSlot %d not valid or empty in equipment - not our transfer"), SourceSlot);
         return;
     }
+
+    FSuspenseCoreInventoryItemInstance SlotItem = EquipmentDataProvider->GetSlotItem(SourceSlot);
 
     // Check if slot has item matching the InstanceID
     FGuid ItemInstanceID;
     FGuid::Parse(ItemInstanceIDStr, ItemInstanceID);
 
-    if (!SlotData.EquippedItem.IsValid() || SlotData.EquippedItem.UniqueInstanceID != ItemInstanceID)
+    if (!SlotItem.IsValid() || SlotItem.UniqueInstanceID != ItemInstanceID)
     {
         UE_LOG(LogEquipmentBridge, Verbose, TEXT("TransferItem: Item in slot doesn't match InstanceID - not our transfer"));
         return;
@@ -342,9 +349,11 @@ void USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest(FGameplayTag E
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("TransferItem: This is Equipment→Inventory unequip operation!"));
 
-    // Create unequip request
+    // Create unequip request - convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
     FSuspenseCoreInventoryTransferRequest Request;
-    Request.Item = SlotData.EquippedItem;
+    Request.Item.ItemID = SlotItem.ItemID;
+    Request.Item.UniqueInstanceID = SlotItem.UniqueInstanceID;
+    Request.Item.Quantity = SlotItem.Quantity;
     Request.SourceSlot = SourceSlot;
     Request.TargetSlot = TargetSlot;
     Request.bFromInventory = false;
@@ -377,16 +386,24 @@ void USuspenseCoreEquipmentInventoryBridge::OnUnequipItemRequest(FGameplayTag Ev
     }
 
     // Get item from slot
-    FSuspenseCoreEquipmentSlotData SlotData;
-    if (!EquipmentDataProvider->GetSlotData(SlotIndex, SlotData) || !SlotData.EquippedItem.IsValid())
+    if (!EquipmentDataProvider->IsValidSlotIndex(SlotIndex) || !EquipmentDataProvider->IsSlotOccupied(SlotIndex))
     {
         UE_LOG(LogEquipmentBridge, Warning, TEXT("UnequipItem: No item in slot %d"), SlotIndex);
         return;
     }
 
-    // Create unequip request
+    FSuspenseCoreInventoryItemInstance SlotItem = EquipmentDataProvider->GetSlotItem(SlotIndex);
+    if (!SlotItem.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("UnequipItem: Invalid item in slot %d"), SlotIndex);
+        return;
+    }
+
+    // Create unequip request - convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
     FSuspenseCoreInventoryTransferRequest Request;
-    Request.Item = SlotData.EquippedItem;
+    Request.Item.ItemID = SlotItem.ItemID;
+    Request.Item.UniqueInstanceID = SlotItem.UniqueInstanceID;
+    Request.Item.Quantity = SlotItem.Quantity;
     Request.SourceSlot = SlotIndex;
     Request.TargetSlot = INDEX_NONE; // Auto-find slot in inventory
     Request.bFromInventory = false;

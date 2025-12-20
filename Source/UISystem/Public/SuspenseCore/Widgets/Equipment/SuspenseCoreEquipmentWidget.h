@@ -57,7 +57,9 @@ public:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
-	// Drag-Drop Handling (CRITICAL: Required for equipment slot drops)
+	// Drag-Drop Handling (CRITICAL: Required for equipment slot drops AND drags)
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
 	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 	virtual bool NativeOnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, UDragDropOperation* Operation) override;
@@ -297,6 +299,12 @@ private:
 
 	/** Currently hovered slot index for drag-drop */
 	int32 HoveredSlotIndex = INDEX_NONE;
+
+	/** Source slot for drag operation (tracks which slot we're dragging from) */
+	int32 DragSourceSlot = INDEX_NONE;
+
+	/** Mouse position when drag started (for calculating drag offset) */
+	FVector2D DragStartMousePosition = FVector2D::ZeroVector;
 
 	//==================================================================
 	// EventBus Integration (REQUIRED pattern per documentation)

@@ -1116,7 +1116,12 @@ bool USuspenseCoreInventoryComponent::RemoveItemInternal(const FGuid& InstanceID
 	ReplicatedInventory.RemoveItem(InstanceID);
 	RecalculateWeight();
 
+	// Broadcast item event via EventBus
 	BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_REMOVED, OutRemovedInstance, OutRemovedInstance.SlotIndex);
+
+	// CRITICAL FIX: Notify UI widgets about data change
+	// Without this, widgets bound via BindToProvider() won't refresh!
+	BroadcastInventoryUpdated();
 
 	return true;
 }

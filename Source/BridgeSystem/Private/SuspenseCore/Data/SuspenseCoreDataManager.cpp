@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Engine/DataTable.h"
 #include "Engine/DataAsset.h"
 #include "Engine/World.h"
@@ -259,29 +260,58 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 	TArray<FName> RowNames = DataTable->GetRowNames();
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building cache from %d rows..."), RowNames.Num());
 
+	// Detect row struct type
+	const UScriptStruct* RowStruct = DataTable->GetRowStruct();
+	const bool bIsUnifiedType = RowStruct && RowStruct->GetName().Contains(TEXT("UnifiedItemData"));
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("DataTable row struct: %s (Unified: %s)"),
+		RowStruct ? *RowStruct->GetName() : TEXT("None"),
+		bIsUnifiedType ? TEXT("Yes") : TEXT("No"));
+
 	int32 LoadedCount = 0;
 	int32 FailedCount = 0;
 
 	for (const FName& RowName : RowNames)
 	{
-		// Try to get as FSuspenseCoreItemData (SuspenseCore native type)
-		FSuspenseCoreItemData* RowData = DataTable->FindRow<FSuspenseCoreItemData>(RowName, TEXT(""));
+		FSuspenseCoreItemData CacheEntry;
+		bool bSuccess = false;
 
-		if (RowData)
+		if (bIsUnifiedType)
 		{
-			// Use RowName as ItemID if not set
-			if (RowData->Identity.ItemID.IsNone())
+			// Try FSuspenseCoreUnifiedItemData first (JSON import format)
+			FSuspenseCoreUnifiedItemData* UnifiedData = DataTable->FindRow<FSuspenseCoreUnifiedItemData>(RowName, TEXT(""));
+			if (UnifiedData)
 			{
-				RowData->Identity.ItemID = RowName;
+				// Convert to FSuspenseCoreItemData
+				CacheEntry = ConvertUnifiedToItemData(*UnifiedData, RowName);
+				bSuccess = true;
 			}
+		}
+		else
+		{
+			// Try FSuspenseCoreItemData (native format)
+			FSuspenseCoreItemData* RowData = DataTable->FindRow<FSuspenseCoreItemData>(RowName, TEXT(""));
+			if (RowData)
+			{
+				CacheEntry = *RowData;
+				// Use RowName as ItemID if not set
+				if (CacheEntry.Identity.ItemID.IsNone())
+				{
+					CacheEntry.Identity.ItemID = RowName;
+				}
+				bSuccess = true;
+			}
+		}
 
-			ItemCache.Add(RowName, *RowData);
+		if (bSuccess)
+		{
+			ItemCache.Add(RowName, CacheEntry);
 			LoadedCount++;
 
 			if (bVerbose)
 			{
 				UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached: %s (%s)"),
-					*RowName.ToString(), *RowData->Identity.DisplayName.ToString());
+					*RowName.ToString(), *CacheEntry.Identity.DisplayName.ToString());
 			}
 		}
 		else
@@ -295,6 +325,97 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 		LoadedCount, FailedCount);
 
 	return LoadedCount > 0;
+}
+
+FSuspenseCoreItemData USuspenseCoreDataManager::ConvertUnifiedToItemData(
+	const FSuspenseCoreUnifiedItemData& Unified, FName RowName)
+{
+	FSuspenseCoreItemData Result;
+
+	// Core Identity
+	Result.Identity.ItemID = Unified.ItemID.IsNone() ? RowName : Unified.ItemID;
+	Result.Identity.DisplayName = Unified.DisplayName;
+	Result.Identity.Description = Unified.Description;
+	Result.Identity.Icon = Unified.Icon;
+
+	// Classification
+	Result.Classification.ItemType = Unified.ItemType;
+	Result.Classification.Rarity = Unified.Rarity;
+	Result.Classification.ItemTags = Unified.ItemTags;
+
+	// Inventory Properties
+	Result.InventoryProps.GridSize = Unified.GridSize;
+	Result.InventoryProps.MaxStackSize = Unified.MaxStackSize;
+	Result.InventoryProps.Weight = Unified.Weight;
+	Result.InventoryProps.BaseValue = Unified.BaseValue;
+
+	// Behavior Flags
+	Result.Behavior.bIsEquippable = Unified.bIsEquippable;
+	Result.Behavior.bIsConsumable = Unified.bIsConsumable;
+	Result.Behavior.bCanDrop = Unified.bCanDrop;
+	Result.Behavior.bCanTrade = Unified.bCanTrade;
+	Result.Behavior.bIsQuestItem = Unified.bIsQuestItem;
+
+	// Visual Assets
+	Result.Visuals.WorldMesh = Unified.WorldMesh;
+	Result.Visuals.SpawnVFX = Unified.PickupSpawnVFX;
+	Result.Visuals.PickupVFX = Unified.PickupCollectVFX;
+
+	// Audio Assets
+	Result.Audio.PickupSound = Unified.PickupSound;
+	Result.Audio.DropSound = Unified.DropSound;
+	Result.Audio.UseSound = Unified.UseSound;
+
+	// Weapon Config
+	Result.bIsWeapon = Unified.bIsWeapon;
+	if (Unified.bIsWeapon)
+	{
+		Result.WeaponConfig.WeaponArchetype = Unified.WeaponArchetype;
+		Result.WeaponConfig.AmmoType = Unified.AmmoType;
+		// WeaponConfig.MagazineSize, FireRate, BaseDamage come from AttributeSet
+	}
+
+	// Armor Config
+	Result.bIsArmor = Unified.bIsArmor;
+	if (Unified.bIsArmor)
+	{
+		Result.ArmorConfig.ArmorType = Unified.ArmorType;
+	}
+
+	// Ammo Config
+	Result.bIsAmmo = Unified.bIsAmmo;
+	if (Unified.bIsAmmo)
+	{
+		Result.AmmoConfig.AmmoCaliber = Unified.AmmoCaliber;
+	}
+
+	// GAS Config
+	if (Unified.bIsWeapon)
+	{
+		Result.GASConfig.AttributeSetClass = Unified.WeaponInitialization.WeaponAttributeSetClass;
+		Result.GASConfig.InitializationEffect = Unified.WeaponInitialization.WeaponInitEffect;
+	}
+	else if (Unified.bIsArmor)
+	{
+		Result.GASConfig.AttributeSetClass = Unified.ArmorInitialization.ArmorAttributeSetClass;
+		Result.GASConfig.InitializationEffect = Unified.ArmorInitialization.ArmorInitEffect;
+	}
+	else if (Unified.bIsEquippable)
+	{
+		Result.GASConfig.AttributeSetClass = Unified.EquipmentAttributeSet;
+		Result.GASConfig.InitializationEffect = Unified.EquipmentInitEffect;
+	}
+
+	// Granted abilities (simplified conversion)
+	for (const FGrantedAbilityData& AbilityData : Unified.GrantedAbilities)
+	{
+		if (AbilityData.AbilityClass)
+		{
+			Result.GASConfig.GrantedAbilities.Add(AbilityData.AbilityClass);
+		}
+	}
+
+	return Result;
 }
 
 bool USuspenseCoreDataManager::InitializeCharacterSystem()

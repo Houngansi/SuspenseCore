@@ -15,6 +15,7 @@ class UDataAsset;
 class USuspenseCoreEventBus;
 class USuspenseCoreSettings;
 struct FSuspenseCoreEventData;
+struct FSuspenseCoreUnifiedItemData;
 
 /**
  * USuspenseCoreDataManager
@@ -236,6 +237,10 @@ protected:
 
 	/** Load loadout data from settings */
 	bool InitializeLoadoutSystem();
+
+	/** Convert unified item data to internal item data format */
+	static FSuspenseCoreItemData ConvertUnifiedToItemData(
+		const FSuspenseCoreUnifiedItemData& Unified, FName RowName);
 
 	//========================================================================
 	// EventBus Broadcasting

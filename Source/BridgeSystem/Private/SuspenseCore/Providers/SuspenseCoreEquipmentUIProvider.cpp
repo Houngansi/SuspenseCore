@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreEquipmentDataStore.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -245,8 +246,56 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 {
 	TArray<FSuspenseCoreItemUIData> Items;
 
-	// TODO: Query actual equipped items from EquipmentDataStore
-	// For now, return empty array
+	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
+	if (!DataStore)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider::GetAllItemUIData - DataStore not found!"));
+		return Items;
+	}
+
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+
+	// Get all equipped items from DataStore
+	TMap<int32, FSuspenseCoreInventoryItemInstance> EquippedItems = DataStore->GetAllEquippedItems();
+
+	for (const auto& Pair : EquippedItems)
+	{
+		const int32 SlotIndex = Pair.Key;
+		const FSuspenseCoreInventoryItemInstance& ItemInstance = Pair.Value;
+
+		if (!ItemInstance.IsValid())
+		{
+			continue;
+		}
+
+		FSuspenseCoreItemUIData ItemData;
+		ItemData.InstanceID = ItemInstance.UniqueInstanceID;
+		ItemData.ItemID = ItemInstance.ItemID;
+		ItemData.Quantity = ItemInstance.Quantity;
+		ItemData.SlotIndex = SlotIndex;
+		ItemData.GridSize = FIntPoint(1, 1); // Equipment items are 1x1
+
+		// Get additional data from DataManager if available
+		if (DataManager)
+		{
+			FSuspenseCoreItemData ItemTableData;
+			if (DataManager->GetItemData(ItemInstance.ItemID, ItemTableData))
+			{
+				ItemData.DisplayName = ItemTableData.DisplayName;
+				ItemData.Description = ItemTableData.Description;
+				ItemData.Icon = ItemTableData.Icon;
+				ItemData.ItemType = ItemTableData.Classification.ItemType;
+				ItemData.RarityTag = ItemTableData.Classification.RarityTag;
+				ItemData.bIsStackable = ItemTableData.InventoryProps.bIsStackable;
+				ItemData.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
+				ItemData.GridSize = ItemTableData.InventoryProps.GridSize;
+			}
+		}
+
+		Items.Add(ItemData);
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentUIProvider::GetAllItemUIData - Found %d equipped items"), Items.Num());
 
 	return Items;
 }
@@ -258,10 +307,48 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 		return false;
 	}
 
-	// TODO: Query actual equipped item from EquipmentDataStore
-	// For now, return false (empty slot)
+	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
+	if (!DataStore)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider::GetItemUIDataAtSlot - DataStore not found!"));
+		return false;
+	}
 
-	return false;
+	// Get item from DataStore
+	FSuspenseCoreInventoryItemInstance ItemInstance = DataStore->GetSlotItem(SlotIndex);
+
+	if (!ItemInstance.IsValid())
+	{
+		// Slot is empty
+		return false;
+	}
+
+	// Convert to UI data
+	OutItem.InstanceID = ItemInstance.UniqueInstanceID;
+	OutItem.ItemID = ItemInstance.ItemID;
+	OutItem.Quantity = ItemInstance.Quantity;
+	OutItem.SlotIndex = SlotIndex;
+	OutItem.GridSize = FIntPoint(1, 1);
+
+	// Get additional data from DataManager
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemTableData;
+		if (DataManager->GetItemData(ItemInstance.ItemID, ItemTableData))
+		{
+			OutItem.DisplayName = ItemTableData.DisplayName;
+			OutItem.Description = ItemTableData.Description;
+			OutItem.Icon = ItemTableData.Icon;
+			OutItem.ItemType = ItemTableData.Classification.ItemType;
+			OutItem.RarityTag = ItemTableData.Classification.RarityTag;
+			OutItem.bIsStackable = ItemTableData.InventoryProps.bIsStackable;
+			OutItem.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
+			OutItem.GridSize = ItemTableData.InventoryProps.GridSize;
+		}
+	}
+
+	return true;
 }
 
 bool USuspenseCoreEquipmentUIProvider::FindItemUIData(const FGuid& InstanceID, FSuspenseCoreItemUIData& OutItem) const
@@ -271,16 +358,33 @@ bool USuspenseCoreEquipmentUIProvider::FindItemUIData(const FGuid& InstanceID, F
 		return false;
 	}
 
-	// TODO: Query item from EquipmentDataStore
-	// For now, return false
+	// Search through all slots for the item
+	for (int32 SlotIndex = 0; SlotIndex < SlotConfigs.Num(); ++SlotIndex)
+	{
+		FSuspenseCoreItemUIData ItemData;
+		if (GetItemUIDataAtSlot(SlotIndex, ItemData))
+		{
+			if (ItemData.InstanceID == InstanceID)
+			{
+				OutItem = ItemData;
+				return true;
+			}
+		}
+	}
 
 	return false;
 }
 
 int32 USuspenseCoreEquipmentUIProvider::GetItemCount() const
 {
-	// TODO: Count actual equipped items
-	return 0;
+	USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
+	if (!DataStore)
+	{
+		return 0;
+	}
+
+	TMap<int32, FSuspenseCoreInventoryItemInstance> EquippedItems = DataStore->GetAllEquippedItems();
+	return EquippedItems.Num();
 }
 
 //==================================================================
@@ -641,9 +745,16 @@ FSuspenseCoreSlotUIData USuspenseCoreEquipmentUIProvider::ConvertToSlotUIData(EE
 		}
 		else
 		{
-			// TODO: Query actual equipped item from BoundDataStore
-			// For now, return empty slot
-			SlotData.State = ESuspenseCoreUISlotState::Empty;
+			// Query actual equipped item from DataStore
+			USuspenseCoreEquipmentDataStore* DataStore = GetDataStore();
+			if (DataStore && DataStore->IsSlotOccupied(SlotIndex))
+			{
+				SlotData.State = ESuspenseCoreUISlotState::Occupied;
+			}
+			else
+			{
+				SlotData.State = ESuspenseCoreUISlotState::Empty;
+			}
 		}
 	}
 	else
@@ -713,6 +824,52 @@ USuspenseCoreLoadoutManager* USuspenseCoreEquipmentUIProvider::GetLoadoutManager
 			{
 				CachedLoadoutManager = LoadoutManager;
 				return LoadoutManager;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+USuspenseCoreEquipmentDataStore* USuspenseCoreEquipmentUIProvider::GetDataStore() const
+{
+	if (CachedDataStore.IsValid())
+	{
+		return CachedDataStore.Get();
+	}
+
+	// DataStore is a sibling component on the same owner actor (PlayerState)
+	AActor* Owner = GetOwner();
+	if (Owner)
+	{
+		USuspenseCoreEquipmentDataStore* DataStore = Owner->FindComponentByClass<USuspenseCoreEquipmentDataStore>();
+		if (DataStore)
+		{
+			CachedDataStore = DataStore;
+			return DataStore;
+		}
+	}
+
+	return nullptr;
+}
+
+USuspenseCoreDataManager* USuspenseCoreEquipmentUIProvider::GetDataManager() const
+{
+	if (CachedDataManager.IsValid())
+	{
+		return CachedDataManager.Get();
+	}
+
+	// Get from GameInstance subsystem
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>();
+			if (DataManager)
+			{
+				CachedDataManager = DataManager;
+				return DataManager;
 			}
 		}
 	}

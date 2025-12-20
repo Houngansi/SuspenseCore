@@ -102,6 +102,13 @@ public:
 	virtual bool HandleDrop(const FSuspenseCoreDragData& DragData, int32 TargetSlot) override;
 	virtual void HandleDragCancelled() override;
 
+	/**
+	 * Get configured drag visual widget class
+	 * Used by child slot widgets to create drag operations
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Container")
+	TSubclassOf<USuspenseCoreDragVisualWidget> GetDragVisualWidgetClass() const { return DragVisualWidgetClass; }
+
 	//==================================================================
 	// ISuspenseCoreUIContainer - Configuration
 	//==================================================================

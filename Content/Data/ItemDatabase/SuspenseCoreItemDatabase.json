@@ -1,6 +1,6 @@
 [
   {
-    "Name": "AK74M",
+    "Name": "Weapon_AK74M",
     "ItemID": "Weapon_AK74M",
     "DisplayName": "АК-74М",
     "Description": "Модернизированный автомат Калашникова образца 1974 года. Калибр 5.45x39мм. Отличается высокой надёжностью в любых условиях, умеренной отдачей и хорошей эргономикой.",
@@ -65,7 +65,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "MP5SD",
+    "Name": "Weapon_MP5SD",
     "ItemID": "Weapon_MP5SD",
     "DisplayName": "MP5SD",
     "Description": "Легендарный немецкий пистолет-пулемёт с интегрированным глушителем. Калибр 9x19мм Parabellum. Отличается исключительной точностью и низким уровнем шума.",
@@ -130,7 +130,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "Glock17",
+    "Name": "Weapon_Glock17",
     "ItemID": "Weapon_Glock17",
     "DisplayName": "Glock 17",
     "Description": "Австрийский самозарядный пистолет четвёртого поколения. Калибр 9x19мм Parabellum. Надёжный, лёгкий и неприхотливый в обслуживании.",
@@ -195,7 +195,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "M9Bayonet",
+    "Name": "Weapon_M9Bayonet",
     "ItemID": "Weapon_M9Bayonet",
     "DisplayName": "Штык-нож M9",
     "Description": "Многофункциональный штык-нож армии США. Клинок из высокоуглеродистой стали длиной 18 см.",
@@ -260,7 +260,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "6B47Helmet",
+    "Name": "Armor_6B47",
     "ItemID": "Armor_6B47",
     "DisplayName": "Шлем 6Б47 Ратник",
     "Description": "Современный общевойсковой шлем российской армии из комплекта экипировки Ратник. Изготовлен из арамидного композита.",
@@ -325,7 +325,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "ComtacHeadset",
+    "Name": "Gear_Comtac",
     "ItemID": "Gear_Comtac",
     "DisplayName": "Peltor ComTac",
     "Description": "Активные наушники тактического назначения с функцией шумоподавления.",
@@ -390,7 +390,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "RoundGlasses",
+    "Name": "Gear_RoundGlasses",
     "ItemID": "Gear_RoundGlasses",
     "DisplayName": "Круглые очки",
     "Description": "Классические очки в тонкой металлической оправе.",
@@ -455,7 +455,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "Shemagh",
+    "Name": "Gear_Shemagh",
     "ItemID": "Gear_Shemagh",
     "DisplayName": "Шемаг",
     "Description": "Традиционный арабский платок, адаптированный для тактического применения.",
@@ -520,7 +520,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "6B13Armor",
+    "Name": "Armor_6B13",
     "ItemID": "Armor_6B13",
     "DisplayName": "Бронежилет 6Б13",
     "Description": "Общевойсковой бронежилет российской армии 4-го класса защиты. Керамические бронепластины.",
@@ -585,7 +585,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "TV110Rig",
+    "Name": "Gear_TV110",
     "ItemID": "Gear_TV110",
     "DisplayName": "Разгрузка TV-110",
     "Description": "Тактическая разгрузка модульного типа производства Velocity Systems.",
@@ -650,7 +650,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "BergenBackpack",
+    "Name": "Gear_BergenBackpack",
     "ItemID": "Gear_BergenBackpack",
     "DisplayName": "Рюкзак Bergen",
     "Description": "Тактический рюкзак большой вместимости объёмом 65 литров.",
@@ -715,7 +715,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "Gamma",
+    "Name": "Gear_GammaContainer",
     "ItemID": "Gear_GammaContainer",
     "DisplayName": "Контейнер Gamma",
     "Description": "Защищённый контейнер повышенной вместимости. Содержимое сохраняется при гибели.",
@@ -780,7 +780,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "BlueArmband",
+    "Name": "Gear_BlueArmband",
     "ItemID": "Gear_BlueArmband",
     "DisplayName": "Синяя повязка",
     "Description": "Тканевая нарукавная повязка синего цвета для идентификации свой-чужой.",
@@ -845,7 +845,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "IFAK",
+    "Name": "Medical_IFAK",
     "ItemID": "Medical_IFAK",
     "DisplayName": "IFAK",
     "Description": "Individual First Aid Kit — индивидуальная аптечка первой помощи.",
@@ -910,7 +910,7 @@
     "PickupActorClass": ""
   },
   {
-    "Name": "F1Grenade",
+    "Name": "Throwable_F1",
     "ItemID": "Throwable_F1",
     "DisplayName": "Граната Ф-1",
     "Description": "Советская оборонительная ручная граната. Радиус поражения 20 м.",

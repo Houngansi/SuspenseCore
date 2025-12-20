@@ -343,6 +343,13 @@ FSuspenseCoreItemData USuspenseCoreDataManager::ConvertUnifiedToItemData(
 	Result.Classification.Rarity = Unified.Rarity;
 	Result.Classification.ItemTags = Unified.ItemTags;
 
+	// Debug: Log the tags being parsed from JSON
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("ConvertUnified[%s]: ItemType=%s, EquipSlot=%s, IsValid=%s"),
+		*RowName.ToString(),
+		*Unified.ItemType.ToString(),
+		*Unified.EquipmentSlot.ToString(),
+		Unified.ItemType.IsValid() ? TEXT("Yes") : TEXT("No"));
+
 	// Inventory Properties
 	Result.InventoryProps.GridSize = Unified.GridSize;
 	Result.InventoryProps.MaxStackSize = Unified.MaxStackSize;

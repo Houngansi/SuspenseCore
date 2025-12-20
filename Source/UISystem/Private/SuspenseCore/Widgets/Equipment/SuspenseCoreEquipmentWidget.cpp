@@ -8,6 +8,7 @@
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Data/SuspenseCoreEquipmentSlotPresets.h"
 #include "SuspenseCore/Settings/SuspenseCoreSettings.h"
@@ -824,29 +825,25 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 	}
 
 	// Request equip through EventBus
-	// CRITICAL: Use Equipment.Operation.Request tag that EquipmentInventoryBridge subscribes to
+	// CRITICAL: Use native tag TAG_SuspenseCore_Event_UIRequest_EquipItem per documentation
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (EventBus)
 	{
-		static const FGameplayTag EquipOperationRequestTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Operation.Request"));
-
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
 
-		// Data format expected by EquipmentInventoryBridge callback
-		// EEquipmentOperationType::Equip = 1 (from SuspenseCoreEquipmentTypes.h)
-		EventData.SetFloat(FName("OperationType"), 1.0f); // EEquipmentOperationType::Equip
-		EventData.SetFloat(FName("TargetSlot"), static_cast<float>(SlotIndex));
-		EventData.SetFloat(FName("SourceSlot"), static_cast<float>(DragData.SourceSlot));
+		// Standard UI request payload format
+		EventData.SetInt(FName("SourceSlot"), DragData.SourceSlot);
+		EventData.SetInt(FName("TargetSlot"), SlotIndex);
+		EventData.SetString(FName("ItemID"), DragData.Item.ItemID.ToString());
+		EventData.SetString(FName("InstanceID"), DragData.Item.InstanceID.ToString());
+		EventData.SetInt(FName("SourceContainerType"), static_cast<int32>(DragData.SourceContainerType));
+		EventData.SetInt(FName("TargetContainerType"), static_cast<int32>(ESuspenseCoreContainerType::Equipment));
 
-		// Also include item data for proper identification
-		EventData.StringPayload.Add(FName("ItemID"), DragData.Item.ItemID.ToString());
-		EventData.StringPayload.Add(FName("InstanceID"), DragData.Item.InstanceID.ToString());
-		EventData.IntPayload.Add(FName("SourceContainerType"), static_cast<int32>(DragData.SourceContainerType));
+		// Use native tag - guaranteed to be registered
+		EventBus->Publish(TAG_SuspenseCore_Event_UIRequest_EquipItem, EventData);
 
-		EventBus->Publish(EquipOperationRequestTag, EventData);
-
-		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - Equipment.Operation.Request sent for item %s (InstanceID=%s) to slot %d"),
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - UIRequest.EquipItem sent for item %s (InstanceID=%s) to slot %d"),
 			*DragData.Item.ItemID.ToString(),
 			*DragData.Item.InstanceID.ToString(),
 			SlotIndex);

@@ -717,7 +717,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 UE_LOG(LogEquipmentBridge, Error, TEXT("Transaction validation failed"));
 
                 // Rollback both sides: remove from inventory and restore to equipment
-                ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), EquippedItem.UniqueInstanceID);
+                InventoryInterface->RemoveItemInstance(EquippedItem.UniqueInstanceID);
                 EquipmentDataProvider->SetSlotItem(Request.SourceSlot, ConvertToInventoryItemInstance(EquippedItem), true);
                 TransactionManager->RollbackTransaction(EquipTxnId);
                 RollbackBridgeTransaction(BridgeTxnId);
@@ -873,7 +873,7 @@ void USuspenseCoreEquipmentInventoryBridge::SynchronizeWithInventory()
     }
 
     const TMap<int32, FSuspenseCoreInventoryItemInstance> Equipped = EquipmentDataProvider->GetAllEquippedItems();
-    const TArray<FSuspenseCoreItemInstance> InvenItems = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
+    const TArray<FSuspenseCoreItemInstance> InvenItems = InventoryInterface->GetAllItemInstances();
 
     TSet<FGuid> InventoryInstanceIds;
     InventoryInstanceIds.Reserve(InvenItems.Num());
@@ -1062,7 +1062,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     // Step 3: Remove from inventory
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Removing item from inventory (InstanceID: %s)"), *Item.UniqueInstanceID.ToString());
 
-    const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), Item.UniqueInstanceID);
+    const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(Item.UniqueInstanceID);
     if (!bRemoveSuccess)
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to remove item from inventory"));
@@ -1292,7 +1292,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     FSuspenseCoreItemInstance InventoryItem;
     bool bFoundInInventory = false;
 
-    const TArray<FSuspenseCoreItemInstance> AllItems = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
+    const TArray<FSuspenseCoreItemInstance> AllItems = InventoryInterface->GetAllItemInstances();
     for (const FSuspenseCoreItemInstance& Item : AllItems)
     {
         if (Item.UniqueInstanceID == InventoryInstanceID)
@@ -1390,7 +1390,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         // Phase 1: Remove from inventory
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 1: Removing %s from inventory"), *InventoryItem.ItemID.ToString());
         Transaction.bInventoryModified = true;
-        const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), InventoryInstanceID);
+        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
 
         if (!bRemoveSuccess)
         {
@@ -1474,7 +1474,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         // Fallback without transaction manager
         UE_LOG(LogEquipmentBridge, Warning, TEXT("⚠ No TransactionManager - using direct operations"));
 
-        const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), InventoryInstanceID);
+        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
         if (!bRemoveSuccess)
         {
             RollbackBridgeTransaction(TransactionID);
@@ -1691,7 +1691,7 @@ bool USuspenseCoreEquipmentInventoryBridge::FindItemInInventory(const FName& Ite
         return false;
     }
 
-    const TArray<FSuspenseCoreItemInstance> Items = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
+    const TArray<FSuspenseCoreItemInstance> Items = InventoryInterface->GetAllItemInstances();
     for (const FSuspenseCoreItemInstance& It : Items)
     {
         if (It.ItemID == ItemId)

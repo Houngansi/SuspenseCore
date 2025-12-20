@@ -34,6 +34,7 @@
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Providers/SuspenseCoreEquipmentUIProvider.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #endif
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -848,6 +849,17 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 			if (bInitialized)
 			{
 				UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge initialized successfully"));
+
+				// CRITICAL: Set inventory interface so Bridge can transfer items
+				if (InventoryComponent)
+				{
+					Bridge->SetInventoryInterface(TScriptInterface<ISuspenseCoreInventory>(InventoryComponent));
+					UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: EquipmentInventoryBridge - InventoryInterface set"));
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState: InventoryComponent null - Bridge cannot transfer items!"));
+				}
 			}
 			else
 			{

@@ -717,7 +717,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 UE_LOG(LogEquipmentBridge, Error, TEXT("Transaction validation failed"));
 
                 // Rollback both sides: remove from inventory and restore to equipment
-                InventoryInterface->RemoveItemInstance(EquippedItem.UniqueInstanceID);
+                ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), EquippedItem.UniqueInstanceID);
                 EquipmentDataProvider->SetSlotItem(Request.SourceSlot, ConvertToInventoryItemInstance(EquippedItem), true);
                 TransactionManager->RollbackTransaction(EquipTxnId);
                 RollbackBridgeTransaction(BridgeTxnId);
@@ -873,7 +873,7 @@ void USuspenseCoreEquipmentInventoryBridge::SynchronizeWithInventory()
     }
 
     const TMap<int32, FSuspenseCoreInventoryItemInstance> Equipped = EquipmentDataProvider->GetAllEquippedItems();
-    const TArray<FSuspenseCoreItemInstance> InvenItems = InventoryInterface->GetAllItemInstances();
+    const TArray<FSuspenseCoreItemInstance> InvenItems = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
 
     TSet<FGuid> InventoryInstanceIds;
     InventoryInstanceIds.Reserve(InvenItems.Num());
@@ -962,7 +962,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Target Slot: %d"), Request.TargetSlot);
 
     // Step 1: Validate item exists in inventory
-    if (!InventoryInterface->HasItem(Item.ItemID, FMath::Max(1, Item.Quantity)))
+    if (!ISuspenseCoreInventory::Execute_HasItem(InventoryInterface.GetObject(), Item.ItemID, FMath::Max(1, Item.Quantity)))
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Item %s not found in inventory"), *Item.ItemID.ToString());
         return FSuspenseCoreInventorySimpleResult::Failure(
@@ -1062,7 +1062,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     // Step 3: Remove from inventory
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Removing item from inventory (InstanceID: %s)"), *Item.UniqueInstanceID.ToString());
 
-    const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(Item.UniqueInstanceID);
+    const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), Item.UniqueInstanceID);
     if (!bRemoveSuccess)
     {
         UE_LOG(LogEquipmentBridge, Error, TEXT("Failed to remove item from inventory"));
@@ -1113,7 +1113,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 UE_LOG(LogEquipmentBridge, Error, TEXT("✗ SetSlotItem FAILED"));
 
                 TransactionManager->RollbackTransaction(TxnId);
-                InventoryInterface->AddItemInstance(Item);
+                ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Item);
 
                 return FSuspenseCoreInventorySimpleResult::Failure(
                     ESuspenseCoreInventoryResult::Unknown,
@@ -1134,7 +1134,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 {
                     UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Transaction commit failed!"));
                     EquipmentDataProvider->ClearSlot(Request.TargetSlot, true);
-                    InventoryInterface->AddItemInstance(Item);
+                    ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Item);
                     bEquipSuccess = false;
                 }
             }
@@ -1143,14 +1143,14 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Transaction validation failed!"));
                 EquipmentDataProvider->ClearSlot(Request.TargetSlot, true);
                 TransactionManager->RollbackTransaction(TxnId);
-                InventoryInterface->AddItemInstance(Item);
+                ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Item);
                 bEquipSuccess = false;
             }
         }
         else
         {
             UE_LOG(LogEquipmentBridge, Error, TEXT("✗ Failed to begin transaction!"));
-            InventoryInterface->AddItemInstance(Item);
+            ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Item);
             bEquipSuccess = false;
         }
     }
@@ -1162,7 +1162,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
 
         if (!bEquipSuccess)
         {
-            InventoryInterface->AddItemInstance(Item);
+            ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Item);
         }
     }
 
@@ -1292,7 +1292,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     FSuspenseCoreItemInstance InventoryItem;
     bool bFoundInInventory = false;
 
-    const TArray<FSuspenseCoreItemInstance> AllItems = InventoryInterface->GetAllItemInstances();
+    const TArray<FSuspenseCoreItemInstance> AllItems = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
     for (const FSuspenseCoreItemInstance& Item : AllItems)
     {
         if (Item.UniqueInstanceID == InventoryInstanceID)
@@ -1390,7 +1390,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         // Phase 1: Remove from inventory
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 1: Removing %s from inventory"), *InventoryItem.ItemID.ToString());
         Transaction.bInventoryModified = true;
-        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
+        const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), InventoryInstanceID);
 
         if (!bRemoveSuccess)
         {
@@ -1474,7 +1474,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         // Fallback without transaction manager
         UE_LOG(LogEquipmentBridge, Warning, TEXT("⚠ No TransactionManager - using direct operations"));
 
-        const bool bRemoveSuccess = InventoryInterface->RemoveItemInstance(InventoryInstanceID);
+        const bool bRemoveSuccess = ISuspenseCoreInventory::Execute_RemoveItemInstance(InventoryInterface.GetObject(), InventoryInstanceID);
         if (!bRemoveSuccess)
         {
             RollbackBridgeTransaction(TransactionID);
@@ -1618,7 +1618,7 @@ bool USuspenseCoreEquipmentInventoryBridge::RollbackBridgeTransaction(const FGui
     {
         if (Transaction->InventoryBackup.IsValid())
         {
-            InventoryInterface->AddItemInstance(Transaction->InventoryBackup);
+            ISuspenseCoreInventory::Execute_AddItemInstance(InventoryInterface.GetObject(), Transaction->InventoryBackup);
         }
     }
 
@@ -1691,7 +1691,7 @@ bool USuspenseCoreEquipmentInventoryBridge::FindItemInInventory(const FName& Ite
         return false;
     }
 
-    const TArray<FSuspenseCoreItemInstance> Items = InventoryInterface->GetAllItemInstances();
+    const TArray<FSuspenseCoreItemInstance> Items = ISuspenseCoreInventory::Execute_GetAllItemInstances(InventoryInterface.GetObject());
     for (const FSuspenseCoreItemInstance& It : Items)
     {
         if (It.ItemID == ItemId)

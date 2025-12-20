@@ -286,7 +286,10 @@ private:
 	// Drag-Drop Helpers
 	//==================================================================
 
-	/** Get slot widget under local position */
+	/** Get slot widget under screen space position (more accurate) */
+	USuspenseCoreEquipmentSlotWidget* GetSlotWidgetAtScreenPosition(const FVector2D& ScreenSpacePos) const;
+
+	/** Get slot widget under local position (backward compat - uses screen method internally) */
 	USuspenseCoreEquipmentSlotWidget* GetSlotWidgetAtPosition(const FVector2D& LocalPos) const;
 
 	/** Clear all slot highlights */

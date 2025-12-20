@@ -100,6 +100,10 @@ namespace SuspenseCoreEquipmentTags
 
         // Property Events
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_PropertyChanged, "Equipment.Event.PropertyChanged");
+
+        // Slot Events (used by DataStore for EventBus)
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_SlotUpdated, "Equipment.Event.SlotUpdated");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Updated, "Equipment.Event.Updated");
     }
 
     //========================================
@@ -132,6 +136,20 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Use, "Equipment.Operation.Use");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Drop, "Equipment.Operation.Drop");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Batch, "Equipment.Operation.Batch");
+
+        // Extended operation types (used by TransactionProcessor)
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Set, "Equipment.Operation.Set");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Clear, "Equipment.Operation.Clear");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_MoveSource, "Equipment.Operation.MoveSource");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_MoveTarget, "Equipment.Operation.MoveTarget");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Upgrade, "Equipment.Operation.Upgrade");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Modify, "Equipment.Operation.Modify");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Global, "Equipment.Operation.Global");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Repair, "Equipment.Operation.Repair");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Combine, "Equipment.Operation.Combine");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Split, "Equipment.Operation.Split");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Unknown, "Equipment.Operation.Unknown");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Operation_Completed, "Equipment.Operation.Completed");
     }
 
     //========================================
@@ -192,6 +210,8 @@ namespace SuspenseCoreEquipmentTags
     {
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot, "Equipment.Slot");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_None, "Equipment.Slot.None");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Unknown, "Equipment.Slot.Unknown");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Updated, "Equipment.Slot.Updated");
 
         // Weapons
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Slot_Primary, "Equipment.Slot.Primary");

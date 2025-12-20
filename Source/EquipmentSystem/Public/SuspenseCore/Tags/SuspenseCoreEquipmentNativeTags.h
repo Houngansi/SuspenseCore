@@ -115,6 +115,10 @@ namespace SuspenseCoreEquipmentTags
 
         //--- Property Events ---
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_PropertyChanged);
+
+        //--- Slot Events (used by DataStore for EventBus) ---
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_SlotUpdated);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Updated);
     }
 
     //========================================
@@ -149,6 +153,20 @@ namespace SuspenseCoreEquipmentTags
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Use);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Drop);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Batch);
+
+        // Extended operation types (used by TransactionProcessor)
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Set);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Clear);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_MoveSource);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_MoveTarget);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Upgrade);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Modify);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Global);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Repair);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Combine);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Split);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Unknown);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Operation_Completed);
     }
 
     //========================================
@@ -178,6 +196,8 @@ namespace SuspenseCoreEquipmentTags
     {
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Slot);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Slot_None);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Slot_Unknown);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Slot_Updated);
 
         // Weapons
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Slot_Primary);

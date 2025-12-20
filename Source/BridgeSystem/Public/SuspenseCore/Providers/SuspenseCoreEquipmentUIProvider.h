@@ -15,6 +15,8 @@
 // Forward declarations
 class USuspenseCoreEventBus;
 class USuspenseCoreLoadoutManager;
+class USuspenseCoreEquipmentDataStore;
+class USuspenseCoreDataManager;
 
 /**
  * USuspenseCoreEquipmentUIProvider
@@ -235,9 +237,21 @@ protected:
 	/** Cached LoadoutManager reference */
 	mutable TWeakObjectPtr<USuspenseCoreLoadoutManager> CachedLoadoutManager;
 
+	/** Cached DataStore reference (found on owner) */
+	mutable TWeakObjectPtr<USuspenseCoreEquipmentDataStore> CachedDataStore;
+
+	/** Cached DataManager reference */
+	mutable TWeakObjectPtr<USuspenseCoreDataManager> CachedDataManager;
+
 private:
 	/** Get LoadoutManager */
 	USuspenseCoreLoadoutManager* GetLoadoutManager() const;
+
+	/** Get DataStore from owner actor */
+	USuspenseCoreEquipmentDataStore* GetDataStore() const;
+
+	/** Get DataManager for item lookups */
+	USuspenseCoreDataManager* GetDataManager() const;
 
 	/** Map slot type to index for quick lookup */
 	TMap<EEquipmentSlotType, int32> SlotTypeToIndex;

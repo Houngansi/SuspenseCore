@@ -821,8 +821,23 @@ bool ASuspenseCorePlayerState::WireEquipmentModule(USuspenseCoreLoadoutManager* 
 	// It coordinates with DataStore for atomic operations
 	if (EquipmentTxnProcessor && EquipmentDataStore)
 	{
-		// Transaction processor wires to data store
-		UE_LOG(LogTemp, Verbose, TEXT("SuspenseCorePlayerState: EquipmentTxnProcessor ready"));
+		// CRITICAL: Initialize the TransactionProcessor with DataProvider
+		// Without this, BeginTransaction will fail with "Processor not initialized"
+		if (USuspenseCoreEquipmentTransactionProcessor* TxnProcessor = Cast<USuspenseCoreEquipmentTransactionProcessor>(EquipmentTxnProcessor))
+		{
+			bool bTxnInitialized = TxnProcessor->Initialize(
+				TScriptInterface<ISuspenseCoreEquipmentDataProvider>(EquipmentDataStore)
+			);
+
+			if (bTxnInitialized)
+			{
+				UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState: EquipmentTransactionProcessor initialized with DataProvider"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("SuspenseCorePlayerState: Failed to initialize EquipmentTransactionProcessor!"));
+			}
+		}
 	}
 
 	// Initialize Operation Executor

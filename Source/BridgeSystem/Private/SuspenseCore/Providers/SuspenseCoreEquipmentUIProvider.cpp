@@ -280,10 +280,10 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 		}
 
 		FSuspenseCoreItemUIData ItemData;
-		ItemData.InstanceID = ItemInstance.UniqueInstanceID;
+		ItemData.InstanceID = ItemInstance.InstanceID;
 		ItemData.ItemID = ItemInstance.ItemID;
 		ItemData.Quantity = ItemInstance.Quantity;
-		ItemData.SlotIndex = SlotIndex;
+		ItemData.AnchorSlot = SlotIndex;
 		ItemData.GridSize = FIntPoint(1, 1); // Equipment items are 1x1
 
 		// Get additional data from DataManager if available
@@ -292,12 +292,12 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 			FSuspenseCoreItemData ItemTableData;
 			if (DataManager->GetItemData(ItemInstance.ItemID, ItemTableData))
 			{
-				ItemData.DisplayName = ItemTableData.DisplayName;
-				ItemData.Description = ItemTableData.Description;
-				ItemData.Icon = ItemTableData.Icon;
+				ItemData.DisplayName = ItemTableData.Identity.DisplayName;
+				ItemData.Description = ItemTableData.Identity.Description;
+				ItemData.IconPath = ItemTableData.Identity.Icon.ToSoftObjectPath();
 				ItemData.ItemType = ItemTableData.Classification.ItemType;
-				ItemData.RarityTag = ItemTableData.Classification.RarityTag;
-				ItemData.bIsStackable = ItemTableData.InventoryProps.bIsStackable;
+				ItemData.RarityTag = ItemTableData.Classification.Rarity;
+				ItemData.bIsStackable = ItemTableData.InventoryProps.IsStackable();
 				ItemData.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 				ItemData.GridSize = ItemTableData.InventoryProps.GridSize;
 			}
@@ -327,10 +327,10 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 	}
 
 	// Convert to UI data
-	OutItem.InstanceID = ItemInstance->UniqueInstanceID;
+	OutItem.InstanceID = ItemInstance->InstanceID;
 	OutItem.ItemID = ItemInstance->ItemID;
 	OutItem.Quantity = ItemInstance->Quantity;
-	OutItem.SlotIndex = SlotIndex;
+	OutItem.AnchorSlot = SlotIndex;
 	OutItem.GridSize = FIntPoint(1, 1);
 
 	// Get additional data from DataManager
@@ -340,12 +340,12 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 		FSuspenseCoreItemData ItemTableData;
 		if (DataManager->GetItemData(ItemInstance->ItemID, ItemTableData))
 		{
-			OutItem.DisplayName = ItemTableData.DisplayName;
-			OutItem.Description = ItemTableData.Description;
-			OutItem.Icon = ItemTableData.Icon;
+			OutItem.DisplayName = ItemTableData.Identity.DisplayName;
+			OutItem.Description = ItemTableData.Identity.Description;
+			OutItem.IconPath = ItemTableData.Identity.Icon.ToSoftObjectPath();
 			OutItem.ItemType = ItemTableData.Classification.ItemType;
-			OutItem.RarityTag = ItemTableData.Classification.RarityTag;
-			OutItem.bIsStackable = ItemTableData.InventoryProps.bIsStackable;
+			OutItem.RarityTag = ItemTableData.Classification.Rarity;
+			OutItem.bIsStackable = ItemTableData.InventoryProps.IsStackable();
 			OutItem.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 			OutItem.GridSize = ItemTableData.InventoryProps.GridSize;
 		}
@@ -845,8 +845,9 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 	FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::Equipped);
 	if (EquippedTag.IsValid())
 	{
-		FSuspenseCoreSubscriptionHandle EquippedHandle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle EquippedHandle = EventBus->SubscribeNative(
 			EquippedTag,
+			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemEquipped)
 		);
 		EventSubscriptions.Add(EquippedHandle);
@@ -856,8 +857,9 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 	FGameplayTag ItemEquippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::ItemEquipped);
 	if (ItemEquippedTag.IsValid())
 	{
-		FSuspenseCoreSubscriptionHandle ItemEquippedHandle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle ItemEquippedHandle = EventBus->SubscribeNative(
 			ItemEquippedTag,
+			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemEquipped)
 		);
 		EventSubscriptions.Add(ItemEquippedHandle);
@@ -867,8 +869,9 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 	FGameplayTag UnequippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::Unequipped);
 	if (UnequippedTag.IsValid())
 	{
-		FSuspenseCoreSubscriptionHandle UnequippedHandle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle UnequippedHandle = EventBus->SubscribeNative(
 			UnequippedTag,
+			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemUnequipped)
 		);
 		EventSubscriptions.Add(UnequippedHandle);
@@ -878,8 +881,9 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 	FGameplayTag ItemUnequippedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::ItemUnequipped);
 	if (ItemUnequippedTag.IsValid())
 	{
-		FSuspenseCoreSubscriptionHandle ItemUnequippedHandle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle ItemUnequippedHandle = EventBus->SubscribeNative(
 			ItemUnequippedTag,
+			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnItemUnequipped)
 		);
 		EventSubscriptions.Add(ItemUnequippedHandle);
@@ -889,8 +893,9 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 	FGameplayTag SlotUpdatedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::SlotUpdated);
 	if (SlotUpdatedTag.IsValid())
 	{
-		FSuspenseCoreSubscriptionHandle SlotHandle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle SlotHandle = EventBus->SubscribeNative(
 			SlotUpdatedTag,
+			this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnSlotUpdated)
 		);
 		EventSubscriptions.Add(SlotHandle);
@@ -928,7 +933,7 @@ void USuspenseCoreEquipmentUIProvider::OnItemEquipped(FGameplayTag EventTag, con
 	// Create item instance from event data
 	FSuspenseCoreInventoryItemInstance ItemInstance;
 	ItemInstance.ItemID = FName(*ItemIDStr);
-	FGuid::Parse(InstanceIDStr, ItemInstance.UniqueInstanceID);
+	FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
 	ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
 	if (ItemInstance.Quantity <= 0)
 	{
@@ -948,7 +953,7 @@ void USuspenseCoreEquipmentUIProvider::OnItemEquipped(FGameplayTag EventTag, con
 		SlotIndex, *ItemIDStr, CachedEquippedItems.Num());
 
 	// Broadcast UI update
-	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.UniqueInstanceID);
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.InstanceID);
 }
 
 void USuspenseCoreEquipmentUIProvider::OnItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -971,7 +976,7 @@ void USuspenseCoreEquipmentUIProvider::OnItemUnequipped(FGameplayTag EventTag, c
 	FGuid RemovedInstanceID;
 	if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(SlotIndex))
 	{
-		RemovedInstanceID = ExistingItem->UniqueInstanceID;
+		RemovedInstanceID = ExistingItem->InstanceID;
 	}
 
 	// Remove from cache

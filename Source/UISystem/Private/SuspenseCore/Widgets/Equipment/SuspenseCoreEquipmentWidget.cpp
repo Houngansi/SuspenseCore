@@ -841,8 +841,17 @@ void USuspenseCoreEquipmentWidget::NativeOnDragDetected(const FGeometry& InGeome
 		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Slot geometry not cached, using zero DragOffset"));
 	}
 
+	// Get player controller for drag operation
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDragDetected - No owning player controller"));
+		DragSourceSlot = INDEX_NONE;
+		return;
+	}
+
 	// Create drag operation
-	OutOperation = USuspenseCoreDragDropOperation::CreateDragOperation(DragData);
+	OutOperation = USuspenseCoreDragDropOperation::CreateDrag(PC, DragData);
 	if (OutOperation)
 	{
 		// Notify slot that drag started

@@ -747,9 +747,9 @@ bool USuspenseCoreEquipmentWidget::NativeOnDragOver(const FGeometry& MyGeometry,
 
 	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
 
-	// Find which slot is under the cursor
-	FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtPosition(LocalPos);
+	// Find which slot is under the cursor using screen space position
+	FVector2D ScreenSpacePos = DragDropEvent.GetScreenSpacePosition();
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtScreenPosition(ScreenSpacePos);
 
 	// Clear previous highlights
 	if (HoveredSlotIndex != INDEX_NONE && SlotWidgetsArray.IsValidIndex(HoveredSlotIndex))
@@ -803,9 +803,9 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 
 	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
 
-	// Find which slot is under the cursor
-	FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
-	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtPosition(LocalPos);
+	// Find which slot is under the cursor using screen space position
+	FVector2D ScreenSpacePos = InDragDropEvent.GetScreenSpacePosition();
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtScreenPosition(ScreenSpacePos);
 
 	if (!SlotWidget)
 	{
@@ -849,38 +849,51 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 	return true;
 }
 
-USuspenseCoreEquipmentSlotWidget* USuspenseCoreEquipmentWidget::GetSlotWidgetAtPosition(const FVector2D& LocalPos) const
+USuspenseCoreEquipmentSlotWidget* USuspenseCoreEquipmentWidget::GetSlotWidgetAtScreenPosition(const FVector2D& ScreenSpacePos) const
 {
-	// Iterate through slot widgets and check which one contains the position
-	for (USuspenseCoreEquipmentSlotWidget* SlotWidget : SlotWidgetsArray)
+	// Iterate through slot widgets and check which one contains the screen position
+	// Use each slot's actual cached geometry for accurate hit-testing
+	for (int32 Index = 0; Index < SlotWidgetsArray.Num(); ++Index)
 	{
+		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[Index];
 		if (!SlotWidget)
 		{
 			continue;
 		}
 
-		// Get the slot's geometry
+		// Get the slot's rendered geometry
 		FGeometry SlotGeometry = SlotWidget->GetCachedGeometry();
-		FVector2D SlotLocalPos = SlotGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector);
+
+		// Transform screen space position to slot's local space
+		FVector2D SlotLocalPos = SlotGeometry.AbsoluteToLocal(ScreenSpacePos);
 		FVector2D SlotSize = SlotGeometry.GetLocalSize();
 
-		// Convert our local position to the slot's parent space
-		UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(SlotWidget->Slot);
-		if (CanvasSlot)
-		{
-			FVector2D SlotPosition = CanvasSlot->GetPosition();
-			FVector2D SlotActualSize = CanvasSlot->GetSize();
+		UE_LOG(LogTemp, Verbose, TEXT("GetSlotWidgetAtScreenPosition: Slot[%d] %s - LocalPos=(%.1f, %.1f), Size=(%.1f, %.1f)"),
+			Index, *SlotWidget->GetSlotTypeTag().ToString(),
+			SlotLocalPos.X, SlotLocalPos.Y, SlotSize.X, SlotSize.Y);
 
-			// Check if position is within this slot
-			if (LocalPos.X >= SlotPosition.X && LocalPos.X <= SlotPosition.X + SlotActualSize.X &&
-				LocalPos.Y >= SlotPosition.Y && LocalPos.Y <= SlotPosition.Y + SlotActualSize.Y)
-			{
-				return SlotWidget;
-			}
+		// Check if position is within this slot's bounds (0,0 to SlotSize)
+		if (SlotLocalPos.X >= 0.0f && SlotLocalPos.X <= SlotSize.X &&
+			SlotLocalPos.Y >= 0.0f && SlotLocalPos.Y <= SlotSize.Y)
+		{
+			UE_LOG(LogTemp, Log, TEXT("GetSlotWidgetAtScreenPosition: HIT slot[%d] %s at local (%.1f, %.1f)"),
+				Index, *SlotWidget->GetSlotTypeTag().ToString(), SlotLocalPos.X, SlotLocalPos.Y);
+			return SlotWidget;
 		}
 	}
 
+	UE_LOG(LogTemp, Verbose, TEXT("GetSlotWidgetAtScreenPosition: No slot found at screen position (%.1f, %.1f)"),
+		ScreenSpacePos.X, ScreenSpacePos.Y);
 	return nullptr;
+}
+
+// Keep old function for backward compatibility but implement using new method
+USuspenseCoreEquipmentSlotWidget* USuspenseCoreEquipmentWidget::GetSlotWidgetAtPosition(const FVector2D& LocalPos) const
+{
+	// Convert local position back to screen space using our geometry
+	FGeometry MyGeometry = GetCachedGeometry();
+	FVector2D ScreenPos = MyGeometry.LocalToAbsolute(LocalPos);
+	return GetSlotWidgetAtScreenPosition(ScreenPos);
 }
 
 void USuspenseCoreEquipmentWidget::ClearSlotHighlights()

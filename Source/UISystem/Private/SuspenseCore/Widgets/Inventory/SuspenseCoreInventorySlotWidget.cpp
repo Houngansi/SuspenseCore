@@ -488,6 +488,9 @@ FDragDropUIData USuspenseCoreInventorySlotWidget::GetDragData_Implementation() c
 		DragData.ItemData.GridSize = MultiCellItemSize;
 		DragData.ItemData.Quantity = CachedItemData.Quantity;
 		DragData.ItemData.bIsRotated = CachedItemData.bIsRotated;
+		// CRITICAL: Set ItemType for equipment slot validation
+		DragData.ItemData.ItemType = CachedItemData.ItemType;
+		DragData.ItemData.bIsEquippable = CachedItemData.bIsEquippable;
 		// SourceContainerType is FGameplayTag - use RequestGameplayTag for cross-module tags
 		DragData.SourceContainerType = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Container.Inventory"));
 		DragData.DraggedQuantity = CachedItemData.Quantity;

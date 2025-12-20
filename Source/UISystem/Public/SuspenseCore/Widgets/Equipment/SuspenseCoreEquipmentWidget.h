@@ -57,6 +57,12 @@ public:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+	// Drag-Drop Handling (CRITICAL: Required for equipment slot drops)
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, UDragDropOperation* Operation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 	//==================================================================
 	// ISuspenseCoreUIContainer Overrides
 	//==================================================================
@@ -275,6 +281,19 @@ private:
 
 	/** Auto-initialize slot configs from LoadoutManager (SSOT) */
 	void AutoInitializeFromLoadoutManager();
+
+	//==================================================================
+	// Drag-Drop Helpers
+	//==================================================================
+
+	/** Get slot widget under local position */
+	USuspenseCoreEquipmentSlotWidget* GetSlotWidgetAtPosition(const FVector2D& LocalPos) const;
+
+	/** Clear all slot highlights */
+	void ClearSlotHighlights();
+
+	/** Currently hovered slot index for drag-drop */
+	int32 HoveredSlotIndex = INDEX_NONE;
 
 	//==================================================================
 	// EventBus Integration (REQUIRED pattern per documentation)

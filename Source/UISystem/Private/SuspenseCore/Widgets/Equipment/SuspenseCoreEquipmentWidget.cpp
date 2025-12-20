@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentWidget.h"
 #include "SuspenseCore/Widgets/Equipment/SuspenseCoreEquipmentSlotWidget.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "SuspenseCore/Actors/SuspenseCoreCharacterPreviewActor.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
@@ -705,5 +706,190 @@ void USuspenseCoreEquipmentWidget::AutoInitializeFromLoadoutManager()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: AutoInit - No slot configs available!"));
+	}
+}
+
+//==================================================================
+// Drag-Drop Handling
+//==================================================================
+
+void USuspenseCoreEquipmentWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: DragEnter"));
+}
+
+void USuspenseCoreEquipmentWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Clear all highlights when leaving
+	ClearSlotHighlights();
+	HoveredSlotIndex = INDEX_NONE;
+
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+
+	UE_LOG(LogTemp, Verbose, TEXT("EquipmentWidget: DragLeave"));
+}
+
+bool USuspenseCoreEquipmentWidget::NativeOnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, UDragDropOperation* Operation)
+{
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(Operation);
+	if (!DragOp)
+	{
+		return false;
+	}
+
+	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+
+	// Find which slot is under the cursor
+	FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtPosition(LocalPos);
+
+	// Clear previous highlights
+	if (HoveredSlotIndex != INDEX_NONE && SlotWidgetsArray.IsValidIndex(HoveredSlotIndex))
+	{
+		SlotWidgetsArray[HoveredSlotIndex]->SetHighlightState(ESuspenseCoreUISlotState::Empty);
+	}
+
+	if (SlotWidget)
+	{
+		int32 SlotIndex = SlotWidgetsArray.IndexOfByKey(SlotWidget);
+		HoveredSlotIndex = SlotIndex;
+
+		// Check if this slot can accept the item
+		bool bCanAccept = SlotWidget->CanAcceptItemType(DragData.Item.ItemType);
+
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: DragOver slot %d (%s), ItemType=%s, CanAccept=%d"),
+			SlotIndex,
+			*SlotWidget->GetSlotTypeTag().ToString(),
+			*DragData.Item.ItemType.ToString(),
+			bCanAccept ? 1 : 0);
+
+		// Highlight the slot
+		if (bCanAccept)
+		{
+			SlotWidget->SetHighlightState(ESuspenseCoreUISlotState::DropTargetValid);
+		}
+		else
+		{
+			SlotWidget->SetHighlightState(ESuspenseCoreUISlotState::DropTargetInvalid);
+		}
+	}
+	else
+	{
+		HoveredSlotIndex = INDEX_NONE;
+	}
+
+	return true; // We handle the drag
+}
+
+bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Clear highlights
+	ClearSlotHighlights();
+
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDrop - Invalid drag operation type"));
+		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+
+	// Find which slot is under the cursor
+	FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotWidgetAtPosition(LocalPos);
+
+	if (!SlotWidget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - No slot at position"));
+		return false;
+	}
+
+	int32 SlotIndex = SlotWidgetsArray.IndexOfByKey(SlotWidget);
+
+	// Validate drop using slot widget
+	if (!SlotWidget->CanAcceptItemType(DragData.Item.ItemType))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: NativeOnDrop - Slot %d cannot accept ItemType %s"),
+			SlotIndex, *DragData.Item.ItemType.ToString());
+		return false;
+	}
+
+	// Request equip through EventBus
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (EventBus)
+	{
+		static const FGameplayTag EquipRequestTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
+
+		FSuspenseCoreEventData EventData;
+		EventData.Source = this;
+		EventData.IntPayload.Add(FName("SourceSlot"), DragData.SourceSlot);
+		EventData.IntPayload.Add(FName("TargetSlot"), SlotIndex);
+		EventData.StringPayload.Add(FName("ItemID"), DragData.Item.ItemID.ToString());
+		EventData.StringPayload.Add(FName("InstanceID"), DragData.Item.InstanceID.ToString());
+		EventData.StringPayload.Add(FName("SourceContainerID"), DragData.SourceContainerID.ToString());
+		EventData.IntPayload.Add(FName("SourceContainerType"), static_cast<int32>(DragData.SourceContainerType));
+		EventData.IntPayload.Add(FName("TargetContainerType"), static_cast<int32>(ESuspenseCoreContainerType::Equipment));
+
+		EventBus->Publish(EquipRequestTag, EventData);
+
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - Equip request sent for item %s to slot %d"),
+			*DragData.Item.ItemID.ToString(), SlotIndex);
+	}
+
+	HoveredSlotIndex = INDEX_NONE;
+	return true;
+}
+
+USuspenseCoreEquipmentSlotWidget* USuspenseCoreEquipmentWidget::GetSlotWidgetAtPosition(const FVector2D& LocalPos) const
+{
+	// Iterate through slot widgets and check which one contains the position
+	for (USuspenseCoreEquipmentSlotWidget* SlotWidget : SlotWidgetsArray)
+	{
+		if (!SlotWidget)
+		{
+			continue;
+		}
+
+		// Get the slot's geometry
+		FGeometry SlotGeometry = SlotWidget->GetCachedGeometry();
+		FVector2D SlotLocalPos = SlotGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector);
+		FVector2D SlotSize = SlotGeometry.GetLocalSize();
+
+		// Convert our local position to the slot's parent space
+		UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(SlotWidget->Slot);
+		if (CanvasSlot)
+		{
+			FVector2D SlotPosition = CanvasSlot->GetPosition();
+			FVector2D SlotActualSize = CanvasSlot->GetSize();
+
+			// Check if position is within this slot
+			if (LocalPos.X >= SlotPosition.X && LocalPos.X <= SlotPosition.X + SlotActualSize.X &&
+				LocalPos.Y >= SlotPosition.Y && LocalPos.Y <= SlotPosition.Y + SlotActualSize.Y)
+			{
+				return SlotWidget;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreEquipmentWidget::ClearSlotHighlights()
+{
+	for (USuspenseCoreEquipmentSlotWidget* SlotWidget : SlotWidgetsArray)
+	{
+		if (SlotWidget)
+		{
+			SlotWidget->SetHighlightState(ESuspenseCoreUISlotState::Empty);
+		}
 	}
 }

@@ -461,11 +461,17 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	}
 
 	// Use FGameplayTag::RequestGameplayTag for cross-module compatibility
+	// UI Request tags - for handling drag-drop equip/unequip requests
 	static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
 	static const FGameplayTag UnequipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.UnequipItem"));
-	static const FGameplayTag DataChangedTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIProvider.DataChanged"));
 
-	// Subscribe to equipment item equipped events
+	// CRITICAL FIX: Subscribe to actual equipment change events published by DataStore
+	// DataStore publishes Equipment.Event.SlotUpdated and Equipment.Event.Updated
+	// NOT SuspenseCore.Event.UIProvider.DataChanged!
+	static const FGameplayTag SlotUpdatedTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Event.SlotUpdated"));
+	static const FGameplayTag EquipmentUpdatedTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Event.Updated"));
+
+	// Subscribe to equipment item equipped events (UI Request)
 	FSuspenseCoreSubscriptionHandle EquipHandle = EventBus->SubscribeNative(
 		EquipItemTag,
 		this,
@@ -475,7 +481,7 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	);
 	SubscriptionHandles.Add(EquipHandle);
 
-	// Subscribe to equipment item unequipped events
+	// Subscribe to equipment item unequipped events (UI Request)
 	FSuspenseCoreSubscriptionHandle UnequipHandle = EventBus->SubscribeNative(
 		UnequipItemTag,
 		this,
@@ -485,17 +491,27 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	);
 	SubscriptionHandles.Add(UnequipHandle);
 
-	// Subscribe to provider data changed events
-	FSuspenseCoreSubscriptionHandle DataChangedHandle = EventBus->SubscribeNative(
-		DataChangedTag,
+	// Subscribe to slot updated events (actual data changes from DataStore)
+	FSuspenseCoreSubscriptionHandle SlotUpdatedHandle = EventBus->SubscribeNative(
+		SlotUpdatedTag,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(
 			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),
 		ESuspenseCoreEventPriority::Normal
 	);
-	SubscriptionHandles.Add(DataChangedHandle);
+	SubscriptionHandles.Add(SlotUpdatedHandle);
 
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions"), SubscriptionHandles.Num());
+	// Subscribe to equipment updated events (general equipment state changes)
+	FSuspenseCoreSubscriptionHandle EquipmentUpdatedHandle = EventBus->SubscribeNative(
+		EquipmentUpdatedTag,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(EquipmentUpdatedHandle);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions (SlotUpdated + EquipmentUpdated)"), SubscriptionHandles.Num());
 }
 
 void USuspenseCoreEquipmentWidget::TeardownEventSubscriptions()

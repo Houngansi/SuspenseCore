@@ -824,25 +824,32 @@ bool USuspenseCoreEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, con
 	}
 
 	// Request equip through EventBus
+	// CRITICAL: Use Equipment.Operation.Request tag that EquipmentInventoryBridge subscribes to
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (EventBus)
 	{
-		static const FGameplayTag EquipRequestTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
+		static const FGameplayTag EquipOperationRequestTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Operation.Request"));
 
 		FSuspenseCoreEventData EventData;
 		EventData.Source = this;
-		EventData.IntPayload.Add(FName("SourceSlot"), DragData.SourceSlot);
-		EventData.IntPayload.Add(FName("TargetSlot"), SlotIndex);
+
+		// Data format expected by EquipmentInventoryBridge callback
+		// EEquipmentOperationType::Equip = 1 (from SuspenseCoreEquipmentTypes.h)
+		EventData.SetFloat(FName("OperationType"), 1.0f); // EEquipmentOperationType::Equip
+		EventData.SetFloat(FName("TargetSlot"), static_cast<float>(SlotIndex));
+		EventData.SetFloat(FName("SourceSlot"), static_cast<float>(DragData.SourceSlot));
+
+		// Also include item data for proper identification
 		EventData.StringPayload.Add(FName("ItemID"), DragData.Item.ItemID.ToString());
 		EventData.StringPayload.Add(FName("InstanceID"), DragData.Item.InstanceID.ToString());
-		EventData.StringPayload.Add(FName("SourceContainerID"), DragData.SourceContainerID.ToString());
 		EventData.IntPayload.Add(FName("SourceContainerType"), static_cast<int32>(DragData.SourceContainerType));
-		EventData.IntPayload.Add(FName("TargetContainerType"), static_cast<int32>(ESuspenseCoreContainerType::Equipment));
 
-		EventBus->Publish(EquipRequestTag, EventData);
+		EventBus->Publish(EquipOperationRequestTag, EventData);
 
-		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - Equip request sent for item %s to slot %d"),
-			*DragData.Item.ItemID.ToString(), SlotIndex);
+		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: NativeOnDrop - Equipment.Operation.Request sent for item %s (InstanceID=%s) to slot %d"),
+			*DragData.Item.ItemID.ToString(),
+			*DragData.Item.InstanceID.ToString(),
+			SlotIndex);
 	}
 
 	HoveredSlotIndex = INDEX_NONE;

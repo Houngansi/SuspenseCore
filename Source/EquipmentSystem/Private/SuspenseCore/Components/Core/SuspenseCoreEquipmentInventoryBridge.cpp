@@ -144,14 +144,17 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     // Try to acquire OperationService via service locator (optional)
     if (USuspenseCoreEquipmentServiceLocator* Locator = USuspenseCoreEquipmentServiceLocator::Get(GetWorld()))
     {
-        const FGameplayTag ServiceTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operation"));
-        if (UObject* SvcObj = Locator->GetService(ServiceTag))
+        const FGameplayTag ServiceTag = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operation"), /*bErrorIfNotFound*/ false);
+        if (ServiceTag.IsValid())
         {
-            if (SvcObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentOperationServiceInterface::StaticClass()))
+            if (UObject* SvcObj = Locator->GetService(ServiceTag))
             {
-                EquipmentService.SetObject(SvcObj);
-                EquipmentService.SetInterface(Cast<ISuspenseCoreEquipmentOperationServiceInterface>(SvcObj));
-                UE_LOG(LogEquipmentBridge, Log, TEXT("OperationService acquired via locator"));
+                if (SvcObj->GetClass()->ImplementsInterface(USuspenseCoreEquipmentOperationServiceInterface::StaticClass()))
+                {
+                    EquipmentService.SetObject(SvcObj);
+                    EquipmentService.SetInterface(Cast<ISuspenseCoreEquipmentOperationServiceInterface>(SvcObj));
+                    UE_LOG(LogEquipmentBridge, Log, TEXT("OperationService acquired via locator"));
+                }
             }
         }
     }

@@ -108,6 +108,12 @@ protected:
 	FVector2D CalculateBestPosition(const FVector2D& DesiredPosition);
 	virtual FVector2D CalculateBestPosition_Implementation(const FVector2D& DesiredPosition);
 
+	/**
+	 * Main positioning method - handles DPI scaling and viewport bounds
+	 * @param ScreenPosition Raw screen position from mouse
+	 */
+	void RepositionTooltip(const FVector2D& ScreenPosition);
+
 	//==================================================================
 	// Widget References (Bind in Blueprint)
 	//==================================================================

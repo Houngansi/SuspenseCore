@@ -1070,8 +1070,6 @@ void USuspenseCoreInventoryWidget::ShowSlotTooltip(int32 SlotIndex)
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ShowSlotTooltip: Slot %d, Item=%s"), SlotIndex, *ItemData.ItemID.ToString());
-
 	// Request tooltip from UIManager
 	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
 	{

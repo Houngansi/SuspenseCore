@@ -11,6 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
 #include "Internationalization/Text.h"
+#include "Slate/WidgetTransform.h"
 
 //==================================================================
 // Constructor
@@ -61,7 +62,9 @@ void USuspenseCoreTooltipWidget::NativeConstruct()
 
 	// Initialize animation state
 	SetRenderOpacity(0.0f);
-	SetRenderTransformScale(FVector2D(StartScale, StartScale));
+	FWidgetTransform InitTransform;
+	InitTransform.Scale = FVector2D(StartScale, StartScale);
+	SetRenderTransform(InitTransform);
 }
 
 void USuspenseCoreTooltipWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -149,8 +152,10 @@ void USuspenseCoreTooltipWidget::HideImmediate()
 	AnimProgress = 0.0f;
 	CurrentOpacity = 0.0f;
 	SetRenderOpacity(0.0f);
-	SetRenderTransformScale(FVector2D(StartScale, StartScale));
-	SetRenderTranslation(FVector2D::ZeroVector);
+	FWidgetTransform ResetTransform;
+	ResetTransform.Scale = FVector2D(StartScale, StartScale);
+	ResetTransform.Translation = FVector2D::ZeroVector;
+	SetRenderTransform(ResetTransform);
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
@@ -218,13 +223,18 @@ void USuspenseCoreTooltipWidget::UpdateFadeAnimation(float DeltaTime)
 	CurrentOpacity = EasedValue;
 	SetRenderOpacity(CurrentOpacity);
 
-	// 2. Dynamic scale (from StartScale to 1.0)
-	const float CurrentScale = FMath::Lerp(StartScale, 1.0f, EasedValue);
-	SetRenderTransformScale(FVector2D(CurrentScale, CurrentScale));
+	// 2. Build combined transform (scale + translation)
+	FWidgetTransform AnimTransform;
 
-	// 3. Vertical drift (float-up effect - starts offset, ends at 0)
+	// Dynamic scale (from StartScale to 1.0)
+	const float CurrentScale = FMath::Lerp(StartScale, 1.0f, EasedValue);
+	AnimTransform.Scale = FVector2D(CurrentScale, CurrentScale);
+
+	// Vertical drift (float-up effect - starts offset, ends at 0)
 	const float CurrentTranslationY = FMath::Lerp(VerticalDrift, 0.0f, EasedValue);
-	SetRenderTranslation(FVector2D(0.0f, CurrentTranslationY));
+	AnimTransform.Translation = FVector2D(0.0f, CurrentTranslationY);
+
+	SetRenderTransform(AnimTransform);
 
 	// Check if animation complete
 	if ((bFadingIn && AnimProgress >= 1.0f) || (!bFadingIn && AnimProgress <= 0.0f))

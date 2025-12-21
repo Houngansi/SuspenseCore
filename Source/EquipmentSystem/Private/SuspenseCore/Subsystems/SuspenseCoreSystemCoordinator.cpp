@@ -17,6 +17,13 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 
+// Equipment Services (for subsystem-level registration)
+#include "SuspenseCore/Services/SuspenseCoreEquipmentDataService.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentValidationService.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreCoordinatorSubsystem, Log, All);
 
 //========================================
@@ -429,9 +436,97 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
         return;
     }
 
-    // Core services are registered through ServiceLocator when components initialize
-    // This method serves as a hook for any coordinator-level registration logic
-    UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete"));
+    // Register core equipment services at subsystem level
+    // This ensures services are available even if component is not added to actor
+
+    const FGameplayTag TagData          = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data"), false);
+    const FGameplayTag TagValidation    = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Validation"), false);
+    const FGameplayTag TagOperations    = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"), false);
+    const FGameplayTag TagVisualization = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Visualization"), false);
+    const FGameplayTag TagAbility       = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Ability"), false);
+
+    int32 RegisteredCount = 0;
+
+    // Data Service
+    if (TagData.IsValid() && !ServiceLocator->IsServiceRegistered(TagData))
+    {
+        FSuspenseCoreServiceInitParams DataParams;
+        DataParams.bAutoStart = true;
+
+        ServiceLocator->RegisterServiceClass(
+            TagData,
+            USuspenseCoreEquipmentDataService::StaticClass(),
+            DataParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: DataService"));
+        RegisteredCount++;
+    }
+
+    // Validation Service
+    if (TagValidation.IsValid() && !ServiceLocator->IsServiceRegistered(TagValidation))
+    {
+        FSuspenseCoreServiceInitParams ValidationParams;
+        ValidationParams.bAutoStart = true;
+        ValidationParams.RequiredServices.AddTag(TagData);
+
+        ServiceLocator->RegisterServiceClass(
+            TagValidation,
+            USuspenseCoreEquipmentValidationService::StaticClass(),
+            ValidationParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ValidationService"));
+        RegisteredCount++;
+    }
+
+    // Operation Service
+    if (TagOperations.IsValid() && !ServiceLocator->IsServiceRegistered(TagOperations))
+    {
+        FSuspenseCoreServiceInitParams OperationParams;
+        OperationParams.bAutoStart = true;
+        OperationParams.RequiredServices.AddTag(TagData);
+        OperationParams.RequiredServices.AddTag(TagValidation);
+
+        ServiceLocator->RegisterServiceClass(
+            TagOperations,
+            USuspenseCoreEquipmentOperationService::StaticClass(),
+            OperationParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: OperationService"));
+        RegisteredCount++;
+    }
+
+    // Visualization Service - CRITICAL for equipment to spawn in world
+    if (TagVisualization.IsValid() && !ServiceLocator->IsServiceRegistered(TagVisualization))
+    {
+        FSuspenseCoreServiceInitParams VisualizationParams;
+        VisualizationParams.bAutoStart = true;
+        VisualizationParams.RequiredServices.AddTag(TagData);
+
+        ServiceLocator->RegisterServiceClass(
+            TagVisualization,
+            USuspenseCoreEquipmentVisualizationService::StaticClass(),
+            VisualizationParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: VisualizationService"));
+        RegisteredCount++;
+    }
+
+    // Ability Service
+    if (TagAbility.IsValid() && !ServiceLocator->IsServiceRegistered(TagAbility))
+    {
+        FSuspenseCoreServiceInitParams AbilityParams;
+        AbilityParams.bAutoStart = true;
+
+        ServiceLocator->RegisterServiceClass(
+            TagAbility,
+            USuspenseCoreEquipmentAbilityService::StaticClass(),
+            AbilityParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AbilityService"));
+        RegisteredCount++;
+    }
+
+    UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete (%d services registered)"), RegisteredCount);
 }
 
 void USuspenseCoreSystemCoordinator::WarmUpServices()

@@ -843,11 +843,13 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
 
             UE_LOG(LogEquipmentBridge, Warning, TEXT("Equipment slot cleared successfully"));
 
-            // PHASE 2: Add the item to inventory
-            UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 2: Adding item to inventory..."));
+            // PHASE 2: Add the item to inventory at the specified target slot
+            UE_LOG(LogEquipmentBridge, Warning, TEXT("Phase 2: Adding item to inventory at slot %d..."), Request.TargetSlot);
             BridgeTxn.bInventoryModified = true;
 
-            bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
+            // Use AddItemInstanceToSlot to place at the exact drop location
+            // If TargetSlot is INDEX_NONE, it will auto-find a slot
+            bool bAddSuccess = InventoryInterface->AddItemInstanceToSlot(EquippedItem, Request.TargetSlot);
 
             if (!bAddSuccess)
             {
@@ -913,9 +915,10 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
 
         if (ClearedItem.IsValid())
         {
-            // Add to inventory
+            // Add to inventory at the specified target slot
             BridgeTxn.bInventoryModified = true;
-            bool bAddSuccess = InventoryInterface->Execute_AddItemInstance(InventoryInterface.GetObject(), EquippedItem);
+            // Use AddItemInstanceToSlot to place at the exact drop location
+            bool bAddSuccess = InventoryInterface->AddItemInstanceToSlot(EquippedItem, Request.TargetSlot);
 
             if (bAddSuccess)
             {

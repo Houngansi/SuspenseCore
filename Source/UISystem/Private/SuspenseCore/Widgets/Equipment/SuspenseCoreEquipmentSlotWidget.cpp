@@ -113,8 +113,20 @@ void USuspenseCoreEquipmentSlotWidget::ShowSlotTooltip()
 		// Get mouse position for tooltip placement
 		FVector2D MousePosition = FSlateApplication::Get().GetCursorPos();
 
+		// Try to get full item data from provider (includes Weight, Value, etc.)
+		FSuspenseCoreItemUIData FullItemData = CachedItemData;
+		if (ParentContainer)
+		{
+			ISuspenseCoreUIDataProvider* Provider = ParentContainer->GetBoundProvider().GetInterface();
+			if (Provider)
+			{
+				// Get fresh data from provider which includes all fields
+				Provider->GetItemUIDataAtSlot(CachedSlotData.SlotIndex, FullItemData);
+			}
+		}
+
 		// Show tooltip through UIManager
-		UIManager->ShowItemTooltip(CachedItemData, MousePosition);
+		UIManager->ShowItemTooltip(FullItemData, MousePosition);
 	}
 }
 

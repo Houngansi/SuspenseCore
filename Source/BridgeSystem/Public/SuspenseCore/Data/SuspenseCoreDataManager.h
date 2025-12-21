@@ -15,7 +15,9 @@ class UDataAsset;
 class USuspenseCoreEventBus;
 class USuspenseCoreSettings;
 struct FSuspenseCoreEventData;
-struct FSuspenseCoreUnifiedItemData;
+
+// Include for FSuspenseCoreUnifiedItemData - needed for cache storage
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 
 /**
  * USuspenseCoreDataManager
@@ -108,7 +110,7 @@ public:
 	//========================================================================
 
 	/**
-	 * Get item data by ID
+	 * Get item data by ID (simplified format)
 	 * Broadcasts SuspenseCore.Event.Data.ItemLoaded or ItemNotFound
 	 *
 	 * @param ItemID The item identifier
@@ -117,6 +119,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data")
 	bool GetItemData(FName ItemID, FSuspenseCoreItemData& OutItemData) const;
+
+	/**
+	 * Get unified item data by ID (full DataTable format)
+	 * This is the PRIMARY method for equipment system - contains all fields
+	 * including EquipmentActorClass, AttachmentSocket, etc.
+	 *
+	 * @param ItemID The item identifier
+	 * @param OutItemData Output unified item data structure
+	 * @return true if item was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data")
+	bool GetUnifiedItemData(FName ItemID, FSuspenseCoreUnifiedItemData& OutItemData) const;
 
 	/**
 	 * Check if item exists in database
@@ -138,7 +152,7 @@ public:
 	 * @return Number of items in cache
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data")
-	int32 GetCachedItemCount() const { return ItemCache.Num(); }
+	int32 GetCachedItemCount() const { return UnifiedItemCache.Num(); }
 
 	//========================================================================
 	// Item Instance Creation
@@ -263,7 +277,18 @@ private:
 	// Cached Data
 	//========================================================================
 
-	/** Item data cache: ItemID -> SuspenseCoreItemData */
+	/**
+	 * PRIMARY cache: Unified item data from DataTable
+	 * Contains ALL item fields including EquipmentActorClass, sockets, etc.
+	 * This is the SINGLE SOURCE OF TRUTH for item data.
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreUnifiedItemData> UnifiedItemCache;
+
+	/**
+	 * SECONDARY cache: Simplified item data for legacy/convenience access
+	 * Derived from UnifiedItemCache, contains subset of fields.
+	 */
 	UPROPERTY()
 	TMap<FName, FSuspenseCoreItemData> ItemCache;
 

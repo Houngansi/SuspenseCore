@@ -8,7 +8,6 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/DataTable.h"
 #include "Engine/DataAsset.h"
 #include "Engine/World.h"
@@ -235,66 +234,16 @@ bool USuspenseCoreDataManager::InitializeItemSystem()
 
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("Row Structure: %s"), *RowStruct->GetName());
 
-	// Build cache
+	// Build unified item cache (SSOT for all item data)
 	if (!BuildItemCache(LoadedItemDataTable))
 	{
 		UE_LOG(LogSuspenseCoreData, Error, TEXT("Failed to build item cache!"));
 		return false;
 	}
 
-	// ============================================================================
-	// CRITICAL FIX: Also initialize ItemManager with the same DataTable
-	// ============================================================================
-	// The VisualizationService and ActorFactory use ItemManager to resolve item data.
-	// ItemManager requires explicit LoadItemDataTable() call - we do it here after
-	// successfully loading our own cache to ensure both systems are synchronized.
-	// ============================================================================
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>())
-		{
-			// Check if the DataTable row structure matches what ItemManager expects
-			const bool bIsUnifiedType = RowStruct && RowStruct->GetName().Contains(TEXT("UnifiedItemData"));
-
-			if (bIsUnifiedType)
-			{
-				UE_LOG(LogSuspenseCoreData, Log,
-					TEXT("Initializing ItemManager with same DataTable: %s"),
-					*LoadedItemDataTable->GetName());
-
-				const bool bStrictValidation = Settings->bStrictItemValidation;
-
-				if (ItemManager->LoadItemDataTable(LoadedItemDataTable, bStrictValidation))
-				{
-					UE_LOG(LogSuspenseCoreData, Log,
-						TEXT("ItemManager initialized successfully: %d items cached"),
-						ItemManager->GetCachedItemCount());
-				}
-				else
-				{
-					UE_LOG(LogSuspenseCoreData, Warning,
-						TEXT("ItemManager initialization failed - equipment visualization may not work!"));
-				}
-			}
-			else
-			{
-				UE_LOG(LogSuspenseCoreData, Warning,
-					TEXT("DataTable row structure is not FSuspenseCoreUnifiedItemData - ItemManager not initialized"));
-				UE_LOG(LogSuspenseCoreData, Warning,
-					TEXT("Equipment visualization requires FSuspenseCoreUnifiedItemData row structure"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogSuspenseCoreData, Warning,
-				TEXT("ItemManager subsystem not found - equipment visualization will not work"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreData, Warning,
-			TEXT("GameInstance not available - cannot initialize ItemManager"));
-	}
+	// DataManager is now the Single Source of Truth (SSOT) for all item data
+	// All systems (VisualizationService, ActorFactory, etc.) should use
+	// DataManager::GetUnifiedItemData() instead of legacy ItemManager
 
 	return true;
 }
@@ -306,6 +255,8 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 		return false;
 	}
 
+	// Clear both caches
+	UnifiedItemCache.Empty();
 	ItemCache.Empty();
 
 	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
@@ -323,61 +274,66 @@ bool USuspenseCoreDataManager::BuildItemCache(UDataTable* DataTable)
 		RowStruct ? *RowStruct->GetName() : TEXT("None"),
 		bIsUnifiedType ? TEXT("Yes") : TEXT("No"));
 
+	if (!bIsUnifiedType)
+	{
+		UE_LOG(LogSuspenseCoreData, Error,
+			TEXT("DataTable must use FSuspenseCoreUnifiedItemData row structure!"));
+		UE_LOG(LogSuspenseCoreData, Error,
+			TEXT("Equipment system requires full item data including EquipmentActorClass, sockets, etc."));
+		return false;
+	}
+
 	int32 LoadedCount = 0;
 	int32 FailedCount = 0;
+	int32 WeaponCount = 0;
+	int32 ArmorCount = 0;
+	int32 EquippableCount = 0;
 
 	for (const FName& RowName : RowNames)
 	{
-		FSuspenseCoreItemData CacheEntry;
-		bool bSuccess = false;
-
-		if (bIsUnifiedType)
-		{
-			// Try FSuspenseCoreUnifiedItemData first (JSON import format)
-			FSuspenseCoreUnifiedItemData* UnifiedData = DataTable->FindRow<FSuspenseCoreUnifiedItemData>(RowName, TEXT(""));
-			if (UnifiedData)
-			{
-				// Convert to FSuspenseCoreItemData
-				CacheEntry = ConvertUnifiedToItemData(*UnifiedData, RowName);
-				bSuccess = true;
-			}
-		}
-		else
-		{
-			// Try FSuspenseCoreItemData (native format)
-			FSuspenseCoreItemData* RowData = DataTable->FindRow<FSuspenseCoreItemData>(RowName, TEXT(""));
-			if (RowData)
-			{
-				CacheEntry = *RowData;
-				// Use RowName as ItemID if not set
-				if (CacheEntry.Identity.ItemID.IsNone())
-				{
-					CacheEntry.Identity.ItemID = RowName;
-				}
-				bSuccess = true;
-			}
-		}
-
-		if (bSuccess)
-		{
-			ItemCache.Add(RowName, CacheEntry);
-			LoadedCount++;
-
-			if (bVerbose)
-			{
-				UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached: %s (%s)"),
-					*RowName.ToString(), *CacheEntry.Identity.DisplayName.ToString());
-			}
-		}
-		else
+		FSuspenseCoreUnifiedItemData* UnifiedData = DataTable->FindRow<FSuspenseCoreUnifiedItemData>(RowName, TEXT(""));
+		if (!UnifiedData)
 		{
 			FailedCount++;
 			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Ensure ItemID is set
+		if (UnifiedData->ItemID.IsNone())
+		{
+			UnifiedData->ItemID = RowName;
+		}
+
+		// Store in PRIMARY cache (UnifiedItemCache) - SSOT
+		UnifiedItemCache.Add(RowName, *UnifiedData);
+
+		// Store in SECONDARY cache (ItemCache) for legacy access
+		FSuspenseCoreItemData SimplifiedData = ConvertUnifiedToItemData(*UnifiedData, RowName);
+		ItemCache.Add(RowName, SimplifiedData);
+
+		LoadedCount++;
+
+		// Track statistics
+		if (UnifiedData->bIsWeapon) WeaponCount++;
+		if (UnifiedData->bIsArmor) ArmorCount++;
+		if (UnifiedData->bIsEquippable) EquippableCount++;
+
+		if (bVerbose)
+		{
+			UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached: %s (%s) [Equippable=%s, ActorClass=%s]"),
+				*RowName.ToString(),
+				*UnifiedData->DisplayName.ToString(),
+				UnifiedData->bIsEquippable ? TEXT("Yes") : TEXT("No"),
+				UnifiedData->EquipmentActorClass.IsNull() ? TEXT("None") : TEXT("Set"));
 		}
 	}
 
-	UE_LOG(LogSuspenseCoreData, Log, TEXT("Item cache built: %d items loaded, %d failed"),
-		LoadedCount, FailedCount);
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  ITEM CACHE BUILT"));
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  Total: %d items (Failed: %d)"), LoadedCount, FailedCount);
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("  Weapons: %d, Armor: %d, Equippable: %d"), WeaponCount, ArmorCount, EquippableCount);
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("═══════════════════════════════════════════════════════════════"));
 
 	return LoadedCount > 0;
 }
@@ -560,15 +516,34 @@ bool USuspenseCoreDataManager::GetItemData(FName ItemID, FSuspenseCoreItemData& 
 	return false;
 }
 
+bool USuspenseCoreDataManager::GetUnifiedItemData(FName ItemID, FSuspenseCoreUnifiedItemData& OutItemData) const
+{
+	if (ItemID.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreUnifiedItemData* Found = UnifiedItemCache.Find(ItemID);
+
+	if (Found)
+	{
+		OutItemData = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Warning, TEXT("GetUnifiedItemData: Item '%s' not found in cache"), *ItemID.ToString());
+	return false;
+}
+
 bool USuspenseCoreDataManager::HasItem(FName ItemID) const
 {
-	return ItemCache.Contains(ItemID);
+	return UnifiedItemCache.Contains(ItemID);
 }
 
 TArray<FName> USuspenseCoreDataManager::GetAllItemIDs() const
 {
 	TArray<FName> ItemIDs;
-	ItemCache.GetKeys(ItemIDs);
+	UnifiedItemCache.GetKeys(ItemIDs);
 	return ItemIDs;
 }
 

@@ -1,7 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -21,13 +21,13 @@
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 #include "UObject/SoftObjectPath.h"
 
-// ===== helper (поместите в .cpp файла фабрики, над методами) =====
-static USuspenseCoreItemManager* GetItemManagerSafe(const UWorld* World)
+// ===== helper: Get DataManager (SSOT) safely =====
+static USuspenseCoreDataManager* GetDataManagerSafe(const UWorld* World)
 {
     if (!World) return nullptr;
     if (const UGameInstance* GI = World->GetGameInstance())
     {
-        return GI->GetSubsystem<USuspenseCoreItemManager>();
+        return GI->GetSubsystem<USuspenseCoreDataManager>();
     }
     return nullptr;
 }
@@ -161,21 +161,21 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     FEquipmentActorSpawnResult Result;
 
     // ============================================================================
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #1: Загружаем полные данные предмета из DataTable
+    // Загружаем полные данные предмета из DataManager (SSOT)
     // ============================================================================
-    USuspenseCoreItemManager* ItemManager = GetItemManagerSafe(GetWorld());
-    if (!ItemManager)
+    USuspenseCoreDataManager* DataManager = GetDataManagerSafe(GetWorld());
+    if (!DataManager)
     {
         Result.bSuccess = false;
-        Result.ErrorMessage = FText::FromString(TEXT("ItemManager subsystem not available"));
+        Result.ErrorMessage = FText::FromString(TEXT("DataManager (SSOT) not available"));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
-            TEXT("[SpawnEquipmentActor] ItemManager not found - cannot load item data"));
+            TEXT("[SpawnEquipmentActor] DataManager not found - cannot load item data"));
         return Result;
     }
 
-    // Load full item data from DataTable - single source of truth
+    // Load full item data from DataManager (SSOT)
     FSuspenseCoreUnifiedItemData ItemData;
-    if (!ItemManager->GetUnifiedItemData(Params.ItemInstance.ItemID, ItemData))
+    if (!DataManager->GetUnifiedItemData(Params.ItemInstance.ItemID, ItemData))
     {
         Result.bSuccess = false;
         Result.ErrorMessage = FText::FromString(
@@ -324,7 +324,7 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #4: Передаём обогащённый ItemInstance
     // ============================================================================
     // Configure actor with enriched item data (contains initialized RuntimeProperties)
-    // Actor will internally query ItemManager for full DataTable data via ItemID
+    // Actor will internally query DataManager for full DataTable data via ItemID
     if (!ConfigureEquipmentActor(SpawnedActor, EnrichedInstance))
     {
         UE_LOG(LogSuspenseCoreEquipmentOperation, Error,
@@ -566,11 +566,11 @@ bool USuspenseCoreEquipmentActorFactory::PreloadActorClass(const FName& ItemId)
         return true;
     }
 
-    // берем менеджер как сабсистему GI (без статического GetItemManager)
-    if (USuspenseCoreItemManager* ItemManager = GetItemManagerSafe(GetWorld()))
+    // DataManager (SSOT) из GameInstance
+    if (USuspenseCoreDataManager* DataManager = GetDataManagerSafe(GetWorld()))
     {
         FSuspenseCoreUnifiedItemData ItemData;
-        if (ItemManager->GetUnifiedItemData(ItemId, ItemData) && !ItemData.EquipmentActorClass.IsNull())
+        if (DataManager->GetUnifiedItemData(ItemId, ItemData) && !ItemData.EquipmentActorClass.IsNull())
         {
             const FSoftObjectPath Path = ItemData.EquipmentActorClass.ToSoftObjectPath();
 
@@ -831,20 +831,20 @@ TSubclassOf<AActor> USuspenseCoreEquipmentActorFactory::GetActorClassForItem(con
         }
     }
 
-    // Сабсистема ItemManager из GameInstance
-    USuspenseCoreItemManager* ItemManager = nullptr;
+    // DataManager (SSOT) из GameInstance
+    USuspenseCoreDataManager* DataManager = nullptr;
     if (GetWorld())
     {
         if (UGameInstance* GI = GetWorld()->GetGameInstance())
         {
-            ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
+            DataManager = GI->GetSubsystem<USuspenseCoreDataManager>();
         }
     }
 
-    if (ItemManager)
+    if (DataManager)
     {
         FSuspenseCoreUnifiedItemData ItemData;
-        if (ItemManager->GetUnifiedItemData(ItemId, ItemData))
+        if (DataManager->GetUnifiedItemData(ItemId, ItemData))
         {
             if (!ItemData.EquipmentActorClass.IsNull())
             {

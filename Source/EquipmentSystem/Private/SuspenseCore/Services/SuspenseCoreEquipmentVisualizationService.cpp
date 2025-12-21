@@ -10,7 +10,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 
 // Namespace aliases for cleaner code
@@ -1051,22 +1051,22 @@ TSubclassOf<AActor> USuspenseCoreEquipmentVisualizationService::ResolveActorClas
 			TEXT("  DataService not available in ServiceLocator"));
 	}
 
-	// Step 2: Try ItemManager subsystem via cached ServiceLocator->GetGameInstance()
+	// Step 2: Use DataManager (SSOT for all item data)
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-		TEXT("Step 2: Trying ItemManager subsystem via ServiceLocator"));
+		TEXT("Step 2: Using DataManager (SSOT) via ServiceLocator"));
 
 	if (UGameInstance* GI = CachedServiceLocator->GetGameInstance())
 	{
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 			TEXT("  GameInstance available via ServiceLocator"));
 
-		if (USuspenseCoreItemManager* ItemMgr = GI->GetSubsystem<USuspenseCoreItemManager>())
+		if (USuspenseCoreDataManager* DataMgr = GI->GetSubsystem<USuspenseCoreDataManager>())
 		{
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-				TEXT("  ItemManager subsystem found"));
+				TEXT("  DataManager subsystem found (SSOT)"));
 
 			FSuspenseCoreUnifiedItemData ItemData;
-			if (ItemMgr->GetUnifiedItemData(ItemID, ItemData))
+			if (DataMgr->GetUnifiedItemData(ItemID, ItemData))
 			{
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 					TEXT("  GetUnifiedItemData succeeded"));
@@ -1084,7 +1084,7 @@ TSubclassOf<AActor> USuspenseCoreEquipmentVisualizationService::ResolveActorClas
 						if (ActorClass)
 						{
 							UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-								TEXT("✓ ItemManager SUCCESS: Class already loaded - %s"),
+								TEXT("✓ DataManager SUCCESS: Class already loaded - %s"),
 								*ActorClass->GetName());
 							return ActorClass;
 						}
@@ -1098,7 +1098,7 @@ TSubclassOf<AActor> USuspenseCoreEquipmentVisualizationService::ResolveActorClas
 					if (ActorClass)
 					{
 						UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-							TEXT("✓ ItemManager SUCCESS: Class loaded synchronously - %s"),
+							TEXT("✓ DataManager SUCCESS: Class loaded synchronously - %s"),
 							*ActorClass->GetName());
 						return ActorClass;
 					}
@@ -1135,7 +1135,7 @@ TSubclassOf<AActor> USuspenseCoreEquipmentVisualizationService::ResolveActorClas
 		else
 		{
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-				TEXT("  ItemManager subsystem not found in GameInstance!"));
+				TEXT("  DataManager subsystem not found in GameInstance!"));
 		}
 	}
 	else
@@ -1155,10 +1155,10 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
     int32 SlotIndex) const
 {
     // ============================================================================
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Читаем сокет из DataTable через ItemManager
+    // Читаем сокет из DataTable через DataManager (SSOT)
     // ============================================================================
 
-    // Step 1: Get ItemManager to access DataTable
+    // Step 1: Get DataManager to access DataTable
     if (!CachedServiceLocator)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -1174,17 +1174,17 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
         return FName(TEXT("GripPoint"));
     }
 
-    USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
-    if (!ItemManager)
+    USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>();
+    if (!DataManager)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-            TEXT("[ResolveAttachSocket] ItemManager not available - using fallback"));
+            TEXT("[ResolveAttachSocket] DataManager not available - using fallback"));
         return FName(TEXT("GripPoint"));
     }
 
-    // Step 2: Load full item data from DataTable
+    // Step 2: Load full item data from DataTable (SSOT)
     FSuspenseCoreUnifiedItemData ItemData;
-    if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
+    if (!DataManager->GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
             TEXT("[ResolveAttachSocket] Failed to load ItemData for ItemID: %s"),
@@ -1194,8 +1194,6 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
 
     // Step 3: Determine if slot is active
     // SlotIndex 0 is typically the active weapon slot
-    // For now, assume slot 0 = active, others = inactive
-    // TODO: Get actual active slot from equipment component
     const bool bIsActiveSlot = (SlotIndex == 0);
 
     // Step 4: Get correct socket from DataTable based on state
@@ -1211,7 +1209,7 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
     }
 
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-        TEXT("[ResolveAttachSocket] ✓ Resolved socket from DataTable:"));
+        TEXT("[ResolveAttachSocket] ✓ Resolved socket from DataManager (SSOT):"));
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
         TEXT("  ItemID: %s"), *ItemID.ToString());
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
@@ -1228,10 +1226,10 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
     int32 SlotIndex) const
 {
     // ============================================================================
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Читаем оффсет из DataTable через ItemManager
+    // Читаем оффсет из DataTable через DataManager (SSOT)
     // ============================================================================
 
-    // Step 1: Get ItemManager to access DataTable
+    // Step 1: Get DataManager to access DataTable
     if (!CachedServiceLocator)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -1247,17 +1245,17 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
         return FTransform::Identity;
     }
 
-    USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
-    if (!ItemManager)
+    USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>();
+    if (!DataManager)
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-            TEXT("[ResolveAttachOffset] ItemManager not available - using Identity"));
+            TEXT("[ResolveAttachOffset] DataManager not available - using Identity"));
         return FTransform::Identity;
     }
 
-    // Step 2: Load full item data from DataTable
+    // Step 2: Load full item data from DataTable (SSOT)
     FSuspenseCoreUnifiedItemData ItemData;
-    if (!ItemManager->GetUnifiedItemData(ItemID, ItemData))
+    if (!DataManager->GetUnifiedItemData(ItemID, ItemData))
     {
         UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
             TEXT("[ResolveAttachOffset] Failed to load ItemData for ItemID: %s"),
@@ -1272,7 +1270,7 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
     const FTransform ResolvedOffset = ItemData.GetOffsetForState(bIsActiveSlot);
 
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-        TEXT("[ResolveAttachOffset] ✓ Resolved offset from DataTable:"));
+        TEXT("[ResolveAttachOffset] ✓ Resolved offset from DataManager (SSOT):"));
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
         TEXT("  ItemID: %s"), *ItemID.ToString());
     UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,

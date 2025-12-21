@@ -23,19 +23,18 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSuspenseCoreDropEvent, const FSu
  * USuspenseCoreDragDropOperation
  *
  * Custom drag-drop operation for inventory items.
- * Handles:
- * - Drag visual management
- * - Rotation during drag
- * - Drop validation
- * - Cross-container transfers
+ * This is the "brain" of the drag-drop system - it manages:
+ * - Drag visual lifecycle (creation, display, cleanup)
+ * - Hover target tracking (which container/slot is under cursor)
+ * - Rotation during drag (R key)
+ * - Drop validation and execution
  *
  * USAGE:
  * ```cpp
- * // Start drag operation
  * USuspenseCoreDragDropOperation* Op = USuspenseCoreDragDropOperation::CreateDrag(PC, DragData);
  * if (Op)
  * {
- *     // Drag started
+ *     // Drag started - visual is created and tracking cursor
  * }
  * ```
  *
@@ -158,7 +157,7 @@ public:
 
 protected:
 	//==================================================================
-	// Initialization
+	// Initialization & Cleanup
 	//==================================================================
 
 	/** Initialize the operation */
@@ -166,6 +165,9 @@ protected:
 
 	/** Create drag visual widget */
 	USuspenseCoreDragVisualWidget* CreateDragVisual(APlayerController* PC, TSubclassOf<USuspenseCoreDragVisualWidget> VisualWidgetClass);
+
+	/** Cleanup operation - clear highlights and remove visual from viewport */
+	void FinishOperation();
 
 private:
 	//==================================================================

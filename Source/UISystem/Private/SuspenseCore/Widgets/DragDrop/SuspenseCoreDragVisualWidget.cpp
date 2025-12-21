@@ -209,28 +209,17 @@ void USuspenseCoreDragVisualWidget::UpdateVisuals_Implementation()
 		// 3. Using async loading with placeholder
 		// ============================================================================
 
-		UTexture2D* IconTexture = nullptr;
-
-		// Try InventoryIcon first (preferred - should be pre-loaded)
-		if (CurrentDragData.Item.InventoryIcon.IsValid())
+		if (CurrentDragData.Item.IconPath.IsValid())
 		{
-			IconTexture = CurrentDragData.Item.InventoryIcon.Get();
-			if (!IconTexture)
+			if (UTexture2D* IconTexture = Cast<UTexture2D>(CurrentDragData.Item.IconPath.TryLoad()))
 			{
-				// Fallback: sync load (may cause hitch)
-				IconTexture = CurrentDragData.Item.InventoryIcon.LoadSynchronous();
+				ItemIcon->SetBrushFromTexture(IconTexture);
+				ItemIcon->SetVisibility(ESlateVisibility::Visible);
 			}
-		}
-		// Fallback to IconPath
-		else if (CurrentDragData.Item.IconPath.IsValid())
-		{
-			IconTexture = Cast<UTexture2D>(CurrentDragData.Item.IconPath.TryLoad());
-		}
-
-		if (IconTexture)
-		{
-			ItemIcon->SetBrushFromTexture(IconTexture);
-			ItemIcon->SetVisibility(ESlateVisibility::Visible);
+			else
+			{
+				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+			}
 		}
 		else
 		{

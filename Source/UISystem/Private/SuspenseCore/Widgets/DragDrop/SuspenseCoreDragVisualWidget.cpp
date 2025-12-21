@@ -147,11 +147,14 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPositi
 	// Get DPI scale for proper coordinate conversion
 	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
 
-	// Convert to slate units (considering DPI)
+	// Convert cursor position to slate units (considering DPI)
 	FVector2D PositionInSlateUnits = ViewportLocalPos / ViewportScale;
 
+	// CRITICAL: DragOffset is in pixels, must also convert to slate units
+	FVector2D DragOffsetInSlateUnits = DragOffset / ViewportScale;
+
 	// Apply center offset and set position
-	SetPositionInViewport(PositionInSlateUnits + DragOffset, false);
+	SetPositionInViewport(PositionInSlateUnits + DragOffsetInSlateUnits, false);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

@@ -88,14 +88,14 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 	}
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-		TEXT("EventBus: %p"), EventBus);
+		TEXT("EventBus: %p"), EventBus.Get());
 
 	if (!EventBus)
 	{
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("InitializeService FAILED: EventBus is null! Provider=%p"),
-			Provider);
+			TEXT("InitializeService FAILED: EventBus is null! Provider=%s"),
+			Provider ? TEXT("valid") : TEXT("null"));
 		return false;
 	}
 

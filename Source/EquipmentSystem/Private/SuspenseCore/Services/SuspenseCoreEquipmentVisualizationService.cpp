@@ -12,7 +12,6 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
-#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 
 // Namespace aliases for cleaner code
 using namespace SuspenseCoreEquipmentTags;

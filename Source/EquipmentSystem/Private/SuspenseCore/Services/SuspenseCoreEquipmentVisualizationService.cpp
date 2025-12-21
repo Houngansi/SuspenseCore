@@ -180,6 +180,7 @@ bool USuspenseCoreEquipmentVisualizationService::ShutdownService(bool /*bForce*/
 	TeardownEventHandlers();
 
 	// Release all visual instances
+	// NOTE: Using Internal version since we already hold VisualLock (fixes deadlock)
 	for (auto& Pair : Characters)
 	{
 		AActor* Character = Pair.Key.Get();
@@ -187,7 +188,7 @@ bool USuspenseCoreEquipmentVisualizationService::ShutdownService(bool /*bForce*/
 
 		for (auto& SlotPair : Pair.Value.SlotActors)
 		{
-			ReleaseVisualActor(Character, SlotPair.Key, /*bInstant=*/true);
+			ReleaseVisualActorInternal(Character, SlotPair.Key, /*bInstant=*/true);
 		}
 	}
 	Characters.Empty();
@@ -600,7 +601,8 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("    3. AttachmentSystem service failed"));
 
-		ReleaseVisualActor(Character, SlotIndex, /*bInstant=*/true);
+		// NOTE: Using Internal version since we already hold VisualLock (fixes deadlock)
+		ReleaseVisualActorInternal(Character, SlotIndex, /*bInstant=*/true);
 		return;
 	}
 
@@ -691,7 +693,8 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 	}
 
 	// Return actor to pool/destroy via Factory
-	ReleaseVisualActor(Character, SlotIndex, bInstant);
+	// NOTE: Using Internal version since we already hold VisualLock (fixes deadlock)
+	ReleaseVisualActorInternal(Character, SlotIndex, bInstant);
 	S->SlotActors.Remove(SlotIndex);
 }
 
@@ -869,7 +872,17 @@ void USuspenseCoreEquipmentVisualizationService::ReleaseVisualActor(AActor* Char
 {
 	if (!Character) return;
 
+	// Acquire lock and delegate to internal (lock-free) implementation
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
+	ReleaseVisualActorInternal(Character, SlotIndex, bInstant);
+}
+
+void USuspenseCoreEquipmentVisualizationService::ReleaseVisualActorInternal(AActor* Character, int32 SlotIndex, bool bInstant)
+{
+	// NOTE: This method MUST be called with VisualLock already held!
+	// Called from: HideVisualForSlot, ShutdownService (they hold the lock)
+
+	if (!Character) return;
 
 	FSuspenseCoreVisCharState* S = Characters.Find(Character);
 	if (!S) return;

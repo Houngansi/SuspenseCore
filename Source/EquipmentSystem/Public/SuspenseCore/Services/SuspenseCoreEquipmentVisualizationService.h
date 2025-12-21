@@ -126,6 +126,9 @@ private:
 	AActor* AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex);
 	void   ReleaseVisualActor(AActor* Character, int32 SlotIndex, bool bInstant);
 
+	// Internal helper - MUST be called with VisualLock already held (fixes deadlock)
+	void   ReleaseVisualActorInternal(AActor* Character, int32 SlotIndex, bool bInstant);
+
 	bool AttachActorToCharacter(AActor* Character, AActor* Visual, const FName Socket, const FTransform& Offset);
 	void ApplyQualitySettings(AActor* Visual) const;
 

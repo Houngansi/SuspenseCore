@@ -115,6 +115,21 @@ void ASuspenseCoreWeaponActor::OnEquipped() {
 ✅ Созданы сервисы с поддержкой DI
 ✅ Создан SystemCoordinator для управления lifecycle
 
+### Этап 1.5: DataManager SSOT Consolidation (ВЫПОЛНЕН 2025-12-21)
+
+✅ DataManager теперь единственный источник данных (SSOT)
+✅ Добавлен `GetUnifiedItemData()` для полных данных предметов
+✅ VisualizationService использует DataManager вместо ItemManager
+✅ ActorFactory использует DataManager вместо ItemManager
+✅ ItemManager помечен как DEPRECATED
+✅ Визуализация оружия работает (актор спавнится)
+
+**Изменённые файлы:**
+- `BridgeSystem/Public/SuspenseCore/Data/SuspenseCoreDataManager.h` - добавлен UnifiedItemCache
+- `BridgeSystem/Private/SuspenseCore/Data/SuspenseCoreDataManager.cpp` - GetUnifiedItemData()
+- `EquipmentSystem/Private/.../SuspenseCoreEquipmentVisualizationService.cpp` - использует DataManager
+- `EquipmentSystem/Private/.../SuspenseCoreEquipmentActorFactory.cpp` - использует DataManager
+
 ### Этап 2: EventBus Integration
 
 **Задачи:**

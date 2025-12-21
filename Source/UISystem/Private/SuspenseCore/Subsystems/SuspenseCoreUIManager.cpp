@@ -606,23 +606,56 @@ void USuspenseCoreUIManager::ShowItemPickupNotification(const FSuspenseCoreItemU
 
 void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item, const FVector2D& ScreenPosition)
 {
-	// TODO: Create/show tooltip widget
-	// For now just log
-	UE_LOG(LogTemp, Verbose, TEXT("ShowItemTooltip: %s at (%.0f, %.0f)"),
-		*Item.DisplayName.ToString(), ScreenPosition.X, ScreenPosition.Y);
+	// Get player controller
+	APlayerController* PC = OwningPC.Get();
+	if (!PC)
+	{
+		// Try to get from game instance
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UWorld* World = GI->GetWorld())
+			{
+				PC = World->GetFirstPlayerController();
+			}
+		}
+	}
+
+	if (!PC)
+	{
+		return;
+	}
+
+	// Create tooltip widget if needed
+	if (!TooltipWidget)
+	{
+		TooltipWidget = CreateTooltipWidget(PC);
+		if (!TooltipWidget)
+		{
+			return;
+		}
+	}
+
+	// Ensure tooltip is in viewport with very high Z-order (above everything including drag visuals)
+	if (!TooltipWidget->IsInViewport())
+	{
+		TooltipWidget->AddToViewport(10000);
+	}
+
+	// Show tooltip for item
+	TooltipWidget->ShowForItem(Item, ScreenPosition);
 }
 
 void USuspenseCoreUIManager::HideTooltip()
 {
-	if (TooltipWidget && TooltipWidget->IsInViewport())
+	if (TooltipWidget)
 	{
-		TooltipWidget->RemoveFromParent();
+		TooltipWidget->Hide();
 	}
 }
 
 bool USuspenseCoreUIManager::IsTooltipVisible() const
 {
-	return TooltipWidget && TooltipWidget->IsInViewport();
+	return TooltipWidget && TooltipWidget->IsVisible();
 }
 
 //==================================================================

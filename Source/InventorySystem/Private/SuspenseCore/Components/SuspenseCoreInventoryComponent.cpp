@@ -2262,12 +2262,6 @@ FSuspenseCoreItemUIData USuspenseCoreInventoryComponent::ConvertToUIData(const F
 			UIData.bIsUsable = ItemData.Behavior.bIsConsumable;
 			UIData.bIsDroppable = ItemData.Behavior.bCanDrop;
 			UIData.bIsTradeable = ItemData.Behavior.bCanTrade;
-
-			// Debug: log the ItemType for equipment validation
-			UE_LOG(LogSuspenseCoreInventory, Log, TEXT("ConvertToUIData: Item %s has ItemType=%s, bIsEquippable=%d"),
-				*Instance.ItemID.ToString(),
-				*ItemData.Classification.ItemType.ToString(),
-				ItemData.Behavior.bIsEquippable ? 1 : 0);
 		}
 		else
 		{

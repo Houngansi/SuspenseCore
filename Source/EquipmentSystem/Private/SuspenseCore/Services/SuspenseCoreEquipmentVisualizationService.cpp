@@ -77,25 +77,33 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 		return false;
 	}
 
-	// Initialize EventBus via ServiceProvider (SuspenseCore architecture)
-	USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
+	// Initialize EventBus via GameInstance (ServiceLocator has access to GI)
+	// NOTE: ServiceProvider::Get(this) fails because this UObject has no World context
+	// Instead, get EventBus through ServiceLocator -> GameInstance -> ServiceProvider
+	UGameInstance* GI = CachedServiceLocator->GetGameInstance();
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-		TEXT("ServiceProvider: %p"), Provider);
+		TEXT("GameInstance: %p"), GI);
 
-	if (Provider)
+	if (GI)
 	{
-		EventBus = Provider->GetEventBus();
+		if (USuspenseCoreServiceProvider* Provider = GI->GetSubsystem<USuspenseCoreServiceProvider>())
+		{
+			EventBus = Provider->GetEventBus();
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("ServiceProvider: %p, EventBus: %p"), Provider, EventBus.Get());
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("ServiceProvider subsystem not found in GameInstance"));
+		}
 	}
-
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-		TEXT("EventBus: %p"), EventBus.Get());
 
 	if (!EventBus)
 	{
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("InitializeService FAILED: EventBus is null! Provider=%s"),
-			Provider ? TEXT("valid") : TEXT("null"));
+			TEXT("InitializeService FAILED: EventBus is null!"));
 		return false;
 	}
 

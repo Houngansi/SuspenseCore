@@ -12,6 +12,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 
 // Namespace aliases for cleaner code
 using namespace SuspenseCoreEquipmentTags;
@@ -955,16 +956,57 @@ bool USuspenseCoreEquipmentVisualizationService::AttachActorToCharacter(AActor* 
 		}
 	}
 
-	// Fallback: attach to first SkeletalMeshComponent
-	if (USkeletalMeshComponent* Skel = Character->FindComponentByClass<USkeletalMeshComponent>())
+	// ============================================================================
+	// CRITICAL FIX: Use GetEquipmentAttachMesh() for MetaHuman support
+	// MetaHuman has hierarchy: CharacterMesh0 > Body > SkeletalMesh
+	// The sockets (weapon_r, spine_03, etc.) are on the Body's SkeletalMesh, NOT CharacterMesh0
+	// ============================================================================
+
+	USkeletalMeshComponent* EquipmentMesh = nullptr;
+
+	// Try to get equipment mesh via SuspenseCoreCharacter interface (MetaHuman aware)
+	if (ASuspenseCoreCharacter* SuspenseChar = Cast<ASuspenseCoreCharacter>(Character))
+	{
+		EquipmentMesh = SuspenseChar->GetEquipmentAttachMesh();
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+			TEXT("AttachActorToCharacter: Using GetEquipmentAttachMesh() -> %s"),
+			EquipmentMesh ? *EquipmentMesh->GetName() : TEXT("NULL"));
+	}
+
+	// Fallback for non-SuspenseCore characters: use first SkeletalMeshComponent
+	if (!EquipmentMesh)
+	{
+		EquipmentMesh = Character->FindComponentByClass<USkeletalMeshComponent>();
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("AttachActorToCharacter: Character is not ASuspenseCoreCharacter, using FindComponentByClass fallback"));
+	}
+
+	if (EquipmentMesh)
 	{
 		USceneComponent* Root = Visual->GetRootComponent();
 		if (!Root) return false;
 
-		Root->AttachToComponent(Skel, FAttachmentTransformRules::SnapToTargetIncludingScale, Socket);
+		// Verify socket exists before attaching
+		if (!EquipmentMesh->DoesSocketExist(Socket))
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("AttachActorToCharacter: Socket '%s' not found on mesh '%s'. Attaching without socket."),
+				*Socket.ToString(), *EquipmentMesh->GetName());
+		}
+
+		Root->AttachToComponent(EquipmentMesh, FAttachmentTransformRules::SnapToTargetIncludingScale, Socket);
 		Root->SetRelativeTransform(Offset);
+
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+			TEXT("AttachActorToCharacter: Successfully attached %s to %s at socket %s"),
+			*Visual->GetName(), *EquipmentMesh->GetName(), *Socket.ToString());
+
 		return true;
 	}
+
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
+		TEXT("AttachActorToCharacter: No SkeletalMeshComponent found on character %s"),
+		*Character->GetName());
 
 	return false;
 }

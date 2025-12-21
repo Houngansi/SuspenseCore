@@ -35,7 +35,10 @@ public class EquipmentSystem : ModuleRules
                 "Json",
                 "JsonUtilities",
                 "OnlineSubsystem",
-                "OnlineSubsystemUtils"
+                "OnlineSubsystemUtils",
+
+                // Character support for MetaHuman equipment attachment
+                "PlayerCore"
             }
         );
     }

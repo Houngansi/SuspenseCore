@@ -206,6 +206,20 @@ public:
 	UActorComponent* GetInteractionComponent() const { return InteractionComponent; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - EQUIPMENT ATTACHMENT (MetaHuman Support)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Get the skeletal mesh component used for equipment attachment.
+	 * For MetaHuman characters, this returns the "Body" component which has the sockets.
+	 * For legacy characters, this returns GetMesh().
+	 *
+	 * Override in Blueprint to customize equipment attachment target.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SuspenseCore|Equipment")
+	USkeletalMeshComponent* GetEquipmentAttachMesh() const;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - CINEMATIC CAMERA CONTROL
 	// ═══════════════════════════════════════════════════════════════════════════════
 

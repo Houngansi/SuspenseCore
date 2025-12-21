@@ -640,6 +640,58 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 	}
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EQUIPMENT ATTACHMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+USkeletalMeshComponent* ASuspenseCoreCharacter::GetEquipmentAttachMesh_Implementation() const
+{
+	// For MetaHuman: search for Body SkeletalMesh component
+	// This is the component that has the equipment sockets (weapon_r, spine_03, etc.)
+
+	TArray<UActorComponent*> Components;
+	GetComponents(USkeletalMeshComponent::StaticClass(), Components);
+
+	// First: Look for SkeletalMesh under "Body" parent (MetaHuman structure)
+	for (UActorComponent* Component : Components)
+	{
+		if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(Component))
+		{
+			USceneComponent* Parent = SkelMesh->GetAttachParent();
+
+			// Check if parent is "Body" (MetaHuman hierarchy)
+			if (Parent && Parent->GetName().Contains(TEXT("Body")))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] GetEquipmentAttachMesh: Found MetaHuman Body mesh: %s"),
+					*SkelMesh->GetName());
+				return SkelMesh;
+			}
+		}
+	}
+
+	// Second: Look for any SkeletalMesh with equipment sockets
+	for (UActorComponent* Component : Components)
+	{
+		if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(Component))
+		{
+			// Check for common equipment socket names
+			if (SkelMesh->DoesSocketExist(FName("weapon_r")) ||
+				SkelMesh->DoesSocketExist(FName("hand_r")) ||
+				SkelMesh->DoesSocketExist(FName("RightHand")) ||
+				SkelMesh->DoesSocketExist(FName("spine_03")))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] GetEquipmentAttachMesh: Found mesh with equipment sockets: %s"),
+					*SkelMesh->GetName());
+				return SkelMesh;
+			}
+		}
+	}
+
+	// Fallback: Return standard character mesh (legacy support)
+	UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] GetEquipmentAttachMesh: Using default GetMesh()"));
+	return GetMesh();
+}
+
 USceneComponent* ASuspenseCoreCharacter::FindMetaHumanFaceComponent() const
 {
 	// MetaHuman Face component is named "Face" and is a SkeletalMeshComponent

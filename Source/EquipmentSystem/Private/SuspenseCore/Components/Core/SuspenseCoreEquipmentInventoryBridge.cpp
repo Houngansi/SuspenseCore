@@ -1396,13 +1396,15 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
         return;
     }
 
-    // Use native compile-time tag - same tag that VisualizationService subscribes to
-    const FGameplayTag UnequippedTag = Event::TAG_Equipment_Event_Unequipped;
+    // Use tag that EquipmentUIProvider subscribes to: "Equipment.Event.Unequipped"
+    const FGameplayTag UnequippedTag = FGameplayTag::RequestGameplayTag(
+        TEXT("Equipment.Event.Unequipped"),
+        /*ErrorIfNotFound*/ false);
 
     if (!UnequippedTag.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("TAG_Equipment_Event_Unequipped native tag not registered!"));
+            TEXT("[EquipmentBridge] Equipment.Event.Unequipped tag not registered!"));
         return;
     }
 
@@ -1997,19 +1999,22 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         return;
     }
 
-    // Use native compile-time tag - same tag that VisualizationService subscribes to
-    const FGameplayTag EquippedTag = Event::TAG_Equipment_Event_Equipped;
+    // Use tag that EquipmentUIProvider subscribes to: "Equipment.Event.Equipped"
+    // This ensures UI receives the event and updates slot display
+    const FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(
+        TEXT("Equipment.Event.Equipped"),
+        /*ErrorIfNotFound*/ false);
 
     if (!EquippedTag.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("[EquipmentBridge] TAG_Equipment_Event_Equipped native tag not registered!"));
+            TEXT("[EquipmentBridge] Equipment.Event.Equipped tag not registered!"));
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("  This indicates a problem with native tag initialization"));
+            TEXT("  Make sure GameplayTags are properly configured in project settings"));
         return;
     }
 
-    UE_LOG(LogEquipmentBridge, Warning, TEXT("Using native tag: %s"), *EquippedTag.ToString());
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("Using tag: %s"), *EquippedTag.ToString());
 
     // Use EventBus via EventDelegateManager
     if (EventDelegateManager.IsValid())

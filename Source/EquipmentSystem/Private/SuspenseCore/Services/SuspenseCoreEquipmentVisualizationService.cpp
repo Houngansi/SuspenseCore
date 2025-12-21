@@ -103,13 +103,13 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 	CachedUpdateIntervalSec = MaxUpdateRateHz > 0.f ? (1.0 / MaxUpdateRateHz) : 0.0;
 	LastProcessTimeSec      = 0.0;
 
-	// Initialize event tags using native compile-time tags
-	// NOTE: EquipmentInventoryBridge::BroadcastEquippedEvent publishes Equipment.Event.Equipped
-	// We need to listen for the same tag that Bridge broadcasts
-	Tag_OnEquipped          = Event::TAG_Equipment_Event_Equipped;
-	Tag_OnUnequipped        = Event::TAG_Equipment_Event_Unequipped;
-	Tag_OnSlotSwitched      = Event::TAG_Equipment_Event_SlotSwitched;
-	Tag_VisRefreshAll       = Event::TAG_Equipment_Event_Visual_RefreshAll;
+	// Initialize event tags - MUST match what EquipmentInventoryBridge broadcasts
+	// Bridge uses: "Equipment.Event.Equipped" and "Equipment.Event.Unequipped"
+	// EquipmentUIProvider also subscribes to these same tags
+	Tag_OnEquipped     = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"), false);
+	Tag_OnUnequipped   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"), false);
+	Tag_OnSlotSwitched = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SlotSwitched"), false);
+	Tag_VisRefreshAll  = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Visual.RefreshAll"), false);
 
 	// Initialize dependency service tags using native tags
 	Tag_ActorFactory     = Service::TAG_Service_ActorFactory;

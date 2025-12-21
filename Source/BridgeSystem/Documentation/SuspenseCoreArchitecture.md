@@ -39,11 +39,11 @@ TSoftObjectPtr<UDataTable> WeaponAnimationsTable;   // Weapon animations
 
 ---
 
-### 2. USuspenseCoreDataManager (GameInstanceSubsystem)
+### 2. USuspenseCoreDataManager (GameInstanceSubsystem) — SSOT
 
 **Location:** `BridgeSystem/Public/SuspenseCore/Data/SuspenseCoreDataManager.h`
 
-Runtime data management with EventBus integration.
+**SINGLE SOURCE OF TRUTH** for all item data. Runtime data management with EventBus integration.
 
 ```cpp
 // C++ Access
@@ -52,13 +52,31 @@ USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(WorldConte
 // Or via helpers
 USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(WorldContextObject);
 
-// Usage
-FSuspenseCoreUnifiedItemData ItemData;
+// Simple item data (legacy format - subset of fields)
+FSuspenseCoreItemData ItemData;
 if (DataManager->GetItemData(ItemID, ItemData))
 {
-    // Use item data
+    // Use basic item data
+}
+
+// FULL item data (PRIMARY METHOD for EquipmentSystem)
+FSuspenseCoreUnifiedItemData UnifiedData;
+if (DataManager->GetUnifiedItemData(ItemID, UnifiedData))
+{
+    // Access ALL fields including:
+    // - EquipmentActorClass
+    // - AttachmentSocket, UnequippedSocket
+    // - AttachmentOffset
+    // - WeaponArchetype, AmmoType
+    // - All GAS-related data
 }
 ```
+
+**Data Caches:**
+| Cache | Type | Purpose |
+|-------|------|---------|
+| `UnifiedItemCache` | `TMap<FName, FSuspenseCoreUnifiedItemData>` | **PRIMARY** - Full DataTable format |
+| `ItemCache` | `TMap<FName, FSuspenseCoreItemData>` | Secondary - Legacy/simplified access |
 
 **Lifecycle:**
 1. GameInstance creates subsystem
@@ -306,10 +324,22 @@ Examples:
 ## Best Practices
 
 ### DO:
-1. **Use DataManager for all item data access**
+1. **Use DataManager for all item data access (SSOT)**
    ```cpp
    USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(this);
-   DataManager->GetItemData(ItemID, OutData);
+
+   // For Equipment System - use GetUnifiedItemData() (full data)
+   FSuspenseCoreUnifiedItemData UnifiedData;
+   if (DataManager->GetUnifiedItemData(ItemID, UnifiedData))
+   {
+       // UnifiedData.EquipmentActorClass - actor blueprint class
+       // UnifiedData.AttachmentSocket - socket for equipped state
+       // UnifiedData.UnequippedSocket - socket for holstered state
+   }
+
+   // For basic item queries - use GetItemData() (simplified)
+   FSuspenseCoreItemData ItemData;
+   DataManager->GetItemData(ItemID, ItemData);
    ```
 
 2. **Configure all DataTables in Project Settings**
@@ -332,14 +362,19 @@ Examples:
 5. **Register all GameplayTags in DefaultGameplayTags.ini**
 
 ### DON'T:
-1. **Don't use legacy ItemManager directly**
+1. **Don't use legacy ItemManager directly** ⚠️ DEPRECATED
    ```cpp
-   // DEPRECATED - Don't do this:
-   USuspenseCoreItemManager* ItemManager = USuspenseCoreHelpers::GetItemManager(this);
+   // ❌ DEPRECATED - Don't do this:
+   USuspenseCoreItemManager* ItemManager = GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
+   ItemManager->GetUnifiedItemData(ItemID, OutData);
 
-   // DO THIS INSTEAD:
-   USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(this);
+   // ✅ DO THIS INSTEAD - Use DataManager (SSOT):
+   USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+   DataManager->GetUnifiedItemData(ItemID, OutData);
    ```
+
+   **NOTE:** ItemManager is deprecated. DataManager is now the SINGLE SOURCE OF TRUTH.
+   EquipmentSystem services (VisualizationService, ActorFactory) use DataManager exclusively.
 
 2. **Don't configure data in Blueprint GameInstance**
    - All configuration goes in USuspenseCoreSettings
@@ -357,26 +392,49 @@ Examples:
 
 ## Migration from Legacy Code
 
-### Before (Legacy):
+### Before (Legacy ItemManager):
 ```cpp
-// Getting item data
+// Getting item data via ItemManager (DEPRECATED)
 USuspenseCoreItemManager* ItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
-ItemManager->GetUnifiedItemData(ItemID, OutData);
+FSuspenseCoreUnifiedItemData ItemData;
+ItemManager->GetUnifiedItemData(ItemID, ItemData);
+// Problem: ItemManager cache was separate from DataManager
 
 // Configuration in Blueprint GameInstance
 UPROPERTY(EditDefaultsOnly)
 UDataTable* ItemDataTable;
 ```
 
-### After (SuspenseCore):
+### After (SuspenseCore DataManager SSOT):
 ```cpp
-// Getting item data
-USuspenseCoreDataManager* DataManager = USuspenseCoreHelpers::GetDataManager(this);
-DataManager->GetItemData(ItemID, OutData);
+// Getting item data via DataManager (SSOT)
+USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+
+// For EquipmentSystem (full data with EquipmentActorClass, sockets, etc.)
+FSuspenseCoreUnifiedItemData UnifiedData;
+if (DataManager->GetUnifiedItemData(ItemID, UnifiedData))
+{
+    TSubclassOf<AActor> ActorClass = UnifiedData.EquipmentActorClass;
+    FName Socket = UnifiedData.AttachmentSocket;
+    FVector Offset = UnifiedData.AttachmentOffset;
+}
+
+// For simple item queries (basic fields only)
+FSuspenseCoreItemData ItemData;
+DataManager->GetItemData(ItemID, ItemData);
 
 // Configuration in Project Settings → Game → SuspenseCore
 // No Blueprint configuration needed!
 ```
+
+### Architecture Change Summary (2025-12-21):
+| Aspect | Before | After |
+|--------|--------|-------|
+| Data Source | ItemManager + DataManager (dual) | DataManager ONLY (SSOT) |
+| Full Item Data | `ItemManager->GetUnifiedItemData()` | `DataManager->GetUnifiedItemData()` |
+| VisualizationService | Used ItemManager | Uses DataManager |
+| ActorFactory | Used ItemManager | Uses DataManager |
+| ItemManager Role | Item data provider | ❌ DEPRECATED |
 
 ---
 
@@ -416,6 +474,7 @@ To add a new data type (e.g., Quests):
 | 1.1 | 2025-12-02 | Added USuspenseCoreSettings, USuspenseCoreDataManager |
 | 2.0 | 2025-12-05 | **MMO Scalability Update**: ServiceProvider DI, ReplicationGraph |
 | 2.1 | 2025-12-05 | **Security Update (Phase 6)**: SecurityValidator, Server RPCs, Rate Limiting |
+| 2.2 | 2025-12-21 | **SSOT Consolidation**: DataManager is now single source of truth for item data. Added `GetUnifiedItemData()` method. ItemManager deprecated. VisualizationService and ActorFactory refactored to use DataManager exclusively. |
 
 ---
 

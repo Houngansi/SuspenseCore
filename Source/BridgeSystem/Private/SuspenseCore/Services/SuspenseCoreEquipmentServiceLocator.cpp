@@ -325,24 +325,40 @@ int32 USuspenseCoreEquipmentServiceLocator::InitializeAllServices()
 {
 	FScopeLock Lock(&RegistryLock);
 
+	UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("=== InitializeAllServices BEGIN ==="));
+	UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("  Total services in Registry: %d"), Registry.Num());
+
 	TArray<FGameplayTag> Pending;
 	for (const auto& Pair : Registry)
 	{
+		UE_LOG(LogSuspenseCoreServiceLocator, Log, TEXT("  Service: %s, State: %d (0=Uninit, 1=Initing, 2=Ready, 3=Failed)"),
+			*Pair.Key.ToString(), static_cast<int32>(Pair.Value.State));
+
 		if (Pair.Value.State == ESuspenseCoreServiceLifecycleState::Uninitialized)
 			Pending.Add(Pair.Key);
 	}
+
+	UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("  Pending initialization: %d services"), Pending.Num());
 
 	Pending = TopoSort(Pending);
 
 	int32 Count = 0;
 	for (const FGameplayTag& Tag : Pending)
 	{
+		UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("  -> Initializing: %s"), *Tag.ToString());
 		FSuspenseCoreServiceRegistration* Reg = Registry.Find(Tag);
 		if (Reg && InitializeService(*Reg))
 		{
+			UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("  -> SUCCESS: %s"), *Tag.ToString());
 			++Count;
 		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreServiceLocator, Error, TEXT("  -> FAILED: %s"), *Tag.ToString());
+		}
 	}
+
+	UE_LOG(LogSuspenseCoreServiceLocator, Warning, TEXT("=== InitializeAllServices END: %d initialized ==="), Count);
 	return Count;
 }
 
@@ -537,9 +553,13 @@ void USuspenseCoreEquipmentServiceLocator::BroadcastServiceEvent(
 
 bool USuspenseCoreEquipmentServiceLocator::InitializeService(FSuspenseCoreServiceRegistration& Reg)
 {
+	UE_LOG(LogSuspenseCoreServiceLocator, Log, TEXT("InitializeService: %s (State=%d)"),
+		*Reg.ServiceTag.ToString(), static_cast<int32>(Reg.State));
+
 	// Called only under RegistryLock
 	if (ReadySet.Contains(Reg.ServiceTag))
 	{
+		UE_LOG(LogSuspenseCoreServiceLocator, Log, TEXT("  Already in ReadySet, skipping"));
 		return true; // Already ready
 	}
 

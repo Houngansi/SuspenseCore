@@ -7,9 +7,6 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "GameFramework/PlayerController.h"
-#include "Blueprint/UserWidget.h"
-#include "Slate/SlateBrushAsset.h"
-#include "Components/CanvasPanelSlot.h"
 
 //==================================================================
 // Constructor
@@ -31,7 +28,6 @@ USuspenseCoreDragDropOperation* USuspenseCoreDragDropOperation::CreateDrag(
 {
 	if (!PC || !InDragData.bIsValid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CreateDrag: Invalid parameters"));
 		return nullptr;
 	}
 
@@ -64,6 +60,16 @@ void USuspenseCoreDragDropOperation::SetRotation(bool bRotated)
 		{
 			DragVisual->SetRotation(bRotated);
 		}
+
+		// If hovering over container, refresh highlight for new item shape
+		if (CurrentHoverContainer && CurrentHoverSlot != INDEX_NONE)
+		{
+			ISuspenseCoreUIContainer* Container = CurrentHoverContainer.GetInterface();
+			if (Container)
+			{
+				Container->HighlightDropTarget(DragData, CurrentHoverSlot);
+			}
+		}
 	}
 }
 
@@ -78,8 +84,15 @@ FIntPoint USuspenseCoreDragDropOperation::GetEffectiveSize() const
 
 void USuspenseCoreDragDropOperation::SetHoverTarget(TScriptInterface<ISuspenseCoreUIContainer> Container, int32 SlotIndex)
 {
+	// Optimization: Skip if target hasn't changed
+	// Prevents redundant highlight updates when mouse moves within same slot
+	if (CurrentHoverContainer == Container && CurrentHoverSlot == SlotIndex)
+	{
+		return;
+	}
+
 	// Clear previous hover highlighting
-	if (CurrentHoverContainer && CurrentHoverSlot != INDEX_NONE)
+	if (CurrentHoverContainer)
 	{
 		ISuspenseCoreUIContainer* PrevContainer = CurrentHoverContainer.GetInterface();
 		if (PrevContainer)
@@ -111,6 +124,34 @@ void USuspenseCoreDragDropOperation::UpdateDropValidity(bool bCanDrop)
 }
 
 //==================================================================
+// Operation Lifecycle
+//==================================================================
+
+void USuspenseCoreDragDropOperation::FinishOperation()
+{
+	// Clear all highlights
+	if (CurrentHoverContainer)
+	{
+		ISuspenseCoreUIContainer* Container = CurrentHoverContainer.GetInterface();
+		if (Container)
+		{
+			Container->ClearHighlights();
+		}
+	}
+
+	// CRITICAL: Remove widget from viewport to prevent memory leak
+	// Just hiding (SetVisibility) leaves widget in memory indefinitely
+	if (DragVisual)
+	{
+		DragVisual->RemoveFromParent();
+		DragVisual = nullptr;
+	}
+
+	CurrentHoverContainer = nullptr;
+	CurrentHoverSlot = INDEX_NONE;
+}
+
+//==================================================================
 // UDragDropOperation Overrides
 //==================================================================
 
@@ -118,42 +159,32 @@ void USuspenseCoreDragDropOperation::Dragged_Implementation(const FPointerEvent&
 {
 	Super::Dragged_Implementation(PointerEvent);
 
-	// Update visual position
-	if (DragVisual)
-	{
-		DragVisual->UpdatePosition(PointerEvent.GetScreenSpacePosition());
-	}
+	// NOTE: DragVisual updates its position in NativeTick via UpdatePositionFromCursor()
+	// No manual position update needed here - this prevents double-update jitter
 }
 
 void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointerEvent& PointerEvent)
 {
-	Super::DragCancelled_Implementation(PointerEvent);
-
-	// Clear hover state
-	SetHoverTarget(nullptr, INDEX_NONE);
-
-	// Hide visual
-	if (DragVisual)
+	// Notify UIManager first
+	if (APlayerController* PC = OwningPC.Get())
 	{
-		DragVisual->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	// Notify UIManager
-	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(OwningPC.Get()))
-	{
-		UIManager->CancelDragOperation();
+		if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(PC))
+		{
+			UIManager->CancelDragOperation();
+		}
 	}
 
 	// Broadcast event
 	OnSuspenseCoreDragCancelled.Broadcast(DragData);
 
-	UE_LOG(LogTemp, Verbose, TEXT("Drag cancelled for item: %s"), *DragData.Item.DisplayName.ToString());
+	// Cleanup
+	FinishOperation();
+
+	Super::DragCancelled_Implementation(PointerEvent);
 }
 
 void USuspenseCoreDragDropOperation::Drop_Implementation(const FPointerEvent& PointerEvent)
 {
-	Super::Drop_Implementation(PointerEvent);
-
 	bool bSuccess = false;
 
 	// Try to complete drop on current target
@@ -166,22 +197,13 @@ void USuspenseCoreDragDropOperation::Drop_Implementation(const FPointerEvent& Po
 		}
 	}
 
-	// Clear hover state
-	SetHoverTarget(nullptr, INDEX_NONE);
-
-	// Hide visual
-	if (DragVisual)
-	{
-		DragVisual->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
 	// Broadcast event
 	OnDropCompleted.Broadcast(DragData, bSuccess);
 
-	UE_LOG(LogTemp, Verbose, TEXT("Drop %s for item: %s at slot %d"),
-		bSuccess ? TEXT("succeeded") : TEXT("failed"),
-		*DragData.Item.DisplayName.ToString(),
-		CurrentHoverSlot);
+	// Cleanup
+	FinishOperation();
+
+	Super::Drop_Implementation(PointerEvent);
 }
 
 //==================================================================
@@ -214,29 +236,18 @@ void USuspenseCoreDragDropOperation::Initialize(
 
 	// Broadcast event
 	OnDragStarted.Broadcast(DragData);
-
-	UE_LOG(LogTemp, Log, TEXT("Drag started for item: %s from slot %d"),
-		*DragData.Item.DisplayName.ToString(), DragData.SourceSlot);
 }
 
 USuspenseCoreDragVisualWidget* USuspenseCoreDragDropOperation::CreateDragVisual(
 	APlayerController* PC,
 	TSubclassOf<USuspenseCoreDragVisualWidget> VisualWidgetClass)
 {
-	if (!PC)
+	if (!PC || !VisualWidgetClass)
 	{
 		return nullptr;
 	}
 
-	TSubclassOf<USuspenseCoreDragVisualWidget> WidgetClass = VisualWidgetClass;
-	if (!WidgetClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("CreateDragVisual: VisualWidgetClass is null!"));
-		return nullptr;
-	}
-
-	// SIMPLE APPROACH: Create widget, add to viewport, update position in tick
-	USuspenseCoreDragVisualWidget* Visual = CreateWidget<USuspenseCoreDragVisualWidget>(PC, WidgetClass);
+	USuspenseCoreDragVisualWidget* Visual = CreateWidget<USuspenseCoreDragVisualWidget>(PC, VisualWidgetClass);
 	if (Visual)
 	{
 		// Add to viewport with high Z-order

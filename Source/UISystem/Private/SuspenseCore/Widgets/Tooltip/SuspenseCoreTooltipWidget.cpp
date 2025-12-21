@@ -249,7 +249,7 @@ void USuspenseCoreTooltipWidget::UpdateFadeAnimation(float DeltaTime)
 void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseCoreItemUIData& ItemData)
 {
 	// Get rarity color
-	FLinearColor RarityColor = GetRarityColor(ItemData.Rarity);
+	FLinearColor RarityColor = GetRarityColor(ItemData.RarityTag);
 
 	// Set item name with rarity color
 	if (ItemNameText)
@@ -273,13 +273,14 @@ void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseC
 	// Set weight
 	if (WeightText)
 	{
-		WeightText->SetText(FormatWeight(ItemData.Weight));
+		WeightText->SetText(FormatWeight(ItemData.TotalWeight));
 	}
 
-	// Set value
+	// Note: ValueText not populated - FSuspenseCoreItemUIData has no BaseValue field
+	// If you need item value, extend FSuspenseCoreItemUIData in SuspenseCoreUITypes.h
 	if (ValueText)
 	{
-		ValueText->SetText(FormatValue(ItemData.BaseValue));
+		ValueText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	// Set grid size
@@ -351,10 +352,14 @@ FLinearColor USuspenseCoreTooltipWidget::GetRarityColor(const FGameplayTag& Rari
 
 FText USuspenseCoreTooltipWidget::FormatWeight(float Weight) const
 {
-	// Format weight with 1 decimal place and "kg" suffix
+	// Format weight with 2 decimal places and "kg" suffix
+	FNumberFormattingOptions Options = FNumberFormattingOptions::DefaultNoGrouping();
+	Options.MaximumFractionalDigits = 2;
+	Options.MinimumFractionalDigits = 1;
+
 	return FText::Format(
 		NSLOCTEXT("SuspenseCore", "WeightFormat", "{0} kg"),
-		FText::AsNumber(Weight, &FNumberFormattingOptions::DefaultNoGrouping().SetMaximumFractionalDigits(2))
+		FText::AsNumber(Weight, &Options)
 	);
 }
 

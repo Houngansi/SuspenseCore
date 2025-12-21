@@ -119,11 +119,11 @@ public:
 
 	/** Called when fade animation starts */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Tooltip", meta = (DisplayName = "On Fade Started"))
-	void K2_OnFadeStarted(bool bFadingIn);
+	void K2_OnFadeStarted(bool bInFadingIn);
 
 	/** Called when fade animation completes */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|UI|Tooltip", meta = (DisplayName = "On Fade Completed"))
-	void K2_OnFadeCompleted(bool bWasFadingIn);
+	void K2_OnFadeCompleted(bool bInWasFadingIn);
 
 protected:
 	//==================================================================

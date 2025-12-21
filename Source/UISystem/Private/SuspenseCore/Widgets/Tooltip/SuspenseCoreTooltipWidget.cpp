@@ -276,11 +276,10 @@ void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseC
 		WeightText->SetText(FormatWeight(ItemData.TotalWeight));
 	}
 
-	// Note: ValueText not populated - FSuspenseCoreItemUIData has no BaseValue field
-	// If you need item value, extend FSuspenseCoreItemUIData in SuspenseCoreUITypes.h
+	// Set value
 	if (ValueText)
 	{
-		ValueText->SetVisibility(ESlateVisibility::Collapsed);
+		ValueText->SetText(FormatValue(ItemData.TotalValue));
 	}
 
 	// Set grid size

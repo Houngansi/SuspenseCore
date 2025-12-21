@@ -300,6 +300,10 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 				ItemData.bIsStackable = ItemTableData.InventoryProps.IsStackable();
 				ItemData.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 				ItemData.GridSize = ItemTableData.InventoryProps.GridSize;
+				ItemData.UnitWeight = ItemTableData.InventoryProps.Weight;
+				ItemData.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance.Quantity;
+				ItemData.BaseValue = ItemTableData.InventoryProps.BaseValue;
+				ItemData.TotalValue = ItemTableData.InventoryProps.BaseValue * ItemInstance.Quantity;
 			}
 		}
 
@@ -348,6 +352,10 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 			OutItem.bIsStackable = ItemTableData.InventoryProps.IsStackable();
 			OutItem.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 			OutItem.GridSize = ItemTableData.InventoryProps.GridSize;
+			OutItem.UnitWeight = ItemTableData.InventoryProps.Weight;
+			OutItem.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance->Quantity;
+			OutItem.BaseValue = ItemTableData.InventoryProps.BaseValue;
+			OutItem.TotalValue = ItemTableData.InventoryProps.BaseValue * ItemInstance->Quantity;
 		}
 	}
 

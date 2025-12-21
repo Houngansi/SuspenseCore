@@ -2258,6 +2258,8 @@ FSuspenseCoreItemUIData USuspenseCoreInventoryComponent::ConvertToUIData(const F
 			UIData.bIsStackable = ItemData.InventoryProps.IsStackable();
 			UIData.UnitWeight = ItemData.InventoryProps.Weight;
 			UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
+			UIData.BaseValue = ItemData.InventoryProps.BaseValue;
+			UIData.TotalValue = ItemData.InventoryProps.BaseValue * Instance.Quantity;
 			UIData.bIsEquippable = ItemData.Behavior.bIsEquippable;
 			UIData.bIsUsable = ItemData.Behavior.bIsConsumable;
 			UIData.bIsDroppable = ItemData.Behavior.bCanDrop;

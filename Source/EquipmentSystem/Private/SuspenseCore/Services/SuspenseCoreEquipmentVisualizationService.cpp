@@ -200,13 +200,11 @@ bool USuspenseCoreEquipmentVisualizationService::ShutdownService(bool /*bForce*/
 
 FGameplayTagContainer USuspenseCoreEquipmentVisualizationService::GetRequiredDependencies() const
 {
+	// Return empty container - all dependencies are OPTIONAL
+	// ActorFactory, AttachmentSystem, VisualController are handled via TryGetService
+	// DataService dependency is declared in InitParams.RequiredServices by SystemCoordinator
+	// This follows AbilityService pattern which also returns empty dependencies
 	FGameplayTagContainer Deps;
-	// Optional dependencies - presentation layer services
-	Deps.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"), false));
-	Deps.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Service.AttachmentSystem"), false));
-	Deps.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Service.VisualController"), false));
-	Deps.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Data"), false));
-
 	return Deps;
 }
 

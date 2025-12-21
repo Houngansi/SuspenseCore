@@ -32,15 +32,17 @@ static int32 LexToInt(const FString& S, int32 Default)
 
 bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspenseCoreServiceInitParams& InitParams)
 {
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> VisualizationService::InitializeService CALLED"));
+
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	if (IsServiceReady())
 	{
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("Init skipped: already Ready"));
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("Init skipped: already Ready"));
 		return true;
 	}
 
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT(">>> VisualizationService: InitializeService STARTED"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> VisualizationService: InitializeService STARTED"));
 
 	// ============================================================================
 	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #1: Кэшируем ServiceLocator из InitParams
@@ -54,44 +56,50 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
 			TEXT("InitializeService FAILED: ServiceLocator not provided in InitParams!"));
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("  This indicates a problem with service registration or initialization order."));
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("  Make sure this service is registered through UEquipmentServiceLocator."));
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-		TEXT("ServiceLocator cached successfully from InitParams: %p"),
-		CachedServiceLocator.Get());
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("ServiceLocator cached: %p"), CachedServiceLocator.Get());
 
 	// Initialize service tag - using native compile-time tags
 	VisualizationServiceTag = Service::TAG_Service_Equipment_Visualization;
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("Native tag: %s (Valid: %s)"),
+		*VisualizationServiceTag.ToString(),
+		VisualizationServiceTag.IsValid() ? TEXT("YES") : TEXT("NO"));
+
 	if (!VisualizationServiceTag.IsValid())
 	{
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
-			TEXT("InitializeService FAILED: Service.Equipment.Visualization native tag not registered"));
+			TEXT("InitializeService FAILED: Native tag not valid!"));
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-		TEXT("Service tag initialized (native): %s"),
-		*VisualizationServiceTag.ToString());
-
 	// Initialize EventBus via ServiceProvider (SuspenseCore architecture)
-	if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+	USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("ServiceProvider: %p"), Provider);
+
+	if (Provider)
 	{
 		EventBus = Provider->GetEventBus();
 	}
+
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("EventBus: %p"), EventBus);
+
 	if (!EventBus)
 	{
 		LifecycleState = ESuspenseCoreServiceLifecycleState::Failed;
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("InitializeService FAILED: EventBus missing"));
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
+			TEXT("InitializeService FAILED: EventBus is null! Provider=%p"),
+			Provider);
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("EventBus acquired successfully via ServiceProvider"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("EventBus acquired successfully"));
 
 	LifecycleState = ESuspenseCoreServiceLifecycleState::Initializing;
 

@@ -6,9 +6,11 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/Border.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
+#include "Internationalization/Text.h"
 
 //==================================================================
 // Constructor
@@ -18,10 +20,22 @@ USuspenseCoreTooltipWidget::USuspenseCoreTooltipWidget(const FObjectInitializer&
 	: Super(ObjectInitializer)
 	, CursorOffset(FVector2D(15.0f, 15.0f))
 	, ScreenEdgePadding(10.0f)
-	, ShowDelay(0.3f)
+	, FadeInDuration(0.1f)
+	, FadeOutDuration(0.08f)
+	// Rarity colors (Tarkov-style)
+	, CommonColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f))        // Gray
+	, UncommonColor(FLinearColor(0.0f, 0.8f, 0.2f, 1.0f))      // Green
+	, RareColor(FLinearColor(0.2f, 0.5f, 1.0f, 1.0f))          // Blue
+	, EpicColor(FLinearColor(0.6f, 0.2f, 0.9f, 1.0f))          // Purple
+	, LegendaryColor(FLinearColor(1.0f, 0.6f, 0.0f, 1.0f))     // Orange
+	// State
 	, bHasComparison(false)
 	, TargetPosition(FVector2D::ZeroVector)
-	, ShowDelayTimer(0.0f)
+	, bIsShowing(false)
+	, bIsFading(false)
+	, bFadingIn(false)
+	, CurrentOpacity(0.0f)
+	, TargetOpacity(0.0f)
 {
 	// Start hidden
 	SetVisibility(ESlateVisibility::Collapsed);
@@ -35,29 +49,33 @@ void USuspenseCoreTooltipWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// CRITICAL: Validate required BindWidget components
+	checkf(RootBorder, TEXT("USuspenseCoreTooltipWidget: RootBorder is REQUIRED! Add UBorder named 'RootBorder' to your Blueprint."));
+	checkf(ItemNameText, TEXT("USuspenseCoreTooltipWidget: ItemNameText is REQUIRED! Add UTextBlock named 'ItemNameText' to your Blueprint."));
+
 	// Set alignment for proper positioning (top-left pivot)
 	SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
 
 	// Ensure tooltip doesn't block input
 	SetIsFocusable(false);
+
+	// Start fully transparent
+	CurrentOpacity = 0.0f;
+	SetRenderOpacity(0.0f);
 }
 
 void USuspenseCoreTooltipWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Handle show delay
-	if (ShowDelayTimer > 0.0f)
+	// Update fade animation
+	if (bIsFading)
 	{
-		ShowDelayTimer -= InDeltaTime;
-		if (ShowDelayTimer <= 0.0f)
-		{
-			SetVisibility(ESlateVisibility::HitTestInvisible);
-		}
+		UpdateFadeAnimation(InDeltaTime);
 	}
 
 	// Follow mouse position if visible
-	if (IsVisible())
+	if (bIsShowing && CurrentOpacity > 0.0f)
 	{
 		if (APlayerController* PC = GetOwningPlayer())
 		{
@@ -88,13 +106,18 @@ void USuspenseCoreTooltipWidget::ShowForItem(const FSuspenseCoreItemUIData& Item
 	// Force layout update so GetDesiredSize() returns correct values
 	ForceLayoutPrepass();
 
-	// Position the tooltip first
+	// Position the tooltip
 	RepositionTooltip(ScreenPosition);
 
-	// Show tooltip immediately - delay is handled by caller if needed
-	// Using HitTestInvisible so tooltip doesn't intercept mouse events
-	ShowDelayTimer = 0.0f;
+	// Make visible and start fade-in
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+	bIsShowing = true;
+	bIsFading = true;
+	bFadingIn = true;
+	TargetOpacity = 1.0f;
+
+	// Notify Blueprint
+	K2_OnFadeStarted(true);
 }
 
 void USuspenseCoreTooltipWidget::UpdatePosition(const FVector2D& ScreenPosition)
@@ -105,8 +128,29 @@ void USuspenseCoreTooltipWidget::UpdatePosition(const FVector2D& ScreenPosition)
 
 void USuspenseCoreTooltipWidget::Hide()
 {
+	if (!bIsShowing && CurrentOpacity <= 0.0f)
+	{
+		return; // Already hidden
+	}
+
+	// Start fade-out animation
+	bIsShowing = false;
+	bIsFading = true;
+	bFadingIn = false;
+	TargetOpacity = 0.0f;
+
+	// Notify Blueprint
+	K2_OnFadeStarted(false);
+}
+
+void USuspenseCoreTooltipWidget::HideImmediate()
+{
+	bIsShowing = false;
+	bIsFading = false;
+	CurrentOpacity = 0.0f;
+	TargetOpacity = 0.0f;
+	SetRenderOpacity(0.0f);
 	SetVisibility(ESlateVisibility::Collapsed);
-	ShowDelayTimer = 0.0f;
 	CurrentItemData = FSuspenseCoreItemUIData();
 }
 
@@ -119,7 +163,7 @@ void USuspenseCoreTooltipWidget::SetComparisonItem(const FSuspenseCoreItemUIData
 	K2_OnComparisonChanged(bHasComparison, ComparisonItemData);
 
 	// Refresh content if visible
-	if (IsVisible())
+	if (bIsShowing)
 	{
 		PopulateContent(CurrentItemData);
 	}
@@ -134,10 +178,68 @@ void USuspenseCoreTooltipWidget::ClearComparison()
 	K2_OnComparisonChanged(false, ComparisonItemData);
 
 	// Refresh content if visible
-	if (IsVisible())
+	if (bIsShowing)
 	{
 		PopulateContent(CurrentItemData);
 	}
+}
+
+//==================================================================
+// Animation
+//==================================================================
+
+void USuspenseCoreTooltipWidget::UpdateFadeAnimation(float DeltaTime)
+{
+	if (!bIsFading)
+	{
+		return;
+	}
+
+	// Calculate fade speed based on direction
+	float FadeDuration = bFadingIn ? FadeInDuration : FadeOutDuration;
+
+	// Avoid division by zero
+	if (FadeDuration <= KINDA_SMALL_NUMBER)
+	{
+		CurrentOpacity = TargetOpacity;
+		bIsFading = false;
+	}
+	else
+	{
+		// Calculate step
+		float FadeSpeed = 1.0f / FadeDuration;
+		float Step = FadeSpeed * DeltaTime;
+
+		// Move toward target
+		if (bFadingIn)
+		{
+			CurrentOpacity = FMath::Min(CurrentOpacity + Step, TargetOpacity);
+		}
+		else
+		{
+			CurrentOpacity = FMath::Max(CurrentOpacity - Step, TargetOpacity);
+		}
+
+		// Check if animation complete
+		if (FMath::IsNearlyEqual(CurrentOpacity, TargetOpacity, 0.01f))
+		{
+			CurrentOpacity = TargetOpacity;
+			bIsFading = false;
+
+			// Notify Blueprint
+			K2_OnFadeCompleted(bFadingIn);
+
+			// If faded out completely, collapse
+			if (CurrentOpacity <= 0.0f)
+			{
+				SetVisibility(ESlateVisibility::Collapsed);
+				CurrentItemData = FSuspenseCoreItemUIData();
+			}
+		}
+	}
+
+	// Apply opacity
+	SetRenderOpacity(CurrentOpacity);
 }
 
 //==================================================================
@@ -146,28 +248,20 @@ void USuspenseCoreTooltipWidget::ClearComparison()
 
 void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseCoreItemUIData& ItemData)
 {
-	// Set icon
-	if (ItemIcon && ItemData.IconPath.IsValid())
-	{
-		if (UTexture2D* IconTexture = Cast<UTexture2D>(ItemData.IconPath.TryLoad()))
-		{
-			ItemIcon->SetBrushFromTexture(IconTexture);
-			ItemIcon->SetVisibility(ESlateVisibility::Visible);
-		}
-		else
-		{
-			ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
-		}
-	}
-	else if (ItemIcon)
-	{
-		ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	// Get rarity color
+	FLinearColor RarityColor = GetRarityColor(ItemData.Rarity);
 
-	// Set name
+	// Set item name with rarity color
 	if (ItemNameText)
 	{
 		ItemNameText->SetText(ItemData.DisplayName);
+		ItemNameText->SetColorAndOpacity(FSlateColor(RarityColor));
+	}
+
+	// Set item type
+	if (ItemTypeText)
+	{
+		ItemTypeText->SetText(GetItemTypeDisplayName(ItemData.ItemType));
 	}
 
 	// Set description
@@ -176,8 +270,163 @@ void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseC
 		DescriptionText->SetText(ItemData.Description);
 	}
 
-	// Stats would be populated here
-	// In a full implementation, you'd iterate ItemData.Stats and create stat widgets
+	// Set weight
+	if (WeightText)
+	{
+		WeightText->SetText(FormatWeight(ItemData.Weight));
+	}
+
+	// Set value
+	if (ValueText)
+	{
+		ValueText->SetText(FormatValue(ItemData.BaseValue));
+	}
+
+	// Set grid size
+	if (SizeText)
+	{
+		FText SizeFormatted = FText::Format(
+			NSLOCTEXT("SuspenseCore", "GridSizeFormat", "{0}x{1}"),
+			FText::AsNumber(ItemData.GridSize.X),
+			FText::AsNumber(ItemData.GridSize.Y)
+		);
+		SizeText->SetText(SizeFormatted);
+	}
+
+	// Set icon
+	if (ItemIcon)
+	{
+		if (ItemData.IconPath.IsValid())
+		{
+			if (UTexture2D* IconTexture = Cast<UTexture2D>(ItemData.IconPath.TryLoad()))
+			{
+				ItemIcon->SetBrushFromTexture(IconTexture);
+				ItemIcon->SetVisibility(ESlateVisibility::Visible);
+			}
+			else
+			{
+				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
+		else
+		{
+			ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	// Set rarity border color
+	if (RarityBorder)
+	{
+		RarityBorder->SetBrushColor(RarityColor);
+	}
+}
+
+//==================================================================
+// Helper Functions
+//==================================================================
+
+FLinearColor USuspenseCoreTooltipWidget::GetRarityColor(const FGameplayTag& RarityTag) const
+{
+	FString TagString = RarityTag.ToString();
+
+	if (TagString.Contains(TEXT("Legendary")))
+	{
+		return LegendaryColor;
+	}
+	else if (TagString.Contains(TEXT("Epic")))
+	{
+		return EpicColor;
+	}
+	else if (TagString.Contains(TEXT("Rare")))
+	{
+		return RareColor;
+	}
+	else if (TagString.Contains(TEXT("Uncommon")))
+	{
+		return UncommonColor;
+	}
+
+	return CommonColor;
+}
+
+FText USuspenseCoreTooltipWidget::FormatWeight(float Weight) const
+{
+	// Format weight with 1 decimal place and "kg" suffix
+	return FText::Format(
+		NSLOCTEXT("SuspenseCore", "WeightFormat", "{0} kg"),
+		FText::AsNumber(Weight, &FNumberFormattingOptions::DefaultNoGrouping().SetMaximumFractionalDigits(2))
+	);
+}
+
+FText USuspenseCoreTooltipWidget::FormatValue(int32 Value) const
+{
+	// Format value with thousands separator
+	FNumberFormattingOptions Options;
+	Options.UseGrouping = true;
+
+	return FText::AsNumber(Value, &Options);
+}
+
+FText USuspenseCoreTooltipWidget::GetItemTypeDisplayName(const FGameplayTag& ItemTypeTag) const
+{
+	FString TagString = ItemTypeTag.ToString();
+
+	// Extract the last part of the tag (e.g., "Item.Weapon.AR" -> "AR")
+	FString TypeName;
+	TagString.Split(TEXT("."), nullptr, &TypeName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+
+	// Map common abbreviations to readable names
+	if (TypeName == TEXT("AR"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_AR", "Assault Rifle");
+	}
+	else if (TypeName == TEXT("SMG"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_SMG", "Submachine Gun");
+	}
+	else if (TypeName == TEXT("Pistol"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Pistol", "Pistol");
+	}
+	else if (TypeName == TEXT("Helmet"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Helmet", "Helmet");
+	}
+	else if (TypeName == TEXT("BodyArmor"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_BodyArmor", "Body Armor");
+	}
+	else if (TypeName == TEXT("Backpack"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Backpack", "Backpack");
+	}
+	else if (TypeName == TEXT("TacticalRig"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_TacticalRig", "Tactical Rig");
+	}
+	else if (TypeName == TEXT("Medical"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Medical", "Medical");
+	}
+	else if (TypeName == TEXT("Throwable"))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Throwable", "Throwable");
+	}
+	else if (TypeName == TEXT("Knife") || TagString.Contains(TEXT("Melee")))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Melee", "Melee Weapon");
+	}
+	else if (TagString.Contains(TEXT("Ammo")))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Ammo", "Ammunition");
+	}
+	else if (TagString.Contains(TEXT("Gear")))
+	{
+		return NSLOCTEXT("SuspenseCore", "ItemType_Gear", "Gear");
+	}
+
+	// Fallback: return the type name as-is
+	return FText::FromString(TypeName);
 }
 
 FVector2D USuspenseCoreTooltipWidget::CalculateBestPosition_Implementation(const FVector2D& DesiredPosition)

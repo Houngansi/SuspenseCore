@@ -120,34 +120,25 @@ void USuspenseCoreDragVisualWidget::CacheViewportInfo()
 		CachedViewportOrigin = ViewportGeometry.GetAbsolutePosition();
 		bViewportCached = true;
 	}
-
-	// Set widget to origin position - we'll use RenderTranslation for actual positioning
-	// This is the most reliable and performant approach
-	SetPositionInViewport(FVector2D::ZeroVector);
 }
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// AAA-QUALITY POSITIONING: Use RenderTranslation for pixel-perfect, GPU-accelerated positioning
-	// This bypasses the UMG layout system entirely for maximum performance and accuracy
+	// FAST PATH: Direct cursor position with cached viewport offset
+	// This is called every frame during drag - must be as fast as possible
 
 	// Get cursor position in screen space (absolute coordinates)
 	const FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
 
-	// Convert to viewport-local coordinates
+	// Convert to viewport-local coordinates using cached origin
 	FVector2D ViewportLocalPos = CursorScreenPos;
 	if (bViewportCached)
 	{
 		ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
 	}
 
-	// Calculate final position: cursor position + center offset
-	// DragOffset is negative half-size, so this centers the widget on cursor
-	const FVector2D FinalPosition = ViewportLocalPos + DragOffset;
-
-	// Use RenderTranslation for instant, GPU-accelerated positioning
-	// This is faster and more accurate than SetPositionInViewport
-	SetRenderTranslation(FinalPosition);
+	// Apply center offset and set position
+	SetPositionInViewport(ViewportLocalPos + DragOffset);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

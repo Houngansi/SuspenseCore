@@ -17,11 +17,15 @@
 
 // === Includes for EventBus and character resolution ===
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+
+// Namespace alias for native tags
+using namespace SuspenseCoreEquipmentTags;
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBridge, Log, All);
 
@@ -1392,14 +1396,13 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
         return;
     }
 
-    const FGameplayTag UnequippedTag = FGameplayTag::RequestGameplayTag(
-        TEXT("Equipment.Event.Unequipped"),
-        /*ErrorIfNotFound*/ false);
+    // Use native compile-time tag - same tag that VisualizationService subscribes to
+    const FGameplayTag UnequippedTag = Event::TAG_Equipment_Event_Unequipped;
 
     if (!UnequippedTag.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("Equipment.Event.Unequipped tag not registered!"));
+            TEXT("TAG_Equipment_Event_Unequipped native tag not registered!"));
         return;
     }
 
@@ -1412,7 +1415,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastUnequippedEvent(
         EventData.SetString(FName(TEXT("ItemID")), Item.ItemID.ToString());
         EventData.SetString(FName(TEXT("InstanceID")), Item.UniqueInstanceID.ToString());
 
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Unequipped"));
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting %s"), *UnequippedTag.ToString());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s, Slot: %d"),
             *TargetActor->GetName(), SlotIndex);
 
@@ -1994,19 +1997,19 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         return;
     }
 
-    // Verify tag registration
-    const FGameplayTag EquippedTag = FGameplayTag::RequestGameplayTag(
-        TEXT("Equipment.Event.Equipped"),
-        /*ErrorIfNotFound*/ false);
+    // Use native compile-time tag - same tag that VisualizationService subscribes to
+    const FGameplayTag EquippedTag = Event::TAG_Equipment_Event_Equipped;
 
     if (!EquippedTag.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("[EquipmentBridge] Equipment.Event.Equipped tag not registered!"));
+            TEXT("[EquipmentBridge] TAG_Equipment_Event_Equipped native tag not registered!"));
         UE_LOG(LogEquipmentBridge, Error,
-            TEXT("  Make sure GameplayTags are properly configured in project settings"));
+            TEXT("  This indicates a problem with native tag initialization"));
         return;
     }
+
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("Using native tag: %s"), *EquippedTag.ToString());
 
     // Use EventBus via EventDelegateManager
     if (EventDelegateManager.IsValid())
@@ -2018,7 +2021,7 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         EventData.SetString(FName(TEXT("InstanceID")), Item.UniqueInstanceID.ToString());
         EventData.SetInt(FName(TEXT("Quantity")), Item.Quantity);
 
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting Equipment.Event.Equipped"));
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting %s"), *EquippedTag.ToString());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s"), *TargetActor->GetName());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());
 

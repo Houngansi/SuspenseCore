@@ -104,9 +104,10 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 	LastProcessTimeSec      = 0.0;
 
 	// Initialize event tags using native compile-time tags
-	// NOTE: BroadcastItemEquipped publishes TAG_Equipment_Event_ItemEquipped, not TAG_Equipment_Event_Equipped
-	Tag_OnEquipped          = Event::TAG_Equipment_Event_ItemEquipped;
-	Tag_OnUnequipped        = Event::TAG_Equipment_Event_ItemUnequipped;
+	// NOTE: EquipmentInventoryBridge::BroadcastEquippedEvent publishes Equipment.Event.Equipped
+	// We need to listen for the same tag that Bridge broadcasts
+	Tag_OnEquipped          = Event::TAG_Equipment_Event_Equipped;
+	Tag_OnUnequipped        = Event::TAG_Equipment_Event_Unequipped;
 	Tag_OnSlotSwitched      = Event::TAG_Equipment_Event_SlotSwitched;
 	Tag_VisRefreshAll       = Event::TAG_Equipment_Event_Visual_RefreshAll;
 
@@ -280,20 +281,36 @@ void USuspenseCoreEquipmentVisualizationService::SetupEventHandlers()
 		return;
 	}
 
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("=== SetupEventHandlers: Subscribing to events ==="));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Tag_OnEquipped: %s (Valid: %s)"),
+		*Tag_OnEquipped.ToString(), Tag_OnEquipped.IsValid() ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Tag_OnUnequipped: %s (Valid: %s)"),
+		*Tag_OnUnequipped.ToString(), Tag_OnUnequipped.IsValid() ? TEXT("YES") : TEXT("NO"));
+
 	if (Tag_OnEquipped.IsValid())
 	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  -> Subscribing to OnEquipped: %s"), *Tag_OnEquipped.ToString());
 		Subscriptions.Add(EventBus->SubscribeNative(
 			Tag_OnEquipped, this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnEquipped),
 			ESuspenseCoreEventPriority::Normal));
 	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("  -> SKIPPED OnEquipped subscription - tag invalid!"));
+	}
 
 	if (Tag_OnUnequipped.IsValid())
 	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  -> Subscribing to OnUnequipped: %s"), *Tag_OnUnequipped.ToString());
 		Subscriptions.Add(EventBus->SubscribeNative(
 			Tag_OnUnequipped, this,
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnUnequipped),
 			ESuspenseCoreEventPriority::Normal));
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("  -> SKIPPED OnUnequipped subscription - tag invalid!"));
 	}
 
 	if (Tag_OnSlotSwitched.IsValid())
@@ -311,6 +328,9 @@ void USuspenseCoreEquipmentVisualizationService::SetupEventHandlers()
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnRefreshAll),
 			ESuspenseCoreEventPriority::Normal));
 	}
+
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("=== SetupEventHandlers: Complete ==="));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Total subscriptions: %d"), Subscriptions.Num());
 }
 
 void USuspenseCoreEquipmentVisualizationService::TeardownEventHandlers()

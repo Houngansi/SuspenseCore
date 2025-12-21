@@ -20,14 +20,15 @@ class UBorder;
  * USuspenseCoreDragVisualWidget
  *
  * Visual representation of item being dragged.
- * Follows cursor during drag operation.
+ * Follows cursor during drag operation with DPI-aware positioning.
  *
  * FEATURES:
  * - Semi-transparent item icon
  * - Shows item size (for multi-cell items)
- * - Visual rotation indicator
+ * - Visual rotation indicator (R key support)
  * - Stack quantity display
  * - Valid/invalid drop color indicator
+ * - DPI-safe cursor tracking (works on 4K, ultrawide, windowed mode)
  *
  * @see USuspenseCoreUIManager
  * @see FSuspenseCoreDragData
@@ -59,11 +60,11 @@ public:
 	void InitializeDrag(const FSuspenseCoreDragData& DragData);
 
 	/**
-	 * Update visual position
-	 * @param ScreenPosition Cursor screen position
+	 * Update visual position based on current cursor location
+	 * Uses DPI-aware positioning via GetMousePositionScaledByDPI
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|DragDrop")
-	void UpdatePosition(const FVector2D& ScreenPosition);
+	void UpdatePositionFromCursor();
 
 	/**
 	 * Set drop validity state (changes visual indicator)
@@ -192,19 +193,6 @@ private:
 
 	/** Current item size accounting for rotation */
 	FIntPoint CurrentSize;
-
-	//==================================================================
-	// Performance Optimization - Cached viewport data
-	//==================================================================
-
-	/** Cached viewport origin for fast coordinate conversion */
-	FVector2D CachedViewportOrigin;
-
-	/** Whether viewport info has been cached */
-	bool bViewportCached = false;
-
-	/** Cache viewport info for fast position updates during drag */
-	void CacheViewportInfo();
 
 	/** Recalculate center offset when size changes (e.g., rotation) */
 	void RecalculateCenterOffset();

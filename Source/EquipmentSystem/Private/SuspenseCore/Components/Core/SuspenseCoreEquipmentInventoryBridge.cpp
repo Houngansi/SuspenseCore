@@ -341,7 +341,7 @@ void USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest(FGameplayTag E
     FGuid ItemInstanceID;
     FGuid::Parse(ItemInstanceIDStr, ItemInstanceID);
 
-    if (!SlotItem.IsValid() || SlotItem.UniqueInstanceID != ItemInstanceID)
+    if (!SlotItem.IsValid() || SlotItem.InstanceID != ItemInstanceID)
     {
         UE_LOG(LogEquipmentBridge, Verbose, TEXT("TransferItem: Item in slot doesn't match InstanceID - not our transfer"));
         return;
@@ -352,7 +352,7 @@ void USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest(FGameplayTag E
     // Create unequip request - convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
     FSuspenseCoreInventoryTransferRequest Request;
     Request.Item.ItemID = SlotItem.ItemID;
-    Request.Item.UniqueInstanceID = SlotItem.UniqueInstanceID;
+    Request.Item.UniqueInstanceID = SlotItem.InstanceID;
     Request.Item.Quantity = SlotItem.Quantity;
     Request.SourceSlot = SourceSlot;
     Request.TargetSlot = TargetSlot;
@@ -364,7 +364,7 @@ void USuspenseCoreEquipmentInventoryBridge::OnTransferItemRequest(FGameplayTag E
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("TransferItem: Unequip result - Success: %s, Message: %s"),
         Result.bSuccess ? TEXT("YES") : TEXT("NO"),
-        *Result.ErrorMessage.ToString());
+        *Result.ErrorMessage);
 }
 
 void USuspenseCoreEquipmentInventoryBridge::OnUnequipItemRequest(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -402,7 +402,7 @@ void USuspenseCoreEquipmentInventoryBridge::OnUnequipItemRequest(FGameplayTag Ev
     // Create unequip request - convert FSuspenseCoreInventoryItemInstance to FSuspenseCoreItemInstance
     FSuspenseCoreInventoryTransferRequest Request;
     Request.Item.ItemID = SlotItem.ItemID;
-    Request.Item.UniqueInstanceID = SlotItem.UniqueInstanceID;
+    Request.Item.UniqueInstanceID = SlotItem.InstanceID;
     Request.Item.Quantity = SlotItem.Quantity;
     Request.SourceSlot = SlotIndex;
     Request.TargetSlot = INDEX_NONE; // Auto-find slot in inventory
@@ -414,7 +414,7 @@ void USuspenseCoreEquipmentInventoryBridge::OnUnequipItemRequest(FGameplayTag Ev
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("UnequipItem: Result - Success: %s, Message: %s"),
         Result.bSuccess ? TEXT("YES") : TEXT("NO"),
-        *Result.ErrorMessage.ToString());
+        *Result.ErrorMessage);
 }
 
 // ===== EventDelegateManager Integration =====

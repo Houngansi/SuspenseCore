@@ -18,16 +18,16 @@
 
 USuspenseCoreTooltipWidget::USuspenseCoreTooltipWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, CursorOffset(FVector2D(15.0f, 15.0f))
-	, ScreenEdgePadding(10.0f)
-	, FadeInDuration(0.1f)
-	, FadeOutDuration(0.08f)
+	, CursorOffset(FVector2D(20.0f, 20.0f))
+	, ScreenEdgePadding(12.0f)
+	, FadeInDuration(0.15f)   // Slightly slower for smooth feel
+	, FadeOutDuration(0.1f)
 	// Rarity colors (Tarkov-style)
 	, CommonColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f))        // Gray
-	, UncommonColor(FLinearColor(0.0f, 0.8f, 0.2f, 1.0f))      // Green
-	, RareColor(FLinearColor(0.2f, 0.5f, 1.0f, 1.0f))          // Blue
-	, EpicColor(FLinearColor(0.6f, 0.2f, 0.9f, 1.0f))          // Purple
-	, LegendaryColor(FLinearColor(1.0f, 0.6f, 0.0f, 1.0f))     // Orange
+	, UncommonColor(FLinearColor(0.12f, 0.85f, 0.25f, 1.0f))   // Green
+	, RareColor(FLinearColor(0.0f, 0.5f, 1.0f, 1.0f))          // Blue
+	, EpicColor(FLinearColor(0.7f, 0.25f, 1.0f, 1.0f))         // Purple
+	, LegendaryColor(FLinearColor(1.0f, 0.55f, 0.0f, 1.0f))    // Orange
 	// State
 	, bHasComparison(false)
 	, TargetPosition(FVector2D::ZeroVector)
@@ -35,7 +35,7 @@ USuspenseCoreTooltipWidget::USuspenseCoreTooltipWidget(const FObjectInitializer&
 	, bIsFading(false)
 	, bFadingIn(false)
 	, CurrentOpacity(0.0f)
-	, TargetOpacity(0.0f)
+	, AnimProgress(0.0f)
 {
 	// Start hidden
 	SetVisibility(ESlateVisibility::Collapsed);
@@ -59,9 +59,9 @@ void USuspenseCoreTooltipWidget::NativeConstruct()
 	// Ensure tooltip doesn't block input
 	SetIsFocusable(false);
 
-	// Start fully transparent
-	CurrentOpacity = 0.0f;
+	// Initialize animation state
 	SetRenderOpacity(0.0f);
+	SetRenderTransformScale(FVector2D(StartScale, StartScale));
 }
 
 void USuspenseCoreTooltipWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -74,8 +74,8 @@ void USuspenseCoreTooltipWidget::NativeTick(const FGeometry& MyGeometry, float I
 		UpdateFadeAnimation(InDeltaTime);
 	}
 
-	// Follow mouse position if visible
-	if (bIsShowing && CurrentOpacity > 0.0f)
+	// Follow mouse position if visible (also during fade animation)
+	if (bIsShowing && (CurrentOpacity > 0.0f || bIsFading))
 	{
 		if (APlayerController* PC = GetOwningPlayer())
 		{
@@ -109,12 +109,12 @@ void USuspenseCoreTooltipWidget::ShowForItem(const FSuspenseCoreItemUIData& Item
 	// Position the tooltip
 	RepositionTooltip(ScreenPosition);
 
-	// Make visible and start fade-in
+	// Make visible and start fade-in animation
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	bIsShowing = true;
 	bIsFading = true;
 	bFadingIn = true;
-	TargetOpacity = 1.0f;
+	// AnimProgress preserves current state for seamless reverse animation
 
 	// Notify Blueprint
 	K2_OnFadeStarted(true);
@@ -128,16 +128,15 @@ void USuspenseCoreTooltipWidget::UpdatePosition(const FVector2D& ScreenPosition)
 
 void USuspenseCoreTooltipWidget::Hide()
 {
-	if (!bIsShowing && CurrentOpacity <= 0.0f)
+	if (!bIsShowing && AnimProgress <= 0.0f)
 	{
 		return; // Already hidden
 	}
 
-	// Start fade-out animation
+	// Start fade-out animation (AnimProgress continues from current state)
 	bIsShowing = false;
 	bIsFading = true;
 	bFadingIn = false;
-	TargetOpacity = 0.0f;
 
 	// Notify Blueprint
 	K2_OnFadeStarted(false);
@@ -147,11 +146,12 @@ void USuspenseCoreTooltipWidget::HideImmediate()
 {
 	bIsShowing = false;
 	bIsFading = false;
+	AnimProgress = 0.0f;
 	CurrentOpacity = 0.0f;
-	TargetOpacity = 0.0f;
 	SetRenderOpacity(0.0f);
+	SetRenderTransformScale(FVector2D(StartScale, StartScale));
+	SetRenderTranslation(FVector2D::ZeroVector);
 	SetVisibility(ESlateVisibility::Collapsed);
-	CurrentItemData = FSuspenseCoreItemUIData();
 }
 
 void USuspenseCoreTooltipWidget::SetComparisonItem(const FSuspenseCoreItemUIData& CompareItemData)
@@ -185,7 +185,7 @@ void USuspenseCoreTooltipWidget::ClearComparison()
 }
 
 //==================================================================
-// Animation
+// Animation (AAA-quality with Cubic Ease Out)
 //==================================================================
 
 void USuspenseCoreTooltipWidget::UpdateFadeAnimation(float DeltaTime)
@@ -195,51 +195,51 @@ void USuspenseCoreTooltipWidget::UpdateFadeAnimation(float DeltaTime)
 		return;
 	}
 
-	// Calculate fade speed based on direction
-	float FadeDuration = bFadingIn ? FadeInDuration : FadeOutDuration;
+	const float Duration = bFadingIn ? FadeInDuration : FadeOutDuration;
 
-	// Avoid division by zero
-	if (FadeDuration <= KINDA_SMALL_NUMBER)
+	// Calculate linear progress step
+	if (Duration > 0.0f)
 	{
-		CurrentOpacity = TargetOpacity;
-		bIsFading = false;
+		const float Change = DeltaTime / Duration;
+		AnimProgress = bFadingIn ? (AnimProgress + Change) : (AnimProgress - Change);
 	}
 	else
 	{
-		// Calculate step
-		float FadeSpeed = 1.0f / FadeDuration;
-		float Step = FadeSpeed * DeltaTime;
-
-		// Move toward target
-		if (bFadingIn)
-		{
-			CurrentOpacity = FMath::Min(CurrentOpacity + Step, TargetOpacity);
-		}
-		else
-		{
-			CurrentOpacity = FMath::Max(CurrentOpacity - Step, TargetOpacity);
-		}
-
-		// Check if animation complete
-		if (FMath::IsNearlyEqual(CurrentOpacity, TargetOpacity, 0.01f))
-		{
-			CurrentOpacity = TargetOpacity;
-			bIsFading = false;
-
-			// Notify Blueprint
-			K2_OnFadeCompleted(bFadingIn);
-
-			// If faded out completely, collapse
-			if (CurrentOpacity <= 0.0f)
-			{
-				SetVisibility(ESlateVisibility::Collapsed);
-				CurrentItemData = FSuspenseCoreItemUIData();
-			}
-		}
+		AnimProgress = bFadingIn ? 1.0f : 0.0f;
 	}
 
-	// Apply opacity
+	// Clamp progress
+	AnimProgress = FMath::Clamp(AnimProgress, 0.0f, 1.0f);
+
+	// Apply Cubic Ease Out for smooth deceleration ("sticky" landing effect)
+	const float EasedValue = FMath::InterpEaseOut(0.0f, 1.0f, AnimProgress, 3.0f);
+
+	// 1. Opacity
+	CurrentOpacity = EasedValue;
 	SetRenderOpacity(CurrentOpacity);
+
+	// 2. Dynamic scale (from StartScale to 1.0)
+	const float CurrentScale = FMath::Lerp(StartScale, 1.0f, EasedValue);
+	SetRenderTransformScale(FVector2D(CurrentScale, CurrentScale));
+
+	// 3. Vertical drift (float-up effect - starts offset, ends at 0)
+	const float CurrentTranslationY = FMath::Lerp(VerticalDrift, 0.0f, EasedValue);
+	SetRenderTranslation(FVector2D(0.0f, CurrentTranslationY));
+
+	// Check if animation complete
+	if ((bFadingIn && AnimProgress >= 1.0f) || (!bFadingIn && AnimProgress <= 0.0f))
+	{
+		bIsFading = false;
+		CurrentOpacity = bFadingIn ? 1.0f : 0.0f;
+
+		if (!bFadingIn)
+		{
+			SetVisibility(ESlateVisibility::Collapsed);
+		}
+
+		// Notify Blueprint
+		K2_OnFadeCompleted(bFadingIn);
+	}
 }
 
 //==================================================================

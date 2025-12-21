@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/DataTable.h"
 #include "Engine/DataAsset.h"
 #include "Engine/World.h"
@@ -239,6 +240,60 @@ bool USuspenseCoreDataManager::InitializeItemSystem()
 	{
 		UE_LOG(LogSuspenseCoreData, Error, TEXT("Failed to build item cache!"));
 		return false;
+	}
+
+	// ============================================================================
+	// CRITICAL FIX: Also initialize ItemManager with the same DataTable
+	// ============================================================================
+	// The VisualizationService and ActorFactory use ItemManager to resolve item data.
+	// ItemManager requires explicit LoadItemDataTable() call - we do it here after
+	// successfully loading our own cache to ensure both systems are synchronized.
+	// ============================================================================
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>())
+		{
+			// Check if the DataTable row structure matches what ItemManager expects
+			const bool bIsUnifiedType = RowStruct && RowStruct->GetName().Contains(TEXT("UnifiedItemData"));
+
+			if (bIsUnifiedType)
+			{
+				UE_LOG(LogSuspenseCoreData, Log,
+					TEXT("Initializing ItemManager with same DataTable: %s"),
+					*LoadedItemDataTable->GetName());
+
+				const bool bStrictValidation = Settings->bStrictItemValidation;
+
+				if (ItemManager->LoadItemDataTable(LoadedItemDataTable, bStrictValidation))
+				{
+					UE_LOG(LogSuspenseCoreData, Log,
+						TEXT("ItemManager initialized successfully: %d items cached"),
+						ItemManager->GetCachedItemCount());
+				}
+				else
+				{
+					UE_LOG(LogSuspenseCoreData, Warning,
+						TEXT("ItemManager initialization failed - equipment visualization may not work!"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogSuspenseCoreData, Warning,
+					TEXT("DataTable row structure is not FSuspenseCoreUnifiedItemData - ItemManager not initialized"));
+				UE_LOG(LogSuspenseCoreData, Warning,
+					TEXT("Equipment visualization requires FSuspenseCoreUnifiedItemData row structure"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Warning,
+				TEXT("ItemManager subsystem not found - equipment visualization will not work"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreData, Warning,
+			TEXT("GameInstance not available - cannot initialize ItemManager"));
 	}
 
 	return true;

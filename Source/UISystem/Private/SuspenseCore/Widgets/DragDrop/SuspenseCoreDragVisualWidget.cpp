@@ -8,12 +8,8 @@
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
 #include "Engine/Texture2D.h"
-#include "Engine/Engine.h"
-#include "Engine/GameViewportClient.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "Slate/SGameLayerManager.h"
-#include "Widgets/SViewport.h"
+#include "Framework/Application/SlateApplication.h"
 
 //==================================================================
 // Constructor
@@ -23,15 +19,13 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	: Super(ObjectInitializer)
 	, CellSizePixels(64.0f)
 	, DragOpacity(0.7f)
-	, ValidDropColor(FLinearColor(0.0f, 1.0f, 0.0f, 0.5f))
-	, InvalidDropColor(FLinearColor(1.0f, 0.0f, 0.0f, 0.5f))
-	, NeutralColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.3f))
+	, ValidDropColor(FLinearColor(0.0f, 1.0f, 0.0f, 0.4f))
+	, InvalidDropColor(FLinearColor(1.0f, 0.0f, 0.0f, 0.4f))
+	, NeutralColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.2f))
 	, DragOffset(FVector2D::ZeroVector)
 	, bIsRotated(false)
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
-	, CachedViewportOrigin(FVector2D::ZeroVector)
-	, bViewportCached(false)
 {
 	// Visibility is managed by UE5's DefaultDragVisual system
 	// DO NOT set collapsed here - it breaks DefaultDragVisual display
@@ -46,7 +40,6 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	// CRITICAL: Validate required BindWidget components
-	// If any of these are missing, Blueprint is misconfigured
 	checkf(SizeContainer, TEXT("USuspenseCoreDragVisualWidget: SizeContainer is REQUIRED! Add USizeBox named 'SizeContainer' to your Blueprint."));
 	checkf(ValidityBorder, TEXT("USuspenseCoreDragVisualWidget: ValidityBorder is REQUIRED! Add UBorder named 'ValidityBorder' to your Blueprint."));
 	checkf(ItemIcon, TEXT("USuspenseCoreDragVisualWidget: ItemIcon is REQUIRED! Add UImage named 'ItemIcon' to your Blueprint."));
@@ -65,12 +58,8 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Fast visibility check - update position every frame for smooth dragging
-	ESlateVisibility CurrentVis = GetVisibility();
-	if (CurrentVis == ESlateVisibility::Visible || CurrentVis == ESlateVisibility::HitTestInvisible)
-	{
-		UpdatePosition(FVector2D::ZeroVector);
-	}
+	// Update position every frame for smooth cursor tracking
+	UpdatePositionFromCursor();
 }
 
 //==================================================================
@@ -83,78 +72,74 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 	bIsRotated = InDragData.bIsRotatedDuringDrag;
 	bCurrentDropValid = true;
 
-	// Update size based on item
+	// Get effective size (accounts for rotation in drag data)
 	CurrentSize = InDragData.Item.GetEffectiveSize();
 
-	// Calculate center offset - cursor grabs item at its center
-	// This provides much better UX than grabbing at click point
-	float WidthPixels = FMath::Max(1, CurrentSize.X) * CellSizePixels;
-	float HeightPixels = FMath::Max(1, CurrentSize.Y) * CellSizePixels;
-	DragOffset = FVector2D(-WidthPixels * 0.5f, -HeightPixels * 0.5f);
-
-	// Cache viewport info for fast position updates
-	CacheViewportInfo();
-
-	// Update visuals (icon, quantity, border)
+	// IMPORTANT: Update visuals BEFORE calculating offset
+	// This ensures size is correct when calculating center
 	UpdateVisuals();
 	UpdateSize();
+
+	// Calculate center offset - cursor grabs item at its center
+	// This provides much better UX than grabbing at arbitrary click point
+	RecalculateCenterOffset();
 
 	// Show the widget
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	// Position immediately
-	UpdatePosition(FVector2D::ZeroVector);
+	// Position immediately to prevent first-frame jump
+	UpdatePositionFromCursor();
 
 	// Notify Blueprint
 	K2_OnDragInitialized(InDragData);
 }
 
-void USuspenseCoreDragVisualWidget::CacheViewportInfo()
+void USuspenseCoreDragVisualWidget::UpdatePositionFromCursor()
 {
-	bViewportCached = false;
-	CachedViewportOrigin = FVector2D::ZeroVector;
-
-	UGameViewportClient* ViewportClient = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
-	if (!ViewportClient)
+	if (!FSlateApplication::IsInitialized())
 	{
 		return;
 	}
 
-	TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
-	if (ViewportWidget.IsValid())
+	// ============================================================================
+	// DPI-SAFE POSITIONING
+	// GetMousePositionScaledByDPI is the gold standard in UE - it automatically
+	// handles window position, DPI scale, and works correctly in 99% of cases
+	// without manual viewport origin caching (which breaks on window move/resize)
+	// ============================================================================
+
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
 	{
-		FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
-		CachedViewportOrigin = ViewportGeometry.GetAbsolutePosition();
-		bViewportCached = true;
-	}
-}
-
-void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
-{
-	// FAST PATH: Direct cursor position with DPI-aware conversion
-	// This is called every frame during drag - must be as fast as possible
-
-	// Get cursor position in screen space (absolute coordinates)
-	const FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
-
-	// Convert to viewport-local coordinates using cached origin
-	FVector2D ViewportLocalPos = CursorScreenPos;
-	if (bViewportCached)
-	{
-		ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
+		return;
 	}
 
-	// Get DPI scale for proper coordinate conversion
+	// Get mouse position already scaled by DPI (viewport-local coordinates)
+	float MouseX, MouseY;
+	if (!UWidgetLayoutLibrary::GetMousePositionScaledByDPI(PC, MouseX, MouseY))
+	{
+		return;
+	}
+
+	FVector2D LocalMousePos(MouseX, MouseY);
+
+	// Get viewport scale for offset conversion
 	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
 
-	// Convert cursor position to slate units (considering DPI)
-	FVector2D PositionInSlateUnits = ViewportLocalPos / ViewportScale;
-
-	// CRITICAL: DragOffset is in pixels, must also convert to slate units
-	FVector2D DragOffsetInSlateUnits = DragOffset / ViewportScale;
+	// Convert DragOffset from pixels to slate units
+	FVector2D ScaledOffset = DragOffset / ViewportScale;
 
 	// Apply center offset and set position
-	SetPositionInViewport(PositionInSlateUnits + DragOffsetInSlateUnits, false);
+	SetPositionInViewport(LocalMousePos + ScaledOffset, false);
+}
+
+void USuspenseCoreDragVisualWidget::RecalculateCenterOffset()
+{
+	// Calculate center offset based on current size
+	// This centers the item under the cursor
+	float WidthPixels = FMath::Max(1, CurrentSize.X) * CellSizePixels;
+	float HeightPixels = FMath::Max(1, CurrentSize.Y) * CellSizePixels;
+	DragOffset = FVector2D(-WidthPixels * 0.5f, -HeightPixels * 0.5f);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)
@@ -179,14 +164,6 @@ void USuspenseCoreDragVisualWidget::ToggleRotation()
 	SetRotation(!bIsRotated);
 }
 
-void USuspenseCoreDragVisualWidget::RecalculateCenterOffset()
-{
-	// Recalculate center offset based on current size
-	float WidthPixels = FMath::Max(1, CurrentSize.X) * CellSizePixels;
-	float HeightPixels = FMath::Max(1, CurrentSize.Y) * CellSizePixels;
-	DragOffset = FVector2D(-WidthPixels * 0.5f, -HeightPixels * 0.5f);
-}
-
 void USuspenseCoreDragVisualWidget::SetRotation(bool bRotated)
 {
 	if (bIsRotated != bRotated)
@@ -196,17 +173,17 @@ void USuspenseCoreDragVisualWidget::SetRotation(bool bRotated)
 		// Swap width and height
 		CurrentSize = FIntPoint(CurrentSize.Y, CurrentSize.X);
 
-		// Recalculate center offset for new dimensions
+		// CRITICAL: Recalculate offset immediately after size change
+		// Otherwise item will visually "jump" away from cursor
 		RecalculateCenterOffset();
 
-		// Update visuals
+		// Update size container
 		UpdateSize();
 
 		// Rotate the icon
 		if (ItemIcon)
 		{
-			float Angle = bIsRotated ? 90.0f : 0.0f;
-			ItemIcon->SetRenderTransformAngle(Angle);
+			ItemIcon->SetRenderTransformAngle(bIsRotated ? 90.0f : 0.0f);
 		}
 
 		// Notify Blueprint
@@ -223,17 +200,37 @@ void USuspenseCoreDragVisualWidget::UpdateVisuals_Implementation()
 	// Update icon
 	if (ItemIcon)
 	{
-		if (CurrentDragData.Item.IconPath.IsValid())
+		// ============================================================================
+		// ICON LOADING
+		// NOTE: TryLoad() is synchronous and may cause hitches if icon isn't cached.
+		// For production, consider:
+		// 1. Pre-loading icons via IconManager subsystem
+		// 2. Passing already-loaded UTexture2D* in DragData
+		// 3. Using async loading with placeholder
+		// ============================================================================
+
+		UTexture2D* IconTexture = nullptr;
+
+		// Try InventoryIcon first (preferred - should be pre-loaded)
+		if (CurrentDragData.Item.InventoryIcon.IsValid())
 		{
-			if (UTexture2D* IconTexture = Cast<UTexture2D>(CurrentDragData.Item.IconPath.TryLoad()))
+			IconTexture = CurrentDragData.Item.InventoryIcon.Get();
+			if (!IconTexture)
 			{
-				ItemIcon->SetBrushFromTexture(IconTexture);
-				ItemIcon->SetVisibility(ESlateVisibility::Visible);
+				// Fallback: sync load (may cause hitch)
+				IconTexture = CurrentDragData.Item.InventoryIcon.LoadSynchronous();
 			}
-			else
-			{
-				ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
-			}
+		}
+		// Fallback to IconPath
+		else if (CurrentDragData.Item.IconPath.IsValid())
+		{
+			IconTexture = Cast<UTexture2D>(CurrentDragData.Item.IconPath.TryLoad());
+		}
+
+		if (IconTexture)
+		{
+			ItemIcon->SetBrushFromTexture(IconTexture);
+			ItemIcon->SetVisibility(ESlateVisibility::Visible);
 		}
 		else
 		{
@@ -255,7 +252,7 @@ void USuspenseCoreDragVisualWidget::UpdateVisuals_Implementation()
 		}
 	}
 
-	// Update validity border
+	// Set neutral border color initially
 	if (ValidityBorder)
 	{
 		ValidityBorder->SetBrushColor(NeutralColor);

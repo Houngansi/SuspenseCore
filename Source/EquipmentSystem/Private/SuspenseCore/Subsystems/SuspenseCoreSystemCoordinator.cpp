@@ -24,6 +24,9 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
 
+// ItemManager for DataService injection
+#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreCoordinatorSubsystem, Log, All);
 
 //========================================
@@ -447,18 +450,59 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
 
     int32 RegisteredCount = 0;
 
-    // Data Service
+    // Data Service - requires ItemManager injection
     if (TagData.IsValid() && !ServiceLocator->IsServiceRegistered(TagData))
     {
         FSuspenseCoreServiceInitParams DataParams;
         DataParams.bAutoStart = true;
 
-        ServiceLocator->RegisterServiceClass(
+        // Create injection callback that provides ItemManager to DataService
+        FSuspenseCoreServiceInjectionDelegate DataInjection;
+        DataInjection.BindLambda([this](UObject* ServiceInstance, USuspenseCoreEquipmentServiceLocator* InServiceLocator)
+        {
+            if (!ServiceInstance || !InServiceLocator)
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error, TEXT("DataService injection: Invalid parameters"));
+                return;
+            }
+
+            UGameInstance* GI = InServiceLocator->GetGameInstance();
+            if (!GI)
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error, TEXT("DataService injection: GameInstance not available"));
+                return;
+            }
+
+            USuspenseCoreItemManager* ItemManager = GI->GetSubsystem<USuspenseCoreItemManager>();
+            if (!ItemManager)
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error, TEXT("DataService injection: ItemManager subsystem not found"));
+                return;
+            }
+
+            if (ItemManager->GetCachedItemCount() == 0)
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Warning, TEXT("DataService injection: ItemManager has no cached items yet"));
+            }
+
+            if (USuspenseCoreEquipmentDataService* DataService = Cast<USuspenseCoreEquipmentDataService>(ServiceInstance))
+            {
+                DataService->InjectComponents(nullptr, ItemManager);
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("DataService: ItemManager injected successfully (stateless mode)"));
+            }
+            else
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error, TEXT("DataService injection: Failed to cast to DataService"));
+            }
+        });
+
+        ServiceLocator->RegisterServiceClassWithInjection(
             TagData,
             USuspenseCoreEquipmentDataService::StaticClass(),
-            DataParams);
+            DataParams,
+            DataInjection);
 
-        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: DataService"));
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: DataService (with ItemManager injection)"));
         RegisteredCount++;
     }
 

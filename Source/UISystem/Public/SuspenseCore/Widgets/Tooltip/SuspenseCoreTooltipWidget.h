@@ -290,6 +290,16 @@ private:
 	/** Current opacity (0.0 - 1.0) */
 	float CurrentOpacity;
 
-	/** Target opacity for animation */
-	float TargetOpacity;
+	//==================================================================
+	// Animation State (AAA-quality easing)
+	//==================================================================
+
+	/** Current animation progress (0.0 -> 1.0) - allows seamless reverse */
+	float AnimProgress;
+
+	/** Starting scale for pop-in effect (93% for subtle growth) */
+	static constexpr float StartScale = 0.93f;
+
+	/** Vertical drift in pixels for float-up effect */
+	static constexpr float VerticalDrift = 8.0f;
 };

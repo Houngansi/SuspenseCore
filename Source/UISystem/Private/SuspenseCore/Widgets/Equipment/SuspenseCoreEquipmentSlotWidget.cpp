@@ -7,6 +7,8 @@
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
+#include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
+#include "Framework/Application/SlateApplication.h"
 #include "InputCoreTypes.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -73,6 +75,55 @@ FReply USuspenseCoreEquipmentSlotWidget::NativeOnMouseButtonDown(const FGeometry
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+void USuspenseCoreEquipmentSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+	// Show hover highlight
+	SetHighlightState(ESuspenseCoreUISlotState::Highlighted);
+
+	// Show tooltip if slot has an item
+	ShowSlotTooltip();
+}
+
+void USuspenseCoreEquipmentSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	// Clear hover highlight
+	SetHighlightState(CachedSlotData.IsOccupied() ? ESuspenseCoreUISlotState::Occupied : ESuspenseCoreUISlotState::Empty);
+
+	// Hide tooltip
+	HideTooltip();
+
+	Super::NativeOnMouseLeave(InMouseEvent);
+}
+
+void USuspenseCoreEquipmentSlotWidget::ShowSlotTooltip()
+{
+	// Only show tooltip if slot has an item
+	if (!CachedSlotData.IsOccupied() || !CachedItemData.InstanceID.IsValid())
+	{
+		return;
+	}
+
+	// Get UIManager and show tooltip
+	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+	{
+		// Get mouse position for tooltip placement
+		FVector2D MousePosition = FSlateApplication::Get().GetCursorPos();
+
+		// Show tooltip through UIManager
+		UIManager->ShowItemTooltip(CachedItemData, MousePosition);
+	}
+}
+
+void USuspenseCoreEquipmentSlotWidget::HideTooltip()
+{
+	if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
+	{
+		UIManager->HideTooltip();
+	}
 }
 
 void USuspenseCoreEquipmentSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)

@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Slate/SGameLayerManager.h"
 #include "Widgets/SViewport.h"
 
@@ -49,6 +50,12 @@ void USuspenseCoreDragVisualWidget::NativeConstruct()
 	checkf(SizeContainer, TEXT("USuspenseCoreDragVisualWidget: SizeContainer is REQUIRED! Add USizeBox named 'SizeContainer' to your Blueprint."));
 	checkf(ValidityBorder, TEXT("USuspenseCoreDragVisualWidget: ValidityBorder is REQUIRED! Add UBorder named 'ValidityBorder' to your Blueprint."));
 	checkf(ItemIcon, TEXT("USuspenseCoreDragVisualWidget: ItemIcon is REQUIRED! Add UImage named 'ItemIcon' to your Blueprint."));
+
+	// Set alignment for proper positioning (top-left pivot)
+	SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+
+	// Ensure widget doesn't block input
+	SetIsFocusable(false);
 
 	// Set initial opacity
 	SetRenderOpacity(DragOpacity);
@@ -124,7 +131,7 @@ void USuspenseCoreDragVisualWidget::CacheViewportInfo()
 
 void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
-	// FAST PATH: Direct cursor position with cached viewport offset
+	// FAST PATH: Direct cursor position with DPI-aware conversion
 	// This is called every frame during drag - must be as fast as possible
 
 	// Get cursor position in screen space (absolute coordinates)
@@ -137,8 +144,14 @@ void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPositi
 		ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
 	}
 
+	// Get DPI scale for proper coordinate conversion
+	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
+
+	// Convert to slate units (considering DPI)
+	FVector2D PositionInSlateUnits = ViewportLocalPos / ViewportScale;
+
 	// Apply center offset and set position
-	SetPositionInViewport(ViewportLocalPos + DragOffset);
+	SetPositionInViewport(PositionInSlateUnits + DragOffset, false);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)

@@ -8,6 +8,7 @@
 #include "Components/VerticalBox.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Engine.h"
 
 //==================================================================
 // Constructor
@@ -33,6 +34,12 @@ USuspenseCoreTooltipWidget::USuspenseCoreTooltipWidget(const FObjectInitializer&
 void USuspenseCoreTooltipWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// Set alignment for proper positioning (top-left pivot)
+	SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+
+	// Ensure tooltip doesn't block input
+	SetIsFocusable(false);
 }
 
 void USuspenseCoreTooltipWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -78,19 +85,20 @@ void USuspenseCoreTooltipWidget::ShowForItem(const FSuspenseCoreItemUIData& Item
 	// Notify Blueprint
 	K2_OnPopulateTooltip(ItemData);
 
+	// Force layout update so GetDesiredSize() returns correct values
+	ForceLayoutPrepass();
+
 	// Start show delay timer
 	if (ShowDelay > 0.0f)
 	{
 		ShowDelayTimer = ShowDelay;
 		// Position but keep hidden during delay
-		FVector2D BestPosition = CalculateBestPosition(ScreenPosition + CursorOffset);
-		SetRenderTranslation(BestPosition);
+		RepositionTooltip(ScreenPosition);
 	}
 	else
 	{
 		// Show immediately
-		FVector2D BestPosition = CalculateBestPosition(ScreenPosition + CursorOffset);
-		SetRenderTranslation(BestPosition);
+		RepositionTooltip(ScreenPosition);
 		SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 }
@@ -98,8 +106,7 @@ void USuspenseCoreTooltipWidget::ShowForItem(const FSuspenseCoreItemUIData& Item
 void USuspenseCoreTooltipWidget::UpdatePosition(const FVector2D& ScreenPosition)
 {
 	TargetPosition = ScreenPosition;
-	FVector2D BestPosition = CalculateBestPosition(ScreenPosition + CursorOffset);
-	SetRenderTranslation(BestPosition);
+	RepositionTooltip(ScreenPosition);
 }
 
 void USuspenseCoreTooltipWidget::Hide()
@@ -181,7 +188,26 @@ void USuspenseCoreTooltipWidget::PopulateContent_Implementation(const FSuspenseC
 
 FVector2D USuspenseCoreTooltipWidget::CalculateBestPosition_Implementation(const FVector2D& DesiredPosition)
 {
-	FVector2D Result = DesiredPosition;
+	// This is now just a passthrough - actual positioning is done in RepositionTooltip
+	return DesiredPosition;
+}
+
+void USuspenseCoreTooltipWidget::RepositionTooltip(const FVector2D& ScreenPosition)
+{
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		return;
+	}
+
+	// Get actual mouse position in viewport space
+	float MouseX, MouseY;
+	if (!PC->GetMousePosition(MouseX, MouseY))
+	{
+		// Use provided screen position as fallback
+		MouseX = ScreenPosition.X;
+		MouseY = ScreenPosition.Y;
+	}
 
 	// Get viewport size
 	FVector2D ViewportSize = FVector2D::ZeroVector;
@@ -190,27 +216,88 @@ FVector2D USuspenseCoreTooltipWidget::CalculateBestPosition_Implementation(const
 		GEngine->GameViewport->GetViewportSize(ViewportSize);
 	}
 
-	if (APlayerController* PC = GetOwningPlayer())
+	if (ViewportSize.IsZero())
 	{
-		// Get tooltip size
-		FVector2D TooltipSize = GetDesiredSize();
-
-		// Clamp X to stay on screen
-		if (Result.X + TooltipSize.X > ViewportSize.X - ScreenEdgePadding)
-		{
-			// Flip to left side of cursor
-			Result.X = DesiredPosition.X - TooltipSize.X - CursorOffset.X * 2.0f;
-		}
-		Result.X = FMath::Max(Result.X, ScreenEdgePadding);
-
-		// Clamp Y to stay on screen
-		if (Result.Y + TooltipSize.Y > ViewportSize.Y - ScreenEdgePadding)
-		{
-			// Flip to above cursor
-			Result.Y = DesiredPosition.Y - TooltipSize.Y - CursorOffset.Y * 2.0f;
-		}
-		Result.Y = FMath::Max(Result.Y, ScreenEdgePadding);
+		return;
 	}
 
-	return Result;
+	// Get DPI scale
+	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
+
+	// Convert mouse position to slate units (considering DPI)
+	FVector2D MousePosition = FVector2D(MouseX, MouseY) / ViewportScale;
+
+	// Get tooltip size
+	FVector2D TooltipSize = GetDesiredSize();
+
+	// If size is not ready, try cached geometry
+	if (TooltipSize.IsZero())
+	{
+		const FGeometry& CachedGeometry = GetCachedGeometry();
+		if (CachedGeometry.GetLocalSize().X > 0 && CachedGeometry.GetLocalSize().Y > 0)
+		{
+			TooltipSize = CachedGeometry.GetLocalSize();
+		}
+		else
+		{
+			// Use reasonable default size
+			TooltipSize = FVector2D(300.0f, 200.0f);
+		}
+	}
+
+	// Convert viewport size to slate units
+	FVector2D ViewportSizeInSlateUnits = ViewportSize / ViewportScale;
+
+	// Calculate tooltip position relative to mouse
+	FVector2D TooltipPosition = MousePosition;
+
+	// Position tooltip with offset from cursor
+	const float VerticalOffset = CursorOffset.Y > 0 ? CursorOffset.Y : 20.0f;
+
+	// Determine if tooltip should be on the right or left of cursor
+	bool bShowOnRight = true;
+
+	// Check if there's enough space on the right
+	if (MousePosition.X + CursorOffset.X + TooltipSize.X > ViewportSizeInSlateUnits.X - ScreenEdgePadding)
+	{
+		bShowOnRight = false;
+	}
+
+	// Position horizontally
+	if (bShowOnRight)
+	{
+		// Show on the right of cursor
+		TooltipPosition.X = MousePosition.X + CursorOffset.X;
+	}
+	else
+	{
+		// Show on the left of cursor
+		TooltipPosition.X = MousePosition.X - CursorOffset.X - TooltipSize.X;
+	}
+
+	// Position vertically - tooltip below cursor
+	TooltipPosition.Y = MousePosition.Y + VerticalOffset;
+
+	// Check if tooltip goes beyond bottom edge
+	if (TooltipPosition.Y + TooltipSize.Y > ViewportSizeInSlateUnits.Y - ScreenEdgePadding)
+	{
+		// Show above cursor instead
+		TooltipPosition.Y = MousePosition.Y - VerticalOffset - TooltipSize.Y;
+	}
+
+	// Final bounds check
+	TooltipPosition.X = FMath::Clamp(
+		TooltipPosition.X,
+		ScreenEdgePadding,
+		ViewportSizeInSlateUnits.X - TooltipSize.X - ScreenEdgePadding
+	);
+
+	TooltipPosition.Y = FMath::Clamp(
+		TooltipPosition.Y,
+		ScreenEdgePadding,
+		ViewportSizeInSlateUnits.Y - TooltipSize.Y - ScreenEdgePadding
+	);
+
+	// Apply position using SetPositionInViewport (same as legacy tooltip)
+	SetPositionInViewport(TooltipPosition, false);
 }

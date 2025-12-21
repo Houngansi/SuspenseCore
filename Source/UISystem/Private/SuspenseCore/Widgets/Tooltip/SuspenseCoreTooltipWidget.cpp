@@ -91,21 +91,10 @@ void USuspenseCoreTooltipWidget::ShowForItem(const FSuspenseCoreItemUIData& Item
 	// Position the tooltip first
 	RepositionTooltip(ScreenPosition);
 
-	// Handle show delay
-	if (ShowDelay > 0.0f)
-	{
-		ShowDelayTimer = ShowDelay;
-		// CRITICAL: Use Hidden instead of Collapsed during delay
-		// Hidden widgets still tick, Collapsed widgets may not tick consistently
-		// This ensures the timer countdown works properly
-		SetVisibility(ESlateVisibility::Hidden);
-	}
-	else
-	{
-		// Show immediately - no delay
-		ShowDelayTimer = 0.0f;
-		SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
+	// Show tooltip immediately - delay is handled by caller if needed
+	// Using HitTestInvisible so tooltip doesn't intercept mouse events
+	ShowDelayTimer = 0.0f;
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void USuspenseCoreTooltipWidget::UpdatePosition(const FVector2D& ScreenPosition)

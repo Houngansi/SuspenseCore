@@ -1303,10 +1303,27 @@ bool USuspenseCoreEquipmentVisualizationService::RateLimit() const
 
 bool USuspenseCoreEquipmentVisualizationService::TryParseInt(const FSuspenseCoreEventData& EventData, const TCHAR* Key, int32& OutValue)
 {
-	const FString S = EventData.GetString(FName(Key));
-	if (S.IsEmpty()) { return false; }
-	OutValue = LexToInt(S, OutValue);
-	return true;
+	// CRITICAL FIX: First check IntPayload (Bridge uses SetInt for Slot)
+	// EventData has separate containers: IntPayload for SetInt(), StringPayload for SetString()
+	const FName KeyName(Key);
+
+	// Try IntPayload first (this is where Bridge stores Slot via SetInt)
+	const int32 IntValue = EventData.GetInt(KeyName, INDEX_NONE);
+	if (IntValue != INDEX_NONE)
+	{
+		OutValue = IntValue;
+		return true;
+	}
+
+	// Fallback: try StringPayload and parse (for backward compatibility)
+	const FString S = EventData.GetString(KeyName);
+	if (!S.IsEmpty())
+	{
+		OutValue = LexToInt(S, OutValue);
+		return true;
+	}
+
+	return false;
 }
 
 FName USuspenseCoreEquipmentVisualizationService::ParseName(const FSuspenseCoreEventData& EventData, const TCHAR* Key, const FName DefaultValue)

@@ -104,8 +104,9 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 	LastProcessTimeSec      = 0.0;
 
 	// Initialize event tags using native compile-time tags
-	Tag_OnEquipped          = Event::TAG_Equipment_Event_Equipped;
-	Tag_OnUnequipped        = Event::TAG_Equipment_Event_Unequipped;
+	// NOTE: BroadcastItemEquipped publishes TAG_Equipment_Event_ItemEquipped, not TAG_Equipment_Event_Equipped
+	Tag_OnEquipped          = Event::TAG_Equipment_Event_ItemEquipped;
+	Tag_OnUnequipped        = Event::TAG_Equipment_Event_ItemUnequipped;
 	Tag_OnSlotSwitched      = Event::TAG_Equipment_Event_SlotSwitched;
 	Tag_VisRefreshAll       = Event::TAG_Equipment_Event_Visual_RefreshAll;
 

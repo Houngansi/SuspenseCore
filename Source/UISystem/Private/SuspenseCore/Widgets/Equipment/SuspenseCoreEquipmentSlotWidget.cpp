@@ -115,7 +115,10 @@ void USuspenseCoreEquipmentSlotWidget::ShowSlotTooltip()
 
 		// Try to get full item data from provider (includes Weight, Value, etc.)
 		FSuspenseCoreItemUIData FullItemData = CachedItemData;
-		if (ParentContainer)
+
+		// Find parent container widget to get provider
+		USuspenseCoreBaseContainerWidget* ParentContainer = GetTypedOuter<USuspenseCoreBaseContainerWidget>();
+		if (ParentContainer && ParentContainer->IsBoundToProvider())
 		{
 			ISuspenseCoreUIDataProvider* Provider = ParentContainer->GetBoundProvider().GetInterface();
 			if (Provider)

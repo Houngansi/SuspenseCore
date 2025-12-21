@@ -562,11 +562,27 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseC
         return;
     }
 
+    // Determine slot index from SlotType tag
+    // TODO: Add proper slot index mapping based on SlotType
+    int32 SlotIndex = 0;  // Default to primary slot
+    if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"), false)))
+    {
+        SlotIndex = 1;
+    }
+    else if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"), false)))
+    {
+        SlotIndex = 2;
+    }
+
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
         .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
         .SetInt(TEXT("Quantity"), ItemInstance.Quantity)
         .SetString(TEXT("SlotType"), SlotType.ToString())
-        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString());
+        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString())
+        .SetInt(TEXT("Slot"), SlotIndex);  // Slot index for VisualizationService
+
+    // Set Target actor for VisualizationService (GetOwner() is the character)
+    EventData.SetObject(FName("Target"), GetOwner());
 
     Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemEquipped")),
@@ -585,11 +601,26 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspens
         return;
     }
 
+    // Determine slot index from SlotType tag
+    int32 SlotIndex = 0;  // Default to primary slot
+    if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"), false)))
+    {
+        SlotIndex = 1;
+    }
+    else if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"), false)))
+    {
+        SlotIndex = 2;
+    }
+
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
         .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
         .SetInt(TEXT("Quantity"), ItemInstance.Quantity)
         .SetString(TEXT("SlotType"), SlotType.ToString())
-        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString());
+        .SetString(TEXT("InstanceID"), ItemInstance.InstanceID.ToString())
+        .SetInt(TEXT("Slot"), SlotIndex);
+
+    // Set Target actor for VisualizationService
+    EventData.SetObject(FName("Target"), GetOwner());
 
     Manager->GetEventBus()->Publish(
         FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemUnequipped")),

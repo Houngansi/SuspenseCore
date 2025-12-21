@@ -957,28 +957,57 @@ bool USuspenseCoreEquipmentVisualizationService::AttachActorToCharacter(AActor* 
 	}
 
 	// ============================================================================
-	// CRITICAL FIX: Use GetEquipmentAttachMesh() for MetaHuman support
-	// MetaHuman has hierarchy: CharacterMesh0 > Body > SkeletalMesh
-	// The sockets (weapon_r, spine_03, etc.) are on the Body's SkeletalMesh, NOT CharacterMesh0
+	// CRITICAL FIX: MetaHuman support
+	// MetaHuman hierarchy: CharacterMesh0 > Root > Body (sockets here!)
+	// The sockets (weapon_r, spine_03, etc.) are on the BODY component itself!
 	// ============================================================================
 
 	USkeletalMeshComponent* EquipmentMesh = nullptr;
 
-	// Try to get equipment mesh via SuspenseCoreCharacter interface (MetaHuman aware)
-	if (ASuspenseCoreCharacter* SuspenseChar = Cast<ASuspenseCoreCharacter>(Character))
+	// Search for "Body" component by name (MetaHuman hierarchy)
+	TArray<USkeletalMeshComponent*> SkelMeshes;
+	Character->GetComponents<USkeletalMeshComponent>(SkelMeshes);
+
+	for (USkeletalMeshComponent* SkelMesh : SkelMeshes)
 	{
-		EquipmentMesh = SuspenseChar->GetEquipmentAttachMesh();
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-			TEXT("AttachActorToCharacter: Using GetEquipmentAttachMesh() -> %s"),
-			EquipmentMesh ? *EquipmentMesh->GetName() : TEXT("NULL"));
+		// Check if this component IS named "Body" (MetaHuman Body component)
+		if (SkelMesh->GetName().Contains(TEXT("Body")))
+		{
+			// Verify socket exists on this mesh
+			if (SkelMesh->DoesSocketExist(Socket))
+			{
+				EquipmentMesh = SkelMesh;
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+					TEXT("AttachActorToCharacter: Found MetaHuman Body component with socket '%s': %s"),
+					*Socket.ToString(), *SkelMesh->GetName());
+				break;
+			}
+		}
 	}
 
-	// Fallback for non-SuspenseCore characters: use first SkeletalMeshComponent
+	// If Body not found, search for any mesh with the required socket
 	if (!EquipmentMesh)
 	{
-		EquipmentMesh = Character->FindComponentByClass<USkeletalMeshComponent>();
+		for (USkeletalMeshComponent* SkelMesh : SkelMeshes)
+		{
+			if (SkelMesh->DoesSocketExist(Socket))
+			{
+				EquipmentMesh = SkelMesh;
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+					TEXT("AttachActorToCharacter: Found mesh with socket '%s': %s"),
+					*Socket.ToString(), *SkelMesh->GetName());
+				break;
+			}
+		}
+	}
+
+	// Final fallback: first SkeletalMeshComponent
+	if (!EquipmentMesh && SkelMeshes.Num() > 0)
+	{
+		EquipmentMesh = SkelMeshes[0];
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-			TEXT("AttachActorToCharacter: Character is not ASuspenseCoreCharacter, using FindComponentByClass fallback"));
+			TEXT("AttachActorToCharacter: Socket '%s' not found on any mesh, using fallback: %s"),
+			*Socket.ToString(), *EquipmentMesh->GetName());
 	}
 
 	if (EquipmentMesh)
@@ -986,19 +1015,11 @@ bool USuspenseCoreEquipmentVisualizationService::AttachActorToCharacter(AActor* 
 		USceneComponent* Root = Visual->GetRootComponent();
 		if (!Root) return false;
 
-		// Verify socket exists before attaching
-		if (!EquipmentMesh->DoesSocketExist(Socket))
-		{
-			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-				TEXT("AttachActorToCharacter: Socket '%s' not found on mesh '%s'. Attaching without socket."),
-				*Socket.ToString(), *EquipmentMesh->GetName());
-		}
-
 		Root->AttachToComponent(EquipmentMesh, FAttachmentTransformRules::SnapToTargetIncludingScale, Socket);
 		Root->SetRelativeTransform(Offset);
 
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-			TEXT("AttachActorToCharacter: Successfully attached %s to %s at socket %s"),
+			TEXT("AttachActorToCharacter: SUCCESS - Attached %s to %s at socket %s"),
 			*Visual->GetName(), *EquipmentMesh->GetName(), *Socket.ToString());
 
 		return true;

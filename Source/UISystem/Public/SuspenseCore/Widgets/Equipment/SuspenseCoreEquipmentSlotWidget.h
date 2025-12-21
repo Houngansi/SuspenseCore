@@ -60,6 +60,8 @@ public:
 	virtual void NativeConstruct() override;
 	virtual void NativePreConstruct() override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
 
 	//==================================================================
@@ -222,6 +224,12 @@ protected:
 
 	/** Update empty slot icon visibility and appearance */
 	virtual void UpdateEmptySlotIcon();
+
+	/** Show tooltip for the equipped item */
+	void ShowSlotTooltip();
+
+	/** Hide the tooltip */
+	void HideTooltip();
 
 	//==================================================================
 	// Additional Widget References (Bind in Blueprint)

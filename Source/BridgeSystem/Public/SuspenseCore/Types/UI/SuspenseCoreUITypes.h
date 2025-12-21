@@ -125,7 +125,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemUIData
 	bool bIsStackable;
 
 	//==================================================================
-	// Weight
+	// Weight & Value
 	//==================================================================
 
 	/** Weight per unit */
@@ -135,6 +135,14 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemUIData
 	/** Total weight (UnitWeight * Quantity) */
 	UPROPERTY(BlueprintReadOnly, Category = "Weight")
 	float TotalWeight;
+
+	/** Base value/price per unit */
+	UPROPERTY(BlueprintReadOnly, Category = "Value")
+	int32 BaseValue;
+
+	/** Total value (BaseValue * Quantity) */
+	UPROPERTY(BlueprintReadOnly, Category = "Value")
+	int32 TotalValue;
 
 	//==================================================================
 	// Capabilities
@@ -209,6 +217,8 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemUIData
 		, bIsStackable(false)
 		, UnitWeight(0.0f)
 		, TotalWeight(0.0f)
+		, BaseValue(0)
+		, TotalValue(0)
 		, bIsEquippable(false)
 		, bIsUsable(false)
 		, bIsDroppable(true)

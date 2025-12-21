@@ -29,6 +29,8 @@ USuspenseCoreDragVisualWidget::USuspenseCoreDragVisualWidget(const FObjectInitia
 	, bIsRotated(false)
 	, bCurrentDropValid(true)
 	, CurrentSize(1, 1)
+	, CachedViewportOrigin(FVector2D::ZeroVector)
+	, bViewportCached(false)
 {
 	// Visibility is managed by UE5's DefaultDragVisual system
 	// DO NOT set collapsed here - it breaks DefaultDragVisual display
@@ -56,21 +58,11 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Update position every tick
+	// Fast visibility check - update position every frame for smooth dragging
 	ESlateVisibility CurrentVis = GetVisibility();
-	bool bShouldUpdate = (CurrentVis == ESlateVisibility::Visible || CurrentVis == ESlateVisibility::HitTestInvisible);
-
-	// Debug log once to verify tick is running
-	static bool bLoggedOnce = false;
-	if (!bLoggedOnce && bShouldUpdate)
+	if (CurrentVis == ESlateVisibility::Visible || CurrentVis == ESlateVisibility::HitTestInvisible)
 	{
-		UE_LOG(LogTemp, Log, TEXT("DragVisual NativeTick: Visibility=%d, Updating position"), (int32)CurrentVis);
-		bLoggedOnce = true;
-	}
-
-	if (bShouldUpdate)
-	{
-		UpdatePosition(FVector2D::ZeroVector); // Parameter not used anymore
+		UpdatePosition(FVector2D::ZeroVector);
 	}
 }
 
@@ -81,12 +73,20 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& InDragData)
 {
 	CurrentDragData = InDragData;
-	DragOffset = InDragData.DragOffset;
 	bIsRotated = InDragData.bIsRotatedDuringDrag;
 	bCurrentDropValid = true;
 
 	// Update size based on item
 	CurrentSize = InDragData.Item.GetEffectiveSize();
+
+	// Calculate center offset - cursor grabs item at its center
+	// This provides much better UX than grabbing at click point
+	float WidthPixels = FMath::Max(1, CurrentSize.X) * CellSizePixels;
+	float HeightPixels = FMath::Max(1, CurrentSize.Y) * CellSizePixels;
+	DragOffset = FVector2D(-WidthPixels * 0.5f, -HeightPixels * 0.5f);
+
+	// Cache viewport info for fast position updates
+	CacheViewportInfo();
 
 	// Update visuals (icon, quantity, border)
 	UpdateVisuals();
@@ -100,58 +100,47 @@ void USuspenseCoreDragVisualWidget::InitializeDrag(const FSuspenseCoreDragData& 
 
 	// Notify Blueprint
 	K2_OnDragInitialized(InDragData);
-
-	UE_LOG(LogTemp, Log, TEXT("InitializeDrag: DragOffset=(%.1f, %.1f)"), DragOffset.X, DragOffset.Y);
 }
 
-void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
+void USuspenseCoreDragVisualWidget::CacheViewportInfo()
 {
-	// Use FSlateApplication to get cursor position - works during drag when PC->GetMousePosition fails
-	// GetCursorPos returns SCREEN coordinates (absolute), need to convert to viewport
-	FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
+	bViewportCached = false;
+	CachedViewportOrigin = FVector2D::ZeroVector;
 
-	// Convert screen position to viewport position
-	// Get the game viewport
 	UGameViewportClient* ViewportClient = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
 	if (!ViewportClient)
 	{
-		// Fallback: use screen position directly with offset
-		FVector2D FinalPos = CursorScreenPos + DragOffset;
-		SetPositionInViewport(FinalPos);
 		return;
 	}
 
-	// Get viewport origin in screen space
-	FVector2D ViewportOrigin;
-	FVector2D ViewportSize;
-	ViewportClient->GetViewportSize(ViewportSize);
-
-	// Get the viewport widget to find its screen position
 	TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
 	if (ViewportWidget.IsValid())
 	{
 		FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
-		ViewportOrigin = ViewportGeometry.GetAbsolutePosition();
+		CachedViewportOrigin = ViewportGeometry.GetAbsolutePosition();
+		bViewportCached = true;
 	}
+}
 
-	// Convert cursor screen position to viewport-local position
-	FVector2D ViewportLocalPos = CursorScreenPos - ViewportOrigin;
+void USuspenseCoreDragVisualWidget::UpdatePosition(const FVector2D& ScreenPosition)
+{
+	// FAST PATH: Direct cursor position with cached viewport offset
+	// This is called every frame during drag - must be as fast as possible
 
-	// Apply drag offset and set position
-	FVector2D FinalPos = ViewportLocalPos + DragOffset;
-	SetPositionInViewport(FinalPos);
+	// Get cursor position in screen space (absolute coordinates)
+	const FVector2D CursorScreenPos = FSlateApplication::Get().GetCursorPos();
 
-	// Debug log every ~60 frames
-	static int32 DebugCounter = 0;
-	if (++DebugCounter % 60 == 0)
+	// Convert to viewport-local coordinates using cached origin
+	// This avoids expensive viewport lookups every frame
+	FVector2D ViewportLocalPos = CursorScreenPos;
+	if (bViewportCached)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UpdatePosition: CursorScreen=(%.1f, %.1f), ViewportOrigin=(%.1f, %.1f), Local=(%.1f, %.1f), Offset=(%.1f, %.1f), Final=(%.1f, %.1f)"),
-			CursorScreenPos.X, CursorScreenPos.Y,
-			ViewportOrigin.X, ViewportOrigin.Y,
-			ViewportLocalPos.X, ViewportLocalPos.Y,
-			DragOffset.X, DragOffset.Y,
-			FinalPos.X, FinalPos.Y);
+		ViewportLocalPos = CursorScreenPos - CachedViewportOrigin;
 	}
+
+	// Apply center offset and set position
+	// SetPositionInViewport is the standard UMG way - it's optimized internally
+	SetPositionInViewport(ViewportLocalPos + DragOffset);
 }
 
 void USuspenseCoreDragVisualWidget::SetDropValidity(bool bCanDrop)
@@ -176,6 +165,14 @@ void USuspenseCoreDragVisualWidget::ToggleRotation()
 	SetRotation(!bIsRotated);
 }
 
+void USuspenseCoreDragVisualWidget::RecalculateCenterOffset()
+{
+	// Recalculate center offset based on current size
+	float WidthPixels = FMath::Max(1, CurrentSize.X) * CellSizePixels;
+	float HeightPixels = FMath::Max(1, CurrentSize.Y) * CellSizePixels;
+	DragOffset = FVector2D(-WidthPixels * 0.5f, -HeightPixels * 0.5f);
+}
+
 void USuspenseCoreDragVisualWidget::SetRotation(bool bRotated)
 {
 	if (bIsRotated != bRotated)
@@ -184,6 +181,9 @@ void USuspenseCoreDragVisualWidget::SetRotation(bool bRotated)
 
 		// Swap width and height
 		CurrentSize = FIntPoint(CurrentSize.Y, CurrentSize.X);
+
+		// Recalculate center offset for new dimensions
+		RecalculateCenterOffset();
 
 		// Update visuals
 		UpdateSize();

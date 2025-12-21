@@ -181,7 +181,7 @@ private:
 	/** Current drag data */
 	FSuspenseCoreDragData CurrentDragData;
 
-	/** Drag offset from cursor */
+	/** Drag offset from cursor - calculated to center item under cursor */
 	FVector2D DragOffset;
 
 	/** Is item currently rotated */
@@ -192,4 +192,20 @@ private:
 
 	/** Current item size accounting for rotation */
 	FIntPoint CurrentSize;
+
+	//==================================================================
+	// Performance Optimization - Cached viewport data
+	//==================================================================
+
+	/** Cached viewport origin for fast coordinate conversion */
+	FVector2D CachedViewportOrigin;
+
+	/** Whether viewport info has been cached */
+	bool bViewportCached = false;
+
+	/** Cache viewport info for fast position updates during drag */
+	void CacheViewportInfo();
+
+	/** Recalculate center offset when size changes (e.g., rotation) */
+	void RecalculateCenterOffset();
 };

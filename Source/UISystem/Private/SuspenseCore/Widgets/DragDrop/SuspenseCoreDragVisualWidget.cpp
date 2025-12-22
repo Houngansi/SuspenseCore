@@ -8,8 +8,11 @@
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SViewport.h"
 
 //==================================================================
 // Constructor
@@ -107,19 +110,22 @@ void USuspenseCoreDragVisualWidget::UpdatePositionFromCursor()
 	}
 
 	// ============================================================================
-	// SLATE-SAFE CURSOR TRACKING
-	// During drag operations, Slate captures mouse input and PlayerController's
-	// GetMousePosition may return stale data. FSlateApplication::GetCursorPos()
-	// queries the OS directly and always returns current cursor position.
+	// WINDOWED MODE SAFE CURSOR TRACKING
+	//
+	// Problem: In windowed mode, FSlateApplication::GetCursorPos() returns
+	// absolute screen coordinates (e.g., cursor at 1500,800 on a 1920x1080 monitor).
+	// But SetPositionInViewport expects viewport-local coordinates.
+	//
+	// Solution: Get viewport's absolute position on screen and subtract it.
 	// ============================================================================
 
-	// Get ABSOLUTE cursor position (screen coordinates) - most reliable during drag
+	// Get ABSOLUTE cursor position (screen coordinates)
 	FVector2D AbsoluteCursorPos = FSlateApplication::Get().GetCursorPos();
 
 	// Get viewport scale for DPI correction
 	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
 
-	// Try to get viewport-local position via PlayerController (preferred when available)
+	// Try to get viewport-local position via PlayerController (preferred method)
 	FVector2D LocalMousePos;
 	APlayerController* PC = GetOwningPlayer();
 
@@ -128,18 +134,60 @@ void USuspenseCoreDragVisualWidget::UpdatePositionFromCursor()
 		float MouseX, MouseY;
 		if (UWidgetLayoutLibrary::GetMousePositionScaledByDPI(PC, MouseX, MouseY))
 		{
+			// This works correctly in both fullscreen and windowed mode
 			LocalMousePos = FVector2D(MouseX, MouseY);
 		}
 		else
 		{
-			// Fallback: convert absolute to local manually
-			LocalMousePos = AbsoluteCursorPos / ViewportScale;
+			// Fallback: manually convert absolute to viewport-local
+			// We need to get the viewport's position on screen
+			FVector2D ViewportOrigin = FVector2D::ZeroVector;
+
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				UGameViewportClient* ViewportClient = World->GetGameViewport();
+				if (ViewportClient)
+				{
+					TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
+					if (ViewportWidget.IsValid())
+					{
+						// Get viewport's absolute position on screen
+						FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
+						ViewportOrigin = ViewportGeometry.GetAbsolutePosition();
+					}
+				}
+			}
+
+			// Subtract viewport origin to get viewport-local coordinates
+			FVector2D ViewportLocalPos = AbsoluteCursorPos - ViewportOrigin;
+
+			// Apply DPI scale
+			LocalMousePos = ViewportLocalPos / ViewportScale;
 		}
 	}
 	else
 	{
-		// No PC available - use absolute position with DPI scale
-		LocalMousePos = AbsoluteCursorPos / ViewportScale;
+		// No PC - try to get viewport origin anyway
+		FVector2D ViewportOrigin = FVector2D::ZeroVector;
+
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			UGameViewportClient* ViewportClient = World->GetGameViewport();
+			if (ViewportClient)
+			{
+				TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
+				if (ViewportWidget.IsValid())
+				{
+					FGeometry ViewportGeometry = ViewportWidget->GetCachedGeometry();
+					ViewportOrigin = ViewportGeometry.GetAbsolutePosition();
+				}
+			}
+		}
+
+		FVector2D ViewportLocalPos = AbsoluteCursorPos - ViewportOrigin;
+		LocalMousePos = ViewportLocalPos / ViewportScale;
 	}
 
 	// Convert DragOffset from pixels to slate units

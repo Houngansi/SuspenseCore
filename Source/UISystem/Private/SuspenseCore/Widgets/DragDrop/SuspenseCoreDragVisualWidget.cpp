@@ -59,7 +59,12 @@ void USuspenseCoreDragVisualWidget::NativeTick(const FGeometry& MyGeometry, floa
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	// Update position every frame for smooth cursor tracking
-	UpdatePositionFromCursor();
+	// Check visibility to avoid unnecessary updates when collapsed
+	ESlateVisibility CurrentVis = GetVisibility();
+	if (CurrentVis != ESlateVisibility::Collapsed && CurrentVis != ESlateVisibility::Hidden)
+	{
+		UpdatePositionFromCursor();
+	}
 }
 
 //==================================================================
@@ -102,29 +107,40 @@ void USuspenseCoreDragVisualWidget::UpdatePositionFromCursor()
 	}
 
 	// ============================================================================
-	// DPI-SAFE POSITIONING
-	// GetMousePositionScaledByDPI is the gold standard in UE - it automatically
-	// handles window position, DPI scale, and works correctly in 99% of cases
-	// without manual viewport origin caching (which breaks on window move/resize)
+	// SLATE-SAFE CURSOR TRACKING
+	// During drag operations, Slate captures mouse input and PlayerController's
+	// GetMousePosition may return stale data. FSlateApplication::GetCursorPos()
+	// queries the OS directly and always returns current cursor position.
 	// ============================================================================
 
-	APlayerController* PC = GetOwningPlayer();
-	if (!PC)
-	{
-		return;
-	}
+	// Get ABSOLUTE cursor position (screen coordinates) - most reliable during drag
+	FVector2D AbsoluteCursorPos = FSlateApplication::Get().GetCursorPos();
 
-	// Get mouse position already scaled by DPI (viewport-local coordinates)
-	float MouseX, MouseY;
-	if (!UWidgetLayoutLibrary::GetMousePositionScaledByDPI(PC, MouseX, MouseY))
-	{
-		return;
-	}
-
-	FVector2D LocalMousePos(MouseX, MouseY);
-
-	// Get viewport scale for offset conversion
+	// Get viewport scale for DPI correction
 	float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
+
+	// Try to get viewport-local position via PlayerController (preferred when available)
+	FVector2D LocalMousePos;
+	APlayerController* PC = GetOwningPlayer();
+
+	if (PC)
+	{
+		float MouseX, MouseY;
+		if (UWidgetLayoutLibrary::GetMousePositionScaledByDPI(PC, MouseX, MouseY))
+		{
+			LocalMousePos = FVector2D(MouseX, MouseY);
+		}
+		else
+		{
+			// Fallback: convert absolute to local manually
+			LocalMousePos = AbsoluteCursorPos / ViewportScale;
+		}
+	}
+	else
+	{
+		// No PC available - use absolute position with DPI scale
+		LocalMousePos = AbsoluteCursorPos / ViewportScale;
+	}
 
 	// Convert DragOffset from pixels to slate units
 	FVector2D ScaledOffset = DragOffset / ViewportScale;

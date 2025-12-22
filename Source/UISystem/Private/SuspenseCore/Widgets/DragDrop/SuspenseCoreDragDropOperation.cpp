@@ -159,8 +159,13 @@ void USuspenseCoreDragDropOperation::Dragged_Implementation(const FPointerEvent&
 {
 	Super::Dragged_Implementation(PointerEvent);
 
-	// NOTE: DragVisual updates its position in NativeTick via UpdatePositionFromCursor()
-	// No manual position update needed here - this prevents double-update jitter
+	// Update visual position
+	// This is called by Slate during drag - serves as backup in case NativeTick
+	// doesn't run (can happen during Slate mouse capture)
+	if (DragVisual)
+	{
+		DragVisual->UpdatePositionFromCursor();
+	}
 }
 
 void USuspenseCoreDragDropOperation::DragCancelled_Implementation(const FPointerEvent& PointerEvent)

@@ -24,6 +24,17 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSuspenseCoreEquipment, Log, All);
 #define EQUIPMENT_LOG(Verbosity, Format, ...) \
 UE_LOG(LogSuspenseCoreEquipment, Verbosity, TEXT("%s: " Format), *GetNameSafe(this), ##__VA_ARGS__)
 
+//================================================
+// Save Data Versioning
+//================================================
+/** Current save data version for equipment component serialization */
+#define SUSPENSECORE_EQUIPMENT_SAVE_VERSION 1
+
+//================================================
+// Profiling STAT Group
+//================================================
+DECLARE_STATS_GROUP(TEXT("SuspenseCoreEquipment"), STATGROUP_SuspenseCoreEquipment, STATCAT_Advanced);
+
 // Client prediction data structure
 USTRUCT()
 struct FSuspenseCoreEquipmentComponentPredictionData
@@ -318,6 +329,13 @@ protected:
      */
     void LogEventBroadcast(const FString& EventName, bool bSuccess) const;
 
+    /**
+     * Get slot index from GameplayTag slot type
+     * @param SlotType GameplayTag representing slot type (e.g., Equipment.Slot.PrimaryWeapon)
+     * @return Slot index for the given tag (0 = primary, 1 = secondary, etc.)
+     */
+    int32 GetSlotIndexFromTag(const FGameplayTag& SlotType) const;
+
     //================================================
     // Replication Callbacks
     //================================================
@@ -384,9 +402,19 @@ protected:
     UPROPERTY()
     int32 NextPredictionKey;
 
+    /** Timer handle for periodic prediction cleanup (prevents memory leak) */
+    FTimerHandle PredictionCleanupTimerHandle;
+
     /** Maximum number of concurrent predictions allowed */
     static constexpr int32 MaxConcurrentPredictions = 5;
 
     /** Timeout for predictions in seconds */
     static constexpr float PredictionTimeoutSeconds = 2.0f;
+
+    //================================================
+    // Slot Index Mapping Cache
+    //================================================
+
+    /** Cached slot type to index mapping for performance */
+    static const TMap<FName, int32>& GetSlotTypeMapping();
 };

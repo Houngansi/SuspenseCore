@@ -121,12 +121,9 @@ void USuspenseCoreInventoryComponent::MigrateSaveData(int32 FromVersion, int32 T
 		// Rebuild grid slots to match items
 		if (Config.GridWidth > 0 && Config.GridHeight > 0)
 		{
-			int32 TotalSlots = Config.GridWidth * Config.GridHeight;
-			GridSlots.SetNum(TotalSlots);
-			for (FSuspenseCoreInventorySlot& Slot : GridSlots)
-			{
-				Slot.Clear();
-			}
+			// Initialize GridStorage (SSOT)
+			EnsureStorageInitialized();
+
 			for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
 			{
 				UpdateGridSlots(Instance, true);
@@ -306,7 +303,7 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	int32 CurrentTargetSlot = TargetSlot;
 
 	// Infinite loop protection
-	int32 MaxIterations = ItemInstance.Quantity + GridSlots.Num();
+	int32 MaxIterations = ItemInstance.Quantity + GetTotalSlotCount();
 	int32 IterationCount = 0;
 
 	while (RemainingQuantity > 0 && IterationCount < MaxIterations)
@@ -510,7 +507,7 @@ bool USuspenseCoreInventoryComponent::RemoveItemFromSlot(int32 SlotIndex, FSuspe
 		return false;
 	}
 
-	FGuid InstanceID = GridSlots[SlotIndex].InstanceID;
+	FGuid InstanceID = GetInstanceIDAtSlot(SlotIndex);
 	return RemoveItemInternal(InstanceID, OutRemovedInstance);
 }
 
@@ -525,12 +522,12 @@ TArray<FSuspenseCoreItemInstance> USuspenseCoreInventoryComponent::GetAllItemIns
 
 bool USuspenseCoreInventoryComponent::GetItemInstanceAtSlot(int32 SlotIndex, FSuspenseCoreItemInstance& OutInstance) const
 {
-	if (!IsValidGridCoords(SlotToGridCoords(SlotIndex)) || !IsSlotOccupied(SlotIndex))
+	if (!IsValidSlotIndex(SlotIndex) || !IsSlotOccupied(SlotIndex))
 	{
 		return false;
 	}
 
-	const FGuid& InstanceID = GridSlots[SlotIndex].InstanceID;
+	const FGuid InstanceID = GetInstanceIDAtSlot(SlotIndex);
 	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
 	if (Instance)
 	{
@@ -742,11 +739,12 @@ bool USuspenseCoreInventoryComponent::RotateItemAtSlot(int32 SlotIndex)
 
 bool USuspenseCoreInventoryComponent::IsSlotOccupied(int32 SlotIndex) const
 {
-	if (SlotIndex < 0 || SlotIndex >= GridSlots.Num())
+	// Use GridStorage as SSOT
+	if (GridStorage && GridStorage->IsInitialized())
 	{
-		return false;
+		return GridStorage->IsSlotOccupied(SlotIndex);
 	}
-	return !GridSlots[SlotIndex].IsEmpty();
+	return false;
 }
 
 int32 USuspenseCoreInventoryComponent::FindFreeSlot(FIntPoint ItemGridSize, bool bAllowRotation) const
@@ -766,7 +764,7 @@ int32 USuspenseCoreInventoryComponent::FindFreeSlot(FIntPoint ItemGridSize, bool
 	}
 
 	// Fallback to local implementation (for backwards compatibility)
-	const int32 TotalSlots = GridSlots.Num();
+	const int32 TotalSlots = GetTotalSlotCount();
 	if (TotalSlots == 0)
 	{
 		return INDEX_NONE;
@@ -940,16 +938,17 @@ void USuspenseCoreInventoryComponent::SetAllowedItemTypes(const FGameplayTagCont
 bool USuspenseCoreInventoryComponent::ValidateIntegrity(TArray<FString>& OutErrors) const
 {
 	bool bValid = true;
+	const int32 TotalSlots = GetTotalSlotCount();
 
-	// Check grid slots match items
+	// Check grid slots match items (using GridStorage as SSOT)
 	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
 	{
-		if (Instance.SlotIndex < 0 || Instance.SlotIndex >= GridSlots.Num())
+		if (Instance.SlotIndex < 0 || Instance.SlotIndex >= TotalSlots)
 		{
 			OutErrors.Add(FString::Printf(TEXT("Item %s has invalid slot %d"), *Instance.ItemID.ToString(), Instance.SlotIndex));
 			bValid = false;
 		}
-		else if (GridSlots[Instance.SlotIndex].InstanceID != Instance.UniqueInstanceID)
+		else if (GetInstanceIDAtSlot(Instance.SlotIndex) != Instance.UniqueInstanceID)
 		{
 			OutErrors.Add(FString::Printf(TEXT("Grid slot %d doesn't match item %s"), Instance.SlotIndex, *Instance.ItemID.ToString()));
 			bValid = false;
@@ -972,7 +971,15 @@ void USuspenseCoreInventoryComponent::BeginTransaction()
 	}
 
 	TransactionSnapshot.Items = ItemInstances;
-	TransactionSnapshot.Slots = GridSlots;
+
+	// Capture slot state from GridStorage (SSOT)
+	const int32 TotalSlots = GetTotalSlotCount();
+	TransactionSnapshot.Slots.SetNum(TotalSlots);
+	for (int32 i = 0; i < TotalSlots; ++i)
+	{
+		TransactionSnapshot.Slots[i] = GetGridSlot(i);
+	}
+
 	TransactionSnapshot.CurrentWeight = CurrentWeight;
 	TransactionSnapshot.SnapshotTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	bTransactionActive = true;
@@ -1001,9 +1008,19 @@ void USuspenseCoreInventoryComponent::RollbackTransaction()
 	}
 
 	ItemInstances = TransactionSnapshot.Items;
-	GridSlots = TransactionSnapshot.Slots;
 	CurrentWeight = TransactionSnapshot.CurrentWeight;
 	bTransactionActive = false;
+
+	// Rebuild GridStorage from snapshot
+	EnsureStorageInitialized();
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		GridStorage->Clear();
+		for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+		{
+			UpdateGridSlots(Instance, true);
+		}
+	}
 
 	// Rebuild replicated data
 	ReplicatedInventory.ClearItems();
@@ -1066,10 +1083,193 @@ bool USuspenseCoreInventoryComponent::SplitStack(int32 SourceSlot, int32 SplitQu
 
 int32 USuspenseCoreInventoryComponent::ConsolidateStacks(FName ItemID)
 {
-	int32 Consolidated = 0;
-	// Implementation would merge matching stacks
-	// Simplified for now
-	return Consolidated;
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_AddItem); // Reuse AddItem stat for consolidation
+
+	if (!bIsInitialized)
+	{
+		return 0;
+	}
+
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (!DataManager)
+	{
+		return 0;
+	}
+
+	int32 TotalConsolidated = 0;
+
+	// Build a map of ItemID -> array of instance indices for stackable items
+	TMap<FName, TArray<int32>> StackableItemGroups;
+
+	for (int32 i = 0; i < ItemInstances.Num(); ++i)
+	{
+		const FSuspenseCoreItemInstance& Instance = ItemInstances[i];
+
+		// Filter by ItemID if specified
+		if (!ItemID.IsNone() && Instance.ItemID != ItemID)
+		{
+			continue;
+		}
+
+		// Check if item is stackable
+		FSuspenseCoreItemData ItemData;
+		if (!DataManager->GetItemData(Instance.ItemID, ItemData))
+		{
+			continue;
+		}
+
+		if (!ItemData.InventoryProps.IsStackable())
+		{
+			continue;
+		}
+
+		StackableItemGroups.FindOrAdd(Instance.ItemID).Add(i);
+	}
+
+	// Process each group of stackable items
+	for (auto& Pair : StackableItemGroups)
+	{
+		const FName& CurrentItemID = Pair.Key;
+		TArray<int32>& InstanceIndices = Pair.Value;
+
+		// Skip if only one stack
+		if (InstanceIndices.Num() <= 1)
+		{
+			continue;
+		}
+
+		// Get max stack size for this item
+		FSuspenseCoreItemData ItemData;
+		if (!DataManager->GetItemData(CurrentItemID, ItemData))
+		{
+			continue;
+		}
+		const int32 MaxStackSize = ItemData.InventoryProps.MaxStackSize;
+		const float UnitWeight = ItemData.InventoryProps.Weight;
+
+		// Sort by quantity descending (fill larger stacks first)
+		InstanceIndices.Sort([this](int32 A, int32 B)
+		{
+			return ItemInstances[A].Quantity > ItemInstances[B].Quantity;
+		});
+
+		// Track instances to remove after consolidation
+		TArray<FGuid> InstancesToRemove;
+
+		// Merge smaller stacks into larger ones
+		for (int32 i = 0; i < InstanceIndices.Num(); ++i)
+		{
+			FSuspenseCoreItemInstance& TargetInstance = ItemInstances[InstanceIndices[i]];
+
+			// Skip if already marked for removal or already full
+			if (InstancesToRemove.Contains(TargetInstance.UniqueInstanceID))
+			{
+				continue;
+			}
+
+			if (TargetInstance.Quantity >= MaxStackSize)
+			{
+				continue;
+			}
+
+			// Try to absorb from other stacks
+			for (int32 j = i + 1; j < InstanceIndices.Num(); ++j)
+			{
+				FSuspenseCoreItemInstance& SourceInstance = ItemInstances[InstanceIndices[j]];
+
+				// Skip if already marked for removal
+				if (InstancesToRemove.Contains(SourceInstance.UniqueInstanceID))
+				{
+					continue;
+				}
+
+				int32 SpaceInTarget = MaxStackSize - TargetInstance.Quantity;
+				if (SpaceInTarget <= 0)
+				{
+					break; // Target is full
+				}
+
+				int32 ToTransfer = FMath::Min(SpaceInTarget, SourceInstance.Quantity);
+				if (ToTransfer <= 0)
+				{
+					continue;
+				}
+
+				// Transfer quantity
+				TargetInstance.Quantity += ToTransfer;
+				SourceInstance.Quantity -= ToTransfer;
+				++TotalConsolidated;
+
+				UE_LOG(LogSuspenseCoreInventory, Verbose,
+					TEXT("ConsolidateStacks: Transferred %d of %s from slot %d to slot %d"),
+					ToTransfer, *CurrentItemID.ToString(), SourceInstance.SlotIndex, TargetInstance.SlotIndex);
+
+				// Mark empty source for removal
+				if (SourceInstance.Quantity <= 0)
+				{
+					InstancesToRemove.Add(SourceInstance.UniqueInstanceID);
+				}
+			}
+		}
+
+		// Remove emptied stacks (iterate backwards to avoid index shifting)
+		for (const FGuid& InstanceIDToRemove : InstancesToRemove)
+		{
+			for (int32 i = ItemInstances.Num() - 1; i >= 0; --i)
+			{
+				if (ItemInstances[i].UniqueInstanceID == InstanceIDToRemove)
+				{
+					// Clear grid slots
+					UpdateGridSlots(ItemInstances[i], false);
+
+					// Remove from replication
+					ReplicatedInventory.RemoveItem(InstanceIDToRemove);
+
+					// Remove from array
+					ItemInstances.RemoveAt(i);
+
+					UE_LOG(LogSuspenseCoreInventory, Verbose,
+						TEXT("ConsolidateStacks: Removed empty stack %s"), *InstanceIDToRemove.ToString());
+					break;
+				}
+			}
+		}
+
+		// Update replicated data for modified stacks
+		for (int32 Idx : InstanceIndices)
+		{
+			if (Idx < ItemInstances.Num())
+			{
+				const FSuspenseCoreItemInstance& Instance = ItemInstances[Idx];
+				if (!InstancesToRemove.Contains(Instance.UniqueInstanceID))
+				{
+					ReplicatedInventory.UpdateItem(Instance);
+				}
+			}
+		}
+	}
+
+	if (TotalConsolidated > 0)
+	{
+		// Recalculate weight for consistency
+		RecalculateWeight();
+
+		// Invalidate UI cache
+		InvalidateAllUICache();
+
+		// Broadcast update
+		BroadcastInventoryUpdated();
+
+		UE_LOG(LogSuspenseCoreInventory, Log,
+			TEXT("ConsolidateStacks: Completed %d consolidations. Items remaining: %d"),
+			TotalConsolidated, ItemInstances.Num());
+	}
+
+#if !UE_BUILD_SHIPPING
+	ValidateInventoryIntegrityInternal(TEXT("ConsolidateStacks"));
+#endif
+
+	return TotalConsolidated;
 }
 
 //==================================================================
@@ -1142,16 +1342,11 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 	Config.AllowedItemTypes.Reset();
 	Config.DisallowedItemTypes.Reset();
 
-	// Initialize legacy GridSlots array (for backwards compatibility)
-	int32 TotalSlots = Config.GridWidth * Config.GridHeight;
-	GridSlots.SetNum(TotalSlots);
-	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
-	{
-		Slot.Clear();
-	}
-
-	// Initialize Storage (SSOT for grid operations)
+	// Initialize GridStorage (SSOT for all grid operations)
 	EnsureStorageInitialized();
+
+	// Sync to legacy array for replication compatibility
+	SyncStorageToLegacyArray();
 
 	ItemInstances.Empty();
 	CurrentWeight = 0.0f;
@@ -1197,7 +1392,47 @@ void USuspenseCoreInventoryComponent::EnsureStorageInitialized()
 	}
 }
 
-void USuspenseCoreInventoryComponent::SyncStorageToGridSlots()
+//==================================================================
+// Grid Storage Accessors (SSOT)
+//==================================================================
+
+FSuspenseCoreInventorySlot USuspenseCoreInventoryComponent::GetGridSlot(int32 SlotIndex) const
+{
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		return GridStorage->GetSlot(SlotIndex);
+	}
+	return FSuspenseCoreInventorySlot();
+}
+
+FGuid USuspenseCoreInventoryComponent::GetInstanceIDAtSlot(int32 SlotIndex) const
+{
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		return GridStorage->GetInstanceIDAtSlot(SlotIndex);
+	}
+	return FGuid();
+}
+
+bool USuspenseCoreInventoryComponent::IsValidSlotIndex(int32 SlotIndex) const
+{
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		return GridStorage->IsValidSlot(SlotIndex);
+	}
+	return SlotIndex >= 0 && SlotIndex < Config.GridWidth * Config.GridHeight;
+}
+
+int32 USuspenseCoreInventoryComponent::GetTotalSlotCount() const
+{
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		return GridStorage->GetTotalSlots();
+	}
+	return Config.GridWidth * Config.GridHeight;
+}
+
+void USuspenseCoreInventoryComponent::SyncStorageToLegacyArray()
 {
 	if (!GridStorage || !GridStorage->IsInitialized())
 	{
@@ -1205,62 +1440,13 @@ void USuspenseCoreInventoryComponent::SyncStorageToGridSlots()
 	}
 
 	int32 TotalSlots = GridStorage->GetTotalSlots();
-	GridSlots.SetNum(TotalSlots);
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GridSlots_DEPRECATED.SetNum(TotalSlots);
 	for (int32 i = 0; i < TotalSlots; ++i)
 	{
-		GridSlots[i] = GridStorage->GetSlot(i);
+		GridSlots_DEPRECATED[i] = GridStorage->GetSlot(i);
 	}
-}
-
-void USuspenseCoreInventoryComponent::SyncGridSlotsToStorage()
-{
-	EnsureStorageInitialized();
-
-	if (!GridStorage)
-	{
-		return;
-	}
-
-	// Clear storage and rebuild from GridSlots
-	GridStorage->Clear();
-
-	// Collect unique items from GridSlots
-	TMap<FGuid, int32> AnchorSlots; // InstanceID -> AnchorSlot
-	for (int32 i = 0; i < GridSlots.Num(); ++i)
-	{
-		const FSuspenseCoreInventorySlot& Slot = GridSlots[i];
-		if (!Slot.IsEmpty() && Slot.bIsAnchor)
-		{
-			AnchorSlots.Add(Slot.InstanceID, i);
-		}
-	}
-
-	// Re-place items in storage
-	for (const auto& Pair : AnchorSlots)
-	{
-		const FGuid& InstanceID = Pair.Key;
-		int32 AnchorSlot = Pair.Value;
-
-		// Find item to get its size
-		const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
-		if (Instance)
-		{
-			FSuspenseCoreItemData ItemData;
-			if (USuspenseCoreDataManager* DataManager = GetDataManager())
-			{
-				if (DataManager->GetItemData(Instance->ItemID, ItemData))
-				{
-					bool bRotated = Instance->Rotation != 0;
-					GridStorage->PlaceItem(InstanceID, ItemData.InventoryProps.GridSize, AnchorSlot, bRotated);
-				}
-			}
-		}
-	}
-
-	UE_LOG(LogSuspenseCoreInventory, Verbose,
-		TEXT("SyncGridSlotsToStorage: Synced %d items to Storage"),
-		AnchorSlots.Num());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool USuspenseCoreInventoryComponent::IsInitialized() const
@@ -1271,10 +1457,16 @@ bool USuspenseCoreInventoryComponent::IsInitialized() const
 void USuspenseCoreInventoryComponent::Clear()
 {
 	ItemInstances.Empty();
-	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
+
+	// Clear GridStorage (SSOT)
+	if (GridStorage && GridStorage->IsInitialized())
 	{
-		Slot.Clear();
+		GridStorage->Clear();
 	}
+
+	// Sync to legacy array for replication
+	SyncStorageToLegacyArray();
+
 	CurrentWeight = 0.0f;
 	ReplicatedInventory.ClearItems();
 
@@ -1506,12 +1698,8 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 			TEXT("OnRep_ReplicatedInventory: Full rebuild (initial sync or config change)"));
 
 		// Full rebuild - this happens on initial connect or grid resize
-		int32 TotalSlots = Config.GridWidth * Config.GridHeight;
-		GridSlots.SetNum(TotalSlots);
-		for (FSuspenseCoreInventorySlot& Slot : GridSlots)
-		{
-			Slot.Clear();
-		}
+		// Initialize GridStorage as SSOT
+		EnsureStorageInitialized();
 
 		ItemInstances.Empty(ReplicatedInventory.Items.Num());
 		for (const FSuspenseCoreReplicatedItem& RepItem : ReplicatedInventory.Items)
@@ -1544,7 +1732,7 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 
 	UE_LOG(LogSuspenseCoreInventory, Verbose,
 		TEXT("OnRep_ReplicatedInventory: Items=%d, Slots=%d, Weight=%.2f, FullRebuild=%s"),
-		ItemInstances.Num(), GridSlots.Num(), CurrentWeight,
+		ItemInstances.Num(), GetTotalSlotCount(), CurrentWeight,
 		bNeedFullRebuild ? TEXT("Yes") : TEXT("No"));
 }
 
@@ -1676,32 +1864,8 @@ void USuspenseCoreInventoryComponent::UpdateGridSlots(const FSuspenseCoreItemIns
 
 	FIntPoint ItemSize = ItemData.InventoryProps.GridSize;
 	bool bRotated = Instance.Rotation != 0;
-	FIntPoint EffectiveSize = bRotated ? FIntPoint(ItemSize.Y, ItemSize.X) : ItemSize;
-	FIntPoint StartCoords = SlotToGridCoords(Instance.SlotIndex);
 
-	// Update legacy GridSlots array (for backwards compatibility)
-	for (int32 Y = 0; Y < EffectiveSize.Y; ++Y)
-	{
-		for (int32 X = 0; X < EffectiveSize.X; ++X)
-		{
-			int32 SlotIdx = GridCoordsToSlot(FIntPoint(StartCoords.X + X, StartCoords.Y + Y));
-			if (SlotIdx != INDEX_NONE && SlotIdx < GridSlots.Num())
-			{
-				if (bPlace)
-				{
-					GridSlots[SlotIdx].InstanceID = Instance.UniqueInstanceID;
-					GridSlots[SlotIdx].bIsAnchor = (X == 0 && Y == 0);
-					GridSlots[SlotIdx].OffsetFromAnchor = FIntPoint(X, Y);
-				}
-				else
-				{
-					GridSlots[SlotIdx].Clear();
-				}
-			}
-		}
-	}
-
-	// Sync with Storage (SSOT for grid operations)
+	// Update GridStorage FIRST (SSOT for all grid operations)
 	if (GridStorage && GridStorage->IsInitialized())
 	{
 		if (bPlace)
@@ -1713,6 +1877,9 @@ void USuspenseCoreInventoryComponent::UpdateGridSlots(const FSuspenseCoreItemIns
 			GridStorage->RemoveItem(Instance.UniqueInstanceID);
 		}
 	}
+
+	// Sync to legacy array for replication compatibility
+	SyncStorageToLegacyArray();
 }
 
 FSuspenseCoreItemInstance* USuspenseCoreInventoryComponent::FindItemInstanceInternal(const FGuid& InstanceID)
@@ -1773,6 +1940,20 @@ bool USuspenseCoreInventoryComponent::Server_AddItemByID_Validate(FName ItemID, 
 		return false;
 	}
 
+	// Validate ItemID exists in DataTable (prevents garbage/invalid IDs from wasting server resources)
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (!DataManager->GetItemData(ItemID, ItemData))
+		{
+			UE_LOG(LogSuspenseCoreInventory, Warning,
+				TEXT("Server_AddItemByID_Validate: ItemID '%s' not found in DataTable - rejected"),
+				*ItemID.ToString());
+			return false;
+		}
+	}
+
 	// Rate limiting
 	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
 	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("AddItem"), 10.0f))
@@ -1786,19 +1967,39 @@ bool USuspenseCoreInventoryComponent::Server_AddItemByID_Validate(FName ItemID, 
 
 bool USuspenseCoreInventoryComponent::Server_RemoveItemByID_Validate(FName ItemID, int32 Quantity)
 {
+	// Basic parameter validation
 	if (ItemID.IsNone())
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("Server_RemoveItemByID_Validate: ItemID is None"));
 		return false;
 	}
 
 	if (Quantity <= 0 || Quantity > 9999)
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("Server_RemoveItemByID_Validate: Invalid quantity %d"), Quantity);
 		return false;
 	}
 
+	// Validate ItemID exists in DataTable
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (!DataManager->GetItemData(ItemID, ItemData))
+		{
+			UE_LOG(LogSuspenseCoreInventory, Warning,
+				TEXT("Server_RemoveItemByID_Validate: ItemID '%s' not found in DataTable - rejected"),
+				*ItemID.ToString());
+			return false;
+		}
+	}
+
+	// Rate limiting
 	USuspenseCoreSecurityValidator* Security = USuspenseCoreSecurityValidator::Get(this);
 	if (Security && !Security->CheckRateLimit(GetOwner(), TEXT("RemoveItem"), 10.0f))
 	{
+		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("Server_RemoveItemByID_Validate: Rate limited"));
 		return false;
 	}
 
@@ -2074,7 +2275,7 @@ void USuspenseCoreInventoryComponent::Server_RemoveItemFromSlot_Implementation(i
 	FSuspenseCoreItemInstance RemovedInstance;
 	if (IsSlotOccupied(SlotIndex))
 	{
-		FGuid InstanceID = GridSlots[SlotIndex].InstanceID;
+		FGuid InstanceID = GetInstanceIDAtSlot(SlotIndex);
 		RemoveItemInternal(InstanceID, RemovedInstance);
 	}
 }
@@ -2141,7 +2342,7 @@ FSuspenseCoreSlotUIData USuspenseCoreInventoryComponent::GetSlotUIData(int32 Slo
 
 bool USuspenseCoreInventoryComponent::IsSlotValid(int32 SlotIndex) const
 {
-	return SlotIndex >= 0 && SlotIndex < GridSlots.Num();
+	return IsValidSlotIndex(SlotIndex);
 }
 
 TArray<FSuspenseCoreItemUIData> USuspenseCoreInventoryComponent::GetAllItemUIData() const
@@ -2168,7 +2369,7 @@ bool USuspenseCoreInventoryComponent::GetItemUIDataAtSlot(int32 SlotIndex, FSusp
 		return false;
 	}
 
-	const FGuid& InstanceID = GridSlots[SlotIndex].InstanceID;
+	const FGuid InstanceID = GetInstanceIDAtSlot(SlotIndex);
 	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
 	if (!Instance)
 	{
@@ -2362,8 +2563,8 @@ int32 USuspenseCoreInventoryComponent::GetAnchorSlotForPosition(int32 AnySlotInd
 		return AnySlotIndex; // Empty slot - return as-is
 	}
 
-	// Get the instance ID at this slot
-	const FGuid& InstanceID = GridSlots[AnySlotIndex].InstanceID;
+	// Get the instance ID at this slot (using GridStorage SSOT)
+	const FGuid InstanceID = GetInstanceIDAtSlot(AnySlotIndex);
 
 	// Find the instance to get its anchor slot
 	const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
@@ -2692,9 +2893,10 @@ FSuspenseCoreSlotUIData USuspenseCoreInventoryComponent::ConvertSlotToUIData(int
 	SlotData.SlotIndex = SlotIndex;
 	SlotData.GridPosition = SlotToGridCoords(SlotIndex);
 
-	if (SlotIndex >= 0 && SlotIndex < GridSlots.Num())
+	if (IsValidSlotIndex(SlotIndex))
 	{
-		const FSuspenseCoreInventorySlot& Slot = GridSlots[SlotIndex];
+		// Use GridStorage accessor (SSOT)
+		const FSuspenseCoreInventorySlot Slot = GetGridSlot(SlotIndex);
 		SlotData.bIsAnchor = Slot.bIsAnchor;
 		SlotData.bIsPartOfItem = !Slot.IsEmpty() && !Slot.bIsAnchor;
 		SlotData.OccupyingItemID = Slot.InstanceID;
@@ -2761,9 +2963,10 @@ void USuspenseCoreInventoryComponent::RebuildItemUICache() const
 
 void USuspenseCoreInventoryComponent::RebuildSlotUICache() const
 {
-	CachedSlotUIData.SetNum(GridSlots.Num());
+	const int32 TotalSlots = GetTotalSlotCount();
+	CachedSlotUIData.SetNum(TotalSlots);
 
-	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	for (int32 i = 0; i < TotalSlots; ++i)
 	{
 		CachedSlotUIData[i] = ConvertSlotToUIData(i);
 	}
@@ -2779,11 +2982,13 @@ void USuspenseCoreInventoryComponent::ValidateInventoryIntegrityInternal(const F
 {
 	TArray<FString> Errors;
 
-	// 1. Check grid slots match items
+	const int32 TotalSlots = GetTotalSlotCount();
+
+	// 1. Check grid slots match items (using GridStorage as SSOT)
 	TSet<FGuid> ItemIDsInGrid;
-	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	for (int32 i = 0; i < TotalSlots; ++i)
 	{
-		const FSuspenseCoreInventorySlot& Slot = GridSlots[i];
+		const FSuspenseCoreInventorySlot Slot = GetGridSlot(i);
 		if (!Slot.IsEmpty())
 		{
 			ItemIDsInGrid.Add(Slot.InstanceID);
@@ -2796,10 +3001,10 @@ void USuspenseCoreInventoryComponent::ValidateInventoryIntegrityInternal(const F
 		ItemIDsInArray.Add(Instance.UniqueInstanceID);
 
 		// Check slot index valid
-		if (Instance.SlotIndex < 0 || Instance.SlotIndex >= GridSlots.Num())
+		if (Instance.SlotIndex < 0 || Instance.SlotIndex >= TotalSlots)
 		{
 			Errors.Add(FString::Printf(TEXT("[%s] Item %s has invalid SlotIndex %d (max: %d)"),
-				*Context, *Instance.ItemID.ToString(), Instance.SlotIndex, GridSlots.Num() - 1));
+				*Context, *Instance.ItemID.ToString(), Instance.SlotIndex, TotalSlots - 1));
 		}
 
 		// Check quantity valid

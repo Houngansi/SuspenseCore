@@ -1360,6 +1360,9 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 	ReplicatedInventory.MaxWeight = Config.MaxWeight;
 	ReplicatedInventory.OwnerComponent = this;
 
+	// Bind delta replication delegates
+	BindReplicationDelegates();
+
 	// Broadcast initialization
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
@@ -1678,6 +1681,9 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 		ReplicatedInventory.OwnerComponent = this;
 	}
 
+	// Ensure delegates are bound for delta callbacks
+	BindReplicationDelegates();
+
 	// Check if this is initial sync (no local state yet) or config changed
 	bool bNeedFullRebuild = !bIsInitialized;
 
@@ -1734,6 +1740,190 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 		TEXT("OnRep_ReplicatedInventory: Items=%d, Slots=%d, Weight=%.2f, FullRebuild=%s"),
 		ItemInstances.Num(), GetTotalSlotCount(), CurrentWeight,
 		bNeedFullRebuild ? TEXT("Yes") : TEXT("No"));
+}
+
+//==================================================================
+// Delta Replication Delegate Handlers
+//==================================================================
+
+void USuspenseCoreInventoryComponent::BindReplicationDelegates()
+{
+	// Only bind if not already bound
+	if (!ReplicatedInventory.OnPreRemoveDelegate.IsBound())
+	{
+		ReplicatedInventory.OnPreRemoveDelegate.BindUObject(this, &USuspenseCoreInventoryComponent::HandleReplicatedItemRemove);
+	}
+	if (!ReplicatedInventory.OnPostAddDelegate.IsBound())
+	{
+		ReplicatedInventory.OnPostAddDelegate.BindUObject(this, &USuspenseCoreInventoryComponent::HandleReplicatedItemAdd);
+	}
+	if (!ReplicatedInventory.OnPostChangeDelegate.IsBound())
+	{
+		ReplicatedInventory.OnPostChangeDelegate.BindUObject(this, &USuspenseCoreInventoryComponent::HandleReplicatedItemChange);
+	}
+}
+
+void USuspenseCoreInventoryComponent::HandleReplicatedItemRemove(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer)
+{
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("HandleReplicatedItemRemove: Removing item %s from slot %d"),
+		*Item.InstanceID.ToString(), Item.SlotIndex);
+
+	// Find and remove this specific item from local arrays
+	FSuspenseCoreItemInstance* LocalInstance = FindItemInstanceInternal(Item.InstanceID);
+	if (LocalInstance)
+	{
+		// Calculate weight to remove BEFORE removing
+		float WeightToRemove = 0.0f;
+		USuspenseCoreDataManager* DataManager = GetDataManager();
+		if (DataManager)
+		{
+			FSuspenseCoreItemData ItemData;
+			if (DataManager->GetItemData(LocalInstance->ItemID, ItemData))
+			{
+				WeightToRemove = ItemData.InventoryProps.Weight * LocalInstance->Quantity;
+			}
+		}
+
+		// Remove from grid slots
+		UpdateGridSlots(*LocalInstance, false);
+
+		// Remove from items array
+		int32 Index = ItemInstances.IndexOfByPredicate(
+			[&Item](const FSuspenseCoreItemInstance& Inst)
+			{
+				return Inst.UniqueInstanceID == Item.InstanceID;
+			});
+
+		if (Index != INDEX_NONE)
+		{
+			ItemInstances.RemoveAt(Index);
+		}
+
+		// Update weight incrementally
+		UpdateWeightDelta(-WeightToRemove);
+
+		// Invalidate UI cache for this item
+		InvalidateItemUICache(Item.InstanceID);
+	}
+}
+
+void USuspenseCoreInventoryComponent::HandleReplicatedItemAdd(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer)
+{
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("HandleReplicatedItemAdd: Adding item %s (ID: %s) to slot %d"),
+		*Item.ItemID.ToString(), *Item.InstanceID.ToString(), Item.SlotIndex);
+
+	// Convert replicated item to local instance
+	FSuspenseCoreItemInstance NewInstance = Item.ToItemInstance();
+
+	// Check if item already exists (shouldn't happen, but safety check)
+	FSuspenseCoreItemInstance* Existing = FindItemInstanceInternal(Item.InstanceID);
+	if (Existing)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("HandleReplicatedItemAdd: Item %s already exists! Updating instead."),
+			*Item.InstanceID.ToString());
+		*Existing = NewInstance;
+		return;
+	}
+
+	// Add to local items array
+	ItemInstances.Add(NewInstance);
+
+	// Update grid slots
+	UpdateGridSlots(NewInstance, true);
+
+	// Calculate and add weight
+	float WeightToAdd = 0.0f;
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (DataManager->GetItemData(NewInstance.ItemID, ItemData))
+		{
+			WeightToAdd = ItemData.InventoryProps.Weight * NewInstance.Quantity;
+		}
+	}
+	UpdateWeightDelta(WeightToAdd);
+
+	// Invalidate UI cache
+	InvalidateAllUICache();
+}
+
+void USuspenseCoreInventoryComponent::HandleReplicatedItemChange(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer)
+{
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("HandleReplicatedItemChange: Updating item %s, Qty: %d, Slot: %d"),
+		*Item.InstanceID.ToString(), Item.Quantity, Item.SlotIndex);
+
+	// Find existing local instance
+	FSuspenseCoreItemInstance* LocalInstance = FindItemInstanceInternal(Item.InstanceID);
+	if (!LocalInstance)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("HandleReplicatedItemChange: Item %s not found locally! Adding instead."),
+			*Item.InstanceID.ToString());
+		HandleReplicatedItemAdd(Item, ArraySerializer);
+		return;
+	}
+
+	// Get item data for weight calculation
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	float UnitWeight = 0.0f;
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (DataManager->GetItemData(LocalInstance->ItemID, ItemData))
+		{
+			UnitWeight = ItemData.InventoryProps.Weight;
+		}
+	}
+
+	// Check if position changed
+	bool bPositionChanged = (LocalInstance->SlotIndex != Item.SlotIndex) ||
+							(LocalInstance->GridPosition != Item.GridPosition) ||
+							(LocalInstance->Rotation != static_cast<int32>(Item.Rotation));
+
+	if (bPositionChanged)
+	{
+		// Remove from old grid position
+		UpdateGridSlots(*LocalInstance, false);
+	}
+
+	// Calculate weight delta from quantity change
+	int32 OldQuantity = LocalInstance->Quantity;
+	int32 QuantityDelta = Item.Quantity - OldQuantity;
+
+	// Update local instance fields
+	LocalInstance->Quantity = Item.Quantity;
+	LocalInstance->SlotIndex = Item.SlotIndex;
+	LocalInstance->GridPosition = Item.GridPosition;
+	LocalInstance->Rotation = static_cast<int32>(Item.Rotation);
+	LocalInstance->RuntimeProperties = Item.RuntimeProperties;
+
+	// Update weapon state if present
+	if (Item.PackedFlags & 0x01)
+	{
+		LocalInstance->WeaponState.bHasState = true;
+		LocalInstance->WeaponState.CurrentAmmo = Item.CurrentAmmo;
+		LocalInstance->WeaponState.ReserveAmmo = Item.ReserveAmmo;
+	}
+
+	if (bPositionChanged)
+	{
+		// Add to new grid position
+		UpdateGridSlots(*LocalInstance, true);
+	}
+
+	// Update weight if quantity changed
+	if (QuantityDelta != 0)
+	{
+		UpdateWeightDelta(UnitWeight * QuantityDelta);
+	}
+
+	// Invalidate UI cache for this item
+	InvalidateItemUICache(Item.InstanceID);
 }
 
 void USuspenseCoreInventoryComponent::SubscribeToEvents()

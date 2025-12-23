@@ -11,8 +11,23 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryBaseTypes.h"
 #include "SuspenseCoreInventoryTypes.generated.h"
 
-// Forward declaration
+// Forward declarations
 class USuspenseCoreInventoryComponent;
+struct FSuspenseCoreReplicatedItem;
+struct FSuspenseCoreReplicatedInventory;
+
+//==================================================================
+// Delta Replication Delegates
+// These delegates allow InventorySystem to handle replication callbacks
+// without creating circular module dependencies.
+//==================================================================
+
+/** Called when a replicated item is about to be removed */
+DECLARE_DELEGATE_TwoParams(FOnReplicatedItemPreRemove, const FSuspenseCoreReplicatedItem&, const FSuspenseCoreReplicatedInventory&);
+/** Called when a replicated item has been added */
+DECLARE_DELEGATE_TwoParams(FOnReplicatedItemPostAdd, const FSuspenseCoreReplicatedItem&, const FSuspenseCoreReplicatedInventory&);
+/** Called when a replicated item has changed */
+DECLARE_DELEGATE_TwoParams(FOnReplicatedItemPostChange, const FSuspenseCoreReplicatedItem&, const FSuspenseCoreReplicatedInventory&);
 
 /**
  * ESuspenseCoreInventoryResult
@@ -364,6 +379,20 @@ struct BRIDGESYSTEM_API FSuspenseCoreReplicatedInventory : public FFastArraySeri
 	/** Owner component (not replicated, set locally) */
 	UPROPERTY(NotReplicated)
 	TWeakObjectPtr<UActorComponent> OwnerComponent;
+
+	//==================================================================
+	// Delta Replication Delegates
+	// Bound by InventoryComponent to handle replication events
+	//==================================================================
+
+	/** Delegate called before item removal */
+	FOnReplicatedItemPreRemove OnPreRemoveDelegate;
+
+	/** Delegate called after item addition */
+	FOnReplicatedItemPostAdd OnPostAddDelegate;
+
+	/** Delegate called after item change */
+	FOnReplicatedItemPostChange OnPostChangeDelegate;
 
 	FSuspenseCoreReplicatedInventory()
 		: GridWidth(10)

@@ -299,62 +299,41 @@ struct BRIDGESYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerialize
 	/**
 	 * PreReplicatedRemove - Called on clients BEFORE item is removed from replicated array.
 	 *
-	 * DELTA REPLICATION ARCHITECTURE:
-	 * FFastArraySerializer calls these methods for efficient delta updates.
-	 * The OwnerComponent can be accessed via InArraySerializer.OwnerComponent.
+	 * DELTA REPLICATION (O(1) per item):
+	 * - Removes item from Component->ItemInstances
+	 * - Updates Component->GridSlots for this item only
+	 * - Updates weight incrementally via UpdateWeightDelta()
+	 * - Invalidates UI cache for this item
 	 *
-	 * CURRENT IMPLEMENTATION:
-	 * Logging only. Full delta update logic is in USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory().
-	 *
-	 * FUTURE OPTIMIZATION (Phase 2):
-	 * When full delta updates are implemented:
-	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
-	 * 2. Remove item from Component->ItemInstances by InstanceID
-	 * 3. Update Component->GridSlots for this item only
-	 * 4. Update Component weight incrementally via UpdateWeightDelta()
-	 * This would make OnRep O(1) instead of O(n) for single-item changes.
+	 * @see SuspenseCoreInventoryTypes.cpp for implementation
 	 */
-	void PreReplicatedRemove(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
-	{
-		// Called on clients before item is removed from replicated array
-		// Currently handled by OnRep_ReplicatedInventory full rebuild
-		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PreReplicatedRemove - Item %s"), *InstanceID.ToString());
-	}
+	void PreReplicatedRemove(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
 
 	/**
 	 * PostReplicatedAdd - Called on clients AFTER item is added to replicated array.
 	 *
-	 * FUTURE OPTIMIZATION (Phase 2):
-	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
-	 * 2. Convert this to FSuspenseCoreItemInstance and add to Component->ItemInstances
-	 * 3. Update Component->GridSlots for this item only
-	 * 4. Update Component weight incrementally
+	 * DELTA REPLICATION (O(1) per item):
+	 * - Converts to FSuspenseCoreItemInstance and adds to Component->ItemInstances
+	 * - Updates Component->GridSlots for this item only
+	 * - Updates weight incrementally
+	 * - Invalidates UI cache
+	 *
+	 * @see SuspenseCoreInventoryTypes.cpp for implementation
 	 */
-	void PostReplicatedAdd(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
-	{
-		// Called on clients after item is added to replicated array
-		// Currently handled by OnRep_ReplicatedInventory full rebuild
-		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PostReplicatedAdd - Item %s, Slot %d"),
-			*InstanceID.ToString(), SlotIndex);
-	}
+	void PostReplicatedAdd(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
 
 	/**
 	 * PostReplicatedChange - Called on clients AFTER item properties change.
 	 *
-	 * FUTURE OPTIMIZATION (Phase 2):
-	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
-	 * 2. Find existing item in Component->ItemInstances by InstanceID
-	 * 3. If position changed, update GridSlots (remove old, add new)
-	 * 4. If quantity changed, update weight incrementally
-	 * 5. Update UI cache for this item only
+	 * DELTA REPLICATION (O(1) per item):
+	 * - Finds existing item in Component->ItemInstances
+	 * - If position changed, updates GridSlots (remove old, add new)
+	 * - If quantity changed, updates weight incrementally
+	 * - Invalidates UI cache for this item only
+	 *
+	 * @see SuspenseCoreInventoryTypes.cpp for implementation
 	 */
-	void PostReplicatedChange(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
-	{
-		// Called on clients after item properties change
-		// Currently handled by OnRep_ReplicatedInventory full rebuild
-		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PostReplicatedChange - Item %s, Qty %d"),
-			*InstanceID.ToString(), Quantity);
-	}
+	void PostReplicatedChange(const struct FSuspenseCoreReplicatedInventory& InArraySerializer);
 };
 
 /**

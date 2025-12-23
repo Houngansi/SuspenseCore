@@ -16,6 +16,18 @@
 
 DEFINE_LOG_CATEGORY(LogSuspenseCoreEquipment);
 
+//================================================
+// STAT Profiling Definitions
+//================================================
+DECLARE_CYCLE_STAT(TEXT("Equipment Initialize"), STAT_Equipment_Initialize, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Cleanup"), STAT_Equipment_Cleanup, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Update Item"), STAT_Equipment_UpdateItem, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Set Item Instance"), STAT_Equipment_SetItemInstance, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Get Item Manager"), STAT_Equipment_GetItemManager, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Broadcast Event"), STAT_Equipment_BroadcastEvent, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Client Prediction"), STAT_Equipment_ClientPrediction, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Grant Ability"), STAT_Equipment_GrantAbility, STATGROUP_SuspenseCoreEquipment);
+
 USuspenseCoreEquipmentComponentBase::USuspenseCoreEquipmentComponentBase()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -39,10 +51,10 @@ void USuspenseCoreEquipmentComponentBase::BeginPlay()
     InitializeCoreReferences();
 
     // Start periodic prediction cleanup on clients
-    if (!GetOwner()->HasAuthority() && GetWorld())
+    if (GetOwner() && !GetOwner()->HasAuthority() && GetWorld())
     {
         GetWorld()->GetTimerManager().SetTimer(
-            *new FTimerHandle(),
+            PredictionCleanupTimerHandle,
             this,
             &USuspenseCoreEquipmentComponentBase::CleanupExpiredPredictions,
             1.0f,
@@ -53,6 +65,12 @@ void USuspenseCoreEquipmentComponentBase::BeginPlay()
 
 void USuspenseCoreEquipmentComponentBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    // Clear prediction cleanup timer to prevent memory leak
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(PredictionCleanupTimerHandle);
+    }
+
     // Clean up any active equipment
     if (bIsInitialized)
     {
@@ -82,6 +100,8 @@ void USuspenseCoreEquipmentComponentBase::GetLifetimeReplicatedProps(TArray<FLif
 
 void USuspenseCoreEquipmentComponentBase::Initialize(AActor* InOwner, UAbilitySystemComponent* InASC)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_Initialize);
+
     if (!InOwner || !InASC)
     {
         EQUIPMENT_LOG(Error, TEXT("Initialize called with invalid parameters - Owner: %s, ASC: %s"),
@@ -151,6 +171,8 @@ void USuspenseCoreEquipmentComponentBase::InitializeWithItemInstance(AActor* InO
 
 void USuspenseCoreEquipmentComponentBase::Cleanup()
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_Cleanup);
+
     if (!bIsInitialized)
     {
         return;
@@ -189,6 +211,8 @@ void USuspenseCoreEquipmentComponentBase::Cleanup()
 
 void USuspenseCoreEquipmentComponentBase::UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& NewItemInstance)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_UpdateItem);
+
     if (!bIsInitialized)
     {
         EQUIPMENT_LOG(Warning, TEXT("Cannot update equipped item - not initialized"));
@@ -221,6 +245,8 @@ void USuspenseCoreEquipmentComponentBase::UpdateEquippedItem(const FSuspenseCore
 
 void USuspenseCoreEquipmentComponentBase::SetEquippedItemInstance(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_SetItemInstance);
+
     FSuspenseCoreInventoryItemInstance OldItem = EquippedItemInstance;
     EquippedItemInstance = ItemInstance;
 
@@ -264,6 +290,8 @@ void USuspenseCoreEquipmentComponentBase::SetEquippedItemInstance(const FSuspens
 
 int32 USuspenseCoreEquipmentComponentBase::StartClientPrediction(const FSuspenseCoreInventoryItemInstance& PredictedInstance)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_ClientPrediction);
+
     // Only allow predictions on clients
     if (GetOwner() && GetOwner()->HasAuthority())
     {
@@ -355,6 +383,8 @@ void USuspenseCoreEquipmentComponentBase::CleanupExpiredPredictions()
 
 USuspenseCoreItemManager* USuspenseCoreEquipmentComponentBase::GetItemManager() const
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_GetItemManager);
+
     FScopeLock Lock(&CacheCriticalSection);
 
     // Validate cache periodically
@@ -555,6 +585,8 @@ void USuspenseCoreEquipmentComponentBase::OnRep_ComponentState()
 
 void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_BroadcastEvent);
+
     USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
     if (!Manager || !Manager->GetEventBus())
     {
@@ -562,17 +594,8 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseC
         return;
     }
 
-    // Determine slot index from SlotType tag
-    // TODO: Add proper slot index mapping based on SlotType
-    int32 SlotIndex = 0;  // Default to primary slot
-    if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"), false)))
-    {
-        SlotIndex = 1;
-    }
-    else if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"), false)))
-    {
-        SlotIndex = 2;
-    }
+    // Get slot index from comprehensive mapping
+    const int32 SlotIndex = GetSlotIndexFromTag(SlotType);
 
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
         .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
@@ -594,6 +617,8 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseC
 
 void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspenseCoreInventoryItemInstance& ItemInstance, const FGameplayTag& SlotType)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_BroadcastEvent);
+
     USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(this);
     if (!Manager || !Manager->GetEventBus())
     {
@@ -601,16 +626,8 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspens
         return;
     }
 
-    // Determine slot index from SlotType tag
-    int32 SlotIndex = 0;  // Default to primary slot
-    if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.SecondaryWeapon"), false)))
-    {
-        SlotIndex = 1;
-    }
-    else if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("Equipment.Slot.Holster"), false)))
-    {
-        SlotIndex = 2;
-    }
+    // Get slot index from comprehensive mapping
+    const int32 SlotIndex = GetSlotIndexFromTag(SlotType);
 
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner())
         .SetString(TEXT("ItemID"), ItemInstance.ItemID.ToString())
@@ -842,6 +859,8 @@ void USuspenseCoreEquipmentComponentBase::InitializeAbilityProvider_Implementati
 
 FGameplayAbilitySpecHandle USuspenseCoreEquipmentComponentBase::GrantAbility_Implementation(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level, int32 InputID)
 {
+    SCOPE_CYCLE_COUNTER(STAT_Equipment_GrantAbility);
+
     if (!CachedASC || !AbilityClass)
     {
         EQUIPMENT_LOG(Warning, TEXT("Cannot grant ability - ASC or ability class invalid"));
@@ -900,4 +919,100 @@ void USuspenseCoreEquipmentComponentBase::RemoveEffect_Implementation(FActiveGam
 
     CachedASC->RemoveActiveGameplayEffect(EffectHandle);
     EQUIPMENT_LOG(Log, TEXT("Removed effect handle"));
+}
+
+//================================================
+// Slot Index Mapping Implementation
+//================================================
+
+const TMap<FName, int32>& USuspenseCoreEquipmentComponentBase::GetSlotTypeMapping()
+{
+    // Static mapping initialized once and cached
+    static TMap<FName, int32> SlotMapping;
+    static bool bInitialized = false;
+
+    if (!bInitialized)
+    {
+        // Primary weapon slots (index 0)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.PrimaryWeapon")), 0);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Primary")), 0);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.MainHand")), 0);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Weapon")), 0);
+
+        // Secondary weapon slots (index 1)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.SecondaryWeapon")), 1);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Secondary")), 1);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.OffHand")), 1);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Sidearm")), 1);
+
+        // Holster/backup slots (index 2)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Holster")), 2);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Backup")), 2);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.TertiaryWeapon")), 2);
+
+        // Melee slots (index 3)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Melee")), 3);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.MeleeWeapon")), 3);
+
+        // Throwable slots (index 4)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Throwable")), 4);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Grenade")), 4);
+
+        // Armor/wearable slots (indices 10-19)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Head")), 10);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Helmet")), 10);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Chest")), 11);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Body")), 11);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Vest")), 11);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Legs")), 12);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Pants")), 12);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Feet")), 13);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Boots")), 13);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Hands")), 14);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Gloves")), 14);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Back")), 15);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Backpack")), 15);
+
+        // Accessory slots (indices 20-29)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory")), 20);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory1")), 20);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory2")), 21);
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory3")), 22);
+
+        bInitialized = true;
+    }
+
+    return SlotMapping;
+}
+
+int32 USuspenseCoreEquipmentComponentBase::GetSlotIndexFromTag(const FGameplayTag& SlotType) const
+{
+    if (!SlotType.IsValid())
+    {
+        return 0; // Default to primary slot
+    }
+
+    // Get the tag name as FName for lookup
+    const FName TagName = SlotType.GetTagName();
+
+    // Look up in the static mapping
+    const TMap<FName, int32>& Mapping = GetSlotTypeMapping();
+    if (const int32* FoundIndex = Mapping.Find(TagName))
+    {
+        return *FoundIndex;
+    }
+
+    // Fallback: Check tag hierarchy by matching partial tags
+    // This handles cases like Equipment.Slot.PrimaryWeapon.Rifle
+    for (const auto& Pair : Mapping)
+    {
+        if (SlotType.MatchesTag(FGameplayTag::RequestGameplayTag(Pair.Key, false)))
+        {
+            return Pair.Value;
+        }
+    }
+
+    // Default to primary slot if no match found
+    EQUIPMENT_LOG(VeryVerbose, TEXT("Unknown slot type: %s, defaulting to index 0"), *SlotType.ToString());
+    return 0;
 }

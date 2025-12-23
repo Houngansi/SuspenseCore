@@ -429,6 +429,41 @@ private:
 	FOnSuspenseCoreUIDataChanged UIDataChangedDelegate;
 
 	//==================================================================
+	// UI Data Cache (Performance Optimization)
+	//==================================================================
+
+	/** Cached item UI data - avoids regeneration every frame */
+	mutable TMap<FGuid, FSuspenseCoreItemUIData> CachedItemUIData;
+
+	/** Cached slot UI data */
+	mutable TArray<FSuspenseCoreSlotUIData> CachedSlotUIData;
+
+	/** Item UI cache dirty flag */
+	mutable bool bItemUICacheDirty = true;
+
+	/** Slot UI cache dirty flag */
+	mutable bool bSlotUICacheDirty = true;
+
+	/** Invalidate specific item in UI cache */
+	void InvalidateItemUICache(const FGuid& ItemID);
+
+	/** Invalidate all UI cache */
+	void InvalidateAllUICache();
+
+	/** Rebuild item UI cache */
+	void RebuildItemUICache() const;
+
+	/** Rebuild slot UI cache */
+	void RebuildSlotUICache() const;
+
+	//==================================================================
+	// Spatial Search Optimization
+	//==================================================================
+
+	/** Last successful free slot hint for heuristic search */
+	mutable int32 LastFreeSlotHint = 0;
+
+	//==================================================================
 	// UI Data Provider Helpers
 	//==================================================================
 
@@ -454,11 +489,26 @@ private:
 	/** Check if coordinates are valid */
 	bool IsValidGridCoords(FIntPoint Coords) const;
 
-	/** Recalculate current weight */
+	/** Recalculate current weight (full recalculation - use for validation) */
 	void RecalculateWeight();
+
+	/** Incremental weight update (O(1) - use in hotpath) */
+	void UpdateWeightDelta(float WeightDelta);
 
 	/** Update grid slots for item placement */
 	void UpdateGridSlots(const FSuspenseCoreItemInstance& Instance, bool bPlace);
+
+	//==================================================================
+	// Validation Layer (Development builds only)
+	//==================================================================
+
+#if !UE_BUILD_SHIPPING
+	/** Validate inventory integrity - checks for desync between data structures */
+	void ValidateInventoryIntegrityInternal(const FString& Context) const;
+
+	/** Operation counter for periodic validation */
+	mutable int32 ValidationOperationCounter = 0;
+#endif
 
 	/** Find item instance by ID (internal) */
 	FSuspenseCoreItemInstance* FindItemInstanceInternal(const FGuid& InstanceID);

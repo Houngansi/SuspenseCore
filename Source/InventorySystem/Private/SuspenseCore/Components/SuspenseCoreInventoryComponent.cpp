@@ -18,6 +18,17 @@
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 
+//==================================================================
+// Performance Profiling (STAT Group)
+//==================================================================
+DECLARE_STATS_GROUP(TEXT("SuspenseCore"), STATGROUP_SuspenseCore, STATCAT_Advanced);
+DECLARE_CYCLE_STAT(TEXT("Inventory AddItem"), STAT_Inventory_AddItem, STATGROUP_SuspenseCore);
+DECLARE_CYCLE_STAT(TEXT("Inventory RemoveItem"), STAT_Inventory_RemoveItem, STATGROUP_SuspenseCore);
+DECLARE_CYCLE_STAT(TEXT("Inventory FindFreeSlot"), STAT_Inventory_FindFreeSlot, STATGROUP_SuspenseCore);
+DECLARE_CYCLE_STAT(TEXT("Inventory GetUIData"), STAT_Inventory_GetUIData, STATGROUP_SuspenseCore);
+DECLARE_CYCLE_STAT(TEXT("Inventory OnRep"), STAT_Inventory_OnRep, STATGROUP_SuspenseCore);
+DECLARE_CYCLE_STAT(TEXT("Inventory RecalculateWeight"), STAT_Inventory_RecalculateWeight, STATGROUP_SuspenseCore);
+
 USuspenseCoreInventoryComponent::USuspenseCoreInventoryComponent()
 	: CurrentWeight(0.0f)
 	, bIsInitialized(false)
@@ -125,10 +136,11 @@ bool USuspenseCoreInventoryComponent::AddItemInstance_Implementation(const FSusp
 
 bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreItemInstance& ItemInstance, int32 TargetSlot)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_AddItem);
 	check(IsInGameThread());
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemID=%s, TargetSlot=%d"),
-		*ItemInstance.ItemID.ToString(), TargetSlot);
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemID=%s, Quantity=%d, TargetSlot=%d"),
+		*ItemInstance.ItemID.ToString(), ItemInstance.Quantity, TargetSlot);
 
 	if (!bIsInitialized)
 	{
@@ -144,7 +156,7 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 		return false;
 	}
 
-	// Get item data for validation
+	// Get item data for validation (single lookup, cached for iteration)
 	FSuspenseCoreItemData ItemData;
 	USuspenseCoreDataManager* DataManager = GetDataManager();
 	if (!DataManager)
@@ -163,25 +175,28 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 		return false;
 	}
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemData loaded - GridSize=%dx%d, Weight=%.2f"),
-		ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y, ItemData.InventoryProps.Weight);
+	// Cache item weight for incremental updates
+	const float UnitWeight = ItemData.InventoryProps.Weight;
+	const int32 MaxStackSize = ItemData.InventoryProps.MaxStackSize;
 
-	// Check weight
-	float ItemWeight = ItemData.InventoryProps.Weight * ItemInstance.Quantity;
-	if (CurrentWeight + ItemWeight > Config.MaxWeight)
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemData loaded - GridSize=%dx%d, Weight=%.2f"),
+		ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y, UnitWeight);
+
+	// Check total weight for entire quantity
+	float TotalItemWeight = UnitWeight * ItemInstance.Quantity;
+	if (CurrentWeight + TotalItemWeight > Config.MaxWeight)
 	{
 		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Weight exceeded (%.1f + %.1f > %.1f)"),
-			CurrentWeight, ItemWeight, Config.MaxWeight);
+			CurrentWeight, TotalItemWeight, Config.MaxWeight);
 		BroadcastErrorEvent(ESuspenseCoreInventoryResult::WeightLimitExceeded,
 			FString::Printf(TEXT("Weight limit exceeded (Current: %.1f, Adding: %.1f, Max: %.1f)"),
-				CurrentWeight, ItemWeight, Config.MaxWeight));
+				CurrentWeight, TotalItemWeight, Config.MaxWeight));
 		return false;
 	}
 
 	// Check type restrictions
 	if (Config.AllowedItemTypes.Num() > 0 && !Config.AllowedItemTypes.HasTag(ItemData.Classification.ItemType))
 	{
-		// Log all allowed types for debugging
 		FString AllowedTypesStr;
 		for (const FGameplayTag& Tag : Config.AllowedItemTypes)
 		{
@@ -204,91 +219,150 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 		return false;
 	}
 
-	// Try auto-stacking first
-	if (Config.bAutoStack && ItemData.InventoryProps.IsStackable())
+	// ITERATIVE APPROACH (replaced recursion for stack safety)
+	// Tracks remaining quantity to add across multiple stacks/slots
+	int32 RemainingQuantity = ItemInstance.Quantity;
+	int32 TotalAdded = 0;
+	int32 CurrentTargetSlot = TargetSlot;
+
+	// Infinite loop protection
+	int32 MaxIterations = ItemInstance.Quantity + GridSlots.Num();
+	int32 IterationCount = 0;
+
+	while (RemainingQuantity > 0 && IterationCount < MaxIterations)
 	{
-		for (FSuspenseCoreItemInstance& ExistingInstance : ItemInstances)
+		++IterationCount;
+
+		// Try auto-stacking first
+		if (Config.bAutoStack && ItemData.InventoryProps.IsStackable())
 		{
-			if (ExistingInstance.CanStackWith(ItemInstance))
+			for (FSuspenseCoreItemInstance& ExistingInstance : ItemInstances)
 			{
-				int32 SpaceInStack = ItemData.InventoryProps.MaxStackSize - ExistingInstance.Quantity;
-				if (SpaceInStack > 0)
+				if (ExistingInstance.CanStackWith(ItemInstance))
 				{
-					int32 ToAdd = FMath::Min(SpaceInStack, ItemInstance.Quantity);
-					ExistingInstance.Quantity += ToAdd;
-
-					// Update replication
-					ReplicatedInventory.UpdateItem(ExistingInstance);
-
-					// Broadcast event
-					BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_QTY_CHANGED, ExistingInstance, ExistingInstance.SlotIndex);
-
-					if (ToAdd == ItemInstance.Quantity)
+					int32 SpaceInStack = MaxStackSize - ExistingInstance.Quantity;
+					if (SpaceInStack > 0)
 					{
-						RecalculateWeight();
-						BroadcastInventoryUpdated();
-						return true;
+						int32 ToAdd = FMath::Min(SpaceInStack, RemainingQuantity);
+						ExistingInstance.Quantity += ToAdd;
+						RemainingQuantity -= ToAdd;
+						TotalAdded += ToAdd;
+
+						// Update replication
+						ReplicatedInventory.UpdateItem(ExistingInstance);
+
+						// Incremental weight update (O(1) instead of O(n))
+						UpdateWeightDelta(UnitWeight * ToAdd);
+
+						// Broadcast event
+						BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_QTY_CHANGED, ExistingInstance, ExistingInstance.SlotIndex);
+
+						if (RemainingQuantity == 0)
+						{
+							// Invalidate UI cache and notify
+							InvalidateAllUICache();
+							BroadcastInventoryUpdated();
+
+							UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Added item %s x%d (stacked into existing)"),
+								*ItemInstance.ItemID.ToString(), TotalAdded);
+							return true;
+						}
 					}
-					// Continue with remaining quantity in a new stack
-					FSuspenseCoreItemInstance RemainingInstance = ItemInstance;
-					RemainingInstance.Quantity -= ToAdd;
-					RemainingInstance.UniqueInstanceID = FGuid::NewGuid();
-					return AddItemInstanceToSlot(RemainingInstance, TargetSlot);
 				}
 			}
 		}
-	}
 
-	// Find slot
-	int32 PlacementSlot = TargetSlot;
-	if (PlacementSlot == INDEX_NONE)
-	{
-		UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: Finding free slot for %dx%d item in %dx%d grid"),
-			ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y,
-			Config.GridWidth, Config.GridHeight);
-		PlacementSlot = FindFreeSlot(ItemData.InventoryProps.GridSize, Config.bAllowRotation);
-	}
+		// Need to create new stack - find slot
+		int32 PlacementSlot = CurrentTargetSlot;
+		if (PlacementSlot == INDEX_NONE)
+		{
+			PlacementSlot = FindFreeSlot(ItemData.InventoryProps.GridSize, Config.bAllowRotation);
+		}
 
-	if (PlacementSlot == INDEX_NONE)
-	{
-		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: No free slot found"));
-		BroadcastErrorEvent(ESuspenseCoreInventoryResult::NoSpace, TEXT("No space available in inventory"));
-		return false;
-	}
+		if (PlacementSlot == INDEX_NONE)
+		{
+			// No more space - partial success
+			if (TotalAdded > 0)
+			{
+				UE_LOG(LogSuspenseCoreInventory, Warning,
+					TEXT("AddItemInstanceToSlot: Partial add - added %d of %d items (no more space)"),
+					TotalAdded, ItemInstance.Quantity);
+				InvalidateAllUICache();
+				BroadcastInventoryUpdated();
+				return true; // Partial success
+			}
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: Using slot %d"), PlacementSlot);
+			UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: No free slot found"));
+			BroadcastErrorEvent(ESuspenseCoreInventoryResult::NoSpace, TEXT("No space available in inventory"));
+			return false;
+		}
 
-	// Check placement validity
-	if (!CanPlaceItemAtSlot(ItemData.InventoryProps.GridSize, PlacementSlot, false))
-	{
-		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Cannot place at slot %d"), PlacementSlot);
-		BroadcastErrorEvent(ESuspenseCoreInventoryResult::SlotOccupied,
-			FString::Printf(TEXT("Cannot place item at slot %d"), PlacementSlot));
-		return false;
-	}
+		// Check placement validity
+		if (!CanPlaceItemAtSlot(ItemData.InventoryProps.GridSize, PlacementSlot, false))
+		{
+			if (CurrentTargetSlot != INDEX_NONE)
+			{
+				// Specific slot requested but occupied - try auto-find
+				CurrentTargetSlot = INDEX_NONE;
+				continue;
+			}
 
-	// Add the instance
-	FSuspenseCoreItemInstance NewInstance = ItemInstance;
-	NewInstance.SlotIndex = PlacementSlot;
-	NewInstance.GridPosition = SlotToGridCoords(PlacementSlot);
-	if (!NewInstance.UniqueInstanceID.IsValid())
-	{
+			UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Cannot place at slot %d"), PlacementSlot);
+			BroadcastErrorEvent(ESuspenseCoreInventoryResult::SlotOccupied,
+				FString::Printf(TEXT("Cannot place item at slot %d"), PlacementSlot));
+			return TotalAdded > 0;
+		}
+
+		// Calculate quantity for this stack
+		int32 QuantityForThisStack = FMath::Min(RemainingQuantity, MaxStackSize);
+
+		// Create new instance for this stack
+		FSuspenseCoreItemInstance NewInstance = ItemInstance;
 		NewInstance.UniqueInstanceID = FGuid::NewGuid();
+		NewInstance.Quantity = QuantityForThisStack;
+		NewInstance.SlotIndex = PlacementSlot;
+		NewInstance.GridPosition = SlotToGridCoords(PlacementSlot);
+
+		// Add to inventory
+		ItemInstances.Add(NewInstance);
+		UpdateGridSlots(NewInstance, true);
+		ReplicatedInventory.AddItem(NewInstance);
+
+		// Incremental weight update
+		UpdateWeightDelta(UnitWeight * QuantityForThisStack);
+
+		// Update counters
+		RemainingQuantity -= QuantityForThisStack;
+		TotalAdded += QuantityForThisStack;
+
+		// Broadcast events
+		BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_ADDED, NewInstance, PlacementSlot);
+
+		UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Added item %s x%d to slot %d"),
+			*ItemInstance.ItemID.ToString(), QuantityForThisStack, PlacementSlot);
+
+		// Next iteration should auto-find slot
+		CurrentTargetSlot = INDEX_NONE;
 	}
 
-	ItemInstances.Add(NewInstance);
-	UpdateGridSlots(NewInstance, true);
-	ReplicatedInventory.AddItem(NewInstance);
-	RecalculateWeight();
+	// Check for infinite loop detection
+	if (IterationCount >= MaxIterations)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Error,
+			TEXT("AddItemInstanceToSlot: Infinite loop detected! Added %d of %d items before abort."),
+			TotalAdded, ItemInstance.Quantity);
+	}
 
-	// Broadcast events
-	BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_ADDED, NewInstance, PlacementSlot);
+	// Invalidate UI cache and broadcast final update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Added item %s x%d to slot %d"),
-		*ItemInstance.ItemID.ToString(), ItemInstance.Quantity, PlacementSlot);
+#if !UE_BUILD_SHIPPING
+	// Validate integrity in development builds
+	ValidateInventoryIntegrityInternal(TEXT("AddItemInstanceToSlot"));
+#endif
 
-	return true;
+	return TotalAdded > 0;
 }
 
 //==================================================================
@@ -597,17 +671,38 @@ bool USuspenseCoreInventoryComponent::IsSlotOccupied(int32 SlotIndex) const
 
 int32 USuspenseCoreInventoryComponent::FindFreeSlot(FIntPoint ItemGridSize, bool bAllowRotation) const
 {
-	for (int32 SlotIndex = 0; SlotIndex < GridSlots.Num(); ++SlotIndex)
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_FindFreeSlot);
+
+	const int32 TotalSlots = GridSlots.Num();
+	if (TotalSlots == 0)
 	{
+		return INDEX_NONE;
+	}
+
+	// HEURISTIC OPTIMIZATION: Start search from last successful slot
+	// This dramatically improves performance when adding items sequentially
+	const int32 StartSlot = FMath::Clamp(LastFreeSlotHint, 0, TotalSlots - 1);
+
+	// First pass: from hint to end
+	for (int32 i = 0; i < TotalSlots; ++i)
+	{
+		const int32 SlotIndex = (StartSlot + i) % TotalSlots;
+
+		// Try normal orientation first
 		if (CanPlaceItemAtSlot(ItemGridSize, SlotIndex, false))
 		{
+			LastFreeSlotHint = SlotIndex; // Update hint for next search
 			return SlotIndex;
 		}
+
+		// Try rotated if allowed
 		if (bAllowRotation && CanPlaceItemAtSlot(ItemGridSize, SlotIndex, true))
 		{
+			LastFreeSlotHint = SlotIndex;
 			return SlotIndex;
 		}
 	}
+
 	return INDEX_NONE;
 }
 
@@ -1100,6 +1195,8 @@ bool USuspenseCoreInventoryComponent::AddItemInternal(const FSuspenseCoreItemIns
 
 bool USuspenseCoreInventoryComponent::RemoveItemInternal(const FGuid& InstanceID, FSuspenseCoreItemInstance& OutRemovedInstance)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_RemoveItem);
+
 	int32 Index = ItemInstances.IndexOfByPredicate([&InstanceID](const FSuspenseCoreItemInstance& Instance)
 	{
 		return Instance.UniqueInstanceID == InstanceID;
@@ -1111,17 +1208,39 @@ bool USuspenseCoreInventoryComponent::RemoveItemInternal(const FGuid& InstanceID
 	}
 
 	OutRemovedInstance = ItemInstances[Index];
+
+	// Calculate weight delta BEFORE removal (incremental update)
+	float WeightToRemove = 0.0f;
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		FSuspenseCoreItemData ItemData;
+		if (DataManager->GetItemData(OutRemovedInstance.ItemID, ItemData))
+		{
+			WeightToRemove = ItemData.InventoryProps.Weight * OutRemovedInstance.Quantity;
+		}
+	}
+
+	// Remove from data structures
 	UpdateGridSlots(OutRemovedInstance, false);
 	ItemInstances.RemoveAt(Index);
 	ReplicatedInventory.RemoveItem(InstanceID);
-	RecalculateWeight();
+
+	// Incremental weight update (O(1) instead of O(n))
+	UpdateWeightDelta(-WeightToRemove);
+
+	// Invalidate UI cache
+	InvalidateItemUICache(InstanceID);
 
 	// Broadcast item event via EventBus
 	BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_REMOVED, OutRemovedInstance, OutRemovedInstance.SlotIndex);
 
-	// CRITICAL FIX: Notify UI widgets about data change
-	// Without this, widgets bound via BindToProvider() won't refresh!
+	// Notify UI widgets about data change
 	BroadcastInventoryUpdated();
+
+#if !UE_BUILD_SHIPPING
+	ValidateInventoryIntegrityInternal(TEXT("RemoveItemInternal"));
+#endif
 
 	return true;
 }
@@ -1162,20 +1281,56 @@ void USuspenseCoreInventoryComponent::BroadcastErrorEvent(ESuspenseCoreInventory
 
 void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 {
-	// Rebuild local state from replicated data
-	ItemInstances.Empty();
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_OnRep);
+
+	// NOTE: This is called on clients when ReplicatedInventory changes.
+	// FFastArraySerializer provides delta updates via:
+	// - FSuspenseCoreReplicatedItem::PreReplicatedRemove
+	// - FSuspenseCoreReplicatedItem::PostReplicatedAdd
+	// - FSuspenseCoreReplicatedItem::PostReplicatedChange
+	//
+	// However, until those callbacks are fully implemented with proper
+	// OwnerComponent access, we do a full rebuild here.
+	//
+	// TODO: When delta callbacks are implemented, this function should:
+	// 1. Only update config if changed
+	// 2. Only recalculate weight (which is O(n) but happens once per OnRep)
+	// 3. The actual item/grid updates happen in delta callbacks
+
+	// Update config if changed
+	if (Config.GridWidth != ReplicatedInventory.GridWidth ||
+		Config.GridHeight != ReplicatedInventory.GridHeight ||
+		!FMath::IsNearlyEqual(Config.MaxWeight, ReplicatedInventory.MaxWeight))
+	{
+		Config.GridWidth = ReplicatedInventory.GridWidth;
+		Config.GridHeight = ReplicatedInventory.GridHeight;
+		Config.MaxWeight = ReplicatedInventory.MaxWeight;
+
+		// Grid size changed - need full rebuild
+		int32 TotalSlots = Config.GridWidth * Config.GridHeight;
+		GridSlots.SetNum(TotalSlots);
+		for (FSuspenseCoreInventorySlot& Slot : GridSlots)
+		{
+			Slot.Clear();
+		}
+	}
+
+	// Rebuild local item instances from replicated data
+	// This is O(n) but necessary for now until delta callbacks work
+	ItemInstances.Empty(ReplicatedInventory.Items.Num());
 	for (const FSuspenseCoreReplicatedItem& RepItem : ReplicatedInventory.Items)
 	{
 		ItemInstances.Add(RepItem.ToItemInstance());
 	}
 
-	Config.GridWidth = ReplicatedInventory.GridWidth;
-	Config.GridHeight = ReplicatedInventory.GridHeight;
-	Config.MaxWeight = ReplicatedInventory.MaxWeight;
-
-	// Rebuild grid slots
+	// Ensure grid is properly sized
 	int32 TotalSlots = Config.GridWidth * Config.GridHeight;
-	GridSlots.SetNum(TotalSlots);
+	if (GridSlots.Num() != TotalSlots)
+	{
+		GridSlots.SetNum(TotalSlots);
+	}
+
+	// Clear and rebuild grid slots
 	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
 	{
 		Slot.Clear();
@@ -1185,10 +1340,24 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 		UpdateGridSlots(Instance, true);
 	}
 
+	// Full weight recalculation (safe after replication)
 	RecalculateWeight();
+
+	// Mark as initialized
 	bIsInitialized = true;
 
+	// Reset slot hint since inventory structure may have changed
+	LastFreeSlotHint = 0;
+
+	// Invalidate all UI caches
+	InvalidateAllUICache();
+
+	// Notify observers
 	BroadcastInventoryUpdated();
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("OnRep_ReplicatedInventory: Rebuilt %d items, %d slots, weight %.2f"),
+		ItemInstances.Num(), GridSlots.Num(), CurrentWeight);
 }
 
 void USuspenseCoreInventoryComponent::SubscribeToEvents()
@@ -1249,6 +1418,8 @@ bool USuspenseCoreInventoryComponent::IsValidGridCoords(FIntPoint Coords) const
 
 void USuspenseCoreInventoryComponent::RecalculateWeight()
 {
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_RecalculateWeight);
+
 	CurrentWeight = 0.0f;
 	USuspenseCoreDataManager* DataManager = GetDataManager();
 	if (!DataManager)
@@ -1264,6 +1435,41 @@ void USuspenseCoreInventoryComponent::RecalculateWeight()
 			CurrentWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
 		}
 	}
+}
+
+void USuspenseCoreInventoryComponent::UpdateWeightDelta(float WeightDelta)
+{
+	// O(1) incremental weight update - use instead of RecalculateWeight() in hotpath
+	CurrentWeight = FMath::Max(0.0f, CurrentWeight + WeightDelta);
+
+#if !UE_BUILD_SHIPPING
+	// Periodic validation in development builds
+	++ValidationOperationCounter;
+	if (ValidationOperationCounter % 100 == 0) // Every 100 operations
+	{
+		float CalculatedWeight = 0.0f;
+		USuspenseCoreDataManager* DataManager = GetDataManager();
+		if (DataManager)
+		{
+			for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+			{
+				FSuspenseCoreItemData ItemData;
+				if (DataManager->GetItemData(Instance.ItemID, ItemData))
+				{
+					CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+				}
+			}
+		}
+
+		if (!FMath::IsNearlyEqual(CurrentWeight, CalculatedWeight, 0.01f))
+		{
+			UE_LOG(LogSuspenseCoreInventory, Error,
+				TEXT("Weight desync detected! Tracked: %.2f, Calculated: %.2f - Force syncing"),
+				CurrentWeight, CalculatedWeight);
+			CurrentWeight = CalculatedWeight; // Force sync to correct value
+		}
+	}
+#endif
 }
 
 void USuspenseCoreInventoryComponent::UpdateGridSlots(const FSuspenseCoreItemInstance& Instance, bool bPlace)
@@ -1711,15 +1917,14 @@ FSuspenseCoreContainerUIData USuspenseCoreInventoryComponent::GetContainerUIData
 
 TArray<FSuspenseCoreSlotUIData> USuspenseCoreInventoryComponent::GetAllSlotUIData() const
 {
-	TArray<FSuspenseCoreSlotUIData> Result;
-	Result.Reserve(GridSlots.Num());
-
-	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	// Use cached data if available
+	if (bSlotUICacheDirty)
 	{
-		Result.Add(ConvertSlotToUIData(i));
+		RebuildSlotUICache();
+		bSlotUICacheDirty = false;
 	}
 
-	return Result;
+	return CachedSlotUIData;
 }
 
 FSuspenseCoreSlotUIData USuspenseCoreInventoryComponent::GetSlotUIData(int32 SlotIndex) const
@@ -1739,14 +1944,18 @@ bool USuspenseCoreInventoryComponent::IsSlotValid(int32 SlotIndex) const
 
 TArray<FSuspenseCoreItemUIData> USuspenseCoreInventoryComponent::GetAllItemUIData() const
 {
-	TArray<FSuspenseCoreItemUIData> Result;
-	Result.Reserve(ItemInstances.Num());
+	SCOPE_CYCLE_COUNTER(STAT_Inventory_GetUIData);
 
-	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+	// Use cached data if available (avoids regeneration every frame)
+	if (bItemUICacheDirty)
 	{
-		Result.Add(ConvertToUIData(Instance));
+		RebuildItemUICache();
+		bItemUICacheDirty = false;
 	}
 
+	// Convert map to array
+	TArray<FSuspenseCoreItemUIData> Result;
+	CachedItemUIData.GenerateValueArray(Result);
 	return Result;
 }
 
@@ -2320,3 +2529,138 @@ void USuspenseCoreInventoryComponent::BroadcastUIDataChanged(const FGameplayTag&
 		EventBus->Publish(FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.UIProvider.DataChanged"))), EventData);
 	}
 }
+
+//==================================================================
+// UI Data Cache Methods (Performance Optimization)
+//==================================================================
+
+void USuspenseCoreInventoryComponent::InvalidateItemUICache(const FGuid& ItemID)
+{
+	CachedItemUIData.Remove(ItemID);
+	bItemUICacheDirty = true;
+	bSlotUICacheDirty = true; // Slot data also affected
+}
+
+void USuspenseCoreInventoryComponent::InvalidateAllUICache()
+{
+	bItemUICacheDirty = true;
+	bSlotUICacheDirty = true;
+}
+
+void USuspenseCoreInventoryComponent::RebuildItemUICache() const
+{
+	CachedItemUIData.Empty(ItemInstances.Num());
+
+	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+	{
+		CachedItemUIData.Add(Instance.UniqueInstanceID, ConvertToUIData(Instance));
+	}
+}
+
+void USuspenseCoreInventoryComponent::RebuildSlotUICache() const
+{
+	CachedSlotUIData.SetNum(GridSlots.Num());
+
+	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	{
+		CachedSlotUIData[i] = ConvertSlotToUIData(i);
+	}
+}
+
+//==================================================================
+// Validation Layer (Development builds only)
+//==================================================================
+
+#if !UE_BUILD_SHIPPING
+
+void USuspenseCoreInventoryComponent::ValidateInventoryIntegrityInternal(const FString& Context) const
+{
+	TArray<FString> Errors;
+
+	// 1. Check grid slots match items
+	TSet<FGuid> ItemIDsInGrid;
+	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	{
+		const FSuspenseCoreInventorySlot& Slot = GridSlots[i];
+		if (!Slot.IsEmpty())
+		{
+			ItemIDsInGrid.Add(Slot.InstanceID);
+		}
+	}
+
+	TSet<FGuid> ItemIDsInArray;
+	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+	{
+		ItemIDsInArray.Add(Instance.UniqueInstanceID);
+
+		// Check slot index valid
+		if (Instance.SlotIndex < 0 || Instance.SlotIndex >= GridSlots.Num())
+		{
+			Errors.Add(FString::Printf(TEXT("[%s] Item %s has invalid SlotIndex %d (max: %d)"),
+				*Context, *Instance.ItemID.ToString(), Instance.SlotIndex, GridSlots.Num() - 1));
+		}
+
+		// Check quantity valid
+		if (Instance.Quantity <= 0)
+		{
+			Errors.Add(FString::Printf(TEXT("[%s] Item %s has invalid Quantity %d"),
+				*Context, *Instance.ItemID.ToString(), Instance.Quantity));
+		}
+	}
+
+	// 2. Check sets match (grid <-> items array)
+	for (const FGuid& ID : ItemIDsInGrid)
+	{
+		if (!ItemIDsInArray.Contains(ID))
+		{
+			Errors.Add(FString::Printf(TEXT("[%s] Grid contains item %s not in ItemInstances"),
+				*Context, *ID.ToString()));
+		}
+	}
+
+	for (const FGuid& ID : ItemIDsInArray)
+	{
+		if (!ItemIDsInGrid.Contains(ID))
+		{
+			Errors.Add(FString::Printf(TEXT("[%s] ItemInstances contains %s not in grid"),
+				*Context, *ID.ToString()));
+		}
+	}
+
+	// 3. Check weight consistency
+	float CalculatedWeight = 0.0f;
+	USuspenseCoreDataManager* DataManager = GetDataManager();
+	if (DataManager)
+	{
+		for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+		{
+			FSuspenseCoreItemData ItemData;
+			if (DataManager->GetItemData(Instance.ItemID, ItemData))
+			{
+				CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+			}
+		}
+	}
+
+	if (!FMath::IsNearlyEqual(CurrentWeight, CalculatedWeight, 0.01f))
+	{
+		Errors.Add(FString::Printf(TEXT("[%s] Weight mismatch: Tracked %.2f, Calculated %.2f"),
+			*Context, CurrentWeight, CalculatedWeight));
+	}
+
+	// Log errors if any
+	if (Errors.Num() > 0)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Error, TEXT("=== INVENTORY INTEGRITY VIOLATION [%s] ==="), *Context);
+		for (const FString& Error : Errors)
+		{
+			UE_LOG(LogSuspenseCoreInventory, Error, TEXT("  - %s"), *Error);
+		}
+
+		// In Editor builds, optionally trigger assert for debugging
+		// Uncomment for stricter development validation:
+		// ensureAlwaysMsgf(false, TEXT("Inventory integrity check failed! See log for details."));
+	}
+}
+
+#endif // !UE_BUILD_SHIPPING

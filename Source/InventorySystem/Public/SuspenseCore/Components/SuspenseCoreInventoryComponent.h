@@ -307,6 +307,23 @@ protected:
 	UFUNCTION()
 	void OnRep_ReplicatedInventory();
 
+	//==================================================================
+	// Delta Replication Delegate Handlers
+	// These handle the actual logic for FastArraySerializer callbacks
+	//==================================================================
+
+	/** Bind replication delegates to ReplicatedInventory */
+	void BindReplicationDelegates();
+
+	/** Handle item removal from replicated array */
+	void HandleReplicatedItemRemove(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer);
+
+	/** Handle item addition to replicated array */
+	void HandleReplicatedItemAdd(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer);
+
+	/** Handle item change in replicated array */
+	void HandleReplicatedItemChange(const FSuspenseCoreReplicatedItem& Item, const FSuspenseCoreReplicatedInventory& ArraySerializer);
+
 	/** Subscribe to EventBus events */
 	void SubscribeToEvents();
 

@@ -10,6 +10,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
@@ -608,7 +609,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemEquipped(const FSuspenseC
     EventData.SetObject(FName("Target"), GetOwner());
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemEquipped")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_ItemEquipped,
         EventData
     );
 
@@ -640,7 +641,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastItemUnequipped(const FSuspens
     EventData.SetObject(FName("Target"), GetOwner());
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ItemUnequipped")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_ItemUnequipped,
         EventData
     );
 
@@ -662,7 +663,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentPropertyChanged(cons
         .SetFloat(TEXT("NewValue"), NewValue);
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.PropertyChanged")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_PropertyChanged,
         EventData
     );
 
@@ -684,7 +685,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentStateChanged(const F
         .SetBool(TEXT("Interrupted"), bInterrupted);
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.StateChanged")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Data_Changed,
         EventData
     );
 
@@ -720,7 +721,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastEquipmentUpdated()
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Updated")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Updated,
         EventData
     );
 
@@ -742,7 +743,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastAmmoChanged(float CurrentAmmo
         .SetFloat(TEXT("MagazineSize"), MagazineSize);
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.AmmoChanged")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_AmmoChanged,
         EventData
     );
 
@@ -765,7 +766,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastWeaponFired(const FVector& Or
         .SetString(TEXT("FireMode"), FireMode.ToString());
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.WeaponFired")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Fired,
         EventData
     );
 
@@ -794,7 +795,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastFireModeChanged(const FGamepl
         .SetFloat(TEXT("Spread"), CurrentSpread);
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.FireModeChanged")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_FireModeChanged,
         EventData
     );
 
@@ -815,8 +816,8 @@ void USuspenseCoreEquipmentComponentBase::BroadcastWeaponReload(bool bStarted, f
         .SetFloat(TEXT("Duration"), ReloadDuration);
 
     FGameplayTag EventTag = bStarted
-        ? FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadStart"))
-        : FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.ReloadEnd"));
+        ? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_ReloadStart
+        : SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_ReloadEnd;
 
     Manager->GetEventBus()->Publish(EventTag, EventData);
 
@@ -840,7 +841,7 @@ void USuspenseCoreEquipmentComponentBase::BroadcastWeaponSpreadUpdated(float New
         .SetFloat(TEXT("Percentage"), Percentage);
 
     Manager->GetEventBus()->Publish(
-        FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SpreadUpdated")),
+        SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_SpreadUpdated,
         EventData
     );
 

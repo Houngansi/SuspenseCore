@@ -384,30 +384,56 @@ private:
 	UPROPERTY(Transient)
 	TArray<FSuspenseCoreItemInstance> ItemInstances;
 
-	/** Grid slots (legacy - maintained for direct access, synced with Storage) */
-	UPROPERTY(Transient)
-	TArray<FSuspenseCoreInventorySlot> GridSlots;
-
 	//==================================================================
-	// Storage Delegation (SSOT for Grid Operations)
+	// Grid Storage (SSOT for all Grid Operations)
 	//==================================================================
 
 	/**
-	 * Grid storage manager - Single Source of Truth for spatial operations.
-	 * Component delegates grid queries/modifications to Storage for optimized
-	 * operations (FreeSlotBitmap, fragmentation detection, etc.)
+	 * Grid storage manager - Single Source of Truth for ALL spatial operations.
+	 * All grid queries and modifications MUST go through GridStorage.
+	 * Direct GridSlots access is DEPRECATED and will be removed in future versions.
 	 */
 	UPROPERTY(Transient)
 	TObjectPtr<USuspenseCoreInventoryStorage> GridStorage;
 
-	/** Ensure Storage is created and synced with GridSlots */
+	/** Ensure Storage is created and initialized */
 	void EnsureStorageInitialized();
 
-	/** Sync Storage state to GridSlots array (for backwards compatibility) */
-	void SyncStorageToGridSlots();
+	//==================================================================
+	// Grid Slot Accessors (delegates to GridStorage)
+	//==================================================================
 
-	/** Sync GridSlots array to Storage (after external modification) */
-	void SyncGridSlotsToStorage();
+	/** Get slot data from GridStorage (SSOT) */
+	FSuspenseCoreInventorySlot GetGridSlot(int32 SlotIndex) const;
+
+	/** Get instance ID at slot from GridStorage (SSOT) */
+	FGuid GetInstanceIDAtSlot(int32 SlotIndex) const;
+
+	/** Check if slot is valid via GridStorage */
+	bool IsValidSlotIndex(int32 SlotIndex) const;
+
+	/** Get total slot count from GridStorage */
+	int32 GetTotalSlotCount() const;
+
+	//==================================================================
+	// DEPRECATED: Legacy GridSlots Array
+	//==================================================================
+
+	/**
+	 * @deprecated Use GridStorage accessors instead (GetGridSlot, GetInstanceIDAtSlot, etc.)
+	 * This array is maintained ONLY for serialization/replication compatibility.
+	 * DO NOT access directly in new code - use GridStorage methods.
+	 * Will be removed in SuspenseCore 2.0
+	 */
+	UE_DEPRECATED(5.0, "Use GridStorage accessors instead. Direct GridSlots access will be removed in SuspenseCore 2.0")
+	UPROPERTY(Transient)
+	TArray<FSuspenseCoreInventorySlot> GridSlots_DEPRECATED;
+
+	/**
+	 * Internal: Sync GridStorage to legacy array for replication.
+	 * Called automatically - do not call directly.
+	 */
+	void SyncStorageToLegacyArray();
 
 	/** Replicated inventory data */
 	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedInventory)

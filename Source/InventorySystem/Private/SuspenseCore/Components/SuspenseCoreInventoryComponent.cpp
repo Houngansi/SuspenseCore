@@ -652,6 +652,8 @@ bool USuspenseCoreInventoryComponent::MoveItem_Implementation(int32 FromSlot, in
 		BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_MOVED, *InstancePtr, ToSlot);
 	}
 
+	// Invalidate UI cache before broadcasting update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 	return true;
 }
@@ -708,6 +710,8 @@ bool USuspenseCoreInventoryComponent::SwapItems(int32 Slot1, int32 Slot2)
 		}
 	}
 
+	// Invalidate UI cache before broadcasting update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 	return true;
 }
@@ -733,6 +737,9 @@ bool USuspenseCoreInventoryComponent::RotateItemAtSlot(int32 SlotIndex)
 	Instance->Rotation = (Instance->Rotation + 90) % 360;
 	ReplicatedInventory.UpdateItem(*Instance);
 	BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_ROTATED, *Instance, SlotIndex);
+
+	// Invalidate UI cache before broadcasting update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 	return true;
 }
@@ -2381,6 +2388,8 @@ void USuspenseCoreInventoryComponent::Server_MoveItem_Implementation(int32 FromS
 		BroadcastItemEvent(SUSPENSE_INV_EVENT_ITEM_MOVED, *InstancePtr, ToSlot);
 	}
 
+	// Invalidate UI cache before broadcasting update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 }
 
@@ -2427,6 +2436,8 @@ void USuspenseCoreInventoryComponent::Server_SwapItems_Implementation(int32 Slot
 		}
 	}
 
+	// Invalidate UI cache before broadcasting update
+	InvalidateAllUICache();
 	BroadcastInventoryUpdated();
 }
 

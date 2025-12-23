@@ -58,9 +58,6 @@ const TMap<EEquipmentSlotType, TArray<FGameplayTag>>& USuspenseCoreEquipmentSlot
 	return LazyTypeCompatibilityMatrix;
 }
 
-// Legacy static member - now empty, use GetTypeCompatibilityMatrix() instead
-const TMap<EEquipmentSlotType, TArray<FGameplayTag>> USuspenseCoreEquipmentSlotValidator::TypeCompatibilityMatrix;
-
 // ==============================================
 // ctor
 // ==============================================

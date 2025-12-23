@@ -241,72 +241,72 @@ public:
 	//===============================
 	// ISuspenseCoreSlotValidator
 	//===============================
-	virtual FSuspenseCoreSlotValidationResult CanPlaceItemInSlot(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult CanPlaceItemInSlot(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
 
-	virtual FSuspenseCoreSlotValidationResult CanSwapItems(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult CanSwapItems(
 		const FEquipmentSlotConfig& SlotConfigA,
 		const FSuspenseCoreInventoryItemInstance& ItemA,
 		const FEquipmentSlotConfig& SlotConfigB,
 		const FSuspenseCoreInventoryItemInstance& ItemB) const override;
 
-	virtual FSuspenseCoreSlotValidationResult ValidateSlotConfiguration(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult ValidateSlotConfiguration(
 		const FEquipmentSlotConfig& SlotConfig) const override;
 
-	virtual FSuspenseCoreSlotValidationResult CheckSlotRequirements(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult CheckSlotRequirements(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FGameplayTagContainer& Requirements) const override;
 
-	virtual bool IsItemTypeCompatibleWithSlot(
+	[[nodiscard]] virtual bool IsItemTypeCompatibleWithSlot(
 		const FGameplayTag& ItemType,
 		EEquipmentSlotType SlotType) const override;
 
 	//===============================
 	// Extended API
 	//===============================
-	FSuspenseCoreSlotValidationResultEx CanPlaceItemInSlotEx(
+	[[nodiscard]] FSuspenseCoreSlotValidationResultEx CanPlaceItemInSlotEx(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const;
 
-	FSuspenseCoreBatchValidationResult ValidateBatch(const FSuspenseCoreBatchValidationRequest& Request) const;
+	[[nodiscard]] FSuspenseCoreBatchValidationResult ValidateBatch(const FSuspenseCoreBatchValidationRequest& Request) const;
 
-	bool QuickValidateOperations(
+	[[nodiscard]] bool QuickValidateOperations(
 		const TArray<FTransactionOperation>& Operations,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
-	TArray<int32> FindOperationConflicts(
+	[[nodiscard]] TArray<int32> FindOperationConflicts(
 		const TArray<FTransactionOperation>& Operations,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
 	//===============================
 	// ISuspenseCoreSlotValidator - Batch Validation
 	//===============================
-	virtual FSuspenseCoreSlotBatchResult ValidateBatch(
+	[[nodiscard]] virtual FSuspenseCoreSlotBatchResult ValidateBatch(
 		const FSuspenseCoreSlotBatchRequest& Request) const override;
 
-	virtual bool QuickValidate(
+	[[nodiscard]] virtual bool QuickValidate(
 		const FEquipmentSlotConfig& SlotConfig,
 		const FSuspenseCoreInventoryItemInstance& ItemInstance) const override;
 
 	//===============================
 	// ISuspenseCoreSlotValidator - Specialized Checks
 	//===============================
-	virtual FSuspenseCoreSlotValidationResult CheckWeightLimit(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult CheckWeightLimit(
 		float ItemWeight,
 		float SlotMaxWeight) const override;
 
-	virtual FSuspenseCoreSlotValidationResult CheckLevelRequirement(
+	[[nodiscard]] virtual FSuspenseCoreSlotValidationResult CheckLevelRequirement(
 		int32 RequiredLevel,
 		int32 ActualLevel) const override;
 
 	//===============================
 	// ISuspenseCoreSlotValidator - Slot Query
 	//===============================
-	virtual TArray<EEquipmentSlotType> GetCompatibleSlotTypes(
+	[[nodiscard]] virtual TArray<EEquipmentSlotType> GetCompatibleSlotTypes(
 		const FGameplayTag& ItemType) const override;
 
-	virtual TArray<FGameplayTag> GetCompatibleItemTypes(
+	[[nodiscard]] virtual TArray<FGameplayTag> GetCompatibleItemTypes(
 		EEquipmentSlotType SlotType) const override;
 
 	//===============================
@@ -316,7 +316,7 @@ public:
 		const FGameplayTag& SlotTag,
 		const FSuspenseCoreSlotRestrictions& Restrictions) override;
 
-	virtual FSuspenseCoreSlotRestrictions GetSlotRestrictions(
+	[[nodiscard]] virtual FSuspenseCoreSlotRestrictions GetSlotRestrictions(
 		const FGameplayTag& SlotTag) const override;
 
 	virtual void ClearSlotRestrictions(const FGameplayTag& SlotTag) override;
@@ -325,38 +325,38 @@ public:
 	// ISuspenseCoreSlotValidator - Cache Management
 	//===============================
 	virtual void ClearValidationCache() override;
-	virtual FString GetCacheStatistics() const override;
+	[[nodiscard]] virtual FString GetCacheStatistics() const override;
 
 	//===============================
 	// ISuspenseCoreSlotValidator - Custom Rules
 	//===============================
-	virtual bool RegisterValidationRule(
+	[[nodiscard]] virtual bool RegisterValidationRule(
 		const FGameplayTag& RuleTag,
 		int32 Priority,
 		const FText& ErrorMessage) override;
 
-	virtual bool UnregisterValidationRule(const FGameplayTag& RuleTag) override;
+	[[nodiscard]] virtual bool UnregisterValidationRule(const FGameplayTag& RuleTag) override;
 	virtual void SetRuleEnabled(const FGameplayTag& RuleTag, bool bEnabled) override;
-	virtual TArray<FGameplayTag> GetRegisteredRules() const override;
+	[[nodiscard]] virtual TArray<FGameplayTag> GetRegisteredRules() const override;
 
 	//===============================
 	// ISuspenseCoreSlotValidator - Diagnostics
 	//===============================
-	virtual FString GetValidationStatistics() const override;
+	[[nodiscard]] virtual FString GetValidationStatistics() const override;
 	virtual void ResetStatistics() override;
 
 	//===============================
 	// Business helpers
 	//===============================
-	TArray<int32> FindCompatibleSlots(
+	[[nodiscard]] TArray<int32> FindCompatibleSlots(
 		const FGameplayTag& ItemType,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
-	TArray<int32> GetSlotsByType(
+	[[nodiscard]] TArray<int32> GetSlotsByType(
 		EEquipmentSlotType EquipmentType,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
-	int32 GetFirstEmptySlotOfType(
+	[[nodiscard]] int32 GetFirstEmptySlotOfType(
 		EEquipmentSlotType EquipmentType,
 		const TScriptInterface<ISuspenseCoreEquipmentDataProvider>& DataProvider) const;
 
@@ -367,11 +367,11 @@ public:
 
 	void SetItemDataProvider(TSharedPtr<ISuspenseCoreItemDataProvider> Provider);
 	void SetSlotRestrictionsData(const FGameplayTag& SlotTag, const FSuspenseCoreSlotRestrictionData& Restrictions);
-	FSuspenseCoreSlotRestrictionData GetSlotRestrictionsData(const FGameplayTag& SlotTag) const;
+	[[nodiscard]] FSuspenseCoreSlotRestrictionData GetSlotRestrictionsData(const FGameplayTag& SlotTag) const;
 	void SetSlotCompatibilityMatrix(int32 SlotIndex, const TArray<FSuspenseCoreSlotCompatibilityEntry>& Entries);
 
 	/** Monotonic version for cache keys; from authoritative data source (items/slots). */
-	uint32 GetCurrentDataVersion() const;
+	[[nodiscard]] uint32 GetCurrentDataVersion() const;
 
 protected:
 	//===============================
@@ -418,13 +418,11 @@ protected:
 	void CleanExpiredCacheEntries() const;
 
 	//===============================
-	// Type compatibility matrix
-	// NOTE: Use GetTypeCompatibilityMatrix() instead of TypeCompatibilityMatrix directly
-	// to ensure lazy initialization after GameplayTag system is ready
+	// Type compatibility matrix (lazy-initialized)
+	// Uses GetTypeCompatibilityMatrix() for thread-safe access
 	//===============================
 	static TMap<EEquipmentSlotType, TArray<FGameplayTag>> CreateTypeCompatibilityMatrix();
 	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>>& GetTypeCompatibilityMatrix();
-	static const TMap<EEquipmentSlotType, TArray<FGameplayTag>> TypeCompatibilityMatrix; // Deprecated: use GetTypeCompatibilityMatrix()
 
 private:
 	//---------------- Rules storage (split lock) ----------------

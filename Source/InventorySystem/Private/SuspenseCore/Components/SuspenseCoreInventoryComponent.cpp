@@ -72,6 +72,86 @@ void USuspenseCoreInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlay
 	Super::EndPlay(EndPlayReason);
 }
 
+//==================================================================
+// Save Data Versioning
+//==================================================================
+
+void USuspenseCoreInventoryComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	// Check if save data needs migration
+	if (SaveDataVersion < SUSPENSECORE_INVENTORY_SAVE_VERSION)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Log,
+			TEXT("PostLoad: Migrating inventory save data from v%d to v%d"),
+			SaveDataVersion, SUSPENSECORE_INVENTORY_SAVE_VERSION);
+
+		MigrateSaveData(SaveDataVersion, SUSPENSECORE_INVENTORY_SAVE_VERSION);
+		SaveDataVersion = SUSPENSECORE_INVENTORY_SAVE_VERSION;
+	}
+}
+
+void USuspenseCoreInventoryComponent::MigrateSaveData(int32 FromVersion, int32 ToVersion)
+{
+	UE_LOG(LogSuspenseCoreInventory, Log,
+		TEXT("MigrateSaveData: Starting migration from v%d to v%d"),
+		FromVersion, ToVersion);
+
+	// Version 0 -> 1: Ensure all items have valid UniqueInstanceID
+	if (FromVersion == 0 && ToVersion >= 1)
+	{
+		int32 MigratedCount = 0;
+		for (FSuspenseCoreItemInstance& Instance : ItemInstances)
+		{
+			if (!Instance.UniqueInstanceID.IsValid())
+			{
+				Instance.UniqueInstanceID = FGuid::NewGuid();
+				++MigratedCount;
+			}
+		}
+
+		if (MigratedCount > 0)
+		{
+			UE_LOG(LogSuspenseCoreInventory, Log,
+				TEXT("MigrateSaveData v0->v1: Generated %d missing InstanceIDs"),
+				MigratedCount);
+		}
+
+		// Rebuild grid slots to match items
+		if (Config.GridWidth > 0 && Config.GridHeight > 0)
+		{
+			int32 TotalSlots = Config.GridWidth * Config.GridHeight;
+			GridSlots.SetNum(TotalSlots);
+			for (FSuspenseCoreInventorySlot& Slot : GridSlots)
+			{
+				Slot.Clear();
+			}
+			for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+			{
+				UpdateGridSlots(Instance, true);
+			}
+		}
+
+		// Recalculate weight
+		RecalculateWeight();
+	}
+
+	// FUTURE MIGRATIONS:
+	// Version 1 -> 2: Example - add new RuntimeProperties field
+	// if (FromVersion <= 1 && ToVersion >= 2)
+	// {
+	//     for (FSuspenseCoreItemInstance& Instance : ItemInstances)
+	//     {
+	//         Instance.RuntimeProperties.Add(TEXT("MigratedFromV1"), TEXT("true"));
+	//     }
+	// }
+
+	UE_LOG(LogSuspenseCoreInventory, Log,
+		TEXT("MigrateSaveData: Completed migration to v%d. Items: %d"),
+		ToVersion, ItemInstances.Num());
+}
+
 void USuspenseCoreInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -673,6 +753,19 @@ int32 USuspenseCoreInventoryComponent::FindFreeSlot(FIntPoint ItemGridSize, bool
 {
 	SCOPE_CYCLE_COUNTER(STAT_Inventory_FindFreeSlot);
 
+	// Delegate to Storage if available (uses FreeSlotBitmap for faster queries)
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		bool bRotated = false;
+		int32 FoundSlot = GridStorage->FindFreeSlot(ItemGridSize, bAllowRotation, bRotated);
+		if (FoundSlot != INDEX_NONE)
+		{
+			LastFreeSlotHint = FoundSlot;
+		}
+		return FoundSlot;
+	}
+
+	// Fallback to local implementation (for backwards compatibility)
 	const int32 TotalSlots = GridSlots.Num();
 	if (TotalSlots == 0)
 	{
@@ -1049,6 +1142,7 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 	Config.AllowedItemTypes.Reset();
 	Config.DisallowedItemTypes.Reset();
 
+	// Initialize legacy GridSlots array (for backwards compatibility)
 	int32 TotalSlots = Config.GridWidth * Config.GridHeight;
 	GridSlots.SetNum(TotalSlots);
 	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
@@ -1056,9 +1150,15 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 		Slot.Clear();
 	}
 
+	// Initialize Storage (SSOT for grid operations)
+	EnsureStorageInitialized();
+
 	ItemInstances.Empty();
 	CurrentWeight = 0.0f;
 	bIsInitialized = true;
+
+	// Reset search hint
+	LastFreeSlotHint = 0;
 
 	ReplicatedInventory.GridWidth = Config.GridWidth;
 	ReplicatedInventory.GridHeight = Config.GridHeight;
@@ -1073,8 +1173,94 @@ void USuspenseCoreInventoryComponent::Initialize(int32 GridWidth, int32 GridHeig
 		EventBus->Publish(SUSPENSE_INV_EVENT_INITIALIZED, EventData);
 	}
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Inventory initialized: %dx%d grid, %.1f max weight (type restrictions cleared)"),
-		Config.GridWidth, Config.GridHeight, Config.MaxWeight);
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("Inventory initialized: %dx%d grid, %.1f max weight (Storage: %s)"),
+		Config.GridWidth, Config.GridHeight, Config.MaxWeight,
+		GridStorage ? TEXT("Created") : TEXT("Failed"));
+}
+
+//==================================================================
+// Storage Delegation
+//==================================================================
+
+void USuspenseCoreInventoryComponent::EnsureStorageInitialized()
+{
+	if (!GridStorage)
+	{
+		GridStorage = NewObject<USuspenseCoreInventoryStorage>(this, NAME_None, RF_Transient);
+	}
+
+	if (GridStorage && (!GridStorage->IsInitialized() ||
+		GridStorage->GetGridWidth() != Config.GridWidth ||
+		GridStorage->GetGridHeight() != Config.GridHeight))
+	{
+		GridStorage->Initialize(Config.GridWidth, Config.GridHeight);
+	}
+}
+
+void USuspenseCoreInventoryComponent::SyncStorageToGridSlots()
+{
+	if (!GridStorage || !GridStorage->IsInitialized())
+	{
+		return;
+	}
+
+	int32 TotalSlots = GridStorage->GetTotalSlots();
+	GridSlots.SetNum(TotalSlots);
+
+	for (int32 i = 0; i < TotalSlots; ++i)
+	{
+		GridSlots[i] = GridStorage->GetSlot(i);
+	}
+}
+
+void USuspenseCoreInventoryComponent::SyncGridSlotsToStorage()
+{
+	EnsureStorageInitialized();
+
+	if (!GridStorage)
+	{
+		return;
+	}
+
+	// Clear storage and rebuild from GridSlots
+	GridStorage->Clear();
+
+	// Collect unique items from GridSlots
+	TMap<FGuid, int32> AnchorSlots; // InstanceID -> AnchorSlot
+	for (int32 i = 0; i < GridSlots.Num(); ++i)
+	{
+		const FSuspenseCoreInventorySlot& Slot = GridSlots[i];
+		if (!Slot.IsEmpty() && Slot.bIsAnchor)
+		{
+			AnchorSlots.Add(Slot.InstanceID, i);
+		}
+	}
+
+	// Re-place items in storage
+	for (const auto& Pair : AnchorSlots)
+	{
+		const FGuid& InstanceID = Pair.Key;
+		int32 AnchorSlot = Pair.Value;
+
+		// Find item to get its size
+		const FSuspenseCoreItemInstance* Instance = FindItemInstanceInternal(InstanceID);
+		if (Instance)
+		{
+			FSuspenseCoreItemData ItemData;
+			if (USuspenseCoreDataManager* DataManager = GetDataManager())
+			{
+				if (DataManager->GetItemData(Instance->ItemID, ItemData))
+				{
+					bool bRotated = Instance->Rotation != 0;
+					GridStorage->PlaceItem(InstanceID, ItemData.InventoryProps.GridSize, AnchorSlot, bRotated);
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("SyncGridSlotsToStorage: Synced %d items to Storage"),
+		AnchorSlots.Num());
 }
 
 bool USuspenseCoreInventoryComponent::IsInitialized() const
@@ -1283,19 +1469,25 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 {
 	SCOPE_CYCLE_COUNTER(STAT_Inventory_OnRep);
 
-	// NOTE: This is called on clients when ReplicatedInventory changes.
-	// FFastArraySerializer provides delta updates via:
-	// - FSuspenseCoreReplicatedItem::PreReplicatedRemove
-	// - FSuspenseCoreReplicatedItem::PostReplicatedAdd
-	// - FSuspenseCoreReplicatedItem::PostReplicatedChange
+	// DELTA REPLICATION ARCHITECTURE:
+	// FFastArraySerializer calls delta callbacks for individual items:
+	// - FSuspenseCoreReplicatedItem::PreReplicatedRemove  (O(1) per item)
+	// - FSuspenseCoreReplicatedItem::PostReplicatedAdd    (O(1) per item)
+	// - FSuspenseCoreReplicatedItem::PostReplicatedChange (O(1) per item)
 	//
-	// However, until those callbacks are fully implemented with proper
-	// OwnerComponent access, we do a full rebuild here.
-	//
-	// TODO: When delta callbacks are implemented, this function should:
-	// 1. Only update config if changed
-	// 2. Only recalculate weight (which is O(n) but happens once per OnRep)
-	// 3. The actual item/grid updates happen in delta callbacks
+	// This OnRep function handles:
+	// 1. Initial sync (when OwnerComponent not yet set - full rebuild needed)
+	// 2. Config changes (grid size, max weight)
+	// 3. Final broadcast to notify UI
+
+	// Ensure OwnerComponent is set for delta callbacks
+	if (!ReplicatedInventory.OwnerComponent.IsValid())
+	{
+		ReplicatedInventory.OwnerComponent = this;
+	}
+
+	// Check if this is initial sync (no local state yet) or config changed
+	bool bNeedFullRebuild = !bIsInitialized;
 
 	// Update config if changed
 	if (Config.GridWidth != ReplicatedInventory.GridWidth ||
@@ -1305,59 +1497,55 @@ void USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory()
 		Config.GridWidth = ReplicatedInventory.GridWidth;
 		Config.GridHeight = ReplicatedInventory.GridHeight;
 		Config.MaxWeight = ReplicatedInventory.MaxWeight;
+		bNeedFullRebuild = true; // Grid size changed - need full rebuild
+	}
 
-		// Grid size changed - need full rebuild
+	if (bNeedFullRebuild)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Log,
+			TEXT("OnRep_ReplicatedInventory: Full rebuild (initial sync or config change)"));
+
+		// Full rebuild - this happens on initial connect or grid resize
 		int32 TotalSlots = Config.GridWidth * Config.GridHeight;
 		GridSlots.SetNum(TotalSlots);
 		for (FSuspenseCoreInventorySlot& Slot : GridSlots)
 		{
 			Slot.Clear();
 		}
-	}
 
-	// Rebuild local item instances from replicated data
-	// This is O(n) but necessary for now until delta callbacks work
-	ItemInstances.Empty(ReplicatedInventory.Items.Num());
-	for (const FSuspenseCoreReplicatedItem& RepItem : ReplicatedInventory.Items)
+		ItemInstances.Empty(ReplicatedInventory.Items.Num());
+		for (const FSuspenseCoreReplicatedItem& RepItem : ReplicatedInventory.Items)
+		{
+			ItemInstances.Add(RepItem.ToItemInstance());
+		}
+
+		for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
+		{
+			UpdateGridSlots(Instance, true);
+		}
+
+		RecalculateWeight();
+		bIsInitialized = true;
+		LastFreeSlotHint = 0;
+	}
+	else
 	{
-		ItemInstances.Add(RepItem.ToItemInstance());
+		// Delta updates already applied by callbacks
+		// Just verify consistency in development builds
+		UE_LOG(LogSuspenseCoreInventory, Verbose,
+			TEXT("OnRep_ReplicatedInventory: Delta update (callbacks handled changes)"));
 	}
 
-	// Ensure grid is properly sized
-	int32 TotalSlots = Config.GridWidth * Config.GridHeight;
-	if (GridSlots.Num() != TotalSlots)
-	{
-		GridSlots.SetNum(TotalSlots);
-	}
-
-	// Clear and rebuild grid slots
-	for (FSuspenseCoreInventorySlot& Slot : GridSlots)
-	{
-		Slot.Clear();
-	}
-	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
-	{
-		UpdateGridSlots(Instance, true);
-	}
-
-	// Full weight recalculation (safe after replication)
-	RecalculateWeight();
-
-	// Mark as initialized
-	bIsInitialized = true;
-
-	// Reset slot hint since inventory structure may have changed
-	LastFreeSlotHint = 0;
-
-	// Invalidate all UI caches
+	// Invalidate UI caches (delta callbacks also do this, but be safe)
 	InvalidateAllUICache();
 
 	// Notify observers
 	BroadcastInventoryUpdated();
 
 	UE_LOG(LogSuspenseCoreInventory, Verbose,
-		TEXT("OnRep_ReplicatedInventory: Rebuilt %d items, %d slots, weight %.2f"),
-		ItemInstances.Num(), GridSlots.Num(), CurrentWeight);
+		TEXT("OnRep_ReplicatedInventory: Items=%d, Slots=%d, Weight=%.2f, FullRebuild=%s"),
+		ItemInstances.Num(), GridSlots.Num(), CurrentWeight,
+		bNeedFullRebuild ? TEXT("Yes") : TEXT("No"));
 }
 
 void USuspenseCoreInventoryComponent::SubscribeToEvents()
@@ -1491,6 +1679,7 @@ void USuspenseCoreInventoryComponent::UpdateGridSlots(const FSuspenseCoreItemIns
 	FIntPoint EffectiveSize = bRotated ? FIntPoint(ItemSize.Y, ItemSize.X) : ItemSize;
 	FIntPoint StartCoords = SlotToGridCoords(Instance.SlotIndex);
 
+	// Update legacy GridSlots array (for backwards compatibility)
 	for (int32 Y = 0; Y < EffectiveSize.Y; ++Y)
 	{
 		for (int32 X = 0; X < EffectiveSize.X; ++X)
@@ -1509,6 +1698,19 @@ void USuspenseCoreInventoryComponent::UpdateGridSlots(const FSuspenseCoreItemIns
 					GridSlots[SlotIdx].Clear();
 				}
 			}
+		}
+	}
+
+	// Sync with Storage (SSOT for grid operations)
+	if (GridStorage && GridStorage->IsInitialized())
+	{
+		if (bPlace)
+		{
+			GridStorage->PlaceItem(Instance.UniqueInstanceID, ItemSize, Instance.SlotIndex, bRotated);
+		}
+		else
+		{
+			GridStorage->RemoveItem(Instance.UniqueInstanceID);
 		}
 	}
 }

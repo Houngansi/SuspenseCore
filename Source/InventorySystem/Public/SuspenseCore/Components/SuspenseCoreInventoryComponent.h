@@ -15,6 +15,13 @@
 #include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
 #include "SuspenseCoreInventoryComponent.generated.h"
 
+//==================================================================
+// Save Data Versioning
+//==================================================================
+
+/** Current inventory save data version. Increment when save format changes. */
+#define SUSPENSECORE_INVENTORY_SAVE_VERSION 1
+
 // Forward declarations
 class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
@@ -57,6 +64,9 @@ class INVENTORYSYSTEM_API USuspenseCoreInventoryComponent
 	, public ISuspenseCoreUIDataProvider
 {
 	GENERATED_BODY()
+
+	// Allow delta callbacks to access protected members
+	friend struct FSuspenseCoreReplicatedItem;
 
 public:
 	USuspenseCoreInventoryComponent();
@@ -374,9 +384,30 @@ private:
 	UPROPERTY(Transient)
 	TArray<FSuspenseCoreItemInstance> ItemInstances;
 
-	/** Grid slots */
+	/** Grid slots (legacy - maintained for direct access, synced with Storage) */
 	UPROPERTY(Transient)
 	TArray<FSuspenseCoreInventorySlot> GridSlots;
+
+	//==================================================================
+	// Storage Delegation (SSOT for Grid Operations)
+	//==================================================================
+
+	/**
+	 * Grid storage manager - Single Source of Truth for spatial operations.
+	 * Component delegates grid queries/modifications to Storage for optimized
+	 * operations (FreeSlotBitmap, fragmentation detection, etc.)
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<USuspenseCoreInventoryStorage> GridStorage;
+
+	/** Ensure Storage is created and synced with GridSlots */
+	void EnsureStorageInitialized();
+
+	/** Sync Storage state to GridSlots array (for backwards compatibility) */
+	void SyncStorageToGridSlots();
+
+	/** Sync GridSlots array to Storage (after external modification) */
+	void SyncGridSlotsToStorage();
 
 	/** Replicated inventory data */
 	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedInventory)
@@ -389,6 +420,20 @@ private:
 	/** Is inventory initialized */
 	UPROPERTY(Transient)
 	bool bIsInitialized;
+
+	//==================================================================
+	// Save Data Versioning
+	//==================================================================
+
+	/** Save data version for migration support */
+	UPROPERTY(SaveGame)
+	int32 SaveDataVersion = SUSPENSECORE_INVENTORY_SAVE_VERSION;
+
+	/** Migrate save data from older versions */
+	void MigrateSaveData(int32 FromVersion, int32 ToVersion);
+
+	/** Called after loading to handle version migration */
+	virtual void PostLoad() override;
 
 	//==================================================================
 	// Transaction State

@@ -1,6 +1,10 @@
-// SuspenseCoreInventoryTypes.cpp
+// SuspenseCoreReplicatedItemCallbacks.cpp
 // SuspenseCore - EventBus Architecture
 // Copyright Suspense Team. All Rights Reserved.
+//
+// This file contains the implementation of FSuspenseCoreReplicatedItem delta replication callbacks.
+// The callbacks are defined in BridgeSystem but implemented here in InventorySystem
+// because they require access to USuspenseCoreInventoryComponent internals.
 
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Components/SuspenseCoreInventoryComponent.h"

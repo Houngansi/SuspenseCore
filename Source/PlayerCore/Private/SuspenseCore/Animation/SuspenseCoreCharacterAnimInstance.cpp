@@ -56,6 +56,7 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateAnimationAssets();
 	UpdateIKData(DeltaSeconds);
 	UpdateAimOffsetData(DeltaSeconds);
+	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
 }
 
@@ -304,6 +305,95 @@ void USuspenseCoreCharacterAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
 		const float TurnThreshold = 70.0f;
 		bShouldTurnInPlace = FMath::Abs(AimYaw) > TurnThreshold && GroundSpeed < 10.0f;
 		TurnInPlaceAngle = AimYaw;
+	}
+}
+
+void USuspenseCoreCharacterAnimInstance::UpdatePoseStates(float DeltaSeconds)
+{
+	APawn* OwnerPawn = TryGetPawnOwner();
+	if (!OwnerPawn)
+	{
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// SLIDING STATE
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// TODO: Get sliding state from Character when implemented
+	// For now, sliding is false (can be extended later)
+	bIsSliding = false;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEAN (ROLL) - наклон при поворотах
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// In example: MPS->Lean, interpolated with speed 10.0
+	// Calculate lean from lateral velocity or yaw delta
+	if (CachedCharacter.IsValid())
+	{
+		// Get lean from character if available, otherwise calculate from movement
+		// For now, calculate based on strafe movement
+		TargetLean = MoveRight * 15.0f; // Max 15 degrees lean
+	}
+	Lean = FMath::FInterpTo(Lean, TargetLean, DeltaSeconds, LeanInterpSpeed);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// BODY PITCH - наклон корпуса
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Get pitch from actor rotation
+	const FRotator ActorRotation = OwnerPawn->GetActorRotation();
+	BodyPitch = ActorRotation.Pitch;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// YAW OFFSET - Turn In Place logic (DefineYaw from example)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Logic from example:
+	// 1. Save LastTickYaw, update CurrentYaw
+	// 2. Accumulate: YawOffset += (LastTickYaw - CurrentYaw)
+	// 3. Normalize and clamp to -120..120
+	// 4. If moving or in air: interpolate YawOffset toward 0
+	// 5. If turning animation: use RotationCurve to drive YawOffset
+
+	// Save last yaw and get current
+	LastTickYaw = CurrentYaw;
+	CurrentYaw = ActorRotation.Yaw;
+
+	// Only accumulate when stationary and on ground
+	const bool bShouldAccumulateYaw = (Movement <= 0.0f) && !bIsInAir;
+
+	if (bShouldAccumulateYaw)
+	{
+		// Accumulate yaw delta
+		float YawDelta = LastTickYaw - CurrentYaw;
+
+		// Normalize delta to -180..180
+		YawDelta = FMath::UnwindDegrees(YawDelta);
+
+		YawOffset += YawDelta;
+
+		// Normalize and clamp
+		YawOffset = FMath::UnwindDegrees(YawOffset);
+		YawOffset = FMath::Clamp(YawOffset, -MaxYawOffset, MaxYawOffset);
+	}
+	else
+	{
+		// When moving or in air, interpolate YawOffset toward 0
+		YawOffset = FMath::FInterpTo(YawOffset, 0.0f, DeltaSeconds, YawOffsetInterpSpeed);
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ANIMATION CURVES - IsTurning and Rotation
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Get curve values from currently playing animations
+	IsTurningCurve = GetCurveValue(FName("IsTurning"));
+	RotationCurve = GetCurveValue(FName("Rotation"));
+
+	// If turning animation is playing, use rotation curve to modify YawOffset
+	const bool bIsTurningAnimation = FMath::IsNearlyEqual(IsTurningCurve, 1.0f, 0.01f);
+	if (bIsTurningAnimation)
+	{
+		// Interpolate YawOffset based on RotationCurve
+		const float TargetYawFromCurve = RotationCurve - YawOffset;
+		YawOffset = FMath::FInterpTo(YawOffset, TargetYawFromCurve, DeltaSeconds, YawOffsetCurveInterpSpeed);
 	}
 }
 

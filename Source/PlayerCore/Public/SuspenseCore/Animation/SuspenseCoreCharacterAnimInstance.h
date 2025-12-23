@@ -94,6 +94,51 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
 	bool bIsOnGround = true;
 
+	/** Персонаж сейчас скользит (sliding) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	bool bIsSliding = false;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// POSE STATES / TURN IN PLACE (для поворота корпуса)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Lean (Roll) - наклон персонажа при поворотах
+	 * Интерполируется с скоростью 10.0
+	 * Получается из Character или вычисляется из velocity
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	float Lean = 0.0f;
+
+	/**
+	 * Body Pitch - наклон корпуса вперёд/назад
+	 * Используется для aim offset корпуса
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	float BodyPitch = 0.0f;
+
+	/**
+	 * Yaw Offset для Turn In Place
+	 * Накапливается когда персонаж стоит, интерполируется к 0 при движении
+	 * Кламп: -120..120 градусов
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	float YawOffset = 0.0f;
+
+	/**
+	 * Rotation Curve - значение из анимационной кривой "Rotation"
+	 * Используется для синхронизации поворота с анимацией
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	float RotationCurve = 0.0f;
+
+	/**
+	 * Is Turning - значение из анимационной кривой "IsTurning"
+	 * 1.0 когда проигрывается анимация поворота
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	float IsTurningCurve = 0.0f;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// VELOCITY & DIRECTION (для BlendSpaces)
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -361,6 +406,9 @@ protected:
 	/** Обновить AimOffset данные */
 	void UpdateAimOffsetData(float DeltaSeconds);
 
+	/** Обновить Pose States (Turn In Place, Lean, etc.) */
+	void UpdatePoseStates(float DeltaSeconds);
+
 	/** Обновить GAS атрибуты */
 	void UpdateGASAttributes();
 
@@ -382,4 +430,29 @@ private:
 
 	/** Скорость интерполяции для AimAlpha */
 	static constexpr float AimInterpSpeed = 10.0f;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// POSE STATES INTERNAL
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Yaw на прошлом тике для вычисления дельты */
+	float LastTickYaw = 0.0f;
+
+	/** Текущий Yaw актора */
+	float CurrentYaw = 0.0f;
+
+	/** Target Lean для интерполяции */
+	float TargetLean = 0.0f;
+
+	/** Скорость интерполяции Lean */
+	static constexpr float LeanInterpSpeed = 10.0f;
+
+	/** Скорость интерполяции YawOffset к 0 при движении */
+	static constexpr float YawOffsetInterpSpeed = 4.0f;
+
+	/** Скорость интерполяции YawOffset из RotationCurve */
+	static constexpr float YawOffsetCurveInterpSpeed = 2.0f;
+
+	/** Максимальный YawOffset */
+	static constexpr float MaxYawOffset = 120.0f;
 };

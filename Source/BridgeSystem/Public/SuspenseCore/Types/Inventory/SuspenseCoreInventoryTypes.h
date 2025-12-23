@@ -296,19 +296,64 @@ struct BRIDGESYSTEM_API FSuspenseCoreReplicatedItem : public FFastArraySerialize
 		return Instance;
 	}
 
+	/**
+	 * PreReplicatedRemove - Called on clients BEFORE item is removed from replicated array.
+	 *
+	 * DELTA REPLICATION ARCHITECTURE:
+	 * FFastArraySerializer calls these methods for efficient delta updates.
+	 * The OwnerComponent can be accessed via InArraySerializer.OwnerComponent.
+	 *
+	 * CURRENT IMPLEMENTATION:
+	 * Logging only. Full delta update logic is in USuspenseCoreInventoryComponent::OnRep_ReplicatedInventory().
+	 *
+	 * FUTURE OPTIMIZATION (Phase 2):
+	 * When full delta updates are implemented:
+	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
+	 * 2. Remove item from Component->ItemInstances by InstanceID
+	 * 3. Update Component->GridSlots for this item only
+	 * 4. Update Component weight incrementally via UpdateWeightDelta()
+	 * This would make OnRep O(1) instead of O(n) for single-item changes.
+	 */
 	void PreReplicatedRemove(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
 	{
 		// Called on clients before item is removed from replicated array
+		// Currently handled by OnRep_ReplicatedInventory full rebuild
+		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PreReplicatedRemove - Item %s"), *InstanceID.ToString());
 	}
 
+	/**
+	 * PostReplicatedAdd - Called on clients AFTER item is added to replicated array.
+	 *
+	 * FUTURE OPTIMIZATION (Phase 2):
+	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
+	 * 2. Convert this to FSuspenseCoreItemInstance and add to Component->ItemInstances
+	 * 3. Update Component->GridSlots for this item only
+	 * 4. Update Component weight incrementally
+	 */
 	void PostReplicatedAdd(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
 	{
 		// Called on clients after item is added to replicated array
+		// Currently handled by OnRep_ReplicatedInventory full rebuild
+		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PostReplicatedAdd - Item %s, Slot %d"),
+			*InstanceID.ToString(), SlotIndex);
 	}
 
+	/**
+	 * PostReplicatedChange - Called on clients AFTER item properties change.
+	 *
+	 * FUTURE OPTIMIZATION (Phase 2):
+	 * 1. Cast OwnerComponent to USuspenseCoreInventoryComponent
+	 * 2. Find existing item in Component->ItemInstances by InstanceID
+	 * 3. If position changed, update GridSlots (remove old, add new)
+	 * 4. If quantity changed, update weight incrementally
+	 * 5. Update UI cache for this item only
+	 */
 	void PostReplicatedChange(const struct FSuspenseCoreReplicatedInventory& InArraySerializer)
 	{
 		// Called on clients after item properties change
+		// Currently handled by OnRep_ReplicatedInventory full rebuild
+		UE_LOG(LogTemp, Verbose, TEXT("FSuspenseCoreReplicatedItem::PostReplicatedChange - Item %s, Qty %d"),
+			*InstanceID.ToString(), Quantity);
 	}
 };
 

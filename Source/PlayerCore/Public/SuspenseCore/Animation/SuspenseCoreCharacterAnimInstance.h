@@ -328,6 +328,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
 	float MaxAimSpeed = 250.0f;
 
+	/**
+	 * Высота/сила прыжка (из GAS MovementAttributeSet)
+	 * Используется для анимаций прыжка и может быть модифицирована
+	 * весом снаряжения через GameplayEffects
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	float JumpHeight = 420.0f;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// HELPER METHODS (Вспомогательные методы для ABP)
 	// ═══════════════════════════════════════════════════════════════════════════════

@@ -122,6 +122,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
 	float MovementDirection = 0.0f;
 
+	/**
+	 * Величина движения для State Machine (0-2)
+	 * = Clamp(ABS(Forward) + ABS(Right), 0, Max)
+	 * Max = 1.0 (walk), 2.0 (sprint)
+	 * Используется для переходов между Idle/Walk/Run
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
+	float Movement = 0.0f;
+
 	/** Вертикальная скорость (для Jump/Fall бленда) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Velocity")
 	float VerticalVelocity = 0.0f;

@@ -130,6 +130,12 @@ void USuspenseCoreCharacterAnimInstance::UpdateMovementData(float DeltaSeconds)
 	// Get animation values (already interpolated in character)
 	MoveForward = Character->GetAnimationForwardValue();
 	MoveRight = Character->GetAnimationRightValue();
+
+	// Calculate Movement for State Machine transitions (matches example blueprint)
+	// Movement = Clamp(ABS(Forward) + ABS(Right), 0, Max)
+	// Max = 1.0 (walk), 2.0 (sprint)
+	const float MaxMovement = bIsSprinting ? 2.0f : 1.0f;
+	Movement = FMath::Clamp(FMath::Abs(MoveForward) + FMath::Abs(MoveRight), 0.0f, MaxMovement);
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateVelocityData(float DeltaSeconds)

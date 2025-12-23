@@ -923,61 +923,45 @@ void USuspenseCoreEquipmentComponentBase::RemoveEffect_Implementation(FActiveGam
 
 //================================================
 // Slot Index Mapping Implementation
+// Based on SuspenseCoreItemDatabase.json - 17 actual equipment slots
+// @see Documentation/EquipmentWidget_ImplementationPlan.md
 //================================================
 
 const TMap<FName, int32>& USuspenseCoreEquipmentComponentBase::GetSlotTypeMapping()
 {
     // Static mapping initialized once and cached
+    // Indices match EEquipmentSlotType enum and UI widget layout (0-16)
     static TMap<FName, int32> SlotMapping;
     static bool bInitialized = false;
 
     if (!bInitialized)
     {
-        // Primary weapon slots (index 0)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.PrimaryWeapon")), 0);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Primary")), 0);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.MainHand")), 0);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Weapon")), 0);
+        // Weapons (indices 0-3)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.PrimaryWeapon")), 0);   // AK-74M, rifles
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.SecondaryWeapon")), 1); // MP5SD, SMGs
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Holster")), 2);         // Glock 17, pistols
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Scabbard")), 3);        // M9 Bayonet, knives
 
-        // Secondary weapon slots (index 1)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.SecondaryWeapon")), 1);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Secondary")), 1);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.OffHand")), 1);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Sidearm")), 1);
+        // Head gear (indices 4-7)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Headwear")), 4);        // 6B47 helmet
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Earpiece")), 5);        // Peltor ComTac
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Eyewear")), 6);         // Glasses, NVG
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.FaceCover")), 7);       // Shemagh, masks
 
-        // Holster/backup slots (index 2)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Holster")), 2);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Backup")), 2);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.TertiaryWeapon")), 2);
+        // Body gear (indices 8-10)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.BodyArmor")), 8);       // 6B13 armor
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.TacticalRig")), 9);     // TV-110 rig
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Backpack")), 10);       // Bergen backpack
 
-        // Melee slots (index 3)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Melee")), 3);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.MeleeWeapon")), 3);
+        // Special slots (indices 11-12)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.SecureContainer")), 11); // Gamma container
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.Armband")), 12);         // Blue armband
 
-        // Throwable slots (index 4)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Throwable")), 4);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Grenade")), 4);
-
-        // Armor/wearable slots (indices 10-19)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Head")), 10);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Helmet")), 10);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Chest")), 11);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Body")), 11);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Vest")), 11);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Legs")), 12);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Pants")), 12);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Feet")), 13);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Boots")), 13);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Hands")), 14);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Gloves")), 14);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Back")), 15);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Backpack")), 15);
-
-        // Accessory slots (indices 20-29)
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory")), 20);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory1")), 20);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory2")), 21);
-        SlotMapping.Add(FName(TEXT("Equipment.Slot.Accessory3")), 22);
+        // Quick slots (indices 13-16)
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.QuickSlot1")), 13);     // IFAK, meds
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.QuickSlot2")), 14);     // F-1 grenade
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.QuickSlot3")), 15);     // Ammo
+        SlotMapping.Add(FName(TEXT("Equipment.Slot.QuickSlot4")), 16);     // Ammo
 
         bInitialized = true;
     }

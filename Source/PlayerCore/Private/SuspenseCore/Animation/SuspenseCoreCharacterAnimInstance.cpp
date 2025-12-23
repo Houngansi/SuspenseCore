@@ -339,9 +339,12 @@ void USuspenseCoreCharacterAnimInstance::UpdatePoseStates(float DeltaSeconds)
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// BODY PITCH - наклон корпуса
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// Get pitch from actor rotation
+	// Use AimPitch (delta between Control and Actor rotation) for body lean
+	// AimPitch is calculated in UpdateAimOffsetData and represents where player is looking
+	BodyPitch = AimPitch;
+
+	// Get actor rotation for yaw calculations
 	const FRotator ActorRotation = OwnerPawn->GetActorRotation();
-	BodyPitch = ActorRotation.Pitch;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// YAW OFFSET - Turn In Place logic (DefineYaw from example)
@@ -409,6 +412,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateGASAttributes()
 			// Estimate sprint speed
 			MaxSprintSpeed = MaxWalkSpeed * 1.5f;
 			MaxAimSpeed = MaxWalkSpeed * 0.6f;
+			// Default jump height from CMC
+			JumpHeight = CachedMovementComponent->JumpZVelocity;
 		}
 		return;
 	}
@@ -420,6 +425,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateGASAttributes()
 	MaxSprintSpeed = MovementAttrs->GetSprintSpeed();
 	MaxCrouchSpeed = MovementAttrs->GetCrouchSpeed();
 	MaxAimSpeed = MovementAttrs->GetAimSpeed();
+	JumpHeight = MovementAttrs->GetJumpHeight();
 }
 
 void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()

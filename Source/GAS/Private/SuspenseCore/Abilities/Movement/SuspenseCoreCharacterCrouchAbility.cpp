@@ -5,6 +5,7 @@
 #include "SuspenseCore/Abilities/Movement/SuspenseCoreCharacterCrouchAbility.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/SuspenseCoreInterfaces.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
@@ -223,19 +224,23 @@ void USuspenseCoreCharacterCrouchAbility::SetCharacterCrouchState(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	bool bCrouch)
 {
-	ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
-	if (!Character)
+	AActor* Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	if (!Avatar)
 	{
 		return;
 	}
 
-	if (bCrouch)
+	// Use interface to communicate with Character without circular dependency
+	if (Avatar->GetClass()->ImplementsInterface(USuspenseCoreMovementInterface::StaticClass()))
 	{
-		Character->Crouch();
-	}
-	else
-	{
-		Character->UnCrouch();
+		if (bCrouch)
+		{
+			ISuspenseCoreMovementInterface::Execute_StartCrouching(Avatar);
+		}
+		else
+		{
+			ISuspenseCoreMovementInterface::Execute_StopCrouching(Avatar);
+		}
 	}
 }
 

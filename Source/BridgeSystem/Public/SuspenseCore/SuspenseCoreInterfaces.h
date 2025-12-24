@@ -263,3 +263,91 @@ public:
 	 */
 	virtual bool IsConnected() const { return true; }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ISuspenseCoreMovementInterface
+// ═══════════════════════════════════════════════════════════════════════════════
+
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreMovementInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * ISuspenseCoreMovementInterface
+ *
+ * Интерфейс для управления движением персонажа.
+ * Используется GAS abilities для взаимодействия с Character
+ * без создания циклических зависимостей между модулями.
+ *
+ * Реализуется в PlayerCore::ASuspenseCoreCharacter
+ * Используется в GAS::Abilities (Sprint, Crouch, Jump)
+ */
+class BRIDGESYSTEM_API ISuspenseCoreMovementInterface
+{
+	GENERATED_BODY()
+
+public:
+	// ═══════════════════════════════════════════════════════════════════════════
+	// SPRINT
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Can character start sprinting? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool CanSprint() const;
+	virtual bool CanSprint_Implementation() const { return true; }
+
+	/** Is character currently sprinting? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool IsSprinting() const;
+	virtual bool IsSprinting_Implementation() const { return false; }
+
+	/** Start sprinting - sets bIsSprinting=true and updates speed */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	void StartSprinting();
+	virtual void StartSprinting_Implementation() {}
+
+	/** Stop sprinting - sets bIsSprinting=false and resets speed */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	void StopSprinting();
+	virtual void StopSprinting_Implementation() {}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// CROUCH
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Can character crouch? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool CanCrouch() const;
+	virtual bool CanCrouch_Implementation() const { return true; }
+
+	/** Is character currently crouching? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool IsCrouching() const;
+	virtual bool IsCrouching_Implementation() const { return false; }
+
+	/** Start crouching */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	void StartCrouching();
+	virtual void StartCrouching_Implementation() {}
+
+	/** Stop crouching */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	void StopCrouching();
+	virtual void StopCrouching_Implementation() {}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// JUMP (optional, for future use)
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/** Can character jump? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool CanJump() const;
+	virtual bool CanJump_Implementation() const { return true; }
+
+	/** Is character currently in air (jumping or falling)? */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|Movement")
+	bool IsInAir() const;
+	virtual bool IsInAir_Implementation() const { return false; }
+};

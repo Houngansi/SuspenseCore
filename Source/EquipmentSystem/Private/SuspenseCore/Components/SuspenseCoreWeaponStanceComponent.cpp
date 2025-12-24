@@ -5,6 +5,10 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Core/SuspenseCoreEventManager.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
@@ -133,6 +137,11 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 		}
 	}
 
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bDrawn
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_Drawn
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_Holstered);
+
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
@@ -157,6 +166,11 @@ void USuspenseCoreWeaponStanceComponent::SetAiming(bool bNewAiming)
 			Owner->ForceNetUpdate();
 		}
 	}
+
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bNewAiming
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimStarted
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimEnded);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetFiring(bool bNewFiring)
@@ -175,6 +189,11 @@ void USuspenseCoreWeaponStanceComponent::SetFiring(bool bNewFiring)
 			Owner->ForceNetUpdate();
 		}
 	}
+
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bNewFiring
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_FireStarted
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_FireEnded);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetReloading(bool bNewReloading)
@@ -199,6 +218,11 @@ void USuspenseCoreWeaponStanceComponent::SetReloading(bool bNewReloading)
 			Owner->ForceNetUpdate();
 		}
 	}
+
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bNewReloading
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_ReloadStarted
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_ReloadEnded);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetHoldingBreath(bool bNewHoldingBreath)
@@ -217,6 +241,11 @@ void USuspenseCoreWeaponStanceComponent::SetHoldingBreath(bool bNewHoldingBreath
 			Owner->ForceNetUpdate();
 		}
 	}
+
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bNewHoldingBreath
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_HoldBreathStarted
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_HoldBreathEnded);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetMontageActive(bool bNewMontageActive)
@@ -399,4 +428,56 @@ void USuspenseCoreWeaponStanceComponent::UpdateInterpolatedValues(float DeltaTim
 			RecoilAlpha = 0.0f;
 		}
 	}
+}
+
+// ============================================================================
+// EventBus Integration
+// ============================================================================
+
+USuspenseCoreEventBus* USuspenseCoreWeaponStanceComponent::GetEventBus() const
+{
+	// Return cached EventBus if valid
+	if (CachedEventBus.IsValid())
+	{
+		return CachedEventBus.Get();
+	}
+
+	// Try to get EventBus from EventManager
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			if (USuspenseCoreEventManager* EventManager = GameInstance->GetSubsystem<USuspenseCoreEventManager>())
+			{
+				CachedEventBus = EventManager->GetEventBus();
+				return CachedEventBus.Get();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreWeaponStanceComponent::BroadcastCombatStateEvent(FGameplayTag EventTag) const
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	// Create event data with owner as source
+	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
+	EventData.SetTag(FName("WeaponType"), CurrentWeaponType);
+	EventData.SetBool(FName("IsDrawn"), bWeaponDrawn);
+	EventData.SetBool(FName("IsAiming"), bIsAiming);
+	EventData.SetBool(FName("IsFiring"), bIsFiring);
+	EventData.SetBool(FName("IsReloading"), bIsReloading);
+	EventData.SetBool(FName("IsHoldingBreath"), bIsHoldingBreath);
+
+	// Publish event
+	EventBus->Publish(EventTag, EventData);
+
+	// Also publish generic stance changed event
+	EventBus->Publish(SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_Changed, EventData);
 }

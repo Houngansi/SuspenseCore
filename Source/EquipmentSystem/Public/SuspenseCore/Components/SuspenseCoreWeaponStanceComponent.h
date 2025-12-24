@@ -7,6 +7,8 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "SuspenseCoreWeaponStanceComponent.generated.h"
 
+class USuspenseCoreEventBus;
+
 /**
  * Snapshot of weapon stance state for animation system
  * Passed to AnimInstance each frame for efficient data access
@@ -228,6 +230,16 @@ protected:
 	// Update interpolated values
 	void UpdateInterpolatedValues(float DeltaTime);
 
+	// ========================================================================
+	// EventBus Integration
+	// ========================================================================
+
+	/** Get EventBus from owner (cached) */
+	USuspenseCoreEventBus* GetEventBus() const;
+
+	/** Broadcast combat state event to EventBus */
+	void BroadcastCombatStateEvent(FGameplayTag EventTag) const;
+
 private:
 	// ========================================================================
 	// Replicated Weapon Identity
@@ -309,4 +321,8 @@ private:
 	float AnimationInterfaceCacheLifetime = 0.25f;
 
 	mutable float LastAnimationInterfaceCacheTime = -1000.0f;
+
+	/** Cached EventBus reference */
+	UPROPERTY(Transient)
+	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 };

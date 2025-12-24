@@ -126,18 +126,18 @@ public:
 	// ISUSPENSECOREMOVEMENTINTERFACE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	virtual bool CanSprint_Implementation() const override;
-	virtual bool IsSprinting_Implementation() const override { return bIsSprinting; }
-	virtual void StartSprinting_Implementation() override;
-	virtual void StopSprinting_Implementation() override;
+	virtual bool MovementCanSprint_Implementation() const override;
+	virtual bool MovementIsSprinting_Implementation() const override { return bIsSprinting; }
+	virtual void MovementStartSprint_Implementation() override;
+	virtual void MovementStopSprint_Implementation() override;
 
-	virtual bool CanCrouch_Implementation() const override;
-	virtual bool IsCrouching_Implementation() const override { return bIsCrouched; }
-	virtual void StartCrouching_Implementation() override;
-	virtual void StopCrouching_Implementation() override;
+	virtual bool MovementCanCrouch_Implementation() const override;
+	virtual bool MovementIsCrouching_Implementation() const override { return bIsCrouched; }
+	virtual void MovementStartCrouch_Implementation() override;
+	virtual void MovementStopCrouch_Implementation() override;
 
-	virtual bool CanJump_Implementation() const override;
-	virtual bool IsInAir_Implementation() const override;
+	virtual bool MovementCanJump_Implementation() const override;
+	virtual bool MovementIsInAir_Implementation() const override;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - MOVEMENT

@@ -235,11 +235,11 @@ void USuspenseCoreCharacterCrouchAbility::SetCharacterCrouchState(
 	{
 		if (bCrouch)
 		{
-			ISuspenseCoreMovementInterface::Execute_StartCrouching(Avatar);
+			ISuspenseCoreMovementInterface::Execute_MovementStartCrouch(Avatar);
 		}
 		else
 		{
-			ISuspenseCoreMovementInterface::Execute_StopCrouching(Avatar);
+			ISuspenseCoreMovementInterface::Execute_MovementStopCrouch(Avatar);
 		}
 	}
 }

@@ -304,7 +304,7 @@ void ASuspenseCoreCharacter::ToggleCrouch()
 // ISUSPENSECOREMOVEMENTINTERFACE IMPLEMENTATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool ASuspenseCoreCharacter::CanSprint_Implementation() const
+bool ASuspenseCoreCharacter::MovementCanSprint_Implementation() const
 {
 	// Can sprint if on ground and not crouching
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
@@ -314,17 +314,17 @@ bool ASuspenseCoreCharacter::CanSprint_Implementation() const
 	return false;
 }
 
-void ASuspenseCoreCharacter::StartSprinting_Implementation()
+void ASuspenseCoreCharacter::MovementStartSprint_Implementation()
 {
 	StartSprinting();
 }
 
-void ASuspenseCoreCharacter::StopSprinting_Implementation()
+void ASuspenseCoreCharacter::MovementStopSprint_Implementation()
 {
 	StopSprinting();
 }
 
-bool ASuspenseCoreCharacter::CanCrouch_Implementation() const
+bool ASuspenseCoreCharacter::MovementCanCrouch_Implementation() const
 {
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{
@@ -333,24 +333,24 @@ bool ASuspenseCoreCharacter::CanCrouch_Implementation() const
 	return false;
 }
 
-void ASuspenseCoreCharacter::StartCrouching_Implementation()
+void ASuspenseCoreCharacter::MovementStartCrouch_Implementation()
 {
 	Crouch();
 	UpdateMovementSpeed();
 }
 
-void ASuspenseCoreCharacter::StopCrouching_Implementation()
+void ASuspenseCoreCharacter::MovementStopCrouch_Implementation()
 {
 	UnCrouch();
 	UpdateMovementSpeed();
 }
 
-bool ASuspenseCoreCharacter::CanJump_Implementation() const
+bool ASuspenseCoreCharacter::MovementCanJump_Implementation() const
 {
 	return CanJump();
 }
 
-bool ASuspenseCoreCharacter::IsInAir_Implementation() const
+bool ASuspenseCoreCharacter::MovementIsInAir_Implementation() const
 {
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{

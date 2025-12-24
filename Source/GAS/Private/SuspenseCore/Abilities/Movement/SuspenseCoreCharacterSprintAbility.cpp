@@ -130,7 +130,8 @@ void USuspenseCoreCharacterSprintAbility::ActivateAbility(
 	}
 
 	// Wait for input release using ability task
-	UAbilityTask_WaitInputRelease* WaitInputTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
+	// bTestAlreadyReleased = false - don't check immediately, only fire on actual release event
+	UAbilityTask_WaitInputRelease* WaitInputTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, false);
 	if (WaitInputTask)
 	{
 		WaitInputTask->OnRelease.AddDynamic(this, &USuspenseCoreCharacterSprintAbility::OnSprintInputReleased);

@@ -107,7 +107,7 @@ void USuspenseCoreCharacterSprintAbility::ActivateAbility(
 	AActor* Avatar = ActorInfo->AvatarActor.Get();
 	if (Avatar && Avatar->GetClass()->ImplementsInterface(USuspenseCoreMovementInterface::StaticClass()))
 	{
-		ISuspenseCoreMovementInterface::Execute_StartSprinting(Avatar);
+		ISuspenseCoreMovementInterface::Execute_MovementStartSprint(Avatar);
 	}
 
 	// Apply sprint effects (stamina drain, etc.)
@@ -157,7 +157,7 @@ void USuspenseCoreCharacterSprintAbility::EndAbility(
 	AActor* Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	if (Avatar && Avatar->GetClass()->ImplementsInterface(USuspenseCoreMovementInterface::StaticClass()))
 	{
-		ISuspenseCoreMovementInterface::Execute_StopSprinting(Avatar);
+		ISuspenseCoreMovementInterface::Execute_MovementStopSprint(Avatar);
 	}
 
 	// Remove sprint effects

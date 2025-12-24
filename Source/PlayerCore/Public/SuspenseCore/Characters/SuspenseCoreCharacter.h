@@ -18,6 +18,7 @@ class UAbilitySystemComponent;
 class USuspenseCoreEventBus;
 class ASuspenseCorePlayerState;
 class USuspenseCoreCharacterClassData;
+class USuspenseCoreWeaponStanceComponent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -299,6 +300,10 @@ protected:
 	/** Interaction component for interacting with world objects (nullptr if WITH_INTERACTION_SYSTEM=0) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	UActorComponent* InteractionComponent = nullptr;
+
+	/** Weapon stance component for animation state (nullptr if WITH_EQUIPMENT_SYSTEM=0) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
+	USuspenseCoreWeaponStanceComponent* WeaponStanceComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - MOVEMENT

@@ -91,6 +91,7 @@ class PLAYERCORE_API ASuspenseCoreCharacter
 	: public ACharacter
 	, public IAbilitySystemInterface
 	, public ISuspenseCoreEventEmitter
+	, public ISuspenseCoreMovementInterface
 {
 	GENERATED_BODY()
 
@@ -120,6 +121,23 @@ public:
 
 	virtual void EmitEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& Data) override;
 	virtual USuspenseCoreEventBus* GetEventBus() const override;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ISUSPENSECOREMOVEMENTINTERFACE
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	virtual bool CanSprint_Implementation() const override;
+	virtual bool IsSprinting_Implementation() const override { return bIsSprinting; }
+	virtual void StartSprinting_Implementation() override;
+	virtual void StopSprinting_Implementation() override;
+
+	virtual bool CanCrouch_Implementation() const override;
+	virtual bool IsCrouching_Implementation() const override { return bIsCrouched; }
+	virtual void StartCrouching_Implementation() override;
+	virtual void StopCrouching_Implementation() override;
+
+	virtual bool CanJump_Implementation() const override;
+	virtual bool IsInAir_Implementation() const override;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - MOVEMENT

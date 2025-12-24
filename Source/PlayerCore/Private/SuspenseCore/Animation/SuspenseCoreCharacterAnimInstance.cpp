@@ -129,19 +129,29 @@ void USuspenseCoreCharacterAnimInstance::UpdateMovementData(float DeltaSeconds)
 	bHasMovementInput = Character->HasMovementInput();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// Calculate MoveForward/MoveRight from VELOCITY relative to Actor rotation
-	// This ensures legs animate in the direction the character is actually moving
-	// relative to where their body is facing (not relative to camera/input)
+	// Calculate MoveForward/MoveRight from VELOCITY relative to CONTROL rotation
+	// When bUseControllerRotationYaw=true, actor rotates to face camera direction,
+	// so we need to calculate direction relative to where the camera is looking,
+	// not where the actor is facing (they're nearly the same but with lag)
 	// ═══════════════════════════════════════════════════════════════════════════════
 	const FVector Velocity = Character->GetVelocity();
 	const float HorizontalSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
 
 	if (HorizontalSpeed > 10.0f)
 	{
-		// Get velocity direction relative to actor rotation
-		const FRotator ActorRotation = Character->GetActorRotation();
+		// Get velocity direction relative to CONTROL rotation (camera direction)
+		// This is what the player considers "forward" for movement
+		FRotator ReferenceRotation = Character->GetActorRotation();
+
+		// If character uses controller rotation, use controller rotation as reference
+		// This gives us the direction relative to where the player is looking
+		if (AController* Controller = Character->GetController())
+		{
+			ReferenceRotation = FRotator(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
+		}
+
 		const FRotator VelocityRotation = Velocity.ToOrientationRotator();
-		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(VelocityRotation, ActorRotation);
+		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(VelocityRotation, ReferenceRotation);
 
 		// Convert angle to Forward/Right components
 		// 0 degrees = forward, 90 = right, -90 = left, 180 = backward

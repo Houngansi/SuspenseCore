@@ -230,20 +230,44 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		CurrentWeaponType = FGameplayTag();
 		bHasWeaponEquipped = false;
 		bIsWeaponDrawn = false;
+		bIsAiming = false;
+		bIsFiring = false;
+		bIsReloading = false;
+		bIsHoldingBreath = false;
+		bIsWeaponMontageActive = false;
+		AimingAlpha = 0.0f;
+		GripModifier = 0.0f;
+		WeaponLoweredAlpha = 0.0f;
+		RecoilAlpha = 0.0f;
+		WeaponSwayMultiplier = 1.0f;
 		return;
 	}
 
 	USuspenseCoreWeaponStanceComponent* StanceComp = CachedStanceComponent.Get();
 
-	// Get weapon data from stance component
-	CurrentWeaponType = StanceComp->GetCurrentWeaponType();
-	bHasWeaponEquipped = CurrentWeaponType.IsValid();
-	bIsWeaponDrawn = StanceComp->IsWeaponDrawn();
+	// Get complete stance snapshot from component (includes all combat states)
+	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
-	// TODO: Get aiming state from ability system or input
-	// For now, interpolate aiming alpha
-	const float TargetAimAlpha = bIsAiming ? 1.0f : 0.0f;
-	AimingAlpha = FMath::FInterpTo(AimingAlpha, TargetAimAlpha, DeltaSeconds, AimInterpSpeed);
+	// Weapon identity
+	CurrentWeaponType = Snapshot.WeaponType;
+	bHasWeaponEquipped = CurrentWeaponType.IsValid();
+	bIsWeaponDrawn = Snapshot.bIsDrawn;
+
+	// Combat states from snapshot
+	bIsAiming = Snapshot.bIsAiming;
+	bIsFiring = Snapshot.bIsFiring;
+	bIsReloading = Snapshot.bIsReloading;
+	bIsHoldingBreath = Snapshot.bIsHoldingBreath;
+	bIsWeaponMontageActive = Snapshot.bIsMontageActive;
+
+	// Pose modifiers from snapshot (already interpolated in component)
+	AimingAlpha = Snapshot.AimPoseAlpha;
+	GripModifier = Snapshot.GripModifier;
+	WeaponLoweredAlpha = Snapshot.WeaponLoweredAlpha;
+
+	// Procedural animation from snapshot
+	RecoilAlpha = Snapshot.RecoilAlpha;
+	WeaponSwayMultiplier = Snapshot.SwayMultiplier;
 
 #else
 	// Equipment system disabled - use character's basic weapon flag

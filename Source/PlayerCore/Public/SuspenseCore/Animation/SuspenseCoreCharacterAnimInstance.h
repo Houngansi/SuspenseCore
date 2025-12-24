@@ -200,7 +200,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	bool bIsAiming = false;
 
-	/** Alpha для бленда прицеливания (0-1) */
+	/** Alpha для бленда прицеливания (0-1) - интерполируется автоматически */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	float AimingAlpha = 0.0f;
 
@@ -211,6 +211,30 @@ public:
 	/** Персонаж сейчас перезаряжает */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	bool bIsReloading = false;
+
+	/** Персонаж задерживает дыхание (снайпер) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	bool bIsHoldingBreath = false;
+
+	/** Сейчас играет монтаж на оружейном слое */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	bool bIsWeaponMontageActive = false;
+
+	/** Модификатор хвата (0 = обычный, 1 = тактический) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float GripModifier = 0.0f;
+
+	/** Оружие опущено (0 = нормально, 1 = полностью опущено - у стены и т.д.) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float WeaponLoweredAlpha = 0.0f;
+
+	/** Текущий recoil alpha (0 = нет отдачи, 1 = максимальная) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float RecoilAlpha = 0.0f;
+
+	/** Множитель sway (раскачивание оружия, влияет стамина, движение) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float WeaponSwayMultiplier = 1.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ANIMATION ASSETS FROM DATATABLE (SSOT)

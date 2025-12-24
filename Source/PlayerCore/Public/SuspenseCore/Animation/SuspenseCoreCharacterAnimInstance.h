@@ -236,6 +236,60 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	float WeaponSwayMultiplier = 1.0f;
 
+	/** Stored recoil (для процедурной анимации) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float StoredRecoil = 0.0f;
+
+	/** Additive pitch (отдача, дыхание) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float AdditivePitch = 0.0f;
+
+	/** Block distance (расстояние до стены) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	float BlockDistance = 0.0f;
+
+	// -------- Legacy Compatibility --------
+
+	/** Legacy: Is Holstered (inverse of bIsWeaponDrawn) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
+	bool bLegacyIsHolstered = true;
+
+	/** Legacy: Modify Grip flag */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
+	bool bLegacyModifyGrip = false;
+
+	/** Legacy: Create Aim Pose flag */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
+	bool bLegacyCreateAimPose = false;
+
+	// -------- Pose Indices --------
+
+	/** Aim Pose index (from weapon data) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	int32 AimPose = 0;
+
+	/** Stored Pose index (for transitions) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	int32 StoredPose = 0;
+
+	/** Grip ID (for hand placement variations) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	int32 GripID = 0;
+
+	// -------- IK Transforms --------
+
+	/** Aim Transform (weapon positioning) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
+	FTransform AimTransform;
+
+	/** Right Hand IK Transform */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
+	FTransform RightHandTransform;
+
+	/** Left Hand IK Transform */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
+	FTransform LeftHandTransform;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ANIMATION ASSETS FROM DATATABLE (SSOT)
 	// ═══════════════════════════════════════════════════════════════════════════════

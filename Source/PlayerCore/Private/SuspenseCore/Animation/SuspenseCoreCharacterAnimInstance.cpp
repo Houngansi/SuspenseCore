@@ -341,7 +341,8 @@ void USuspenseCoreCharacterAnimInstance::UpdatePoseStates(float DeltaSeconds)
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// Use AimPitch (delta between Control and Actor rotation) for body lean
 	// AimPitch is calculated in UpdateAimOffsetData and represents where player is looking
-	BodyPitch = AimPitch;
+	// Inverted because positive AimPitch (looking up) should lean body backward (negative rotation)
+	BodyPitch = -AimPitch;
 
 	// Get actor rotation for yaw calculations
 	const FRotator ActorRotation = OwnerPawn->GetActorRotation();

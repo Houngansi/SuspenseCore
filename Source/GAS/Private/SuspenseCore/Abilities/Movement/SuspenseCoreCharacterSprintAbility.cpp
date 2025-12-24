@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
@@ -102,13 +103,14 @@ void USuspenseCoreCharacterSprintAbility::ActivateAbility(
 	CurrentActorInfo = ActorInfo;
 	CurrentActivationInfo = ActivationInfo;
 
-	// Apply sprint effects
-	if (!ApplySprintEffects(ActorInfo))
+	// Set sprint state on character (updates speed and animation state)
+	if (ASuspenseCoreCharacter* SuspenseCharacter = Cast<ASuspenseCoreCharacter>(ActorInfo->AvatarActor.Get()))
 	{
-		LogAbilityDebug(TEXT("Failed to apply sprint effects"), true);
-		K2_EndAbility();
-		return;
+		SuspenseCharacter->StartSprinting();
 	}
+
+	// Apply sprint effects (stamina drain, etc.)
+	ApplySprintEffects(ActorInfo);
 
 	// Call super to broadcast activation event
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -148,6 +150,12 @@ void USuspenseCoreCharacterSprintAbility::EndAbility(
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(StaminaCheckTimer);
+	}
+
+	// Stop sprint state on character (updates speed and animation state)
+	if (ASuspenseCoreCharacter* SuspenseCharacter = Cast<ASuspenseCoreCharacter>(ActorInfo->AvatarActor.Get()))
+	{
+		SuspenseCharacter->StopSprinting();
 	}
 
 	// Remove sprint effects

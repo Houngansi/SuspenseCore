@@ -3,12 +3,11 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
-#include "Engine/GameInstance.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCore/Core/SuspenseCoreEventManager.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
@@ -442,17 +441,11 @@ USuspenseCoreEventBus* USuspenseCoreWeaponStanceComponent::GetEventBus() const
 		return CachedEventBus.Get();
 	}
 
-	// Try to get EventBus from EventManager
-	if (UWorld* World = GetWorld())
+	// Try to get EventBus from EventManager using static accessor
+	if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
 	{
-		if (UGameInstance* GameInstance = World->GetGameInstance())
-		{
-			if (USuspenseCoreEventManager* EventManager = GameInstance->GetSubsystem<USuspenseCoreEventManager>())
-			{
-				CachedEventBus = EventManager->GetEventBus();
-				return CachedEventBus.Get();
-			}
-		}
+		CachedEventBus = EventManager->GetEventBus();
+		return CachedEventBus.Get();
 	}
 
 	return nullptr;

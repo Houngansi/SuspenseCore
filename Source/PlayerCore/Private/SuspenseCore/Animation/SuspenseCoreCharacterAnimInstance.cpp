@@ -240,6 +240,21 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		WeaponLoweredAlpha = 0.0f;
 		RecoilAlpha = 0.0f;
 		WeaponSwayMultiplier = 1.0f;
+		StoredRecoil = 0.0f;
+		AdditivePitch = 0.0f;
+		BlockDistance = 0.0f;
+		// Legacy
+		bLegacyIsHolstered = true;
+		bLegacyModifyGrip = false;
+		bLegacyCreateAimPose = false;
+		// Pose indices
+		AimPose = 0;
+		StoredPose = 0;
+		GripID = 0;
+		// IK Transforms
+		AimTransform = FTransform::Identity;
+		RightHandTransform = FTransform::Identity;
+		LeftHandTransform = FTransform::Identity;
 		return;
 	}
 
@@ -260,14 +275,32 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bIsHoldingBreath = Snapshot.bIsHoldingBreath;
 	bIsWeaponMontageActive = Snapshot.bIsMontageActive;
 
+	// Legacy compatibility
+	bLegacyIsHolstered = Snapshot.bIsHolstered;
+	bLegacyModifyGrip = Snapshot.bModifyGrip;
+	bLegacyCreateAimPose = Snapshot.bCreateAimPose;
+
+	// Pose indices
+	AimPose = Snapshot.AimPose;
+	StoredPose = Snapshot.StoredPose;
+	GripID = Snapshot.GripID;
+
 	// Pose modifiers from snapshot (already interpolated in component)
 	AimingAlpha = Snapshot.AimPoseAlpha;
 	GripModifier = Snapshot.GripModifier;
 	WeaponLoweredAlpha = Snapshot.WeaponLoweredAlpha;
 
+	// IK Transforms
+	AimTransform = Snapshot.AimTransform;
+	RightHandTransform = Snapshot.RightHandTransform;
+	LeftHandTransform = Snapshot.LeftHandTransform;
+
 	// Procedural animation from snapshot
 	RecoilAlpha = Snapshot.RecoilAlpha;
 	WeaponSwayMultiplier = Snapshot.SwayMultiplier;
+	StoredRecoil = Snapshot.StoredRecoil;
+	AdditivePitch = Snapshot.AdditivePitch;
+	BlockDistance = Snapshot.BlockDistance;
 
 #else
 	// Equipment system disabled - use character's basic weapon flag

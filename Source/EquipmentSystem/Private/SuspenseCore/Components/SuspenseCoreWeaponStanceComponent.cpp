@@ -272,6 +272,57 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponLowered(float LoweredAlpha)
 	WeaponLoweredAlpha = FMath::Clamp(LoweredAlpha, 0.0f, 1.0f);
 }
 
+void USuspenseCoreWeaponStanceComponent::SetAimPose(int32 NewAimPose)
+{
+	AimPose = NewAimPose;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetStoredPose(int32 NewStoredPose)
+{
+	StoredPose = NewStoredPose;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetGripID(int32 NewGripID)
+{
+	GripID = NewGripID;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetModifyGrip(bool bNewModifyGrip)
+{
+	bModifyGrip = bNewModifyGrip;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetCreateAimPose(bool bNewCreateAimPose)
+{
+	bCreateAimPose = bNewCreateAimPose;
+}
+
+// ============================================================================
+// IK Transform API
+// ============================================================================
+
+void USuspenseCoreWeaponStanceComponent::SetAimTransform(const FTransform& NewTransform)
+{
+	AimTransform = NewTransform;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetRightHandTransform(const FTransform& NewTransform)
+{
+	RightHandTransform = NewTransform;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetLeftHandTransform(const FTransform& NewTransform)
+{
+	LeftHandTransform = NewTransform;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetWeaponTransforms(const FTransform& InAimTransform, const FTransform& InRightHand, const FTransform& InLeftHand)
+{
+	AimTransform = InAimTransform;
+	RightHandTransform = InRightHand;
+	LeftHandTransform = InLeftHand;
+}
+
 // ============================================================================
 // Procedural Animation API
 // ============================================================================
@@ -284,6 +335,21 @@ void USuspenseCoreWeaponStanceComponent::AddRecoil(float RecoilAmount)
 void USuspenseCoreWeaponStanceComponent::SetSwayMultiplier(float NewMultiplier)
 {
 	SwayMultiplier = FMath::Max(0.0f, NewMultiplier);
+}
+
+void USuspenseCoreWeaponStanceComponent::SetStoredRecoil(float NewStoredRecoil)
+{
+	StoredRecoil = NewStoredRecoil;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetAdditivePitch(float NewAdditivePitch)
+{
+	AdditivePitch = NewAdditivePitch;
+}
+
+void USuspenseCoreWeaponStanceComponent::SetBlockDistance(float NewBlockDistance)
+{
+	BlockDistance = FMath::Max(0.0f, NewBlockDistance);
 }
 
 // ============================================================================
@@ -305,14 +371,32 @@ FSuspenseCoreWeaponStanceSnapshot USuspenseCoreWeaponStanceComponent::GetStanceS
 	Snapshot.bIsHoldingBreath = bIsHoldingBreath;
 	Snapshot.bIsMontageActive = bIsMontageActive;
 
+	// Legacy compatibility (inverse/derived values)
+	Snapshot.bIsHolstered = !bWeaponDrawn;
+	Snapshot.bModifyGrip = bModifyGrip;
+	Snapshot.bCreateAimPose = bCreateAimPose;
+
+	// Pose indices
+	Snapshot.AimPose = AimPose;
+	Snapshot.StoredPose = StoredPose;
+	Snapshot.GripID = GripID;
+
 	// Pose modifiers
 	Snapshot.AimPoseAlpha = AimPoseAlpha;
 	Snapshot.GripModifier = GripModifier;
 	Snapshot.WeaponLoweredAlpha = WeaponLoweredAlpha;
 
-	// Procedural
+	// IK Transforms
+	Snapshot.AimTransform = AimTransform;
+	Snapshot.RightHandTransform = RightHandTransform;
+	Snapshot.LeftHandTransform = LeftHandTransform;
+
+	// Procedural animation
 	Snapshot.SwayMultiplier = SwayMultiplier;
 	Snapshot.RecoilAlpha = RecoilAlpha;
+	Snapshot.StoredRecoil = StoredRecoil;
+	Snapshot.AdditivePitch = AdditivePitch;
+	Snapshot.BlockDistance = BlockDistance;
 
 	return Snapshot;
 }

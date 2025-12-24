@@ -48,6 +48,32 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bIsMontageActive = false;
 
+	// -------- Legacy Compatibility --------
+	/** Is weapon holstered (inverse of bIsDrawn, for legacy ABP) */
+	UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+	bool bIsHolstered = true;
+
+	/** Should modify grip (legacy: LegacyModifyGrip) */
+	UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+	bool bModifyGrip = false;
+
+	/** Should create aim pose (legacy: LegacyCreateAimPose) */
+	UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+	bool bCreateAimPose = false;
+
+	// -------- Pose Indices (from Weapon Data Table) --------
+	/** Current aim pose index */
+	UPROPERTY(BlueprintReadOnly, Category = "Pose")
+	int32 AimPose = 0;
+
+	/** Stored pose index (for transitions) */
+	UPROPERTY(BlueprintReadOnly, Category = "Pose")
+	int32 StoredPose = 0;
+
+	/** Current grip ID (for hand placement) */
+	UPROPERTY(BlueprintReadOnly, Category = "Pose")
+	int32 GripID = 0;
+
 	// -------- Pose Modifiers --------
 	/** Aim pose alpha (0 = hip fire, 1 = full ADS) */
 	UPROPERTY(BlueprintReadOnly, Category = "Pose")
@@ -61,6 +87,19 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
 	UPROPERTY(BlueprintReadOnly, Category = "Pose")
 	float WeaponLoweredAlpha = 0.0f;
 
+	// -------- Weapon IK Transforms --------
+	/** Aim transform for weapon positioning */
+	UPROPERTY(BlueprintReadOnly, Category = "IK")
+	FTransform AimTransform;
+
+	/** Right hand IK transform */
+	UPROPERTY(BlueprintReadOnly, Category = "IK")
+	FTransform RightHandTransform;
+
+	/** Left hand IK transform */
+	UPROPERTY(BlueprintReadOnly, Category = "IK")
+	FTransform LeftHandTransform;
+
 	// -------- Procedural Animation --------
 	/** Weapon sway multiplier (affected by movement, stamina, etc.) */
 	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
@@ -69,6 +108,18 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
 	/** Recoil recovery alpha (0 = no recoil, 1 = max recoil) */
 	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
 	float RecoilAlpha = 0.0f;
+
+	/** Stored recoil value (for procedural animation) */
+	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
+	float StoredRecoil = 0.0f;
+
+	/** Additive pitch for weapon (recoil, breathing) */
+	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
+	float AdditivePitch = 0.0f;
+
+	/** Block/wall detection distance */
+	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
+	float BlockDistance = 0.0f;
 };
 
 /**
@@ -158,6 +209,46 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
 	void SetWeaponLowered(float LoweredAlpha);
 
+	/** Set aim pose index (from weapon data) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
+	void SetAimPose(int32 NewAimPose);
+
+	/** Set stored pose index (for transitions) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
+	void SetStoredPose(int32 NewStoredPose);
+
+	/** Set grip ID (for hand placement variations) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
+	void SetGripID(int32 NewGripID);
+
+	/** Set modify grip flag (legacy compatibility) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
+	void SetModifyGrip(bool bNewModifyGrip);
+
+	/** Set create aim pose flag (legacy compatibility) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Pose")
+	void SetCreateAimPose(bool bNewCreateAimPose);
+
+	// ========================================================================
+	// IK Transform API (called by weapon actor)
+	// ========================================================================
+
+	/** Set aim transform for weapon positioning */
+	UFUNCTION(BlueprintCallable, Category="Weapon|IK")
+	void SetAimTransform(const FTransform& NewTransform);
+
+	/** Set right hand IK transform */
+	UFUNCTION(BlueprintCallable, Category="Weapon|IK")
+	void SetRightHandTransform(const FTransform& NewTransform);
+
+	/** Set left hand IK transform */
+	UFUNCTION(BlueprintCallable, Category="Weapon|IK")
+	void SetLeftHandTransform(const FTransform& NewTransform);
+
+	/** Set all IK transforms at once (more efficient) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|IK")
+	void SetWeaponTransforms(const FTransform& InAimTransform, const FTransform& InRightHand, const FTransform& InLeftHand);
+
 	// ========================================================================
 	// Procedural Animation API (called by weapon during firing)
 	// ========================================================================
@@ -169,6 +260,18 @@ public:
 	/** Set sway multiplier (affected by stamina, movement) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Procedural")
 	void SetSwayMultiplier(float NewMultiplier);
+
+	/** Set stored recoil value */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Procedural")
+	void SetStoredRecoil(float NewStoredRecoil);
+
+	/** Set additive pitch (recoil, breathing effects) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Procedural")
+	void SetAdditivePitch(float NewAdditivePitch);
+
+	/** Set block distance (wall detection) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Procedural")
+	void SetBlockDistance(float NewBlockDistance);
 
 	// ========================================================================
 	// Animation System API (called by AnimInstance)
@@ -291,6 +394,55 @@ private:
 
 	/** Current recoil alpha (decays over time) */
 	float RecoilAlpha = 0.0f;
+
+	// ========================================================================
+	// Legacy Compatibility State
+	// ========================================================================
+
+	/** Modify grip flag (legacy: LegacyModifyGrip) */
+	bool bModifyGrip = false;
+
+	/** Create aim pose flag (legacy: LegacyCreateAimPose) */
+	bool bCreateAimPose = false;
+
+	// ========================================================================
+	// Pose Indices (from Weapon Data Table)
+	// ========================================================================
+
+	/** Current aim pose index */
+	int32 AimPose = 0;
+
+	/** Stored pose index (for transitions) */
+	int32 StoredPose = 0;
+
+	/** Current grip ID */
+	int32 GripID = 0;
+
+	// ========================================================================
+	// IK Transforms (from Weapon Actor)
+	// ========================================================================
+
+	/** Aim transform for weapon positioning */
+	FTransform AimTransform;
+
+	/** Right hand IK transform */
+	FTransform RightHandTransform;
+
+	/** Left hand IK transform */
+	FTransform LeftHandTransform;
+
+	// ========================================================================
+	// Procedural Animation State
+	// ========================================================================
+
+	/** Stored recoil value */
+	float StoredRecoil = 0.0f;
+
+	/** Additive pitch (recoil, breathing) */
+	float AdditivePitch = 0.0f;
+
+	/** Block/wall detection distance */
+	float BlockDistance = 0.0f;
 
 	// ========================================================================
 	// Configuration

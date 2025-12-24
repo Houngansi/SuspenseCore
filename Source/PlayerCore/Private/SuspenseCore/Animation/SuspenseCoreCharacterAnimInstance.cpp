@@ -128,9 +128,42 @@ void USuspenseCoreCharacterAnimInstance::UpdateMovementData(float DeltaSeconds)
 	bIsOnGround = !bIsInAir;
 	bHasMovementInput = Character->HasMovementInput();
 
-	// Get animation values (already interpolated in character)
-	MoveForward = Character->GetAnimationForwardValue();
-	MoveRight = Character->GetAnimationRightValue();
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Calculate MoveForward/MoveRight from VELOCITY relative to Actor rotation
+	// This ensures legs animate in the direction the character is actually moving
+	// relative to where their body is facing (not relative to camera/input)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	const FVector Velocity = Character->GetVelocity();
+	const float HorizontalSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
+
+	if (HorizontalSpeed > 10.0f)
+	{
+		// Get velocity direction relative to actor rotation
+		const FRotator ActorRotation = Character->GetActorRotation();
+		const FRotator VelocityRotation = Velocity.ToOrientationRotator();
+		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(VelocityRotation, ActorRotation);
+
+		// Convert angle to Forward/Right components
+		// 0 degrees = forward, 90 = right, -90 = left, 180 = backward
+		const float AngleRad = FMath::DegreesToRadians(DeltaRotation.Yaw);
+		float TargetForward = FMath::Cos(AngleRad);
+		float TargetRight = FMath::Sin(AngleRad);
+
+		// Apply sprint multiplier (2.0 for sprint, 1.0 for walk)
+		const float SpeedMultiplier = bIsSprinting ? 2.0f : 1.0f;
+		TargetForward *= SpeedMultiplier;
+		TargetRight *= SpeedMultiplier;
+
+		// Smooth interpolation
+		MoveForward = FMath::FInterpTo(MoveForward, TargetForward, DeltaSeconds, 10.0f);
+		MoveRight = FMath::FInterpTo(MoveRight, TargetRight, DeltaSeconds, 10.0f);
+	}
+	else
+	{
+		// No significant movement - interpolate to zero
+		MoveForward = FMath::FInterpTo(MoveForward, 0.0f, DeltaSeconds, 10.0f);
+		MoveRight = FMath::FInterpTo(MoveRight, 0.0f, DeltaSeconds, 10.0f);
+	}
 
 	// Calculate Movement for State Machine transitions (matches example blueprint)
 	// Movement = Clamp(ABS(Forward) + ABS(Right), 0, Max)

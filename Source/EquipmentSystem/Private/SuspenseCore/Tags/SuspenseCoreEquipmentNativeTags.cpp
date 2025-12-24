@@ -98,6 +98,20 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_SpreadUpdated, "SuspenseCore.Event.Equipment.Weapon.SpreadUpdated");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_AmmoChanged, "SuspenseCore.Event.Equipment.Weapon.AmmoChanged");
 
+        // Weapon Stance Events (Combat States)
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance, "SuspenseCore.Event.Equipment.Weapon.Stance");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_Changed, "SuspenseCore.Event.Equipment.Weapon.Stance.Changed");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_AimStarted, "SuspenseCore.Event.Equipment.Weapon.Stance.AimStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_AimEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.AimEnded");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_FireStarted, "SuspenseCore.Event.Equipment.Weapon.Stance.FireStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_FireEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.FireEnded");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_ReloadStarted, "SuspenseCore.Event.Equipment.Weapon.Stance.ReloadStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_ReloadEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.ReloadEnded");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_HoldBreathStarted, "SuspenseCore.Event.Equipment.Weapon.Stance.HoldBreathStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_HoldBreathEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.HoldBreathEnded");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_Drawn, "SuspenseCore.Event.Equipment.Weapon.Stance.Drawn");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_Holstered, "SuspenseCore.Event.Equipment.Weapon.Stance.Holstered");
+
         // Property Events
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_PropertyChanged, "Equipment.Event.PropertyChanged");
 

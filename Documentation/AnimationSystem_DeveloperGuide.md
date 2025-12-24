@@ -14,8 +14,9 @@
 4. [GAS Movement Abilities](#gas-movement-abilities)
 5. [Animation Blueprint Guide](#animation-blueprint-guide)
 6. [DataTable Configuration](#datatable-configuration)
-7. [EventBus Integration](#eventbus-integration)
-8. [Checklist for New Animations](#checklist-for-new-animations)
+7. [Weapon Animation Setup](#weapon-animation-setup)
+8. [EventBus Integration](#eventbus-integration)
+9. [Checklist for New Animations](#checklist-for-new-animations)
 
 ---
 
@@ -514,6 +515,326 @@ if (AnimData)
     CurrentLocomotionBlendSpace = AnimData->Locomotion;
 }
 ```
+
+---
+
+## Weapon Animation Setup
+
+### Overview
+
+Weapon animation system использует `USuspenseCoreWeaponStanceComponent` как SSOT для всех боевых состояний оружия. Компонент автоматически добавляется к Character и предоставляет данные в AnimInstance.
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      WEAPON ANIMATION ARCHITECTURE                          │
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────────────────────────────────────┐│
+│  │ GAS Abilities   │───▶│         USuspenseCoreWeaponStanceComponent     ││
+│  │ - AimAbility    │    │                     (SSOT)                      ││
+│  │ - ReloadAbility │    │                                                 ││
+│  │ - HoldBreath    │    │  Combat States (Replicated):                    ││
+│  └─────────────────┘    │  ├── bIsAiming          ← SetAiming()           ││
+│                         │  ├── bIsFiring          ← SetFiring()           ││
+│  ┌─────────────────┐    │  ├── bIsReloading       ← SetReloading()        ││
+│  │ Weapon Actor    │───▶│  ├── bIsHoldingBreath   ← SetHoldingBreath()    ││
+│  │ - Fire()        │    │  │                                              ││
+│  │ - AddRecoil()   │    │  Pose Modifiers (Local):                        ││
+│  │ - WallDetect()  │    │  ├── AimPoseAlpha       ← interpolated          ││
+│  └─────────────────┘    │  ├── GripModifier       ← SetGripModifier()     ││
+│                         │  ├── WeaponLoweredAlpha ← SetWeaponLowered()    ││
+│  ┌─────────────────┐    │  │                                              ││
+│  │ Equipment Sys   │───▶│  Procedural:                                    ││
+│  │ - Equip/Unequip │    │  ├── RecoilAlpha        ← AddRecoil() + decay   ││
+│  │ - WeaponType    │    │  └── SwayMultiplier     ← SetSwayMultiplier()   ││
+│  └─────────────────┘    │                                                 ││
+│                         │  GetStanceSnapshot() ──────────────────────────▶││
+│                         └─────────────────────────────────────────────────┘│
+│                                          │                                  │
+│                                          ▼                                  │
+│                         ┌─────────────────────────────────────────────────┐│
+│                         │    USuspenseCoreCharacterAnimInstance           ││
+│                         │                                                 ││
+│                         │  UpdateWeaponData():                            ││
+│                         │  ├── bIsAiming          (from snapshot)         ││
+│                         │  ├── bIsFiring          (from snapshot)         ││
+│                         │  ├── bIsReloading       (from snapshot)         ││
+│                         │  ├── bIsHoldingBreath   (from snapshot)         ││
+│                         │  ├── AimingAlpha        (from snapshot)         ││
+│                         │  ├── GripModifier       (from snapshot)         ││
+│                         │  ├── WeaponLoweredAlpha (from snapshot)         ││
+│                         │  ├── RecoilAlpha        (from snapshot)         ││
+│                         │  └── WeaponSwayMultiplier (from snapshot)       ││
+│                         └─────────────────────────────────────────────────┘│
+│                                          │                                  │
+│                                          ▼                                  │
+│                         ┌─────────────────────────────────────────────────┐│
+│                         │            Animation Blueprint                  ││
+│                         │  - Use variables directly in State Machine      ││
+│                         │  - Blend poses based on AimingAlpha             ││
+│                         │  - Apply recoil via additive layer              ││
+│                         └─────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### WeaponStanceComponent API
+
+**Location:** `Source/EquipmentSystem/Public/SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h`
+
+#### Combat State Setters (called by GAS/Weapon)
+
+| Method | Description | Called By |
+|--------|-------------|-----------|
+| `SetAiming(bool)` | Начать/закончить прицеливание | ADS Ability |
+| `SetFiring(bool)` | Начать/закончить стрельбу | Weapon Actor |
+| `SetReloading(bool)` | Начать/закончить перезарядку | Reload Ability / WeaponStateManager |
+| `SetHoldingBreath(bool)` | Задержка дыхания (снайпер) | Sniper Ability |
+| `SetMontageActive(bool)` | Монтаж оружия играет | AnimInstance callback |
+
+#### Pose Modifier Setters
+
+| Method | Description | Called By |
+|--------|-------------|-----------|
+| `SetTargetAimPose(float)` | Целевой ADS alpha (0-1) | ADS Ability |
+| `SetGripModifier(float)` | Модификатор хвата (0-1) | Weapon Actor / Attachment |
+| `SetWeaponLowered(float)` | Опустить оружие (0-1) | Wall Detection / Obstacle |
+
+#### Procedural Animation Setters
+
+| Method | Description | Called By |
+|--------|-------------|-----------|
+| `AddRecoil(float)` | Добавить отдачу (decays автоматически) | Weapon Actor on Fire |
+| `SetSwayMultiplier(float)` | Множитель раскачивания | Stamina System / Movement |
+
+#### Snapshot API (called by AnimInstance)
+
+```cpp
+// В AnimInstance::UpdateWeaponData():
+USuspenseCoreWeaponStanceComponent* StanceComp = CachedStanceComponent.Get();
+const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
+
+// Snapshot содержит ВСЕ данные за один вызов:
+bIsAiming = Snapshot.bIsAiming;
+bIsFiring = Snapshot.bIsFiring;
+bIsReloading = Snapshot.bIsReloading;
+AimingAlpha = Snapshot.AimPoseAlpha;  // Уже интерполировано!
+RecoilAlpha = Snapshot.RecoilAlpha;   // Уже с decay!
+// ...
+```
+
+### AnimInstance Weapon Variables
+
+#### Combat States (из Snapshot)
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `bIsAiming` | `bool` | Прицеливание (ADS) активно |
+| `bIsFiring` | `bool` | Стрельба активна |
+| `bIsReloading` | `bool` | Перезарядка активна |
+| `bIsHoldingBreath` | `bool` | Задержка дыхания |
+| `bIsWeaponMontageActive` | `bool` | Монтаж оружия играет |
+
+#### Pose Modifiers (из Snapshot)
+
+| Variable | Type | Range | Description |
+|----------|------|-------|-------------|
+| `AimingAlpha` | `float` | 0-1 | Бленд Hip→ADS (автоматически интерполируется) |
+| `GripModifier` | `float` | 0-1 | 0=обычный хват, 1=тактический |
+| `WeaponLoweredAlpha` | `float` | 0-1 | 0=нормально, 1=полностью опущено |
+
+#### Procedural Animation (из Snapshot)
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `RecoilAlpha` | `float` | 0-1, текущий уровень отдачи (decay автоматический) |
+| `WeaponSwayMultiplier` | `float` | Множитель раскачивания (стамина, движение) |
+
+### Integration Examples
+
+#### 1. Aiming (ADS) Ability
+
+```cpp
+// В вашей GAS Ability для прицеливания:
+void USuspenseCoreAimAbility::ActivateAbility(...)
+{
+    Super::ActivateAbility(...);
+
+    // Получаем StanceComponent
+    if (USuspenseCoreWeaponStanceComponent* Stance =
+        GetAvatarActor()->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+    {
+        Stance->SetAiming(true);
+    }
+}
+
+void USuspenseCoreAimAbility::EndAbility(...)
+{
+    if (USuspenseCoreWeaponStanceComponent* Stance = ...)
+    {
+        Stance->SetAiming(false);
+    }
+    Super::EndAbility(...);
+}
+```
+
+#### 2. Weapon Fire (Recoil)
+
+```cpp
+// В вашем Weapon Actor при выстреле:
+void ASuspenseCoreWeaponBase::Fire()
+{
+    // Логика выстрела...
+
+    // Добавляем отдачу в анимацию
+    if (USuspenseCoreWeaponStanceComponent* Stance =
+        OwnerCharacter->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+    {
+        Stance->SetFiring(true);
+        Stance->AddRecoil(WeaponData.RecoilStrength);  // например 0.3f
+    }
+}
+
+void ASuspenseCoreWeaponBase::StopFire()
+{
+    if (USuspenseCoreWeaponStanceComponent* Stance = ...)
+    {
+        Stance->SetFiring(false);
+    }
+}
+```
+
+#### 3. Wall Detection (Weapon Lowering)
+
+```cpp
+// В Weapon Actor или специальном компоненте:
+void ASuspenseCoreWeaponBase::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    // Трейс вперед для обнаружения стен
+    FHitResult Hit;
+    FVector Start = GetMuzzleLocation();
+    FVector End = Start + GetActorForwardVector() * 50.0f;
+
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic))
+    {
+        // Рядом препятствие - опускаем оружие
+        float LoweredAlpha = 1.0f - (Hit.Distance / 50.0f);
+        if (USuspenseCoreWeaponStanceComponent* Stance = ...)
+        {
+            Stance->SetWeaponLowered(LoweredAlpha);
+        }
+    }
+    else
+    {
+        if (USuspenseCoreWeaponStanceComponent* Stance = ...)
+        {
+            Stance->SetWeaponLowered(0.0f);
+        }
+    }
+}
+```
+
+### Animation Blueprint Usage
+
+#### State Machine Transitions
+
+```
+// Weapon State Machine
+
+[Idle] ──── bIsWeaponDrawn ────▶ [Ready]
+                                    │
+          ┌─────────────────────────┼─────────────────────────┐
+          │                         │                         │
+          ▼                         ▼                         ▼
+     [Aiming]                  [Reloading]               [Firing]
+     bIsAiming                 bIsReloading              bIsFiring
+```
+
+#### Aim Pose Blending
+
+```
+// В AnimGraph:
+Output Pose
+└── Blend Poses by Float
+    ├── A: Hip Fire Pose
+    ├── B: ADS Pose
+    └── Alpha: AimingAlpha    ← автоматически интерполируется!
+```
+
+#### Additive Recoil Layer
+
+```
+// В AnimGraph:
+Output Pose
+└── Apply Additive
+    ├── Base: Main Pose
+    └── Additive: Recoil Animation
+        └── Alpha: RecoilAlpha    ← decay автоматический!
+```
+
+#### Weapon Lowered Blend
+
+```
+// В AnimGraph:
+Output Pose
+└── Blend Poses by Float
+    ├── A: Normal Weapon Pose
+    ├── B: Lowered Weapon Pose
+    └── Alpha: WeaponLoweredAlpha
+```
+
+### Replication
+
+WeaponStanceComponent автоматически реплицирует боевые состояния:
+
+| Property | Replication |
+|----------|-------------|
+| `CurrentWeaponType` | Yes (OnRep) |
+| `bWeaponDrawn` | Yes (OnRep) |
+| `bIsAiming` | Yes (OnRep) |
+| `bIsFiring` | Yes (OnRep) |
+| `bIsReloading` | Yes (OnRep) |
+| `bIsHoldingBreath` | Yes (OnRep) |
+| `AimPoseAlpha` | No (local interp) |
+| `RecoilAlpha` | No (local visual) |
+| `WeaponLoweredAlpha` | No (local visual) |
+
+**Важно:** Визуальные модификаторы (Alpha значения) НЕ реплицируются - они вычисляются локально на каждом клиенте на основе реплицированных bool состояний.
+
+### Configuration
+
+#### WeaponStanceComponent Settings
+
+```cpp
+// В Blueprint или C++:
+UPROPERTY(EditDefaultsOnly, Category="Weapon|Config")
+float AimInterpSpeed = 15.0f;  // Скорость интерполяции AimPoseAlpha
+
+UPROPERTY(EditDefaultsOnly, Category="Weapon|Config")
+float RecoilRecoverySpeed = 8.0f;  // Скорость восстановления после отдачи
+```
+
+### Troubleshooting
+
+#### Problem: AimingAlpha не интерполируется плавно
+
+**Причина:** Вызов `SetAiming()` без использования `GetStanceSnapshot()`
+
+**Решение:** Убедитесь что AnimInstance использует `GetStanceSnapshot()` - он возвращает уже интерполированные значения.
+
+#### Problem: Recoil не затухает
+
+**Причина:** Компонент не тикает
+
+**Решение:** Проверьте что `PrimaryComponentTick.bCanEverTick = true` в конструкторе (установлено по умолчанию).
+
+#### Problem: Состояния не синхронизируются в мультиплеере
+
+**Причина:** Setters вызываются на клиенте
+
+**Решение:** Вызывайте `SetAiming()`, `SetFiring()` и т.д. только на сервере. Компонент автоматически реплицирует изменения.
 
 ---
 

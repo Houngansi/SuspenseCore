@@ -8,24 +8,70 @@
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	SetIsReplicatedByDefault(true);
 
-	CurrentWeaponType = FGameplayTag(); // none
+	// Initialize weapon identity
+	CurrentWeaponType = FGameplayTag();
 	bWeaponDrawn = false;
+
+	// Initialize combat states
+	bIsAiming = false;
+	bIsFiring = false;
+	bIsReloading = false;
+	bIsHoldingBreath = false;
+	bIsMontageActive = false;
+
+	// Initialize pose modifiers
+	AimPoseAlpha = 0.0f;
+	TargetAimPoseAlpha = 0.0f;
+	GripModifier = 0.0f;
+	WeaponLoweredAlpha = 0.0f;
+
+	// Initialize procedural animation
+	SwayMultiplier = 1.0f;
+	RecoilAlpha = 0.0f;
+
+	// Cache
 	LastAnimationInterfaceCacheTime = -1000.0f;
 }
 
 void USuspenseCoreWeaponStanceComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// Weapon identity
 	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, CurrentWeaponType);
 	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bWeaponDrawn);
+
+	// Combat states
+	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsAiming);
+	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsFiring);
+	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsReloading);
+	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsHoldingBreath);
 }
+
+void USuspenseCoreWeaponStanceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	UpdateInterpolatedValues(DeltaTime);
+}
+
+// ============================================================================
+// Equipment System API
+// ============================================================================
 
 void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipmentActor)
 {
 	TrackedEquipmentActor = NewEquipmentActor;
+
+	// Reset combat states when equipment changes
+	bIsFiring = false;
+	bIsReloading = false;
+	RecoilAlpha = 0.0f;
+
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
@@ -38,6 +84,11 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponStance(const FGameplayTag& Wea
 
 	CurrentWeaponType = WeaponTypeTag;
 
+	// Reset pose modifiers for new weapon
+	TargetAimPoseAlpha = 0.0f;
+	GripModifier = 0.0f;
+	WeaponLoweredAlpha = 0.0f;
+
 	if (AActor* Owner = GetOwner())
 	{
 		if (Owner->HasAuthority())
@@ -48,6 +99,7 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponStance(const FGameplayTag& Wea
 
 	if (bImmediate)
 	{
+		AimPoseAlpha = TargetAimPoseAlpha;
 		PushToAnimationLayer(/*bSkipIfNoInterface=*/false);
 	}
 }
@@ -66,6 +118,13 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 
 	bWeaponDrawn = bDrawn;
 
+	// Reset aim when holstering
+	if (!bDrawn)
+	{
+		bIsAiming = false;
+		TargetAimPoseAlpha = 0.0f;
+	}
+
 	if (AActor* Owner = GetOwner())
 	{
 		if (Owner->HasAuthority())
@@ -77,18 +136,171 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 
+// ============================================================================
+// Combat State API
+// ============================================================================
+
+void USuspenseCoreWeaponStanceComponent::SetAiming(bool bNewAiming)
+{
+	if (bIsAiming == bNewAiming)
+	{
+		return;
+	}
+
+	bIsAiming = bNewAiming;
+	TargetAimPoseAlpha = bNewAiming ? 1.0f : 0.0f;
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+}
+
+void USuspenseCoreWeaponStanceComponent::SetFiring(bool bNewFiring)
+{
+	if (bIsFiring == bNewFiring)
+	{
+		return;
+	}
+
+	bIsFiring = bNewFiring;
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+}
+
+void USuspenseCoreWeaponStanceComponent::SetReloading(bool bNewReloading)
+{
+	if (bIsReloading == bNewReloading)
+	{
+		return;
+	}
+
+	bIsReloading = bNewReloading;
+
+	// Cancel aiming when reloading
+	if (bNewReloading && bIsAiming)
+	{
+		SetAiming(false);
+	}
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+}
+
+void USuspenseCoreWeaponStanceComponent::SetHoldingBreath(bool bNewHoldingBreath)
+{
+	if (bIsHoldingBreath == bNewHoldingBreath)
+	{
+		return;
+	}
+
+	bIsHoldingBreath = bNewHoldingBreath;
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+}
+
+void USuspenseCoreWeaponStanceComponent::SetMontageActive(bool bNewMontageActive)
+{
+	// Montage state is local only, not replicated
+	bIsMontageActive = bNewMontageActive;
+}
+
+// ============================================================================
+// Pose Modifier API
+// ============================================================================
+
+void USuspenseCoreWeaponStanceComponent::SetTargetAimPose(float TargetAlpha)
+{
+	TargetAimPoseAlpha = FMath::Clamp(TargetAlpha, 0.0f, 1.0f);
+}
+
+void USuspenseCoreWeaponStanceComponent::SetGripModifier(float NewGripModifier)
+{
+	GripModifier = FMath::Clamp(NewGripModifier, 0.0f, 1.0f);
+}
+
+void USuspenseCoreWeaponStanceComponent::SetWeaponLowered(float LoweredAlpha)
+{
+	WeaponLoweredAlpha = FMath::Clamp(LoweredAlpha, 0.0f, 1.0f);
+}
+
+// ============================================================================
+// Procedural Animation API
+// ============================================================================
+
+void USuspenseCoreWeaponStanceComponent::AddRecoil(float RecoilAmount)
+{
+	RecoilAlpha = FMath::Clamp(RecoilAlpha + RecoilAmount, 0.0f, 1.0f);
+}
+
+void USuspenseCoreWeaponStanceComponent::SetSwayMultiplier(float NewMultiplier)
+{
+	SwayMultiplier = FMath::Max(0.0f, NewMultiplier);
+}
+
+// ============================================================================
+// Animation System API
+// ============================================================================
+
+FSuspenseCoreWeaponStanceSnapshot USuspenseCoreWeaponStanceComponent::GetStanceSnapshot() const
+{
+	FSuspenseCoreWeaponStanceSnapshot Snapshot;
+
+	// Weapon identity
+	Snapshot.WeaponType = CurrentWeaponType;
+	Snapshot.bIsDrawn = bWeaponDrawn;
+
+	// Combat states
+	Snapshot.bIsAiming = bIsAiming;
+	Snapshot.bIsFiring = bIsFiring;
+	Snapshot.bIsReloading = bIsReloading;
+	Snapshot.bIsHoldingBreath = bIsHoldingBreath;
+	Snapshot.bIsMontageActive = bIsMontageActive;
+
+	// Pose modifiers
+	Snapshot.AimPoseAlpha = AimPoseAlpha;
+	Snapshot.GripModifier = GripModifier;
+	Snapshot.WeaponLoweredAlpha = WeaponLoweredAlpha;
+
+	// Procedural
+	Snapshot.SwayMultiplier = SwayMultiplier;
+	Snapshot.RecoilAlpha = RecoilAlpha;
+
+	return Snapshot;
+}
+
 TScriptInterface<ISuspenseCoreWeaponAnimation> USuspenseCoreWeaponStanceComponent::GetAnimationInterface() const
 {
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-	// кэш свежий?
+	// Cache still valid?
 	if (CachedAnimationInterface.GetInterface() &&
 		(Now - LastAnimationInterfaceCacheTime) < AnimationInterfaceCacheLifetime)
 	{
 		return CachedAnimationInterface;
 	}
 
-	// Вариант 1: владелец реализует интерфейс
+	// Option 1: Owner implements the interface
 	if (AActor* OwnerActor = GetOwner())
 	{
 		if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreWeaponAnimation::StaticClass()))
@@ -100,14 +312,27 @@ TScriptInterface<ISuspenseCoreWeaponAnimation> USuspenseCoreWeaponStanceComponen
 		}
 	}
 
-	// Вариант 2: (осознанно) НЕ полезем в сабсистему здесь — аттачмент сам делает fallback на субсистему.
-	// Это позволяет не плодить зависимостей и избежать лишних include.
+	// Option 2: Equipment actor implements the interface
+	if (AActor* EquipmentActor = TrackedEquipmentActor.Get())
+	{
+		if (EquipmentActor->GetClass()->ImplementsInterface(USuspenseCoreWeaponAnimation::StaticClass()))
+		{
+			CachedAnimationInterface.SetObject(EquipmentActor);
+			CachedAnimationInterface.SetInterface(Cast<ISuspenseCoreWeaponAnimation>(EquipmentActor));
+			LastAnimationInterfaceCacheTime = Now;
+			return CachedAnimationInterface;
+		}
+	}
 
-	// Кэша нет — возвращаем пусто
+	// No interface found
 	CachedAnimationInterface = nullptr;
 	LastAnimationInterfaceCacheTime = Now;
 	return CachedAnimationInterface;
 }
+
+// ============================================================================
+// Replication Callbacks
+// ============================================================================
 
 void USuspenseCoreWeaponStanceComponent::OnRep_WeaponType()
 {
@@ -116,8 +341,26 @@ void USuspenseCoreWeaponStanceComponent::OnRep_WeaponType()
 
 void USuspenseCoreWeaponStanceComponent::OnRep_DrawnState()
 {
+	// Sync local aim state with drawn state
+	if (!bWeaponDrawn)
+	{
+		TargetAimPoseAlpha = 0.0f;
+	}
+
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
+
+void USuspenseCoreWeaponStanceComponent::OnRep_CombatState()
+{
+	// Update target aim pose based on replicated aiming state
+	TargetAimPoseAlpha = bIsAiming ? 1.0f : 0.0f;
+
+	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
+}
+
+// ============================================================================
+// Internal Methods
+// ============================================================================
 
 void USuspenseCoreWeaponStanceComponent::PushToAnimationLayer(bool bSkipIfNoInterface) const
 {
@@ -126,12 +369,34 @@ void USuspenseCoreWeaponStanceComponent::PushToAnimationLayer(bool bSkipIfNoInte
 	{
 		if (!bSkipIfNoInterface)
 		{
-			// нет интерфейса — ничего не делаем
+			// No interface available
 		}
 		return;
 	}
 
-	// Здесь можно добавить активные вызовы в твой аним-интерфейс
-	// (например, ApplyStance(CurrentWeaponType, bWeaponDrawn)),
-	// когда определим контракт. Пока отдаём интерфейс наверх.
+	// The animation interface is a data provider, not a state receiver
+	// AnimInstance will call GetStanceSnapshot() to get current state
+}
+
+void USuspenseCoreWeaponStanceComponent::UpdateInterpolatedValues(float DeltaTime)
+{
+	// Interpolate aim pose alpha
+	if (!FMath::IsNearlyEqual(AimPoseAlpha, TargetAimPoseAlpha, 0.001f))
+	{
+		AimPoseAlpha = FMath::FInterpTo(AimPoseAlpha, TargetAimPoseAlpha, DeltaTime, AimInterpSpeed);
+	}
+	else
+	{
+		AimPoseAlpha = TargetAimPoseAlpha;
+	}
+
+	// Decay recoil over time
+	if (RecoilAlpha > 0.0f)
+	{
+		RecoilAlpha = FMath::FInterpTo(RecoilAlpha, 0.0f, DeltaTime, RecoilRecoverySpeed);
+		if (RecoilAlpha < 0.001f)
+		{
+			RecoilAlpha = 0.0f;
+		}
+	}
 }

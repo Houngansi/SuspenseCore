@@ -12,6 +12,10 @@
 #if WITH_INTERACTION_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreInteractionComponent.h"
 #endif
+
+#if WITH_EQUIPMENT_SYSTEM
+#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
+#endif
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -104,6 +108,11 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 #if WITH_INTERACTION_SYSTEM
 	// Create interaction component for world object interaction
 	InteractionComponent = CreateDefaultSubobject<USuspenseCoreInteractionComponent>(TEXT("InteractionComponent"));
+#endif
+
+#if WITH_EQUIPMENT_SYSTEM
+	// Create weapon stance component for animation state synchronization
+	WeaponStanceComponent = CreateDefaultSubobject<USuspenseCoreWeaponStanceComponent>(TEXT("WeaponStanceComponent"));
 #endif
 
 	// Movement settings

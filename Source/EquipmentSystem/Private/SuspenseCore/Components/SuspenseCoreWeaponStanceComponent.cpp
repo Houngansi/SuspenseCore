@@ -461,7 +461,17 @@ void USuspenseCoreWeaponStanceComponent::BroadcastCombatStateEvent(FGameplayTag 
 
 	// Create event data with owner as source
 	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetOwner());
-	EventData.SetTag(FName("WeaponType"), CurrentWeaponType);
+
+	// Add weapon type tag to Tags container
+	if (CurrentWeaponType.IsValid())
+	{
+		EventData.AddTag(CurrentWeaponType);
+	}
+
+	// Store weapon type name as string for easier access
+	EventData.SetString(FName("WeaponType"), CurrentWeaponType.IsValid() ? CurrentWeaponType.ToString() : TEXT("None"));
+
+	// Combat states
 	EventData.SetBool(FName("IsDrawn"), bWeaponDrawn);
 	EventData.SetBool(FName("IsAiming"), bIsAiming);
 	EventData.SetBool(FName("IsFiring"), bIsFiring);

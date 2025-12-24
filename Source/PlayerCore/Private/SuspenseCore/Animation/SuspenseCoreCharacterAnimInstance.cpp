@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/DataTable.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Animation/AnimComposite.h"
 
 #if WITH_EQUIPMENT_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
@@ -359,18 +360,56 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	// Get transforms from animation data
 	if (bHasWeaponEquipped && CurrentAnimationData.Stance != nullptr)
 	{
-		// Use base grip transform (index 0)
-		LeftHandIKTransform = CurrentAnimationData.GetLeftHandGripTransform(0);
-		RightHandIKTransform = CurrentAnimationData.RHTransform;
+		// Use GripID from StanceComponent to select correct transform from DataTable array
+		// GripID indices: 0=base, 1=aiming, 2=reloading, 3+=weapon-specific
+		const int32 BaseGripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+
+		// Get base left hand transform using GripID (weapon actor sets this)
+		LeftHandIKTransform = CurrentAnimationData.GetLeftHandGripTransform(BaseGripIndex);
+
+		// Right hand and weapon transforms from DataTable (or from StanceComponent if weapon set them)
+		if (!RightHandTransform.Equals(FTransform::Identity))
+		{
+			// Weapon actor provided custom transform - use it
+			RightHandIKTransform = RightHandTransform;
+		}
+		else
+		{
+			RightHandIKTransform = CurrentAnimationData.RHTransform;
+		}
+
 		WeaponTransform = CurrentAnimationData.WTransform;
 
-		// If aiming, use aim grip transform (index 1) if available
-		if (bIsAiming && CurrentAnimationData.LHGripTransform.Num() > 1)
+		// Blend to aim grip if aiming (aim grip is typically at index 1)
+		// bLegacyModifyGrip allows weapon to override grip modification behavior
+		if (bIsAiming && bLegacyModifyGrip)
 		{
-			const FTransform AimGripTransform = CurrentAnimationData.GetLeftHandGripTransform(1);
+			// Get aim grip transform (index 1 by convention, or use AimPose if set)
+			const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
+			if (CurrentAnimationData.LHGripTransform.IsValidIndex(AimGripIndex))
+			{
+				const FTransform AimGripTransform = CurrentAnimationData.GetLeftHandGripTransform(AimGripIndex);
+				LeftHandIKTransform = UKismetMathLibrary::TLerp(
+					LeftHandIKTransform,
+					AimGripTransform,
+					AimingAlpha
+				);
+			}
+		}
+
+		// Apply LeftHandTransform from weapon actor if provided (overrides DataTable)
+		if (!LeftHandTransform.Equals(FTransform::Identity))
+		{
+			LeftHandIKTransform = LeftHandTransform;
+		}
+
+		// Apply AimTransform from weapon actor if aiming (for custom aim offset)
+		if (bIsAiming && bLegacyCreateAimPose && !AimTransform.Equals(FTransform::Identity))
+		{
+			// Blend aim transform based on aiming alpha
 			LeftHandIKTransform = UKismetMathLibrary::TLerp(
 				LeftHandIKTransform,
-				AimGripTransform,
+				AimTransform,
 				AimingAlpha
 			);
 		}
@@ -549,6 +588,59 @@ const FAnimationStateData* USuspenseCoreCharacterAnimInstance::GetAnimationDataF
 	// Row name is the tag string
 	const FString RowName = WeaponType.ToString();
 	return WeaponAnimationsTable->FindRow<FAnimationStateData>(*RowName, TEXT("GetAnimationDataForWeaponType"));
+}
+
+UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetGripPoseByIndex(int32 PoseIndex) const
+{
+	// GripPoses is an AnimComposite containing multiple pose segments
+	// Each segment in the composite represents a different grip pose
+	// The pose index maps to segment index within the composite
+
+	if (!CurrentAnimationData.GripPoses)
+	{
+		return nullptr;
+	}
+
+	// AnimComposite stores segments in AnimationTrack
+	const TArray<FAnimSegment>& Segments = CurrentAnimationData.GripPoses->AnimationTrack.AnimSegments;
+
+	if (Segments.IsValidIndex(PoseIndex))
+	{
+		return Segments[PoseIndex].GetAnimReference();
+	}
+
+	// Fallback to first segment if index invalid
+	if (Segments.Num() > 0)
+	{
+		return Segments[0].GetAnimReference();
+	}
+
+	return nullptr;
+}
+
+UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetActiveGripPose() const
+{
+	// Determine pose index based on combat state
+	int32 PoseIndex = GripID; // Base grip ID from weapon
+
+	// Override with state-specific poses
+	if (bIsReloading && GripID == 0)
+	{
+		// Use reload pose (index 2) if currently reloading and no custom GripID
+		PoseIndex = 2;
+	}
+	else if (bIsAiming && bLegacyModifyGrip && AimPose > 0)
+	{
+		// Use AimPose index for aiming if ModifyGrip is enabled
+		PoseIndex = AimPose;
+	}
+	else if (bIsAiming && GripID == 0)
+	{
+		// Default to aim pose (index 1) when aiming
+		PoseIndex = 1;
+	}
+
+	return GetGripPoseByIndex(PoseIndex);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

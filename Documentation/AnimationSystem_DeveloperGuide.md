@@ -15,6 +15,7 @@
 5. [Animation Blueprint Guide](#animation-blueprint-guide)
 6. [DataTable Configuration](#datatable-configuration)
 7. [Weapon Animation Setup](#weapon-animation-setup)
+   - [Weapon Pose Index System](#weapon-pose-index-system)
 8. [EventBus Integration](#eventbus-integration)
 9. [Checklist for New Animations](#checklist-for-new-animations)
 
@@ -814,6 +815,160 @@ float AimInterpSpeed = 15.0f;  // Скорость интерполяции AimP
 
 UPROPERTY(EditDefaultsOnly, Category="Weapon|Config")
 float RecoilRecoverySpeed = 8.0f;  // Скорость восстановления после отдачи
+```
+
+---
+
+### Weapon Pose Index System
+
+#### Overview
+
+Система индексов поз позволяет оружию динамически выбирать позы и трансформы из DataTable. Каждый индекс указывает на конкретный сегмент анимации или трансформ в массиве.
+
+#### Key Variables (from StanceComponent)
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `GripID` | `int32` | Базовый индекс хвата из `LHGripTransform` массива |
+| `AimPose` | `int32` | Индекс позы прицеливания из `GripPoses` composite |
+| `StoredPose` | `int32` | Сохранённый индекс позы (для восстановления) |
+
+#### DataTable Index Conventions
+
+**LHGripTransform Array:**
+```
+Index 0: Базовая позиция хвата (Hip fire)
+Index 1: Позиция при прицеливании (ADS)
+Index 2: Позиция при перезарядке
+Index 3+: Специфические позы для конкретного оружия
+```
+
+**GripPoses AnimComposite:**
+```
+Segment 0: Base grip animation
+Segment 1: Aim grip animation
+Segment 2: Reload grip animation
+Segment 3+: Weapon-specific grip animations
+```
+
+#### How Weapon Actor Sets Pose Indices
+
+```cpp
+// В вашем Weapon Actor при экипировке:
+void ASuspenseCoreWeaponBase::OnEquipped(ACharacter* Character)
+{
+    if (USuspenseCoreWeaponStanceComponent* Stance =
+        Character->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+    {
+        // Установить базовый GripID из данных оружия
+        Stance->SetGripID(WeaponData.DefaultGripID);  // например 0
+
+        // Установить индекс позы прицеливания
+        Stance->SetAimPose(WeaponData.AimPoseIndex);  // например 1
+
+        // Включить модификацию хвата при прицеливании
+        Stance->SetModifyGrip(true);
+
+        // Если оружие требует создания динамической позы прицела
+        Stance->SetCreateAimPose(WeaponData.bUseDynamicAimPose);
+
+        // Опционально: кастомные трансформы
+        if (WeaponData.bUseCustomLeftHandTransform)
+        {
+            Stance->SetLeftHandTransform(WeaponData.LeftHandOffset);
+        }
+    }
+}
+```
+
+#### AnimInstance Processing Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     POSE INDEX PROCESSING FLOW                               │
+│                                                                              │
+│  1. Weapon Actor устанавливает индексы через StanceComponent:                │
+│     Stance->SetGripID(0);                                                   │
+│     Stance->SetAimPose(1);                                                  │
+│                                                                              │
+│  2. AnimInstance получает индексы через GetStanceSnapshot():                 │
+│     GripID = Snapshot.GripID;         // 0                                  │
+│     AimPose = Snapshot.AimPose;       // 1                                  │
+│                                                                              │
+│  3. UpdateIKData() выбирает трансформы:                                      │
+│     // Базовый хват по GripID                                               │
+│     LeftHandIKTransform = AnimData.GetLeftHandGripTransform(GripID);        │
+│                                                                              │
+│     // При прицеливании - бленд к AimPose                                   │
+│     if (bIsAiming && bLegacyModifyGrip)                                     │
+│     {                                                                        │
+│         AimGripTransform = AnimData.GetLeftHandGripTransform(AimPose);      │
+│         LeftHandIKTransform = Lerp(LeftHandIKTransform, AimGripTransform,   │
+│                                    AimingAlpha);                            │
+│     }                                                                        │
+│                                                                              │
+│  4. GetActiveGripPose() выбирает анимацию из GripPoses:                      │
+│     - Если bIsReloading: index = 2                                          │
+│     - Если bIsAiming:    index = AimPose (или 1)                            │
+│     - Иначе:             index = GripID                                     │
+│     return GripPoses->AnimSegments[index];                                  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Helper Functions in AnimInstance
+
+```cpp
+// Получить сегмент анимации из GripPoses по индексу
+UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
+UAnimSequenceBase* GetGripPoseByIndex(int32 PoseIndex) const;
+
+// Получить активную позу на основе текущего состояния
+UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
+UAnimSequenceBase* GetActiveGripPose() const;
+```
+
+#### Blueprint Usage
+
+В AnimBP для выбора позы хвата:
+
+```
+// AnimGraph - Blend Node
+Blend Poses by Int (GripID)
+├── 0: Base Grip Pose
+├── 1: Tactical Grip Pose
+├── 2: Reload Grip Pose
+└── 3+: Custom Poses
+
+// Или использовать GetActiveGripPose()
+Output Pose
+└── Play Animation
+    └── Animation: GetActiveGripPose()
+```
+
+#### Legacy Compatibility Flags
+
+| Flag | Description |
+|------|-------------|
+| `bLegacyIsHolstered` | Оружие в кобуре (обратная совместимость) |
+| `bLegacyModifyGrip` | Разрешить модификацию хвата при прицеливании |
+| `bLegacyCreateAimPose` | Использовать AimTransform для динамической позы |
+
+#### Example: Different Weapons, Different Poses
+
+```cpp
+// Assault Rifle - использует стандартные индексы
+WeaponData_AR.DefaultGripID = 0;      // Base grip
+WeaponData_AR.AimPoseIndex = 1;       // Standard ADS
+
+// Sniper Rifle - использует расширенный набор
+WeaponData_Sniper.DefaultGripID = 0;
+WeaponData_Sniper.AimPoseIndex = 3;   // Scope ADS pose (custom)
+WeaponData_Sniper.bUseDynamicAimPose = true;
+
+// Pistol - компактный хват
+WeaponData_Pistol.DefaultGripID = 4;  // Pistol-specific grip
+WeaponData_Pistol.AimPoseIndex = 5;   // Pistol ADS
 ```
 
 ### Troubleshooting

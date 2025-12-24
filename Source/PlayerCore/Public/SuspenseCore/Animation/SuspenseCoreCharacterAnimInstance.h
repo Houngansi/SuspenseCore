@@ -504,6 +504,30 @@ protected:
 	/** Получить строку из DataTable по WeaponType */
 	const FAnimationStateData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;
 
+	/**
+	 * Get animation segment from GripPoses AnimComposite by pose index.
+	 *
+	 * GripPoses содержит несколько поз (сегментов) для разных состояний:
+	 * - Index 0: Base grip pose (базовый хват)
+	 * - Index 1: Aim grip pose (хват при прицеливании)
+	 * - Index 2: Reload grip pose (хват при перезарядке)
+	 * - Index 3+: Weapon-specific poses (специфические для оружия)
+	 *
+	 * @param PoseIndex Index of pose segment in GripPoses composite
+	 * @return AnimSequence for the pose, or nullptr if not found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
+	UAnimSequenceBase* GetGripPoseByIndex(int32 PoseIndex) const;
+
+	/**
+	 * Get currently active grip pose based on combat state and GripID.
+	 * Automatically selects appropriate pose from GripPoses composite.
+	 *
+	 * @return Active grip pose animation
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
+	UAnimSequenceBase* GetActiveGripPose() const;
+
 private:
 	/** Время последнего обновления кэша */
 	float LastCacheUpdateTime = 0.0f;

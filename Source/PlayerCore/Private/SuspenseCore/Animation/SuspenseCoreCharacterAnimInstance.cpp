@@ -248,7 +248,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		bIsHolstered = true;
 		bModifyGrip = false;
 		bCreateAimPose = false;
-		bIsShooting = false;
+		// Aim target
+		SightDistance = 200.0f;
 		// Pose indices
 		AimPose = 0;
 		StoredPose = 0;
@@ -273,7 +274,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	// Combat states from snapshot
 	bIsAiming = Snapshot.bIsAiming;
 	bIsFiring = Snapshot.bIsFiring;
-	bIsShooting = Snapshot.bIsFiring;  // Alias for legacy ABP compatibility
 	bIsReloading = Snapshot.bIsReloading;
 	bIsHoldingBreath = Snapshot.bIsHoldingBreath;
 	bIsWeaponMontageActive = Snapshot.bIsMontageActive;
@@ -282,6 +282,9 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bIsHolstered = Snapshot.bIsHolstered;
 	bModifyGrip = Snapshot.bModifyGrip;
 	bCreateAimPose = Snapshot.bCreateAimPose;
+
+	// Aim target - SightDistance from snapshot or default
+	SightDistance = Snapshot.SightDistance;
 
 	// Pose indices
 	AimPose = Snapshot.AimPose;

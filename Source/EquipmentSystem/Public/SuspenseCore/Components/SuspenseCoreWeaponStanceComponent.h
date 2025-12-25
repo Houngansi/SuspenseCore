@@ -120,6 +120,11 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
 	/** Block/wall detection distance */
 	UPROPERTY(BlueprintReadOnly, Category = "Procedural")
 	float BlockDistance = 0.0f;
+
+	// -------- Aim Target --------
+	/** Sight distance - расстояние до цели прицеливания */
+	UPROPERTY(BlueprintReadOnly, Category = "AimTarget")
+	float SightDistance = 200.0f;
 };
 
 /**
@@ -272,6 +277,10 @@ public:
 	/** Set block distance (wall detection) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Procedural")
 	void SetBlockDistance(float NewBlockDistance);
+
+	/** Set sight distance (aim target distance for FABRIK) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|AimTarget")
+	void SetSightDistance(float NewSightDistance);
 
 	// ========================================================================
 	// Animation System API (called by AnimInstance)
@@ -443,6 +452,9 @@ private:
 
 	/** Block/wall detection distance */
 	float BlockDistance = 0.0f;
+
+	/** Sight distance for aim target (FABRIK) */
+	float SightDistance = 200.0f;
 
 	// ========================================================================
 	// Configuration

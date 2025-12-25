@@ -478,6 +478,14 @@ protected:
 	float TargetMoveForward = 0.0f;
 	float TargetMoveRight = 0.0f;
 
+	/**
+	 * Camera Shake offset - процедурный шейк камеры.
+	 * Устанавливается из Blueprint при определённых состояниях (прыжок, приземление и т.д.)
+	 * ABP интерполирует это значение для плавного эффекта.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|CameraShake")
+	FVector CameraShake = FVector::ZeroVector;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════════

@@ -953,7 +953,18 @@ Output Pose
 | `bIsHolstered` | Оружие в кобуре (inverse of bIsWeaponDrawn) |
 | `bModifyGrip` | Разрешить модификацию хвата при прицеливании |
 | `bCreateAimPose` | Использовать AimTransform для динамической позы |
-| `bIsShooting` | Alias для bIsFiring (совместимость с legacy ABP) |
+
+#### Aim Target Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `SightDistance` | `float` | Расстояние до цели прицеливания (для FABRIK) |
+
+#### Procedural Animation
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `CameraShake` | `FVector` | Шейк камеры (интерполируется в ABP) |
 
 #### Example: Different Weapons, Different Poses
 

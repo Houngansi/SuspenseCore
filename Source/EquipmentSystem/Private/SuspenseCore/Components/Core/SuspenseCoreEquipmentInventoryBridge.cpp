@@ -98,6 +98,7 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
     TScriptInterface<ISuspenseCoreTransactionManager> InTransactionMgr)
 {
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== Initialize CALLED ==="));
+    UE_LOG(LogTemp, Warning, TEXT("[Bridge] Initialize() CALLED - starting initialization..."));
 
     // Prevent double initialization
     if (bIsInitialized)
@@ -238,6 +239,8 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
                 *Request.ItemInstance.ItemID.ToString(),
                 *Request.ItemInstance.UniqueInstanceID.ToString(),
                 Request.TargetSlotIndex);
+            UE_LOG(LogTemp, Warning, TEXT("[Bridge] UIRequest.EquipItem RECEIVED! ItemID: %s, Slot: %d"),
+                *Request.ItemInstance.ItemID.ToString(), Request.TargetSlotIndex);
 
             HandleEquipmentOperationRequest(Request);
         });
@@ -248,6 +251,8 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
             EquipItemTag, this, Callback);
 
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Subscribed to SuspenseCore.Event.UIRequest.EquipItem tag"));
+        UE_LOG(LogTemp, Warning, TEXT("[Bridge] SUBSCRIBED to UIRequest.EquipItem - Handle valid: %s"),
+            EquipmentOperationRequestHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
 
         // Subscribe to TransferItem for Equipment→Inventory transfers (unequip via drag-drop)
         static const FGameplayTag TransferItemTag = FGameplayTag::RequestGameplayTag(

@@ -417,14 +417,39 @@ bool USuspenseCoreEquipmentActorFactory::ConfigureEquipmentActor(AActor* Actor, 
         return false;
     }
 
-    // 1) Всегда сначала пробуем интерфейс экипировки
+    // CRITICAL FIX: Must call OnEquipped BEFORE OnItemInstanceEquipped!
+    // OnEquipped sets bHasOwnerData=true, OnItemInstanceEquipped sets bHasItemData=true
+    // Both are required for InitializeEquipmentComponents to be called!
+    AActor* OwnerActor = Actor->GetOwner();
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+        TEXT("[ConfigureEquipmentActor] Actor=%s, Owner=%s, ItemID=%s"),
+        *Actor->GetName(),
+        OwnerActor ? *OwnerActor->GetName() : TEXT("null"),
+        *ItemInstance.ItemID.ToString());
+
+    // 1) FIRST: Call OnEquipped to set owner data
     if (Actor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
     {
+        if (OwnerActor)
+        {
+            UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+                TEXT("[ConfigureEquipmentActor] Calling OnEquipped with owner: %s"), *OwnerActor->GetName());
+            ISuspenseCoreEquipment::Execute_OnEquipped(Actor, OwnerActor);
+        }
+
+        // 2) THEN: Call OnItemInstanceEquipped to set item data and trigger initialization
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+            TEXT("[ConfigureEquipmentActor] Calling OnItemInstanceEquipped for: %s"), *ItemInstance.ItemID.ToString());
         ISuspenseCoreEquipment::Execute_OnItemInstanceEquipped(Actor, ItemInstance);
     }
     else if (ASuspenseCoreEquipmentActor* EquipmentActor = Cast<ASuspenseCoreEquipmentActor>(Actor))
     {
         // Fallback для редких случаев (но по нашей архитектуре базовый актор реализует интерфейс)
+        if (OwnerActor)
+        {
+            EquipmentActor->OnEquipped_Implementation(OwnerActor);
+        }
         EquipmentActor->OnItemInstanceEquipped_Implementation(ItemInstance);
     }
 

@@ -138,6 +138,52 @@ namespace SuspenseCoreEquipmentTags
     }
 
     //========================================
+    // WEAPON ARCHETYPE TAGS
+    // Used for Animation System stance selection
+    //========================================
+    namespace Archetype
+    {
+        // Root weapon tag
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon, "Weapon");
+
+        // Rifles
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Rifle, "Weapon.Rifle");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Rifle_Assault, "Weapon.Rifle.Assault");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Rifle_Sniper, "Weapon.Rifle.Sniper");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Rifle_DMR, "Weapon.Rifle.DMR");
+
+        // Pistols
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Pistol, "Weapon.Pistol");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Pistol_Semi, "Weapon.Pistol.Semi");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Pistol_Revolver, "Weapon.Pistol.Revolver");
+
+        // SMGs
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_SMG, "Weapon.SMG");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_SMG_Compact, "Weapon.SMG.Compact");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_SMG_Full, "Weapon.SMG.Full");
+
+        // Shotguns
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Shotgun, "Weapon.Shotgun");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Shotgun_Pump, "Weapon.Shotgun.Pump");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Shotgun_Auto, "Weapon.Shotgun.Auto");
+
+        // Heavy
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Heavy, "Weapon.Heavy");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Heavy_LMG, "Weapon.Heavy.LMG");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Heavy_Launcher, "Weapon.Heavy.Launcher");
+
+        // Melee
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Melee, "Weapon.Melee");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Melee_Knife, "Weapon.Melee.Knife");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Melee_Blunt, "Weapon.Melee.Blunt");
+
+        // Throwables
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Throwable, "Weapon.Throwable");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Throwable_Grenade, "Weapon.Throwable.Grenade");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Weapon_Throwable_Smoke, "Weapon.Throwable.Smoke");
+    }
+
+    //========================================
     // OPERATION TYPE TAGS
     //========================================
     namespace Operation

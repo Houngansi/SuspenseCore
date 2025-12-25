@@ -465,8 +465,8 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon", meta = (EditCondition = "bIsEquippable"))
     bool bIsWeapon = false;
     
-    /** Weapon archetype tag */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon", meta = (EditCondition = "bIsWeapon", Categories = "Weapon.Type"))
+    /** Weapon archetype tag (for animation stance selection) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon", meta = (EditCondition = "bIsWeapon", Categories = "Weapon"))
     FGameplayTag WeaponArchetype;
     
     /** Compatible ammo type tag */

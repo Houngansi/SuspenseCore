@@ -229,9 +229,9 @@ struct BRIDGESYSTEM_API FSuspenseCoreWeaponConfig
 {
 	GENERATED_BODY()
 
-	/** Weapon archetype (Weapon.Archetype.Rifle, etc) */
+	/** Weapon archetype (Weapon.Rifle.Assault, etc) - for animation stance selection */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon",
-		meta = (Categories = "Weapon.Archetype"))
+		meta = (Categories = "Weapon"))
 	FGameplayTag WeaponArchetype;
 
 	/** Compatible ammo type */

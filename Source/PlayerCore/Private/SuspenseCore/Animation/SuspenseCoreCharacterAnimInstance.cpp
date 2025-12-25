@@ -448,7 +448,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
 {
 	// Get LH_Target socket transform from weapon mesh
-	// Convert to character's component space for AnimGraph
+	// Как в legacy Blueprint: RTS_Component space
 
 	if (!CachedWeaponActor.IsValid())
 	{
@@ -457,42 +457,28 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 
 	AActor* WeaponActor = CachedWeaponActor.Get();
 
-	// Get character's skeletal mesh for space conversion
-	USkeletalMeshComponent* CharacterMesh = GetSkelMeshComponent();
-	if (!CharacterMesh)
-	{
-		return false;
-	}
-
 	// Try to get skeletal mesh component from weapon
 	USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>();
-	if (!WeaponMesh)
+	if (WeaponMesh && WeaponMesh->DoesSocketExist(LHTargetSocketName))
 	{
-		// Fallback to static mesh if no skeletal mesh
-		UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>();
-		if (StaticMesh && StaticMesh->DoesSocketExist(LHTargetSocketName))
-		{
-			// Get socket in WORLD space
-			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
-			// Convert to character's component space
-			OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
-			return true;
-		}
-		return false;
+		// Как в legacy: RTS_Component - относительно weapon mesh
+		OutTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+
+		UE_LOG(LogTemp, Warning, TEXT("LH_Target socket found! Location: %s"),
+			*OutTransform.GetLocation().ToString());
+		return true;
 	}
 
-	// Check if socket exists
-	if (!WeaponMesh->DoesSocketExist(LHTargetSocketName))
+	// Fallback to static mesh
+	UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>();
+	if (StaticMesh && StaticMesh->DoesSocketExist(LHTargetSocketName))
 	{
-		return false;
+		OutTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+		return true;
 	}
 
-	// Get socket transform in WORLD space
-	const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
-
-	// Convert to character's component space (what AnimGraph expects)
-	OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
-	return true;
+	UE_LOG(LogTemp, Warning, TEXT("LH_Target socket NOT found on weapon!"));
+	return false;
 }
 
 FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const

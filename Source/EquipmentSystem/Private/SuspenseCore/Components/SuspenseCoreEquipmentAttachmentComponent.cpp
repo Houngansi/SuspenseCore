@@ -212,6 +212,17 @@ void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActo
     if (LinkedStanceComponent.IsValid())
     {
         LinkedStanceComponent->OnEquipmentChanged(SpawnedEquipmentActor);
+
+        // Set weapon stance with archetype from item data
+        if (CurrentWeaponType.IsValid())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[AttachComp] InitializeWithItemInstance: Setting weapon stance to %s"), *CurrentWeaponType.ToString());
+            LinkedStanceComponent->SetWeaponStance(CurrentWeaponType, true);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[AttachComp] InitializeWithItemInstance: CurrentWeaponType is INVALID!"));
+        }
     }
 
     EQUIPMENT_LOG(Log, TEXT("Initialized attachment for item: %s"), *ItemInstance.ItemID.ToString());

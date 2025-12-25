@@ -147,6 +147,9 @@ void USuspenseCoreEquipmentAttachmentComponent::GetLifetimeReplicatedProps(TArra
 
 void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActor* InOwner, UAbilitySystemComponent* InASC, const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[AttachComp] InitializeWithItemInstance called. InOwner: %s"),
+        InOwner ? *InOwner->GetName() : TEXT("null"));
+
     // Call base initialization
     Super::InitializeWithItemInstance(InOwner, InASC, ItemInstance);
 
@@ -154,6 +157,36 @@ void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActo
     {
         EQUIPMENT_LOG(Error, TEXT("Failed to initialize base component"));
         return;
+    }
+
+    // Re-try linking stance component if not linked yet
+    // The weapon actor's Owner should now be the character (set by OnEquipped)
+    if (!LinkedStanceComponent.IsValid() && bAutoLinkStanceComponent)
+    {
+        // InOwner is the weapon actor, we need its Owner which is the character
+        if (InOwner)
+        {
+            AActor* CharacterOwner = InOwner->GetOwner();
+            UE_LOG(LogTemp, Warning, TEXT("[AttachComp] Weapon owner (character): %s"),
+                CharacterOwner ? *CharacterOwner->GetName() : TEXT("null"));
+
+            if (APawn* OwnerPawn = Cast<APawn>(CharacterOwner))
+            {
+                if (USuspenseCoreWeaponStanceComponent* StanceComp = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[AttachComp] Found StanceComponent on character, linking!"));
+                    LinkStanceComponent(StanceComp);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[AttachComp] Character has NO StanceComponent!"));
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[AttachComp] CharacterOwner is not a Pawn!"));
+            }
+        }
     }
 
     // Get item data
@@ -166,6 +199,7 @@ void USuspenseCoreEquipmentAttachmentComponent::InitializeWithItemInstance(AActo
 
     // Store weapon type for animations
     CurrentWeaponType = GetWeaponArchetypeFromItem();
+    UE_LOG(LogTemp, Warning, TEXT("[AttachComp] CurrentWeaponType from item: %s"), *CurrentWeaponType.ToString());
 
     // Check if we are already part of an equipment actor
     AActor* OwnerActor = GetOwner();

@@ -266,6 +266,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	// Get complete stance snapshot from component (includes all combat states)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
+	// Debug log every 60 frames
+	static int32 FrameCounter = 0;
+	if (++FrameCounter >= 60)
+	{
+		FrameCounter = 0;
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Snapshot WeaponType: %s, IsDrawn: %d"),
+			*Snapshot.WeaponType.ToString(), Snapshot.bIsDrawn);
+	}
+
 	// Weapon identity
 	CurrentWeaponType = Snapshot.WeaponType;
 	bHasWeaponEquipped = CurrentWeaponType.IsValid();
@@ -699,7 +708,10 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetype() const
 {
-	return GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
+	const FName RowName = GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
+	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetLegacyRowName: WeaponType=%s -> RowName=%s"),
+		*CurrentWeaponType.ToString(), *RowName.ToString());
+	return RowName;
 }
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype)

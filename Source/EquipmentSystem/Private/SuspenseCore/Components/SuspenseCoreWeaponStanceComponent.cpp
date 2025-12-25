@@ -80,12 +80,17 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 
 void USuspenseCoreWeaponStanceComponent::SetWeaponStance(const FGameplayTag& WeaponTypeTag, bool bImmediate)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] SetWeaponStance called: %s (Current: %s)"),
+		*WeaponTypeTag.ToString(), *CurrentWeaponType.ToString());
+
 	if (CurrentWeaponType == WeaponTypeTag)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Same weapon type, skipping"));
 		return;
 	}
 
 	CurrentWeaponType = WeaponTypeTag;
+	UE_LOG(LogTemp, Warning, TEXT("[StanceComp] Weapon type SET to: %s"), *CurrentWeaponType.ToString());
 
 	// Reset pose modifiers for new weapon
 	TargetAimPoseAlpha = 0.0f;

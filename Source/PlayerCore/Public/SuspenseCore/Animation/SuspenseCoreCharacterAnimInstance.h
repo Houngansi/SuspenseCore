@@ -1,8 +1,8 @@
 // SuspenseCoreCharacterAnimInstance.h
 // Copyright Suspense Team. All Rights Reserved.
 //
-// Минимальный AnimInstance - только переменные для Blueprint.
-// Вся логика реализуется в Blueprint EventGraph.
+// AnimInstance с логикой определения оружия.
+// Интерполяция и M LH Offset реализуются в Blueprint.
 
 #pragma once
 
@@ -18,12 +18,14 @@ class UAnimMontage;
 class UAnimSequence;
 class UAnimSequenceBase;
 class UAnimComposite;
+class ASuspenseCoreCharacter;
+class USuspenseCoreWeaponStanceComponent;
 
 /**
  * USuspenseCoreCharacterAnimInstance
  *
- * Контейнер переменных для Animation Blueprint.
- * Вся логика (интерполяция, M LH Offset и т.д.) реализуется в Blueprint EventGraph.
+ * AnimInstance с автоматическим определением оружия из WeaponStanceComponent.
+ * Интерполяция и вычисление трансформов реализуются в Blueprint EventGraph.
  */
 UCLASS()
 class PLAYERCORE_API USuspenseCoreCharacterAnimInstance : public UAnimInstance
@@ -31,8 +33,97 @@ class PLAYERCORE_API USuspenseCoreCharacterAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 public:
+	USuspenseCoreCharacterAnimInstance();
+
+	virtual void NativeInitializeAnimation() override;
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// MOVEMENT (задаётся из Blueprint)
+	// WEAPON IDENTIFICATION (автоматически из WeaponStanceComponent)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Тип текущего оружия (GameplayTag) - определяется автоматически */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	FGameplayTag CurrentWeaponType;
+
+	/** Предыдущий тип оружия (для отслеживания смены) */
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	FGameplayTag LastWeaponType;
+
+	/** Оружие экипировано */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	bool bHasWeaponEquipped = false;
+
+	/** Оружие в руках (не в кобуре) */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	bool bIsWeaponDrawn = false;
+
+	/** Grip ID - индекс хвата из оружия */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	int32 GripID = 0;
+
+	/** Aim Pose индекс */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	int32 AimPose = 0;
+
+	/** Stored Pose индекс */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	int32 StoredPose = 0;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON STATE (автоматически из WeaponStanceComponent)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsHolstered = true;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsAiming = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsHoldingBreath = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsFiring = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsReloading = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bModifyGrip = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bCreateAimPose = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	bool bIsWeaponMontageActive = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float AimingAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float GripModifier = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float WeaponLoweredAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float RecoilAlpha = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float StoredRecoil = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float AdditivePitch = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float BlockDistance = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon|State")
+	float SightDistance = 200.0f;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// MOVEMENT (задаётся из Blueprint или автоматически)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
@@ -51,9 +142,6 @@ public:
 	float Movement = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
-	float MovementDirection = 0.0f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsSprinting = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
@@ -70,9 +158,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsSliding = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
-	bool bHasMovementInput = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// POSE STATES (задаётся из Blueprint)
@@ -94,45 +179,14 @@ public:
 	float Yaw = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// WEAPON STATE (задаётся из Blueprint)
+	// TRANSFORMS (задаются из Blueprint после интерполяции)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	bool bIsHolstered = true;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	bool bIsAiming = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	bool bIsHoldingBreath = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	bool bModifyGrip = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	bool bIsMontageActive = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	int32 GripID = 0;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	float AdditivePitch = 0.0f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	float StoredRecoil = 0.0f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	float BlockDistance = 0.0f;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// TRANSFORMS (результаты - задаются из Blueprint после интерполяции)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** RH Transform - для VB_Hand_R */
+	/** RH Transform - результат TInterp To для VB_Hand_R */
 	UPROPERTY(BlueprintReadWrite, Category = "Transforms", meta = (DisplayName = "RH Transform"))
 	FTransform RHTransform = FTransform::Identity;
 
-	/** LH Transform - для VB_Hand_L */
+	/** LH Transform - результат TInterp To для VB_Hand_L */
 	UPROPERTY(BlueprintReadWrite, Category = "Transforms", meta = (DisplayName = "LH Transform"))
 	FTransform LHTransform = FTransform::Identity;
 
@@ -173,19 +227,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "DataTable")
 	TObjectPtr<UAnimComposite> DTGripPoses = nullptr;
 
-	/** DT RH Transform - из DataTable */
 	UPROPERTY(BlueprintReadWrite, Category = "DataTable", meta = (DisplayName = "DT RH Transform"))
 	FTransform DTRHTransform = FTransform::Identity;
 
-	/** DT LH Transform - из DataTable */
 	UPROPERTY(BlueprintReadWrite, Category = "DataTable", meta = (DisplayName = "DT LH Transform"))
 	FTransform DTLHTransform = FTransform::Identity;
 
-	/** DT W Transform - из DataTable для Weapon bone */
 	UPROPERTY(BlueprintReadWrite, Category = "DataTable", meta = (DisplayName = "DT W Transform"))
 	FTransform DTWTransform = FTransform::Identity;
 
-	/** DT LH Grip Transform - массив из DataTable */
 	UPROPERTY(BlueprintReadWrite, Category = "DataTable", meta = (DisplayName = "DT LH Grip Transform"))
 	TArray<FTransform> DTLHGripTransform;
 
@@ -193,7 +243,7 @@ public:
 	float DTAimPoseAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// AIM OFFSET (задаётся из Blueprint)
+	// AIM OFFSET
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	UPROPERTY(BlueprintReadWrite, Category = "AimOffset")
@@ -203,9 +253,44 @@ public:
 	float AimPitch = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// CAMERA (задаётся из Blueprint)
+	// CAMERA
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	UPROPERTY(BlueprintReadWrite, Category = "Camera")
 	FVector CameraShake = FVector::ZeroVector;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// HELPER FUNCTIONS
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Получить имя строки legacy DataTable из WeaponArchetype тега.
+	 * Weapon.Rifle.* -> SMG, Weapon.Pistol.* -> Pistol, и т.д.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Animation|Helpers")
+	FName GetLegacyRowNameFromArchetype() const;
+
+	/**
+	 * Статическая версия - для любого WeaponArchetype тега.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Animation|Helpers")
+	static FName GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype);
+
+	/** Получить владельца как SuspenseCoreCharacter */
+	UFUNCTION(BlueprintPure, Category = "Animation")
+	ASuspenseCoreCharacter* GetSuspenseCoreCharacter() const;
+
+protected:
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// CACHED REFERENCES
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ASuspenseCoreCharacter> CachedCharacter;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<USuspenseCoreWeaponStanceComponent> CachedStanceComponent;
+
+	/** Обновить данные об оружии из WeaponStanceComponent */
+	void UpdateWeaponData();
 };

@@ -20,8 +20,6 @@ class UAnimSequenceBase;
 class UAnimComposite;
 class ASuspenseCoreCharacter;
 class USuspenseCoreWeaponStanceComponent;
-class UCharacterMovementComponent;
-class UAbilitySystemComponent;
 
 /**
  * USuspenseCoreCharacterAnimInstance
@@ -125,81 +123,59 @@ public:
 	float SightDistance = 200.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// MOVEMENT (автоматически из Character и GAS)
+	// MOVEMENT (задаётся из Blueprint или автоматически)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Velocity magnitude */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	float Speed = 0.0f;
 
-	/** Ground speed (horizontal velocity) */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	float GroundSpeed = 0.0f;
 
-	/** Forward input value (-1 to 1), интерполированный */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Forward"))
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	float MoveForward = 0.0f;
 
-	/** Right input value (-1 to 1), интерполированный */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Right"))
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	float MoveRight = 0.0f;
 
-	/** Combined movement vector length (для Get Movement макроса) */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	float Movement = 0.0f;
 
-	/** Высота прыжка из GAS MovementAttributeSet */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Jump Height"))
-	float JumpHeight = 420.0f;
-
-	/** Max walk speed from GAS */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float MaxWalkSpeed = 400.0f;
-
-	/** Max sprint speed from GAS */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float MaxSprintSpeed = 600.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsSprinting = false;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsCrouching = false;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsInAir = false;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsFalling = false;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsJumping = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
 	bool bIsSliding = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// POSE STATES (автоматически из Controller + Blueprint)
+	// POSE STATES (задаётся из Blueprint)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Lean - наклон тела (задаётся из Blueprint) */
 	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Lean = 0.0f;
 
-	/** Roll - крен (задаётся из Blueprint) */
 	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Roll = 0.0f;
 
-	/** Pitch - угол наклона из Controller (= AimPitch) */
-	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
+	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Pitch = 0.0f;
 
-	/** Yaw Offset - дельта поворота головы (= AimYaw) */
-	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
+	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float YawOffset = 0.0f;
 
-	/** Yaw - абсолютный угол поворота персонажа */
-	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
+	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Yaw = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -267,15 +243,13 @@ public:
 	float DTAimPoseAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// AIM OFFSET (автоматически из Controller)
+	// AIM OFFSET
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Aim Yaw - дельта между направлением взгляда и тела (-180 to 180) */
-	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+	UPROPERTY(BlueprintReadWrite, Category = "AimOffset")
 	float AimYaw = 0.0f;
 
-	/** Aim Pitch - вертикальный угол взгляда (-90 to 90) */
-	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
+	UPROPERTY(BlueprintReadWrite, Category = "AimOffset")
 	float AimPitch = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -317,15 +291,6 @@ protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USuspenseCoreWeaponStanceComponent> CachedStanceComponent;
 
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
-
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UAbilitySystemComponent> CachedASC;
-
 	/** Обновить данные об оружии из WeaponStanceComponent */
 	void UpdateWeaponData();
-
-	/** Обновить данные о движении из Character и GAS */
-	void UpdateMovementData();
 };

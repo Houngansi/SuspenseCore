@@ -447,8 +447,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
 {
-	// Get LH_Target socket transform from weapon mesh (Component Space)
-	// This is the key to making left hand follow weapon rotation!
+	// Get LH_Target socket transform from weapon mesh
+	// Convert to character's component space for AnimGraph
 
 	if (!CachedWeaponActor.IsValid())
 	{
@@ -456,6 +456,13 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 	}
 
 	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// Get character's skeletal mesh for space conversion
+	USkeletalMeshComponent* CharacterMesh = GetSkelMeshComponent();
+	if (!CharacterMesh)
+	{
+		return false;
+	}
 
 	// Try to get skeletal mesh component from weapon
 	USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>();
@@ -465,7 +472,10 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>();
 		if (StaticMesh && StaticMesh->DoesSocketExist(LHTargetSocketName))
 		{
-			OutTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+			// Get socket in WORLD space
+			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+			// Convert to character's component space
+			OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
 			return true;
 		}
 		return false;
@@ -477,9 +487,11 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		return false;
 	}
 
-	// Get socket transform in Component Space (RTS_Component)
-	// This makes the transform relative to the weapon mesh, so it rotates WITH the weapon
-	OutTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+	// Get socket transform in WORLD space
+	const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+
+	// Convert to character's component space (what AnimGraph expects)
+	OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
 	return true;
 }
 

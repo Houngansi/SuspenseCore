@@ -489,15 +489,22 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
 {
-	// Get LH_Target socket transform from weapon mesh (Component Space)
+	// Get LH_Target socket transform from weapon mesh and convert to CHARACTER's Component Space
 	// This is the key to making left hand follow weapon rotation!
 
-	if (!CachedWeaponActor.IsValid())
+	if (!CachedWeaponActor.IsValid() || !CachedCharacter.IsValid())
 	{
 		return false;
 	}
 
 	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// Get character mesh for coordinate conversion
+	USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
+	if (!CharacterMesh)
+	{
+		return false;
+	}
 
 	// Try to get skeletal mesh component from weapon
 	USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>();
@@ -507,7 +514,9 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>();
 		if (StaticMesh && StaticMesh->DoesSocketExist(LHTargetSocketName))
 		{
-			OutTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+			// Get socket in WORLD space, then convert to CHARACTER's Component Space
+			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+			OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
 			return true;
 		}
 		return false;
@@ -519,9 +528,12 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		return false;
 	}
 
-	// Get socket transform in Component Space (RTS_Component)
-	// This makes the transform relative to the weapon mesh, so it rotates WITH the weapon
-	OutTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+	// Get socket transform in WORLD Space first
+	const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+
+	// Convert from World Space to CHARACTER's Component Space
+	// This makes the transform relative to the character mesh, which is what AnimGraph expects
+	OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
 	return true;
 }
 

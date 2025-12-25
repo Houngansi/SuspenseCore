@@ -261,7 +261,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		AimTransform = FTransform::Identity;
 		RightHandTransform = FTransform::Identity;
 		LeftHandTransform = FTransform::Identity;
-		// Legacy transforms for AnimGraph
+		// Reset legacy transforms
 		RHTransform = FTransform::Identity;
 		LHTransform = FTransform::Identity;
 		return;
@@ -366,48 +366,43 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// LEGACY LOGIC FROM MPS ANIMBP EVENTGRAPH
-	// Implements full interpolation and LH_Target socket logic
+	// Обновляет только 3 переменные: RHTransform, LHTransform, WTransform
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// IK is active when weapon is drawn
+	// IK активен когда оружие достано
 	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped) ? 1.0f : 0.0f;
-
-	// Smooth transition for IK alpha
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// ADDITIVE PITCH - Ease function (legacy: Ease Out, BlendExp 6.0)
+	// ADDITIVE PITCH - Ease функция (legacy: BlendExp 6.0)
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// Legacy Blueprint: Ease(EaseOut, Alpha=DeltaTime, A=AdditivePitch, B=StoredRecoil, BlendExp=6.0)
-	// This creates smooth easing from current AdditivePitch towards StoredRecoil
 	{
-		const float EaseAlpha = FMath::Clamp(DeltaSeconds * 10.0f, 0.0f, 1.0f); // Normalized alpha
-		const float EasedAlpha = FMath::Pow(EaseAlpha, AdditivePitchBlendExp); // EaseOut effect
+		const float EaseAlpha = FMath::Clamp(DeltaSeconds * 10.0f, 0.0f, 1.0f);
+		const float EasedAlpha = FMath::Pow(EaseAlpha, AdditivePitchBlendExp);
 		InterpolatedAdditivePitch = FMath::Lerp(InterpolatedAdditivePitch, StoredRecoil, EasedAlpha);
 		AdditivePitch = InterpolatedAdditivePitch;
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// BLOCK DISTANCE - Interpolation (legacy: InterpSpeed 10.0)
+	// BLOCK DISTANCE - Интерполяция (legacy: InterpSpeed 10.0)
 	// ═══════════════════════════════════════════════════════════════════════════════
 	InterpolatedBlockDistance = FMath::FInterpTo(InterpolatedBlockDistance, BlockDistance, DeltaSeconds, BlockDistanceInterpSpeed);
 	BlockDistance = InterpolatedBlockDistance;
 
-	// Skip transform calculations if no weapon equipped
 	if (!bHasWeaponEquipped)
 	{
 		return;
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// COMPUTE TARGET TRANSFORMS
+	// TARGET TRANSFORMS (как в legacy EventGraph)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	FTransform TargetRHTransform = FTransform::Identity;
 	FTransform TargetLHTransform = FTransform::Identity;
 
-	// Get RH Transform target
+	// RH Transform: DTRHTransform → TInterp To → RH Transform
 	if (!DTRHTransform.Equals(FTransform::Identity))
 	{
 		TargetRHTransform = DTRHTransform;
@@ -421,70 +416,33 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 		TargetRHTransform = CurrentAnimationData.RHTransform;
 	}
 
-	// Get LH Transform target using M LH Offset logic
+	// LH Transform: M LH Offset(Grip ID) → TInterp To → LH Transform
 	TargetLHTransform = ComputeLHOffsetTransform();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// TINTERP TO - Smooth interpolation (legacy: InterpSpeed 8.0)
+	// TINTERP TO - Плавная интерполяция (legacy: InterpSpeed 8.0)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// RH Transform interpolation
 	InterpolatedRHTransform = UKismetMathLibrary::TInterpTo(
-		InterpolatedRHTransform,
-		TargetRHTransform,
-		DeltaSeconds,
-		TransformInterpSpeed
-	);
-	RightHandIKTransform = InterpolatedRHTransform;
+		InterpolatedRHTransform, TargetRHTransform, DeltaSeconds, TransformInterpSpeed);
 
-	// LH Transform interpolation
 	InterpolatedLHTransform = UKismetMathLibrary::TInterpTo(
-		InterpolatedLHTransform,
-		TargetLHTransform,
-		DeltaSeconds,
-		TransformInterpSpeed
-	);
-	LeftHandIKTransform = InterpolatedLHTransform;
+		InterpolatedLHTransform, TargetLHTransform, DeltaSeconds, TransformInterpSpeed);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// WEAPON TRANSFORM
-	// ═══════════════════════════════════════════════════════════════════════════════
-	if (!DTWTransform.Equals(FTransform::Identity))
-	{
-		WeaponTransform = DTWTransform;
-	}
-	else if (CurrentAnimationData.Stance != nullptr)
-	{
-		WeaponTransform = CurrentAnimationData.WTransform;
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// OVERRIDES: Apply weapon actor transforms (highest priority)
+	// ФИНАЛЬНЫЕ ЗНАЧЕНИЯ ДЛЯ ANIMGRAPH
+	// RH Transform, LH Transform - интерполированные
+	// DTWTransform - используется AnimGraph напрямую (без интерполяции)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// Apply LeftHandTransform from weapon actor if provided (overrides DataTable)
-	if (!LeftHandTransform.Equals(FTransform::Identity))
-	{
-		LeftHandIKTransform = LeftHandTransform;
-	}
+	RHTransform = InterpolatedRHTransform;
+	LHTransform = InterpolatedLHTransform;
 
-	// Apply AimTransform from weapon actor if aiming (for custom aim offset)
+	// Override LH при прицеливании с кастомной позой
 	if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
 	{
-		LeftHandIKTransform = UKismetMathLibrary::TLerp(
-			LeftHandIKTransform,
-			AimTransform,
-			AimingAlpha
-		);
+		LHTransform = UKismetMathLibrary::TLerp(LHTransform, AimTransform, AimingAlpha);
 	}
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY VARIABLES FOR ANIMGRAPH
-	// Set RH Transform / LH Transform for AnimGraph's Transform (Modify) Bone nodes
-	// These match the legacy Blueprint variable names that AnimGraph expects
-	// ═══════════════════════════════════════════════════════════════════════════════
-	RHTransform = RightHandIKTransform;
-	LHTransform = LeftHandIKTransform;
 }
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const

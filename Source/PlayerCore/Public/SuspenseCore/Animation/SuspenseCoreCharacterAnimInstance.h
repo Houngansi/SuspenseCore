@@ -21,6 +21,7 @@ class UBlendSpace;
 class UBlendSpace1D;
 class UAnimMontage;
 class UAnimSequence;
+class UAnimComposite;
 class UDataTable;
 
 /**
@@ -348,6 +349,75 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	FTransform DTWTransform = FTransform::Identity;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY DT VARIABLES (Set from Blueprint via legacy DataTable method)
+	// These variables are populated by Blueprint from DT_MPS_Anims DataTable
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** DT Stance BlendSpace */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UBlendSpace> DTStance = nullptr;
+
+	/** DT Locomotion BlendSpace */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UBlendSpace> DTLocomotion = nullptr;
+
+	/** DT Idle animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTIdle = nullptr;
+
+	/** DT Aim Pose animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTAimPose = nullptr;
+
+	/** DT Aim In transition animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTAimIn = nullptr;
+
+	/** DT Aim Idle animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTAimIdle = nullptr;
+
+	/** DT Aim Out transition animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTAimOut = nullptr;
+
+	/** DT Slide animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTSlide = nullptr;
+
+	/** DT Blocked animation (weapon blocked by wall) */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTBlocked = nullptr;
+
+	/** DT Grip Blocked animation */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimSequenceBase> DTGripBlocked = nullptr;
+
+	/** DT Left Hand Grip transform */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	FTransform DTLeftHandGrip = FTransform::Identity;
+
+	/** DT Grip Poses AnimComposite */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TObjectPtr<UAnimComposite> DTGripPoses = nullptr;
+
+	/** DT Right Hand Transform */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	FTransform DTRHTransform = FTransform::Identity;
+
+	/** DT Left Hand Transform */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	FTransform DTLHTransform = FTransform::Identity;
+
+	/** DT Left Hand Grip Transform array */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	TArray<FTransform> DTLHGripTransform;
+
+	/** DT Aim Pose Alpha */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	float DTAimPoseAlpha = 0.0f;
+
 	/** Alpha для Left Hand IK (0 = выкл, 1 = вкл) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	float LeftHandIKAlpha = 0.0f;
@@ -541,6 +611,35 @@ protected:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
 	UAnimSequenceBase* GetActiveGripPose() const;
+
+	/**
+	 * Get legacy DataTable row name from WeaponArchetype tag.
+	 * Maps new archetype tags (Weapon.Rifle.Assault) to legacy row names (SMG).
+	 *
+	 * Mapping:
+	 * - Weapon.Rifle.* -> SMG (assault rifles use SMG row for now)
+	 * - Weapon.SMG.* -> SMG
+	 * - Weapon.Pistol.* -> Pistol
+	 * - Weapon.Shotgun.* -> Shotgun
+	 * - Weapon.Rifle.Sniper -> Sniper
+	 * - Weapon.Melee.Knife -> Knife
+	 * - Weapon.Throwable.* -> Frag
+	 * - Default -> SMG
+	 *
+	 * @return FName of the legacy DataTable row
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation|Helpers")
+	FName GetLegacyRowNameFromArchetype() const;
+
+	/**
+	 * Get legacy DataTable row name from any WeaponArchetype tag.
+	 * Static version for external use.
+	 *
+	 * @param WeaponArchetype The weapon archetype GameplayTag
+	 * @return FName of the legacy DataTable row
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation|Helpers")
+	static FName GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype);
 
 private:
 	/** Время последнего обновления кэша */

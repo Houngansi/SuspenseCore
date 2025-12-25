@@ -696,3 +696,75 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 	}
 	return CurrentAnimationData.Shoot;
 }
+
+FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetype() const
+{
+	return GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
+}
+
+FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype)
+{
+	if (!WeaponArchetype.IsValid())
+	{
+		return FName("SMG"); // Default
+	}
+
+	const FString TagString = WeaponArchetype.ToString();
+
+	// Sniper check first (more specific)
+	if (TagString.Contains(TEXT("Sniper")))
+	{
+		return FName("Sniper");
+	}
+
+	// Rifle (Assault, DMR) -> SMG (legacy naming)
+	if (TagString.Contains(TEXT("Weapon.Rifle")))
+	{
+		return FName("SMG");
+	}
+
+	// SMG
+	if (TagString.Contains(TEXT("Weapon.SMG")))
+	{
+		return FName("SMG");
+	}
+
+	// Pistol
+	if (TagString.Contains(TEXT("Weapon.Pistol")))
+	{
+		return FName("Pistol");
+	}
+
+	// Shotgun
+	if (TagString.Contains(TEXT("Weapon.Shotgun")))
+	{
+		return FName("Shotgun");
+	}
+
+	// Melee Knife
+	if (TagString.Contains(TEXT("Weapon.Melee.Knife")))
+	{
+		return FName("Knife");
+	}
+
+	// Melee Blunt -> Special
+	if (TagString.Contains(TEXT("Weapon.Melee")))
+	{
+		return FName("Special");
+	}
+
+	// Heavy -> Special
+	if (TagString.Contains(TEXT("Weapon.Heavy")))
+	{
+		return FName("Special");
+	}
+
+	// Throwable -> Frag
+	if (TagString.Contains(TEXT("Weapon.Throwable")))
+	{
+		return FName("Frag");
+	}
+
+	// Default fallback
+	return FName("SMG");
+}

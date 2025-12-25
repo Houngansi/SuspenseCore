@@ -89,15 +89,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateCachedReferences()
 #if WITH_EQUIPMENT_SYSTEM
 	// Cache stance component
 	CachedStanceComponent = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
-
-	static bool bLoggedOnce = false;
-	if (!bLoggedOnce)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateCachedReferences: OwnerPawn=%s, StanceComp=%s"),
-			*OwnerPawn->GetName(),
-			CachedStanceComponent.IsValid() ? TEXT("FOUND") : TEXT("NOT FOUND!"));
-		bLoggedOnce = true;
-	}
 #endif
 
 	// Cache ASC (from PlayerState or Pawn)
@@ -274,15 +265,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 	// Get complete stance snapshot from component (includes all combat states)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
-
-	// Debug log every 60 frames
-	static int32 FrameCounter = 0;
-	if (++FrameCounter >= 60)
-	{
-		FrameCounter = 0;
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Snapshot WeaponType: %s, IsDrawn: %d"),
-			*Snapshot.WeaponType.ToString(), Snapshot.bIsDrawn);
-	}
 
 	// Weapon identity
 	CurrentWeaponType = Snapshot.WeaponType;
@@ -717,10 +699,7 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetype() const
 {
-	const FName RowName = GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
-	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetLegacyRowName: WeaponType=%s -> RowName=%s"),
-		*CurrentWeaponType.ToString(), *RowName.ToString());
-	return RowName;
+	return GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
 }
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype)

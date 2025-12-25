@@ -486,10 +486,12 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// M LH OFFSET LOGIC (from legacy MPS Blueprint)
 	//
-	// Select logic:
+	// Priority:
 	// 1. If Is Montage Active? → return Identity (skip IK during montages)
 	// 2. If Modify Grip? → use DT LH Grip Transform[Grip ID]
-	// 3. Else → use Get Socket Transform("LH_Target") from weapon
+	// 3. If DT LH Grip Transform has data → use it with GripID
+	// 4. If DT LH Transform is set → use it
+	// 5. Fallback → Socket Transform("LH_Target") from weapon
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	// During montages, don't apply IK offset (let montage control hands)
@@ -498,65 +500,54 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		return FTransform::Identity;
 	}
 
-	// If Modify Grip is true, use DataTable grip transforms
-	if (bModifyGrip)
-	{
-		// Use DT LH Grip Transform array with GripID
-		if (DTLHGripTransform.Num() > 0)
-		{
-			const int32 GripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
-			FTransform BaseGrip = DTLHGripTransform[GripIndex];
-
-			// Blend to aim grip if aiming
-			if (bIsAiming)
-			{
-				const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
-				if (DTLHGripTransform.IsValidIndex(AimGripIndex))
-				{
-					BaseGrip = UKismetMathLibrary::TLerp(
-						BaseGrip,
-						DTLHGripTransform[AimGripIndex],
-						AimingAlpha
-					);
-				}
-			}
-			return BaseGrip;
-		}
-		else if (!DTLHTransform.Equals(FTransform::Identity))
-		{
-			return DTLHTransform;
-		}
-		else if (CurrentAnimationData.LHGripTransform.Num() > 0)
-		{
-			const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-			return CurrentAnimationData.GetLeftHandGripTransform(GripIndex);
-		}
-	}
-
-	// Default: Get socket transform from weapon (LH_Target socket)
-	// This is the KEY - the socket moves with the weapon, so hand follows weapon rotation!
-	FTransform SocketTransform;
-	if (GetWeaponLHTargetTransform(SocketTransform))
-	{
-		return SocketTransform;
-	}
-
-	// Fallback to DT transforms if socket not found
+	// PRIMARY: Use DT LH Grip Transform array if available (from DataTable via Blueprint)
 	if (DTLHGripTransform.Num() > 0)
 	{
 		const int32 GripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
-		return DTLHGripTransform[GripIndex];
+		FTransform GripTransform = DTLHGripTransform[GripIndex];
+
+		// If Modify Grip is enabled and aiming, blend to aim grip
+		if (bModifyGrip && bIsAiming)
+		{
+			const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
+			if (DTLHGripTransform.IsValidIndex(AimGripIndex))
+			{
+				GripTransform = UKismetMathLibrary::TLerp(
+					GripTransform,
+					DTLHGripTransform[AimGripIndex],
+					AimingAlpha
+				);
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Using DTLHGripTransform[%d]: %s"), GripIndex, *GripTransform.GetLocation().ToString());
+		return GripTransform;
 	}
-	else if (!DTLHTransform.Equals(FTransform::Identity))
+
+	// SECONDARY: Use DT LH Transform if set (single transform from DataTable)
+	if (!DTLHTransform.Equals(FTransform::Identity))
 	{
+		UE_LOG(LogTemp, Log, TEXT("Using DTLHTransform: %s"), *DTLHTransform.GetLocation().ToString());
 		return DTLHTransform;
 	}
-	else if (CurrentAnimationData.LHGripTransform.Num() > 0)
+
+	// TERTIARY: Try AnimationData from C++ DataTable
+	if (CurrentAnimationData.LHGripTransform.Num() > 0)
 	{
 		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
 		return CurrentAnimationData.GetLeftHandGripTransform(GripIndex);
 	}
 
+	// FALLBACK: Get socket transform from weapon (LH_Target socket)
+	// This is last resort - DT transforms are preferred!
+	FTransform SocketTransform;
+	if (GetWeaponLHTargetTransform(SocketTransform))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Using Socket fallback - DT transforms not set!"));
+		return SocketTransform;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("No LH transform source available!"));
 	return FTransform::Identity;
 }
 

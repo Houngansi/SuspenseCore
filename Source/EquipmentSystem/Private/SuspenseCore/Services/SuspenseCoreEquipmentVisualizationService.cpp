@@ -5,6 +5,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
+#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -655,6 +656,71 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 			TEXT("  CachedServiceLocator is NULL"));
 	}
 
+	// ============================================================================
+	// Step 6: Update WeaponStanceComponent for animation system (CRITICAL FIX)
+	// ============================================================================
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("Step 6: Updating WeaponStanceComponent"));
+
+	if (APawn* CharacterPawn = Cast<APawn>(Character))
+	{
+		if (USuspenseCoreWeaponStanceComponent* StanceComp = CharacterPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+		{
+			// Get weapon archetype from DataManager for animation lookup
+			FGameplayTag WeaponArchetype;
+			if (CachedServiceLocator)
+			{
+				if (UGameInstance* GI = CachedServiceLocator->GetGameInstance())
+				{
+					if (USuspenseCoreDataManager* DataMgr = GI->GetSubsystem<USuspenseCoreDataManager>())
+					{
+						FSuspenseCoreUnifiedItemData ItemData;
+						if (DataMgr->GetUnifiedItemData(ItemID, ItemData))
+						{
+							WeaponArchetype = ItemData.WeaponArchetype;
+						}
+					}
+				}
+			}
+
+			// Update stance component with weapon type
+			if (WeaponArchetype.IsValid())
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  Setting WeaponStance: %s"), *WeaponArchetype.ToString());
+				StanceComp->SetWeaponStance(WeaponArchetype, true);
+			}
+			else
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  WeaponArchetype is invalid for ItemID: %s"), *ItemID.ToString());
+			}
+
+			// Mark weapon as drawn for active slot (slot 0)
+			if (SlotIndex == 0)
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  Setting WeaponDrawnState: true (active slot)"));
+				StanceComp->SetWeaponDrawnState(true);
+			}
+
+			// Notify stance of equipment actor
+			StanceComp->OnEquipmentChanged(Visual);
+
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+				TEXT("  StanceComponent updated successfully"));
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("  Character has no WeaponStanceComponent - animations won't work!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("  Character is not a Pawn - cannot update StanceComponent"));
+	}
+
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("=== UpdateVisualForSlot SUCCESS ==="));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -689,6 +755,25 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 					VisualCtl->ProcessEvent(Fn, &Params);
 				}
 			}
+		}
+	}
+
+	// ============================================================================
+	// Clear WeaponStanceComponent when unequipping
+	// ============================================================================
+	if (APawn* CharacterPawn = Cast<APawn>(Character))
+	{
+		if (USuspenseCoreWeaponStanceComponent* StanceComp = CharacterPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+		{
+			// Clear weapon stance when unequipping from active slot
+			if (SlotIndex == 0)
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("HideVisualForSlot: Clearing WeaponStance for slot %d"), SlotIndex);
+				StanceComp->ClearWeaponStance(bInstant);
+				StanceComp->SetWeaponDrawnState(false);
+			}
+			StanceComp->OnEquipmentChanged(nullptr);
 		}
 	}
 

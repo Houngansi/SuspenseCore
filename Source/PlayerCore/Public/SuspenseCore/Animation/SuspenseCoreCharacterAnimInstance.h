@@ -335,21 +335,19 @@ public:
 
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY TRANSFORM VARIABLES (Единственные переменные для AnimGraph!)
-	// Имена соответствуют оригинальному MPS AnimBP
+	// LEGACY OUTPUT VARIABLES (Вычисляются в C++, читаются AnimGraph)
+	// Соответствуют оригинальному MPS AnimBP EventGraph
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** RH Transform - трансформ правой руки для VB_Hand_R */
+	/** RH Transform - интерполированный трансформ правой руки (TInterp To, Speed 8.0) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation", meta = (DisplayName = "RH Transform"))
 	FTransform RHTransform = FTransform::Identity;
 
-	/** LH Transform - трансформ левой руки для VB_Hand_L */
+	/** LH Transform - интерполированный трансформ левой руки (M LH Offset → TInterp To) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation", meta = (DisplayName = "LH Transform"))
 	FTransform LHTransform = FTransform::Identity;
 
-	/** W Transform - трансформ оружия для Weapon bone */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation", meta = (DisplayName = "W Transform"))
-	FTransform WTransform = FTransform::Identity;
+	// NOTE: Для Weapon bone AnimGraph использует DTWTransform напрямую (без интерполяции)!
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// LEGACY DT VARIABLES (Set from Blueprint via legacy DataTable method)

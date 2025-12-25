@@ -354,6 +354,27 @@ public:
 	FTransform DTWTransform = FTransform::Identity;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY TRANSFORM VARIABLES (Used by AnimGraph - matches Blueprint variable names)
+	// These are the interpolated transforms that AnimGraph reads via Transform (Modify) Bone
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * RH Transform - интерполированный трансформ правой руки
+	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_R
+	 * Имя совпадает с legacy Blueprint переменной
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "RH Transform"))
+	FTransform RHTransform = FTransform::Identity;
+
+	/**
+	 * LH Transform - интерполированный трансформ левой руки
+	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_L
+	 * Имя совпадает с legacy Blueprint переменной
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "LH Transform"))
+	FTransform LHTransform = FTransform::Identity;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// LEGACY DT VARIABLES (Set from Blueprint via legacy DataTable method)
 	// These variables are populated by Blueprint from DT_MPS_Anims DataTable
 	// ═══════════════════════════════════════════════════════════════════════════════

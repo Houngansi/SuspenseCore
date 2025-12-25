@@ -261,6 +261,9 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		AimTransform = FTransform::Identity;
 		RightHandTransform = FTransform::Identity;
 		LeftHandTransform = FTransform::Identity;
+		// Legacy transforms for AnimGraph
+		RHTransform = FTransform::Identity;
+		LHTransform = FTransform::Identity;
 		return;
 	}
 
@@ -474,6 +477,14 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 			AimingAlpha
 		);
 	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY VARIABLES FOR ANIMGRAPH
+	// Set RH Transform / LH Transform for AnimGraph's Transform (Modify) Bone nodes
+	// These match the legacy Blueprint variable names that AnimGraph expects
+	// ═══════════════════════════════════════════════════════════════════════════════
+	RHTransform = RightHandIKTransform;
+	LHTransform = LeftHandIKTransform;
 }
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const

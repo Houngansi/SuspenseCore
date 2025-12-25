@@ -334,20 +334,45 @@ public:
 	TObjectPtr<UDataTable> WeaponAnimationsTable = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY TRANSFORM VARIABLES (Used by AnimGraph - matches Blueprint variable names)
+	// IK TRANSFORMS (Inverse Kinematics)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** RH Transform - интерполированный трансформ правой руки для VB_Hand_R */
+	/** Трансформ левой руки для IK */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	FTransform LeftHandIKTransform = FTransform::Identity;
+
+	/** Трансформ правой руки для IK */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	FTransform RightHandIKTransform = FTransform::Identity;
+
+	/** Трансформ оружия (вычисленный) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	FTransform WeaponTransform = FTransform::Identity;
+
+	/** DT Weapon Transform - сырой трансформ оружия из DataTable (WTransform) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	FTransform DTWTransform = FTransform::Identity;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY TRANSFORM VARIABLES (Used by AnimGraph - matches Blueprint variable names)
+	// These are the interpolated transforms that AnimGraph reads via Transform (Modify) Bone
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * RH Transform - интерполированный трансформ правой руки
+	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_R
+	 * Имя совпадает с legacy Blueprint переменной
+	 */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "RH Transform"))
 	FTransform RHTransform = FTransform::Identity;
 
-	/** LH Transform - интерполированный трансформ левой руки для VB_Hand_L */
+	/**
+	 * LH Transform - интерполированный трансформ левой руки
+	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_L
+	 * Имя совпадает с legacy Blueprint переменной
+	 */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "LH Transform"))
 	FTransform LHTransform = FTransform::Identity;
-
-	/** DT W Transform - трансформ оружия для Weapon bone (напрямую из DataTable) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "DT W Transform"))
-	FTransform DTWTransform = FTransform::Identity;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// LEGACY DT VARIABLES (Set from Blueprint via legacy DataTable method)

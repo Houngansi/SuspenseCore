@@ -264,7 +264,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		// Reset legacy transforms
 		RHTransform = FTransform::Identity;
 		LHTransform = FTransform::Identity;
-		WTransform = FTransform::Identity;
 		return;
 	}
 
@@ -397,14 +396,13 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// TARGET TRANSFORMS
+	// TARGET TRANSFORMS (как в legacy EventGraph)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	FTransform TargetRHTransform = FTransform::Identity;
 	FTransform TargetLHTransform = FTransform::Identity;
-	FTransform TargetWTransform = FTransform::Identity;
 
-	// RH Transform: DT → Snapshot → AnimData
+	// RH Transform: DTRHTransform → TInterp To → RH Transform
 	if (!DTRHTransform.Equals(FTransform::Identity))
 	{
 		TargetRHTransform = DTRHTransform;
@@ -418,18 +416,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 		TargetRHTransform = CurrentAnimationData.RHTransform;
 	}
 
-	// LH Transform: M LH Offset логика (socket / grip transforms)
+	// LH Transform: M LH Offset(Grip ID) → TInterp To → LH Transform
 	TargetLHTransform = ComputeLHOffsetTransform();
-
-	// W Transform: DT → AnimData
-	if (!DTWTransform.Equals(FTransform::Identity))
-	{
-		TargetWTransform = DTWTransform;
-	}
-	else if (CurrentAnimationData.Stance != nullptr)
-	{
-		TargetWTransform = CurrentAnimationData.WTransform;
-	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// TINTERP TO - Плавная интерполяция (legacy: InterpSpeed 8.0)
@@ -443,12 +431,12 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ФИНАЛЬНЫЕ ЗНАЧЕНИЯ ДЛЯ ANIMGRAPH
-	// Только эти 3 переменные используются в AnimGraph!
+	// RH Transform, LH Transform - интерполированные
+	// DTWTransform - используется AnimGraph напрямую (без интерполяции)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	RHTransform = InterpolatedRHTransform;
 	LHTransform = InterpolatedLHTransform;
-	WTransform = TargetWTransform;
 
 	// Override LH при прицеливании с кастомной позой
 	if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))

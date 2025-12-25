@@ -89,6 +89,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateCachedReferences()
 #if WITH_EQUIPMENT_SYSTEM
 	// Cache stance component
 	CachedStanceComponent = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
+
+	static bool bLoggedOnce = false;
+	if (!bLoggedOnce)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateCachedReferences: OwnerPawn=%s, StanceComp=%s"),
+			*OwnerPawn->GetName(),
+			CachedStanceComponent.IsValid() ? TEXT("FOUND") : TEXT("NOT FOUND!"));
+		bLoggedOnce = true;
+	}
 #endif
 
 	// Cache ASC (from PlayerState or Pawn)

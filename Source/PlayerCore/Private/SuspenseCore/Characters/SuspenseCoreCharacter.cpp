@@ -141,6 +141,11 @@ void ASuspenseCoreCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+#if WITH_EQUIPMENT_SYSTEM
+	UE_LOG(LogTemp, Warning, TEXT("[Character] BeginPlay: WeaponStanceComponent = %s"),
+		WeaponStanceComponent ? TEXT("EXISTS") : TEXT("NULL - NOT CREATED!"));
+#endif
+
 	UpdateMovementSpeed();
 
 	// Setup camera attachment based on mode (MetaHuman support)

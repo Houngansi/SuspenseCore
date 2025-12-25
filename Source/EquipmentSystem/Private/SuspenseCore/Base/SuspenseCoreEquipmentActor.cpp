@@ -188,6 +188,9 @@ void ASuspenseCoreEquipmentActor::SetCachedASC(UAbilitySystemComponent* InASC)
 
 void ASuspenseCoreEquipmentActor::OnEquipped_Implementation(AActor* NewOwner)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[EquipActor] OnEquipped called. NewOwner: %s, this: %s"),
+        NewOwner ? *NewOwner->GetName() : TEXT("null"), *GetName());
+
     if (!CheckAuthority(TEXT("OnEquipped"))) { return; }
     if (!NewOwner) { UE_LOG(LogTemp, Error, TEXT("OnEquipped: Owner is null")); return; }
 
@@ -237,6 +240,9 @@ void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
 
 void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[EquipActor] OnItemInstanceEquipped called. ItemID: %s, Owner: %s"),
+        *ItemInstance.ItemID.ToString(), GetOwner() ? *GetOwner()->GetName() : TEXT("null"));
+
     if (!ItemInstance.IsValid())
     {
         UE_LOG(LogTemp, Warning, TEXT("[%s] OnItemInstanceEquipped: invalid instance"), *GetName());
@@ -287,6 +293,9 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const 
 
 void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[EquipActor] InitializeEquipmentComponents called. ItemID: %s, AttachComp: %s"),
+        *ItemInstance.ItemID.ToString(), AttachmentComponent ? TEXT("EXISTS") : TEXT("NULL"));
+
     if (!ItemInstance.IsValid())
     {
         UE_LOG(LogTemp, Error, TEXT("[%s] InitializeEquipmentComponents: invalid instance"), *GetName());

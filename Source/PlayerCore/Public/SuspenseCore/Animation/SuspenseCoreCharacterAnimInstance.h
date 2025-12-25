@@ -20,6 +20,8 @@ class UAnimSequenceBase;
 class UAnimComposite;
 class ASuspenseCoreCharacter;
 class USuspenseCoreWeaponStanceComponent;
+class UCharacterMovementComponent;
+class UAbilitySystemComponent;
 
 /**
  * USuspenseCoreCharacterAnimInstance
@@ -123,37 +125,54 @@ public:
 	float SightDistance = 200.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// MOVEMENT (задаётся из Blueprint или автоматически)
+	// MOVEMENT (автоматически из Character и GAS)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Velocity magnitude */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float Speed = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Ground speed (horizontal velocity) */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float GroundSpeed = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Forward input value (-1 to 1), интерполированный */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Forward"))
 	float MoveForward = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Right input value (-1 to 1), интерполированный */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Right"))
 	float MoveRight = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Combined movement vector length (для Get Movement макроса) */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float Movement = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	/** Высота прыжка из GAS MovementAttributeSet */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement", meta = (DisplayName = "Jump Height"))
+	float JumpHeight = 420.0f;
+
+	/** Max walk speed from GAS */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float MaxWalkSpeed = 400.0f;
+
+	/** Max sprint speed from GAS */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float MaxSprintSpeed = 600.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsSprinting = false;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsCrouching = false;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsInAir = false;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsFalling = false;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsJumping = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
@@ -291,6 +310,15 @@ protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USuspenseCoreWeaponStanceComponent> CachedStanceComponent;
 
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UAbilitySystemComponent> CachedASC;
+
 	/** Обновить данные об оружии из WeaponStanceComponent */
 	void UpdateWeaponData();
+
+	/** Обновить данные о движении из Character и GAS */
+	void UpdateMovementData();
 };

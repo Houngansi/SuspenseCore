@@ -3,6 +3,10 @@
 
 #include "SuspenseCore/Animation/SuspenseCoreCharacterAnimInstance.h"
 #include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "SuspenseCore/Attributes/SuspenseCoreMovementAttributeSet.h"
 
 #if WITH_EQUIPMENT_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
@@ -22,6 +26,18 @@ void USuspenseCoreCharacterAnimInstance::NativeInitializeAnimation()
 	{
 		CachedCharacter = Cast<ASuspenseCoreCharacter>(OwnerPawn);
 
+		// Cache movement component
+		if (ACharacter* Character = Cast<ACharacter>(OwnerPawn))
+		{
+			CachedMovementComponent = Character->GetCharacterMovement();
+		}
+
+		// Cache ASC (could be on Pawn or PlayerState)
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerPawn))
+		{
+			CachedASC = ASI->GetAbilitySystemComponent();
+		}
+
 #if WITH_EQUIPMENT_SYSTEM
 		CachedStanceComponent = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
 #endif
@@ -36,6 +52,9 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	{
 		return;
 	}
+
+	// Update movement data from Character and GAS
+	UpdateMovementData();
 
 	// Update weapon data from StanceComponent
 	UpdateWeaponData();
@@ -198,4 +217,74 @@ FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const
 
 	// Default fallback
 	return FName("SMG");
+}
+
+void USuspenseCoreCharacterAnimInstance::UpdateMovementData()
+{
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// MOVEMENT FROM CHARACTER
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (CachedCharacter.IsValid())
+	{
+		ASuspenseCoreCharacter* Character = CachedCharacter.Get();
+
+		// Forward/Right from character's interpolated animation values
+		MoveForward = Character->GetMoveForwardValue();
+		MoveRight = Character->GetMoveRightValue();
+
+		// Get Movement = FVector2D(Forward, Right).Length() - как в легаси макросе
+		Movement = FVector2D(MoveForward, MoveRight).Size();
+
+		// Sprint state
+		bIsSprinting = Character->IsSprinting();
+
+		// Crouch state
+		bIsCrouching = Character->bIsCrouched;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// MOVEMENT FROM CHARACTERMOVEMENTCOMPONENT
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (CachedMovementComponent.IsValid())
+	{
+		UCharacterMovementComponent* MovementComp = CachedMovementComponent.Get();
+
+		// Velocity and speed
+		const FVector Velocity = MovementComp->Velocity;
+		Speed = Velocity.Size();
+		GroundSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
+
+		// Air state
+		bIsInAir = MovementComp->IsFalling();
+		bIsFalling = MovementComp->IsFalling() && Velocity.Z < 0.0f;
+		bIsJumping = MovementComp->IsFalling() && Velocity.Z > 0.0f;
+
+		// Speeds from CMC (fallback if no GAS)
+		MaxWalkSpeed = MovementComp->MaxWalkSpeed;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// MOVEMENT FROM GAS ATTRIBUTES
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (CachedASC.IsValid())
+	{
+		UAbilitySystemComponent* ASC = CachedASC.Get();
+
+		// Find MovementAttributeSet
+		const USuspenseCoreMovementAttributeSet* MovementAttributes =
+			ASC->GetSet<USuspenseCoreMovementAttributeSet>();
+
+		if (MovementAttributes)
+		{
+			// Get JumpHeight from GAS
+			JumpHeight = MovementAttributes->GetJumpHeight();
+
+			// Get speeds from GAS (more accurate than CMC because they include weight penalty)
+			MaxWalkSpeed = MovementAttributes->GetEffectiveWalkSpeed();
+			MaxSprintSpeed = MovementAttributes->GetEffectiveSprintSpeed();
+		}
+	}
 }

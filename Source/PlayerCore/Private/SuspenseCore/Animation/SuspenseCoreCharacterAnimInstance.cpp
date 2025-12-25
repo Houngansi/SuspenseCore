@@ -419,6 +419,12 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	// LH Transform: M LH Offset(Grip ID) → TInterp To → LH Transform
 	TargetLHTransform = ComputeLHOffsetTransform();
 
+	// Debug: Log transform sources
+	UE_LOG(LogTemp, Warning, TEXT("LH Sources - DTLHGripTransform.Num=%d, DTLHTransform=%s, DTRHTransform=%s"),
+		DTLHGripTransform.Num(),
+		DTLHTransform.Equals(FTransform::Identity) ? TEXT("Identity") : TEXT("Set"),
+		DTRHTransform.Equals(FTransform::Identity) ? TEXT("Identity") : TEXT("Set"));
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// TINTERP TO - Плавная интерполяция (legacy: InterpSpeed 8.0)
 	// ═══════════════════════════════════════════════════════════════════════════════

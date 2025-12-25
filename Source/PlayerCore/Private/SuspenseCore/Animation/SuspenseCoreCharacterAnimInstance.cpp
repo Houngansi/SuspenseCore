@@ -244,10 +244,11 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		StoredRecoil = 0.0f;
 		AdditivePitch = 0.0f;
 		BlockDistance = 0.0f;
-		// Legacy
-		bLegacyIsHolstered = true;
-		bLegacyModifyGrip = false;
-		bLegacyCreateAimPose = false;
+		// Compatibility flags
+		bIsHolstered = true;
+		bModifyGrip = false;
+		bCreateAimPose = false;
+		bIsShooting = false;
 		// Pose indices
 		AimPose = 0;
 		StoredPose = 0;
@@ -272,14 +273,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	// Combat states from snapshot
 	bIsAiming = Snapshot.bIsAiming;
 	bIsFiring = Snapshot.bIsFiring;
+	bIsShooting = Snapshot.bIsFiring;  // Alias for legacy ABP compatibility
 	bIsReloading = Snapshot.bIsReloading;
 	bIsHoldingBreath = Snapshot.bIsHoldingBreath;
 	bIsWeaponMontageActive = Snapshot.bIsMontageActive;
 
-	// Legacy compatibility
-	bLegacyIsHolstered = Snapshot.bIsHolstered;
-	bLegacyModifyGrip = Snapshot.bModifyGrip;
-	bLegacyCreateAimPose = Snapshot.bCreateAimPose;
+	// Compatibility flags
+	bIsHolstered = Snapshot.bIsHolstered;
+	bModifyGrip = Snapshot.bModifyGrip;
+	bCreateAimPose = Snapshot.bCreateAimPose;
 
 	// Pose indices
 	AimPose = Snapshot.AimPose;
@@ -380,9 +382,12 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 		WeaponTransform = CurrentAnimationData.WTransform;
 
+		// Store raw DataTable weapon transform for ABP access
+		DTWTransform = CurrentAnimationData.WTransform;
+
 		// Blend to aim grip if aiming (aim grip is typically at index 1)
-		// bLegacyModifyGrip allows weapon to override grip modification behavior
-		if (bIsAiming && bLegacyModifyGrip)
+		// bModifyGrip allows weapon to override grip modification behavior
+		if (bIsAiming && bModifyGrip)
 		{
 			// Get aim grip transform (index 1 by convention, or use AimPose if set)
 			const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
@@ -404,7 +409,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 		}
 
 		// Apply AimTransform from weapon actor if aiming (for custom aim offset)
-		if (bIsAiming && bLegacyCreateAimPose && !AimTransform.Equals(FTransform::Identity))
+		if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
 		{
 			// Blend aim transform based on aiming alpha
 			LeftHandIKTransform = UKismetMathLibrary::TLerp(
@@ -629,7 +634,7 @@ UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetActiveGripPose() const
 		// Use reload pose (index 2) if currently reloading and no custom GripID
 		PoseIndex = 2;
 	}
-	else if (bIsAiming && bLegacyModifyGrip && AimPose > 0)
+	else if (bIsAiming && bModifyGrip && AimPose > 0)
 	{
 		// Use AimPose index for aiming if ModifyGrip is enabled
 		PoseIndex = AimPose;

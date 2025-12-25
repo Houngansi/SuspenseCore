@@ -248,19 +248,23 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	float BlockDistance = 0.0f;
 
-	// -------- Legacy Compatibility --------
+	// -------- Compatibility Flags --------
 
-	/** Legacy: Is Holstered (inverse of bIsWeaponDrawn) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
-	bool bLegacyIsHolstered = true;
+	/** Is Holstered (inverse of bIsWeaponDrawn) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	bool bIsHolstered = true;
 
-	/** Legacy: Modify Grip flag */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
-	bool bLegacyModifyGrip = false;
+	/** Modify Grip flag - enables grip modification on aim */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	bool bModifyGrip = false;
 
-	/** Legacy: Create Aim Pose flag */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Legacy")
-	bool bLegacyCreateAimPose = false;
+	/** Create Aim Pose flag - enables custom aim transform */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	bool bCreateAimPose = false;
+
+	/** Is Shooting - alias for bIsFiring (legacy compatibility) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	bool bIsShooting = false;
 
 	// -------- Pose Indices --------
 
@@ -334,9 +338,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	FTransform RightHandIKTransform = FTransform::Identity;
 
-	/** Трансформ оружия */
+	/** Трансформ оружия (вычисленный) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	FTransform WeaponTransform = FTransform::Identity;
+
+	/** DT Weapon Transform - сырой трансформ оружия из DataTable (WTransform) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	FTransform DTWTransform = FTransform::Identity;
 
 	/** Alpha для Left Hand IK (0 = выкл, 1 = вкл) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")

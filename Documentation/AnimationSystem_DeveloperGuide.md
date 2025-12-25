@@ -946,13 +946,14 @@ Output Pose
     └── Animation: GetActiveGripPose()
 ```
 
-#### Legacy Compatibility Flags
+#### Compatibility Flags
 
 | Flag | Description |
 |------|-------------|
-| `bLegacyIsHolstered` | Оружие в кобуре (обратная совместимость) |
-| `bLegacyModifyGrip` | Разрешить модификацию хвата при прицеливании |
-| `bLegacyCreateAimPose` | Использовать AimTransform для динамической позы |
+| `bIsHolstered` | Оружие в кобуре (inverse of bIsWeaponDrawn) |
+| `bModifyGrip` | Разрешить модификацию хвата при прицеливании |
+| `bCreateAimPose` | Использовать AimTransform для динамической позы |
+| `bIsShooting` | Alias для bIsFiring (совместимость с legacy ABP) |
 
 #### Example: Different Weapons, Different Poses
 

@@ -334,7 +334,7 @@ public:
 	TObjectPtr<UDataTable> WeaponAnimationsTable = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// IK TRANSFORMS (Inverse Kinematics)
+	// IK TRANSFORMS (Inverse Kinematics) - рабочие трансформы
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Трансформ левой руки для IK */

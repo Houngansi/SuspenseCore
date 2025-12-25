@@ -362,20 +362,83 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 
-	// Get transforms from animation data
-	if (bHasWeaponEquipped && CurrentAnimationData.Stance != nullptr)
+	// Skip IK calculations if no weapon equipped
+	if (!bHasWeaponEquipped)
 	{
-		// Use GripID from StanceComponent to select correct transform from DataTable array
-		// GripID indices: 0=base, 1=aiming, 2=reloading, 3+=weapon-specific
-		const int32 BaseGripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+		return;
+	}
 
-		// Get base left hand transform using GripID (weapon actor sets this)
-		LeftHandIKTransform = CurrentAnimationData.GetLeftHandGripTransform(BaseGripIndex);
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PRIORITY: Blueprint DT* variables (from MPS Anims) > C++ FAnimationStateData
+	// Blueprint sets DT* variables from DT_MPS_Anims DataTable via "Break ST MPS Anims"
+	// ═══════════════════════════════════════════════════════════════════════════════
 
-		// Right hand and weapon transforms from DataTable (or from StanceComponent if weapon set them)
+	const bool bUseDTPath = DTLHGripTransform.Num() > 0 || !DTRHTransform.Equals(FTransform::Identity);
+
+	if (bUseDTPath)
+	{
+		// ═══════════════════════════════════════════════════════════════════════════
+		// DT PATH: Use Blueprint-set variables from MPS Anims DataTable
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		// Left hand grip transform from DT array using GripID
+		if (DTLHGripTransform.Num() > 0)
+		{
+			const int32 BaseGripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
+			LeftHandIKTransform = DTLHGripTransform[BaseGripIndex];
+
+			// Blend to aim grip if aiming
+			if (bIsAiming && bModifyGrip)
+			{
+				const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
+				if (DTLHGripTransform.IsValidIndex(AimGripIndex))
+				{
+					LeftHandIKTransform = UKismetMathLibrary::TLerp(
+						LeftHandIKTransform,
+						DTLHGripTransform[AimGripIndex],
+						AimingAlpha
+					);
+				}
+			}
+		}
+		else if (!DTLHTransform.Equals(FTransform::Identity))
+		{
+			// Fallback to single DT LH Transform if array is empty
+			LeftHandIKTransform = DTLHTransform;
+		}
+
+		// Right hand transform from DT
 		if (!RightHandTransform.Equals(FTransform::Identity))
 		{
 			// Weapon actor provided custom transform - use it
+			RightHandIKTransform = RightHandTransform;
+		}
+		else if (!DTRHTransform.Equals(FTransform::Identity))
+		{
+			RightHandIKTransform = DTRHTransform;
+		}
+
+		// Weapon transform from DT (already set by Blueprint, just copy to WeaponTransform)
+		if (!DTWTransform.Equals(FTransform::Identity))
+		{
+			WeaponTransform = DTWTransform;
+		}
+	}
+	else if (CurrentAnimationData.Stance != nullptr)
+	{
+		// ═══════════════════════════════════════════════════════════════════════════
+		// C++ PATH: Use FAnimationStateData from C++ DataTable (legacy/fallback)
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		// Use GripID from StanceComponent to select correct transform from DataTable array
+		const int32 BaseGripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+
+		// Get base left hand transform using GripID
+		LeftHandIKTransform = CurrentAnimationData.GetLeftHandGripTransform(BaseGripIndex);
+
+		// Right hand transform
+		if (!RightHandTransform.Equals(FTransform::Identity))
+		{
 			RightHandIKTransform = RightHandTransform;
 		}
 		else
@@ -383,16 +446,13 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 			RightHandIKTransform = CurrentAnimationData.RHTransform;
 		}
 
+		// Weapon transform
 		WeaponTransform = CurrentAnimationData.WTransform;
-
-		// Store raw DataTable weapon transform for ABP access
 		DTWTransform = CurrentAnimationData.WTransform;
 
-		// Blend to aim grip if aiming (aim grip is typically at index 1)
-		// bModifyGrip allows weapon to override grip modification behavior
+		// Blend to aim grip if aiming
 		if (bIsAiming && bModifyGrip)
 		{
-			// Get aim grip transform (index 1 by convention, or use AimPose if set)
 			const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
 			if (CurrentAnimationData.LHGripTransform.IsValidIndex(AimGripIndex))
 			{
@@ -404,23 +464,26 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 				);
 			}
 		}
+	}
 
-		// Apply LeftHandTransform from weapon actor if provided (overrides DataTable)
-		if (!LeftHandTransform.Equals(FTransform::Identity))
-		{
-			LeftHandIKTransform = LeftHandTransform;
-		}
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// OVERRIDES: Apply weapon actor transforms (highest priority)
+	// ═══════════════════════════════════════════════════════════════════════════════
 
-		// Apply AimTransform from weapon actor if aiming (for custom aim offset)
-		if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
-		{
-			// Blend aim transform based on aiming alpha
-			LeftHandIKTransform = UKismetMathLibrary::TLerp(
-				LeftHandIKTransform,
-				AimTransform,
-				AimingAlpha
-			);
-		}
+	// Apply LeftHandTransform from weapon actor if provided (overrides DataTable)
+	if (!LeftHandTransform.Equals(FTransform::Identity))
+	{
+		LeftHandIKTransform = LeftHandTransform;
+	}
+
+	// Apply AimTransform from weapon actor if aiming (for custom aim offset)
+	if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
+	{
+		LeftHandIKTransform = UKismetMathLibrary::TLerp(
+			LeftHandIKTransform,
+			AimTransform,
+			AimingAlpha
+		);
 	}
 }
 

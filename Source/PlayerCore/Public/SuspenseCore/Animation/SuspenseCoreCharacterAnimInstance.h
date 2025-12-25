@@ -189,6 +189,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	FGameplayTag CurrentWeaponType;
 
+	/** Предыдущий тип оружия (для отслеживания смены) */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Weapon")
+	FGameplayTag LastWeaponType;
+
 	/** Оружие экипировано (есть в слоте) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	bool bHasWeaponEquipped = false;

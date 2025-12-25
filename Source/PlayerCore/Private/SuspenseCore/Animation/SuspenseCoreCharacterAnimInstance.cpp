@@ -16,6 +16,9 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #endif
 
+// Static socket name for left hand target on weapon mesh
+const FName USuspenseCoreCharacterAnimInstance::LHTargetSocketName = TEXT("LH_Target");
+
 USuspenseCoreCharacterAnimInstance::USuspenseCoreCharacterAnimInstance()
 {
 	// Default values are already set in header
@@ -263,6 +266,9 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 	USuspenseCoreWeaponStanceComponent* StanceComp = CachedStanceComponent.Get();
 
+	// Cache weapon actor for socket transform access (used in UpdateIKData)
+	CachedWeaponActor = StanceComp->GetTrackedEquipmentActor();
+
 	// Get complete stance snapshot from component (includes all combat states)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
@@ -355,115 +361,98 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 
 void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY LOGIC FROM MPS ANIMBP EVENTGRAPH
+	// Implements full interpolation and LH_Target socket logic
+	// ═══════════════════════════════════════════════════════════════════════════════
+
 	// IK is active when weapon is drawn
 	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped) ? 1.0f : 0.0f;
 
-	// Smooth transition
+	// Smooth transition for IK alpha
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 	RightHandIKAlpha = FMath::FInterpTo(RightHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
 
-	// Skip IK calculations if no weapon equipped
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ADDITIVE PITCH - Ease function (legacy: Ease Out, BlendExp 6.0)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Legacy Blueprint: Ease(EaseOut, Alpha=DeltaTime, A=AdditivePitch, B=StoredRecoil, BlendExp=6.0)
+	// This creates smooth easing from current AdditivePitch towards StoredRecoil
+	{
+		const float EaseAlpha = FMath::Clamp(DeltaSeconds * 10.0f, 0.0f, 1.0f); // Normalized alpha
+		const float EasedAlpha = FMath::Pow(EaseAlpha, AdditivePitchBlendExp); // EaseOut effect
+		InterpolatedAdditivePitch = FMath::Lerp(InterpolatedAdditivePitch, StoredRecoil, EasedAlpha);
+		AdditivePitch = InterpolatedAdditivePitch;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// BLOCK DISTANCE - Interpolation (legacy: InterpSpeed 10.0)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	InterpolatedBlockDistance = FMath::FInterpTo(InterpolatedBlockDistance, BlockDistance, DeltaSeconds, BlockDistanceInterpSpeed);
+	BlockDistance = InterpolatedBlockDistance;
+
+	// Skip transform calculations if no weapon equipped
 	if (!bHasWeaponEquipped)
 	{
 		return;
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PRIORITY: Blueprint DT* variables (from MPS Anims) > C++ FAnimationStateData
-	// Blueprint sets DT* variables from DT_MPS_Anims DataTable via "Break ST MPS Anims"
+	// COMPUTE TARGET TRANSFORMS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	const bool bUseDTPath = DTLHGripTransform.Num() > 0 || !DTRHTransform.Equals(FTransform::Identity);
+	FTransform TargetRHTransform = FTransform::Identity;
+	FTransform TargetLHTransform = FTransform::Identity;
 
-	if (bUseDTPath)
+	// Get RH Transform target
+	if (!DTRHTransform.Equals(FTransform::Identity))
 	{
-		// ═══════════════════════════════════════════════════════════════════════════
-		// DT PATH: Use Blueprint-set variables from MPS Anims DataTable
-		// ═══════════════════════════════════════════════════════════════════════════
-
-		// Left hand grip transform from DT array using GripID
-		if (DTLHGripTransform.Num() > 0)
-		{
-			const int32 BaseGripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
-			LeftHandIKTransform = DTLHGripTransform[BaseGripIndex];
-
-			// Blend to aim grip if aiming
-			if (bIsAiming && bModifyGrip)
-			{
-				const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
-				if (DTLHGripTransform.IsValidIndex(AimGripIndex))
-				{
-					LeftHandIKTransform = UKismetMathLibrary::TLerp(
-						LeftHandIKTransform,
-						DTLHGripTransform[AimGripIndex],
-						AimingAlpha
-					);
-				}
-			}
-		}
-		else if (!DTLHTransform.Equals(FTransform::Identity))
-		{
-			// Fallback to single DT LH Transform if array is empty
-			LeftHandIKTransform = DTLHTransform;
-		}
-
-		// Right hand transform from DT
-		if (!RightHandTransform.Equals(FTransform::Identity))
-		{
-			// Weapon actor provided custom transform - use it
-			RightHandIKTransform = RightHandTransform;
-		}
-		else if (!DTRHTransform.Equals(FTransform::Identity))
-		{
-			RightHandIKTransform = DTRHTransform;
-		}
-
-		// Weapon transform from DT (already set by Blueprint, just copy to WeaponTransform)
-		if (!DTWTransform.Equals(FTransform::Identity))
-		{
-			WeaponTransform = DTWTransform;
-		}
+		TargetRHTransform = DTRHTransform;
+	}
+	else if (!RightHandTransform.Equals(FTransform::Identity))
+	{
+		TargetRHTransform = RightHandTransform;
 	}
 	else if (CurrentAnimationData.Stance != nullptr)
 	{
-		// ═══════════════════════════════════════════════════════════════════════════
-		// C++ PATH: Use FAnimationStateData from C++ DataTable (legacy/fallback)
-		// ═══════════════════════════════════════════════════════════════════════════
+		TargetRHTransform = CurrentAnimationData.RHTransform;
+	}
 
-		// Use GripID from StanceComponent to select correct transform from DataTable array
-		const int32 BaseGripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+	// Get LH Transform target using M LH Offset logic
+	TargetLHTransform = ComputeLHOffsetTransform();
 
-		// Get base left hand transform using GripID
-		LeftHandIKTransform = CurrentAnimationData.GetLeftHandGripTransform(BaseGripIndex);
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// TINTERP TO - Smooth interpolation (legacy: InterpSpeed 8.0)
+	// ═══════════════════════════════════════════════════════════════════════════════
 
-		// Right hand transform
-		if (!RightHandTransform.Equals(FTransform::Identity))
-		{
-			RightHandIKTransform = RightHandTransform;
-		}
-		else
-		{
-			RightHandIKTransform = CurrentAnimationData.RHTransform;
-		}
+	// RH Transform interpolation
+	InterpolatedRHTransform = UKismetMathLibrary::TInterpTo(
+		InterpolatedRHTransform,
+		TargetRHTransform,
+		DeltaSeconds,
+		TransformInterpSpeed
+	);
+	RightHandIKTransform = InterpolatedRHTransform;
 
-		// Weapon transform
+	// LH Transform interpolation
+	InterpolatedLHTransform = UKismetMathLibrary::TInterpTo(
+		InterpolatedLHTransform,
+		TargetLHTransform,
+		DeltaSeconds,
+		TransformInterpSpeed
+	);
+	LeftHandIKTransform = InterpolatedLHTransform;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON TRANSFORM
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (!DTWTransform.Equals(FTransform::Identity))
+	{
+		WeaponTransform = DTWTransform;
+	}
+	else if (CurrentAnimationData.Stance != nullptr)
+	{
 		WeaponTransform = CurrentAnimationData.WTransform;
-		DTWTransform = CurrentAnimationData.WTransform;
-
-		// Blend to aim grip if aiming
-		if (bIsAiming && bModifyGrip)
-		{
-			const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
-			if (CurrentAnimationData.LHGripTransform.IsValidIndex(AimGripIndex))
-			{
-				const FTransform AimGripTransform = CurrentAnimationData.GetLeftHandGripTransform(AimGripIndex);
-				LeftHandIKTransform = UKismetMathLibrary::TLerp(
-					LeftHandIKTransform,
-					AimGripTransform,
-					AimingAlpha
-				);
-			}
-		}
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -485,6 +474,123 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 			AimingAlpha
 		);
 	}
+}
+
+bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
+{
+	// Get LH_Target socket transform from weapon mesh (Component Space)
+	// This is the key to making left hand follow weapon rotation!
+
+	if (!CachedWeaponActor.IsValid())
+	{
+		return false;
+	}
+
+	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// Try to get skeletal mesh component from weapon
+	USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!WeaponMesh)
+	{
+		// Fallback to static mesh if no skeletal mesh
+		UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>();
+		if (StaticMesh && StaticMesh->DoesSocketExist(LHTargetSocketName))
+		{
+			OutTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+			return true;
+		}
+		return false;
+	}
+
+	// Check if socket exists
+	if (!WeaponMesh->DoesSocketExist(LHTargetSocketName))
+	{
+		return false;
+	}
+
+	// Get socket transform in Component Space (RTS_Component)
+	// This makes the transform relative to the weapon mesh, so it rotates WITH the weapon
+	OutTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_Component);
+	return true;
+}
+
+FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
+{
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// M LH OFFSET LOGIC (from legacy MPS Blueprint)
+	//
+	// Select logic:
+	// 1. If Is Montage Active? → return Identity (skip IK during montages)
+	// 2. If Modify Grip? → use DT LH Grip Transform[Grip ID]
+	// 3. Else → use Get Socket Transform("LH_Target") from weapon
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// During montages, don't apply IK offset (let montage control hands)
+	if (bIsWeaponMontageActive)
+	{
+		return FTransform::Identity;
+	}
+
+	// If Modify Grip is true, use DataTable grip transforms
+	if (bModifyGrip)
+	{
+		// Use DT LH Grip Transform array with GripID
+		if (DTLHGripTransform.Num() > 0)
+		{
+			const int32 GripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
+			FTransform BaseGrip = DTLHGripTransform[GripIndex];
+
+			// Blend to aim grip if aiming
+			if (bIsAiming)
+			{
+				const int32 AimGripIndex = (AimPose > 0) ? AimPose : 1;
+				if (DTLHGripTransform.IsValidIndex(AimGripIndex))
+				{
+					BaseGrip = UKismetMathLibrary::TLerp(
+						BaseGrip,
+						DTLHGripTransform[AimGripIndex],
+						AimingAlpha
+					);
+				}
+			}
+			return BaseGrip;
+		}
+		else if (!DTLHTransform.Equals(FTransform::Identity))
+		{
+			return DTLHTransform;
+		}
+		else if (CurrentAnimationData.LHGripTransform.Num() > 0)
+		{
+			const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+			return CurrentAnimationData.GetLeftHandGripTransform(GripIndex);
+		}
+	}
+
+	// Default: Get socket transform from weapon (LH_Target socket)
+	// This is the KEY - the socket moves with the weapon, so hand follows weapon rotation!
+	FTransform SocketTransform;
+	if (GetWeaponLHTargetTransform(SocketTransform))
+	{
+		return SocketTransform;
+	}
+
+	// Fallback to DT transforms if socket not found
+	if (DTLHGripTransform.Num() > 0)
+	{
+		const int32 GripIndex = FMath::Clamp(GripID, 0, DTLHGripTransform.Num() - 1);
+		return DTLHGripTransform[GripIndex];
+	}
+	else if (!DTLHTransform.Equals(FTransform::Identity))
+	{
+		return DTLHTransform;
+	}
+	else if (CurrentAnimationData.LHGripTransform.Num() > 0)
+	{
+		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+		return CurrentAnimationData.GetLeftHandGripTransform(GripIndex);
+	}
+
+	return FTransform::Identity;
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateAimOffsetData(float DeltaSeconds)

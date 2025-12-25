@@ -682,4 +682,54 @@ private:
 
 	/** Максимальный YawOffset */
 	static constexpr float MaxYawOffset = 120.0f;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEGACY INTERPOLATION (from MPS AnimBP)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Текущий интерполированный RH Transform (для TInterp To) */
+	FTransform InterpolatedRHTransform = FTransform::Identity;
+
+	/** Текущий интерполированный LH Transform (для TInterp To) */
+	FTransform InterpolatedLHTransform = FTransform::Identity;
+
+	/** Текущий интерполированный Block Distance */
+	float InterpolatedBlockDistance = 0.0f;
+
+	/** Текущий интерполированный Additive Pitch */
+	float InterpolatedAdditivePitch = 0.0f;
+
+	/** Скорость интерполяции трансформов (из legacy: 8.0) */
+	static constexpr float TransformInterpSpeed = 8.0f;
+
+	/** Скорость интерполяции Block Distance (из legacy: 10.0) */
+	static constexpr float BlockDistanceInterpSpeed = 10.0f;
+
+	/** Blend Exponent для Ease функции Additive Pitch (из legacy: 6.0) */
+	static constexpr float AdditivePitchBlendExp = 6.0f;
+
+	/** Кэшированный Weapon Actor */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> CachedWeaponActor;
+
+	/** Имя сокета для левой руки на оружии */
+	static const FName LHTargetSocketName;
+
+	/**
+	 * Получить трансформ сокета LH_Target с оружия.
+	 * Реализует логику M LH Offset из legacy Blueprint.
+	 *
+	 * @param OutTransform Результирующий трансформ
+	 * @return true если трансформ получен успешно
+	 */
+	bool GetWeaponLHTargetTransform(FTransform& OutTransform) const;
+
+	/**
+	 * Вычислить итоговый LH Transform с учётом всех условий.
+	 * Логика из M LH Offset макро:
+	 * - Если !bModifyGrip: использовать socket transform от оружия
+	 * - Если bModifyGrip: использовать DT LH Grip Transform[GripID]
+	 * - Если bIsMontageActive: пропустить (вернуть Identity)
+	 */
+	FTransform ComputeLHOffsetTransform() const;
 };

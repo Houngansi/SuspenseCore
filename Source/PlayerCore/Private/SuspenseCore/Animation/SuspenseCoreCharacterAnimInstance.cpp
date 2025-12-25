@@ -366,7 +366,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// LEGACY LOGIC FROM MPS ANIMBP EVENTGRAPH
-	// Обновляет только 3 переменные: RHTransform, LHTransform, WTransform
+	// Вычисляет: RHTransform, LHTransform (DTWTransform задаётся из Blueprint)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	// IK активен когда оружие достано

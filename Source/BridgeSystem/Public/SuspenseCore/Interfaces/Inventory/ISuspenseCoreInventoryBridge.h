@@ -50,7 +50,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBridgeTransferRequest
 	FGameplayTag ContextTag;
 
 	/** Unique request ID for tracking */
-	UPROPERTY(BlueprintReadOnly, Category = "Transfer")
+	UPROPERTY(BlueprintReadOnly, Category = "Transfer", meta = (IgnoreForMemberInitializationTest))
 	FGuid RequestId;
 
 	FSuspenseCoreBridgeTransferRequest()

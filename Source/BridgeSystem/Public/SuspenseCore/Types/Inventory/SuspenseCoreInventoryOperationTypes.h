@@ -55,7 +55,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreOperationContext
 	TWeakObjectPtr<AActor> Instigator;
 
 	/** Unique operation ID for tracking */
-	UPROPERTY(BlueprintReadOnly, Category = "Context")
+	UPROPERTY(BlueprintReadOnly, Category = "Context", meta = (IgnoreForMemberInitializationTest))
 	FGuid OperationID;
 
 	/** Timestamp when operation was created */
@@ -318,7 +318,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreOperationRecord
 	GENERATED_BODY()
 
 	/** Unique operation ID */
-	UPROPERTY(BlueprintReadOnly, Category = "Record")
+	UPROPERTY(BlueprintReadOnly, Category = "Record", meta = (IgnoreForMemberInitializationTest))
 	FGuid OperationID;
 
 	/** Operation type */
@@ -439,7 +439,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreBatchOperation
 	GENERATED_BODY()
 
 	/** Batch ID */
-	UPROPERTY(BlueprintReadOnly, Category = "Batch")
+	UPROPERTY(BlueprintReadOnly, Category = "Batch", meta = (IgnoreForMemberInitializationTest))
 	FGuid BatchID;
 
 	/** Description of batch */

@@ -593,6 +593,15 @@ const FAnimationStateData* USuspenseCoreCharacterAnimInstance::GetAnimationDataF
 		return nullptr;
 	}
 
+	// Verify DataTable uses correct row structure (FAnimationStateData)
+	// This prevents errors when table uses different struct (e.g., MPS struct)
+	const UScriptStruct* RowStruct = WeaponAnimationsTable->GetRowStruct();
+	if (!RowStruct || RowStruct != FAnimationStateData::StaticStruct())
+	{
+		// Table uses different struct - skip C++ path, let Blueprint handle it
+		return nullptr;
+	}
+
 	// Row name is the tag string
 	const FString RowName = WeaponType.ToString();
 	return WeaponAnimationsTable->FindRow<FAnimationStateData>(*RowName, TEXT("GetAnimationDataForWeaponType"));

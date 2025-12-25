@@ -179,22 +179,27 @@ public:
 	bool bIsSliding = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// POSE STATES (задаётся из Blueprint)
+	// POSE STATES (автоматически из Controller + Blueprint)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+	/** Lean - наклон тела (задаётся из Blueprint) */
 	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Lean = 0.0f;
 
+	/** Roll - крен (задаётся из Blueprint) */
 	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
 	float Roll = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
+	/** Pitch - угол наклона из Controller (= AimPitch) */
+	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
 	float Pitch = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
+	/** Yaw Offset - дельта поворота головы (= AimYaw) */
+	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
 	float YawOffset = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "PoseStates")
+	/** Yaw - абсолютный угол поворота персонажа */
+	UPROPERTY(BlueprintReadOnly, Category = "PoseStates")
 	float Yaw = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -262,13 +267,15 @@ public:
 	float DTAimPoseAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// AIM OFFSET
+	// AIM OFFSET (автоматически из Controller)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	UPROPERTY(BlueprintReadWrite, Category = "AimOffset")
+	/** Aim Yaw - дельта между направлением взгляда и тела (-180 to 180) */
+	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
 	float AimYaw = 0.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "AimOffset")
+	/** Aim Pitch - вертикальный угол взгляда (-90 to 90) */
+	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
 	float AimPitch = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════

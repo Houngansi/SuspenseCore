@@ -221,6 +221,39 @@ FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const
 
 void USuspenseCoreCharacterAnimInstance::UpdateMovementData()
 {
+	APawn* OwnerPawn = TryGetPawnOwner();
+	if (!OwnerPawn)
+	{
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// AIM OFFSET FROM CONTROLLER
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (AController* Controller = OwnerPawn->GetController())
+	{
+		// Control rotation - where player is looking
+		const FRotator ControlRotation = Controller->GetControlRotation();
+
+		// Actor rotation - where body is facing
+		const FRotator ActorRotation = OwnerPawn->GetActorRotation();
+
+		// Calculate delta (aim offset)
+		FRotator DeltaRotation = (ControlRotation - ActorRotation).GetNormalized();
+
+		// AimPitch = vertical look angle (-90 to 90)
+		AimPitch = FMath::ClampAngle(ControlRotation.Pitch, -90.0f, 90.0f);
+
+		// AimYaw = horizontal delta from body to look direction (-180 to 180)
+		AimYaw = FMath::ClampAngle(DeltaRotation.Yaw, -180.0f, 180.0f);
+
+		// Pose states (aliases)
+		Pitch = AimPitch;
+		YawOffset = AimYaw;
+		Yaw = ActorRotation.Yaw;
+	}
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// MOVEMENT FROM CHARACTER
 	// ═══════════════════════════════════════════════════════════════════════════════

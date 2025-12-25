@@ -352,6 +352,11 @@ void USuspenseCoreWeaponStanceComponent::SetBlockDistance(float NewBlockDistance
 	BlockDistance = FMath::Max(0.0f, NewBlockDistance);
 }
 
+void USuspenseCoreWeaponStanceComponent::SetSightDistance(float NewSightDistance)
+{
+	SightDistance = FMath::Max(0.0f, NewSightDistance);
+}
+
 // ============================================================================
 // Animation System API
 // ============================================================================
@@ -397,6 +402,9 @@ FSuspenseCoreWeaponStanceSnapshot USuspenseCoreWeaponStanceComponent::GetStanceS
 	Snapshot.StoredRecoil = StoredRecoil;
 	Snapshot.AdditivePitch = AdditivePitch;
 	Snapshot.BlockDistance = BlockDistance;
+
+	// Aim target
+	Snapshot.SightDistance = SightDistance;
 
 	return Snapshot;
 }

@@ -262,9 +262,11 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
 	bool bCreateAimPose = false;
 
-	/** Is Shooting - alias for bIsFiring (legacy compatibility) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
-	bool bIsShooting = false;
+	// -------- Aim Target --------
+
+	/** Sight Distance - расстояние до цели прицеливания (для FABRIK и aim target) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Aim")
+	float SightDistance = 200.0f;
 
 	// -------- Pose Indices --------
 
@@ -393,6 +395,10 @@ public:
 	/** Alpha для sway оружия */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Procedural")
 	float WeaponSwayAlpha = 0.0f;
+
+	/** Camera Shake - интерполированный шейк камеры (читается из Character и интерполируется) */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Procedural")
+	FVector CameraShake = FVector::ZeroVector;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// GAS ATTRIBUTES (Скорости из AttributeSet)

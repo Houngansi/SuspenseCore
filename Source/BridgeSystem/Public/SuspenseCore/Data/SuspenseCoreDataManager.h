@@ -8,7 +8,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
+// Include for FSuspenseCoreUnifiedItemData - needed for cache storage
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCoreDataManager.generated.h"
+
 
 class UDataTable;
 class UDataAsset;
@@ -16,8 +19,7 @@ class USuspenseCoreEventBus;
 class USuspenseCoreSettings;
 struct FSuspenseCoreEventData;
 
-// Include for FSuspenseCoreUnifiedItemData - needed for cache storage
-#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+
 
 /**
  * USuspenseCoreDataManager

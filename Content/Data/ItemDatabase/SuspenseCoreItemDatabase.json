@@ -8,7 +8,7 @@
     "ItemType": "(TagName=\"Item.Weapon.AR\")",
     "Rarity": "(TagName=\"Item.Rarity.Rare\")",
     "ItemTags": "(GameplayTags=((TagName=\"Item.Weapon\"),(TagName=\"Weapon.Type.Ranged\")))",
-    "GridSize": "(X=5,Y=2)",
+    "GridSize": "(X=4,Y=2)",
     "MaxStackSize": 1,
     "Weight": 3.4,
     "BaseValue": 38000,

@@ -634,15 +634,21 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 	// 3. Else → use Get Socket Transform("LH_Target") from weapon
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+	// Debug: log which path is taken
+	static int32 LHDebugCounter = 0;
+	const bool bShouldLog = (++LHDebugCounter % 60 == 0);
+
 	// During montages, don't apply IK offset (let montage control hands)
 	if (bIsWeaponMontageActive)
 	{
+		if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: MONTAGE ACTIVE - returning Identity"));
 		return FTransform::Identity;
 	}
 
 	// If Modify Grip is true, use DataTable grip transforms
 	if (bModifyGrip)
 	{
+		if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: bModifyGrip=true, DTLHGripTransform.Num=%d"), DTLHGripTransform.Num());
 		// Use DT LH Grip Transform array with GripID
 		if (DTLHGripTransform.Num() > 0)
 		{
@@ -677,11 +683,17 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 
 	// Default: Get socket transform from weapon (LH_Target socket)
 	// This is the KEY - the socket moves with the weapon, so hand follows weapon rotation!
+	if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: Trying to get socket transform..."));
+
 	FTransform SocketTransform;
 	if (GetWeaponLHTargetTransform(SocketTransform))
 	{
+		if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: GOT SOCKET! Loc=(%.2f,%.2f,%.2f)"),
+			SocketTransform.GetLocation().X, SocketTransform.GetLocation().Y, SocketTransform.GetLocation().Z);
 		return SocketTransform;
 	}
+
+	if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: Socket FAILED, using fallback..."));
 
 	// Fallback to DT transforms if socket not found
 	if (DTLHGripTransform.Num() > 0)
@@ -699,6 +711,7 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		return CurrentAnimationData.GetLeftHandGripTransform(GripIndex);
 	}
 
+	if (bShouldLog) UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ComputeLHOffset: ALL FALLBACKS FAILED - returning Identity!"));
 	return FTransform::Identity;
 }
 

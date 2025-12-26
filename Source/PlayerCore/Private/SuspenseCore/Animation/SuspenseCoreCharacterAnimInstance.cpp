@@ -675,27 +675,44 @@ void USuspenseCoreCharacterAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
 		return;
 	}
 
-	// Get control rotation for aim offset
-	if (AController* Controller = OwnerPawn->GetController())
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// AIM OFFSET CALCULATION
+	// Using GetBaseAimRotation() - the standard UE method that:
+	// - For locally controlled pawns: returns Controller rotation
+	// - For simulated proxies: uses RemoteViewPitch (replicated)
+	// - Handles all edge cases (no controller, AI, etc.)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// GetBaseAimRotation() returns the rotation to use for aim offset
+	// This properly handles both local and remote characters
+	const FRotator AimRotation = OwnerPawn->GetBaseAimRotation();
+	const FRotator ActorRotation = OwnerPawn->GetActorRotation();
+
+	// Calculate delta between aim rotation and actor rotation
+	// This gives us how far the character is looking relative to their body
+	const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(
+		AimRotation,
+		ActorRotation
+	);
+
+	// Clamp values
+	AimYaw = FMath::Clamp(DeltaRotation.Yaw, -180.0f, 180.0f);
+	AimPitch = FMath::Clamp(DeltaRotation.Pitch, -90.0f, 90.0f);
+
+	// Debug logging (every 60 frames ~ 1 second at 60fps)
+	static int32 FrameCounter = 0;
+	if (++FrameCounter % 60 == 0)
 	{
-		const FRotator ControlRotation = Controller->GetControlRotation();
-		const FRotator ActorRotation = OwnerPawn->GetActorRotation();
-
-		// Calculate delta between control and actor rotation
-		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(
-			ControlRotation,
-			ActorRotation
-		);
-
-		// Clamp values
-		AimYaw = FMath::Clamp(DeltaRotation.Yaw, -180.0f, 180.0f);
-		AimPitch = FMath::Clamp(DeltaRotation.Pitch, -90.0f, 90.0f);
-
-		// Turn in place detection
-		const float TurnThreshold = 70.0f;
-		bShouldTurnInPlace = FMath::Abs(AimYaw) > TurnThreshold && GroundSpeed < 10.0f;
-		TurnInPlaceAngle = AimYaw;
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] AimOffset: AimRotation(Y=%.2f,P=%.2f) - ActorRot(Y=%.2f,P=%.2f) => AimYaw=%.2f, AimPitch=%.2f"),
+			AimRotation.Yaw, AimRotation.Pitch,
+			ActorRotation.Yaw, ActorRotation.Pitch,
+			AimYaw, AimPitch);
 	}
+
+	// Turn in place detection
+	const float TurnThreshold = 70.0f;
+	bShouldTurnInPlace = FMath::Abs(AimYaw) > TurnThreshold && GroundSpeed < 10.0f;
+	TurnInPlaceAngle = AimYaw;
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdatePoseStates(float DeltaSeconds)

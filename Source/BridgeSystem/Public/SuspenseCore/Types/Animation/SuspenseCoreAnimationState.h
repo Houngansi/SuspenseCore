@@ -164,36 +164,6 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float AimPoseAlpha;
 
-	// ========================================================================
-	// Pose Indices - индексы для выбора сегментов анимации
-	// Эти значения используются для Sequence Evaluator (Explicit Time)
-	// Формула: ExplicitTime = 0.02 + (PoseIndex * 0.03)
-	// ========================================================================
-
-	/** Базовый индекс хвата для LHGripTransform массива (0 = стандартный хват) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Indices", meta = (ClampMin = "0"))
-	int32 DefaultGripID = 0;
-
-	/** Индекс позы прицеливания в GripPoses/AimPose composite */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Indices", meta = (ClampMin = "0"))
-	int32 DefaultAimPose = 1;
-
-	/** Сохранённый индекс позы (для восстановления после действий) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Indices", meta = (ClampMin = "0"))
-	int32 DefaultStoredPose = 0;
-
-	// ========================================================================
-	// Pose Flags - флаги управления позами
-	// ========================================================================
-
-	/** Использовать модифицированный хват (DTLHGripTransform вместо сокета LH_Target) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Flags")
-	bool bModifyGrip = true;
-
-	/** Создавать позу прицеливания (использовать AimPose composite) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Flags")
-	bool bCreateAimPose = true;
-
 	/**
 	 * Получает трансформацию хвата левой руки по индексу
 	 * @param Index индекс позиции хвата (0 = базовая позиция)

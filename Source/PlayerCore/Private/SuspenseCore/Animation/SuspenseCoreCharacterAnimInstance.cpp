@@ -270,6 +270,11 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
+	// Debug: Log state every time weapon is equipped but no data loaded
+	static float LastDebugLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const bool bShouldLogDebug = (CurrentTime - LastDebugLogTime) > 2.0f; // Log every 2 seconds max
+
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
 	{
 		CurrentAnimationData = FSuspenseCoreAnimationData();
@@ -279,10 +284,31 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 	const FSuspenseCoreAnimationData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
 	if (!AnimData)
 	{
-		if (bWeaponTypeChanged)
+		if (bWeaponTypeChanged || bShouldLogDebug)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Failed to load animation data for weapon '%s'. Check DataTable in Project Settings."),
+			LastDebugLogTime = CurrentTime;
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Failed to load animation data for weapon '%s'."),
 				*CurrentWeaponType.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] DataTable=%s, bHasWeapon=%d, WeaponType=%s"),
+				WeaponAnimationsTable ? *WeaponAnimationsTable->GetName() : TEXT("NULL"),
+				bHasWeaponEquipped,
+				*CurrentWeaponType.ToString());
+
+			// Log the expected row name
+			const FName ExpectedRowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(CurrentWeaponType);
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Expected RowName: '%s'"), *ExpectedRowName.ToString());
+
+			// Log all available rows in DataTable
+			if (WeaponAnimationsTable)
+			{
+				TArray<FName> RowNames = WeaponAnimationsTable->GetRowNames();
+				FString RowNamesStr;
+				for (const FName& Name : RowNames)
+				{
+					RowNamesStr += Name.ToString() + TEXT(", ");
+				}
+				UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Available rows: [%s]"), *RowNamesStr);
+			}
 		}
 		return;
 	}
@@ -291,7 +317,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 
 	if (bWeaponTypeChanged)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] Loaded animation data for '%s'. Stance=%s"),
+		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] SUCCESS! Loaded animation data for '%s'. Stance=%s"),
 			*CurrentWeaponType.ToString(),
 			CurrentAnimationData.Stance ? *CurrentAnimationData.Stance->GetName() : TEXT("NULL"));
 	}

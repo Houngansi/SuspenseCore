@@ -1,8 +1,48 @@
-#pragma once
+// SuspenseCoreAnimationState.h
+// Copyright Suspense Team. All Rights Reserved.
+//
+// SINGLE SOURCE OF TRUTH (SSOT) for weapon animation data.
+// This structure is the DataTable row format for all weapon animations.
+//
+// ARCHITECTURE:
+// ═══════════════════════════════════════════════════════════════════════════
+// - DataTable is configured in Project Settings → Game → SuspenseCore
+// - AnimInstance reads from this DT via GetAnimationDataForWeaponType()
+// - Row names match legacy format: SMG, Pistol, Shotgun, Sniper, Knife, Special, Frag
+// - Mapping from WeaponArchetype GameplayTag to Row Name is handled by helper functions
+//
+// ROW NAMES (SSOT):
+// ═══════════════════════════════════════════════════════════════════════════
+// | Row Name | GameplayTag Mapping                          |
+// |----------|----------------------------------------------|
+// | SMG      | Weapon.Rifle.*, Weapon.SMG.*                 |
+// | Pistol   | Weapon.Pistol.*                              |
+// | Shotgun  | Weapon.Shotgun.*                             |
+// | Sniper   | Weapon.Rifle.Sniper, *Sniper*                |
+// | Knife    | Weapon.Melee.Knife                           |
+// | Special  | Weapon.Melee.*, Weapon.Heavy.*               |
+// | Frag     | Weapon.Throwable.*                           |
+//
+// POSE INDEX CONVENTION (for LHGripTransform array):
+// ═══════════════════════════════════════════════════════════════════════════
+// Index 0: Base grip pose (Hip fire)
+// Index 1: Aim grip pose (ADS)
+// Index 2: Reload grip pose
+// Index 3+: Weapon-specific custom poses
+//
+// SEQUENCE EVALUATOR FORMULA:
+// ═══════════════════════════════════════════════════════════════════════════
+// ExplicitTime = 0.02 + (PoseIndex * 0.03)
+//
+// @see USuspenseCoreSettings::WeaponAnimationsTable - DataTable reference
+// @see USuspenseCoreCharacterAnimInstance - Consumes this data
+// @see USuspenseCoreWeaponStanceComponent - Provides combat state context
 
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "GameplayTagContainer.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
@@ -11,16 +51,21 @@
 #include "SuspenseCoreAnimationState.generated.h"
 
 /**
- * Структура анимационных данных для оружия
- * Содержит все анимации и трансформации для конкретного типа оружия
- * Использует прямые ссылки на анимационные ресурсы для безопасности потоков
+ * FSuspenseCoreAnimationData
+ *
+ * SINGLE SOURCE OF TRUTH for weapon animation data.
+ * This is the DataTable row structure for weapon animations.
+ *
+ * IMPORTANT: Pose indices (GripID, AimPose, StoredPose) are stored in WeaponActor,
+ * NOT in this structure. This allows different weapons to use different poses
+ * from the same animation set.
  */
 USTRUCT(BlueprintType)
-struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
+struct BRIDGESYSTEM_API FSuspenseCoreAnimationData : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	FAnimationStateData()
+	FSuspenseCoreAnimationData()
 		: Stance(nullptr)
 		, Locomotion(nullptr)
 		, Idle(nullptr)
@@ -46,9 +91,11 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 		, RHTransform(FTransform::Identity)
 		, LHTransform(FTransform::Identity)
 		, WTransform(FTransform::Identity)
-		, AimPoseAlpha(1.0f)
 	{
-		// Инициализируем массив трансформаций хвата с одним элементом по умолчанию
+		// Initialize grip transform array with default poses
+		// Index 0: Base (Hip fire)
+		// Index 1: Aim (ADS)
+		LHGripTransform.Add(FTransform::Identity);
 		LHGripTransform.Add(FTransform::Identity);
 	}
 
@@ -160,14 +207,15 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transforms")
 	FTransform WTransform;
 
-	// Альфа для позы прицеливания - Float
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float AimPoseAlpha;
+	// ═══════════════════════════════════════════════════════════════════════════
+	// HELPER METHODS
+	// ═══════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Получает трансформацию хвата левой руки по индексу
-	 * @param Index индекс позиции хвата (0 = базовая позиция)
-	 * @return трансформация или Identity если индекс неверный
+	 * Get left hand grip transform by pose index.
+	 *
+	 * @param Index Pose index (0 = Base, 1 = Aim, 2 = Reload, 3+ = Custom)
+	 * @return Transform for the pose, or Identity if index is invalid
 	 */
 	FORCEINLINE FTransform GetLeftHandGripTransform(int32 Index = 0) const
 	{
@@ -179,18 +227,173 @@ struct BRIDGESYSTEM_API FAnimationStateData : public FTableRowBase
 	}
 
 	/**
-	 * Устанавливает трансформацию хвата левой руки по индексу
-	 * @param Index индекс позиции хвата
-	 * @param Transform новая трансформация
+	 * Set left hand grip transform by pose index.
+	 * Automatically expands array if needed.
+	 *
+	 * @param Index Pose index
+	 * @param Transform New transform value
 	 */
 	FORCEINLINE void SetLeftHandGripTransform(int32 Index, const FTransform& Transform)
 	{
-		// Расширяем массив если необходимо
+		// Expand array if necessary
 		while (LHGripTransform.Num() <= Index)
 		{
 			LHGripTransform.Add(FTransform::Identity);
 		}
 		LHGripTransform[Index] = Transform;
+	}
+
+	/**
+	 * Get blended left hand grip transform between two poses.
+	 * Useful for smooth transitions (e.g., Hip -> ADS).
+	 *
+	 * @param FromIndex Starting pose index
+	 * @param ToIndex Target pose index
+	 * @param Alpha Blend alpha (0 = From, 1 = To)
+	 * @return Blended transform
+	 */
+	FORCEINLINE FTransform GetBlendedGripTransform(int32 FromIndex, int32 ToIndex, float Alpha) const
+	{
+		const FTransform FromTransform = GetLeftHandGripTransform(FromIndex);
+		const FTransform ToTransform = GetLeftHandGripTransform(ToIndex);
+
+		FTransform Result;
+		Result.Blend(FromTransform, ToTransform, Alpha);
+		return Result;
+	}
+
+	/**
+	 * Calculate Explicit Time for Sequence Evaluator from pose index.
+	 *
+	 * Formula: ExplicitTime = 0.02 + (PoseIndex * 0.03)
+	 *
+	 * @param PoseIndex Index of the pose in GripPoses composite
+	 * @return Explicit time value for Sequence Evaluator
+	 */
+	FORCEINLINE static float GetExplicitTimeFromPoseIndex(int32 PoseIndex)
+	{
+		return 0.02f + (static_cast<float>(PoseIndex) * 0.03f);
+	}
+
+	/**
+	 * Check if this animation data is valid (has at least Stance).
+	 */
+	FORCEINLINE bool IsValid() const
+	{
+		return Stance != nullptr;
+	}
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LEGACY ALIAS (for backward compatibility)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @deprecated Use FSuspenseCoreAnimationData instead */
+using FAnimationStateData = FSuspenseCoreAnimationData;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * FSuspenseCoreAnimationHelpers
+ *
+ * Static helper functions for animation system.
+ * Provides mapping from WeaponArchetype GameplayTag to DataTable row name.
+ */
+struct BRIDGESYSTEM_API FSuspenseCoreAnimationHelpers
+{
+	/**
+	 * Map WeaponArchetype GameplayTag to DataTable row name.
+	 *
+	 * Mapping:
+	 * - Weapon.Rifle.* (except Sniper) → SMG
+	 * - Weapon.SMG.* → SMG
+	 * - Weapon.Pistol.* → Pistol
+	 * - Weapon.Shotgun.* → Shotgun
+	 * - *Sniper* → Sniper
+	 * - Weapon.Melee.Knife → Knife
+	 * - Weapon.Melee.* → Special
+	 * - Weapon.Heavy.* → Special
+	 * - Weapon.Throwable.* → Frag
+	 * - Default → SMG
+	 *
+	 * @param WeaponArchetype The weapon archetype GameplayTag
+	 * @return Row name for DataTable lookup
+	 */
+	static FName GetRowNameFromWeaponArchetype(const FGameplayTag& WeaponArchetype)
+	{
+		if (!WeaponArchetype.IsValid())
+		{
+			return NAME_None;
+		}
+
+		const FString TagString = WeaponArchetype.ToString();
+
+		// Order matters! Sniper check BEFORE general Rifle check
+		if (TagString.Contains(TEXT("Sniper")))
+		{
+			return FName("Sniper");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Rifle")))
+		{
+			return FName("SMG");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.SMG")))
+		{
+			return FName("SMG");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Pistol")))
+		{
+			return FName("Pistol");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Shotgun")))
+		{
+			return FName("Shotgun");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Melee.Knife")))
+		{
+			return FName("Knife");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Melee")))
+		{
+			return FName("Special");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Heavy")))
+		{
+			return FName("Special");
+		}
+
+		if (TagString.Contains(TEXT("Weapon.Throwable")))
+		{
+			return FName("Frag");
+		}
+
+		// Default fallback
+		return FName("SMG");
+	}
+
+	/**
+	 * Get all valid row names for the animation DataTable.
+	 */
+	static TArray<FName> GetAllValidRowNames()
+	{
+		return TArray<FName>{
+			FName("SMG"),
+			FName("Pistol"),
+			FName("Shotgun"),
+			FName("Sniper"),
+			FName("Knife"),
+			FName("Special"),
+			FName("Frag")
+		};
 	}
 };
 

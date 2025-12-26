@@ -337,12 +337,16 @@ public:
 	TObjectPtr<UAnimSequence> CurrentAimPose = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// FULL ANIMATION DATA (Полные данные из DataTable)
+	// FULL ANIMATION DATA (SSOT - from DataTable configured in Project Settings)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Полная структура анимационных данных текущего оружия */
+	/**
+	 * Full animation data for current weapon (SSOT).
+	 * Loaded from WeaponAnimationsTable configured in Project Settings → Game → SuspenseCore.
+	 * Row is selected using FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype().
+	 */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Data")
-	FAnimationStateData CurrentAnimationData;
+	FSuspenseCoreAnimationData CurrentAnimationData;
 
 	/** DataTable с анимациями оружия (референс) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Data")
@@ -659,11 +663,17 @@ protected:
 	/** Обновить GAS атрибуты */
 	void UpdateGASAttributes();
 
-	/** Загрузить DataTable из настроек */
+	/** Load DataTable from Project Settings → Game → SuspenseCore */
 	void LoadWeaponAnimationsTable();
 
-	/** Получить строку из DataTable по WeaponType */
-	const FAnimationStateData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;
+	/**
+	 * Get animation data from SSOT DataTable for given weapon type.
+	 * Uses FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype() for mapping.
+	 *
+	 * @param WeaponType Weapon archetype GameplayTag (e.g., Weapon.Rifle.Assault)
+	 * @return Pointer to animation data row, or nullptr if not found
+	 */
+	const FSuspenseCoreAnimationData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;
 
 	/**
 	 * Get animation segment from GripPoses AnimComposite by pose index.

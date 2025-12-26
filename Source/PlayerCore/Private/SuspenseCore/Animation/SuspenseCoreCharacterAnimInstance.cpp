@@ -918,18 +918,47 @@ const FAnimationStateData* USuspenseCoreCharacterAnimInstance::GetAnimationDataF
 		return nullptr;
 	}
 
-	// Verify DataTable uses correct row structure (FAnimationStateData)
-	// This prevents errors when table uses different struct (e.g., MPS struct)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// SSOT: Use FSuspenseCoreAnimationHelpers to map WeaponArchetype → Row Name
+	//
+	// Mapping (defined in SuspenseCoreAnimationState.h):
+	// - Weapon.Rifle.* (except Sniper) → SMG
+	// - Weapon.SMG.* → SMG
+	// - Weapon.Pistol.* → Pistol
+	// - Weapon.Shotgun.* → Shotgun
+	// - *Sniper* → Sniper
+	// - Weapon.Melee.Knife → Knife
+	// - Weapon.Melee.* → Special
+	// - Weapon.Heavy.* → Special
+	// - Weapon.Throwable.* → Frag
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Verify DataTable uses correct row structure
 	const UScriptStruct* RowStruct = WeaponAnimationsTable->GetRowStruct();
-	if (!RowStruct || RowStruct != FAnimationStateData::StaticStruct())
+	if (!RowStruct || RowStruct != FSuspenseCoreAnimationData::StaticStruct())
 	{
 		// Table uses different struct - skip C++ path, let Blueprint handle it
 		return nullptr;
 	}
 
-	// Row name is the tag string
-	const FString RowName = WeaponType.ToString();
-	return WeaponAnimationsTable->FindRow<FAnimationStateData>(*RowName, TEXT("GetAnimationDataForWeaponType"));
+	// Use SSOT helper for row name mapping
+	const FName RowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(WeaponType);
+
+	if (RowName == NAME_None)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetAnimationDataForWeaponType: Invalid weapon type '%s'"), *WeaponType.ToString());
+		return nullptr;
+	}
+
+	const FSuspenseCoreAnimationData* Result = WeaponAnimationsTable->FindRow<FSuspenseCoreAnimationData>(RowName, TEXT("GetAnimationDataForWeaponType"));
+
+	if (!Result)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetAnimationDataForWeaponType: Row '%s' not found in DataTable for weapon '%s'"),
+			*RowName.ToString(), *WeaponType.ToString());
+	}
+
+	return Result;
 }
 
 UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetGripPoseByIndex(int32 PoseIndex) const
@@ -1045,67 +1074,18 @@ FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetype() const
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype)
 {
-	if (!WeaponArchetype.IsValid())
-	{
-		return FName("SMG"); // Default
-	}
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// SSOT: Delegate to FSuspenseCoreAnimationHelpers
+	// This eliminates code duplication and ensures consistent mapping across codebase
+	// ═══════════════════════════════════════════════════════════════════════════════
 
-	const FString TagString = WeaponArchetype.ToString();
+	FName RowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(WeaponArchetype);
 
-	// Sniper check first (more specific)
-	if (TagString.Contains(TEXT("Sniper")))
-	{
-		return FName("Sniper");
-	}
-
-	// Rifle (Assault, DMR) -> SMG (legacy naming)
-	if (TagString.Contains(TEXT("Weapon.Rifle")))
+	// Helper returns NAME_None for invalid tags, but legacy expects "SMG" default
+	if (RowName == NAME_None)
 	{
 		return FName("SMG");
 	}
 
-	// SMG
-	if (TagString.Contains(TEXT("Weapon.SMG")))
-	{
-		return FName("SMG");
-	}
-
-	// Pistol
-	if (TagString.Contains(TEXT("Weapon.Pistol")))
-	{
-		return FName("Pistol");
-	}
-
-	// Shotgun
-	if (TagString.Contains(TEXT("Weapon.Shotgun")))
-	{
-		return FName("Shotgun");
-	}
-
-	// Melee Knife
-	if (TagString.Contains(TEXT("Weapon.Melee.Knife")))
-	{
-		return FName("Knife");
-	}
-
-	// Melee Blunt -> Special
-	if (TagString.Contains(TEXT("Weapon.Melee")))
-	{
-		return FName("Special");
-	}
-
-	// Heavy -> Special
-	if (TagString.Contains(TEXT("Weapon.Heavy")))
-	{
-		return FName("Special");
-	}
-
-	// Throwable -> Frag
-	if (TagString.Contains(TEXT("Weapon.Throwable")))
-	{
-		return FName("Frag");
-	}
-
-	// Default fallback
-	return FName("SMG");
+	return RowName;
 }

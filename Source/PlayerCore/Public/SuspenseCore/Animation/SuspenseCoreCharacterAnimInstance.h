@@ -421,9 +421,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
 	UAnimSequence* GetLeftHandGrip() const { return CurrentAnimationData.LeftHandGrip; }
 
-	/** GripPoses AnimComposite */
+	/** GripPoses AnimComposite (with NULL check logging) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimComposite* GetGripPoses() const { return CurrentAnimationData.GripPoses; }
+	UAnimComposite* GetGripPoses() const;
+
+	/** Check if GripPoses is valid */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
+	bool HasValidGripPoses() const { return CurrentAnimationData.GripPoses != nullptr; }
 
 	/** FirstDraw AnimMontage */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))

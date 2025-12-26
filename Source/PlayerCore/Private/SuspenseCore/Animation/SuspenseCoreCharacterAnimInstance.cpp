@@ -684,6 +684,25 @@ UAnimSequence* USuspenseCoreCharacterAnimInstance::GetIdle() const
 	return CurrentAnimationData.Idle;
 }
 
+UAnimComposite* USuspenseCoreCharacterAnimInstance::GetGripPoses() const
+{
+	UAnimComposite* Result = CurrentAnimationData.GripPoses;
+
+	// Debug logging (раз в 3 секунды)
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 3.0f && bHasWeaponEquipped)
+	{
+		LastLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[GetGripPoses] Returning: %s, GripID=%d, ModifyGrip=%d"),
+			Result ? *Result->GetName() : TEXT("NULL"),
+			GripID,
+			bModifyGrip);
+	}
+
+	return Result;
+}
+
 UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetGripPoseByIndex(int32 PoseIndex) const
 {
 	if (!CurrentAnimationData.GripPoses)

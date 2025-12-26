@@ -335,35 +335,28 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	BlockDistance = Snapshot.BlockDistance;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// APPLY DT POSE INDICES (Set from Blueprint via Active DT macro)
-	// If Snapshot values are at default (0), use DT values from DataTable
-	// This allows weapon to override via StanceComponent, but Blueprint/DataTable provides defaults
+	// DT LEGACY SUPPORT
+	// Per documentation: StanceComponent is SSOT. DT* variables are legacy Blueprint support.
+	// Priority: StanceComponent (via Snapshot) > Blueprint DT* variables
+	//
+	// If WeaponActor doesn't set values, StanceComponent will have defaults (0, false).
+	// Blueprint can set DT* variables which will be used as fallback.
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// Apply DT indices as defaults if Snapshot didn't set them
-	if (GripID == 0 && DTDefaultGripID != 0)
-	{
-		GripID = DTDefaultGripID;
-	}
-	if (AimPose == 0 && DTDefaultAimPose != 0)
-	{
-		AimPose = DTDefaultAimPose;
-	}
-	if (StoredPose == 0 && DTDefaultStoredPose != 0)
-	{
-		StoredPose = DTDefaultStoredPose;
-	}
-
-	// Apply DT pose flags - these are always used from Blueprint/DataTable
-	// (Snapshot.bModifyGrip/bCreateAimPose are false by default, so DT values take priority)
-	if (!Snapshot.bModifyGrip && DTModifyGrip)
+	// Apply DT pose flags ONLY if StanceComponent didn't set them
+	// Note: We check bModifyGrip/bCreateAimPose because these are explicitly set by WeaponActor
+	if (!Snapshot.bModifyGrip)
 	{
 		bModifyGrip = DTModifyGrip;
 	}
-	if (!Snapshot.bCreateAimPose && DTCreateAimPose)
+	if (!Snapshot.bCreateAimPose)
 	{
 		bCreateAimPose = DTCreateAimPose;
 	}
+
+	// DT pose indices are used as defaults ONLY if Blueprint sets them AND weapon doesn't override
+	// Blueprint should set these via StanceComponent API for proper SSOT architecture
+	// This is legacy support for existing Blueprint animations
 
 #else
 	// Equipment system disabled - use character's basic weapon flag
@@ -450,27 +443,48 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// COMPUTE TARGET TRANSFORMS
+	// Per documentation priority:
+	// RH: StanceComponent.RightHandTransform > DT > CurrentAnimationData
+	// LH: ComputeLHOffsetTransform() handles all cases per M LH Offset logic
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	FTransform TargetRHTransform = FTransform::Identity;
 	FTransform TargetLHTransform = FTransform::Identity;
 
-	// Get RH Transform target
-	if (!DTRHTransform.Equals(FTransform::Identity))
+	// Get RH Transform target - priority: StanceComponent > DT > AnimationData
+	if (!RightHandTransform.Equals(FTransform::Identity))
 	{
-		TargetRHTransform = DTRHTransform;
-	}
-	else if (!RightHandTransform.Equals(FTransform::Identity))
-	{
+		// From StanceComponent snapshot (weapon actor set this)
 		TargetRHTransform = RightHandTransform;
+	}
+	else if (!DTRHTransform.Equals(FTransform::Identity))
+	{
+		// Legacy DT support
+		TargetRHTransform = DTRHTransform;
 	}
 	else if (CurrentAnimationData.Stance != nullptr)
 	{
+		// Fallback to animation data from DataTable
 		TargetRHTransform = CurrentAnimationData.RHTransform;
 	}
 
-	// Get LH Transform target using M LH Offset logic
+	// Get LH Transform target using M LH Offset logic (handles all priority cases)
 	TargetLHTransform = ComputeLHOffsetTransform();
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// APPLY AIM BLEND TO LH TRANSFORM (before interpolation)
+	// Per documentation: "Apply AimTransform from weapon actor if aiming"
+	// This must happen BEFORE interpolation so the blend is smooth
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
+	{
+		// Blend between base LH transform and aim transform based on AimingAlpha
+		TargetLHTransform = UKismetMathLibrary::TLerp(
+			TargetLHTransform,
+			AimTransform,
+			AimingAlpha
+		);
+	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// TINTERP TO - Smooth interpolation (legacy: InterpSpeed 8.0)
@@ -495,7 +509,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	LeftHandIKTransform = InterpolatedLHTransform;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// WEAPON TRANSFORM
+	// WEAPON TRANSFORM - priority: StanceComponent > DT > AnimationData
 	// ═══════════════════════════════════════════════════════════════════════════════
 	if (!DTWTransform.Equals(FTransform::Identity))
 	{
@@ -504,26 +518,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	else if (CurrentAnimationData.Stance != nullptr)
 	{
 		WeaponTransform = CurrentAnimationData.WTransform;
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// OVERRIDES: Apply weapon actor transforms (highest priority)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	// Apply LeftHandTransform from weapon actor if provided (overrides DataTable)
-	if (!LeftHandTransform.Equals(FTransform::Identity))
-	{
-		LeftHandIKTransform = LeftHandTransform;
-	}
-
-	// Apply AimTransform from weapon actor if aiming (for custom aim offset)
-	if (bIsAiming && bCreateAimPose && !AimTransform.Equals(FTransform::Identity))
-	{
-		LeftHandIKTransform = UKismetMathLibrary::TLerp(
-			LeftHandIKTransform,
-			AimTransform,
-			AimingAlpha
-		);
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════

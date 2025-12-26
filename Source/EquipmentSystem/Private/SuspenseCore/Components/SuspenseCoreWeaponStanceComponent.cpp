@@ -45,15 +45,16 @@ void USuspenseCoreWeaponStanceComponent::GetLifetimeReplicatedProps(TArray<FLife
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	// Weapon identity
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, CurrentWeaponType);
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bWeaponDrawn);
+	// Weapon identity - replicated with OnRep callbacks
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, CurrentWeaponType, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bWeaponDrawn, COND_None, REPNOTIFY_Always);
 
-	// Combat states
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsAiming);
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsFiring);
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsReloading);
-	DOREPLIFETIME(USuspenseCoreWeaponStanceComponent, bIsHoldingBreath);
+	// Combat states - replicated with OnRep callbacks
+	// Note: All combat states use OnRep_CombatState for unified state update
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsAiming, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsFiring, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsReloading, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsHoldingBreath, COND_None, REPNOTIFY_Always);
 }
 
 void USuspenseCoreWeaponStanceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -500,9 +501,26 @@ void USuspenseCoreWeaponStanceComponent::OnRep_DrawnState()
 
 void USuspenseCoreWeaponStanceComponent::OnRep_CombatState()
 {
-	// Update target aim pose based on replicated aiming state
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Called when any combat state (bIsAiming, bIsFiring, bIsReloading, bIsHoldingBreath)
+	// is replicated from server. Update local interpolated values based on new states.
+	//
+	// Per documentation: "Visual modifiers (Alpha values) are NOT replicated -
+	// they are calculated locally on each client based on replicated bool states."
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Update target aim pose alpha based on aiming state
+	// This drives the AimPoseAlpha interpolation in TickComponent
 	TargetAimPoseAlpha = bIsAiming ? 1.0f : 0.0f;
 
+	// Cancel aiming interpolation immediately when reloading starts
+	if (bIsReloading && bIsAiming)
+	{
+		// Note: Server will handle SetAiming(false), but we can start interpolating locally
+		TargetAimPoseAlpha = 0.0f;
+	}
+
+	// Notify animation layer of state change (optional - AnimInstance pulls via GetStanceSnapshot)
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }
 

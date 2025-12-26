@@ -633,7 +633,7 @@ void ASuspenseCoreCharacter::PublishCharacterEvent(const FGameplayTag& EventTag,
 
 void ASuspenseCoreCharacter::SetupCameraAttachment()
 {
-	if (!Camera)
+	if (!Camera || !CameraBoom)
 	{
 		return;
 	}
@@ -644,12 +644,11 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 	switch (CameraAttachMode)
 	{
 	case ESuspenseCoreCameraAttachMode::CameraBoom:
-		// Attach to CameraBoom - stable FPS, no head bob
-		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-		Camera->SetRelativeLocation(FVector::ZeroVector);
-		Camera->SetRelativeRotation(FRotator::ZeroRotator);
+		// CameraBoom stays on capsule - stable FPS, no head bob
+		CameraBoom->SetupAttachment(GetCapsuleComponent());
+		CameraBoom->bUsePawnControlRotation = true;
 		Camera->bUsePawnControlRotation = false;
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to CameraBoom (stable FPS mode)"));
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera on CameraBoom (stable FPS mode)"));
 		return;
 
 	case ESuspenseCoreCameraAttachMode::MetaHumanFace:
@@ -696,24 +695,27 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		break;
 	}
 
-	// Attach camera to found component
+	// Attach CameraBoom (with Camera) to found component's socket
 	if (AttachComponent)
 	{
-		Camera->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketToUse);
-		Camera->SetRelativeLocation(CameraAttachOffset);
-		Camera->SetRelativeRotation(CameraAttachRotation);
-		Camera->bUsePawnControlRotation = true;
+		// Attach the SPRING ARM to the head socket - camera follows via spring arm
+		CameraBoom->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketToUse);
+		CameraBoom->SetRelativeLocation(CameraAttachOffset);
+		CameraBoom->SetRelativeRotation(CameraAttachRotation);
+		CameraBoom->bUsePawnControlRotation = true;
 
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to '%s' socket '%s'"),
+		// Camera stays attached to CameraBoom, doesn't need own rotation
+		Camera->bUsePawnControlRotation = false;
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] CameraBoom attached to '%s' socket '%s'"),
 			*AttachComponent->GetName(), *SocketToUse.ToString());
 	}
 	else
 	{
-		// Fallback to CameraBoom
-		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Falling back to CameraBoom attachment"));
-		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-		Camera->SetRelativeLocation(FVector::ZeroVector);
-		Camera->SetRelativeRotation(FRotator::ZeroRotator);
+		// Fallback to capsule
+		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Falling back to CameraBoom on capsule"));
+		CameraBoom->SetupAttachment(GetCapsuleComponent());
+		CameraBoom->bUsePawnControlRotation = true;
 		Camera->bUsePawnControlRotation = false;
 	}
 }

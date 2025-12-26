@@ -666,6 +666,11 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] MetaHuman Body SkeletalMesh not found!"));
 		}
+		else
+		{
+			// Hide Face mesh from owner's view (first person)
+			HideMetaHumanFaceFromOwner();
+		}
 		break;
 
 	case ESuspenseCoreCameraAttachMode::ComponentByName:
@@ -844,6 +849,30 @@ USceneComponent* ASuspenseCoreCharacter::FindMetaHumanBodyComponent() const
 	}
 
 	return nullptr;
+}
+
+void ASuspenseCoreCharacter::HideMetaHumanFaceFromOwner()
+{
+	// Find and hide Face component for first-person view
+	// This prevents the face mesh from blocking the camera
+
+	TArray<UActorComponent*> Components;
+	GetComponents(USkeletalMeshComponent::StaticClass(), Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		FString CompName = Component->GetName();
+
+		// Check for "Face" in component name
+		if (CompName.Contains(TEXT("Face")))
+		{
+			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
+			{
+				PrimComp->SetOwnerNoSee(true);
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Hidden Face mesh from owner: %s"), *CompName);
+			}
+		}
+	}
 }
 
 USceneComponent* ASuspenseCoreCharacter::FindComponentByName(FName ComponentName) const

@@ -372,15 +372,15 @@ public:
 
 	/** Stance BlendSpace */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UBlendSpace* GetStance() const { return CurrentAnimationData.Stance; }
+	UBlendSpace* GetStance() const;
 
 	/** Locomotion BlendSpace1D */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UBlendSpace1D* GetLocomotion() const { return CurrentAnimationData.Locomotion; }
+	UBlendSpace1D* GetLocomotion() const;
 
 	/** Idle AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetIdle() const { return CurrentAnimationData.Idle; }
+	UAnimSequence* GetIdle() const;
 
 	/** AimPose AnimComposite */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))

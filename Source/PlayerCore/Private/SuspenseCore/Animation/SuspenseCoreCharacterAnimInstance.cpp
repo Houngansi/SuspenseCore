@@ -632,6 +632,39 @@ const FSuspenseCoreAnimationData* USuspenseCoreCharacterAnimInstance::GetAnimati
 	return Result;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANIMATION ASSET GETTERS (с логированием для отладки)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+UBlendSpace* USuspenseCoreCharacterAnimInstance::GetStance() const
+{
+	UBlendSpace* Result = CurrentAnimationData.Stance;
+
+	// Debug logging (раз в 2 секунды)
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 2.0f && bHasWeaponEquipped)
+	{
+		LastLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[GetStance] Called! Returning: %s (bHasWeapon=%d, WeaponType=%s)"),
+			Result ? *Result->GetName() : TEXT("NULL"),
+			bHasWeaponEquipped,
+			*CurrentWeaponType.ToString());
+	}
+
+	return Result;
+}
+
+UBlendSpace1D* USuspenseCoreCharacterAnimInstance::GetLocomotion() const
+{
+	return CurrentAnimationData.Locomotion;
+}
+
+UAnimSequence* USuspenseCoreCharacterAnimInstance::GetIdle() const
+{
+	return CurrentAnimationData.Idle;
+}
+
 UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetGripPoseByIndex(int32 PoseIndex) const
 {
 	if (!CurrentAnimationData.GripPoses)

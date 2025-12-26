@@ -25,6 +25,12 @@ USuspenseCoreCharacterAnimInstance::USuspenseCoreCharacterAnimInstance()
 void USuspenseCoreCharacterAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
+
+	UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
+	UE_LOG(LogTemp, Warning, TEXT("║ [AnimInstance] NativeInitializeAnimation CALLED!            ║"));
+	UE_LOG(LogTemp, Warning, TEXT("║ Owner: %s"), TryGetPawnOwner() ? *TryGetPawnOwner()->GetName() : TEXT("NULL"));
+	UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
+
 	UpdateCachedReferences();
 	LoadWeaponAnimationsTable();
 }
@@ -559,16 +565,33 @@ void USuspenseCoreCharacterAnimInstance::UpdateGASAttributes()
 
 void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] LoadWeaponAnimationsTable() called"));
+
 	const USuspenseCoreSettings* Settings = GetDefault<USuspenseCoreSettings>();
-	if (Settings && !Settings->WeaponAnimationsTable.IsNull())
+	if (!Settings)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] ERROR: USuspenseCoreSettings is NULL!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Settings found. WeaponAnimationsTable.IsNull() = %s"),
+		Settings->WeaponAnimationsTable.IsNull() ? TEXT("TRUE (not set!)") : TEXT("FALSE (set)"));
+
+	if (!Settings->WeaponAnimationsTable.IsNull())
 	{
 		WeaponAnimationsTable = Settings->WeaponAnimationsTable.LoadSynchronous();
-		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] Loaded WeaponAnimationsTable: %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ✓ Loaded WeaponAnimationsTable: %s"),
 			WeaponAnimationsTable ? *WeaponAnimationsTable->GetName() : TEXT("NULL"));
+
+		if (WeaponAnimationsTable)
+		{
+			TArray<FName> RowNames = WeaponAnimationsTable->GetRowNames();
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] DataTable has %d rows"), RowNames.Num());
+		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] WeaponAnimationsTable NOT SET! Configure in Project Settings → Game → SuspenseCore → Animation System"));
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] ERROR: WeaponAnimationsTable NOT SET in Project Settings!"));
 	}
 }
 

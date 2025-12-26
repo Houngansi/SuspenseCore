@@ -281,6 +281,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	// Cache weapon actor for socket transform access (used in UpdateIKData)
 	CachedWeaponActor = StanceComp->GetTrackedEquipmentActor();
 
+	// Debug: Log if weapon actor is valid
+	static bool bLoggedWeaponActor = false;
+	if (!bLoggedWeaponActor || (CachedWeaponActor.IsValid() != bLoggedWeaponActor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] CachedWeaponActor: %s"),
+			CachedWeaponActor.IsValid() ? *CachedWeaponActor->GetName() : TEXT("NULL"));
+		bLoggedWeaponActor = CachedWeaponActor.IsValid();
+	}
+
 	// Get complete stance snapshot from component (includes all combat states)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
@@ -557,8 +566,15 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 	// Get LH_Target socket transform from weapon mesh and convert to CHARACTER's Component Space
 	// This is the key to making left hand follow weapon rotation!
 
-	if (!CachedWeaponActor.IsValid() || !CachedCharacter.IsValid())
+	if (!CachedWeaponActor.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetWeaponLHTargetTransform: CachedWeaponActor is INVALID!"));
+		return false;
+	}
+
+	if (!CachedCharacter.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetWeaponLHTargetTransform: CachedCharacter is INVALID!"));
 		return false;
 	}
 
@@ -590,6 +606,7 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 	// Check if socket exists
 	if (!WeaponMesh->DoesSocketExist(LHTargetSocketName))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetWeaponLHTargetTransform: Socket '%s' NOT FOUND on weapon mesh!"), *LHTargetSocketName.ToString());
 		return false;
 	}
 
@@ -599,6 +616,10 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 	// Convert from World Space to CHARACTER's Component Space
 	// This makes the transform relative to the character mesh, which is what AnimGraph expects
 	OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
+
+	UE_LOG(LogTemp, Verbose, TEXT("[AnimInstance] GetWeaponLHTargetTransform: SUCCESS! Socket Loc=(%.2f,%.2f,%.2f)"),
+		OutTransform.GetLocation().X, OutTransform.GetLocation().Y, OutTransform.GetLocation().Z);
+
 	return true;
 }
 

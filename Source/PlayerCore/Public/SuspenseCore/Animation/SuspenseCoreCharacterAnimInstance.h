@@ -390,9 +390,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
 	UAnimSequence* GetAimIn() const { return CurrentAnimationData.AimIn; }
 
-	/** AimIdle AnimSequence */
+	/** AimIdle AnimSequence (fallback to Idle if NULL) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetAimIdle() const { return CurrentAnimationData.AimIdle; }
+	UAnimSequence* GetAimIdle() const
+	{
+		// Fallback to Idle if AimIdle is NULL to prevent Sequence Evaluator crash
+		return CurrentAnimationData.AimIdle ? CurrentAnimationData.AimIdle : CurrentAnimationData.Idle;
+	}
 
 	/** AimOut AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
@@ -402,9 +406,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
 	UAnimSequence* GetSlide() const { return CurrentAnimationData.Slide; }
 
-	/** Blocked AnimSequence */
+	/** Blocked AnimSequence (fallback to Idle if NULL) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetBlocked() const { return CurrentAnimationData.Blocked; }
+	UAnimSequence* GetBlocked() const
+	{
+		return CurrentAnimationData.Blocked ? CurrentAnimationData.Blocked : CurrentAnimationData.Idle;
+	}
 
 	/** GripBlocked AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))

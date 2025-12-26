@@ -542,19 +542,36 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	// LEGACY VARIABLES FOR ANIMGRAPH
 	// Set RH Transform / LH Transform for AnimGraph's Transform (Modify) Bone nodes
 	// These match the legacy Blueprint variable names that AnimGraph expects
+	//
+	// IMPORTANT: If transforms are Identity, DON'T apply them (keep Alpha=0)
+	// Otherwise the Transform (Modify) Bone will override the animation pose!
 	// ═══════════════════════════════════════════════════════════════════════════════
 	RHTransform = RightHandIKTransform;
 	LHTransform = LeftHandIKTransform;
+
+	// If transforms are Identity, disable IK to preserve animation pose
+	const bool bRHTransformValid = !RHTransform.GetLocation().IsNearlyZero(0.1f) || !RHTransform.GetRotation().IsIdentity(0.01f);
+	const bool bLHTransformValid = !LHTransform.GetLocation().IsNearlyZero(0.1f) || !LHTransform.GetRotation().IsIdentity(0.01f);
+
+	if (!bRHTransformValid)
+	{
+		RightHandIKAlpha = 0.0f;
+	}
+	if (!bLHTransformValid)
+	{
+		LeftHandIKAlpha = 0.0f;
+	}
 
 	// Debug logging (every 60 frames)
 	static int32 IKFrameCounter = 0;
 	if (++IKFrameCounter % 60 == 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance IK] bWeaponDrawn=%d, DTRHTransform IsIdentity=%d, DTLHTransform IsIdentity=%d, DTWTransform IsIdentity=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance IK] bWeaponDrawn=%d, RH_Valid=%d, LH_Valid=%d, RHIKAlpha=%.2f, LHIKAlpha=%.2f"),
 			bIsWeaponDrawn,
-			DTRHTransform.Equals(FTransform::Identity),
-			DTLHTransform.Equals(FTransform::Identity),
-			DTWTransform.Equals(FTransform::Identity));
+			bRHTransformValid,
+			bLHTransformValid,
+			RightHandIKAlpha,
+			LeftHandIKAlpha);
 		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance IK] RHTransform Loc=(%.2f,%.2f,%.2f), LHTransform Loc=(%.2f,%.2f,%.2f)"),
 			RHTransform.GetLocation().X, RHTransform.GetLocation().Y, RHTransform.GetLocation().Z,
 			LHTransform.GetLocation().X, LHTransform.GetLocation().Y, LHTransform.GetLocation().Z);

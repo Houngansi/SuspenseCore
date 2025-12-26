@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
@@ -74,6 +75,29 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 	bIsFiring = false;
 	bIsReloading = false;
 	RecoilAlpha = 0.0f;
+
+	// Read pose indices from weapon actor
+	if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(NewEquipmentActor))
+	{
+		// Apply weapon's pose configuration
+		GripID = WeaponActor->GripID;
+		AimPose = WeaponActor->AimPose;
+		StoredPose = WeaponActor->StoredPose;
+		bModifyGrip = WeaponActor->bModifyGrip;
+		bCreateAimPose = WeaponActor->bCreateAimPose;
+
+		UE_LOG(LogTemp, Log, TEXT("[StanceComp] Loaded pose indices from weapon: GripID=%d, AimPose=%d, StoredPose=%d, ModifyGrip=%d, CreateAimPose=%d"),
+			GripID, AimPose, StoredPose, bModifyGrip ? 1 : 0, bCreateAimPose ? 1 : 0);
+	}
+	else if (!NewEquipmentActor)
+	{
+		// Reset to defaults when no weapon
+		GripID = 0;
+		AimPose = 0;
+		StoredPose = 0;
+		bModifyGrip = false;
+		bCreateAimPose = false;
+	}
 
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }

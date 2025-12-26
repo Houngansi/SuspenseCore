@@ -668,6 +668,11 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] MetaHuman Body SkeletalMesh not found!"));
 		}
+		else
+		{
+			// Hide Face from owner but keep shadow
+			HideMetaHumanFaceFromOwner();
+		}
 		break;
 
 	case ESuspenseCoreCameraAttachMode::ComponentByName:
@@ -846,6 +851,41 @@ USceneComponent* ASuspenseCoreCharacter::FindMetaHumanBodyComponent() const
 	}
 
 	return nullptr;
+}
+
+void ASuspenseCoreCharacter::HideMetaHumanFaceFromOwner()
+{
+	// Hide Face and all its children (Beard, Eyebrows, Hair, etc.) from owner
+	// but keep shadows visible using bCastHiddenShadow
+
+	TArray<UActorComponent*> Components;
+	GetComponents(UPrimitiveComponent::StaticClass(), Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
+		{
+			FString CompName = Component->GetName();
+
+			// Check if this is Face or any of its children
+			bool bIsFaceComponent = CompName.Contains(TEXT("Face")) ||
+									CompName.Contains(TEXT("Beard")) ||
+									CompName.Contains(TEXT("Eyebrow")) ||
+									CompName.Contains(TEXT("Eyelash")) ||
+									CompName.Contains(TEXT("Fuzz")) ||
+									CompName.Contains(TEXT("Hair")) ||
+									CompName.Contains(TEXT("Mustache"));
+
+			if (bIsFaceComponent)
+			{
+				// Hide from owner but keep shadow
+				PrimComp->SetOwnerNoSee(true);
+				PrimComp->bCastHiddenShadow = true;
+
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Hidden Face component from owner (shadow kept): %s"), *CompName);
+			}
+		}
+	}
 }
 
 USceneComponent* ASuspenseCoreCharacter::FindComponentByName(FName ComponentName) const

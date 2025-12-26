@@ -982,7 +982,14 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetype() const
 {
-	return GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
+	const FName RowName = GetLegacyRowNameFromArchetypeTag(CurrentWeaponType);
+
+	// Debug logging
+	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetLegacyRowNameFromArchetype: CurrentWeaponType='%s' => RowName='%s'"),
+		*CurrentWeaponType.ToString(),
+		*RowName.ToString());
+
+	return RowName;
 }
 
 FName USuspenseCoreCharacterAnimInstance::GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype)

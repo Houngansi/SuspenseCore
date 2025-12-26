@@ -88,9 +88,9 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 		UE_LOG(LogTemp, Log, TEXT("[StanceComp] Loaded pose indices from weapon: GripID=%d, AimPose=%d, StoredPose=%d, ModifyGrip=%d, CreateAimPose=%d"),
 			GripID, AimPose, StoredPose, bModifyGrip ? 1 : 0, bCreateAimPose ? 1 : 0);
 	}
-	else if (!NewEquipmentActor)
+	else
 	{
-		// Reset to defaults when no weapon
+		// Reset to defaults when no weapon or non-WeaponActor equipment
 		GripID = 0;
 		AimPose = 0;
 		StoredPose = 0;

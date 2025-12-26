@@ -271,6 +271,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		// Legacy transforms for AnimGraph
 		RHTransform = FTransform::Identity;
 		LHTransform = FTransform::Identity;
+		// DT update flags - bNeedsDTUpdate stays true for initial load
+		bWeaponTypeChanged = false;
 		return;
 	}
 
@@ -288,13 +290,20 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bHasWeaponEquipped = CurrentWeaponType.IsValid();
 	bIsWeaponDrawn = Snapshot.bIsDrawn;
 
-	// Debug: Log when weapon type changes
-	if (CurrentWeaponType != PreviousWeaponType)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON TYPE CHANGE DETECTION (for Blueprint DT loading)
+	// bWeaponTypeChanged: true when weapon changed OR first frame
+	// bNeedsDTUpdate: stays true until Blueprint calls MarkDTInitialized()
+	// ═══════════════════════════════════════════════════════════════════════════════
+	bWeaponTypeChanged = (CurrentWeaponType != PreviousWeaponType);
+
+	// Also trigger DT update if weapon changed
+	if (bWeaponTypeChanged)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] WeaponType changed: %s -> %s (Valid: %d)"),
+		bNeedsDTUpdate = true;
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] WeaponType changed: %s -> %s (bNeedsDTUpdate=true)"),
 			*PreviousWeaponType.ToString(),
-			*CurrentWeaponType.ToString(),
-			CurrentWeaponType.IsValid() ? 1 : 0);
+			*CurrentWeaponType.ToString());
 	}
 
 	// Combat states from snapshot

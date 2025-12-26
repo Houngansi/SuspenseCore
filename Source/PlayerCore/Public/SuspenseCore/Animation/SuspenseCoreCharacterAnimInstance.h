@@ -193,6 +193,21 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Weapon")
 	FGameplayTag LastWeaponType;
 
+	/**
+	 * True когда CurrentWeaponType изменился с прошлого кадра ИЛИ при первой инициализации.
+	 * Используйте эту переменную в Blueprint вместо сравнения CurrentWeaponType != LastWeaponType,
+	 * т.к. она корректно обрабатывает случай когда оба тега пустые при старте.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	bool bWeaponTypeChanged = false;
+
+	/**
+	 * True если DT анимации требуют обновления (первый кадр или смена оружия).
+	 * После обработки в Blueprint, вызовите MarkDTInitialized() чтобы сбросить флаг.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	bool bNeedsDTUpdate = true;
+
 	/** Оружие экипировано (есть в слоте) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
 	bool bHasWeaponEquipped = false;
@@ -576,6 +591,17 @@ public:
 	/** Получить монтаж выстрела */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
 	UAnimMontage* GetFireMontage(bool bAiming = false) const;
+
+	/**
+	 * Вызовите после обработки Active DT в Blueprint чтобы сбросить флаг bNeedsDTUpdate.
+	 * Это предотвращает повторную загрузку DT каждый кадр.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation")
+	void MarkDTInitialized()
+	{
+		bNeedsDTUpdate = false;
+		LastWeaponType = CurrentWeaponType;
+	}
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════

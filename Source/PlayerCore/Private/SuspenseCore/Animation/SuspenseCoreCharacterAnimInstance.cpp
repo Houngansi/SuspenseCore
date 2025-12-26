@@ -399,10 +399,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 		return;
 	}
 
-	// Get animation data from DataTable
+	// Get animation data from DataTable (C++ SSOT path)
 	const FAnimationStateData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
 	if (!AnimData)
 	{
+		// C++ path returned null - either no table, struct mismatch, or row not found
+		// Blueprint path should handle this via bNeedsDTUpdate flag
+		static bool bLoggedNullAnimData = false;
+		if (!bLoggedNullAnimData && bWeaponTypeChanged)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets: C++ path returned NULL for weapon '%s'. Blueprint path should handle via Active DT macro."),
+				*CurrentWeaponType.ToString());
+			bLoggedNullAnimData = true;
+		}
 		return;
 	}
 
@@ -418,6 +427,14 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 	if (AnimData->AimIdle)
 	{
 		CurrentAimPose = AnimData->AimIdle;
+	}
+
+	// Log success
+	if (bWeaponTypeChanged)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets: SUCCESS! Loaded C++ animation data for '%s'. Stance=%s"),
+			*CurrentWeaponType.ToString(),
+			CurrentStanceBlendSpace ? *CurrentStanceBlendSpace->GetName() : TEXT("NULL"));
 	}
 }
 
@@ -908,12 +925,30 @@ void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
 	if (Settings && !Settings->WeaponAnimationsTable.IsNull())
 	{
 		WeaponAnimationsTable = Settings->WeaponAnimationsTable.LoadSynchronous();
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] LoadWeaponAnimationsTable: Loaded '%s' from Project Settings"),
+			WeaponAnimationsTable ? *WeaponAnimationsTable->GetName() : TEXT("NULL"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] LoadWeaponAnimationsTable: WeaponAnimationsTable NOT SET in Project Settings! Path: Project Settings → Game → SuspenseCore → Animation System"));
 	}
 }
 
 const FAnimationStateData* USuspenseCoreCharacterAnimInstance::GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const
 {
-	if (!WeaponAnimationsTable || !WeaponType.IsValid())
+	if (!WeaponAnimationsTable)
+	{
+		// Log once per session
+		static bool bLoggedNoTable = false;
+		if (!bLoggedNoTable)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetAnimationDataForWeaponType: WeaponAnimationsTable is NULL! Set it in Project Settings → Game → SuspenseCore"));
+			bLoggedNoTable = true;
+		}
+		return nullptr;
+	}
+
+	if (!WeaponType.IsValid())
 	{
 		return nullptr;
 	}
@@ -937,7 +972,15 @@ const FAnimationStateData* USuspenseCoreCharacterAnimInstance::GetAnimationDataF
 	const UScriptStruct* RowStruct = WeaponAnimationsTable->GetRowStruct();
 	if (!RowStruct || RowStruct != FSuspenseCoreAnimationData::StaticStruct())
 	{
-		// Table uses different struct - skip C++ path, let Blueprint handle it
+		// Log once per session with helpful info
+		static bool bLoggedStructMismatch = false;
+		if (!bLoggedStructMismatch)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] GetAnimationDataForWeaponType: DataTable '%s' uses struct '%s', expected 'FSuspenseCoreAnimationData'. C++ path disabled, using Blueprint path."),
+				*WeaponAnimationsTable->GetName(),
+				RowStruct ? *RowStruct->GetName() : TEXT("NULL"));
+			bLoggedStructMismatch = true;
+		}
 		return nullptr;
 	}
 

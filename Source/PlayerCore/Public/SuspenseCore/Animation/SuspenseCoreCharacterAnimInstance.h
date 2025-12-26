@@ -461,13 +461,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
 	int32 DTDefaultStoredPose = 0;
 
-	/** DT Modify Grip - использовать DTLHGripTransform вместо сокета LH_Target */
+	/** DT Modify Grip - использовать DTLHGripTransform вместо сокета LH_Target (false by default, Blueprint sets) */
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	bool DTModifyGrip = true;
+	bool DTModifyGrip = false;
 
-	/** DT Create Aim Pose - использовать AimPose composite */
+	/** DT Create Aim Pose - использовать AimPose composite (false by default, Blueprint sets) */
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	bool DTCreateAimPose = true;
+	bool DTCreateAimPose = false;
 
 	/** Alpha для Left Hand IK (0 = выкл, 1 = вкл) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")

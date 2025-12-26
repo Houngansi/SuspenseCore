@@ -364,8 +364,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	FTransform WeaponTransform = FTransform::Identity;
 
-	/** DT Weapon Transform - сырой трансформ оружия из DataTable (WTransform) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** DT Weapon Transform - set by Blueprint via ActiveDT macro, used by AnimGraph for Weapon bone */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT W Transform"))
 	FTransform DTWTransform = FTransform::Identity;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -442,16 +442,16 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
 	TObjectPtr<UAnimComposite> DTGripPoses = nullptr;
 
-	/** DT Right Hand Transform */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	/** DT Right Hand Transform - set by Blueprint via ActiveDT macro */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT RH Transform"))
 	FTransform DTRHTransform = FTransform::Identity;
 
-	/** DT Left Hand Transform */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	/** DT Left Hand Transform - set by Blueprint via ActiveDT macro */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT LH Transform"))
 	FTransform DTLHTransform = FTransform::Identity;
 
-	/** DT Left Hand Grip Transform array */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	/** DT Left Hand Grip Transform array - set by Blueprint via ActiveDT macro */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT LH Grip Transform"))
 	TArray<FTransform> DTLHGripTransform;
 
 	/** DT Aim Pose Alpha */

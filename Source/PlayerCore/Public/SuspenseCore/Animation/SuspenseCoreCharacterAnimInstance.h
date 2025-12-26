@@ -366,6 +366,122 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	UAnimSequenceBase* GetActiveGripPose() const;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ANIMATION ASSET GETTERS (для удобного доступа в AnimGraph)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Stance BlendSpace */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UBlendSpace* GetStance() const { return CurrentAnimationData.Stance; }
+
+	/** Locomotion BlendSpace1D */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UBlendSpace1D* GetLocomotion() const { return CurrentAnimationData.Locomotion; }
+
+	/** Idle AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetIdle() const { return CurrentAnimationData.Idle; }
+
+	/** AimPose AnimComposite */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimComposite* GetAimPose() const { return CurrentAnimationData.AimPose; }
+
+	/** AimIn AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetAimIn() const { return CurrentAnimationData.AimIn; }
+
+	/** AimIdle AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetAimIdle() const { return CurrentAnimationData.AimIdle; }
+
+	/** AimOut AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetAimOut() const { return CurrentAnimationData.AimOut; }
+
+	/** Slide AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetSlide() const { return CurrentAnimationData.Slide; }
+
+	/** Blocked AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetBlocked() const { return CurrentAnimationData.Blocked; }
+
+	/** GripBlocked AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetGripBlocked() const { return CurrentAnimationData.GripBlocked; }
+
+	/** LeftHandGrip AnimSequence */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimSequence* GetLeftHandGrip() const { return CurrentAnimationData.LeftHandGrip; }
+
+	/** GripPoses AnimComposite */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimComposite* GetGripPoses() const { return CurrentAnimationData.GripPoses; }
+
+	/** FirstDraw AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetFirstDraw() const { return CurrentAnimationData.FirstDraw; }
+
+	/** Draw AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetDraw() const { return CurrentAnimationData.Draw; }
+
+	/** Holster AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetHolster() const { return CurrentAnimationData.Holster; }
+
+	/** Firemode AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetFiremode() const { return CurrentAnimationData.Firemode; }
+
+	/** Shoot AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetShoot() const { return CurrentAnimationData.Shoot; }
+
+	/** AimShoot AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetAimShoot() const { return CurrentAnimationData.AimShoot; }
+
+	/** ReloadShort AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetReloadShort() const { return CurrentAnimationData.ReloadShort; }
+
+	/** ReloadLong AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetReloadLong() const { return CurrentAnimationData.ReloadLong; }
+
+	/** Melee AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetMelee() const { return CurrentAnimationData.Melee; }
+
+	/** Throw AnimMontage */
+	UFUNCTION(BlueprintPure, Category = "Animation|Assets")
+	UAnimMontage* GetThrow() const { return CurrentAnimationData.Throw; }
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// TRANSFORM GETTERS
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Right Hand Transform */
+	UFUNCTION(BlueprintPure, Category = "Animation|Transforms")
+	FTransform GetRHTransform() const { return CurrentAnimationData.RHTransform; }
+
+	/** Left Hand Transform */
+	UFUNCTION(BlueprintPure, Category = "Animation|Transforms")
+	FTransform GetLHTransform() const { return CurrentAnimationData.LHTransform; }
+
+	/** Weapon Transform */
+	UFUNCTION(BlueprintPure, Category = "Animation|Transforms")
+	FTransform GetWTransform() const { return CurrentAnimationData.WTransform; }
+
+	/** Left Hand Grip Transform by index (0=Base, 1=Aim, 2=Reload) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Transforms")
+	FTransform GetLHGripTransform(int32 Index = 0) const { return CurrentAnimationData.GetLeftHandGripTransform(Index); }
+
+	/** All Left Hand Grip Transforms array */
+	UFUNCTION(BlueprintPure, Category = "Animation|Transforms")
+	TArray<FTransform> GetAllLHGripTransforms() const { return CurrentAnimationData.LHGripTransform; }
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CACHED REFERENCES

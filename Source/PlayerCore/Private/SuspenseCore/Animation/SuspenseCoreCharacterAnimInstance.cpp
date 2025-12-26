@@ -133,11 +133,51 @@ void USuspenseCoreCharacterAnimInstance::UpdateMovementData(float DeltaSeconds)
 	bHasMovementInput = Character->HasMovementInput();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// Get MoveForward/MoveRight from Character (already calculated from input)
-	// Character handles interpolation and sprint multiplier internally
+	// Calculate MoveForward/MoveRight from VELOCITY relative to CONTROL rotation
+	// When bUseControllerRotationYaw=true, actor rotates to face camera direction,
+	// so we need to calculate direction relative to where the camera is looking,
+	// not where the actor is facing (they're nearly the same but with lag)
 	// ═══════════════════════════════════════════════════════════════════════════════
-	MoveForward = Character->GetAnimationForwardValue();
-	MoveRight = Character->GetAnimationRightValue();
+	const FVector Velocity = Character->GetVelocity();
+	const float HorizontalSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
+
+	if (HorizontalSpeed > 10.0f)
+	{
+		// Get velocity direction relative to CONTROL rotation (camera direction)
+		// This is what the player considers "forward" for movement
+		FRotator ReferenceRotation = Character->GetActorRotation();
+
+		// If character uses controller rotation, use controller rotation as reference
+		// This gives us the direction relative to where the player is looking
+		if (AController* Controller = Character->GetController())
+		{
+			ReferenceRotation = FRotator(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
+		}
+
+		const FRotator VelocityRotation = Velocity.ToOrientationRotator();
+		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(VelocityRotation, ReferenceRotation);
+
+		// Convert angle to Forward/Right components
+		// 0 degrees = forward, 90 = right, -90 = left, 180 = backward
+		const float AngleRad = FMath::DegreesToRadians(DeltaRotation.Yaw);
+		float TargetForward = FMath::Cos(AngleRad);
+		float TargetRight = FMath::Sin(AngleRad);
+
+		// Apply sprint multiplier (2.0 for sprint, 1.0 for walk)
+		const float SpeedMultiplier = bIsSprinting ? 2.0f : 1.0f;
+		TargetForward *= SpeedMultiplier;
+		TargetRight *= SpeedMultiplier;
+
+		// Smooth interpolation
+		MoveForward = FMath::FInterpTo(MoveForward, TargetForward, DeltaSeconds, 10.0f);
+		MoveRight = FMath::FInterpTo(MoveRight, TargetRight, DeltaSeconds, 10.0f);
+	}
+	else
+	{
+		// No significant movement - interpolate to zero
+		MoveForward = FMath::FInterpTo(MoveForward, 0.0f, DeltaSeconds, 10.0f);
+		MoveRight = FMath::FInterpTo(MoveRight, 0.0f, DeltaSeconds, 10.0f);
+	}
 
 	// Calculate Movement for State Machine transitions (matches example blueprint)
 	// Movement = Clamp(ABS(Forward) + ABS(Right), 0, Max)
@@ -190,6 +230,13 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 #if WITH_EQUIPMENT_SYSTEM
 	if (!CachedStanceComponent.IsValid())
 	{
+		// Debug: Log once when stance component missing
+		static bool bLoggedOnce = false;
+		if (!bLoggedOnce)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] No CachedStanceComponent! Check if character has USuspenseCoreWeaponStanceComponent"));
+			bLoggedOnce = true;
+		}
 		// No stance component - reset weapon data
 		CurrentWeaponType = FGameplayTag();
 		bHasWeaponEquipped = false;
@@ -236,9 +283,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
 	// Weapon identity
+	FGameplayTag PreviousWeaponType = CurrentWeaponType;
 	CurrentWeaponType = Snapshot.WeaponType;
 	bHasWeaponEquipped = CurrentWeaponType.IsValid();
 	bIsWeaponDrawn = Snapshot.bIsDrawn;
+
+	// Debug: Log when weapon type changes
+	if (CurrentWeaponType != PreviousWeaponType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] WeaponType changed: %s -> %s (Valid: %d)"),
+			*PreviousWeaponType.ToString(),
+			*CurrentWeaponType.ToString(),
+			CurrentWeaponType.IsValid() ? 1 : 0);
+	}
 
 	// Combat states from snapshot
 	bIsAiming = Snapshot.bIsAiming;

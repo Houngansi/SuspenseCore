@@ -285,13 +285,6 @@ struct BRIDGESYSTEM_API FSuspenseCoreAnimationData : public FTableRowBase
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LEGACY ALIAS (for backward compatibility)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/** @deprecated Use FSuspenseCoreAnimationData instead */
-using FAnimationStateData = FSuspenseCoreAnimationData;
-
-// ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 

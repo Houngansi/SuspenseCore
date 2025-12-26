@@ -2,7 +2,19 @@
 // Copyright Suspense Team. All Rights Reserved.
 //
 // SINGLE SOURCE OF TRUTH (SSOT) для всех анимационных данных персонажа.
-// Этот класс агрегирует данные из всех систем и предоставляет их Animation Blueprint.
+// Данные автоматически загружаются из DataTable, настроенного в Project Settings.
+//
+// НАСТРОЙКА:
+// 1. Создайте DataTable с Row Structure: FSuspenseCoreAnimationData
+// 2. Добавьте строки: SMG, Pistol, Shotgun, Sniper, Knife, Special, Frag
+// 3. Project Settings → Game → SuspenseCore → Weapon Animations Table
+//
+// ИСПОЛЬЗОВАНИЕ В ANIMGRAPH:
+// - CurrentAnimationData.Stance (BlendSpace)
+// - CurrentAnimationData.Locomotion (BlendSpace1D)
+// - CurrentAnimationData.Idle, AimIn, AimOut, etc. (AnimSequence)
+// - CurrentAnimationData.Draw, Holster, Reload, etc. (AnimMontage)
+// - CurrentAnimationData.RHTransform, LHTransform, WTransform (Transform)
 
 #pragma once
 
@@ -28,24 +40,19 @@ class UDataTable;
  * USuspenseCoreCharacterAnimInstance
  *
  * SINGLE SOURCE OF TRUTH для Animation Blueprint.
- * Все переменные обновляются в NativeUpdateAnimation каждый кадр.
+ * Все данные обновляются автоматически в NativeUpdateAnimation.
  *
  * АРХИТЕКТУРА:
  * ┌─────────────────────────────────────────────────────────────────┐
- * │  Character       → MovementState, Speed, Direction             │
- * │  StanceComponent → WeaponType, bDrawn, BlendSpace              │
- * │  GAS Attributes  → SprintSpeed, CrouchSpeed, etc.              │
- * │  DataTable       → Stance BS, Draw/Holster Montages            │
+ * │  Project Settings → WeaponAnimationsTable (DataTable)          │
+ * │  StanceComponent  → WeaponType, CombatState                    │
+ * │  Character        → MovementState, Speed                       │
+ * │  GAS Attributes   → SprintSpeed, CrouchSpeed                   │
  * │                    ↓                                            │
- * │           AnimInstance (SSOT)                                   │
+ * │           AnimInstance (автоматическая загрузка)               │
  * │                    ↓                                            │
- * │           Animation Blueprint                                   │
+ * │           CurrentAnimationData.* (используй в AnimGraph)       │
  * └─────────────────────────────────────────────────────────────────┘
- *
- * ИСПОЛЬЗОВАНИЕ В ABP:
- * - Все переменные доступны напрямую (BlueprintReadOnly)
- * - Не нужно вызывать функции в EventGraph
- * - Используй CurrentStanceBlendSpace прямо как BlendSpace ноду
  */
 UCLASS()
 class PLAYERCORE_API USuspenseCoreCharacterAnimInstance : public UAnimInstance
@@ -60,759 +67,374 @@ public:
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// MOVEMENT STATE (из Character)
+	// MOVEMENT STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Текущее состояние движения (Idle, Walking, Sprinting, Crouching, Jumping, Falling) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	ESuspenseCoreMovementState MovementState = ESuspenseCoreMovementState::Idle;
 
-	/** Персонаж сейчас спринтит */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsSprinting = false;
 
-	/** Персонаж сейчас в присяде */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsCrouching = false;
 
-	/** Персонаж сейчас в воздухе (прыжок или падение) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsInAir = false;
 
-	/** Персонаж сейчас падает */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsFalling = false;
 
-	/** Персонаж сейчас прыгает */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsJumping = false;
 
-	/** Персонаж двигается (есть input) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bHasMovementInput = false;
 
-	/** Персонаж находится на земле */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsOnGround = true;
 
-	/** Персонаж сейчас скользит (sliding) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Movement")
 	bool bIsSliding = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// POSE STATES / TURN IN PLACE (для поворота корпуса)
+	// POSE STATES / TURN IN PLACE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/**
-	 * Lean (Roll) - наклон персонажа при поворотах
-	 * Интерполируется с скоростью 10.0
-	 * Получается из Character или вычисляется из velocity
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
 	float Lean = 0.0f;
 
-	/**
-	 * Body Pitch - наклон корпуса вперёд/назад
-	 * Используется для aim offset корпуса
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
 	float BodyPitch = 0.0f;
 
-	/**
-	 * Yaw Offset для Turn In Place
-	 * Накапливается когда персонаж стоит, интерполируется к 0 при движении
-	 * Кламп: -120..120 градусов
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
 	float YawOffset = 0.0f;
 
-	/**
-	 * Rotation Curve - значение из анимационной кривой "Rotation"
-	 * Используется для синхронизации поворота с анимацией
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
 	float RotationCurve = 0.0f;
 
-	/**
-	 * Is Turning - значение из анимационной кривой "IsTurning"
-	 * 1.0 когда проигрывается анимация поворота
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|PoseStates")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|PoseStates")
 	float IsTurningCurve = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// VELOCITY & DIRECTION (для BlendSpaces)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Текущая скорость (длина вектора velocity) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Velocity")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
 	float Speed = 0.0f;
 
-	/** Скорость в Ground Plane (без вертикальной компоненты) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Velocity")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
 	float GroundSpeed = 0.0f;
 
-	/** Нормализованная скорость (0-1 относительно MaxWalkSpeed) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Velocity")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
 	float NormalizedSpeed = 0.0f;
 
-	/** Направление движения вперёд (-1..1) для BlendSpace */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
+	/** Направление движения вперёд (-1..1) - для BlendSpace Axis */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
 	float MoveForward = 0.0f;
 
-	/** Направление движения вправо (-1..1) для BlendSpace */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
+	/** Направление движения вправо (-1..1) - для BlendSpace Axis */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
 	float MoveRight = 0.0f;
 
-	/** Угол направления движения в градусах (-180..180) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
 	float MovementDirection = 0.0f;
 
-	/**
-	 * Величина движения для State Machine (0-2)
-	 * = Clamp(ABS(Forward) + ABS(Right), 0, Max)
-	 * Max = 1.0 (walk), 2.0 (sprint)
-	 * Используется для переходов между Idle/Walk/Run
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Direction")
+	/** Величина движения (0-2) для State Machine переходов */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Direction")
 	float Movement = 0.0f;
 
-	/** Вертикальная скорость (для Jump/Fall бленда) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Velocity")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Velocity")
 	float VerticalVelocity = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// WEAPON & STANCE (из StanceComponent)
+	// WEAPON STATE
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Тип текущего оружия (GameplayTag) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	FGameplayTag CurrentWeaponType;
 
-	/** Предыдущий тип оружия (для отслеживания смены) */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Weapon")
-	FGameplayTag LastWeaponType;
-
-	/**
-	 * True когда CurrentWeaponType изменился с прошлого кадра ИЛИ при первой инициализации.
-	 * Используйте эту переменную в Blueprint вместо сравнения CurrentWeaponType != LastWeaponType,
-	 * т.к. она корректно обрабатывает случай когда оба тега пустые при старте.
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	/** True когда тип оружия изменился (используй для отладки) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bWeaponTypeChanged = false;
 
-	/**
-	 * True если DT анимации требуют обновления (первый кадр или смена оружия).
-	 * После обработки в Blueprint, вызовите MarkDTInitialized() чтобы сбросить флаг.
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
-	bool bNeedsDTUpdate = true;
-
-	/** Оружие экипировано (есть в слоте) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bHasWeaponEquipped = false;
 
-	/** Оружие извлечено (в руках) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsWeaponDrawn = false;
 
-	/** Персонаж сейчас прицеливается (ADS) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsAiming = false;
 
-	/** Alpha для бленда прицеливания (0-1) - интерполируется автоматически */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float AimingAlpha = 0.0f;
 
-	/** Персонаж сейчас стреляет */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsFiring = false;
 
-	/** Персонаж сейчас перезаряжает */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsReloading = false;
 
-	/** Персонаж задерживает дыхание (снайпер) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsHoldingBreath = false;
 
-	/** Сейчас играет монтаж на оружейном слое */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsWeaponMontageActive = false;
 
-	/** Модификатор хвата (0 = обычный, 1 = тактический) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float GripModifier = 0.0f;
 
-	/** Оружие опущено (0 = нормально, 1 = полностью опущено - у стены и т.д.) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float WeaponLoweredAlpha = 0.0f;
 
-	/** Текущий recoil alpha (0 = нет отдачи, 1 = максимальная) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float RecoilAlpha = 0.0f;
 
-	/** Множитель sway (раскачивание оружия, влияет стамина, движение) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float WeaponSwayMultiplier = 1.0f;
 
-	/** Stored recoil (для процедурной анимации) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float StoredRecoil = 0.0f;
 
-	/** Additive pitch (отдача, дыхание) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float AdditivePitch = 0.0f;
 
-	/** Block distance (расстояние до стены) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float BlockDistance = 0.0f;
 
-	// -------- Compatibility Flags --------
-
-	/** Is Holstered (inverse of bIsWeaponDrawn) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsHolstered = true;
 
-	/** Modify Grip flag - enables grip modification on aim */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bModifyGrip = false;
 
-	/** Create Aim Pose flag - enables custom aim transform */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|State")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bCreateAimPose = false;
 
-	// -------- Aim Target --------
-
-	/** Sight Distance - расстояние до цели прицеливания (для FABRIK и aim target) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Aim")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float SightDistance = 200.0f;
 
-	// -------- Pose Indices --------
-
-	/** Aim Pose index (from weapon data) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	/** Pose indices (from WeaponActor) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	int32 AimPose = 0;
 
-	/** Stored Pose index (for transitions) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	int32 StoredPose = 0;
 
-	/** Grip ID (for hand placement variations) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|Pose")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	int32 GripID = 0;
 
-	// -------- IK Transforms --------
-
-	/** Aim Transform (weapon positioning) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
-	FTransform AimTransform;
-
-	/** Right Hand IK Transform */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
-	FTransform RightHandTransform;
-
-	/** Left Hand IK Transform */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Weapon|IK")
-	FTransform LeftHandTransform;
-
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// ANIMATION ASSETS FROM DATATABLE (SSOT)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Текущий BlendSpace стойки (из DataTable!) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Assets")
-	TObjectPtr<UBlendSpace> CurrentStanceBlendSpace = nullptr;
-
-	/** Текущий BlendSpace локомоции (из DataTable!) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Assets")
-	TObjectPtr<UBlendSpace1D> CurrentLocomotionBlendSpace = nullptr;
-
-	/** Текущая Idle анимация (из DataTable!) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Assets")
-	TObjectPtr<UAnimSequence> CurrentIdleAnimation = nullptr;
-
-	/** Текущая поза прицеливания (из DataTable!) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Assets")
-	TObjectPtr<UAnimSequence> CurrentAimPose = nullptr;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// FULL ANIMATION DATA (SSOT - from DataTable configured in Project Settings)
+	// ANIMATION DATA (SSOT - автоматически загружается из DataTable)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * Full animation data for current weapon (SSOT).
-	 * Loaded from WeaponAnimationsTable configured in Project Settings → Game → SuspenseCore.
-	 * Row is selected using FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype().
+	 * ВСЕ АНИМАЦИОННЫЕ ДАННЫЕ ДЛЯ ТЕКУЩЕГО ОРУЖИЯ
+	 *
+	 * Используй в AnimGraph:
+	 * - CurrentAnimationData.Stance (BlendSpace для стойки)
+	 * - CurrentAnimationData.Locomotion (BlendSpace1D для движения)
+	 * - CurrentAnimationData.Idle (AnimSequence)
+	 * - CurrentAnimationData.AimPose (AnimComposite)
+	 * - CurrentAnimationData.AimIn, AimIdle, AimOut (AnimSequence)
+	 * - CurrentAnimationData.Slide, Blocked, GripBlocked (AnimSequence)
+	 * - CurrentAnimationData.LeftHandGrip (AnimSequence)
+	 * - CurrentAnimationData.GripPoses (AnimComposite)
+	 * - CurrentAnimationData.FirstDraw, Draw, Holster (AnimMontage)
+	 * - CurrentAnimationData.Firemode, Shoot, AimShoot (AnimMontage)
+	 * - CurrentAnimationData.ReloadShort, ReloadLong (AnimMontage)
+	 * - CurrentAnimationData.Melee, Throw (AnimMontage)
+	 * - CurrentAnimationData.RHTransform, LHTransform, WTransform (FTransform)
+	 * - CurrentAnimationData.LHGripTransform (TArray<FTransform>)
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Data")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	FSuspenseCoreAnimationData CurrentAnimationData;
 
-	/** DataTable с анимациями оружия (референс) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Data")
+	/** DataTable reference (для отладки) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Data")
 	TObjectPtr<UDataTable> WeaponAnimationsTable = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// IK TRANSFORMS (Inverse Kinematics)
+	// IK TRANSFORMS (интерполированные)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Трансформ левой руки для IK */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** Left Hand IK Transform (интерполированный) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK")
 	FTransform LeftHandIKTransform = FTransform::Identity;
 
-	/** Трансформ правой руки для IK */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** Right Hand IK Transform (интерполированный) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK")
 	FTransform RightHandIKTransform = FTransform::Identity;
 
-	/** Трансформ оружия (вычисленный) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** Weapon Transform (вычисленный) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK")
 	FTransform WeaponTransform = FTransform::Identity;
 
-	/** DT Weapon Transform - set by Blueprint via ActiveDT macro, used by AnimGraph for Weapon bone */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT W Transform"))
-	FTransform DTWTransform = FTransform::Identity;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY TRANSFORM VARIABLES (Used by AnimGraph - matches Blueprint variable names)
-	// These are the interpolated transforms that AnimGraph reads via Transform (Modify) Bone
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/**
-	 * RH Transform - интерполированный трансформ правой руки
-	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_R
-	 * Имя совпадает с legacy Blueprint переменной
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "RH Transform"))
-	FTransform RHTransform = FTransform::Identity;
-
-	/**
-	 * LH Transform - интерполированный трансформ левой руки
-	 * Используется AnimGraph в Transform (Modify) Bone для VB_Hand_L
-	 * Имя совпадает с legacy Blueprint переменной
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Animation|Legacy", meta = (DisplayName = "LH Transform"))
-	FTransform LHTransform = FTransform::Identity;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY DT VARIABLES (Set from Blueprint via legacy DataTable method)
-	// These variables are populated by Blueprint from DT_MPS_Anims DataTable
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** DT Stance BlendSpace */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UBlendSpace> DTStance = nullptr;
-
-	/** DT Locomotion BlendSpace */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UBlendSpace> DTLocomotion = nullptr;
-
-	/** DT Idle animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTIdle = nullptr;
-
-	/** DT Aim Pose animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTAimPose = nullptr;
-
-	/** DT Aim In transition animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTAimIn = nullptr;
-
-	/** DT Aim Idle animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTAimIdle = nullptr;
-
-	/** DT Aim Out transition animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTAimOut = nullptr;
-
-	/** DT Slide animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTSlide = nullptr;
-
-	/** DT Blocked animation (weapon blocked by wall) */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTBlocked = nullptr;
-
-	/** DT Grip Blocked animation */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimSequenceBase> DTGripBlocked = nullptr;
-
-	/** DT Left Hand Grip transform */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	FTransform DTLeftHandGrip = FTransform::Identity;
-
-	/** DT Grip Poses AnimComposite */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	TObjectPtr<UAnimComposite> DTGripPoses = nullptr;
-
-	/** DT Right Hand Transform - set by Blueprint via ActiveDT macro */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT RH Transform"))
-	FTransform DTRHTransform = FTransform::Identity;
-
-	/** DT Left Hand Transform - set by Blueprint via ActiveDT macro */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT LH Transform"))
-	FTransform DTLHTransform = FTransform::Identity;
-
-	/** DT Left Hand Grip Transform array - set by Blueprint via ActiveDT macro */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT", meta = (DisplayName = "DT LH Grip Transform"))
-	TArray<FTransform> DTLHGripTransform;
-
-	/** DT Aim Pose Alpha */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	float DTAimPoseAlpha = 0.0f;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// DT POSE INDICES (Set from Blueprint via Active DT macro)
-	// These indices are used for Sequence Evaluator (Explicit Time formula)
-	// Formula: ExplicitTime = 0.02 + (PoseIndex * 0.03)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** DT Default Grip ID - базовый индекс хвата из DataTable */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	int32 DTDefaultGripID = 0;
-
-	/** DT Default Aim Pose - индекс позы прицеливания из DataTable */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	int32 DTDefaultAimPose = 1;
-
-	/** DT Default Stored Pose - сохранённый индекс позы из DataTable */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	int32 DTDefaultStoredPose = 0;
-
-	/** DT Modify Grip - использовать DTLHGripTransform вместо сокета LH_Target (false by default, Blueprint sets) */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	bool DTModifyGrip = false;
-
-	/** DT Create Aim Pose - использовать AimPose composite (false by default, Blueprint sets) */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
-	bool DTCreateAimPose = false;
-
-	/** Alpha для Left Hand IK (0 = выкл, 1 = вкл) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** Left Hand IK Alpha (0 = выкл, 1 = вкл) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK")
 	float LeftHandIKAlpha = 0.0f;
 
-	/** Alpha для Right Hand IK */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
+	/** Right Hand IK Alpha */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK")
 	float RightHandIKAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// AIM OFFSET & LOOK (Будущее расширение)
+	// AIM OFFSET
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Yaw для AimOffset (-180..180) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|AimOffset")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
 	float AimYaw = 0.0f;
 
-	/** Pitch для AimOffset (-90..90) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|AimOffset")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
 	float AimPitch = 0.0f;
 
-	/** Delta rotation для поворота корпуса */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|AimOffset")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
 	float TurnInPlaceAngle = 0.0f;
 
-	/** Нужен ли поворот корпуса */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|AimOffset")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|AimOffset")
 	bool bShouldTurnInPlace = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// RECOIL & PROCEDURAL (Будущее расширение)
+	// PROCEDURAL ANIMATION
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Текущий отдача (pitch добавка) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Recoil")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
 	float RecoilPitch = 0.0f;
 
-	/** Текущий отдача (yaw добавка) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Recoil")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
 	float RecoilYaw = 0.0f;
 
-	/** Alpha для процедурного дыхания */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Procedural")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
 	float BreathingAlpha = 0.0f;
 
-	/** Alpha для sway оружия */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Procedural")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Procedural")
 	float WeaponSwayAlpha = 0.0f;
 
-	/** Camera Shake - интерполированный шейк камеры (читается из Character и интерполируется) */
-	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Procedural")
+	UPROPERTY(BlueprintReadWrite, Category = "Animation|Procedural")
 	FVector CameraShake = FVector::ZeroVector;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// GAS ATTRIBUTES (Скорости из AttributeSet)
+	// GAS ATTRIBUTES
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Максимальная скорость ходьбы (из GAS) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
 	float MaxWalkSpeed = 400.0f;
 
-	/** Максимальная скорость спринта (из GAS) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
 	float MaxSprintSpeed = 600.0f;
 
-	/** Максимальная скорость в присяде (из GAS) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
 	float MaxCrouchSpeed = 200.0f;
 
-	/** Максимальная скорость при прицеливании (из GAS) */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
 	float MaxAimSpeed = 250.0f;
 
-	/**
-	 * Высота/сила прыжка (из GAS MovementAttributeSet)
-	 * Используется для анимаций прыжка и может быть модифицирована
-	 * весом снаряжения через GameplayEffects
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Attributes")
 	float JumpHeight = 420.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// HELPER METHODS (Вспомогательные методы для ABP)
+	// HELPER METHODS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Получить владельца как SuspenseCoreCharacter */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	ASuspenseCoreCharacter* GetSuspenseCoreCharacter() const;
 
-	/** Проверить валидность анимационных данных */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	bool HasValidAnimationData() const;
 
-	/** Получить монтаж доставания оружия */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	UAnimMontage* GetDrawMontage(bool bFirstDraw = false) const;
 
-	/** Получить монтаж убирания оружия */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	UAnimMontage* GetHolsterMontage() const;
 
-	/** Получить монтаж перезарядки */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	UAnimMontage* GetReloadMontage(bool bTactical = true) const;
 
-	/** Получить монтаж выстрела */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation")
 	UAnimMontage* GetFireMontage(bool bAiming = false) const;
 
 	/**
-	 * Вызовите после обработки Active DT в Blueprint чтобы сбросить флаг bNeedsDTUpdate.
-	 * Это предотвращает повторную загрузку DT каждый кадр.
+	 * Get grip pose by index from GripPoses AnimComposite.
+	 * Index 0 = Base, 1 = Aim, 2 = Reload, 3+ = Custom
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation")
-	void MarkDTInitialized()
-	{
-		bNeedsDTUpdate = false;
-		LastWeaponType = CurrentWeaponType;
-	}
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	UAnimSequenceBase* GetGripPoseByIndex(int32 PoseIndex) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	UAnimSequenceBase* GetActiveGripPose() const;
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CACHED REFERENCES
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Кэшированный Character */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<ASuspenseCoreCharacter> CachedCharacter;
 
-	/** Кэшированный StanceComponent */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USuspenseCoreWeaponStanceComponent> CachedStanceComponent;
 
-	/** Кэшированный CharacterMovementComponent */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UCharacterMovementComponent> CachedMovementComponent;
 
-	/** Кэшированный AbilitySystemComponent */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UAbilitySystemComponent> CachedASC;
 
-	/** Кэшированный MovementAttributeSet */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<const USuspenseCoreMovementAttributeSet> CachedMovementAttributes;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> CachedWeaponActor;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// INTERNAL UPDATE METHODS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	/** Обновить кэш компонентов */
 	void UpdateCachedReferences();
-
-	/** Обновить данные о движении из Character */
 	void UpdateMovementData(float DeltaSeconds);
-
-	/** Обновить данные о скорости и направлении */
 	void UpdateVelocityData(float DeltaSeconds);
-
-	/** Обновить данные об оружии из StanceComponent */
 	void UpdateWeaponData(float DeltaSeconds);
-
-	/** Обновить анимационные ассеты из DataTable */
 	void UpdateAnimationAssets();
-
-	/** Обновить IK трансформы */
 	void UpdateIKData(float DeltaSeconds);
-
-	/** Обновить AimOffset данные */
 	void UpdateAimOffsetData(float DeltaSeconds);
-
-	/** Обновить Pose States (Turn In Place, Lean, etc.) */
 	void UpdatePoseStates(float DeltaSeconds);
-
-	/** Обновить GAS атрибуты */
 	void UpdateGASAttributes();
-
-	/** Load DataTable from Project Settings → Game → SuspenseCore */
 	void LoadWeaponAnimationsTable();
 
-	/**
-	 * Get animation data from SSOT DataTable for given weapon type.
-	 * Uses FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype() for mapping.
-	 *
-	 * @param WeaponType Weapon archetype GameplayTag (e.g., Weapon.Rifle.Assault)
-	 * @return Pointer to animation data row, or nullptr if not found
-	 */
 	const FSuspenseCoreAnimationData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;
 
-	/**
-	 * Get animation segment from GripPoses AnimComposite by pose index.
-	 *
-	 * GripPoses содержит несколько поз (сегментов) для разных состояний:
-	 * - Index 0: Base grip pose (базовый хват)
-	 * - Index 1: Aim grip pose (хват при прицеливании)
-	 * - Index 2: Reload grip pose (хват при перезарядке)
-	 * - Index 3+: Weapon-specific poses (специфические для оружия)
-	 *
-	 * @param PoseIndex Index of pose segment in GripPoses composite
-	 * @return AnimSequence for the pose, or nullptr if not found
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
-	UAnimSequenceBase* GetGripPoseByIndex(int32 PoseIndex) const;
-
-	/**
-	 * Get currently active grip pose based on combat state and GripID.
-	 * Automatically selects appropriate pose from GripPoses composite.
-	 *
-	 * @return Active grip pose animation
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Animation|Helpers")
-	UAnimSequenceBase* GetActiveGripPose() const;
-
-	/**
-	 * Get legacy DataTable row name from WeaponArchetype tag.
-	 * Maps new archetype tags (Weapon.Rifle.Assault) to legacy row names (SMG).
-	 *
-	 * Mapping:
-	 * - Weapon.Rifle.* -> SMG (assault rifles use SMG row for now)
-	 * - Weapon.SMG.* -> SMG
-	 * - Weapon.Pistol.* -> Pistol
-	 * - Weapon.Shotgun.* -> Shotgun
-	 * - Weapon.Rifle.Sniper -> Sniper
-	 * - Weapon.Melee.Knife -> Knife
-	 * - Weapon.Throwable.* -> Frag
-	 * - Default -> SMG
-	 *
-	 * @return FName of the legacy DataTable row
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation|Helpers")
-	FName GetLegacyRowNameFromArchetype() const;
-
-	/**
-	 * Get legacy DataTable row name from any WeaponArchetype tag.
-	 * Static version for external use.
-	 *
-	 * @param WeaponArchetype The weapon archetype GameplayTag
-	 * @return FName of the legacy DataTable row
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Animation|Helpers")
-	static FName GetLegacyRowNameFromArchetypeTag(const FGameplayTag& WeaponArchetype);
-
 private:
-	/** Время последнего обновления кэша */
 	float LastCacheUpdateTime = 0.0f;
-
-	/** Интервал обновления кэша (секунды) */
 	static constexpr float CacheUpdateInterval = 1.0f;
-
-	/** Предыдущее значение для интерполяции */
 	float PreviousAimingAlpha = 0.0f;
-
-	/** Скорость интерполяции для AimAlpha */
 	static constexpr float AimInterpSpeed = 10.0f;
 
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// POSE STATES INTERNAL
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Yaw на прошлом тике для вычисления дельты */
+	// Pose States internal
 	float LastTickYaw = 0.0f;
-
-	/** Текущий Yaw актора */
 	float CurrentYaw = 0.0f;
-
-	/** Target Lean для интерполяции */
 	float TargetLean = 0.0f;
-
-	/** Скорость интерполяции Lean */
 	static constexpr float LeanInterpSpeed = 10.0f;
-
-	/** Скорость интерполяции YawOffset к 0 при движении */
 	static constexpr float YawOffsetInterpSpeed = 4.0f;
-
-	/** Скорость интерполяции YawOffset из RotationCurve */
 	static constexpr float YawOffsetCurveInterpSpeed = 2.0f;
-
-	/** Максимальный YawOffset */
 	static constexpr float MaxYawOffset = 120.0f;
 
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEGACY INTERPOLATION (from MPS AnimBP)
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	/** Текущий интерполированный RH Transform (для TInterp To) */
+	// IK Interpolation
 	FTransform InterpolatedRHTransform = FTransform::Identity;
-
-	/** Текущий интерполированный LH Transform (для TInterp To) */
 	FTransform InterpolatedLHTransform = FTransform::Identity;
-
-	/** Текущий интерполированный Block Distance */
 	float InterpolatedBlockDistance = 0.0f;
-
-	/** Текущий интерполированный Additive Pitch */
 	float InterpolatedAdditivePitch = 0.0f;
-
-	/** Скорость интерполяции трансформов (из legacy: 8.0) */
 	static constexpr float TransformInterpSpeed = 8.0f;
-
-	/** Скорость интерполяции Block Distance (из legacy: 10.0) */
 	static constexpr float BlockDistanceInterpSpeed = 10.0f;
-
-	/** Blend Exponent для Ease функции Additive Pitch (из legacy: 6.0) */
 	static constexpr float AdditivePitchBlendExp = 6.0f;
 
-	/** Кэшированный Weapon Actor */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<AActor> CachedWeaponActor;
-
-	/** Имя сокета для левой руки на оружии */
 	static const FName LHTargetSocketName;
 
-	/**
-	 * Получить трансформ сокета LH_Target с оружия.
-	 * Реализует логику M LH Offset из legacy Blueprint.
-	 *
-	 * @param OutTransform Результирующий трансформ
-	 * @return true если трансформ получен успешно
-	 */
 	bool GetWeaponLHTargetTransform(FTransform& OutTransform) const;
-
-	/**
-	 * Вычислить итоговый LH Transform с учётом всех условий.
-	 * Логика из M LH Offset макро:
-	 * - Если !bModifyGrip: использовать socket transform от оружия
-	 * - Если bModifyGrip: использовать DT LH Grip Transform[GripID]
-	 * - Если bIsMontageActive: пропустить (вернуть Identity)
-	 */
 	FTransform ComputeLHOffsetTransform() const;
+
+	// Track previous weapon type for change detection
+	FGameplayTag PreviousWeaponType;
 };

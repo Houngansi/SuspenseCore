@@ -455,7 +455,7 @@ Blend(JumpAnim, FallAnim, MapRangeClamped(VerticalVelocity, 100, -100, 0, 1))
 
 **Location:** Configured in Project Settings → Game → SuspenseCore → `WeaponAnimationsTable`
 
-**Row Structure:** `FSuspenseCoreAnimationData` (alias: `FAnimationStateData`)
+**Row Structure:** `FSuspenseCoreAnimationData`
 
 ```cpp
 USTRUCT(BlueprintType)

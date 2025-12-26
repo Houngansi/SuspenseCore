@@ -317,6 +317,37 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	AdditivePitch = Snapshot.AdditivePitch;
 	BlockDistance = Snapshot.BlockDistance;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// APPLY DT POSE INDICES (Set from Blueprint via Active DT macro)
+	// If Snapshot values are at default (0), use DT values from DataTable
+	// This allows weapon to override via StanceComponent, but Blueprint/DataTable provides defaults
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Apply DT indices as defaults if Snapshot didn't set them
+	if (GripID == 0 && DTDefaultGripID != 0)
+	{
+		GripID = DTDefaultGripID;
+	}
+	if (AimPose == 0 && DTDefaultAimPose != 0)
+	{
+		AimPose = DTDefaultAimPose;
+	}
+	if (StoredPose == 0 && DTDefaultStoredPose != 0)
+	{
+		StoredPose = DTDefaultStoredPose;
+	}
+
+	// Apply DT pose flags - these are always used from Blueprint/DataTable
+	// (Snapshot.bModifyGrip/bCreateAimPose are false by default, so DT values take priority)
+	if (!Snapshot.bModifyGrip && DTModifyGrip)
+	{
+		bModifyGrip = DTModifyGrip;
+	}
+	if (!Snapshot.bCreateAimPose && DTCreateAimPose)
+	{
+		bCreateAimPose = DTCreateAimPose;
+	}
+
 #else
 	// Equipment system disabled - use character's basic weapon flag
 	if (CachedCharacter.IsValid())

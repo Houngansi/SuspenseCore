@@ -633,7 +633,7 @@ void ASuspenseCoreCharacter::PublishCharacterEvent(const FGameplayTag& EventTag,
 
 void ASuspenseCoreCharacter::SetupCameraAttachment()
 {
-	if (!Camera || !CameraBoom)
+	if (!Camera)
 	{
 		return;
 	}
@@ -644,11 +644,12 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 	switch (CameraAttachMode)
 	{
 	case ESuspenseCoreCameraAttachMode::CameraBoom:
-		// CameraBoom stays on capsule - stable FPS, no head bob
-		CameraBoom->SetupAttachment(GetCapsuleComponent());
-		CameraBoom->bUsePawnControlRotation = true;
+		// Attach to CameraBoom - stable FPS, no head bob
+		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		Camera->SetRelativeLocation(FVector::ZeroVector);
+		Camera->SetRelativeRotation(FRotator::ZeroRotator);
 		Camera->bUsePawnControlRotation = false;
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera on CameraBoom (stable FPS mode)"));
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to CameraBoom (stable FPS mode)"));
 		return;
 
 	case ESuspenseCoreCameraAttachMode::MetaHumanFace:
@@ -664,11 +665,6 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		if (!AttachComponent)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] MetaHuman Body SkeletalMesh not found!"));
-		}
-		else
-		{
-			// Hide Face mesh from owner's view (first person)
-			HideMetaHumanFaceFromOwner();
 		}
 		break;
 
@@ -695,27 +691,24 @@ void ASuspenseCoreCharacter::SetupCameraAttachment()
 		break;
 	}
 
-	// Attach CameraBoom (with Camera) to found component's socket
+	// Attach camera to found component
 	if (AttachComponent)
 	{
-		// Attach the SPRING ARM to the head socket - camera follows via spring arm
-		CameraBoom->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketToUse);
-		CameraBoom->SetRelativeLocation(CameraAttachOffset);
-		CameraBoom->SetRelativeRotation(CameraAttachRotation);
-		CameraBoom->bUsePawnControlRotation = true;
+		Camera->AttachToComponent(AttachComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketToUse);
+		Camera->SetRelativeLocation(CameraAttachOffset);
+		Camera->SetRelativeRotation(CameraAttachRotation);
+		Camera->bUsePawnControlRotation = true;
 
-		// Camera stays attached to CameraBoom, doesn't need own rotation
-		Camera->bUsePawnControlRotation = false;
-
-		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] CameraBoom attached to '%s' socket '%s'"),
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Camera attached to '%s' socket '%s'"),
 			*AttachComponent->GetName(), *SocketToUse.ToString());
 	}
 	else
 	{
-		// Fallback to capsule
-		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Falling back to CameraBoom on capsule"));
-		CameraBoom->SetupAttachment(GetCapsuleComponent());
-		CameraBoom->bUsePawnControlRotation = true;
+		// Fallback to CameraBoom
+		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] Falling back to CameraBoom attachment"));
+		Camera->AttachToComponent(CameraBoom, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		Camera->SetRelativeLocation(FVector::ZeroVector);
+		Camera->SetRelativeRotation(FRotator::ZeroRotator);
 		Camera->bUsePawnControlRotation = false;
 	}
 }
@@ -851,30 +844,6 @@ USceneComponent* ASuspenseCoreCharacter::FindMetaHumanBodyComponent() const
 	}
 
 	return nullptr;
-}
-
-void ASuspenseCoreCharacter::HideMetaHumanFaceFromOwner()
-{
-	// Find and hide Face component for first-person view
-	// This prevents the face mesh from blocking the camera
-
-	TArray<UActorComponent*> Components;
-	GetComponents(USkeletalMeshComponent::StaticClass(), Components);
-
-	for (UActorComponent* Component : Components)
-	{
-		FString CompName = Component->GetName();
-
-		// Check for "Face" in component name
-		if (CompName.Contains(TEXT("Face")))
-		{
-			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
-			{
-				PrimComp->SetOwnerNoSee(true);
-				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] Hidden Face mesh from owner: %s"), *CompName);
-			}
-		}
-	}
 }
 
 USceneComponent* ASuspenseCoreCharacter::FindComponentByName(FName ComponentName) const

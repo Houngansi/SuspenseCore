@@ -350,6 +350,42 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 
 void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
+	// DEBUG: Log DataTable LHGripTransform values on weapon equip
+	static float LastDataLogTime = 0.0f;
+	const float DataCurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const bool bShouldLogData = (DataCurrentTime - LastDataLogTime) > 5.0f && bHasWeaponEquipped;
+
+	if (bShouldLogData)
+	{
+		LastDataLogTime = DataCurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
+		UE_LOG(LogTemp, Warning, TEXT("║ [UpdateIKData] DataTable Transform Values                    ║"));
+		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
+		UE_LOG(LogTemp, Warning, TEXT("║ RHTransform: Loc(%.1f, %.1f, %.1f)"),
+			CurrentAnimationData.RHTransform.GetLocation().X,
+			CurrentAnimationData.RHTransform.GetLocation().Y,
+			CurrentAnimationData.RHTransform.GetLocation().Z);
+		UE_LOG(LogTemp, Warning, TEXT("║ LHTransform: Loc(%.1f, %.1f, %.1f)"),
+			CurrentAnimationData.LHTransform.GetLocation().X,
+			CurrentAnimationData.LHTransform.GetLocation().Y,
+			CurrentAnimationData.LHTransform.GetLocation().Z);
+		UE_LOG(LogTemp, Warning, TEXT("║ WTransform:  Loc(%.1f, %.1f, %.1f)"),
+			CurrentAnimationData.WTransform.GetLocation().X,
+			CurrentAnimationData.WTransform.GetLocation().Y,
+			CurrentAnimationData.WTransform.GetLocation().Z);
+		UE_LOG(LogTemp, Warning, TEXT("║ LHGripTransform count: %d"), CurrentAnimationData.LHGripTransform.Num());
+		for (int32 i = 0; i < CurrentAnimationData.LHGripTransform.Num(); ++i)
+		{
+			const FTransform& GT = CurrentAnimationData.LHGripTransform[i];
+			UE_LOG(LogTemp, Warning, TEXT("║   [%d] Loc(%.1f, %.1f, %.1f) Rot(%.1f, %.1f, %.1f)"),
+				i, GT.GetLocation().X, GT.GetLocation().Y, GT.GetLocation().Z,
+				GT.GetRotation().Rotator().Pitch, GT.GetRotation().Rotator().Yaw, GT.GetRotation().Rotator().Roll);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("║ GripID=%d, bModifyGrip=%d, bIsAiming=%d"),
+			GripID, bModifyGrip, bIsAiming);
+		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
+	}
+
 	// IK is active when weapon is drawn
 	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped) ? 1.0f : 0.0f;
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
@@ -369,42 +405,61 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 	if (!bHasWeaponEquipped)
 	{
+		// Reset interpolated transforms when no weapon
+		InterpolatedRHTransform = FTransform::Identity;
+		InterpolatedLHTransform = FTransform::Identity;
 		return;
 	}
 
-	// Get RH Transform from CurrentAnimationData
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// RIGHT HAND TRANSFORM (from DataTable RHTransform)
+	// ═══════════════════════════════════════════════════════════════════════════════
 	FTransform TargetRHTransform = CurrentAnimationData.RHTransform;
 
-	// Get LH Transform
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEFT HAND TRANSFORM (from DataTable LHGripTransform - SSOT)
+	// ═══════════════════════════════════════════════════════════════════════════════
 	FTransform TargetLHTransform = ComputeLHOffsetTransform();
 
-	// Apply aim blend to LH Transform
-	if (bCreateAimPose && CurrentAnimationData.LHGripTransform.Num() > 1)
-	{
-		const int32 AimGripIndex = FMath::Clamp(AimPose, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-		TargetLHTransform = UKismetMathLibrary::TLerp(
-			TargetLHTransform,
-			CurrentAnimationData.LHGripTransform[AimGripIndex],
-			AimingAlpha
-		);
-	}
-
-	// Interpolate transforms
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// INTERPOLATE TRANSFORMS (like legacy TInterpTo nodes)
+	// ═══════════════════════════════════════════════════════════════════════════════
 	InterpolatedRHTransform = UKismetMathLibrary::TInterpTo(InterpolatedRHTransform, TargetRHTransform, DeltaSeconds, TransformInterpSpeed);
 	RightHandIKTransform = InterpolatedRHTransform;
 
 	InterpolatedLHTransform = UKismetMathLibrary::TInterpTo(InterpolatedLHTransform, TargetLHTransform, DeltaSeconds, TransformInterpSpeed);
 	LeftHandIKTransform = InterpolatedLHTransform;
 
-	// Weapon transform
+	// Weapon transform (direct assignment, no interpolation needed)
 	WeaponTransform = CurrentAnimationData.WTransform;
 
-	// Disable IK if transforms are Identity
-	const bool bRHValid = !RightHandIKTransform.GetLocation().IsNearlyZero(0.1f) || !RightHandIKTransform.GetRotation().IsIdentity(0.01f);
-	const bool bLHValid = !LeftHandIKTransform.GetLocation().IsNearlyZero(0.1f) || !LeftHandIKTransform.GetRotation().IsIdentity(0.01f);
+	// DEBUG: Log final IK transforms
+	static float LastIKLogTime = 0.0f;
+	const float IKCurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((IKCurrentTime - LastIKLogTime) > 3.0f && bHasWeaponEquipped)
+	{
+		LastIKLogTime = IKCurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[UpdateIKData] ★ Final LeftHandIKTransform = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
+			LeftHandIKTransform.GetLocation().X, LeftHandIKTransform.GetLocation().Y, LeftHandIKTransform.GetLocation().Z,
+			LeftHandIKAlpha);
+		UE_LOG(LogTemp, Warning, TEXT("[UpdateIKData] ★ Final RightHandIKTransform = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
+			RightHandIKTransform.GetLocation().X, RightHandIKTransform.GetLocation().Y, RightHandIKTransform.GetLocation().Z,
+			RightHandIKAlpha);
+	}
 
-	if (!bRHValid) RightHandIKAlpha = 0.0f;
-	if (!bLHValid) LeftHandIKAlpha = 0.0f;
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// IK VALIDITY CHECK
+	// Only disable IK if transforms are truly Identity (0,0,0 location + identity rotation)
+	// Don't disable for large transform values!
+	// ═══════════════════════════════════════════════════════════════════════════════
+	const bool bRHIsIdentity = RightHandIKTransform.GetLocation().IsNearlyZero(0.01f) &&
+	                           RightHandIKTransform.GetRotation().IsIdentity(0.001f);
+	const bool bLHIsIdentity = LeftHandIKTransform.GetLocation().IsNearlyZero(0.01f) &&
+	                           LeftHandIKTransform.GetRotation().IsIdentity(0.001f);
+
+	// Keep IK enabled if transforms have ANY data
+	if (bRHIsIdentity) RightHandIKAlpha = 0.0f;
+	if (bLHIsIdentity) LeftHandIKAlpha = 0.0f;
 }
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
@@ -455,39 +510,84 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		return FTransform::Identity;
 	}
 
-	// If ModifyGrip, use grip transforms from DataTable
-	if (bModifyGrip && CurrentAnimationData.LHGripTransform.Num() > 0)
+	// DEBUG: Log LHGripTransform usage
+	static float LastLHLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const bool bShouldLog = (CurrentTime - LastLHLogTime) > 3.0f && bHasWeaponEquipped;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PRIORITY 1: LHGripTransform from DataTable (SSOT)
+	// If DataTable has non-Identity grip transforms, USE THEM as primary source
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (CurrentAnimationData.LHGripTransform.Num() > 0)
 	{
 		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
 		FTransform BaseGrip = CurrentAnimationData.LHGripTransform[GripIndex];
 
-		// Blend to aim grip if aiming
-		if (bIsAiming)
+		// Check if this grip transform has actual data (not Identity)
+		const bool bHasValidGripData = !BaseGrip.GetLocation().IsNearlyZero(0.01f) ||
+		                               !BaseGrip.GetRotation().IsIdentity(0.001f) ||
+		                               !BaseGrip.GetScale3D().Equals(FVector::OneVector, 0.01f);
+
+		if (bHasValidGripData)
 		{
-			const int32 AimGripIndex = FMath::Clamp((AimPose > 0) ? AimPose : 1, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-			BaseGrip = UKismetMathLibrary::TLerp(BaseGrip, CurrentAnimationData.LHGripTransform[AimGripIndex], AimingAlpha);
+			if (bShouldLog)
+			{
+				LastLHLogTime = CurrentTime;
+				UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] ★ Using LHGripTransform[%d] = Loc(%.1f, %.1f, %.1f) Rot(%.1f, %.1f, %.1f)"),
+					GripIndex,
+					BaseGrip.GetLocation().X, BaseGrip.GetLocation().Y, BaseGrip.GetLocation().Z,
+					BaseGrip.GetRotation().Rotator().Pitch, BaseGrip.GetRotation().Rotator().Yaw, BaseGrip.GetRotation().Rotator().Roll);
+			}
+
+			// Blend to aim grip if aiming
+			if (bIsAiming && CurrentAnimationData.LHGripTransform.Num() > 1)
+			{
+				const int32 AimGripIndex = FMath::Clamp((AimPose > 0) ? AimPose : 1, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
+				BaseGrip = UKismetMathLibrary::TLerp(BaseGrip, CurrentAnimationData.LHGripTransform[AimGripIndex], AimingAlpha);
+			}
+			return BaseGrip;
 		}
-		return BaseGrip;
 	}
 
-	// Default: Get socket transform from weapon
-	FTransform SocketTransform;
-	if (GetWeaponLHTargetTransform(SocketTransform))
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PRIORITY 2: LHTransform from DataTable (single transform)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (!CurrentAnimationData.LHTransform.GetLocation().IsNearlyZero(0.01f) ||
+	    !CurrentAnimationData.LHTransform.GetRotation().IsIdentity(0.001f))
 	{
-		return SocketTransform;
-	}
-
-	// Fallback to DataTable LHTransform
-	if (!CurrentAnimationData.LHTransform.Equals(FTransform::Identity))
-	{
+		if (bShouldLog)
+		{
+			LastLHLogTime = CurrentTime;
+			UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Using LHTransform = Loc(%.1f, %.1f, %.1f)"),
+				CurrentAnimationData.LHTransform.GetLocation().X,
+				CurrentAnimationData.LHTransform.GetLocation().Y,
+				CurrentAnimationData.LHTransform.GetLocation().Z);
+		}
 		return CurrentAnimationData.LHTransform;
 	}
 
-	// Fallback to grip transform array
-	if (CurrentAnimationData.LHGripTransform.Num() > 0)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PRIORITY 3: Socket transform from weapon (LH_Target socket)
+	// Only used if DataTable transforms are empty/Identity
+	// ═══════════════════════════════════════════════════════════════════════════════
+	FTransform SocketTransform;
+	if (GetWeaponLHTargetTransform(SocketTransform))
 	{
-		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-		return CurrentAnimationData.LHGripTransform[GripIndex];
+		if (bShouldLog)
+		{
+			LastLHLogTime = CurrentTime;
+			UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Using Socket Transform = Loc(%.1f, %.1f, %.1f)"),
+				SocketTransform.GetLocation().X, SocketTransform.GetLocation().Y, SocketTransform.GetLocation().Z);
+		}
+		return SocketTransform;
+	}
+
+	if (bShouldLog)
+	{
+		LastLHLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Returning Identity! LHGripTransform.Num=%d, GripID=%d"),
+			CurrentAnimationData.LHGripTransform.Num(), GripID);
 	}
 
 	return FTransform::Identity;

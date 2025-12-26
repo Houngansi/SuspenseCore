@@ -133,51 +133,11 @@ void USuspenseCoreCharacterAnimInstance::UpdateMovementData(float DeltaSeconds)
 	bHasMovementInput = Character->HasMovementInput();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// Calculate MoveForward/MoveRight from VELOCITY relative to CONTROL rotation
-	// When bUseControllerRotationYaw=true, actor rotates to face camera direction,
-	// so we need to calculate direction relative to where the camera is looking,
-	// not where the actor is facing (they're nearly the same but with lag)
+	// Get MoveForward/MoveRight from Character (already calculated from input)
+	// Character handles interpolation and sprint multiplier internally
 	// ═══════════════════════════════════════════════════════════════════════════════
-	const FVector Velocity = Character->GetVelocity();
-	const float HorizontalSpeed = FVector(Velocity.X, Velocity.Y, 0.0f).Size();
-
-	if (HorizontalSpeed > 10.0f)
-	{
-		// Get velocity direction relative to CONTROL rotation (camera direction)
-		// This is what the player considers "forward" for movement
-		FRotator ReferenceRotation = Character->GetActorRotation();
-
-		// If character uses controller rotation, use controller rotation as reference
-		// This gives us the direction relative to where the player is looking
-		if (AController* Controller = Character->GetController())
-		{
-			ReferenceRotation = FRotator(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
-		}
-
-		const FRotator VelocityRotation = Velocity.ToOrientationRotator();
-		const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(VelocityRotation, ReferenceRotation);
-
-		// Convert angle to Forward/Right components
-		// 0 degrees = forward, 90 = right, -90 = left, 180 = backward
-		const float AngleRad = FMath::DegreesToRadians(DeltaRotation.Yaw);
-		float TargetForward = FMath::Cos(AngleRad);
-		float TargetRight = FMath::Sin(AngleRad);
-
-		// Apply sprint multiplier (2.0 for sprint, 1.0 for walk)
-		const float SpeedMultiplier = bIsSprinting ? 2.0f : 1.0f;
-		TargetForward *= SpeedMultiplier;
-		TargetRight *= SpeedMultiplier;
-
-		// Smooth interpolation
-		MoveForward = FMath::FInterpTo(MoveForward, TargetForward, DeltaSeconds, 10.0f);
-		MoveRight = FMath::FInterpTo(MoveRight, TargetRight, DeltaSeconds, 10.0f);
-	}
-	else
-	{
-		// No significant movement - interpolate to zero
-		MoveForward = FMath::FInterpTo(MoveForward, 0.0f, DeltaSeconds, 10.0f);
-		MoveRight = FMath::FInterpTo(MoveRight, 0.0f, DeltaSeconds, 10.0f);
-	}
+	MoveForward = Character->GetAnimationForwardValue();
+	MoveRight = Character->GetAnimationRightValue();
 
 	// Calculate Movement for State Machine transitions (matches example blueprint)
 	// Movement = Clamp(ABS(Forward) + ABS(Right), 0, Max)

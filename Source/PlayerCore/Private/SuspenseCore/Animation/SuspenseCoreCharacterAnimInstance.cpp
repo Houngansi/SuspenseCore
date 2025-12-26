@@ -536,6 +536,20 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	// ═══════════════════════════════════════════════════════════════════════════════
 	RHTransform = RightHandIKTransform;
 	LHTransform = LeftHandIKTransform;
+
+	// Debug logging (every 60 frames)
+	static int32 IKFrameCounter = 0;
+	if (++IKFrameCounter % 60 == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance IK] bWeaponDrawn=%d, DTRHTransform IsIdentity=%d, DTLHTransform IsIdentity=%d, DTWTransform IsIdentity=%d"),
+			bIsWeaponDrawn,
+			DTRHTransform.Equals(FTransform::Identity),
+			DTLHTransform.Equals(FTransform::Identity),
+			DTWTransform.Equals(FTransform::Identity));
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance IK] RHTransform Loc=(%.2f,%.2f,%.2f), LHTransform Loc=(%.2f,%.2f,%.2f)"),
+			RHTransform.GetLocation().X, RHTransform.GetLocation().Y, RHTransform.GetLocation().Z,
+			LHTransform.GetLocation().X, LHTransform.GetLocation().Y, LHTransform.GetLocation().Z);
+	}
 }
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const

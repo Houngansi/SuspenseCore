@@ -60,6 +60,25 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
+
+	// DEBUG: Log key variables every 3 seconds when weapon equipped
+	static float LastKeyVarLogTime = 0.0f;
+	if (bHasWeaponEquipped && (CurrentTime - LastKeyVarLogTime) > 3.0f)
+	{
+		LastKeyVarLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("═══════════════════ ANIM STATE DEBUG ═══════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("Movement: MoveForward=%.2f, MoveRight=%.2f, Speed=%.2f, Movement=%.2f"),
+			MoveForward, MoveRight, Speed, Movement);
+		UE_LOG(LogTemp, Warning, TEXT("Weapon: bHasWeapon=%d, bIsDrawn=%d, bIsHolstered=%d, WeaponType=%s"),
+			bHasWeaponEquipped, bIsWeaponDrawn, bIsHolstered, *CurrentWeaponType.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("States: bIsAiming=%d, bIsFiring=%d, bIsReloading=%d, AimingAlpha=%.2f"),
+			bIsAiming, bIsFiring, bIsReloading, AimingAlpha);
+		UE_LOG(LogTemp, Warning, TEXT("AnimData: Stance=%s, Idle=%s, AimPose=%s"),
+			CurrentAnimationData.Stance ? *CurrentAnimationData.Stance->GetName() : TEXT("NULL"),
+			CurrentAnimationData.Idle ? *CurrentAnimationData.Idle->GetName() : TEXT("NULL"),
+			CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("NULL"));
+		UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════"));
+	}
 }
 
 void USuspenseCoreCharacterAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)

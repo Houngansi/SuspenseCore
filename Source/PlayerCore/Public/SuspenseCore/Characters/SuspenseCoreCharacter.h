@@ -334,14 +334,14 @@ protected:
 	 * - ComponentByTag: Search component by tag (CameraAttachComponentTag)
 	 * - Mesh1P: Legacy attachment to first person arms mesh
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
 	ESuspenseCoreCameraAttachMode CameraAttachMode = ESuspenseCoreCameraAttachMode::CameraBoom;
 
 	/**
 	 * Component name to search for when CameraAttachMode is ComponentByName.
 	 * For MetaHuman, typical names: "Face", "Body", "SkeletalMesh"
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
 		meta = (EditCondition = "CameraAttachMode == ESuspenseCoreCameraAttachMode::ComponentByName"))
 	FName CameraAttachComponentName = FName("Face");
 
@@ -349,7 +349,7 @@ protected:
 	 * Component tag to search for when CameraAttachMode is ComponentByTag.
 	 * Add this tag to your component in Blueprint.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
 		meta = (EditCondition = "CameraAttachMode == ESuspenseCoreCameraAttachMode::ComponentByTag"))
 	FName CameraAttachComponentTag = FName("CameraAttach");
 
@@ -357,7 +357,7 @@ protected:
 	 * Socket/bone name to attach camera to on the target component.
 	 * For MetaHuman, use "head" bone.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment",
 		meta = (EditCondition = "CameraAttachMode != ESuspenseCoreCameraAttachMode::CameraBoom"))
 	FName CameraAttachSocketName = FName("head");
 
@@ -365,37 +365,57 @@ protected:
 	 * Camera offset from attachment point.
 	 * Adjust for proper eye-level positioning.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
-	FVector CameraAttachOffset = FVector(-2.8f, 5.89f, 0.0f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	FVector CameraAttachOffset = FVector::ZeroVector;
 
 	/**
 	 * Camera rotation offset from attachment point.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
-	FRotator CameraAttachRotation = FRotator(0.0f, 90.0f, -90.0f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Attachment")
+	FRotator CameraAttachRotation = FRotator::ZeroRotator;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// CONFIGURATION - CAMERA BOOM (Spring Arm)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Spring arm length (distance from attachment point). 0 = first person. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Boom")
+	float CameraBoomArmLength = 0.0f;
+
+	/** Spring arm offset from attachment point */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Boom")
+	FVector CameraBoomOffset = FVector::ZeroVector;
+
+	/** Spring arm rotation offset */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Boom")
+	FRotator CameraBoomRotation = FRotator::ZeroRotator;
+
+	/** Enable collision test on spring arm */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Boom")
+	bool bCameraBoomCollisionTest = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - CAMERA LAG
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Enable camera position lag */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag")
-	bool bEnableCameraLag = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag")
+	bool bEnableCameraLag = false;
 
 	/** Enable camera rotation lag */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
-	bool bEnableCameraRotationLag = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
+	bool bEnableCameraRotationLag = false;
 
 	/** Camera position lag speed */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
 	float CameraLagSpeed = 15.0f;
 
 	/** Camera rotation lag speed */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraRotationLag"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraRotationLag"))
 	float CameraRotationLagSpeed = 10.0f;
 
 	/** Maximum camera lag distance */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lag", meta = (EditCondition = "bEnableCameraLag"))
 	float CameraLagMaxDistance = 20.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -403,19 +423,19 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Field of view in degrees */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "5.0", ClampMax = "170.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "5.0", ClampMax = "170.0"))
 	float CinematicFieldOfView = 90.0f;
 
 	/** Current focal length of the camera */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "4.0", ClampMax = "1000.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "4.0", ClampMax = "1000.0"))
 	float CurrentFocalLength = 35.0f;
 
 	/** Current aperture (f-stop), affects DOF */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (ClampMin = "0.7", ClampMax = "32.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (ClampMin = "0.7", ClampMax = "32.0"))
 	float CurrentAperture = 2.8f;
 
 	/** Number of diaphragm blades (affects bokeh shape) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "4", ClampMax = "16"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Lens", meta = (ClampMin = "4", ClampMax = "16"))
 	int32 DiaphragmBladeCount = 7;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -423,19 +443,19 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Enable depth of field effect */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF")
 	bool bEnableDepthOfField = false;
 
 	/** Manual focus distance */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (EditCondition = "bEnableDepthOfField"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (EditCondition = "bEnableDepthOfField"))
 	float ManualFocusDistance = 1000.0f;
 
 	/** Enable smooth focus transitions */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF")
 	bool bSmoothFocusChanges = true;
 
 	/** Speed of focus transitions */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (EditCondition = "bSmoothFocusChanges"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|DOF", meta = (EditCondition = "bSmoothFocusChanges"))
 	float FocusSmoothingSpeed = 8.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -443,11 +463,11 @@ protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/** Sensor width in mm (affects FOV and DOF calculations) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Sensor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Sensor")
 	float SensorWidth = 24.89f;
 
 	/** Sensor height in mm */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SuspenseCore|Camera|Sensor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Camera|Sensor")
 	float SensorHeight = 18.67f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════

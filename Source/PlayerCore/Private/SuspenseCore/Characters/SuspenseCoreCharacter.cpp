@@ -54,12 +54,14 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	Mesh1P->SetRelativeLocation(FVector(0.f, 0.f, 160.f));
 	Mesh1P->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
-	// Camera boom for optional camera lag/smoothing (attached to capsule)
+	// Camera boom for optional camera lag/smoothing (attached to capsule by default)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(GetCapsuleComponent());
-	CameraBoom->TargetArmLength = 0.0f;
+	CameraBoom->TargetArmLength = CameraBoomArmLength;
+	CameraBoom->SetRelativeLocation(CameraBoomOffset);
+	CameraBoom->SetRelativeRotation(CameraBoomRotation);
 	CameraBoom->bUsePawnControlRotation = true;
-	CameraBoom->bDoCollisionTest = false;
+	CameraBoom->bDoCollisionTest = bCameraBoomCollisionTest;
 	CameraBoom->bEnableCameraLag = bEnableCameraLag;
 	CameraBoom->CameraLagSpeed = CameraLagSpeed;
 	CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;
@@ -897,6 +899,11 @@ void ASuspenseCoreCharacter::ApplyCameraLagSettings()
 {
 	if (CameraBoom)
 	{
+		// Apply boom settings
+		CameraBoom->TargetArmLength = CameraBoomArmLength;
+		CameraBoom->bDoCollisionTest = bCameraBoomCollisionTest;
+
+		// Apply lag settings
 		CameraBoom->bEnableCameraLag = bEnableCameraLag;
 		CameraBoom->CameraLagSpeed = CameraLagSpeed;
 		CameraBoom->CameraLagMaxDistance = CameraLagMaxDistance;

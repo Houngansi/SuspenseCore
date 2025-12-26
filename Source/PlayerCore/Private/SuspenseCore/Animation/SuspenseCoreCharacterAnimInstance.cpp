@@ -230,6 +230,13 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 #if WITH_EQUIPMENT_SYSTEM
 	if (!CachedStanceComponent.IsValid())
 	{
+		// Debug: Log once when stance component missing
+		static bool bLoggedOnce = false;
+		if (!bLoggedOnce)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] No CachedStanceComponent! Check if character has USuspenseCoreWeaponStanceComponent"));
+			bLoggedOnce = true;
+		}
 		// No stance component - reset weapon data
 		CurrentWeaponType = FGameplayTag();
 		bHasWeaponEquipped = false;
@@ -276,9 +283,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
 	// Weapon identity
+	FGameplayTag PreviousWeaponType = CurrentWeaponType;
 	CurrentWeaponType = Snapshot.WeaponType;
 	bHasWeaponEquipped = CurrentWeaponType.IsValid();
 	bIsWeaponDrawn = Snapshot.bIsDrawn;
+
+	// Debug: Log when weapon type changes
+	if (CurrentWeaponType != PreviousWeaponType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] WeaponType changed: %s -> %s (Valid: %d)"),
+			*PreviousWeaponType.ToString(),
+			*CurrentWeaponType.ToString(),
+			CurrentWeaponType.IsValid() ? 1 : 0);
+	}
 
 	// Combat states from snapshot
 	bIsAiming = Snapshot.bIsAiming;

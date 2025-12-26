@@ -76,15 +76,14 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 	bIsReloading = false;
 	RecoilAlpha = 0.0f;
 
-	// Read pose indices from weapon actor
+	// Read pose indices from weapon actor (using getters)
 	if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(NewEquipmentActor))
 	{
-		// Apply weapon's pose configuration
-		GripID = WeaponActor->GripID;
-		AimPose = WeaponActor->AimPose;
-		StoredPose = WeaponActor->StoredPose;
-		bModifyGrip = WeaponActor->bModifyGrip;
-		bCreateAimPose = WeaponActor->bCreateAimPose;
+		GripID = WeaponActor->GetGripID();
+		AimPose = WeaponActor->GetAimPose();
+		StoredPose = WeaponActor->GetStoredPose();
+		bModifyGrip = WeaponActor->GetModifyGrip();
+		bCreateAimPose = WeaponActor->GetCreateAimPose();
 
 		UE_LOG(LogTemp, Log, TEXT("[StanceComp] Loaded pose indices from weapon: GripID=%d, AimPose=%d, StoredPose=%d, ModifyGrip=%d, CreateAimPose=%d"),
 			GripID, AimPose, StoredPose, bModifyGrip ? 1 : 0, bCreateAimPose ? 1 : 0);

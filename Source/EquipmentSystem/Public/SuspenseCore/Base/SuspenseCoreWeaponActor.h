@@ -141,6 +141,24 @@ public:
     UFUNCTION(BlueprintCallable, Category="Weapon|State")
     void RestoreWeaponState();
 
+    //================================================
+    // Animation Pose Getters (for StanceComponent)
+    //================================================
+    UFUNCTION(BlueprintPure, Category="Weapon|Animation")
+    int32 GetGripID() const { return GripID; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Animation")
+    int32 GetAimPose() const { return AimPose; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Animation")
+    int32 GetStoredPose() const { return StoredPose; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Animation")
+    bool GetModifyGrip() const { return bModifyGrip; }
+
+    UFUNCTION(BlueprintPure, Category="Weapon|Animation")
+    bool GetCreateAimPose() const { return bCreateAimPose; }
+
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
     void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);

@@ -57,7 +57,7 @@ public:
      * @param WeaponType Gameplay tag identifying the weapon archetype
      * @return Const pointer to animation data, or nullptr if not found
      */
-    virtual const FAnimationStateData* GetAnimationStateDataPtr(const FGameplayTag& WeaponType) const { return nullptr; }
+    virtual const FSuspenseCoreAnimationData* GetAnimationStateDataPtr(const FGameplayTag& WeaponType) const { return nullptr; }
 
     /**
      * Batch preload animation data for multiple weapon types (C++ optimization)
@@ -95,7 +95,7 @@ public:
      */
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponAnimation|Data",
         meta = (DisplayName = "Get Animation State Data"))
-    bool GetAnimationStateData(const FGameplayTag& WeaponType, FAnimationStateData& OutAnimationData) const;
+    bool GetAnimationStateData(const FGameplayTag& WeaponType, FSuspenseCoreAnimationData& OutAnimationData) const;
 
     /**
      * Get draw animation montage for weapon

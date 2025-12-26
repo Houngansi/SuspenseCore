@@ -170,7 +170,7 @@ public:
 
 	/**
 	 * DataTable containing weapon animation states
-	 * Row Structure: FAnimationStateData
+	 * Row Structure: FSuspenseCoreAnimationData
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Animation System",
 		meta = (AllowedClasses = "/Script/Engine.DataTable",

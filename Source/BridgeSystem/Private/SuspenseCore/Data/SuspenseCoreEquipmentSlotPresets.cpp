@@ -181,7 +181,10 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 	constexpr float ColStorage = 688.0f;     // Storage column
 
 	// ===== WEAPONS (Left Column) =====
-	// Long weapons displayed horizontally, 2 cells tall for better visibility
+	// Primary: Y=16, height=128
+	// Secondary: Y=16+128+8=152, height=128
+	// Holster: Y=152+128+8=288, height=128
+	// Scabbard: X=16+128+8=152, Y=288, height=128
 
 	// Primary Weapon (AR, DMR, SR, Shotgun, LMG) - 5x2 cells = 320x128
 	{
@@ -197,8 +200,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::PrimaryWeapon,
 			TEXT("weapon_r"),
 			AllowedTypes,
-			FVector2D(ColWeapons, 16),                      // Position
-			FVector2D(CellSize * 5, CellSize * 2)           // 320x128 (5x2 cells)
+			FVector2D(ColWeapons, 16),
+			FVector2D(CellSize * 5, CellSize * 2)  // 320x128
 		));
 	}
 
@@ -214,8 +217,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::SecondaryWeapon,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(ColWeapons, 16 + CellSize * 2 + Gap),  // Y = 16 + 128 + 8 = 152
-			FVector2D(CellSize * 4, CellSize * 2)            // 256x128 (4x2 cells)
+			FVector2D(ColWeapons, 152),  // 16 + 128 + 8
+			FVector2D(CellSize * 4, CellSize * 2)  // 256x128
 		));
 	}
 
@@ -230,8 +233,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Holster,
 			TEXT("thigh_r"),
 			AllowedTypes,
-			FVector2D(ColWeapons, 16 + CellSize * 4 + Gap * 2),  // Y = 16 + 256 + 16 = 288
-			FVector2D(CellSize * 2, CellSize * 2)                 // 128x128 (2x2 cells)
+			FVector2D(ColWeapons, 288),  // 152 + 128 + 8
+			FVector2D(CellSize * 2, CellSize * 2)  // 128x128
 		));
 	}
 
@@ -245,8 +248,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Scabbard,
 			TEXT("spine_02"),
 			AllowedTypes,
-			FVector2D(ColWeapons + CellSize * 2 + Gap, 16 + CellSize * 4 + Gap * 2),  // Right of holster
-			FVector2D(CellSize, CellSize * 2)                 // 64x128 (1x2 cells)
+			FVector2D(152, 288),  // Right of holster: 16 + 128 + 8 = 152
+			FVector2D(CellSize, CellSize * 2)  // 64x128
 		));
 	}
 
@@ -264,7 +267,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			TEXT("head"),
 			AllowedTypes,
 			FVector2D(ColCenter, 16),
-			FVector2D(CellSize * 2, CellSize * 2)  // 128x128 (2x2 cells)
+			FVector2D(CellSize * 2, CellSize * 2)  // 128x128
 		));
 	}
 
@@ -278,8 +281,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Earpiece,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(ColCenter + CellSize * 2 + Gap, 16),  // Right of headwear
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter + 136, 16),  // 352 + 128 + 8 = 488
+			FVector2D(CellSize, CellSize)  // 64x64
 		));
 	}
 
@@ -293,8 +296,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Eyewear,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(ColCenter + CellSize * 2 + Gap, 16 + CellSize + Gap),  // Below earpiece
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter + 136, 88),  // Y = 16 + 64 + 8 = 88
+			FVector2D(CellSize, CellSize)  // 64x64
 		));
 	}
 
@@ -308,13 +311,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::FaceCover,
 			TEXT("head"),
 			AllowedTypes,
-			FVector2D(ColCenter, 16 + CellSize * 2 + Gap),  // Below headwear
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter, 152),  // Y = 16 + 128 + 8 = 152
+			FVector2D(CellSize, CellSize)  // 64x64
 		));
 	}
 
 	// ===== BODY GEAR (Center Column - Below Head) =====
-	// Body Y starts at: 16 + 128 (headwear) + 8 + 64 (face cover) + 8 = 224
 
 	// Body Armor - 3x3 cells = 192x192
 	{
@@ -326,8 +328,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::BodyArmor,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(ColCenter, 16 + CellSize * 2 + Gap + CellSize + Gap),  // Y = 224
-			FVector2D(CellSize * 3, CellSize * 3)            // 192x192 (3x3 cells)
+			FVector2D(ColCenter, 224),  // Y = 152 + 64 + 8 = 224
+			FVector2D(CellSize * 3, CellSize * 3)  // 192x192
 		));
 	}
 
@@ -341,8 +343,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::TacticalRig,
 			TEXT("spine_03"),
 			AllowedTypes,
-			FVector2D(ColCenter + CellSize * 3 + Gap, 16 + CellSize * 2 + Gap + CellSize + Gap),  // Right of armor
-			FVector2D(CellSize * 2, CellSize * 3)            // 128x192 (2x3 cells)
+			FVector2D(ColCenter + 200, 224),  // X = 352 + 192 + 8 = 552
+			FVector2D(CellSize * 2, CellSize * 3)  // 128x192
 		));
 	}
 
@@ -359,7 +361,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			TEXT("spine_02"),
 			AllowedTypes,
 			FVector2D(ColStorage, 16),
-			FVector2D(CellSize * 3, CellSize * 3)            // 192x192 (3x3 cells)
+			FVector2D(CellSize * 3, CellSize * 3)  // 192x192
 		));
 	}
 
@@ -373,8 +375,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::SecureContainer,
 			NAME_None,
 			AllowedTypes,
-			FVector2D(ColStorage, 16 + CellSize * 3 + Gap),  // Below backpack, Y = 216
-			FVector2D(CellSize * 2, CellSize * 2)            // 128x128 (2x2 cells)
+			FVector2D(ColStorage, 216),  // Y = 16 + 192 + 8 = 216
+			FVector2D(CellSize * 2, CellSize * 2)  // 128x128
 		));
 	}
 
@@ -388,13 +390,12 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::Armband,
 			TEXT("upperarm_l"),
 			AllowedTypes,
-			FVector2D(ColStorage + CellSize * 2 + Gap, 16 + CellSize * 3 + Gap),  // Right of secure
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColStorage + 136, 216),  // X = 568 + 128 + 8 = 704
+			FVector2D(CellSize, CellSize)  // 64x64
 		));
 	}
 
 	// ===== QUICK SLOTS (Bottom Row) =====
-	// Y = Body Armor bottom + gap = 224 + 192 + 8 = 424
 	{
 		FGameplayTagContainer QuickSlotAllowedTypes;
 		QuickSlotAllowedTypes.AddTag(Item::Consumable);
@@ -402,16 +403,15 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 		QuickSlotAllowedTypes.AddTag(Item::Throwable);
 		QuickSlotAllowedTypes.AddTag(Item::Ammo);
 
-		const float QuickSlotY = 16 + CellSize * 2 + Gap + CellSize + Gap + CellSize * 3 + Gap;  // 424
-		const float QuickSlotStartX = ColCenter;  // Aligned with body gear
+		const float QuickSlotY = 424.0f;  // 224 + 192 + 8 = 424
 
 		Presets.Add(CreateSlotPreset(
 			EEquipmentSlotType::QuickSlot1,
 			EquipmentSlot::QuickSlot1,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(QuickSlotStartX, QuickSlotY),
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter, QuickSlotY),
+			FVector2D(CellSize, CellSize)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -419,8 +419,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot2,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(QuickSlotStartX + CellSize + Gap, QuickSlotY),
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter + 72, QuickSlotY),  // 352 + 64 + 8 = 424
+			FVector2D(CellSize, CellSize)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -428,8 +428,8 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot3,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(QuickSlotStartX + (CellSize + Gap) * 2, QuickSlotY),
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter + 144, QuickSlotY),  // 352 + 128 + 16 = 496
+			FVector2D(CellSize, CellSize)
 		));
 
 		Presets.Add(CreateSlotPreset(
@@ -437,10 +437,11 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 			EquipmentSlot::QuickSlot4,
 			NAME_None,
 			QuickSlotAllowedTypes,
-			FVector2D(QuickSlotStartX + (CellSize + Gap) * 3, QuickSlotY),
-			FVector2D(CellSize, CellSize)                    // 64x64 (1x1 cell)
+			FVector2D(ColCenter + 216, QuickSlotY),  // 352 + 192 + 24 = 568
+			FVector2D(CellSize, CellSize)
 		));
 	}
 
 	return Presets;
 }
+

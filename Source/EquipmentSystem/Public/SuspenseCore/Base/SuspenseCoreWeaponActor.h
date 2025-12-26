@@ -175,27 +175,27 @@ protected:
     bool bHasCachedData = false;
 
     //================================================
-    // Animation Pose Data (set from ItemData)
+    // Animation Pose Indices (passed to WeaponStanceComponent)
     //================================================
 
-    /** Grip ID for hand placement variations */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Animation")
+    /** Grip ID - index for left hand grip transform selection from animation DataTable */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
     int32 GripID = 0;
 
-    /** Aim pose index */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Animation")
+    /** Aim Pose index - for Sequence Evaluator in AnimBP */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
     int32 AimPose = 1;
 
-    /** Stored pose index for transitions */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Animation")
+    /** Stored Pose index - cached pose for transitions */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
     int32 StoredPose = 0;
 
-    /** Enable grip modification on aim */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Animation")
+    /** Whether to modify grip (use DTLHGripTransform instead of LH_Target socket) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
     bool bModifyGrip = true;
 
-    /** Enable custom aim transform */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Animation")
+    /** Whether to create aim pose (use AimPose composite) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
     bool bCreateAimPose = true;
 
     //================================================

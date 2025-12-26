@@ -443,6 +443,32 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
 	float DTAimPoseAlpha = 0.0f;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// DT POSE INDICES (Set from Blueprint via Active DT macro)
+	// These indices are used for Sequence Evaluator (Explicit Time formula)
+	// Formula: ExplicitTime = 0.02 + (PoseIndex * 0.03)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** DT Default Grip ID - базовый индекс хвата из DataTable */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	int32 DTDefaultGripID = 0;
+
+	/** DT Default Aim Pose - индекс позы прицеливания из DataTable */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	int32 DTDefaultAimPose = 1;
+
+	/** DT Default Stored Pose - сохранённый индекс позы из DataTable */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	int32 DTDefaultStoredPose = 0;
+
+	/** DT Modify Grip - использовать DTLHGripTransform вместо сокета LH_Target */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	bool DTModifyGrip = true;
+
+	/** DT Create Aim Pose - использовать AimPose composite */
+	UPROPERTY(BlueprintReadWrite, Category = "SuspenseCore|Animation|LegacyDT")
+	bool DTCreateAimPose = true;
+
 	/** Alpha для Left Hand IK (0 = выкл, 1 = вкл) */
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|IK")
 	float LeftHandIKAlpha = 0.0f;

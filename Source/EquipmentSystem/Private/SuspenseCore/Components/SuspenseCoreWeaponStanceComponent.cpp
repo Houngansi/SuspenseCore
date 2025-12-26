@@ -76,7 +76,7 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 	bIsReloading = false;
 	RecoilAlpha = 0.0f;
 
-	// Read pose data from weapon actor (using getters)
+	// Read pose indices from weapon actor (using getters)
 	if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(NewEquipmentActor))
 	{
 		GripID = WeaponActor->GetGripID();
@@ -84,6 +84,18 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 		StoredPose = WeaponActor->GetStoredPose();
 		bModifyGrip = WeaponActor->GetModifyGrip();
 		bCreateAimPose = WeaponActor->GetCreateAimPose();
+
+		UE_LOG(LogTemp, Log, TEXT("[StanceComp] Loaded pose indices from weapon: GripID=%d, AimPose=%d, StoredPose=%d, ModifyGrip=%d, CreateAimPose=%d"),
+			GripID, AimPose, StoredPose, bModifyGrip ? 1 : 0, bCreateAimPose ? 1 : 0);
+	}
+	else if (!NewEquipmentActor)
+	{
+		// Reset to defaults when no weapon
+		GripID = 0;
+		AimPose = 0;
+		StoredPose = 0;
+		bModifyGrip = false;
+		bCreateAimPose = false;
 	}
 
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);

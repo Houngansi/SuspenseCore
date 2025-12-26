@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 
 USuspenseCoreWeaponStanceComponent::USuspenseCoreWeaponStanceComponent()
 {
@@ -74,6 +75,16 @@ void USuspenseCoreWeaponStanceComponent::OnEquipmentChanged(AActor* NewEquipment
 	bIsFiring = false;
 	bIsReloading = false;
 	RecoilAlpha = 0.0f;
+
+	// Read pose data from weapon actor (using getters)
+	if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(NewEquipmentActor))
+	{
+		GripID = WeaponActor->GetGripID();
+		AimPose = WeaponActor->GetAimPose();
+		StoredPose = WeaponActor->GetStoredPose();
+		bModifyGrip = WeaponActor->GetModifyGrip();
+		bCreateAimPose = WeaponActor->GetCreateAimPose();
+	}
 
 	PushToAnimationLayer(/*bSkipIfNoInterface=*/true);
 }

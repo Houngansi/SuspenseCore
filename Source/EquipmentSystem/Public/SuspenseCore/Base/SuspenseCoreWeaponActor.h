@@ -157,6 +157,30 @@ protected:
     bool bHasCachedData = false;
 
     //================================================
+    // Animation Pose Indices (passed to WeaponStanceComponent)
+    //================================================
+
+    /** Grip ID - index for left hand grip transform selection from animation DataTable */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
+    int32 GripID = 0;
+
+    /** Aim Pose index - for Sequence Evaluator in AnimBP */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
+    int32 AimPose = 1;
+
+    /** Stored Pose index - cached pose for transitions */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
+    int32 StoredPose = 0;
+
+    /** Whether to modify grip (use DTLHGripTransform instead of LH_Target socket) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
+    bool bModifyGrip = true;
+
+    /** Whether to create aim pose (use AimPose composite) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Animation|Pose")
+    bool bCreateAimPose = true;
+
+    //================================================
     // Components (owned by actor)
     //================================================
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))

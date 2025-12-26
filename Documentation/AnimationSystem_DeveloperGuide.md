@@ -451,54 +451,125 @@ Blend(JumpAnim, FallAnim, MapRangeClamped(VerticalVelocity, 100, -100, 0, 1))
 
 ## DataTable Configuration
 
-### Weapon Animations DataTable
+### Weapon Animations DataTable (SSOT)
 
-**Location:** Configured in `USuspenseCoreSettings::WeaponAnimationsTable`
+**Location:** Configured in Project Settings → Game → SuspenseCore → `WeaponAnimationsTable`
 
-**Row Structure:** `FAnimationStateData`
+**Row Structure:** `FSuspenseCoreAnimationData` (alias: `FAnimationStateData`)
 
 ```cpp
 USTRUCT(BlueprintType)
-struct FAnimationStateData : public FTableRowBase
+struct FSuspenseCoreAnimationData : public FTableRowBase
 {
-    // Core BlendSpaces
-    UBlendSpace* Stance;           // Стойка с оружием
+    // ═══════════════════════════════════════════════════════════════
+    // BLENDSPACES
+    // ═══════════════════════════════════════════════════════════════
+    UBlendSpace* Stance;           // Стойка с оружием (2D)
     UBlendSpace1D* Locomotion;     // Локомоция с оружием
 
-    // Idle/Aim
-    UAnimSequence* Idle;
-    UAnimSequence* AimIdle;
+    // ═══════════════════════════════════════════════════════════════
+    // IDLE & AIM POSES
+    // ═══════════════════════════════════════════════════════════════
+    UAnimSequence* Idle;           // Hip fire idle
+    UAnimComposite* AimPose;       // ADS pose
+    UAnimSequence* AimIn;          // Transition IN to ADS
+    UAnimSequence* AimIdle;        // Idle in ADS
+    UAnimSequence* AimOut;         // Transition OUT of ADS
 
-    // Action Montages
+    // ═══════════════════════════════════════════════════════════════
+    // SPECIAL POSES
+    // ═══════════════════════════════════════════════════════════════
+    UAnimSequence* Slide;          // Sliding
+    UAnimSequence* Blocked;        // Weapon blocked by wall
+    UAnimSequence* GripBlocked;    // Grip blocked
+
+    // ═══════════════════════════════════════════════════════════════
+    // GRIP POSES (for Sequence Evaluator)
+    // ═══════════════════════════════════════════════════════════════
+    UAnimComposite* GripPoses;     // All grip poses composite
+
+    // ═══════════════════════════════════════════════════════════════
+    // ACTION MONTAGES
+    // ═══════════════════════════════════════════════════════════════
+    UAnimMontage* FirstDraw;       // Первое доставание
     UAnimMontage* Draw;            // Достать оружие
-    UAnimMontage* FirstDraw;       // Первое доставание (optional)
     UAnimMontage* Holster;         // Убрать оружие
+    UAnimMontage* Firemode;        // Переключение режима огня
     UAnimMontage* Shoot;           // Выстрел Hip
     UAnimMontage* AimShoot;        // Выстрел ADS
-    UAnimMontage* ReloadLong;      // Полная перезарядка
     UAnimMontage* ReloadShort;     // Тактическая перезарядка
+    UAnimMontage* ReloadLong;      // Полная перезарядка
+    UAnimMontage* Melee;           // Удар прикладом
+    UAnimMontage* Throw;           // Бросок
 
-    // IK Transforms
-    TArray<FTransform> LHGripTransform;    // [0]=Hip, [1]=Aim
-    FTransform RHTransform;
-    FTransform WTransform;
+    // ═══════════════════════════════════════════════════════════════
+    // IK TRANSFORMS
+    // ═══════════════════════════════════════════════════════════════
+    FTransform RHTransform;                  // Right hand
+    FTransform LHTransform;                  // Left hand (base)
+    TArray<FTransform> LHGripTransform;      // [0]=Hip, [1]=Aim, [2]=Reload
+    FTransform WTransform;                   // Weapon transform
 };
 ```
 
-### DataTable Row Names
+### DataTable Row Names (SSOT Mapping)
 
-Row names должны соответствовать GameplayTag оружия:
+**IMPORTANT:** Row names use FIXED naming convention. Mapping from WeaponArchetype GameplayTag is handled automatically by `FSuspenseCoreAnimationHelpers`.
 
-| Row Name | GameplayTag |
-|----------|-------------|
-| `Weapon.Rifle.AR` | `Weapon.Rifle.AR` |
-| `Weapon.Pistol.Glock` | `Weapon.Pistol.Glock` |
-| `Weapon.SMG.MP5` | `Weapon.SMG.MP5` |
+| Row Name | GameplayTag Mapping |
+|----------|---------------------|
+| `SMG` | `Weapon.Rifle.*`, `Weapon.SMG.*` (except Sniper) |
+| `Pistol` | `Weapon.Pistol.*` |
+| `Shotgun` | `Weapon.Shotgun.*` |
+| `Sniper` | `*Sniper*` (any tag containing "Sniper") |
+| `Knife` | `Weapon.Melee.Knife` |
+| `Special` | `Weapon.Melee.*`, `Weapon.Heavy.*` |
+| `Frag` | `Weapon.Throwable.*` |
 
-### Accessing in AnimInstance
+### FSuspenseCoreAnimationHelpers
+
+Helper struct for mapping WeaponArchetype → Row Name:
 
 ```cpp
-// AnimInstance автоматически загружает DataTable из SuspenseCoreSettings
+#include "SuspenseCore/Types/Animation/SuspenseCoreAnimationState.h"
+
+// Get row name from weapon archetype
+FName RowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(WeaponArchetypeTag);
+// e.g., Weapon.Rifle.Assault → "SMG"
+// e.g., Weapon.Rifle.Sniper → "Sniper"
+// e.g., Weapon.Pistol.Glock → "Pistol"
+
+// Get all valid row names
+TArray<FName> ValidRows = FSuspenseCoreAnimationHelpers::GetAllValidRowNames();
+// Returns: SMG, Pistol, Shotgun, Sniper, Knife, Special, Frag
+```
+
+### Pose Index System
+
+**LHGripTransform Array Convention:**
+```
+Index 0: Base grip pose (Hip fire)
+Index 1: Aim grip pose (ADS)
+Index 2: Reload grip pose
+Index 3+: Weapon-specific custom poses
+```
+
+**Sequence Evaluator Formula:**
+```cpp
+// Calculate ExplicitTime for Sequence Evaluator from pose index
+float ExplicitTime = FSuspenseCoreAnimationData::GetExplicitTimeFromPoseIndex(PoseIndex);
+// Formula: ExplicitTime = 0.02 + (PoseIndex * 0.03)
+//
+// Examples:
+// PoseIndex 0 (Base):   0.02 + (0 * 0.03) = 0.02
+// PoseIndex 1 (Aim):    0.02 + (1 * 0.03) = 0.05
+// PoseIndex 2 (Reload): 0.02 + (2 * 0.03) = 0.08
+```
+
+### Accessing in AnimInstance (SSOT)
+
+```cpp
+// AnimInstance автоматически загружает DataTable из Project Settings
 void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
 {
     const USuspenseCoreSettings* Settings = GetDefault<USuspenseCoreSettings>();
@@ -508,14 +579,32 @@ void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
     }
 }
 
-// Получение данных по WeaponType:
-const FAnimationStateData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
+// Получение данных по WeaponType с автоматическим маппингом:
+const FSuspenseCoreAnimationData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
+// Mapping: Weapon.Rifle.Assault → Row "SMG"
 if (AnimData)
 {
     CurrentStanceBlendSpace = AnimData->Stance;
     CurrentLocomotionBlendSpace = AnimData->Locomotion;
+
+    // Get blended grip transform
+    FTransform LHGrip = AnimData->GetBlendedGripTransform(GripID, AimPose, AimingAlpha);
 }
 ```
+
+### Pose Indices (stored in WeaponActor, NOT in DataTable)
+
+These values are **per-weapon** and stored in `ASuspenseCoreWeaponActor`:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `GripID` | `int32` | 0 | Base grip index in LHGripTransform |
+| `AimPose` | `int32` | 1 | Aim pose index |
+| `StoredPose` | `int32` | 0 | Stored pose for transitions |
+| `bModifyGrip` | `bool` | true | Use LHGripTransform instead of socket |
+| `bCreateAimPose` | `bool` | true | Use AimPose composite |
+
+**Why not in DataTable?** Different weapons can use the same animation set (row) but with different pose indices. For example, two assault rifles might use "SMG" row but one has `AimPose=1` and another has `AimPose=3`.
 
 ---
 
@@ -1137,7 +1226,84 @@ MaxAimSpeed
 | `SuspenseCoreCharacterCrouchAbility.h` | GAS | Crouch ability |
 | `SuspenseCoreCharacterJumpAbility.h` | GAS | Jump ability |
 | `SuspenseCoreSettings.h` | BridgeSystem | WeaponAnimationsTable reference |
-| `SuspenseCoreAnimationState.h` | BridgeSystem | FAnimationStateData struct |
+| `SuspenseCoreAnimationState.h` | BridgeSystem | **FSuspenseCoreAnimationData** struct + **FSuspenseCoreAnimationHelpers** |
+| `SuspenseCoreWeaponActor.h` | EquipmentSystem | Pose indices (GripID, AimPose, etc.) |
+| `SuspenseCoreWeaponStanceComponent.h` | EquipmentSystem | Combat states SSOT |
+
+---
+
+## SSOT Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           SSOT ARCHITECTURE                                  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                    FSuspenseCoreAnimationData                         │   │
+│  │                    (DataTable Row - Project Settings)                 │   │
+│  │                                                                       │   │
+│  │  • Stance, Locomotion BlendSpaces                                    │   │
+│  │  • Idle, Aim poses and transitions                                   │   │
+│  │  • Action montages (Draw, Holster, Reload, Fire, etc.)              │   │
+│  │  • IK Transforms (RHTransform, LHGripTransform[], WTransform)       │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              ▲                                               │
+│                              │ GetRowNameFromWeaponArchetype()               │
+│                              │                                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                FSuspenseCoreAnimationHelpers                          │   │
+│  │                                                                       │   │
+│  │  Weapon.Rifle.Assault ───────────────────────────────────▶ "SMG"     │   │
+│  │  Weapon.Rifle.Sniper  ───────────────────────────────────▶ "Sniper"  │   │
+│  │  Weapon.Pistol.*      ───────────────────────────────────▶ "Pistol"  │   │
+│  │  Weapon.Shotgun.*     ───────────────────────────────────▶ "Shotgun" │   │
+│  │  Weapon.Melee.Knife   ───────────────────────────────────▶ "Knife"   │   │
+│  │  Weapon.Melee.*       ───────────────────────────────────▶ "Special" │   │
+│  │  Weapon.Throwable.*   ───────────────────────────────────▶ "Frag"    │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              ▲                                               │
+│                              │ WeaponArchetype Tag                           │
+│                              │                                               │
+│  ┌──────────────────────────┴───────────────────────────────────────────┐   │
+│  │                    SuspenseCoreWeaponActor                            │   │
+│  │                    (Per-Weapon Settings)                              │   │
+│  │                                                                       │   │
+│  │  • GripID = 0                   (base grip index)                    │   │
+│  │  • AimPose = 1                  (aim pose index)                     │   │
+│  │  • StoredPose = 0               (stored for transitions)             │   │
+│  │  • bModifyGrip = true           (use LHGripTransform)                │   │
+│  │  • bCreateAimPose = true        (use AimPose composite)              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                SuspenseCoreWeaponStanceComponent                      │   │
+│  │                (Combat States SSOT)                                   │   │
+│  │                                                                       │   │
+│  │  • bIsAiming, bIsFiring, bIsReloading                                │   │
+│  │  • AimPoseAlpha (interpolated)                                       │   │
+│  │  • RecoilAlpha (with decay)                                          │   │
+│  │  • Pose indices from WeaponActor                                     │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              │                                               │
+│                              ▼ GetStanceSnapshot()                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                SuspenseCoreCharacterAnimInstance                      │   │
+│  │                (Aggregates ALL data for AnimBP)                       │   │
+│  │                                                                       │   │
+│  │  • CurrentAnimationData (from DataTable via helper mapping)          │   │
+│  │  • Combat states (from StanceComponent snapshot)                     │   │
+│  │  • Pose indices (from snapshot)                                      │   │
+│  │  • Computed IK transforms                                            │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                    Animation Blueprint                                │   │
+│  │                    (Uses variables directly)                          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 

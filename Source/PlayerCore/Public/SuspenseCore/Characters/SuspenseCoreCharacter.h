@@ -505,6 +505,9 @@ protected:
 	/** Find MetaHuman Body SkeletalMesh component */
 	USceneComponent* FindMetaHumanBodyComponent() const;
 
+	/** Hide MetaHuman Face from owner (first-person view) */
+	void HideMetaHumanFaceFromOwner();
+
 	/** Find component by name for camera attachment */
 	USceneComponent* FindComponentByName(FName ComponentName) const;
 

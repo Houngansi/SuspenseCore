@@ -219,6 +219,7 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Stunned, "State.Stunned");
 		UE_DEFINE_GAMEPLAY_TAG(Disabled, "State.Disabled");
 		UE_DEFINE_GAMEPLAY_TAG(Crouching, "State.Crouching");
+		UE_DEFINE_GAMEPLAY_TAG(Jumping, "State.Jumping");
 		UE_DEFINE_GAMEPLAY_TAG(Sprinting, "State.Sprinting");
 		UE_DEFINE_GAMEPLAY_TAG(Interacting, "State.Interacting");
 		UE_DEFINE_GAMEPLAY_TAG(Aiming, "State.Aiming");

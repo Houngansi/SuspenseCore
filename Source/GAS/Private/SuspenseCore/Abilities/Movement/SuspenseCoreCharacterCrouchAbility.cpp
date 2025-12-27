@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
@@ -27,19 +28,19 @@ USuspenseCoreCharacterCrouchAbility::USuspenseCoreCharacterCrouchAbility()
 	bRetriggerInstancedAbility = true; // Allow toggle behavior
 
 	// AbilityTags (AssetTags) - used by TryActivateAbilitiesByTag to find matching abilities
-	// Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+	// Using Native Tags for compile-time safety
 	FGameplayTagContainer AbilityTagContainer;
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Crouch")));
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Crouch")));
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Crouch);
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Movement::Crouch);
 	SetAssetTags(AbilityTagContainer);
 
 	// Applied tag while crouching
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Crouching")));
+	ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Crouching);
 
-	// Block tags
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Sprinting")));
+	// Block tags - can't crouch in these states
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Sprinting);
 }
 
 //==================================================================

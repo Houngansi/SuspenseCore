@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -88,16 +89,44 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 		return;
 	}
 
-	// Create event data
+	// Get MaxValue for attributes that have corresponding Max attributes
+	float MaxValue = NewValue; // Default: no max, use current value
+	const FString AttributeName = Attribute.GetName();
+
+	// Query AttributeSet for Max values
+	if (const USuspenseCoreAttributeSet* AttributeSet = GetSet<USuspenseCoreAttributeSet>())
+	{
+		if (AttributeName == TEXT("Health"))
+		{
+			MaxValue = AttributeSet->GetMaxHealth();
+		}
+		else if (AttributeName == TEXT("Stamina"))
+		{
+			MaxValue = AttributeSet->GetMaxStamina();
+		}
+		// For MaxHealth, MaxStamina themselves - they ARE the max
+		else if (AttributeName == TEXT("MaxHealth") || AttributeName == TEXT("MaxStamina"))
+		{
+			MaxValue = NewValue;
+		}
+	}
+
+	// Create event data with UI-compatible keys
 	FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(GetOwner());
-	Data.SetString(TEXT("AttributeName"), Attribute.GetName());
+
+	// Primary keys for UI widgets (what widgets expect)
+	Data.SetFloat(TEXT("Value"), NewValue);
+	Data.SetFloat(TEXT("MaxValue"), MaxValue);
+
+	// Legacy keys for backwards compatibility
+	Data.SetString(TEXT("AttributeName"), AttributeName);
 	Data.SetFloat(TEXT("OldValue"), OldValue);
 	Data.SetFloat(TEXT("NewValue"), NewValue);
 	Data.SetFloat(TEXT("Delta"), NewValue - OldValue);
 	Data.SetObject(TEXT("AbilitySystemComponent"), this);
 
 	// Form event tag: SuspenseCore.Event.GAS.Attribute.<AttributeName>
-	FString TagString = FString::Printf(TEXT("SuspenseCore.Event.GAS.Attribute.%s"), *Attribute.GetName());
+	FString TagString = FString::Printf(TEXT("SuspenseCore.Event.GAS.Attribute.%s"), *AttributeName);
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
 
 	if (!EventTag.IsValid())
@@ -111,8 +140,8 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 		EventBus->Publish(EventTag, Data);
 	}
 
-	UE_LOG(LogSuspenseCoreASC, Verbose, TEXT("Attribute %s changed: %.2f -> %.2f"),
-		*Attribute.GetName(), OldValue, NewValue);
+	UE_LOG(LogSuspenseCoreASC, Verbose, TEXT("Attribute %s changed: %.2f -> %.2f (Max: %.2f)"),
+		*AttributeName, OldValue, NewValue, MaxValue);
 }
 
 void USuspenseCoreAbilitySystemComponent::PublishCriticalEvent(

@@ -14,6 +14,7 @@ class UTextBlock;
 class UProgressBar;
 class UImage;
 class USuspenseCoreEventBus;
+class UMaterialInstanceDynamic;
 
 /**
  * USuspenseCoreGameHUDWidget
@@ -238,6 +239,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config", meta = (EditCondition = "bSmoothProgressBars"))
 	float ProgressBarInterpSpeed = 10.0f;
 
+	/** Use material parameter for progress bars instead of SetPercent() */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")
+	bool bUseMaterialProgress = true;
+
+	/** Material parameter name for progress value (0-1) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config", meta = (EditCondition = "bUseMaterialProgress"))
+	FName MaterialProgressParameterName = FName("Progress");
+
 	/** Threshold for critical health (0-1) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|HUD|Config")
 	float CriticalHealthThreshold = 0.25f;
@@ -292,6 +301,16 @@ protected:
 	/** Was shield broken in previous frame? */
 	bool bWasShieldBroken = false;
 
+	/** Dynamic material instances for progress bars (when using material-based progress) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> HealthProgressMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ShieldProgressMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> StaminaProgressMaterial;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL METHODS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -311,8 +330,8 @@ protected:
 	/** Update stamina UI elements */
 	void UpdateStaminaUI();
 
-	/** Update progress bar with smooth interpolation */
-	void UpdateProgressBar(UProgressBar* ProgressBar, float& DisplayedPercent, float TargetPercent, float DeltaTime);
+	/** Update progress bar with smooth interpolation (supports material-based progress) */
+	void UpdateProgressBar(UProgressBar* ProgressBar, UMaterialInstanceDynamic* Material, float& DisplayedPercent, float TargetPercent, float DeltaTime);
 
 	/** Format value text */
 	FString FormatValueText(float Current, float Max) const;

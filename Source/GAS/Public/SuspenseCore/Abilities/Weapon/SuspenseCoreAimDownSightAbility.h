@@ -8,7 +8,7 @@
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCoreAimDownSightAbility.generated.h"
 
-class USuspenseCoreWeaponStanceComponent;
+class ISuspenseCoreWeaponCombatState;
 class UCameraComponent;
 
 /**
@@ -23,7 +23,7 @@ class UCameraComponent;
  * - Publishes camera FOV change events for camera system
  *
  * INTEGRATION:
- * - WeaponStanceComponent::SetAiming() handles:
+ * - ISuspenseCoreWeaponCombatState::SetAiming() handles:
  *   - bIsAiming state (replicated)
  *   - TargetAimPoseAlpha interpolation
  *   - EventBus publishing (AimStarted/AimEnded)
@@ -42,7 +42,7 @@ class UCameraComponent;
  * - Cancels SuspenseCore.Ability.Sprint when activated
  * - Cancelled by State.Sprinting, State.Reloading
  *
- * @see USuspenseCoreWeaponStanceComponent
+ * @see ISuspenseCoreWeaponCombatState
  * @see USuspenseCoreCharacterAnimInstance
  */
 UCLASS()
@@ -116,8 +116,8 @@ private:
 	// Internal Methods
 	//==================================================================
 
-	/** Get WeaponStanceComponent from owner character */
-	USuspenseCoreWeaponStanceComponent* GetWeaponStanceComponent() const;
+	/** Get WeaponCombatState interface from owner character */
+	ISuspenseCoreWeaponCombatState* GetWeaponCombatState() const;
 
 	/** Apply speed debuff effect */
 	void ApplyAimEffects(const FGameplayAbilityActorInfo* ActorInfo);

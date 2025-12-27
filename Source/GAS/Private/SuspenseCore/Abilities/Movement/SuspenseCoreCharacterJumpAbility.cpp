@@ -256,13 +256,14 @@ bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 		-StaminaCostPerJump
 	);
 
-	// Apply effect
-	FActiveGameplayEffectHandle EffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	// Apply effect - NOTE: Instant effects return invalid handle but still apply!
+	ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 
-	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Effect applied, handle valid: %s"),
-		EffectHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
+	// For Instant effects, the handle is always invalid after application
+	// because the effect is consumed immediately. The effect still applied successfully.
+	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Instant effect applied successfully"));
 
-	return EffectHandle.IsValid() || !JumpStaminaCostEffectClass;
+	return true;
 }
 
 void USuspenseCoreCharacterJumpAbility::PerformJump(

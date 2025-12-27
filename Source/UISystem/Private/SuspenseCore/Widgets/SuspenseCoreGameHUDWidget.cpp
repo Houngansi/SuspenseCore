@@ -121,20 +121,38 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 	);
 
 	// Subscribe to Stamina attribute events
-	StaminaEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina")),
-		const_cast<USuspenseCoreGameHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnStaminaEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
+	FGameplayTag StaminaTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina"), false);
+	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Subscribing to Stamina tag: %s (Valid: %s)"),
+		*StaminaTag.ToString(), StaminaTag.IsValid() ? TEXT("YES") : TEXT("NO"));
+
+	if (StaminaTag.IsValid())
+	{
+		StaminaEventHandle = CachedEventBus->SubscribeNative(
+			StaminaTag,
+			const_cast<USuspenseCoreGameHUDWidget*>(this),
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnStaminaEvent),
+			ESuspenseCoreEventPriority::Normal
+		);
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Stamina subscription handle valid: %s"),
+			StaminaEventHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
+	}
 
 	// Subscribe to MaxStamina attribute events
-	MaxStaminaEventHandle = CachedEventBus->SubscribeNative(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxStamina")),
-		const_cast<USuspenseCoreGameHUDWidget*>(this),
-		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnMaxStaminaEvent),
-		ESuspenseCoreEventPriority::Normal
-	);
+	FGameplayTag MaxStaminaTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxStamina"), false);
+	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Subscribing to MaxStamina tag: %s (Valid: %s)"),
+		*MaxStaminaTag.ToString(), MaxStaminaTag.IsValid() ? TEXT("YES") : TEXT("NO"));
+
+	if (MaxStaminaTag.IsValid())
+	{
+		MaxStaminaEventHandle = CachedEventBus->SubscribeNative(
+			MaxStaminaTag,
+			const_cast<USuspenseCoreGameHUDWidget*>(this),
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnMaxStaminaEvent),
+			ESuspenseCoreEventPriority::Normal
+		);
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] MaxStamina subscription handle valid: %s"),
+			MaxStaminaEventHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
+	}
 
 	// Subscribe to LowHealth event
 	LowHealthEventHandle = CachedEventBus->SubscribeNative(
@@ -261,11 +279,19 @@ void USuspenseCoreGameHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const F
 
 void USuspenseCoreGameHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] OnStaminaEvent received! Tag: %s"), *EventTag.ToString());
+
 	float OldStamina = CachedStamina;
 
 	CachedStamina = EventData.GetFloat(FName("Value"), CachedStamina);
 
+	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Stamina: %.2f -> %.2f, MaxStamina: %.2f"),
+		OldStamina, CachedStamina, CachedMaxStamina);
+
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
+
+	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] TargetStaminaPercent: %.2f"), TargetStaminaPercent);
+
 	UpdateStaminaUI();
 
 	// Broadcast Blueprint event

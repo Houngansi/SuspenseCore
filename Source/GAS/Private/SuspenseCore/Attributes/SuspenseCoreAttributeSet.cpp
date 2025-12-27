@@ -141,6 +141,29 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 			}
 		}
 	}
+	// Process Stamina change (from Sprint, Jump, etc.)
+	// This broadcasts events for LOCAL changes (replication uses OnRep_Stamina)
+	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	{
+		const float NewStamina = GetStamina();
+		// For additive modifiers, calculate old value from new value and magnitude
+		const float StaminaDelta = Data.EvaluatedData.Magnitude;
+		const float OldStamina = NewStamina - StaminaDelta;
+
+		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, NewStamina);
+
+		UE_LOG(LogSuspenseCoreAttributes, Verbose, TEXT("Stamina changed: %.2f -> %.2f (delta: %.2f)"),
+			OldStamina, NewStamina, StaminaDelta);
+	}
+	// Process MaxStamina change
+	else if (Data.EvaluatedData.Attribute == GetMaxStaminaAttribute())
+	{
+		const float NewMaxStamina = GetMaxStamina();
+		const float MaxStaminaDelta = Data.EvaluatedData.Magnitude;
+		const float OldMaxStamina = NewMaxStamina - MaxStaminaDelta;
+
+		BroadcastAttributeChange(GetMaxStaminaAttribute(), OldMaxStamina, NewMaxStamina);
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

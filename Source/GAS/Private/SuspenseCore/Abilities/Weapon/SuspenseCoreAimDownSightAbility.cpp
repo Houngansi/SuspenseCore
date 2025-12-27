@@ -3,7 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreAimDownSightAbility.h"
-#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -73,23 +73,23 @@ bool USuspenseCoreAimDownSightAbility::CanActivateAbility(
 		return false;
 	}
 
-	// Require weapon stance component (indicates weapon is equipped)
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetWeaponStanceComponent();
-	if (!StanceComp)
+	// Require weapon combat state interface (indicates weapon is equipped)
+	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
+	if (!CombatState)
 	{
-		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: No WeaponStanceComponent"));
+		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: No WeaponCombatState interface"));
 		return false;
 	}
 
 	// Require weapon to be drawn
-	if (!StanceComp->IsWeaponDrawn())
+	if (!CombatState->IsWeaponDrawn())
 	{
 		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Weapon not drawn"));
 		return false;
 	}
 
 	// Cannot aim while already reloading
-	if (StanceComp->IsReloading())
+	if (CombatState->IsReloading())
 	{
 		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Currently reloading"));
 		return false;
@@ -113,22 +113,22 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	// ===================================================================
-	// Set Aiming State on SSOT (WeaponStanceComponent)
+	// Set Aiming State on SSOT (via ISuspenseCoreWeaponCombatState)
 	// This automatically:
 	// - Sets bIsAiming = true (replicated)
 	// - Sets TargetAimPoseAlpha = 1.0f (for AimPoseAlpha interpolation)
 	// - Publishes EventBus: TAG_Equipment_Event_Weapon_Stance_AimStarted
 	// - Forces network update
 	// ===================================================================
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetWeaponStanceComponent();
-	if (StanceComp)
+	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
+	if (CombatState)
 	{
-		StanceComp->SetAiming(true);
+		CombatState->SetAiming(true);
 		UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS Activated - SetAiming(true)"));
 	}
 	else
 	{
-		UE_LOG(LogSuspenseCoreADS, Warning, TEXT("ADS Activated but no StanceComponent found"));
+		UE_LOG(LogSuspenseCoreADS, Warning, TEXT("ADS Activated but no CombatState interface found"));
 	}
 
 	// ===================================================================
@@ -172,10 +172,10 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	// - Publishes EventBus: TAG_Equipment_Event_Weapon_Stance_AimEnded
 	// - Forces network update
 	// ===================================================================
-	USuspenseCoreWeaponStanceComponent* StanceComp = GetWeaponStanceComponent();
-	if (StanceComp)
+	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
+	if (CombatState)
 	{
-		StanceComp->SetAiming(false);
+		CombatState->SetAiming(false);
 		UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS Ended - SetAiming(false) (Cancelled: %s)"),
 			bWasCancelled ? TEXT("true") : TEXT("false"));
 	}
@@ -214,7 +214,7 @@ void USuspenseCoreAimDownSightAbility::InputReleased(
 // Internal Methods
 // =========================================================================
 
-USuspenseCoreWeaponStanceComponent* USuspenseCoreAimDownSightAbility::GetWeaponStanceComponent() const
+ISuspenseCoreWeaponCombatState* USuspenseCoreAimDownSightAbility::GetWeaponCombatState() const
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid())
@@ -222,7 +222,22 @@ USuspenseCoreWeaponStanceComponent* USuspenseCoreAimDownSightAbility::GetWeaponS
 		return nullptr;
 	}
 
-	return ActorInfo->AvatarActor->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
+	// Find component that implements ISuspenseCoreWeaponCombatState
+	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
+
+	// Check all components for interface implementation
+	TArray<UActorComponent*> Components;
+	AvatarActor->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (ISuspenseCoreWeaponCombatState* CombatState = Cast<ISuspenseCoreWeaponCombatState>(Component))
+		{
+			return CombatState;
+		}
+	}
+
+	return nullptr;
 }
 
 void USuspenseCoreAimDownSightAbility::ApplyAimEffects(const FGameplayAbilityActorInfo* ActorInfo)

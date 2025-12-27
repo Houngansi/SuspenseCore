@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
 #include "SuspenseCoreWeaponStanceComponent.generated.h"
 
 class USuspenseCoreEventBus;
@@ -146,7 +147,7 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
  * - AnimInstance calls GetStanceSnapshot() in NativeUpdateAnimation()
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent), BlueprintType, Blueprintable)
-class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStanceComponent : public UActorComponent
+class EQUIPMENTSYSTEM_API USuspenseCoreWeaponStanceComponent : public UActorComponent, public ISuspenseCoreWeaponCombatState
 {
 	GENERATED_BODY()
 
@@ -176,27 +177,28 @@ public:
 
 	// ========================================================================
 	// Combat State API (called by GAS abilities and weapon logic)
+	// Implements ISuspenseCoreWeaponCombatState interface
 	// ========================================================================
 
 	/** Set aiming state (from ADS ability) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
-	void SetAiming(bool bNewAiming);
+	virtual void SetAiming(bool bNewAiming) override;
 
 	/** Set firing state (from weapon fire logic) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
-	void SetFiring(bool bNewFiring);
+	virtual void SetFiring(bool bNewFiring) override;
 
 	/** Set reloading state (from WeaponStateManager or reload ability) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
-	void SetReloading(bool bNewReloading);
+	virtual void SetReloading(bool bNewReloading) override;
 
 	/** Set breath holding state (from sniper scope ability) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
-	void SetHoldingBreath(bool bNewHoldingBreath);
+	virtual void SetHoldingBreath(bool bNewHoldingBreath) override;
 
 	/** Set montage active state (called by AnimInstance when montage plays/ends) */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
-	void SetMontageActive(bool bNewMontageActive);
+	virtual void SetMontageActive(bool bNewMontageActive) override;
 
 	// ========================================================================
 	// Pose Modifier API (called by weapon/environment logic)
@@ -296,31 +298,32 @@ public:
 
 	// ========================================================================
 	// Getters for individual states
+	// ISuspenseCoreWeaponCombatState interface implementation
 	// ========================================================================
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Stance")
 	FGameplayTag GetCurrentWeaponType() const { return CurrentWeaponType; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Stance")
-	bool IsWeaponDrawn() const { return bWeaponDrawn; }
+	virtual bool IsWeaponDrawn() const override { return bWeaponDrawn; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
-	bool IsAiming() const { return bIsAiming; }
+	virtual bool IsAiming() const override { return bIsAiming; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
-	bool IsFiring() const { return bIsFiring; }
+	virtual bool IsFiring() const override { return bIsFiring; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
-	bool IsReloading() const { return bIsReloading; }
+	virtual bool IsReloading() const override { return bIsReloading; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
-	bool IsHoldingBreath() const { return bIsHoldingBreath; }
+	virtual bool IsHoldingBreath() const override { return bIsHoldingBreath; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
-	bool IsMontageActive() const { return bIsMontageActive; }
+	virtual bool IsMontageActive() const override { return bIsMontageActive; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Pose")
-	float GetAimPoseAlpha() const { return AimPoseAlpha; }
+	virtual float GetAimPoseAlpha() const override { return AimPoseAlpha; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon|Stance")
 	AActor* GetTrackedEquipmentActor() const { return TrackedEquipmentActor.Get(); }

@@ -6,6 +6,8 @@
 
 **Сеттинг**: Пост-советская антиутопия. Разрушенные заводы, заброшенные НИИ, мёртвые колхозы, полуразваленные хрущёвки. Атмосфера Сталкера/Тарков с элементами советской эстетики.
 
+**Целевая платформа**: Unreal Engine 5.5 (без World Partition)
+
 ---
 
 ## Core Loop (Основной Цикл)
@@ -58,6 +60,397 @@
                     └───────────┬───────────┘
                                 ▼
                         [Return to Hideout]
+```
+
+---
+
+## Level Architecture (UE 5.5 без World Partition)
+
+### Архитектура уровней
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    LEVEL ARCHITECTURE (No World Partition)               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Persistent Level: L_GameMode (минимальный - только GameMode/Spawns)    │
+│       │                                                                  │
+│       ├─► L_Hub_Hideout     (загружен при старте, ~100x100м)            │
+│       │                                                                  │
+│       ├─► L_Raid_Outskirts  (стримится при входе в рейд, ~400x400м)     │
+│       │                                                                  │
+│       └─► L_Raid_Industrial (стримится при входе в рейд, ~350x350м)     │
+│                                                                          │
+│  Level Streaming: LoadStreamLevel при выборе рейда                      │
+│  Unload: UnloadStreamLevel при возврате в Hub                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Размеры локаций (Demo)
+
+| Локация | Уровень | Размер | Время рейда | Стиль |
+|---------|---------|--------|-------------|-------|
+| **Hub (Убежище)** | `L_Hub_Hideout` | 100x100м | - | Interior, безопасная |
+| **Окраина** | `L_Raid_Outskirts` | 400x400м | 15-25 мин | Open + Buildings |
+| **Промзона** | `L_Raid_Industrial` | 350x350м | 20-30 мин | Industrial, вертикальность |
+
+### Level Streaming Implementation
+
+```cpp
+// В GameMode или RaidManager
+UCLASS()
+class URaidLevelManager : public UObject
+{
+    GENERATED_BODY()
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "Raid")
+    void LoadRaidLevel(ERaidLocation Location)
+    {
+        // Выгрузить Hub
+        FLatentActionInfo UnloadInfo;
+        UnloadInfo.CallbackTarget = this;
+        UnloadInfo.ExecutionFunction = "OnHubUnloaded";
+        UnloadInfo.Linkage = 0;
+        UnloadInfo.UUID = GetUniqueID();
+
+        UGameplayStatics::UnloadStreamLevel(
+            GetWorld(),
+            FName("L_Hub_Hideout"),
+            UnloadInfo,
+            false
+        );
+
+        // Загрузить рейд
+        FString LevelName = GetLevelNameForLocation(Location);
+        FLatentActionInfo LoadInfo;
+        LoadInfo.CallbackTarget = this;
+        LoadInfo.ExecutionFunction = "OnRaidLoaded";
+        LoadInfo.Linkage = 1;
+        LoadInfo.UUID = GetUniqueID();
+
+        UGameplayStatics::LoadStreamLevel(
+            GetWorld(),
+            FName(*LevelName),
+            true,  // bMakeVisibleAfterLoad
+            true,  // bShouldBlockOnLoad
+            LoadInfo
+        );
+    }
+
+    UFUNCTION(BlueprintCallable, Category = "Raid")
+    void ReturnToHideout()
+    {
+        // Выгрузить текущий рейд, загрузить Hub
+        // Аналогичная логика
+    }
+
+private:
+    FString GetLevelNameForLocation(ERaidLocation Location)
+    {
+        switch (Location)
+        {
+            case ERaidLocation::Outskirts:  return TEXT("L_Raid_Outskirts");
+            case ERaidLocation::Industrial: return TEXT("L_Raid_Industrial");
+            default: return TEXT("");
+        }
+    }
+};
+```
+
+---
+
+## Локация: УБЕЖИЩЕ (Hub)
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         HUB - Убежище                                    │
+│                       L_Hub_Hideout (~100x100м)                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                      Подвал/Бункер (Interior)                     │   │
+│  │                                                                   │   │
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐            │   │
+│  │   │  СХРОН  │  │ ВЕРСТАК │  │ТОРГОВЕЦ │  │ КАРТА   │            │   │
+│  │   │ (Stash) │  │(Repairs)│  │ (Trade) │  │(Mission)│            │   │
+│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘            │   │
+│  │                                                                   │   │
+│  │   ┌─────────┐  ┌─────────────────────────────────┐               │   │
+│  │   │ КОЙКА   │  │        ЗОНА ПОДГОТОВКИ          │               │   │
+│  │   │(Save/   │  │     (Loadout + Deploy)          │               │   │
+│  │   │ Rest)   │  │                                 │               │   │
+│  │   └─────────┘  └─────────────────────────────────┘               │   │
+│  │                                                                   │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Функции Hub
+
+| Зона | Функционал | Реализация |
+|------|------------|------------|
+| **Схрон (Stash)** | Grid-инвентарь для хранения | Существующая система инвентаря |
+| **Верстак** | Ремонт оружия, модификации | Durability system + Trader UI |
+| **Торговец** | Покупка/продажа предметов | NPC + Trade Widget |
+| **Карта рейдов** | Выбор локации, просмотр заданий | Mission Board UI |
+| **Койка** | Сохранение прогресса, heal | Save/Load + Rest mechanic |
+| **Зона подготовки** | Loadout экипировки | Equipment Widget перед deploy |
+
+### Hub Lighting
+
+```
+Освещение Hub:
+├── Baked Lighting (Static)
+├── Несколько точечных источников (лампы, свечи)
+├── Volumetric Fog для атмосферы
+└── Emissive materials для экранов/индикаторов
+```
+
+---
+
+## Локация: ОКРАИНА (L_Raid_Outskirts)
+
+### Overview
+
+| Параметр | Значение |
+|----------|----------|
+| **Размер** | 400x400 метров |
+| **Время рейда** | 15-25 минут |
+| **Сложность** | Tier 1 (Low) |
+| **Стиль** | Открытые пространства + здания |
+| **Вертикальность** | Средняя (2-3 этажа) |
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         ОКРАИНА - Layout                                 │
+│                          (~400x400 метров)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   [SPAWN A]                                      [SPAWN B]               │
+│      ↓                                              ↓                    │
+│  ┌────────┐         ┌──────────────┐         ┌────────┐                 │
+│  │Гаражи  │─────────│  Автостанция │─────────│Общежитие│                │
+│  │(loot)  │         │   (центр)    │         │(3 этажа)│                │
+│  └────────┘         └──────────────┘         └────────┘                 │
+│      │                     │                      │                      │
+│      │    ┌────────────────┼────────────────┐    │                      │
+│      │    │                │                │    │                      │
+│      ▼    ▼                ▼                ▼    ▼                      │
+│  ┌────────────┐    ┌──────────────┐    ┌────────────┐                   │
+│  │ Заброшенный│    │   Площадь    │    │  Магазин   │                   │
+│  │   двор     │    │  с памятником│    │  "Продукты"│                   │
+│  └────────────┘    └──────────────┘    └────────────┘                   │
+│        │                   │                  │                          │
+│        │         ┌─────────┴─────────┐       │                          │
+│        │         │                   │       │                          │
+│        ▼         ▼                   ▼       ▼                          │
+│  ┌──────────┐ ┌────────┐      ┌────────┐ ┌──────────┐                   │
+│  │ Свалка   │ │ Тоннель│      │  КПП   │ │Заправка  │                   │
+│  │(extract) │ │(shortcut)     │(extract)│ │ (loot)   │                   │
+│  └──────────┘ └────────┘      └────────┘ └──────────┘                   │
+│                                                                          │
+│  [EXTRACT 1]              [EXTRACT 2]                                   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Легенда:
+━━━━━━━━
+- Spawn A/B: Точки входа игрока (рандом)
+- Extract 1/2: Точки эвакуации (1-2 активны за рейд)
+- Центральные зоны: Высокий лут, высокий риск
+- Периферия: Безопаснее, меньше лута
+```
+
+### Points of Interest (POI)
+
+| POI | Описание | Лут | Враги | Вертикаль |
+|-----|----------|-----|-------|-----------|
+| **Автостанция** | Центр карты, 2 этажа + крыша | High (редкие патроны) | 3-5 мародёров | 3 уровня |
+| **Общежитие** | 3-этажное здание | Medium-High (медицина) | 2-4 на этаж | 3 этажа |
+| **Гаражи** | Боксы с машинами | Medium (инструменты) | 1-2 | Нет |
+| **Магазин "Продукты"** | Советский магазин | Medium (медицина, еда) | 2-3 | Нет |
+| **Заправка** | АЗС с мини-маркетом | Medium (расходники) | 1-2 | Нет |
+| **Площадь** | Открытая зона с памятником | Low | Патруль 2-3 | Нет |
+| **Свалка** | Extraction point #1 | Low | Патруль 2-3 | Нет |
+| **КПП** | Extraction point #2 | Low-Medium | 2-4 военных | Вышка |
+| **Тоннель** | Подземный переход (shortcut) | Low | 1 мутант | Подземный |
+| **Заброшенный двор** | Дворик между домами | Low | 0-1 | Нет |
+
+### Задачи на локации
+
+```cpp
+// Типы заданий для Окраины
+UENUM(BlueprintType)
+enum class EOutskirtsObjective : uint8
+{
+    // === ОСНОВНЫЕ (всегда доступны) ===
+    Extract,              // Просто выжить и эвакуироваться
+
+    // === СБОР (рандом 1-2 за рейд) ===
+    FindMedSupplies,      // Найти аптечки в Магазине (3 шт)
+    CollectScrap,         // Собрать металлолом на Свалке (5 кг)
+    FindAmmoCache,        // Найти тайник патронов в Гаражах
+
+    // === УСТРАНЕНИЕ (рандом 0-1 за рейд) ===
+    KillMarauders,        // Убить 5 мародёров
+    ClearBusStation,      // Зачистить Автостанцию
+    EliminateLeader,      // Убить главаря (спавн в Общежитии)
+
+    // === ИССЛЕДОВАНИЕ (рандом 0-1 за рейд) ===
+    PlaceMarker,          // Установить маяк на крыше Автостанции
+    FindIntel,            // Найти документы в Общежитии
+    MarkExtractionRoute   // Разведать путь к КПП
+};
+```
+
+### Прогрессия сложности по времени
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│              ОКРАИНА - Difficulty Scaling                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Время в рейде:     Сложность:        События:                 │
+│                                                                 │
+│  0-5 мин           ★☆☆☆☆             Начальный спавн врагов   │
+│  5-10 мин          ★★☆☆☆             Патрули активируются     │
+│  10-15 мин         ★★★☆☆             Подкрепление на Автостанцию│
+│  15-20 мин         ★★★★☆             Военный патруль появляется│
+│  20+ мин           ★★★★★             "Зачистка" - все к выходам│
+│                                                                 │
+│  Бонус за быструю эвакуацию: +15% XP за <10 мин               │
+│  Штраф за долгий рейд: Усиленные враги после 20 мин           │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Spawns & Extraction
+
+```cpp
+// Spawn Points - рандомный выбор при старте рейда
+UPROPERTY(EditAnywhere, Category = "Spawns")
+TArray<FTransform> PlayerSpawnPoints;  // 2+ точек
+
+// Extraction Points - 1-2 активны за рейд (рандом)
+UPROPERTY(EditAnywhere, Category = "Extraction")
+TArray<FExtractionPoint> ExtractionPoints;
+
+USTRUCT(BlueprintType)
+struct FExtractionPoint
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    FTransform Location;
+
+    UPROPERTY(EditAnywhere)
+    FText DisplayName;  // "Свалка", "КПП"
+
+    UPROPERTY(EditAnywhere)
+    float ExtractionTime = 7.0f;  // Секунд для эвакуации
+
+    UPROPERTY(EditAnywhere)
+    bool bRequiresPayment = false;  // Некоторые точки платные
+
+    UPROPERTY(EditAnywhere)
+    int32 PaymentAmount = 0;
+};
+```
+
+---
+
+## Локация: ПРОМЗОНА (L_Raid_Industrial)
+
+### Overview
+
+| Параметр | Значение |
+|----------|----------|
+| **Размер** | 350x350 метров |
+| **Время рейда** | 20-30 минут |
+| **Сложность** | Tier 2 (Medium) |
+| **Стиль** | Industrial, вертикальность |
+| **Вертикальность** | Высокая (краны, трубы, платформы) |
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         ПРОМЗОНА - Layout                                │
+│                          (~350x350 метров)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   [SPAWN A]                                      [SPAWN B]               │
+│      ↓                                              ↓                    │
+│  ┌──────────┐      ┌────────────────┐      ┌──────────┐                 │
+│  │Ж/Д тупик │──────│  Главный цех   │──────│Котельная │                 │
+│  │(вагоны)  │      │  (3 уровня)    │      │(трубы)   │                 │
+│  └──────────┘      └────────────────┘      └──────────┘                 │
+│       │                    │                     │                       │
+│       │         ┌──────────┼──────────┐         │                       │
+│       ▼         ▼          ▼          ▼         ▼                       │
+│  ┌─────────┐ ┌───────┐ ┌────────┐ ┌───────┐ ┌─────────┐                │
+│  │Склад    │ │Крановая│ │Двор с  │ │Админ. │ │Гараж    │                │
+│  │(контейн)│ │(высота)│ │техникой│ │здание │ │техники  │                │
+│  └─────────┘ └───────┘ └────────┘ └───────┘ └─────────┘                │
+│       │          │          │          │         │                       │
+│       │          │    ┌─────┴─────┐    │         │                       │
+│       ▼          ▼    ▼           ▼    ▼         ▼                       │
+│  ┌─────────┐  ┌────────────┐  ┌────────────┐  ┌─────────┐              │
+│  │Пром.    │  │   Насосная │  │ Подстанция │  │ Проходная│              │
+│  │свалка   │  │  станция   │  │ (опасно!)  │  │(extract) │              │
+│  │(extract)│  └────────────┘  └────────────┘  └─────────┘              │
+│  └─────────┘                                                            │
+│                                                                          │
+│  [EXTRACT 1]                              [EXTRACT 2]                   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Points of Interest
+
+| POI | Описание | Лут | Враги | Особенности |
+|-----|----------|-----|-------|-------------|
+| **Главный цех** | Огромный цех с 3 уровнями | Very High | 5-8 | Вертикальные бои |
+| **Крановая** | Башня крана + мостовые краны | High (редкий) | 2-3 | Снайперская позиция |
+| **Котельная** | Трубы, котлы, тёмные углы | Medium-High | 3-4 мутантов | Тесные пространства |
+| **Склад** | Контейнерный лабиринт | Medium | 3-5 | Засады |
+| **Админ. здание** | Офисы, сейфы | High (ценности) | 2-4 | Документы, ключи |
+| **Ж/Д тупик** | Старые вагоны | Medium | 1-2 | Лут в вагонах |
+| **Подстанция** | Высокое напряжение! | Very High | 1-2 + ловушки | Электро-ловушки |
+| **Насосная** | Подвальное помещение | Medium | 2-3 | Затопление? |
+
+### Уникальные механики Промзоны
+
+```cpp
+// Особенности локации
+USTRUCT(BlueprintType)
+struct FIndustrialHazards
+{
+    GENERATED_BODY()
+
+    // Электрические ловушки на Подстанции
+    UPROPERTY(EditAnywhere)
+    TArray<AElectricHazard*> ElectricHazards;
+
+    // Нестабильные платформы
+    UPROPERTY(EditAnywhere)
+    TArray<AUnstablePlatform*> UnstablePlatforms;
+
+    // Движущиеся краны (cover/опасность)
+    UPROPERTY(EditAnywhere)
+    TArray<AMovingCrane*> Cranes;
+
+    // Токсичные зоны
+    UPROPERTY(EditAnywhere)
+    TArray<AToxicZone*> ToxicZones;
+};
 ```
 
 ---
@@ -240,6 +633,98 @@ MisfireChance        // Шанс осечки
 
 ---
 
+## UE 5.5 Optimization (Оптимизация)
+
+### Nanite Configuration
+
+```ini
+; Config/DefaultEngine.ini
+
+[/Script/Engine.RendererSettings]
+; Nanite - для статической геометрии зданий
+r.Nanite=1
+r.Nanite.MaxPixelsPerEdge=1
+r.Nanite.ViewMeshLODBias=0
+
+; Virtual Shadow Maps
+r.Shadow.Virtual.Enable=1
+r.Shadow.Virtual.MaxPhysicalPages=2048
+```
+
+### Lumen Settings (для небольших карт)
+
+```ini
+; Lumen настройки
+r.Lumen.TraceMeshSDFs=1
+r.Lumen.ScreenProbeGather=1
+r.LumenScene.SoftwareRayTracing=1
+
+; Для интерьеров Hub
+r.Lumen.Reflections.ScreenSpaceReconstruction=1
+```
+
+### HLOD Setup
+
+```
+Окраина - HLOD Setup (400x400м):
+├── HLOD_0 (полная детализация):      0-50м
+├── HLOD_1 (упрощённая геометрия):    50-150м
+├── HLOD_2 (сильно упрощённая):       150-300м
+└── HLOD_3 (силуэты/impostors):       300-400м
+
+Что использует Nanite:
+├── Здания (стены, крыши, полы)
+├── Статичные объекты (машины, мусор, контейнеры)
+├── Рельеф
+└── Крупные пропсы
+
+Что НЕ использует Nanite:
+├── Интерактивные объекты (двери, лут-контейнеры)
+├── Skeletal meshes (враги, NPC)
+├── Мелкие детали с физикой
+└── VFX / Particles
+```
+
+### Occlusion Culling
+
+```cpp
+// Project Settings -> Engine -> Rendering
+// Важно для зданий с интерьерами
+
+// В DefaultEngine.ini
+[/Script/Engine.RendererSettings]
+r.HZBOcclusion=1
+r.AllowOcclusionQueries=1
+
+// Precomputed Visibility Volumes
+// Размещать в каждом здании для оптимизации interior culling
+```
+
+### Distance Culling по типам
+
+| Тип объекта | Min Draw Distance | Max Draw Distance |
+|-------------|-------------------|-------------------|
+| Здания | 0 | Unlimited (Nanite) |
+| Враги | 0 | 200м |
+| Лут (мелкий) | 0 | 50м |
+| Лут (крупный) | 0 | 100м |
+| Decals | 0 | 30м |
+| Particles | 0 | 100м |
+
+### Memory Budget (Demo)
+
+```
+Target Memory Budget:
+├── Hub:       ~500MB (всегда загружен)
+├── Окраина:   ~1.5GB (стримится)
+├── Промзона:  ~1.2GB (стримится)
+└── Shared:    ~300MB (общие ассеты)
+
+Total Peak: ~2.3GB (Hub + один рейд)
+```
+
+---
+
 ## Skill Progression System (GAS-Based)
 
 ### Архитектура навыков
@@ -311,28 +796,33 @@ UPROPERTY() float MobilitySkill;    // Мобильность
 
 ---
 
+## Enemy Types (Типы врагов)
+
+### Для Demo (3 типа)
+
+| Тип | Оружие | HP | Поведение | Локации |
+|-----|--------|----|-----------| ---------|
+| **Мародёр** | Pistol/SMG | 100 | Патрулирует, атакует в группах | Везде |
+| **Бандит** | AK/Shotgun | 150 | Агрессивный, укрытия | Центральные зоны |
+| **Мутант** | Melee | 200 | Быстрый, атакует в ближнем бою | Тоннели, подвалы |
+
+### AI Behavior (базовый)
+
+```cpp
+UENUM(BlueprintType)
+enum class EEnemyBehavior : uint8
+{
+    Patrol,      // Ходит по точкам
+    Guard,       // Стоит на месте, реагирует на звуки
+    Hunt,        // Активно ищет игрока
+    Flee,        // Убегает при низком HP
+    Ambush       // Ждёт в засаде
+};
+```
+
+---
+
 ## Item Degradation (Анти-абуз система)
-
-### Концепция
-
-Все снаряжение изнашивается, предотвращая бесконечный гринд без риска:
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    EQUIPMENT LIFECYCLE                          │
-├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  [Purchase/Find] ──► [Use in Raids] ──► [Degrade] ──► [Repair] │
-│        │                   │                │            │      │
-│        │                   │                │            │      │
-│     Credits              XP Gain         Durability    Credits  │
-│                                          Loss                   │
-│                                                                 │
-│  BALANCE: XP gained < Cost to maintain equipment               │
-│           Forces player to take risks for profit               │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
-```
 
 ### Degradation Types
 
@@ -354,114 +844,6 @@ Quality Multipliers:
 - Scrap:    0.5x cost, max repair to 60%
 - Standard: 1.0x cost, max repair to 85%
 - Premium:  2.0x cost, max repair to 100%
-```
-
----
-
-## Replayability Systems
-
-### 1. Procedural Raid Generation
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    RAID GENERATION                              │
-├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  BASE MAP (Static Layout)                                       │
-│       │                                                         │
-│       ├──► Enemy Spawns (Randomized density/types)             │
-│       │    └── Patrol routes change each raid                  │
-│       │                                                         │
-│       ├──► Loot Locations (70% fixed, 30% random)              │
-│       │    └── Quality varies by "raid difficulty"             │
-│       │                                                         │
-│       ├──► Extraction Points (2-4 options, 1-2 active)         │
-│       │    └── Active points revealed mid-raid                 │
-│       │                                                         │
-│       └──► Events (Random encounters)                          │
-│            ├── Бандитский рейд в процессе                      │
-│            ├── Военный патруль                                 │
-│            ├── Тайник сталкеров                                │
-│            └── Аномальная зона                                 │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
-```
-
-### 2. Dynamic Difficulty
-
-```cpp
-// Difficulty scales with player progress
-struct FRaidDifficulty
-{
-    float EnemyHealthMultiplier;    // 1.0 - 2.0
-    float EnemyDamageMultiplier;    // 1.0 - 1.5
-    float LootQualityMultiplier;    // 1.0 - 2.5
-    int32 EliteEnemyChance;         // 0-30%
-    int32 AmbushChance;             // 5-25%
-};
-
-// Based on:
-// - Player skill levels
-// - Equipment value brought
-// - Previous raid success rate
-// - Selected zone difficulty
-```
-
-### 3. Faction Reputation
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    FACTIONS                                     │
-├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ВОЛЬНЫЕ СТАЛКЕРЫ                ТОРГОВЦЫ                      │
-│  ├── Reputation: -100 to +100    ├── Reputation: -100 to +100  │
-│  ├── +Rep: Kill bandits          ├── +Rep: Sell items, complete│
-│  ├── -Rep: Steal supplies        │        deliveries           │
-│  └── Rewards:                    ├── -Rep: Steal, attack       │
-│      ├── Safe houses             └── Rewards:                  │
-│      ├── Intel on raids              ├── Better prices         │
-│      └── Unique weapons              ├── Rare items            │
-│                                      └── Special orders        │
-│                                                                 │
-│  MILITARY (Военные)              BANDITS (Бандиты)             │
-│  ├── Reputation: -100 to +100    ├── Always hostile            │
-│  ├── +Rep: Complete contracts    ├── Can be bribed             │
-│  ├── -Rep: Trespass, kill       └── Control certain zones     │
-│  └── Rewards: Military gear                                    │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Zone Progression (Карта мира)
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                      WORLD MAP                                  │
-├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
-│  │  ОКРАИНЫ    │────│  ПРОМЗОНА   │────│    ЗАВОД    │       │
-│  │   Tier 1    │    │   Tier 2    │    │   Tier 3    │       │
-│  │  Low risk   │    │   Medium    │    │    High     │       │
-│  └─────────────┘     └─────────────┘     └─────────────┘       │
-│       │               │               │                         │
-│       │               │               │                         │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
-│  │   КОЛХОЗ    │────│    НИИ      │────│   БУНКЕР    │       │
-│  │   Tier 2    │    │   Tier 4    │    │   Tier 5    │       │
-│  │   Medium    │    │   V.High    │    │   Extreme   │       │
-│  └─────────────┘     └─────────────┘     └─────────────┘       │
-│                                                                 │
-│  Unlock Requirements:                                          │
-│  ├── Tier 2: Complete 5 Tier 1 raids                          │
-│  ├── Tier 3: Combat Skill 15+                                 │
-│  ├── Tier 4: All skills 20+, Stalker rep 50+                  │
-│  └── Tier 5: Complete "Секретный бункер" quest chain          │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -498,87 +880,116 @@ namespace SuspenseCoreTags
         UE_DECLARE_GAMEPLAY_TAG_EXTERN(Failed);
     }
 
-    // Events
-    namespace Event::Skill
+    // Locations
+    namespace Location
     {
-        UE_DECLARE_GAMEPLAY_TAG_EXTERN(XPGained);
-        UE_DECLARE_GAMEPLAY_TAG_EXTERN(LevelUp);
+        UE_DECLARE_GAMEPLAY_TAG_EXTERN(Hub);
+        UE_DECLARE_GAMEPLAY_TAG_EXTERN(Outskirts);
+        UE_DECLARE_GAMEPLAY_TAG_EXTERN(Industrial);
     }
 }
 ```
 
-### New Attributes
+### Raid Manager
 
 ```cpp
-// SuspenseCoreSkillAttributeSet.h
 UCLASS()
-class USuspenseCoreSkillAttributeSet : public UAttributeSet
+class ARaidGameMode : public AGameModeBase
 {
     GENERATED_BODY()
 
 public:
-    // Combat
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData CombatXP;
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData CombatLevel;
+    // Время рейда
+    UPROPERTY(EditDefaultsOnly, Category = "Raid")
+    float MaxRaidTime = 1800.0f;  // 30 минут
 
-    // Survival
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData SurvivalXP;
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData SurvivalLevel;
+    // Текущее время
+    UPROPERTY(BlueprintReadOnly, Category = "Raid")
+    float CurrentRaidTime = 0.0f;
 
-    // Technical
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData TechnicalXP;
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData TechnicalLevel;
+    // Активные точки эвакуации
+    UPROPERTY(BlueprintReadOnly, Category = "Raid")
+    TArray<AExtractionPoint*> ActiveExtractionPoints;
 
-    // Mobility
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData MobilityXP;
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayAttributeData MobilityLevel;
+    // Активные задания
+    UPROPERTY(BlueprintReadOnly, Category = "Raid")
+    TArray<FRaidObjective> ActiveObjectives;
+
+    UFUNCTION(BlueprintCallable, Category = "Raid")
+    void StartRaid(ERaidLocation Location);
+
+    UFUNCTION(BlueprintCallable, Category = "Raid")
+    void EndRaid(bool bExtracted);
+
+    UFUNCTION(BlueprintCallable, Category = "Raid")
+    void PlayerDied();
 };
-```
-
-### New GameplayEffects
-
-```cpp
-// GE_AddSkillXP - SetByCaller для XP amount
-// GE_WeaponDegradation - Periodic, reduces durability
-// GE_WeaponJam - Instant, applies Weapon.Jammed tag
-// GE_SkillBonus_Combat - Passive, applies combat bonuses based on level
 ```
 
 ---
 
 ## MVP Scope (Demo Version)
 
-### Phase 1: Core Loop
-- [ ] Single zone (Окраины)
-- [ ] 3 enemy types (Мародёр, Мутант, Бандит)
-- [ ] Basic loot system
-- [ ] Single extraction point
-- [ ] Hideout with stash only
+### Phase 1: Core Systems
 
-### Phase 2: Progression
-- [ ] Combat + Mobility skills
-- [ ] Weapon durability (using existing `MisfireChance`, `JamChance`)
-- [ ] Basic repairs
-- [ ] 4 weapons (АК-74М, Glock 17, MP5SD, Штык-нож)
+| Задача | Статус | Приоритет |
+|--------|--------|-----------|
+| Hub Level (L_Hub_Hideout) | TODO | P0 |
+| Level Streaming setup | TODO | P0 |
+| Окраина Level (L_Raid_Outskirts) | TODO | P0 |
+| Spawn/Extraction system | TODO | P0 |
+| Basic AI (Мародёр) | TODO | P0 |
+| Raid timer | TODO | P1 |
 
-### Phase 3: Replayability
-- [ ] Second zone (Промзона)
-- [ ] Procedural enemy spawns
-- [ ] Daily challenges
-- [ ] Trader NPC
+### Phase 2: Gameplay
+
+| Задача | Статус | Приоритет |
+|--------|--------|-----------|
+| Loot spawns на Окраине | TODO | P0 |
+| 3 enemy types (Мародёр, Бандит, Мутант) | TODO | P1 |
+| Weapon durability | TODO | P1 |
+| Basic objectives | TODO | P1 |
+| Death/Extraction flow | TODO | P0 |
+
+### Phase 3: Second Location
+
+| Задача | Статус | Приоритет |
+|--------|--------|-----------|
+| Промзона Level (L_Raid_Industrial) | TODO | P2 |
+| Industrial hazards | TODO | P2 |
+| Vertical gameplay | TODO | P2 |
+| Trader NPC в Hub | TODO | P2 |
+
+### Level Checklist
+
+```
+L_Hub_Hideout:
+├── [ ] Blockout (100x100м interior)
+├── [ ] Stash interaction point
+├── [ ] Workbench interaction point
+├── [ ] Mission board UI trigger
+├── [ ] Deploy zone (переход в рейд)
+├── [ ] Baked lighting
+└── [ ] Nav mesh
+
+L_Raid_Outskirts:
+├── [ ] Blockout (400x400м)
+├── [ ] 8 POI buildings (blockout)
+├── [ ] 2 Spawn points
+├── [ ] 2 Extraction points
+├── [ ] Enemy spawn volumes (x10)
+├── [ ] Loot spawn points (x50+)
+├── [ ] Nav mesh
+├── [ ] HLOD setup
+├── [ ] Nanite meshes
+└── [ ] Occlusion volumes
+```
 
 ---
 
-*Document Version: 2.0*
+*Document Version: 3.0*
 *Created: 2025-12-27*
-*Updated: 2025-12-27 - Aligned with actual project data*
+*Updated: 2025-12-27 - Added level design, UE 5.5 optimization, detailed locations*
 *Architecture: SuspenseCore GAS + EventBus*
+*Engine: Unreal Engine 5.5 (No World Partition)*
 *Data Sources: SuspenseCoreWeaponAttributes.json, SuspenseCoreAmmoAttributes.json, SuspenseCoreLoadoutSettings.h*

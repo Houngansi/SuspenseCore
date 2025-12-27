@@ -13,7 +13,8 @@ public class GAS : ModuleRules
 				"GameplayAbilities",
 				"GameplayTags",
 				"GameplayTasks",
-				"BridgeSystem"
+				"BridgeSystem",
+				"EquipmentSystem"
 			}
 		);
 

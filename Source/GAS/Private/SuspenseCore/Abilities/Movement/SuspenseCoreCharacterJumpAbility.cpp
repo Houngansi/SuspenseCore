@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -30,16 +31,19 @@ USuspenseCoreCharacterJumpAbility::USuspenseCoreCharacterJumpAbility()
 	bRetriggerInstancedAbility = false;
 
 	// AbilityTags (AssetTags) - used by TryActivateAbilitiesByTag to find matching abilities
-	// Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+	// Using Native Tags for compile-time safety
 	FGameplayTagContainer AbilityTagContainer;
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Jump")));
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Jump")));
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Jump);
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Movement::Jump);
 	SetAssetTags(AbilityTagContainer);
 
-	// Block tags
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Disabled")));
+	// Applied tag while jumping
+	ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Jumping);
+
+	// Block tags - can't jump in these states
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 }
 
 //==================================================================
@@ -317,8 +321,6 @@ void USuspenseCoreCharacterJumpAbility::BroadcastJumpLanded()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	static const FGameplayTag LandedTag =
-		FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Event.Ability.CharacterJump.Landed"));
-
-	EventBus->Publish(LandedTag, EventData);
+	// Using Native Tag for compile-time safety
+	EventBus->Publish(SuspenseCoreTags::Event::Ability::CharacterJump::Landed, EventData);
 }

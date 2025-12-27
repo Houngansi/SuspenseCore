@@ -7,6 +7,7 @@
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
@@ -29,19 +30,19 @@ USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 	bRetriggerInstancedAbility = false;
 
 	// AbilityTags (AssetTags) - used by TryActivateAbilitiesByTag to find matching abilities
-	// Using SetAssetTags() as recommended by UE5.7+ API (AbilityTags is deprecated)
+	// Using Native Tags for compile-time safety
 	FGameplayTagContainer AbilityTagContainer;
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")));
-	AbilityTagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Sprint")));
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Sprint);
+	AbilityTagContainer.AddTag(SuspenseCoreTags::Ability::Movement::Sprint);
 	SetAssetTags(AbilityTagContainer);
 
 	// Applied tag while sprinting
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Sprinting")));
+	ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Sprinting);
 
-	// Block tags
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Crouching")));
+	// Block tags - can't sprint in these states
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Crouching);
 }
 
 //==================================================================

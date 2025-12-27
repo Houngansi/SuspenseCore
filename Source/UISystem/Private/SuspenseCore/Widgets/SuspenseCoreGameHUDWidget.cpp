@@ -8,10 +8,58 @@
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Styling/SlateBrush.h"
 
 USuspenseCoreGameHUDWidget::USuspenseCoreGameHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+// Helper function to create dynamic material instance from progress bar's background brush
+static UMaterialInstanceDynamic* CreateDynamicMaterialFromProgressBar(UProgressBar* ProgressBar, UObject* Outer)
+{
+	if (!ProgressBar)
+	{
+		return nullptr;
+	}
+
+	// Get the widget style
+	const FProgressBarStyle& Style = ProgressBar->GetWidgetStyle();
+
+	// Get the background brush which contains the material
+	const FSlateBrush& BackgroundBrush = Style.BackgroundImage;
+
+	// Check if it has a material
+	UObject* ResourceObject = BackgroundBrush.GetResourceObject();
+	if (!ResourceObject)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] ProgressBar has no material resource"));
+		return nullptr;
+	}
+
+	// Try to get it as a material interface
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(ResourceObject);
+	if (!MaterialInterface)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] ProgressBar resource is not a material: %s"),
+			*ResourceObject->GetClass()->GetName());
+		return nullptr;
+	}
+
+	// Create dynamic material instance
+	UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, Outer);
+	if (DynamicMaterial)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Created dynamic material from: %s"), *MaterialInterface->GetName());
+
+		// Apply the dynamic material back to the progress bar
+		FProgressBarStyle NewStyle = Style;
+		NewStyle.BackgroundImage.SetResourceObject(DynamicMaterial);
+		ProgressBar->SetWidgetStyle(NewStyle);
+	}
+
+	return DynamicMaterial;
 }
 
 void USuspenseCoreGameHUDWidget::NativeConstruct()
@@ -31,6 +79,21 @@ void USuspenseCoreGameHUDWidget::NativeConstruct()
 	if (StaminaProgressBar)
 	{
 		StaminaProgressBar->SetFillColorAndOpacity(FLinearColor::White);
+	}
+
+	// Create dynamic material instances for material-based progress bars
+	if (bUseMaterialProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Creating dynamic materials for progress bars..."));
+
+		HealthProgressMaterial = CreateDynamicMaterialFromProgressBar(HealthProgressBar.Get(), this);
+		ShieldProgressMaterial = CreateDynamicMaterialFromProgressBar(ShieldProgressBar.Get(), this);
+		StaminaProgressMaterial = CreateDynamicMaterialFromProgressBar(StaminaProgressBar.Get(), this);
+
+		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Dynamic materials created - Health: %s, Shield: %s, Stamina: %s"),
+			HealthProgressMaterial ? TEXT("YES") : TEXT("NO"),
+			ShieldProgressMaterial ? TEXT("YES") : TEXT("NO"),
+			StaminaProgressMaterial ? TEXT("YES") : TEXT("NO"));
 	}
 
 	// Setup EventBus subscriptions - the ONLY way to receive attribute updates!
@@ -57,17 +120,17 @@ void USuspenseCoreGameHUDWidget::NativeTick(const FGeometry& MyGeometry, float I
 	{
 		if (HealthProgressBar)
 		{
-			UpdateProgressBar(HealthProgressBar.Get(), DisplayedHealthPercent, TargetHealthPercent, InDeltaTime);
+			UpdateProgressBar(HealthProgressBar.Get(), HealthProgressMaterial.Get(), DisplayedHealthPercent, TargetHealthPercent, InDeltaTime);
 		}
 
 		if (ShieldProgressBar)
 		{
-			UpdateProgressBar(ShieldProgressBar.Get(), DisplayedShieldPercent, TargetShieldPercent, InDeltaTime);
+			UpdateProgressBar(ShieldProgressBar.Get(), ShieldProgressMaterial.Get(), DisplayedShieldPercent, TargetShieldPercent, InDeltaTime);
 		}
 
 		if (StaminaProgressBar)
 		{
-			UpdateProgressBar(StaminaProgressBar.Get(), DisplayedStaminaPercent, TargetStaminaPercent, InDeltaTime);
+			UpdateProgressBar(StaminaProgressBar.Get(), StaminaProgressMaterial.Get(), DisplayedStaminaPercent, TargetStaminaPercent, InDeltaTime);
 		}
 	}
 }
@@ -378,10 +441,17 @@ void USuspenseCoreGameHUDWidget::SetStaminaValues(float Current, float Max)
 
 void USuspenseCoreGameHUDWidget::UpdateHealthUI()
 {
-	// Update progress bar
+	// Update progress bar (when not using smooth interpolation)
 	if (HealthProgressBar && !bSmoothProgressBars)
 	{
-		HealthProgressBar->SetPercent(TargetHealthPercent);
+		if (bUseMaterialProgress && HealthProgressMaterial)
+		{
+			HealthProgressMaterial->SetScalarParameterValue(MaterialProgressParameterName, TargetHealthPercent);
+		}
+		else
+		{
+			HealthProgressBar->SetPercent(TargetHealthPercent);
+		}
 	}
 
 	// Update text values
@@ -417,10 +487,17 @@ void USuspenseCoreGameHUDWidget::UpdateHealthUI()
 
 void USuspenseCoreGameHUDWidget::UpdateShieldUI()
 {
-	// Update progress bar
+	// Update progress bar (when not using smooth interpolation)
 	if (ShieldProgressBar && !bSmoothProgressBars)
 	{
-		ShieldProgressBar->SetPercent(TargetShieldPercent);
+		if (bUseMaterialProgress && ShieldProgressMaterial)
+		{
+			ShieldProgressMaterial->SetScalarParameterValue(MaterialProgressParameterName, TargetShieldPercent);
+		}
+		else
+		{
+			ShieldProgressBar->SetPercent(TargetShieldPercent);
+		}
 	}
 
 	// Update text values
@@ -456,10 +533,17 @@ void USuspenseCoreGameHUDWidget::UpdateShieldUI()
 
 void USuspenseCoreGameHUDWidget::UpdateStaminaUI()
 {
-	// Update progress bar
+	// Update progress bar (when not using smooth interpolation)
 	if (StaminaProgressBar && !bSmoothProgressBars)
 	{
-		StaminaProgressBar->SetPercent(TargetStaminaPercent);
+		if (bUseMaterialProgress && StaminaProgressMaterial)
+		{
+			StaminaProgressMaterial->SetScalarParameterValue(MaterialProgressParameterName, TargetStaminaPercent);
+		}
+		else
+		{
+			StaminaProgressBar->SetPercent(TargetStaminaPercent);
+		}
 	}
 
 	// Update text values
@@ -493,7 +577,7 @@ void USuspenseCoreGameHUDWidget::UpdateStaminaUI()
 	}
 }
 
-void USuspenseCoreGameHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, float& DisplayedPercent, float TargetPercent, float DeltaTime)
+void USuspenseCoreGameHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, UMaterialInstanceDynamic* Material, float& DisplayedPercent, float TargetPercent, float DeltaTime)
 {
 	if (!ProgressBar)
 	{
@@ -501,9 +585,19 @@ void USuspenseCoreGameHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, fl
 	}
 
 	// Smooth interpolation for fluid fill/drain animation
-	// NOTE: Only SetPercent is called - NO color changes! Colors from material in Editor
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
-	ProgressBar->SetPercent(DisplayedPercent);
+
+	// Update via material parameter or SetPercent depending on configuration
+	if (bUseMaterialProgress && Material)
+	{
+		// Material-based progress: set scalar parameter
+		Material->SetScalarParameterValue(MaterialProgressParameterName, DisplayedPercent);
+	}
+	else
+	{
+		// Standard progress bar: use SetPercent
+		ProgressBar->SetPercent(DisplayedPercent);
+	}
 }
 
 FString USuspenseCoreGameHUDWidget::FormatValueText(float Current, float Max) const

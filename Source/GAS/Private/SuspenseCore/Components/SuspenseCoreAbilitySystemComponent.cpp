@@ -78,16 +78,22 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	float OldValue,
 	float NewValue)
 {
+	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] PublishAttributeChangeEvent - %s: %.2f -> %.2f"),
+		*Attribute.GetName(), OldValue, NewValue);
+
 	if (!bPublishAttributeEvents)
 	{
+		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] bPublishAttributeEvents is FALSE - events disabled!"));
 		return;
 	}
 
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
+		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] EventBus is NULL!"));
 		return;
 	}
+	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] EventBus found, publishing..."));
 
 	// Get MaxValue for attributes that have corresponding Max attributes
 	float MaxValue = NewValue; // Default: no max, use current value
@@ -129,19 +135,26 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	FString TagString = FString::Printf(TEXT("SuspenseCore.Event.GAS.Attribute.%s"), *AttributeName);
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
 
+	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] Requesting tag: %s, Valid: %s"),
+		*TagString, EventTag.IsValid() ? TEXT("YES") : TEXT("NO"));
+
 	if (!EventTag.IsValid())
 	{
 		// Use generic tag if specific one is not registered
+		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] Tag not found, trying generic..."));
 		EventTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.GAS.Attribute.Changed")), false);
 	}
 
 	if (EventTag.IsValid())
 	{
+		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] PUBLISHING EVENT: %s (Value: %.2f)"),
+			*EventTag.ToString(), NewValue);
 		EventBus->Publish(EventTag, Data);
 	}
-
-	UE_LOG(LogSuspenseCoreASC, Verbose, TEXT("Attribute %s changed: %.2f -> %.2f (Max: %.2f)"),
-		*AttributeName, OldValue, NewValue, MaxValue);
+	else
+	{
+		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] ERROR: No valid event tag! Cannot publish."));
+	}
 }
 
 void USuspenseCoreAbilitySystemComponent::PublishCriticalEvent(

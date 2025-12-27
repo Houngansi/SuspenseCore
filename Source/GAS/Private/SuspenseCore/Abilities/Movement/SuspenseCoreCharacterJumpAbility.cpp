@@ -214,15 +214,21 @@ bool USuspenseCoreCharacterJumpAbility::IsCharacterGrounded(
 bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] ApplyStaminaCost called"));
+
 	if (!JumpStaminaCostEffectClass)
 	{
 		// No cost effect configured, allow jump
+		UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] JumpStaminaCostEffectClass is NULL - no stamina cost!"));
 		return true;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] JumpStaminaCostEffectClass: %s"), *JumpStaminaCostEffectClass->GetName());
 
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!ASC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] ASC is NULL!"));
 		return true;
 	}
 
@@ -244,6 +250,7 @@ bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 	}
 
 	// Set stamina cost via SetByCaller (negative value for cost)
+	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Setting SetByCaller Stamina cost: %.2f"), -StaminaCostPerJump);
 	SpecHandle.Data->SetSetByCallerMagnitude(
 		SuspenseCoreTags::Data::Cost::Stamina,
 		-StaminaCostPerJump
@@ -251,6 +258,9 @@ bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 
 	// Apply effect
 	FActiveGameplayEffectHandle EffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+	UE_LOG(LogTemp, Warning, TEXT("[JumpAbility] Effect applied, handle valid: %s"),
+		EffectHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
 
 	return EffectHandle.IsValid() || !JumpStaminaCostEffectClass;
 }

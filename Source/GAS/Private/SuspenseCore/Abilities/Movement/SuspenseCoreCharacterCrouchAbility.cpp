@@ -199,6 +199,16 @@ bool USuspenseCoreCharacterCrouchAbility::ApplyCrouchEffects(
 
 	if (DebuffSpec.IsValid())
 	{
+		// Set speed reduction via SetByCaller
+		// CrouchSpeedMultiplier = 0.5 means 50% of normal speed
+		// For MultiplyAdditive: value should be (multiplier - 1.0)
+		// So 0.5 -> -0.5 (which gives -50% speed)
+		const float SpeedReduction = CrouchSpeedMultiplier - 1.0f;
+		DebuffSpec.Data->SetSetByCallerMagnitude(
+			SuspenseCoreTags::Data::Cost::SpeedMultiplier,
+			SpeedReduction
+		);
+
 		CrouchDebuffEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*DebuffSpec.Data.Get());
 		return CrouchDebuffEffectHandle.IsValid();
 	}

@@ -358,6 +358,28 @@ namespace SuspenseCoreTags
 	namespace Data
 	{
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ItemID);
+
+		// Cost tags for SetByCaller in GameplayEffects
+		namespace Cost
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Stamina);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StaminaPerSecond);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpeedMultiplier);
+		}
+	}
+
+	//==================================================================
+	// EFFECT TAGS - GameplayEffect identification
+	//==================================================================
+	namespace Effect
+	{
+		namespace Movement
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SprintCost);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SprintBuff);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(JumpCost);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(CrouchDebuff);
+		}
 	}
 
 	//==================================================================

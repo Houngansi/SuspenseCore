@@ -4,14 +4,16 @@
 
 #include "SuspenseCore/Effects/SuspenseCoreEffect_SprintBuff.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 
 USuspenseCoreEffect_SprintBuff::USuspenseCoreEffect_SprintBuff()
 {
 	// Infinite duration - active while sprint ability is active
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
 
-	// Configure speed modifier for 50% increase
+	// Configure speed modifier via SetByCaller
 	{
 		FGameplayModifierInfo SpeedMod;
 
@@ -24,27 +26,42 @@ USuspenseCoreEffect_SprintBuff::USuspenseCoreEffect_SprintBuff()
 		SpeedMod.Attribute = FGameplayAttribute(Prop);
 		SpeedMod.ModifierOp = EGameplayModOp::MultiplyAdditive;
 
-		// CRITICAL: For 50% increase use 0.5f, NOT 1.5f!
-		// MultiplyAdditive formula: Result = Base + (Base * Magnitude)
-		// Example: if base speed 300, then:
-		// 300 + (300 * 0.5) = 300 + 150 = 450 (50% increase)
-		SpeedMod.ModifierMagnitude = FScalableFloat(0.5f);
+		// Use SetByCaller for configurable speed multiplier
+		// Tag: Data.Cost.SpeedMultiplier
+		// The ability will set this value (e.g., 0.5 for +50% speed)
+		// Formula: Result = Base + (Base * Magnitude)
+		FSetByCallerFloat SetByCallerValue;
+		SetByCallerValue.DataTag = SuspenseCoreTags::Data::Cost::SpeedMultiplier;
 
+		SpeedMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCallerValue);
 		Modifiers.Add(SpeedMod);
 	}
 
-	// Add State.Sprinting tag
+	// Add State.Sprinting tag (Native Tag)
 	UTargetTagsGameplayEffectComponent* TagComponent =
 		CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("SprintTargetTagsComponent"));
 
 	if (TagComponent)
 	{
 		FInheritedTagContainer TagContainer;
-		TagContainer.Added.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Sprinting")));
+		TagContainer.Added.AddTag(SuspenseCoreTags::State::Sprinting);
 
 		TagComponent->SetAndApplyTargetTagChanges(TagContainer);
 		GEComponents.Add(TagComponent);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_SprintBuff: Sprint buff created with 50%% speed increase"));
+	// Add asset tag for effect identification (Native Tag)
+	UAssetTagsGameplayEffectComponent* AssetTagsComponent =
+		CreateDefaultSubobject<UAssetTagsGameplayEffectComponent>(TEXT("SprintBuffAssetTags"));
+
+	if (AssetTagsComponent)
+	{
+		FInheritedTagContainer AssetTagContainer;
+		AssetTagContainer.Added.AddTag(SuspenseCoreTags::Effect::Movement::SprintBuff);
+
+		AssetTagsComponent->SetAndApplyAssetTagChanges(AssetTagContainer);
+		GEComponents.Add(AssetTagsComponent);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_SprintBuff: Configured with SetByCaller speed multiplier"));
 }

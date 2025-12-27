@@ -336,6 +336,28 @@ namespace SuspenseCoreTags
 	namespace Data
 	{
 		UE_DEFINE_GAMEPLAY_TAG(ItemID, "Data.ItemID");
+
+		// Cost tags for SetByCaller in GameplayEffects
+		namespace Cost
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Stamina, "Data.Cost.Stamina");
+			UE_DEFINE_GAMEPLAY_TAG(StaminaPerSecond, "Data.Cost.StaminaPerSecond");
+			UE_DEFINE_GAMEPLAY_TAG(SpeedMultiplier, "Data.Cost.SpeedMultiplier");
+		}
+	}
+
+	//==================================================================
+	// EFFECT TAGS
+	//==================================================================
+	namespace Effect
+	{
+		namespace Movement
+		{
+			UE_DEFINE_GAMEPLAY_TAG(SprintCost, "Effect.Movement.SprintCost");
+			UE_DEFINE_GAMEPLAY_TAG(SprintBuff, "Effect.Movement.SprintBuff");
+			UE_DEFINE_GAMEPLAY_TAG(JumpCost, "Effect.Movement.JumpCost");
+			UE_DEFINE_GAMEPLAY_TAG(CrouchDebuff, "Effect.Movement.CrouchDebuff");
+		}
 	}
 
 	//==================================================================

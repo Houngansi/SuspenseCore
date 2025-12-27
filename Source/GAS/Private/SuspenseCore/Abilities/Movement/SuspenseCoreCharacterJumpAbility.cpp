@@ -243,6 +243,12 @@ bool USuspenseCoreCharacterJumpAbility::ApplyStaminaCost(
 		return false;
 	}
 
+	// Set stamina cost via SetByCaller (negative value for cost)
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		SuspenseCoreTags::Data::Cost::Stamina,
+		-StaminaCostPerJump
+	);
+
 	// Apply effect
 	FActiveGameplayEffectHandle EffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 

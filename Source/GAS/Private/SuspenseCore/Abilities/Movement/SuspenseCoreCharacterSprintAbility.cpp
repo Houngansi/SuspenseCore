@@ -198,7 +198,7 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 	FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
 	EffectContext.AddSourceObject(this);
 
-	// Apply speed buff
+	// Apply speed buff with SetByCaller
 	if (SprintBuffEffectClass)
 	{
 		FGameplayEffectSpecHandle BuffSpec = ASC->MakeOutgoingSpec(
@@ -209,11 +209,21 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 
 		if (BuffSpec.IsValid())
 		{
+			// Set speed multiplier via SetByCaller
+			// SprintSpeedMultiplier = 1.5 means +50% speed
+			// For MultiplyAdditive: value should be (multiplier - 1.0)
+			// So 1.5 -> 0.5 (which gives +50%)
+			const float SpeedBonus = SprintSpeedMultiplier - 1.0f;
+			BuffSpec.Data->SetSetByCallerMagnitude(
+				SuspenseCoreTags::Data::Cost::SpeedMultiplier,
+				SpeedBonus
+			);
+
 			SprintBuffEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*BuffSpec.Data.Get());
 		}
 	}
 
-	// Apply stamina cost
+	// Apply stamina cost with SetByCaller
 	if (SprintCostEffectClass)
 	{
 		FGameplayEffectSpecHandle CostSpec = ASC->MakeOutgoingSpec(
@@ -224,6 +234,15 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 
 		if (CostSpec.IsValid())
 		{
+			// Set stamina drain via SetByCaller
+			// Period is 0.1s, so for StaminaCostPerSecond of 15:
+			// Per tick = -15 * 0.1 = -1.5 stamina per tick
+			const float StaminaDrainPerTick = -StaminaCostPerSecond * 0.1f;
+			CostSpec.Data->SetSetByCallerMagnitude(
+				SuspenseCoreTags::Data::Cost::StaminaPerSecond,
+				StaminaDrainPerTick
+			);
+
 			SprintCostEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*CostSpec.Data.Get());
 		}
 	}

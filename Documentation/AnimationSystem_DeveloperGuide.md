@@ -25,6 +25,70 @@
 
 The Animation System follows **SSOT (Single Source of Truth)** architecture where `USuspenseCoreCharacterAnimInstance` aggregates all animation data from multiple sources.
 
+### Module Dependency Architecture (No Circular Dependencies)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      MODULE DEPENDENCY DIAGRAM                               │
+│                                                                              │
+│                    ┌──────────────────────────────┐                         │
+│                    │        BridgeSystem          │                         │
+│                    │  (Interfaces, Types, Tags)   │                         │
+│                    │                              │                         │
+│                    │ ISuspenseCoreWeaponCombatState                        │
+│                    │ FSuspenseCoreAnimationData   │                         │
+│                    │ SuspenseCoreTags::*          │                         │
+│                    └──────────────┬───────────────┘                         │
+│                                   │                                          │
+│               ┌───────────────────┼───────────────────┐                     │
+│               │                   │                   │                     │
+│               ▼                   ▼                   ▼                     │
+│    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐          │
+│    │       GAS        │ │  EquipmentSystem │ │    PlayerCore    │          │
+│    │   (Abilities)    │ │  (Components)    │ │   (AnimInstance) │          │
+│    │                  │ │                  │ │                  │          │
+│    │ Uses interface:  │ │ Implements:      │ │ Uses concrete:   │          │
+│    │ ISuspenseCore... │ │ ISuspenseCore... │ │ WeaponStance...  │          │
+│    │ WeaponCombatState│ │ WeaponCombatState│ │ Component        │          │
+│    └──────────────────┘ └──────────────────┘ └──────────────────┘          │
+│                                                                              │
+│    ✓ GAS does NOT depend on EquipmentSystem                                 │
+│    ✓ EquipmentSystem does NOT depend on GAS                                 │
+│    ✓ Both depend only on BridgeSystem (shared)                              │
+│    ✓ PlayerCore can depend on both (leaf module)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### ISuspenseCoreWeaponCombatState Interface
+
+**Location:** `Source/BridgeSystem/Public/SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h`
+
+This interface breaks circular dependencies between GAS and EquipmentSystem modules:
+
+```cpp
+class ISuspenseCoreWeaponCombatState
+{
+    // State Queries (const - safe for CanActivateAbility)
+    virtual bool IsWeaponDrawn() const = 0;
+    virtual bool IsAiming() const = 0;
+    virtual bool IsFiring() const = 0;
+    virtual bool IsReloading() const = 0;
+    virtual bool IsHoldingBreath() const = 0;
+    virtual bool IsMontageActive() const = 0;
+    virtual float GetAimPoseAlpha() const = 0;
+
+    // State Commands (modify state - call from abilities)
+    virtual void SetAiming(bool bNewAiming) = 0;
+    virtual void SetFiring(bool bNewFiring) = 0;
+    virtual void SetReloading(bool bNewReloading) = 0;
+    virtual void SetHoldingBreath(bool bNewHoldingBreath) = 0;
+    virtual void SetMontageActive(bool bNewMontageActive) = 0;
+};
+```
+
+**Implementation:** `USuspenseCoreWeaponStanceComponent` (EquipmentSystem)
+**Usage:** GAS weapon abilities (AimDownSight, Fire, Reload, etc.)
+
 ### Core Principles
 
 | Principle | Implementation |

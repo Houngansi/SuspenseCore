@@ -31,5 +31,13 @@ enum class ESuspenseCoreAbilityInputID : uint8
 	WeaponSlot4   UMETA(DisplayName="Weapon Slot 4"),
 	WeaponSlot5   UMETA(DisplayName="Weapon Slot 5"),
 
-	// боевые действия с оружием ― добавим позже (Fire, Reload, ADS и т.д.)
+	// боевые действия с оружием
+	Aim              UMETA(DisplayName="Aim"),
+	Fire             UMETA(DisplayName="Fire"),
+	Reload           UMETA(DisplayName="Reload"),
+	FireModeSwitch   UMETA(DisplayName="Fire Mode Switch"),
+	Inspect          UMETA(DisplayName="Inspect Weapon"),
+	MeleeAttack      UMETA(DisplayName="Melee Attack"),
+	ThrowGrenade     UMETA(DisplayName="Throw Grenade"),
+	HoldBreath       UMETA(DisplayName="Hold Breath")
 };

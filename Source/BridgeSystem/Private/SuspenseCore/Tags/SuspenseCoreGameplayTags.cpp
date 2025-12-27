@@ -221,6 +221,10 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Crouching, "State.Crouching");
 		UE_DEFINE_GAMEPLAY_TAG(Sprinting, "State.Sprinting");
 		UE_DEFINE_GAMEPLAY_TAG(Interacting, "State.Interacting");
+		UE_DEFINE_GAMEPLAY_TAG(Aiming, "State.Aiming");
+		UE_DEFINE_GAMEPLAY_TAG(Firing, "State.Firing");
+		UE_DEFINE_GAMEPLAY_TAG(Reloading, "State.Reloading");
+		UE_DEFINE_GAMEPLAY_TAG(HoldingBreath, "State.HoldingBreath");
 	}
 
 	//==================================================================
@@ -238,6 +242,16 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Jump, "Ability.Movement.Jump");
 			UE_DEFINE_GAMEPLAY_TAG(Sprint, "Ability.Movement.Sprint");
 			UE_DEFINE_GAMEPLAY_TAG(Crouch, "Ability.Movement.Crouch");
+		}
+
+		namespace Weapon
+		{
+			UE_DEFINE_GAMEPLAY_TAG(AimDownSight, "SuspenseCore.Ability.Weapon.AimDownSight");
+			UE_DEFINE_GAMEPLAY_TAG(Fire, "SuspenseCore.Ability.Weapon.Fire");
+			UE_DEFINE_GAMEPLAY_TAG(Reload, "SuspenseCore.Ability.Weapon.Reload");
+			UE_DEFINE_GAMEPLAY_TAG(FireModeSwitch, "SuspenseCore.Ability.Weapon.FireModeSwitch");
+			UE_DEFINE_GAMEPLAY_TAG(Inspect, "SuspenseCore.Ability.Weapon.Inspect");
+			UE_DEFINE_GAMEPLAY_TAG(HoldBreath, "SuspenseCore.Ability.Weapon.HoldBreath");
 		}
 
 		namespace Input

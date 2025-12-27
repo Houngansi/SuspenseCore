@@ -26,7 +26,11 @@ USuspenseCoreAimDownSightAbility::USuspenseCoreAimDownSightAbility()
 	// ===================================================================
 
 	// This ability's identification tag
+	// Note: AbilityTags is deprecated for direct modification in UE 5.5+
+	// Using pragma to suppress warning until migration to Blueprint configuration
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AbilityTags.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Tags added to owner when ability is active
 	ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Aiming);
@@ -256,7 +260,8 @@ void USuspenseCoreAimDownSightAbility::ApplyAimEffects(const FGameplayAbilityAct
 	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(AimSpeedDebuffClass, GetAbilityLevel());
 	if (SpecHandle.IsValid())
 	{
-		AimSpeedEffectHandle = ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, SpecHandle);
+		// UE 5.5+ requires 4 arguments: Handle, ActorInfo, ActivationInfo, SpecHandle
+		AimSpeedEffectHandle = ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle);
 
 		if (AimSpeedEffectHandle.IsValid())
 		{

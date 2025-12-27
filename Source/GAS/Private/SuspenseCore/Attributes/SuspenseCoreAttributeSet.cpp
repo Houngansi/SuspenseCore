@@ -65,6 +65,10 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 
+	// DEBUG: Log all attribute changes
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] PostGameplayEffectExecute - Attribute: %s, Magnitude: %.2f"),
+		*Data.EvaluatedData.Attribute.GetName(), Data.EvaluatedData.Magnitude);
+
 	// Get context
 	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
 	AActor* Instigator = Context.GetOriginalInstigator();
@@ -150,10 +154,10 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 		const float StaminaDelta = Data.EvaluatedData.Magnitude;
 		const float OldStamina = NewStamina - StaminaDelta;
 
-		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, NewStamina);
-
-		UE_LOG(LogSuspenseCoreAttributes, Verbose, TEXT("Stamina changed: %.2f -> %.2f (delta: %.2f)"),
+		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] STAMINA CHANGE DETECTED! Old: %.2f, New: %.2f, Delta: %.2f"),
 			OldStamina, NewStamina, StaminaDelta);
+
+		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, NewStamina);
 	}
 	// Process MaxStamina change
 	else if (Data.EvaluatedData.Attribute == GetMaxStaminaAttribute())
@@ -264,16 +268,27 @@ void USuspenseCoreAttributeSet::BroadcastAttributeChange(
 	float OldValue,
 	float NewValue)
 {
+	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] BroadcastAttributeChange called - %s: %.2f -> %.2f"),
+		*Attribute.GetName(), OldValue, NewValue);
+
 	// Check if value actually changed
 	if (FMath::IsNearlyEqual(OldValue, NewValue))
 	{
+		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Values are equal, skipping broadcast"));
 		return;
 	}
 
 	// Get ASC and publish through it
-	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
+	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
+	if (ASC)
 	{
+		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Publishing via ASC..."));
 		ASC->PublishAttributeChangeEvent(Attribute, OldValue, NewValue);
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] ERROR: SuspenseCoreASC is NULL! Using base ASC: %s"),
+			GetOwningAbilitySystemComponent() ? TEXT("YES") : TEXT("NO"));
 	}
 }
 

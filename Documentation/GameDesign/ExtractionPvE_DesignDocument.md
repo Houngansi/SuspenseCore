@@ -1,8 +1,10 @@
-# Extraction PvE: "City 17 Salvage"
+# Extraction PvE: "Зона Отчуждения"
 
 ## Концепция
 
-Игрок — сталкер-мусорщик в оккупированном мире Half-Life 2. Задача: проникнуть в опасные зоны, собрать ценные ресурсы и выбраться живым. Каждый рейд — баланс между жадностью и выживанием.
+Игрок — сталкер-выживальщик в постсоветском дистопийном мире. Действие происходит в заброшенных промышленных районах, разрушенных городах бывшего СССР после неизвестной катастрофы. Задача: проникнуть в опасные зоны, собрать ценные ресурсы и выбраться живым. Каждый рейд — баланс между жадностью и выживанием.
+
+**Сеттинг**: Пост-советская антиутопия. Разрушенные заводы, заброшенные НИИ, мёртвые колхозы, полуразваленные хрущёвки. Атмосфера Сталкера/Тарков с элементами советской эстетики.
 
 ---
 
@@ -10,11 +12,11 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           HIDEOUT (Убежище)                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │   Stash     │  │  Workbench  │  │   Trader    │  │   Mission   │    │
-│  │  (Схрон)    │  │  (Верстак)  │  │ (Торговец)  │  │   Board     │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
+│                           УБЕЖИЩЕ (Hideout)                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐         │
+│  │     Схрон       │  │    Верстак      │  │    Торговец     │         │
+│  │    (Stash)      │  │   (Workbench)   │  │    (Trader)     │         │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘         │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │
                                 ▼
@@ -36,10 +38,10 @@
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                         │
 │  THREATS:                           REWARDS:                            │
-│  - Combine Patrols                  - Alien Technology                  │
-│  - Headcrabs/Zombies               - Combine Weapons                    │
-│  - Environmental Hazards            - Medical Supplies                  │
-│  - Equipment Degradation            - Upgrade Materials                 │
+│  - Мародёры и бандиты               - Редкое оружие                    │
+│  - Мутанты                          - Модификации                       │
+│  - Аномалии                         - Медикаменты                       │
+│  - Радиация                         - Материалы для крафта              │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │
                     ┌───────────┴───────────┐
@@ -56,6 +58,184 @@
                     └───────────┬───────────┘
                                 ▼
                         [Return to Hideout]
+```
+
+---
+
+## Equipment System (Система экипировки)
+
+### Слоты снаряжения (Tarkov-style)
+
+Система использует 17 слотов экипировки, определённых в `EEquipmentSlotType`:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    EQUIPMENT SLOTS LAYOUT                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────┐    ┌───────────┐ ┌────┐                            │
+│  │ PRIMARY WEAPON  │    │ HEADWEAR  │ │EAR │   ← Шлем + Наушники        │
+│  │   (5x2 cells)   │    │  (2x2)    │ │1x1 │                            │
+│  │ AR/DMR/SR/LMG   │    └───────────┘ └────┘                            │
+│  └─────────────────┘    ┌────┐ ┌────┐                                   │
+│                         │EYE │ │FACE│       ← Очки + Балаклава          │
+│  ┌──────────────┐       │1x1 │ │1x1 │                                   │
+│  │SECONDARY WPN │       └────┘ └────┘                                   │
+│  │  (4x2 cells) │                                                       │
+│  │ SMG/PDW/SG   │       ┌──────────────┐ ┌─────────┐                    │
+│  └──────────────┘       │  BODY ARMOR  │ │TACT.RIG │  ← Броня + Разгруз │
+│                         │    (3x3)     │ │  (2x3)  │                    │
+│  ┌────────┐ ┌────┐      └──────────────┘ └─────────┘                    │
+│  │HOLSTER │ │SCAB│                                                      │
+│  │ (2x2)  │ │1x2 │      ┌──────────────┐ ┌─────────┐ ┌────┐             │
+│  │Pistol  │ │Knf │      │   BACKPACK   │ │ SECURE  │ │ARM │             │
+│  └────────┘ └────┘      │    (3x3)     │ │  (2x2)  │ │BAND│             │
+│                         └──────────────┘ └─────────┘ └────┘             │
+│                                                                          │
+│  ┌────┐ ┌────┐ ┌────┐ ┌────┐                                            │
+│  │ Q1 │ │ Q2 │ │ Q3 │ │ Q4 │  ← Quick Slots (Consumable/Medical/Ammo)   │
+│  └────┘ └────┘ └────┘ └────┘                                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Типы слотов и допустимые предметы
+
+| Слот | Размер | Допустимые типы |
+|------|--------|-----------------|
+| **PrimaryWeapon** | 5x2 | AR, DMR, SR, Shotgun, LMG |
+| **SecondaryWeapon** | 4x2 | SMG, PDW, Shotgun |
+| **Holster** | 2x2 | Pistol, Revolver |
+| **Scabbard** | 1x2 | Melee/Knife |
+| **Headwear** | 2x2 | Helmet, Headwear |
+| **Earpiece** | 1x1 | Earpiece (тактические наушники) |
+| **Eyewear** | 1x1 | Eyewear (очки, визоры) |
+| **FaceCover** | 1x1 | FaceCover (балаклава, респиратор) |
+| **BodyArmor** | 3x3 | BodyArmor |
+| **TacticalRig** | 2x3 | TacticalRig |
+| **Backpack** | 3x3 | Backpack |
+| **SecureContainer** | 2x2 | SecureContainer (сохраняется при смерти) |
+| **QuickSlot 1-4** | 1x1 | Consumable, Medical, Throwable, Ammo |
+| **Armband** | 1x1 | Armband (фракционная метка) |
+
+---
+
+## Weapon System (Система оружия)
+
+### Доступное оружие
+
+На основе `SuspenseCoreWeaponAttributes.json`:
+
+| ID | Название | Тип | Калибр | Урон | ROF | Магазин |
+|----|----------|-----|--------|------|-----|---------|
+| `Weapon_AK74M` | **АК-74М** | Assault Rifle | 5.45x39mm | 42 | 650 | 30 |
+| `Weapon_AK103` | **АК-103** | Assault Rifle | 7.62x39mm | 55 | 600 | 30 |
+| `Weapon_SVD` | **СВД** | DMR | 7.62x54mmR | 86 | 120 | 10 |
+| `Weapon_MP5SD` | **MP5SD** | SMG | 9x19mm | 35 | 800 | 30 |
+| `Weapon_MP7A2` | **MP7A2** | PDW | 4.6x30mm | 30 | 950 | 40 |
+| `Weapon_Glock17` | **Glock 17** | Pistol | 9x19mm | 35 | 450 | 17 |
+| `Weapon_M9A3` | **Beretta M9A3** | Pistol | 9x19mm | 36 | 400 | 17 |
+| `Weapon_M9Bayonet` | **Штык-нож M9** | Melee | - | 45 | 80 | - |
+
+### Характеристики оружия
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    WEAPON ATTRIBUTES                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  BaseDamage         - Базовый урон                                       │
+│  RateOfFire         - Скорострельность (выстр/мин)                       │
+│  EffectiveRange     - Эффективная дальность (м)                          │
+│  MaxRange           - Максимальная дальность (м)                         │
+│  MagazineSize       - Ёмкость магазина                                   │
+│  TacticalReloadTime - Перезарядка с патроном в патроннике (сек)          │
+│  FullReloadTime     - Полная перезарядка (сек)                           │
+│  MOA                - Точность (меньше = лучше)                          │
+│  HipFireSpread      - Разброс при стрельбе от бедра                      │
+│  AimSpread          - Разброс при прицеливании                           │
+│  VerticalRecoil     - Вертикальная отдача                                │
+│  HorizontalRecoil   - Горизонтальная отдача                              │
+│  Durability         - Текущая прочность (0-100)                          │
+│  MaxDurability      - Максимальная прочность                             │
+│  MisfireChance      - Шанс осечки                                        │
+│  JamChance          - Шанс заклинивания                                  │
+│  Ergonomics         - Эргономика (влияет на ADS speed)                   │
+│  AimDownSightTime   - Время прицеливания (сек)                           │
+│  WeaponWeight       - Вес оружия (кг)                                    │
+│                                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Режимы огня (FireModes)
+
+| Оружие | Режимы огня |
+|--------|-------------|
+| АК-74М | Single, Auto |
+| АК-103 | Single, Auto |
+| СВД | Single |
+| MP5SD | Single, Burst, Auto |
+| MP7A2 | Single, Auto |
+| Glock 17 | Single |
+| M9A3 | Single |
+
+### Weapon Degradation (Износ оружия)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ WEAPON DURABILITY: 100% ──────────────────────────────────► 0%   │
+├──────────────────────────────────────────────────────────────────┤
+│ 100-75%  │ Full performance                                      │
+│  75-50%  │ -10% accuracy, occasional jam (5%)                    │
+│  50-25%  │ -20% accuracy, frequent jam (15%), -10% damage        │
+│  25-10%  │ -35% accuracy, constant jam (30%), -25% damage        │
+│  10-0%   │ BROKEN - Cannot fire, must repair                     │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Ammo System (Система патронов)
+
+### Калибр 5.45x39mm (для АК-74М)
+
+На основе `SuspenseCoreAmmoAttributes.json`:
+
+| ID | Название | Урон | Пробитие | Фрагментация |
+|----|----------|------|----------|--------------|
+| `Ammo_545x39_PS` | 5.45x39 ПС гс | 42 | 25 | 40% |
+| `Ammo_545x39_BP` | 5.45x39 БП | 37 | 45 | 17% |
+| `Ammo_545x39_BS` | 5.45x39 БС | 40 | 57 | 15% |
+| `Ammo_545x39_T` | 5.45x39 Т (трассер) | 40 | 20 | 25% |
+| `Ammo_545x39_HP` | 5.45x39 HP (экспанс.) | 68 | 8 | 85% |
+
+### Калибр 9x19mm (для Glock/M9A3/MP5SD)
+
+| ID | Название | Урон | Пробитие | Фрагментация |
+|----|----------|------|----------|--------------|
+| `Ammo_9x19_PST` | 9x19 ПСТ гж | 50 | 18 | 15% |
+| `Ammo_9x19_AP` | 9x19 AP 6.3 | 45 | 30 | 5% |
+| `Ammo_9x19_RIP` | 9x19 RIP | 102 | 2 | 100% |
+| `Ammo_9x19_Luger` | 9x19 Luger CCI | 55 | 10 | 20% |
+
+### Атрибуты патронов
+
+```cpp
+// Каждый тип патрона влияет на:
+BaseDamage           // Базовый урон
+ArmorPenetration     // Пробитие брони (0-100)
+StoppingPower        // Останавливающая сила
+FragmentationChance  // Шанс фрагментации (доп. урон)
+MuzzleVelocity       // Начальная скорость пули (м/с)
+DragCoefficient      // Коэффициент сопротивления воздуха
+EffectiveRange       // Эффективная дальность
+AccuracyModifier     // Модификатор точности
+RecoilModifier       // Модификатор отдачи
+RicochetChance       // Шанс рикошета
+TracerVisibility     // Видимость трассера (0.0-1.0)
+IncendiaryDamage     // Зажигательный урон
+WeaponDegradationRate // Скорость износа оружия
+MisfireChance        // Шанс осечки
 ```
 
 ---
@@ -82,7 +262,7 @@ UPROPERTY() float MobilitySkill;    // Мобильность
 | Найден тайник | Survival | 20 |
 | Взлом замка | Technical | 15 |
 | Ремонт оружия | Technical | 10 |
-| Успешный спринт побег | Mobility | 8 |
+| Успешный спринт-побег | Mobility | 8 |
 | Прыжок через препятствие | Mobility | 3 |
 
 ### Уровни навыков и бонусы
@@ -114,8 +294,8 @@ UPROPERTY() float MobilitySkill;    // Мобильность
 │ Lvl 1-10:   Basic repairs                                      │
 │ Lvl 11-20:  -20% repair cost, craft basic items               │
 │ Lvl 21-30:  Access locked containers, weapon mods             │
-│ Lvl 31-40:  Hack Combine terminals, craft advanced items      │
-│ Lvl 41-50:  Disable turrets, craft alien tech                 │
+│ Lvl 31-40:  Hack terminals, craft advanced items              │
+│ Lvl 41-50:  Disable security systems, craft rare items        │
 └────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────┐
@@ -127,87 +307,6 @@ UPROPERTY() float MobilitySkill;    // Мобильность
 │ Lvl 31-40:  Slide ability, longer sprint duration             │
 │ Lvl 41-50:  Wall climb, silent movement                       │
 └────────────────────────────────────────────────────────────────┘
-```
-
-### GAS Implementation
-
-```cpp
-// В SuspenseCoreAttributeSet добавить:
-UPROPERTY(BlueprintReadOnly, Category = "Skills")
-FGameplayAttributeData CombatSkillXP;
-
-UPROPERTY(BlueprintReadOnly, Category = "Skills")
-FGameplayAttributeData CombatSkillLevel;
-
-// GameplayEffect для добавления XP
-// GE_AddCombatXP - SetByCaller(Data.Skill.XPAmount)
-
-// GameplayCue для level up
-// GC_SkillLevelUp - Visual/Audio feedback
-```
-
----
-
-## Weapon System
-
-### Weapon Degradation (Износ оружия)
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│ WEAPON DURABILITY: 100% ──────────────────────────────► 0%   │
-├──────────────────────────────────────────────────────────────┤
-│ 100-75%  │ Full performance                                  │
-│  75-50%  │ -10% accuracy, occasional jam (5%)               │
-│  50-25%  │ -20% accuracy, frequent jam (15%), -10% damage   │
-│  25-10%  │ -35% accuracy, constant jam (30%), -25% damage   │
-│  10-0%   │ BROKEN - Cannot fire, must repair                │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Degradation Rate
-
-| Оружие | Durability Loss/Shot | Shots to 0% |
-|--------|---------------------|-------------|
-| Pistol | 0.05% | 2000 |
-| SMG | 0.08% | 1250 |
-| Shotgun | 0.15% | 666 |
-| Rifle | 0.10% | 1000 |
-| Crossbow | 0.03% | 3333 |
-
-### Weapon Upgrades
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     WEAPON UPGRADE TREE                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  BASE WEAPON                                                     │
-│       │                                                          │
-│       ├──► [Barrel] ──► Accuracy +15% / Damage +10% / Silencer  │
-│       │                                                          │
-│       ├──► [Stock] ──► Recoil -20% / Stability +15%             │
-│       │                                                          │
-│       ├──► [Magazine] ──► Capacity +50% / Reload -25%           │
-│       │                                                          │
-│       ├──► [Sights] ──► Zoom 2x / Red Dot / Thermal             │
-│       │                                                          │
-│       └──► [Frame] ──► Durability +30% / Weight -20%            │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Weapon XP (Mastery)
-
-Каждое оружие имеет свой уровень мастерства:
-
-```
-Weapon Mastery Levels:
-├── Lvl 1 (0 XP):     Base stats
-├── Lvl 2 (500 XP):   -5% recoil
-├── Lvl 3 (1500 XP):  +5% damage
-├── Lvl 4 (3500 XP):  -10% reload time
-├── Lvl 5 (7000 XP):  Unlock special ammo types
-└── Lvl 6 (15000 XP): Weapon skin + title
 ```
 
 ---
@@ -280,10 +379,10 @@ Quality Multipliers:
 │       │    └── Active points revealed mid-raid                 │
 │       │                                                         │
 │       └──► Events (Random encounters)                          │
-│            ├── Combine raid in progress                        │
-│            ├── Strider patrol                                  │
-│            ├── Resistance cache                                │
-│            └── Anomaly zone                                    │
+│            ├── Бандитский рейд в процессе                      │
+│            ├── Военный патруль                                 │
+│            ├── Тайник сталкеров                                │
+│            └── Аномальная зона                                 │
 │                                                                 │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -315,62 +414,21 @@ struct FRaidDifficulty
 │                    FACTIONS                                     │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  RESISTANCE                    TRADERS                          │
-│  ├── Reputation: -100 to +100  ├── Reputation: -100 to +100    │
-│  ├── +Rep: Kill Combine        ├── +Rep: Sell items, complete  │
-│  ├── -Rep: Steal supplies      │        deliveries             │
-│  └── Rewards:                  ├── -Rep: Steal, attack traders │
-│      ├── Safe houses           └── Rewards:                    │
-│      ├── Intel on raids            ├── Better prices           │
-│      └── Unique weapons            ├── Rare items              │
-│                                    └── Special orders          │
+│  ВОЛЬНЫЕ СТАЛКЕРЫ                ТОРГОВЦЫ                      │
+│  ├── Reputation: -100 to +100    ├── Reputation: -100 to +100  │
+│  ├── +Rep: Kill bandits          ├── +Rep: Sell items, complete│
+│  ├── -Rep: Steal supplies        │        deliveries           │
+│  └── Rewards:                    ├── -Rep: Steal, attack       │
+│      ├── Safe houses             └── Rewards:                  │
+│      ├── Intel on raids              ├── Better prices         │
+│      └── Unique weapons              ├── Rare items            │
+│                                      └── Special orders        │
 │                                                                 │
-│  STALKERS (Other Players/NPCs)                                 │
-│  ├── Reputation: Personal per stalker                          │
-│  ├── +Rep: Trade fairly, help in combat                        │
-│  ├── -Rep: Betray, steal                                       │
-│  └── Rewards: Alliance, shared intel, backup                   │
-│                                                                 │
-└────────────────────────────────────────────────────────────────┘
-```
-
-### 4. Seasonal Content
-
-```
-Season Structure (8-12 weeks):
-├── Week 1-2:  New zone unlocks
-├── Week 3-4:  Special event (Combine crackdown)
-├── Week 5-6:  New weapon/upgrade tier
-├── Week 7-8:  Boss event
-├── Week 9-10: Double XP / Rare loot event
-└── Week 11-12: Season finale + rewards
-
-Season Pass Rewards:
-├── Free Track: Cosmetics, resources
-└── Premium Track: Unique weapons, stash space, cosmetics
-```
-
-### 5. Mastery Challenges
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    DAILY/WEEKLY CHALLENGES                      │
-├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  DAILY (Reset every 24h):                                      │
-│  ├── Kill 10 Headcrabs                    [50 Credits]         │
-│  ├── Extract with 5kg+ loot               [75 Credits]         │
-│  └── Use pistol only for entire raid      [100 Credits]        │
-│                                                                 │
-│  WEEKLY (Reset every 7 days):                                  │
-│  ├── Complete 10 raids                    [500 Credits]        │
-│  ├── Reach extraction 5 times in a row    [Rare Item]         │
-│  └── Kill Elite Combine soldier           [Weapon Skin]        │
-│                                                                 │
-│  MASTERY (Permanent):                                          │
-│  ├── Kill 1000 enemies                    [Title: Veteran]     │
-│  ├── Extract with 100kg total loot        [Backpack upgrade]  │
-│  └── Max out Combat skill                 [Unique Ability]     │
+│  MILITARY (Военные)              BANDITS (Бандиты)             │
+│  ├── Reputation: -100 to +100    ├── Always hostile            │
+│  ├── +Rep: Complete contracts    ├── Can be bribed             │
+│  ├── -Rep: Trespass, kill       └── Control certain zones     │
+│  └── Rewards: Military gear                                    │
 │                                                                 │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -384,24 +442,24 @@ Season Pass Rewards:
 │                      WORLD MAP                                  │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌─────────┐     ┌─────────┐     ┌─────────┐                   │
-│  │ OUTSKIRTS│────│ CANALS  │────│INDUSTRIAL│                   │
-│  │ Tier 1   │    │ Tier 2  │    │ Tier 3   │                   │
-│  │ Low risk │    │ Medium  │    │ High     │                   │
-│  └─────────┘     └─────────┘     └─────────┘                   │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
+│  │  ОКРАИНЫ    │────│  ПРОМЗОНА   │────│    ЗАВОД    │       │
+│  │   Tier 1    │    │   Tier 2    │    │   Tier 3    │       │
+│  │  Low risk   │    │   Medium    │    │    High     │       │
+│  └─────────────┘     └─────────────┘     └─────────────┘       │
 │       │               │               │                         │
 │       │               │               │                         │
-│  ┌─────────┐     ┌─────────┐     ┌─────────┐                   │
-│  │  PLAZA  │────│ NEXUS   │────│  CITADEL │                   │
-│  │ Tier 2  │    │ Tier 4  │    │ Tier 5   │                   │
-│  │ Medium  │    │ V.High  │    │ Extreme  │                   │
-│  └─────────┘     └─────────┘     └─────────┘                   │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
+│  │   КОЛХОЗ    │────│    НИИ      │────│   БУНКЕР    │       │
+│  │   Tier 2    │    │   Tier 4    │    │   Tier 5    │       │
+│  │   Medium    │    │   V.High    │    │   Extreme   │       │
+│  └─────────────┘     └─────────────┘     └─────────────┘       │
 │                                                                 │
 │  Unlock Requirements:                                          │
 │  ├── Tier 2: Complete 5 Tier 1 raids                          │
 │  ├── Tier 3: Combat Skill 15+                                 │
-│  ├── Tier 4: All skills 20+, Resistance rep 50+              │
-│  └── Tier 5: Complete "Citadel Key" quest chain              │
+│  ├── Tier 4: All skills 20+, Stalker rep 50+                  │
+│  └── Tier 5: Complete "Секретный бункер" quest chain          │
 │                                                                 │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -499,26 +557,28 @@ public:
 ## MVP Scope (Demo Version)
 
 ### Phase 1: Core Loop
-- [ ] Single zone (Outskirts)
-- [ ] 3 enemy types (Headcrab, Zombie, Combine Soldier)
+- [ ] Single zone (Окраины)
+- [ ] 3 enemy types (Мародёр, Мутант, Бандит)
 - [ ] Basic loot system
 - [ ] Single extraction point
 - [ ] Hideout with stash only
 
 ### Phase 2: Progression
 - [ ] Combat + Mobility skills
-- [ ] Weapon durability
+- [ ] Weapon durability (using existing `MisfireChance`, `JamChance`)
 - [ ] Basic repairs
-- [ ] 3 weapons (Pistol, SMG, Shotgun)
+- [ ] 4 weapons (АК-74М, Glock 17, MP5SD, Штык-нож)
 
 ### Phase 3: Replayability
-- [ ] Second zone (Canals)
+- [ ] Second zone (Промзона)
 - [ ] Procedural enemy spawns
 - [ ] Daily challenges
 - [ ] Trader NPC
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 2.0*
 *Created: 2025-12-27*
+*Updated: 2025-12-27 - Aligned with actual project data*
 *Architecture: SuspenseCore GAS + EventBus*
+*Data Sources: SuspenseCoreWeaponAttributes.json, SuspenseCoreAmmoAttributes.json, SuspenseCoreLoadoutSettings.h*

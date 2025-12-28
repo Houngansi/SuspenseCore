@@ -395,8 +395,11 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 		AbilityCount++;
 		if (Spec.Ability)
 		{
-			FGameplayTagContainer AbilityTags;
-			Spec.Ability->GetAbilityTagsFromSpec(Spec, AbilityTags);
+			// Get ability tags directly from the CDO
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			const FGameplayTagContainer& AbilityTags = Spec.Ability->AbilityTags;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   [%d] %s - Tags: %s"),
 				AbilityCount, *Spec.Ability->GetClass()->GetName(), *AbilityTags.ToStringSimple());
 

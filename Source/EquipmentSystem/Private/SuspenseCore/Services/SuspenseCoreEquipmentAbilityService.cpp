@@ -921,8 +921,8 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
     if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
     {
         EventBus = EventMgr->GetEventBus();
-        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s"),
-            EventBus ? TEXT("VALID") : TEXT("NULL"));
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s (addr=%p)"),
+            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
     }
     else
     {
@@ -932,8 +932,8 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
         if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
         {
             EventBus = Provider->GetEventBus();
-            UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Fallback to ServiceProvider, EventBus=%s"),
-                EventBus ? TEXT("VALID") : TEXT("NULL"));
+            UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Fallback to ServiceProvider, EventBus=%s (addr=%p)"),
+                EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
         }
     }
 

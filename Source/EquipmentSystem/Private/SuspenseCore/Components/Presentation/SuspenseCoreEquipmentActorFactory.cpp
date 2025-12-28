@@ -1007,8 +1007,8 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
     {
         EventBus = EventMgr->GetEventBus();
-        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s"),
-            EventBus ? TEXT("VALID") : TEXT("NULL"));
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s (addr=%p)"),
+            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
     }
     else
     {

@@ -1000,14 +1000,24 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
 {
     using namespace SuspenseCoreEquipmentTags;
 
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActorFactory::SetupEventBus CALLED"));
+
     // Get EventBus via EventManager (Clean Architecture)
     if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
     {
         EventBus = EventMgr->GetEventBus();
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s"),
+            EventBus ? TEXT("VALID") : TEXT("NULL"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   EventManager NOT FOUND!"));
     }
 
     if (!EventBus)
     {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   EventBus is NULL - broadcasting DISABLED!"));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
             TEXT("[ActorFactory] EventBus not available via EventManager"));
         return;
@@ -1017,14 +1027,29 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
     Tag_Visual_Destroyed = Event::TAG_Equipment_Event_Visual_Detached;
 
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Tag_Visual_Spawned = %s"),
+        *Tag_Visual_Spawned.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+
     UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[ActorFactory] EventBus integration initialized"));
 }
 
 void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedActor, AActor* OwnerActor, const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActorFactory::BroadcastActorSpawned CALLED"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Actor=%s, Owner=%s, ItemID=%s, Slot=%d"),
+        SpawnedActor ? *SpawnedActor->GetName() : TEXT("NULL"),
+        OwnerActor ? *OwnerActor->GetName() : TEXT("NULL"),
+        *ItemInstance.ItemID.ToString(),
+        SlotIndex);
+
     if (!EventBus || !Tag_Visual_Spawned.IsValid())
     {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   ✗ CANNOT broadcast: EventBus=%s, Tag=%s"),
+            EventBus ? TEXT("VALID") : TEXT("NULL"),
+            Tag_Visual_Spawned.IsValid() ? TEXT("VALID") : TEXT("INVALID"));
         UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
             TEXT("[ActorFactory] Cannot broadcast Visual.Spawned: EventBus=%s, Tag=%s"),
             EventBus ? TEXT("valid") : TEXT("NULL"),
@@ -1050,6 +1075,9 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedAc
     EventData.SetString(FName("ActorClass"), SpawnedActor ? SpawnedActor->GetClass()->GetName() : TEXT("None"));
 
     EventBus->Publish(Tag_Visual_Spawned, EventData);
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ✓ Event PUBLISHED: %s"), *Tag_Visual_Spawned.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
 
     UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Instance=%s, Owner=%s, Slot=%d"),

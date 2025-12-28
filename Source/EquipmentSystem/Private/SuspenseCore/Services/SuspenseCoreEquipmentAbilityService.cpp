@@ -40,11 +40,15 @@ void USuspenseCoreEquipmentAbilityService::BeginDestroy()
 
 bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService::InitializeService CALLED"));
+
     SCOPED_SERVICE_TIMER("InitializeService");
     EQUIPMENT_WRITE_LOCK(ConnectorLock);
 
     if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Service already initialized, returning"));
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning, TEXT("Service already initialized"));
         ServiceMetrics.RecordError();
         return false;
@@ -100,6 +104,13 @@ bool USuspenseCoreEquipmentAbilityService::InitializeService(const FSuspenseCore
 
     ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
     ServiceMetrics.RecordSuccess();
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService::InitializeService COMPLETE"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   State: Ready, Mappings: %d, EventBus: %s"),
+        AbilityMappings.Num(),
+        EventBus ? TEXT("VALID") : TEXT("NULL"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
 
     UE_LOG(LogSuspenseCoreEquipmentAbility, Log, TEXT("EquipmentAbilityService initialized with %d mappings"),
         AbilityMappings.Num());
@@ -901,20 +912,33 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
 {
     using namespace SuspenseCoreEquipmentTags;
 
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService::SetupEventHandlers CALLED"));
+
     // Get EventBus from ServiceProvider (SuspenseCore architecture)
     if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
     {
         EventBus = Provider->GetEventBus();
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ServiceProvider found, EventBus=%s"),
+            EventBus ? TEXT("VALID") : TEXT("NULL"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   ServiceProvider NOT FOUND!"));
     }
 
     if (!EventBus)
     {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   EventBus is NULL - event handling DISABLED!"));
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
             TEXT("EventBus not available from ServiceProvider, event handling disabled"));
         return;
     }
 
     // Spawned - using SuspenseCore.Event.Equipment.Visual.Spawned tag
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Subscribing to Visual.Spawned: %s"),
+        *Event::TAG_Equipment_Event_Visual_Spawned.ToString());
+
     EventSubscriptions.Add(EventBus->SubscribeNative(
         Event::TAG_Equipment_Event_Visual_Spawned,
         this,
@@ -971,6 +995,9 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
             FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentAbilityService::OnCommit),
             ESuspenseCoreEventPriority::Normal));
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ✓ Total subscriptions registered: %d"), EventSubscriptions.Num());
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
 
     UE_LOG(LogSuspenseCoreEquipmentAbility, Log,
         TEXT("Event handlers registered: %d subscriptions"), EventSubscriptions.Num());

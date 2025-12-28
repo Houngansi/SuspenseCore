@@ -1003,6 +1003,15 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActorFactory::SetupEventBus CALLED"));
 
+    // CRITICAL: Initialize event tags FIRST - they must be valid regardless of EventBus state
+    // Previously these were initialized AFTER the EventBus null check, causing them to remain
+    // uninitialized if EventBus was nullptr on first call (timing issue with subsystem init)
+    Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
+    Tag_Visual_Destroyed = Event::TAG_Equipment_Event_Visual_Detached;
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Tags initialized: Visual_Spawned=%s"),
+        *Tag_Visual_Spawned.ToString());
+
     // Get EventBus via EventManager (Clean Architecture)
     if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
     {
@@ -1023,12 +1032,6 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
         return;
     }
 
-    // Initialize event tags using native compile-time tags
-    Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
-    Tag_Visual_Destroyed = Event::TAG_Equipment_Event_Visual_Detached;
-
-    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Tag_Visual_Spawned = %s"),
-        *Tag_Visual_Spawned.ToString());
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
 
     UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
@@ -1037,6 +1040,8 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
 
 void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedActor, AActor* OwnerActor, const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex)
 {
+    using namespace SuspenseCoreEquipmentTags;
+
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActorFactory::BroadcastActorSpawned CALLED"));
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Actor=%s, Owner=%s, ItemID=%s, Slot=%d"),
@@ -1044,6 +1049,26 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedAc
         OwnerActor ? *OwnerActor->GetName() : TEXT("NULL"),
         *ItemInstance.ItemID.ToString(),
         SlotIndex);
+
+    // Lazy init: ensure tags are always valid
+    if (!Tag_Visual_Spawned.IsValid())
+    {
+        Tag_Visual_Spawned = Event::TAG_Equipment_Event_Visual_Spawned;
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Lazy init Tag_Visual_Spawned: %s"),
+            *Tag_Visual_Spawned.ToString());
+    }
+
+    // Lazy init: try to get EventBus if not set (handles timing issues)
+    if (!EventBus)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventBus is NULL - attempting lazy init..."));
+        if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
+        {
+            EventBus = EventMgr->GetEventBus();
+            UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Lazy init EventBus: %s (addr=%p)"),
+                EventBus ? TEXT("SUCCESS") : TEXT("FAILED"), EventBus);
+        }
+    }
 
     if (!EventBus || !Tag_Visual_Spawned.IsValid())
     {

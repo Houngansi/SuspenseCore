@@ -83,6 +83,12 @@ public:
 	USuspenseCoreCharacterClassData* GetClassById(FName ClassId) const;
 
 	/**
+	 * Get class data by ClassTag (GameplayTag)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
+	USuspenseCoreCharacterClassData* GetClassByTag(const FGameplayTag& ClassTag) const;
+
+	/**
 	 * Check if a class exists
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
@@ -118,6 +124,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
 	bool ApplyClassToASC(UAbilitySystemComponent* ASC, FName ClassId, int32 PlayerLevel = 1);
+
+	/**
+	 * Apply class to actor using ClassTag (GameplayTag)
+	 * Convenience method for use with settings that store class as tag
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Class")
+	bool ApplyClassByTagToActor(AActor* Actor, const FGameplayTag& ClassTag, int32 PlayerLevel = 1);
 
 	/**
 	 * Remove current class from actor (reset to defaults)

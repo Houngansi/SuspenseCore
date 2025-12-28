@@ -5,6 +5,7 @@
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeDefaults.h"
 #include "SuspenseCore/Attributes/SuspenseCoreShieldAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreMovementAttributeSet.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -284,6 +285,26 @@ USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetClassB
 	return Found ? Found->Get() : nullptr;
 }
 
+USuspenseCoreCharacterClassData* USuspenseCoreCharacterClassSubsystem::GetClassByTag(const FGameplayTag& ClassTag) const
+{
+	if (!ClassTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	// Search through all loaded classes for matching ClassTag
+	for (const auto& Pair : LoadedClasses)
+	{
+		if (Pair.Value && Pair.Value->ClassTag.MatchesTagExact(ClassTag))
+		{
+			return Pair.Value.Get();
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreClass, Warning, TEXT("GetClassByTag: No class found with tag '%s'"), *ClassTag.ToString());
+	return nullptr;
+}
+
 bool USuspenseCoreCharacterClassSubsystem::ClassExists(FName ClassId) const
 {
 	return LoadedClasses.Contains(ClassId);
@@ -393,6 +414,30 @@ bool USuspenseCoreCharacterClassSubsystem::ApplyClassToASC(UAbilitySystemCompone
 	return true;
 }
 
+bool USuspenseCoreCharacterClassSubsystem::ApplyClassByTagToActor(AActor* Actor, const FGameplayTag& ClassTag, int32 PlayerLevel)
+{
+	if (!Actor)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassByTagToActor: Invalid Actor"));
+		return false;
+	}
+
+	if (!ClassTag.IsValid())
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassByTagToActor: Invalid ClassTag"));
+		return false;
+	}
+
+	USuspenseCoreCharacterClassData* ClassData = GetClassByTag(ClassTag);
+	if (!ClassData)
+	{
+		UE_LOG(LogSuspenseCoreClass, Warning, TEXT("ApplyClassByTagToActor: No class found for tag '%s'"), *ClassTag.ToString());
+		return false;
+	}
+
+	return ApplyClassDataToActor(Actor, ClassData, PlayerLevel);
+}
+
 void USuspenseCoreCharacterClassSubsystem::RemoveClassFromActor(AActor* Actor)
 {
 	if (!Actor)
@@ -465,6 +510,9 @@ void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(UAbilitySyste
 		return;
 	}
 
+	// Use SSOT base values from SuspenseCoreAttributeDefaults
+	using namespace FSuspenseCoreAttributeDefaults;
+
 	const FSuspenseCoreAttributeModifier& Mods = ClassData->AttributeModifiers;
 
 	// Get attribute sets
@@ -472,35 +520,30 @@ void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(UAbilitySyste
 	const USuspenseCoreShieldAttributeSet* ShieldAttribs = ASC->GetSet<USuspenseCoreShieldAttributeSet>();
 	const USuspenseCoreMovementAttributeSet* MovementAttribs = ASC->GetSet<USuspenseCoreMovementAttributeSet>();
 
-	// Apply core attribute modifiers (using base values * multipliers)
+	// Apply core attribute modifiers (SSOT base values × class multipliers)
 	if (CoreAttribs)
 	{
-		// Base values
-		const float BaseMaxHealth = 100.0f;
-		const float BaseHealthRegen = 1.0f;
-		const float BaseMaxStamina = 100.0f;
-		const float BaseStaminaRegen = 10.0f;
-		const float BaseAttackPower = 1.0f;
-
-		// Set modified values
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxHealthAttribute(), BaseMaxHealth * Mods.MaxHealthMultiplier);
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetHealthAttribute(), BaseMaxHealth * Mods.MaxHealthMultiplier);
+		// Health
+		const float FinalMaxHealth = BaseMaxHealth * Mods.MaxHealthMultiplier;
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxHealthAttribute(), FinalMaxHealth);
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetHealthAttribute(), FinalMaxHealth);
 		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetHealthRegenAttribute(), BaseHealthRegen * Mods.HealthRegenMultiplier);
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxStaminaAttribute(), BaseMaxStamina * Mods.MaxStaminaMultiplier);
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaAttribute(), BaseMaxStamina * Mods.MaxStaminaMultiplier);
+
+		// Stamina
+		const float FinalMaxStamina = BaseMaxStamina * Mods.MaxStaminaMultiplier;
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMaxStaminaAttribute(), FinalMaxStamina);
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaAttribute(), FinalMaxStamina);
 		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaRegenAttribute(), BaseStaminaRegen * Mods.StaminaRegenMultiplier);
+
+		// Combat
 		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetAttackPowerAttribute(), BaseAttackPower * Mods.AttackPowerMultiplier);
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetArmorAttribute(), Mods.ArmorBonus);
-		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMovementSpeedAttribute(), Mods.MovementSpeedMultiplier);
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetArmorAttribute(), BaseArmor + Mods.ArmorBonus);
+		ASC->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetMovementSpeedAttribute(), BaseMovementSpeed * Mods.MovementSpeedMultiplier);
 	}
 
 	// Apply shield attribute modifiers
 	if (ShieldAttribs)
 	{
-		const float BaseMaxShield = 100.0f;
-		const float BaseShieldRegen = 10.0f;
-		const float BaseShieldRegenDelay = 3.0f;
-
 		ASC->SetNumericAttributeBase(USuspenseCoreShieldAttributeSet::GetMaxShieldAttribute(), BaseMaxShield * Mods.MaxShieldMultiplier);
 		ASC->SetNumericAttributeBase(USuspenseCoreShieldAttributeSet::GetShieldRegenAttribute(), BaseShieldRegen * Mods.ShieldRegenMultiplier);
 		ASC->SetNumericAttributeBase(USuspenseCoreShieldAttributeSet::GetShieldRegenDelayAttribute(), BaseShieldRegenDelay * Mods.ShieldRegenDelayMultiplier);
@@ -509,18 +552,15 @@ void USuspenseCoreCharacterClassSubsystem::ApplyAttributeModifiers(UAbilitySyste
 	// Apply movement attribute modifiers
 	if (MovementAttribs)
 	{
-		const float BaseWalkSpeed = 400.0f;
-		const float BaseSprintSpeed = 600.0f;
-		const float BaseJumpHeight = 420.0f;
-
 		ASC->SetNumericAttributeBase(USuspenseCoreMovementAttributeSet::GetWalkSpeedAttribute(), BaseWalkSpeed * Mods.MovementSpeedMultiplier);
 		ASC->SetNumericAttributeBase(USuspenseCoreMovementAttributeSet::GetSprintSpeedAttribute(), BaseSprintSpeed * Mods.SprintSpeedMultiplier);
 		ASC->SetNumericAttributeBase(USuspenseCoreMovementAttributeSet::GetJumpHeightAttribute(), BaseJumpHeight * Mods.JumpHeightMultiplier);
 	}
 
-	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Applied attribute modifiers: Health=%.0f, Stamina=%.0f, Attack=%.2f"),
+	UE_LOG(LogSuspenseCoreClass, Log, TEXT("Applied attribute modifiers from SSOT: Health=%.0f, Stamina=%.0f, StaminaRegen=%.1f, Attack=%.2f"),
 		CoreAttribs ? CoreAttribs->GetMaxHealth() : 0.0f,
 		CoreAttribs ? CoreAttribs->GetMaxStamina() : 0.0f,
+		CoreAttribs ? CoreAttribs->GetStaminaRegen() : 0.0f,
 		CoreAttribs ? CoreAttribs->GetAttackPower() : 0.0f);
 }
 

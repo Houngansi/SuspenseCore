@@ -10,7 +10,6 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
-#include "Camera/CameraComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreADS, Log, All);
 
@@ -55,10 +54,6 @@ USuspenseCoreAimDownSightAbility::USuspenseCoreAimDownSightAbility()
 	// ===================================================================
 	// Default Values
 	// ===================================================================
-	AimFOV = 65.0f;
-	DefaultFOV = 90.0f;
-	FOVTransitionSpeed = 15.0f;
-	bPublishCameraEvents = true;
 	bPublishAbilityEvents = true;
 
 	// Cached state
@@ -141,12 +136,6 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	ApplyAimEffects(ActorInfo);
 
 	// ===================================================================
-	// Publish Camera FOV Change Event
-	// Camera system subscribes to EventBus and handles FOV interpolation
-	// ===================================================================
-	NotifyCameraFOVChange(true);
-
-	// ===================================================================
 	// Wait for Input Release (Hold-to-Aim Model)
 	// When player releases aim input, OnAimInputReleased is called
 	// ===================================================================
@@ -188,11 +177,6 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	// Remove Speed Debuff GameplayEffect
 	// ===================================================================
 	RemoveAimEffects(ActorInfo);
-
-	// ===================================================================
-	// Publish Camera FOV Reset Event
-	// ===================================================================
-	NotifyCameraFOVChange(false);
 
 	// Clear cached state
 	CachedActorInfo = nullptr;
@@ -287,38 +271,6 @@ void USuspenseCoreAimDownSightAbility::RemoveAimEffects(const FGameplayAbilityAc
 	AimSpeedEffectHandle.Invalidate();
 
 	UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("Removed AimSpeedDebuff effect"));
-}
-
-void USuspenseCoreAimDownSightAbility::NotifyCameraFOVChange(bool bAiming)
-{
-	if (!bPublishCameraEvents)
-	{
-		return;
-	}
-
-	USuspenseCoreEventBus* EventBus = GetEventBus();
-	if (!EventBus)
-	{
-		return;
-	}
-
-	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	UObject* Source = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
-
-	// Create event data
-	FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(Source);
-
-	// Set camera parameters
-	EventData.SetFloat(FName("TargetFOV"), bAiming ? AimFOV : DefaultFOV);
-	EventData.SetFloat(FName("TransitionSpeed"), FOVTransitionSpeed);
-	EventData.SetBool(FName("IsAiming"), bAiming);
-
-	// Publish camera FOV change event
-	EventBus->Publish(SuspenseCoreTags::Event::Camera::FOVChanged, EventData);
-
-	UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("Published Camera FOV event: TargetFOV=%.1f, Aiming=%s"),
-		bAiming ? AimFOV : DefaultFOV,
-		bAiming ? TEXT("true") : TEXT("false"));
 }
 
 void USuspenseCoreAimDownSightAbility::OnAimInputReleased(float TimeHeld)

@@ -559,8 +559,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 **Key Features:**
 - Uses `ISuspenseCoreWeaponCombatState::SetAiming()`
 - Applies speed debuff GameplayEffect
-- Publishes camera FOV event via EventBus
 - Uses `UAbilityTask_WaitInputRelease` for hold behavior
+- Animation automatically handled via `bIsAiming` flag in AnimInstance
 
 **Tags Used:**
 ```cpp
@@ -573,10 +573,6 @@ CancelAbilitiesWithTag: SuspenseCoreTags::Ability::Sprint
 **Configuration:**
 ```cpp
 UPROPERTY() TSubclassOf<UGameplayEffect> AimSpeedDebuffClass;
-UPROPERTY() float AimFOV = 65.0f;
-UPROPERTY() float DefaultFOV = 90.0f;
-UPROPERTY() float FOVTransitionSpeed = 15.0f;
-UPROPERTY() bool bPublishCameraEvents = true;
 ```
 
 ---

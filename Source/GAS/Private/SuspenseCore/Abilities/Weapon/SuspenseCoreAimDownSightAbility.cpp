@@ -151,18 +151,17 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	ApplyAimEffects(ActorInfo);
 
 	// ===================================================================
-	// Wait for Input Release (Hold-to-Aim Model)
-	// When player releases aim input, OnAimInputReleased is called
+	// Hold-to-Aim Model
 	// ===================================================================
-	if (IsLocallyControlled())
-	{
-		UAbilityTask_WaitInputRelease* WaitInputTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, true);
-		if (WaitInputTask)
-		{
-			WaitInputTask->OnRelease.AddDynamic(this, &USuspenseCoreAimDownSightAbility::OnAimInputReleased);
-			WaitInputTask->ReadyForActivation();
-		}
-	}
+	// NOTE: WaitInputRelease doesn't work with TryActivateAbilitiesByTag
+	// because input state is not passed through that activation path.
+	// Instead, we rely on:
+	// 1. InputReleased() callback from ASC when input is released
+	// 2. External cancel via CancelAbilitiesByTag when bPressed=false
+	// The ability stays active until one of these is triggered.
+	// ===================================================================
+
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ADS ability now ACTIVE - waiting for release/cancel"));
 }
 
 void USuspenseCoreAimDownSightAbility::EndAbility(

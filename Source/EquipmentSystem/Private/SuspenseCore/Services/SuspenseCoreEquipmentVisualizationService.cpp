@@ -842,8 +842,13 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 	}
 
 	// Step 1: Try to get ActorFactory service via cached ServiceLocator
-	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("Step 1: Attempting to get ActorFactory service"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("  Tag_ActorFactory: %s (Valid: %s)"),
+		*Tag_ActorFactory.ToString(), Tag_ActorFactory.IsValid() ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("  ServiceLocator: %p"), CachedServiceLocator.Get());
 
 	if (UObject* FactoryObj = CachedServiceLocator->TryGetService(Tag_ActorFactory))
 	{
@@ -896,10 +901,12 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 	}
 	else
 	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
+			TEXT("  ❌ ActorFactory service NOT FOUND in ServiceLocator!"));
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
+			TEXT("  Expected tag: %s"), *Tag_ActorFactory.ToString());
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-			TEXT("  ActorFactory service not registered in ServiceLocator"));
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-			TEXT("  Trying direct spawn fallback..."));
+			TEXT("  Trying direct spawn fallback (Visual.Spawned will NOT be published!)"));
 	}
 
 	// Ultimate fallback: direct SpawnActor

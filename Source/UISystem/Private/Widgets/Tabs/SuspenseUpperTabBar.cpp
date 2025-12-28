@@ -14,6 +14,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 // TODO: Create SuspenseEquipmentContainerWidget - Equipment widget is not yet implemented
 #include "Widgets/Layout/SuspenseBaseLayoutWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -28,8 +29,8 @@ USuspenseUpperTabBar::USuspenseUpperTabBar(const FObjectInitializer& ObjectIniti
     CurrentTabIndex = -1;
     DefaultTabIndex = 0;
 
-    // Default tag
-    TabBarTag = FGameplayTag::RequestGameplayTag(TEXT("UI.TabBar.Character"));
+    // Default tag using native tag
+    TabBarTag = SuspenseCoreTags::UI::TabBar::Character;
 
     // Default text colors
     NormalTabTextColor = FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f));

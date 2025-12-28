@@ -383,6 +383,34 @@ namespace SuspenseCoreTags
 	}
 
 	//==================================================================
+	// UI TAGS
+	//==================================================================
+	namespace UI
+	{
+		namespace Screen
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character);
+		}
+
+		namespace Tab
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Inventory);
+		}
+
+		namespace TabBar
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character);
+		}
+
+		namespace HUD
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Crosshair);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HealthStamina);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponInfo);
+		}
+	}
+
+	//==================================================================
 	// EQUIPMENT SLOT TAGS
 	//==================================================================
 	namespace EquipmentSlot

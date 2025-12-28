@@ -361,6 +361,34 @@ namespace SuspenseCoreTags
 	}
 
 	//==================================================================
+	// UI TAGS
+	//==================================================================
+	namespace UI
+	{
+		namespace Screen
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Character, "UI.Screen.Character");
+		}
+
+		namespace Tab
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Inventory, "UI.Tab.Inventory");
+		}
+
+		namespace TabBar
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Character, "UI.TabBar.Character");
+		}
+
+		namespace HUD
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Crosshair, "UI.HUD.Crosshair");
+			UE_DEFINE_GAMEPLAY_TAG(HealthStamina, "UI.HUD.HealthStamina");
+			UE_DEFINE_GAMEPLAY_TAG(WeaponInfo, "UI.HUD.WeaponInfo");
+		}
+	}
+
+	//==================================================================
 	// EQUIPMENT SLOT TAGS
 	//==================================================================
 	namespace EquipmentSlot

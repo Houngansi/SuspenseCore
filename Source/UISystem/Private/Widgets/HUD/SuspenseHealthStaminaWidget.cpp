@@ -6,6 +6,7 @@
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreAttributeProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "Math/UnrealMathUtility.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -15,7 +16,7 @@ USuspenseHealthStaminaWidget::USuspenseHealthStaminaWidget(const FObjectInitiali
     : Super(ObjectInitializer)
 {
     bEnableTick = true;
-    WidgetTag = FGameplayTag::RequestGameplayTag(TEXT("UI.HUD.HealthStamina"));
+    WidgetTag = SuspenseCoreTags::UI::HUD::HealthStamina;
 }
 
 void USuspenseHealthStaminaWidget::NativePreConstruct()

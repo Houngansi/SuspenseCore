@@ -751,8 +751,14 @@ UObject* USuspenseCoreEquipmentServiceLocator::CreateServiceInstance(const FSusp
 
 	if (Reg.ServiceClass)
 	{
+		// ARCHITECTURE FIX: Use ServiceLocator (GameInstanceSubsystem) as Outer
+		// This allows services to access World via GetWorld() chain:
+		// Service->GetOuter()->GetWorld() -> ServiceLocator->GetWorld() -> GameInstance->GetWorld()
+		//
+		// Previously used GetTransientPackage() which broke World access for services
+		// that need EventBus (obtained via EventManager which requires WorldContext)
 		return NewObject<UObject>(
-			GetTransientPackage(),
+			this,  // ServiceLocator has valid World context
 			Reg.ServiceClass,
 			*FString::Printf(TEXT("SuspenseCoreSvc_%s_%08X"),
 				*Reg.ServiceTag.ToString(),

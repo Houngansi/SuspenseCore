@@ -14,6 +14,7 @@
 
 // Presentation layer components (registered as services)
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentAttachmentSystem.h"
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentVisualController.h"
 
@@ -346,7 +347,9 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterPresentationServices()
     // 1. ActorFactory - per-player компонент
     // ========================================
     {
-        const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
+        // CRITICAL FIX: Use native tag to match ActorFactory and VisualizationService
+        using namespace SuspenseCoreEquipmentTags;
+        const FGameplayTag FactoryTag = Service::TAG_Service_ActorFactory;
 
         if (!Locator->IsServiceRegistered(FactoryTag))
         {
@@ -366,7 +369,7 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterPresentationServices()
                 // Если уже есть - регистрируем напрямую
                 UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("Found existing ActorFactory, registering..."));
                 Locator->RegisterServiceInstance(FactoryTag, Factory);
-                UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("✓ Registered ActorFactory service"));
+                UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("✓ Registered ActorFactory service: %s"), *FactoryTag.ToString());
             }
         }
         else
@@ -477,7 +480,9 @@ bool USuspenseCoreSystemCoordinatorComponent::ValidateServices(TArray<FText>& Ou
     if (!Locator->IsServiceReady(TagOperations)) { OutErrors.Add(FText::FromString(TEXT("Service Operations not ready"))); bOk = false; }
 
     // Presentation services are optional - don't fail validation if missing
-    const FGameplayTag TagFactory = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"), false);
+    // Use native tag to match ActorFactory registration
+    using namespace SuspenseCoreEquipmentTags;
+    const FGameplayTag TagFactory = Service::TAG_Service_ActorFactory;
     if (TagFactory.IsValid() && !Locator->IsServiceReady(TagFactory))
     {
         UE_LOG(LogSuspenseCoreCoordinator, Warning, TEXT("ActorFactory service not ready (this is OK if not created yet)"));

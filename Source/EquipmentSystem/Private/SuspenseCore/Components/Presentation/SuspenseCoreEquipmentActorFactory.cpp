@@ -1,6 +1,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
@@ -52,14 +53,17 @@ void USuspenseCoreEquipmentActorFactory::BeginPlay()
     USuspenseCoreEquipmentServiceLocator* Locator = USuspenseCoreEquipmentServiceLocator::Get(this);
     if (Locator)
     {
-        const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
+        // CRITICAL FIX: Use native tag to match VisualizationService lookup
+        // Native tag: SuspenseCore.Service.Equipment.ActorFactory
+        using namespace SuspenseCoreEquipmentTags;
+        const FGameplayTag FactoryTag = Service::TAG_Service_ActorFactory;
 
         if (!Locator->IsServiceRegistered(FactoryTag))
         {
             Locator->RegisterServiceInstance(FactoryTag, this);
 
             UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
-                TEXT("✓ ActorFactory registered as service: Service.ActorFactory"));
+                TEXT("✓ ActorFactory registered as service: %s"), *FactoryTag.ToString());
         }
         else
         {
@@ -100,7 +104,9 @@ void USuspenseCoreEquipmentActorFactory::EndPlay(const EEndPlayReason::Type EndP
     USuspenseCoreEquipmentServiceLocator* Locator = USuspenseCoreEquipmentServiceLocator::Get(this);
     if (Locator)
     {
-        const FGameplayTag FactoryTag = FGameplayTag::RequestGameplayTag(TEXT("Service.ActorFactory"));
+        // Use native tag to match registration
+        using namespace SuspenseCoreEquipmentTags;
+        const FGameplayTag FactoryTag = Service::TAG_Service_ActorFactory;
 
         if (Locator->IsServiceRegistered(FactoryTag))
         {

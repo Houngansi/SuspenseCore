@@ -70,17 +70,28 @@ namespace FSuspenseCoreAttributeDefaults
 	inline constexpr float BaseReloadSpeed = 1.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════
-	// MOVEMENT
+	// MOVEMENT (Tarkov-style: slow tactical walk, fast sprint)
 	// ═══════════════════════════════════════════════════════════════════════════
 
 	/** Base movement speed multiplier (1.0 = normal) */
 	inline constexpr float BaseMovementSpeed = 1.0f;
 
-	/** Base walk speed in cm/s */
-	inline constexpr float BaseWalkSpeed = 400.0f;
+	/**
+	 * Base walk speed in cm/s (Tarkov-style: slow tactical walk)
+	 * This is the DEFAULT movement speed - player walks slowly
+	 */
+	inline constexpr float BaseWalkSpeed = 200.0f;
 
-	/** Base sprint speed in cm/s */
+	/**
+	 * Sprint speed in cm/s (absolute value, not multiplier)
+	 * When sprinting, character moves at this speed regardless of walk speed
+	 */
 	inline constexpr float BaseSprintSpeed = 600.0f;
+
+	/**
+	 * Crouch speed in cm/s (even slower than walk)
+	 */
+	inline constexpr float BaseCrouchSpeed = 100.0f;
 
 	/** Base jump height in cm */
 	inline constexpr float BaseJumpHeight = 420.0f;

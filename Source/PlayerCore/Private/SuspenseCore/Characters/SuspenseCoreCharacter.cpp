@@ -117,16 +117,16 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	WeaponStanceComponent = CreateDefaultSubobject<USuspenseCoreWeaponStanceComponent>(TEXT("WeaponStanceComponent"));
 #endif
 
-	// Movement settings
+	// Movement settings (Tarkov-style: slow walk by default)
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{
-		CMC->MaxWalkSpeed = BaseWalkSpeed;
+		CMC->MaxWalkSpeed = WalkSpeed;  // Default: 200 cm/s (slow tactical walk)
+		CMC->MaxWalkSpeedCrouched = CrouchSpeed;  // 100 cm/s (very slow crouch)
 		CMC->bOrientRotationToMovement = false;
 		CMC->bUseControllerDesiredRotation = true;
 		CMC->NavAgentProps.bCanCrouch = true;
 		CMC->bCanWalkOffLedgesWhenCrouching = true;
 		CMC->SetCrouchedHalfHeight(40.0f);
-		CMC->MaxWalkSpeedCrouched = 150.0f;
 	}
 
 	// Controller rotation
@@ -569,18 +569,26 @@ void ASuspenseCoreCharacter::UpdateMovementSpeed()
 {
 	if (UCharacterMovementComponent* CMC = GetCharacterMovement())
 	{
-		float NewSpeed = BaseWalkSpeed;
+		// Tarkov-style movement: absolute speeds, not multipliers
+		// Priority: Sprint > Crouch > Walk
+		float NewSpeed = WalkSpeed;  // Default: slow tactical walk (200)
 
 		if (bIsSprinting)
 		{
-			NewSpeed *= SprintSpeedMultiplier;
+			// Sprint: fast run (600) - overrides everything
+			NewSpeed = SprintSpeed;
 		}
 		else if (bIsCrouched)
 		{
-			NewSpeed *= CrouchSpeedMultiplier;
+			// Crouch: very slow (100) - handled by CMC->MaxWalkSpeedCrouched
+			// No need to modify MaxWalkSpeed here, CMC uses MaxWalkSpeedCrouched automatically
+			NewSpeed = WalkSpeed;  // Keep normal walk speed, CMC handles crouch speed internally
 		}
 
 		CMC->MaxWalkSpeed = NewSpeed;
+
+		UE_LOG(LogTemp, Verbose, TEXT("[Character] UpdateMovementSpeed: Sprint=%d, Crouch=%d, Speed=%.0f"),
+			bIsSprinting, bIsCrouched, NewSpeed);
 	}
 }
 

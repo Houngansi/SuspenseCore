@@ -5,6 +5,7 @@
 #include "SuspenseCore/Components/Integration/SuspenseCoreEquipmentAbilityConnector.h"
 #include "SuspenseCore/Components/Coordination/SuspenseCoreEquipmentEventDispatcher.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -915,23 +916,32 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService::SetupEventHandlers CALLED"));
 
-    // Get EventBus from ServiceProvider (SuspenseCore architecture)
-    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+    // Get EventBus directly from EventManager (same as ActorFactory does)
+    // This avoids timing issues with ServiceProvider caching
+    if (USuspenseCoreEventManager* EventMgr = USuspenseCoreEventManager::Get(this))
     {
-        EventBus = Provider->GetEventBus();
-        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ServiceProvider found, EventBus=%s"),
+        EventBus = EventMgr->GetEventBus();
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s"),
             EventBus ? TEXT("VALID") : TEXT("NULL"));
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   ServiceProvider NOT FOUND!"));
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   EventManager NOT FOUND!"));
+
+        // Fallback: try ServiceProvider
+        if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+        {
+            EventBus = Provider->GetEventBus();
+            UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Fallback to ServiceProvider, EventBus=%s"),
+                EventBus ? TEXT("VALID") : TEXT("NULL"));
+        }
     }
 
     if (!EventBus)
     {
         UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   EventBus is NULL - event handling DISABLED!"));
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-            TEXT("EventBus not available from ServiceProvider, event handling disabled"));
+            TEXT("EventBus not available, event handling disabled"));
         return;
     }
 

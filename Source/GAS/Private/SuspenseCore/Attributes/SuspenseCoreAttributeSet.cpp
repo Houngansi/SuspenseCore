@@ -153,15 +153,27 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 	// This broadcasts events for LOCAL changes (replication uses OnRep_Stamina)
 	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
-		const float NewStamina = GetStamina();
+		// Clamp stamina to valid range (safety net for periodic effects)
+		const float MaxST = GetMaxStamina();
+		float CurrentStamina = GetStamina();
+		const float ClampedStamina = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
+
+		if (!FMath::IsNearlyEqual(CurrentStamina, ClampedStamina))
+		{
+			SetStamina(ClampedStamina);
+			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("[AttributeSet] Stamina clamped: %.2f -> %.2f (Max: %.2f)"),
+				CurrentStamina, ClampedStamina, MaxST);
+			CurrentStamina = ClampedStamina;
+		}
+
 		// For additive modifiers, calculate old value from new value and magnitude
 		const float StaminaDelta = Data.EvaluatedData.Magnitude;
-		const float OldStamina = NewStamina - StaminaDelta;
+		const float OldStamina = FMath::Max(CurrentStamina - StaminaDelta, 0.0f);
 
 		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] STAMINA CHANGE DETECTED! Old: %.2f, New: %.2f, Delta: %.2f"),
-			OldStamina, NewStamina, StaminaDelta);
+			OldStamina, CurrentStamina, StaminaDelta);
 
-		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, NewStamina);
+		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, CurrentStamina);
 	}
 	// Process MaxStamina change
 	else if (Data.EvaluatedData.Attribute == GetMaxStaminaAttribute())

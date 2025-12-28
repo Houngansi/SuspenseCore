@@ -7,7 +7,6 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
-#include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
@@ -35,14 +34,6 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 
     AmmoComponent     = CreateDefaultSubobject<USuspenseCoreWeaponAmmoComponent>(TEXT("AmmoComponent"));
     FireModeComponent = CreateDefaultSubobject<USuspenseCoreWeaponFireModeComponent>(TEXT("FireModeComponent"));
-    ScopeCamera       = CreateDefaultSubobject<UCameraComponent>(TEXT("ScopeCamera"));
-
-    if (ScopeCamera)
-    {
-        // В UE5 RootComponent — TObjectPtr; для SetupAttachment нужен сырой указатель.
-        ScopeCamera->SetupAttachment(RootComponent.Get()); // допустимо и если RootComponent == nullptr
-        ScopeCamera->bAutoActivate = false;
-    }
 
     bReplicates = true;
     bNetUseOwnerRelevancy = true;

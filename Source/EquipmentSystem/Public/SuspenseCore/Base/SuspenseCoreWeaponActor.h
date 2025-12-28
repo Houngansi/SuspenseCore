@@ -12,7 +12,6 @@
 #include "SuspenseCoreWeaponActor.generated.h"
 
 // Forward declarations
-class UCameraComponent;
 class USuspenseCoreWeaponAmmoComponent;
 class USuspenseCoreWeaponFireModeComponent;
 class USuspenseCoreEquipmentAttributeComponent;
@@ -206,8 +205,4 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponFireModeComponent* FireModeComponent;
-
-    /** Optional local scope camera component (no socket-based attach here) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
-    UCameraComponent* ScopeCamera;
 };

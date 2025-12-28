@@ -243,6 +243,9 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
+	// [ADS DEBUG] Track aiming state changes
+	const bool bPreviousAiming = bIsAiming;
+
 	// Detect weapon type change
 	bWeaponTypeChanged = (CurrentWeaponType != Snapshot.WeaponType);
 	if (bWeaponTypeChanged)
@@ -266,6 +269,18 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bModifyGrip = Snapshot.bModifyGrip;
 	bCreateAimPose = Snapshot.bCreateAimPose;
 	SightDistance = Snapshot.SightDistance;
+
+	// [ADS DEBUG] Log when aiming state changes
+	if (bPreviousAiming != bIsAiming)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AnimInstance::UpdateWeaponData - bIsAiming CHANGED!"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] bIsAiming: %s -> %s"),
+			bPreviousAiming ? TEXT("TRUE") : TEXT("FALSE"),
+			bIsAiming ? TEXT("TRUE") : TEXT("FALSE"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Snapshot.AimPoseAlpha=%.2f, Current AimingAlpha=%.2f"),
+			Snapshot.AimPoseAlpha, AimingAlpha);
+	}
 
 	// Pose indices
 	AimPose = Snapshot.AimPose;

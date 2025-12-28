@@ -93,10 +93,13 @@ void USuspenseCoreCharacterCrouchAbility::ActivateAbility(
 	CurrentActorInfo = ActorInfo;
 	CurrentActivationInfo = ActivationInfo;
 
-	// Set crouch state
+	// Set crouch state on character
+	// NOTE: Character's CMC handles speed automatically via MaxWalkSpeedCrouched
+	// No need to apply speed-modifying GameplayEffects!
 	SetCharacterCrouchState(ActorInfo, true);
 
-	// Apply crouch effects
+	// Apply optional crouch effects (state tags, etc. - NOT speed modification!)
+	// Speed is handled by CMC->MaxWalkSpeedCrouched automatically
 	ApplyCrouchEffects(ActorInfo);
 
 	// Play sound
@@ -177,8 +180,13 @@ void USuspenseCoreCharacterCrouchAbility::InputPressed(
 bool USuspenseCoreCharacterCrouchAbility::ApplyCrouchEffects(
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
+	// NOTE: For Tarkov-style movement, speed is handled by CMC->MaxWalkSpeedCrouched
+	// The CrouchDebuffEffectClass is now OPTIONAL and should only be used for
+	// additional effects like state tags, NOT speed modification!
+
 	if (!CrouchDebuffEffectClass)
 	{
+		// No GE configured - this is fine, CMC handles crouch speed automatically
 		return true;
 	}
 
@@ -199,16 +207,9 @@ bool USuspenseCoreCharacterCrouchAbility::ApplyCrouchEffects(
 
 	if (DebuffSpec.IsValid())
 	{
-		// Set speed reduction via SetByCaller
-		// CrouchSpeedMultiplier = 0.5 means 50% of normal speed
-		// For MultiplyAdditive: value should be (multiplier - 1.0)
-		// So 0.5 -> -0.5 (which gives -50% speed)
-		const float SpeedReduction = CrouchSpeedMultiplier - 1.0f;
-		DebuffSpec.Data->SetSetByCallerMagnitude(
-			SuspenseCoreTags::Data::Cost::SpeedMultiplier,
-			SpeedReduction
-		);
-
+		// NOTE: Speed modification via SetByCaller is DEPRECATED for Tarkov-style
+		// CMC handles MaxWalkSpeedCrouched automatically
+		// Only apply GE for state tags or other non-speed effects
 		CrouchDebuffEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*DebuffSpec.Data.Get());
 		return CrouchDebuffEffectHandle.IsValid();
 	}

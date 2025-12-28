@@ -189,7 +189,9 @@ void USuspenseCoreCharacterSprintAbility::InputReleased(
 bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] ApplySprintEffects called"));
+	// NOTE: For Tarkov-style movement, speed is handled by Character directly
+	// The SprintBuffEffectClass is now DEPRECATED for speed modification
+	// Character sets CMC->MaxWalkSpeed = SprintSpeed when bIsSprinting = true
 
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!ASC)
@@ -201,11 +203,10 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 	FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
 	EffectContext.AddSourceObject(this);
 
-	// Apply speed buff with SetByCaller
+	// NOTE: SprintBuffEffectClass for speed is DEPRECATED - Character handles speed directly
+	// If you still want to use GE for other effects (like state tags), you can configure it
 	if (SprintBuffEffectClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintBuffEffectClass: %s"), *SprintBuffEffectClass->GetName());
-
 		FGameplayEffectSpecHandle BuffSpec = ASC->MakeOutgoingSpec(
 			SprintBuffEffectClass,
 			1.0f,
@@ -214,28 +215,14 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 
 		if (BuffSpec.IsValid())
 		{
-			const float SpeedBonus = SprintSpeedMultiplier - 1.0f;
-			UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] Setting SpeedMultiplier: %.2f"), SpeedBonus);
-			BuffSpec.Data->SetSetByCallerMagnitude(
-				SuspenseCoreTags::Data::Cost::SpeedMultiplier,
-				SpeedBonus
-			);
-
+			// Apply GE for state tags only, NOT speed modification
 			SprintBuffEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*BuffSpec.Data.Get());
-			UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintBuff applied, valid: %s"),
-				SprintBuffEffectHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
 		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintBuffEffectClass is NULL!"));
-	}
 
-	// Apply stamina cost with SetByCaller
+	// Apply stamina cost with SetByCaller - THIS IS STILL NEEDED!
 	if (SprintCostEffectClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintCostEffectClass: %s"), *SprintCostEffectClass->GetName());
-
 		FGameplayEffectSpecHandle CostSpec = ASC->MakeOutgoingSpec(
 			SprintCostEffectClass,
 			1.0f,
@@ -245,20 +232,14 @@ bool USuspenseCoreCharacterSprintAbility::ApplySprintEffects(
 		if (CostSpec.IsValid())
 		{
 			const float StaminaDrainPerTick = -StaminaCostPerSecond * 0.1f;
-			UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] Setting StaminaPerSecond: %.2f (per tick)"), StaminaDrainPerTick);
 			CostSpec.Data->SetSetByCallerMagnitude(
 				SuspenseCoreTags::Data::Cost::StaminaPerSecond,
 				StaminaDrainPerTick
 			);
 
 			SprintCostEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*CostSpec.Data.Get());
-			UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintCost applied, valid: %s"),
-				SprintCostEffectHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
+			UE_LOG(LogTemp, Log, TEXT("[SprintAbility] Stamina cost applied: %.1f per tick"), StaminaDrainPerTick);
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[SprintAbility] SprintCostEffectClass is NULL - no stamina drain!"));
 	}
 
 	return true;

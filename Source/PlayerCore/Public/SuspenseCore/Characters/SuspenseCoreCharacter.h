@@ -306,17 +306,21 @@ protected:
 	USuspenseCoreWeaponStanceComponent* WeaponStanceComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// CONFIGURATION - MOVEMENT
+	// CONFIGURATION - MOVEMENT (Tarkov-style)
+	// Default = slow tactical walk, Sprint = fast run, Crouch = very slow
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+	/** Walk speed in cm/s (slow tactical walk, default movement) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Movement")
-	float BaseWalkSpeed = 400.0f;
+	float WalkSpeed = 200.0f;
 
+	/** Sprint speed in cm/s (fast run when holding sprint) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Movement")
-	float SprintSpeedMultiplier = 1.5f;
+	float SprintSpeed = 600.0f;
 
+	/** Crouch speed in cm/s (very slow, sneaking) */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Movement")
-	float CrouchSpeedMultiplier = 0.5f;
+	float CrouchSpeed = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Animation")
 	float AnimationInterpSpeed = 10.0f;

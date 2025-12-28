@@ -158,10 +158,14 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 		float CurrentStamina = GetStamina();
 		const float ClampedStamina = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
 
-		if (!FMath::IsNearlyEqual(CurrentStamina, ClampedStamina))
+		if (CurrentStamina > MaxST)
 		{
-			SetStamina(ClampedStamina);
-			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("[AttributeSet] Stamina clamped: %.2f -> %.2f (Max: %.2f)"),
+			// Use ASC to properly set base value (SetStamina may not work during effect execution)
+			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+			{
+				ASC->SetNumericAttributeBase(GetStaminaAttribute(), ClampedStamina);
+			}
+			UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Stamina CLAMPED: %.2f -> %.2f (Max: %.2f)"),
 				CurrentStamina, ClampedStamina, MaxST);
 			CurrentStamina = ClampedStamina;
 		}

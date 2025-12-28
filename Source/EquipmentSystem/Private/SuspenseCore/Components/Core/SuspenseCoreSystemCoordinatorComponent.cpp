@@ -47,7 +47,10 @@ void USuspenseCoreSystemCoordinatorComponent::BeginPlay()
 
     UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("Coordinator BeginPlay: Service tags cached"));
 
+    // CRITICAL: Auto-bootstrap services on BeginPlay
+    // This ensures ActorFactory is created and registered before equipment is used
     bBootstrapped = false;
+    BootstrapServices();
 }
 
 void USuspenseCoreSystemCoordinatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

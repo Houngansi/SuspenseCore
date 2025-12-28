@@ -67,8 +67,11 @@ bool USuspenseCoreAimDownSightAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility called"));
+
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Super returned FALSE"));
 		return false;
 	}
 
@@ -76,24 +79,29 @@ bool USuspenseCoreAimDownSightAbility::CanActivateAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (!CombatState)
 	{
-		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: No WeaponCombatState interface"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: No WeaponCombatState interface - FAILED"));
 		return false;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: CombatState found, IsWeaponDrawn=%s, IsReloading=%s"),
+		CombatState->IsWeaponDrawn() ? TEXT("TRUE") : TEXT("FALSE"),
+		CombatState->IsReloading() ? TEXT("TRUE") : TEXT("FALSE"));
 
 	// Require weapon to be drawn
 	if (!CombatState->IsWeaponDrawn())
 	{
-		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Weapon not drawn"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Weapon not drawn - FAILED"));
 		return false;
 	}
 
 	// Cannot aim while already reloading
 	if (CombatState->IsReloading())
 	{
-		UE_LOG(LogSuspenseCoreADS, Verbose, TEXT("CanActivateAbility: Currently reloading"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: Currently reloading - FAILED"));
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CanActivateAbility: All checks passed - SUCCESS"));
 	return true;
 }
 
@@ -103,6 +111,11 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActivateAbility CALLED - ADS ability activating!"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AvatarActor: %s"),
+		ActorInfo && ActorInfo->AvatarActor.IsValid() ? *ActorInfo->AvatarActor->GetName() : TEXT("NULL"));
+
 	// Cache for EndAbility access
 	CachedActorInfo = ActorInfo;
 	CachedSpecHandle = Handle;
@@ -122,12 +135,14 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (CombatState)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CombatState found, calling SetAiming(true)"));
 		CombatState->SetAiming(true);
-		UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS Activated - SetAiming(true)"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming(true) completed. IsAiming now: %s"),
+			CombatState->IsAiming() ? TEXT("TRUE") : TEXT("FALSE"));
 	}
 	else
 	{
-		UE_LOG(LogSuspenseCoreADS, Warning, TEXT("ADS Activated but no CombatState interface found"));
+		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ERROR: CombatState is NULL! Cannot set aiming state!"));
 	}
 
 	// ===================================================================
@@ -157,6 +172,10 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility CALLED - ADS ability ending! (Cancelled: %s)"),
+		bWasCancelled ? TEXT("TRUE") : TEXT("FALSE"));
+
 	// ===================================================================
 	// Clear Aiming State on SSOT
 	// This automatically:
@@ -168,9 +187,14 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
 	if (CombatState)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CombatState found, calling SetAiming(false)"));
 		CombatState->SetAiming(false);
-		UE_LOG(LogSuspenseCoreADS, Log, TEXT("ADS Ended - SetAiming(false) (Cancelled: %s)"),
-			bWasCancelled ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming(false) completed. IsAiming now: %s"),
+			CombatState->IsAiming() ? TEXT("TRUE") : TEXT("FALSE"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ERROR: CombatState is NULL in EndAbility!"));
 	}
 
 	// ===================================================================

@@ -342,11 +342,16 @@ void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Valu
 
 void ASuspenseCorePlayerController::HandleAimPressed(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] HandleAimPressed CALLED - RMB Pressed"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling ActivateAbilityByTag(AimDownSight, true)"));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), true);
 }
 
 void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] HandleAimReleased CALLED - RMB Released"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling ActivateAbilityByTag(AimDownSight, false) to CANCEL"));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), false);
 }
 
@@ -374,20 +379,27 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ActivateAbilityByTag: ASC is NULL! Cannot activate ability."));
 		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActivateAbilityByTag: Tag=%s, bPressed=%s, ASC=%s"),
+		*AbilityTag.ToString(), bPressed ? TEXT("TRUE") : TEXT("FALSE"), *ASC->GetName());
 
 	if (bPressed)
 	{
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-		ASC->TryActivateAbilitiesByTag(TagContainer);
+		bool bSuccess = ASC->TryActivateAbilitiesByTag(TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] TryActivateAbilitiesByTag result: %s"),
+			bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 	}
 	else
 	{
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
 		ASC->CancelAbilities(&TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CancelAbilities called for tag: %s"), *AbilityTag.ToString());
 	}
 
 	// Publish input event for UI/other systems

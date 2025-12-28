@@ -179,19 +179,30 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponDrawnState(bool bDrawn)
 
 void USuspenseCoreWeaponStanceComponent::SetAiming(bool bNewAiming)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] StanceComponent::SetAiming called with bNewAiming=%s"),
+		bNewAiming ? TEXT("TRUE") : TEXT("FALSE"));
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Current bIsAiming=%s, TargetAimPoseAlpha=%.2f"),
+		bIsAiming ? TEXT("TRUE") : TEXT("FALSE"), TargetAimPoseAlpha);
+
 	if (bIsAiming == bNewAiming)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming: Same value, early return (no change)"));
 		return;
 	}
 
 	bIsAiming = bNewAiming;
 	TargetAimPoseAlpha = bNewAiming ? 1.0f : 0.0f;
 
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming: bIsAiming SET to %s, TargetAimPoseAlpha SET to %.2f"),
+		bIsAiming ? TEXT("TRUE") : TEXT("FALSE"), TargetAimPoseAlpha);
+
 	if (AActor* Owner = GetOwner())
 	{
 		if (Owner->HasAuthority())
 		{
 			Owner->ForceNetUpdate();
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming: ForceNetUpdate called on %s"), *Owner->GetName());
 		}
 	}
 
@@ -199,6 +210,9 @@ void USuspenseCoreWeaponStanceComponent::SetAiming(bool bNewAiming)
 	BroadcastCombatStateEvent(bNewAiming
 		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimStarted
 		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_AimEnded);
+
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] SetAiming: EventBus event broadcasted (%s)"),
+		bNewAiming ? TEXT("AimStarted") : TEXT("AimEnded"));
 }
 
 void USuspenseCoreWeaponStanceComponent::SetFiring(bool bNewFiring)

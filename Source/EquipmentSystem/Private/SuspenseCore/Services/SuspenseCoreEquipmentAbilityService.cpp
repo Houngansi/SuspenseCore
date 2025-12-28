@@ -650,71 +650,58 @@ void USuspenseCoreEquipmentAbilityService::ProcessEquipmentSpawn(
         return;
     }
 
-    // Check if we have a mapping for this item
+    // Check if we have a mapping for this item (optional - used for tag filtering)
     FSuspenseCoreEquipmentAbilityMapping Mapping;
-    if (GetAbilityMapping(ItemInstance.ItemID, Mapping))
+    bool bHasMapping = GetAbilityMapping(ItemInstance.ItemID, Mapping);
+
+    // If mapping exists, check tag requirements
+    if (bHasMapping && (Mapping.RequiredTags.Num() > 0 || Mapping.BlockedTags.Num() > 0))
     {
-        // Check requirements based on EQUIPMENT tags, not character tags
-        if (Mapping.RequiredTags.Num() > 0 || Mapping.BlockedTags.Num() > 0)
+        FGameplayTagContainer EquipmentTags = GetEquipmentTags(EquipmentActor);
+
+        // Check required tags
+        if (Mapping.RequiredTags.Num() > 0 &&
+            !EquipmentTags.HasAll(Mapping.RequiredTags))
         {
-            FGameplayTagContainer EquipmentTags = GetEquipmentTags(EquipmentActor);
-
-            // Check required tags
-            if (Mapping.RequiredTags.Num() > 0 &&
-                !EquipmentTags.HasAll(Mapping.RequiredTags))
-            {
-                UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-                    TEXT("Equipment %s missing required tags for item %s. Required: %s, Has: %s"),
-                    *GetNameSafe(EquipmentActor),
-                    *ItemInstance.ItemID.ToString(),
-                    *Mapping.RequiredTags.ToString(),
-                    *EquipmentTags.ToString());
-                ServiceMetrics.Inc(FName("Ability.Spawn.BlockedByTags"));
-                return;
-            }
-
-            // Check blocked tags
-            if (Mapping.BlockedTags.Num() > 0 &&
-                EquipmentTags.HasAny(Mapping.BlockedTags))
-            {
-                UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
-                    TEXT("Equipment %s has blocked tags for item %s. Blocked: %s, Has: %s"),
-                    *GetNameSafe(EquipmentActor),
-                    *ItemInstance.ItemID.ToString(),
-                    *Mapping.BlockedTags.ToString(),
-                    *EquipmentTags.ToString());
-                ServiceMetrics.Inc(FName("Ability.Spawn.BlockedByTags"));
-                return;
-            }
-        }
-
-        // Grant abilities through connector
-        // The connector will use the ItemInstance's slot index if it has one
-        int32 SlotIndex = ItemInstance.AnchorIndex != INDEX_NONE ? ItemInstance.AnchorIndex : 0;
-        Connector->GrantAbilitiesForSlot(SlotIndex, ItemInstance);
-        Connector->ApplyEffectsForSlot(SlotIndex, ItemInstance);
-
-        if (bEnableDetailedLogging)
-        {
-            UE_LOG(LogSuspenseCoreEquipmentAbility, Verbose,
-                TEXT("Granted abilities for equipment %s (item: %s)"),
+            UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
+                TEXT("Equipment %s missing required tags for item %s. Required: %s, Has: %s"),
                 *GetNameSafe(EquipmentActor),
-                *ItemInstance.ItemID.ToString());
+                *ItemInstance.ItemID.ToString(),
+                *Mapping.RequiredTags.ToString(),
+                *EquipmentTags.ToString());
+            ServiceMetrics.Inc(FName("Ability.Spawn.BlockedByTags"));
+            return;
         }
 
-        ServiceMetrics.Inc(FName("Ability.Spawn.Processed"));
-    }
-    else
-    {
-        if (bEnableDetailedLogging)
+        // Check blocked tags
+        if (Mapping.BlockedTags.Num() > 0 &&
+            EquipmentTags.HasAny(Mapping.BlockedTags))
         {
-            UE_LOG(LogSuspenseCoreEquipmentAbility, Verbose,
-                TEXT("No ability mapping for item %s on equipment %s"),
+            UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
+                TEXT("Equipment %s has blocked tags for item %s. Blocked: %s, Has: %s"),
+                *GetNameSafe(EquipmentActor),
                 *ItemInstance.ItemID.ToString(),
-                *GetNameSafe(EquipmentActor));
+                *Mapping.BlockedTags.ToString(),
+                *EquipmentTags.ToString());
+            ServiceMetrics.Inc(FName("Ability.Spawn.BlockedByTags"));
+            return;
         }
-        ServiceMetrics.Inc(FName("Ability.Spawn.NoMapping"));
     }
+
+    // Grant abilities through connector (from DataTable's GrantedAbilities)
+    // Mapping is optional - abilities are always granted from DataTable
+    int32 SlotIndex = ItemInstance.AnchorIndex != INDEX_NONE ? ItemInstance.AnchorIndex : 0;
+    Connector->GrantAbilitiesForSlot(SlotIndex, ItemInstance);
+    Connector->ApplyEffectsForSlot(SlotIndex, ItemInstance);
+
+    UE_LOG(LogSuspenseCoreEquipmentAbility, Log,
+        TEXT("[ADS DEBUG] Granted abilities for equipment %s (item: %s, slot: %d, hasMapping: %s)"),
+        *GetNameSafe(EquipmentActor),
+        *ItemInstance.ItemID.ToString(),
+        SlotIndex,
+        bHasMapping ? TEXT("YES") : TEXT("NO"));
+
+    ServiceMetrics.Inc(FName("Ability.Spawn.Processed"));
 
     ServiceMetrics.RecordSuccess();
 }

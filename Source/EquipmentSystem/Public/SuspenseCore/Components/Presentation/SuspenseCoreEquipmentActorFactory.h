@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentCacheManager.h"
 #include "SuspenseCore/Core/Utils/SuspenseCoreEquipmentThreadGuard.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
@@ -83,7 +84,7 @@ struct FSuspenseCoreActorFactoryConfig
  * - Efficient caching through FEquipmentCacheManager
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseCoreActorFactory
+class EQUIPMENTSYSTEM_API USuspenseCoreEquipmentActorFactory : public UActorComponent, public ISuspenseCoreActorFactory, public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -95,6 +96,18 @@ public:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
     //~ End UActorComponent Interface
+
+    //~ Begin ISuspenseCoreEquipmentService Interface
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
+    virtual bool ShutdownService(bool bForce = false) override;
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override;
+    virtual bool IsServiceReady() const override;
+    virtual FGameplayTag GetServiceTag() const override;
+    virtual FGameplayTagContainer GetRequiredDependencies() const override;
+    virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+    virtual void ResetService() override;
+    virtual FString GetServiceStats() const override;
+    //~ End ISuspenseCoreEquipmentService Interface
 
     //~ Begin ISuspenseActorFactory Interface
     virtual FEquipmentActorSpawnResult SpawnEquipmentActor(const FEquipmentActorSpawnParams& Params) override;
@@ -160,6 +173,12 @@ protected:
     /** Event tags using native compile-time tags */
     FGameplayTag Tag_Visual_Spawned;
     FGameplayTag Tag_Visual_Destroyed;
+
+    /** Service lifecycle state for ISuspenseCoreEquipmentService */
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
+
+    /** Cached service tag */
+    FGameplayTag CachedServiceTag;
 
 private:
     /** Internal spawn logic */

@@ -9,11 +9,11 @@
 USuspenseCoreEffect_StaminaRegen::USuspenseCoreEffect_StaminaRegen(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Infinite duration, 10 ticks/s
-	DurationPolicy = EGameplayEffectDurationType::Infinite;
-	Period = 0.1f;
+	// INSTANT duration - applied periodically by ASC timer
+	// This fixes the Infinite+Period+Modifiers stacking bug in GAS
+	DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	// +1 STA per tick = +10 STA/s
+	// +1 STA per application (ASC applies this 10x/sec = +10 STA/s)
 	{
 		FGameplayModifierInfo Mod;
 		Mod.Attribute = USuspenseCoreAttributeSet::GetStaminaAttribute();
@@ -22,15 +22,7 @@ USuspenseCoreEffect_StaminaRegen::USuspenseCoreEffect_StaminaRegen(const FObject
 		Modifiers.Add(Mod);
 	}
 
-	// Create tag filter component
-	auto* TagReq = ObjectInitializer.CreateDefaultSubobject<UTargetTagRequirementsGameplayEffectComponent>(
-		this, TEXT("StaminaRegenTagReq"));
+	// NOTE: Tag blocking is now handled by ASC timer (checks State.Sprinting, State.Dead)
 
-	// Block regeneration while sprinting or dead
-	TagReq->OngoingTagRequirements.IgnoreTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Sprinting")));
-	TagReq->OngoingTagRequirements.IgnoreTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Dead")));
-
-	GEComponents.Add(TagReq);
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_StaminaRegen: Configured with +10 STA/s regeneration"));
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_StaminaRegen: Instant effect (+1 STA per application)"));
 }

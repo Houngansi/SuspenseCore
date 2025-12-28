@@ -9,7 +9,6 @@
 #include "SuspenseCoreAimDownSightAbility.generated.h"
 
 class ISuspenseCoreWeaponCombatState;
-class UCameraComponent;
 
 /**
  * USuspenseCoreAimDownSightAbility
@@ -20,7 +19,6 @@ class UCameraComponent;
  * - Hold-to-aim model (RMB pressed = aiming, released = stop aiming)
  * - Sets aiming state on WeaponStanceComponent (SSOT)
  * - Applies speed reduction GameplayEffect
- * - Publishes camera FOV change events for camera system
  *
  * INTEGRATION:
  * - ISuspenseCoreWeaponCombatState::SetAiming() handles:
@@ -60,22 +58,6 @@ public:
 	/** GameplayEffect for movement speed reduction while aiming */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|ADS|Effects")
 	TSubclassOf<UGameplayEffect> AimSpeedDebuffClass;
-
-	/** Target FOV when aiming (published via EventBus for camera system) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|ADS|Camera")
-	float AimFOV;
-
-	/** Default FOV to restore when exiting ADS */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|ADS|Camera")
-	float DefaultFOV;
-
-	/** Speed of camera FOV transition */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|ADS|Camera")
-	float FOVTransitionSpeed;
-
-	/** Whether to publish camera FOV events (disable if camera handles itself) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|ADS|Camera")
-	bool bPublishCameraEvents;
 
 protected:
 	//==================================================================
@@ -124,9 +106,6 @@ private:
 
 	/** Remove speed debuff effect */
 	void RemoveAimEffects(const FGameplayAbilityActorInfo* ActorInfo);
-
-	/** Publish camera FOV change event through EventBus */
-	void NotifyCameraFOVChange(bool bAiming);
 
 	/** Callback for WaitInputRelease task */
 	UFUNCTION()

@@ -10,11 +10,8 @@
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Actor.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreASC, Log, All);
-
 USuspenseCoreAbilitySystemComponent::USuspenseCoreAbilitySystemComponent()
 {
-	// Default settings for networked gameplay
 	SetIsReplicatedByDefault(true);
 	ReplicationMode = EGameplayEffectReplicationMode::Mixed;
 }
@@ -26,12 +23,6 @@ USuspenseCoreAbilitySystemComponent::USuspenseCoreAbilitySystemComponent()
 void USuspenseCoreAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor)
 {
 	Super::InitAbilityActorInfo(InOwnerActor, InAvatarActor);
-
-	if (InOwnerActor)
-	{
-		UE_LOG(LogSuspenseCoreASC, Log, TEXT("InitAbilityActorInfo: Owner=%s, Avatar=%s"),
-			*GetNameSafe(InOwnerActor), *GetNameSafe(InAvatarActor));
-	}
 }
 
 void USuspenseCoreAbilitySystemComponent::BeginPlay()
@@ -51,17 +42,12 @@ void USuspenseCoreAbilitySystemComponent::BeginPlay()
 			Data
 		);
 	}
-
-	UE_LOG(LogSuspenseCoreASC, Log, TEXT("SuspenseCoreASC BeginPlay on %s"), *GetNameSafe(GetOwner()));
 }
 
 void USuspenseCoreAbilitySystemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	TeardownEventBusSubscriptions();
-
 	Super::EndPlay(EndPlayReason);
-
-	UE_LOG(LogSuspenseCoreASC, Log, TEXT("SuspenseCoreASC EndPlay on %s"), *GetNameSafe(GetOwner()));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -78,28 +64,21 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	float OldValue,
 	float NewValue)
 {
-	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] PublishAttributeChangeEvent - %s: %.2f -> %.2f"),
-		*Attribute.GetName(), OldValue, NewValue);
-
 	if (!bPublishAttributeEvents)
 	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] bPublishAttributeEvents is FALSE - events disabled!"));
 		return;
 	}
 
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] EventBus is NULL!"));
 		return;
 	}
-	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] EventBus found, publishing..."));
 
 	// Get MaxValue for attributes that have corresponding Max attributes
-	float MaxValue = NewValue; // Default: no max, use current value
+	float MaxValue = NewValue;
 	const FString AttributeName = Attribute.GetName();
 
-	// Query AttributeSet for Max values
 	if (const USuspenseCoreAttributeSet* AttributeSet = GetSet<USuspenseCoreAttributeSet>())
 	{
 		if (AttributeName == TEXT("Health"))
@@ -110,7 +89,6 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 		{
 			MaxValue = AttributeSet->GetMaxStamina();
 		}
-		// For MaxHealth, MaxStamina themselves - they ARE the max
 		else if (AttributeName == TEXT("MaxHealth") || AttributeName == TEXT("MaxStamina"))
 		{
 			MaxValue = NewValue;
@@ -120,11 +98,8 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	// Create event data with UI-compatible keys
 	FSuspenseCoreEventData Data = FSuspenseCoreEventData::Create(GetOwner());
 
-	// Primary keys for UI widgets (what widgets expect)
 	Data.SetFloat(TEXT("Value"), NewValue);
 	Data.SetFloat(TEXT("MaxValue"), MaxValue);
-
-	// Legacy keys for backwards compatibility
 	Data.SetString(TEXT("AttributeName"), AttributeName);
 	Data.SetFloat(TEXT("OldValue"), OldValue);
 	Data.SetFloat(TEXT("NewValue"), NewValue);
@@ -135,25 +110,14 @@ void USuspenseCoreAbilitySystemComponent::PublishAttributeChangeEvent(
 	FString TagString = FString::Printf(TEXT("SuspenseCore.Event.GAS.Attribute.%s"), *AttributeName);
 	FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
 
-	UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] Requesting tag: %s, Valid: %s"),
-		*TagString, EventTag.IsValid() ? TEXT("YES") : TEXT("NO"));
-
 	if (!EventTag.IsValid())
 	{
-		// Use generic tag if specific one is not registered
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] Tag not found, trying generic..."));
 		EventTag = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.GAS.Attribute.Changed")), false);
 	}
 
 	if (EventTag.IsValid())
 	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] PUBLISHING EVENT: %s (Value: %.2f)"),
-			*EventTag.ToString(), NewValue);
 		EventBus->Publish(EventTag, Data);
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("[ASC] ERROR: No valid event tag! Cannot publish."));
 	}
 }
 
@@ -176,20 +140,15 @@ void USuspenseCoreAbilitySystemComponent::PublishCriticalEvent(
 	Data.Priority = ESuspenseCoreEventPriority::High;
 
 	EventBus->Publish(EventTag, Data);
-
-	UE_LOG(LogSuspenseCoreASC, Log, TEXT("Critical event %s: %.2f / %.2f"),
-		*EventTag.ToString(), CurrentValue, MaxValue);
 }
 
 USuspenseCoreEventBus* USuspenseCoreAbilitySystemComponent::GetEventBus() const
 {
-	// Check cache
 	if (CachedEventBus.IsValid())
 	{
 		return CachedEventBus.Get();
 	}
 
-	// Get through EventManager
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetOwner());
 	if (Manager)
 	{
@@ -211,7 +170,6 @@ FGameplayAbilitySpecHandle USuspenseCoreAbilitySystemComponent::GiveAbilityOfCla
 {
 	if (!AbilityClass)
 	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("GiveAbilityOfClass: AbilityClass is null"));
 		return FGameplayAbilitySpecHandle();
 	}
 
@@ -271,7 +229,6 @@ FActiveGameplayEffectHandle USuspenseCoreAbilitySystemComponent::ApplyEffectToSe
 {
 	if (!EffectClass)
 	{
-		UE_LOG(LogSuspenseCoreASC, Warning, TEXT("ApplyEffectToSelf: EffectClass is null"));
 		return FActiveGameplayEffectHandle();
 	}
 
@@ -318,12 +275,10 @@ void USuspenseCoreAbilitySystemComponent::RemoveActiveEffectsOfClass(TSubclassOf
 
 void USuspenseCoreAbilitySystemComponent::SetupEventBusSubscriptions()
 {
-	// Base class does nothing
-	// Subclasses can override to subscribe to events
+	// Base class does nothing - subclasses can override
 }
 
 void USuspenseCoreAbilitySystemComponent::TeardownEventBusSubscriptions()
 {
-	// Clear cache
 	CachedEventBus.Reset();
 }

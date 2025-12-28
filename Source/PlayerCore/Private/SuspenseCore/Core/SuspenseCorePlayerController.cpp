@@ -31,7 +31,6 @@
 
 ASuspenseCorePlayerController::ASuspenseCorePlayerController()
 {
-	// Enable input replication for multiplayer
 	bReplicates = true;
 }
 
@@ -43,50 +42,35 @@ void ASuspenseCorePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::BeginPlay ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  Controller: %s"), *GetName());
-	UE_LOG(LogTemp, Warning, TEXT("  IsLocalController: %s"), IsLocalController() ? TEXT("true") : TEXT("false"));
-
-	// CRITICAL: Set Input Mode to Game Only!
-	// When transitioning from MainMenu (which uses UIOnly mode), the input mode
-	// may still be in UI mode. We MUST explicitly set it to Game mode.
+	// Set Input Mode to Game Only when transitioning from MainMenu
 	if (IsLocalController())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("=== Setting Input Mode to Game Only ==="));
 		FInputModeGameOnly InputMode;
 		SetInputMode(InputMode);
 		bShowMouseCursor = false;
-		UE_LOG(LogTemp, Warning, TEXT("  Input Mode set to GameOnly, cursor hidden"));
 	}
 
 	SetupEnhancedInput();
 
-	// Create UI widgets for local player (conditional on WITH_UI_SYSTEM)
+	// Create UI widgets for local player
 	if (IsLocalController())
 	{
 		CreatePauseMenu();
 		CreateHUDWidget();
 
 #if WITH_UI_SYSTEM
-		// Configure UIManager with widget classes
 		if (USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this))
 		{
 			if (ContainerScreenWidgetClass)
 			{
 				UIManager->ContainerScreenClass = ContainerScreenWidgetClass;
-				UE_LOG(LogTemp, Warning, TEXT("  UIManager: ContainerScreenClass set to %s"), *ContainerScreenWidgetClass->GetName());
 			}
 			if (TooltipWidgetClass)
 			{
 				UIManager->TooltipWidgetClass = TooltipWidgetClass;
-				UE_LOG(LogTemp, Warning, TEXT("  UIManager: TooltipWidgetClass set to %s"), *TooltipWidgetClass->GetName());
 			}
 		}
 #endif
-
-		// Verify input mode
-		UE_LOG(LogTemp, Warning, TEXT("=== Input Mode Check ==="));
-		UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));
 	}
 
 	// Publish controller ready event
@@ -98,7 +82,6 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 void ASuspenseCorePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Clear cached references
 	CachedEventBus.Reset();
 	CachedPlayerState.Reset();
 
@@ -145,75 +128,49 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 		}
 
 		// Interact
-		UE_LOG(LogTemp, Warning, TEXT("  IA_Interact: %s"), IA_Interact ? *IA_Interact->GetName() : TEXT("NULL!"));
 		if (IA_Interact)
 		{
 			EnhancedInput->BindAction(IA_Interact, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleInteract);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Interact -> HandleInteract (ETriggerEvent::Started)"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("  ERROR: IA_Interact is NULL! Interact input will NOT work!"));
 		}
 
 		// UI Inputs
-		UE_LOG(LogTemp, Warning, TEXT("=== SetupInputComponent: Binding UI Inputs ==="));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_PauseGame: %s"), IA_PauseGame ? *IA_PauseGame->GetName() : TEXT("NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_QuickSave: %s"), IA_QuickSave ? *IA_QuickSave->GetName() : TEXT("NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_QuickLoad: %s"), IA_QuickLoad ? *IA_QuickLoad->GetName() : TEXT("NULL!"));
-
 		if (IA_PauseGame)
 		{
-			// Bind to multiple trigger events for debugging
 			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandlePauseGame);
-			EnhancedInput->BindAction(IA_PauseGame, ETriggerEvent::Triggered, this, &ASuspenseCorePlayerController::HandlePauseGameTriggered);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_PauseGame -> HandlePauseGame (Started + Triggered)"));
 		}
 
 		if (IA_QuickSave)
 		{
 			EnhancedInput->BindAction(IA_QuickSave, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSave);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_QuickSave -> HandleQuickSave"));
 		}
 
 		if (IA_QuickLoad)
 		{
 			EnhancedInput->BindAction(IA_QuickLoad, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickLoad);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_QuickLoad -> HandleQuickLoad"));
 		}
 
 		// Inventory toggle
-		UE_LOG(LogTemp, Warning, TEXT("  IA_ToggleInventory: %s"), IA_ToggleInventory ? *IA_ToggleInventory->GetName() : TEXT("NULL!"));
 		if (IA_ToggleInventory)
 		{
 			EnhancedInput->BindAction(IA_ToggleInventory, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleToggleInventory);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_ToggleInventory -> HandleToggleInventory"));
 		}
 
 		// Weapon Inputs
-		UE_LOG(LogTemp, Warning, TEXT("=== SetupInputComponent: Binding Weapon Inputs ==="));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_Aim: %s"), IA_Aim ? *IA_Aim->GetName() : TEXT("NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_Fire: %s"), IA_Fire ? *IA_Fire->GetName() : TEXT("NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("  IA_Reload: %s"), IA_Reload ? *IA_Reload->GetName() : TEXT("NULL!"));
-
 		if (IA_Aim)
 		{
 			EnhancedInput->BindAction(IA_Aim, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleAimPressed);
 			EnhancedInput->BindAction(IA_Aim, ETriggerEvent::Completed, this, &ASuspenseCorePlayerController::HandleAimReleased);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Aim -> HandleAimPressed/Released (hold-to-aim)"));
 		}
 
 		if (IA_Fire)
 		{
 			EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleFirePressed);
 			EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &ASuspenseCorePlayerController::HandleFireReleased);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Fire -> HandleFirePressed/Released"));
 		}
 
 		if (IA_Reload)
 		{
 			EnhancedInput->BindAction(IA_Reload, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleReload);
-			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Reload -> HandleReload"));
 		}
 
 		// Bind additional ability inputs
@@ -225,7 +182,6 @@ void ASuspenseCorePlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	// Initialize ASC with new pawn
 	if (ASuspenseCorePlayerState* PS = GetSuspenseCorePlayerState())
 	{
 		if (UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent())
@@ -253,8 +209,6 @@ void ASuspenseCorePlayerController::OnUnPossess()
 void ASuspenseCorePlayerController::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
-
-	// Cache new player state
 	CachedPlayerState = Cast<ASuspenseCorePlayerState>(PlayerState);
 }
 
@@ -379,7 +333,6 @@ void ASuspenseCorePlayerController::HandleCrouchReleased(const FInputActionValue
 
 void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleInteract CALLED ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")), true);
 }
 
@@ -389,31 +342,26 @@ void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Valu
 
 void ASuspenseCorePlayerController::HandleAimPressed(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleAimPressed CALLED (RMB) ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), true);
 }
 
 void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleAimReleased CALLED ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), false);
 }
 
 void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleFirePressed CALLED (LMB) ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), true);
 }
 
 void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleFireReleased CALLED ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), false);
 }
 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleReload CALLED (R) ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")), true);
 }
 
@@ -423,72 +371,26 @@ void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 
 void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& AbilityTag, bool bPressed)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== ActivateAbilityByTag ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  AbilityTag: %s"), *AbilityTag.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("  bPressed: %s"), bPressed ? TEXT("true") : TEXT("false"));
-
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  ERROR: ASC is NULL! Cannot activate ability."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("  ASC: %s (Owner: %s)"), *ASC->GetName(), *GetNameSafe(ASC->GetOwner()));
-
 	if (bPressed)
 	{
-		// Try to activate ability with tag
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-
-		// Log available abilities and their tags
-		UE_LOG(LogTemp, Warning, TEXT("  === Checking activatable abilities with tag %s ==="), *AbilityTag.ToString());
-
-		TArray<FGameplayAbilitySpec*> MatchingAbilities;
-		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingAbilities);
-
-		UE_LOG(LogTemp, Warning, TEXT("  Found %d matching abilities"), MatchingAbilities.Num());
-
-		for (FGameplayAbilitySpec* Spec : MatchingAbilities)
-		{
-			if (Spec && Spec->Ability)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("    - Ability: %s"), *Spec->Ability->GetName());
-				UE_LOG(LogTemp, Warning, TEXT("      AbilityTags: %s"), *Spec->Ability->AbilityTags.ToString());
-				UE_LOG(LogTemp, Warning, TEXT("      IsActive: %s"), Spec->IsActive() ? TEXT("Yes") : TEXT("No"));
-			}
-		}
-
-		// Try to activate
-		bool bActivated = ASC->TryActivateAbilitiesByTag(TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("  TryActivateAbilitiesByTag result: %s"), bActivated ? TEXT("SUCCESS") : TEXT("FAILED"));
-
-		if (!bActivated)
-		{
-			// Log all granted abilities for debugging
-			UE_LOG(LogTemp, Warning, TEXT("  === All granted abilities ==="));
-			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-			{
-				if (Spec.Ability)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("    - %s (Tags: %s)"),
-						*Spec.Ability->GetName(),
-						*Spec.Ability->AbilityTags.ToString());
-				}
-			}
-		}
+		ASC->TryActivateAbilitiesByTag(TagContainer);
 	}
 	else
 	{
-		// Cancel ability with tag if it's active
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
 		ASC->CancelAbilities(&TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("  CancelAbilities called"));
 	}
 
-	// Also publish input event for UI/other systems
+	// Publish input event for UI/other systems
 	PublishEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Input.AbilityActivated")),
 		FString::Printf(TEXT("{\"ability\":\"%s\",\"pressed\":%s}"),
@@ -499,13 +401,8 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 
 void ASuspenseCorePlayerController::SendAbilityInput(const FGameplayTag& InputTag, bool bPressed)
 {
-	// Forward to ASC for ability input handling
-	// Note: In GAS, ability input is typically handled via InputID (int32)
-	// This method is a placeholder for custom input binding systems
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
-		// For now, use input ID 0 as default
-		// Custom implementations should map InputTag to proper InputID
 		if (bPressed)
 		{
 			ASC->AbilityLocalInputPressed(0);
@@ -523,65 +420,17 @@ void ASuspenseCorePlayerController::SendAbilityInput(const FGameplayTag& InputTa
 
 void ASuspenseCorePlayerController::SetupEnhancedInput()
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== SetupEnhancedInput ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  DefaultMappingContext: %s"), DefaultMappingContext ? *DefaultMappingContext->GetName() : TEXT("NOT SET!"));
-	UE_LOG(LogTemp, Warning, TEXT("  LocalPlayer: %s"), GetLocalPlayer() ? TEXT("EXISTS") : TEXT("NULL!"));
-
-	// Log all mappings in the context to debug
-	if (DefaultMappingContext)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("  === MAPPINGS IN %s ==="), *DefaultMappingContext->GetName());
-		const TArray<FEnhancedActionKeyMapping>& Mappings = DefaultMappingContext->GetMappings();
-		for (const FEnhancedActionKeyMapping& Mapping : Mappings)
-		{
-			if (Mapping.Action)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("    Action: %s -> Key: %s"),
-					*Mapping.Action->GetName(),
-					*Mapping.Key.ToString());
-			}
-		}
-		UE_LOG(LogTemp, Warning, TEXT("  === END MAPPINGS ==="));
-	}
-
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	if (!LocalPlayer)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: LocalPlayer is NULL! Cannot setup Enhanced Input."));
 		return;
 	}
 
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
-	if (Subsystem)
+	if (Subsystem && DefaultMappingContext)
 	{
-		// Clear any existing mapping contexts first to ensure clean state
-		if (DefaultMappingContext)
-		{
-			// Remove if already exists (in case of re-entry)
-			Subsystem->RemoveMappingContext(DefaultMappingContext);
-
-			// Add fresh
-			Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
-			UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: MappingContext added to subsystem with priority %d"), MappingContextPriority);
-
-			// Verify it was added
-			if (Subsystem->HasMappingContext(DefaultMappingContext))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  VERIFIED: MappingContext is active in subsystem"));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("  ERROR: MappingContext was NOT added to subsystem!"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("  FAILED: DefaultMappingContext is NOT SET in BP_SuspenseCorePlayerController!"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not get EnhancedInputLocalPlayerSubsystem!"));
+		Subsystem->RemoveMappingContext(DefaultMappingContext);
+		Subsystem->AddMappingContext(DefaultMappingContext, MappingContextPriority);
 	}
 }
 
@@ -602,7 +451,6 @@ void ASuspenseCorePlayerController::BindAbilityInputs()
 			continue;
 		}
 
-		// Use index-based approach to avoid lambda capture issues
 		if (Binding.bActivateOnRelease)
 		{
 			EnhancedInput->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
@@ -661,48 +509,28 @@ USuspenseCoreEventBus* ASuspenseCorePlayerController::GetEventBus() const
 void ASuspenseCorePlayerController::CreatePauseMenu()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreatePauseMenu ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidgetClass: %s"), PauseMenuWidgetClass ? *PauseMenuWidgetClass->GetName() : TEXT("NOT SET!"));
-	UE_LOG(LogTemp, Warning, TEXT("  IA_PauseGame: %s"), IA_PauseGame ? *IA_PauseGame->GetName() : TEXT("NOT SET!"));
-	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickSave: %s"), IA_QuickSave ? *IA_QuickSave->GetName() : TEXT("NOT SET!"));
-	UE_LOG(LogTemp, Warning, TEXT("  IA_QuickLoad: %s"), IA_QuickLoad ? *IA_QuickLoad->GetName() : TEXT("NOT SET!"));
-
 	if (!PauseMenuWidgetClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidgetClass is not set in BP_SuspenseCorePlayerController!"));
 		return;
 	}
 
 	PauseMenuWidget = CreateWidget<USuspenseCorePauseMenuWidget>(this, PauseMenuWidgetClass);
 	if (PauseMenuWidget)
 	{
-		PauseMenuWidget->AddToViewport(100); // High Z-order for pause menu
+		PauseMenuWidget->AddToViewport(100);
 		PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: PauseMenuWidget created and added to viewport"));
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not create PauseMenuWidget!"));
-	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::TogglePauseMenu()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== TogglePauseMenu called ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
-
 	if (USuspenseCorePauseMenuWidget* PauseMenu = Cast<USuspenseCorePauseMenuWidget>(PauseMenuWidget))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("  Calling PauseMenuWidget->TogglePauseMenu()"));
 		PauseMenu->TogglePauseMenu();
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: PauseMenuWidget is NULL! Cannot toggle pause menu."));
-	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::ShowPauseMenu()
@@ -712,7 +540,7 @@ void ASuspenseCorePlayerController::ShowPauseMenu()
 	{
 		PauseMenu->ShowPauseMenu();
 	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::HidePauseMenu()
@@ -722,7 +550,7 @@ void ASuspenseCorePlayerController::HidePauseMenu()
 	{
 		PauseMenu->HidePauseMenu();
 	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
@@ -732,7 +560,7 @@ bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
 	{
 		return PauseMenu->IsMenuVisible();
 	}
-#endif // WITH_UI_SYSTEM
+#endif
 	return false;
 }
 
@@ -743,31 +571,18 @@ bool ASuspenseCorePlayerController::IsPauseMenuVisible() const
 void ASuspenseCorePlayerController::CreateHUDWidget()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreateHUDWidget ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  HUDWidgetClass: %s"), HUDWidgetClass ? *HUDWidgetClass->GetName() : TEXT("NOT SET!"));
-
 	if (!HUDWidgetClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: HUDWidgetClass is not set in BP_SuspenseCorePlayerController!"));
 		return;
 	}
 
 	HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
 	if (HUDWidget)
 	{
-		HUDWidget->AddToViewport(10); // Z-order 10 for HUD (under pause menu at 100)
+		HUDWidget->AddToViewport(10);
 		HUDWidget->SetVisibility(ESlateVisibility::Visible);
-		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: HUD widget created and added to viewport"));
-		UE_LOG(LogTemp, Warning, TEXT("  Widget: %s"), *HUDWidget->GetName());
-		UE_LOG(LogTemp, Warning, TEXT("  Visibility: %s"), HUDWidget->IsVisible() ? TEXT("Visible") : TEXT("Hidden"));
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: Could not create HUD widget!"));
-	}
-#else
-	UE_LOG(LogTemp, Warning, TEXT("=== SuspenseCorePlayerController::CreateHUDWidget - SKIPPED (WITH_UI_SYSTEM=0) ==="));
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::ShowHUD()
@@ -813,23 +628,18 @@ void ASuspenseCorePlayerController::QuickLoad()
 
 void ASuspenseCorePlayerController::HandlePauseGame(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGame called! (ETriggerEvent::Started) ==="));
-	UE_LOG(LogTemp, Warning, TEXT("  PauseMenuWidget: %s"), PauseMenuWidget ? TEXT("EXISTS") : TEXT("NULL!"));
-	UE_LOG(LogTemp, Warning, TEXT("  bShowMouseCursor: %s"), bShowMouseCursor ? TEXT("true") : TEXT("false"));
 	TogglePauseMenu();
 }
 
 void ASuspenseCorePlayerController::HandlePauseGameTriggered(const FInputActionValue& Value)
 {
-	// Debug: This helps us understand if the input is being received at all
-	UE_LOG(LogTemp, Warning, TEXT("=== HandlePauseGameTriggered called! (ETriggerEvent::Triggered) ==="));
+	// Kept for potential debug use
 }
 
 void ASuspenseCorePlayerController::HandleQuickSave(const FInputActionValue& Value)
 {
 	QuickSave();
 
-	// Publish event for UI feedback
 	PublishEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickSave")),
 		TEXT("{}")
@@ -840,7 +650,6 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 {
 	QuickLoad();
 
-	// Publish event for UI feedback
 	PublishEvent(
 		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickLoad")),
 		TEXT("{}")
@@ -853,9 +662,6 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 
 void ASuspenseCorePlayerController::PushUIMode_Implementation(const FString& Reason)
 {
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: PushUIMode('%s') - Stack size: %d -> %d"),
-		*Reason, UIModeStack.Num(), UIModeStack.Num() + 1);
-
 	UIModeStack.Add(Reason);
 	ApplyCurrentUIMode();
 }
@@ -866,12 +672,6 @@ void ASuspenseCorePlayerController::PopUIMode_Implementation(const FString& Reas
 	if (Index != INDEX_NONE)
 	{
 		UIModeStack.RemoveAt(Index);
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: PopUIMode('%s') - Stack size: %d"),
-			*Reason, UIModeStack.Num());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePC: PopUIMode('%s') - Reason not found in stack!"), *Reason);
 	}
 
 	ApplyCurrentUIMode();
@@ -883,7 +683,6 @@ void ASuspenseCorePlayerController::SetCursorVisible_Implementation(bool bShowCu
 
 	if (bShowCursor)
 	{
-		// GameAndUI allows both gameplay input and UI interaction
 		FInputModeGameAndUI InputMode;
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		InputMode.SetHideCursorDuringCapture(false);
@@ -900,23 +699,17 @@ void ASuspenseCorePlayerController::ApplyCurrentUIMode()
 {
 	if (UIModeStack.Num() > 0)
 	{
-		// UI is active - show cursor, use GameAndUI mode for responsiveness
 		bShowMouseCursor = true;
 		FInputModeGameAndUI InputMode;
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		InputMode.SetHideCursorDuringCapture(false);
 		SetInputMode(InputMode);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: UI Mode ACTIVE - Cursor ON, Mode: GameAndUI"));
 	}
 	else
 	{
-		// No UI - hide cursor, game only mode
 		bShowMouseCursor = false;
 		FInputModeGameOnly InputMode;
 		SetInputMode(InputMode);
-
-		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePC: UI Mode INACTIVE - Cursor OFF, Mode: GameOnly"));
 	}
 }
 
@@ -926,19 +719,15 @@ void ASuspenseCorePlayerController::ApplyCurrentUIMode()
 
 void ASuspenseCorePlayerController::HandleToggleInventory(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== HandleToggleInventory called! ==="));
 	ToggleInventory();
 }
 
 void ASuspenseCorePlayerController::ToggleInventory()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== ToggleInventory ==="));
-
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	if (!UIManager)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
 		return;
 	}
 
@@ -950,51 +739,39 @@ void ASuspenseCorePlayerController::ToggleInventory()
 	{
 		ShowInventory();
 	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::ShowInventory()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== ShowInventory ==="));
-
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	if (!UIManager)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
 		return;
 	}
 
-	// Default to equipment panel (shows Equipment + Inventory side by side)
 	static const FGameplayTag EquipmentPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Equipment"));
 
 	if (UIManager->ShowContainerScreen(this, EquipmentPanelTag))
 	{
-		// Push UI mode for cursor management
 		ISuspenseCoreUIController::Execute_PushUIMode(this, TEXT("Inventory"));
-		UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen shown"));
 	}
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 void ASuspenseCorePlayerController::HideInventory()
 {
 #if WITH_UI_SYSTEM
-	UE_LOG(LogTemp, Warning, TEXT("=== HideInventory ==="));
-
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	if (!UIManager)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  FAILED: UIManager is NULL!"));
 		return;
 	}
 
 	UIManager->HideContainerScreen();
-
-	// Pop UI mode
 	ISuspenseCoreUIController::Execute_PopUIMode(this, TEXT("Inventory"));
-	UE_LOG(LogTemp, Warning, TEXT("  SUCCESS: Container screen hidden"));
-#endif // WITH_UI_SYSTEM
+#endif
 }
 
 bool ASuspenseCorePlayerController::IsInventoryVisible() const
@@ -1004,5 +781,5 @@ bool ASuspenseCorePlayerController::IsInventoryVisible() const
 	return UIManager && UIManager->IsContainerScreenVisible();
 #else
 	return false;
-#endif // WITH_UI_SYSTEM
+#endif
 }

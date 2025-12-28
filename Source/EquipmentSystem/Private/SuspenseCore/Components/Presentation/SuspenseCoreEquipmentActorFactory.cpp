@@ -1017,7 +1017,7 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
     {
         EventBus = EventMgr->GetEventBus();
         UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s (addr=%p)"),
-            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
+            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus.Get());
     }
     else
     {
@@ -1066,7 +1066,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedAc
         {
             EventBus = EventMgr->GetEventBus();
             UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Lazy init EventBus: %s (addr=%p)"),
-                EventBus ? TEXT("SUCCESS") : TEXT("FAILED"), EventBus);
+                EventBus ? TEXT("SUCCESS") : TEXT("FAILED"), EventBus.Get());
         }
     }
 

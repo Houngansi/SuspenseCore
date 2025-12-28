@@ -922,7 +922,7 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
     {
         EventBus = EventMgr->GetEventBus();
         UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   EventManager found, EventBus=%s (addr=%p)"),
-            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
+            EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus.Get());
     }
     else
     {
@@ -933,7 +933,7 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
         {
             EventBus = Provider->GetEventBus();
             UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Fallback to ServiceProvider, EventBus=%s (addr=%p)"),
-                EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus);
+                EventBus ? TEXT("VALID") : TEXT("NULL"), EventBus.Get());
         }
     }
 

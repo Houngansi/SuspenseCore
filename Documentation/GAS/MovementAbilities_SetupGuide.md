@@ -208,6 +208,27 @@ CrouchSpeedMultiplier = 0.3    // 30% of normal speed
 1. Убедитесь что `SuspenseCoreGameplayTags.h` включён
 2. Проверьте что модуль BridgeSystem загружается первым
 
+### Stamina Issues
+
+#### Стамина превышает MaxStamina
+
+Это происходит когда Infinite+Period Additive модификатор накапливает base value.
+
+**Решение:** См. [AttributeSystem_DeveloperGuide.md](AttributeSystem_DeveloperGuide.md#attribute-clamping)
+
+#### Реген стамины не работает
+
+1. Проверьте что `SuspenseCoreEffect_StaminaRegen` добавлен в `PassiveEffects` класса
+2. Проверьте отсутствие blocking tags (`State.Sprinting`, `State.Dead`)
+3. Проверьте логи: `LogSuspenseCoreAttributes`
+
+#### Стамина не кончается при спринте
+
+1. Проверьте `StaminaCostPerSecond` в BP_SprintAbility
+2. Проверьте что SprintCostEffect применяется (лог: `ApplySprintEffects`)
+
+> **Важно:** Подробная документация по атрибутам и регенерации: [AttributeSystem_DeveloperGuide.md](AttributeSystem_DeveloperGuide.md)
+
 ---
 
 ## Architecture Benefits
@@ -222,4 +243,11 @@ CrouchSpeedMultiplier = 0.3    // 30% of normal speed
 
 ---
 
-*Last Updated: 2025-12-27*
+## Related Documentation
+
+- [AttributeSystem_DeveloperGuide.md](AttributeSystem_DeveloperGuide.md) - Атрибуты, стамина, регенерация
+- [SuspenseCoreDeveloperGuide.md](../SuspenseCoreDeveloperGuide.md) - Общая архитектура проекта
+
+---
+
+*Last Updated: 2025-12-28*

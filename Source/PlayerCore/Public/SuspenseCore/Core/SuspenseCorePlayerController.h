@@ -254,6 +254,22 @@ protected:
 	UInputAction* IA_ToggleInventory;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON INPUT ACTIONS
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Aim down sights (RMB) - hold to aim */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Weapon")
+	UInputAction* IA_Aim;
+
+	/** Fire weapon (LMB) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Weapon")
+	UInputAction* IA_Fire;
+
+	/** Reload weapon (R) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|Weapon")
+	UInputAction* IA_Reload;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY INPUT BINDINGS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -311,6 +327,13 @@ protected:
 	void HandleQuickSave(const FInputActionValue& Value);
 	void HandleQuickLoad(const FInputActionValue& Value);
 	void HandleToggleInventory(const FInputActionValue& Value);
+
+	// Weapon Input Handlers
+	void HandleAimPressed(const FInputActionValue& Value);
+	void HandleAimReleased(const FInputActionValue& Value);
+	void HandleFirePressed(const FInputActionValue& Value);
+	void HandleFireReleased(const FInputActionValue& Value);
+	void HandleReload(const FInputActionValue& Value);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY ACTIVATION

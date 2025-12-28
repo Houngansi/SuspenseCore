@@ -190,6 +190,32 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_ToggleInventory -> HandleToggleInventory"));
 		}
 
+		// Weapon Inputs
+		UE_LOG(LogTemp, Warning, TEXT("=== SetupInputComponent: Binding Weapon Inputs ==="));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_Aim: %s"), IA_Aim ? *IA_Aim->GetName() : TEXT("NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_Fire: %s"), IA_Fire ? *IA_Fire->GetName() : TEXT("NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("  IA_Reload: %s"), IA_Reload ? *IA_Reload->GetName() : TEXT("NULL!"));
+
+		if (IA_Aim)
+		{
+			EnhancedInput->BindAction(IA_Aim, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleAimPressed);
+			EnhancedInput->BindAction(IA_Aim, ETriggerEvent::Completed, this, &ASuspenseCorePlayerController::HandleAimReleased);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Aim -> HandleAimPressed/Released (hold-to-aim)"));
+		}
+
+		if (IA_Fire)
+		{
+			EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleFirePressed);
+			EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &ASuspenseCorePlayerController::HandleFireReleased);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Fire -> HandleFirePressed/Released"));
+		}
+
+		if (IA_Reload)
+		{
+			EnhancedInput->BindAction(IA_Reload, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleReload);
+			UE_LOG(LogTemp, Warning, TEXT("  BOUND: IA_Reload -> HandleReload"));
+		}
+
 		// Bind additional ability inputs
 		BindAbilityInputs();
 	}
@@ -355,6 +381,40 @@ void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Valu
 {
 	UE_LOG(LogTemp, Warning, TEXT("=== HandleInteract CALLED ==="));
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")), true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEAPON INPUT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::HandleAimPressed(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleAimPressed CALLED (RMB) ==="));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), true);
+}
+
+void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleAimReleased CALLED ==="));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), false);
+}
+
+void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleFirePressed CALLED (LMB) ==="));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), true);
+}
+
+void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleFireReleased CALLED ==="));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), false);
+}
+
+void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("=== HandleReload CALLED (R) ==="));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")), true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

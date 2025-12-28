@@ -170,8 +170,8 @@ private:
     /** Initialize EventBus connection */
     void SetupEventBus();
 
-    /** Broadcast actor spawned event */
-    void BroadcastActorSpawned(AActor* Actor, const FName& ItemId, int32 SlotIndex);
+    /** Broadcast actor spawned event with full data for AbilityService */
+    void BroadcastActorSpawned(AActor* SpawnedActor, AActor* OwnerActor, const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex);
 
     /** Broadcast actor destroyed event */
     void BroadcastActorDestroyed(AActor* Actor, const FName& ItemId);

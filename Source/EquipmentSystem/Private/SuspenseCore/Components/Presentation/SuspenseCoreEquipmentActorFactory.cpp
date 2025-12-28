@@ -360,7 +360,8 @@ FEquipmentActorSpawnResult USuspenseCoreEquipmentActorFactory::SpawnEquipmentAct
     Result.SpawnedActor = SpawnedActor;
 
     // Broadcast event via EventBus for inter-component communication
-    BroadcastActorSpawned(SpawnedActor, EnrichedInstance.ItemID, SlotIndex);
+    // This triggers AbilityService to grant abilities from DataTable
+    BroadcastActorSpawned(SpawnedActor, Params.Owner.Get(), EnrichedInstance, SlotIndex);
 
     UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
         TEXT("[SpawnEquipmentActor] ✓✓✓ SUCCESS ✓✓✓"));
@@ -1020,24 +1021,42 @@ void USuspenseCoreEquipmentActorFactory::SetupEventBus()
         TEXT("[ActorFactory] EventBus integration initialized"));
 }
 
-void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* Actor, const FName& ItemId, int32 SlotIndex)
+void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedActor, AActor* OwnerActor, const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex)
 {
     if (!EventBus || !Tag_Visual_Spawned.IsValid())
     {
+        UE_LOG(LogSuspenseCoreEquipmentOperation, Warning,
+            TEXT("[ActorFactory] Cannot broadcast Visual.Spawned: EventBus=%s, Tag=%s"),
+            EventBus ? TEXT("valid") : TEXT("NULL"),
+            Tag_Visual_Spawned.IsValid() ? TEXT("valid") : TEXT("INVALID"));
         return;
     }
 
+    // Create event data compatible with AbilityService::ParseSuspenseCoreEventData
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
-    EventData.SetObject(TEXT("Target"), Actor);
-    EventData.SetString(TEXT("ItemId"), ItemId.ToString());
-    EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
-    EventData.SetString(TEXT("ActorClass"), Actor ? Actor->GetClass()->GetName() : TEXT("None"));
+
+    // Source = Equipment Actor (AbilityService expects this)
+    EventData.SetObject(FName("Source"), SpawnedActor);
+
+    // Target = Owner Actor (AbilityService expects this)
+    EventData.SetObject(FName("Target"), OwnerActor);
+
+    // Item data in format expected by AbilityService
+    EventData.SetString(FName("ItemID"), ItemInstance.ItemID.ToString());
+    EventData.SetString(FName("InstanceID"), ItemInstance.InstanceID.ToString());
+    EventData.SetInt(FName("SlotIndex"), SlotIndex);
+    EventData.SetInt(FName("Quantity"), ItemInstance.Quantity);
+    EventData.SetInt(FName("AnchorIndex"), ItemInstance.AnchorIndex);
+    EventData.SetString(FName("ActorClass"), SpawnedActor ? SpawnedActor->GetClass()->GetName() : TEXT("None"));
 
     EventBus->Publish(Tag_Visual_Spawned, EventData);
 
-    UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
-        TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Slot=%d"),
-        *ItemId.ToString(), SlotIndex);
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] Broadcast Visual.Spawned: Item=%s, Instance=%s, Owner=%s, Slot=%d"),
+        *ItemInstance.ItemID.ToString(),
+        *ItemInstance.InstanceID.ToString().Left(8),
+        OwnerActor ? *OwnerActor->GetName() : TEXT("NULL"),
+        SlotIndex);
 }
 
 void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, const FName& ItemId)

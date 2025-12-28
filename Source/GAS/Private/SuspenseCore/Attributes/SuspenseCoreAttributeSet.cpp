@@ -12,12 +12,9 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreAttributes, Log, All);
-
 USuspenseCoreAttributeSet::USuspenseCoreAttributeSet()
 {
 	// Initialize with base values from SSOT (SuspenseCoreAttributeDefaults)
-	// These will be multiplied by CharacterClassData.AttributeModifiers when class is applied
 	using namespace FSuspenseCoreAttributeDefaults;
 
 	InitHealth(BaseMaxHealth);
@@ -60,8 +57,6 @@ void USuspenseCoreAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 void USuspenseCoreAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
-
-	// Clamping
 	ClampAttribute(Attribute, NewValue);
 }
 
@@ -69,11 +64,6 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// DEBUG: Log all attribute changes
-	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] PostGameplayEffectExecute - Attribute: %s, Magnitude: %.2f"),
-		*Data.EvaluatedData.Attribute.GetName(), Data.EvaluatedData.Magnitude);
-
-	// Get context
 	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
 	AActor* Instigator = Context.GetOriginalInstigator();
 	AActor* Causer = Context.GetEffectCauser();
@@ -86,26 +76,17 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 
 		if (LocalDamage > 0.0f)
 		{
-			// Apply armor
 			const float DamageAfterArmor = FMath::Max(LocalDamage - GetArmor(), 0.0f);
-
-			// Apply to health
 			const float OldHealth = GetHealth();
 			const float NewHealth = FMath::Clamp(OldHealth - DamageAfterArmor, 0.0f, GetMaxHealth());
 			SetHealth(NewHealth);
 
-			// Publish damage event
 			BroadcastAttributeChange(GetHealthAttribute(), OldHealth, NewHealth);
 
-			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("Damage: %.2f -> %.2f (after armor). Health: %.2f -> %.2f"),
-				LocalDamage, DamageAfterArmor, OldHealth, NewHealth);
-
-			// Check for death
 			if (NewHealth <= 0.0f)
 			{
 				HandleDeath(Instigator, Causer);
 			}
-			// Check for low health
 			else if (GetHealthPercent() <= LowHealthThreshold && !bLowHealthEventPublished)
 			{
 				HandleLowHealth();
@@ -126,10 +107,6 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 
 			BroadcastAttributeChange(GetHealthAttribute(), OldHealth, NewHealth);
 
-			UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("Healing: %.2f. Health: %.2f -> %.2f"),
-				LocalHealing, OldHealth, NewHealth);
-
-			// Reset low health flag if healed
 			if (GetHealthPercent() > LowHealthThreshold)
 			{
 				bLowHealthEventPublished = false;
@@ -139,32 +116,24 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 	// Process MovementSpeed change
 	else if (Data.EvaluatedData.Attribute == GetMovementSpeedAttribute())
 	{
-		// Update character speed
 		if (ACharacter* Character = Cast<ACharacter>(GetOwningActor()))
 		{
 			if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
 			{
-				// MovementSpeed is a multiplier of base speed (configurable)
 				Movement->MaxWalkSpeed = BaseWalkSpeed * GetMovementSpeed();
 			}
 		}
 	}
-	// Process Stamina change (from Sprint, Jump, etc.)
-	// This broadcasts events for LOCAL changes (replication uses OnRep_Stamina)
+	// Process Stamina change
 	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
 		const float MaxST = GetMaxStamina();
 		const float StaminaDelta = Data.EvaluatedData.Magnitude;
-		float CurrentStamina = GetStamina(); // Already clamped by PreAttributeChange
+		float CurrentStamina = GetStamina();
 
-		// For positive changes (regen), we need to flatten the base value to prevent
-		// modifiers from accumulating beyond MaxStamina.
-		// PreAttributeChange clamps the DISPLAYED value but not the underlying base,
-		// so periodic regen effects can cause the base to exceed max over time.
+		// For positive changes (regen), flatten base value to prevent accumulation
 		if (StaminaDelta > 0.0f)
 		{
-			// Always set base value to the clamped current value after regen
-			// This prevents infinite stacking of periodic additive modifiers
 			const float ClampedValue = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
 			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
 			{
@@ -173,12 +142,7 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 			CurrentStamina = ClampedValue;
 		}
 
-		// Calculate old value from current and delta for event broadcasting
 		const float OldStamina = FMath::Clamp(CurrentStamina - StaminaDelta, 0.0f, MaxST);
-
-		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] STAMINA CHANGE DETECTED! Old: %.2f, New: %.2f, Delta: %.2f"),
-			OldStamina, CurrentStamina, StaminaDelta);
-
 		BroadcastAttributeChange(GetStaminaAttribute(), OldStamina, CurrentStamina);
 	}
 	// Process MaxStamina change
@@ -290,40 +254,21 @@ void USuspenseCoreAttributeSet::BroadcastAttributeChange(
 	float OldValue,
 	float NewValue)
 {
-	UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] BroadcastAttributeChange called - %s: %.2f -> %.2f"),
-		*Attribute.GetName(), OldValue, NewValue);
-
-	// Check if value actually changed
 	if (FMath::IsNearlyEqual(OldValue, NewValue))
 	{
-		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Values are equal, skipping broadcast"));
 		return;
 	}
 
-	// Get ASC and publish through it
-	USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC();
-	if (ASC)
+	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
 	{
-		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Publishing via ASC..."));
 		ASC->PublishAttributeChangeEvent(Attribute, OldValue, NewValue);
-	}
-	else
-	{
-		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] ERROR: SuspenseCoreASC is NULL! Using base ASC: %s"),
-			GetOwningAbilitySystemComponent() ? TEXT("YES") : TEXT("NO"));
 	}
 }
 
 void USuspenseCoreAttributeSet::HandleDeath(AActor* DamageInstigator, AActor* DamageCauser)
 {
-	UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("HandleDeath: Owner=%s, Instigator=%s, Causer=%s"),
-		*GetNameSafe(GetOwningActor()),
-		*GetNameSafe(DamageInstigator),
-		*GetNameSafe(DamageCauser));
-
 	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
 	{
-		// Publish critical death event
 		ASC->PublishCriticalEvent(
 			FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Event.Player.Died"))),
 			0.0f,
@@ -334,10 +279,6 @@ void USuspenseCoreAttributeSet::HandleDeath(AActor* DamageInstigator, AActor* Da
 
 void USuspenseCoreAttributeSet::HandleLowHealth()
 {
-	UE_LOG(LogSuspenseCoreAttributes, Log, TEXT("HandleLowHealth: Owner=%s, Health=%.2f%%"),
-		*GetNameSafe(GetOwningActor()),
-		GetHealthPercent() * 100.0f);
-
 	bLowHealthEventPublished = true;
 
 	if (USuspenseCoreAbilitySystemComponent* ASC = GetSuspenseCoreASC())
@@ -370,6 +311,6 @@ void USuspenseCoreAttributeSet::ClampAttribute(const FGameplayAttribute& Attribu
 	}
 	else if (Attribute == GetMovementSpeedAttribute())
 	{
-		Value = FMath::Clamp(Value, 0.1f, 3.0f); // 10% to 300% of base speed
+		Value = FMath::Clamp(Value, 0.1f, 3.0f);
 	}
 }

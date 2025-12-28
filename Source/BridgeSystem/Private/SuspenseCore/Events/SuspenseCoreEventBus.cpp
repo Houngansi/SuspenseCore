@@ -53,6 +53,16 @@ void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspen
 {
 	TotalEventsPublished++;
 
+	// DEBUG: Log Visual.Spawned events for troubleshooting
+	const bool bIsVisualSpawned = EventTag.ToString().Contains(TEXT("Visual.Spawned"));
+	if (bIsVisualSpawned)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] ═══════════════════════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] PublishInternal: %s"), *EventTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   EventBus address: %p"), this);
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Total subscriptions maps: %d"), Subscriptions.Num());
+	}
+
 	// Direct subscribers - copy under lock, call without lock
 	TArray<FSuspenseCoreSubscription> DirectSubs;
 	{
@@ -60,11 +70,30 @@ void USuspenseCoreEventBus::PublishInternal(FGameplayTag EventTag, const FSuspen
 		if (TArray<FSuspenseCoreSubscription>* Subs = Subscriptions.Find(EventTag))
 		{
 			DirectSubs = *Subs;
+			if (bIsVisualSpawned)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Found %d direct subscribers for tag"), DirectSubs.Num());
+			}
+		}
+		else if (bIsVisualSpawned)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[EventBus DEBUG]   ✗ NO subscribers found for exact tag!"));
+			// List all registered tags for debugging
+			UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Registered tags:"));
+			for (const auto& Pair : Subscriptions)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]     - %s (%d subs)"),
+					*Pair.Key.ToString(), Pair.Value.Num());
+			}
 		}
 	}
 
 	if (DirectSubs.Num() > 0)
 	{
+		if (bIsVisualSpawned)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Notifying %d direct subscribers..."), DirectSubs.Num());
+		}
 		NotifySubscribers(DirectSubs, EventTag, EventData);
 	}
 
@@ -92,17 +121,35 @@ void USuspenseCoreEventBus::NotifySubscribers(
 	FGameplayTag EventTag,
 	const FSuspenseCoreEventData& EventData)
 {
+	// DEBUG: Log Visual.Spawned events for troubleshooting
+	const bool bIsVisualSpawned = EventTag.ToString().Contains(TEXT("Visual.Spawned"));
+
 	for (const FSuspenseCoreSubscription& Sub : Subs)
 	{
 		if (!Sub.IsValid())
 		{
+			if (bIsVisualSpawned)
+			{
+				UE_LOG(LogTemp, Error, TEXT("[EventBus DEBUG]   ✗ Subscriber INVALID (ID=%llu, Subscriber=%s)"),
+					Sub.Id, Sub.Subscriber.IsValid() ? *Sub.Subscriber->GetName() : TEXT("STALE"));
+			}
 			continue;
 		}
 
 		// Check source filter
 		if (Sub.SourceFilter.IsValid() && Sub.SourceFilter.Get() != EventData.Source.Get())
 		{
+			if (bIsVisualSpawned)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Skipping due to SourceFilter mismatch"));
+			}
 			continue;
+		}
+
+		if (bIsVisualSpawned)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   ✓ Calling subscriber: %s (ID=%llu, Native=%d)"),
+				*GetNameSafe(Sub.Subscriber.Get()), Sub.Id, Sub.bUseNativeCallback);
 		}
 
 		// Call callback
@@ -111,6 +158,14 @@ void USuspenseCoreEventBus::NotifySubscribers(
 			if (Sub.NativeCallback.IsBound())
 			{
 				Sub.NativeCallback.Execute(EventTag, EventData);
+				if (bIsVisualSpawned)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   ✓ Native callback executed"));
+				}
+			}
+			else if (bIsVisualSpawned)
+			{
+				UE_LOG(LogTemp, Error, TEXT("[EventBus DEBUG]   ✗ Native callback NOT bound!"));
 			}
 		}
 		else
@@ -120,6 +175,11 @@ void USuspenseCoreEventBus::NotifySubscribers(
 				Sub.DynamicCallback.Execute(EventTag, EventData);
 			}
 		}
+	}
+
+	if (bIsVisualSpawned)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] ═══════════════════════════════════════════════════════"));
 	}
 }
 
@@ -248,6 +308,19 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::CreateSubscription(
 		return FSuspenseCoreSubscriptionHandle();
 	}
 
+	// DEBUG: Log Visual.Spawned subscriptions
+	const bool bIsVisualSpawned = EventTag.ToString().Contains(TEXT("Visual.Spawned"));
+	if (bIsVisualSpawned)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] ═══════════════════════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] CreateSubscription: %s"), *EventTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   EventBus address: %p"), this);
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   Subscriber: %s (Valid=%d)"),
+			*GetNameSafe(Subscriber), IsValid(Subscriber));
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   NativeCallback bound: %d"), NativeCallback.IsBound());
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   SubscribeToChildren: %d"), bSubscribeToChildren);
+	}
+
 	FScopeLock Lock(&SubscriptionLock);
 
 	FSuspenseCoreSubscription NewSub;
@@ -267,6 +340,13 @@ FSuspenseCoreSubscriptionHandle USuspenseCoreEventBus::CreateSubscription(
 
 	// Sort by priority
 	SortSubscriptionsByPriority(Subs);
+
+	if (bIsVisualSpawned)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG]   ✓ Subscription created (ID=%llu), total for tag: %d"),
+			NewSub.Id, Subs.Num());
+		UE_LOG(LogTemp, Warning, TEXT("[EventBus DEBUG] ═══════════════════════════════════════════════════════"));
+	}
 
 	UE_LOG(LogSuspenseCoreEventBus, Verbose, TEXT("Subscribed to %s (ID: %llu, Children: %d)"),
 		*EventTag.ToString(), NewSub.Id, bSubscribeToChildren);

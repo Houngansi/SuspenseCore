@@ -312,6 +312,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Replicated, Category = "SuspenseCore|Equipment|UI")
 	UActorComponent* EquipmentUIProvider = nullptr;
 
+	/** System Coordinator - orchestrates services and creates ActorFactory */
+	UPROPERTY(VisibleAnywhere, Category = "SuspenseCore|Equipment|Core")
+	UActorComponent* SystemCoordinator = nullptr;
+
 	/** Slot validator (UObject, not component) - created during WireEquipmentModule() */
 	UPROPERTY()
 	UObject* EquipmentSlotValidator = nullptr;

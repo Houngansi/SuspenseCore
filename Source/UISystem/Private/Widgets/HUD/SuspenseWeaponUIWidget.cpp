@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
@@ -18,7 +19,7 @@ USuspenseCoreWeaponUIWidget::USuspenseCoreWeaponUIWidget(const FObjectInitialize
     : Super(ObjectInitializer)
 {
     bEnableTick = true;
-    WidgetTag = FGameplayTag::RequestGameplayTag(TEXT("UI.HUD.WeaponInfo"));
+    WidgetTag = SuspenseCoreTags::UI::HUD::WeaponInfo;
 
     // Initialize fire mode display names
     FireModeDisplayNames.Add(TEXT("Weapon.FireMode.Single"), FText::FromString(TEXT("SINGLE")));

@@ -10,17 +10,18 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
 
 USuspenseCharacterScreen::USuspenseCharacterScreen(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // Set default screen tag
-    ScreenTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Screen.Character"));
+    // Set default screen tag using native tags
+    ScreenTag = SuspenseCoreTags::UI::Screen::Character;
 
     // Default to inventory tab
-    DefaultTabTag = FGameplayTag::RequestGameplayTag(TEXT("UI.Tab.Inventory"));
+    DefaultTabTag = SuspenseCoreTags::UI::Tab::Inventory;
 
     bRememberLastTab = true;
     bIsActive = false;

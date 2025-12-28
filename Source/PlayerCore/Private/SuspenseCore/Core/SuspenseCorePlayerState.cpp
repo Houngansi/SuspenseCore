@@ -33,6 +33,7 @@
 #include "SuspenseCore/Components/Core/SuspenseCoreWeaponStateManager.h"
 #include "SuspenseCore/Components/Core/SuspenseCoreEquipmentInventoryBridge.h"
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
+#include "SuspenseCore/Components/Core/SuspenseCoreSystemCoordinatorComponent.h"
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Providers/SuspenseCoreEquipmentUIProvider.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
@@ -109,6 +110,10 @@ ASuspenseCorePlayerState::ASuspenseCorePlayerState()
 	// Auto-discovered by UIManager::FindAllProvidersOnActor() when ShowContainerScreen is called
 	EquipmentUIProvider = CreateDefaultSubobject<USuspenseCoreEquipmentUIProvider>(TEXT("EquipmentUIProvider"));
 	EquipmentUIProvider->SetIsReplicated(true);
+
+	// System Coordinator - orchestrates all equipment services and creates ActorFactory
+	// CRITICAL: This component bootstraps services on BeginPlay, enabling equipment visualization
+	SystemCoordinator = CreateDefaultSubobject<USuspenseCoreSystemCoordinatorComponent>(TEXT("SystemCoordinator"));
 #endif
 
 	// Network settings - optimized for MMO scale

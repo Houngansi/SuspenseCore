@@ -6,6 +6,7 @@
 #include "Components/Image.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "Math/UnrealMathUtility.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -17,8 +18,8 @@ USuspenseCrosshairWidget::USuspenseCrosshairWidget(const FObjectInitializer& Obj
     // Enable tick for smooth interpolation
     bEnableTick = true;
 
-    // Set widget tag
-    WidgetTag = FGameplayTag::RequestGameplayTag(TEXT("UI.HUD.Crosshair"));
+    // Set widget tag using native tag
+    WidgetTag = SuspenseCoreTags::UI::HUD::Crosshair;
 
     // Initialize default values
     CrosshairLength = 10.0f;

@@ -4,13 +4,11 @@
 
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
-#include "SuspenseCore/Attributes/SuspenseCoreAttributeDefaults.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Actor.h"
-#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreASC, Log, All);
 
@@ -19,10 +17,6 @@ USuspenseCoreAbilitySystemComponent::USuspenseCoreAbilitySystemComponent()
 	// Default settings for networked gameplay
 	SetIsReplicatedByDefault(true);
 	ReplicationMode = EGameplayEffectReplicationMode::Mixed;
-
-	// Initialize stamina regen block tags
-	StaminaRegenBlockTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Sprinting")));
-	StaminaRegenBlockTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Dead")));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -46,12 +40,6 @@ void USuspenseCoreAbilitySystemComponent::BeginPlay()
 
 	SetupEventBusSubscriptions();
 
-	// Start stamina regeneration timer
-	if (bStaminaRegenEnabled)
-	{
-		StartStaminaRegenTimer();
-	}
-
 	// Publish initialization event
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
@@ -69,9 +57,6 @@ void USuspenseCoreAbilitySystemComponent::BeginPlay()
 
 void USuspenseCoreAbilitySystemComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Stop stamina regen timer
-	StopStaminaRegenTimer();
-
 	TeardownEventBusSubscriptions();
 
 	Super::EndPlay(EndPlayReason);
@@ -341,86 +326,4 @@ void USuspenseCoreAbilitySystemComponent::TeardownEventBusSubscriptions()
 {
 	// Clear cache
 	CachedEventBus.Reset();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STAMINA REGENERATION
-// ═══════════════════════════════════════════════════════════════════════════════
-
-void USuspenseCoreAbilitySystemComponent::SetStaminaRegenEnabled(bool bEnabled)
-{
-	if (bStaminaRegenEnabled == bEnabled)
-	{
-		return;
-	}
-
-	bStaminaRegenEnabled = bEnabled;
-
-	if (bEnabled)
-	{
-		StartStaminaRegenTimer();
-	}
-	else
-	{
-		StopStaminaRegenTimer();
-	}
-}
-
-void USuspenseCoreAbilitySystemComponent::StartStaminaRegenTimer()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			StaminaRegenTimerHandle,
-			this,
-			&USuspenseCoreAbilitySystemComponent::OnStaminaRegenTick,
-			StaminaRegenTickRate,
-			true  // Looping
-		);
-
-		UE_LOG(LogSuspenseCoreASC, Log, TEXT("Stamina regen timer started (%.2fs period)"), StaminaRegenTickRate);
-	}
-}
-
-void USuspenseCoreAbilitySystemComponent::StopStaminaRegenTimer()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(StaminaRegenTimerHandle);
-		UE_LOG(LogSuspenseCoreASC, Log, TEXT("Stamina regen timer stopped"));
-	}
-}
-
-void USuspenseCoreAbilitySystemComponent::OnStaminaRegenTick()
-{
-	// Check if we have any blocking tags active
-	if (HasAnyMatchingGameplayTags(StaminaRegenBlockTags))
-	{
-		return;
-	}
-
-	// Get attribute set
-	const USuspenseCoreAttributeSet* AttributeSet = GetSet<USuspenseCoreAttributeSet>();
-	if (!AttributeSet)
-	{
-		return;
-	}
-
-	// Check if stamina is already at max
-	const float CurrentStamina = AttributeSet->GetStamina();
-	const float MaxStamina = AttributeSet->GetMaxStamina();
-
-	if (CurrentStamina >= MaxStamina)
-	{
-		return;  // No regen needed
-	}
-
-	// Calculate regen amount based on StaminaRegen attribute
-	// StaminaRegen is "per second", we tick 10x/sec, so divide by 10
-	const float StaminaRegenPerSecond = AttributeSet->GetStaminaRegen();
-	const float RegenAmount = StaminaRegenPerSecond * StaminaRegenTickRate;
-
-	// Apply regeneration directly to base value (with clamping)
-	const float NewStamina = FMath::Min(CurrentStamina + RegenAmount, MaxStamina);
-	SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaAttribute(), NewStamina);
 }

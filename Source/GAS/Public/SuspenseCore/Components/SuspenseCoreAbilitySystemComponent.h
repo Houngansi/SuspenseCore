@@ -130,22 +130,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS")
 	void RemoveActiveEffectsOfClass(TSubclassOf<UGameplayEffect> EffectClass);
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// STAMINA REGENERATION
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/**
-	 * Enable/disable stamina regeneration timer.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|GAS")
-	void SetStaminaRegenEnabled(bool bEnabled);
-
-	/**
-	 * Check if stamina regeneration is enabled.
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|GAS")
-	bool IsStaminaRegenEnabled() const { return bStaminaRegenEnabled; }
-
 protected:
 	/** Публиковать ли события изменения атрибутов */
 	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Events")
@@ -153,34 +137,6 @@ protected:
 
 	/** Кэшированный EventBus */
 	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
-
-	// ─────────────────────────────────────────────────────────────────────────
-	// Stamina Regen Timer
-	// ─────────────────────────────────────────────────────────────────────────
-
-	/** Timer handle for stamina regeneration */
-	FTimerHandle StaminaRegenTimerHandle;
-
-	/** Is stamina regen enabled */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Stamina")
-	bool bStaminaRegenEnabled = true;
-
-	/** Stamina regen tick rate (10 ticks/sec = 0.1s period) */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Stamina")
-	float StaminaRegenTickRate = 0.1f;
-
-	/** Tags that block stamina regeneration */
-	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Stamina")
-	FGameplayTagContainer StaminaRegenBlockTags;
-
-	/** Timer callback for stamina regeneration */
-	void OnStaminaRegenTick();
-
-	/** Start stamina regen timer */
-	void StartStaminaRegenTimer();
-
-	/** Stop stamina regen timer */
-	void StopStaminaRegenTimer();
 
 	/**
 	 * Инициализировать подписки на EventBus.

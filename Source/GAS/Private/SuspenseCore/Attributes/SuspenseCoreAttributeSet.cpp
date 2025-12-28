@@ -153,26 +153,28 @@ void USuspenseCoreAttributeSet::PostGameplayEffectExecute(const FGameplayEffectM
 	// This broadcasts events for LOCAL changes (replication uses OnRep_Stamina)
 	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
-		// Clamp stamina to valid range (safety net for periodic effects)
 		const float MaxST = GetMaxStamina();
-		float CurrentStamina = GetStamina();
-		const float ClampedStamina = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
+		const float StaminaDelta = Data.EvaluatedData.Magnitude;
+		float CurrentStamina = GetStamina(); // Already clamped by PreAttributeChange
 
-		if (CurrentStamina > MaxST)
+		// For positive changes (regen), we need to flatten the base value to prevent
+		// modifiers from accumulating beyond MaxStamina.
+		// PreAttributeChange clamps the DISPLAYED value but not the underlying base,
+		// so periodic regen effects can cause the base to exceed max over time.
+		if (StaminaDelta > 0.0f)
 		{
-			// Use ASC to properly set base value (SetStamina may not work during effect execution)
+			// Always set base value to the clamped current value after regen
+			// This prevents infinite stacking of periodic additive modifiers
+			const float ClampedValue = FMath::Clamp(CurrentStamina, 0.0f, MaxST);
 			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
 			{
-				ASC->SetNumericAttributeBase(GetStaminaAttribute(), ClampedStamina);
+				ASC->SetNumericAttributeBase(GetStaminaAttribute(), ClampedValue);
 			}
-			UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] Stamina CLAMPED: %.2f -> %.2f (Max: %.2f)"),
-				CurrentStamina, ClampedStamina, MaxST);
-			CurrentStamina = ClampedStamina;
+			CurrentStamina = ClampedValue;
 		}
 
-		// For additive modifiers, calculate old value from new value and magnitude
-		const float StaminaDelta = Data.EvaluatedData.Magnitude;
-		const float OldStamina = FMath::Max(CurrentStamina - StaminaDelta, 0.0f);
+		// Calculate old value from current and delta for event broadcasting
+		const float OldStamina = FMath::Clamp(CurrentStamina - StaminaDelta, 0.0f, MaxST);
 
 		UE_LOG(LogSuspenseCoreAttributes, Warning, TEXT("[AttributeSet] STAMINA CHANGE DETECTED! Old: %.2f, New: %.2f, Delta: %.2f"),
 			OldStamina, CurrentStamina, StaminaDelta);

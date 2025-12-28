@@ -47,15 +47,18 @@ void USuspenseCoreEquipmentActorFactory::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Initialize EventBus integration
-    SetupEventBus();
+    using namespace SuspenseCoreEquipmentTags;
+
+    // Initialize as service (sets ServiceState = Ready)
+    FSuspenseCoreServiceInitParams InitParams;
+    InitParams.Owner = GetOwner();
+    InitializeService(InitParams);
 
     USuspenseCoreEquipmentServiceLocator* Locator = USuspenseCoreEquipmentServiceLocator::Get(this);
     if (Locator)
     {
         // CRITICAL FIX: Use native tag to match VisualizationService lookup
         // Native tag: SuspenseCore.Service.Equipment.ActorFactory
-        using namespace SuspenseCoreEquipmentTags;
         const FGameplayTag FactoryTag = Service::TAG_Service_ActorFactory;
 
         if (!Locator->IsServiceRegistered(FactoryTag))
@@ -1134,4 +1137,136 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, 
     UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
         TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s"),
         *ItemId.ToString());
+}
+
+// ============================================================================
+// ISuspenseCoreEquipmentService Implementation
+// ============================================================================
+
+bool USuspenseCoreEquipmentActorFactory::InitializeService(const FSuspenseCoreServiceInitParams& Params)
+{
+    using namespace SuspenseCoreEquipmentTags;
+
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Ready)
+    {
+        return true; // Already initialized
+    }
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
+
+    // Cache service tag
+    CachedServiceTag = Service::TAG_Service_ActorFactory;
+
+    // Setup EventBus if not done already
+    if (!EventBus)
+    {
+        SetupEventBus();
+    }
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] Service initialized: %s"), *CachedServiceTag.ToString());
+
+    return true;
+}
+
+bool USuspenseCoreEquipmentActorFactory::ShutdownService(bool bForce)
+{
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
+    {
+        return true;
+    }
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
+
+    // Clear all actors
+    ClearAllActors(true);
+
+    // Clear pools
+    ActorPool.Empty();
+    ActorClassCache.Clear();
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log, TEXT("[ActorFactory] Service shutdown"));
+
+    return true;
+}
+
+ESuspenseCoreServiceLifecycleState USuspenseCoreEquipmentActorFactory::GetServiceState() const
+{
+    return ServiceState;
+}
+
+bool USuspenseCoreEquipmentActorFactory::IsServiceReady() const
+{
+    return ServiceState == ESuspenseCoreServiceLifecycleState::Ready;
+}
+
+FGameplayTag USuspenseCoreEquipmentActorFactory::GetServiceTag() const
+{
+    using namespace SuspenseCoreEquipmentTags;
+    return CachedServiceTag.IsValid() ? CachedServiceTag : Service::TAG_Service_ActorFactory;
+}
+
+FGameplayTagContainer USuspenseCoreEquipmentActorFactory::GetRequiredDependencies() const
+{
+    // ActorFactory has no hard dependencies on other services
+    return FGameplayTagContainer();
+}
+
+bool USuspenseCoreEquipmentActorFactory::ValidateService(TArray<FText>& OutErrors) const
+{
+    bool bValid = true;
+
+    if (!GetWorld())
+    {
+        OutErrors.Add(FText::FromString(TEXT("ActorFactory: No valid World")));
+        bValid = false;
+    }
+
+    return bValid;
+}
+
+void USuspenseCoreEquipmentActorFactory::ResetService()
+{
+    // Clear all actors and pools
+    ClearAllActors(true);
+    ActorPool.Empty();
+    ActorClassCache.Clear();
+
+    // Reset state
+    ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
+
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log, TEXT("[ActorFactory] Service reset"));
+}
+
+FString USuspenseCoreEquipmentActorFactory::GetServiceStats() const
+{
+    int32 TotalActors = 0;
+    int32 ActiveActors = 0;
+    int32 PooledActors = 0;
+
+    for (const FSuspenseCoreActorPoolEntry& Entry : ActorPool)
+    {
+        TotalActors++;
+        if (Entry.bInUse)
+        {
+            ActiveActors++;
+        }
+        else
+        {
+            PooledActors++;
+        }
+    }
+
+    return FString::Printf(
+        TEXT("ActorFactory: State=%d, Total=%d, Active=%d, Pooled=%d, Registered=%d"),
+        static_cast<int32>(ServiceState),
+        TotalActors,
+        ActiveActors,
+        PooledActors,
+        SpawnedActorRegistry.Num()
+    );
 }

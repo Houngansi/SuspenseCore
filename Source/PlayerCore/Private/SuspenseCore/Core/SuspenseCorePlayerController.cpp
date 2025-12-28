@@ -386,6 +386,30 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActivateAbilityByTag: Tag=%s, bPressed=%s, ASC=%s"),
 		*AbilityTag.ToString(), bPressed ? TEXT("TRUE") : TEXT("FALSE"), *ASC->GetName());
 
+	// DEBUG: List all granted abilities on ASC
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] === Checking granted abilities on ASC ==="));
+	int32 AbilityCount = 0;
+	bool bFoundADSAbility = false;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		AbilityCount++;
+		if (Spec.Ability)
+		{
+			FGameplayTagContainer AbilityTags;
+			Spec.Ability->GetAbilityTagsFromSpec(Spec, AbilityTags);
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   [%d] %s - Tags: %s"),
+				AbilityCount, *Spec.Ability->GetClass()->GetName(), *AbilityTags.ToStringSimple());
+
+			if (AbilityTags.HasTag(AbilityTag))
+			{
+				bFoundADSAbility = true;
+				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ^^^ THIS MATCHES the requested tag!"));
+			}
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Total abilities on ASC: %d, Found matching: %s"),
+		AbilityCount, bFoundADSAbility ? TEXT("YES") : TEXT("NO"));
+
 	if (bPressed)
 	{
 		FGameplayTagContainer TagContainer;

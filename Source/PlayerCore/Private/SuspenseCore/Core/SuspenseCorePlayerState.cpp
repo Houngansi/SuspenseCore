@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterClassSubsystem.h"
+#include "SuspenseCore/Settings/SuspenseCoreSettings.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
@@ -358,6 +359,36 @@ bool ASuspenseCorePlayerState::ApplyCharacterClass(FName ClassId)
 	return bSuccess;
 }
 
+void ASuspenseCorePlayerState::RestoreVitals()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent || !AttributeSet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::RestoreVitals: ASC or AttributeSet not ready"));
+		return;
+	}
+
+	// Restore Health to MaxHealth
+	const float MaxHP = AttributeSet->GetMaxHealth();
+	AbilitySystemComponent->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetHealthAttribute(), MaxHP);
+
+	// Restore Stamina to MaxStamina
+	const float MaxST = AttributeSet->GetMaxStamina();
+	AbilitySystemComponent->SetNumericAttributeBase(USuspenseCoreAttributeSet::GetStaminaAttribute(), MaxST);
+
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState::RestoreVitals: Health=%.0f, Stamina=%.0f"), MaxHP, MaxST);
+
+	// Publish respawn event
+	PublishPlayerStateEvent(
+		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.Respawned")),
+		FString::Printf(TEXT("{\"health\":%.0f,\"stamina\":%.0f}"), MaxHP, MaxST)
+	);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUBLIC API - ATTRIBUTES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -488,11 +519,15 @@ void ASuspenseCorePlayerState::InitializeAbilitySystem()
 	// Setup callbacks before applying effects
 	SetupAttributeCallbacks();
 
-	// Apply initial effects
+	// Apply initial effects (from Blueprint configuration - optional)
 	ApplyInitialEffects();
 
-	// Grant abilities
+	// Grant abilities (from Blueprint configuration - optional)
 	GrantStartupAbilities();
+
+	// AUTO-APPLY DEFAULT CHARACTER CLASS from Project Settings
+	// This applies SSOT base attributes × class multipliers and passive effects (like StaminaRegen)
+	ApplyDefaultCharacterClass();
 
 	bAbilitySystemInitialized = true;
 
@@ -526,19 +561,72 @@ void ASuspenseCorePlayerState::ApplyInitialEffects()
 		return;
 	}
 
-	// Apply initial attributes effect
+	// Apply initial attributes effect (optional Blueprint override)
 	if (InitialAttributesEffect)
 	{
 		AbilitySystemComponent->ApplyEffectToSelf(InitialAttributesEffect, static_cast<float>(PlayerLevel));
 	}
 
-	// Apply passive effects
+	// Apply passive effects (optional Blueprint override)
 	for (const TSubclassOf<UGameplayEffect>& EffectClass : PassiveEffects)
 	{
 		if (EffectClass)
 		{
 			AbilitySystemComponent->ApplyEffectToSelf(EffectClass, static_cast<float>(PlayerLevel));
 		}
+	}
+}
+
+void ASuspenseCorePlayerState::ApplyDefaultCharacterClass()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// Get default character class from Project Settings
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::ApplyDefaultCharacterClass: Settings not available"));
+		return;
+	}
+
+	const FGameplayTag& DefaultClassTag = Settings->DefaultCharacterClass;
+	if (!DefaultClassTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::ApplyDefaultCharacterClass: DefaultCharacterClass tag not set in Project Settings"));
+		return;
+	}
+
+	// Get CharacterClassSubsystem
+	USuspenseCoreCharacterClassSubsystem* ClassSubsystem = USuspenseCoreCharacterClassSubsystem::Get(this);
+	if (!ClassSubsystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::ApplyDefaultCharacterClass: CharacterClassSubsystem not available"));
+		return;
+	}
+
+	// Apply class by tag - this will:
+	// - Apply SSOT base attributes × class multipliers
+	// - Grant class abilities
+	// - Apply passive effects (including StaminaRegen!)
+	if (ClassSubsystem->ApplyClassByTagToActor(this, DefaultClassTag, PlayerLevel))
+	{
+		// Update CharacterClassId from the applied class data
+		USuspenseCoreCharacterClassData* ClassData = ClassSubsystem->GetClassByTag(DefaultClassTag);
+		if (ClassData)
+		{
+			CharacterClassId = ClassData->ClassID;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("SuspenseCorePlayerState::ApplyDefaultCharacterClass: Applied default class '%s' from tag '%s'"),
+			*CharacterClassId.ToString(), *DefaultClassTag.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SuspenseCorePlayerState::ApplyDefaultCharacterClass: Failed to apply class with tag '%s'"),
+			*DefaultClassTag.ToString());
 	}
 }
 

@@ -3,6 +3,7 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Attributes/SuspenseCoreAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAttributeDefaults.h"
 #include "SuspenseCore/Components/SuspenseCoreAbilitySystemComponent.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
@@ -15,18 +16,21 @@ DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreAttributes, Log, All);
 
 USuspenseCoreAttributeSet::USuspenseCoreAttributeSet()
 {
-	// Initialize default values
-	InitHealth(100.0f);
-	InitMaxHealth(100.0f);
-	InitHealthRegen(0.0f);
+	// Initialize with base values from SSOT (SuspenseCoreAttributeDefaults)
+	// These will be multiplied by CharacterClassData.AttributeModifiers when class is applied
+	using namespace FSuspenseCoreAttributeDefaults;
 
-	InitStamina(100.0f);
-	InitMaxStamina(100.0f);
-	InitStaminaRegen(10.0f);
+	InitHealth(BaseMaxHealth);
+	InitMaxHealth(BaseMaxHealth);
+	InitHealthRegen(BaseHealthRegen);
 
-	InitArmor(0.0f);
-	InitAttackPower(1.0f);
-	InitMovementSpeed(1.0f);
+	InitStamina(BaseMaxStamina);
+	InitMaxStamina(BaseMaxStamina);
+	InitStaminaRegen(BaseStaminaRegen);
+
+	InitArmor(BaseArmor);
+	InitAttackPower(BaseAttackPower);
+	InitMovementSpeed(BaseMovementSpeed);
 
 	InitIncomingDamage(0.0f);
 	InitIncomingHealing(0.0f);

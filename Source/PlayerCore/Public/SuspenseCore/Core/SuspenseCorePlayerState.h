@@ -199,6 +199,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|State")
 	bool ApplyCharacterClass(FName ClassId);
 
+	/**
+	 * Restore Health and Stamina to their maximum values.
+	 * Call this on respawn to reset vitals without re-applying the class.
+	 * PlayerState persists across respawns, so only vitals need restoration.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|State")
+	void RestoreVitals();
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - ATTRIBUTES (Convenience Wrappers)
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -380,6 +388,9 @@ protected:
 
 	/** Apply initial attributes and passive effects */
 	void ApplyInitialEffects();
+
+	/** Apply default character class from Project Settings */
+	void ApplyDefaultCharacterClass();
 
 	/** Setup attribute change callbacks */
 	void SetupAttributeCallbacks();

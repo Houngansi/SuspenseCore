@@ -936,8 +936,9 @@ void USuspenseCoreEquipmentAbilityService::SetupEventHandlers()
     }
 
     // Spawned - using SuspenseCore.Event.Equipment.Visual.Spawned tag
+    const FGameplayTag SpawnedTag = Event::TAG_Equipment_Event_Visual_Spawned;
     UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Subscribing to Visual.Spawned: %s"),
-        *Event::TAG_Equipment_Event_Visual_Spawned.Get().ToString());
+        *SpawnedTag.ToString());
 
     EventSubscriptions.Add(EventBus->SubscribeNative(
         Event::TAG_Equipment_Event_Visual_Spawned,

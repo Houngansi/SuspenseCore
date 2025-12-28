@@ -358,18 +358,39 @@ void USuspenseCoreSystemCoordinatorComponent::RegisterPresentationServices()
 
             if (!Factory)
             {
+                // CRITICAL FIX: Create ActorFactory programmatically if not found
                 UE_LOG(LogSuspenseCoreCoordinator, Warning,
-                    TEXT("ActorFactory not found on %s - this is expected at initialization"),
+                    TEXT("ActorFactory not found on %s - CREATING programmatically"),
                     *Owner->GetName());
-                UE_LOG(LogSuspenseCoreCoordinator, Warning,
-                    TEXT("  ActorFactory should be created in Blueprint and will register itself on BeginPlay"));
+
+                Factory = NewObject<USuspenseCoreEquipmentActorFactory>(Owner,
+                    USuspenseCoreEquipmentActorFactory::StaticClass(),
+                    TEXT("ActorFactory"));
+
+                if (Factory)
+                {
+                    Factory->RegisterComponent();
+                    UE_LOG(LogSuspenseCoreCoordinator, Log,
+                        TEXT("✓ ActorFactory component CREATED and registered on %s"),
+                        *Owner->GetName());
+                }
+                else
+                {
+                    UE_LOG(LogSuspenseCoreCoordinator, Error,
+                        TEXT("❌ Failed to create ActorFactory component!"));
+                }
             }
             else
             {
-                // Если уже есть - регистрируем напрямую
-                UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("Found existing ActorFactory, registering..."));
+                UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("Found existing ActorFactory on %s"), *Owner->GetName());
+            }
+
+            if (Factory)
+            {
+                // Регистрируем в ServiceLocator
                 Locator->RegisterServiceInstance(FactoryTag, Factory);
-                UE_LOG(LogSuspenseCoreCoordinator, Log, TEXT("✓ Registered ActorFactory service: %s"), *FactoryTag.ToString());
+                UE_LOG(LogSuspenseCoreCoordinator, Log,
+                    TEXT("✓ Registered ActorFactory service: %s"), *FactoryTag.ToString());
             }
         }
         else

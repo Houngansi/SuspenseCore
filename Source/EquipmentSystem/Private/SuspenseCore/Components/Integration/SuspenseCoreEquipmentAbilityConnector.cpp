@@ -957,11 +957,26 @@ TArray<FGameplayAbilitySpecHandle> USuspenseCoreEquipmentAbilityConnector::Grant
 {
     TArray<FGameplayAbilitySpecHandle> GrantedHandles;
 
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Connector::GrantAbilitiesFromItemData called"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ItemID=%s, SlotIndex=%d"), *ItemData.ItemID.ToString(), SlotIndex);
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   GrantedAbilities.Num()=%d"), ItemData.GrantedAbilities.Num());
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   bIsWeapon=%s, FireModes.Num()=%d"),
+        ItemData.bIsWeapon ? TEXT("TRUE") : TEXT("FALSE"), ItemData.FireModes.Num());
+
     // Base abilities
+    int32 AbilityIndex = 0;
     for (const FGrantedAbilityData& AbilityData : ItemData.GrantedAbilities)
     {
+        AbilityIndex++;
+        UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   Processing ability [%d]: Class=%s, Level=%d"),
+            AbilityIndex,
+            AbilityData.AbilityClass ? *AbilityData.AbilityClass->GetName() : TEXT("NULL"),
+            AbilityData.AbilityLevel);
+
         if (!AbilityData.AbilityClass)
         {
+            UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   SKIPPING - AbilityClass is NULL!"));
             UE_LOG(LogAbilityConnector, Warning, TEXT("[%s] Null ability class in item data for: %s"),
                 *GetName(), *ItemData.ItemID.ToString());
             continue;
@@ -992,10 +1007,20 @@ TArray<FGameplayAbilitySpecHandle> USuspenseCoreEquipmentAbilityConnector::Grant
             GrantedAbilities.Add(Record);
             TotalAbilitiesGranted++;
 
+            UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ✓ GRANTED ability: %s (Handle valid)"),
+                *AbilityData.AbilityClass->GetName());
             UE_LOG(LogAbilityConnector, Verbose, TEXT("[%s] Granted base ability: %s for slot %d"),
                 *GetName(), *AbilityData.AbilityClass->GetName(), SlotIndex);
         }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG]   ✗ FAILED to grant ability: %s (Handle invalid)"),
+                *AbilityData.AbilityClass->GetName());
+        }
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] GrantAbilitiesFromItemData completed: %d abilities granted"),
+        GrantedHandles.Num());
 
     // Fire modes
     if (ItemData.bIsWeapon)

@@ -991,6 +991,9 @@ void USuspenseCoreEquipmentAbilityService::EnsureValidConfig()
 
 void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService::OnEquipmentSpawned RECEIVED! Tag=%s"), *EventTag.ToString());
+
     // Parse structured event data from SuspenseCore event
     FSuspenseCoreInventoryItemInstance ItemInstance;
     AActor* EquipmentActor = nullptr;
@@ -998,11 +1001,17 @@ void USuspenseCoreEquipmentAbilityService::OnEquipmentSpawned(FGameplayTag Event
 
     if (!ParseSuspenseCoreEventData(EventData, ItemInstance, EquipmentActor, OwnerActor))
     {
+        UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] AbilityService: ParseSuspenseCoreEventData FAILED!"));
         UE_LOG(LogSuspenseCoreEquipmentAbility, Warning,
             TEXT("Failed to parse equipment spawned event [%s]"), *EventTag.ToString());
         ServiceMetrics.Inc(FName("Ability.Events.ParseFailed"));
         return;
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AbilityService: Parsed OK! Equipment=%s, Owner=%s, ItemID=%s"),
+        EquipmentActor ? *EquipmentActor->GetName() : TEXT("NULL"),
+        OwnerActor ? *OwnerActor->GetName() : TEXT("NULL"),
+        *ItemInstance.ItemID.ToString());
 
     ProcessEquipmentSpawn(EquipmentActor, OwnerActor, ItemInstance);
     ServiceMetrics.Inc(FName("Ability.Events.Spawned"));

@@ -24,36 +24,24 @@ static UMaterialInstanceDynamic* CreateDynamicMaterialFromProgressBar(UProgressB
 		return nullptr;
 	}
 
-	// Get the widget style
 	const FProgressBarStyle& Style = ProgressBar->GetWidgetStyle();
-
-	// Get the background brush which contains the material
 	const FSlateBrush& BackgroundBrush = Style.BackgroundImage;
 
-	// Check if it has a material
 	UObject* ResourceObject = BackgroundBrush.GetResourceObject();
 	if (!ResourceObject)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] ProgressBar has no material resource"));
 		return nullptr;
 	}
 
-	// Try to get it as a material interface
 	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(ResourceObject);
 	if (!MaterialInterface)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] ProgressBar resource is not a material: %s"),
-			*ResourceObject->GetClass()->GetName());
 		return nullptr;
 	}
 
-	// Create dynamic material instance
 	UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(MaterialInterface, Outer);
 	if (DynamicMaterial)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Created dynamic material from: %s"), *MaterialInterface->GetName());
-
-		// Apply the dynamic material back to the progress bar
 		FProgressBarStyle NewStyle = Style;
 		NewStyle.BackgroundImage.SetResourceObject(DynamicMaterial);
 		ProgressBar->SetWidgetStyle(NewStyle);
@@ -66,8 +54,7 @@ void USuspenseCoreGameHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// CRITICAL: Reset FillColorAndOpacity to White so materials display correctly!
-	// UE5 ProgressBar default colors TINT the material - we want pure material colors
+	// Reset FillColorAndOpacity to White so materials display correctly
 	if (HealthProgressBar)
 	{
 		HealthProgressBar->SetFillColorAndOpacity(FLinearColor::White);
@@ -84,22 +71,13 @@ void USuspenseCoreGameHUDWidget::NativeConstruct()
 	// Create dynamic material instances for material-based progress bars
 	if (bUseMaterialProgress)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Creating dynamic materials for progress bars..."));
-
 		HealthProgressMaterial = CreateDynamicMaterialFromProgressBar(HealthProgressBar.Get(), this);
 		ShieldProgressMaterial = CreateDynamicMaterialFromProgressBar(ShieldProgressBar.Get(), this);
 		StaminaProgressMaterial = CreateDynamicMaterialFromProgressBar(StaminaProgressBar.Get(), this);
-
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Dynamic materials created - Health: %s, Shield: %s, Stamina: %s"),
-			HealthProgressMaterial ? TEXT("YES") : TEXT("NO"),
-			ShieldProgressMaterial ? TEXT("YES") : TEXT("NO"),
-			StaminaProgressMaterial ? TEXT("YES") : TEXT("NO"));
 	}
 
-	// Setup EventBus subscriptions - the ONLY way to receive attribute updates!
 	SetupEventSubscriptions();
 
-	// Initial UI update
 	UpdateHealthUI();
 	UpdateShieldUI();
 	UpdateStaminaUI();
@@ -115,7 +93,6 @@ void USuspenseCoreGameHUDWidget::NativeTick(const FGeometry& MyGeometry, float I
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// Smooth progress bar interpolation
 	if (bSmoothProgressBars)
 	{
 		if (HealthProgressBar)
@@ -140,14 +117,12 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 	USuspenseCoreEventManager* Manager = USuspenseCoreEventManager::Get(GetWorld());
 	if (!Manager)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreGameHUDWidget: EventManager not found"));
 		return;
 	}
 
 	CachedEventBus = Manager->GetEventBus();
 	if (!CachedEventBus.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SuspenseCoreGameHUDWidget: EventBus not found"));
 		return;
 	}
 
@@ -185,9 +160,6 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 
 	// Subscribe to Stamina attribute events
 	FGameplayTag StaminaTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.Stamina"), false);
-	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Subscribing to Stamina tag: %s (Valid: %s)"),
-		*StaminaTag.ToString(), StaminaTag.IsValid() ? TEXT("YES") : TEXT("NO"));
-
 	if (StaminaTag.IsValid())
 	{
 		StaminaEventHandle = CachedEventBus->SubscribeNative(
@@ -196,15 +168,10 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnStaminaEvent),
 			ESuspenseCoreEventPriority::Normal
 		);
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Stamina subscription handle valid: %s"),
-			StaminaEventHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
 	}
 
 	// Subscribe to MaxStamina attribute events
 	FGameplayTag MaxStaminaTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.GAS.Attribute.MaxStamina"), false);
-	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Subscribing to MaxStamina tag: %s (Valid: %s)"),
-		*MaxStaminaTag.ToString(), MaxStaminaTag.IsValid() ? TEXT("YES") : TEXT("NO"));
-
 	if (MaxStaminaTag.IsValid())
 	{
 		MaxStaminaEventHandle = CachedEventBus->SubscribeNative(
@@ -213,8 +180,6 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnMaxStaminaEvent),
 			ESuspenseCoreEventPriority::Normal
 		);
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] MaxStamina subscription handle valid: %s"),
-			MaxStaminaEventHandle.IsValid() ? TEXT("YES") : TEXT("NO"));
 	}
 
 	// Subscribe to LowHealth event
@@ -232,8 +197,6 @@ void USuspenseCoreGameHUDWidget::SetupEventSubscriptions()
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreGameHUDWidget::OnShieldBrokenEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
-
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreGameHUDWidget: EventBus subscriptions setup complete"));
 }
 
 void USuspenseCoreGameHUDWidget::TeardownEventSubscriptions()
@@ -284,17 +247,13 @@ void USuspenseCoreGameHUDWidget::TeardownEventSubscriptions()
 void USuspenseCoreGameHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	float OldHealth = CachedHealth;
-
-	// Extract new value from EventData using proper API
 	CachedHealth = EventData.GetFloat(FName("Value"), CachedHealth);
 
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	UpdateHealthUI();
 
-	// Broadcast Blueprint event
 	OnHealthChanged(CachedHealth, CachedMaxHealth, OldHealth);
 
-	// Check for critical health
 	bool bIsCritical = TargetHealthPercent <= CriticalHealthThreshold && CachedHealth > 0.0f;
 	if (bIsCritical && !bWasHealthCritical)
 	{
@@ -306,7 +265,6 @@ void USuspenseCoreGameHUDWidget::OnHealthEvent(FGameplayTag EventTag, const FSus
 void USuspenseCoreGameHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxHealth = EventData.GetFloat(FName("Value"), CachedMaxHealth);
-
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	UpdateHealthUI();
 }
@@ -314,16 +272,13 @@ void USuspenseCoreGameHUDWidget::OnMaxHealthEvent(FGameplayTag EventTag, const F
 void USuspenseCoreGameHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	float OldShield = CachedShield;
-
 	CachedShield = EventData.GetFloat(FName("Value"), CachedShield);
 
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	UpdateShieldUI();
 
-	// Broadcast Blueprint event
 	OnShieldChanged(CachedShield, CachedMaxShield, OldShield);
 
-	// Check for shield broken
 	bool bIsBroken = CachedShield <= 0.0f && CachedMaxShield > 0.0f;
 	if (bIsBroken && !bWasShieldBroken)
 	{
@@ -335,36 +290,22 @@ void USuspenseCoreGameHUDWidget::OnShieldEvent(FGameplayTag EventTag, const FSus
 void USuspenseCoreGameHUDWidget::OnMaxShieldEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxShield = EventData.GetFloat(FName("Value"), CachedMaxShield);
-
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	UpdateShieldUI();
 }
 
 void USuspenseCoreGameHUDWidget::OnStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] OnStaminaEvent received! Tag: %s"), *EventTag.ToString());
-
 	float OldStamina = CachedStamina;
-
 	CachedStamina = EventData.GetFloat(FName("Value"), CachedStamina);
-
-	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] Stamina: %.2f -> %.2f, MaxStamina: %.2f"),
-		OldStamina, CachedStamina, CachedMaxStamina);
-
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
-
-	UE_LOG(LogTemp, Warning, TEXT("[HUD Widget] TargetStaminaPercent: %.2f"), TargetStaminaPercent);
-
 	UpdateStaminaUI();
-
-	// Broadcast Blueprint event
 	OnStaminaChanged(CachedStamina, CachedMaxStamina, OldStamina);
 }
 
 void USuspenseCoreGameHUDWidget::OnMaxStaminaEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	CachedMaxStamina = EventData.GetFloat(FName("Value"), CachedMaxStamina);
-
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
 	UpdateStaminaUI();
 }
@@ -386,12 +327,10 @@ void USuspenseCoreGameHUDWidget::OnShieldBrokenEvent(FGameplayTag EventTag, cons
 
 void USuspenseCoreGameHUDWidget::RefreshAllValues()
 {
-	// Calculate target percentages
 	TargetHealthPercent = (CachedMaxHealth > 0.0f) ? (CachedHealth / CachedMaxHealth) : 0.0f;
 	TargetShieldPercent = (CachedMaxShield > 0.0f) ? (CachedShield / CachedMaxShield) : 0.0f;
 	TargetStaminaPercent = (CachedMaxStamina > 0.0f) ? (CachedStamina / CachedMaxStamina) : 0.0f;
 
-	// If not smooth, set displayed values directly
 	if (!bSmoothProgressBars)
 	{
 		DisplayedHealthPercent = TargetHealthPercent;
@@ -399,7 +338,6 @@ void USuspenseCoreGameHUDWidget::RefreshAllValues()
 		DisplayedStaminaPercent = TargetStaminaPercent;
 	}
 
-	// Update UI
 	UpdateHealthUI();
 	UpdateShieldUI();
 	UpdateStaminaUI();
@@ -441,7 +379,6 @@ void USuspenseCoreGameHUDWidget::SetStaminaValues(float Current, float Max)
 
 void USuspenseCoreGameHUDWidget::UpdateHealthUI()
 {
-	// Update progress bar (when not using smooth interpolation)
 	if (HealthProgressBar && !bSmoothProgressBars)
 	{
 		if (bUseMaterialProgress && HealthProgressMaterial)
@@ -454,7 +391,6 @@ void USuspenseCoreGameHUDWidget::UpdateHealthUI()
 		}
 	}
 
-	// Update text values
 	if (HealthValueText)
 	{
 		if (bShowDecimals)
@@ -487,7 +423,6 @@ void USuspenseCoreGameHUDWidget::UpdateHealthUI()
 
 void USuspenseCoreGameHUDWidget::UpdateShieldUI()
 {
-	// Update progress bar (when not using smooth interpolation)
 	if (ShieldProgressBar && !bSmoothProgressBars)
 	{
 		if (bUseMaterialProgress && ShieldProgressMaterial)
@@ -500,7 +435,6 @@ void USuspenseCoreGameHUDWidget::UpdateShieldUI()
 		}
 	}
 
-	// Update text values
 	if (ShieldValueText)
 	{
 		if (bShowDecimals)
@@ -533,7 +467,6 @@ void USuspenseCoreGameHUDWidget::UpdateShieldUI()
 
 void USuspenseCoreGameHUDWidget::UpdateStaminaUI()
 {
-	// Update progress bar (when not using smooth interpolation)
 	if (StaminaProgressBar && !bSmoothProgressBars)
 	{
 		if (bUseMaterialProgress && StaminaProgressMaterial)
@@ -546,7 +479,6 @@ void USuspenseCoreGameHUDWidget::UpdateStaminaUI()
 		}
 	}
 
-	// Update text values
 	if (StaminaValueText)
 	{
 		if (bShowDecimals)
@@ -584,18 +516,14 @@ void USuspenseCoreGameHUDWidget::UpdateProgressBar(UProgressBar* ProgressBar, UM
 		return;
 	}
 
-	// Smooth interpolation for fluid fill/drain animation
 	DisplayedPercent = FMath::FInterpTo(DisplayedPercent, TargetPercent, DeltaTime, ProgressBarInterpSpeed);
 
-	// Update via material parameter or SetPercent depending on configuration
 	if (bUseMaterialProgress && Material)
 	{
-		// Material-based progress: set scalar parameter
 		Material->SetScalarParameterValue(MaterialProgressParameterName, DisplayedPercent);
 	}
 	else
 	{
-		// Standard progress bar: use SetPercent
 		ProgressBar->SetPercent(DisplayedPercent);
 	}
 }

@@ -283,6 +283,38 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 			bIsAiming ? TEXT("TRUE") : TEXT("FALSE"));
 		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Snapshot.AimPoseAlpha=%.2f, Current AimingAlpha=%.2f"),
 			Snapshot.AimPoseAlpha, AimingAlpha);
+
+		// Log which aim animations will be used when aiming starts!
+		if (bIsAiming)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ★★★ AIM STARTED - CHECKING ANIMATIONS ★★★"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimPose:  %s"),
+				CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("❌ NULL - NO AIM POSE!"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimIn:    %s"),
+				CurrentAnimationData.AimIn ? *CurrentAnimationData.AimIn->GetName() : TEXT("❌ NULL"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimIdle:  %s"),
+				CurrentAnimationData.AimIdle ? *CurrentAnimationData.AimIdle->GetName() : TEXT("❌ NULL - USING IDLE FALLBACK"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimOut:   %s"),
+				CurrentAnimationData.AimOut ? *CurrentAnimationData.AimOut->GetName() : TEXT("❌ NULL"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] GripPoses: %s"),
+				CurrentAnimationData.GripPoses ? *CurrentAnimationData.GripPoses->GetName() : TEXT("❌ NULL"));
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimPose index=%d, bModifyGrip=%s, bCreateAimPose=%s"),
+				Snapshot.AimPose,
+				Snapshot.bModifyGrip ? TEXT("TRUE") : TEXT("FALSE"),
+				Snapshot.bCreateAimPose ? TEXT("TRUE") : TEXT("FALSE"));
+
+			// If GripPoses exists, log what pose will be used
+			if (CurrentAnimationData.GripPoses)
+			{
+				const float ExplicitTime = FSuspenseCoreAnimationData::GetExplicitTimeFromPoseIndex(Snapshot.AimPose);
+				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Expected ExplicitTime for AimPose[%d] = %.4f"),
+					Snapshot.AimPose, ExplicitTime);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AIM ENDED - Transitioning back to hip fire"));
+		}
 	}
 
 	// Pose indices
@@ -396,6 +428,44 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 			UE_LOG(LogTemp, Warning, TEXT("║   [%d] Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
 				i, GT.GetLocation().X, GT.GetLocation().Y, GT.GetLocation().Z,
 				GT.GetRotation().Rotator().Pitch, GT.GetRotation().Rotator().Yaw, GT.GetRotation().Rotator().Roll);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
+
+		// ═══════════════════════════════════════════════════════════════════════════════
+		// LOG AIM ANIMATIONS ON WEAPON CHANGE - CRITICAL FOR DEBUGGING AIM POSE!
+		// ═══════════════════════════════════════════════════════════════════════════════
+		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
+		UE_LOG(LogTemp, Warning, TEXT("║ [DataTable] ★★★ AIM ANIMATIONS ★★★                         ║"));
+		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
+		UE_LOG(LogTemp, Warning, TEXT("║ AimPose (AnimComposite): %s"),
+			CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("❌ NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("║ AimIn (AnimSequence):    %s"),
+			CurrentAnimationData.AimIn ? *CurrentAnimationData.AimIn->GetName() : TEXT("❌ NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("║ AimIdle (AnimSequence):  %s"),
+			CurrentAnimationData.AimIdle ? *CurrentAnimationData.AimIdle->GetName() : TEXT("❌ NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("║ AimOut (AnimSequence):   %s"),
+			CurrentAnimationData.AimOut ? *CurrentAnimationData.AimOut->GetName() : TEXT("❌ NULL!"));
+		UE_LOG(LogTemp, Warning, TEXT("║ GripPoses (AnimComposite): %s"),
+			CurrentAnimationData.GripPoses ? *CurrentAnimationData.GripPoses->GetName() : TEXT("❌ NULL!"));
+
+		// Check if any aim animation is missing
+		const bool bHasAimPose = CurrentAnimationData.AimPose != nullptr;
+		const bool bHasAimIn = CurrentAnimationData.AimIn != nullptr;
+		const bool bHasAimIdle = CurrentAnimationData.AimIdle != nullptr;
+		const bool bHasAimOut = CurrentAnimationData.AimOut != nullptr;
+
+		if (!bHasAimPose || !bHasAimIn || !bHasAimIdle || !bHasAimOut)
+		{
+			UE_LOG(LogTemp, Error, TEXT("║ ⚠️ WARNING: SOME AIM ANIMATIONS ARE MISSING IN DATATABLE!"));
+			UE_LOG(LogTemp, Error, TEXT("║ Aim pose will NOT work correctly until you assign:"));
+			if (!bHasAimPose) UE_LOG(LogTemp, Error, TEXT("║   → AimPose (AnimComposite)"));
+			if (!bHasAimIn)   UE_LOG(LogTemp, Error, TEXT("║   → AimIn (AnimSequence)"));
+			if (!bHasAimIdle) UE_LOG(LogTemp, Error, TEXT("║   → AimIdle (AnimSequence)"));
+			if (!bHasAimOut)  UE_LOG(LogTemp, Error, TEXT("║   → AimOut (AnimSequence)"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("║ ✓ All aim animations are assigned!"));
 		}
 		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
 	}
@@ -1070,6 +1140,84 @@ UBlendSpace1D* USuspenseCoreCharacterAnimInstance::GetLocomotion() const
 UAnimSequence* USuspenseCoreCharacterAnimInstance::GetIdle() const
 {
 	return CurrentAnimationData.Idle;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AIM ANIMATION GETTERS (с логированием для отладки)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+UAnimComposite* USuspenseCoreCharacterAnimInstance::GetAimPose() const
+{
+	UAnimComposite* Result = CurrentAnimationData.AimPose;
+
+	// Debug logging (раз в 2 секунды когда целимся)
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 2.0f && bIsAiming && bHasWeaponEquipped)
+	{
+		LastLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[GetAimPose] ★ CALLED! Returning: %s (bIsAiming=%d, AimingAlpha=%.2f)"),
+			Result ? *Result->GetName() : TEXT("❌ NULL!"),
+			bIsAiming, AimingAlpha);
+	}
+
+	return Result;
+}
+
+UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimIn() const
+{
+	UAnimSequence* Result = CurrentAnimationData.AimIn;
+
+	// Debug: log when this getter is called while transitioning INTO aim
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 1.0f && AimingAlpha > 0.0f && AimingAlpha < 1.0f)
+	{
+		LastLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[GetAimIn] CALLED! Returning: %s (AimingAlpha=%.2f - TRANSITIONING)"),
+			Result ? *Result->GetName() : TEXT("❌ NULL!"),
+			AimingAlpha);
+	}
+
+	return Result;
+}
+
+UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimIdle() const
+{
+	// Fallback to Idle if AimIdle is NULL to prevent Sequence Evaluator crash
+	UAnimSequence* Result = CurrentAnimationData.AimIdle ? CurrentAnimationData.AimIdle : CurrentAnimationData.Idle;
+
+	// Debug logging when fully aiming
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 2.0f && bIsAiming && AimingAlpha >= 0.95f)
+	{
+		LastLogTime = CurrentTime;
+		const bool bUsingFallback = (CurrentAnimationData.AimIdle == nullptr);
+		UE_LOG(LogTemp, Warning, TEXT("[GetAimIdle] ★ CALLED! Returning: %s %s"),
+			Result ? *Result->GetName() : TEXT("❌ NULL!"),
+			bUsingFallback ? TEXT("(⚠️ FALLBACK TO IDLE!)") : TEXT(""));
+	}
+
+	return Result;
+}
+
+UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimOut() const
+{
+	UAnimSequence* Result = CurrentAnimationData.AimOut;
+
+	// Debug: log when transitioning OUT of aim
+	static float LastLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastLogTime) > 1.0f && !bIsAiming && AimingAlpha > 0.0f)
+	{
+		LastLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[GetAimOut] CALLED! Returning: %s (AimingAlpha=%.2f - TRANSITIONING OUT)"),
+			Result ? *Result->GetName() : TEXT("❌ NULL!"),
+			AimingAlpha);
+	}
+
+	return Result;
 }
 
 UAnimComposite* USuspenseCoreCharacterAnimInstance::GetGripPoses() const

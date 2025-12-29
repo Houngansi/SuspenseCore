@@ -672,15 +672,20 @@ void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 	InterpolatedADSOffset = UKismetMathLibrary::TInterpTo(InterpolatedADSOffset, ADSWeaponOffsetTarget, DeltaSeconds, ADSInterpSpeed);
 	ADSWeaponOffset = InterpolatedADSOffset;
 
-	// DEBUG: Log ADS offset
+	// DEBUG: Log ADS offset every second when aiming
 	static float LastADSLogTime = 0.0f;
 	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastADSLogTime) > 3.0f && bIsAiming)
+	if ((CurrentTime - LastADSLogTime) > 1.0f && bIsAiming)
 	{
 		LastADSLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] ★ ADSWeaponOffset = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
-			ADSWeaponOffset.GetLocation().X, ADSWeaponOffset.GetLocation().Y, ADSWeaponOffset.GetLocation().Z,
-			ADSAlpha);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ═══════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] bIsAiming=%s, AimingAlpha=%.2f, ADSAlpha=%.2f"),
+			bIsAiming ? TEXT("TRUE") : TEXT("FALSE"), AimingAlpha, ADSAlpha);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ADSWeaponOffset = Loc(%.1f, %.1f, %.1f)"),
+			ADSWeaponOffset.GetLocation().X, ADSWeaponOffset.GetLocation().Y, ADSWeaponOffset.GetLocation().Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] Target Offset   = Loc(%.1f, %.1f, %.1f)"),
+			ADSWeaponOffsetTarget.GetLocation().X, ADSWeaponOffsetTarget.GetLocation().Y, ADSWeaponOffsetTarget.GetLocation().Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ═══════════════════════════════════════"));
 	}
 }
 

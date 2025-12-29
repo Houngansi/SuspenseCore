@@ -739,9 +739,19 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponSightSocketTransform(FTransform& OutWorldTransform) const
 {
+	// DEBUG: Log once per second
+	static float LastSocketLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const bool bShouldLog = (CurrentTime - LastSocketLogTime) > 1.0f && bIsAiming;
+
 #if WITH_EQUIPMENT_SYSTEM
 	if (!CachedWeaponActor.IsValid())
 	{
+		if (bShouldLog)
+		{
+			LastSocketLogTime = CurrentTime;
+			UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] FAILED: CachedWeaponActor is NOT valid!"));
+		}
 		return false;
 	}
 
@@ -758,24 +768,74 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponSightSocketTransform(FTransfor
 		}
 	}
 
+	if (bShouldLog)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] Looking for socket '%s' on weapon '%s'"),
+			*SightSocket.ToString(), *WeaponActor->GetName());
+	}
+
 	// Ищем сокет на skeletal mesh
 	if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] Found SkeletalMesh: %s, DoesSocketExist('%s')=%s"),
+				WeaponMesh->GetSkeletalMeshAsset() ? *WeaponMesh->GetSkeletalMeshAsset()->GetName() : TEXT("NULL"),
+				*SightSocket.ToString(),
+				WeaponMesh->DoesSocketExist(SightSocket) ? TEXT("YES") : TEXT("NO"));
+		}
+
 		if (WeaponMesh->DoesSocketExist(SightSocket))
 		{
 			OutWorldTransform = WeaponMesh->GetSocketTransform(SightSocket, RTS_World);
+			if (bShouldLog)
+			{
+				LastSocketLogTime = CurrentTime;
+				UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] ★ SUCCESS! Socket found at Loc(%.1f, %.1f, %.1f)"),
+					OutWorldTransform.GetLocation().X, OutWorldTransform.GetLocation().Y, OutWorldTransform.GetLocation().Z);
+			}
 			return true;
 		}
+	}
+	else if (bShouldLog)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] No SkeletalMeshComponent found on weapon!"));
 	}
 
 	// Fallback на static mesh
 	if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] Trying StaticMesh, DoesSocketExist('%s')=%s"),
+				*SightSocket.ToString(),
+				StaticMesh->DoesSocketExist(SightSocket) ? TEXT("YES") : TEXT("NO"));
+		}
+
 		if (StaticMesh->DoesSocketExist(SightSocket))
 		{
 			OutWorldTransform = StaticMesh->GetSocketTransform(SightSocket, RTS_World);
+			if (bShouldLog)
+			{
+				LastSocketLogTime = CurrentTime;
+				UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] ★ SUCCESS (StaticMesh)! Socket at Loc(%.1f, %.1f, %.1f)"),
+					OutWorldTransform.GetLocation().X, OutWorldTransform.GetLocation().Y, OutWorldTransform.GetLocation().Z);
+			}
 			return true;
 		}
+	}
+
+	if (bShouldLog)
+	{
+		LastSocketLogTime = CurrentTime;
+		UE_LOG(LogTemp, Error, TEXT("[ADS Socket] FAILED: Socket '%s' NOT FOUND on weapon '%s'!"),
+			*SightSocket.ToString(), *WeaponActor->GetName());
+	}
+#else
+	if (bShouldLog)
+	{
+		LastSocketLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Socket] WITH_EQUIPMENT_SYSTEM is disabled!"));
 	}
 #endif
 

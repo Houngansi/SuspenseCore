@@ -418,23 +418,19 @@ public:
 
 	/** AimPose AnimComposite */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimComposite* GetAimPose() const { return CurrentAnimationData.AimPose; }
+	UAnimComposite* GetAimPose() const;
 
 	/** AimIn AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetAimIn() const { return CurrentAnimationData.AimIn; }
+	UAnimSequence* GetAimIn() const;
 
 	/** AimIdle AnimSequence (fallback to Idle if NULL) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetAimIdle() const
-	{
-		// Fallback to Idle if AimIdle is NULL to prevent Sequence Evaluator crash
-		return CurrentAnimationData.AimIdle ? CurrentAnimationData.AimIdle : CurrentAnimationData.Idle;
-	}
+	UAnimSequence* GetAimIdle() const;
 
 	/** AimOut AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))
-	UAnimSequence* GetAimOut() const { return CurrentAnimationData.AimOut; }
+	UAnimSequence* GetAimOut() const;
 
 	/** Slide AnimSequence */
 	UFUNCTION(BlueprintPure, Category = "Animation|Assets", meta = (BlueprintThreadSafe))

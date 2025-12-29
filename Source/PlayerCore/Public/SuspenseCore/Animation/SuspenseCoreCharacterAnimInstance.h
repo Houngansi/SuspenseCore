@@ -281,6 +281,43 @@ public:
 	float RightHandIKAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON SOCKET IK (для привязки руки к сокету на оружии)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Transform сокета LH_Target на оружии в Bone Space (hand_l).
+	 * Используй в Two Bone IK как Effector Location.
+	 * Автоматически обновляется каждый кадр.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|WeaponSocket")
+	FTransform WeaponLHSocketTransform = FTransform::Identity;
+
+	/**
+	 * Alpha для Weapon Socket IK.
+	 * = AimingAlpha когда сокет валиден и оружие drawn.
+	 * = 0 когда нет оружия или нет сокета.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|WeaponSocket")
+	float WeaponLHSocketAlpha = 0.0f;
+
+	/** True если на оружии есть валидный сокет LH_Target */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|WeaponSocket")
+	bool bHasValidWeaponLHSocket = false;
+
+	/**
+	 * Location из WeaponLHSocketTransform для прямого использования в Two Bone IK.
+	 * Не нужно делать Break Transform в Blueprint.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|WeaponSocket")
+	FVector WeaponLHSocketLocation = FVector::ZeroVector;
+
+	/**
+	 * Rotation из WeaponLHSocketTransform.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|WeaponSocket")
+	FRotator WeaponLHSocketRotation = FRotator::ZeroRotator;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// AIM OFFSET
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -533,6 +570,7 @@ protected:
 	void UpdateAimOffsetData(float DeltaSeconds);
 	void UpdatePoseStates(float DeltaSeconds);
 	void UpdateGASAttributes();
+	void UpdateWeaponSocketData(float DeltaSeconds);
 	void LoadWeaponAnimationsTable();
 
 	const FSuspenseCoreAnimationData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;
@@ -568,4 +606,13 @@ private:
 
 	// Track previous weapon type for change detection
 	FGameplayTag PreviousWeaponType;
+
+	// Weapon Socket IK interpolation
+	FTransform InterpolatedWeaponLHSocket = FTransform::Identity;
+	float InterpolatedWeaponLHAlpha = 0.0f;
+	static constexpr float WeaponSocketInterpSpeed = 15.0f;
+
+	// Cached weapon mesh component
+	UPROPERTY(Transient)
+	TWeakObjectPtr<USkeletalMeshComponent> CachedWeaponMesh;
 };

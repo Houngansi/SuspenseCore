@@ -357,9 +357,44 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 
 	if (bWeaponTypeChanged)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] SUCCESS! Loaded animation data for '%s'. Stance=%s"),
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] SUCCESS! Loaded animation data for '%s'. Stance=%s"),
 			*CurrentWeaponType.ToString(),
 			CurrentAnimationData.Stance ? *CurrentAnimationData.Stance->GetName() : TEXT("NULL"));
+
+		// LOG TRANSFORMS IMMEDIATELY ON WEAPON CHANGE
+		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
+		UE_LOG(LogTemp, Warning, TEXT("║ [DataTable] TRANSFORMS ON WEAPON EQUIP                       ║"));
+		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
+		UE_LOG(LogTemp, Warning, TEXT("║ RHTransform: Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
+			CurrentAnimationData.RHTransform.GetLocation().X,
+			CurrentAnimationData.RHTransform.GetLocation().Y,
+			CurrentAnimationData.RHTransform.GetLocation().Z,
+			CurrentAnimationData.RHTransform.GetRotation().Rotator().Pitch,
+			CurrentAnimationData.RHTransform.GetRotation().Rotator().Yaw,
+			CurrentAnimationData.RHTransform.GetRotation().Rotator().Roll);
+		UE_LOG(LogTemp, Warning, TEXT("║ LHTransform: Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
+			CurrentAnimationData.LHTransform.GetLocation().X,
+			CurrentAnimationData.LHTransform.GetLocation().Y,
+			CurrentAnimationData.LHTransform.GetLocation().Z,
+			CurrentAnimationData.LHTransform.GetRotation().Rotator().Pitch,
+			CurrentAnimationData.LHTransform.GetRotation().Rotator().Yaw,
+			CurrentAnimationData.LHTransform.GetRotation().Rotator().Roll);
+		UE_LOG(LogTemp, Warning, TEXT("║ WTransform:  Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
+			CurrentAnimationData.WTransform.GetLocation().X,
+			CurrentAnimationData.WTransform.GetLocation().Y,
+			CurrentAnimationData.WTransform.GetLocation().Z,
+			CurrentAnimationData.WTransform.GetRotation().Rotator().Pitch,
+			CurrentAnimationData.WTransform.GetRotation().Rotator().Yaw,
+			CurrentAnimationData.WTransform.GetRotation().Rotator().Roll);
+		UE_LOG(LogTemp, Warning, TEXT("║ LHGripTransform count: %d"), CurrentAnimationData.LHGripTransform.Num());
+		for (int32 i = 0; i < FMath::Min(CurrentAnimationData.LHGripTransform.Num(), 3); ++i)
+		{
+			const FTransform& GT = CurrentAnimationData.LHGripTransform[i];
+			UE_LOG(LogTemp, Warning, TEXT("║   [%d] Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
+				i, GT.GetLocation().X, GT.GetLocation().Y, GT.GetLocation().Z,
+				GT.GetRotation().Rotator().Pitch, GT.GetRotation().Rotator().Yaw, GT.GetRotation().Rotator().Roll);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
 	}
 }
 

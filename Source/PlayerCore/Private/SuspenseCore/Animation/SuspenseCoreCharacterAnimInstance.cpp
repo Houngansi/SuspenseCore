@@ -768,9 +768,10 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] ═══════════════════════════════════════"));
 	}
 
-	// Возвращаем offset transform (только location, rotation оставляем identity)
+	// ВАЖНО: Возвращаем WORLD Delta!
+	// В AnimBP установи Translation Space = "World Space"
 	FTransform Result = FTransform::Identity;
-	Result.SetLocation(LocalDelta);
+	Result.SetLocation(WorldDelta);
 
 	return Result;
 }

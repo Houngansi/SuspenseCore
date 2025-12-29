@@ -281,6 +281,40 @@ public:
 	float RightHandIKAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// ADS (AIM DOWN SIGHT) - WEAPON TO HEAD OFFSET
+	// Вычисляет offset чтобы сокет прицела (Sight_Socket) совпал с позицией камеры
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * ADS Offset - смещение которое нужно применить к оружию при прицеливании.
+	 * Вычисляется автоматически чтобы сокет прицела (Sight_Socket) оказался перед камерой.
+	 * Используй в AnimBP с нодой Transform (Modify) Bone на weapon bone.
+	 * Интерполируется по AimingAlpha.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FTransform ADSWeaponOffset = FTransform::Identity;
+
+	/** Target ADS offset (до интерполяции) */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FTransform ADSWeaponOffsetTarget = FTransform::Identity;
+
+	/** ADS Alpha для блендинга (0 = hip fire, 1 = full ADS). Синхронизирован с AimingAlpha */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	float ADSAlpha = 0.0f;
+
+	/** Имя сокета прицела на оружии (Sight_Socket по умолчанию) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
+	FName ADSSightSocketName = TEXT("Sight_Socket");
+
+	/** Скорость интерполяции ADS offset */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
+	float ADSInterpSpeed = 15.0f;
+
+	/** Дополнительный offset относительно камеры (для fine-tuning) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
+	FVector ADSCameraOffset = FVector(0.0f, 0.0f, 0.0f);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// AIM OFFSET
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -530,6 +564,7 @@ protected:
 	void UpdateWeaponData(float DeltaSeconds);
 	void UpdateAnimationAssets();
 	void UpdateIKData(float DeltaSeconds);
+	void UpdateADSData(float DeltaSeconds);
 	void UpdateAimOffsetData(float DeltaSeconds);
 	void UpdatePoseStates(float DeltaSeconds);
 	void UpdateGASAttributes();
@@ -565,6 +600,11 @@ private:
 
 	bool GetWeaponLHTargetTransform(FTransform& OutTransform) const;
 	FTransform ComputeLHOffsetTransform() const;
+
+	// ADS (Aim Down Sight) offset computation
+	FTransform ComputeADSWeaponOffset() const;
+	bool GetWeaponSightSocketTransform(FTransform& OutWorldTransform) const;
+	FTransform InterpolatedADSOffset = FTransform::Identity;
 
 	// Track previous weapon type for change detection
 	FGameplayTag PreviousWeaponType;

@@ -10,10 +10,12 @@
 #include "Engine/DataTable.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Animation/AnimComposite.h"
+#include "CineCameraComponent.h"
 
 #if WITH_EQUIPMENT_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #endif
 
 const FName USuspenseCoreCharacterAnimInstance::LHTargetSocketName = TEXT("LH_Target");
@@ -57,6 +59,7 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateWeaponData(DeltaSeconds);
 	UpdateAnimationAssets();
 	UpdateIKData(DeltaSeconds);
+	UpdateADSData(DeltaSeconds);
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
@@ -641,6 +644,142 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 	}
 
 	return FTransform::Identity;
+}
+
+void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
+{
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ADS (AIM DOWN SIGHT) - WEAPON TO HEAD OFFSET
+	// Вычисляет offset чтобы сокет прицела (Sight_Socket) совпал с позицией камеры
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Синхронизируем ADSAlpha с AimingAlpha
+	ADSAlpha = AimingAlpha;
+
+	// Если не целимся или нет оружия - сбрасываем offset
+	if (!bIsAiming || !bHasWeaponEquipped || !bIsWeaponDrawn)
+	{
+		ADSWeaponOffsetTarget = FTransform::Identity;
+		InterpolatedADSOffset = UKismetMathLibrary::TInterpTo(InterpolatedADSOffset, FTransform::Identity, DeltaSeconds, ADSInterpSpeed);
+		ADSWeaponOffset = InterpolatedADSOffset;
+		return;
+	}
+
+	// Вычисляем целевой ADS offset
+	ADSWeaponOffsetTarget = ComputeADSWeaponOffset();
+
+	// Интерполируем для плавного перехода
+	InterpolatedADSOffset = UKismetMathLibrary::TInterpTo(InterpolatedADSOffset, ADSWeaponOffsetTarget, DeltaSeconds, ADSInterpSpeed);
+	ADSWeaponOffset = InterpolatedADSOffset;
+
+	// DEBUG: Log ADS offset
+	static float LastADSLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastADSLogTime) > 3.0f && bIsAiming)
+	{
+		LastADSLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] ★ ADSWeaponOffset = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
+			ADSWeaponOffset.GetLocation().X, ADSWeaponOffset.GetLocation().Y, ADSWeaponOffset.GetLocation().Z,
+			ADSAlpha);
+	}
+}
+
+FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
+{
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// Вычисляем offset чтобы сокет прицела оружия оказался перед камерой
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	if (!CachedCharacter.IsValid())
+	{
+		return FTransform::Identity;
+	}
+
+	ASuspenseCoreCharacter* Character = CachedCharacter.Get();
+	UCineCameraComponent* Camera = Character->GetCineCameraComponent();
+	if (!Camera)
+	{
+		return FTransform::Identity;
+	}
+
+	// Получаем world transform сокета прицела на оружии
+	FTransform SightWorldTransform;
+	if (!GetWeaponSightSocketTransform(SightWorldTransform))
+	{
+		return FTransform::Identity;
+	}
+
+	// Получаем world transform камеры
+	const FTransform CameraWorldTransform = Camera->GetComponentTransform();
+
+	// Целевая позиция = позиция камеры + небольшой offset вперёд (чтобы прицел был чуть перед глазами)
+	FVector TargetLocation = CameraWorldTransform.GetLocation();
+	TargetLocation += CameraWorldTransform.GetRotation().GetForwardVector() * 10.0f; // 10 см перед камерой
+	TargetLocation += ADSCameraOffset; // Дополнительный пользовательский offset
+
+	// Вычисляем delta в world space
+	const FVector WorldDelta = TargetLocation - SightWorldTransform.GetLocation();
+
+	// Конвертируем delta в local space персонажа для AnimBP
+	USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
+	if (!CharacterMesh)
+	{
+		return FTransform::Identity;
+	}
+
+	const FTransform MeshTransform = CharacterMesh->GetComponentTransform();
+	const FVector LocalDelta = MeshTransform.InverseTransformVector(WorldDelta);
+
+	// Возвращаем offset transform (только location, rotation оставляем identity)
+	FTransform Result = FTransform::Identity;
+	Result.SetLocation(LocalDelta);
+
+	return Result;
+}
+
+bool USuspenseCoreCharacterAnimInstance::GetWeaponSightSocketTransform(FTransform& OutWorldTransform) const
+{
+#if WITH_EQUIPMENT_SYSTEM
+	if (!CachedWeaponActor.IsValid())
+	{
+		return false;
+	}
+
+	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// Пробуем получить имя сокета прицела через интерфейс ISuspenseCoreWeapon
+	FName SightSocket = ADSSightSocketName;
+	if (WeaponActor->Implements<USuspenseCoreWeapon>())
+	{
+		const FName WeaponSightSocket = ISuspenseCoreWeapon::Execute_GetSightSocketName(WeaponActor);
+		if (!WeaponSightSocket.IsNone())
+		{
+			SightSocket = WeaponSightSocket;
+		}
+	}
+
+	// Ищем сокет на skeletal mesh
+	if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
+	{
+		if (WeaponMesh->DoesSocketExist(SightSocket))
+		{
+			OutWorldTransform = WeaponMesh->GetSocketTransform(SightSocket, RTS_World);
+			return true;
+		}
+	}
+
+	// Fallback на static mesh
+	if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
+	{
+		if (StaticMesh->DoesSocketExist(SightSocket))
+		{
+			OutWorldTransform = StaticMesh->GetSocketTransform(SightSocket, RTS_World);
+			return true;
+		}
+	}
+#endif
+
+	return false;
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateAimOffsetData(float DeltaSeconds)

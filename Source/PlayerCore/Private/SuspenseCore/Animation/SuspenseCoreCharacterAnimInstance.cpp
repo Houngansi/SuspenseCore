@@ -60,6 +60,7 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
+	UpdateWeaponSocketData(DeltaSeconds);
 
 	// DEBUG: Log key variables every 3 seconds when weapon equipped
 	static float LastKeyVarLogTime = 0.0f;
@@ -253,6 +254,9 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		PreviousWeaponType = CurrentWeaponType;
 		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] WeaponType changed: %s -> %s"),
 			*PreviousWeaponType.ToString(), *Snapshot.WeaponType.ToString());
+
+		// Reset weapon mesh cache on weapon change
+		CachedWeaponMesh.Reset();
 	}
 
 	CurrentWeaponType = Snapshot.WeaponType;
@@ -900,4 +904,88 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 		return CurrentAnimationData.AimShoot;
 	}
 	return CurrentAnimationData.Shoot;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEAPON SOCKET IK
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreCharacterAnimInstance::UpdateWeaponSocketData(float DeltaSeconds)
+{
+	// Reset if no weapon
+	if (!bHasWeaponEquipped || !bIsWeaponDrawn || !CachedWeaponActor.IsValid())
+	{
+		bHasValidWeaponLHSocket = false;
+		WeaponLHSocketAlpha = FMath::FInterpTo(WeaponLHSocketAlpha, 0.0f, DeltaSeconds, WeaponSocketInterpSpeed);
+		InterpolatedWeaponLHAlpha = WeaponLHSocketAlpha;
+		return;
+	}
+
+	// Get or cache weapon mesh component
+	if (!CachedWeaponMesh.IsValid())
+	{
+		AActor* WeaponActor = CachedWeaponActor.Get();
+		CachedWeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>();
+	}
+
+	USkeletalMeshComponent* WeaponMesh = CachedWeaponMesh.Get();
+	if (!WeaponMesh)
+	{
+		bHasValidWeaponLHSocket = false;
+		WeaponLHSocketAlpha = FMath::FInterpTo(WeaponLHSocketAlpha, 0.0f, DeltaSeconds, WeaponSocketInterpSpeed);
+		return;
+	}
+
+	// Check if socket exists
+	if (!WeaponMesh->DoesSocketExist(LHTargetSocketName))
+	{
+		bHasValidWeaponLHSocket = false;
+		WeaponLHSocketAlpha = FMath::FInterpTo(WeaponLHSocketAlpha, 0.0f, DeltaSeconds, WeaponSocketInterpSpeed);
+		return;
+	}
+
+	bHasValidWeaponLHSocket = true;
+
+	// Get socket transform in world space
+	const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+
+	// Convert to character mesh component space (for Two Bone IK)
+	FTransform SocketComponentSpace = FTransform::Identity;
+	if (CachedCharacter.IsValid())
+	{
+		USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
+		if (CharacterMesh)
+		{
+			SocketComponentSpace = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
+		}
+	}
+
+	// Interpolate transform
+	InterpolatedWeaponLHSocket = UKismetMathLibrary::TInterpTo(
+		InterpolatedWeaponLHSocket,
+		SocketComponentSpace,
+		DeltaSeconds,
+		WeaponSocketInterpSpeed
+	);
+
+	// Calculate alpha based on aiming state
+	const float TargetAlpha = bIsAiming ? 1.0f : 0.0f;
+	InterpolatedWeaponLHAlpha = FMath::FInterpTo(InterpolatedWeaponLHAlpha, TargetAlpha, DeltaSeconds, WeaponSocketInterpSpeed);
+
+	// Update public variables
+	WeaponLHSocketTransform = InterpolatedWeaponLHSocket;
+	WeaponLHSocketAlpha = InterpolatedWeaponLHAlpha;
+	WeaponLHSocketLocation = WeaponLHSocketTransform.GetLocation();
+	WeaponLHSocketRotation = WeaponLHSocketTransform.GetRotation().Rotator();
+
+	// DEBUG: Log socket data periodically
+	static float LastSocketLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	if ((CurrentTime - LastSocketLogTime) > 3.0f && bHasValidWeaponLHSocket && bIsAiming)
+	{
+		LastSocketLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSocket] LH_Target: Loc(%.1f, %.1f, %.1f), Alpha=%.2f, bAiming=%d"),
+			WeaponLHSocketLocation.X, WeaponLHSocketLocation.Y, WeaponLHSocketLocation.Z,
+			WeaponLHSocketAlpha, bIsAiming);
+	}
 }

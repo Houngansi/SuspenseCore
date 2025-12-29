@@ -690,6 +690,11 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 	// Вычисляем offset чтобы сокет прицела оружия оказался перед камерой
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+	// DEBUG logging
+	static float LastComputeLogTime = 0.0f;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const bool bShouldLog = (CurrentTime - LastComputeLogTime) > 1.0f && bIsAiming;
+
 	if (!CachedCharacter.IsValid())
 	{
 		return FTransform::Identity;
@@ -699,6 +704,11 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 	UCineCameraComponent* Camera = Character->GetCineCameraComponent();
 	if (!Camera)
 	{
+		if (bShouldLog)
+		{
+			LastComputeLogTime = CurrentTime;
+			UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] FAILED: No camera!"));
+		}
 		return FTransform::Identity;
 	}
 
@@ -711,14 +721,30 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 
 	// Получаем world transform камеры
 	const FTransform CameraWorldTransform = Camera->GetComponentTransform();
+	const FVector CameraLocation = CameraWorldTransform.GetLocation();
+	const FVector SightLocation = SightWorldTransform.GetLocation();
 
 	// Целевая позиция = позиция камеры + небольшой offset вперёд (чтобы прицел был чуть перед глазами)
-	FVector TargetLocation = CameraWorldTransform.GetLocation();
+	FVector TargetLocation = CameraLocation;
 	TargetLocation += CameraWorldTransform.GetRotation().GetForwardVector() * 10.0f; // 10 см перед камерой
 	TargetLocation += ADSCameraOffset; // Дополнительный пользовательский offset
 
 	// Вычисляем delta в world space
-	const FVector WorldDelta = TargetLocation - SightWorldTransform.GetLocation();
+	const FVector WorldDelta = TargetLocation - SightLocation;
+
+	if (bShouldLog)
+	{
+		LastComputeLogTime = CurrentTime;
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] ═══════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] Camera World: (%.1f, %.1f, %.1f)"),
+			CameraLocation.X, CameraLocation.Y, CameraLocation.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] Sight World:  (%.1f, %.1f, %.1f)"),
+			SightLocation.X, SightLocation.Y, SightLocation.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] Target World: (%.1f, %.1f, %.1f)"),
+			TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] World Delta:  (%.1f, %.1f, %.1f)"),
+			WorldDelta.X, WorldDelta.Y, WorldDelta.Z);
+	}
 
 	// Конвертируем delta в local space персонажа для AnimBP
 	USkeletalMeshComponent* CharacterMesh = Character->GetMesh();
@@ -729,6 +755,13 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeADSWeaponOffset() const
 
 	const FTransform MeshTransform = CharacterMesh->GetComponentTransform();
 	const FVector LocalDelta = MeshTransform.InverseTransformVector(WorldDelta);
+
+	if (bShouldLog)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] Local Delta:  (%.1f, %.1f, %.1f)"),
+			LocalDelta.X, LocalDelta.Y, LocalDelta.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Compute] ═══════════════════════════════════════"));
+	}
 
 	// Возвращаем offset transform (только location, rotation оставляем identity)
 	FTransform Result = FTransform::Identity;

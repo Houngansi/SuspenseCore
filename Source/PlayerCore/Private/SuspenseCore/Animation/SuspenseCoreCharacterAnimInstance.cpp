@@ -814,31 +814,54 @@ void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 		return;
 	}
 
-	USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
-	if (!CharacterMesh)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// STEP 1: Get ADS_Target socket position on CHARACTER
+	// Search ALL skeletal mesh components (MetaHuman has Body + Face meshes!)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	USkeletalMeshComponent* MeshWithADSSocket = nullptr;
+
+	TArray<USkeletalMeshComponent*> SkeletalMeshes;
+	CachedCharacter->GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
+
+	for (USkeletalMeshComponent* Mesh : SkeletalMeshes)
 	{
-		ADSHandOffset = FVector::ZeroVector;
-		ADSHandOffsetRaw = FVector::ZeroVector;
-		return;
+		if (Mesh && Mesh->DoesSocketExist(ADSTargetSocketName))
+		{
+			ADSTargetLocation = Mesh->GetSocketLocation(ADSTargetSocketName);
+			MeshWithADSSocket = Mesh;
+			bHasADSTarget = true;
+
+			// Debug log once when found
+			static bool bLoggedOnce = false;
+			if (!bLoggedOnce)
+			{
+				bLoggedOnce = true;
+				UE_LOG(LogTemp, Warning, TEXT("[ADS] ✓ Found socket '%s' on mesh '%s'"),
+					*ADSTargetSocketName.ToString(), *Mesh->GetName());
+			}
+			break;
+		}
 	}
 
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// STEP 1: Get ADS_Target socket position on CHARACTER (head level)
-	// ═══════════════════════════════════════════════════════════════════════════════
-	if (CharacterMesh->DoesSocketExist(ADSTargetSocketName))
-	{
-		ADSTargetLocation = CharacterMesh->GetSocketLocation(ADSTargetSocketName);
-		bHasADSTarget = true;
-	}
-	else
+	if (!bHasADSTarget)
 	{
 		// Warn once
 		static bool bWarnedOnce = false;
 		if (!bWarnedOnce)
 		{
 			bWarnedOnce = true;
-			UE_LOG(LogTemp, Warning, TEXT("[ADS] ⚠️ Socket '%s' NOT FOUND on character skeleton! Add it to 'head' bone."),
-				*ADSTargetSocketName.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[ADS] ⚠️ Socket '%s' NOT FOUND on any skeletal mesh!"), *ADSTargetSocketName.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[ADS] Searched %d skeletal mesh components:"), SkeletalMeshes.Num());
+			for (USkeletalMeshComponent* Mesh : SkeletalMeshes)
+			{
+				if (Mesh)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[ADS]   - %s (Skeleton: %s)"),
+						*Mesh->GetName(),
+						Mesh->GetSkeletalMeshAsset() ? *Mesh->GetSkeletalMeshAsset()->GetName() : TEXT("NULL"));
+				}
+			}
+			UE_LOG(LogTemp, Warning, TEXT("[ADS] Add socket '%s' to 'head' bone in your skeleton!"), *ADSTargetSocketName.ToString());
 		}
 		ADSHandOffset = FVector::ZeroVector;
 		ADSHandOffsetRaw = FVector::ZeroVector;
@@ -887,8 +910,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 	// World space delta: where sight needs to go - where it currently is
 	const FVector WorldDelta = ADSTargetLocation - ADSSightLocation;
 
-	// Convert to Component Space (mesh local space) for AnimBP
-	const FVector ComponentDelta = CharacterMesh->GetComponentTransform().InverseTransformVector(WorldDelta);
+	// Convert to Component Space using the MAIN character mesh (for AnimBP)
+	USkeletalMeshComponent* MainMesh = CachedCharacter->GetMesh();
+	if (!MainMesh)
+	{
+		ADSHandOffset = FVector::ZeroVector;
+		return;
+	}
+
+	const FVector ComponentDelta = MainMesh->GetComponentTransform().InverseTransformVector(WorldDelta);
 
 	// Add fine-tune offset
 	const FVector TargetOffset = ComponentDelta + ADSFinetuneOffset;

@@ -281,6 +281,33 @@ public:
 	float RightHandIKAlpha = 0.0f;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// LEFT HAND SOCKET TRACKING (SIMPLE APPROACH)
+	// Просто берём world позицию сокета LH_Target на оружии
+	// В AnimBP используй Two Bone IK с Effector Space = World Space
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * World-space позиция сокета LH_Target на оружии.
+	 * Используй в AnimBP → Two Bone IK → Effector Location (World Space)
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	FVector LeftHandSocketLocation = FVector::ZeroVector;
+
+	/**
+	 * World-space rotation сокета LH_Target.
+	 * Используй для Joint Target Location если нужно контролировать локоть.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	FRotator LeftHandSocketRotation = FRotator::ZeroRotator;
+
+	/**
+	 * Есть ли валидный сокет LH_Target на текущем оружии?
+	 * Если false - не применяй IK для левой руки.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	bool bHasLeftHandSocket = false;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// ADS (AIM DOWN SIGHT) - WEAPON TO HEAD OFFSET
 	// Вычисляет offset чтобы сокет прицела (Sight_Socket) совпал с позицией камеры
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -560,6 +587,7 @@ protected:
 	void UpdateWeaponData(float DeltaSeconds);
 	void UpdateAnimationAssets();
 	void UpdateIKData(float DeltaSeconds);
+	void UpdateLeftHandSocket();
 	void UpdateADSData(float DeltaSeconds);
 	void UpdateAimOffsetData(float DeltaSeconds);
 	void UpdatePoseStates(float DeltaSeconds);

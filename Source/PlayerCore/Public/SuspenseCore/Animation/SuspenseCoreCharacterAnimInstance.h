@@ -663,10 +663,6 @@ private:
 	bool GetWeaponLHTargetTransform(FTransform& OutTransform) const;
 	FTransform ComputeLHOffsetTransform() const;
 
-	// ADS (Aim Down Sight) offset computation
-	FTransform ComputeADSWeaponOffset() const;
-	bool GetWeaponSightSocketTransform(FTransform& OutWorldTransform) const;
-	FTransform InterpolatedADSOffset = FTransform::Identity;
 
 	// Track previous weapon type for change detection
 	FGameplayTag PreviousWeaponType;

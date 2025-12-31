@@ -59,6 +59,7 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateWeaponData(DeltaSeconds);
 	UpdateAnimationAssets();
 	UpdateIKData(DeltaSeconds);
+	UpdateLeftHandSocket(); // Simple socket tracking for left hand IK
 	UpdateADSData(DeltaSeconds);
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
@@ -583,6 +584,85 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	// Keep IK enabled if transforms have ANY data
 	if (bRHIsIdentity) RightHandIKAlpha = 0.0f;
 	if (bLHIsIdentity) LeftHandIKAlpha = 0.0f;
+}
+
+void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
+{
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// SIMPLE LEFT HAND SOCKET TRACKING
+	// Просто берём world позицию сокета LH_Target на оружии каждый кадр
+	// В AnimBP: Two Bone IK → Effector Location = LeftHandSocketLocation (World Space)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Reset if no weapon
+	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
+	{
+		bHasLeftHandSocket = false;
+		LeftHandSocketLocation = FVector::ZeroVector;
+		LeftHandSocketRotation = FRotator::ZeroRotator;
+		return;
+	}
+
+#if WITH_EQUIPMENT_SYSTEM
+	if (!CachedWeaponActor.IsValid())
+	{
+		bHasLeftHandSocket = false;
+		return;
+	}
+
+	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// Try skeletal mesh first
+	if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
+	{
+		if (WeaponMesh->DoesSocketExist(LHTargetSocketName))
+		{
+			const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+			LeftHandSocketLocation = SocketWorldTransform.GetLocation();
+			LeftHandSocketRotation = SocketWorldTransform.GetRotation().Rotator();
+			bHasLeftHandSocket = true;
+
+			// Debug log every 2 seconds
+			static float LastLogTime = 0.0f;
+			const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+			if ((CurrentTime - LastLogTime) > 2.0f)
+			{
+				LastLogTime = CurrentTime;
+				UE_LOG(LogTemp, Warning, TEXT("[LH Socket] ★ World Pos: (%.1f, %.1f, %.1f)"),
+					LeftHandSocketLocation.X, LeftHandSocketLocation.Y, LeftHandSocketLocation.Z);
+			}
+			return;
+		}
+	}
+
+	// Fallback to static mesh
+	if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
+	{
+		if (StaticMesh->DoesSocketExist(LHTargetSocketName))
+		{
+			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
+			LeftHandSocketLocation = SocketWorldTransform.GetLocation();
+			LeftHandSocketRotation = SocketWorldTransform.GetRotation().Rotator();
+			bHasLeftHandSocket = true;
+			return;
+		}
+	}
+
+	// Socket not found
+	bHasLeftHandSocket = false;
+
+	// Warn once per weapon
+	static FName LastWarnedWeapon = NAME_None;
+	const FName CurrentWeaponName = FName(*WeaponActor->GetName());
+	if (LastWarnedWeapon != CurrentWeaponName)
+	{
+		LastWarnedWeapon = CurrentWeaponName;
+		UE_LOG(LogTemp, Warning, TEXT("[LH Socket] ⚠️ Socket '%s' NOT FOUND on weapon '%s'! Left hand IK disabled."),
+			*LHTargetSocketName.ToString(), *WeaponActor->GetName());
+	}
+#else
+	bHasLeftHandSocket = false;
+#endif
 }
 
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const

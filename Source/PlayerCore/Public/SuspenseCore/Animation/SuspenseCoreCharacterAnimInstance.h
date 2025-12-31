@@ -308,38 +308,76 @@ public:
 	bool bHasLeftHandSocket = false;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// ADS (AIM DOWN SIGHT) - WEAPON TO HEAD OFFSET
-	// Вычисляет offset чтобы сокет прицела (Sight_Socket) совпал с позицией камеры
+	// ADS (AIM DOWN SIGHT) - PROCEDURAL WEAPON TO HEAD
+	// Подтягивает Sight_Socket оружия к ADS_Target сокету на голове персонажа
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * ADS Offset - смещение которое нужно применить к оружию при прицеливании.
-	 * Вычисляется автоматически чтобы сокет прицела (Sight_Socket) оказался перед камерой.
-	 * Используй в AnimBP с нодой Transform (Modify) Bone на weapon bone.
-	 * Интерполируется по AimingAlpha.
+	 * Имя сокета на скелете ПЕРСОНАЖА куда целиться (на уровне глаз).
+	 * Создай сокет "ADS_Target" на кости "head" в скелете персонажа.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
-	FTransform ADSWeaponOffset = FTransform::Identity;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
+	FName ADSTargetSocketName = TEXT("ADS_Target");
 
-	/** Target ADS offset (до интерполяции) */
-	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
-	FTransform ADSWeaponOffsetTarget = FTransform::Identity;
-
-	/** ADS Alpha для блендинга (0 = hip fire, 1 = full ADS). Синхронизирован с AimingAlpha */
-	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
-	float ADSAlpha = 0.0f;
-
-	/** Имя сокета прицела на оружии (Sight_Socket по умолчанию) */
+	/**
+	 * Имя сокета прицела на ОРУЖИИ (мушка/прицел).
+	 * Создай сокет "Sight_Socket" на меше оружия где находится прицел.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
 	FName ADSSightSocketName = TEXT("Sight_Socket");
 
-	/** Скорость интерполяции ADS offset */
+	/**
+	 * World-space позиция ADS_Target сокета на голове персонажа.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FVector ADSTargetLocation = FVector::ZeroVector;
+
+	/**
+	 * World-space позиция Sight_Socket на оружии.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FVector ADSSightLocation = FVector::ZeroVector;
+
+	/**
+	 * ★ ГЛАВНАЯ ПЕРЕМЕННАЯ ★
+	 * Offset который нужно применить к hand_r чтобы прицел совпал с глазами.
+	 * Используй в AnimBP: Transform (Modify) Bone → hand_r → Translation = ADSHandOffset
+	 * Уже умножен на AimingAlpha - просто подключи напрямую!
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FVector ADSHandOffset = FVector::ZeroVector;
+
+	/**
+	 * Raw offset (до умножения на AimingAlpha).
+	 * Используй если хочешь свою интерполяцию.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	FVector ADSHandOffsetRaw = FVector::ZeroVector;
+
+	/**
+	 * Есть ли валидный ADS_Target сокет на персонаже?
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	bool bHasADSTarget = false;
+
+	/**
+	 * Есть ли валидный Sight_Socket на оружии?
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|ADS")
+	bool bHasSightSocket = false;
+
+	/**
+	 * Скорость интерполяции ADS offset.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
 	float ADSInterpSpeed = 15.0f;
 
-	/** Дополнительный offset относительно камеры (для fine-tuning) */
+	/**
+	 * Дополнительный offset для fine-tuning (в Component Space).
+	 * X = вперёд/назад, Y = влево/вправо, Z = вверх/вниз
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|ADS")
-	FVector ADSCameraOffset = FVector(0.0f, 0.0f, 0.0f);
+	FVector ADSFinetuneOffset = FVector(0.0f, 0.0f, 0.0f);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// AIM OFFSET

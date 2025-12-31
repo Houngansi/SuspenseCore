@@ -799,43 +799,125 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 {
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// ADS (AIM DOWN SIGHT) - WEAPON TO HEAD OFFSET
-	// Вычисляет offset чтобы сокет прицела (Sight_Socket) совпал с позицией камеры
+	// ADS (AIM DOWN SIGHT) - PROCEDURAL WEAPON TO HEAD
+	// Вычисляет offset для hand_r чтобы Sight_Socket оружия совпал с ADS_Target на голове
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	// Синхронизируем ADSAlpha с AimingAlpha
-	ADSAlpha = AimingAlpha;
+	// Reset flags
+	bHasADSTarget = false;
+	bHasSightSocket = false;
 
-	// Если не целимся или нет оружия - сбрасываем offset
-	if (!bIsAiming || !bHasWeaponEquipped || !bIsWeaponDrawn)
+	if (!CachedCharacter.IsValid())
 	{
-		ADSWeaponOffsetTarget = FTransform::Identity;
-		InterpolatedADSOffset = UKismetMathLibrary::TInterpTo(InterpolatedADSOffset, FTransform::Identity, DeltaSeconds, ADSInterpSpeed);
-		ADSWeaponOffset = InterpolatedADSOffset;
+		ADSHandOffset = FVector::ZeroVector;
+		ADSHandOffsetRaw = FVector::ZeroVector;
 		return;
 	}
 
-	// Вычисляем целевой ADS offset
-	ADSWeaponOffsetTarget = ComputeADSWeaponOffset();
+	USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
+	if (!CharacterMesh)
+	{
+		ADSHandOffset = FVector::ZeroVector;
+		ADSHandOffsetRaw = FVector::ZeroVector;
+		return;
+	}
 
-	// Интерполируем для плавного перехода
-	InterpolatedADSOffset = UKismetMathLibrary::TInterpTo(InterpolatedADSOffset, ADSWeaponOffsetTarget, DeltaSeconds, ADSInterpSpeed);
-	ADSWeaponOffset = InterpolatedADSOffset;
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// STEP 1: Get ADS_Target socket position on CHARACTER (head level)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (CharacterMesh->DoesSocketExist(ADSTargetSocketName))
+	{
+		ADSTargetLocation = CharacterMesh->GetSocketLocation(ADSTargetSocketName);
+		bHasADSTarget = true;
+	}
+	else
+	{
+		// Warn once
+		static bool bWarnedOnce = false;
+		if (!bWarnedOnce)
+		{
+			bWarnedOnce = true;
+			UE_LOG(LogTemp, Warning, TEXT("[ADS] ⚠️ Socket '%s' NOT FOUND on character skeleton! Add it to 'head' bone."),
+				*ADSTargetSocketName.ToString());
+		}
+		ADSHandOffset = FVector::ZeroVector;
+		ADSHandOffsetRaw = FVector::ZeroVector;
+		return;
+	}
 
-	// DEBUG: Log ADS offset every second when aiming
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// STEP 2: Get Sight_Socket position on WEAPON
+	// ═══════════════════════════════════════════════════════════════════════════════
+#if WITH_EQUIPMENT_SYSTEM
+	if (CachedWeaponActor.IsValid() && bHasWeaponEquipped && bIsWeaponDrawn)
+	{
+		AActor* WeaponActor = CachedWeaponActor.Get();
+
+		if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
+		{
+			if (WeaponMesh->DoesSocketExist(ADSSightSocketName))
+			{
+				ADSSightLocation = WeaponMesh->GetSocketLocation(ADSSightSocketName);
+				bHasSightSocket = true;
+			}
+		}
+		else if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
+		{
+			if (StaticMesh->DoesSocketExist(ADSSightSocketName))
+			{
+				ADSSightLocation = StaticMesh->GetSocketLocation(ADSSightSocketName);
+				bHasSightSocket = true;
+			}
+		}
+	}
+#endif
+
+	if (!bHasSightSocket)
+	{
+		// No weapon or no sight socket - interpolate offset to zero
+		ADSHandOffsetRaw = FMath::VInterpTo(ADSHandOffsetRaw, FVector::ZeroVector, DeltaSeconds, ADSInterpSpeed);
+		ADSHandOffset = ADSHandOffsetRaw * AimingAlpha;
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// STEP 3: Calculate offset to move Sight_Socket to ADS_Target
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// World space delta: where sight needs to go - where it currently is
+	const FVector WorldDelta = ADSTargetLocation - ADSSightLocation;
+
+	// Convert to Component Space (mesh local space) for AnimBP
+	const FVector ComponentDelta = CharacterMesh->GetComponentTransform().InverseTransformVector(WorldDelta);
+
+	// Add fine-tune offset
+	const FVector TargetOffset = ComponentDelta + ADSFinetuneOffset;
+
+	// Interpolate for smooth transition
+	ADSHandOffsetRaw = FMath::VInterpTo(ADSHandOffsetRaw, TargetOffset, DeltaSeconds, ADSInterpSpeed);
+
+	// Final offset multiplied by AimingAlpha (0 = hip fire, 1 = full ADS)
+	ADSHandOffset = ADSHandOffsetRaw * AimingAlpha;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// DEBUG LOGGING
+	// ═══════════════════════════════════════════════════════════════════════════════
 	static float LastADSLogTime = 0.0f;
 	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	if ((CurrentTime - LastADSLogTime) > 1.0f && bIsAiming)
 	{
 		LastADSLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ═══════════════════════════════════════"));
-		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] bIsAiming=%s, AimingAlpha=%.2f, ADSAlpha=%.2f"),
-			bIsAiming ? TEXT("TRUE") : TEXT("FALSE"), AimingAlpha, ADSAlpha);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ADSWeaponOffset = Loc(%.1f, %.1f, %.1f)"),
-			ADSWeaponOffset.GetLocation().X, ADSWeaponOffset.GetLocation().Y, ADSWeaponOffset.GetLocation().Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] Target Offset   = Loc(%.1f, %.1f, %.1f)"),
-			ADSWeaponOffsetTarget.GetLocation().X, ADSWeaponOffsetTarget.GetLocation().Y, ADSWeaponOffsetTarget.GetLocation().Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS FINAL] ═══════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] ═══════════════════════════════════════════════════════"));
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] ADS_Target (head):  (%.1f, %.1f, %.1f)"),
+			ADSTargetLocation.X, ADSTargetLocation.Y, ADSTargetLocation.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] Sight_Socket (gun): (%.1f, %.1f, %.1f)"),
+			ADSSightLocation.X, ADSSightLocation.Y, ADSSightLocation.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] World Delta:        (%.1f, %.1f, %.1f)"),
+			WorldDelta.X, WorldDelta.Y, WorldDelta.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] ★ ADSHandOffset:    (%.1f, %.1f, %.1f) [Component Space]"),
+			ADSHandOffset.X, ADSHandOffset.Y, ADSHandOffset.Z);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] AimingAlpha: %.2f"), AimingAlpha);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS] ═══════════════════════════════════════════════════════"));
 	}
 }
 

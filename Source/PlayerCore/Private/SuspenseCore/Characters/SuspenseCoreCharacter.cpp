@@ -423,8 +423,10 @@ float ASuspenseCoreCharacter::GetAnimationRightValue() const
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUBLIC API - WEAPON
 // ═══════════════════════════════════════════════════════════════════════════════
+// ISUSPENSECORECHARACTERINTERFACE IMPLEMENTATION
+// ═══════════════════════════════════════════════════════════════════════════════
 
-void ASuspenseCoreCharacter::SetHasWeapon(bool bNewHasWeapon)
+void ASuspenseCoreCharacter::SetHasWeapon_Implementation(bool bNewHasWeapon)
 {
 	if (bHasWeapon != bNewHasWeapon)
 	{
@@ -437,12 +439,13 @@ void ASuspenseCoreCharacter::SetHasWeapon(bool bNewHasWeapon)
 	}
 }
 
-void ASuspenseCoreCharacter::SetCurrentWeaponActor(AActor* WeaponActor)
+void ASuspenseCoreCharacter::SetCurrentWeaponActor_Implementation(AActor* WeaponActor)
 {
 	if (CurrentWeaponActor.Get() != WeaponActor)
 	{
 		CurrentWeaponActor = WeaponActor;
-		SetHasWeapon(CurrentWeaponActor.IsValid());
+		// Call via interface to ensure proper BlueprintNativeEvent dispatch
+		ISuspenseCoreCharacterInterface::Execute_SetHasWeapon(this, CurrentWeaponActor.IsValid());
 
 		PublishCharacterEvent(
 			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.WeaponChanged")),

@@ -195,27 +195,12 @@ public:
 	float GetAnimationRightValue() const;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - WEAPON
+	// ISUSPENSECORECHARACTERINTERFACE IMPLEMENTATION
+	// Provides weapon management API via interface (BlueprintCallable in interface)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-	bool HasWeapon() const { return bHasWeapon; }
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-	void SetHasWeapon(bool bNewHasWeapon);
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-	AActor* GetCurrentWeaponActor() const { return CurrentWeaponActor.Get(); }
-
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
-	void SetCurrentWeaponActor(AActor* WeaponActor);
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// ISUSPENSECORECHARACTERINTERFACE
-	// ═══════════════════════════════════════════════════════════════════════════════
-
-	virtual void SetHasWeapon_Implementation(bool bNewHasWeapon) override { SetHasWeapon(bNewHasWeapon); }
-	virtual void SetCurrentWeaponActor_Implementation(AActor* WeaponActor) override { SetCurrentWeaponActor(WeaponActor); }
+	virtual void SetHasWeapon_Implementation(bool bNewHasWeapon) override;
+	virtual void SetCurrentWeaponActor_Implementation(AActor* WeaponActor) override;
 	virtual AActor* GetCurrentWeaponActor_Implementation() const override { return CurrentWeaponActor.Get(); }
 	virtual bool HasWeapon_Implementation() const override { return bHasWeapon; }
 	virtual UAbilitySystemComponent* GetASC_Implementation() const override { return GetAbilitySystemComponent(); }

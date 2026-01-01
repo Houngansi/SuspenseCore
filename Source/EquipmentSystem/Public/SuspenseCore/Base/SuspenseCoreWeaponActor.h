@@ -295,4 +295,29 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponFireModeComponent* FireModeComponent;
+
+    //================================================
+    // Wall Detection (Weapon Blocking)
+    //================================================
+
+    /** Distance threshold for wall detection (units) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="10.0", ClampMax="100.0"))
+    float WallDetectionDistance = 40.0f;
+
+    /** Interval between wall detection checks (seconds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="0.01", ClampMax="0.5"))
+    float WallDetectionInterval = 0.1f;
+
+    /** Enable/disable wall detection for this weapon */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection")
+    bool bEnableWallDetection = true;
+
+    /** Timer handle for wall detection */
+    FTimerHandle WallDetectionTimerHandle;
+
+    /** Perform wall detection trace and update blocking state */
+    void CheckWallBlocking();
+
+    /** Current wall blocking state */
+    bool bIsCurrentlyBlocked = false;
 };

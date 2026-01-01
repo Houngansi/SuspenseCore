@@ -6,7 +6,9 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponFireModeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "Camera/CameraComponent.h"
+#include "TimerManager.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Engine/World.h"
@@ -62,11 +64,34 @@ void ASuspenseCoreWeaponActor::BeginPlay()
         ScopeCam->SetFieldOfView(AimFOV);
     }
 
-    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("WeaponActor BeginPlay: %s (AimFOV: %.1f)"), *GetName(), AimFOV);
+    // Start wall detection timer (optimized: not every tick)
+    if (bEnableWallDetection && WallDetectionInterval > 0.0f)
+    {
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                WallDetectionTimerHandle,
+                this,
+                &ASuspenseCoreWeaponActor::CheckWallBlocking,
+                WallDetectionInterval,
+                true,  // bLoop
+                WallDetectionInterval  // FirstDelay
+            );
+        }
+    }
+
+    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("WeaponActor BeginPlay: %s (AimFOV: %.1f, WallDetection: %s)"),
+        *GetName(), AimFOV, bEnableWallDetection ? TEXT("ON") : TEXT("OFF"));
 }
 
 void ASuspenseCoreWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    // Clear wall detection timer
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(WallDetectionTimerHandle);
+    }
+
     // Persist ammo / firemode (component already persists on changes; here — final guard)
     SaveWeaponState();
 
@@ -820,4 +845,60 @@ float ASuspenseCoreWeaponActor::GetWeaponAttributeValue(const FName& AttributeNa
         }
     }
     return DefaultValue;
+}
+
+//================================================
+// Wall Detection (Weapon Blocking)
+//================================================
+void ASuspenseCoreWeaponActor::CheckWallBlocking()
+{
+    // Only run on locally controlled pawn
+    APawn* OwnerPawn = Cast<APawn>(GetOwner());
+    if (!OwnerPawn || !OwnerPawn->IsLocallyControlled())
+    {
+        return;
+    }
+
+    // Get muzzle transform for trace start
+    const FTransform MuzzleTransform = GetMuzzleTransform();
+    const FVector TraceStart = MuzzleTransform.GetLocation();
+    const FVector TraceDirection = MuzzleTransform.GetRotation().GetForwardVector();
+    const FVector TraceEnd = TraceStart + (TraceDirection * WallDetectionDistance);
+
+    // Setup collision query params
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+    QueryParams.AddIgnoredActor(OwnerPawn);
+    QueryParams.bTraceComplex = false;
+    QueryParams.bReturnPhysicalMaterial = false;
+
+    // Perform line trace
+    FHitResult HitResult;
+    const bool bHit = GetWorld()->LineTraceSingleByChannel(
+        HitResult,
+        TraceStart,
+        TraceEnd,
+        ECC_Visibility,
+        QueryParams
+    );
+
+    // Determine if blocked state changed
+    const bool bNewBlocked = bHit && HitResult.bBlockingHit;
+
+    if (bNewBlocked != bIsCurrentlyBlocked)
+    {
+        bIsCurrentlyBlocked = bNewBlocked;
+
+        // Find StanceComponent on owner and update blocking state
+        if (USuspenseCoreWeaponStanceComponent* StanceComp = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+        {
+            StanceComp->SetWeaponBlocked(bIsCurrentlyBlocked);
+
+            UE_LOG(LogSuspenseCoreWeaponActor, Verbose,
+                TEXT("[WallDetection] Weapon %s: blocked state changed to %s (distance: %.1f)"),
+                *GetName(),
+                bIsCurrentlyBlocked ? TEXT("BLOCKED") : TEXT("CLEAR"),
+                bHit ? HitResult.Distance : WallDetectionDistance);
+        }
+    }
 }

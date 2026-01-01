@@ -593,10 +593,12 @@ void USuspenseCoreWeaponStanceComponent::UpdateInterpolatedValues(float DeltaTim
 	if (!bIsWeaponBlocked && BlockDistance > 0.3f)
 	{
 		bIsWeaponBlocked = true;
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] bIsWeaponBlocked = TRUE (BlockDistance: %.2f)"), BlockDistance);
 	}
 	else if (bIsWeaponBlocked && BlockDistance < 0.1f)
 	{
 		bIsWeaponBlocked = false;
+		UE_LOG(LogTemp, Warning, TEXT("[StanceComp] bIsWeaponBlocked = FALSE (BlockDistance: %.2f)"), BlockDistance);
 	}
 
 	// Decay recoil over time

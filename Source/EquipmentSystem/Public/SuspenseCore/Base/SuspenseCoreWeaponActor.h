@@ -306,7 +306,7 @@ protected:
 
     /** Enable/disable wall detection for this weapon */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection")
-    bool bEnableWallDetection = false;  // Disabled until AnimBP is fixed
+    bool bEnableWallDetection = true;
 
     /** Interval between wall detection checks (seconds) */
     static constexpr float WallDetectionInterval = 0.1f;

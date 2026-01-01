@@ -578,6 +578,38 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
     if (USuspenseCoreEquipmentMeshComponent* MC = MeshComponent)
     {
         MC->SetupWeaponVisuals(ItemData); // применяет оружейные визуальные настройки
+
+        // Attach ScopeCam to Sight_Socket for proper ADS camera orientation
+        if (ScopeCam && ScopeCamSocketName != NAME_None && MC->DoesSocketExist(ScopeCamSocketName))
+        {
+            ScopeCam->AttachToComponent(MC, FAttachmentTransformRules::SnapToTargetNotIncludingScale, ScopeCamSocketName);
+
+            // Apply configurable rotation offset
+            // If socket orientation doesn't match expected camera direction, adjust via ScopeCamRotationOffset
+            ScopeCam->SetRelativeRotation(ScopeCamRotationOffset);
+
+            // Debug logging for camera orientation
+            const FTransform SocketTransform = MC->GetSocketTransform(ScopeCamSocketName);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] ScopeCam attached to '%s'"), *ScopeCamSocketName.ToString());
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Socket World Rotation: P=%.1f Y=%.1f R=%.1f"),
+                SocketTransform.Rotator().Pitch, SocketTransform.Rotator().Yaw, SocketTransform.Rotator().Roll);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] ScopeCamRotationOffset: P=%.1f Y=%.1f R=%.1f"),
+                ScopeCamRotationOffset.Pitch, ScopeCamRotationOffset.Yaw, ScopeCamRotationOffset.Roll);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Final Camera World Rotation: P=%.1f Y=%.1f R=%.1f"),
+                ScopeCam->GetComponentRotation().Pitch, ScopeCam->GetComponentRotation().Yaw, ScopeCam->GetComponentRotation().Roll);
+        }
+        else if (ScopeCam)
+        {
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] ScopeCam exists but socket '%s' not found on mesh!"),
+                *ScopeCamSocketName.ToString());
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Camera will use RootComponent - orientation may be wrong"));
+        }
     }
 
     // Link AttributeComponent to AmmoComponent for attribute access

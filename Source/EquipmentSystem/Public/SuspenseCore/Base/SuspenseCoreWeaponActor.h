@@ -239,6 +239,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
     FName ScopeCamSocketName = TEXT("Sight_Socket");
 
+    /**
+     * Rotation offset for scope camera relative to socket.
+     * Use this to correct camera orientation if socket is rotated differently.
+     * Default (0,0,0) means camera uses socket rotation as-is.
+     * Example: If camera looks 90° left, set Yaw to -90 to correct.
+     */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
+    FRotator ScopeCamRotationOffset = FRotator::ZeroRotator;
+
     //================================================
     // Components (owned by actor)
     //================================================

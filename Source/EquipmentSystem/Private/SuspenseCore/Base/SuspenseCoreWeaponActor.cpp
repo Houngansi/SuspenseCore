@@ -894,5 +894,14 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
         NewBlockDistance = 1.0f - FMath::Clamp(HitResult.Distance / WallDetectionDistance, 0.0f, 1.0f);
     }
 
+    // Debug log
+    static float LastLoggedDistance = -1.0f;
+    if (FMath::Abs(NewBlockDistance - LastLoggedDistance) > 0.1f)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[WallBlock] BlockDistance: %.2f, bHit: %s, Distance: %.1f"),
+            NewBlockDistance, bHit ? TEXT("YES") : TEXT("NO"), bHit ? HitResult.Distance : -1.0f);
+        LastLoggedDistance = NewBlockDistance;
+    }
+
     StanceComp->SetBlockDistance(NewBlockDistance);
 }

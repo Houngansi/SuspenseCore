@@ -186,6 +186,31 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	bool bIsWeaponBlocked = false;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON BLOCKING IK TARGETS
+	// Позиции сокетов на теле куда притягиваются руки при блокировке
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** World-space location для правой руки при блокировке */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Blocking")
+	FVector BlockedRHTargetLocation = FVector::ZeroVector;
+
+	/** World-space location для левой руки при блокировке */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Blocking")
+	FVector BlockedLHTargetLocation = FVector::ZeroVector;
+
+	/** Есть ли валидные blocked сокеты на персонаже */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Blocking")
+	bool bHasBlockedTargets = false;
+
+	/** Имя сокета для правой руки при блокировке */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Blocking")
+	FName BlockedRHSocketName = TEXT("Blocked_RH_Target");
+
+	/** Имя сокета для левой руки при блокировке */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation|Blocking")
+	FName BlockedLHSocketName = TEXT("Blocked_LH_Target");
+
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float GripModifier = 0.0f;
 
@@ -633,6 +658,7 @@ protected:
 	void UpdateAimOffsetData(float DeltaSeconds);
 	void UpdatePoseStates(float DeltaSeconds);
 	void UpdateGASAttributes();
+	void UpdateBlockingData();
 	void LoadWeaponAnimationsTable();
 
 	const FSuspenseCoreAnimationData* GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const;

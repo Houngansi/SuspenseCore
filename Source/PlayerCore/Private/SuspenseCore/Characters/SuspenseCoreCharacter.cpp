@@ -20,7 +20,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "CineCameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -1151,6 +1151,28 @@ void ASuspenseCoreCharacter::PublishCameraEvent(const FGameplayTag& EventTag, fl
 // ADS CAMERA SWITCHING
 // ═══════════════════════════════════════════════════════════════════════════════
 
+void ASuspenseCoreCharacter::ADSSwitchCamera_Implementation(bool bToScopeCam)
+{
+	// Get weapon's camera config via ISuspenseCoreWeapon interface
+	float TransitionDuration = 0.2f;
+	float TargetFOV = 60.0f;
+
+	AActor* WeaponActor = CurrentWeaponActor.Get();
+	if (WeaponActor && WeaponActor->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
+	{
+		TransitionDuration = ISuspenseCoreWeapon::Execute_GetADSTransitionDuration(WeaponActor);
+		TargetFOV = ISuspenseCoreWeapon::Execute_GetADSFieldOfView(WeaponActor);
+	}
+
+	// Delegate to SwitchToScopeCamera for actual implementation
+	SwitchToScopeCamera(bToScopeCam, TransitionDuration, TargetFOV);
+}
+
+float ASuspenseCoreCharacter::ADSGetCurrentFOV_Implementation() const
+{
+	return Camera ? Camera->FieldOfView : 90.0f;
+}
+
 void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float TransitionDuration, float TargetFOV)
 {
 	// Get player controller for view target blend
@@ -1167,30 +1189,30 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		// SWITCH TO SCOPE CAMERA (ADS Enter)
 		// ═══════════════════════════════════════════════════════════════════════
 
-		// Get current weapon actor
-		ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(CurrentWeaponActor.Get());
+		// Get current weapon actor via interface
+		AActor* WeaponActor = CurrentWeaponActor.Get();
 		if (!WeaponActor)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: No weapon actor"));
 			return;
 		}
 
-		// Check if weapon has scope camera
-		UCameraComponent* ScopeCam = WeaponActor->GetScopeCamera();
-		if (!ScopeCam)
+		// Check if weapon implements ISuspenseCoreWeapon and has scope camera
+		if (WeaponActor->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Weapon has no ScopeCam, skipping camera blend"));
-			// Even without scope cam, we can still change FOV on main camera
-			if (Camera)
+			bool bHasScopeCam = ISuspenseCoreWeapon::Execute_HasADSScopeCamera(WeaponActor);
+			if (!bHasScopeCam)
 			{
-				Camera->SetFieldOfView(TargetFOV);
+				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Weapon has no ScopeCam, changing FOV only"));
+				// Even without scope cam, we can still change FOV on main camera
+				if (Camera)
+				{
+					Camera->SetFieldOfView(TargetFOV);
+				}
+				bIsInScopeView = true;
+				return;
 			}
-			bIsInScopeView = true;
-			return;
 		}
-
-		// Set scope camera FOV
-		ScopeCam->SetFieldOfView(TargetFOV);
 
 		// Blend view to weapon actor (which has ScopeCam)
 		// Using Cubic blend for smooth cinematic transition

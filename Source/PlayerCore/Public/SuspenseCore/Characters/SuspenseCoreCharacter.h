@@ -93,6 +93,7 @@ class PLAYERCORE_API ASuspenseCoreCharacter
 	, public IAbilitySystemInterface
 	, public ISuspenseCoreEventEmitter
 	, public ISuspenseCoreMovementInterface
+	, public ISuspenseCoreADSCamera
 {
 	GENERATED_BODY()
 
@@ -271,16 +272,21 @@ public:
 	void ResetCameraToDefaults();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// PUBLIC API - ADS CAMERA SWITCHING
+	// ISUSPENSECOREADSСAMERA INTERFACE
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	virtual void ADSSwitchCamera_Implementation(bool bToScopeCam) override;
+	virtual bool ADSIsInScopeView_Implementation() const override { return bIsInScopeView; }
+	virtual float ADSGetCurrentFOV_Implementation() const override;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - ADS CAMERA SWITCHING (Legacy compatibility)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/**
 	 * Switch between first person camera and weapon's scope camera for ADS.
 	 * Uses SetViewTargetWithBlend for smooth cubic transition.
-	 *
-	 * @param bToScopeCam True to switch to weapon's scope cam, false to return to FP cam
-	 * @param TransitionDuration Duration of the camera blend in seconds
-	 * @param TargetFOV Target field of view (only used when going to scope cam)
+	 * Note: Prefer using ISuspenseCoreADSCamera interface from GAS abilities.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Camera|ADS")
 	void SwitchToScopeCamera(bool bToScopeCam, float TransitionDuration = 0.2f, float TargetFOV = 60.0f);

@@ -100,6 +100,11 @@ public:
     virtual bool IsInWeaponState_Implementation(const FWeaponStateFlags& State) const override;
     virtual void SetWeaponState_Implementation(const FWeaponStateFlags& NewState, bool bEnabled) override;
 
+    // ADS Camera Configuration (ISuspenseCoreWeapon)
+    virtual float GetADSFieldOfView_Implementation() const override { return AimFOV; }
+    virtual float GetADSTransitionDuration_Implementation() const override { return CameraTransitionDuration; }
+    virtual bool HasADSScopeCamera_Implementation() const override { return ScopeCam != nullptr; }
+
     //================================================
     // ISuspenseCoreFireModeProvider (proxy to component)
     //================================================

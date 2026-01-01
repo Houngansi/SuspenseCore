@@ -11,6 +11,7 @@
 #include "CineCameraComponent.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/SuspenseCoreInterfaces.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCoreCharacter.generated.h"
 
 class USpringArmComponent;
@@ -94,6 +95,7 @@ class PLAYERCORE_API ASuspenseCoreCharacter
 	, public ISuspenseCoreEventEmitter
 	, public ISuspenseCoreMovementInterface
 	, public ISuspenseCoreADSCamera
+	, public ISuspenseCoreCharacterInterface
 {
 	GENERATED_BODY()
 
@@ -207,6 +209,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Weapon")
 	void SetCurrentWeaponActor(AActor* WeaponActor);
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// ISUSPENSECORECHARACTERINTERFACE
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	virtual void SetHasWeapon_Implementation(bool bNewHasWeapon) override { SetHasWeapon(bNewHasWeapon); }
+	virtual void SetCurrentWeaponActor_Implementation(AActor* WeaponActor) override { SetCurrentWeaponActor(WeaponActor); }
+	virtual AActor* GetCurrentWeaponActor_Implementation() const override { return CurrentWeaponActor.Get(); }
+	virtual bool HasWeapon_Implementation() const override { return bHasWeapon; }
+	virtual UAbilitySystemComponent* GetASC_Implementation() const override { return GetAbilitySystemComponent(); }
+	virtual float GetCharacterLevel_Implementation() const override { return 1.0f; }
+	virtual bool IsAlive_Implementation() const override { return !IsPendingKillPending(); }
+	virtual int32 GetTeamId_Implementation() const override { return 0; }
+	virtual USuspenseCoreEventManager* GetDelegateManager() const override { return nullptr; }
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - COMPONENTS

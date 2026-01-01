@@ -4,6 +4,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 
@@ -721,6 +722,24 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 			TEXT("  Character is not a Pawn - cannot update StanceComponent"));
 	}
 
+	// ============================================================================
+	// Step 7: Set CurrentWeaponActor on character via ISuspenseCoreCharacterInterface
+	// This enables ADS camera switching to find the weapon actor
+	// ============================================================================
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log, TEXT("Step 7: Setting CurrentWeaponActor on character"));
+
+	if (Character->GetClass()->ImplementsInterface(USuspenseCoreCharacterInterface::StaticClass()))
+	{
+		ISuspenseCoreCharacterInterface::Execute_SetCurrentWeaponActor(Character, Visual);
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("  CurrentWeaponActor SET to: %s"), *Visual->GetName());
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("  Character does not implement ISuspenseCoreCharacterInterface - ADS camera won't work!"));
+	}
+
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("=== UpdateVisualForSlot SUCCESS ==="));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -775,6 +794,16 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 			}
 			StanceComp->OnEquipmentChanged(nullptr);
 		}
+	}
+
+	// ============================================================================
+	// Clear CurrentWeaponActor on character when unequipping from active slot
+	// ============================================================================
+	if (SlotIndex == 0 && Character->GetClass()->ImplementsInterface(USuspenseCoreCharacterInterface::StaticClass()))
+	{
+		ISuspenseCoreCharacterInterface::Execute_SetCurrentWeaponActor(Character, nullptr);
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("HideVisualForSlot: CurrentWeaponActor cleared"));
 	}
 
 	// Return actor to pool/destroy via Factory

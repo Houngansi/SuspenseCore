@@ -905,7 +905,15 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
 
     if (bNewBlocked != bIsCurrentlyBlocked)
     {
+        // Debounce: only allow state change if cooldown has passed
+        const float CurrentTime = GetWorld()->GetTimeSeconds();
+        if (CurrentTime - LastBlockedStateChangeTime < BlockedStateChangeCooldown)
+        {
+            return; // Too soon to change state
+        }
+
         bIsCurrentlyBlocked = bNewBlocked;
+        LastBlockedStateChangeTime = CurrentTime;
 
         // Find StanceComponent on owner and update blocking state
         if (USuspenseCoreWeaponStanceComponent* StanceComp = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())

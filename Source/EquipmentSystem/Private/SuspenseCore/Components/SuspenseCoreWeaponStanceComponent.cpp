@@ -306,9 +306,9 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponBlocked(bool bNewBlocked)
 
 	bIsWeaponBlocked = bNewBlocked;
 
-	// Update BlockDistance for AnimBP (used by Apply Additive alpha)
+	// Set target for interpolation (BlockDistance will lerp towards this in Tick)
 	// 1.0 = fully blocked, 0.0 = not blocked
-	BlockDistance = bNewBlocked ? 1.0f : 0.0f;
+	TargetBlockDistance = bNewBlocked ? 1.0f : 0.0f;
 
 	if (AActor* Owner = GetOwner())
 	{
@@ -597,6 +597,16 @@ void USuspenseCoreWeaponStanceComponent::UpdateInterpolatedValues(float DeltaTim
 	else
 	{
 		AimPoseAlpha = TargetAimPoseAlpha;
+	}
+
+	// Interpolate block distance (weapon lowering near walls)
+	if (!FMath::IsNearlyEqual(BlockDistance, TargetBlockDistance, 0.001f))
+	{
+		BlockDistance = FMath::FInterpTo(BlockDistance, TargetBlockDistance, DeltaTime, BlockDistanceInterpSpeed);
+	}
+	else
+	{
+		BlockDistance = TargetBlockDistance;
 	}
 
 	// Decay recoil over time

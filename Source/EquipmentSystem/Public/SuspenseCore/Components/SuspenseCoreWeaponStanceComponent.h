@@ -467,8 +467,11 @@ private:
 	/** Additive pitch (recoil, breathing) */
 	float AdditivePitch = 0.0f;
 
-	/** Block/wall detection distance */
+	/** Block/wall detection distance (interpolated) */
 	float BlockDistance = 0.0f;
+
+	/** Target block distance (set by wall detection, interpolated to BlockDistance) */
+	float TargetBlockDistance = 0.0f;
 
 	/** Sight distance for aim target (FABRIK) */
 	float SightDistance = 200.0f;
@@ -484,6 +487,10 @@ private:
 	/** Speed of recoil recovery */
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Config")
 	float RecoilRecoverySpeed = 8.0f;
+
+	/** Speed of block distance interpolation (weapon lowering near walls) */
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Config")
+	float BlockDistanceInterpSpeed = 8.0f;
 
 	// ========================================================================
 	// Internal State

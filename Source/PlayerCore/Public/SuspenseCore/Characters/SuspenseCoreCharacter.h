@@ -564,6 +564,14 @@ protected:
 	/** Hide MetaHuman Face from owner but keep shadow (bCastHiddenShadow) */
 	void HideMetaHumanFaceFromOwner();
 
+	/**
+	 * Toggle Face and head components visibility for ADS mode.
+	 * When entering ADS, hides Face/Hair/Beard etc so scope camera doesn't see them.
+	 * When exiting ADS, restores visibility.
+	 * @param bVisible - true to show face components, false to hide them
+	 */
+	void SetFaceVisibilityForADS(bool bVisible);
+
 	/** Find component by name for camera attachment */
 	USceneComponent* FindComponentByName(FName ComponentName) const;
 

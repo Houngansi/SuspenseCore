@@ -256,6 +256,16 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
     FRotator ScopeCamRotationOffset = FRotator::ZeroRotator;
 
+    /**
+     * Location offset for scope camera relative to socket (in socket local space).
+     * Use this to fine-tune camera position for proper eye relief and sight alignment.
+     * X = Forward/Back along sight line
+     * Y = Left/Right
+     * Z = Up/Down
+     */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
+    FVector ScopeCamLocationOffset = FVector::ZeroVector;
+
     //================================================
     // Components (owned by actor)
     //================================================

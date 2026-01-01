@@ -695,6 +695,10 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
         {
             ScopeCam->AttachToComponent(MC, FAttachmentTransformRules::SnapToTargetNotIncludingScale, ScopeCamSocketName);
 
+            // Apply configurable location offset (in socket local space)
+            // X = Forward along sight line, Y = Left/Right, Z = Up/Down
+            ScopeCam->SetRelativeLocation(ScopeCamLocationOffset);
+
             // Apply configurable rotation offset
             // If socket orientation doesn't match expected camera direction, adjust via ScopeCamRotationOffset
             ScopeCam->SetRelativeRotation(ScopeCamRotationOffset);
@@ -704,11 +708,20 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] SUCCESS! ScopeCam attached to '%s'"), *ScopeCamSocketName.ToString());
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Socket World Location: X=%.1f Y=%.1f Z=%.1f"),
+                SocketTransform.GetLocation().X, SocketTransform.GetLocation().Y, SocketTransform.GetLocation().Z);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] Socket World Rotation: P=%.1f Y=%.1f R=%.1f"),
                 SocketTransform.Rotator().Pitch, SocketTransform.Rotator().Yaw, SocketTransform.Rotator().Roll);
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] ScopeCamLocationOffset: X=%.1f Y=%.1f Z=%.1f"),
+                ScopeCamLocationOffset.X, ScopeCamLocationOffset.Y, ScopeCamLocationOffset.Z);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] ScopeCamRotationOffset: P=%.1f Y=%.1f R=%.1f"),
                 ScopeCamRotationOffset.Pitch, ScopeCamRotationOffset.Yaw, ScopeCamRotationOffset.Roll);
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Final Camera World Location: X=%.1f Y=%.1f Z=%.1f"),
+                ScopeCam->GetComponentLocation().X, ScopeCam->GetComponentLocation().Y, ScopeCam->GetComponentLocation().Z);
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] Final Camera World Rotation: P=%.1f Y=%.1f R=%.1f"),
                 ScopeCam->GetComponentRotation().Pitch, ScopeCam->GetComponentRotation().Yaw, ScopeCam->GetComponentRotation().Roll);

@@ -193,10 +193,6 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon|ADS")
     float GetCameraTransitionDuration() const { return CameraTransitionDuration; }
 
-    /** Reset ADS camera smoothing state (call when exiting ADS) */
-    UFUNCTION(BlueprintCallable, Category="Weapon|ADS")
-    void ResetADSCameraState() { bSmoothedLocationInitialized = false; }
-
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
     void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);

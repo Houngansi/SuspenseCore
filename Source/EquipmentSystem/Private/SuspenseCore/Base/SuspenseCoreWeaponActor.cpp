@@ -852,79 +852,37 @@ float ASuspenseCoreWeaponActor::GetWeaponAttributeValue(const FName& AttributeNa
 //================================================
 void ASuspenseCoreWeaponActor::CheckWallBlocking()
 {
-    // Only run on locally controlled pawn
     APawn* OwnerPawn = Cast<APawn>(GetOwner());
     if (!OwnerPawn || !OwnerPawn->IsLocallyControlled())
     {
         return;
     }
 
-    // Get muzzle transform for trace start
+    USuspenseCoreWeaponStanceComponent* StanceComp = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>();
+    if (!StanceComp)
+    {
+        return;
+    }
+
+    // Simple line trace forward from muzzle
     const FTransform MuzzleTransform = GetMuzzleTransform();
     const FVector TraceStart = MuzzleTransform.GetLocation();
-    const FVector TraceDirection = MuzzleTransform.GetRotation().GetForwardVector();
+    const FVector TraceEnd = TraceStart + MuzzleTransform.GetRotation().GetForwardVector() * WallDetectionDistance;
 
-    // Use different trace distances based on current state (hysteresis)
-    // - When NOT blocked: check at WallDetectionDistance to enter blocked state
-    // - When blocked: check at extended distance to exit (prevents flickering)
-    const float TraceDistance = bIsCurrentlyBlocked
-        ? (WallDetectionDistance + WallDetectionHysteresis)
-        : WallDetectionDistance;
-
-    const FVector TraceEnd = TraceStart + (TraceDirection * TraceDistance);
-
-    // Setup collision query params
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(this);
     QueryParams.AddIgnoredActor(OwnerPawn);
-    QueryParams.bTraceComplex = false;
-    QueryParams.bReturnPhysicalMaterial = false;
 
-    // Perform line trace
     FHitResult HitResult;
-    const bool bHit = GetWorld()->LineTraceSingleByChannel(
-        HitResult,
-        TraceStart,
-        TraceEnd,
-        ECC_Visibility,
-        QueryParams
-    );
+    const bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-    // Determine new blocked state with hysteresis
-    bool bNewBlocked;
-    if (bIsCurrentlyBlocked)
+    // Calculate BlockDistance: 0 = no wall, 1 = wall touching muzzle
+    float NewBlockDistance = 0.0f;
+    if (bHit && HitResult.bBlockingHit)
     {
-        // Currently blocked: stay blocked if wall is within extended range
-        bNewBlocked = bHit && HitResult.bBlockingHit;
-    }
-    else
-    {
-        // Currently not blocked: become blocked if wall is within base range
-        bNewBlocked = bHit && HitResult.bBlockingHit && (HitResult.Distance < WallDetectionDistance);
+        // Linear falloff: closer wall = higher value
+        NewBlockDistance = 1.0f - FMath::Clamp(HitResult.Distance / WallDetectionDistance, 0.0f, 1.0f);
     }
 
-    if (bNewBlocked != bIsCurrentlyBlocked)
-    {
-        // Debounce: only allow state change if cooldown has passed
-        const float CurrentTime = GetWorld()->GetTimeSeconds();
-        if (CurrentTime - LastBlockedStateChangeTime < BlockedStateChangeCooldown)
-        {
-            return; // Too soon to change state
-        }
-
-        bIsCurrentlyBlocked = bNewBlocked;
-        LastBlockedStateChangeTime = CurrentTime;
-
-        // Find StanceComponent on owner and update blocking state
-        if (USuspenseCoreWeaponStanceComponent* StanceComp = OwnerPawn->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
-        {
-            StanceComp->SetWeaponBlocked(bIsCurrentlyBlocked);
-
-            UE_LOG(LogSuspenseCoreWeaponActor, Verbose,
-                TEXT("[WallDetection] Weapon %s: blocked state changed to %s (distance: %.1f)"),
-                *GetName(),
-                bIsCurrentlyBlocked ? TEXT("BLOCKED") : TEXT("CLEAR"),
-                bHit ? HitResult.Distance : TraceDistance);
-        }
-    }
+    StanceComp->SetBlockDistance(NewBlockDistance);
 }

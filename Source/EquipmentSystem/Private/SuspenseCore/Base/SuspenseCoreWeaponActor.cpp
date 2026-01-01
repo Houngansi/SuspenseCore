@@ -9,6 +9,8 @@
 #include "Camera/CameraComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Controller.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 
@@ -77,6 +79,49 @@ USuspenseCoreEventManager* ASuspenseCoreWeaponActor::GetDelegateManager() const
 {
     // У этого фасада собственного менеджера нет — события маршрутизируются компонентами/сервисами.
     return nullptr;
+}
+
+void ASuspenseCoreWeaponActor::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
+{
+    // Use ScopeCam position but owner's control rotation
+    // This ensures camera is at the sight but looks where player aims
+
+    if (ScopeCam)
+    {
+        // Get camera location from ScopeCam (attached to Sight_Socket)
+        OutResult.Location = ScopeCam->GetComponentLocation();
+        OutResult.FOV = ScopeCam->FieldOfView;
+
+        // Get rotation from owner's controller (player's aim direction)
+        if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+        {
+            if (AController* PC = OwnerPawn->GetController())
+            {
+                OutResult.Rotation = PC->GetControlRotation();
+            }
+            else
+            {
+                // Fallback: use owner pawn's rotation
+                OutResult.Rotation = OwnerPawn->GetActorRotation();
+            }
+        }
+        else
+        {
+            // Fallback: use ScopeCam rotation (may be wrong if socket is misoriented)
+            OutResult.Rotation = ScopeCam->GetComponentRotation();
+        }
+
+        UE_LOG(LogSuspenseCoreWeaponActor, Verbose,
+            TEXT("[CalcCamera] Loc=(%.1f, %.1f, %.1f) Rot=(P=%.1f, Y=%.1f, R=%.1f) FOV=%.1f"),
+            OutResult.Location.X, OutResult.Location.Y, OutResult.Location.Z,
+            OutResult.Rotation.Pitch, OutResult.Rotation.Yaw, OutResult.Rotation.Roll,
+            OutResult.FOV);
+    }
+    else
+    {
+        // No scope cam - use default behavior
+        Super::CalcCamera(DeltaTime, OutResult);
+    }
 }
 
 //================================================

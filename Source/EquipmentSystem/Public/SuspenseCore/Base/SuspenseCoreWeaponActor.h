@@ -42,6 +42,14 @@ public:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual USuspenseCoreEventManager* GetDelegateManager() const override;
 
+    /**
+     * Override CalcCamera to provide correct ADS camera orientation.
+     * When SetViewTargetWithBlend points to this weapon, UE calls CalcCamera
+     * to get the view parameters. We use the owner's control rotation
+     * so the camera looks where the player aims.
+     */
+    virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
+
     //================================================
     // ASuspenseCoreEquipmentActor overrides (S3/S4 pipeline)
     //================================================

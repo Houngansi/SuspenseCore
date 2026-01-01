@@ -13,6 +13,7 @@
 #include "GameFramework/Controller.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
+#include "Engine/SkeletalMeshSocket.h"
 
 // Logging
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreWeaponActor, Log, All);
@@ -619,13 +620,52 @@ void ASuspenseCoreWeaponActor::RestoreWeaponState()
 //================================================
 void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData)
 {
+    UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+        TEXT("[ADS Camera Setup] >>> SetupComponentsFromItemData CALLED for %s <<<"), *GetName());
+
     // Mesh: use ONLY public interface (InitializeFromItemInstance уже вызван базой в S3)
     if (USuspenseCoreEquipmentMeshComponent* MC = MeshComponent)
     {
+        UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+            TEXT("[ADS Camera Setup] MeshComponent found: %s"), *MC->GetName());
+
+        // Debug: List all available sockets on the mesh
+        if (USkeletalMesh* SkelMesh = MC->GetSkeletalMeshAsset())
+        {
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] SkeletalMesh: %s"), *SkelMesh->GetName());
+
+            const TArray<USkeletalMeshSocket*>& Sockets = SkelMesh->GetActiveSocketList();
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] Available sockets (%d):"), Sockets.Num());
+            for (const USkeletalMeshSocket* Socket : Sockets)
+            {
+                if (Socket)
+                {
+                    UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                        TEXT("[ADS Camera Setup]   - '%s' (Bone: %s)"),
+                        *Socket->SocketName.ToString(), *Socket->BoneName.ToString());
+                }
+            }
+        }
+        else
+        {
+            UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                TEXT("[ADS Camera Setup] WARNING: No SkeletalMesh asset on MeshComponent!"));
+        }
+
         MC->SetupWeaponVisuals(ItemData); // применяет оружейные визуальные настройки
 
+        // Debug: Check socket existence
+        const bool bSocketExists = MC->DoesSocketExist(ScopeCamSocketName);
+        UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+            TEXT("[ADS Camera Setup] ScopeCam=%s, ScopeCamSocketName='%s', DoesSocketExist=%s"),
+            ScopeCam ? TEXT("VALID") : TEXT("NULL"),
+            *ScopeCamSocketName.ToString(),
+            bSocketExists ? TEXT("TRUE") : TEXT("FALSE"));
+
         // Attach ScopeCam to Sight_Socket for proper ADS camera orientation
-        if (ScopeCam && ScopeCamSocketName != NAME_None && MC->DoesSocketExist(ScopeCamSocketName))
+        if (ScopeCam && ScopeCamSocketName != NAME_None && bSocketExists)
         {
             ScopeCam->AttachToComponent(MC, FAttachmentTransformRules::SnapToTargetNotIncludingScale, ScopeCamSocketName);
 
@@ -636,7 +676,7 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
             // Debug logging for camera orientation
             const FTransform SocketTransform = MC->GetSocketTransform(ScopeCamSocketName);
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
-                TEXT("[ADS Camera Setup] ScopeCam attached to '%s'"), *ScopeCamSocketName.ToString());
+                TEXT("[ADS Camera Setup] SUCCESS! ScopeCam attached to '%s'"), *ScopeCamSocketName.ToString());
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] Socket World Rotation: P=%.1f Y=%.1f R=%.1f"),
                 SocketTransform.Rotator().Pitch, SocketTransform.Rotator().Yaw, SocketTransform.Rotator().Roll);
@@ -650,11 +690,16 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
         else if (ScopeCam)
         {
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
-                TEXT("[ADS Camera Setup] ScopeCam exists but socket '%s' not found on mesh!"),
+                TEXT("[ADS Camera Setup] FAILED! ScopeCam exists but socket '%s' not found on mesh!"),
                 *ScopeCamSocketName.ToString());
             UE_LOG(LogSuspenseCoreWeaponActor, Warning,
                 TEXT("[ADS Camera Setup] Camera will use RootComponent - orientation may be wrong"));
         }
+    }
+    else
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+            TEXT("[ADS Camera Setup] ERROR: MeshComponent is NULL!"));
     }
 
     // Link AttributeComponent to AmmoComponent for attribute access

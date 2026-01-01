@@ -8,6 +8,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "Camera/CameraComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
@@ -133,28 +134,53 @@ void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSusp
     // Base: caches ASC, initializes Mesh/Attribute/Attachment from SSOT + fires UI.Equipment.DataReady
     Super::OnItemInstanceEquipped_Implementation(ItemInstance);
 
-    // Load SSOT data for weapon specifics
+    // Load SSOT data for weapon specifics - try ItemManager first, then DataManager as fallback
+    bool bDataLoaded = false;
+
+    // Try ItemManager first
     if (USuspenseCoreItemManager* ItemManager = GetItemManager())
     {
-        if (ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
+        bDataLoaded = ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData);
+    }
+
+    // Fallback to DataManager (SSOT) if ItemManager failed
+    if (!bDataLoaded)
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Warning, TEXT("ItemManager failed, trying DataManager fallback..."));
+        if (UWorld* World = GetWorld())
         {
-            bHasCachedData = true;
-
-            if (!CachedItemData.bIsWeapon)
+            if (UGameInstance* GI = World->GetGameInstance())
             {
-                UE_LOG(LogSuspenseCoreWeaponActor, Error, TEXT("Item '%s' is not a weapon in SSOT"), *ItemInstance.ItemID.ToString());
-                return;
+                if (USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>())
+                {
+                    bDataLoaded = DataManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData);
+                    if (bDataLoaded)
+                    {
+                        UE_LOG(LogSuspenseCoreWeaponActor, Warning, TEXT("DataManager fallback succeeded for %s"), *ItemInstance.ItemID.ToString());
+                    }
+                }
             }
+        }
+    }
 
-            // Initialize owned weapon components from SSOT (ONLY public APIs of mesh component)
-            SetupComponentsFromItemData(CachedItemData);
+    if (bDataLoaded)
+    {
+        bHasCachedData = true;
 
-            // Restore persisted runtime bits (ammo / fire mode index)
-            RestoreWeaponState();
-
-            UE_LOG(LogSuspenseCoreWeaponActor, Log, TEXT("Weapon initialized from SSOT: %s"), *CachedItemData.DisplayName.ToString());
+        if (!CachedItemData.bIsWeapon)
+        {
+            UE_LOG(LogSuspenseCoreWeaponActor, Error, TEXT("Item '%s' is not a weapon in SSOT"), *ItemInstance.ItemID.ToString());
             return;
         }
+
+        // Initialize owned weapon components from SSOT (ONLY public APIs of mesh component)
+        SetupComponentsFromItemData(CachedItemData);
+
+        // Restore persisted runtime bits (ammo / fire mode index)
+        RestoreWeaponState();
+
+        UE_LOG(LogSuspenseCoreWeaponActor, Log, TEXT("Weapon initialized from SSOT: %s"), *CachedItemData.DisplayName.ToString());
+        return;
     }
 
     UE_LOG(LogSuspenseCoreWeaponActor, Error, TEXT("OnItemInstanceEquipped: failed to read SSOT for ItemID=%s"), *ItemInstance.ItemID.ToString());

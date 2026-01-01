@@ -992,18 +992,9 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 				TEXT("  ✓ OnEquipped called with owner: %s"), *Character->GetName());
 
-			// 2) Call OnItemInstanceEquipped with VALID ItemInstance
-			// ItemInstance.IsValid() requires: !ItemID.IsNone() && Quantity > 0 && InstanceID.IsValid()
+			// 2) Call OnItemInstanceEquipped with ItemInstance
 			FSuspenseCoreInventoryItemInstance ItemInstance;
 			ItemInstance.ItemID = ItemID;
-			ItemInstance.Quantity = 1;
-			ItemInstance.InstanceID = FGuid::NewGuid();  // Generate unique ID for validation
-
-			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-				TEXT("  Created ItemInstance: ID=%s, Qty=%d, InstanceID=%s, IsValid=%s"),
-				*ItemID.ToString(), ItemInstance.Quantity, *ItemInstance.InstanceID.ToString(),
-				ItemInstance.IsValid() ? TEXT("YES") : TEXT("NO"));
-
 			ISuspenseCoreEquipment::Execute_OnItemInstanceEquipped(SpawnedActor, ItemInstance);
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 				TEXT("  ✓ OnItemInstanceEquipped called for ItemID: %s"), *ItemID.ToString());

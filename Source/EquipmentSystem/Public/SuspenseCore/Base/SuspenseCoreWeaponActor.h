@@ -112,6 +112,7 @@ public:
     virtual float GetADSFieldOfView_Implementation() const override { return AimFOV; }
     virtual float GetADSTransitionDuration_Implementation() const override { return CameraTransitionDuration; }
     virtual bool HasADSScopeCamera_Implementation() const override { return ScopeCam != nullptr; }
+    virtual void ResetADSCameraState_Implementation() override { bSmoothedLocationInitialized = false; }
 
     //================================================
     // ISuspenseCoreFireModeProvider (proxy to component)
@@ -192,6 +193,10 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon|ADS")
     float GetCameraTransitionDuration() const { return CameraTransitionDuration; }
 
+    /** Reset ADS camera smoothing state (call when exiting ADS) */
+    UFUNCTION(BlueprintCallable, Category="Weapon|ADS")
+    void ResetADSCameraState() { bSmoothedLocationInitialized = false; }
+
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
     void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
@@ -206,6 +211,14 @@ protected:
     /** Whether CachedItemData is valid */
     UPROPERTY(Transient)
     bool bHasCachedData = false;
+
+    /** Smoothed camera position for ADS (reduces jitter from weapon sway) */
+    UPROPERTY(Transient)
+    FVector SmoothedCameraLocation = FVector::ZeroVector;
+
+    /** Whether smoothed camera location has been initialized */
+    UPROPERTY(Transient)
+    bool bSmoothedLocationInitialized = false;
 
     //================================================
     // Animation Pose Indices (passed to WeaponStanceComponent)
@@ -265,6 +278,14 @@ protected:
      */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
     FVector ScopeCamLocationOffset = FVector::ZeroVector;
+
+    /**
+     * Speed of camera position smoothing during ADS.
+     * Higher values = faster tracking (less smoothing), lower = smoother but more lag.
+     * Set to 0 to disable smoothing (use raw position).
+     */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS", meta=(ClampMin="0.0", ClampMax="50.0"))
+    float ADSCameraSmoothSpeed = 15.0f;
 
     //================================================
     // Components (owned by actor)

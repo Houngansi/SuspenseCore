@@ -346,6 +346,10 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
     bool HasADSScopeCamera() const;
 
+    /** Reset ADS camera state (call when exiting ADS to reset smoothing) */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
+    void ResetADSCameraState();
+
     //==================================================================
     // Fire Modes
     //==================================================================

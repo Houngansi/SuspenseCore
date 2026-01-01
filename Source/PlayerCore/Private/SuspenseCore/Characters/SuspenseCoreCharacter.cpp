@@ -1270,13 +1270,13 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		SetFaceVisibilityForADS(false);
 
 		// Blend view to weapon actor (which has ScopeCam)
-		// Using Cubic blend for smooth cinematic transition
+		// Using EaseInOut blend for smooth cinematic transition without jerkiness
 		PC->SetViewTargetWithBlend(
 			WeaponActor,
 			TransitionDuration,
-			EViewTargetBlendFunction::VTBlend_Cubic,
-			0.0f,   // BlendExp (unused for Cubic)
-			true    // bLockOutgoing
+			EViewTargetBlendFunction::VTBlend_EaseInOut,
+			2.0f,   // BlendExp for EaseInOut curve
+			false   // Don't lock outgoing - allows smoother transition
 		);
 
 		bIsInScopeView = true;
@@ -1307,13 +1307,20 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		// Restore Face and head components visibility
 		SetFaceVisibilityForADS(true);
 
+		// Reset weapon's ADS camera smoothing state for next ADS entry
+		AActor* WeaponActor = CurrentWeaponActor.Get();
+		if (WeaponActor && WeaponActor->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
+		{
+			ISuspenseCoreWeapon::Execute_ResetADSCameraState(WeaponActor);
+		}
+
 		// Blend view back to character (FirstPersonCamera)
 		PC->SetViewTargetWithBlend(
 			this,
 			TransitionDuration,
-			EViewTargetBlendFunction::VTBlend_Cubic,
-			0.0f,
-			true
+			EViewTargetBlendFunction::VTBlend_EaseInOut,  // Smoother ease-in-out instead of cubic
+			2.0f,   // BlendExp for EaseInOut
+			false   // Don't lock outgoing - allows smoother transition
 		);
 
 		// Restore default FOV on main camera

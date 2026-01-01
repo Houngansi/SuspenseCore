@@ -90,8 +90,36 @@ void ASuspenseCoreWeaponActor::CalcCamera(float DeltaTime, FMinimalViewInfo& Out
 
     if (ScopeCam)
     {
-        // Get camera location from ScopeCam (attached to Sight_Socket)
-        OutResult.Location = ScopeCam->GetComponentLocation();
+        // Get raw camera location from ScopeCam (attached to Sight_Socket)
+        const FVector RawLocation = ScopeCam->GetComponentLocation();
+
+        // Apply smoothing to reduce jitter from weapon sway/animations
+        if (ADSCameraSmoothSpeed > 0.0f && DeltaTime > 0.0f)
+        {
+            if (!bSmoothedLocationInitialized)
+            {
+                // First frame - initialize to current position
+                SmoothedCameraLocation = RawLocation;
+                bSmoothedLocationInitialized = true;
+            }
+            else
+            {
+                // Interpolate towards target position
+                SmoothedCameraLocation = FMath::VInterpTo(
+                    SmoothedCameraLocation,
+                    RawLocation,
+                    DeltaTime,
+                    ADSCameraSmoothSpeed
+                );
+            }
+            OutResult.Location = SmoothedCameraLocation;
+        }
+        else
+        {
+            // No smoothing - use raw position
+            OutResult.Location = RawLocation;
+        }
+
         OutResult.FOV = ScopeCam->FieldOfView;
 
         // Get rotation from owner's controller (player's aim direction)

@@ -6,6 +6,7 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponFireModeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
+#include "Camera/CameraComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "Engine/World.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
@@ -34,6 +35,13 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 
     AmmoComponent     = CreateDefaultSubobject<USuspenseCoreWeaponAmmoComponent>(TEXT("AmmoComponent"));
     FireModeComponent = CreateDefaultSubobject<USuspenseCoreWeaponFireModeComponent>(TEXT("FireModeComponent"));
+
+    // Create scope camera for ADS view blending
+    // Note: Will be attached to Sight_Socket in Blueprint or via SetupComponentsFromItemData
+    ScopeCam = CreateDefaultSubobject<UCameraComponent>(TEXT("ScopeCam"));
+    ScopeCam->SetupAttachment(RootComponent);
+    ScopeCam->bAutoActivate = false;  // Not active by default
+    ScopeCam->SetFieldOfView(AimFOV);
 
     bReplicates = true;
     bNetUseOwnerRelevancy = true;

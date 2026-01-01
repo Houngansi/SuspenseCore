@@ -271,6 +271,27 @@ public:
 	void ResetCameraToDefaults();
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// PUBLIC API - ADS CAMERA SWITCHING
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Switch between first person camera and weapon's scope camera for ADS.
+	 * Uses SetViewTargetWithBlend for smooth cubic transition.
+	 *
+	 * @param bToScopeCam True to switch to weapon's scope cam, false to return to FP cam
+	 * @param TransitionDuration Duration of the camera blend in seconds
+	 * @param TargetFOV Target field of view (only used when going to scope cam)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Camera|ADS")
+	void SwitchToScopeCamera(bool bToScopeCam, float TransitionDuration = 0.2f, float TargetFOV = 60.0f);
+
+	/**
+	 * Check if currently viewing through scope camera.
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Camera|ADS")
+	bool IsInScopeView() const { return bIsInScopeView; }
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - CHARACTER CLASS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -486,6 +507,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|State")
 	bool bHasWeapon = false;
+
+	/** Whether currently viewing through weapon's scope camera (ADS) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|State")
+	bool bIsInScopeView = false;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AActor> CurrentWeaponActor;

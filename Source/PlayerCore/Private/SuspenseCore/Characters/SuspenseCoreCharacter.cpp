@@ -903,6 +903,40 @@ void ASuspenseCoreCharacter::HideMetaHumanFaceFromOwner()
 	}
 }
 
+void ASuspenseCoreCharacter::SetFaceVisibilityForADS(bool bVisible)
+{
+	// Toggle visibility of Face and all its children for ADS camera
+	// This completely hides/shows them, unlike HideMetaHumanFaceFromOwner which only affects owner view
+
+	TArray<UActorComponent*> Components;
+	GetComponents(UPrimitiveComponent::StaticClass(), Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
+		{
+			FString CompName = Component->GetName();
+
+			// Check if this is Face or any of its children (Hair, Beard, Eyebrows, etc.)
+			bool bIsFaceComponent = CompName.Contains(TEXT("Face")) ||
+									CompName.Contains(TEXT("Beard")) ||
+									CompName.Contains(TEXT("Eyebrow")) ||
+									CompName.Contains(TEXT("Eyelash")) ||
+									CompName.Contains(TEXT("Fuzz")) ||
+									CompName.Contains(TEXT("Hair")) ||
+									CompName.Contains(TEXT("Mustache"));
+
+			if (bIsFaceComponent)
+			{
+				PrimComp->SetVisibility(bVisible, true);  // true = propagate to children
+
+				UE_LOG(LogTemp, Log, TEXT("[ADS Face Toggle] %s Face component: %s"),
+					bVisible ? TEXT("Showing") : TEXT("Hiding"), *CompName);
+			}
+		}
+	}
+}
+
 USceneComponent* ASuspenseCoreCharacter::FindComponentByName(FName ComponentName) const
 {
 	TArray<UActorComponent*> Components;
@@ -1232,6 +1266,9 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 			}
 		}
 
+		// Hide Face and head components so scope camera doesn't see them
+		SetFaceVisibilityForADS(false);
+
 		// Blend view to weapon actor (which has ScopeCam)
 		// Using Cubic blend for smooth cinematic transition
 		PC->SetViewTargetWithBlend(
@@ -1266,6 +1303,9 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Not in scope view, skipping exit"));
 			return;
 		}
+
+		// Restore Face and head components visibility
+		SetFaceVisibilityForADS(true);
 
 		// Blend view back to character (FirstPersonCamera)
 		PC->SetViewTargetWithBlend(

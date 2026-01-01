@@ -45,6 +45,10 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreWeaponStanceSnapshot
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bIsHoldingBreath = false;
 
+	/** Is weapon blocked by wall/obstacle */
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	bool bIsWeaponBlocked = false;
+
 	/** Is montage currently playing on weapon layer */
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bIsMontageActive = false;
@@ -200,6 +204,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
 	virtual void SetMontageActive(bool bNewMontageActive) override;
 
+	/** Set weapon blocked state (from WeaponActor wall detection) */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Combat")
+	void SetWeaponBlocked(bool bNewBlocked);
+
 	// ========================================================================
 	// Pose Modifier API (called by weapon/environment logic)
 	// ========================================================================
@@ -322,6 +330,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
 	virtual bool IsMontageActive() const override { return bIsMontageActive; }
 
+	UFUNCTION(BlueprintPure, Category="Weapon|Combat")
+	bool IsWeaponBlocked() const { return bIsWeaponBlocked; }
+
 	UFUNCTION(BlueprintPure, Category="Weapon|Pose")
 	virtual float GetAimPoseAlpha() const override { return AimPoseAlpha; }
 
@@ -381,6 +392,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing=OnRep_CombatState)
 	bool bIsHoldingBreath = false;
+
+	UPROPERTY(ReplicatedUsing=OnRep_CombatState)
+	bool bIsWeaponBlocked = false;
 
 	// ========================================================================
 	// Non-replicated Local State (visual only)

@@ -222,6 +222,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 		bIsFiring = false;
 		bIsReloading = false;
 		bIsHoldingBreath = false;
+		bIsWeaponBlocked = false;
 		bIsWeaponMontageActive = false;
 		AimingAlpha = 0.0f;
 		GripModifier = 0.0f;
@@ -268,6 +269,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bIsFiring = Snapshot.bIsFiring;
 	bIsReloading = Snapshot.bIsReloading;
 	bIsHoldingBreath = Snapshot.bIsHoldingBreath;
+	bIsWeaponBlocked = Snapshot.bIsWeaponBlocked;
 	bIsWeaponMontageActive = Snapshot.bIsMontageActive;
 	bIsHolstered = Snapshot.bIsHolstered;
 	bModifyGrip = Snapshot.bModifyGrip;

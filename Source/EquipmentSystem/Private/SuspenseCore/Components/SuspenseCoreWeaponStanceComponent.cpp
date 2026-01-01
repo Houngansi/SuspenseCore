@@ -55,6 +55,7 @@ void USuspenseCoreWeaponStanceComponent::GetLifetimeReplicatedProps(TArray<FLife
 	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsFiring, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsReloading, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsHoldingBreath, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(USuspenseCoreWeaponStanceComponent, bIsWeaponBlocked, COND_None, REPNOTIFY_Always);
 }
 
 void USuspenseCoreWeaponStanceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -296,6 +297,33 @@ void USuspenseCoreWeaponStanceComponent::SetMontageActive(bool bNewMontageActive
 	bIsMontageActive = bNewMontageActive;
 }
 
+void USuspenseCoreWeaponStanceComponent::SetWeaponBlocked(bool bNewBlocked)
+{
+	if (bIsWeaponBlocked == bNewBlocked)
+	{
+		return;
+	}
+
+	bIsWeaponBlocked = bNewBlocked;
+
+	// Update WeaponLoweredAlpha based on blocked state
+	// When blocked, weapon should be lowered; when unblocked, allow normal state
+	WeaponLoweredAlpha = bNewBlocked ? 1.0f : 0.0f;
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (Owner->HasAuthority())
+		{
+			Owner->ForceNetUpdate();
+		}
+	}
+
+	// Broadcast EventBus event
+	BroadcastCombatStateEvent(bNewBlocked
+		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_BlockStarted
+		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_BlockEnded);
+}
+
 // ============================================================================
 // Pose Modifier API
 // ============================================================================
@@ -417,6 +445,7 @@ FSuspenseCoreWeaponStanceSnapshot USuspenseCoreWeaponStanceComponent::GetStanceS
 	Snapshot.bIsFiring = bIsFiring;
 	Snapshot.bIsReloading = bIsReloading;
 	Snapshot.bIsHoldingBreath = bIsHoldingBreath;
+	Snapshot.bIsWeaponBlocked = bIsWeaponBlocked;
 	Snapshot.bIsMontageActive = bIsMontageActive;
 
 	// Legacy compatibility (inverse/derived values)
@@ -629,6 +658,7 @@ void USuspenseCoreWeaponStanceComponent::BroadcastCombatStateEvent(FGameplayTag 
 	EventData.SetBool(FName("IsFiring"), bIsFiring);
 	EventData.SetBool(FName("IsReloading"), bIsReloading);
 	EventData.SetBool(FName("IsHoldingBreath"), bIsHoldingBreath);
+	EventData.SetBool(FName("IsWeaponBlocked"), bIsWeaponBlocked);
 
 	// Publish event
 	EventBus->Publish(EventTag, EventData);

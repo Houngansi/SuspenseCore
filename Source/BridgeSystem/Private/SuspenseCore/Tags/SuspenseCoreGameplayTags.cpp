@@ -228,6 +228,7 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Firing, "State.Firing");
 		UE_DEFINE_GAMEPLAY_TAG(Reloading, "State.Reloading");
 		UE_DEFINE_GAMEPLAY_TAG(HoldingBreath, "State.HoldingBreath");
+		UE_DEFINE_GAMEPLAY_TAG(WeaponBlocked, "State.WeaponBlocked");
 	}
 
 	//==================================================================

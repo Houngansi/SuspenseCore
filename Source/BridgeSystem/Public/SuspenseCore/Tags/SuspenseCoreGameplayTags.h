@@ -250,6 +250,7 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Firing);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Reloading);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HoldingBreath);
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponBlocked);  // Weapon blocked by obstacle/wall
 	}
 
 	//==================================================================

@@ -184,6 +184,9 @@ public:
 	bool bIsWeaponMontageActive = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
+	bool bIsWeaponBlocked = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")
 	float GripModifier = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|Weapon")

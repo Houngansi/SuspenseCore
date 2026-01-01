@@ -111,6 +111,8 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_HoldBreathEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.HoldBreathEnded");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_Drawn, "SuspenseCore.Event.Equipment.Weapon.Stance.Drawn");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_Holstered, "SuspenseCore.Event.Equipment.Weapon.Stance.Holstered");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_BlockStarted, "SuspenseCore.Event.Equipment.Weapon.Stance.BlockStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon_Stance_BlockEnded, "SuspenseCore.Event.Equipment.Weapon.Stance.BlockEnded");
 
         // Property Events
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_PropertyChanged, "Equipment.Event.PropertyChanged");

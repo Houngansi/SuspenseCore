@@ -160,6 +160,9 @@ void ASuspenseCoreCharacter::BeginPlay()
 
 	UpdateMovementSpeed();
 
+	// Initialize crouch heights for smooth interpolation
+	InitializeCrouchHeights();
+
 	// Setup camera attachment based on mode (MetaHuman support)
 	SetupCameraAttachment();
 
@@ -189,6 +192,7 @@ void ASuspenseCoreCharacter::Tick(float DeltaTime)
 
 	UpdateMovementState();
 	UpdateAnimationValues(DeltaTime);
+	UpdateSmoothCrouch(DeltaTime);
 }
 
 void ASuspenseCoreCharacter::PossessedBy(AController* NewController)
@@ -361,12 +365,22 @@ bool ASuspenseCoreCharacter::MovementCanCrouch_Implementation() const
 
 void ASuspenseCoreCharacter::MovementStartCrouch_Implementation()
 {
+	// Set target for smooth interpolation
+	TargetCrouchAlpha = 1.0f;
+
+	// Call built-in Crouch() to set bIsCrouched and trigger speed changes
+	// The capsule height will be smoothly interpolated in UpdateSmoothCrouch
 	Crouch();
 	UpdateMovementSpeed();
 }
 
 void ASuspenseCoreCharacter::MovementStopCrouch_Implementation()
 {
+	// Set target for smooth interpolation
+	TargetCrouchAlpha = 0.0f;
+
+	// Call built-in UnCrouch() to clear bIsCrouched and restore speed
+	// The capsule height will be smoothly interpolated in UpdateSmoothCrouch
 	UnCrouch();
 	UpdateMovementSpeed();
 }
@@ -602,6 +616,64 @@ void ASuspenseCoreCharacter::UpdateMovementSpeed()
 
 		UE_LOG(LogTemp, Verbose, TEXT("[Character] UpdateMovementSpeed: Sprint=%d, Crouch=%d, Speed=%.0f"),
 			bIsSprinting, bIsCrouched, NewSpeed);
+	}
+}
+
+void ASuspenseCoreCharacter::InitializeCrouchHeights()
+{
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		// Cache standing height
+		StandingCapsuleHalfHeight = Capsule->GetUnscaledCapsuleHalfHeight();
+
+		// Get crouched height from CharacterMovementComponent
+		if (UCharacterMovementComponent* CMC = GetCharacterMovement())
+		{
+			CrouchedCapsuleHalfHeight = CMC->GetCrouchedHalfHeight();
+		}
+		else
+		{
+			// Fallback: assume half of standing height
+			CrouchedCapsuleHalfHeight = StandingCapsuleHalfHeight * 0.5f;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[Crouch] Initialized heights: Standing=%.1f, Crouched=%.1f"),
+			StandingCapsuleHalfHeight, CrouchedCapsuleHalfHeight);
+	}
+}
+
+void ASuspenseCoreCharacter::UpdateSmoothCrouch(float DeltaTime)
+{
+	// Skip if no difference
+	if (FMath::IsNearlyEqual(CurrentCrouchAlpha, TargetCrouchAlpha, 0.001f))
+	{
+		CurrentCrouchAlpha = TargetCrouchAlpha;
+		return;
+	}
+
+	// Interpolate crouch alpha
+	CurrentCrouchAlpha = FMath::FInterpTo(CurrentCrouchAlpha, TargetCrouchAlpha, DeltaTime, CrouchInterpSpeed);
+
+	// Apply interpolated capsule height
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		const float NewHalfHeight = FMath::Lerp(StandingCapsuleHalfHeight, CrouchedCapsuleHalfHeight, CurrentCrouchAlpha);
+		const float CurrentHalfHeight = Capsule->GetUnscaledCapsuleHalfHeight();
+
+		// Only update if there's a meaningful change
+		if (!FMath::IsNearlyEqual(NewHalfHeight, CurrentHalfHeight, 0.1f))
+		{
+			// Calculate the height difference for actor position adjustment
+			const float HeightDifference = CurrentHalfHeight - NewHalfHeight;
+
+			// Set new capsule height
+			Capsule->SetCapsuleHalfHeight(NewHalfHeight);
+
+			// Adjust actor position to keep feet on ground
+			FVector NewLocation = GetActorLocation();
+			NewLocation.Z -= HeightDifference;
+			SetActorLocation(NewLocation);
+		}
 	}
 }
 

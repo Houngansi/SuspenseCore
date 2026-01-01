@@ -104,13 +104,25 @@ void ASuspenseCoreWeaponActor::CalcCamera(float DeltaTime, FMinimalViewInfo& Out
             }
             else
             {
-                // Interpolate towards target position
-                SmoothedCameraLocation = FMath::VInterpTo(
-                    SmoothedCameraLocation,
-                    RawLocation,
-                    DeltaTime,
-                    ADSCameraSmoothSpeed
-                );
+                // Dead zone: if very close to target, snap directly (prevents micro-jitter)
+                const float DistanceToTarget = FVector::Dist(SmoothedCameraLocation, RawLocation);
+                constexpr float DeadZoneThreshold = 0.05f;  // 0.05 units dead zone
+
+                if (DistanceToTarget < DeadZoneThreshold)
+                {
+                    // Snap to target - no interpolation needed for tiny movements
+                    SmoothedCameraLocation = RawLocation;
+                }
+                else
+                {
+                    // Interpolate towards target position
+                    SmoothedCameraLocation = FMath::VInterpTo(
+                        SmoothedCameraLocation,
+                        RawLocation,
+                        DeltaTime,
+                        ADSCameraSmoothSpeed
+                    );
+                }
             }
             OutResult.Location = SmoothedCameraLocation;
         }

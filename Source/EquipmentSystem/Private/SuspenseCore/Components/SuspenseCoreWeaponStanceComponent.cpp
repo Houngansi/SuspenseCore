@@ -306,9 +306,9 @@ void USuspenseCoreWeaponStanceComponent::SetWeaponBlocked(bool bNewBlocked)
 
 	bIsWeaponBlocked = bNewBlocked;
 
-	// Update WeaponLoweredAlpha based on blocked state
-	// When blocked, weapon should be lowered; when unblocked, allow normal state
-	WeaponLoweredAlpha = bNewBlocked ? 1.0f : 0.0f;
+	// Update BlockDistance for AnimBP (used by Apply Additive alpha)
+	// 1.0 = fully blocked, 0.0 = not blocked
+	BlockDistance = bNewBlocked ? 1.0f : 0.0f;
 
 	if (AActor* Owner = GetOwner())
 	{

@@ -43,6 +43,10 @@ USuspenseCoreCharacterSprintAbility::USuspenseCoreCharacterSprintAbility()
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Crouching);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Aiming);  // Can't sprint while aiming
+
+	// Cancel abilities with these tags when sprint activates
+	CancelAbilitiesWithTag.AddTag(SuspenseCoreTags::Ability::Weapon::AimDownSight);  // Cancel ADS when sprinting
 }
 
 //==================================================================

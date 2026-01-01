@@ -863,7 +863,15 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
     const FTransform MuzzleTransform = GetMuzzleTransform();
     const FVector TraceStart = MuzzleTransform.GetLocation();
     const FVector TraceDirection = MuzzleTransform.GetRotation().GetForwardVector();
-    const FVector TraceEnd = TraceStart + (TraceDirection * WallDetectionDistance);
+
+    // Use different trace distances based on current state (hysteresis)
+    // - When NOT blocked: check at WallDetectionDistance to enter blocked state
+    // - When blocked: check at extended distance to exit (prevents flickering)
+    const float TraceDistance = bIsCurrentlyBlocked
+        ? (WallDetectionDistance + WallDetectionHysteresis)
+        : WallDetectionDistance;
+
+    const FVector TraceEnd = TraceStart + (TraceDirection * TraceDistance);
 
     // Setup collision query params
     FCollisionQueryParams QueryParams;
@@ -882,8 +890,18 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
         QueryParams
     );
 
-    // Determine if blocked state changed
-    const bool bNewBlocked = bHit && HitResult.bBlockingHit;
+    // Determine new blocked state with hysteresis
+    bool bNewBlocked;
+    if (bIsCurrentlyBlocked)
+    {
+        // Currently blocked: stay blocked if wall is within extended range
+        bNewBlocked = bHit && HitResult.bBlockingHit;
+    }
+    else
+    {
+        // Currently not blocked: become blocked if wall is within base range
+        bNewBlocked = bHit && HitResult.bBlockingHit && (HitResult.Distance < WallDetectionDistance);
+    }
 
     if (bNewBlocked != bIsCurrentlyBlocked)
     {
@@ -898,7 +916,7 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
                 TEXT("[WallDetection] Weapon %s: blocked state changed to %s (distance: %.1f)"),
                 *GetName(),
                 bIsCurrentlyBlocked ? TEXT("BLOCKED") : TEXT("CLEAR"),
-                bHit ? HitResult.Distance : WallDetectionDistance);
+                bHit ? HitResult.Distance : TraceDistance);
         }
     }
 }

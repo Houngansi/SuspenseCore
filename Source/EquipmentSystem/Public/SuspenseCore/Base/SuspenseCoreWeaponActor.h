@@ -300,9 +300,13 @@ protected:
     // Wall Detection (Weapon Blocking)
     //================================================
 
-    /** Distance threshold for wall detection (units) */
+    /** Distance threshold for entering blocked state (units) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="10.0", ClampMax="100.0"))
     float WallDetectionDistance = 40.0f;
+
+    /** Extra distance required to exit blocked state (hysteresis to prevent flickering) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="5.0", ClampMax="30.0"))
+    float WallDetectionHysteresis = 15.0f;
 
     /** Interval between wall detection checks (seconds) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="0.01", ClampMax="0.5"))

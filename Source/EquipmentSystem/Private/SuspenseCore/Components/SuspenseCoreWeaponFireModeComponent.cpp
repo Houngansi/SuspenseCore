@@ -82,8 +82,8 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeapon(TScriptInterface
         return false;
     }
 
-    // Initialize from weapon data
-    return InitializeFromWeaponData(WeaponData);
+    // Initialize from weapon data - MUST use Execute_ for BlueprintNativeEvent
+    return ISuspenseCoreFireModeProvider::Execute_InitializeFromWeaponData(this, WeaponData);
 }
 
 bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementation(const FSuspenseCoreUnifiedItemData& WeaponData)

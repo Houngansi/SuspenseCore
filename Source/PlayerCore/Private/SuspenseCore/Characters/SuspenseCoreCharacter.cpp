@@ -19,6 +19,9 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
+#include "Camera/CameraComponent.h"
 #include "CineCameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -1141,5 +1144,105 @@ void ASuspenseCoreCharacter::PublishCameraEvent(const FGameplayTag& EventTag, fl
 		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<ASuspenseCoreCharacter*>(this));
 		EventData.SetFloat(FName("Value"), Value);
 		EventBus->Publish(EventTag, EventData);
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADS CAMERA SWITCHING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float TransitionDuration, float TargetFOV)
+{
+	// Get player controller for view target blend
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: No PlayerController"));
+		return;
+	}
+
+	if (bToScopeCam)
+	{
+		// ═══════════════════════════════════════════════════════════════════════
+		// SWITCH TO SCOPE CAMERA (ADS Enter)
+		// ═══════════════════════════════════════════════════════════════════════
+
+		// Get current weapon actor
+		ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(CurrentWeaponActor.Get());
+		if (!WeaponActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: No weapon actor"));
+			return;
+		}
+
+		// Check if weapon has scope camera
+		UCameraComponent* ScopeCam = WeaponActor->GetScopeCamera();
+		if (!ScopeCam)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Weapon has no ScopeCam, skipping camera blend"));
+			// Even without scope cam, we can still change FOV on main camera
+			if (Camera)
+			{
+				Camera->SetFieldOfView(TargetFOV);
+			}
+			bIsInScopeView = true;
+			return;
+		}
+
+		// Set scope camera FOV
+		ScopeCam->SetFieldOfView(TargetFOV);
+
+		// Blend view to weapon actor (which has ScopeCam)
+		// Using Cubic blend for smooth cinematic transition
+		PC->SetViewTargetWithBlend(
+			WeaponActor,
+			TransitionDuration,
+			EViewTargetBlendFunction::VTBlend_Cubic,
+			0.0f,   // BlendExp (unused for Cubic)
+			true    // bLockOutgoing
+		);
+
+		bIsInScopeView = true;
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Blending to scope camera (FOV: %.1f, Duration: %.2fs)"),
+			TargetFOV, TransitionDuration);
+
+		// Publish event
+		PublishCharacterEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.ADSEnter")),
+			FString::Printf(TEXT("{\"fov\":%.1f,\"duration\":%.2f}"), TargetFOV, TransitionDuration)
+		);
+	}
+	else
+	{
+		// ═══════════════════════════════════════════════════════════════════════
+		// SWITCH BACK TO FIRST PERSON CAMERA (ADS Exit)
+		// ═══════════════════════════════════════════════════════════════════════
+
+		// Blend view back to character (FirstPersonCamera)
+		PC->SetViewTargetWithBlend(
+			this,
+			TransitionDuration,
+			EViewTargetBlendFunction::VTBlend_Cubic,
+			0.0f,
+			true
+		);
+
+		// Restore default FOV on main camera
+		if (Camera)
+		{
+			Camera->SetFieldOfView(CinematicFieldOfView);
+		}
+
+		bIsInScopeView = false;
+
+		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Blending back to first person camera (Duration: %.2fs)"),
+			TransitionDuration);
+
+		// Publish event
+		PublishCharacterEvent(
+			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.ADSExit")),
+			FString::Printf(TEXT("{\"duration\":%.2f}"), TransitionDuration)
+		);
 	}
 }

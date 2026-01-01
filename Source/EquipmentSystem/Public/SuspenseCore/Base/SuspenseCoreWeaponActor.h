@@ -12,6 +12,7 @@
 #include "SuspenseCoreWeaponActor.generated.h"
 
 // Forward declarations
+class UCameraComponent;
 class USuspenseCoreWeaponAmmoComponent;
 class USuspenseCoreWeaponFireModeComponent;
 class USuspenseCoreEquipmentAttributeComponent;
@@ -158,6 +159,26 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon|Animation")
     bool GetCreateAimPose() const { return bCreateAimPose; }
 
+    //================================================
+    // ADS Camera API
+    //================================================
+
+    /** Get the scope camera for ADS view blending */
+    UFUNCTION(BlueprintPure, Category="Weapon|ADS")
+    UCameraComponent* GetScopeCamera() const { return ScopeCam; }
+
+    /** Get whether this weapon has a scope camera for ADS */
+    UFUNCTION(BlueprintPure, Category="Weapon|ADS")
+    bool HasScopeCamera() const { return ScopeCam != nullptr; }
+
+    /** Get the aim field of view for this weapon */
+    UFUNCTION(BlueprintPure, Category="Weapon|ADS")
+    float GetAimFOV() const { return AimFOV; }
+
+    /** Get the camera transition duration for ADS blend */
+    UFUNCTION(BlueprintPure, Category="Weapon|ADS")
+    float GetCameraTransitionDuration() const { return CameraTransitionDuration; }
+
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
     void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
@@ -198,8 +219,28 @@ protected:
     bool bCreateAimPose = true;
 
     //================================================
+    // ADS Camera Configuration
+    //================================================
+
+    /** Field of view when aiming down sights (degrees) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS", meta=(ClampMin="10.0", ClampMax="120.0"))
+    float AimFOV = 60.0f;
+
+    /** Duration of camera transition when entering/exiting ADS (seconds) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS", meta=(ClampMin="0.0", ClampMax="2.0"))
+    float CameraTransitionDuration = 0.2f;
+
+    /** Socket name to attach scope camera (typically on weapon's sight) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|ADS")
+    FName ScopeCamSocketName = TEXT("Sight_Socket");
+
+    //================================================
     // Components (owned by actor)
     //================================================
+
+    /** Scope camera for ADS view blending (optional, attach in Blueprint to Sight_Socket) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+    UCameraComponent* ScopeCam;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponAmmoComponent* AmmoComponent;
 

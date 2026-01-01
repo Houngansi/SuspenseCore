@@ -7,6 +7,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Characters/SuspenseCoreCharacter.h"
+#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "GameFramework/Character.h"
@@ -151,6 +153,25 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	ApplyAimEffects(ActorInfo);
 
 	// ===================================================================
+	// Switch to Scope Camera (Legacy Camera Blend Integration)
+	// ===================================================================
+	if (ASuspenseCoreCharacter* SuspenseCharacter = Cast<ASuspenseCoreCharacter>(ActorInfo->AvatarActor.Get()))
+	{
+		// Get weapon's camera config
+		float TransitionDuration = 0.2f;
+		float AimFOV = 60.0f;
+
+		if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(SuspenseCharacter->GetCurrentWeaponActor()))
+		{
+			TransitionDuration = WeaponActor->GetCameraTransitionDuration();
+			AimFOV = WeaponActor->GetAimFOV();
+		}
+
+		SuspenseCharacter->SwitchToScopeCamera(true, TransitionDuration, AimFOV);
+		UE_LOG(LogTemp, Log, TEXT("[ADS DEBUG] Camera switched to scope (FOV: %.1f, Duration: %.2fs)"), AimFOV, TransitionDuration);
+	}
+
+	// ===================================================================
 	// Hold-to-Aim Model
 	// ===================================================================
 	// NOTE: WaitInputRelease doesn't work with TryActivateAbilitiesByTag
@@ -200,6 +221,23 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	// Remove Speed Debuff GameplayEffect
 	// ===================================================================
 	RemoveAimEffects(ActorInfo);
+
+	// ===================================================================
+	// Switch back to First Person Camera
+	// ===================================================================
+	if (ASuspenseCoreCharacter* SuspenseCharacter = Cast<ASuspenseCoreCharacter>(ActorInfo->AvatarActor.Get()))
+	{
+		// Get weapon's camera config for transition duration
+		float TransitionDuration = 0.2f;
+
+		if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(SuspenseCharacter->GetCurrentWeaponActor()))
+		{
+			TransitionDuration = WeaponActor->GetCameraTransitionDuration();
+		}
+
+		SuspenseCharacter->SwitchToScopeCamera(false, TransitionDuration);
+		UE_LOG(LogTemp, Log, TEXT("[ADS DEBUG] Camera switched back to first person (Duration: %.2fs)"), TransitionDuration);
+	}
 
 	// Clear cached state
 	CachedActorInfo = nullptr;

@@ -1045,8 +1045,20 @@ void ASuspenseCoreCharacter::SetCameraFOV(float NewFOV)
 		// Also set FOV directly for any systems that read it
 		Camera->SetFieldOfView(ClampedFOV);
 
-		UE_LOG(LogTemp, Log, TEXT("[Camera FOV] Set FOV=%.1f° -> FocalLength=%.2fmm (SensorWidth=%.2fmm)"),
+		// Verify the actual FOV that the camera reports
+		const float ActualFOV = Camera->FieldOfView;
+		const float ActualFocalLength = Camera->CurrentFocalLength;
+
+		UE_LOG(LogTemp, Warning, TEXT("[Camera FOV] Requested FOV=%.1f° -> Set FocalLength=%.2fmm (SensorWidth=%.2fmm)"),
 			ClampedFOV, NewFocalLength, Camera->Filmback.SensorWidth);
+		UE_LOG(LogTemp, Warning, TEXT("[Camera FOV] Actual Camera State: FOV=%.1f°, FocalLength=%.2fmm"),
+			ActualFOV, ActualFocalLength);
+
+		if (FMath::Abs(ActualFOV - ClampedFOV) > 1.0f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Camera FOV] MISMATCH! Requested FOV %.1f but camera reports %.1f!"),
+				ClampedFOV, ActualFOV);
+		}
 
 		PublishCameraEvent(
 			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.FOVChanged")),
@@ -1231,11 +1243,21 @@ void ASuspenseCoreCharacter::ADSSwitchCamera_Implementation(bool bToScopeCam)
 		TransitionDuration = ISuspenseCoreWeapon::Execute_GetADSTransitionDuration(WeaponActor);
 		TargetFOV = ISuspenseCoreWeapon::Execute_GetADSFieldOfView(WeaponActor);
 		UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] Got weapon config: FOV=%.1f, Duration=%.2f"), TargetFOV, TransitionDuration);
+
+		// Warning if weapon's AimFOV is same as character's default FOV (no zoom effect!)
+		if (TargetFOV >= CinematicFieldOfView - 1.0f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[ADS Camera] WARNING: Weapon AimFOV (%.1f) >= Character FOV (%.1f)! No zoom effect! Set AimFOV lower in Blueprint (e.g. 45-60)"),
+				TargetFOV, CinematicFieldOfView);
+		}
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] Weapon does not implement ISuspenseCoreWeapon, using defaults"));
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] Character CinematicFieldOfView=%.1f, Weapon TargetFOV=%.1f"),
+		CinematicFieldOfView, TargetFOV);
 
 	// Delegate to SwitchToScopeCamera for actual implementation
 	SwitchToScopeCamera(bToScopeCam, TransitionDuration, TargetFOV);

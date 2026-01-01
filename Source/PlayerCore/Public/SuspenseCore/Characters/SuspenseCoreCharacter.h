@@ -519,6 +519,30 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|State")
 	bool bIsInScopeView = false;
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// SMOOTH CROUCH
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Speed of crouch transition interpolation (higher = faster) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|Movement|Crouch", meta = (ClampMin = "1.0", ClampMax = "30.0"))
+	float CrouchInterpSpeed = 12.0f;
+
+	/** Current interpolated crouch alpha (0 = standing, 1 = fully crouched) */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement|Crouch")
+	float CurrentCrouchAlpha = 0.0f;
+
+	/** Target crouch alpha we're interpolating towards */
+	UPROPERTY(BlueprintReadOnly, Category = "SuspenseCore|Movement|Crouch")
+	float TargetCrouchAlpha = 0.0f;
+
+	/** Cached standing capsule half-height */
+	UPROPERTY(Transient)
+	float StandingCapsuleHalfHeight = 0.0f;
+
+	/** Cached crouched capsule half-height */
+	UPROPERTY(Transient)
+	float CrouchedCapsuleHalfHeight = 0.0f;
+
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AActor> CurrentWeaponActor;
 
@@ -549,6 +573,8 @@ protected:
 	void UpdateMovementState();
 	void UpdateAnimationValues(float DeltaTime);
 	void UpdateMovementSpeed();
+	void UpdateSmoothCrouch(float DeltaTime);
+	void InitializeCrouchHeights();
 
 	void SetupCameraSettings();
 	void SetupCameraAttachment();

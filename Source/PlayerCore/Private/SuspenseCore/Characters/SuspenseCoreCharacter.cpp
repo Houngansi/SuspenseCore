@@ -1256,6 +1256,14 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		// SWITCH BACK TO FIRST PERSON CAMERA (ADS Exit)
 		// ═══════════════════════════════════════════════════════════════════════
 
+		// Only do anything if we actually entered scope view
+		// If we never entered (e.g., no weapon), don't mess with the camera/FOV
+		if (!bIsInScopeView)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Not in scope view, skipping exit"));
+			return;
+		}
+
 		// Blend view back to character (FirstPersonCamera)
 		PC->SetViewTargetWithBlend(
 			this,

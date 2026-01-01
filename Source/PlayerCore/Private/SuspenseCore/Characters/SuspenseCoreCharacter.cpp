@@ -5,6 +5,7 @@
 #include "SuspenseCore/Core/SuspenseCorePlayerState.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreCharacterClassData.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreCharacterSelectionSubsystem.h"
@@ -1229,9 +1230,9 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Blending to scope camera (FOV: %.1f, Duration: %.2fs)"),
 			TargetFOV, TransitionDuration);
 
-		// Publish event
+		// Publish event using native tag
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.ADSEnter")),
+			SuspenseCoreTags::Event::Camera::ADSEnter,
 			FString::Printf(TEXT("{\"fov\":%.1f,\"duration\":%.2f}"), TargetFOV, TransitionDuration)
 		);
 	}
@@ -1261,9 +1262,9 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 		UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Blending back to first person camera (Duration: %.2fs)"),
 			TransitionDuration);
 
-		// Publish event
+		// Publish event using native tag
 		PublishCharacterEvent(
-			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.ADSExit")),
+			SuspenseCoreTags::Event::Camera::ADSExit,
 			FString::Printf(TEXT("{\"duration\":%.2f}"), TransitionDuration)
 		);
 	}

@@ -127,6 +127,8 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(FOVChanged, "SuspenseCore.Event.Camera.FOVChanged");
 			UE_DEFINE_GAMEPLAY_TAG(PresetApplied, "SuspenseCore.Event.Camera.PresetApplied");
 			UE_DEFINE_GAMEPLAY_TAG(Reset, "SuspenseCore.Event.Camera.Reset");
+			UE_DEFINE_GAMEPLAY_TAG(ADSEnter, "SuspenseCore.Event.Camera.ADSEnter");
+			UE_DEFINE_GAMEPLAY_TAG(ADSExit, "SuspenseCore.Event.Camera.ADSExit");
 		}
 
 		//--------------------------------------------------------------

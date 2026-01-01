@@ -50,7 +50,15 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 void ASuspenseCoreWeaponActor::BeginPlay()
 {
     Super::BeginPlay();
-    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("WeaponActor BeginPlay: %s"), *GetName());
+
+    // Sync ScopeCam FOV with editor-configured AimFOV
+    // (constructor runs before editor property changes are applied)
+    if (ScopeCam)
+    {
+        ScopeCam->SetFieldOfView(AimFOV);
+    }
+
+    UE_LOG(LogSuspenseCoreWeaponActor, Verbose, TEXT("WeaponActor BeginPlay: %s (AimFOV: %.1f)"), *GetName(), AimFOV);
 }
 
 void ASuspenseCoreWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)

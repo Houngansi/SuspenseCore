@@ -525,9 +525,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 		AdditivePitch = InterpolatedAdditivePitch;
 	}
 
-	// Block distance interpolation
-	InterpolatedBlockDistance = FMath::FInterpTo(InterpolatedBlockDistance, BlockDistance, DeltaSeconds, BlockDistanceInterpSpeed);
-	BlockDistance = InterpolatedBlockDistance;
+	// BlockDistance is already interpolated in StanceComponent, no need to double-interpolate
 
 	if (!bHasWeaponEquipped)
 	{

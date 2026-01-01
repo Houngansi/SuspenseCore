@@ -655,10 +655,8 @@ private:
 	// IK Interpolation
 	FTransform InterpolatedRHTransform = FTransform::Identity;
 	FTransform InterpolatedLHTransform = FTransform::Identity;
-	float InterpolatedBlockDistance = 0.0f;
 	float InterpolatedAdditivePitch = 0.0f;
 	static constexpr float TransformInterpSpeed = 8.0f;
-	static constexpr float BlockDistanceInterpSpeed = 10.0f;
 	static constexpr float AdditivePitchBlendExp = 6.0f;
 
 	static const FName LHTargetSocketName;

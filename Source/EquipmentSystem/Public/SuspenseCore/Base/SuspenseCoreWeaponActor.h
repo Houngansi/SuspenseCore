@@ -316,6 +316,10 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection")
     bool bEnableWallDetection = true;
 
+    /** Minimum time between blocking state changes (debounce) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="0.1", ClampMax="1.0"))
+    float BlockedStateChangeCooldown = 0.3f;
+
     /** Timer handle for wall detection */
     FTimerHandle WallDetectionTimerHandle;
 
@@ -324,4 +328,7 @@ protected:
 
     /** Current wall blocking state */
     bool bIsCurrentlyBlocked = false;
+
+    /** Time when blocking state last changed (for debounce) */
+    float LastBlockedStateChangeTime = 0.0f;
 };

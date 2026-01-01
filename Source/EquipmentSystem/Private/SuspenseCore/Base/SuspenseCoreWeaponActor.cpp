@@ -864,10 +864,21 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
         return;
     }
 
-    // Simple line trace forward from muzzle
-    const FTransform MuzzleTransform = GetMuzzleTransform();
-    const FVector TraceStart = MuzzleTransform.GetLocation();
-    const FVector TraceEnd = TraceStart + MuzzleTransform.GetRotation().GetForwardVector() * WallDetectionDistance;
+    // Trace from camera/viewpoint (stable position, no feedback loop with animation)
+    FVector ViewLocation;
+    FRotator ViewRotation;
+    if (AController* Controller = OwnerPawn->GetController())
+    {
+        Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    }
+    else
+    {
+        ViewLocation = OwnerPawn->GetActorLocation() + FVector(0, 0, 60.f);
+        ViewRotation = OwnerPawn->GetActorRotation();
+    }
+
+    const FVector TraceStart = ViewLocation;
+    const FVector TraceEnd = TraceStart + ViewRotation.Vector() * WallDetectionDistance;
 
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(this);
@@ -876,11 +887,10 @@ void ASuspenseCoreWeaponActor::CheckWallBlocking()
     FHitResult HitResult;
     const bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-    // Calculate BlockDistance: 0 = no wall, 1 = wall touching muzzle
+    // Calculate BlockDistance: 0 = no wall, 1 = wall very close
     float NewBlockDistance = 0.0f;
     if (bHit && HitResult.bBlockingHit)
     {
-        // Linear falloff: closer wall = higher value
         NewBlockDistance = 1.0f - FMath::Clamp(HitResult.Distance / WallDetectionDistance, 0.0f, 1.0f);
     }
 

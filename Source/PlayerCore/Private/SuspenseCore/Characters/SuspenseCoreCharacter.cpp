@@ -79,8 +79,14 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 	Camera->bUsePawnControlRotation = false; // CameraBoom handles rotation
 
 	// Configure cinematic camera settings
-	Camera->SetFieldOfView(CinematicFieldOfView);
-	Camera->SetCurrentFocalLength(CurrentFocalLength);
+	// For CineCameraComponent, FOV is derived from FocalLength + SensorWidth
+	// We calculate the focal length that gives us our desired FOV
+	// Formula: FocalLength = (SensorWidth / 2) / tan(FOV * PI / 360)
+	const float HalfFOVRadians = FMath::DegreesToRadians(CinematicFieldOfView * 0.5f);
+	const float CalculatedFocalLength = (SensorWidth * 0.5f) / FMath::Tan(HalfFOVRadians);
+
+	Camera->SetCurrentFocalLength(CalculatedFocalLength);
+	Camera->SetFieldOfView(CinematicFieldOfView);  // Also set for systems that read FOV directly
 	Camera->SetCurrentAperture(CurrentAperture);
 
 	// Setup lens settings
@@ -1028,7 +1034,19 @@ void ASuspenseCoreCharacter::SetCameraFOV(float NewFOV)
 	if (Camera)
 	{
 		float ClampedFOV = FMath::Clamp(NewFOV, 5.0f, 170.0f);
+
+		// For CineCameraComponent, we need to set FOV via focal length
+		// Formula: FocalLength = (SensorWidth / 2) / tan(FOV * PI / 360)
+		const float HalfFOVRadians = FMath::DegreesToRadians(ClampedFOV * 0.5f);
+		const float NewFocalLength = (Camera->Filmback.SensorWidth * 0.5f) / FMath::Tan(HalfFOVRadians);
+
+		Camera->SetCurrentFocalLength(NewFocalLength);
+
+		// Also set FOV directly for any systems that read it
 		Camera->SetFieldOfView(ClampedFOV);
+
+		UE_LOG(LogTemp, Log, TEXT("[Camera FOV] Set FOV=%.1f° -> FocalLength=%.2fmm (SensorWidth=%.2fmm)"),
+			ClampedFOV, NewFocalLength, Camera->Filmback.SensorWidth);
 
 		PublishCameraEvent(
 			FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Camera.FOVChanged")),
@@ -1145,13 +1163,16 @@ void ASuspenseCoreCharacter::ResetCameraToDefaults()
 {
 	if (Camera)
 	{
-		// Reset FOV
+		// Reset FOV - calculate proper focal length for CineCameraComponent
+		const float HalfFOVRadians = FMath::DegreesToRadians(CinematicFieldOfView * 0.5f);
+		const float CalculatedFocalLength = (Camera->Filmback.SensorWidth * 0.5f) / FMath::Tan(HalfFOVRadians);
+
+		Camera->SetCurrentFocalLength(CalculatedFocalLength);
 		Camera->SetFieldOfView(CinematicFieldOfView);
 
-		// Reset focal length and aperture
-		Camera->SetCurrentFocalLength(35.0f);
+		// Reset aperture
 		Camera->SetCurrentAperture(2.8f);
-		CurrentFocalLength = 35.0f;
+		CurrentFocalLength = CalculatedFocalLength;
 		CurrentAperture = 2.8f;
 
 		// Reset focus settings
@@ -1257,10 +1278,7 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 			{
 				UE_LOG(LogTemp, Log, TEXT("[SuspenseCoreCharacter] SwitchToScopeCamera: Weapon has no ScopeCam, changing FOV only"));
 				// Even without scope cam, we can still change FOV on main camera
-				if (Camera)
-				{
-					Camera->SetFieldOfView(TargetFOV);
-				}
+				SetCameraFOV(TargetFOV);
 				bIsInScopeView = true;
 				return;
 			}
@@ -1323,11 +1341,8 @@ void ASuspenseCoreCharacter::SwitchToScopeCamera(bool bToScopeCam, float Transit
 			false   // Don't lock outgoing - allows smoother transition
 		);
 
-		// Restore default FOV on main camera
-		if (Camera)
-		{
-			Camera->SetFieldOfView(CinematicFieldOfView);
-		}
+		// Restore default FOV on main camera (uses SetCameraFOV to properly set focal length)
+		SetCameraFOV(CinematicFieldOfView);
 
 		bIsInScopeView = false;
 

@@ -64,6 +64,7 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
+	UpdateBlockingData();
 
 	// DEBUG: Log key variables every 3 seconds when weapon equipped
 	static float LastKeyVarLogTime = 0.0f;
@@ -1323,4 +1324,60 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 		return CurrentAnimationData.AimShoot;
 	}
 	return CurrentAnimationData.Shoot;
+}
+
+// ============================================================================
+// Weapon Blocking IK Targets
+// ============================================================================
+void USuspenseCoreCharacterAnimInstance::UpdateBlockingData()
+{
+	bHasBlockedTargets = false;
+	BlockedRHTargetLocation = FVector::ZeroVector;
+	BlockedLHTargetLocation = FVector::ZeroVector;
+
+	// Only update when weapon is blocked (optimization)
+	if (!bIsWeaponBlocked)
+	{
+		return;
+	}
+
+	// Get mesh component from owner
+	USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+	if (!MeshComp)
+	{
+		return;
+	}
+
+	// Get Right Hand blocked target socket location
+	if (MeshComp->DoesSocketExist(BlockedRHSocketName))
+	{
+		BlockedRHTargetLocation = MeshComp->GetSocketLocation(BlockedRHSocketName);
+		bHasBlockedTargets = true;
+	}
+
+	// Get Left Hand blocked target socket location
+	if (MeshComp->DoesSocketExist(BlockedLHSocketName))
+	{
+		BlockedLHTargetLocation = MeshComp->GetSocketLocation(BlockedLHSocketName);
+		bHasBlockedTargets = true;
+	}
+
+	// Fallback: if no sockets, use bone positions with offset
+	if (!bHasBlockedTargets)
+	{
+		// Use spine_03 bone as reference for blocked position
+		const FName SpineBone = TEXT("spine_03");
+		if (MeshComp->GetBoneIndex(SpineBone) != INDEX_NONE)
+		{
+			const FTransform SpineTransform = MeshComp->GetBoneTransform(MeshComp->GetBoneIndex(SpineBone));
+			const FVector SpineLocation = SpineTransform.GetLocation();
+			const FVector SpineRight = SpineTransform.GetRotation().GetRightVector();
+			const FVector SpineForward = SpineTransform.GetRotation().GetForwardVector();
+
+			// Offset hands towards body (forward -10, right ±15 from spine)
+			BlockedRHTargetLocation = SpineLocation + SpineForward * -10.0f + SpineRight * 15.0f;
+			BlockedLHTargetLocation = SpineLocation + SpineForward * -10.0f + SpineRight * -15.0f;
+			bHasBlockedTargets = true;
+		}
+	}
 }

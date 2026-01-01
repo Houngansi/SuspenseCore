@@ -331,6 +331,22 @@ public:
     void SetWeaponState(const FWeaponStateFlags& NewState, bool bEnabled);
 
     //==================================================================
+    // ADS Camera Configuration
+    //==================================================================
+
+    /** Get the aim down sight field of view for this weapon */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
+    float GetADSFieldOfView() const;
+
+    /** Get the camera transition duration for ADS blend */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
+    float GetADSTransitionDuration() const;
+
+    /** Check if weapon has a scope camera for ADS view blending */
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|ADS")
+    bool HasADSScopeCamera() const;
+
+    //==================================================================
     // Fire Modes
     //==================================================================
 

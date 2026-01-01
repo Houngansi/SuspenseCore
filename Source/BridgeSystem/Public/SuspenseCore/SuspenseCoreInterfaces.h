@@ -354,3 +354,55 @@ public:
 	bool MovementIsInAir() const;
 	virtual bool MovementIsInAir_Implementation() const { return false; }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ISuspenseCoreADSCamera
+// ═══════════════════════════════════════════════════════════════════════════════
+
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreADSCamera : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * ISuspenseCoreADSCamera
+ *
+ * Интерфейс для управления камерой ADS (Aim Down Sight).
+ * Обеспечивает плавный переход между FirstPersonCamera и ScopeCam оружия
+ * через SetViewTargetWithBlend.
+ *
+ * Реализуется в PlayerCore::ASuspenseCoreCharacter
+ * Используется в GAS::Abilities (AimDownSight)
+ *
+ * Позволяет избежать циклических зависимостей между GAS и PlayerCore.
+ */
+class BRIDGESYSTEM_API ISuspenseCoreADSCamera
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Переключить камеру между FirstPerson и ScopeCam оружия.
+	 * Реализация сама получает конфиг (FOV, Duration) от текущего оружия.
+	 *
+	 * @param bToScopeCam True для перехода к прицельной камере, false для возврата к FP
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|ADS")
+	void ADSSwitchCamera(bool bToScopeCam);
+	virtual void ADSSwitchCamera_Implementation(bool bToScopeCam) {}
+
+	/**
+	 * Проверить, находится ли камера в режиме прицеливания.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|ADS")
+	bool ADSIsInScopeView() const;
+	virtual bool ADSIsInScopeView_Implementation() const { return false; }
+
+	/**
+	 * Получить текущий FOV камеры.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "SuspenseCore|ADS")
+	float ADSGetCurrentFOV() const;
+	virtual float ADSGetCurrentFOV_Implementation() const { return 90.0f; }
+};

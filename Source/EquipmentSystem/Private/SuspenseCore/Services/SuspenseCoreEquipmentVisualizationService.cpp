@@ -4,6 +4,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
@@ -978,6 +979,31 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 			TEXT("✓ Direct spawn SUCCESS: %s"),
 			*SpawnedActor->GetName());
+
+		// CRITICAL FIX: Initialize spawned actor via ISuspenseCoreEquipment interface
+		// This was missing in fallback path, causing ScopeCam to not attach to socket!
+		if (SpawnedActor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("  Initializing actor via ISuspenseCoreEquipment interface..."));
+
+			// 1) Call OnEquipped with Character as owner
+			ISuspenseCoreEquipment::Execute_OnEquipped(SpawnedActor, Character);
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("  ✓ OnEquipped called with owner: %s"), *Character->GetName());
+
+			// 2) Call OnItemInstanceEquipped with ItemInstance
+			FSuspenseCoreInventoryItemInstance ItemInstance;
+			ItemInstance.ItemID = ItemID;
+			ISuspenseCoreEquipment::Execute_OnItemInstanceEquipped(SpawnedActor, ItemInstance);
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("  ✓ OnItemInstanceEquipped called for ItemID: %s"), *ItemID.ToString());
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("  Actor does not implement ISuspenseCoreEquipment - skipping initialization"));
+		}
 	}
 	else
 	{

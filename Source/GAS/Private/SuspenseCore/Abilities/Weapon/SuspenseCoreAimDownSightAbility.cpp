@@ -156,10 +156,48 @@ void USuspenseCoreAimDownSightAbility::ActivateAbility(
 	// Character implementation handles getting weapon config internally
 	// ===================================================================
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	if (AvatarActor && AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass()))
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AvatarActor class: %s"),
+		AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL"));
+
+	if (AvatarActor)
 	{
-		ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, true);
-		UE_LOG(LogTemp, Log, TEXT("[ADS DEBUG] Camera switch to scope requested"));
+		bool bImplementsInterface = AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass());
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Implements ISuspenseCoreADSCamera: %s"),
+			bImplementsInterface ? TEXT("TRUE") : TEXT("FALSE"));
+
+		if (bImplementsInterface)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling Execute_ADSSwitchCamera(true)..."));
+			ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, true);
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Execute_ADSSwitchCamera(true) returned"));
+
+			// DEBUG: Check if Cast to interface works
+			ISuspenseCoreADSCamera* DirectInterface = Cast<ISuspenseCoreADSCamera>(AvatarActor);
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Cast<ISuspenseCoreADSCamera> = %s"),
+				DirectInterface ? TEXT("SUCCESS - vtable should have _Implementation") : TEXT("FAILED - no vtable"));
+
+			// DEBUG: Check parent class chain and if Blueprint
+			UClass* ActorClass = AvatarActor->GetClass();
+			bool bIsBlueprintClass = ActorClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Is Blueprint class: %s"),
+				bIsBlueprintClass ? TEXT("YES - check BP Event ADSSwitchCamera!") : TEXT("NO - pure C++"));
+
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Class hierarchy:"));
+			for (UClass* Class = ActorClass; Class; Class = Class->GetSuperClass())
+			{
+				bool bBP = Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint);
+				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   -> %s %s"),
+					*Class->GetName(), bBP ? TEXT("[BP]") : TEXT("[C++]"));
+				if (Class->GetName() == TEXT("Actor"))
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] AvatarActor does NOT implement ISuspenseCoreADSCamera interface!"));
+		}
 	}
 
 	// ===================================================================
@@ -218,10 +256,21 @@ void USuspenseCoreAimDownSightAbility::EndAbility(
 	// Character implementation handles getting weapon config internally
 	// ===================================================================
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
-	if (AvatarActor && AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass()))
+	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility: AvatarActor class: %s"),
+		AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL"));
+
+	if (AvatarActor)
 	{
-		ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, false);
-		UE_LOG(LogTemp, Log, TEXT("[ADS DEBUG] Camera switch back to first person requested"));
+		bool bImplementsInterface = AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreADSCamera::StaticClass());
+		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] EndAbility: Implements ISuspenseCoreADSCamera: %s"),
+			bImplementsInterface ? TEXT("TRUE") : TEXT("FALSE"));
+
+		if (bImplementsInterface)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling Execute_ADSSwitchCamera(false)..."));
+			ISuspenseCoreADSCamera::Execute_ADSSwitchCamera(AvatarActor, false);
+			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Execute_ADSSwitchCamera(false) returned"));
+		}
 	}
 
 	// Clear cached state

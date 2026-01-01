@@ -1154,15 +1154,29 @@ void ASuspenseCoreCharacter::PublishCameraEvent(const FGameplayTag& EventTag, fl
 
 void ASuspenseCoreCharacter::ADSSwitchCamera_Implementation(bool bToScopeCam)
 {
+	UE_LOG(LogTemp, Warning, TEXT("************************************************************"));
+	UE_LOG(LogTemp, Warning, TEXT("[CHARACTER ADS] >>> ADSSwitchCamera_Implementation ENTERED <<<"));
+	UE_LOG(LogTemp, Warning, TEXT("[CHARACTER ADS] bToScopeCam=%s, this=%s"),
+		bToScopeCam ? TEXT("TRUE") : TEXT("FALSE"), *GetName());
+	UE_LOG(LogTemp, Warning, TEXT("************************************************************"));
+
 	// Get weapon's camera config via ISuspenseCoreWeapon interface
 	float TransitionDuration = 0.2f;
 	float TargetFOV = 60.0f;
 
 	AActor* WeaponActor = CurrentWeaponActor.Get();
+	UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] CurrentWeaponActor = %s"),
+		WeaponActor ? *WeaponActor->GetName() : TEXT("NULL"));
+
 	if (WeaponActor && WeaponActor->GetClass()->ImplementsInterface(USuspenseCoreWeapon::StaticClass()))
 	{
 		TransitionDuration = ISuspenseCoreWeapon::Execute_GetADSTransitionDuration(WeaponActor);
 		TargetFOV = ISuspenseCoreWeapon::Execute_GetADSFieldOfView(WeaponActor);
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] Got weapon config: FOV=%.1f, Duration=%.2f"), TargetFOV, TransitionDuration);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ADS Camera] Weapon does not implement ISuspenseCoreWeapon, using defaults"));
 	}
 
 	// Delegate to SwitchToScopeCamera for actual implementation

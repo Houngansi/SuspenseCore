@@ -300,35 +300,20 @@ protected:
     // Wall Detection (Weapon Blocking)
     //================================================
 
-    /** Distance threshold for entering blocked state (units) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="10.0", ClampMax="100.0"))
-    float WallDetectionDistance = 40.0f;
-
-    /** Extra distance required to exit blocked state (hysteresis to prevent flickering) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="5.0", ClampMax="30.0"))
-    float WallDetectionHysteresis = 15.0f;
-
-    /** Interval between wall detection checks (seconds) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="0.01", ClampMax="0.5"))
-    float WallDetectionInterval = 0.1f;
+    /** Maximum distance for wall detection (units). Weapon starts lowering when wall is closer. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="20.0", ClampMax="100.0"))
+    float WallDetectionDistance = 50.0f;
 
     /** Enable/disable wall detection for this weapon */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection")
     bool bEnableWallDetection = true;
 
-    /** Minimum time between blocking state changes (debounce) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Weapon|WallDetection", meta=(ClampMin="0.1", ClampMax="1.0"))
-    float BlockedStateChangeCooldown = 0.3f;
+    /** Interval between wall detection checks (seconds) */
+    static constexpr float WallDetectionInterval = 0.1f;
 
     /** Timer handle for wall detection */
     FTimerHandle WallDetectionTimerHandle;
 
-    /** Perform wall detection trace and update blocking state */
+    /** Perform wall detection trace and update BlockDistance */
     void CheckWallBlocking();
-
-    /** Current wall blocking state */
-    bool bIsCurrentlyBlocked = false;
-
-    /** Time when blocking state last changed (for debounce) */
-    float LastBlockedStateChangeTime = 0.0f;
 };

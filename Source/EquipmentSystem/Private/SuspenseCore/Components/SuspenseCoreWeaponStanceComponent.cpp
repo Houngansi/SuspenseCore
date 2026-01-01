@@ -299,29 +299,9 @@ void USuspenseCoreWeaponStanceComponent::SetMontageActive(bool bNewMontageActive
 
 void USuspenseCoreWeaponStanceComponent::SetWeaponBlocked(bool bNewBlocked)
 {
-	if (bIsWeaponBlocked == bNewBlocked)
-	{
-		return;
-	}
-
-	bIsWeaponBlocked = bNewBlocked;
-
-	// Set target for interpolation (BlockDistance will lerp towards this in Tick)
-	// 1.0 = fully blocked, 0.0 = not blocked
-	TargetBlockDistance = bNewBlocked ? 1.0f : 0.0f;
-
-	if (AActor* Owner = GetOwner())
-	{
-		if (Owner->HasAuthority())
-		{
-			Owner->ForceNetUpdate();
-		}
-	}
-
-	// Broadcast EventBus event
-	BroadcastCombatStateEvent(bNewBlocked
-		? SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_BlockStarted
-		: SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_Stance_BlockEnded);
+	// Legacy function - now just sets target distance
+	// bIsWeaponBlocked is updated automatically in UpdateInterpolatedValues based on BlockDistance
+	SetBlockDistance(bNewBlocked ? 1.0f : 0.0f);
 }
 
 // ============================================================================
@@ -420,7 +400,7 @@ void USuspenseCoreWeaponStanceComponent::SetAdditivePitch(float NewAdditivePitch
 
 void USuspenseCoreWeaponStanceComponent::SetBlockDistance(float NewBlockDistance)
 {
-	BlockDistance = FMath::Max(0.0f, NewBlockDistance);
+	TargetBlockDistance = FMath::Clamp(NewBlockDistance, 0.0f, 1.0f);
 }
 
 void USuspenseCoreWeaponStanceComponent::SetSightDistance(float NewSightDistance)
@@ -607,6 +587,16 @@ void USuspenseCoreWeaponStanceComponent::UpdateInterpolatedValues(float DeltaTim
 	else
 	{
 		BlockDistance = TargetBlockDistance;
+	}
+
+	// Update boolean blocked state with hysteresis (for AnimBP Blend Poses by bool)
+	if (!bIsWeaponBlocked && BlockDistance > 0.3f)
+	{
+		bIsWeaponBlocked = true;
+	}
+	else if (bIsWeaponBlocked && BlockDistance < 0.1f)
+	{
+		bIsWeaponBlocked = false;
 	}
 
 	// Decay recoil over time

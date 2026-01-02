@@ -251,36 +251,36 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshairPositions()
 	// Update top crosshair
 	if (TopCrosshair)
 	{
-		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(TopCrosshair->Slot))
+		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(TopCrosshair->Slot))
 		{
-			Slot->SetPosition(FVector2D(0.0f, -Radius - CrosshairLength / 2.0f));
+			CanvasSlot->SetPosition(FVector2D(0.0f, -Radius - CrosshairLength / 2.0f));
 		}
 	}
 
 	// Update bottom crosshair
 	if (BottomCrosshair)
 	{
-		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(BottomCrosshair->Slot))
+		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(BottomCrosshair->Slot))
 		{
-			Slot->SetPosition(FVector2D(0.0f, Radius + CrosshairLength / 2.0f));
+			CanvasSlot->SetPosition(FVector2D(0.0f, Radius + CrosshairLength / 2.0f));
 		}
 	}
 
 	// Update left crosshair
 	if (LeftCrosshair)
 	{
-		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(LeftCrosshair->Slot))
+		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(LeftCrosshair->Slot))
 		{
-			Slot->SetPosition(FVector2D(-Radius - CrosshairLength / 2.0f, 0.0f));
+			CanvasSlot->SetPosition(FVector2D(-Radius - CrosshairLength / 2.0f, 0.0f));
 		}
 	}
 
 	// Update right crosshair
 	if (RightCrosshair)
 	{
-		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(RightCrosshair->Slot))
+		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(RightCrosshair->Slot))
 		{
-			Slot->SetPosition(FVector2D(Radius + CrosshairLength / 2.0f, 0.0f));
+			CanvasSlot->SetPosition(FVector2D(Radius + CrosshairLength / 2.0f, 0.0f));
 		}
 	}
 }

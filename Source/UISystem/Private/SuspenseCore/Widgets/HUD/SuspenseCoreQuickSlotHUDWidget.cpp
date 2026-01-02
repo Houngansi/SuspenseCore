@@ -224,10 +224,10 @@ void USuspenseCoreQuickSlotHUDWidget::GenerateSlotEntries()
 			Entry->InitializeSlot(i, HotkeyText);
 
 			// Add to container
-			UHorizontalBoxSlot* Slot = SlotContainer->AddChildToHorizontalBox(Entry);
-			if (Slot && i > 0)
+			UHorizontalBoxSlot* BoxSlot = SlotContainer->AddChildToHorizontalBox(Entry);
+			if (BoxSlot && i > 0)
 			{
-				Slot->SetPadding(FMargin(SlotSpacing, 0.0f, 0.0f, 0.0f));
+				BoxSlot->SetPadding(FMargin(SlotSpacing, 0.0f, 0.0f, 0.0f));
 			}
 
 			SlotEntries.Add(Entry);
@@ -349,7 +349,7 @@ void USuspenseCoreQuickSlotHUDWidget::OnQuickSlotAssignedEvent(FGameplayTag Even
 	FSuspenseCoreQuickSlotHUDData SlotData;
 	SlotData.SlotIndex = SlotIndex;
 	SlotData.ItemID = FName(*EventData.GetString(TEXT("ItemID")));
-	SlotData.bHasItem = true;
+	// Note: IsEmpty() checks ItemID.IsNone() - no bHasItem field needed
 	SlotData.Quantity = EventData.GetInt(TEXT("Quantity"), 1);
 	SlotData.bIsMagazine = EventData.GetBool(TEXT("IsMagazine"), false);
 	SlotData.MagazineRounds = EventData.GetInt(TEXT("MagazineRounds"), 0);

@@ -83,7 +83,7 @@ void USuspenseCoreQuickSlotEntry::InitializeSlot(int32 InSlotIndex, const FText&
 
 void USuspenseCoreQuickSlotEntry::UpdateSlotData(const FSuspenseCoreQuickSlotHUDData& SlotData)
 {
-	bIsEmpty = !SlotData.bHasItem;
+	bIsEmpty = SlotData.IsEmpty();
 
 	if (bIsEmpty)
 	{
@@ -94,9 +94,9 @@ void USuspenseCoreQuickSlotEntry::UpdateSlotData(const FSuspenseCoreQuickSlotHUD
 	// Update icon
 	if (ItemIcon)
 	{
-		if (SlotData.ItemIcon)
+		if (SlotData.Icon)
 		{
-			ItemIcon->SetBrushFromTexture(SlotData.ItemIcon);
+			ItemIcon->SetBrushFromTexture(SlotData.Icon);
 			ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
 		else if (EmptySlotTexture)
@@ -129,10 +129,10 @@ void USuspenseCoreQuickSlotEntry::UpdateSlotData(const FSuspenseCoreQuickSlotHUD
 	}
 
 	// Update cooldown
-	if (SlotData.bIsOnCooldown)
+	if (SlotData.CooldownRemaining > 0.0f)
 	{
 		bIsOnCooldown = true;
-		TargetCooldown = SlotData.CooldownRemaining / FMath::Max(SlotData.CooldownTotal, 0.001f);
+		TargetCooldown = SlotData.CooldownRemaining / FMath::Max(SlotData.CooldownDuration, 0.001f);
 
 		if (CooldownBar)
 		{

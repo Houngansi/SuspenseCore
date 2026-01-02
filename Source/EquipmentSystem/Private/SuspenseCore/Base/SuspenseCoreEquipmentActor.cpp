@@ -8,6 +8,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 
 #include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystemComponent.h"
@@ -800,10 +801,27 @@ void ASuspenseCoreEquipmentActor::NotifyEquipmentStateChanged(const FGameplayTag
 bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseCoreUnifiedItemData& OutData) const
 {
     if (!EquippedItemInstance.IsValid()) { return false; }
+
+    // Try ItemManager first
     if (USuspenseCoreItemManager* IM = GetItemManager())
     {
-        return IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData);
+        if (IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
+        {
+            return true;
+        }
     }
+
+    // Fallback to DataManager (SSOT)
+    if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
+    {
+        if (DM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
+        {
+            UE_LOG(LogTemp, Verbose, TEXT("[%s] GetUnifiedItemData: Using DataManager fallback for %s"),
+                *GetName(), *EquippedItemInstance.ItemID.ToString());
+            return true;
+        }
+    }
+
     return false;
 }
 

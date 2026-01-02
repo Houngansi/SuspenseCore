@@ -5,11 +5,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"AK74_30\", \"Магазин АК-74 30-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"AK74_30_Desc\", \"Стандартный 30-зарядный магазин для АК-74 и совместимых автоматов.\")",
     "Caliber": "(TagName=\"Item.Ammo.545x39\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.AK74\")",
-      "(TagName=\"Weapon.Type.AKS74\")",
-      "(TagName=\"Weapon.Type.AK74M\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.AK74\"),(TagName=\"Weapon.Type.AKS74\"),(TagName=\"Weapon.Type.AK74M\")))",
     "MaxCapacity": 30,
     "LoadTimePerRound": 0.5,
     "UnloadTimePerRound": 0.3,
@@ -28,11 +24,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"AK74_45\", \"Магазин АК-74 45-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"AK74_45_Desc\", \"Удлинённый 45-зарядный магазин для АК-74. Повышенная вместимость, но больше вес.\")",
     "Caliber": "(TagName=\"Item.Ammo.545x39\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.AK74\")",
-      "(TagName=\"Weapon.Type.AKS74\")",
-      "(TagName=\"Weapon.Type.AK74M\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.AK74\"),(TagName=\"Weapon.Type.AKS74\"),(TagName=\"Weapon.Type.AK74M\")))",
     "MaxCapacity": 45,
     "LoadTimePerRound": 0.55,
     "UnloadTimePerRound": 0.35,
@@ -51,11 +43,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"AK74_60\", \"Барабанный магазин АК-74 60-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"AK74_60_Desc\", \"Барабанный магазин повышенной ёмкости. Медленная перезарядка, значительный штраф эргономики.\")",
     "Caliber": "(TagName=\"Item.Ammo.545x39\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.AK74\")",
-      "(TagName=\"Weapon.Type.AKS74\")",
-      "(TagName=\"Weapon.Type.AK74M\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.AK74\"),(TagName=\"Weapon.Type.AKS74\"),(TagName=\"Weapon.Type.AK74M\")))",
     "MaxCapacity": 60,
     "LoadTimePerRound": 0.7,
     "UnloadTimePerRound": 0.45,
@@ -74,11 +62,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"AK103_30\", \"Магазин АК-103 30-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"AK103_30_Desc\", \"Стандартный 30-зарядный магазин для АК-103 и совместимых автоматов калибра 7.62x39.\")",
     "Caliber": "(TagName=\"Item.Ammo.762x39\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.AK103\")",
-      "(TagName=\"Weapon.Type.AKM\")",
-      "(TagName=\"Weapon.Type.AK47\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.AK103\"),(TagName=\"Weapon.Type.AKM\"),(TagName=\"Weapon.Type.AK47\")))",
     "MaxCapacity": 30,
     "LoadTimePerRound": 0.55,
     "UnloadTimePerRound": 0.35,
@@ -97,11 +81,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"STANAG_30\", \"Магазин STANAG 30-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"STANAG_30_Desc\", \"Стандартный 30-зарядный магазин STANAG для M4/M16 и совместимых платформ.\")",
     "Caliber": "(TagName=\"Item.Ammo.556x45\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.M4A1\")",
-      "(TagName=\"Weapon.Type.M16\")",
-      "(TagName=\"Weapon.Type.HK416\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.M4A1\"),(TagName=\"Weapon.Type.M16\"),(TagName=\"Weapon.Type.HK416\")))",
     "MaxCapacity": 30,
     "LoadTimePerRound": 0.45,
     "UnloadTimePerRound": 0.28,
@@ -120,11 +100,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"PMAG_30\", \"Magpul PMAG 30-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"PMAG_30_Desc\", \"Полимерный 30-зарядный магазин Magpul PMAG. Высокая надёжность и малый вес.\")",
     "Caliber": "(TagName=\"Item.Ammo.556x45\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.M4A1\")",
-      "(TagName=\"Weapon.Type.M16\")",
-      "(TagName=\"Weapon.Type.HK416\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.M4A1\"),(TagName=\"Weapon.Type.M16\"),(TagName=\"Weapon.Type.HK416\")))",
     "MaxCapacity": 30,
     "LoadTimePerRound": 0.42,
     "UnloadTimePerRound": 0.25,
@@ -143,11 +119,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"PMAG_40\", \"Magpul PMAG 40-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"PMAG_40_Desc\", \"Удлинённый 40-зарядный магазин Magpul. Баланс между вместимостью и эргономикой.\")",
     "Caliber": "(TagName=\"Item.Ammo.556x45\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.M4A1\")",
-      "(TagName=\"Weapon.Type.M16\")",
-      "(TagName=\"Weapon.Type.HK416\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.M4A1\"),(TagName=\"Weapon.Type.M16\"),(TagName=\"Weapon.Type.HK416\")))",
     "MaxCapacity": 40,
     "LoadTimePerRound": 0.48,
     "UnloadTimePerRound": 0.30,
@@ -166,11 +138,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"STANAG_60\", \"Барабанный магазин STANAG 60-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"STANAG_60_Desc\", \"Барабанный магазин для AR-15 платформ. Высокая ёмкость, значительный штраф к эргономике.\")",
     "Caliber": "(TagName=\"Item.Ammo.556x45\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.M4A1\")",
-      "(TagName=\"Weapon.Type.M16\")",
-      "(TagName=\"Weapon.Type.HK416\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.M4A1\"),(TagName=\"Weapon.Type.M16\"),(TagName=\"Weapon.Type.HK416\")))",
     "MaxCapacity": 60,
     "LoadTimePerRound": 0.65,
     "UnloadTimePerRound": 0.42,
@@ -189,11 +157,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"MP5_30\", \"Магазин MP5 30-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"MP5_30_Desc\", \"Стандартный 30-зарядный магазин для MP5 и клонов.\")",
     "Caliber": "(TagName=\"Item.Ammo.9x19\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.MP5\")",
-      "(TagName=\"Weapon.Type.MP5SD\")",
-      "(TagName=\"Weapon.Type.MP5K\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.MP5\"),(TagName=\"Weapon.Type.MP5SD\"),(TagName=\"Weapon.Type.MP5K\")))",
     "MaxCapacity": 30,
     "LoadTimePerRound": 0.38,
     "UnloadTimePerRound": 0.22,
@@ -212,9 +176,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"MP7_40\", \"Магазин MP7 40-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"MP7_40_Desc\", \"Стандартный 40-зарядный магазин для HK MP7.\")",
     "Caliber": "(TagName=\"Item.Ammo.46x30\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.MP7A2\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.MP7A2\")))",
     "MaxCapacity": 40,
     "LoadTimePerRound": 0.35,
     "UnloadTimePerRound": 0.20,
@@ -233,10 +195,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"Glock_17\", \"Магазин Glock 17-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"Glock_17_Desc\", \"Стандартный 17-зарядный магазин для Glock 17.\")",
     "Caliber": "(TagName=\"Item.Ammo.9x19\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.Glock17\")",
-      "(TagName=\"Weapon.Type.Glock18\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.Glock17\"),(TagName=\"Weapon.Type.Glock18\")))",
     "MaxCapacity": 17,
     "LoadTimePerRound": 0.40,
     "UnloadTimePerRound": 0.25,
@@ -255,10 +214,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"Glock_33\", \"Магазин Glock 33-зарядный удлинённый\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"Glock_33_Desc\", \"Удлинённый 33-зарядный магазин для Glock. Подходит для пистолетов-пулемётов.\")",
     "Caliber": "(TagName=\"Item.Ammo.9x19\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.Glock17\")",
-      "(TagName=\"Weapon.Type.Glock18\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.Glock17\"),(TagName=\"Weapon.Type.Glock18\")))",
     "MaxCapacity": 33,
     "LoadTimePerRound": 0.45,
     "UnloadTimePerRound": 0.28,
@@ -277,10 +233,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"M9_17\", \"Магазин Beretta M9 17-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"M9_17_Desc\", \"Стандартный 17-зарядный магазин для Beretta M9/M9A3.\")",
     "Caliber": "(TagName=\"Item.Ammo.9x19\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.M9A3\")",
-      "(TagName=\"Weapon.Type.M9\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.M9A3\"),(TagName=\"Weapon.Type.M9\")))",
     "MaxCapacity": 17,
     "LoadTimePerRound": 0.42,
     "UnloadTimePerRound": 0.26,
@@ -299,10 +252,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"SVD_10\", \"Магазин СВД 10-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"SVD_10_Desc\", \"Стандартный 10-зарядный магазин для СВД и СВДС.\")",
     "Caliber": "(TagName=\"Item.Ammo.762x54R\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.SVD\")",
-      "(TagName=\"Weapon.Type.SVDS\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.SVD\"),(TagName=\"Weapon.Type.SVDS\")))",
     "MaxCapacity": 10,
     "LoadTimePerRound": 0.65,
     "UnloadTimePerRound": 0.40,
@@ -321,10 +271,7 @@
     "DisplayName": "NSLOCTEXT(\"Magazines\", \"SVD_20\", \"Магазин СВД 20-зарядный\")",
     "Description": "NSLOCTEXT(\"Magazines\", \"SVD_20_Desc\", \"Удлинённый 20-зарядный магазин для СВД. Редкий и дорогой.\")",
     "Caliber": "(TagName=\"Item.Ammo.762x54R\")",
-    "CompatibleWeapons": [
-      "(TagName=\"Weapon.Type.SVD\")",
-      "(TagName=\"Weapon.Type.SVDS\")"
-    ],
+    "CompatibleWeapons": "(GameplayTags=((TagName=\"Weapon.Type.SVD\"),(TagName=\"Weapon.Type.SVDS\")))",
     "MaxCapacity": 20,
     "LoadTimePerRound": 0.70,
     "UnloadTimePerRound": 0.45,

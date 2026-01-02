@@ -286,6 +286,11 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FS
 
 void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[%s] >>> OnItemInstanceUnequipped_Implementation CALLED! ItemID: %s, CachedASC: %s"),
+        *GetName(),
+        *ItemInstance.ItemID.ToString(),
+        CachedASC ? *CachedASC->GetName() : TEXT("NULL"));
+
     // Copy runtime properties back to the outgoing item instance
     if (EquippedItemInstance.IsValid())
     {
@@ -297,10 +302,16 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const 
 
     // CRITICAL: Clean up components to remove AttributeSets from CHARACTER's ASC
     // This must happen BEFORE we lose the CachedASC reference
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Calling AttributeComponent->Cleanup()..."), *GetName());
     if (AttributeComponent)
     {
         AttributeComponent->Cleanup();
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[%s] AttributeComponent is NULL! Cannot cleanup!"), *GetName());
+    }
+
     if (AttachmentComponent)
     {
         AttachmentComponent->Cleanup();
@@ -309,7 +320,7 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const 
     // Reset item instance
     EquippedItemInstance = FSuspenseCoreInventoryItemInstance();
 
-    UE_LOG(LogTemp, Log, TEXT("[%s] OnItemInstanceUnequipped: Cleaned up components and reset item instance"), *GetName());
+    UE_LOG(LogTemp, Warning, TEXT("[%s] <<< OnItemInstanceUnequipped_Implementation COMPLETED"), *GetName());
 }
 
 // ==============================

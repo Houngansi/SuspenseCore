@@ -737,9 +737,28 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 			bIsValid = false;
 		}
 
-		if (!ItemData->GASConfig.AttributeSetClass)
+		// Check AttributeSet configuration - either SSOT or legacy must be valid
+		const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+		bool bHasValidAttributeConfig = false;
+
+		if (Settings && Settings->bUseSSOTAttributes && bWeaponAttributesSystemReady)
 		{
-			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon missing AttributeSetClass"),
+			// SSOT mode - check if weapon has valid SSOT row reference
+			if (const FSuspenseCoreUnifiedItemData* UnifiedData = UnifiedItemCache.Find(ItemID))
+			{
+				FName AttributeKey = UnifiedData->GetWeaponAttributesKey();
+				bHasValidAttributeConfig = HasWeaponAttributes(AttributeKey);
+			}
+		}
+		else
+		{
+			// Legacy mode - check AttributeSetClass
+			bHasValidAttributeConfig = (ItemData->GASConfig.AttributeSetClass != nullptr);
+		}
+
+		if (!bHasValidAttributeConfig)
+		{
+			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon missing AttributeSet config (SSOT row or legacy class)"),
 				*ItemID.ToString()));
 			bIsValid = false;
 		}

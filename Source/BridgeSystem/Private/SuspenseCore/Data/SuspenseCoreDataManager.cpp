@@ -733,7 +733,11 @@ bool USuspenseCoreDataManager::ValidateItem(FName ItemID, TArray<FString>& OutEr
 	{
 		if (!ItemData->WeaponConfig.WeaponArchetype.IsValid())
 		{
-			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon has no archetype"), *ItemID.ToString()));
+			// Debug: show what archetype tag was attempted
+			const FSuspenseCoreUnifiedItemData* UnifiedData = UnifiedItemCache.Find(ItemID);
+			FString ArchetypeDebug = UnifiedData ? UnifiedData->WeaponArchetype.ToString() : TEXT("N/A");
+			OutErrors.Add(FString::Printf(TEXT("[%s] Weapon has no archetype (attempted: %s)"),
+				*ItemID.ToString(), *ArchetypeDebug));
 			bIsValid = false;
 		}
 

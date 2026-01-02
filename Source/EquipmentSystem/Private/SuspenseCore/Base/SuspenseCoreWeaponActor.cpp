@@ -7,6 +7,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
 #include "Camera/CameraComponent.h"
 #include "TimerManager.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
@@ -41,6 +42,7 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
 
     AmmoComponent     = CreateDefaultSubobject<USuspenseCoreWeaponAmmoComponent>(TEXT("AmmoComponent"));
     FireModeComponent = CreateDefaultSubobject<USuspenseCoreWeaponFireModeComponent>(TEXT("FireModeComponent"));
+    MagazineComponent = CreateDefaultSubobject<USuspenseCoreMagazineComponent>(TEXT("MagazineComponent"));
 
     // Create scope camera for ADS view blending
     // Note: Will be attached to Sight_Socket in Blueprint or via SetupComponentsFromItemData

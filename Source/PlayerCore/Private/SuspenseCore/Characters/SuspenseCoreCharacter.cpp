@@ -16,6 +16,7 @@
 
 #if WITH_EQUIPMENT_SYSTEM
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 #endif
 #include "AbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -125,6 +126,9 @@ ASuspenseCoreCharacter::ASuspenseCoreCharacter(const FObjectInitializer& ObjectI
 #if WITH_EQUIPMENT_SYSTEM
 	// Create weapon stance component for animation state synchronization
 	WeaponStanceComponent = CreateDefaultSubobject<USuspenseCoreWeaponStanceComponent>(TEXT("WeaponStanceComponent"));
+
+	// Create QuickSlot component for Tarkov-style magazine quick access
+	QuickSlotComponent = CreateDefaultSubobject<USuspenseCoreQuickSlotComponent>(TEXT("QuickSlotComponent"));
 #endif
 
 	// Movement settings (Tarkov-style: slow walk by default)

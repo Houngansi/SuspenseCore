@@ -8,7 +8,6 @@
 #include "SuspenseCore/Interfaces/Abilities/ISuspenseCoreAbilityProvider.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCoreEquipmentComponentBase.generated.h"
 
 // Forward declarations
@@ -153,13 +152,6 @@ public:
     //================================================
     // DataTable Integration Methods
     //================================================
-
-    /**
-     * Get item manager subsystem (thread-safe)
-     * @return Item manager or nullptr if not available
-     */
-    UFUNCTION(BlueprintCallable, Category = "Equipment|Data")
-    USuspenseCoreItemManager* GetItemManager() const;
 
     /**
      * Get currently equipped item instance
@@ -380,9 +372,6 @@ protected:
 
     /** Critical section for thread-safe cache access */
     mutable FCriticalSection CacheCriticalSection;
-
-    /** Cached reference to item manager subsystem */
-    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
 
     /** Cached reference to delegate manager */
     mutable TWeakObjectPtr<USuspenseCoreEventManager> CachedDelegateManager;

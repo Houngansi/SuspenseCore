@@ -5,7 +5,6 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "AttributeSet.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"

@@ -10,7 +10,6 @@
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
 #include "Camera/CameraComponent.h"
 #include "TimerManager.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -201,33 +200,12 @@ void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSusp
     // Base: caches ASC, initializes Mesh/Attribute/Attachment from SSOT + fires UI.Equipment.DataReady
     Super::OnItemInstanceEquipped_Implementation(ItemInstance);
 
-    // Load SSOT data for weapon specifics - try ItemManager first, then DataManager as fallback
+    // Load SSOT data for weapon specifics using DataManager (single source of truth)
     bool bDataLoaded = false;
 
-    // Try ItemManager first
-    if (USuspenseCoreItemManager* ItemManager = GetItemManager())
+    if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
     {
-        bDataLoaded = ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData);
-    }
-
-    // Fallback to DataManager (SSOT) if ItemManager failed
-    if (!bDataLoaded)
-    {
-        UE_LOG(LogSuspenseCoreWeaponActor, Warning, TEXT("ItemManager failed, trying DataManager fallback..."));
-        if (UWorld* World = GetWorld())
-        {
-            if (UGameInstance* GI = World->GetGameInstance())
-            {
-                if (USuspenseCoreDataManager* DataManager = GI->GetSubsystem<USuspenseCoreDataManager>())
-                {
-                    bDataLoaded = DataManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData);
-                    if (bDataLoaded)
-                    {
-                        UE_LOG(LogSuspenseCoreWeaponActor, Warning, TEXT("DataManager fallback succeeded for %s"), *ItemInstance.ItemID.ToString());
-                    }
-                }
-            }
-        }
+        bDataLoaded = DataManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData);
     }
 
     if (bDataLoaded)

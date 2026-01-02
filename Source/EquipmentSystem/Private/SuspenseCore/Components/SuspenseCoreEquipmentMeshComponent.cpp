@@ -2,7 +2,7 @@
 
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
@@ -71,7 +71,7 @@ void USuspenseCoreEquipmentMeshComponent::EndPlay(const EEndPlayReason::Type End
     PooledEffectComponents.Empty();
 
     // Clear cached references
-    CachedItemManager.Reset();
+    CachedDataManager.Reset();
     CachedDelegateManager.Reset();
 
     Super::EndPlay(EndPlayReason);
@@ -103,17 +103,17 @@ bool USuspenseCoreEquipmentMeshComponent::InitializeFromItemInstance(const FSusp
     // Store current instance
     CurrentItemInstance = ItemInstance;
 
-    // Get item data from DataTable
-    USuspenseCoreItemManager* ItemManager = GetItemManager();
-    if (!ItemManager)
+    // Get item data from DataManager (SSOT)
+    USuspenseCoreDataManager* DataManager = GetDataManager();
+    if (!DataManager)
     {
-        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: ItemManager not available"));
+        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: DataManager (SSOT) not available"));
         return false;
     }
 
-    if (!ItemManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
+    if (!DataManager->GetUnifiedItemData(ItemInstance.ItemID, CachedItemData))
     {
-        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s"),
+        UE_LOG(LogSuspenseCoreEquipment, Error, TEXT("InitializeFromItemInstance: Failed to get item data for %s from DataManager"),
             *ItemInstance.ItemID.ToString());
         return false;
     }
@@ -946,11 +946,11 @@ void USuspenseCoreEquipmentMeshComponent::CleanupExpiredPredictions()
 // Cache Management
 //================================================
 
-USuspenseCoreItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() const
+USuspenseCoreDataManager* USuspenseCoreEquipmentMeshComponent::GetDataManager() const
 {
     const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
-    if (!CachedItemManager.IsValid() || (CurrentTime - LastCacheValidationTime) > CacheValidationInterval)
+    if (!CachedDataManager.IsValid() || (CurrentTime - LastCacheValidationTime) > CacheValidationInterval)
     {
         LastCacheValidationTime = CurrentTime;
 
@@ -958,12 +958,12 @@ USuspenseCoreItemManager* USuspenseCoreEquipmentMeshComponent::GetItemManager() 
         {
             if (UGameInstance* GameInstance = World->GetGameInstance())
             {
-                CachedItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
+                CachedDataManager = GameInstance->GetSubsystem<USuspenseCoreDataManager>();
             }
         }
     }
 
-    return CachedItemManager.Get();
+    return CachedDataManager.Get();
 }
 
 USuspenseCoreEventManager* USuspenseCoreEquipmentMeshComponent::GetDelegateManager() const

@@ -6,7 +6,6 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentMeshComponent.generated.h"
 
@@ -14,7 +13,7 @@
 class UCameraComponent;
 class UNiagaraComponent;
 class UAudioComponent;
-class USuspenseCoreItemManager;
+class USuspenseCoreDataManager;
 class USuspenseCoreEventManager;
 
 /**
@@ -377,10 +376,10 @@ protected:
     void UpdateDynamicMaterials();
 
     /**
-     * Get item manager subsystem
-     * @return Item manager or nullptr
+     * Get data manager subsystem (SSOT)
+     * @return Data manager or nullptr
      */
-    USuspenseCoreItemManager* GetItemManager() const;
+    USuspenseCoreDataManager* GetDataManager() const;
 
     /**
      * Get event delegate manager
@@ -501,9 +500,9 @@ private:
     // Cached References
     //================================================
 
-    /** Cached item manager reference */
+    /** Cached data manager reference (SSOT) */
     UPROPERTY()
-    mutable TWeakObjectPtr<USuspenseCoreItemManager> CachedItemManager;
+    mutable TWeakObjectPtr<USuspenseCoreDataManager> CachedDataManager;
 
     /** Cached delegate manager reference */
     UPROPERTY()

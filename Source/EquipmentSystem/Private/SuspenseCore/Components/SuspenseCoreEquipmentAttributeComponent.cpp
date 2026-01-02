@@ -11,6 +11,7 @@
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "GameplayTagsManager.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemGlobals.h"
@@ -233,7 +234,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
 
                 WeaponAttributeSet = TypedWeaponSet;
                 CachedASC->AddAttributeSetSubobject(WeaponAttributeSet);
-                AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
+                AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Weapon, WeaponAttributeSet);
                 CurrentAttributeSet = WeaponAttributeSet;
                 ReplicatedAttributeSetClasses.Add(USuspenseCoreWeaponAttributeSet::StaticClass());
 
@@ -256,7 +257,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
         {
             WeaponAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.WeaponInitialization.WeaponAttributeSetClass);
             CachedASC->AddAttributeSetSubobject(WeaponAttributeSet);
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Weapon, WeaponAttributeSet);
             CurrentAttributeSet = WeaponAttributeSet;
             ReplicatedAttributeSetClasses.Add(ItemData.WeaponInitialization.WeaponAttributeSetClass);
 
@@ -285,7 +286,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
         {
             AmmoAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.AmmoAttributeSet);
             CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Ammo, AmmoAttributeSet);
             ReplicatedAttributeSetClasses.Add(ItemData.AmmoAttributeSet);
         }
 
@@ -320,7 +321,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
         {
             ArmorAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.ArmorInitialization.ArmorAttributeSetClass);
             CachedASC->AddAttributeSetSubobject(ArmorAttributeSet);
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Armor")), ArmorAttributeSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Armor, ArmorAttributeSet);
             CurrentAttributeSet = ArmorAttributeSet;
             ReplicatedAttributeSetClasses.Add(ItemData.ArmorInitialization.ArmorAttributeSetClass);
 
@@ -350,7 +351,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
 
                 AmmoAttributeSet = TypedAmmoSet;
                 CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
-                AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
+                AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Ammo, AmmoAttributeSet);
                 CurrentAttributeSet = AmmoAttributeSet;
                 ReplicatedAttributeSetClasses.Add(USuspenseCoreAmmoAttributeSet::StaticClass());
 
@@ -367,7 +368,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
         {
             AmmoAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.AmmoInitialization.AmmoAttributeSetClass);
             CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Ammo, AmmoAttributeSet);
             CurrentAttributeSet = AmmoAttributeSet;
             ReplicatedAttributeSetClasses.Add(ItemData.AmmoInitialization.AmmoAttributeSetClass);
 
@@ -384,7 +385,7 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
     {
         CurrentAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.EquipmentAttributeSet);
         CachedASC->AddAttributeSetSubobject(CurrentAttributeSet);
-        AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Equipment")), CurrentAttributeSet);
+        AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Equipment, CurrentAttributeSet);
         ReplicatedAttributeSetClasses.Add(ItemData.EquipmentAttributeSet);
 
         if (ItemData.EquipmentInitEffect)
@@ -928,23 +929,23 @@ void USuspenseCoreEquipmentAttributeComponent::OnRep_AttributeSetClasses()
         {
             WeaponAttributeSet = NewSet;
             CurrentAttributeSet = NewSet;
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), NewSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Weapon, NewSet);
         }
         else if (ClassName.Contains(TEXT("Armor")))
         {
             ArmorAttributeSet = NewSet;
             CurrentAttributeSet = NewSet;
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Armor")), NewSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Armor, NewSet);
         }
         else if (ClassName.Contains(TEXT("Ammo")))
         {
             AmmoAttributeSet = NewSet;
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), NewSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Ammo, NewSet);
         }
         else if (!CurrentAttributeSet)
         {
             CurrentAttributeSet = NewSet;
-            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Equipment")), NewSet);
+            AttributeSetsByType.Add(SuspenseCoreEquipmentTags::AttributeSet::TAG_AttributeSet_Equipment, NewSet);
         }
     }
 
@@ -971,7 +972,9 @@ bool USuspenseCoreEquipmentAttributeComponent::ServerSetAttributeValue_Validate(
 void USuspenseCoreEquipmentAttributeComponent::ServerApplyItemEffects_Implementation(const FName& ItemID)
 {
     FSuspenseCoreUnifiedItemData ItemData;
-    if (GetItemManager() && GetItemManager()->GetUnifiedItemData(ItemID, ItemData))
+    // Use DataManager (SSOT) instead of deprecated ItemManager
+    USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+    if (DataManager && DataManager->GetUnifiedItemData(ItemID, ItemData))
     {
         ApplyItemEffects(ItemData);
     }

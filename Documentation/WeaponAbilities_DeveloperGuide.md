@@ -628,6 +628,41 @@ UPROPERTY() TSubclassOf<UGameplayEffect> AimSpeedDebuffClass;
 
 ## Common Mistakes
 
+### 0. Using RequestGameplayTag() Instead of Native Tags for Events
+
+> **CRITICAL BUG FIX** (2026-01-02): This causes runtime `ensure` crash!
+
+```cpp
+// WRONG - Tag doesn't exist at runtime, causes ensure crash!
+EventBus->Publish(
+    FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestVisualSync")),  // ❌ CRASH!
+    GetOwner()
+);
+
+// CORRECT - Use native tag from namespace
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+
+EventBus->Publish(
+    SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Visual_RequestSync,  // ✓ Safe
+    GetOwner()
+);
+```
+
+**Why This Happens:**
+- `FGameplayTag::RequestGameplayTag()` requires the tag to be registered (in config or native)
+- If tag is not registered, UE5 triggers `ensureMsgf()` crash
+- Native tags are registered at module load time, before any code runs
+
+**Rule:** Always use native tag constants from `SuspenseCoreEquipmentNativeTags.h` for:
+- EventBus publishing (`Publish()`)
+- EventBus subscription (`Subscribe()`)
+- Any compile-time known tags
+
+**When RequestGameplayTag() is OK:**
+- Tag matching (`HasTag()`, `MatchesTag()`) - won't crash, just returns false
+- Tags loaded from DataTables or config at runtime
+- Tags you're 100% sure exist in `DefaultGameplayTags.ini`
+
 ### 1. Direct Class Reference Instead of Interface
 
 ```cpp

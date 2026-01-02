@@ -67,21 +67,29 @@ bool bIsFiring;
 EWeaponState CurrentState;
 ```
 
-**Станет (SuspenseCore):**
+**Станет (SuspenseCore) - НАТИВНЫЕ ТЕГИ:**
 ```cpp
-// GameplayTags
-FGameplayTag State_Weapon_Reloading = FGameplayTag::RequestGameplayTag("Weapon.State.Reloading");
-FGameplayTag State_Weapon_Firing = FGameplayTag::RequestGameplayTag("Weapon.State.Firing");
+// ✅ ПРАВИЛЬНО: Нативные теги (compile-time safety)
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 
-// Проверка через GAS
-ASC->HasMatchingGameplayTag(State_Weapon_Reloading);
+// Использование нативных тегов
+ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::Reloading);
+ASC->HasMatchingGameplayTag(SuspenseCoreTags::State::Firing);
+
+// ❌ НЕПРАВИЛЬНО: RequestGameplayTag - опасно для EventBus!
+// FGameplayTag::RequestGameplayTag("Weapon.State.Reloading");  // Crash if not registered
 ```
 
-**Преимущества:**
+**Преимущества нативных тегов:**
+- Compile-time валидация (IDE autocomplete)
+- Гарантированная регистрация при загрузке модуля
+- Нет runtime lookup overhead
 - Интеграция с GAS
 - Автоматическая репликация
-- Расширяемость без изменения кода
-- Поддержка в редакторе
+
+> **КРИТИЧНО (2026-01-02):** Для EventBus ВСЕГДА используйте нативные теги!
+> `RequestGameplayTag()` безопасен только для тегов из DataTable/DefaultGameplayTags.ini
 
 ### 4. Service-Oriented Architecture
 
@@ -130,6 +138,31 @@ void ASuspenseCoreWeaponActor::OnEquipped() {
 - `EquipmentSystem/Private/.../SuspenseCoreEquipmentVisualizationService.cpp` - использует DataManager
 - `EquipmentSystem/Private/.../SuspenseCoreEquipmentActorFactory.cpp` - использует DataManager
 
+### Этап 1.6: Native Tags & Bug Fixes (ВЫПОЛНЕН 2026-01-02)
+
+✅ EquipmentMeshComponent мигрирован с ItemManager на DataManager
+✅ Добавлены нативные теги для Visual Events:
+  - `TAG_Equipment_Event_Visual_StateChanged`
+  - `TAG_Equipment_Event_Visual_RequestSync`
+  - `TAG_Equipment_Event_Visual_Effect`
+✅ Исправлен crash от `RequestGameplayTag()` для незарегистрированных тегов
+✅ AttributeSet корректно удаляется при unequip оружия
+✅ Добавлены нативные теги для AttributeSet:
+  - `TAG_AttributeSet_Weapon`
+  - `TAG_AttributeSet_Ammo`
+  - `TAG_AttributeSet_Armor`
+
+**Изменённые файлы:**
+- `EquipmentSystem/Public/.../SuspenseCoreEquipmentNativeTags.h` - 6 новых нативных тегов
+- `EquipmentSystem/Private/.../SuspenseCoreEquipmentNativeTags.cpp` - определения тегов
+- `EquipmentSystem/Private/.../SuspenseCoreEquipmentMeshComponent.cpp` - DataManager + нативные теги
+- `EquipmentSystem/Private/.../SuspenseCoreEquipmentVisualizationService.cpp` - cleanup AttributeSet
+
+**Критические баги исправлены:**
+1. `RequestGameplayTag()` для EventBus вызывал ensure crash → нативные теги
+2. ItemManager fallback возвращал nullptr → DataManager SSOT
+3. AttributeSet не удалялся при unequip → cleanup в OnItemInstanceUnequipped
+
 ### Этап 2: EventBus Integration
 
 **Задачи:**
@@ -145,15 +178,23 @@ void ASuspenseCoreWeaponActor::OnEquipped() {
 
 **Пример миграции:**
 ```cpp
-// ДО
+// ДО (Legacy)
 OnAmmoChanged.Broadcast(CurrentAmmo, RemainingAmmo);
 
-// ПОСЛЕ
+// ПОСЛЕ (SuspenseCore) - ИСПОЛЬЗУЙТЕ НАТИВНЫЕ ТЕГИ!
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+
 BroadcastEquipmentEvent(
-    FGameplayTag::RequestGameplayTag("SuspenseCore.Event.Weapon.AmmoChanged"),
+    SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Weapon_AmmoChanged,  // ✓ Native tag
     FString::Printf(TEXT("Current:%f,Remaining:%f"), CurrentAmmo, RemainingAmmo)
 );
+
+// ❌ НЕПРАВИЛЬНО - НЕ ИСПОЛЬЗУЙТЕ RequestGameplayTag() для EventBus!
+// FGameplayTag::RequestGameplayTag("SuspenseCore.Event.Weapon.AmmoChanged") // CRASH if not registered!
 ```
+
+> **ВАЖНО (2026-01-02):** Всегда используйте нативные теги для EventBus.
+> `FGameplayTag::RequestGameplayTag()` вызывает `ensure` crash если тег не зарегистрирован!
 
 ### Этап 3: ServiceLocator Integration
 
@@ -170,13 +211,23 @@ BroadcastEquipmentEvent(
 
 **Пример миграции:**
 ```cpp
-// ДО
+// ❌ ДО (Legacy) - ItemManager DEPRECATED!
 USuspenseCoreItemManager* IM = GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
+const FSuspenseCoreUnifiedItemData* ItemData = IM->GetItemData(ItemID);  // ← Не работает!
 
-// ПОСЛЕ
+// ✅ ПОСЛЕ (SuspenseCore) - DataManager является SSOT
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+
+USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(GetWorld());
+const FSuspenseCoreUnifiedItemData* ItemData = DM->GetUnifiedItemData(ItemID);
+
+// Или через ServiceProvider:
 auto* Provider = USuspenseCoreServiceProvider::Get(this);
 auto* DataService = Provider->GetService<USuspenseCoreEquipmentDataService>();
 ```
+
+> **ВАЖНО (2026-01-02):** ItemManager полностью deprecated!
+> Используйте `USuspenseCoreDataManager::Get(World)->GetUnifiedItemData(ItemID)` для получения данных.
 
 ### Этап 4: GameplayTags Migration
 
@@ -315,5 +366,14 @@ bool ACharacter::Server_EquipItem_Validate(FName ItemID, int32 SlotIndex)
 ---
 
 **Дата создания:** 2025-12-07
+**Последнее обновление:** 2026-01-02
 **Автор:** Claude Code Assistant
-**Версия:** 1.0
+**Версия:** 1.2
+
+### Changelog
+
+| Версия | Дата | Изменения |
+|--------|------|-----------|
+| 1.0 | 2025-12-07 | Начальный план рефакторинга |
+| 1.1 | 2025-12-21 | Добавлен Этап 1.5 - DataManager SSOT |
+| 1.2 | 2026-01-02 | Добавлен Этап 1.6 - Native Tags & Bug Fixes, обновлены примеры |

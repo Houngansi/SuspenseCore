@@ -54,7 +54,7 @@ class USuspenseCoreEventBus;
  * - TAG_Equipment_Event_Chamber_Chambered
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreReloadProgressWidget : public UUserWidget, public ISuspenseCoreReloadProgressWidget
+class UISYSTEM_API USuspenseCoreReloadProgressWidget : public UUserWidget, public ISuspenseCoreReloadProgressWidgetInterface
 {
 	GENERATED_BODY()
 

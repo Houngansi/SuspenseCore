@@ -44,7 +44,7 @@ class USuspenseCoreQuickSlotEntry;
  * - TAG_Equipment_Event_Magazine_RoundsChanged
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreQuickSlotHUDWidget : public UUserWidget, public ISuspenseCoreQuickSlotHUDWidget
+class UISYSTEM_API USuspenseCoreQuickSlotHUDWidget : public UUserWidget, public ISuspenseCoreQuickSlotHUDWidgetInterface
 {
 	GENERATED_BODY()
 

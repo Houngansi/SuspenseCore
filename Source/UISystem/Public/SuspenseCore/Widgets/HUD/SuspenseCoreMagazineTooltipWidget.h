@@ -54,7 +54,7 @@ class USizeBox;
  * └────────────────────────────────────────┘
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreMagazineTooltipWidget : public UUserWidget, public ISuspenseCoreMagazineTooltipWidget
+class UISYSTEM_API USuspenseCoreMagazineTooltipWidget : public UUserWidget, public ISuspenseCoreMagazineTooltipWidgetInterface
 {
 	GENERATED_BODY()
 

@@ -52,7 +52,7 @@ class USuspenseCoreEventBus;
  * - TAG_Equipment_Event_ItemEquipped (for active weapon change)
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreAmmoCounterWidget : public UUserWidget, public ISuspenseCoreAmmoCounterWidget
+class UISYSTEM_API USuspenseCoreAmmoCounterWidget : public UUserWidget, public ISuspenseCoreAmmoCounterWidgetInterface
 {
 	GENERATED_BODY()
 

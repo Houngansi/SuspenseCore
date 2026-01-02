@@ -155,7 +155,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreAmmoCounterData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UISuspenseCoreAmmoCounterWidget : public UInterface
+class USuspenseCoreAmmoCounterWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -177,7 +177,7 @@ class UISuspenseCoreAmmoCounterWidget : public UInterface
  * - TAG_Equipment_Event_Weapon_AmmoChanged
  * - TAG_Equipment_Event_Weapon_FireModeChanged
  */
-class BRIDGESYSTEM_API ISuspenseCoreAmmoCounterWidget
+class BRIDGESYSTEM_API ISuspenseCoreAmmoCounterWidgetInterface
 {
 	GENERATED_BODY()
 

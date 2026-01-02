@@ -762,6 +762,26 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 	if (Visual)
 	{
 		// ============================================================================
+		// CRITICAL FIX: Call OnItemInstanceUnequipped BEFORE destroying actor!
+		// This ensures AttributeSets are removed from CHARACTER's ASC
+		// ============================================================================
+		if (Visual->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("HideVisualForSlot: Calling OnItemInstanceUnequipped on %s"), *Visual->GetName());
+
+			// Get the equipped item instance for cleanup
+			FSuspenseCoreInventoryItemInstance ItemInstance = ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Visual);
+
+			// Call unequip methods to trigger AttributeSet cleanup
+			ISuspenseCoreEquipment::Execute_OnItemInstanceUnequipped(Visual, ItemInstance);
+			ISuspenseCoreEquipment::Execute_OnUnequipped(Visual);
+
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+				TEXT("HideVisualForSlot: Cleanup completed for %s"), *Visual->GetName());
+		}
+
+		// ============================================================================
 		// ИСПРАВЛЕНИЕ: Используем CachedServiceLocator вместо Get(this)
 		// ============================================================================
 		// Soft disable effects via VisualController

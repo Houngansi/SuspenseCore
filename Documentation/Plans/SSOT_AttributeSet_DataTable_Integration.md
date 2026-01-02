@@ -901,3 +901,157 @@ The system uses `ShouldUseSSOTInitialization()` to determine data source at runt
 
 **Document Status:** Ready for Implementation
 **Next Step:** Begin Phase 1 - Create DataTable Row Structures
+
+---
+
+## 12. Critical Bugs & Fixes (2026-01-02)
+
+> **Added:** 2026-01-02
+> **Status:** FIXED - Document lessons learned to prevent future issues
+
+### 12.1 BUG: Using Deprecated ItemManager Instead of DataManager
+
+**Symptoms:**
+```
+LogSuspenseCore: Error: InitializeFromItemInstance: Failed to get item data for item 'Weapon_AK74M'
+LogSuspenseCore: Error: ConfigureEquipmentActor failed: Invalid ItemData
+```
+
+**Root Cause:**
+Components still referenced the deprecated `USuspenseCoreItemManager` instead of the new `USuspenseCoreDataManager` (SSOT).
+
+**Files Affected:**
+- `SuspenseCoreEquipmentMeshComponent.cpp`
+- `SuspenseCoreEquipmentVisualizationService.cpp`
+- `SuspenseCoreEquipmentActorFactory.cpp`
+
+**Fix Pattern:**
+```cpp
+// ❌ WRONG - ItemManager is DEPRECATED!
+#include "SuspenseCore/Services/SuspenseCoreItemManager.h"
+USuspenseCoreItemManager* IM = GetGameInstance()->GetSubsystem<USuspenseCoreItemManager>();
+const FSuspenseCoreUnifiedItemData* ItemData = IM->GetItemData(ItemID);
+
+// ✅ CORRECT - Use DataManager (SSOT)
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(GetWorld());
+const FSuspenseCoreUnifiedItemData* ItemData = DM->GetUnifiedItemData(ItemID);
+```
+
+**Prevention Rule:**
+- Search for `ItemManager` in new code - should NOT appear
+- Always use `USuspenseCoreDataManager::Get(World)` for item data
+- DataManager is the Single Source of Truth (SSOT)
+
+### 12.2 BUG: Using RequestGameplayTag() for EventBus Events
+
+**Symptoms:**
+```
+LogGameplayTags: Error: Requested Gameplay Tag Equipment.Event.RequestVisualSync was not found
+Assertion failed: Tag.IsValid() [File:...SuspenseCoreEquipmentMeshComponent.cpp] [Line:363]
+```
+
+**Root Cause:**
+Using `FGameplayTag::RequestGameplayTag()` for tags that are NOT registered in `DefaultGameplayTags.ini` or native tags.
+
+**Fix Pattern:**
+```cpp
+// ❌ WRONG - Tag doesn't exist at runtime, causes ensure crash!
+Manager->PublishEvent(
+    FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestVisualSync")),
+    GetOwner()
+);
+
+// ✅ CORRECT - Use native tag from namespace
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+
+Manager->PublishEvent(
+    SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Visual_RequestSync,
+    GetOwner()
+);
+```
+
+**Native Tags Added for Visual Events:**
+```cpp
+// SuspenseCoreEquipmentNativeTags.h - Event namespace
+namespace SuspenseCoreEquipmentTags::Event
+{
+    TAG_Equipment_Event_Visual_StateChanged   // "SuspenseCore.Event.Equipment.Visual.StateChanged"
+    TAG_Equipment_Event_Visual_RequestSync    // "SuspenseCore.Event.Equipment.Visual.RequestSync"
+    TAG_Equipment_Event_Visual_Effect         // "SuspenseCore.Event.Equipment.Visual.Effect"
+}
+```
+
+**Prevention Rule:**
+- ALWAYS use native tag constants for EventBus operations
+- If tag doesn't exist in namespace, ADD it to native tags first
+- `RequestGameplayTag()` is only safe for runtime-known tags from DataTables
+
+### 12.3 BUG: AttributeSet Not Removed on Unequip
+
+**Symptoms:**
+- AttributeSet still present after weapon unequip
+- Previous weapon stats affect new weapon
+- `showdebug abilitysystem` shows stale attributes
+
+**Root Cause:**
+`OnItemInstanceUnequipped()` didn't clean up AttributeSets from Character's ASC.
+
+**Fix Applied in:**
+- `SuspenseCoreEquipmentVisualizationService.cpp` - `OnItemInstanceUnequipped()`
+
+**Fix Pattern:**
+```cpp
+void USuspenseCoreEquipmentVisualizationService::OnItemInstanceUnequipped(
+    AActor* OwnerActor,
+    FName ItemID,
+    FGameplayTag SlotTag)
+{
+    // 1. Get Character's ASC (AttributeSets live on CHARACTER, not weapon actor)
+    ACharacter* Character = Cast<ACharacter>(OwnerActor);
+    UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Character);
+
+    // 2. Remove AttributeSet by tag
+    if (ASC && SlotTag.MatchesTagExact(SuspenseCoreEquipmentTags::Slot::TAG_Equipment_Slot_PrimaryWeapon))
+    {
+        // Find and remove weapon attribute set
+        for (UAttributeSet* AttrSet : ASC->GetSpawnedAttributes_Mutable())
+        {
+            if (AttrSet && AttrSet->IsA<USuspenseCoreWeaponAttributeSet>())
+            {
+                ASC->RemoveSpawnedAttribute(AttrSet);
+                break;
+            }
+        }
+    }
+
+    // 3. Now destroy the weapon actor
+    if (ASuspenseCoreEquipmentActor* EquipActor = FindEquipmentActor(OwnerActor, SlotTag))
+    {
+        EquipActor->Destroy();
+    }
+}
+```
+
+**Prevention Rule:**
+- AttributeSets are added to CHARACTER's ASC, not weapon actor
+- Must be removed BEFORE destroying weapon actor
+- Use native tags for slot matching
+
+### 12.4 Summary Table
+
+| Bug | Symptom | Root Cause | Fix |
+|-----|---------|------------|-----|
+| ItemManager usage | "Failed to get item data" | Using deprecated ItemManager | Use DataManager (SSOT) |
+| RequestGameplayTag() | "Tag not found" + ensure crash | Tag not registered | Use native tags |
+| AttributeSet leak | Stale attributes on unequip | No cleanup in OnUnequipped | Remove AttributeSet before destroy |
+
+### 12.5 Code Review Checklist (New Additions)
+
+When reviewing EquipmentSystem code, verify:
+
+- [ ] **No ItemManager references** - Search for `ItemManager` should return 0 results
+- [ ] **All EventBus tags are native** - No `RequestGameplayTag()` for event publishing
+- [ ] **AttributeSet cleanup** - `OnUnequip` removes AttributeSets from Character ASC
+- [ ] **DataManager usage** - All item data lookups use `USuspenseCoreDataManager::Get()`
+- [ ] **Native tag includes** - `#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"`

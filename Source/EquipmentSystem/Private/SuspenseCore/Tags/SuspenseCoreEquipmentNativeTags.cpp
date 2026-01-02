@@ -88,6 +88,9 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Spawned, "SuspenseCore.Event.Equipment.Visual.Spawned");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Attached, "SuspenseCore.Event.Equipment.Visual.Attached");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Detached, "SuspenseCore.Event.Equipment.Visual.Detached");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_StateChanged, "SuspenseCore.Event.Equipment.Visual.StateChanged");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_RequestSync, "SuspenseCore.Event.Equipment.Visual.RequestSync");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Visual_Effect, "SuspenseCore.Event.Equipment.Visual.Effect");
 
         // Weapon Events
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Weapon, "SuspenseCore.Event.Equipment.Weapon");

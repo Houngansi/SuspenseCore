@@ -4,6 +4,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Camera/CameraComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -338,7 +339,7 @@ void USuspenseCoreEquipmentMeshComponent::NotifyVisualStateChanged()
 
     // Prepare event data once to avoid string construction in loop
     const FString EventData = FString::Printf(TEXT("StateVersion:%d"), CurrentVisualState.StateVersion);
-    const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualStateChanged"));
+    const FGameplayTag EventTag = SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Visual_StateChanged;
 
     // Notify all equipment components
     for (USuspenseCoreEquipmentComponentBase* EquipComp : EquipmentComponents)
@@ -361,7 +362,7 @@ void USuspenseCoreEquipmentMeshComponent::RequestStateSync()
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         Manager->PublishEvent(
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.RequestVisualSync")),
+            SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Visual_RequestSync,
             GetOwner()
         );
     }
@@ -689,7 +690,7 @@ int32 USuspenseCoreEquipmentMeshComponent::PlayEquipmentEffect(const FGameplayTa
     if (USuspenseCoreEventManager* Manager = GetDelegateManager())
     {
         Manager->PublishEvent(
-            FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.VisualEffect")),
+            SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_Visual_Effect,
             GetOwner()
         );
     }

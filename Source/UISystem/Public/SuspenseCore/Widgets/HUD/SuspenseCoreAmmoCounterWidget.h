@@ -20,10 +20,11 @@ class USuspenseCoreEventBus;
 /**
  * USuspenseCoreAmmoCounterWidget
  *
- * Tarkov-style ammo counter HUD widget displaying:
+ * Tarkov-style weapon HUD widget displaying:
+ * - Weapon name and icon
  * - Magazine rounds / capacity (e.g., "30/30")
  * - Chamber indicator (+1 when chambered)
- * - Reserve ammo count
+ * - Reserve ammo count and available magazines
  * - Loaded ammo type (e.g., "5.45 PS")
  * - Fire mode indicator (AUTO/SEMI/BURST)
  *
@@ -31,15 +32,16 @@ class USuspenseCoreEventBus;
  * - Real-time updates via EventBus (NO direct component polling!)
  * - Low/Critical ammo warnings (visual feedback from materials)
  * - Magazine swap animation support
- * - Fire mode display
+ * - ALL components are MANDATORY (BindWidget)
  * - NO programmatic color changes - ALL colors from materials in Editor!
  *
  * Layout:
- * ┌──────────────────────────────┐
- * │  30+1 / 30    [5.45 PS]     │  ← Mag+Chamber / Capacity [AmmoType]
- * │  ░░░░░░░░░░   AUTO          │  ← MagFill bar, FireMode
- * │  Reserve: 90  Mags: 3       │  ← Reserve info
- * └──────────────────────────────┘
+ * ┌──────────────────────────────────────┐
+ * │  [ICON]  AK-74M                      │  ← Weapon icon + name
+ * │  30+1 / 30    [5.45 PS]              │  ← Mag+Chamber / Capacity [AmmoType]
+ * │  ░░░░░░░░░░   AUTO                   │  ← MagFill bar, FireMode
+ * │  Reserve: 90  Mags: 3                │  ← Reserve info
+ * └──────────────────────────────────────┘
  *
  * EventBus Events (subscribed):
  * - TAG_Equipment_Event_Magazine_Inserted
@@ -47,6 +49,7 @@ class USuspenseCoreEventBus;
  * - TAG_Equipment_Event_Magazine_RoundsChanged
  * - TAG_Equipment_Event_Weapon_AmmoChanged
  * - TAG_Equipment_Event_Weapon_FireModeChanged
+ * - TAG_Equipment_Event_ItemEquipped (for active weapon change)
  */
 UCLASS(Blueprintable, BlueprintType)
 class UISYSTEM_API USuspenseCoreAmmoCounterWidget : public UUserWidget, public ISuspenseCoreAmmoCounterWidget
@@ -94,6 +97,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|AmmoCounter")
 	void RefreshDisplay();
 
+	/** Get current weapon actor */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|AmmoCounter")
+	AActor* GetWeaponActor() const { return CachedWeaponActor.Get(); }
+
+	/** Get ammo percentage (0-1) */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|AmmoCounter")
+	float GetAmmoPercentage() const;
+
+	/** Is currently reloading? */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|AmmoCounter")
+	bool IsReloading() const { return bIsReloading; }
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -114,17 +129,33 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|AmmoCounter|Events")
 	void OnFireModeChanged(const FText& NewFireMode);
 
+	/** Called when weapon changes */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|AmmoCounter|Events")
+	void OnWeaponChanged(AActor* NewWeapon);
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Main Display
+	// UI BINDINGS - ALL MANDATORY (BindWidget)
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	// --- Weapon Info ---
+
+	/** Weapon name text */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	TObjectPtr<UTextBlock> WeaponNameText;
+
+	/** Weapon icon */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	TObjectPtr<UImage> WeaponIcon;
+
+	// --- Magazine Display ---
 
 	/** Current magazine rounds text (e.g., "30") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> MagazineRoundsText;
 
 	/** Chamber indicator text (e.g., "+1") */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ChamberIndicatorText;
 
 	/** Magazine capacity text (e.g., "/30") */
@@ -132,56 +163,38 @@ protected:
 	TObjectPtr<UTextBlock> MagazineCapacityText;
 
 	/** Magazine fill progress bar */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> MagazineFillBar;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Ammo Type
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Ammo Type ---
 
 	/** Ammo type display text (e.g., "5.45 PS") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoTypeText;
 
 	/** Ammo type icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> AmmoTypeIcon;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Reserve
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Reserve Info ---
 
 	/** Reserve rounds text (e.g., "90") */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReserveRoundsText;
 
 	/** Available magazines count text (e.g., "3") */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AvailableMagazinesText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Fire Mode
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Fire Mode ---
 
 	/** Fire mode text (e.g., "AUTO", "SEMI") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> FireModeText;
 
 	/** Fire mode icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> FireModeIcon;
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Weapon Info
-	// ═══════════════════════════════════════════════════════════════════════════
-
-	/** Weapon name text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> WeaponNameText;
-
-	/** Weapon icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> WeaponIcon;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
@@ -199,14 +212,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
 	int32 CriticalAmmoAbsolute = 3;
 
-	/** Show chamber indicator? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
-	bool bShowChamberIndicator = true;
-
-	/** Show reserve info? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
-	bool bShowReserveInfo = true;
-
 	/** Enable smooth fill bar interpolation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
 	bool bSmoothFillBar = true;
@@ -223,6 +228,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
 	FText ChamberFormat = NSLOCTEXT("AmmoCounter", "Chamber", "+1");
 
+	/** Empty chamber text */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
+	FText EmptyChamberText = NSLOCTEXT("AmmoCounter", "EmptyChamber", "+0");
+
 private:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS
@@ -238,17 +247,22 @@ private:
 	void OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnWeaponAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnFireModeChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnActiveWeaponChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnReloadStartEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnReloadEndEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL HELPERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
+	void UpdateWeaponUI();
 	void UpdateMagazineUI();
 	void UpdateReserveUI();
 	void UpdateFireModeUI();
 	void UpdateAmmoTypeUI();
 	void UpdateFillBar(float DeltaTime);
 	void CheckAmmoWarnings();
+	void ResetToEmptyState();
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATE
@@ -262,6 +276,9 @@ private:
 	FSuspenseCoreSubscriptionHandle MagazineRoundsChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedHandle;
 	FSuspenseCoreSubscriptionHandle FireModeChangedHandle;
+	FSuspenseCoreSubscriptionHandle ActiveWeaponChangedHandle;
+	FSuspenseCoreSubscriptionHandle ReloadStartHandle;
+	FSuspenseCoreSubscriptionHandle ReloadEndHandle;
 
 	FSuspenseCoreAmmoCounterData CachedAmmoData;
 
@@ -274,5 +291,6 @@ private:
 	bool bIsLowAmmo = false;
 	bool bIsCriticalAmmo = false;
 	bool bHasMagazine = true;
+	bool bIsReloading = false;
 	bool bIsInitialized = false;
 };

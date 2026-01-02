@@ -177,7 +177,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreMagazineTooltipData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UISuspenseCoreMagazineTooltipWidget : public UInterface
+class USuspenseCoreMagazineTooltipWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -199,7 +199,7 @@ class UISuspenseCoreMagazineTooltipWidget : public UInterface
  * - Equipment slots
  * - QuickSlots
  */
-class BRIDGESYSTEM_API ISuspenseCoreMagazineTooltipWidget
+class BRIDGESYSTEM_API ISuspenseCoreMagazineTooltipWidgetInterface
 {
 	GENERATED_BODY()
 

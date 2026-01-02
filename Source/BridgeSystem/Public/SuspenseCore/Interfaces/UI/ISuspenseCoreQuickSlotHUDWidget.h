@@ -88,7 +88,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlotHUDData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UISuspenseCoreQuickSlotHUDWidget : public UInterface
+class USuspenseCoreQuickSlotHUDWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -108,7 +108,7 @@ class UISuspenseCoreQuickSlotHUDWidget : public UInterface
  * - TAG_Equipment_Event_QuickSlot_CooldownEnded
  * - TAG_Equipment_Event_Magazine_RoundsChanged
  */
-class BRIDGESYSTEM_API ISuspenseCoreQuickSlotHUDWidget
+class BRIDGESYSTEM_API ISuspenseCoreQuickSlotHUDWidgetInterface
 {
 	GENERATED_BODY()
 

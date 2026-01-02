@@ -85,7 +85,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreReloadProgressData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UISuspenseCoreReloadProgressWidget : public UInterface
+class USuspenseCoreReloadProgressWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -106,7 +106,7 @@ class UISuspenseCoreReloadProgressWidget : public UInterface
  * - TAG_Equipment_Event_Reload_Empty
  * - TAG_Equipment_Event_Reload_Emergency
  */
-class BRIDGESYSTEM_API ISuspenseCoreReloadProgressWidget
+class BRIDGESYSTEM_API ISuspenseCoreReloadProgressWidgetInterface
 {
 	GENERATED_BODY()
 

@@ -804,5 +804,100 @@ TEST_CASE("DataManager returns weapon attributes by ItemID")
 
 ---
 
+## 11. SSOT Architecture Verification (AAA-Level)
+
+> **Added:** 2026-01-02
+> **Status:** VERIFIED
+
+### 11.1 Architecture Overview
+
+The SSOT architecture follows AAA patterns with clear separation of concerns:
+
+| Layer | Purpose | Source |
+|-------|---------|--------|
+| **ItemDatabase** | Inventory/UI layer (identity, grid, weight, assets) | `SuspenseCoreItemDatabase.json` |
+| **SSOT DataTables** | Gameplay/Combat layer (damage, ballistics, attributes) | `*Attributes.json` files |
+
+### 11.2 SSOT RowName References Verified
+
+All `*AttributesRowName` fields are correctly set and reference valid SSOT rows:
+
+| ItemDatabase Item | RowName Field | SSOT DataTable | Status |
+|-------------------|---------------|----------------|--------|
+| Weapon_AK74M | `WeaponAttributesRowName` | Weapon_AK74M | ✓ |
+| Weapon_AK103 | `WeaponAttributesRowName` | Weapon_AK103 | ✓ |
+| Weapon_M4A1 | `WeaponAttributesRowName` | Weapon_M4A1 | ✓ |
+| Ammo_545x39_PS | `AmmoAttributesRowName` | Ammo_545x39_PS | ✓ |
+| Ammo_556x45_M855A1 | `AmmoAttributesRowName` | Ammo_556x45_M855A1 | ✓ |
+| Armor_6B13 | `ArmorAttributesRowName` | Armor_6B13 | ✓ |
+| Helmet_Altyn | `ArmorAttributesRowName` | Helmet_Altyn | ✓ |
+
+### 11.3 Data Consistency Verified
+
+Data between ItemDatabase and SSOT is consistent where overlap exists:
+
+| Field | ItemDatabase | SSOT | Match |
+|-------|--------------|------|-------|
+| Weapon Weight | `Weight` | `WeaponWeight` | ✓ |
+| Weapon AmmoType | `AmmoType` tag | `Caliber` tag | ✓ |
+| Ammo Caliber | `AmmoCaliber` tag | `Caliber` tag | ✓ |
+| Fire Mode Default | `DefaultFireMode` | `DefaultFireMode` | ✓ |
+
+### 11.4 Field Purpose Clarification
+
+Fields that appear duplicated serve different purposes (intentional denormalization):
+
+| ItemDatabase Field | Purpose | SSOT Field | Purpose |
+|--------------------|---------|------------|---------|
+| `AmmoCaliber` | UI/inventory matching (quick lookup) | `Caliber` | Authoritative source for gameplay |
+| `WeaponArchetype` | Animation stance selection | `WeaponType` | Weapon category for combat |
+| `FireModes` (TArray\<FWeaponFireModeData\>) | Ability bindings with InputID | `FireModes` (TArray\<FGameplayTag\>) | Available mode tags only |
+| `Weight` | Inventory encumbrance calculation | `WeaponWeight` | Handling/sway (same value, different semantic) |
+
+### 11.5 Deprecated Fields Status
+
+Legacy initialization structs are properly defaulted:
+
+| Field | Status | Current Value |
+|-------|--------|---------------|
+| `WeaponInitialization` | DEPRECATED | `"()"` (empty) |
+| `AmmoInitialization` | DEPRECATED | `"()"` (empty) |
+| `ArmorInitialization` | DEPRECATED | `"()"` (empty) |
+
+The system uses `ShouldUseSSOTInitialization()` to determine data source at runtime.
+
+### 11.6 SSOT DataTable Content Summary
+
+| DataTable | Rows | Key Attributes |
+|-----------|------|----------------|
+| **WeaponAttributes** | 9 weapons | BaseDamage, RateOfFire, Caliber, FireModes, Ergonomics, Recoil, Durability |
+| **AmmoAttributes** | 15 ammo types | BaseDamage, ArmorPenetration, MuzzleVelocity, FragmentationChance, RicochetChance |
+| **ArmorAttributes** | 18 armor items | ArmorClass, Durability, SpeedPenalty, TurnSpeedPenalty, ErgonomicsPenalty |
+
+### 11.7 Key Architecture Points
+
+1. **ItemDatabase = UI/Inventory layer**
+   - Core Identity: ItemID, DisplayName, Description, Icon
+   - Inventory Properties: GridSize, MaxStackSize, Weight, BaseValue
+   - Usage Configuration: bIsEquippable, EquipmentSlot, bIsConsumable
+   - Visual/Audio Assets: WorldMesh, sounds, VFX
+   - SSOT Row References: `*AttributesRowName` fields
+
+2. **SSOT DataTables = Gameplay/Combat layer**
+   - All gameplay-affecting attributes (damage, penetration, etc.)
+   - Combat stats (rate of fire, reload times)
+   - Physical properties (weight, durability)
+   - Ballistic properties (velocity, drag, fragmentation)
+
+3. **Runtime Flow**
+   ```
+   EquipItem(ItemID)
+   └── DataManager->GetUnifiedItemData(ItemID)
+       └── ItemData.WeaponAttributesRowName → SSOT Lookup
+           └── WeaponAttributeSet->InitializeFromData(SSOTRow)
+   ```
+
+---
+
 **Document Status:** Ready for Implementation
 **Next Step:** Begin Phase 1 - Create DataTable Row Structures

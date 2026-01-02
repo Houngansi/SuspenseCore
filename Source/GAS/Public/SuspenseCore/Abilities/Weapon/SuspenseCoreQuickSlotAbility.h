@@ -8,7 +8,8 @@
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
 #include "SuspenseCoreQuickSlotAbility.generated.h"
 
-class USuspenseCoreQuickSlotComponent;
+// Forward declaration - use interface instead of concrete type
+class ISuspenseCoreQuickSlotProvider;
 
 /**
  * USuspenseCoreQuickSlotAbility
@@ -19,11 +20,15 @@ class USuspenseCoreQuickSlotComponent;
  * - Consumables: Quick use (bandages, etc.)
  * - Grenades: Prepare throw
  *
+ * ARCHITECTURE:
+ * - Uses ISuspenseCoreQuickSlotProvider interface (BridgeSystem)
+ * - No direct dependency on EquipmentSystem
+ *
  * USAGE:
  * Create 4 instances with different SlotIndex (0-3)
  * Bind to Input QuickSlot1-4
  *
- * @see USuspenseCoreQuickSlotComponent
+ * @see ISuspenseCoreQuickSlotProvider
  */
 UCLASS()
 class GAS_API USuspenseCoreQuickSlotAbility : public USuspenseCoreAbility
@@ -63,8 +68,8 @@ protected:
     ) override;
 
 private:
-    /** Get QuickSlotComponent from owner */
-    USuspenseCoreQuickSlotComponent* GetQuickSlotComponent() const;
+    /** Get QuickSlotProvider interface from owner */
+    ISuspenseCoreQuickSlotProvider* GetQuickSlotProvider() const;
 };
 
 /**

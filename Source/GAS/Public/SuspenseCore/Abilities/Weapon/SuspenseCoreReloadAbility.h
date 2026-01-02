@@ -9,8 +9,9 @@
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCoreReloadAbility.generated.h"
 
-class USuspenseCoreMagazineComponent;
-class USuspenseCoreQuickSlotComponent;
+// Forward declarations - use interfaces instead of concrete types
+class ISuspenseCoreMagazineProvider;
+class ISuspenseCoreQuickSlotProvider;
 class UAnimMontage;
 
 /**
@@ -28,18 +29,18 @@ class UAnimMontage;
  * - "RackStart": Begin chambering animation
  * - "RackEnd": Round chambered, weapon ready
  *
- * INTEGRATION:
- * - Works with USuspenseCoreMagazineComponent for ammo state
- * - Works with USuspenseCoreQuickSlotComponent for magazine access
- * - Publishes events through EventBus
+ * ARCHITECTURE:
+ * - Uses ISuspenseCoreMagazineProvider interface (BridgeSystem)
+ * - Uses ISuspenseCoreQuickSlotProvider interface (BridgeSystem)
+ * - No direct dependency on EquipmentSystem
  *
  * BLOCKING TAGS:
  * - State.Sprinting (can't reload while sprinting)
  * - State.Firing (can't reload while firing)
  * - State.Dead, State.Stunned, State.Disabled
  *
- * @see USuspenseCoreMagazineComponent
- * @see USuspenseCoreQuickSlotComponent
+ * @see ISuspenseCoreMagazineProvider
+ * @see ISuspenseCoreQuickSlotProvider
  */
 UCLASS()
 class GAS_API USuspenseCoreReloadAbility : public USuspenseCoreAbility
@@ -202,14 +203,14 @@ protected:
 
 private:
     //==================================================================
-    // Internal Methods
+    // Internal Methods (Interface-based)
     //==================================================================
 
-    /** Get MagazineComponent from owning weapon */
-    USuspenseCoreMagazineComponent* GetMagazineComponent() const;
+    /** Get MagazineProvider interface from owner */
+    ISuspenseCoreMagazineProvider* GetMagazineProvider() const;
 
-    /** Get QuickSlotComponent from owner character */
-    USuspenseCoreQuickSlotComponent* GetQuickSlotComponent() const;
+    /** Get QuickSlotProvider interface from owner */
+    ISuspenseCoreQuickSlotProvider* GetQuickSlotProvider() const;
 
     /** Apply reload effects (speed debuff, etc.) */
     void ApplyReloadEffects(const FGameplayAbilityActorInfo* ActorInfo);

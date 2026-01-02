@@ -8,6 +8,7 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCoreMagazineComponent.generated.h"
 
 // Forward declarations
@@ -40,7 +41,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReloadStateChanged, bool, bIsRel
  * @see Documentation/Plans/TarkovStyle_Ammo_System_Design.md
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreMagazineComponent : public USuspenseCoreEquipmentComponentBase
+class EQUIPMENTSYSTEM_API USuspenseCoreMagazineComponent : public USuspenseCoreEquipmentComponentBase, public ISuspenseCoreMagazineProvider
 {
     GENERATED_BODY()
 
@@ -273,6 +274,22 @@ public:
     FOnReloadStateChanged OnReloadStateChanged;
 
 protected:
+    //================================================
+    // ISuspenseCoreMagazineProvider Interface Implementation
+    //================================================
+
+    virtual FSuspenseCoreWeaponAmmoState GetAmmoState_Implementation() const override;
+    virtual bool HasMagazine_Implementation() const override;
+    virtual bool IsReadyToFire_Implementation() const override;
+    virtual bool IsReloading_Implementation() const override;
+    virtual bool InsertMagazine_Implementation(const FSuspenseCoreMagazineInstance& Magazine) override;
+    virtual FSuspenseCoreMagazineInstance EjectMagazine_Implementation(bool bDropToGround) override;
+    virtual bool ChamberRound_Implementation() override;
+    virtual FSuspenseCoreChamberedRound EjectChamberedRound_Implementation() override;
+    virtual ESuspenseCoreReloadType DetermineReloadType_Implementation() const override;
+    virtual float CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const override;
+    virtual void NotifyReloadStateChanged_Implementation(bool bIsReloading, ESuspenseCoreReloadType ReloadType, float Duration) override;
+
     //================================================
     // Internal Operations
     //================================================

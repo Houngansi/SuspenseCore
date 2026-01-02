@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCoreQuickSlotComponent.generated.h"
 
 // Forward declarations
@@ -74,7 +75,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  * @see FSuspenseCoreQuickSlot
  */
 UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
-class EQUIPMENTSYSTEM_API USuspenseCoreQuickSlotComponent : public USuspenseCoreEquipmentComponentBase
+class EQUIPMENTSYSTEM_API USuspenseCoreQuickSlotComponent : public USuspenseCoreEquipmentComponentBase, public ISuspenseCoreQuickSlotProvider
 {
     GENERATED_BODY()
 
@@ -310,6 +311,20 @@ public:
     FOnQuickSlotAvailabilityChanged OnQuickSlotAvailabilityChanged;
 
 protected:
+    //==================================================================
+    // ISuspenseCoreQuickSlotProvider Interface Implementation
+    //==================================================================
+
+    virtual FSuspenseCoreQuickSlot GetQuickSlot_Implementation(int32 SlotIndex) const override;
+    virtual bool IsSlotReady_Implementation(int32 SlotIndex) const override;
+    virtual bool HasItemInSlot_Implementation(int32 SlotIndex) const override;
+    virtual bool UseQuickSlot_Implementation(int32 SlotIndex) override;
+    virtual bool QuickSwapMagazine_Implementation(int32 SlotIndex, bool bEmergencyDrop) override;
+    virtual bool GetMagazineFromSlot_Implementation(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const override;
+    virtual bool GetFirstMagazineSlotIndex_Implementation(int32& OutSlotIndex) const override;
+    virtual bool StoreEjectedMagazine_Implementation(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex) override;
+    virtual void ClearSlot_Implementation(int32 SlotIndex) override;
+
     //==================================================================
     // Server RPCs
     //==================================================================

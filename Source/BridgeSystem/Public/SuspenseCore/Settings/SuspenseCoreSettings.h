@@ -113,6 +113,60 @@ public:
 	bool bLogItemOperations = true;
 
 	//========================================================================
+	// GAS Attributes Configuration (SSOT)
+	//========================================================================
+
+	/**
+	 * DataTable containing weapon attribute definitions
+	 * Row Structure: FSuspenseCoreWeaponAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreWeaponAttributes.json
+	 * Maps 1:1 to USuspenseCoreWeaponAttributeSet (19 attributes)
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Weapon attributes DataTable. Row Structure: FSuspenseCoreWeaponAttributeRow"))
+	TSoftObjectPtr<UDataTable> WeaponAttributesDataTable;
+
+	/**
+	 * DataTable containing ammo attribute definitions
+	 * Row Structure: FSuspenseCoreAmmoAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreAmmoAttributes.json
+	 * Maps 1:1 to USuspenseCoreAmmoAttributeSet (15 attributes)
+	 *
+	 * TARKOV-STYLE: Different ammo types affect weapon behavior,
+	 * damage, penetration, and reliability.
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Ammo attributes DataTable. Row Structure: FSuspenseCoreAmmoAttributeRow"))
+	TSoftObjectPtr<UDataTable> AmmoAttributesDataTable;
+
+	/**
+	 * DataTable containing armor attribute definitions (FUTURE)
+	 * Row Structure: FSuspenseCoreArmorAttributeRow
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Armor attributes DataTable. Row Structure: FSuspenseCoreArmorAttributeRow"))
+	TSoftObjectPtr<UDataTable> ArmorAttributesDataTable;
+
+	/** Use SSOT DataTable attributes instead of legacy fields */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (ToolTip = "Enable new SSOT attribute system. Disable for legacy fallback."))
+	bool bUseSSOTAttributes = true;
+
+	/** Validate attribute DataTables on startup */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes")
+	bool bValidateAttributesOnStartup = true;
+
+	//========================================================================
 	// Character System Configuration
 	//========================================================================
 

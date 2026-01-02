@@ -9,6 +9,9 @@
 #include "AbilitySystemComponent.h"
 #include "SuspenseCoreAmmoAttributeSet.generated.h"
 
+// Forward declaration for SSOT DataTable row
+struct FSuspenseCoreAmmoAttributeRow;
+
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName)   \
     GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName)                 \
@@ -28,6 +31,29 @@ class GAS_API USuspenseCoreAmmoAttributeSet : public UAttributeSet
 
 public:
     USuspenseCoreAmmoAttributeSet();
+
+    //================================================
+    // SSOT DataTable Initialization
+    //================================================
+
+    /**
+     * Initialize all attributes from DataTable row data
+     * This is the SSOT method - replaces hardcoded constructor defaults
+     *
+     * @param RowData Ammo attribute row from DT_AmmoAttributes
+     *
+     * @see FSuspenseCoreAmmoAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UFUNCTION(BlueprintCallable, Category = "Ammo|Initialization")
+    void InitializeFromData(const FSuspenseCoreAmmoAttributeRow& RowData);
+
+    /**
+     * Check if attributes have been initialized from DataTable
+     * @return true if InitializeFromData() has been called
+     */
+    UFUNCTION(BlueprintPure, Category = "Ammo|Initialization")
+    bool IsInitializedFromData() const { return bInitializedFromData; }
 
     //================================================
     // Damage Characteristics
@@ -129,4 +155,8 @@ protected:
     UFUNCTION() void OnRep_IncendiaryDamage(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_WeaponDegradationRate(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_MisfireChance(const FGameplayAttributeData& OldValue);
+
+private:
+    /** Flag indicating whether attributes were initialized from DataTable */
+    bool bInitializedFromData = false;
 };

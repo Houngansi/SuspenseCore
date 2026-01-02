@@ -9,6 +9,9 @@
 #include "AbilitySystemComponent.h"
 #include "SuspenseCoreWeaponAttributeSet.generated.h"
 
+// Forward declaration for SSOT DataTable row
+struct FSuspenseCoreWeaponAttributeRow;
+
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName)   \
     GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName)                 \
@@ -28,6 +31,29 @@ class GAS_API USuspenseCoreWeaponAttributeSet : public UAttributeSet
 
 public:
     USuspenseCoreWeaponAttributeSet();
+
+    //================================================
+    // SSOT DataTable Initialization
+    //================================================
+
+    /**
+     * Initialize all attributes from DataTable row data
+     * This is the SSOT method - replaces hardcoded constructor defaults
+     *
+     * @param RowData Weapon attribute row from DT_WeaponAttributes
+     *
+     * @see FSuspenseCoreWeaponAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Initialization")
+    void InitializeFromData(const FSuspenseCoreWeaponAttributeRow& RowData);
+
+    /**
+     * Check if attributes have been initialized from DataTable
+     * @return true if InitializeFromData() has been called
+     */
+    UFUNCTION(BlueprintPure, Category = "Weapon|Initialization")
+    bool IsInitializedFromData() const { return bInitializedFromData; }
 
     //================================================
     // Combat Characteristics
@@ -145,4 +171,8 @@ protected:
     UFUNCTION() void OnRep_Ergonomics(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_AimDownSightTime(const FGameplayAttributeData& OldValue);
     UFUNCTION() void OnRep_WeaponWeight(const FGameplayAttributeData& OldValue);
+
+private:
+    /** Flag indicating whether attributes were initialized from DataTable */
+    bool bInitializedFromData = false;
 };

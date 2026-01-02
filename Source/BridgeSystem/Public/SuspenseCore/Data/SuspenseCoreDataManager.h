@@ -10,6 +10,8 @@
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 // Include for FSuspenseCoreUnifiedItemData - needed for cache storage
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+// Include for GAS attribute row structures (SSOT)
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "SuspenseCoreDataManager.generated.h"
 
 
@@ -237,6 +239,100 @@ public:
 	 */
 	USuspenseCoreEventBus* GetEventBus() const;
 
+	//========================================================================
+	// GAS Attributes Access (SSOT)
+	//========================================================================
+
+	/**
+	 * Get weapon attributes by ItemID or RowName
+	 * Uses WeaponAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey ItemID or explicit row name
+	 * @param OutAttributes Output weapon attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreWeaponAttributeRow
+	 * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetWeaponAttributes(FName AttributeKey, FSuspenseCoreWeaponAttributeRow& OutAttributes) const;
+
+	/**
+	 * Get ammo attributes by AmmoID or RowName
+	 * Uses AmmoAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey AmmoID or explicit row name
+	 * @param OutAttributes Output ammo attributes structure
+	 * @return true if attributes found
+	 *
+	 * @see FSuspenseCoreAmmoAttributeRow
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetAmmoAttributes(FName AttributeKey, FSuspenseCoreAmmoAttributeRow& OutAttributes) const;
+
+	/**
+	 * Get armor attributes by ArmorID or RowName
+	 * Uses ArmorAttributesDataTable configured in Settings
+	 *
+	 * @param AttributeKey ArmorID or explicit row name
+	 * @param OutAttributes Output armor attributes structure
+	 * @return true if attributes found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|GAS")
+	bool GetArmorAttributes(FName AttributeKey, FSuspenseCoreArmorAttributeRow& OutAttributes) const;
+
+	/**
+	 * Check if weapon attributes exist for given key
+	 * @param AttributeKey ItemID or row name
+	 * @return true if attributes exist in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool HasWeaponAttributes(FName AttributeKey) const;
+
+	/**
+	 * Check if ammo attributes exist for given key
+	 * @param AttributeKey AmmoID or row name
+	 * @return true if attributes exist in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool HasAmmoAttributes(FName AttributeKey) const;
+
+	/**
+	 * Get all cached weapon attribute keys
+	 * @return Array of all weapon attribute keys
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	TArray<FName> GetAllWeaponAttributeKeys() const;
+
+	/**
+	 * Get all cached ammo attribute keys
+	 * @return Array of all ammo attribute keys
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	TArray<FName> GetAllAmmoAttributeKeys() const;
+
+	/**
+	 * Get count of cached weapon attributes
+	 * @return Number of weapon attribute rows in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	int32 GetCachedWeaponAttributesCount() const { return WeaponAttributesCache.Num(); }
+
+	/**
+	 * Get count of cached ammo attributes
+	 * @return Number of ammo attribute rows in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	int32 GetCachedAmmoAttributesCount() const { return AmmoAttributesCache.Num(); }
+
+	/** Check if weapon attributes system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool IsWeaponAttributesSystemReady() const { return bWeaponAttributesSystemReady; }
+
+	/** Check if ammo attributes system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool IsAmmoAttributesSystemReady() const { return bAmmoAttributesSystemReady; }
+
 protected:
 	//========================================================================
 	// Initialization Helpers
@@ -257,6 +353,52 @@ protected:
 	/** Convert unified item data to internal item data format */
 	static FSuspenseCoreItemData ConvertUnifiedToItemData(
 		const FSuspenseCoreUnifiedItemData& Unified, FName RowName);
+
+	//========================================================================
+	// GAS Attributes Initialization (SSOT)
+	//========================================================================
+
+	/**
+	 * Initialize weapon attributes system
+	 * Loads WeaponAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeWeaponAttributesSystem();
+
+	/**
+	 * Build weapon attributes cache from DataTable
+	 * @param DataTable Weapon attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildWeaponAttributesCache(UDataTable* DataTable);
+
+	/**
+	 * Initialize ammo attributes system
+	 * Loads AmmoAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeAmmoAttributesSystem();
+
+	/**
+	 * Build ammo attributes cache from DataTable
+	 * @param DataTable Ammo attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildAmmoAttributesCache(UDataTable* DataTable);
+
+	/**
+	 * Initialize armor attributes system
+	 * Loads ArmorAttributesDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeArmorAttributesSystem();
+
+	/**
+	 * Build armor attributes cache from DataTable
+	 * @param DataTable Armor attributes DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildArmorAttributesCache(UDataTable* DataTable);
 
 	//========================================================================
 	// EventBus Broadcasting
@@ -310,6 +452,48 @@ private:
 	mutable TWeakObjectPtr<USuspenseCoreEventBus> CachedEventBus;
 
 	//========================================================================
+	// GAS Attributes Cached Data (SSOT)
+	//========================================================================
+
+	/**
+	 * Weapon attributes cache from WeaponAttributesDataTable
+	 * Key: WeaponID or explicit row name
+	 * Contains all 19 weapon attributes
+	 * @see FSuspenseCoreWeaponAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreWeaponAttributeRow> WeaponAttributesCache;
+
+	/**
+	 * Ammo attributes cache from AmmoAttributesDataTable
+	 * Key: AmmoID or explicit row name
+	 * Contains all 15 ammo attributes (Tarkov-style)
+	 * @see FSuspenseCoreAmmoAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreAmmoAttributeRow> AmmoAttributesCache;
+
+	/**
+	 * Armor attributes cache from ArmorAttributesDataTable
+	 * Key: ArmorID or explicit row name
+	 * @see FSuspenseCoreArmorAttributeRow
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreArmorAttributeRow> ArmorAttributesCache;
+
+	/** Loaded weapon attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedWeaponAttributesDataTable;
+
+	/** Loaded ammo attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedAmmoAttributesDataTable;
+
+	/** Loaded armor attributes DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedArmorAttributesDataTable;
+
+	//========================================================================
 	// Status Flags
 	//========================================================================
 
@@ -324,4 +508,13 @@ private:
 
 	/** Loadout system ready flag */
 	bool bLoadoutSystemReady = false;
+
+	/** Weapon attributes system ready flag */
+	bool bWeaponAttributesSystemReady = false;
+
+	/** Ammo attributes system ready flag */
+	bool bAmmoAttributesSystemReady = false;
+
+	/** Armor attributes system ready flag */
+	bool bArmorAttributesSystemReady = false;
 };

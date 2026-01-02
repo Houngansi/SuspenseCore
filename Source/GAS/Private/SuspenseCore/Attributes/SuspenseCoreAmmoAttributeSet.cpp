@@ -2,11 +2,16 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "Net/UnrealNetwork.h"
 #include "GameplayEffectExtension.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogAmmoAttributeSet, Log, All);
+
 USuspenseCoreAmmoAttributeSet::USuspenseCoreAmmoAttributeSet()
 {
+    // Default values (fallback if InitializeFromData is not called)
+    // These will be overwritten by SSOT DataTable values
     InitBaseDamage(50.0f);
     InitArmorPenetration(20.0f);
     InitStoppingPower(50.0f);
@@ -22,6 +27,46 @@ USuspenseCoreAmmoAttributeSet::USuspenseCoreAmmoAttributeSet()
     InitIncendiaryDamage(0.0f);
     InitWeaponDegradationRate(0.1f);
     InitMisfireChance(0.0f);
+}
+
+void USuspenseCoreAmmoAttributeSet::InitializeFromData(const FSuspenseCoreAmmoAttributeRow& RowData)
+{
+    // Initialize all attributes from DataTable row (SSOT)
+    // This replaces hardcoded constructor defaults with data-driven values
+
+    // Damage attributes
+    InitBaseDamage(RowData.BaseDamage);
+    InitArmorPenetration(RowData.ArmorPenetration);
+    InitStoppingPower(RowData.StoppingPower);
+    InitFragmentationChance(RowData.FragmentationChance);
+
+    // Ballistics attributes
+    InitMuzzleVelocity(RowData.MuzzleVelocity);
+    InitDragCoefficient(RowData.DragCoefficient);
+    InitBulletMass(RowData.BulletMass);
+    InitEffectiveRange(RowData.EffectiveRange);
+
+    // Accuracy modifiers
+    InitAccuracyModifier(RowData.AccuracyModifier);
+    InitRecoilModifier(RowData.RecoilModifier);
+
+    // Special effects
+    InitRicochetChance(RowData.RicochetChance);
+    InitTracerVisibility(RowData.TracerVisibility);
+    InitIncendiaryDamage(RowData.IncendiaryDamage);
+
+    // Weapon effects
+    InitWeaponDegradationRate(RowData.WeaponDegradationRate);
+    InitMisfireChance(RowData.MisfireChance);
+
+    bInitializedFromData = true;
+
+    UE_LOG(LogAmmoAttributeSet, Log,
+        TEXT("InitializeFromData: AmmoID=%s, Damage=%.1f, Penetration=%.0f, Velocity=%.0f"),
+        *RowData.AmmoID.ToString(),
+        RowData.BaseDamage,
+        RowData.ArmorPenetration,
+        RowData.MuzzleVelocity);
 }
 
 void USuspenseCoreAmmoAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

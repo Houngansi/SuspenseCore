@@ -116,6 +116,46 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	//========================================================================
+	// GAS Attributes Systems (SSOT)
+	//========================================================================
+
+	if (Settings->bUseSSOTAttributes)
+	{
+		// Weapon Attributes
+		bWeaponAttributesSystemReady = InitializeWeaponAttributesSystem();
+		if (!bWeaponAttributesSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Weapon Attributes System initialization failed (may be optional)"));
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Weapon Attributes System: READY (%d rows cached)"), WeaponAttributesCache.Num());
+		}
+
+		// Ammo Attributes
+		bAmmoAttributesSystemReady = InitializeAmmoAttributesSystem();
+		if (!bAmmoAttributesSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Ammo Attributes System initialization failed (may be optional)"));
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Ammo Attributes System: READY (%d rows cached)"), AmmoAttributesCache.Num());
+		}
+
+		// Armor Attributes (future)
+		bArmorAttributesSystemReady = InitializeArmorAttributesSystem();
+		if (bArmorAttributesSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Armor Attributes System: READY (%d rows cached)"), ArmorAttributesCache.Num());
+		}
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreData, Log, TEXT("SSOT Attributes disabled - using legacy AttributeSet initialization"));
+	}
+
+	//========================================================================
 	// Validation (if enabled)
 	//========================================================================
 
@@ -172,17 +212,31 @@ void USuspenseCoreDataManager::Deinitialize()
 {
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("SuspenseCoreDataManager shutting down..."));
 
-	// Clear caches
+	// Clear item caches
 	ItemCache.Empty();
+	UnifiedItemCache.Empty();
 	LoadedItemDataTable = nullptr;
 	LoadedCharacterClassesDataAsset = nullptr;
 	LoadedLoadoutDataTable = nullptr;
+
+	// Clear GAS attribute caches (SSOT)
+	WeaponAttributesCache.Empty();
+	AmmoAttributesCache.Empty();
+	ArmorAttributesCache.Empty();
+	LoadedWeaponAttributesDataTable = nullptr;
+	LoadedAmmoAttributesDataTable = nullptr;
+	LoadedArmorAttributesDataTable = nullptr;
+
 	CachedEventBus.Reset();
 
+	// Reset all flags
 	bIsInitialized = false;
 	bItemSystemReady = false;
 	bCharacterSystemReady = false;
 	bLoadoutSystemReady = false;
+	bWeaponAttributesSystemReady = false;
+	bAmmoAttributesSystemReady = false;
+	bArmorAttributesSystemReady = false;
 
 	Super::Deinitialize();
 }
@@ -860,4 +914,326 @@ void USuspenseCoreDataManager::BroadcastValidationResult(bool bPassed, const TAr
 
 	UE_LOG(LogSuspenseCoreData, Log, TEXT("Broadcast: Data.Validation%s"),
 		bPassed ? TEXT("Passed") : TEXT("Failed"));
+}
+
+//========================================================================
+// GAS Attributes Initialization (SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeWeaponAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->WeaponAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("WeaponAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading WeaponAttributesDataTable: %s"),
+		*Settings->WeaponAttributesDataTable.ToString());
+
+	LoadedWeaponAttributesDataTable = Settings->WeaponAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedWeaponAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load WeaponAttributesDataTable"));
+		return false;
+	}
+
+	// Verify row structure
+	const UScriptStruct* RowStruct = LoadedWeaponAttributesDataTable->GetRowStruct();
+	if (!RowStruct)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("WeaponAttributesDataTable has no row structure!"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("WeaponAttributes Row Structure: %s"), *RowStruct->GetName());
+
+	return BuildWeaponAttributesCache(LoadedWeaponAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildWeaponAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	WeaponAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building weapon attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreWeaponAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreWeaponAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read weapon attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid weapon attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use WeaponID if set, otherwise use row name as key
+		FName CacheKey = RowData->WeaponID.IsNone() ? RowName : RowData->WeaponID;
+
+		WeaponAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached weapon attrs: %s (Damage=%.1f, ROF=%.0f)"),
+			*CacheKey.ToString(), RowData->BaseDamage, RowData->RateOfFire);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Weapon attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+bool USuspenseCoreDataManager::InitializeAmmoAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->AmmoAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("AmmoAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading AmmoAttributesDataTable: %s"),
+		*Settings->AmmoAttributesDataTable.ToString());
+
+	LoadedAmmoAttributesDataTable = Settings->AmmoAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedAmmoAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load AmmoAttributesDataTable"));
+		return false;
+	}
+
+	// Verify row structure
+	const UScriptStruct* RowStruct = LoadedAmmoAttributesDataTable->GetRowStruct();
+	if (!RowStruct)
+	{
+		UE_LOG(LogSuspenseCoreData, Error, TEXT("AmmoAttributesDataTable has no row structure!"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("AmmoAttributes Row Structure: %s"), *RowStruct->GetName());
+
+	return BuildAmmoAttributesCache(LoadedAmmoAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildAmmoAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	AmmoAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building ammo attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreAmmoAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreAmmoAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read ammo attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid ammo attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use AmmoID if set, otherwise use row name as key
+		FName CacheKey = RowData->AmmoID.IsNone() ? RowName : RowData->AmmoID;
+
+		AmmoAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached ammo attrs: %s (Damage=%.1f, Pen=%.0f)"),
+			*CacheKey.ToString(), RowData->BaseDamage, RowData->ArmorPenetration);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Ammo attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+bool USuspenseCoreDataManager::InitializeArmorAttributesSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	if (Settings->ArmorAttributesDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("ArmorAttributesDataTable not configured (optional)"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Loading ArmorAttributesDataTable: %s"),
+		*Settings->ArmorAttributesDataTable.ToString());
+
+	LoadedArmorAttributesDataTable = Settings->ArmorAttributesDataTable.LoadSynchronous();
+
+	if (!LoadedArmorAttributesDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load ArmorAttributesDataTable"));
+		return false;
+	}
+
+	return BuildArmorAttributesCache(LoadedArmorAttributesDataTable);
+}
+
+bool USuspenseCoreDataManager::BuildArmorAttributesCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	ArmorAttributesCache.Empty();
+
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Building armor attributes cache from %d rows..."), RowNames.Num());
+
+	int32 LoadedCount = 0;
+
+	for (const FName& RowName : RowNames)
+	{
+		FSuspenseCoreArmorAttributeRow* RowData = DataTable->FindRow<FSuspenseCoreArmorAttributeRow>(RowName, TEXT(""));
+		if (!RowData)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Failed to read armor attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Validate row
+		if (!RowData->IsValid())
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("  Invalid armor attribute row: %s"), *RowName.ToString());
+			continue;
+		}
+
+		// Use ArmorID if set, otherwise use row name as key
+		FName CacheKey = RowData->ArmorID.IsNone() ? RowName : RowData->ArmorID;
+
+		ArmorAttributesCache.Add(CacheKey, *RowData);
+		LoadedCount++;
+
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("  Cached armor attrs: %s (Class=%d, Durability=%.0f)"),
+			*CacheKey.ToString(), RowData->ArmorClass, RowData->MaxDurability);
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Armor attributes cache built: %d entries"), LoadedCount);
+	return LoadedCount > 0;
+}
+
+//========================================================================
+// GAS Attributes Access (SSOT)
+//========================================================================
+
+bool USuspenseCoreDataManager::GetWeaponAttributes(FName AttributeKey, FSuspenseCoreWeaponAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreWeaponAttributeRow* Found = WeaponAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetWeaponAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::GetAmmoAttributes(FName AttributeKey, FSuspenseCoreAmmoAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreAmmoAttributeRow* Found = AmmoAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetAmmoAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::GetArmorAttributes(FName AttributeKey, FSuspenseCoreArmorAttributeRow& OutAttributes) const
+{
+	if (AttributeKey.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreArmorAttributeRow* Found = ArmorAttributesCache.Find(AttributeKey);
+	if (Found)
+	{
+		OutAttributes = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetArmorAttributes: '%s' not found in cache"), *AttributeKey.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::HasWeaponAttributes(FName AttributeKey) const
+{
+	return WeaponAttributesCache.Contains(AttributeKey);
+}
+
+bool USuspenseCoreDataManager::HasAmmoAttributes(FName AttributeKey) const
+{
+	return AmmoAttributesCache.Contains(AttributeKey);
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllWeaponAttributeKeys() const
+{
+	TArray<FName> Keys;
+	WeaponAttributesCache.GetKeys(Keys);
+	return Keys;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllAmmoAttributeKeys() const
+{
+	TArray<FName> Keys;
+	AmmoAttributesCache.GetKeys(Keys);
+	return Keys;
 }

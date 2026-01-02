@@ -2,11 +2,16 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "Net/UnrealNetwork.h"
 #include "GameplayEffectExtension.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogWeaponAttributeSet, Log, All);
+
 USuspenseCoreWeaponAttributeSet::USuspenseCoreWeaponAttributeSet()
 {
+    // Default values (fallback if InitializeFromData is not called)
+    // These will be overwritten by SSOT DataTable values
     InitBaseDamage(100.0f);
     InitRateOfFire(600.0f);
     InitEffectiveRange(300.0f);
@@ -26,6 +31,48 @@ USuspenseCoreWeaponAttributeSet::USuspenseCoreWeaponAttributeSet()
     InitErgonomics(50.0f);
     InitAimDownSightTime(0.3f);
     InitWeaponWeight(3.5f);
+}
+
+void USuspenseCoreWeaponAttributeSet::InitializeFromData(const FSuspenseCoreWeaponAttributeRow& RowData)
+{
+    // Initialize all attributes from DataTable row (SSOT)
+    // This replaces hardcoded constructor defaults with data-driven values
+
+    // Combat attributes
+    InitBaseDamage(RowData.BaseDamage);
+    InitRateOfFire(RowData.RateOfFire);
+    InitEffectiveRange(RowData.EffectiveRange);
+    InitMaxRange(RowData.MaxRange);
+    InitMagazineSize(RowData.MagazineSize);
+    InitTacticalReloadTime(RowData.TacticalReloadTime);
+    InitFullReloadTime(RowData.FullReloadTime);
+
+    // Accuracy attributes
+    InitMOA(RowData.MOA);
+    InitHipFireSpread(RowData.HipFireSpread);
+    InitAimSpread(RowData.AimSpread);
+    InitVerticalRecoil(RowData.VerticalRecoil);
+    InitHorizontalRecoil(RowData.HorizontalRecoil);
+
+    // Reliability attributes
+    InitDurability(RowData.Durability);
+    InitMaxDurability(RowData.MaxDurability);
+    InitMisfireChance(RowData.MisfireChance);
+    InitJamChance(RowData.JamChance);
+
+    // Ergonomics attributes
+    InitErgonomics(RowData.Ergonomics);
+    InitAimDownSightTime(RowData.AimDownSightTime);
+    InitWeaponWeight(RowData.WeaponWeight);
+
+    bInitializedFromData = true;
+
+    UE_LOG(LogWeaponAttributeSet, Log,
+        TEXT("InitializeFromData: WeaponID=%s, Damage=%.1f, ROF=%.0f, Ergonomics=%.0f"),
+        *RowData.WeaponID.ToString(),
+        RowData.BaseDamage,
+        RowData.RateOfFire,
+        RowData.Ergonomics);
 }
 
 void USuspenseCoreWeaponAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

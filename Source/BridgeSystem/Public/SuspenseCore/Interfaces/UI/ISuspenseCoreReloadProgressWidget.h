@@ -5,20 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "ISuspenseCoreReloadProgressWidget.generated.h"
 
-/**
- * Reload type for display purposes
- */
-UENUM(BlueprintType)
-enum class ESuspenseCoreReloadType : uint8
-{
-	None			UMETA(DisplayName = "None"),
-	Tactical		UMETA(DisplayName = "Tactical Reload"),
-	Empty			UMETA(DisplayName = "Empty Reload"),
-	Emergency		UMETA(DisplayName = "Emergency Reload"),
-	ChamberOnly		UMETA(DisplayName = "Chamber Only")
-};
+// ESuspenseCoreReloadType is defined in SuspenseCoreMagazineTypes.h
 
 /**
  * Data structure for reload progress display
@@ -95,7 +85,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreReloadProgressData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCoreReloadProgressWidget : public UInterface
+class UISuspenseCoreReloadProgressWidget : public UInterface
 {
 	GENERATED_BODY()
 };

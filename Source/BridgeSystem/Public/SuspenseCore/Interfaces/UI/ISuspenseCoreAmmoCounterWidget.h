@@ -155,7 +155,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreAmmoCounterData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCoreAmmoCounterWidget : public UInterface
+class UISuspenseCoreAmmoCounterWidget : public UInterface
 {
 	GENERATED_BODY()
 };

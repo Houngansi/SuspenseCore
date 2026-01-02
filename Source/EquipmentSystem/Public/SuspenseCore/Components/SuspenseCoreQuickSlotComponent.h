@@ -12,7 +12,6 @@
 
 // Forward declarations
 class USuspenseCoreMagazineComponent;
-class USuspenseCoreInventoryComponent;
 
 /** Number of quick slots available */
 static constexpr int32 SUSPENSECORE_QUICKSLOT_COUNT = 4;
@@ -103,12 +102,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "QuickSlot")
     void InitializeWithMagazineComponent(USuspenseCoreMagazineComponent* InMagazineComponent);
 
-    /**
-     * Set inventory component reference for item validation
-     * @param InInventoryComponent Inventory component to query items from
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot")
-    void SetInventoryComponent(USuspenseCoreInventoryComponent* InInventoryComponent);
 
     //==================================================================
     // Slot Assignment (Component-specific, not in interface)
@@ -321,9 +314,8 @@ protected:
     UPROPERTY()
     TWeakObjectPtr<USuspenseCoreMagazineComponent> MagazineComponent;
 
-    /** Reference to inventory component for item validation */
-    UPROPERTY()
-    TWeakObjectPtr<USuspenseCoreInventoryComponent> InventoryComponent;
+    // TODO: Add inventory interface when InventorySystem is integrated
+    // For now, item validation is done locally
 
     /** Item category tags for type detection */
     UPROPERTY()

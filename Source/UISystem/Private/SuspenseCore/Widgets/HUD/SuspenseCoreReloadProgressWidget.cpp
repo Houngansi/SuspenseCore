@@ -1,0 +1,472 @@
+// SuspenseCoreReloadProgressWidget.cpp
+// SuspenseCore - Clean Architecture UI Layer
+// Copyright (c) 2025. All Rights Reserved.
+
+#include "SuspenseCore/Widgets/HUD/SuspenseCoreReloadProgressWidget.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "Components/TextBlock.h"
+#include "Components/Image.h"
+#include "Components/ProgressBar.h"
+
+USuspenseCoreReloadProgressWidget::USuspenseCoreReloadProgressWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UUserWidget Interface
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreReloadProgressWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	SetupEventSubscriptions();
+
+	// Start hidden
+	SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void USuspenseCoreReloadProgressWidget::NativeDestruct()
+{
+	TeardownEventSubscriptions();
+	Super::NativeDestruct();
+}
+
+void USuspenseCoreReloadProgressWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bIsReloading && bSmoothProgress)
+	{
+		if (FMath::Abs(DisplayedProgress - TargetProgress) > KINDA_SMALL_NUMBER)
+		{
+			DisplayedProgress = FMath::FInterpTo(
+				DisplayedProgress,
+				TargetProgress,
+				InDeltaTime,
+				ProgressInterpSpeed
+			);
+
+			UpdateProgressUI();
+		}
+
+		// Update time remaining (decrements over time)
+		if (CachedRemainingTime > 0.0f)
+		{
+			CachedRemainingTime = FMath::Max(0.0f, CachedRemainingTime - InDeltaTime);
+			UpdateTimeRemainingUI();
+		}
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ISuspenseCoreReloadProgressWidget Implementation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreReloadProgressWidget::ShowReloadProgress_Implementation(const FSuspenseCoreReloadProgressData& ReloadData)
+{
+	CachedReloadData = ReloadData;
+	bIsReloading = true;
+	bCanCancel = ReloadData.bCanCancel;
+	CurrentPhase = 0;
+
+	TargetProgress = 0.0f;
+	DisplayedProgress = 0.0f;
+	CachedRemainingTime = ReloadData.TotalDuration;
+
+	// Update reload type text
+	if (ReloadTypeText)
+	{
+		ReloadTypeText->SetText(GetReloadTypeDisplayText(ReloadData.ReloadType));
+	}
+
+	// Update progress bar
+	UpdateProgressUI();
+	UpdateTimeRemainingUI();
+
+	// Reset phase indicators
+	UpdatePhaseIndicators(0);
+
+	// Show cancel hint if applicable
+	if (CancelHintText)
+	{
+		CancelHintText->SetText(CancelHintFormat);
+		CancelHintText->SetVisibility(bCanCancel ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	// Show widget
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// Notify Blueprint
+	OnReloadStarted(ReloadData.ReloadType);
+}
+
+void USuspenseCoreReloadProgressWidget::UpdateReloadProgress_Implementation(float Progress, float RemainingTime)
+{
+	TargetProgress = FMath::Clamp(Progress, 0.0f, 1.0f);
+	CachedRemainingTime = RemainingTime;
+
+	if (!bSmoothProgress)
+	{
+		DisplayedProgress = TargetProgress;
+		UpdateProgressUI();
+		UpdateTimeRemainingUI();
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::HideReloadProgress_Implementation(bool bCompleted)
+{
+	bIsReloading = false;
+
+	if (bCompleted)
+	{
+		// Brief completion state before hiding
+		DisplayedProgress = 1.0f;
+		UpdateProgressUI();
+		OnReloadCompleted();
+	}
+
+	// Hide widget
+	SetVisibility(ESlateVisibility::Collapsed);
+
+	// Reset state
+	CurrentPhase = 0;
+	TargetProgress = 0.0f;
+	DisplayedProgress = 0.0f;
+}
+
+void USuspenseCoreReloadProgressWidget::OnMagazineEjected_Implementation()
+{
+	CurrentPhase = 1;
+	UpdatePhaseIndicators(1);
+	OnPhaseChanged(1);
+}
+
+void USuspenseCoreReloadProgressWidget::OnMagazineInserted_Implementation()
+{
+	CurrentPhase = 2;
+	UpdatePhaseIndicators(2);
+	OnPhaseChanged(2);
+}
+
+void USuspenseCoreReloadProgressWidget::OnChambering_Implementation()
+{
+	CurrentPhase = 3;
+	UpdatePhaseIndicators(3);
+	OnPhaseChanged(3);
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadCancelled_Implementation()
+{
+	bIsReloading = false;
+
+	// Hide immediately on cancel
+	SetVisibility(ESlateVisibility::Collapsed);
+
+	// Notify Blueprint
+	OnReloadCancelledBP();
+}
+
+void USuspenseCoreReloadProgressWidget::SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType ReloadType, const FText& DisplayText)
+{
+	if (ReloadTypeText)
+	{
+		FText TextToShow = DisplayText.IsEmpty() ? GetReloadTypeDisplayText(ReloadType) : DisplayText;
+		ReloadTypeText->SetText(TextToShow);
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::SetCanCancelReload_Implementation(bool bInCanCancel)
+{
+	bCanCancel = bInCanCancel;
+
+	if (CancelHintText)
+	{
+		CancelHintText->SetVisibility(bCanCancel ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+bool USuspenseCoreReloadProgressWidget::IsReloadProgressVisible_Implementation() const
+{
+	return GetVisibility() != ESlateVisibility::Collapsed && GetVisibility() != ESlateVisibility::Hidden;
+}
+
+float USuspenseCoreReloadProgressWidget::GetCurrentReloadProgress_Implementation() const
+{
+	return DisplayedProgress;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EVENTBUS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreReloadProgressWidget::SetupEventSubscriptions()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	using namespace SuspenseCoreEquipmentTags::Event;
+	using namespace SuspenseCoreEquipmentTags::Magazine;
+
+	// Reload start/end
+	ReloadStartHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Weapon_ReloadStart,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadStartEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	ReloadEndHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Weapon_ReloadEnd,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadEndEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Reload types
+	ReloadTacticalHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Reload_Tactical,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadTacticalEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	ReloadEmptyHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Reload_Empty,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadEmptyEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	ReloadEmergencyHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Reload_Emergency,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnReloadEmergencyEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Phase events
+	MagazineEjectedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Magazine_Ejected,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnMagazineEjectedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	MagazineInsertedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Magazine_Inserted,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnMagazineInsertedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	ChamberHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Chamber_Chambered,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreReloadProgressWidget::OnChamberEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+}
+
+void USuspenseCoreReloadProgressWidget::TeardownEventSubscriptions()
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	EventBus->Unsubscribe(ReloadStartHandle);
+	EventBus->Unsubscribe(ReloadEndHandle);
+	EventBus->Unsubscribe(ReloadTacticalHandle);
+	EventBus->Unsubscribe(ReloadEmptyHandle);
+	EventBus->Unsubscribe(ReloadEmergencyHandle);
+	EventBus->Unsubscribe(MagazineEjectedHandle);
+	EventBus->Unsubscribe(MagazineInsertedHandle);
+	EventBus->Unsubscribe(ChamberHandle);
+}
+
+USuspenseCoreEventBus* USuspenseCoreReloadProgressWidget::GetEventBus() const
+{
+	if (CachedEventBus.IsValid())
+	{
+		return CachedEventBus.Get();
+	}
+
+	USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+	if (EventManager)
+	{
+		const_cast<USuspenseCoreReloadProgressWidget*>(this)->CachedEventBus = EventManager->GetEventBus();
+		return CachedEventBus.Get();
+	}
+
+	return nullptr;
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadStartEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	float TotalDuration = EventData.GetFloat(TEXT("Duration"), 2.0f);
+	FString ReloadTypeStr = EventData.GetString(TEXT("ReloadType"));
+	bool bCanCancelReload = EventData.GetBool(TEXT("CanCancel"), true);
+
+	FSuspenseCoreReloadProgressData ReloadData;
+	ReloadData.TotalDuration = TotalDuration;
+	ReloadData.bCanCancel = bCanCancelReload;
+
+	// Parse reload type
+	if (ReloadTypeStr == TEXT("Tactical"))
+	{
+		ReloadData.ReloadType = ESuspenseCoreReloadType::Tactical;
+	}
+	else if (ReloadTypeStr == TEXT("Empty"))
+	{
+		ReloadData.ReloadType = ESuspenseCoreReloadType::Empty;
+	}
+	else if (ReloadTypeStr == TEXT("Emergency"))
+	{
+		ReloadData.ReloadType = ESuspenseCoreReloadType::Emergency;
+		ReloadData.bIsQuickReload = true;
+	}
+	else if (ReloadTypeStr == TEXT("ChamberOnly"))
+	{
+		ReloadData.ReloadType = ESuspenseCoreReloadType::ChamberOnly;
+	}
+
+	ShowReloadProgress_Implementation(ReloadData);
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadEndEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	bool bCompleted = EventData.GetBool(TEXT("Completed"), true);
+	HideReloadProgress_Implementation(bCompleted);
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadTacticalEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Tactical;
+	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Tactical, FText::GetEmpty());
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadEmptyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Empty;
+	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Empty, FText::GetEmpty());
+}
+
+void USuspenseCoreReloadProgressWidget::OnReloadEmergencyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	CachedReloadData.ReloadType = ESuspenseCoreReloadType::Emergency;
+	SetReloadTypeDisplay_Implementation(ESuspenseCoreReloadType::Emergency, FText::GetEmpty());
+}
+
+void USuspenseCoreReloadProgressWidget::OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (bIsReloading)
+	{
+		OnMagazineEjected_Implementation();
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (bIsReloading)
+	{
+		OnMagazineInserted_Implementation();
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::OnChamberEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (bIsReloading)
+	{
+		OnChambering_Implementation();
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INTERNAL HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreReloadProgressWidget::UpdateProgressUI()
+{
+	if (ReloadProgressBar)
+	{
+		ReloadProgressBar->SetPercent(DisplayedProgress);
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::UpdatePhaseIndicators(int32 NewPhase)
+{
+	if (!bShowPhaseIndicators)
+	{
+		return;
+	}
+
+	// Phase 1: Eject
+	if (EjectPhaseIndicator)
+	{
+		// Opacity handled by Blueprint - we just set visibility
+		EjectPhaseIndicator->SetRenderOpacity(NewPhase >= 1 ? 1.0f : 0.3f);
+	}
+	if (EjectPhaseText)
+	{
+		EjectPhaseText->SetRenderOpacity(NewPhase >= 1 ? 1.0f : 0.3f);
+	}
+
+	// Phase 2: Insert
+	if (InsertPhaseIndicator)
+	{
+		InsertPhaseIndicator->SetRenderOpacity(NewPhase >= 2 ? 1.0f : 0.3f);
+	}
+	if (InsertPhaseText)
+	{
+		InsertPhaseText->SetRenderOpacity(NewPhase >= 2 ? 1.0f : 0.3f);
+	}
+
+	// Phase 3: Chamber
+	if (ChamberPhaseIndicator)
+	{
+		ChamberPhaseIndicator->SetRenderOpacity(NewPhase >= 3 ? 1.0f : 0.3f);
+	}
+	if (ChamberPhaseText)
+	{
+		ChamberPhaseText->SetRenderOpacity(NewPhase >= 3 ? 1.0f : 0.3f);
+	}
+}
+
+void USuspenseCoreReloadProgressWidget::UpdateTimeRemainingUI()
+{
+	if (!bShowTimeRemaining || !TimeRemainingText)
+	{
+		return;
+	}
+
+	FText TimeText = FText::Format(
+		NSLOCTEXT("Reload", "TimeRemaining", "{0}s"),
+		FText::AsNumber(FMath::CeilToInt(CachedRemainingTime * 10.0f) / 10.0f)
+	);
+
+	TimeRemainingText->SetText(TimeText);
+}
+
+FText USuspenseCoreReloadProgressWidget::GetReloadTypeDisplayText(ESuspenseCoreReloadType ReloadType) const
+{
+	switch (ReloadType)
+	{
+	case ESuspenseCoreReloadType::Tactical:
+		return TacticalReloadText;
+	case ESuspenseCoreReloadType::Empty:
+		return EmptyReloadText;
+	case ESuspenseCoreReloadType::Emergency:
+		return EmergencyReloadText;
+	case ESuspenseCoreReloadType::ChamberOnly:
+		return ChamberOnlyText;
+	default:
+		return FText::GetEmpty();
+	}
+}

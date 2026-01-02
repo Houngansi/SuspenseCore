@@ -155,17 +155,11 @@ bool USuspenseCoreQuickSlotComponent::AssignMagazineToSlot(int32 SlotIndex, cons
     return AssignItemToSlot(SlotIndex, Magazine.InstanceGuid, Magazine.MagazineID);
 }
 
-void USuspenseCoreQuickSlotComponent::ClearSlot(int32 SlotIndex)
+void USuspenseCoreQuickSlotComponent::ClearSlotInternal(int32 SlotIndex)
 {
     if (!IsValidSlotIndex(SlotIndex))
     {
         return;
-    }
-
-    // On client, send to server
-    if (!GetOwner()->HasAuthority())
-    {
-        Server_ClearSlot(SlotIndex);
     }
 
     FGuid OldInstanceID = QuickSlots[SlotIndex].AssignedItemInstanceID;
@@ -181,7 +175,7 @@ void USuspenseCoreQuickSlotComponent::ClearAllSlots()
 {
     for (int32 i = 0; i < SUSPENSECORE_QUICKSLOT_COUNT; ++i)
     {
-        ClearSlot(i);
+        ClearSlotInternal(i);
     }
 }
 
@@ -223,84 +217,6 @@ bool USuspenseCoreQuickSlotComponent::SwapSlots(int32 SlotIndexA, int32 SlotInde
 // Slot Usage
 //==================================================================
 
-bool USuspenseCoreQuickSlotComponent::UseQuickSlot(int32 SlotIndex)
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        QUICKSLOT_LOG(Warning, TEXT("UseQuickSlot: Invalid slot index %d"), SlotIndex);
-        return false;
-    }
-
-    if (!IsSlotReady(SlotIndex))
-    {
-        QUICKSLOT_LOG(Verbose, TEXT("UseQuickSlot: Slot %d not ready"), SlotIndex);
-        OnQuickSlotUsed.Broadcast(SlotIndex, false);
-        return false;
-    }
-
-    // On client, send to server
-    if (!GetOwner()->HasAuthority())
-    {
-        Server_UseQuickSlot(SlotIndex);
-    }
-
-    // Determine item type and execute appropriate action
-    bool bSuccess = false;
-
-    if (StoredMagazines[SlotIndex].IsValid())
-    {
-        // It's a magazine - do quick reload
-        bSuccess = ExecuteMagazineSwap(SlotIndex, false);
-    }
-    else
-    {
-        // Check item category
-        FName ItemID = QuickSlots[SlotIndex].AssignedItemID;
-        if (IsItemMagazine(ItemID))
-        {
-            bSuccess = ExecuteMagazineSwap(SlotIndex, false);
-        }
-        else
-        {
-            // TODO: Check for consumable or grenade
-            // For now, treat as consumable
-            bSuccess = ExecuteConsumableUse(SlotIndex);
-        }
-    }
-
-    OnQuickSlotUsed.Broadcast(SlotIndex, bSuccess);
-
-    if (bSuccess)
-    {
-        QUICKSLOT_LOG(Log, TEXT("Used QuickSlot %d successfully"), SlotIndex);
-    }
-
-    return bSuccess;
-}
-
-bool USuspenseCoreQuickSlotComponent::QuickSwapMagazine(int32 SlotIndex, bool bEmergencyDrop)
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        QUICKSLOT_LOG(Warning, TEXT("QuickSwapMagazine: Invalid slot index %d"), SlotIndex);
-        return false;
-    }
-
-    if (!IsSlotReady(SlotIndex))
-    {
-        QUICKSLOT_LOG(Verbose, TEXT("QuickSwapMagazine: Slot %d not ready"), SlotIndex);
-        return false;
-    }
-
-    // On client, send to server
-    if (!GetOwner()->HasAuthority())
-    {
-        Server_QuickSwapMagazine(SlotIndex, bEmergencyDrop);
-    }
-
-    return ExecuteMagazineSwap(SlotIndex, bEmergencyDrop);
-}
-
 void USuspenseCoreQuickSlotComponent::StartSlotCooldown(int32 SlotIndex, float CooldownDuration)
 {
     if (!IsValidSlotIndex(SlotIndex))
@@ -315,16 +231,6 @@ void USuspenseCoreQuickSlotComponent::StartSlotCooldown(int32 SlotIndex, float C
 //==================================================================
 // Queries
 //==================================================================
-
-FSuspenseCoreQuickSlot USuspenseCoreQuickSlotComponent::GetQuickSlot(int32 SlotIndex) const
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        return FSuspenseCoreQuickSlot();
-    }
-
-    return QuickSlots[SlotIndex];
-}
 
 TArray<FSuspenseCoreQuickSlot> USuspenseCoreQuickSlotComponent::GetAllQuickSlots() const
 {
@@ -348,41 +254,6 @@ TArray<FSuspenseCoreQuickSlot> USuspenseCoreQuickSlotComponent::GetMagazineSlots
     }
 
     return MagazineSlots;
-}
-
-bool USuspenseCoreQuickSlotComponent::GetFirstMagazineSlotIndex(int32& OutSlotIndex) const
-{
-    for (int32 i = 0; i < QuickSlots.Num(); ++i)
-    {
-        if (StoredMagazines.IsValidIndex(i) && StoredMagazines[i].IsValid() && StoredMagazines[i].HasAmmo())
-        {
-            OutSlotIndex = i;
-            return true;
-        }
-    }
-
-    OutSlotIndex = -1;
-    return false;
-}
-
-bool USuspenseCoreQuickSlotComponent::HasItemInSlot(int32 SlotIndex) const
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        return false;
-    }
-
-    return QuickSlots[SlotIndex].HasItem();
-}
-
-bool USuspenseCoreQuickSlotComponent::IsSlotReady(int32 SlotIndex) const
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        return false;
-    }
-
-    return QuickSlots[SlotIndex].IsReady();
 }
 
 float USuspenseCoreQuickSlotComponent::GetSlotCooldown(int32 SlotIndex) const
@@ -431,22 +302,6 @@ bool USuspenseCoreQuickSlotComponent::FindSlotWithItem(const FGuid& ItemInstance
 // Magazine Integration
 //==================================================================
 
-bool USuspenseCoreQuickSlotComponent::GetMagazineFromSlot(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
-{
-    if (!IsValidSlotIndex(SlotIndex))
-    {
-        return false;
-    }
-
-    if (StoredMagazines.IsValidIndex(SlotIndex) && StoredMagazines[SlotIndex].IsValid())
-    {
-        OutMagazine = StoredMagazines[SlotIndex];
-        return true;
-    }
-
-    return false;
-}
-
 void USuspenseCoreQuickSlotComponent::UpdateMagazineInSlot(int32 SlotIndex, const FSuspenseCoreMagazineInstance& UpdatedMagazine)
 {
     if (!IsValidSlotIndex(SlotIndex))
@@ -462,7 +317,150 @@ void USuspenseCoreQuickSlotComponent::UpdateMagazineInSlot(int32 SlotIndex, cons
     }
 }
 
-bool USuspenseCoreQuickSlotComponent::StoreEjectedMagazine(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex)
+//==================================================================
+// ISuspenseCoreQuickSlotProvider Interface Implementation
+//==================================================================
+
+FSuspenseCoreQuickSlot USuspenseCoreQuickSlotComponent::GetQuickSlot_Implementation(int32 SlotIndex) const
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return FSuspenseCoreQuickSlot();
+    }
+
+    return QuickSlots[SlotIndex];
+}
+
+bool USuspenseCoreQuickSlotComponent::IsSlotReady_Implementation(int32 SlotIndex) const
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return false;
+    }
+
+    return QuickSlots[SlotIndex].IsReady();
+}
+
+bool USuspenseCoreQuickSlotComponent::HasItemInSlot_Implementation(int32 SlotIndex) const
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return false;
+    }
+
+    return QuickSlots[SlotIndex].HasItem();
+}
+
+bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotIndex)
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        QUICKSLOT_LOG(Warning, TEXT("UseQuickSlot: Invalid slot index %d"), SlotIndex);
+        return false;
+    }
+
+    if (!IsSlotReady_Implementation(SlotIndex))
+    {
+        QUICKSLOT_LOG(Verbose, TEXT("UseQuickSlot: Slot %d not ready"), SlotIndex);
+        OnQuickSlotUsed.Broadcast(SlotIndex, false);
+        return false;
+    }
+
+    // On client, send to server
+    if (!GetOwner()->HasAuthority())
+    {
+        Server_UseQuickSlot(SlotIndex);
+    }
+
+    // Determine item type and execute appropriate action
+    bool bSuccess = false;
+
+    if (StoredMagazines[SlotIndex].IsValid())
+    {
+        // It's a magazine - do quick reload
+        bSuccess = ExecuteMagazineSwap(SlotIndex, false);
+    }
+    else
+    {
+        // Check item category
+        FName ItemID = QuickSlots[SlotIndex].AssignedItemID;
+        if (IsItemMagazine(ItemID))
+        {
+            bSuccess = ExecuteMagazineSwap(SlotIndex, false);
+        }
+        else
+        {
+            // TODO: Check for consumable or grenade
+            // For now, treat as consumable
+            bSuccess = ExecuteConsumableUse(SlotIndex);
+        }
+    }
+
+    OnQuickSlotUsed.Broadcast(SlotIndex, bSuccess);
+
+    if (bSuccess)
+    {
+        QUICKSLOT_LOG(Log, TEXT("Used QuickSlot %d successfully"), SlotIndex);
+    }
+
+    return bSuccess;
+}
+
+bool USuspenseCoreQuickSlotComponent::QuickSwapMagazine_Implementation(int32 SlotIndex, bool bEmergencyDrop)
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        QUICKSLOT_LOG(Warning, TEXT("QuickSwapMagazine: Invalid slot index %d"), SlotIndex);
+        return false;
+    }
+
+    if (!IsSlotReady_Implementation(SlotIndex))
+    {
+        QUICKSLOT_LOG(Verbose, TEXT("QuickSwapMagazine: Slot %d not ready"), SlotIndex);
+        return false;
+    }
+
+    // On client, send to server
+    if (!GetOwner()->HasAuthority())
+    {
+        Server_QuickSwapMagazine(SlotIndex, bEmergencyDrop);
+    }
+
+    return ExecuteMagazineSwap(SlotIndex, bEmergencyDrop);
+}
+
+bool USuspenseCoreQuickSlotComponent::GetMagazineFromSlot_Implementation(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
+{
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return false;
+    }
+
+    if (StoredMagazines.IsValidIndex(SlotIndex) && StoredMagazines[SlotIndex].IsValid())
+    {
+        OutMagazine = StoredMagazines[SlotIndex];
+        return true;
+    }
+
+    return false;
+}
+
+bool USuspenseCoreQuickSlotComponent::GetFirstMagazineSlotIndex_Implementation(int32& OutSlotIndex) const
+{
+    for (int32 i = 0; i < QuickSlots.Num(); ++i)
+    {
+        if (StoredMagazines.IsValidIndex(i) && StoredMagazines[i].IsValid() && StoredMagazines[i].HasAmmo())
+        {
+            OutSlotIndex = i;
+            return true;
+        }
+    }
+
+    OutSlotIndex = -1;
+    return false;
+}
+
+bool USuspenseCoreQuickSlotComponent::StoreEjectedMagazine_Implementation(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex)
 {
     if (!EjectedMagazine.IsValid())
     {
@@ -490,6 +488,17 @@ bool USuspenseCoreQuickSlotComponent::StoreEjectedMagazine(const FSuspenseCoreMa
     return false;
 }
 
+void USuspenseCoreQuickSlotComponent::ClearSlot_Implementation(int32 SlotIndex)
+{
+    // On client, send to server
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        Server_ClearSlot(SlotIndex);
+    }
+
+    ClearSlotInternal(SlotIndex);
+}
+
 //==================================================================
 // Server RPCs
 //==================================================================
@@ -506,7 +515,7 @@ bool USuspenseCoreQuickSlotComponent::Server_AssignItemToSlot_Validate(int32 Slo
 
 void USuspenseCoreQuickSlotComponent::Server_ClearSlot_Implementation(int32 SlotIndex)
 {
-    ClearSlot(SlotIndex);
+    ClearSlotInternal(SlotIndex);
 }
 
 bool USuspenseCoreQuickSlotComponent::Server_ClearSlot_Validate(int32 SlotIndex)
@@ -516,7 +525,7 @@ bool USuspenseCoreQuickSlotComponent::Server_ClearSlot_Validate(int32 SlotIndex)
 
 void USuspenseCoreQuickSlotComponent::Server_UseQuickSlot_Implementation(int32 SlotIndex)
 {
-    UseQuickSlot(SlotIndex);
+    UseQuickSlot_Implementation(SlotIndex);
 }
 
 bool USuspenseCoreQuickSlotComponent::Server_UseQuickSlot_Validate(int32 SlotIndex)
@@ -526,7 +535,7 @@ bool USuspenseCoreQuickSlotComponent::Server_UseQuickSlot_Validate(int32 SlotInd
 
 void USuspenseCoreQuickSlotComponent::Server_QuickSwapMagazine_Implementation(int32 SlotIndex, bool bEmergencyDrop)
 {
-    QuickSwapMagazine(SlotIndex, bEmergencyDrop);
+    QuickSwapMagazine_Implementation(SlotIndex, bEmergencyDrop);
 }
 
 bool USuspenseCoreQuickSlotComponent::Server_QuickSwapMagazine_Validate(int32 SlotIndex, bool bEmergencyDrop)
@@ -598,7 +607,7 @@ bool USuspenseCoreQuickSlotComponent::ExecuteMagazineSwap(int32 SlotIndex, bool 
     }
 
     FSuspenseCoreMagazineInstance NewMagazine;
-    if (!GetMagazineFromSlot(SlotIndex, NewMagazine))
+    if (!GetMagazineFromSlot_Implementation(SlotIndex, NewMagazine))
     {
         QUICKSLOT_LOG(Warning, TEXT("ExecuteMagazineSwap: No magazine in slot %d"), SlotIndex);
         return false;
@@ -610,7 +619,7 @@ bool USuspenseCoreQuickSlotComponent::ExecuteMagazineSwap(int32 SlotIndex, bool 
     if (bSuccess)
     {
         // Clear the slot (magazine is now in weapon)
-        ClearSlot(SlotIndex);
+        ClearSlotInternal(SlotIndex);
     }
 
     return bSuccess;
@@ -636,55 +645,6 @@ void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const F
 
     bool bHasItem = NewItemID.IsValid();
     OnQuickSlotAvailabilityChanged.Broadcast(SlotIndex, bHasItem);
-}
-
-//==================================================================
-// ISuspenseCoreQuickSlotProvider Interface Implementation
-//==================================================================
-
-FSuspenseCoreQuickSlot USuspenseCoreQuickSlotComponent::GetQuickSlot_Implementation(int32 SlotIndex) const
-{
-    return GetQuickSlot(SlotIndex);
-}
-
-bool USuspenseCoreQuickSlotComponent::IsSlotReady_Implementation(int32 SlotIndex) const
-{
-    return IsSlotReady(SlotIndex);
-}
-
-bool USuspenseCoreQuickSlotComponent::HasItemInSlot_Implementation(int32 SlotIndex) const
-{
-    return HasItemInSlot(SlotIndex);
-}
-
-bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotIndex)
-{
-    return UseQuickSlot(SlotIndex);
-}
-
-bool USuspenseCoreQuickSlotComponent::QuickSwapMagazine_Implementation(int32 SlotIndex, bool bEmergencyDrop)
-{
-    return QuickSwapMagazine(SlotIndex, bEmergencyDrop);
-}
-
-bool USuspenseCoreQuickSlotComponent::GetMagazineFromSlot_Implementation(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
-{
-    return GetMagazineFromSlot(SlotIndex, OutMagazine);
-}
-
-bool USuspenseCoreQuickSlotComponent::GetFirstMagazineSlotIndex_Implementation(int32& OutSlotIndex) const
-{
-    return GetFirstMagazineSlotIndex(OutSlotIndex);
-}
-
-bool USuspenseCoreQuickSlotComponent::StoreEjectedMagazine_Implementation(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex)
-{
-    return StoreEjectedMagazine(EjectedMagazine, OutSlotIndex);
-}
-
-void USuspenseCoreQuickSlotComponent::ClearSlot_Implementation(int32 SlotIndex)
-{
-    ClearSlot(SlotIndex);
 }
 
 #undef QUICKSLOT_LOG

@@ -97,12 +97,12 @@ bool USuspenseCoreMagazineComponent::InitializeFromWeapon(
             FSuspenseCoreMagazineInstance InitialMag;
             if (DataManager->CreateMagazineInstance(InitialMagazineID, InitialRounds, InitialAmmoID, InitialMag))
             {
-                InsertMagazine(InitialMag);
+                InsertMagazineInternal(InitialMag);
 
                 // Auto-chamber if we have ammo
                 if (!WeaponAmmoState.IsMagazineEmpty())
                 {
-                    ChamberRound();
+                    ChamberRoundInternal();
                 }
             }
         }
@@ -118,10 +118,10 @@ bool USuspenseCoreMagazineComponent::InitializeFromWeapon(
 }
 
 //================================================
-// Magazine Operations
+// Magazine Operations (Internal)
 //================================================
 
-bool USuspenseCoreMagazineComponent::InsertMagazine(const FSuspenseCoreMagazineInstance& Magazine)
+bool USuspenseCoreMagazineComponent::InsertMagazineInternal(const FSuspenseCoreMagazineInstance& Magazine)
 {
     if (!Magazine.IsValid())
     {
@@ -136,7 +136,7 @@ bool USuspenseCoreMagazineComponent::InsertMagazine(const FSuspenseCoreMagazineI
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerInsertMagazine(Magazine);
         return true;
@@ -169,7 +169,7 @@ bool USuspenseCoreMagazineComponent::InsertMagazine(const FSuspenseCoreMagazineI
     return false;
 }
 
-FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazine(bool bDropToGround)
+FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInternal(bool bDropToGround)
 {
     if (!WeaponAmmoState.bHasMagazine)
     {
@@ -177,7 +177,7 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazine(bool
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerEjectMagazine(bDropToGround);
         return WeaponAmmoState.InsertedMagazine; // Return copy, server will update
@@ -221,7 +221,7 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
 // Chamber Operations
 //================================================
 
-bool USuspenseCoreMagazineComponent::ChamberRound()
+bool USuspenseCoreMagazineComponent::ChamberRoundInternal()
 {
     if (WeaponAmmoState.ChamberedRound.IsChambered())
     {
@@ -248,7 +248,7 @@ bool USuspenseCoreMagazineComponent::ChamberRound()
     return false;
 }
 
-FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRound()
+FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRoundInternal()
 {
     FSuspenseCoreChamberedRound Ejected = WeaponAmmoState.EjectChamberedRound();
 
@@ -272,7 +272,7 @@ FName USuspenseCoreMagazineComponent::Fire(bool bAutoChamber)
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerFire(bAutoChamber);
         return WeaponAmmoState.ChamberedRound.AmmoID; // Return current, server will update
@@ -316,7 +316,7 @@ bool USuspenseCoreMagazineComponent::StartReload(const FSuspenseCoreReloadReques
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerStartReload(Request);
         return true;
@@ -339,7 +339,7 @@ bool USuspenseCoreMagazineComponent::StartReload(const FSuspenseCoreReloadReques
     return true;
 }
 
-ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadType(const FSuspenseCoreMagazineInstance& AvailableMagazine) const
+ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadTypeForMagazine(const FSuspenseCoreMagazineInstance& AvailableMagazine) const
 {
     // No magazine available for reload
     if (!AvailableMagazine.IsValid() || AvailableMagazine.IsEmpty())
@@ -362,7 +362,7 @@ ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadType(cons
     return ESuspenseCoreReloadType::Empty;
 }
 
-float USuspenseCoreMagazineComponent::CalculateReloadDuration(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineData& MagazineData) const
+float USuspenseCoreMagazineComponent::CalculateReloadDurationWithData(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineData& MagazineData) const
 {
     // Get base times from weapon attributes (or use defaults)
     float TacticalTime = 2.1f;
@@ -416,7 +416,7 @@ void USuspenseCoreMagazineComponent::CompleteReload()
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerCompleteReload();
         return;
@@ -443,7 +443,7 @@ void USuspenseCoreMagazineComponent::CancelReload()
     }
 
     // Server authority check
-    if (!GetOwner()->HasAuthority())
+    if (GetOwner() && !GetOwner()->HasAuthority())
     {
         ServerCancelReload();
         return;
@@ -563,6 +563,90 @@ void USuspenseCoreMagazineComponent::RestoreState(const FSuspenseCoreWeaponAmmoS
 }
 
 //================================================
+// ISuspenseCoreMagazineProvider Interface Implementation
+//================================================
+
+FSuspenseCoreWeaponAmmoState USuspenseCoreMagazineComponent::GetAmmoState_Implementation() const
+{
+    return GetWeaponAmmoState();
+}
+
+bool USuspenseCoreMagazineComponent::HasMagazine_Implementation() const
+{
+    return WeaponAmmoState.bHasMagazine;
+}
+
+bool USuspenseCoreMagazineComponent::IsReadyToFire_Implementation() const
+{
+    return WeaponAmmoState.IsReadyToFire();
+}
+
+bool USuspenseCoreMagazineComponent::IsReloading_Implementation() const
+{
+    return bIsReloading;
+}
+
+bool USuspenseCoreMagazineComponent::InsertMagazine_Implementation(const FSuspenseCoreMagazineInstance& Magazine)
+{
+    return InsertMagazineInternal(Magazine);
+}
+
+FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazine_Implementation(bool bDropToGround)
+{
+    return EjectMagazineInternal(bDropToGround);
+}
+
+bool USuspenseCoreMagazineComponent::ChamberRound_Implementation()
+{
+    return ChamberRoundInternal();
+}
+
+FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRound_Implementation()
+{
+    return EjectChamberedRoundInternal();
+}
+
+ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadType_Implementation() const
+{
+    // Determine reload type without a specific available magazine
+    return DetermineReloadTypeForMagazine(FSuspenseCoreMagazineInstance());
+}
+
+float USuspenseCoreMagazineComponent::CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const
+{
+    // Get magazine data for the new magazine
+    FSuspenseCoreMagazineData MagData;
+    USuspenseCoreDataManager* DataManager = GetDataManager();
+    if (DataManager && NewMagazine.IsValid())
+    {
+        DataManager->GetMagazineData(NewMagazine.MagazineID, MagData);
+    }
+
+    return CalculateReloadDurationWithData(ReloadType, MagData);
+}
+
+void USuspenseCoreMagazineComponent::NotifyReloadStateChanged_Implementation(bool bInIsReloading, ESuspenseCoreReloadType ReloadType, float Duration)
+{
+    // This is called by abilities to sync reload state
+    if (bInIsReloading)
+    {
+        bIsReloading = true;
+        CurrentReloadType = ReloadType;
+        ReloadDuration = Duration;
+        ReloadStartTime = GetWorld()->GetTimeSeconds();
+        SetComponentTickEnabled(true);
+    }
+    else
+    {
+        bIsReloading = false;
+        CurrentReloadType = ESuspenseCoreReloadType::None;
+        SetComponentTickEnabled(false);
+    }
+
+    OnReloadStateChanged.Broadcast(bInIsReloading, ReloadType);
+}
+
+//================================================
 // Internal Operations
 //================================================
 
@@ -609,27 +693,27 @@ void USuspenseCoreMagazineComponent::ProcessReloadCompletion()
             // Eject current magazine if present
             if (WeaponAmmoState.bHasMagazine)
             {
-                FSuspenseCoreMagazineInstance OldMag = EjectMagazine(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
+                FSuspenseCoreMagazineInstance OldMag = EjectMagazineInternal(CurrentReloadType == ESuspenseCoreReloadType::Emergency);
                 // TODO: Return old magazine to inventory/QuickSlot
             }
 
             // Insert new magazine
             if (PendingMagazine.IsValid())
             {
-                InsertMagazine(PendingMagazine);
+                InsertMagazineInternal(PendingMagazine);
             }
 
             // Chamber round if needed
             if (CurrentReloadType == ESuspenseCoreReloadType::Empty && !WeaponAmmoState.ChamberedRound.IsChambered())
             {
-                ChamberRound();
+                ChamberRoundInternal();
             }
             break;
         }
 
         case ESuspenseCoreReloadType::ChamberOnly:
         {
-            ChamberRound();
+            ChamberRoundInternal();
             break;
         }
 
@@ -646,7 +730,7 @@ void USuspenseCoreMagazineComponent::ProcessReloadCompletion()
 
 void USuspenseCoreMagazineComponent::ServerInsertMagazine_Implementation(const FSuspenseCoreMagazineInstance& Magazine)
 {
-    InsertMagazine(Magazine);
+    InsertMagazineInternal(Magazine);
 }
 
 bool USuspenseCoreMagazineComponent::ServerInsertMagazine_Validate(const FSuspenseCoreMagazineInstance& Magazine)
@@ -656,7 +740,7 @@ bool USuspenseCoreMagazineComponent::ServerInsertMagazine_Validate(const FSuspen
 
 void USuspenseCoreMagazineComponent::ServerEjectMagazine_Implementation(bool bDropToGround)
 {
-    EjectMagazine(bDropToGround);
+    EjectMagazineInternal(bDropToGround);
 }
 
 bool USuspenseCoreMagazineComponent::ServerEjectMagazine_Validate(bool bDropToGround)
@@ -733,88 +817,4 @@ void USuspenseCoreMagazineComponent::OnRep_ReloadState()
 
     // Enable/disable tick based on reload state
     SetComponentTickEnabled(bIsReloading);
-}
-
-//================================================
-// ISuspenseCoreMagazineProvider Interface Implementation
-//================================================
-
-FSuspenseCoreWeaponAmmoState USuspenseCoreMagazineComponent::GetAmmoState_Implementation() const
-{
-    return GetWeaponAmmoState();
-}
-
-bool USuspenseCoreMagazineComponent::HasMagazine_Implementation() const
-{
-    return HasMagazine();
-}
-
-bool USuspenseCoreMagazineComponent::IsReadyToFire_Implementation() const
-{
-    return IsReadyToFire();
-}
-
-bool USuspenseCoreMagazineComponent::IsReloading_Implementation() const
-{
-    return IsReloading();
-}
-
-bool USuspenseCoreMagazineComponent::InsertMagazine_Implementation(const FSuspenseCoreMagazineInstance& Magazine)
-{
-    return InsertMagazine(Magazine);
-}
-
-FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazine_Implementation(bool bDropToGround)
-{
-    return EjectMagazine(bDropToGround);
-}
-
-bool USuspenseCoreMagazineComponent::ChamberRound_Implementation()
-{
-    return ChamberRound();
-}
-
-FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRound_Implementation()
-{
-    return EjectChamberedRound();
-}
-
-ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadType_Implementation() const
-{
-    // Determine reload type without a specific available magazine
-    return DetermineReloadType(FSuspenseCoreMagazineInstance());
-}
-
-float USuspenseCoreMagazineComponent::CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const
-{
-    // Get magazine data for the new magazine
-    FSuspenseCoreMagazineData MagData;
-    USuspenseCoreDataManager* DataManager = GetDataManager();
-    if (DataManager && NewMagazine.IsValid())
-    {
-        DataManager->GetMagazineData(NewMagazine.MagazineID, MagData);
-    }
-
-    return CalculateReloadDuration(ReloadType, MagData);
-}
-
-void USuspenseCoreMagazineComponent::NotifyReloadStateChanged_Implementation(bool bInIsReloading, ESuspenseCoreReloadType ReloadType, float Duration)
-{
-    // This is called by abilities to sync reload state
-    if (bInIsReloading)
-    {
-        bIsReloading = true;
-        CurrentReloadType = ReloadType;
-        ReloadDuration = Duration;
-        ReloadStartTime = GetWorld()->GetTimeSeconds();
-        SetComponentTickEnabled(true);
-    }
-    else
-    {
-        bIsReloading = false;
-        CurrentReloadType = ESuspenseCoreReloadType::None;
-        SetComponentTickEnabled(false);
-    }
-
-    OnReloadStateChanged.Broadcast(bInIsReloading, ReloadType);
 }

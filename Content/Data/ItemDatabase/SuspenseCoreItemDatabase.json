@@ -514,7 +514,7 @@
     "ConsumeEffects": [],
     "ConsumableCooldownTag": "",
     "bIsWeapon": true,
-    "WeaponArchetype": "(TagName=\"Weapon.DMR.Semi\")",
+    "WeaponArchetype": "(TagName=\"Weapon.Rifle.DMR\")",
     "AmmoType": "(TagName=\"Item.Ammo.762x54R\")",
     "FireModes": [],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Single\")",

@@ -88,7 +88,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreQuickSlotHUDData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCoreQuickSlotHUDWidget : public UInterface
+class UISuspenseCoreQuickSlotHUDWidget : public UInterface
 {
 	GENERATED_BODY()
 };

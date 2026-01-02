@@ -177,7 +177,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreMagazineTooltipData
 };
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class USuspenseCoreMagazineTooltipWidget : public UInterface
+class UISuspenseCoreMagazineTooltipWidget : public UInterface
 {
 	GENERATED_BODY()
 };

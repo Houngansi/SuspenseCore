@@ -3,8 +3,8 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreReloadAbility.h"
-#include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
-#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Animation/AnimInstance.h"
@@ -97,11 +97,11 @@ bool USuspenseCoreReloadAbility::CanActivateAbility(
         return false;
     }
 
-    // Get magazine component
-    USuspenseCoreMagazineComponent* MagComp = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineComponent();
-    if (!MagComp)
+    // Get magazine provider interface
+    ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
+    if (!MagProvider)
     {
-        RELOAD_LOG(Verbose, TEXT("CanActivateAbility: No MagazineComponent found"));
+        RELOAD_LOG(Verbose, TEXT("CanActivateAbility: No MagazineProvider found"));
         return false;
     }
 
@@ -209,14 +209,14 @@ void USuspenseCoreReloadAbility::EndAbility(
 
 ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
 {
-    USuspenseCoreMagazineComponent* MagComp = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineComponent();
-    if (!MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
+    if (!MagProvider)
     {
         return ESuspenseCoreReloadType::None;
     }
 
-    // Get current weapon state
-    FSuspenseCoreWeaponAmmoState AmmoState = MagComp->GetAmmoState();
+    // Get current weapon state via interface
+    FSuspenseCoreWeaponAmmoState AmmoState = ISuspenseCoreMagazineProvider::Execute_GetAmmoState(Cast<UObject>(MagProvider));
 
     // Check if we need to chamber only
     if (!AmmoState.IsReadyToFire() && AmmoState.bHasMagazine && !AmmoState.IsMagazineEmpty())
@@ -276,9 +276,8 @@ float USuspenseCoreReloadAbility::CalculateReloadDuration(ESuspenseCoreReloadTyp
             return 0.0f;
     }
 
-    // TODO: Apply modifiers from weapon attributes, magazine, ergonomics
-    // float MagazineModifier = NewMagazine.IsValid() ? GetMagazineData().ReloadTimeModifier : 1.0f;
-    // BaseTime *= MagazineModifier;
+    // TODO: Apply modifiers via MagazineProvider interface
+    // ISuspenseCoreMagazineProvider::Execute_CalculateReloadDuration(...)
 
     return BaseTime;
 }
@@ -306,15 +305,17 @@ UAnimMontage* USuspenseCoreReloadAbility::GetMontageForReloadType(ESuspenseCoreR
 
 bool USuspenseCoreReloadAbility::FindBestMagazine(int32& OutQuickSlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
 {
-    // First, try QuickSlots
-    USuspenseCoreQuickSlotComponent* QuickSlotComp = const_cast<USuspenseCoreReloadAbility*>(this)->GetQuickSlotComponent();
-    if (QuickSlotComp)
+    // First, try QuickSlots via interface
+    ISuspenseCoreQuickSlotProvider* QuickSlotProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetQuickSlotProvider();
+    if (QuickSlotProvider)
     {
+        UObject* ProviderObj = Cast<UObject>(QuickSlotProvider);
+
         // Look for first available magazine with ammo
         for (int32 i = 0; i < 4; ++i)
         {
             FSuspenseCoreMagazineInstance Mag;
-            if (QuickSlotComp->GetMagazineFromSlot(i, Mag) && Mag.HasAmmo())
+            if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(ProviderObj, i, Mag) && Mag.HasAmmo())
             {
                 OutQuickSlotIndex = i;
                 OutMagazine = Mag;
@@ -339,24 +340,27 @@ void USuspenseCoreReloadAbility::OnMagOutNotify()
 {
     RELOAD_LOG(Verbose, TEXT("MagOut notify fired"));
 
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (!MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (!MagProvider)
     {
         return;
     }
 
+    UObject* ProviderObj = Cast<UObject>(MagProvider);
+
     // Eject current magazine
     bool bDropToGround = (CurrentReloadType == ESuspenseCoreReloadType::Emergency);
-    EjectedMagazine = MagComp->EjectMagazine(bDropToGround);
+    EjectedMagazine = ISuspenseCoreMagazineProvider::Execute_EjectMagazine(ProviderObj, bDropToGround);
 
     // If not emergency, store in quickslot
     if (!bDropToGround && EjectedMagazine.IsValid())
     {
-        USuspenseCoreQuickSlotComponent* QuickSlotComp = GetQuickSlotComponent();
-        if (QuickSlotComp)
+        ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
+        if (QuickSlotProvider)
         {
             int32 StoredSlotIndex;
-            QuickSlotComp->StoreEjectedMagazine(EjectedMagazine, StoredSlotIndex);
+            ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
+                Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
         }
     }
 }
@@ -365,24 +369,27 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
 {
     RELOAD_LOG(Verbose, TEXT("MagIn notify fired"));
 
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (!MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (!MagProvider)
     {
         return;
     }
 
+    UObject* ProviderObj = Cast<UObject>(MagProvider);
+
     // Insert new magazine
     if (NewMagazine.IsValid())
     {
-        MagComp->InsertMagazine(NewMagazine);
+        ISuspenseCoreMagazineProvider::Execute_InsertMagazine(ProviderObj, NewMagazine);
 
         // Clear from quickslot if it came from there
         if (NewMagazineQuickSlotIndex >= 0)
         {
-            USuspenseCoreQuickSlotComponent* QuickSlotComp = GetQuickSlotComponent();
-            if (QuickSlotComp)
+            ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
+            if (QuickSlotProvider)
             {
-                QuickSlotComp->ClearSlot(NewMagazineQuickSlotIndex);
+                ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(
+                    Cast<UObject>(QuickSlotProvider), NewMagazineQuickSlotIndex);
             }
         }
     }
@@ -398,14 +405,14 @@ void USuspenseCoreReloadAbility::OnRackEndNotify()
 {
     RELOAD_LOG(Verbose, TEXT("RackEnd notify fired"));
 
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (!MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (!MagProvider)
     {
         return;
     }
 
     // Chamber a round
-    MagComp->ChamberRound();
+    ISuspenseCoreMagazineProvider::Execute_ChamberRound(Cast<UObject>(MagProvider));
 }
 
 void USuspenseCoreReloadAbility::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -433,32 +440,48 @@ void USuspenseCoreReloadAbility::OnMontageBlendOut(UAnimMontage* Montage, bool b
 // Internal Methods
 //==================================================================
 
-USuspenseCoreMagazineComponent* USuspenseCoreReloadAbility::GetMagazineComponent() const
+ISuspenseCoreMagazineProvider* USuspenseCoreReloadAbility::GetMagazineProvider() const
 {
     AActor* AvatarActor = GetAvatarActorFromActorInfo();
-    if (!AvatarActor)
+    if (AvatarActor)
     {
-        return nullptr;
+        // Check if avatar implements interface
+        if (AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
+        {
+            return Cast<ISuspenseCoreMagazineProvider>(AvatarActor);
+        }
+
+        // Check components
+        TArray<UActorComponent*> Components;
+        AvatarActor->GetComponents(Components);
+        for (UActorComponent* Comp : Components)
+        {
+            if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
+            {
+                return Cast<ISuspenseCoreMagazineProvider>(Comp);
+            }
+        }
     }
 
-    // First check if avatar has it directly (weapon actor)
-    USuspenseCoreMagazineComponent* MagComp = AvatarActor->FindComponentByClass<USuspenseCoreMagazineComponent>();
-    if (MagComp)
-    {
-        return MagComp;
-    }
-
-    // Check owner (character) for equipped weapon's component
+    // Check owner actor
     AActor* OwnerActor = GetOwningActorFromActorInfo();
-    if (OwnerActor)
+    if (OwnerActor && OwnerActor != AvatarActor)
     {
-        MagComp = OwnerActor->FindComponentByClass<USuspenseCoreMagazineComponent>();
+        TArray<UActorComponent*> Components;
+        OwnerActor->GetComponents(Components);
+        for (UActorComponent* Comp : Components)
+        {
+            if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreMagazineProvider::StaticClass()))
+            {
+                return Cast<ISuspenseCoreMagazineProvider>(Comp);
+            }
+        }
     }
 
-    return MagComp;
+    return nullptr;
 }
 
-USuspenseCoreQuickSlotComponent* USuspenseCoreReloadAbility::GetQuickSlotComponent() const
+ISuspenseCoreQuickSlotProvider* USuspenseCoreReloadAbility::GetQuickSlotProvider() const
 {
     AActor* OwnerActor = GetOwningActorFromActorInfo();
     if (!OwnerActor)
@@ -466,7 +489,24 @@ USuspenseCoreQuickSlotComponent* USuspenseCoreReloadAbility::GetQuickSlotCompone
         return nullptr;
     }
 
-    return OwnerActor->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+    // Check if owner implements interface
+    if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+    {
+        return Cast<ISuspenseCoreQuickSlotProvider>(OwnerActor);
+    }
+
+    // Check components
+    TArray<UActorComponent*> Components;
+    OwnerActor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+        {
+            return Cast<ISuspenseCoreQuickSlotProvider>(Comp);
+        }
+    }
+
+    return nullptr;
 }
 
 void USuspenseCoreReloadAbility::ApplyReloadEffects(const FGameplayAbilityActorInfo* ActorInfo)
@@ -564,10 +604,11 @@ void USuspenseCoreReloadAbility::StopReloadMontage()
 
 void USuspenseCoreReloadAbility::BroadcastReloadStarted()
 {
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (MagProvider)
     {
-        MagComp->OnReloadStateChanged.Broadcast(true, CurrentReloadType, ReloadDuration);
+        ISuspenseCoreMagazineProvider::Execute_NotifyReloadStateChanged(
+            Cast<UObject>(MagProvider), true, CurrentReloadType, ReloadDuration);
     }
 
     // EventBus broadcast
@@ -576,19 +617,21 @@ void USuspenseCoreReloadAbility::BroadcastReloadStarted()
 
 void USuspenseCoreReloadAbility::BroadcastReloadCompleted()
 {
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (MagProvider)
     {
-        MagComp->OnReloadStateChanged.Broadcast(false, CurrentReloadType, 0.0f);
+        ISuspenseCoreMagazineProvider::Execute_NotifyReloadStateChanged(
+            Cast<UObject>(MagProvider), false, CurrentReloadType, 0.0f);
     }
 }
 
 void USuspenseCoreReloadAbility::BroadcastReloadCancelled()
 {
-    USuspenseCoreMagazineComponent* MagComp = GetMagazineComponent();
-    if (MagComp)
+    ISuspenseCoreMagazineProvider* MagProvider = GetMagazineProvider();
+    if (MagProvider)
     {
-        MagComp->OnReloadStateChanged.Broadcast(false, ESuspenseCoreReloadType::None, 0.0f);
+        ISuspenseCoreMagazineProvider::Execute_NotifyReloadStateChanged(
+            Cast<UObject>(MagProvider), false, ESuspenseCoreReloadType::None, 0.0f);
     }
 }
 

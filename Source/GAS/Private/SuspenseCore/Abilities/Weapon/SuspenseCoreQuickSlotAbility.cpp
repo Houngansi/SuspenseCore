@@ -3,7 +3,7 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreQuickSlotAbility.h"
-#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreQuickSlotAbility, Log, All);
 
@@ -43,15 +43,17 @@ bool USuspenseCoreQuickSlotAbility::CanActivateAbility(
         return false;
     }
 
-    USuspenseCoreQuickSlotComponent* QuickSlotComp =
-        const_cast<USuspenseCoreQuickSlotAbility*>(this)->GetQuickSlotComponent();
+    ISuspenseCoreQuickSlotProvider* Provider =
+        const_cast<USuspenseCoreQuickSlotAbility*>(this)->GetQuickSlotProvider();
 
-    if (!QuickSlotComp)
+    if (!Provider)
     {
         return false;
     }
 
-    return QuickSlotComp->IsSlotReady(SlotIndex);
+    // Use interface Execute_ pattern for BlueprintNativeEvent
+    return ISuspenseCoreQuickSlotProvider::Execute_IsSlotReady(
+        Cast<UObject>(Provider), SlotIndex);
 }
 
 void USuspenseCoreQuickSlotAbility::ActivateAbility(
@@ -66,10 +68,12 @@ void USuspenseCoreQuickSlotAbility::ActivateAbility(
         return;
     }
 
-    USuspenseCoreQuickSlotComponent* QuickSlotComp = GetQuickSlotComponent();
-    if (QuickSlotComp)
+    ISuspenseCoreQuickSlotProvider* Provider = GetQuickSlotProvider();
+    if (Provider)
     {
-        bool bSuccess = QuickSlotComp->UseQuickSlot(SlotIndex);
+        UObject* ProviderObject = Cast<UObject>(Provider);
+        bool bSuccess = ISuspenseCoreQuickSlotProvider::Execute_UseQuickSlot(
+            ProviderObject, SlotIndex);
 
         UE_LOG(LogSuspenseCoreQuickSlotAbility, Log,
             TEXT("QuickSlot %d activated: %s"),
@@ -82,16 +86,34 @@ void USuspenseCoreQuickSlotAbility::ActivateAbility(
 }
 
 //==================================================================
-// Internal Methods
+// Internal Methods (Interface-based)
 //==================================================================
 
-USuspenseCoreQuickSlotComponent* USuspenseCoreQuickSlotAbility::GetQuickSlotComponent() const
+ISuspenseCoreQuickSlotProvider* USuspenseCoreQuickSlotAbility::GetQuickSlotProvider() const
 {
-    AActor* OwnerActor = GetOwningActorFromActorInfo();
-    if (!OwnerActor)
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    if (!AvatarActor)
     {
         return nullptr;
     }
 
-    return OwnerActor->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+    // Check actor itself
+    if (AvatarActor->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+    {
+        return Cast<ISuspenseCoreQuickSlotProvider>(AvatarActor);
+    }
+
+    // Check components for interface implementation
+    TArray<UActorComponent*> Components;
+    AvatarActor->GetComponents(Components);
+
+    for (UActorComponent* Comp : Components)
+    {
+        if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
+        {
+            return Cast<ISuspenseCoreQuickSlotProvider>(Comp);
+        }
+    }
+
+    return nullptr;
 }

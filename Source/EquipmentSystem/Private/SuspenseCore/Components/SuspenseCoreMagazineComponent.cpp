@@ -734,3 +734,87 @@ void USuspenseCoreMagazineComponent::OnRep_ReloadState()
     // Enable/disable tick based on reload state
     SetComponentTickEnabled(bIsReloading);
 }
+
+//================================================
+// ISuspenseCoreMagazineProvider Interface Implementation
+//================================================
+
+FSuspenseCoreWeaponAmmoState USuspenseCoreMagazineComponent::GetAmmoState_Implementation() const
+{
+    return GetWeaponAmmoState();
+}
+
+bool USuspenseCoreMagazineComponent::HasMagazine_Implementation() const
+{
+    return HasMagazine();
+}
+
+bool USuspenseCoreMagazineComponent::IsReadyToFire_Implementation() const
+{
+    return IsReadyToFire();
+}
+
+bool USuspenseCoreMagazineComponent::IsReloading_Implementation() const
+{
+    return IsReloading();
+}
+
+bool USuspenseCoreMagazineComponent::InsertMagazine_Implementation(const FSuspenseCoreMagazineInstance& Magazine)
+{
+    return InsertMagazine(Magazine);
+}
+
+FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazine_Implementation(bool bDropToGround)
+{
+    return EjectMagazine(bDropToGround);
+}
+
+bool USuspenseCoreMagazineComponent::ChamberRound_Implementation()
+{
+    return ChamberRound();
+}
+
+FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRound_Implementation()
+{
+    return EjectChamberedRound();
+}
+
+ESuspenseCoreReloadType USuspenseCoreMagazineComponent::DetermineReloadType_Implementation() const
+{
+    // Determine reload type without a specific available magazine
+    return DetermineReloadType(FSuspenseCoreMagazineInstance());
+}
+
+float USuspenseCoreMagazineComponent::CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const
+{
+    // Get magazine data for the new magazine
+    FSuspenseCoreMagazineData MagData;
+    USuspenseCoreDataManager* DataManager = GetDataManager();
+    if (DataManager && NewMagazine.IsValid())
+    {
+        DataManager->GetMagazineData(NewMagazine.MagazineID, MagData);
+    }
+
+    return CalculateReloadDuration(ReloadType, MagData);
+}
+
+void USuspenseCoreMagazineComponent::NotifyReloadStateChanged_Implementation(bool bInIsReloading, ESuspenseCoreReloadType ReloadType, float Duration)
+{
+    // This is called by abilities to sync reload state
+    if (bInIsReloading)
+    {
+        bIsReloading = true;
+        CurrentReloadType = ReloadType;
+        ReloadDuration = Duration;
+        ReloadStartTime = GetWorld()->GetTimeSeconds();
+        SetComponentTickEnabled(true);
+    }
+    else
+    {
+        bIsReloading = false;
+        CurrentReloadType = ESuspenseCoreReloadType::None;
+        SetComponentTickEnabled(false);
+    }
+
+    OnReloadStateChanged.Broadcast(bInIsReloading, ReloadType);
+}

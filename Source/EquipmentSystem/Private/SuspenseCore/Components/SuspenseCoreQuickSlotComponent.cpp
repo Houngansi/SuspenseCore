@@ -638,4 +638,53 @@ void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const F
     OnQuickSlotAvailabilityChanged.Broadcast(SlotIndex, bHasItem);
 }
 
+//==================================================================
+// ISuspenseCoreQuickSlotProvider Interface Implementation
+//==================================================================
+
+FSuspenseCoreQuickSlot USuspenseCoreQuickSlotComponent::GetQuickSlot_Implementation(int32 SlotIndex) const
+{
+    return GetQuickSlot(SlotIndex);
+}
+
+bool USuspenseCoreQuickSlotComponent::IsSlotReady_Implementation(int32 SlotIndex) const
+{
+    return IsSlotReady(SlotIndex);
+}
+
+bool USuspenseCoreQuickSlotComponent::HasItemInSlot_Implementation(int32 SlotIndex) const
+{
+    return HasItemInSlot(SlotIndex);
+}
+
+bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotIndex)
+{
+    return UseQuickSlot(SlotIndex);
+}
+
+bool USuspenseCoreQuickSlotComponent::QuickSwapMagazine_Implementation(int32 SlotIndex, bool bEmergencyDrop)
+{
+    return QuickSwapMagazine(SlotIndex, bEmergencyDrop);
+}
+
+bool USuspenseCoreQuickSlotComponent::GetMagazineFromSlot_Implementation(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
+{
+    return GetMagazineFromSlot(SlotIndex, OutMagazine);
+}
+
+bool USuspenseCoreQuickSlotComponent::GetFirstMagazineSlotIndex_Implementation(int32& OutSlotIndex) const
+{
+    return GetFirstMagazineSlotIndex(OutSlotIndex);
+}
+
+bool USuspenseCoreQuickSlotComponent::StoreEjectedMagazine_Implementation(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex)
+{
+    return StoreEjectedMagazine(EjectedMagazine, OutSlotIndex);
+}
+
+void USuspenseCoreQuickSlotComponent::ClearSlot_Implementation(int32 SlotIndex)
+{
+    ClearSlot(SlotIndex);
+}
+
 #undef QUICKSLOT_LOG

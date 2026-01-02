@@ -8,7 +8,6 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
@@ -25,7 +24,7 @@ DECLARE_CYCLE_STAT(TEXT("Equipment Initialize"), STAT_Equipment_Initialize, STAT
 DECLARE_CYCLE_STAT(TEXT("Equipment Cleanup"), STAT_Equipment_Cleanup, STATGROUP_SuspenseCoreEquipment);
 DECLARE_CYCLE_STAT(TEXT("Equipment Update Item"), STAT_Equipment_UpdateItem, STATGROUP_SuspenseCoreEquipment);
 DECLARE_CYCLE_STAT(TEXT("Equipment Set Item Instance"), STAT_Equipment_SetItemInstance, STATGROUP_SuspenseCoreEquipment);
-DECLARE_CYCLE_STAT(TEXT("Equipment Get Item Manager"), STAT_Equipment_GetItemManager, STATGROUP_SuspenseCoreEquipment);
+DECLARE_CYCLE_STAT(TEXT("Equipment Get Data Manager"), STAT_Equipment_GetDataManager, STATGROUP_SuspenseCoreEquipment);
 DECLARE_CYCLE_STAT(TEXT("Equipment Broadcast Event"), STAT_Equipment_BroadcastEvent, STATGROUP_SuspenseCoreEquipment);
 DECLARE_CYCLE_STAT(TEXT("Equipment Client Prediction"), STAT_Equipment_ClientPrediction, STATGROUP_SuspenseCoreEquipment);
 DECLARE_CYCLE_STAT(TEXT("Equipment Grant Ability"), STAT_Equipment_GrantAbility, STATGROUP_SuspenseCoreEquipment);
@@ -83,7 +82,6 @@ void USuspenseCoreEquipmentComponentBase::EndPlay(const EEndPlayReason::Type End
     {
         FScopeLock Lock(&CacheCriticalSection);
         CachedASC = nullptr;
-        CachedItemManager.Reset();
         CachedDelegateManager.Reset();
     }
 
@@ -267,11 +265,14 @@ void USuspenseCoreEquipmentComponentBase::SetEquippedItemInstance(const FSuspens
     }
     else if (OldItem.IsValid())
     {
-        // Get slot type from old item data
+        // Get slot type from old item data using DataManager (SSOT)
         FSuspenseCoreUnifiedItemData OldItemData;
-        if (GetItemManager() && GetItemManager()->GetUnifiedItemData(OldItem.ItemID, OldItemData))
+        if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
         {
-            BroadcastItemUnequipped(OldItem, OldItemData.EquipmentSlot);
+            if (DataManager->GetUnifiedItemData(OldItem.ItemID, OldItemData))
+            {
+                BroadcastItemUnequipped(OldItem, OldItemData.EquipmentSlot);
+            }
         }
     }
 
@@ -383,32 +384,6 @@ void USuspenseCoreEquipmentComponentBase::CleanupExpiredPredictions()
 // Thread-Safe Cache Access
 //================================================
 
-USuspenseCoreItemManager* USuspenseCoreEquipmentComponentBase::GetItemManager() const
-{
-    SCOPE_CYCLE_COUNTER(STAT_Equipment_GetItemManager);
-
-    FScopeLock Lock(&CacheCriticalSection);
-
-    // Validate cache periodically
-    const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    const bool bShouldValidate = (CurrentTime - LastCacheValidationTime) > 1.0f;
-
-    if (!CachedItemManager.IsValid() || bShouldValidate)
-    {
-        LastCacheValidationTime = CurrentTime;
-
-        if (UWorld* World = GetWorld())
-        {
-            if (UGameInstance* GameInstance = World->GetGameInstance())
-            {
-                CachedItemManager = GameInstance->GetSubsystem<USuspenseCoreItemManager>();
-            }
-        }
-    }
-
-    return CachedItemManager.Get();
-}
-
 USuspenseCoreEventManager* USuspenseCoreEquipmentComponentBase::GetDelegateManager() const
 {
     FScopeLock Lock(&CacheCriticalSection);
@@ -440,16 +415,7 @@ bool USuspenseCoreEquipmentComponentBase::GetEquippedItemData(FSuspenseCoreUnifi
         return false;
     }
 
-    // Try ItemManager first
-    if (USuspenseCoreItemManager* ItemManager = GetItemManager())
-    {
-        if (ItemManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData))
-        {
-            return true;
-        }
-    }
-
-    // Fallback to DataManager (SSOT)
+    // Use DataManager (SSOT) as the single source of truth
     if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
     {
         if (DataManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData))
@@ -458,7 +424,7 @@ bool USuspenseCoreEquipmentComponentBase::GetEquippedItemData(FSuspenseCoreUnifi
         }
     }
 
-    EQUIPMENT_LOG(Warning, TEXT("Failed to get item data from ItemManager or DataManager for: %s"),
+    EQUIPMENT_LOG(Warning, TEXT("Failed to get item data from DataManager for: %s"),
         *EquippedItemInstance.ItemID.ToString());
     return false;
 }
@@ -501,7 +467,6 @@ void USuspenseCoreEquipmentComponentBase::SetEquippedItemProperty(const FName& P
 void USuspenseCoreEquipmentComponentBase::InitializeCoreReferences()
 {
     // Pre-cache commonly used subsystems
-    GetItemManager();
     GetDelegateManager();
 }
 
@@ -509,9 +474,10 @@ bool USuspenseCoreEquipmentComponentBase::ValidateSystemReferences() const
 {
     bool bValid = true;
 
-    if (!GetItemManager())
+    // DataManager is the SSOT - verify it's available
+    if (!USuspenseCoreDataManager::Get(this))
     {
-        EQUIPMENT_LOG(Error, TEXT("ItemManager subsystem not available"));
+        EQUIPMENT_LOG(Error, TEXT("DataManager (SSOT) not available"));
         bValid = false;
     }
 

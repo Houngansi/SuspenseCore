@@ -18,7 +18,6 @@ class UAttributeSet;
 class USuspenseCoreEquipmentMeshComponent;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreEquipmentAttachmentComponent;
-class USuspenseCoreItemManager;
 
 /**
  * Thin equipment actor (S3): bridge between SSOT/data and services.
@@ -122,11 +121,8 @@ protected:
     /** Publish property-changed (State) via Equipment.Event.PropertyChanged */
     void NotifyEquipmentStateChanged(const FGameplayTag& NewState, bool bIsRefresh) const;
 
-    /** SSOT helper */
+    /** SSOT helper - uses DataManager as single source of truth */
     bool GetUnifiedItemData(FSuspenseCoreUnifiedItemData& OutData) const;
-
-    /** Subsystem accessor */
-    USuspenseCoreItemManager* GetItemManager() const;
 
     // ===== S3: GA/GE hooks now NO-OP (keep for compatibility) =====
     void GrantAbilitiesFromItemData();          // NO-OP

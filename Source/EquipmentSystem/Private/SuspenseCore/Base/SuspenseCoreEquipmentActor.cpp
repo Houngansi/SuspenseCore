@@ -7,7 +7,6 @@
 #include "SuspenseCore/Components/SuspenseCoreEquipmentMeshComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttributeComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentAttachmentComponent.h"
-#include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 
 #include "Abilities/GameplayAbilityTypes.h"
@@ -287,6 +286,7 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FS
 
 void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
 {
+    // Copy runtime properties back to the outgoing item instance
     if (EquippedItemInstance.IsValid())
     {
         for (const auto& KV : EquippedItemInstance.RuntimeProperties)
@@ -295,7 +295,21 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const 
         }
     }
 
+    // CRITICAL: Clean up components to remove AttributeSets from CHARACTER's ASC
+    // This must happen BEFORE we lose the CachedASC reference
+    if (AttributeComponent)
+    {
+        AttributeComponent->Cleanup();
+    }
+    if (AttachmentComponent)
+    {
+        AttachmentComponent->Cleanup();
+    }
+
+    // Reset item instance
     EquippedItemInstance = FSuspenseCoreInventoryItemInstance();
+
+    UE_LOG(LogTemp, Log, TEXT("[%s] OnItemInstanceUnequipped: Cleaned up components and reset item instance"), *GetName());
 }
 
 // ==============================
@@ -446,21 +460,10 @@ bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSus
 
     FSuspenseCoreUnifiedItemData Data;
 
-    // PRIMARY: Use DataManager (SSOT)
+    // Use DataManager (SSOT) as the single source of truth
     if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
     {
         if (DM->GetUnifiedItemData(ItemInstance.ItemID, Data))
-        {
-            if (!Data.bIsEquippable) { return false; }
-            if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
-            return true;
-        }
-    }
-
-    // LEGACY FALLBACK: Try ItemManager
-    if (const USuspenseCoreItemManager* IM = GetItemManager())
-    {
-        if (IM->GetUnifiedItemData(ItemInstance.ItemID, Data))
         {
             if (!Data.bIsEquippable) { return false; }
             if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
@@ -798,21 +801,10 @@ void ASuspenseCoreEquipmentActor::OnRep_ItemData()
 
     FSuspenseCoreUnifiedItemData Data;
 
-    // PRIMARY: Use DataManager (SSOT)
+    // Use DataManager (SSOT) as the single source of truth
     if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
     {
         if (DM->GetUnifiedItemData(ReplicatedItemID, Data))
-        {
-            SetupEquipmentMesh(Data);
-            NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
-            return;
-        }
-    }
-
-    // LEGACY FALLBACK: Try ItemManager
-    if (USuspenseCoreItemManager* IM = GetItemManager())
-    {
-        if (IM->GetUnifiedItemData(ReplicatedItemID, Data))
         {
             SetupEquipmentMesh(Data);
             NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
@@ -841,7 +833,7 @@ bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseCoreUnifiedItemDat
 {
     if (!EquippedItemInstance.IsValid()) { return false; }
 
-    // PRIMARY: Use DataManager (SSOT) as the single source of truth
+    // Use DataManager (SSOT) as the single source of truth
     if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
     {
         if (DM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
@@ -850,28 +842,5 @@ bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseCoreUnifiedItemDat
         }
     }
 
-    // LEGACY FALLBACK: Try ItemManager only if DataManager failed
-    if (USuspenseCoreItemManager* IM = GetItemManager())
-    {
-        if (IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
-        {
-            UE_LOG(LogTemp, Verbose, TEXT("[%s] GetUnifiedItemData: Using legacy ItemManager fallback for %s"),
-                *GetName(), *EquippedItemInstance.ItemID.ToString());
-            return true;
-        }
-    }
-
     return false;
-}
-
-USuspenseCoreItemManager* ASuspenseCoreEquipmentActor::GetItemManager() const
-{
-    if (const UWorld* W = GetWorld())
-    {
-        if (UGameInstance* GI = W->GetGameInstance())
-        {
-            return GI->GetSubsystem<USuspenseCoreItemManager>();
-        }
-    }
-    return nullptr;
 }

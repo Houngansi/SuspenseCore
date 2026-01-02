@@ -8,8 +8,249 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 
 **Author:** Claude Code
 **Date:** 2026-01-02
-**Status:** Design Phase
+**Status:** Phase 4 Complete (Core Implementation Done)
 **Related:** `SSOT_AttributeSet_DataTable_Integration.md`
+
+---
+
+## Implementation Status
+
+### Completed Phases
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | DONE | Core Data Structures (Magazine types, Ammo stacks) |
+| Phase 2 | DONE | MagazineComponent with full magazine operations |
+| Phase 3 | DONE | QuickSlotComponent for fast magazine access |
+| Phase 4 | DONE | GAS Reload Abilities (GA_Reload, GA_QuickSlot) |
+| Phase 5 | PARTIAL | Component integration into base classes |
+| Phase 6 | PENDING | UI Integration (HUD, Inventory) |
+
+### Key Files Created
+
+```
+Source/EquipmentSystem/
+├── Public/SuspenseCore/
+│   ├── Types/Weapon/
+│   │   ├── SuspenseCoreMagazineTypes.h         # Magazine data structures
+│   │   └── SuspenseCoreAmmoStackTypes.h        # Ammo stack structures
+│   ├── Components/
+│   │   ├── SuspenseCoreMagazineComponent.h     # Magazine management
+│   │   └── SuspenseCoreQuickSlotComponent.h    # Quick access slots
+│   └── Interfaces/
+│       ├── ISuspenseCoreMagazineProvider.h     # Magazine interface
+│       └── ISuspenseCoreQuickSlotProvider.h    # QuickSlot interface
+├── Private/SuspenseCore/
+│   └── Components/
+│       ├── SuspenseCoreMagazineComponent.cpp
+│       └── SuspenseCoreQuickSlotComponent.cpp
+
+Source/GAS/
+├── Public/SuspenseCore/Abilities/
+│   ├── GA_Reload.h                              # Reload ability
+│   └── GA_QuickSlot.h                           # QuickSlot ability
+└── Private/SuspenseCore/Abilities/
+    ├── GA_Reload.cpp
+    └── GA_QuickSlot.cpp
+```
+
+### Git Commits (Phase 4)
+
+```
+e6c65f2 fix(compile): Fix compilation errors in Magazine and QuickSlot components
+cdf1acb fix(arch): Resolve BlueprintNativeEvent interface conflicts in components
+e20b5ec fix(arch): Decouple GAS from EquipmentSystem via BridgeSystem interfaces
+4db8dd3 feat(GAS): Add Reload and QuickSlot abilities (Phase 4)
+ee21034 feat(QuickSlot): Add QuickSlotComponent for fast magazine access (Phase 3)
+51b9f53 feat(core): Integrate Tarkov-style ammo components into base classes
+```
+
+---
+
+## Architecture Compliance
+
+The implementation follows project architecture patterns:
+
+| Pattern | Implementation |
+|---------|----------------|
+| **EventBus** | Components publish events via `USuspenseCoreEventBus` |
+| **Native Tags** | `FGameplayTag` for calibers, slots, weapon types |
+| **GAS** | Abilities access components via `ISuspenseCoreMagazineProvider` interface |
+| **BridgeSystem** | Interfaces in BridgeSystem decouple GAS from EquipmentSystem |
+| **DI/ServiceLocator** | Components accessed via getters, created in constructors |
+| **SOLID/SRP** | Each component has single responsibility |
+| **Conditional Compilation** | `#if WITH_EQUIPMENT_SYSTEM` for module dependency |
+
+### Module Dependencies
+
+```
+BridgeSystem (interfaces only, no concrete types)
+    ↑
+    ├── GAS (uses interfaces to access components)
+    │
+    └── EquipmentSystem (implements interfaces)
+            ↓
+        PlayerCore (integrates components into Character)
+```
+
+---
+
+## Setup Instructions
+
+### 1. Enable Equipment System Module
+
+In your `.uproject` or `.uplugin` file, ensure EquipmentSystem is enabled:
+
+```json
+{
+    "Modules": [
+        {
+            "Name": "EquipmentSystem",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        }
+    ]
+}
+```
+
+### 2. Define WITH_EQUIPMENT_SYSTEM
+
+In your `Target.cs` or module Build.cs:
+
+```csharp
+PublicDefinitions.Add("WITH_EQUIPMENT_SYSTEM=1");
+```
+
+### 3. Component Integration (Already Done in Code)
+
+Components are automatically created in base classes:
+
+**ASuspenseCoreWeaponActor** (`SuspenseCoreWeaponActor.cpp:constructor`):
+```cpp
+// MagazineComponent is auto-created
+MagazineComponent = CreateDefaultSubobject<USuspenseCoreMagazineComponent>(TEXT("MagazineComponent"));
+```
+
+**ASuspenseCoreCharacter** (`SuspenseCoreCharacter.cpp:constructor`):
+```cpp
+#if WITH_EQUIPMENT_SYSTEM
+    QuickSlotComponent = CreateDefaultSubobject<USuspenseCoreQuickSlotComponent>(TEXT("QuickSlotComponent"));
+#endif
+```
+
+### 4. Blueprint Setup (Required)
+
+#### 4.1 Weapon Blueprint Configuration
+
+In your weapon Blueprint (e.g., `BP_Rifle_M4`):
+
+1. **Initialize Magazine Component:**
+   ```
+   Event BeginPlay
+   → Get MagazineComponent
+   → Call InitializeFromWeapon(Self)
+   → Call InsertMagazine (if starting with magazine)
+   ```
+
+2. **Configure Initial Magazine:**
+   - Set `InitialMagazineID` property on MagazineComponent
+   - Or insert magazine programmatically via `InsertMagazine()`
+
+#### 4.2 Character Blueprint Configuration
+
+In your character Blueprint (e.g., `BP_Character_Player`):
+
+1. **Link QuickSlot to Magazine Component:**
+   ```
+   Event OnWeaponEquipped (or similar)
+   → Get QuickSlotComponent
+   → Get Weapon's MagazineComponent
+   → Call SetMagazineComponent(MagazineComponent)
+   ```
+
+2. **Initialize QuickSlots:**
+   ```
+   Event BeginPlay
+   → Get QuickSlotComponent
+   → Call InitializeSlots()
+   ```
+
+### 5. Input Binding
+
+Add Enhanced Input actions for QuickSlots:
+
+```cpp
+// In your InputConfig DataAsset or InputMappingContext:
+// Key 1 → IA_QuickSlot_1
+// Key 2 → IA_QuickSlot_2
+// Key 3 → IA_QuickSlot_3
+// Key 4 → IA_QuickSlot_4
+
+// In PlayerController or InputComponent setup:
+EnhancedInputComponent->BindAction(IA_QuickSlot_1, ETriggerEvent::Started, this, &AMyController::OnQuickSlot1);
+```
+
+### 6. DataTable Configuration
+
+#### 6.1 Create Magazine DataTable
+
+Create `DT_Magazines` with row structure `FSuspenseCoreMagazineData`:
+
+| MagazineID | Caliber | MaxCapacity | ReloadModifier | Weight |
+|------------|---------|-------------|----------------|--------|
+| Mag_STANAG_30 | Item.Ammo.556x45 | 30 | 1.0 | 0.13 |
+| Mag_PMAG_40 | Item.Ammo.556x45 | 40 | 0.95 | 0.17 |
+| Mag_Glock_17 | Item.Ammo.9x19 | 17 | 0.9 | 0.07 |
+
+#### 6.2 Extend Ammo DataTable
+
+Ensure `DT_AmmoAttributes` includes caliber tags:
+
+| AmmoID | Caliber | Damage | Penetration | IsTracer |
+|--------|---------|--------|-------------|----------|
+| Ammo_556_M855 | Item.Ammo.556x45 | 40 | 25 | false |
+| Ammo_556_M855A1 | Item.Ammo.556x45 | 42 | 38 | false |
+| Ammo_9x19_FMJ | Item.Ammo.9x19 | 32 | 18 | false |
+
+### 7. GAS Ability Setup
+
+Grant reload abilities to your AbilitySystemComponent:
+
+```cpp
+// In character or weapon initialization:
+if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+{
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_Reload::StaticClass(), 1));
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_QuickSlot::StaticClass(), 1));
+}
+```
+
+### 8. GameplayTags Required
+
+Ensure these tags exist in your GameplayTags configuration:
+
+```ini
+; Equipment/QuickSlots
++GameplayTags=(Tag="Equipment.QuickSlot.1")
++GameplayTags=(Tag="Equipment.QuickSlot.2")
++GameplayTags=(Tag="Equipment.QuickSlot.3")
++GameplayTags=(Tag="Equipment.QuickSlot.4")
+
+; Item Categories
++GameplayTags=(Tag="Item.Category.Magazine")
++GameplayTags=(Tag="Item.Category.Ammo")
+
+; Ammo Calibers
++GameplayTags=(Tag="Item.Ammo.556x45")
++GameplayTags=(Tag="Item.Ammo.9x19")
++GameplayTags=(Tag="Item.Ammo.762x39")
+; ... add more as needed
+
+; Weapon Types (for magazine compatibility)
++GameplayTags=(Tag="Weapon.Type.AssaultRifle")
++GameplayTags=(Tag="Weapon.Type.Pistol")
++GameplayTags=(Tag="Weapon.Type.SMG")
+```
 
 ---
 
@@ -168,59 +409,60 @@ struct FSuspenseCoreLoadedRound
 
 ## 3. Magazine System
 
-### 3.1 Magazine Component
+### 3.1 Magazine Component (IMPLEMENTED)
+
+Located at: `Source/EquipmentSystem/Public/SuspenseCore/Components/SuspenseCoreMagazineComponent.h`
 
 ```cpp
-UCLASS()
-class USuspenseCoreMagazineComponent : public UActorComponent
+UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreMagazineComponent : public UActorComponent,
+                                                           public ISuspenseCoreMagazineProvider
 {
-    // Current magazine state
+    GENERATED_BODY()
+
+public:
+    // Initialization
+    UFUNCTION(BlueprintCallable, Category="Magazine")
+    bool InitializeFromWeapon(TScriptInterface<ISuspenseCoreWeapon> WeaponInterface);
+
+    // Magazine operations
+    UFUNCTION(BlueprintCallable, Category="Magazine")
+    bool InsertMagazine(const FSuspenseCoreMagazineInstance& Magazine);
+
+    UFUNCTION(BlueprintCallable, Category="Magazine")
+    FSuspenseCoreMagazineInstance EjectMagazine();
+
+    UFUNCTION(BlueprintCallable, Category="Magazine")
+    bool ChamberNextRound();
+
+    // Queries
+    UFUNCTION(BlueprintPure, Category="Magazine")
+    int32 GetMagazineCount() const;
+
+    UFUNCTION(BlueprintPure, Category="Magazine")
+    bool HasMagazine() const;
+
+    UFUNCTION(BlueprintPure, Category="Magazine")
+    bool IsReadyToFire() const;
+
+    // ISuspenseCoreMagazineProvider interface
+    virtual bool CanReload_Implementation() const override;
+    virtual bool StartReload_Implementation() override;
+    virtual bool FinishReload_Implementation() override;
+    virtual void CancelReload_Implementation() override;
+
+protected:
     UPROPERTY(Replicated)
     FSuspenseCoreMagazineInstance CurrentMagazine;
 
-    // Chambered round (separate from magazine)
     UPROPERTY(Replicated)
     FSuspenseCoreLoadedRound ChamberedRound;
 
     UPROPERTY(Replicated)
-    bool bHasChamberedRound;
+    bool bHasChamberedRound = false;
 
-public:
-    // Magazine operations
-    UFUNCTION(BlueprintCallable)
-    bool InsertMagazine(const FSuspenseCoreMagazineInstance& Magazine);
-
-    UFUNCTION(BlueprintCallable)
-    FSuspenseCoreMagazineInstance EjectMagazine();
-
-    UFUNCTION(BlueprintCallable)
-    bool ChamberNextRound();                    // Feeds from magazine
-
-    UFUNCTION(BlueprintCallable)
-    FSuspenseCoreLoadedRound EjectChamberedRound();
-
-    // Ammo management in magazine
-    UFUNCTION(BlueprintCallable)
-    bool LoadRound(const FName& AmmoID, float Condition = 1.0f);
-
-    UFUNCTION(BlueprintCallable)
-    FSuspenseCoreLoadedRound UnloadTopRound();
-
-    // Queries
-    UFUNCTION(BlueprintPure)
-    int32 GetMagazineCount() const;
-
-    UFUNCTION(BlueprintPure)
-    int32 GetMagazineCapacity() const;
-
-    UFUNCTION(BlueprintPure)
-    bool HasMagazine() const;
-
-    UFUNCTION(BlueprintPure)
-    bool IsReadyToFire() const { return bHasChamberedRound; }
-
-    UFUNCTION(BlueprintPure)
-    FName GetChamberedAmmoType() const;
+    UPROPERTY(EditDefaultsOnly, Category="Magazine")
+    FName InitialMagazineID;
 };
 ```
 
@@ -264,7 +506,9 @@ When firing, the weapon uses the **top round** in the magazine (last loaded):
 
 ## 4. QuickSlots Integration
 
-### 4.1 QuickSlot System Overview
+### 4.1 QuickSlot System Overview (IMPLEMENTED)
+
+Located at: `Source/EquipmentSystem/Public/SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h`
 
 QuickSlots 1-4 provide fast access to magazines during combat:
 
@@ -284,53 +528,46 @@ QuickSlots 1-4 provide fast access to magazines during combat:
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.2 QuickSlot Data Structure
+### 4.2 QuickSlot Component (IMPLEMENTED)
 
 ```cpp
-USTRUCT(BlueprintType)
-struct FSuspenseCoreQuickSlot
+UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
+class EQUIPMENTSYSTEM_API USuspenseCoreQuickSlotComponent : public UActorComponent,
+                                                            public ISuspenseCoreQuickSlotProvider
 {
     GENERATED_BODY()
 
-    UPROPERTY() int32 SlotIndex;                // 0-3 for slots 1-4
-    UPROPERTY() FGameplayTag SlotType;          // Equipment.QuickSlot.1, etc.
-
-    // Item reference (can be magazine, consumable, grenade, etc.)
-    UPROPERTY() FSuspenseCoreInventoryItemInstance AssignedItem;
-
-    // Quick access state
-    UPROPERTY() bool bIsAvailable;              // Has item and can use
-    UPROPERTY() float CooldownRemaining;        // If on cooldown
-};
-
-UCLASS()
-class USuspenseCoreQuickSlotComponent : public UActorComponent
-{
-    UPROPERTY(Replicated)
-    TArray<FSuspenseCoreQuickSlot> QuickSlots;  // Fixed size: 4
-
 public:
-    // Assignment
-    UFUNCTION(BlueprintCallable)
-    bool AssignItemToSlot(int32 SlotIndex, const FSuspenseCoreInventoryItemInstance& Item);
+    // Initialization
+    UFUNCTION(BlueprintCallable, Category="QuickSlot")
+    void InitializeSlots();
 
-    UFUNCTION(BlueprintCallable)
-    void ClearSlot(int32 SlotIndex);
+    UFUNCTION(BlueprintCallable, Category="QuickSlot")
+    void SetMagazineComponent(USuspenseCoreMagazineComponent* InMagazineComponent);
 
-    // Usage
-    UFUNCTION(BlueprintCallable)
-    bool UseQuickSlot(int32 SlotIndex);         // Triggers use (reload, heal, throw)
+    // Slot operations
+    UFUNCTION(BlueprintCallable, Category="QuickSlot")
+    bool AssignMagazineToSlot(int32 SlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
 
-    // Magazine-specific
-    UFUNCTION(BlueprintCallable)
-    bool SwapToMagazineInSlot(int32 SlotIndex); // Fast magazine swap
+    UFUNCTION(BlueprintCallable, Category="QuickSlot")
+    FSuspenseCoreMagazineInstance GetMagazineFromSlot(int32 SlotIndex);
 
-    // Queries
-    UFUNCTION(BlueprintPure)
-    FSuspenseCoreQuickSlot GetQuickSlot(int32 SlotIndex) const;
+    UFUNCTION(BlueprintCallable, Category="QuickSlot")
+    bool SwapMagazineFromSlot(int32 SlotIndex);
 
-    UFUNCTION(BlueprintPure)
-    TArray<FSuspenseCoreQuickSlot> GetMagazineSlots() const; // All slots with mags
+    // ISuspenseCoreQuickSlotProvider interface
+    virtual bool UseQuickSlot_Implementation(int32 SlotIndex) override;
+    virtual bool IsSlotAvailable_Implementation(int32 SlotIndex) const override;
+
+protected:
+    UPROPERTY(Replicated)
+    TArray<FSuspenseCoreQuickSlot> QuickSlots;
+
+    UPROPERTY(Replicated)
+    TArray<FSuspenseCoreMagazineInstance> StoredMagazines;
+
+    UPROPERTY()
+    TWeakObjectPtr<USuspenseCoreMagazineComponent> MagazineComponent;
 };
 ```
 
@@ -392,29 +629,35 @@ UE_DEFINE_GAMEPLAY_TAG(TAG_Input_QuickSlot_4, "Input.Action.QuickSlot.4");
         └─────────────────┘
 ```
 
-### 5.3 Reload Ability (GAS)
+### 5.3 Reload Ability (GAS) - IMPLEMENTED
+
+Located at: `Source/GAS/Public/SuspenseCore/Abilities/GA_Reload.h`
 
 ```cpp
 UCLASS()
-class UGA_Reload : public USuspenseCoreGameplayAbility
+class GAS_API UGA_Reload : public USuspenseCoreGameplayAbility
 {
-    // Reload type determined on activation
+    GENERATED_BODY()
+
+public:
+    UGA_Reload();
+
+    virtual bool CanActivateAbility(...) const override;
+    virtual void ActivateAbility(...) override;
+    virtual void EndAbility(...) override;
+
+protected:
+    // Get magazine provider via BridgeSystem interface
+    TScriptInterface<ISuspenseCoreMagazineProvider> GetMagazineProvider() const;
+
     UPROPERTY()
     EReloadType CurrentReloadType;
 
-    // Timing (from weapon + magazine modifiers)
     UPROPERTY()
     float ReloadDuration;
 
-    // Callbacks
     UFUNCTION()
     void OnReloadMontageNotify(FName NotifyName);
-
-    // Notify points:
-    // - "MagOut" - old magazine detached
-    // - "MagIn" - new magazine inserted
-    // - "RackStart" - begin chambering
-    // - "RackEnd" - round chambered
 };
 ```
 
@@ -456,7 +699,68 @@ float CalculateReloadTime(
 
 ## 6. GAS Integration
 
-### 6.1 Ammo-Related Attributes (Already in FSuspenseCoreAmmoAttributeRow)
+### 6.1 BridgeSystem Interfaces (IMPLEMENTED)
+
+The key architectural decision is using BridgeSystem interfaces to decouple GAS from EquipmentSystem:
+
+```cpp
+// Located at: Source/BridgeSystem/Public/SuspenseCore/Interfaces/
+
+// ISuspenseCoreMagazineProvider.h
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreMagazineProvider : public UInterface
+{
+    GENERATED_BODY()
+};
+
+class BRIDGESYSTEM_API ISuspenseCoreMagazineProvider
+{
+    GENERATED_BODY()
+
+public:
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    bool CanReload() const;
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    bool StartReload();
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    bool FinishReload();
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    void CancelReload();
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    int32 GetCurrentMagazineCount() const;
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Magazine")
+    int32 GetMagazineCapacity() const;
+};
+
+// ISuspenseCoreQuickSlotProvider.h
+UINTERFACE(MinimalAPI, Blueprintable)
+class USuspenseCoreQuickSlotProvider : public UInterface
+{
+    GENERATED_BODY()
+};
+
+class BRIDGESYSTEM_API ISuspenseCoreQuickSlotProvider
+{
+    GENERATED_BODY()
+
+public:
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="QuickSlot")
+    bool UseQuickSlot(int32 SlotIndex);
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="QuickSlot")
+    bool IsSlotAvailable(int32 SlotIndex) const;
+
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="QuickSlot")
+    int32 GetAvailableSlotCount() const;
+};
+```
+
+### 6.2 Ammo-Related Attributes (Already in FSuspenseCoreAmmoAttributeRow)
 
 ```cpp
 // Ballistics
@@ -478,7 +782,7 @@ bool bIsTracer;
 bool bIsSubsonic;
 ```
 
-### 6.2 Weapon Ammo Attributes (Runtime)
+### 6.3 Weapon Ammo Attributes (Runtime)
 
 ```cpp
 // In USuspenseCoreWeaponAttributeSet - already exists:
@@ -491,30 +795,11 @@ UPROPERTY() FGameplayAttributeData ChamberedRoundDamage;      // From current ch
 UPROPERTY() FGameplayAttributeData ChamberedRoundPenetration;
 ```
 
-### 6.3 Ammo Selection Effect
-
-When chambering a round, apply a temporary effect that sets weapon's damage modifiers:
-
-```cpp
-// GE_AmmoLoaded - Applied when round is chambered
-// Sets damage/penetration based on ammo type
-// Duration: Until next round chambered or weapon unequipped
-
-Modifiers:
-- Attribute: Weapon.ChamberedRoundDamage
-  ModifierOp: Override
-  ModifierMagnitude: Calculated from AmmoAttributeRow.BaseDamage
-
-- Attribute: Weapon.ChamberedRoundPenetration
-  ModifierOp: Override
-  ModifierMagnitude: Calculated from AmmoAttributeRow.ArmorPenetration
-```
-
 ---
 
 ## 7. UI Requirements
 
-### 7.1 HUD Elements
+### 7.1 HUD Elements (PENDING - Phase 6)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -540,7 +825,7 @@ Modifiers:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Inventory Magazine Inspection
+### 7.2 Inventory Magazine Inspection (PENDING - Phase 6)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -575,63 +860,118 @@ Modifiers:
 
 ## 8. Implementation Plan
 
-### Phase 1: Core Data Structures
+### Phase 1: Core Data Structures - DONE
 
-**Files to create:**
+**Files created:**
 - `SuspenseCoreMagazineTypes.h` - Magazine data structures
 - `SuspenseCoreAmmoStackTypes.h` - Ammo stack structures
 
-**Files to modify:**
-- `SuspenseCoreItemDataTable.h` - Add magazine fields
+### Phase 2: Magazine Component - DONE
 
-### Phase 2: Magazine Component
-
-**Files to create:**
+**Files created:**
 - `SuspenseCoreMagazineComponent.h/.cpp`
-- `SuspenseCoreWeaponAmmoComponent.h/.cpp` (extends existing)
 
-### Phase 3: QuickSlot System
+### Phase 3: QuickSlot System - DONE
 
-**Files to create:**
+**Files created:**
 - `SuspenseCoreQuickSlotComponent.h/.cpp`
-- `SuspenseCoreQuickSlotTypes.h`
 
-**GameplayTags to add:**
+**GameplayTags added:**
 ```cpp
-// Equipment slots
 Equipment.QuickSlot.1
 Equipment.QuickSlot.2
 Equipment.QuickSlot.3
 Equipment.QuickSlot.4
-
-// Item categories for QuickSlots
 Item.Category.Magazine
 Item.Category.Consumable
 Item.Category.Throwable
 ```
 
-### Phase 4: Reload Abilities
+### Phase 4: Reload Abilities - DONE
 
-**Files to create:**
-- `GA_ReloadTactical.h/.cpp`
-- `GA_ReloadEmpty.h/.cpp`
-- `GA_ReloadEmergency.h/.cpp`
-- `GA_ChamberRound.h/.cpp`
+**Files created:**
+- `GA_Reload.h/.cpp` - Main reload ability
+- `GA_QuickSlot.h/.cpp` - QuickSlot usage ability
 
-### Phase 5: UI Integration
+**Interfaces created (BridgeSystem):**
+- `ISuspenseCoreMagazineProvider.h`
+- `ISuspenseCoreQuickSlotProvider.h`
 
-**Widgets to create/modify:**
+### Phase 5: Base Class Integration - DONE
+
+**Files modified:**
+- `SuspenseCoreWeaponActor.h/.cpp` - Added MagazineComponent
+- `SuspenseCoreCharacter.h/.cpp` - Added QuickSlotComponent
+
+### Phase 6: UI Integration - PENDING
+
+**Widgets to create:**
 - `WBP_AmmoStatus` - HUD ammo display
 - `WBP_QuickSlotBar` - QuickSlot display
 - `WBP_MagazineInspector` - Inventory magazine view
 - `WBP_AmmoLoadingUI` - Magazine loading interface
 
-### Phase 6: Testing & Polish
+### Phase 7: Testing & Polish - PENDING
 
 - Test all reload paths
 - Verify replication in multiplayer
 - Balance reload times and magazine weights
 - Polish animations and UI feedback
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. "GetWeaponData is not a member of ISuspenseCoreWeapon"
+
+**Solution:** Use the correct interface method:
+```cpp
+// Wrong:
+GetWeaponData(...)
+
+// Correct:
+FSuspenseCoreUnifiedItemData WeaponData;
+ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponObject, WeaponData);
+```
+
+#### 2. "TWeakObjectPtr assignment error with USuspenseCoreInventoryComponent"
+
+**Solution:** InventorySystem module is not in dependencies. Remove inventory references or add module dependency.
+
+#### 3. "INVENTORYSYSTEM_API not defined"
+
+**Solution:** Same as above - the InventorySystem module is not linked. Either add it to Build.cs or remove references.
+
+#### 4. QuickSlotComponent is nullptr
+
+**Solution:** Ensure `WITH_EQUIPMENT_SYSTEM=1` is defined in your build configuration.
+
+#### 5. MagazineComponent not initialized
+
+**Solution:** Call `InitializeFromWeapon()` in weapon's BeginPlay:
+```cpp
+void AMyWeapon::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (MagazineComponent)
+    {
+        MagazineComponent->InitializeFromWeapon(this);
+    }
+}
+```
+
+---
+
+## Future Enhancements
+
+1. **Ammo Crafting** - Combine components to create ammunition
+2. **Magazine Modifications** - Extended mags, drum mags, speed loaders
+3. **Ammo Degradation** - Condition affects reliability and accuracy
+4. **Ballistic Simulation** - Full trajectory with wind, drop, penetration
+5. **Inventory Grid System** - Physical magazine storage in inventory
 
 ---
 
@@ -662,6 +1002,19 @@ Item.Category.Throwable
 
 ## Appendix B: Related Files Reference
 
+### Key Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `SuspenseCoreMagazineComponent.h/.cpp` | Magazine management |
+| `SuspenseCoreQuickSlotComponent.h/.cpp` | QuickSlot system |
+| `ISuspenseCoreMagazineProvider.h` | BridgeSystem interface |
+| `ISuspenseCoreQuickSlotProvider.h` | BridgeSystem interface |
+| `GA_Reload.h/.cpp` | Reload GAS ability |
+| `GA_QuickSlot.h/.cpp` | QuickSlot GAS ability |
+| `SuspenseCoreWeaponActor.h/.cpp` | Weapon base (has MagazineComponent) |
+| `SuspenseCoreCharacter.h/.cpp` | Character base (has QuickSlotComponent) |
+
 ### Existing Files to Integrate With
 
 | File | Purpose |
@@ -673,22 +1026,9 @@ Item.Category.Throwable
 | `SuspenseCoreEquipmentSlotComponent` | Equipment management |
 | `SuspenseCoreWeaponAmmoComponent` | Existing ammo component |
 
-### GameplayTags Already Defined
-
-```cpp
-// From SuspenseCoreEquipmentGameplayTags.h
-Equipment.Slot.Primary
-Equipment.Slot.Secondary
-Equipment.Slot.Sidearm
-// ... (17 total slots)
-
-// Need to add for ammo system:
-Equipment.QuickSlot.1
-Equipment.QuickSlot.2
-Equipment.QuickSlot.3
-Equipment.QuickSlot.4
-```
-
 ---
 
 **End of Document**
+
+**Last Updated:** 2026-01-02
+**Version:** 1.1 (Phase 4 Complete)

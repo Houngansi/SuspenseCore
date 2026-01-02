@@ -303,7 +303,10 @@ void ASuspenseCoreEquipmentActor::InitializeEquipmentComponents(const FSuspenseC
     }
     if (!CachedASC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] InitializeEquipmentComponents: ASC not set"), *GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[%s] InitializeEquipmentComponents: ASC not set - AttributeComponent will NOT initialize! Owner: %s, HasASI: %s"),
+            *GetName(),
+            OwnerActor ? *OwnerActor->GetName() : TEXT("null"),
+            OwnerActor && Cast<IAbilitySystemInterface>(OwnerActor) ? TEXT("Yes") : TEXT("No"));
     }
 
     FSuspenseCoreUnifiedItemData ItemData;

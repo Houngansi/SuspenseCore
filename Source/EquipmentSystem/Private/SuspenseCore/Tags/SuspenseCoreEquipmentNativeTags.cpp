@@ -400,6 +400,58 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Medical, "Item.Medical");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Throwable, "Item.Throwable");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Ammo, "Item.Ammo");
+
+        // Magazine tags (Tarkov-style)
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Magazine, "Item.Magazine");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Category_Magazine, "Item.Category.Magazine");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Category_Consumable, "Item.Category.Consumable");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Item_Category_Grenade, "Item.Category.Grenade");
+    }
+
+    //========================================
+    // MAGAZINE SYSTEM TAGS (Tarkov-Style)
+    //========================================
+    namespace Magazine
+    {
+        // Magazine events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine, "SuspenseCore.Event.Equipment.Magazine");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_Inserted, "SuspenseCore.Event.Equipment.Magazine.Inserted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_Ejected, "SuspenseCore.Event.Equipment.Magazine.Ejected");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_Swapped, "SuspenseCore.Event.Equipment.Magazine.Swapped");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Magazine_RoundsChanged, "SuspenseCore.Event.Equipment.Magazine.RoundsChanged");
+
+        // Chamber events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Chamber, "SuspenseCore.Event.Equipment.Chamber");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Chamber_Chambered, "SuspenseCore.Event.Equipment.Chamber.Chambered");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Chamber_Ejected, "SuspenseCore.Event.Equipment.Chamber.Ejected");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Chamber_Fired, "SuspenseCore.Event.Equipment.Chamber.Fired");
+
+        // Reload events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Reload, "SuspenseCore.Event.Equipment.Reload");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Reload_Tactical, "SuspenseCore.Event.Equipment.Reload.Tactical");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Reload_Empty, "SuspenseCore.Event.Equipment.Reload.Empty");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Reload_Emergency, "SuspenseCore.Event.Equipment.Reload.Emergency");
+    }
+
+    //========================================
+    // QUICKSLOT SYSTEM TAGS
+    //========================================
+    namespace QuickSlot
+    {
+        // QuickSlot root tag
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_QuickSlot, "Equipment.QuickSlot");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_QuickSlot_1, "Equipment.QuickSlot.1");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_QuickSlot_2, "Equipment.QuickSlot.2");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_QuickSlot_3, "Equipment.QuickSlot.3");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_QuickSlot_4, "Equipment.QuickSlot.4");
+
+        // QuickSlot events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot, "SuspenseCore.Event.Equipment.QuickSlot");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot_Assigned, "SuspenseCore.Event.Equipment.QuickSlot.Assigned");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot_Cleared, "SuspenseCore.Event.Equipment.QuickSlot.Cleared");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot_Used, "SuspenseCore.Event.Equipment.QuickSlot.Used");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot_CooldownStarted, "SuspenseCore.Event.Equipment.QuickSlot.CooldownStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_QuickSlot_CooldownEnded, "SuspenseCore.Event.Equipment.QuickSlot.CooldownEnded");
     }
 
 } // namespace SuspenseCoreEquipmentTags

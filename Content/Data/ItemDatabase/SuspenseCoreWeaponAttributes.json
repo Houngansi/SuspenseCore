@@ -24,7 +24,10 @@
     "Ergonomics": 42.0,
     "AimDownSightTime": 0.35,
     "WeaponWeight": 3.4,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"),(TagName=\"Weapon.FireMode.Auto\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")",
+      "(TagName=\"Weapon.FireMode.Auto\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Auto\")"
   },
   {
@@ -52,7 +55,10 @@
     "Ergonomics": 38.0,
     "AimDownSightTime": 0.38,
     "WeaponWeight": 3.9,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"),(TagName=\"Weapon.FireMode.Auto\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")",
+      "(TagName=\"Weapon.FireMode.Auto\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Auto\")"
   },
   {
@@ -80,7 +86,10 @@
     "Ergonomics": 48.0,
     "AimDownSightTime": 0.32,
     "WeaponWeight": 3.0,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"),(TagName=\"Weapon.FireMode.Auto\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")",
+      "(TagName=\"Weapon.FireMode.Auto\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Auto\")"
   },
   {
@@ -108,7 +117,11 @@
     "Ergonomics": 55.0,
     "AimDownSightTime": 0.25,
     "WeaponWeight": 3.1,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"),(TagName=\"Weapon.FireMode.Burst\"),(TagName=\"Weapon.FireMode.Auto\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")",
+      "(TagName=\"Weapon.FireMode.Burst\")",
+      "(TagName=\"Weapon.FireMode.Auto\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Auto\")"
   },
   {
@@ -136,7 +149,10 @@
     "Ergonomics": 68.0,
     "AimDownSightTime": 0.20,
     "WeaponWeight": 1.9,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"),(TagName=\"Weapon.FireMode.Auto\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")",
+      "(TagName=\"Weapon.FireMode.Auto\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Auto\")"
   },
   {
@@ -164,7 +180,9 @@
     "Ergonomics": 75.0,
     "AimDownSightTime": 0.15,
     "WeaponWeight": 0.63,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Single\")"
   },
   {
@@ -192,7 +210,9 @@
     "Ergonomics": 72.0,
     "AimDownSightTime": 0.16,
     "WeaponWeight": 0.94,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Single\")"
   },
   {
@@ -220,7 +240,9 @@
     "Ergonomics": 35.0,
     "AimDownSightTime": 0.45,
     "WeaponWeight": 4.3,
-    "FireModes": "((TagName=\"Weapon.FireMode.Single\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Single\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Single\")"
   },
   {
@@ -248,7 +270,9 @@
     "Ergonomics": 100.0,
     "AimDownSightTime": 0.0,
     "WeaponWeight": 0.34,
-    "FireModes": "((TagName=\"Weapon.FireMode.Melee\"))",
+    "FireModes": [
+      "(TagName=\"Weapon.FireMode.Melee\")"
+    ],
     "DefaultFireMode": "(TagName=\"Weapon.FireMode.Melee\")"
   }
 ]

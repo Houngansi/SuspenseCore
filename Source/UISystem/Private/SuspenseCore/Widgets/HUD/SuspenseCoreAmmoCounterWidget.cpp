@@ -265,8 +265,8 @@ USuspenseCoreEventBus* USuspenseCoreAmmoCounterWidget::GetEventBus() const
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	int32 Rounds = EventData.GetInt32(TEXT("CurrentRounds"), 0);
-	int32 Capacity = EventData.GetInt32(TEXT("MaxCapacity"), 30);
+	int32 Rounds = EventData.GetInt(TEXT("CurrentRounds"), 0);
+	int32 Capacity = EventData.GetInt(TEXT("MaxCapacity"), 30);
 	FName AmmoType = FName(*EventData.GetString(TEXT("LoadedAmmoType")));
 
 	CachedAmmoData.MagazineRounds = Rounds;
@@ -289,8 +289,8 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineEjectedEvent(FGameplayTag EventTa
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	int32 CurrentRounds = EventData.GetInt32(TEXT("CurrentRounds"), 0);
-	int32 MaxRounds = EventData.GetInt32(TEXT("MaxCapacity"), CachedAmmoData.MagazineCapacity);
+	int32 CurrentRounds = EventData.GetInt(TEXT("CurrentRounds"), 0);
+	int32 MaxRounds = EventData.GetInt(TEXT("MaxCapacity"), CachedAmmoData.MagazineCapacity);
 
 	CachedAmmoData.MagazineRounds = CurrentRounds;
 	CachedAmmoData.MagazineCapacity = MaxRounds;
@@ -304,7 +304,7 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag E
 void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// This is fired when ammo is consumed (shot fired)
-	int32 CurrentRounds = EventData.GetInt32(TEXT("CurrentRounds"), CachedAmmoData.MagazineRounds);
+	int32 CurrentRounds = EventData.GetInt(TEXT("CurrentRounds"), CachedAmmoData.MagazineRounds);
 	bool bChambered = EventData.GetBool(TEXT("HasChamberedRound"));
 
 	CachedAmmoData.MagazineRounds = CurrentRounds;
@@ -320,7 +320,12 @@ void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag Event
 void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	FString FireModeStr = EventData.GetString(TEXT("FireMode"));
-	FGameplayTag FireModeTag = EventData.GetTag(TEXT("FireModeTag"));
+
+	// Get fire mode tag from string (GetTag doesn't exist, use FGameplayTag::RequestGameplayTag)
+	FString FireModeTagStr = EventData.GetString(TEXT("FireModeTag"));
+	FGameplayTag FireModeTag = FireModeTagStr.IsEmpty()
+		? FGameplayTag()
+		: FGameplayTag::RequestGameplayTag(FName(*FireModeTagStr), false);
 
 	CachedAmmoData.FireModeTag = FireModeTag;
 	CachedAmmoData.FireModeText = FText::FromString(FireModeStr);

@@ -232,6 +232,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
 	FText EmptyChamberText = NSLOCTEXT("AmmoCounter", "EmptyChamber", "+0");
 
+	/** Show chamber indicator (+1 when round chambered) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
+	bool bShowChamberIndicator = true;
+
+	/** Show reserve ammo information section */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|AmmoCounter|Config")
+	bool bShowReserveInfo = true;
+
 private:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// EVENTBUS

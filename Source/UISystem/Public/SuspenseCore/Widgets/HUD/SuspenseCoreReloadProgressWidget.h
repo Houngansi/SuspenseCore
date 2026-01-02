@@ -168,6 +168,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config", meta = (EditCondition = "bSmoothProgress"))
 	float ProgressInterpSpeed = 20.0f;
 
+	/** Show phase indicators (Eject/Insert/Chamber) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
+	bool bShowPhaseIndicators = true;
+
+	/** Show time remaining text */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
+	bool bShowTimeRemaining = true;
+
 	/** Cancel hint text format */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
 	FText CancelHintFormat = NSLOCTEXT("Reload", "CancelHint", "Press [R] to cancel");

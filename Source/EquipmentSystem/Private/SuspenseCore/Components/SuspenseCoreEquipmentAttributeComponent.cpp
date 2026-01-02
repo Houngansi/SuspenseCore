@@ -99,10 +99,14 @@ void USuspenseCoreEquipmentAttributeComponent::InitializeWithItemInstance(AActor
 
 void USuspenseCoreEquipmentAttributeComponent::Cleanup()
 {
+    UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Cleanup() called. CachedASC: %s, bIsInitialized: %s"),
+        CachedASC ? *CachedASC->GetName() : TEXT("NULL"),
+        bIsInitialized ? TEXT("TRUE") : TEXT("FALSE"));
+
     // Remove all effects first before destroying AttributeSets
     RemoveItemEffects();
 
-    // Clean up attribute sets
+    // Clean up attribute sets - CRITICAL: removes from CHARACTER's ASC
     CleanupAttributeSets();
 
     // Clear all cached and replicated data
@@ -111,8 +115,10 @@ void USuspenseCoreEquipmentAttributeComponent::Cleanup()
     ActiveAttributePredictions.Empty();
     AttributePropertyCache.Empty();
 
-    // Call base cleanup last
+    // Call base cleanup last - this sets CachedASC = nullptr
     Super::Cleanup();
+
+    UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Cleanup() completed"));
 }
 
 void USuspenseCoreEquipmentAttributeComponent::UpdateEquippedItem(const FSuspenseCoreInventoryItemInstance& ItemInstance)
@@ -404,40 +410,57 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
 
 void USuspenseCoreEquipmentAttributeComponent::CleanupAttributeSets()
 {
+    UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] CleanupAttributeSets called. CachedASC: %s, WeaponAttributeSet: %s, AmmoAttributeSet: %s"),
+        CachedASC ? *CachedASC->GetName() : TEXT("NULL"),
+        WeaponAttributeSet ? TEXT("VALID") : TEXT("NULL"),
+        AmmoAttributeSet ? TEXT("VALID") : TEXT("NULL"));
+
     if (!CachedASC)
     {
+        UE_LOG(LogTemp, Error, TEXT("[AttributeComponent] CleanupAttributeSets: CachedASC is NULL! Cannot remove AttributeSets from CHARACTER!"));
         return;
     }
+
+    int32 RemovedCount = 0;
 
     // Remove all attribute sets from ASC
     if (CurrentAttributeSet)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Removing CurrentAttributeSet from ASC"));
         CachedASC->RemoveSpawnedAttribute(CurrentAttributeSet);
         CurrentAttributeSet = nullptr;
+        RemovedCount++;
     }
 
     if (WeaponAttributeSet)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Removing WeaponAttributeSet from ASC"));
         CachedASC->RemoveSpawnedAttribute(WeaponAttributeSet);
         WeaponAttributeSet = nullptr;
+        RemovedCount++;
     }
 
     if (ArmorAttributeSet)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Removing ArmorAttributeSet from ASC"));
         CachedASC->RemoveSpawnedAttribute(ArmorAttributeSet);
         ArmorAttributeSet = nullptr;
+        RemovedCount++;
     }
 
     if (AmmoAttributeSet)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] Removing AmmoAttributeSet from ASC"));
         CachedASC->RemoveSpawnedAttribute(AmmoAttributeSet);
         AmmoAttributeSet = nullptr;
+        RemovedCount++;
     }
 
     AttributeSetsByType.Empty();
     AttributePropertyCache.Empty();
 
-    EQUIPMENT_LOG(Log, TEXT("Cleaned up all attribute sets"));
+    UE_LOG(LogTemp, Warning, TEXT("[AttributeComponent] CleanupAttributeSets: Removed %d AttributeSets from ASC %s"),
+        RemovedCount, *CachedASC->GetName());
 }
 
 void USuspenseCoreEquipmentAttributeComponent::ApplyInitializationEffect(UAttributeSet* AttributeSet, TSubclassOf<UGameplayEffect> InitEffect, const FSuspenseCoreUnifiedItemData& ItemData)

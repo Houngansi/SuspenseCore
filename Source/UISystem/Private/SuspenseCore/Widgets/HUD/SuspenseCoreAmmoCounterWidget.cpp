@@ -185,6 +185,11 @@ void USuspenseCoreAmmoCounterWidget::RefreshDisplay()
 	UpdateAmmoTypeUI();
 }
 
+float USuspenseCoreAmmoCounterWidget::GetAmmoPercentage() const
+{
+	return CachedAmmoData.GetMagazineFillPercent();
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // EVENTBUS
 // ═══════════════════════════════════════════════════════════════════════════════

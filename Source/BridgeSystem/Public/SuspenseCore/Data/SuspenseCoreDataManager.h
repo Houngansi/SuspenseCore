@@ -12,6 +12,8 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 // Include for GAS attribute row structures (SSOT)
 #include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
+// Include for magazine types (Tarkov-style)
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCoreDataManager.generated.h"
 
 
@@ -333,6 +335,78 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
 	bool IsAmmoAttributesSystemReady() const { return bAmmoAttributesSystemReady; }
 
+	/** Check if armor attributes system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|GAS")
+	bool IsArmorAttributesSystemReady() const { return bArmorAttributesSystemReady; }
+
+	//========================================================================
+	// Magazine System Access (Tarkov-Style)
+	//========================================================================
+
+	/**
+	 * Get magazine data by MagazineID
+	 * Uses MagazineDataTable configured in Settings
+	 *
+	 * @param MagazineID Magazine identifier (DataTable row name)
+	 * @param OutMagazineData Output magazine data structure
+	 * @return true if magazine found
+	 *
+	 * @see FSuspenseCoreMagazineData
+	 * @see Documentation/Plans/TarkovStyle_Ammo_System_Design.md
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|Magazine")
+	bool GetMagazineData(FName MagazineID, FSuspenseCoreMagazineData& OutMagazineData) const;
+
+	/**
+	 * Check if magazine exists
+	 * @param MagazineID Magazine identifier
+	 * @return true if magazine exists in cache
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|Magazine")
+	bool HasMagazine(FName MagazineID) const;
+
+	/**
+	 * Get all cached magazine IDs
+	 * @return Array of all magazine IDs
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|Magazine")
+	TArray<FName> GetAllMagazineIDs() const;
+
+	/**
+	 * Get magazines compatible with specific weapon
+	 * @param WeaponTag Weapon type tag to match
+	 * @return Array of compatible magazine IDs
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|Magazine")
+	TArray<FName> GetMagazinesForWeapon(const FGameplayTag& WeaponTag) const;
+
+	/**
+	 * Get magazines compatible with specific caliber
+	 * @param CaliberTag Caliber tag to match
+	 * @return Array of compatible magazine IDs
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|Magazine")
+	TArray<FName> GetMagazinesForCaliber(const FGameplayTag& CaliberTag) const;
+
+	/**
+	 * Create magazine instance from DataTable data
+	 * @param MagazineID Magazine identifier
+	 * @param InitialRounds Initial round count (0 = empty)
+	 * @param AmmoID Ammo type to load (if InitialRounds > 0)
+	 * @param OutInstance Output magazine instance
+	 * @return true if instance created successfully
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Data|Magazine")
+	bool CreateMagazineInstance(FName MagazineID, int32 InitialRounds, FName AmmoID, FSuspenseCoreMagazineInstance& OutInstance) const;
+
+	/** Get count of cached magazines */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|Magazine")
+	int32 GetCachedMagazineCount() const { return MagazineCache.Num(); }
+
+	/** Check if magazine system is initialized */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Data|Magazine")
+	bool IsMagazineSystemReady() const { return bMagazineSystemReady; }
+
 protected:
 	//========================================================================
 	// Initialization Helpers
@@ -399,6 +473,24 @@ protected:
 	 * @return true if cache built successfully
 	 */
 	bool BuildArmorAttributesCache(UDataTable* DataTable);
+
+	//========================================================================
+	// Magazine System Initialization (Tarkov-Style)
+	//========================================================================
+
+	/**
+	 * Initialize magazine system
+	 * Loads MagazineDataTable from Settings and caches all rows
+	 * @return true if initialization successful
+	 */
+	bool InitializeMagazineSystem();
+
+	/**
+	 * Build magazine cache from DataTable
+	 * @param DataTable Magazine DataTable
+	 * @return true if cache built successfully
+	 */
+	bool BuildMagazineCache(UDataTable* DataTable);
 
 	//========================================================================
 	// EventBus Broadcasting
@@ -494,6 +586,22 @@ private:
 	TObjectPtr<UDataTable> LoadedArmorAttributesDataTable;
 
 	//========================================================================
+	// Magazine System Cached Data (Tarkov-Style)
+	//========================================================================
+
+	/**
+	 * Magazine data cache from MagazineDataTable
+	 * Key: MagazineID
+	 * @see FSuspenseCoreMagazineData
+	 */
+	UPROPERTY()
+	TMap<FName, FSuspenseCoreMagazineData> MagazineCache;
+
+	/** Loaded magazine DataTable reference */
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedMagazineDataTable;
+
+	//========================================================================
 	// Status Flags
 	//========================================================================
 
@@ -517,4 +625,7 @@ private:
 
 	/** Armor attributes system ready flag */
 	bool bArmorAttributesSystemReady = false;
+
+	/** Magazine system ready flag */
+	bool bMagazineSystemReady = false;
 };

@@ -390,6 +390,58 @@ namespace SuspenseCoreEquipmentTags
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Medical);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Throwable);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Ammo);
+
+        // Magazine tags (Tarkov-style)
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Magazine);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Category_Magazine);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Category_Consumable);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Item_Category_Grenade);
+    }
+
+    //========================================
+    // MAGAZINE SYSTEM TAGS (Tarkov-Style)
+    //========================================
+    namespace Magazine
+    {
+        // Magazine events
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine_Inserted);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine_Ejected);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine_Swapped);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine_RoundsChanged);
+
+        // Chamber events
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Chamber);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Chamber_Chambered);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Chamber_Ejected);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Chamber_Fired);
+
+        // Reload events
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Reload);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Reload_Tactical);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Reload_Empty);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Reload_Emergency);
+    }
+
+    //========================================
+    // QUICKSLOT SYSTEM TAGS
+    //========================================
+    namespace QuickSlot
+    {
+        // QuickSlot root tag
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_QuickSlot);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_QuickSlot_1);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_QuickSlot_2);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_QuickSlot_3);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_QuickSlot_4);
+
+        // QuickSlot events
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot_Assigned);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot_Cleared);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot_Used);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot_CooldownStarted);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_QuickSlot_CooldownEnded);
     }
 
 } // namespace SuspenseCoreEquipmentTags

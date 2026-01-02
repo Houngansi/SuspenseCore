@@ -35,9 +35,16 @@ enum class ESuspenseCoreAbilityInputID : uint8
 	Aim              UMETA(DisplayName="Aim"),
 	Fire             UMETA(DisplayName="Fire"),
 	Reload           UMETA(DisplayName="Reload"),
+	EmergencyReload  UMETA(DisplayName="Emergency Reload"),
 	FireModeSwitch   UMETA(DisplayName="Fire Mode Switch"),
 	Inspect          UMETA(DisplayName="Inspect Weapon"),
 	MeleeAttack      UMETA(DisplayName="Melee Attack"),
 	ThrowGrenade     UMETA(DisplayName="Throw Grenade"),
-	HoldBreath       UMETA(DisplayName="Hold Breath")
+	HoldBreath       UMETA(DisplayName="Hold Breath"),
+
+	// QuickSlots (Tarkov-style magazine/item access)
+	QuickSlot1       UMETA(DisplayName="Quick Slot 1"),
+	QuickSlot2       UMETA(DisplayName="Quick Slot 2"),
+	QuickSlot3       UMETA(DisplayName="Quick Slot 3"),
+	QuickSlot4       UMETA(DisplayName="Quick Slot 4")
 };

@@ -186,13 +186,29 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
 
     // Get DataManager for SSOT initialization
     USuspenseCoreDataManager* DataManager = nullptr;
-    if (ItemData.ShouldUseSSOTInitialization())
+    const bool bShouldUseSSOT = ItemData.ShouldUseSSOTInitialization();
+
+    UE_LOG(LogEquipmentAttributeComponent, Log,
+        TEXT("CreateAttributeSets for %s: bIsWeapon=%s, ShouldUseSSOT=%s, WeaponAttributesRowName=%s"),
+        *ItemData.DisplayName.ToString(),
+        ItemData.bIsWeapon ? TEXT("Yes") : TEXT("No"),
+        bShouldUseSSOT ? TEXT("Yes") : TEXT("No"),
+        *ItemData.WeaponAttributesRowName.ToString());
+
+    if (bShouldUseSSOT)
     {
         DataManager = USuspenseCoreDataManager::Get(this);
         if (!DataManager)
         {
             UE_LOG(LogEquipmentAttributeComponent, Warning,
                 TEXT("SSOT initialization requested but DataManager not available, falling back to legacy"));
+        }
+        else
+        {
+            UE_LOG(LogEquipmentAttributeComponent, Log,
+                TEXT("DataManager available: WeaponAttrReady=%s, AmmoAttrReady=%s"),
+                DataManager->IsWeaponAttributesSystemReady() ? TEXT("Yes") : TEXT("No"),
+                DataManager->IsAmmoAttributesSystemReady() ? TEXT("Yes") : TEXT("No"));
         }
     }
 
@@ -205,6 +221,8 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
         if (DataManager && DataManager->IsWeaponAttributesSystemReady())
         {
             FName AttributeKey = ItemData.GetWeaponAttributesKey();
+            UE_LOG(LogEquipmentAttributeComponent, Log,
+                TEXT("SSOT lookup: AttributeKey=%s"), *AttributeKey.ToString());
             FSuspenseCoreWeaponAttributeRow WeaponRowData;
 
             if (DataManager->GetWeaponAttributes(AttributeKey, WeaponRowData))
@@ -250,6 +268,16 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
             UE_LOG(LogEquipmentAttributeComponent, Log,
                 TEXT("Legacy: Created weapon attributes for %s using AttributeSetClass"),
                 *ItemData.DisplayName.ToString());
+        }
+
+        // Warning if no weapon attributes were created
+        if (!bSSOTInitialized && !WeaponAttributeSet)
+        {
+            UE_LOG(LogEquipmentAttributeComponent, Warning,
+                TEXT("NO WEAPON ATTRIBUTES CREATED for %s! SSOT row: %s, Legacy class: %s"),
+                *ItemData.DisplayName.ToString(),
+                *ItemData.WeaponAttributesRowName.ToString(),
+                ItemData.WeaponInitialization.WeaponAttributeSetClass ? TEXT("Valid") : TEXT("None"));
         }
 
         // Create ammo attributes if specified (SSOT or legacy)

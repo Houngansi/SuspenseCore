@@ -481,9 +481,29 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon", meta = (EditCondition = "bIsWeapon", Categories = "Weapon.FireMode"))
     FGameplayTag DefaultFireMode;
     
-    /** Weapon initialization data - contains AttributeSet and effects */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon|GAS", meta = (EditCondition = "bIsWeapon"))
+    /**
+     * Weapon initialization data - contains AttributeSet and effects
+     * DEPRECATED: Use WeaponAttributesRowName for SSOT DataTable lookup
+     * Kept for backward compatibility - will be removed in future versions
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon|GAS (Legacy)",
+        meta = (EditCondition = "bIsWeapon", DeprecatedProperty,
+                DeprecationMessage = "Use WeaponAttributesRowName for SSOT DataTable lookup"))
     FWeaponInitializationData WeaponInitialization;
+
+    /**
+     * SSOT: Row name in WeaponAttributesDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     * This replaces legacy WeaponInitialization with data-driven attributes
+     *
+     * @see USuspenseCoreDataManager::GetWeaponAttributes()
+     * @see FSuspenseCoreWeaponAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon|GAS (SSOT)",
+        meta = (EditCondition = "bIsWeapon",
+                ToolTip = "Row name in WeaponAttributesDataTable. If empty, uses ItemID."))
+    FName WeaponAttributesRowName = NAME_None;
     
     /** AttributeSet for weapon ammo */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon|GAS", 
@@ -529,9 +549,29 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Armor", meta = (EditCondition = "bIsArmor", Categories = "Armor.Type"))
     FGameplayTag ArmorType;
     
-    /** Armor initialization data */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Armor|GAS", meta = (EditCondition = "bIsArmor"))
+    /**
+     * Armor initialization data
+     * DEPRECATED: Use ArmorAttributesRowName for SSOT DataTable lookup
+     * Kept for backward compatibility - will be removed in future versions
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Armor|GAS (Legacy)",
+        meta = (EditCondition = "bIsArmor", DeprecatedProperty,
+                DeprecationMessage = "Use ArmorAttributesRowName for SSOT DataTable lookup"))
     FArmorInitializationData ArmorInitialization;
+
+    /**
+     * SSOT: Row name in ArmorAttributesDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     * This replaces legacy ArmorInitialization with data-driven attributes
+     *
+     * @see USuspenseCoreDataManager::GetArmorAttributes()
+     * @see FSuspenseCoreArmorAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Armor|GAS (SSOT)",
+        meta = (EditCondition = "bIsArmor",
+                ToolTip = "Row name in ArmorAttributesDataTable. If empty, uses ItemID."))
+    FName ArmorAttributesRowName = NAME_None;
     
     //==================================================================
     // Ammunition Configuration
@@ -549,9 +589,29 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo", meta = (EditCondition = "bIsAmmo", Categories = "Weapon.Type"))
     FGameplayTagContainer CompatibleWeapons;
     
-    /** Ammo initialization data */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo|GAS", meta = (EditCondition = "bIsAmmo"))
+    /**
+     * Ammo initialization data
+     * DEPRECATED: Use AmmoAttributesRowName for SSOT DataTable lookup
+     * Kept for backward compatibility - will be removed in future versions
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo|GAS (Legacy)",
+        meta = (EditCondition = "bIsAmmo", DeprecatedProperty,
+                DeprecationMessage = "Use AmmoAttributesRowName for SSOT DataTable lookup"))
     FAmmoInitializationData AmmoInitialization;
+
+    /**
+     * SSOT: Row name in AmmoAttributesDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     * This replaces legacy AmmoInitialization with data-driven attributes
+     *
+     * @see USuspenseCoreDataManager::GetAmmoAttributes()
+     * @see FSuspenseCoreAmmoAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo|GAS (SSOT)",
+        meta = (EditCondition = "bIsAmmo",
+                ToolTip = "Row name in AmmoAttributesDataTable. If empty, uses ItemID."))
+    FName AmmoAttributesRowName = NAME_None;
     
     /** Quality of ammunition */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo", meta = (EditCondition = "bIsAmmo", Categories = "Item.Ammo.Quality"))
@@ -648,7 +708,7 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
         return bIsActive ? AttachmentSocket : UnequippedSocket;
     }
     
-    /** 
+    /**
      * Get appropriate offset based on active state
      * @param bIsActive Whether the item is currently active/in use
      * @return Transform offset for attachment
@@ -657,7 +717,62 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     {
         return bIsActive ? AttachmentOffset : UnequippedOffset;
     }
-    
+
+    //==================================================================
+    // SSOT Attribute Key Accessors
+    //==================================================================
+
+    /**
+     * Get the key for WeaponAttributesDataTable lookup
+     * @return WeaponAttributesRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetWeaponAttributesKey() const
+    {
+        return bIsWeapon ? (WeaponAttributesRowName.IsNone() ? ItemID : WeaponAttributesRowName) : NAME_None;
+    }
+
+    /**
+     * Get the key for AmmoAttributesDataTable lookup
+     * @return AmmoAttributesRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetAmmoAttributesKey() const
+    {
+        return bIsAmmo ? (AmmoAttributesRowName.IsNone() ? ItemID : AmmoAttributesRowName) : NAME_None;
+    }
+
+    /**
+     * Get the key for ArmorAttributesDataTable lookup
+     * @return ArmorAttributesRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetArmorAttributesKey() const
+    {
+        return bIsArmor ? (ArmorAttributesRowName.IsNone() ? ItemID : ArmorAttributesRowName) : NAME_None;
+    }
+
+    /**
+     * Check if this item should use SSOT initialization
+     * @return true if any SSOT row name is specified or if legacy fields are empty
+     */
+    bool ShouldUseSSOTInitialization() const
+    {
+        if (bIsWeapon)
+        {
+            return !WeaponAttributesRowName.IsNone() ||
+                   WeaponInitialization.WeaponAttributeSetClass == nullptr;
+        }
+        if (bIsAmmo)
+        {
+            return !AmmoAttributesRowName.IsNone() ||
+                   AmmoInitialization.AmmoAttributeSetClass == nullptr;
+        }
+        if (bIsArmor)
+        {
+            return !ArmorAttributesRowName.IsNone() ||
+                   ArmorInitialization.ArmorAttributeSetClass == nullptr;
+        }
+        return false;
+    }
+
     //==================================================================
     // AttributeSet Accessors for compatibility
     //==================================================================

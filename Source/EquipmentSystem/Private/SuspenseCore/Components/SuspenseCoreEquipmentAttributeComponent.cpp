@@ -7,9 +7,15 @@
 #include "AttributeSet.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
+#include "SuspenseCore/Types/GAS/SuspenseCoreGASAttributeRows.h"
 #include "GameplayTagsManager.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemGlobals.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogEquipmentAttributeComponent, Log, All);
 
 USuspenseCoreEquipmentAttributeComponent::USuspenseCoreEquipmentAttributeComponent()
 {
@@ -178,63 +184,181 @@ void USuspenseCoreEquipmentAttributeComponent::CreateAttributeSetsForItem(const 
     // Clear replicated classes list
     ReplicatedAttributeSetClasses.Empty();
 
-    // Create weapon-specific attributes
-    if (ItemData.bIsWeapon && ItemData.WeaponInitialization.WeaponAttributeSetClass)
+    // Get DataManager for SSOT initialization
+    USuspenseCoreDataManager* DataManager = nullptr;
+    if (ItemData.ShouldUseSSOTInitialization())
     {
-        // Create weapon AttributeSet
-        WeaponAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.WeaponInitialization.WeaponAttributeSetClass);
-        CachedASC->AddAttributeSetSubobject(WeaponAttributeSet);
-        AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
-        CurrentAttributeSet = WeaponAttributeSet;
-        ReplicatedAttributeSetClasses.Add(ItemData.WeaponInitialization.WeaponAttributeSetClass);
-
-        // Apply initialization effect for weapon
-        if (ItemData.WeaponInitialization.WeaponInitEffect)
+        DataManager = USuspenseCoreDataManager::Get(this);
+        if (!DataManager)
         {
-            ApplyInitializationEffect(WeaponAttributeSet, ItemData.WeaponInitialization.WeaponInitEffect, ItemData);
+            UE_LOG(LogEquipmentAttributeComponent, Warning,
+                TEXT("SSOT initialization requested but DataManager not available, falling back to legacy"));
+        }
+    }
+
+    // Create weapon-specific attributes
+    if (ItemData.bIsWeapon)
+    {
+        bool bSSOTInitialized = false;
+
+        // Try SSOT initialization first
+        if (DataManager && DataManager->IsWeaponAttributesSystemReady())
+        {
+            FName AttributeKey = ItemData.GetWeaponAttributesKey();
+            FSuspenseCoreWeaponAttributeRow WeaponRowData;
+
+            if (DataManager->GetWeaponAttributes(AttributeKey, WeaponRowData))
+            {
+                // Create weapon AttributeSet using SSOT class
+                USuspenseCoreWeaponAttributeSet* TypedWeaponSet = NewObject<USuspenseCoreWeaponAttributeSet>(Owner);
+                TypedWeaponSet->InitializeFromData(WeaponRowData);
+
+                WeaponAttributeSet = TypedWeaponSet;
+                CachedASC->AddAttributeSetSubobject(WeaponAttributeSet);
+                AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
+                CurrentAttributeSet = WeaponAttributeSet;
+                ReplicatedAttributeSetClasses.Add(USuspenseCoreWeaponAttributeSet::StaticClass());
+
+                bSSOTInitialized = true;
+
+                UE_LOG(LogEquipmentAttributeComponent, Log,
+                    TEXT("SSOT: Created weapon attributes for %s from DataTable row %s"),
+                    *ItemData.DisplayName.ToString(), *AttributeKey.ToString());
+            }
+            else
+            {
+                UE_LOG(LogEquipmentAttributeComponent, Warning,
+                    TEXT("SSOT: WeaponAttributes row not found: %s, falling back to legacy"),
+                    *AttributeKey.ToString());
+            }
         }
 
-        // Create ammo attributes if specified
+        // Fallback to legacy initialization
+        if (!bSSOTInitialized && ItemData.WeaponInitialization.WeaponAttributeSetClass)
+        {
+            WeaponAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.WeaponInitialization.WeaponAttributeSetClass);
+            CachedASC->AddAttributeSetSubobject(WeaponAttributeSet);
+            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Weapon")), WeaponAttributeSet);
+            CurrentAttributeSet = WeaponAttributeSet;
+            ReplicatedAttributeSetClasses.Add(ItemData.WeaponInitialization.WeaponAttributeSetClass);
+
+            if (ItemData.WeaponInitialization.WeaponInitEffect)
+            {
+                ApplyInitializationEffect(WeaponAttributeSet, ItemData.WeaponInitialization.WeaponInitEffect, ItemData);
+            }
+
+            UE_LOG(LogEquipmentAttributeComponent, Log,
+                TEXT("Legacy: Created weapon attributes for %s using AttributeSetClass"),
+                *ItemData.DisplayName.ToString());
+        }
+
+        // Create ammo attributes if specified (SSOT or legacy)
         if (ItemData.AmmoAttributeSet)
         {
             AmmoAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.AmmoAttributeSet);
             CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
             AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
             ReplicatedAttributeSetClasses.Add(ItemData.AmmoAttributeSet);
-
-            // Note: Ammo initialization happens when specific ammo is loaded
         }
 
         EQUIPMENT_LOG(Log, TEXT("Created weapon attribute sets for: %s"), *ItemData.DisplayName.ToString());
     }
     // Create armor-specific attributes
-    else if (ItemData.bIsArmor && ItemData.ArmorInitialization.ArmorAttributeSetClass)
+    else if (ItemData.bIsArmor)
     {
-        // Create armor AttributeSet
-        ArmorAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.ArmorInitialization.ArmorAttributeSetClass);
-        CachedASC->AddAttributeSetSubobject(ArmorAttributeSet);
-        AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Armor")), ArmorAttributeSet);
-        CurrentAttributeSet = ArmorAttributeSet;
-        ReplicatedAttributeSetClasses.Add(ItemData.ArmorInitialization.ArmorAttributeSetClass);
+        bool bSSOTInitialized = false;
 
-        // Apply initialization effect for armor
-        if (ItemData.ArmorInitialization.ArmorInitEffect)
+        // Try SSOT initialization first
+        if (DataManager && DataManager->IsArmorAttributesSystemReady())
         {
-            ApplyInitializationEffect(ArmorAttributeSet, ItemData.ArmorInitialization.ArmorInitEffect, ItemData);
+            FName AttributeKey = ItemData.GetArmorAttributesKey();
+            FSuspenseCoreArmorAttributeRow ArmorRowData;
+
+            if (DataManager->GetArmorAttributes(AttributeKey, ArmorRowData))
+            {
+                // TODO: Create armor AttributeSet using SSOT class
+                // USuspenseCoreArmorAttributeSet* TypedArmorSet = NewObject<USuspenseCoreArmorAttributeSet>(Owner);
+                // TypedArmorSet->InitializeFromData(ArmorRowData);
+                // For now, log that SSOT armor is not yet implemented
+
+                UE_LOG(LogEquipmentAttributeComponent, Log,
+                    TEXT("SSOT: Armor attributes found for %s, but InitializeFromData not yet implemented"),
+                    *ItemData.DisplayName.ToString());
+            }
         }
 
-        EQUIPMENT_LOG(Log, TEXT("Created armor attribute sets for: %s"), *ItemData.DisplayName.ToString());
+        // Fallback to legacy initialization
+        if (!bSSOTInitialized && ItemData.ArmorInitialization.ArmorAttributeSetClass)
+        {
+            ArmorAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.ArmorInitialization.ArmorAttributeSetClass);
+            CachedASC->AddAttributeSetSubobject(ArmorAttributeSet);
+            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Armor")), ArmorAttributeSet);
+            CurrentAttributeSet = ArmorAttributeSet;
+            ReplicatedAttributeSetClasses.Add(ItemData.ArmorInitialization.ArmorAttributeSetClass);
+
+            if (ItemData.ArmorInitialization.ArmorInitEffect)
+            {
+                ApplyInitializationEffect(ArmorAttributeSet, ItemData.ArmorInitialization.ArmorInitEffect, ItemData);
+            }
+
+            EQUIPMENT_LOG(Log, TEXT("Legacy: Created armor attribute sets for: %s"), *ItemData.DisplayName.ToString());
+        }
+    }
+    // Create ammo-specific attributes (for ammo items, not weapon ammo)
+    else if (ItemData.bIsAmmo)
+    {
+        bool bSSOTInitialized = false;
+
+        // Try SSOT initialization first
+        if (DataManager && DataManager->IsAmmoAttributesSystemReady())
+        {
+            FName AttributeKey = ItemData.GetAmmoAttributesKey();
+            FSuspenseCoreAmmoAttributeRow AmmoRowData;
+
+            if (DataManager->GetAmmoAttributes(AttributeKey, AmmoRowData))
+            {
+                USuspenseCoreAmmoAttributeSet* TypedAmmoSet = NewObject<USuspenseCoreAmmoAttributeSet>(Owner);
+                TypedAmmoSet->InitializeFromData(AmmoRowData);
+
+                AmmoAttributeSet = TypedAmmoSet;
+                CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
+                AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
+                CurrentAttributeSet = AmmoAttributeSet;
+                ReplicatedAttributeSetClasses.Add(USuspenseCoreAmmoAttributeSet::StaticClass());
+
+                bSSOTInitialized = true;
+
+                UE_LOG(LogEquipmentAttributeComponent, Log,
+                    TEXT("SSOT: Created ammo attributes for %s from DataTable row %s"),
+                    *ItemData.DisplayName.ToString(), *AttributeKey.ToString());
+            }
+        }
+
+        // Fallback to legacy initialization
+        if (!bSSOTInitialized && ItemData.AmmoInitialization.AmmoAttributeSetClass)
+        {
+            AmmoAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.AmmoInitialization.AmmoAttributeSetClass);
+            CachedASC->AddAttributeSetSubobject(AmmoAttributeSet);
+            AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Ammo")), AmmoAttributeSet);
+            CurrentAttributeSet = AmmoAttributeSet;
+            ReplicatedAttributeSetClasses.Add(ItemData.AmmoInitialization.AmmoAttributeSetClass);
+
+            if (ItemData.AmmoInitialization.AmmoInitEffect)
+            {
+                ApplyInitializationEffect(AmmoAttributeSet, ItemData.AmmoInitialization.AmmoInitEffect, ItemData);
+            }
+
+            EQUIPMENT_LOG(Log, TEXT("Legacy: Created ammo attribute sets for: %s"), *ItemData.DisplayName.ToString());
+        }
     }
     // Create general equipment attributes
     else if (ItemData.bIsEquippable && ItemData.EquipmentAttributeSet)
     {
-        // Create general equipment AttributeSet
         CurrentAttributeSet = NewObject<UAttributeSet>(Owner, ItemData.EquipmentAttributeSet);
         CachedASC->AddAttributeSetSubobject(CurrentAttributeSet);
         AttributeSetsByType.Add(FGameplayTag::RequestGameplayTag(TEXT("AttributeSet.Equipment")), CurrentAttributeSet);
         ReplicatedAttributeSetClasses.Add(ItemData.EquipmentAttributeSet);
 
-        // Apply initialization effect for general equipment
         if (ItemData.EquipmentInitEffect)
         {
             ApplyInitializationEffect(CurrentAttributeSet, ItemData.EquipmentInitEffect, ItemData);

@@ -156,6 +156,27 @@ void USuspenseCoreDataManager::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	//========================================================================
+	// Magazine System (Tarkov-Style)
+	//========================================================================
+
+	if (Settings->bUseTarkovMagazineSystem)
+	{
+		bMagazineSystemReady = InitializeMagazineSystem();
+		if (!bMagazineSystemReady)
+		{
+			UE_LOG(LogSuspenseCoreData, Warning, TEXT("Magazine System initialization failed (may be optional)"));
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreData, Log, TEXT("Magazine System: READY (%d magazines cached)"), MagazineCache.Num());
+		}
+	}
+	else
+	{
+		UE_LOG(LogSuspenseCoreData, Log, TEXT("Tarkov Magazine System disabled - using simple ammo counter"));
+	}
+
+	//========================================================================
 	// Validation (if enabled)
 	//========================================================================
 
@@ -227,6 +248,10 @@ void USuspenseCoreDataManager::Deinitialize()
 	LoadedAmmoAttributesDataTable = nullptr;
 	LoadedArmorAttributesDataTable = nullptr;
 
+	// Clear magazine cache (Tarkov-style)
+	MagazineCache.Empty();
+	LoadedMagazineDataTable = nullptr;
+
 	CachedEventBus.Reset();
 
 	// Reset all flags
@@ -237,6 +262,7 @@ void USuspenseCoreDataManager::Deinitialize()
 	bWeaponAttributesSystemReady = false;
 	bAmmoAttributesSystemReady = false;
 	bArmorAttributesSystemReady = false;
+	bMagazineSystemReady = false;
 
 	Super::Deinitialize();
 }
@@ -1236,4 +1262,178 @@ TArray<FName> USuspenseCoreDataManager::GetAllAmmoAttributeKeys() const
 	TArray<FName> Keys;
 	AmmoAttributesCache.GetKeys(Keys);
 	return Keys;
+}
+
+//========================================================================
+// Magazine System (Tarkov-Style)
+//========================================================================
+
+bool USuspenseCoreDataManager::InitializeMagazineSystem()
+{
+	const USuspenseCoreSettings* Settings = USuspenseCoreSettings::Get();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	// Check if MagazineDataTable is configured
+	if (Settings->MagazineDataTable.IsNull())
+	{
+		UE_LOG(LogSuspenseCoreData, Log, TEXT("MagazineDataTable not configured - skipping magazine system"));
+		return false;
+	}
+
+	// Load the DataTable
+	LoadedMagazineDataTable = Settings->MagazineDataTable.LoadSynchronous();
+	if (!LoadedMagazineDataTable)
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to load MagazineDataTable: %s"),
+			*Settings->MagazineDataTable.ToString());
+		return false;
+	}
+
+	// Build cache
+	if (!BuildMagazineCache(LoadedMagazineDataTable))
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("Failed to build magazine cache"));
+		return false;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Magazine system initialized: %d magazines loaded"), MagazineCache.Num());
+	return true;
+}
+
+bool USuspenseCoreDataManager::BuildMagazineCache(UDataTable* DataTable)
+{
+	if (!DataTable)
+	{
+		return false;
+	}
+
+	MagazineCache.Empty();
+
+	// Verify row structure
+	const UScriptStruct* RowStruct = DataTable->GetRowStruct();
+	if (!RowStruct || !RowStruct->IsChildOf(FSuspenseCoreMagazineData::StaticStruct()))
+	{
+		UE_LOG(LogSuspenseCoreData, Error,
+			TEXT("MagazineDataTable has invalid row structure. Expected FSuspenseCoreMagazineData"));
+		return false;
+	}
+
+	// Cache all rows
+	TArray<FName> RowNames = DataTable->GetRowNames();
+	for (const FName& RowName : RowNames)
+	{
+		const FSuspenseCoreMagazineData* RowData = DataTable->FindRow<FSuspenseCoreMagazineData>(RowName, TEXT("BuildMagazineCache"));
+		if (RowData)
+		{
+			MagazineCache.Add(RowName, *RowData);
+
+			// Also add by MagazineID if different from row name
+			if (!RowData->MagazineID.IsNone() && RowData->MagazineID != RowName)
+			{
+				MagazineCache.Add(RowData->MagazineID, *RowData);
+			}
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreData, Log, TEXT("Built magazine cache: %d entries from %d rows"),
+		MagazineCache.Num(), RowNames.Num());
+
+	return MagazineCache.Num() > 0;
+}
+
+bool USuspenseCoreDataManager::GetMagazineData(FName MagazineID, FSuspenseCoreMagazineData& OutMagazineData) const
+{
+	if (MagazineID.IsNone())
+	{
+		return false;
+	}
+
+	const FSuspenseCoreMagazineData* Found = MagazineCache.Find(MagazineID);
+	if (Found)
+	{
+		OutMagazineData = *Found;
+		return true;
+	}
+
+	UE_LOG(LogSuspenseCoreData, Verbose, TEXT("GetMagazineData: '%s' not found in cache"), *MagazineID.ToString());
+	return false;
+}
+
+bool USuspenseCoreDataManager::HasMagazine(FName MagazineID) const
+{
+	return MagazineCache.Contains(MagazineID);
+}
+
+TArray<FName> USuspenseCoreDataManager::GetAllMagazineIDs() const
+{
+	TArray<FName> Keys;
+	MagazineCache.GetKeys(Keys);
+	return Keys;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetMagazinesForWeapon(const FGameplayTag& WeaponTag) const
+{
+	TArray<FName> Result;
+
+	if (!WeaponTag.IsValid())
+	{
+		return Result;
+	}
+
+	for (const auto& Pair : MagazineCache)
+	{
+		if (Pair.Value.IsCompatibleWithWeapon(WeaponTag))
+		{
+			Result.Add(Pair.Key);
+		}
+	}
+
+	return Result;
+}
+
+TArray<FName> USuspenseCoreDataManager::GetMagazinesForCaliber(const FGameplayTag& CaliberTag) const
+{
+	TArray<FName> Result;
+
+	if (!CaliberTag.IsValid())
+	{
+		return Result;
+	}
+
+	for (const auto& Pair : MagazineCache)
+	{
+		if (Pair.Value.IsCompatibleWithCaliber(CaliberTag))
+		{
+			Result.Add(Pair.Key);
+		}
+	}
+
+	return Result;
+}
+
+bool USuspenseCoreDataManager::CreateMagazineInstance(FName MagazineID, int32 InitialRounds, FName AmmoID, FSuspenseCoreMagazineInstance& OutInstance) const
+{
+	FSuspenseCoreMagazineData MagazineData;
+	if (!GetMagazineData(MagazineID, MagazineData))
+	{
+		UE_LOG(LogSuspenseCoreData, Warning, TEXT("CreateMagazineInstance: Magazine '%s' not found"), *MagazineID.ToString());
+		return false;
+	}
+
+	// Create instance
+	OutInstance = FSuspenseCoreMagazineInstance(MagazineID, MagazineData.MaxCapacity);
+	OutInstance.CurrentDurability = MagazineData.Durability;
+
+	// Load initial rounds if specified
+	if (InitialRounds > 0 && !AmmoID.IsNone())
+	{
+		int32 Loaded = OutInstance.LoadRounds(AmmoID, InitialRounds);
+		UE_LOG(LogSuspenseCoreData, Verbose, TEXT("CreateMagazineInstance: Loaded %d/%d rounds of '%s' into '%s'"),
+			Loaded, InitialRounds, *AmmoID.ToString(), *MagazineID.ToString());
+	}
+
+	return true;
 }

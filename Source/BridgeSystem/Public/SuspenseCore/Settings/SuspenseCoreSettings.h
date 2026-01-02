@@ -167,6 +167,33 @@ public:
 	bool bValidateAttributesOnStartup = true;
 
 	//========================================================================
+	// Magazine System Configuration (Tarkov-Style)
+	//========================================================================
+
+	/**
+	 * DataTable containing magazine definitions
+	 * Row Structure: FSuspenseCoreMagazineData
+	 *
+	 * Tarkov-style magazines with:
+	 * - Physical magazine items in inventory
+	 * - Individual round tracking
+	 * - Caliber/weapon compatibility
+	 * - Reload time modifiers
+	 *
+	 * @see SuspenseCoreMagazineTypes.h
+	 * @see Documentation/Plans/TarkovStyle_Ammo_System_Design.md
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Magazine System",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Magazine DataTable. Row Structure: FSuspenseCoreMagazineData"))
+	TSoftObjectPtr<UDataTable> MagazineDataTable;
+
+	/** Enable Tarkov-style magazine system (physical magazines, not just ammo counters) */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Magazine System",
+		meta = (ToolTip = "Enable physical magazine tracking. Disable for simplified ammo counter."))
+	bool bUseTarkovMagazineSystem = true;
+
+	//========================================================================
 	// Character System Configuration
 	//========================================================================
 

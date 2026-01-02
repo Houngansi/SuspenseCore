@@ -9,6 +9,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
@@ -439,14 +440,27 @@ bool USuspenseCoreEquipmentComponentBase::GetEquippedItemData(FSuspenseCoreUnifi
         return false;
     }
 
-    USuspenseCoreItemManager* ItemManager = GetItemManager();
-    if (!ItemManager)
+    // Try ItemManager first
+    if (USuspenseCoreItemManager* ItemManager = GetItemManager())
     {
-        EQUIPMENT_LOG(Warning, TEXT("ItemManager not available"));
-        return false;
+        if (ItemManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData))
+        {
+            return true;
+        }
     }
 
-    return ItemManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData);
+    // Fallback to DataManager (SSOT)
+    if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
+    {
+        if (DataManager->GetUnifiedItemData(EquippedItemInstance.ItemID, OutItemData))
+        {
+            return true;
+        }
+    }
+
+    EQUIPMENT_LOG(Warning, TEXT("Failed to get item data from ItemManager or DataManager for: %s"),
+        *EquippedItemInstance.ItemID.ToString());
+    return false;
 }
 
 float USuspenseCoreEquipmentComponentBase::GetEquippedItemProperty(const FName& PropertyName, float DefaultValue) const

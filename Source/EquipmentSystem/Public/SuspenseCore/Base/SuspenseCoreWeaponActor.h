@@ -18,6 +18,7 @@ class USuspenseCoreWeaponFireModeComponent;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreEventManager;
 class USuspenseCoreEquipmentMeshComponent;
+class USuspenseCoreMagazineComponent;
 
 /**
  * Thin weapon actor facade (S4).
@@ -295,6 +296,10 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreWeaponFireModeComponent* FireModeComponent;
+
+    /** Tarkov-style magazine system component */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+    USuspenseCoreMagazineComponent* MagazineComponent;
 
     //================================================
     // Wall Detection (Weapon Blocking)

@@ -20,6 +20,7 @@ class USuspenseCoreEventBus;
 class ASuspenseCorePlayerState;
 class USuspenseCoreCharacterClassData;
 class USuspenseCoreWeaponStanceComponent;
+class USuspenseCoreQuickSlotComponent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOVEMENT STATE ENUM
@@ -226,6 +227,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Components")
 	UActorComponent* GetInteractionComponent() const { return InteractionComponent; }
 
+	/** Get QuickSlot component for Tarkov-style magazine access (nullptr if WITH_EQUIPMENT_SYSTEM=0) */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Components")
+	USuspenseCoreQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PUBLIC API - EQUIPMENT ATTACHMENT (MetaHuman Support)
 	// ═══════════════════════════════════════════════════════════════════════════════
@@ -332,6 +337,10 @@ protected:
 	/** Weapon stance component for animation state (nullptr if WITH_EQUIPMENT_SYSTEM=0) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
 	USuspenseCoreWeaponStanceComponent* WeaponStanceComponent = nullptr;
+
+	/** QuickSlot component for Tarkov-style magazine access (nullptr if WITH_EQUIPMENT_SYSTEM=0) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SuspenseCore|Components")
+	USuspenseCoreQuickSlotComponent* QuickSlotComponent = nullptr;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION - MOVEMENT (Tarkov-style)

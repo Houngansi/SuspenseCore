@@ -55,6 +55,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  *
  * Manages QuickSlots 1-4 for fast access to magazines, consumables, and grenades.
  * Integrates with MagazineComponent for fast magazine swaps during reload.
+ * Implements ISuspenseCoreQuickSlotProvider for GAS ability access.
  *
  * FEATURES:
  * - 4 QuickSlots (keyboard 1-4)
@@ -68,11 +69,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  *   // Assign magazine to slot 1
  *   QuickSlotComp->AssignItemToSlot(0, MagazineInstanceID, "STANAG_30");
  *
- *   // Fast reload with slot 1 magazine
- *   QuickSlotComp->UseQuickSlot(0);
+ *   // Fast reload with slot 1 magazine (via interface)
+ *   ISuspenseCoreQuickSlotProvider::Execute_UseQuickSlot(QuickSlotComp, 0);
  *
  * @see USuspenseCoreMagazineComponent
  * @see FSuspenseCoreQuickSlot
+ * @see ISuspenseCoreQuickSlotProvider
  */
 UCLASS(ClassGroup=(SuspenseCore), meta=(BlueprintSpawnableComponent))
 class EQUIPMENTSYSTEM_API USuspenseCoreQuickSlotComponent : public USuspenseCoreEquipmentComponentBase, public ISuspenseCoreQuickSlotProvider
@@ -109,7 +111,7 @@ public:
     void SetInventoryComponent(USuspenseCoreInventoryComponent* InInventoryComponent);
 
     //==================================================================
-    // Slot Assignment
+    // Slot Assignment (Component-specific, not in interface)
     //==================================================================
 
     /**
@@ -132,13 +134,6 @@ public:
     bool AssignMagazineToSlot(int32 SlotIndex, const FSuspenseCoreMagazineInstance& Magazine);
 
     /**
-     * Clear a quick slot
-     * @param SlotIndex Slot index (0-3)
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Assignment")
-    void ClearSlot(int32 SlotIndex);
-
-    /**
      * Clear all quick slots
      */
     UFUNCTION(BlueprintCallable, Category = "QuickSlot|Assignment")
@@ -154,28 +149,8 @@ public:
     bool SwapSlots(int32 SlotIndexA, int32 SlotIndexB);
 
     //==================================================================
-    // Slot Usage
+    // Slot Usage (Component-specific helpers)
     //==================================================================
-
-    /**
-     * Use the item in a quick slot
-     * For magazines: triggers quick reload
-     * For consumables: uses the item
-     * For grenades: prepares throw
-     * @param SlotIndex Slot index (0-3)
-     * @return true if use was initiated
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
-    bool UseQuickSlot(int32 SlotIndex);
-
-    /**
-     * Quick swap to magazine in slot (for fast reloads)
-     * @param SlotIndex Slot index containing magazine (0-3)
-     * @param bEmergencyDrop If true, drops current magazine instead of storing
-     * @return true if reload was initiated
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Usage")
-    bool QuickSwapMagazine(int32 SlotIndex, bool bEmergencyDrop = false);
 
     /**
      * Start cooldown on a slot (called after use)
@@ -186,16 +161,8 @@ public:
     void StartSlotCooldown(int32 SlotIndex, float CooldownDuration);
 
     //==================================================================
-    // Queries
+    // Queries (Component-specific, not in interface)
     //==================================================================
-
-    /**
-     * Get quick slot data
-     * @param SlotIndex Slot index (0-3)
-     * @return QuickSlot data (check IsReady() for validity)
-     */
-    UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
-    FSuspenseCoreQuickSlot GetQuickSlot(int32 SlotIndex) const;
 
     /**
      * Get all quick slots
@@ -210,30 +177,6 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
     TArray<FSuspenseCoreQuickSlot> GetMagazineSlots() const;
-
-    /**
-     * Get first available magazine slot index
-     * @param OutSlotIndex Output slot index
-     * @return true if a magazine slot was found
-     */
-    UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
-    bool GetFirstMagazineSlotIndex(int32& OutSlotIndex) const;
-
-    /**
-     * Check if slot has an item
-     * @param SlotIndex Slot index (0-3)
-     * @return true if slot has an item assigned
-     */
-    UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
-    bool HasItemInSlot(int32 SlotIndex) const;
-
-    /**
-     * Check if slot is ready to use (has item, available, no cooldown)
-     * @param SlotIndex Slot index (0-3)
-     * @return true if slot is ready
-     */
-    UFUNCTION(BlueprintPure, Category = "QuickSlot|Query")
-    bool IsSlotReady(int32 SlotIndex) const;
 
     /**
      * Get remaining cooldown for a slot
@@ -261,17 +204,8 @@ public:
     bool FindSlotWithItem(const FGuid& ItemInstanceID, int32& OutSlotIndex) const;
 
     //==================================================================
-    // Magazine Integration
+    // Magazine Integration (Component-specific)
     //==================================================================
-
-    /**
-     * Get the magazine instance from a slot (if it contains a magazine)
-     * @param SlotIndex Slot index (0-3)
-     * @param OutMagazine Output magazine instance
-     * @return true if slot contains a valid magazine
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Magazine")
-    bool GetMagazineFromSlot(int32 SlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const;
 
     /**
      * Update magazine in slot (after reload, rounds changed, etc.)
@@ -280,15 +214,6 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "QuickSlot|Magazine")
     void UpdateMagazineInSlot(int32 SlotIndex, const FSuspenseCoreMagazineInstance& UpdatedMagazine);
-
-    /**
-     * Store ejected magazine from weapon into first available slot
-     * @param EjectedMagazine Magazine that was ejected
-     * @param OutSlotIndex Output slot index where magazine was stored
-     * @return true if magazine was stored
-     */
-    UFUNCTION(BlueprintCallable, Category = "QuickSlot|Magazine")
-    bool StoreEjectedMagazine(const FSuspenseCoreMagazineInstance& EjectedMagazine, int32& OutSlotIndex);
 
     //==================================================================
     // Events
@@ -313,6 +238,7 @@ public:
 protected:
     //==================================================================
     // ISuspenseCoreQuickSlotProvider Interface Implementation
+    // Note: Public methods are provided by the interface via BlueprintNativeEvent
     //==================================================================
 
     virtual FSuspenseCoreQuickSlot GetQuickSlot_Implementation(int32 SlotIndex) const override;
@@ -375,6 +301,9 @@ protected:
 
     /** Notify slot changed (broadcasts event) */
     void NotifySlotChanged(int32 SlotIndex, const FGuid& OldItemID, const FGuid& NewItemID);
+
+    /** Internal clear slot logic */
+    void ClearSlotInternal(int32 SlotIndex);
 
     //==================================================================
     // State

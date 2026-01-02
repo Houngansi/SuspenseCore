@@ -27,6 +27,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReloadStateChanged, bool, bIsRel
 
 /**
  * Component that manages Tarkov-style magazine system
+ * Implements ISuspenseCoreMagazineProvider for GAS ability access.
  *
  * Features:
  * - Physical magazine tracking (not just ammo counters)
@@ -38,6 +39,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReloadStateChanged, bool, bIsRel
  *
  * @see FSuspenseCoreMagazineInstance
  * @see FSuspenseCoreWeaponAmmoState
+ * @see ISuspenseCoreMagazineProvider
  * @see Documentation/Plans/TarkovStyle_Ammo_System_Design.md
  */
 UCLASS(ClassGroup=(Equipment), meta=(BlueprintSpawnableComponent))
@@ -72,24 +74,8 @@ public:
         int32 InitialRounds = 0);
 
     //================================================
-    // Magazine Operations
+    // Magazine Operations (Component-specific)
     //================================================
-
-    /**
-     * Insert a magazine into the weapon
-     * @param Magazine Magazine instance to insert
-     * @return true if magazine was inserted
-     */
-    UFUNCTION(BlueprintCallable, Category = "Magazine")
-    bool InsertMagazine(const FSuspenseCoreMagazineInstance& Magazine);
-
-    /**
-     * Eject current magazine from weapon
-     * @param bDropToGround If true, spawns pickup in world; if false, returns to inventory
-     * @return Ejected magazine instance (empty if no magazine was inserted)
-     */
-    UFUNCTION(BlueprintCallable, Category = "Magazine")
-    FSuspenseCoreMagazineInstance EjectMagazine(bool bDropToGround = false);
 
     /**
      * Swap magazine with one from QuickSlot
@@ -101,22 +87,8 @@ public:
     bool SwapMagazineFromQuickSlot(int32 QuickSlotIndex, bool bEmergencyDrop = false);
 
     //================================================
-    // Chamber Operations
+    // Chamber Operations (Component-specific)
     //================================================
-
-    /**
-     * Chamber a round from the magazine
-     * @return true if round was chambered
-     */
-    UFUNCTION(BlueprintCallable, Category = "Magazine|Chamber")
-    bool ChamberRound();
-
-    /**
-     * Eject the chambered round without firing
-     * @return The ejected round data
-     */
-    UFUNCTION(BlueprintCallable, Category = "Magazine|Chamber")
-    FSuspenseCoreChamberedRound EjectChamberedRound();
 
     /**
      * Fire the weapon (consumes chambered round)
@@ -127,7 +99,7 @@ public:
     FName Fire(bool bAutoChamber = true);
 
     //================================================
-    // Reload Operations
+    // Reload Operations (Component-specific)
     //================================================
 
     /**
@@ -139,21 +111,21 @@ public:
     bool StartReload(const FSuspenseCoreReloadRequest& Request);
 
     /**
-     * Determine best reload type based on current state
-     * @param AvailableMagazine Magazine that would be used (optional)
+     * Determine best reload type based on current state (with available magazine)
+     * @param AvailableMagazine Magazine that would be used
      * @return Recommended reload type
      */
     UFUNCTION(BlueprintPure, Category = "Magazine|Reload")
-    ESuspenseCoreReloadType DetermineReloadType(const FSuspenseCoreMagazineInstance& AvailableMagazine) const;
+    ESuspenseCoreReloadType DetermineReloadTypeForMagazine(const FSuspenseCoreMagazineInstance& AvailableMagazine) const;
 
     /**
-     * Calculate reload duration for given type
+     * Calculate reload duration for given type (with magazine data)
      * @param ReloadType Type of reload
      * @param MagazineData Magazine data (for modifiers)
      * @return Reload duration in seconds
      */
     UFUNCTION(BlueprintPure, Category = "Magazine|Reload")
-    float CalculateReloadDuration(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineData& MagazineData) const;
+    float CalculateReloadDurationWithData(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineData& MagazineData) const;
 
     /**
      * Complete reload process (called by animation notify or timer)
@@ -176,7 +148,7 @@ public:
     bool CanReload(const FSuspenseCoreMagazineInstance& NewMagazine = FSuspenseCoreMagazineInstance()) const;
 
     //================================================
-    // State Queries
+    // State Queries (Component-specific, non-interface)
     //================================================
 
     /** Get complete weapon ammo state */
@@ -191,25 +163,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Magazine|State")
     const FSuspenseCoreChamberedRound& GetChamberedRound() const { return WeaponAmmoState.ChamberedRound; }
 
-    /** Check if weapon has magazine inserted */
-    UFUNCTION(BlueprintPure, Category = "Magazine|State")
-    bool HasMagazine() const { return WeaponAmmoState.bHasMagazine; }
-
     /** Check if weapon has chambered round */
     UFUNCTION(BlueprintPure, Category = "Magazine|State")
     bool HasChamberedRound() const { return WeaponAmmoState.ChamberedRound.IsChambered(); }
 
-    /** Check if weapon is ready to fire */
-    UFUNCTION(BlueprintPure, Category = "Magazine|State")
-    bool IsReadyToFire() const { return WeaponAmmoState.IsReadyToFire(); }
-
     /** Check if magazine is empty */
     UFUNCTION(BlueprintPure, Category = "Magazine|State")
     bool IsMagazineEmpty() const { return WeaponAmmoState.IsMagazineEmpty(); }
-
-    /** Check if currently reloading */
-    UFUNCTION(BlueprintPure, Category = "Magazine|State")
-    bool IsReloading() const { return bIsReloading; }
 
     /** Get current reload type */
     UFUNCTION(BlueprintPure, Category = "Magazine|State")
@@ -276,6 +236,7 @@ public:
 protected:
     //================================================
     // ISuspenseCoreMagazineProvider Interface Implementation
+    // Note: Public methods are provided by the interface via BlueprintNativeEvent
     //================================================
 
     virtual FSuspenseCoreWeaponAmmoState GetAmmoState_Implementation() const override;
@@ -288,7 +249,7 @@ protected:
     virtual FSuspenseCoreChamberedRound EjectChamberedRound_Implementation() override;
     virtual ESuspenseCoreReloadType DetermineReloadType_Implementation() const override;
     virtual float CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const override;
-    virtual void NotifyReloadStateChanged_Implementation(bool bIsReloading, ESuspenseCoreReloadType ReloadType, float Duration) override;
+    virtual void NotifyReloadStateChanged_Implementation(bool bInIsReloading, ESuspenseCoreReloadType ReloadType, float Duration) override;
 
     //================================================
     // Internal Operations
@@ -311,6 +272,18 @@ protected:
 
     /** Handle reload completion logic */
     void ProcessReloadCompletion();
+
+    /** Internal insert magazine logic */
+    bool InsertMagazineInternal(const FSuspenseCoreMagazineInstance& Magazine);
+
+    /** Internal eject magazine logic */
+    FSuspenseCoreMagazineInstance EjectMagazineInternal(bool bDropToGround);
+
+    /** Internal chamber round logic */
+    bool ChamberRoundInternal();
+
+    /** Internal eject chambered round logic */
+    FSuspenseCoreChamberedRound EjectChamberedRoundInternal();
 
     //================================================
     // Server RPCs

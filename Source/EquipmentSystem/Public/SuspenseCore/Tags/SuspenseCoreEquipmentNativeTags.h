@@ -424,6 +424,19 @@ namespace SuspenseCoreEquipmentTags
     }
 
     //========================================
+    // ATTRIBUTESET TYPE TAGS
+    // Used for categorizing AttributeSets in equipment component
+    //========================================
+    namespace AttributeSet
+    {
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AttributeSet);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AttributeSet_Weapon);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AttributeSet_Ammo);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AttributeSet_Armor);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AttributeSet_Equipment);
+    }
+
+    //========================================
     // QUICKSLOT SYSTEM TAGS
     //========================================
     namespace QuickSlot

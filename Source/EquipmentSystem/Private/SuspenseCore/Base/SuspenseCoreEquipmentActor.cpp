@@ -228,15 +228,25 @@ void ASuspenseCoreEquipmentActor::OnUnequipped_Implementation()
     RemoveGrantedAbilities();
     RemoveAppliedEffects();
 
+    // CRITICAL: Cleanup components (removes AttributeSets from ASC)
     if (AttributeComponent)  { AttributeComponent->Cleanup(); }
     if (AttachmentComponent) { AttachmentComponent->Cleanup(); }
 
     SetEquipmentStateInternal(EqTags().State_Inactive);
 
+    // Reset all state
     OwnerActor   = nullptr;
     CachedASC    = nullptr;
     bFullyInitialized = false;
     PendingInit.Reset();
+
+    // Reset item instance (important for pooled actors)
+    EquippedItemInstance = FSuspenseCoreInventoryItemInstance();
+
+    // Reset replicated data
+    ReplicatedItemID = NAME_None;
+    ReplicatedItemQuantity = 0;
+    ReplicatedItemCondition = 0.0f;
 }
 
 void ASuspenseCoreEquipmentActor::OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
@@ -434,14 +444,30 @@ bool ASuspenseCoreEquipmentActor::CanEquipItemInstance_Implementation(const FSus
 {
     if (!ItemInstance.IsValid()) { return false; }
 
+    FSuspenseCoreUnifiedItemData Data;
+
+    // PRIMARY: Use DataManager (SSOT)
+    if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
+    {
+        if (DM->GetUnifiedItemData(ItemInstance.ItemID, Data))
+        {
+            if (!Data.bIsEquippable) { return false; }
+            if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
+            return true;
+        }
+    }
+
+    // LEGACY FALLBACK: Try ItemManager
     if (const USuspenseCoreItemManager* IM = GetItemManager())
     {
-        FSuspenseCoreUnifiedItemData Data;
-        if (!IM->GetUnifiedItemData(ItemInstance.ItemID, Data)) { return false; }
-        if (!Data.bIsEquippable) { return false; }
-        if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
-        return true;
+        if (IM->GetUnifiedItemData(ItemInstance.ItemID, Data))
+        {
+            if (!Data.bIsEquippable) { return false; }
+            if (!Data.EquipmentSlot.MatchesTag(EquipmentSlotTag)) { return false; }
+            return true;
+        }
     }
+
     return false;
 }
 
@@ -770,9 +796,22 @@ void ASuspenseCoreEquipmentActor::OnRep_ItemData()
         EquippedItemInstance.SetRuntimeProperty(TEXT("Durability"), ReplicatedItemCondition);
     }
 
+    FSuspenseCoreUnifiedItemData Data;
+
+    // PRIMARY: Use DataManager (SSOT)
+    if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
+    {
+        if (DM->GetUnifiedItemData(ReplicatedItemID, Data))
+        {
+            SetupEquipmentMesh(Data);
+            NotifyEquipmentEvent(EqTags().UI_DataReady, &EquippedItemInstance);
+            return;
+        }
+    }
+
+    // LEGACY FALLBACK: Try ItemManager
     if (USuspenseCoreItemManager* IM = GetItemManager())
     {
-        FSuspenseCoreUnifiedItemData Data;
         if (IM->GetUnifiedItemData(ReplicatedItemID, Data))
         {
             SetupEquipmentMesh(Data);
@@ -802,21 +841,21 @@ bool ASuspenseCoreEquipmentActor::GetUnifiedItemData(FSuspenseCoreUnifiedItemDat
 {
     if (!EquippedItemInstance.IsValid()) { return false; }
 
-    // Try ItemManager first
-    if (USuspenseCoreItemManager* IM = GetItemManager())
+    // PRIMARY: Use DataManager (SSOT) as the single source of truth
+    if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
     {
-        if (IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
+        if (DM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
         {
             return true;
         }
     }
 
-    // Fallback to DataManager (SSOT)
-    if (USuspenseCoreDataManager* DM = USuspenseCoreDataManager::Get(this))
+    // LEGACY FALLBACK: Try ItemManager only if DataManager failed
+    if (USuspenseCoreItemManager* IM = GetItemManager())
     {
-        if (DM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
+        if (IM->GetUnifiedItemData(EquippedItemInstance.ItemID, OutData))
         {
-            UE_LOG(LogTemp, Verbose, TEXT("[%s] GetUnifiedItemData: Using DataManager fallback for %s"),
+            UE_LOG(LogTemp, Verbose, TEXT("[%s] GetUnifiedItemData: Using legacy ItemManager fallback for %s"),
                 *GetName(), *EquippedItemInstance.ItemID.ToString());
             return true;
         }

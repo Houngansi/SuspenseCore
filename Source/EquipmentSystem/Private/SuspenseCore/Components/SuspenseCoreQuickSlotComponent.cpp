@@ -70,15 +70,6 @@ void USuspenseCoreQuickSlotComponent::InitializeWithMagazineComponent(USuspenseC
     }
 }
 
-void USuspenseCoreQuickSlotComponent::SetInventoryComponent(USuspenseCoreInventoryComponent* InInventoryComponent)
-{
-    if (InInventoryComponent)
-    {
-        InventoryComponent = InInventoryComponent;
-        QUICKSLOT_LOG(Log, TEXT("InventoryComponent set for item validation"));
-    }
-}
-
 void USuspenseCoreQuickSlotComponent::InitializeSlots()
 {
     QuickSlots.SetNum(SUSPENSECORE_QUICKSLOT_COUNT);

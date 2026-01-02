@@ -82,7 +82,7 @@ bool USuspenseCoreMagazineComponent::InitializeFromWeapon(
 
     // Cache weapon data
     FSuspenseCoreUnifiedItemData WeaponData;
-    if (WeaponInterface->GetWeaponData(WeaponData))
+    if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponInterface.GetObject(), WeaponData))
     {
         CachedWeaponCaliber = WeaponData.AmmoType;
         CachedWeaponType = WeaponData.WeaponArchetype;

@@ -198,6 +198,7 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 	}
 
 	using namespace SuspenseCoreEquipmentTags::Event;
+	using namespace SuspenseCoreEquipmentTags::Magazine;
 
 	MagazineInsertedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Magazine_Inserted,

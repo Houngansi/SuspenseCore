@@ -30,11 +30,14 @@ class USuspenseCoreEventBus;
  * - Real-time updates via EventBus (NO direct component polling!)
  * - Smooth progress interpolation
  * - Phase-based visual feedback
+ * - ALL components are MANDATORY (BindWidget)
+ * - Widget starts Collapsed, shown only during reload
  * - NO programmatic color changes - ALL colors from materials in Editor!
  *
  * Layout:
  * ┌────────────────────────────────────────┐
  * │           TACTICAL RELOAD              │  ← Reload type text
+ * │       1.5s                             │  ← Time remaining
  * │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  ← Progress bar
  * │  [EJECT] → [INSERT] → [CHAMBER]        │  ← Phase indicators
  * │           Press [R] to cancel          │  ← Cancel hint
@@ -104,8 +107,10 @@ public:
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Main Display
+	// UI BINDINGS - ALL MANDATORY (BindWidget) - Start Collapsed!
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	// --- Main Display ---
 
 	/** Reload type text (e.g., "TACTICAL RELOAD") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -116,43 +121,39 @@ protected:
 	TObjectPtr<UProgressBar> ReloadProgressBar;
 
 	/** Time remaining text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> TimeRemainingText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Phase Indicators
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Phase Indicators ---
 
 	/** Eject phase indicator */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> EjectPhaseIndicator;
 
 	/** Insert phase indicator */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> InsertPhaseIndicator;
 
 	/** Chamber phase indicator */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> ChamberPhaseIndicator;
 
 	/** Eject phase text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> EjectPhaseText;
 
 	/** Insert phase text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> InsertPhaseText;
 
 	/** Chamber phase text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ChamberPhaseText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Cancel Hint
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Cancel Hint ---
 
 	/** Cancel hint text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CancelHintText;
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -166,14 +167,6 @@ protected:
 	/** Progress bar interpolation speed */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config", meta = (EditCondition = "bSmoothProgress"))
 	float ProgressInterpSpeed = 20.0f;
-
-	/** Show time remaining? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
-	bool bShowTimeRemaining = true;
-
-	/** Show phase indicators? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")
-	bool bShowPhaseIndicators = true;
 
 	/** Cancel hint text format */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Reload|Config")

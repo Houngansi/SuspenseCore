@@ -99,8 +99,10 @@ public:
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Header
+	// UI BINDINGS - ALL MANDATORY (BindWidget) - Start Collapsed!
 	// ═══════════════════════════════════════════════════════════════════════════
+
+	// --- Header Section ---
 
 	/** Magazine icon */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -111,16 +113,14 @@ protected:
 	TObjectPtr<UTextBlock> MagazineNameText;
 
 	/** Rarity text/stars */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> RarityText;
 
 	/** Rarity icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> RarityIcon;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Rounds Section
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Rounds Section ---
 
 	/** Current rounds text */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -134,100 +134,90 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> FillBar;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Ammo Section
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Ammo Section ---
 
 	/** Ammo section container */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> AmmoSection;
 
 	/** Loaded ammo type text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> LoadedAmmoText;
 
 	/** Loaded ammo icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> LoadedAmmoIcon;
 
 	/** Ammo damage text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoDamageText;
 
 	/** Ammo penetration text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoPenetrationText;
 
 	/** Ammo fragmentation text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoFragmentationText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Stats Section
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Stats Section ---
 
 	/** Caliber text */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CaliberText;
 
 	/** Weight text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> WeightText;
 
 	/** Durability text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> DurabilityText;
 
 	/** Durability bar */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> DurabilityBar;
 
 	/** Reload modifier text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReloadModifierText;
 
 	/** Ergonomics penalty text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ErgonomicsText;
 
 	/** Feed reliability text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReliabilityText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Compatibility Section
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Compatibility Section ---
 
 	/** Compatible weapons container */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> CompatibleWeaponsSection;
 
 	/** Compatible weapons list text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CompatibleWeaponsText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Comparison Section
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Comparison Section ---
 
 	/** Comparison container */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> ComparisonSection;
 
 	/** Comparison rounds diff text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CompareRoundsText;
 
 	/** Comparison capacity diff text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CompareCapacityText;
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - Description
-	// ═══════════════════════════════════════════════════════════════════════════
+	// --- Description Section ---
 
 	/** Description text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> DescriptionText;
 
 	// ═══════════════════════════════════════════════════════════════════════════

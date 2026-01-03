@@ -894,8 +894,7 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 {
 	// Get the spawned equipment actor from event data
 	// Visual_Spawned sets actor via SetObject("Source", SpawnedActor)
-	UObject* SourceObj = EventData.GetObject(TEXT("Source"));
-	AActor* ItemActor = Cast<AActor>(SourceObj);
+	AActor* ItemActor = EventData.GetObject<AActor>(FName("Source"));
 
 	// Fallback: try EventData.Source directly
 	if (!ItemActor)

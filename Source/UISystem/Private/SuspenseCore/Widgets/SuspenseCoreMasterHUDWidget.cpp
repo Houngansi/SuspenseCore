@@ -62,8 +62,17 @@ void USuspenseCoreMasterHUDWidget::InitializeHUD(APawn* OwningPawn)
 
 void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 {
-	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ MasterHUD::InitializeWeaponHUD - Frame=%llu, WeaponActor=%s"),
-		GFrameCounter, WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
+	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ MasterHUD::InitializeWeaponHUD - Frame=%llu, WeaponActor=%s, CachedActor=%s"),
+		GFrameCounter,
+		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"),
+		CachedWeaponActor.IsValid() ? *CachedWeaponActor->GetName() : TEXT("nullptr"));
+
+	// Guard against duplicate initialization for same weapon
+	if (CachedWeaponActor.Get() == WeaponActor && bHasWeaponEquipped)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  SKIPPING - Already initialized with this weapon"));
+		return;
+	}
 
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;

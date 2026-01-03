@@ -901,7 +901,15 @@ void USuspenseCoreUIManager::SubscribeToEvents()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to ItemEquipped/Unequipped events"));
+	// Subscribe to Visual_Detached event - this fires when weapon actor is detached/hidden
+	VisualDetachedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Visual_Detached,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnVisualDetachedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to ItemEquipped/Unequipped/VisualDetached events"));
 }
 
 void USuspenseCoreUIManager::UnsubscribeFromEvents()
@@ -915,6 +923,7 @@ void USuspenseCoreUIManager::UnsubscribeFromEvents()
 	// Unsubscribe from equipment events
 	EventBus->Unsubscribe(ItemEquippedHandle);
 	EventBus->Unsubscribe(ItemUnequippedHandle);
+	EventBus->Unsubscribe(VisualDetachedHandle);
 
 	for (FDelegateHandle& Handle : EventSubscriptions)
 	{
@@ -1053,6 +1062,30 @@ void USuspenseCoreUIManager::OnItemUnequippedEvent(FGameplayTag EventTag, const 
 	else
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Not a weapon slot, ignoring"));
+	}
+}
+
+void USuspenseCoreUIManager::OnVisualDetachedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
+	FString SlotType = EventData.GetString(TEXT("SlotType"));
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnVisualDetachedEvent - Tag: %s, Slot: %d, SlotType: %s"),
+		*EventTag.ToString(), SlotIndex, *SlotType);
+
+	// Check if this was a weapon slot
+	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
+
+	// Also check by slot type string
+	if (!bIsWeaponSlot)
+	{
+		bIsWeaponSlot = SlotType.Contains(TEXT("Weapon")) || SlotType.Contains(TEXT("Primary")) || SlotType.Contains(TEXT("Secondary"));
+	}
+
+	if (bIsWeaponSlot)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnVisualDetachedEvent - Clearing weapon HUD (visual detached)"));
+		ClearWeaponHUD();
 	}
 }
 

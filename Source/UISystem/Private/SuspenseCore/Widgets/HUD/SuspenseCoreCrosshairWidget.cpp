@@ -105,84 +105,29 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshair(float Spread, float Recoil, b
 
 void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, Frame=%llu, wasVisible=%d"),
-		bVisible, GFrameCounter, bCrosshairVisible);
-
-	// Управляем подписками на основе видимости
-	if (bVisible && !bCrosshairVisible)
+	// Skip if no state change
+	if (bCrosshairVisible == bVisible)
 	{
-		// Показываем прицел - подписываемся на события
-		SetupEventSubscriptions();
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SUBSCRIBED to events"));
+		return;
 	}
-	else if (!bVisible && bCrosshairVisible)
+
+	// Manage event subscriptions based on visibility
+	if (bVisible)
 	{
-		// Скрываем прицел - СРАЗУ отписываемся от событий
+		SetupEventSubscriptions();
+	}
+	else
+	{
 		TeardownEventSubscriptions();
-		// Сброс состояния
 		ResetToBaseSpread();
 		bCurrentlyFiring = false;
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] UNSUBSCRIBED from events"));
 	}
 
 	bCrosshairVisible = bVisible;
 
+	// Standard UMG visibility is sufficient now that Retainer is removed
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	float NewOpacity = bVisible ? 1.0f : 0.0f;
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// УРОВЕНЬ 1: Скрыть ВЕСЬ виджет целиком (this = USuspenseCoreCrosshairWidget)
-	// ═══════════════════════════════════════════════════════════════════════════
 	SetVisibility(NewVisibility);
-	SetRenderOpacity(NewOpacity);
-	SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity)); // Alpha = 0 когда скрыто
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] THIS widget: Visibility=%d, Opacity=%.1f, ColorAlpha=%.1f"),
-		static_cast<int32>(GetVisibility()), GetRenderOpacity(), NewOpacity);
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// УРОВЕНЬ 2: Скрыть корневую канву CrosshairCanvas
-	// ═══════════════════════════════════════════════════════════════════════════
-	if (CrosshairCanvas)
-	{
-		CrosshairCanvas->SetVisibility(NewVisibility);
-		CrosshairCanvas->SetRenderOpacity(NewOpacity);
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] CrosshairCanvas: Visibility=%d"), static_cast<int32>(NewVisibility));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[Crosshair] !!! CrosshairCanvas is NULL !!!"));
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// УРОВЕНЬ 3: Скрыть каждый элемент отдельно
-	// ═══════════════════════════════════════════════════════════════════════════
-	if (CenterDot)
-	{
-		CenterDot->SetVisibility(NewVisibility);
-		CenterDot->SetRenderOpacity(NewOpacity);
-	}
-	if (TopCrosshair)
-	{
-		TopCrosshair->SetVisibility(NewVisibility);
-		TopCrosshair->SetRenderOpacity(NewOpacity);
-	}
-	if (BottomCrosshair)
-	{
-		BottomCrosshair->SetVisibility(NewVisibility);
-		BottomCrosshair->SetRenderOpacity(NewOpacity);
-	}
-	if (LeftCrosshair)
-	{
-		LeftCrosshair->SetVisibility(NewVisibility);
-		LeftCrosshair->SetRenderOpacity(NewOpacity);
-	}
-	if (RightCrosshair)
-	{
-		RightCrosshair->SetVisibility(NewVisibility);
-		RightCrosshair->SetRenderOpacity(NewOpacity);
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] === HIDE COMPLETE === bVisible=%d"), bVisible);
 }
 
 void USuspenseCoreCrosshairWidget::SetCrosshairType(const FName& CrosshairType)
@@ -287,10 +232,8 @@ USuspenseCoreEventBus* USuspenseCoreCrosshairWidget::GetEventBus() const
 
 void USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если прицел скрыт
 	if (!bCrosshairVisible)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnSpreadUpdatedEvent IGNORED - crosshair not visible"));
 		return;
 	}
 
@@ -303,10 +246,8 @@ void USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent(FGameplayTag EventTag, c
 
 void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если прицел скрыт
 	if (!bCrosshairVisible)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnWeaponFiredEvent IGNORED - crosshair not visible"));
 		return;
 	}
 
@@ -319,10 +260,8 @@ void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, con
 
 void USuspenseCoreCrosshairWidget::OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если прицел скрыт
 	if (!bCrosshairVisible)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnHitConfirmedEvent IGNORED - crosshair not visible"));
 		return;
 	}
 

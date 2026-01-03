@@ -16,6 +16,7 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -823,11 +824,29 @@ void USuspenseCoreUIManager::SubscribeToEvents()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::SubscribeToEvents - EventBus not available"));
 		return;
 	}
 
-	// Subscribe to UI feedback events
-	// Note: Actual subscription mechanism depends on EventBus implementation
+	using namespace SuspenseCoreEquipmentTags::Event;
+
+	// Subscribe to item equipped event
+	ItemEquippedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_ItemEquipped,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemEquippedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	// Subscribe to item unequipped event
+	ItemUnequippedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_ItemUnequipped,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemUnequippedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to equipment events"));
 }
 
 void USuspenseCoreUIManager::UnsubscribeFromEvents()
@@ -837,6 +856,10 @@ void USuspenseCoreUIManager::UnsubscribeFromEvents()
 	{
 		return;
 	}
+
+	// Unsubscribe from equipment events
+	EventBus->Unsubscribe(ItemEquippedHandle);
+	EventBus->Unsubscribe(ItemUnequippedHandle);
 
 	for (FDelegateHandle& Handle : EventSubscriptions)
 	{
@@ -864,6 +887,58 @@ void USuspenseCoreUIManager::OnContainerOpenedEvent(const FSuspenseCoreEventData
 void USuspenseCoreUIManager::OnContainerClosedEvent(const FSuspenseCoreEventData& EventData)
 {
 	// External request to close container
+}
+
+void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get the equipped item actor from event data
+	AActor* ItemActor = Cast<AActor>(EventData.Target.Get());
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - ItemActor: %s"),
+		ItemActor ? *ItemActor->GetName() : TEXT("nullptr"));
+
+	// Check if this is a weapon (has weapon tag or specific component)
+	// For now, we'll check if it has weapon-related tags
+	bool bIsWeapon = false;
+	if (ItemActor)
+	{
+		// Check if item has weapon tag in event data
+		FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
+		bIsWeapon = EventData.Tags.HasTag(ItemTypeTag);
+
+		// Fallback: check event string data
+		if (!bIsWeapon)
+		{
+			FString ItemType = EventData.GetString(TEXT("ItemType"));
+			bIsWeapon = ItemType.Contains(TEXT("Weapon"));
+		}
+
+		// Fallback: check if actor has specific interface or component
+		// For now, assume any equipped item in primary slot is a weapon
+		int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), -1);
+		if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
+		{
+			bIsWeapon = true;
+		}
+	}
+
+	if (bIsWeapon && ItemActor)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Initializing weapon HUD for: %s"), *ItemActor->GetName());
+		InitializeWeaponHUD(ItemActor);
+	}
+}
+
+void USuspenseCoreUIManager::OnItemUnequippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Clearing weapon HUD"));
+
+	// Check if this was a weapon slot
+	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), -1);
+	if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
+	{
+		ClearWeaponHUD();
+	}
 }
 
 USuspenseCoreEventBus* USuspenseCoreUIManager::GetEventBus() const

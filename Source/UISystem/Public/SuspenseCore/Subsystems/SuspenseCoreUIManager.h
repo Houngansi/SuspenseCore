@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "SuspenseCoreUIManager.generated.h"
@@ -384,6 +385,12 @@ protected:
 	/** Handle container closed event */
 	void OnContainerClosedEvent(const FSuspenseCoreEventData& EventData);
 
+	/** Handle item equipped event - auto-initialize weapon HUD */
+	void OnItemEquippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle item unequipped event - auto-clear weapon HUD */
+	void OnItemUnequippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
 	/** Get EventBus */
 	USuspenseCoreEventBus* GetEventBus() const;
 
@@ -451,6 +458,12 @@ private:
 
 	/** Event subscription handles */
 	TArray<FDelegateHandle> EventSubscriptions;
+
+	/** Item equipped event handle */
+	FSuspenseCoreSubscriptionHandle ItemEquippedHandle;
+
+	/** Item unequipped event handle */
+	FSuspenseCoreSubscriptionHandle ItemUnequippedHandle;
 
 	/** Is container screen currently visible */
 	bool bIsContainerScreenVisible;

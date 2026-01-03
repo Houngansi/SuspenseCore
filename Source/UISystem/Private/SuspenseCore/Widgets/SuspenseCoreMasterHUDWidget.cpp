@@ -9,6 +9,7 @@
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreQuickSlotHUDWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreReloadProgressWidget.h"
 #include "Components/CanvasPanel.h"
+#include "Widgets/SWidget.h"
 
 USuspenseCoreMasterHUDWidget::USuspenseCoreMasterHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -162,32 +163,31 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"),
 			AmmoCounterWidget->GetChildrenCount());
 
-		// Set visibility on the widget container
+		// 1. UMG Level: Set visibility on the UWidget
 		AmmoCounterWidget->SetVisibility(NewVis);
-
-		// ALSO set render opacity as backup (0 = fully transparent, 1 = fully opaque)
 		AmmoCounterWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
 
-		// ALSO call interface method to set visibility on internal elements
+		// 2. Slate Level: Set visibility directly on underlying SWidget
+		TSharedPtr<SWidget> SlateWidget = AmmoCounterWidget->GetCachedWidget();
+		if (SlateWidget.IsValid())
+		{
+			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
+			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set to: %d"),
+				static_cast<int32>(SlateWidget->GetVisibility()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  GetCachedWidget() returned NULL!"));
+		}
+
+		// 3. Interface: Call interface method to set visibility on internal elements
 		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
 
-		// Force complete layout invalidation
+		// 4. Force layout rebuild
 		AmmoCounterWidget->ForceLayoutPrepass();
 		AmmoCounterWidget->InvalidateLayoutAndVolatility();
 
-		// NUCLEAR OPTION: Iterate through ALL children and set their visibility too
-		TArray<UWidget*> AllChildren;
-		WidgetTree->GetAllWidgets(AllChildren);
-		for (UWidget* Child : AllChildren)
-		{
-			if (Child && Child->GetParent() == AmmoCounterWidget)
-			{
-				Child->SetVisibility(NewVis);
-				Child->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
-			}
-		}
-
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: Vis=%d, Opacity=%.1f, Invalidated layout"),
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f"),
 			static_cast<int32>(AmmoCounterWidget->GetVisibility()), AmmoCounterWidget->GetRenderOpacity());
 	}
 }
@@ -207,32 +207,31 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"),
 			CrosshairWidget->GetChildrenCount());
 
-		// Set visibility on the widget container
+		// 1. UMG Level: Set visibility on the UWidget
 		CrosshairWidget->SetVisibility(NewVis);
-
-		// ALSO set render opacity as backup (0 = fully transparent, 1 = fully opaque)
 		CrosshairWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
 
-		// ALSO set visibility on internal crosshair elements (CenterDot, TopCrosshair, etc.)
+		// 2. Slate Level: Set visibility directly on underlying SWidget
+		TSharedPtr<SWidget> SlateWidget = CrosshairWidget->GetCachedWidget();
+		if (SlateWidget.IsValid())
+		{
+			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
+			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set to: %d"),
+				static_cast<int32>(SlateWidget->GetVisibility()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  GetCachedWidget() returned NULL!"));
+		}
+
+		// 3. Internal elements: Set visibility on CenterDot, directional crosshairs, etc.
 		CrosshairWidget->SetCrosshairVisibility(bVisible);
 
-		// Force complete layout invalidation
+		// 4. Force layout rebuild
 		CrosshairWidget->ForceLayoutPrepass();
 		CrosshairWidget->InvalidateLayoutAndVolatility();
 
-		// NUCLEAR OPTION: Iterate through ALL children and set their visibility too
-		TArray<UWidget*> AllChildren;
-		WidgetTree->GetAllWidgets(AllChildren);
-		for (UWidget* Child : AllChildren)
-		{
-			if (Child && Child->GetParent() == CrosshairWidget)
-			{
-				Child->SetVisibility(NewVis);
-				Child->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
-			}
-		}
-
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: Vis=%d, Opacity=%.1f, Invalidated layout"),
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f"),
 			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity());
 	}
 }

@@ -280,18 +280,28 @@ void USuspenseCoreMasterHUDWidget::ApplyInitialVisibility()
 
 void USuspenseCoreMasterHUDWidget::UpdateWeaponWidgetsVisibility()
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::UpdateWeaponWidgetsVisibility - Frame=%llu, bHasWeaponEquipped=%d"),
-		GFrameCounter, bHasWeaponEquipped);
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::UpdateWeaponWidgetsVisibility - Frame=%llu, bHasWeaponEquipped=%d, bAutoHideWeaponHUD=%d, bCrosshairRequiresWeapon=%d"),
+		GFrameCounter, bHasWeaponEquipped, bAutoHideWeaponHUD, bCrosshairRequiresWeapon);
 
 	// Ammo counter visibility
 	if (bAutoHideWeaponHUD)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("  -> Calling SetWeaponInfoVisible(%d)"), bHasWeaponEquipped);
 		SetWeaponInfoVisible(bHasWeaponEquipped);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  -> SKIPPING SetWeaponInfoVisible because bAutoHideWeaponHUD=false!"));
 	}
 
 	// Crosshair visibility
 	if (bCrosshairRequiresWeapon)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("  -> Calling SetCrosshairVisible(%d)"), bHasWeaponEquipped);
 		SetCrosshairVisible(bHasWeaponEquipped);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  -> SKIPPING SetCrosshairVisible because bCrosshairRequiresWeapon=false!"));
 	}
 }

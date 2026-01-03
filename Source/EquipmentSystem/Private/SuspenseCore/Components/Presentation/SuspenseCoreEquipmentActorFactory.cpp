@@ -399,8 +399,22 @@ bool USuspenseCoreEquipmentActorFactory::DestroyEquipmentActor(AActor* Actor, bo
         ItemId = Entry->ItemId;
     }
 
-    // Broadcast event via EventBus before destroying
-    BroadcastActorDestroyed(Actor, ItemId);
+    // Get SlotIndex from registry BEFORE unregistering (for UI HUD hiding)
+    int32 SlotIndex = INDEX_NONE;
+    {
+        EQUIPMENT_SCOPE_LOCK(RegistryLock);
+        for (const auto& Pair : SpawnedActorRegistry)
+        {
+            if (Pair.Value == Actor)
+            {
+                SlotIndex = Pair.Key;
+                break;
+            }
+        }
+    }
+
+    // Broadcast event via EventBus before destroying (includes slot info for UI)
+    BroadcastActorDestroyed(Actor, ItemId, SlotIndex);
 
     // Unregister from registry
     UnregisterActor(Actor);
@@ -1121,7 +1135,7 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorSpawned(AActor* SpawnedAc
         SlotIndex);
 }
 
-void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, const FName& ItemId)
+void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, const FName& ItemId, int32 SlotIndex)
 {
     if (!EventBus || !Tag_Visual_Destroyed.IsValid())
     {
@@ -1131,12 +1145,34 @@ void USuspenseCoreEquipmentActorFactory::BroadcastActorDestroyed(AActor* Actor, 
     FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
     EventData.SetObject(TEXT("Target"), Actor);
     EventData.SetString(TEXT("ItemId"), ItemId.ToString());
+    EventData.SetInt(TEXT("Slot"), SlotIndex);
+
+    // Determine SlotType based on slot index for UI HUD logic
+    // Slots 0,1 are weapon slots (Primary/Secondary)
+    FString SlotType;
+    if (SlotIndex == 0)
+    {
+        SlotType = TEXT("PrimaryWeapon");
+    }
+    else if (SlotIndex == 1)
+    {
+        SlotType = TEXT("SecondaryWeapon");
+    }
+    else if (SlotIndex == 2)
+    {
+        SlotType = TEXT("Holster");
+    }
+    else if (SlotIndex == 3)
+    {
+        SlotType = TEXT("Scabbard");
+    }
+    EventData.SetString(TEXT("SlotType"), SlotType);
 
     EventBus->Publish(Tag_Visual_Destroyed, EventData);
 
-    UE_LOG(LogSuspenseCoreEquipmentOperation, Verbose,
-        TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s"),
-        *ItemId.ToString());
+    UE_LOG(LogSuspenseCoreEquipmentOperation, Log,
+        TEXT("[ActorFactory] Broadcast Visual.Destroyed: Item=%s, Slot=%d, SlotType=%s"),
+        *ItemId.ToString(), SlotIndex, *SlotType);
 }
 
 // ============================================================================

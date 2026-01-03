@@ -62,8 +62,17 @@ void USuspenseCoreMasterHUDWidget::InitializeHUD(APawn* OwningPawn)
 
 void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 {
-	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ MasterHUD::InitializeWeaponHUD - Frame=%llu, WeaponActor=%s"),
-		GFrameCounter, WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
+	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ MasterHUD::InitializeWeaponHUD - Frame=%llu, WeaponActor=%s, CachedActor=%s"),
+		GFrameCounter,
+		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"),
+		CachedWeaponActor.IsValid() ? *CachedWeaponActor->GetName() : TEXT("nullptr"));
+
+	// Guard against duplicate initialization for same weapon
+	if (CachedWeaponActor.Get() == WeaponActor && bHasWeaponEquipped)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  SKIPPING - Already initialized with this weapon"));
+		return;
+	}
 
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;
@@ -140,16 +149,25 @@ void USuspenseCoreMasterHUDWidget::SetVitalsVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu"),
-		bVisible, GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu, MasterHUD InViewport=%d"),
+		bVisible, GFrameCounter, IsInViewport());
 
 	if (AmmoCounterWidget)
 	{
 		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter: CurrentVis=%d -> NewVis=%d"),
-			static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): CurrentVis=%d -> NewVis=%d"),
+			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+
 		AmmoCounterWidget->SetVisibility(NewVis);
+
+		// Verify visibility was set correctly
+		ESlateVisibility VerifyVis = AmmoCounterWidget->GetVisibility();
+		if (VerifyVis != NewVis)
+		{
+			UE_LOG(LogTemp, Error, TEXT("  *** VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
+				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
+		}
 	}
 	else
 	{
@@ -159,16 +177,25 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu"),
-		bVisible, GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu, MasterHUD InViewport=%d"),
+		bVisible, GFrameCounter, IsInViewport());
 
 	if (CrosshairWidget)
 	{
 		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair: CurrentVis=%d -> NewVis=%d"),
-			static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): CurrentVis=%d -> NewVis=%d"),
+			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+
 		CrosshairWidget->SetVisibility(NewVis);
+
+		// Verify visibility was set correctly
+		ESlateVisibility VerifyVis = CrosshairWidget->GetVisibility();
+		if (VerifyVis != NewVis)
+		{
+			UE_LOG(LogTemp, Error, TEXT("  *** VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
+				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
+		}
 	}
 	else
 	{

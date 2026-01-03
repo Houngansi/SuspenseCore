@@ -149,14 +149,15 @@ void USuspenseCoreMasterHUDWidget::SetVitalsVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu, MasterHUD InViewport=%d"),
-		bVisible, GFrameCounter, IsInViewport());
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu, InViewport=%d, AmmoWidget=%s"),
+		bVisible, GFrameCounter, IsInViewport(),
+		AmmoCounterWidget ? TEXT("VALID") : TEXT("NULL!!!"));
 
 	if (AmmoCounterWidget)
 	{
 		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): CurrentVis=%d -> NewVis=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d"),
 			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
 
 		AmmoCounterWidget->SetVisibility(NewVis);
@@ -165,26 +166,23 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		ESlateVisibility VerifyVis = AmmoCounterWidget->GetVisibility();
 		if (VerifyVis != NewVis)
 		{
-			UE_LOG(LogTemp, Error, TEXT("  *** VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
+			UE_LOG(LogTemp, Warning, TEXT("  *** AMMO VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
 				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("MasterHUD::SetWeaponInfoVisible: AmmoCounterWidget is NULL!"));
 	}
 }
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu, MasterHUD InViewport=%d"),
-		bVisible, GFrameCounter, IsInViewport());
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu, InViewport=%d, CrosshairWidget=%s"),
+		bVisible, GFrameCounter, IsInViewport(),
+		CrosshairWidget ? TEXT("VALID") : TEXT("NULL!!!"));
 
 	if (CrosshairWidget)
 	{
 		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): CurrentVis=%d -> NewVis=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d"),
 			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
 
 		CrosshairWidget->SetVisibility(NewVis);
@@ -193,13 +191,9 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		ESlateVisibility VerifyVis = CrosshairWidget->GetVisibility();
 		if (VerifyVis != NewVis)
 		{
-			UE_LOG(LogTemp, Error, TEXT("  *** VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
+			UE_LOG(LogTemp, Warning, TEXT("  *** CROSSHAIR VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
 				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("MasterHUD::SetCrosshairVisible: CrosshairWidget is NULL!"));
 	}
 }
 

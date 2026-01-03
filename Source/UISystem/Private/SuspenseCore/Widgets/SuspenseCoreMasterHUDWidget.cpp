@@ -93,16 +93,20 @@ void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 
 void USuspenseCoreMasterHUDWidget::ClearWeaponHUD()
 {
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::ClearWeaponHUD called"));
+
 	CachedWeaponActor.Reset();
 	bHasWeaponEquipped = false;
 
 	// Clear ammo counter (has interface)
 	if (AmmoCounterWidget)
 	{
+		UE_LOG(LogTemp, Log, TEXT("MasterHUD::ClearWeaponHUD - Clearing AmmoCounterWidget"));
 		AmmoCounterWidget->Execute_ClearWeapon(AmmoCounterWidget);
 	}
 
 	// Update visibility
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::ClearWeaponHUD - Updating visibility, bHasWeaponEquipped: %d"), bHasWeaponEquipped);
 	UpdateWeaponWidgetsVisibility();
 
 	OnWeaponHUDCleared();

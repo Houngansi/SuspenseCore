@@ -914,46 +914,64 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 		return;
 	}
 
-	// Get the character (Target) from event data
-	AActor* CharacterActor = EventData.GetObject<AActor>(FName("Target"));
-	if (!CharacterActor)
+	// Try to get weapon actor from event data
+	// First try "Target" which may contain the weapon actor
+	AActor* WeaponActor = EventData.GetObject<AActor>(FName("Target"));
+	if (!WeaponActor)
 	{
-		CharacterActor = Cast<AActor>(EventData.Source.Get());
+		WeaponActor = Cast<AActor>(EventData.Source.Get());
 	}
 
-	if (!CharacterActor)
+	// If we have a weapon actor directly, use it
+	if (WeaponActor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No character found in event data"));
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Using weapon actor from event: %s"), *WeaponActor->GetName());
+		InitializeWeaponHUD(WeaponActor);
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Character: %s"), *CharacterActor->GetName());
+	// Fallback: try to get weapon from player's ActorFactory
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No world"));
+		return;
+	}
 
-	// Find the ActorFactory component on the character
-	USuspenseCoreEquipmentActorFactory* ActorFactory = CharacterActor->FindComponentByClass<USuspenseCoreEquipmentActorFactory>();
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No player controller"));
+		return;
+	}
+
+	APawn* PlayerPawn = PC->GetPawn();
+	if (!PlayerPawn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No player pawn"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Player pawn: %s"), *PlayerPawn->GetName());
+
+	USuspenseCoreEquipmentActorFactory* ActorFactory = PlayerPawn->FindComponentByClass<USuspenseCoreEquipmentActorFactory>();
 	if (!ActorFactory)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No ActorFactory found on character"));
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No ActorFactory on player pawn"));
 		return;
 	}
 
-	// Get all spawned actors and find the one for this slot
 	TMap<int32, AActor*> SpawnedActors = ActorFactory->GetAllSpawnedActors();
-	AActor* WeaponActor = SpawnedActors.FindRef(SlotIndex);
+	WeaponActor = SpawnedActors.FindRef(SlotIndex);
 
 	if (WeaponActor)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Found weapon actor: %s for slot %d"),
-			*WeaponActor->GetName(), SlotIndex);
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Found weapon actor from factory: %s"), *WeaponActor->GetName());
 		InitializeWeaponHUD(WeaponActor);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No spawned actor for slot %d. Available slots:"), SlotIndex);
-		for (const auto& Pair : SpawnedActors)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  Slot %d: %s"), Pair.Key, Pair.Value ? *Pair.Value->GetName() : TEXT("nullptr"));
-		}
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No weapon actor found for slot %d"), SlotIndex);
 	}
 }
 

@@ -192,8 +192,8 @@ private:
     /** Broadcast actor spawned event with full data for AbilityService */
     void BroadcastActorSpawned(AActor* SpawnedActor, AActor* OwnerActor, const FSuspenseCoreInventoryItemInstance& ItemInstance, int32 SlotIndex);
 
-    /** Broadcast actor destroyed event */
-    void BroadcastActorDestroyed(AActor* Actor, const FName& ItemId);
+    /** Broadcast actor destroyed event with slot info for UI HUD hiding */
+    void BroadcastActorDestroyed(AActor* Actor, const FName& ItemId, int32 SlotIndex);
 
     /** Internal destroy logic */
     void DestroyActorInternal(AActor* Actor, bool bImmediate);

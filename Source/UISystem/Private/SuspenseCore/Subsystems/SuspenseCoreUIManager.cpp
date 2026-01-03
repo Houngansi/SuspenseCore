@@ -774,8 +774,33 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 
 void USuspenseCoreUIManager::ClearWeaponHUD()
 {
+	UE_LOG(LogTemp, Log, TEXT("UIManager::ClearWeaponHUD called, MasterHUD: %s"),
+		MasterHUD ? TEXT("valid") : TEXT("NULL"));
+
+	// Try to find existing MasterHUD if not cached
+	if (!MasterHUD)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			TArray<UUserWidget*> FoundWidgets;
+			UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, USuspenseCoreMasterHUDWidget::StaticClass(), false);
+
+			for (UUserWidget* Widget : FoundWidgets)
+			{
+				if (USuspenseCoreMasterHUDWidget* FoundHUD = Cast<USuspenseCoreMasterHUDWidget>(Widget))
+				{
+					MasterHUD = FoundHUD;
+					UE_LOG(LogTemp, Log, TEXT("UIManager::ClearWeaponHUD - Found MasterHUD: %s"), *MasterHUD->GetName());
+					break;
+				}
+			}
+		}
+	}
+
 	if (MasterHUD)
 	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::ClearWeaponHUD - Calling MasterHUD->ClearWeaponHUD"));
 		MasterHUD->ClearWeaponHUD();
 	}
 }

@@ -6,6 +6,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
@@ -53,6 +55,33 @@ void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor*
 
 	// Reset display
 	CachedAmmoData = FSuspenseCoreAmmoCounterData();
+
+	// Get weapon display name from ISuspenseCoreWeapon interface
+	if (WeaponActor && WeaponNameText)
+	{
+		if (WeaponActor->Implements<USuspenseCoreWeapon>())
+		{
+			FSuspenseCoreUnifiedItemData WeaponData;
+			if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponActor, WeaponData))
+			{
+				WeaponNameText->SetText(WeaponData.DisplayName);
+				UE_LOG(LogTemp, Log, TEXT("AmmoCounter: Weapon DisplayName set to: %s"), *WeaponData.DisplayName.ToString());
+			}
+			else
+			{
+				// Fallback to actor name
+				WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
+				UE_LOG(LogTemp, Warning, TEXT("AmmoCounter: GetWeaponItemData failed, using actor name"));
+			}
+		}
+		else
+		{
+			// Actor doesn't implement ISuspenseCoreWeapon - use actor name
+			WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
+			UE_LOG(LogTemp, Warning, TEXT("AmmoCounter: Weapon doesn't implement ISuspenseCoreWeapon"));
+		}
+	}
+
 	RefreshDisplay();
 }
 

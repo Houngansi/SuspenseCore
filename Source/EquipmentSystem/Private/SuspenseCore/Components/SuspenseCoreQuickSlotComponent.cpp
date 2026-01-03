@@ -4,6 +4,10 @@
 
 #include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Net/UnrealNetwork.h"
 #include "GameplayTagsManager.h"
 
@@ -217,6 +221,19 @@ void USuspenseCoreQuickSlotComponent::StartSlotCooldown(int32 SlotIndex, float C
 
     QuickSlots[SlotIndex].CooldownRemaining = FMath::Max(0.0f, CooldownDuration);
     OnQuickSlotCooldownChanged.Broadcast(SlotIndex, CooldownDuration);
+
+    // Publish EventBus event for UI
+    USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+    if (EventManager)
+    {
+        if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData;
+            EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+            EventData.SetFloat(TEXT("Duration"), CooldownDuration);
+            EventBus->Publish(SuspenseCoreEquipmentTags::QuickSlot::TAG_Equipment_Event_QuickSlot_CooldownStarted, EventData);
+        }
+    }
 }
 
 //==================================================================
@@ -389,8 +406,20 @@ bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotInde
 
     OnQuickSlotUsed.Broadcast(SlotIndex, bSuccess);
 
+    // Publish EventBus event for UI
     if (bSuccess)
     {
+        USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+        if (EventManager)
+        {
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                FSuspenseCoreEventData EventData;
+                EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+                EventBus->Publish(SuspenseCoreEquipmentTags::QuickSlot::TAG_Equipment_Event_QuickSlot_Used, EventData);
+            }
+        }
+
         QUICKSLOT_LOG(Log, TEXT("Used QuickSlot %d successfully"), SlotIndex);
     }
 
@@ -572,6 +601,18 @@ void USuspenseCoreQuickSlotComponent::UpdateCooldowns(float DeltaTime)
             {
                 OnQuickSlotCooldownChanged.Broadcast(i, 0.0f);
                 OnQuickSlotAvailabilityChanged.Broadcast(i, QuickSlots[i].HasItem());
+
+                // Publish EventBus event for UI
+                USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+                if (EventManager)
+                {
+                    if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+                    {
+                        FSuspenseCoreEventData EventData;
+                        EventData.SetInt(TEXT("SlotIndex"), i);
+                        EventBus->Publish(SuspenseCoreEquipmentTags::QuickSlot::TAG_Equipment_Event_QuickSlot_CooldownEnded, EventData);
+                    }
+                }
             }
         }
     }
@@ -632,10 +673,71 @@ bool USuspenseCoreQuickSlotComponent::ExecuteGrenadePrepare(int32 SlotIndex)
 
 void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const FGuid& OldItemID, const FGuid& NewItemID)
 {
+    // Broadcast delegate events (for direct Blueprint bindings)
     OnQuickSlotChanged.Broadcast(SlotIndex, OldItemID, NewItemID);
 
     bool bHasItem = NewItemID.IsValid();
     OnQuickSlotAvailabilityChanged.Broadcast(SlotIndex, bHasItem);
+
+    // Publish EventBus events (for UI system)
+    USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+    if (!EventManager)
+    {
+        return;
+    }
+
+    USuspenseCoreEventBus* EventBus = EventManager->GetEventBus();
+    if (!EventBus)
+    {
+        return;
+    }
+
+    using namespace SuspenseCoreEquipmentTags::QuickSlot;
+
+    if (bHasItem && IsValidSlotIndex(SlotIndex))
+    {
+        // Slot assigned - publish with item data
+        FSuspenseCoreEventData EventData;
+        EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+        EventData.SetString(TEXT("ItemID"), QuickSlots[SlotIndex].AssignedItemID.ToString());
+
+        // Check if it's a magazine
+        bool bIsMagazine = StoredMagazines.IsValidIndex(SlotIndex) && StoredMagazines[SlotIndex].IsValid();
+        EventData.SetBool(TEXT("IsMagazine"), bIsMagazine);
+
+        if (bIsMagazine)
+        {
+            EventData.SetInt(TEXT("MagazineRounds"), StoredMagazines[SlotIndex].CurrentRoundCount);
+            EventData.SetInt(TEXT("MagazineCapacity"), StoredMagazines[SlotIndex].MaxCapacity);
+        }
+        else
+        {
+            EventData.SetInt(TEXT("Quantity"), 1); // TODO: Get actual quantity from inventory
+        }
+
+        EventData.SetBool(TEXT("IsAvailable"), QuickSlots[SlotIndex].bIsAvailable);
+
+        // Try to get item icon from DataManager
+        USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this);
+        if (DataManager)
+        {
+            FSuspenseCoreUnifiedItemData ItemData;
+            if (DataManager->GetUnifiedItemData(QuickSlots[SlotIndex].AssignedItemID, ItemData))
+            {
+                EventData.SetObject(TEXT("Icon"), ItemData.Icon);
+                EventData.SetString(TEXT("DisplayName"), ItemData.DisplayName.ToString());
+            }
+        }
+
+        EventBus->Publish(TAG_Equipment_Event_QuickSlot_Assigned, EventData);
+    }
+    else
+    {
+        // Slot cleared
+        FSuspenseCoreEventData EventData;
+        EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
+        EventBus->Publish(TAG_Equipment_Event_QuickSlot_Cleared, EventData);
+    }
 }
 
 #undef QUICKSLOT_LOG

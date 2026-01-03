@@ -9,6 +9,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Engine/Texture2D.h"
 
 USuspenseCoreQuickSlotHUDWidget::USuspenseCoreQuickSlotHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -349,12 +350,15 @@ void USuspenseCoreQuickSlotHUDWidget::OnQuickSlotAssignedEvent(FGameplayTag Even
 	FSuspenseCoreQuickSlotHUDData SlotData;
 	SlotData.SlotIndex = SlotIndex;
 	SlotData.ItemID = FName(*EventData.GetString(TEXT("ItemID")));
-	// Note: IsEmpty() checks ItemID.IsNone() - no bHasItem field needed
+	SlotData.DisplayName = FText::FromString(EventData.GetString(TEXT("DisplayName")));
 	SlotData.Quantity = EventData.GetInt(TEXT("Quantity"), 1);
 	SlotData.bIsMagazine = EventData.GetBool(TEXT("IsMagazine"), false);
 	SlotData.MagazineRounds = EventData.GetInt(TEXT("MagazineRounds"), 0);
 	SlotData.MagazineCapacity = EventData.GetInt(TEXT("MagazineCapacity"), 0);
 	SlotData.bIsAvailable = EventData.GetBool(TEXT("IsAvailable"), true);
+
+	// Get item icon from event data
+	SlotData.Icon = EventData.GetObject<UTexture2D>(TEXT("Icon"));
 
 	UpdateSlot_Implementation(SlotData);
 }

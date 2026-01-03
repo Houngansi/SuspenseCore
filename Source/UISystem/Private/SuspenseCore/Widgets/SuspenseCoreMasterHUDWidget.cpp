@@ -23,12 +23,15 @@ void USuspenseCoreMasterHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	UE_LOG(LogTemp, Log, TEXT("MasterHUD::NativeConstruct - Checking bound widgets:"));
-	UE_LOG(LogTemp, Log, TEXT("  VitalsWidget: %s"), VitalsWidget ? TEXT("BOUND") : TEXT("NULL"));
-	UE_LOG(LogTemp, Log, TEXT("  AmmoCounterWidget: %s"), AmmoCounterWidget ? TEXT("BOUND") : TEXT("NULL"));
-	UE_LOG(LogTemp, Log, TEXT("  CrosshairWidget: %s"), CrosshairWidget ? TEXT("BOUND") : TEXT("NULL"));
-	UE_LOG(LogTemp, Log, TEXT("  QuickSlotsWidget: %s"), QuickSlotsWidget ? TEXT("BOUND") : TEXT("NULL"));
-	UE_LOG(LogTemp, Log, TEXT("  ReloadProgressWidget: %s"), ReloadProgressWidget ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogTemp, Warning, TEXT("════════════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::NativeConstruct - Widget: %s (%p)"), *GetName(), this);
+	UE_LOG(LogTemp, Warning, TEXT("  CrosshairWidget: %s (%p)"),
+		CrosshairWidget ? *CrosshairWidget->GetName() : TEXT("NULL"),
+		CrosshairWidget.Get());
+	UE_LOG(LogTemp, Warning, TEXT("  AmmoCounterWidget: %s (%p)"),
+		AmmoCounterWidget ? *AmmoCounterWidget->GetName() : TEXT("NULL"),
+		AmmoCounterWidget.Get());
+	UE_LOG(LogTemp, Warning, TEXT("════════════════════════════════════════════════════════════"));
 
 	// Apply initial visibility based on configuration
 	ApplyInitialVisibility();
@@ -59,11 +62,11 @@ void USuspenseCoreMasterHUDWidget::InitializeHUD(APawn* OwningPawn)
 
 void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 {
+	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ MasterHUD::InitializeWeaponHUD - Frame=%llu, WeaponActor=%s"),
+		GFrameCounter, WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
+
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;
-
-	UE_LOG(LogTemp, Log, TEXT("MasterHUD::InitializeWeaponHUD - WeaponActor: %s, bHasWeaponEquipped: %d"),
-		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"), bHasWeaponEquipped);
 
 	// Initialize ammo counter with weapon (has interface)
 	if (AmmoCounterWidget && WeaponActor)
@@ -93,7 +96,7 @@ void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 
 void USuspenseCoreMasterHUDWidget::ClearWeaponHUD()
 {
-	UE_LOG(LogTemp, Log, TEXT("MasterHUD::ClearWeaponHUD called"));
+	UE_LOG(LogTemp, Warning, TEXT("◀◀◀ MasterHUD::ClearWeaponHUD - Frame=%llu"), GFrameCounter);
 
 	CachedWeaponActor.Reset();
 	bHasWeaponEquipped = false;
@@ -137,12 +140,16 @@ void USuspenseCoreMasterHUDWidget::SetVitalsVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, AmmoCounterWidget=%s"),
-		bVisible, AmmoCounterWidget ? TEXT("VALID") : TEXT("NULL"));
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu"),
+		bVisible, GFrameCounter);
 
 	if (AmmoCounterWidget)
 	{
-		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
+		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
+		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter: CurrentVis=%d -> NewVis=%d"),
+			static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		AmmoCounterWidget->SetVisibility(NewVis);
 	}
 	else
 	{
@@ -152,12 +159,16 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, CrosshairWidget=%s"),
-		bVisible, CrosshairWidget ? TEXT("VALID") : TEXT("NULL"));
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu"),
+		bVisible, GFrameCounter);
 
 	if (CrosshairWidget)
 	{
-		CrosshairWidget->SetCrosshairVisibility(bVisible);
+		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
+		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair: CurrentVis=%d -> NewVis=%d"),
+			static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		CrosshairWidget->SetVisibility(NewVis);
 	}
 	else
 	{
@@ -205,20 +216,18 @@ void USuspenseCoreMasterHUDWidget::ApplyInitialVisibility()
 
 void USuspenseCoreMasterHUDWidget::UpdateWeaponWidgetsVisibility()
 {
-	UE_LOG(LogTemp, Log, TEXT("MasterHUD::UpdateWeaponWidgetsVisibility - bHasWeaponEquipped: %d, bAutoHideWeaponHUD: %d, bCrosshairRequiresWeapon: %d"),
-		bHasWeaponEquipped, bAutoHideWeaponHUD, bCrosshairRequiresWeapon);
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::UpdateWeaponWidgetsVisibility - Frame=%llu, bHasWeaponEquipped=%d"),
+		GFrameCounter, bHasWeaponEquipped);
 
 	// Ammo counter visibility
 	if (bAutoHideWeaponHUD)
 	{
-		UE_LOG(LogTemp, Log, TEXT("  Setting WeaponInfo visible: %d"), bHasWeaponEquipped);
 		SetWeaponInfoVisible(bHasWeaponEquipped);
 	}
 
 	// Crosshair visibility
 	if (bCrosshairRequiresWeapon)
 	{
-		UE_LOG(LogTemp, Log, TEXT("  Setting Crosshair visible: %d"), bHasWeaponEquipped);
 		SetCrosshairVisible(bHasWeaponEquipped);
 	}
 }

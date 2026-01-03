@@ -731,9 +731,12 @@ void USuspenseCoreUIManager::DestroyMasterHUD()
 
 void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 {
-	UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - MasterHUD: %s, WeaponActor: %s"),
+	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD CALLED - Frame: %llu"), GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("  MasterHUD: %s, WeaponActor: %s"),
 		MasterHUD ? TEXT("valid") : TEXT("NULL"),
 		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
+	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 
 	// Try to find existing MasterHUD in viewport if not cached
 	if (!MasterHUD)
@@ -774,8 +777,11 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 
 void USuspenseCoreUIManager::ClearWeaponHUD()
 {
-	UE_LOG(LogTemp, Log, TEXT("UIManager::ClearWeaponHUD called, MasterHUD: %s"),
+	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("UIManager::ClearWeaponHUD CALLED - Frame: %llu"), GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("  MasterHUD: %s"),
 		MasterHUD ? TEXT("valid") : TEXT("NULL"));
+	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 
 	// Try to find existing MasterHUD if not cached
 	if (!MasterHUD)
@@ -957,8 +963,8 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 {
 	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Tag: %s, Slot: %d"),
-		*EventTag.ToString(), SlotIndex);
+	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ OnItemEquippedEvent - Frame: %llu, Slot: %d"),
+		GFrameCounter, SlotIndex);
 
 	// Check if this is a weapon slot (slots 0/1 are primary/secondary weapons)
 	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
@@ -1042,8 +1048,8 @@ void USuspenseCoreUIManager::OnItemUnequippedEvent(FGameplayTag EventTag, const 
 	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
 	FString SlotType = EventData.GetString(TEXT("SlotType"));
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Tag: %s, Slot: %d, SlotType: %s"),
-		*EventTag.ToString(), SlotIndex, *SlotType);
+	UE_LOG(LogTemp, Warning, TEXT("◀◀◀ OnItemUnequippedEvent - Frame: %llu, Slot: %d, SlotType: %s"),
+		GFrameCounter, SlotIndex, *SlotType);
 
 	// Check if this was a weapon slot
 	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
@@ -1070,8 +1076,8 @@ void USuspenseCoreUIManager::OnVisualDetachedEvent(FGameplayTag EventTag, const 
 	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
 	FString SlotType = EventData.GetString(TEXT("SlotType"));
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnVisualDetachedEvent - Tag: %s, Slot: %d, SlotType: %s"),
-		*EventTag.ToString(), SlotIndex, *SlotType);
+	UE_LOG(LogTemp, Warning, TEXT("◀◀◀ OnVisualDetachedEvent - Frame: %llu, Slot: %d, SlotType: %s"),
+		GFrameCounter, SlotIndex, *SlotType);
 
 	// Check if this was a weapon slot
 	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);

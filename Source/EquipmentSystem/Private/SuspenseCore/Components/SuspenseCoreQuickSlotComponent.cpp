@@ -8,6 +8,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "Engine/Texture2D.h"
 #include "Net/UnrealNetwork.h"
 #include "GameplayTagsManager.h"
 
@@ -724,7 +725,11 @@ void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const F
             FSuspenseCoreUnifiedItemData ItemData;
             if (DataManager->GetUnifiedItemData(QuickSlots[SlotIndex].AssignedItemID, ItemData))
             {
-                EventData.SetObject(TEXT("Icon"), ItemData.Icon);
+                // Load soft pointer synchronously to get actual texture
+                if (UTexture2D* IconTexture = ItemData.Icon.LoadSynchronous())
+                {
+                    EventData.SetObject(TEXT("Icon"), IconTexture);
+                }
                 EventData.SetString(TEXT("DisplayName"), ItemData.DisplayName.ToString());
             }
         }

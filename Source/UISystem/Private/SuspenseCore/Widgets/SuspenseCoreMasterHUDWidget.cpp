@@ -55,19 +55,14 @@ void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;
 
-	// Initialize ammo counter with weapon
+	// Initialize ammo counter with weapon (has interface)
 	if (AmmoCounterWidget && WeaponActor)
 	{
 		AmmoCounterWidget->Execute_InitializeWithWeapon(AmmoCounterWidget, WeaponActor);
 	}
 
-	// Initialize crosshair with weapon
-	if (CrosshairWidget && WeaponActor)
-	{
-		CrosshairWidget->Execute_InitializeWithWeapon(CrosshairWidget, WeaponActor);
-	}
-
-	// Update visibility based on weapon state
+	// Crosshair doesn't need weapon initialization - it subscribes to EventBus
+	// Just update visibility based on weapon state
 	UpdateWeaponWidgetsVisibility();
 
 	if (WeaponActor)
@@ -81,16 +76,10 @@ void USuspenseCoreMasterHUDWidget::ClearWeaponHUD()
 	CachedWeaponActor.Reset();
 	bHasWeaponEquipped = false;
 
-	// Clear ammo counter
+	// Clear ammo counter (has interface)
 	if (AmmoCounterWidget)
 	{
 		AmmoCounterWidget->Execute_ClearWeapon(AmmoCounterWidget);
-	}
-
-	// Clear crosshair
-	if (CrosshairWidget)
-	{
-		CrosshairWidget->Execute_ClearWeapon(CrosshairWidget);
 	}
 
 	// Update visibility
@@ -134,7 +123,7 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
 	if (CrosshairWidget)
 	{
-		CrosshairWidget->Execute_SetCrosshairVisible(CrosshairWidget, bVisible);
+		CrosshairWidget->SetCrosshairVisibility(bVisible);
 	}
 }
 
@@ -150,7 +139,7 @@ void USuspenseCoreMasterHUDWidget::SetReloadProgressVisible(bool bVisible)
 {
 	if (ReloadProgressWidget)
 	{
-		ReloadProgressWidget->Execute_SetReloadProgressVisible(ReloadProgressWidget, bVisible);
+		ReloadProgressWidget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
 

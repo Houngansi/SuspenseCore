@@ -391,6 +391,9 @@ protected:
 	/** Handle item unequipped event - auto-clear weapon HUD */
 	void OnItemUnequippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
+	/** Handle visual detached event - clear weapon HUD when weapon actor is hidden */
+	void OnVisualDetachedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
 	/** Get EventBus */
 	USuspenseCoreEventBus* GetEventBus() const;
 
@@ -464,6 +467,9 @@ private:
 
 	/** Item unequipped event handle */
 	FSuspenseCoreSubscriptionHandle ItemUnequippedHandle;
+
+	/** Visual detached event handle (for weapon unequip) */
+	FSuspenseCoreSubscriptionHandle VisualDetachedHandle;
 
 	/** Is container screen currently visible */
 	bool bIsContainerScreenVisible;

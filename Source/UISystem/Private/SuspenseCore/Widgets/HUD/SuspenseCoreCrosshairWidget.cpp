@@ -39,7 +39,8 @@ void USuspenseCoreCrosshairWidget::NativeConstruct()
 	// Update initial positions
 	UpdateCrosshairPositions();
 
-	SetupEventSubscriptions();
+	// НЕ подписываемся на события здесь!
+	// Подписки создаются только когда прицел становится видимым (SetCrosshairVisibility(true))
 }
 
 void USuspenseCoreCrosshairWidget::NativeDestruct()
@@ -98,13 +99,30 @@ void USuspenseCoreCrosshairWidget::UpdateCrosshair(float Spread, float Recoil, b
 
 void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, Frame=%llu, wasVisible=%d"),
+		bVisible, GFrameCounter, bCrosshairVisible);
+
+	// Управляем подписками на основе видимости
+	if (bVisible && !bCrosshairVisible)
+	{
+		// Показываем прицел - подписываемся на события
+		SetupEventSubscriptions();
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SUBSCRIBED to events"));
+	}
+	else if (!bVisible && bCrosshairVisible)
+	{
+		// Скрываем прицел - СРАЗУ отписываемся от событий
+		TeardownEventSubscriptions();
+		// Сброс состояния
+		ResetToBaseSpread();
+		bCurrentlyFiring = false;
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] UNSUBSCRIBED from events"));
+	}
+
 	bCrosshairVisible = bVisible;
 
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 	float NewOpacity = bVisible ? 1.0f : 0.0f;
-
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, Frame=%llu, Opacity=%.1f"),
-		bVisible, GFrameCounter, NewOpacity);
 
 	if (CenterDot)
 	{
@@ -131,6 +149,9 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 		RightCrosshair->SetVisibility(NewVisibility);
 		RightCrosshair->SetRenderOpacity(NewOpacity);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] Applied: Visibility=%d, Opacity=%.1f"),
+		static_cast<int32>(NewVisibility), NewOpacity);
 }
 
 void USuspenseCoreCrosshairWidget::SetCrosshairType(const FName& CrosshairType)
@@ -235,6 +256,13 @@ USuspenseCoreEventBus* USuspenseCoreCrosshairWidget::GetEventBus() const
 
 void USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если прицел скрыт
+	if (!bCrosshairVisible)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnSpreadUpdatedEvent IGNORED - crosshair not visible"));
+		return;
+	}
+
 	float Spread = EventData.GetFloat(TEXT("Spread"), 0.0f);
 	float Recoil = EventData.GetFloat(TEXT("Recoil"), 0.0f);
 	bool bIsFiring = EventData.GetBool(TEXT("IsFiring"), false);
@@ -244,6 +272,13 @@ void USuspenseCoreCrosshairWidget::OnSpreadUpdatedEvent(FGameplayTag EventTag, c
 
 void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если прицел скрыт
+	if (!bCrosshairVisible)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnWeaponFiredEvent IGNORED - crosshair not visible"));
+		return;
+	}
+
 	bCurrentlyFiring = true;
 
 	// Add recoil kick
@@ -253,6 +288,13 @@ void USuspenseCoreCrosshairWidget::OnWeaponFiredEvent(FGameplayTag EventTag, con
 
 void USuspenseCoreCrosshairWidget::OnHitConfirmedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если прицел скрыт
+	if (!bCrosshairVisible)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] OnHitConfirmedEvent IGNORED - crosshair not visible"));
+		return;
+	}
+
 	FString EffectType = EventData.GetString(TEXT("EffectType"));
 
 	if (EffectType == TEXT("HitMarker"))

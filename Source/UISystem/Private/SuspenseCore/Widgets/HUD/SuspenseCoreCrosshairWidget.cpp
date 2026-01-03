@@ -102,11 +102,19 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, CenterDot=%s, TopCrosshair=%s"),
+		bVisible,
+		CenterDot ? TEXT("valid") : TEXT("NULL"),
+		TopCrosshair ? TEXT("valid") : TEXT("NULL"));
+
 	if (CenterDot) CenterDot->SetVisibility(NewVisibility);
 	if (TopCrosshair) TopCrosshair->SetVisibility(NewVisibility);
 	if (BottomCrosshair) BottomCrosshair->SetVisibility(NewVisibility);
 	if (LeftCrosshair) LeftCrosshair->SetVisibility(NewVisibility);
 	if (RightCrosshair) RightCrosshair->SetVisibility(NewVisibility);
+
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] Visibility SET to: %s"),
+		bVisible ? TEXT("HitTestInvisible") : TEXT("Collapsed"));
 }
 
 void USuspenseCoreCrosshairWidget::SetCrosshairType(const FName& CrosshairType)

@@ -137,17 +137,31 @@ void USuspenseCoreMasterHUDWidget::SetVitalsVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 {
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, AmmoCounterWidget=%s"),
+		bVisible, AmmoCounterWidget ? TEXT("VALID") : TEXT("NULL"));
+
 	if (AmmoCounterWidget)
 	{
 		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MasterHUD::SetWeaponInfoVisible: AmmoCounterWidget is NULL!"));
 	}
 }
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, CrosshairWidget=%s"),
+		bVisible, CrosshairWidget ? TEXT("VALID") : TEXT("NULL"));
+
 	if (CrosshairWidget)
 	{
 		CrosshairWidget->SetCrosshairVisibility(bVisible);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MasterHUD::SetCrosshairVisible: CrosshairWidget is NULL!"));
 	}
 }
 

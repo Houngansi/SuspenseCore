@@ -316,7 +316,7 @@ public:
 	 * @return Master HUD or nullptr
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|HUD")
-	USuspenseCoreMasterHUDWidget* GetMasterHUD() const { return MasterHUD; }
+	USuspenseCoreMasterHUDWidget* GetMasterHUD() const { return MasterHUD.Get(); }
 
 	/**
 	 * Destroy master HUD
@@ -429,9 +429,9 @@ private:
 	UPROPERTY(Transient)
 	USuspenseCoreTooltipWidget* TooltipWidget;
 
-	/** Current master HUD widget */
+	/** Current master HUD widget - use TWeakObjectPtr to auto-invalidate when widget is destroyed (e.g. level transition) */
 	UPROPERTY(Transient)
-	USuspenseCoreMasterHUDWidget* MasterHUD;
+	TWeakObjectPtr<USuspenseCoreMasterHUDWidget> MasterHUD;
 
 	/** Owning player controller for current screen */
 	UPROPERTY(Transient)

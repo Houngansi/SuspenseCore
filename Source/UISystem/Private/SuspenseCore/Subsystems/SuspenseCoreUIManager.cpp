@@ -677,7 +677,7 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 	}
 
 	// Destroy existing HUD if any
-	if (MasterHUD)
+	if (MasterHUD.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Destroying existing MasterHUD"));
 		DestroyMasterHUD();
@@ -693,8 +693,9 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Using widget class: %s"), *MasterHUDWidgetClass->GetName());
 
 	// Create the master HUD widget
-	MasterHUD = CreateWidget<USuspenseCoreMasterHUDWidget>(PC, MasterHUDWidgetClass);
-	if (!MasterHUD)
+	USuspenseCoreMasterHUDWidget* NewHUD = CreateWidget<USuspenseCoreMasterHUDWidget>(PC, MasterHUDWidgetClass);
+	MasterHUD = NewHUD;
+	if (!MasterHUD.IsValid())
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateMasterHUD: Failed to create MasterHUD widget"));
 		return nullptr;
@@ -717,15 +718,15 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Complete!"));
-	return MasterHUD;
+	return MasterHUD.Get();
 }
 
 void USuspenseCoreUIManager::DestroyMasterHUD()
 {
-	if (MasterHUD)
+	if (MasterHUD.IsValid())
 	{
 		MasterHUD->RemoveFromParent();
-		MasterHUD = nullptr;
+		MasterHUD.Reset();
 	}
 }
 
@@ -734,12 +735,12 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 	UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD CALLED - Frame: %llu"), GFrameCounter);
 	UE_LOG(LogTemp, Warning, TEXT("  MasterHUD: %s, WeaponActor: %s"),
-		MasterHUD ? TEXT("valid") : TEXT("NULL"),
+		MasterHUD.IsValid() ? TEXT("valid") : TEXT("NULL/stale"),
 		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
 	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 
-	// Try to find existing MasterHUD in viewport if not cached
-	if (!MasterHUD)
+	// Try to find existing MasterHUD in viewport if not cached or stale
+	if (!MasterHUD.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Searching for existing MasterHUD in viewport..."));
 
@@ -764,7 +765,7 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 		}
 	}
 
-	if (MasterHUD)
+	if (MasterHUD.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Calling MasterHUD->InitializeWeaponHUD"));
 		MasterHUD->InitializeWeaponHUD(WeaponActor);
@@ -780,11 +781,11 @@ void USuspenseCoreUIManager::ClearWeaponHUD()
 	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 	UE_LOG(LogTemp, Warning, TEXT("UIManager::ClearWeaponHUD CALLED - Frame: %llu"), GFrameCounter);
 	UE_LOG(LogTemp, Warning, TEXT("  MasterHUD: %s"),
-		MasterHUD ? TEXT("valid") : TEXT("NULL"));
+		MasterHUD.IsValid() ? TEXT("valid") : TEXT("NULL/stale"));
 	UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════════════"));
 
-	// Try to find existing MasterHUD if not cached
-	if (!MasterHUD)
+	// Try to find existing MasterHUD if not cached or stale
+	if (!MasterHUD.IsValid())
 	{
 		UWorld* World = GetWorld();
 		if (World)
@@ -804,7 +805,7 @@ void USuspenseCoreUIManager::ClearWeaponHUD()
 		}
 	}
 
-	if (MasterHUD)
+	if (MasterHUD.IsValid())
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::ClearWeaponHUD - Calling MasterHUD->ClearWeaponHUD"));
 		MasterHUD->ClearWeaponHUD();

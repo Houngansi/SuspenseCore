@@ -65,7 +65,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_AK103",
@@ -133,7 +140,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_M4A1",
@@ -201,7 +215,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_MP5SD",
@@ -269,7 +290,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_MP7A2",
@@ -337,7 +365,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_Glock17",
@@ -405,7 +440,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_M9A3",
@@ -473,7 +515,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_SVD",
@@ -541,7 +590,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Weapon_M9Bayonet",
@@ -609,7 +665,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Armor_6B47",
@@ -677,7 +740,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Armor_6B13",
@@ -745,7 +815,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Armor_Slick",
@@ -813,7 +890,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Helmet_Altyn",
@@ -881,7 +965,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_545x39_PS",
@@ -894,7 +985,7 @@
     "ItemTags": "(GameplayTags=((TagName=\"Item.Ammo\")))",
     "GridSize": "(X=1,Y=1)",
     "MaxStackSize": 60,
-    "Weight": 0.010,
+    "Weight": 0.01,
     "BaseValue": 85,
     "bIsEquippable": false,
     "EquipmentSlot": "",
@@ -949,7 +1040,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_545x39_BP",
@@ -962,7 +1060,7 @@
     "ItemTags": "(GameplayTags=((TagName=\"Item.Ammo\")))",
     "GridSize": "(X=1,Y=1)",
     "MaxStackSize": 60,
-    "Weight": 0.010,
+    "Weight": 0.01,
     "BaseValue": 350,
     "bIsEquippable": false,
     "EquipmentSlot": "",
@@ -1017,7 +1115,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_556x45_M855A1",
@@ -1085,7 +1190,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_9x19_PST",
@@ -1153,7 +1265,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_762x54R_LPS",
@@ -1221,7 +1340,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Gear_TV110",
@@ -1289,7 +1415,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Gear_BergenBackpack",
@@ -1357,7 +1490,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_IFAK",
@@ -1425,7 +1565,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_IFAK",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Throwable_F1",
@@ -1493,7 +1640,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.Frag\")",
+    "ThrowableAttributesRowName": "Throwable_F1"
   },
   {
     "Name": "Mag_AK74_30",
@@ -2631,7 +2785,7 @@
     "ItemTags": "(GameplayTags=((TagName=\"Item.Ammo\")))",
     "GridSize": "(X=1,Y=1)",
     "MaxStackSize": 60,
-    "Weight": 0.010,
+    "Weight": 0.01,
     "BaseValue": 650,
     "bIsEquippable": false,
     "EquipmentSlot": "",
@@ -2686,7 +2840,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_545x39_T",
@@ -2699,7 +2860,7 @@
     "ItemTags": "(GameplayTags=((TagName=\"Item.Ammo\")))",
     "GridSize": "(X=1,Y=1)",
     "MaxStackSize": 60,
-    "Weight": 0.010,
+    "Weight": 0.01,
     "BaseValue": 120,
     "bIsEquippable": false,
     "EquipmentSlot": "",
@@ -2754,7 +2915,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_545x39_HP",
@@ -2767,7 +2935,7 @@
     "ItemTags": "(GameplayTags=((TagName=\"Item.Ammo\")))",
     "GridSize": "(X=1,Y=1)",
     "MaxStackSize": 60,
-    "Weight": 0.010,
+    "Weight": 0.01,
     "BaseValue": 280,
     "bIsEquippable": false,
     "EquipmentSlot": "",
@@ -2822,7 +2990,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_556x45_M855",
@@ -2890,7 +3065,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_556x45_M995",
@@ -2958,7 +3140,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_9x19_AP",
@@ -3026,7 +3215,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_9x19_RIP",
@@ -3094,7 +3290,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_762x39_PS",
@@ -3162,7 +3365,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_762x39_BP",
@@ -3230,7 +3440,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_762x54R_SNB",
@@ -3298,7 +3515,14 @@
     "AmmoQuality": "",
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
-    "PickupActorClass": ""
+    "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_Bandage",

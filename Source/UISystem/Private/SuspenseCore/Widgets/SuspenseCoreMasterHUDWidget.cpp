@@ -150,93 +150,99 @@ void USuspenseCoreMasterHUDWidget::SetVitalsVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu, InViewport=%d, AmmoWidget=%s"),
-		bVisible, GFrameCounter, IsInViewport(),
-		AmmoCounterWidget ? TEXT("VALID") : TEXT("NULL!!!"));
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetWeaponInfoVisible: bVisible=%d, Frame=%llu"), bVisible, GFrameCounter);
 
 	if (AmmoCounterWidget)
 	{
-		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d, Parent=%s"),
-			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
-			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"));
+		float NewOpacity = bVisible ? 1.0f : 0.0f;
+		FVector2D NewScale = bVisible ? FVector2D(1.0f, 1.0f) : FVector2D(0.0f, 0.0f);
 
-		// 0. Disable/Enable widget ticking (stops Blueprint ticks and animations)
+		// ═══════════════════════════════════════════════════════════════════════
+		// УБИЙСТВЕННАЯ КОМБИНАЦИЯ - все способы сразу!
+		// ═══════════════════════════════════════════════════════════════════════
+
+		// 1. Disable widget completely
 		AmmoCounterWidget->SetIsEnabled(bVisible);
 
-		// 1. UMG Level: Set visibility on the UWidget
+		// 2. UMG Visibility
 		AmmoCounterWidget->SetVisibility(NewVis);
-		AmmoCounterWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
 
-		// 2. Slate Level: Set visibility directly on underlying SWidget
+		// 3. Render Opacity
+		AmmoCounterWidget->SetRenderOpacity(NewOpacity);
+
+		// 4. Color and Opacity (Alpha = 0)
+		AmmoCounterWidget->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity));
+
+		// 5. Render Scale = 0 (делает виджет невидимым независимо от других настроек!)
+		AmmoCounterWidget->SetRenderScale(NewScale);
+
+		// 6. Slate Level
 		TSharedPtr<SWidget> SlateWidget = AmmoCounterWidget->GetCachedWidget();
 		if (SlateWidget.IsValid())
 		{
 			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
-			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set (bVisible=%d)"), bVisible);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("  GetCachedWidget() returned NULL!"));
 		}
 
-		// 3. Interface: Call interface method to set visibility on internal elements
+		// 7. Interface method
 		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
 
-		// 4. Force layout rebuild
+		// 8. Force rebuild
 		AmmoCounterWidget->ForceLayoutPrepass();
 		AmmoCounterWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f, IsEnabled=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter: Vis=%d, Opacity=%.1f, Scale=(%.1f,%.1f), Enabled=%d"),
 			static_cast<int32>(AmmoCounterWidget->GetVisibility()), AmmoCounterWidget->GetRenderOpacity(),
-			AmmoCounterWidget->GetIsEnabled());
+			NewScale.X, NewScale.Y, AmmoCounterWidget->GetIsEnabled());
 	}
 }
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu, InViewport=%d, CrosshairWidget=%s"),
-		bVisible, GFrameCounter, IsInViewport(),
-		CrosshairWidget ? TEXT("VALID") : TEXT("NULL!!!"));
+	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu"), bVisible, GFrameCounter);
 
 	if (CrosshairWidget)
 	{
-		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d, Parent=%s"),
-			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
-			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"));
+		float NewOpacity = bVisible ? 1.0f : 0.0f;
+		FVector2D NewScale = bVisible ? FVector2D(1.0f, 1.0f) : FVector2D(0.0f, 0.0f);
 
-		// 0. Disable/Enable widget ticking (stops Blueprint ticks and animations)
+		// ═══════════════════════════════════════════════════════════════════════
+		// УБИЙСТВЕННАЯ КОМБИНАЦИЯ - все способы сразу!
+		// ═══════════════════════════════════════════════════════════════════════
+
+		// 1. Disable widget completely
 		CrosshairWidget->SetIsEnabled(bVisible);
 
-		// 1. UMG Level: Set visibility on the UWidget
+		// 2. UMG Visibility
 		CrosshairWidget->SetVisibility(NewVis);
-		CrosshairWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
 
-		// 2. Slate Level: Set visibility directly on underlying SWidget
+		// 3. Render Opacity
+		CrosshairWidget->SetRenderOpacity(NewOpacity);
+
+		// 4. Color and Opacity (Alpha = 0)
+		CrosshairWidget->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity));
+
+		// 5. Render Scale = 0 (делает виджет невидимым независимо от других настроек!)
+		CrosshairWidget->SetRenderScale(NewScale);
+
+		// 6. Slate Level
 		TSharedPtr<SWidget> SlateWidget = CrosshairWidget->GetCachedWidget();
 		if (SlateWidget.IsValid())
 		{
 			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
-			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set (bVisible=%d)"), bVisible);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("  GetCachedWidget() returned NULL!"));
 		}
 
-		// 3. Internal elements: Set visibility on CenterDot, directional crosshairs, etc.
+		// 7. Internal widget method
 		CrosshairWidget->SetCrosshairVisibility(bVisible);
 
-		// 4. Force layout rebuild
+		// 8. Force rebuild
 		CrosshairWidget->ForceLayoutPrepass();
 		CrosshairWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f, IsEnabled=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair: Vis=%d, Opacity=%.1f, Scale=(%.1f,%.1f), Enabled=%d"),
 			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity(),
-			CrosshairWidget->GetIsEnabled());
+			NewScale.X, NewScale.Y, CrosshairWidget->GetIsEnabled());
 	}
 }
 

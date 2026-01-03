@@ -24,6 +24,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 
 //==================================================================
 // Static Access
@@ -734,33 +735,40 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 		MasterHUD ? TEXT("valid") : TEXT("NULL"),
 		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
 
-	// Auto-create MasterHUD if not exists
+	// Try to find existing MasterHUD in viewport if not cached
 	if (!MasterHUD)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Auto-creating MasterHUD..."));
+		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Searching for existing MasterHUD in viewport..."));
 
 		UWorld* World = GetWorld();
 		if (World)
 		{
-			APlayerController* PC = World->GetFirstPlayerController();
-			if (PC)
+			// Search for existing MasterHUD widget on viewport
+			TArray<UUserWidget*> FoundWidgets;
+			UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, USuspenseCoreMasterHUDWidget::StaticClass(), false);
+
+			UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Found %d MasterHUD widgets"), FoundWidgets.Num());
+
+			for (UUserWidget* Widget : FoundWidgets)
 			{
-				CreateMasterHUD(PC);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - No PlayerController for auto-create"));
+				if (USuspenseCoreMasterHUDWidget* FoundHUD = Cast<USuspenseCoreMasterHUDWidget>(Widget))
+				{
+					MasterHUD = FoundHUD;
+					UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Cached existing MasterHUD: %s"), *MasterHUD->GetName());
+					break;
+				}
 			}
 		}
 	}
 
 	if (MasterHUD)
 	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Calling MasterHUD->InitializeWeaponHUD"));
 		MasterHUD->InitializeWeaponHUD(WeaponActor);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - Failed to create MasterHUD"));
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - No MasterHUD found! Make sure PlayerController creates WBP_MasterHUD."));
 	}
 }
 

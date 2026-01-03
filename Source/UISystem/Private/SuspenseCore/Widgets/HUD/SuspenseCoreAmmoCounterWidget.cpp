@@ -38,6 +38,12 @@ void USuspenseCoreAmmoCounterWidget::NativeTick(const FGeometry& MyGeometry, flo
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	// GUARD: Не обрабатываем Tick если виджет не инициализирован (оружия нет)
+	if (!bIsInitialized)
+	{
+		return;
+	}
+
 	if (bSmoothFillBar)
 	{
 		UpdateFillBar(InDeltaTime);

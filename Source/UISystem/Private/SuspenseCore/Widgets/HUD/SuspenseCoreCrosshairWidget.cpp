@@ -60,6 +60,12 @@ void USuspenseCoreCrosshairWidget::NativeTick(const FGeometry& MyGeometry, float
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	// GUARD: Не обрабатываем Tick если прицел скрыт
+	if (!bCrosshairVisible)
+	{
+		return;
+	}
+
 	// Interpolate spread
 	float InterpSpeed = bCurrentlyFiring ? SpreadInterpSpeed : RecoveryInterpSpeed;
 

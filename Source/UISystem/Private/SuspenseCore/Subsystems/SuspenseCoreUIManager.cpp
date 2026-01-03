@@ -17,6 +17,7 @@
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -830,24 +831,24 @@ void USuspenseCoreUIManager::SubscribeToEvents()
 
 	using namespace SuspenseCoreEquipmentTags::Event;
 
-	// Subscribe to Visual_Spawned event - this fires when weapon actor is spawned
-	// and contains the actual weapon actor in the event data
+	// Subscribe to ItemEquipped event - this fires when item is equipped
+	// We get the weapon actor from ActorFactory using the slot index
 	ItemEquippedHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Visual_Spawned,
+		TAG_Equipment_Event_ItemEquipped,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemEquippedEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	// Subscribe to Visual_Detached event - weapon actor detached
+	// Subscribe to ItemUnequipped event
 	ItemUnequippedHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_Visual_Detached,
+		TAG_Equipment_Event_ItemUnequipped,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemUnequippedEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to Visual_Spawned/Detached events"));
+	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to ItemEquipped/Unequipped events"));
 }
 
 void USuspenseCoreUIManager::UnsubscribeFromEvents()
@@ -892,22 +893,10 @@ void USuspenseCoreUIManager::OnContainerClosedEvent(const FSuspenseCoreEventData
 
 void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get the spawned equipment actor from event data
-	// Visual_Spawned sets actor via SetObject("Source", SpawnedActor)
-	AActor* ItemActor = EventData.GetObject<AActor>(FName("Source"));
-
-	// Fallback: try EventData.Source directly
-	if (!ItemActor)
-	{
-		ItemActor = Cast<AActor>(EventData.Source.Get());
-	}
-
 	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Tag: %s, ItemActor: %s, Slot: %d"),
-		*EventTag.ToString(),
-		ItemActor ? *ItemActor->GetName() : TEXT("nullptr"),
-		SlotIndex);
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Tag: %s, Slot: %d"),
+		*EventTag.ToString(), SlotIndex);
 
 	// Check if this is a weapon slot (slots 0/1 are primary/secondary weapons)
 	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
@@ -915,21 +904,56 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 	// Check if item has weapon tag in event data
 	if (!bIsWeaponSlot)
 	{
-		FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
-		bIsWeaponSlot = EventData.Tags.HasTag(ItemTypeTag);
+		FString SlotType = EventData.GetString(TEXT("SlotType"));
+		bIsWeaponSlot = SlotType.Contains(TEXT("Weapon")) || SlotType.Contains(TEXT("Primary")) || SlotType.Contains(TEXT("Secondary"));
 	}
 
-	// Fallback: check event string data
 	if (!bIsWeaponSlot)
 	{
-		FString ItemType = EventData.GetString(TEXT("ItemType"));
-		bIsWeaponSlot = ItemType.Contains(TEXT("Weapon"));
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Not a weapon slot, skipping"));
+		return;
 	}
 
-	if (bIsWeaponSlot && ItemActor)
+	// Get the character (Target) from event data
+	AActor* CharacterActor = EventData.GetObject<AActor>(FName("Target"));
+	if (!CharacterActor)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Initializing weapon HUD for: %s"), *ItemActor->GetName());
-		InitializeWeaponHUD(ItemActor);
+		CharacterActor = Cast<AActor>(EventData.Source.Get());
+	}
+
+	if (!CharacterActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No character found in event data"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Character: %s"), *CharacterActor->GetName());
+
+	// Find the ActorFactory component on the character
+	USuspenseCoreEquipmentActorFactory* ActorFactory = CharacterActor->FindComponentByClass<USuspenseCoreEquipmentActorFactory>();
+	if (!ActorFactory)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No ActorFactory found on character"));
+		return;
+	}
+
+	// Get all spawned actors and find the one for this slot
+	TMap<int32, AActor*> SpawnedActors = ActorFactory->GetAllSpawnedActors();
+	AActor* WeaponActor = SpawnedActors.FindRef(SlotIndex);
+
+	if (WeaponActor)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Found weapon actor: %s for slot %d"),
+			*WeaponActor->GetName(), SlotIndex);
+		InitializeWeaponHUD(WeaponActor);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnItemEquippedEvent - No spawned actor for slot %d. Available slots:"), SlotIndex);
+		for (const auto& Pair : SpawnedActors)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("  Slot %d: %s"), Pair.Key, Pair.Value ? *Pair.Value->GetName() : TEXT("nullptr"));
+		}
 	}
 }
 

@@ -1031,15 +1031,28 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 void USuspenseCoreUIManager::OnItemUnequippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
+	FString SlotType = EventData.GetString(TEXT("SlotType"));
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Tag: %s, Slot: %d"),
-		*EventTag.ToString(), SlotIndex);
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Tag: %s, Slot: %d, SlotType: %s"),
+		*EventTag.ToString(), SlotIndex, *SlotType);
 
 	// Check if this was a weapon slot
-	if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
+	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
+
+	// Also check by slot type string
+	if (!bIsWeaponSlot)
+	{
+		bIsWeaponSlot = SlotType.Contains(TEXT("Weapon")) || SlotType.Contains(TEXT("Primary")) || SlotType.Contains(TEXT("Secondary"));
+	}
+
+	if (bIsWeaponSlot)
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Clearing weapon HUD"));
 		ClearWeaponHUD();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Not a weapon slot, ignoring"));
 	}
 }
 

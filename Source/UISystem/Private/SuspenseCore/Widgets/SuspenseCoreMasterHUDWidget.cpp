@@ -199,7 +199,9 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 
 void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 {
+	UE_LOG(LogTemp, Warning, TEXT("════════════════════════════════════════════════════════════════════"));
 	UE_LOG(LogTemp, Warning, TEXT("MasterHUD::SetCrosshairVisible: bVisible=%d, Frame=%llu"), bVisible, GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("  CrosshairWidget pointer: %p"), CrosshairWidget.Get());
 
 	if (CrosshairWidget)
 	{
@@ -207,9 +209,11 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		float NewOpacity = bVisible ? 1.0f : 0.0f;
 		FVector2D NewScale = bVisible ? FVector2D(1.0f, 1.0f) : FVector2D(0.0f, 0.0f);
 
-		// ═══════════════════════════════════════════════════════════════════════
-		// УБИЙСТВЕННАЯ КОМБИНАЦИЯ - все способы сразу!
-		// ═══════════════════════════════════════════════════════════════════════
+		UE_LOG(LogTemp, Warning, TEXT("  BEFORE: Vis=%d, Opacity=%.2f, Scale=(%.2f,%.2f)"),
+			static_cast<int32>(CrosshairWidget->GetVisibility()),
+			CrosshairWidget->GetRenderOpacity(),
+			CrosshairWidget->GetRenderTransform().Scale.X,
+			CrosshairWidget->GetRenderTransform().Scale.Y);
 
 		// 1. Disable widget completely
 		CrosshairWidget->SetIsEnabled(bVisible);
@@ -223,7 +227,7 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		// 4. Color and Opacity (Alpha = 0)
 		CrosshairWidget->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity));
 
-		// 5. Render Scale = 0 (делает виджет невидимым независимо от других настроек!)
+		// 5. Render Scale = 0
 		CrosshairWidget->SetRenderScale(NewScale);
 
 		// 6. Slate Level
@@ -240,10 +244,18 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		CrosshairWidget->ForceLayoutPrepass();
 		CrosshairWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair: Vis=%d, Opacity=%.1f, Scale=(%.1f,%.1f), Enabled=%d"),
-			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity(),
-			NewScale.X, NewScale.Y, CrosshairWidget->GetIsEnabled());
+		UE_LOG(LogTemp, Warning, TEXT("  AFTER: Vis=%d, Opacity=%.2f, Scale=(%.2f,%.2f), Enabled=%d"),
+			static_cast<int32>(CrosshairWidget->GetVisibility()),
+			CrosshairWidget->GetRenderOpacity(),
+			CrosshairWidget->GetRenderTransform().Scale.X,
+			CrosshairWidget->GetRenderTransform().Scale.Y,
+			CrosshairWidget->GetIsEnabled());
 	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  !!! CrosshairWidget is NULL - CANNOT HIDE !!!"));
+	}
+	UE_LOG(LogTemp, Warning, TEXT("════════════════════════════════════════════════════════════════════"));
 }
 
 void USuspenseCoreMasterHUDWidget::SetQuickSlotsVisible(bool bVisible)

@@ -682,11 +682,11 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 		DestroyMasterHUD();
 	}
 
-	// Check if we have a class configured
+	// Check if we have a class configured, fallback to base class
 	if (!MasterHUDWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CreateMasterHUD: MasterHUDWidgetClass not configured in UIManager"));
-		return nullptr;
+		UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: MasterHUDWidgetClass not configured, using default USuspenseCoreMasterHUDWidget"));
+		MasterHUDWidgetClass = USuspenseCoreMasterHUDWidget::StaticClass();
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Using widget class: %s"), *MasterHUDWidgetClass->GetName());
@@ -734,13 +734,33 @@ void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 		MasterHUD ? TEXT("valid") : TEXT("NULL"),
 		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
 
+	// Auto-create MasterHUD if not exists
+	if (!MasterHUD)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - Auto-creating MasterHUD..."));
+
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			APlayerController* PC = World->GetFirstPlayerController();
+			if (PC)
+			{
+				CreateMasterHUD(PC);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - No PlayerController for auto-create"));
+			}
+		}
+	}
+
 	if (MasterHUD)
 	{
 		MasterHUD->InitializeWeaponHUD(WeaponActor);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - MasterHUD is NULL! Call CreateMasterHUD first."));
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - Failed to create MasterHUD"));
 	}
 }
 

@@ -157,8 +157,10 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 	{
 		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d"),
-			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d, Parent=%s, ChildCount=%d"),
+			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
+			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"),
+			AmmoCounterWidget->GetChildrenCount());
 
 		// Set visibility on the widget container
 		AmmoCounterWidget->SetVisibility(NewVis);
@@ -166,14 +168,27 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		// ALSO set render opacity as backup (0 = fully transparent, 1 = fully opaque)
 		AmmoCounterWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
 
-		// ALSO call interface method to set visibility
+		// ALSO call interface method to set visibility on internal elements
 		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
 
-		// Force layout refresh
+		// Force complete layout invalidation
 		AmmoCounterWidget->ForceLayoutPrepass();
+		AmmoCounterWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Called Execute_SetAmmoCounterVisible(%d), SetRenderOpacity(%.1f), ForceLayoutPrepass"),
-			bVisible, bVisible ? 1.0f : 0.0f);
+		// NUCLEAR OPTION: Iterate through ALL children and set their visibility too
+		TArray<UWidget*> AllChildren;
+		WidgetTree->GetAllWidgets(AllChildren);
+		for (UWidget* Child : AllChildren)
+		{
+			if (Child && Child->GetParent() == AmmoCounterWidget)
+			{
+				Child->SetVisibility(NewVis);
+				Child->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
+			}
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: Vis=%d, Opacity=%.1f, Invalidated layout"),
+			static_cast<int32>(AmmoCounterWidget->GetVisibility()), AmmoCounterWidget->GetRenderOpacity());
 	}
 }
 
@@ -187,8 +202,10 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 	{
 		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d"),
-			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d, Parent=%s, ChildCount=%d"),
+			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
+			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"),
+			CrosshairWidget->GetChildrenCount());
 
 		// Set visibility on the widget container
 		CrosshairWidget->SetVisibility(NewVis);
@@ -199,11 +216,24 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		// ALSO set visibility on internal crosshair elements (CenterDot, TopCrosshair, etc.)
 		CrosshairWidget->SetCrosshairVisibility(bVisible);
 
-		// Force layout refresh
+		// Force complete layout invalidation
 		CrosshairWidget->ForceLayoutPrepass();
+		CrosshairWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Called SetCrosshairVisibility(%d), SetRenderOpacity(%.1f), ForceLayoutPrepass"),
-			bVisible, bVisible ? 1.0f : 0.0f);
+		// NUCLEAR OPTION: Iterate through ALL children and set their visibility too
+		TArray<UWidget*> AllChildren;
+		WidgetTree->GetAllWidgets(AllChildren);
+		for (UWidget* Child : AllChildren)
+		{
+			if (Child && Child->GetParent() == CrosshairWidget)
+			{
+				Child->SetVisibility(NewVis);
+				Child->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
+			}
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: Vis=%d, Opacity=%.1f, Invalidated layout"),
+			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity());
 	}
 }
 

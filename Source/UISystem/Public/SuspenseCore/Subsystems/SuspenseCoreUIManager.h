@@ -17,6 +17,7 @@ class USuspenseCoreEventBus;
 class USuspenseCoreContainerScreenWidget;
 class USuspenseCoreInventoryWidget;
 class USuspenseCoreTooltipWidget;
+class USuspenseCoreMasterHUDWidget;
 class APlayerController;
 struct FSuspenseCoreEventData;
 
@@ -293,6 +294,50 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
 	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
 
+	/** Master HUD widget class - contains all in-game HUD elements */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
+	TSubclassOf<USuspenseCoreMasterHUDWidget> MasterHUDWidgetClass;
+
+	//==================================================================
+	// Master HUD Management
+	//==================================================================
+
+	/**
+	 * Create and show master HUD for player
+	 * @param PC Player controller
+	 * @return Created HUD widget or nullptr
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|HUD")
+	USuspenseCoreMasterHUDWidget* CreateMasterHUD(APlayerController* PC);
+
+	/**
+	 * Get current master HUD widget
+	 * @return Master HUD or nullptr
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|HUD")
+	USuspenseCoreMasterHUDWidget* GetMasterHUD() const { return MasterHUD; }
+
+	/**
+	 * Destroy master HUD
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|HUD")
+	void DestroyMasterHUD();
+
+	/**
+	 * Initialize weapon HUD with equipped weapon
+	 * Convenience method that calls MasterHUD->InitializeWeaponHUD
+	 * @param WeaponActor Equipped weapon
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|HUD")
+	void InitializeWeaponHUD(AActor* WeaponActor);
+
+	/**
+	 * Clear weapon HUD
+	 * Convenience method that calls MasterHUD->ClearWeaponHUD
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|HUD")
+	void ClearWeaponHUD();
+
 	/**
 	 * Get screen configuration
 	 * @return Current screen config
@@ -373,6 +418,10 @@ private:
 	/** Current tooltip widget */
 	UPROPERTY(Transient)
 	USuspenseCoreTooltipWidget* TooltipWidget;
+
+	/** Current master HUD widget */
+	UPROPERTY(Transient)
+	USuspenseCoreMasterHUDWidget* MasterHUD;
 
 	/** Owning player controller for current screen */
 	UPROPERTY(Transient)

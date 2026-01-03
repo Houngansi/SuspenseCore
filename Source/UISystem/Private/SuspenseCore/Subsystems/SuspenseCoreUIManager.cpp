@@ -15,6 +15,7 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -656,6 +657,76 @@ void USuspenseCoreUIManager::HideTooltip()
 bool USuspenseCoreUIManager::IsTooltipVisible() const
 {
 	return TooltipWidget && TooltipWidget->IsVisible();
+}
+
+//==================================================================
+// Master HUD Management
+//==================================================================
+
+USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerController* PC)
+{
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateMasterHUD: Invalid PlayerController"));
+		return nullptr;
+	}
+
+	// Destroy existing HUD if any
+	if (MasterHUD)
+	{
+		DestroyMasterHUD();
+	}
+
+	// Check if we have a class configured
+	if (!MasterHUDWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateMasterHUD: MasterHUDWidgetClass not configured in UIManager"));
+		return nullptr;
+	}
+
+	// Create the master HUD widget
+	MasterHUD = CreateWidget<USuspenseCoreMasterHUDWidget>(PC, MasterHUDWidgetClass);
+	if (!MasterHUD)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CreateMasterHUD: Failed to create MasterHUD widget"));
+		return nullptr;
+	}
+
+	// Add to viewport with standard HUD Z-order
+	MasterHUD->AddToViewport(0);
+
+	// Initialize with pawn if available
+	if (APawn* Pawn = PC->GetPawn())
+	{
+		MasterHUD->InitializeHUD(Pawn);
+	}
+
+	return MasterHUD;
+}
+
+void USuspenseCoreUIManager::DestroyMasterHUD()
+{
+	if (MasterHUD)
+	{
+		MasterHUD->RemoveFromParent();
+		MasterHUD = nullptr;
+	}
+}
+
+void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
+{
+	if (MasterHUD)
+	{
+		MasterHUD->InitializeWeaponHUD(WeaponActor);
+	}
+}
+
+void USuspenseCoreUIManager::ClearWeaponHUD()
+{
+	if (MasterHUD)
+	{
+		MasterHUD->ClearWeaponHUD();
+	}
 }
 
 //==================================================================

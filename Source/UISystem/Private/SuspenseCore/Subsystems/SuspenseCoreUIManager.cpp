@@ -891,30 +891,29 @@ void USuspenseCoreUIManager::OnContainerClosedEvent(const FSuspenseCoreEventData
 
 void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get the equipped item actor from event data
-	AActor* ItemActor = Cast<AActor>(EventData.Target.Get());
+	// Get the equipped item actor from event data (Source is the item actor)
+	AActor* ItemActor = Cast<AActor>(EventData.Source.Get());
 
 	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - ItemActor: %s"),
 		ItemActor ? *ItemActor->GetName() : TEXT("nullptr"));
 
-	// Check if this is a weapon (has weapon tag or specific component)
-	// For now, we'll check if it has weapon-related tags
+	// Check if this is a weapon
 	bool bIsWeapon = false;
-	if (ItemActor)
+
+	// Check if item has weapon tag in event data
+	FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
+	bIsWeapon = EventData.Tags.HasTag(ItemTypeTag);
+
+	// Fallback: check event string data
+	if (!bIsWeapon)
 	{
-		// Check if item has weapon tag in event data
-		FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
-		bIsWeapon = EventData.Tags.HasTag(ItemTypeTag);
+		FString ItemType = EventData.GetString(TEXT("ItemType"));
+		bIsWeapon = ItemType.Contains(TEXT("Weapon"));
+	}
 
-		// Fallback: check event string data
-		if (!bIsWeapon)
-		{
-			FString ItemType = EventData.GetString(TEXT("ItemType"));
-			bIsWeapon = ItemType.Contains(TEXT("Weapon"));
-		}
-
-		// Fallback: check if actor has specific interface or component
-		// For now, assume any equipped item in primary slot is a weapon
+	// Fallback: check slot index (slots 0/1 are weapon slots)
+	if (!bIsWeapon)
+	{
 		int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), -1);
 		if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
 		{

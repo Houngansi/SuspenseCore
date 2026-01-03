@@ -23,6 +23,13 @@ void USuspenseCoreMasterHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::NativeConstruct - Checking bound widgets:"));
+	UE_LOG(LogTemp, Log, TEXT("  VitalsWidget: %s"), VitalsWidget ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogTemp, Log, TEXT("  AmmoCounterWidget: %s"), AmmoCounterWidget ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogTemp, Log, TEXT("  CrosshairWidget: %s"), CrosshairWidget ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogTemp, Log, TEXT("  QuickSlotsWidget: %s"), QuickSlotsWidget ? TEXT("BOUND") : TEXT("NULL"));
+	UE_LOG(LogTemp, Log, TEXT("  ReloadProgressWidget: %s"), ReloadProgressWidget ? TEXT("BOUND") : TEXT("NULL"));
+
 	// Apply initial visibility based on configuration
 	ApplyInitialVisibility();
 }
@@ -55,14 +62,27 @@ void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;
 
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::InitializeWeaponHUD - WeaponActor: %s, bHasWeaponEquipped: %d"),
+		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"), bHasWeaponEquipped);
+
 	// Initialize ammo counter with weapon (has interface)
 	if (AmmoCounterWidget && WeaponActor)
 	{
+		UE_LOG(LogTemp, Log, TEXT("MasterHUD::InitializeWeaponHUD - Initializing AmmoCounterWidget"));
 		AmmoCounterWidget->Execute_InitializeWithWeapon(AmmoCounterWidget, WeaponActor);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MasterHUD::InitializeWeaponHUD - AmmoCounterWidget is %s, WeaponActor is %s"),
+			AmmoCounterWidget ? TEXT("valid") : TEXT("NULL"),
+			WeaponActor ? TEXT("valid") : TEXT("NULL"));
 	}
 
 	// Crosshair doesn't need weapon initialization - it subscribes to EventBus
 	// Just update visibility based on weapon state
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::InitializeWeaponHUD - CrosshairWidget is %s"),
+		CrosshairWidget ? TEXT("valid") : TEXT("NULL"));
+
 	UpdateWeaponWidgetsVisibility();
 
 	if (WeaponActor)
@@ -167,15 +187,20 @@ void USuspenseCoreMasterHUDWidget::ApplyInitialVisibility()
 
 void USuspenseCoreMasterHUDWidget::UpdateWeaponWidgetsVisibility()
 {
+	UE_LOG(LogTemp, Log, TEXT("MasterHUD::UpdateWeaponWidgetsVisibility - bHasWeaponEquipped: %d, bAutoHideWeaponHUD: %d, bCrosshairRequiresWeapon: %d"),
+		bHasWeaponEquipped, bAutoHideWeaponHUD, bCrosshairRequiresWeapon);
+
 	// Ammo counter visibility
 	if (bAutoHideWeaponHUD)
 	{
+		UE_LOG(LogTemp, Log, TEXT("  Setting WeaponInfo visible: %d"), bHasWeaponEquipped);
 		SetWeaponInfoVisible(bHasWeaponEquipped);
 	}
 
 	// Crosshair visibility
 	if (bCrosshairRequiresWeapon)
 	{
+		UE_LOG(LogTemp, Log, TEXT("  Setting Crosshair visible: %d"), bHasWeaponEquipped);
 		SetCrosshairVisible(bHasWeaponEquipped);
 	}
 }

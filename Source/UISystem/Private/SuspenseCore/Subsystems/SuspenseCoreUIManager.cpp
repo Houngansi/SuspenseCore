@@ -665,6 +665,8 @@ bool USuspenseCoreUIManager::IsTooltipVisible() const
 
 USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerController* PC)
 {
+	UE_LOG(LogTemp, Log, TEXT("UIManager::CreateMasterHUD - Starting..."));
+
 	if (!PC)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("CreateMasterHUD: Invalid PlayerController"));
@@ -674,6 +676,7 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 	// Destroy existing HUD if any
 	if (MasterHUD)
 	{
+		UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Destroying existing MasterHUD"));
 		DestroyMasterHUD();
 	}
 
@@ -684,6 +687,8 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 		return nullptr;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Using widget class: %s"), *MasterHUDWidgetClass->GetName());
+
 	// Create the master HUD widget
 	MasterHUD = CreateWidget<USuspenseCoreMasterHUDWidget>(PC, MasterHUDWidgetClass);
 	if (!MasterHUD)
@@ -692,15 +697,23 @@ USuspenseCoreMasterHUDWidget* USuspenseCoreUIManager::CreateMasterHUD(APlayerCon
 		return nullptr;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Widget created successfully, adding to viewport"));
+
 	// Add to viewport with standard HUD Z-order
 	MasterHUD->AddToViewport(0);
 
 	// Initialize with pawn if available
 	if (APawn* Pawn = PC->GetPawn())
 	{
+		UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Initializing with pawn: %s"), *Pawn->GetName());
 		MasterHUD->InitializeHUD(Pawn);
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateMasterHUD: No pawn available for initialization"));
+	}
 
+	UE_LOG(LogTemp, Log, TEXT("CreateMasterHUD: Complete!"));
 	return MasterHUD;
 }
 
@@ -715,9 +728,17 @@ void USuspenseCoreUIManager::DestroyMasterHUD()
 
 void USuspenseCoreUIManager::InitializeWeaponHUD(AActor* WeaponActor)
 {
+	UE_LOG(LogTemp, Log, TEXT("UIManager::InitializeWeaponHUD - MasterHUD: %s, WeaponActor: %s"),
+		MasterHUD ? TEXT("valid") : TEXT("NULL"),
+		WeaponActor ? *WeaponActor->GetName() : TEXT("nullptr"));
+
 	if (MasterHUD)
 	{
 		MasterHUD->InitializeWeaponHUD(WeaponActor);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::InitializeWeaponHUD - MasterHUD is NULL! Call CreateMasterHUD first."));
 	}
 }
 

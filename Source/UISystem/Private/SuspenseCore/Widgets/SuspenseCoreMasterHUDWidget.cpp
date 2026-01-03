@@ -163,10 +163,17 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		// Set visibility on the widget container
 		AmmoCounterWidget->SetVisibility(NewVis);
 
+		// ALSO set render opacity as backup (0 = fully transparent, 1 = fully opaque)
+		AmmoCounterWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
+
 		// ALSO call interface method to set visibility
 		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
 
-		UE_LOG(LogTemp, Warning, TEXT("  Called Execute_SetAmmoCounterVisible(%d)"), bVisible);
+		// Force layout refresh
+		AmmoCounterWidget->ForceLayoutPrepass();
+
+		UE_LOG(LogTemp, Warning, TEXT("  Called Execute_SetAmmoCounterVisible(%d), SetRenderOpacity(%.1f), ForceLayoutPrepass"),
+			bVisible, bVisible ? 1.0f : 0.0f);
 	}
 }
 
@@ -186,10 +193,17 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		// Set visibility on the widget container
 		CrosshairWidget->SetVisibility(NewVis);
 
+		// ALSO set render opacity as backup (0 = fully transparent, 1 = fully opaque)
+		CrosshairWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
+
 		// ALSO set visibility on internal crosshair elements (CenterDot, TopCrosshair, etc.)
 		CrosshairWidget->SetCrosshairVisibility(bVisible);
 
-		UE_LOG(LogTemp, Warning, TEXT("  Called SetCrosshairVisibility(%d) on internal elements"), bVisible);
+		// Force layout refresh
+		CrosshairWidget->ForceLayoutPrepass();
+
+		UE_LOG(LogTemp, Warning, TEXT("  Called SetCrosshairVisibility(%d), SetRenderOpacity(%.1f), ForceLayoutPrepass"),
+			bVisible, bVisible ? 1.0f : 0.0f);
 	}
 }
 

@@ -130,6 +130,19 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 	float NewOpacity = bVisible ? 1.0f : 0.0f;
 
+	// ГЛАВНОЕ: Скрыть корневую канву - это скроет ВСЕ дочерние элементы!
+	if (CrosshairCanvas)
+	{
+		CrosshairCanvas->SetVisibility(NewVisibility);
+		CrosshairCanvas->SetRenderOpacity(NewOpacity);
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] CrosshairCanvas visibility set to %d"), static_cast<int32>(NewVisibility));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Crosshair] CrosshairCanvas is NULL! Cannot hide crosshair properly!"));
+	}
+
+	// Дополнительно скрываем отдельные элементы (на случай если они не дети CrosshairCanvas)
 	if (CenterDot)
 	{
 		CenterDot->SetVisibility(NewVisibility);

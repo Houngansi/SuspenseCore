@@ -624,7 +624,76 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     /** Projectile effects for ranged weapons */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Ammo|Effects", meta = (EditCondition = "bIsAmmo"))
     TArray<TSubclassOf<UGameplayEffect>> ProjectileEffects;
-    
+
+    //==================================================================
+    // Magazine Configuration
+    //==================================================================
+
+    /** Is this item a magazine */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine")
+    bool bIsMagazine = false;
+
+    /** Compatible caliber for this magazine */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine", meta = (EditCondition = "bIsMagazine", Categories = "Item.Ammo"))
+    FGameplayTag MagazineCaliber;
+
+    /**
+     * SSOT: Row name in MagazineDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     *
+     * @see USuspenseCoreDataManager::GetMagazineData()
+     * @see FSuspenseCoreMagazineDataRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine|GAS (SSOT)",
+        meta = (EditCondition = "bIsMagazine",
+                ToolTip = "Row name in MagazineDataTable. If empty, uses ItemID."))
+    FName MagazineDataRowName = NAME_None;
+
+    //==================================================================
+    // Consumable Configuration (SSOT)
+    //==================================================================
+
+    /**
+     * SSOT: Row name in ConsumableAttributesDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     * Used for medical items, food, drinks, stimulants
+     *
+     * @see USuspenseCoreDataManager::GetConsumableAttributes()
+     * @see FSuspenseCoreConsumableAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Consumable|GAS (SSOT)",
+        meta = (EditCondition = "bIsConsumable",
+                ToolTip = "Row name in ConsumableAttributesDataTable. If empty, uses ItemID."))
+    FName ConsumableAttributesRowName = NAME_None;
+
+    //==================================================================
+    // Throwable Configuration
+    //==================================================================
+
+    /** Is this item a throwable (grenade, smoke, flashbang) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Throwable")
+    bool bIsThrowable = false;
+
+    /** Throwable type tag (Frag, Smoke, Flash, Incendiary) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Throwable", meta = (EditCondition = "bIsThrowable", Categories = "Item.Throwable"))
+    FGameplayTag ThrowableType;
+
+    /**
+     * SSOT: Row name in ThrowableAttributesDataTable
+     * If empty, uses ItemID as fallback for DataTable lookup
+     * Used for grenades, smoke, flashbangs, incendiaries
+     *
+     * @see USuspenseCoreDataManager::GetThrowableAttributes()
+     * @see FSuspenseCoreThrowableAttributeRow
+     * @see Documentation/Plans/SSOT_AttributeSet_DataTable_Integration.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Throwable|GAS (SSOT)",
+        meta = (EditCondition = "bIsThrowable",
+                ToolTip = "Row name in ThrowableAttributesDataTable. If empty, uses ItemID."))
+    FName ThrowableAttributesRowName = NAME_None;
+
     //==================================================================
     // Runtime Configuration
     //==================================================================
@@ -747,6 +816,33 @@ struct BRIDGESYSTEM_API FSuspenseCoreUnifiedItemData : public FTableRowBase
     FORCEINLINE FName GetArmorAttributesKey() const
     {
         return bIsArmor ? (ArmorAttributesRowName.IsNone() ? ItemID : ArmorAttributesRowName) : NAME_None;
+    }
+
+    /**
+     * Get the key for MagazineDataTable lookup
+     * @return MagazineDataRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetMagazineDataKey() const
+    {
+        return bIsMagazine ? (MagazineDataRowName.IsNone() ? ItemID : MagazineDataRowName) : NAME_None;
+    }
+
+    /**
+     * Get the key for ConsumableAttributesDataTable lookup
+     * @return ConsumableAttributesRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetConsumableAttributesKey() const
+    {
+        return bIsConsumable ? (ConsumableAttributesRowName.IsNone() ? ItemID : ConsumableAttributesRowName) : NAME_None;
+    }
+
+    /**
+     * Get the key for ThrowableAttributesDataTable lookup
+     * @return ThrowableAttributesRowName if set, otherwise ItemID as fallback
+     */
+    FORCEINLINE FName GetThrowableAttributesKey() const
+    {
+        return bIsThrowable ? (ThrowableAttributesRowName.IsNone() ? ItemID : ThrowableAttributesRowName) : NAME_None;
     }
 
     /**

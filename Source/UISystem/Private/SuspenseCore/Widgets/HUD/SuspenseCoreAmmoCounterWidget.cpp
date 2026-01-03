@@ -24,7 +24,8 @@ USuspenseCoreAmmoCounterWidget::USuspenseCoreAmmoCounterWidget(const FObjectInit
 void USuspenseCoreAmmoCounterWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	SetupEventSubscriptions();
+	// НЕ подписываемся на события здесь!
+	// Подписки создаются только в InitializeWithWeapon когда реально есть оружие
 }
 
 void USuspenseCoreAmmoCounterWidget::NativeDestruct()
@@ -49,6 +50,12 @@ void USuspenseCoreAmmoCounterWidget::NativeTick(const FGeometry& MyGeometry, flo
 
 void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor* WeaponActor)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] InitializeWithWeapon: WeaponActor=%s, Frame=%llu"),
+		WeaponActor ? *WeaponActor->GetName() : TEXT("NULL"), GFrameCounter);
+
+	// Сначала отписываемся от старых подписок (если были)
+	TeardownEventSubscriptions();
+
 	CachedWeaponActor = WeaponActor;
 	bIsInitialized = true;
 	bHasMagazine = true;
@@ -82,17 +89,29 @@ void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor*
 		}
 	}
 
+	// ТЕПЕРЬ подписываемся на события - виджет готов слушать
+	SetupEventSubscriptions();
+
 	RefreshDisplay();
+
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] InitializeWithWeapon DONE - subscribed to events"));
 }
 
 void USuspenseCoreAmmoCounterWidget::ClearWeapon_Implementation()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] ClearWeapon: Frame=%llu - UNSUBSCRIBING from events"), GFrameCounter);
+
+	// СРАЗУ отписываемся от всех событий - виджет больше не должен реагировать
+	TeardownEventSubscriptions();
+
 	CachedWeaponActor = nullptr;
 	bIsInitialized = false;
 
 	// Clear display
 	CachedAmmoData = FSuspenseCoreAmmoCounterData();
 	SetNoMagazineState_Implementation(true);
+
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] ClearWeapon DONE - unsubscribed, bIsInitialized=false"));
 }
 
 void USuspenseCoreAmmoCounterWidget::UpdateAmmoCounter_Implementation(const FSuspenseCoreAmmoCounterData& AmmoData)
@@ -312,6 +331,13 @@ USuspenseCoreEventBus* USuspenseCoreAmmoCounterWidget::GetEventBus() const
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если виджет не инициализирован
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineInsertedEvent IGNORED - not initialized"));
+		return;
+	}
+
 	int32 Rounds = EventData.GetInt(TEXT("CurrentRounds"), 0);
 	int32 Capacity = EventData.GetInt(TEXT("MaxCapacity"), 30);
 	FName AmmoType = FName(*EventData.GetString(TEXT("LoadedAmmoType")));
@@ -330,12 +356,26 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineInsertedEvent(FGameplayTag EventT
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если виджет не инициализирован
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineEjectedEvent IGNORED - not initialized"));
+		return;
+	}
+
 	CachedAmmoData.bHasMagazine = false;
 	SetNoMagazineState_Implementation(true);
 }
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если виджет не инициализирован
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineRoundsChangedEvent IGNORED - not initialized"));
+		return;
+	}
+
 	int32 CurrentRounds = EventData.GetInt(TEXT("CurrentRounds"), 0);
 	int32 MaxRounds = EventData.GetInt(TEXT("MaxCapacity"), CachedAmmoData.MagazineCapacity);
 
@@ -350,6 +390,13 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag E
 
 void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если виджет не инициализирован
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnWeaponAmmoChangedEvent IGNORED - not initialized"));
+		return;
+	}
+
 	// This is fired when ammo is consumed (shot fired)
 	int32 CurrentRounds = EventData.GetInt(TEXT("CurrentRounds"), CachedAmmoData.MagazineRounds);
 	bool bChambered = EventData.GetBool(TEXT("HasChamberedRound"));
@@ -366,6 +413,13 @@ void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag Event
 
 void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// GUARD: Игнорируем события если виджет не инициализирован
+	if (!bIsInitialized)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnFireModeChangedEvent IGNORED - not initialized"));
+		return;
+	}
+
 	FString FireModeStr = EventData.GetString(TEXT("FireMode"));
 
 	// Get fire mode tag from string (GetTag doesn't exist, use FGameplayTag::RequestGameplayTag)

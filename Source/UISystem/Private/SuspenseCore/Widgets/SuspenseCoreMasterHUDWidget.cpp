@@ -158,10 +158,9 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 	{
 		ESlateVisibility CurrentVis = AmmoCounterWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d, Parent=%s, ChildCount=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d, Parent=%s"),
 			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
-			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"),
-			AmmoCounterWidget->GetChildrenCount());
+			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"));
 
 		// 1. UMG Level: Set visibility on the UWidget
 		AmmoCounterWidget->SetVisibility(NewVis);
@@ -172,8 +171,7 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		if (SlateWidget.IsValid())
 		{
 			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
-			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set to: %d"),
-				static_cast<int32>(SlateWidget->GetVisibility()));
+			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set (bVisible=%d)"), bVisible);
 		}
 		else
 		{
@@ -202,10 +200,9 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 	{
 		ESlateVisibility CurrentVis = CrosshairWidget->GetVisibility();
 		ESlateVisibility NewVis = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d, Parent=%s, ChildCount=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d, Parent=%s"),
 			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
-			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"),
-			CrosshairWidget->GetChildrenCount());
+			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"));
 
 		// 1. UMG Level: Set visibility on the UWidget
 		CrosshairWidget->SetVisibility(NewVis);
@@ -216,8 +213,7 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		if (SlateWidget.IsValid())
 		{
 			SlateWidget->SetVisibility(bVisible ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
-			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set to: %d"),
-				static_cast<int32>(SlateWidget->GetVisibility()));
+			UE_LOG(LogTemp, Warning, TEXT("  Slate widget visibility set (bVisible=%d)"), bVisible);
 		}
 		else
 		{

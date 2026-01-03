@@ -194,7 +194,13 @@ void USuspenseCoreAmmoCounterWidget::PlayMagazineSwapAnimation_Implementation()
 
 void USuspenseCoreAmmoCounterWidget::SetAmmoCounterVisible_Implementation(bool bVisible)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] SetAmmoCounterVisible: bVisible=%d, CurrentVisibility=%d"),
+		bVisible, static_cast<int32>(GetVisibility()));
+
 	SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] Visibility SET to: %s"),
+		bVisible ? TEXT("HitTestInvisible") : TEXT("Collapsed"));
 }
 
 bool USuspenseCoreAmmoCounterWidget::IsAmmoCounterVisible_Implementation() const

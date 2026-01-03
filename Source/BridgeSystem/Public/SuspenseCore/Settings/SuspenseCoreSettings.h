@@ -157,6 +157,34 @@ public:
 				ToolTip = "Armor attributes DataTable. Row Structure: FSuspenseCoreArmorAttributeRow"))
 	TSoftObjectPtr<UDataTable> ArmorAttributesDataTable;
 
+	/**
+	 * DataTable containing consumable attribute definitions
+	 * Row Structure: FSuspenseCoreConsumableAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+	 * Maps 1:1 to medical/consumable items (Tarkov-style healing system)
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Consumable attributes DataTable. Row Structure: FSuspenseCoreConsumableAttributeRow"))
+	TSoftObjectPtr<UDataTable> ConsumableAttributesDataTable;
+
+	/**
+	 * DataTable containing throwable attribute definitions
+	 * Row Structure: FSuspenseCoreThrowableAttributeRow
+	 *
+	 * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreThrowableAttributes.json
+	 * Maps 1:1 to grenades/throwables (Frag, Smoke, Flash, Incendiary)
+	 *
+	 * @see SuspenseCoreGASAttributeRows.h
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
+		meta = (AllowedClasses = "/Script/Engine.DataTable",
+				ToolTip = "Throwable attributes DataTable. Row Structure: FSuspenseCoreThrowableAttributeRow"))
+	TSoftObjectPtr<UDataTable> ThrowableAttributesDataTable;
+
 	/** Use SSOT DataTable attributes instead of legacy fields */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "GAS Attributes",
 		meta = (ToolTip = "Enable new SSOT attribute system. Disable for legacy fallback."))

@@ -18,7 +18,7 @@ USuspenseCoreEffect_StaminaRegen::USuspenseCoreEffect_StaminaRegen(const FObject
 		FGameplayModifierInfo Mod;
 		Mod.Attribute = USuspenseCoreAttributeSet::GetStaminaAttribute();
 		Mod.ModifierOp = EGameplayModOp::Additive;
-		Mod.ModifierMagnitude = FScalableFloat(1.0f);
+		Mod.ModifierMagnitude = FScalableFloat(0.5f);
 		Modifiers.Add(Mod);
 	}
 
@@ -32,5 +32,5 @@ USuspenseCoreEffect_StaminaRegen::USuspenseCoreEffect_StaminaRegen(const FObject
 
 	GEComponents.Add(TagReq);
 
-	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_StaminaRegen: Configured with +10 STA/s regeneration"));
+	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreEffect_StaminaRegen: Configured with +5 STA/s regeneration"));
 }

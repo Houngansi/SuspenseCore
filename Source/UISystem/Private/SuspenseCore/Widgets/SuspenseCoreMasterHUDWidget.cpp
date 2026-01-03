@@ -162,6 +162,9 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
 			AmmoCounterWidget->GetParent() ? *AmmoCounterWidget->GetParent()->GetName() : TEXT("NULL"));
 
+		// 0. Disable/Enable widget ticking (stops Blueprint ticks and animations)
+		AmmoCounterWidget->SetIsEnabled(bVisible);
+
 		// 1. UMG Level: Set visibility on the UWidget
 		AmmoCounterWidget->SetVisibility(NewVis);
 		AmmoCounterWidget->SetRenderOpacity(bVisible ? 1.0f : 0.0f);
@@ -185,8 +188,9 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		AmmoCounterWidget->ForceLayoutPrepass();
 		AmmoCounterWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f"),
-			static_cast<int32>(AmmoCounterWidget->GetVisibility()), AmmoCounterWidget->GetRenderOpacity());
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f, IsEnabled=%d"),
+			static_cast<int32>(AmmoCounterWidget->GetVisibility()), AmmoCounterWidget->GetRenderOpacity(),
+			AmmoCounterWidget->GetIsEnabled());
 	}
 }
 
@@ -203,6 +207,9 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d, Parent=%s"),
 			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis),
 			CrosshairWidget->GetParent() ? *CrosshairWidget->GetParent()->GetName() : TEXT("NULL"));
+
+		// 0. Disable/Enable widget ticking (stops Blueprint ticks and animations)
+		CrosshairWidget->SetIsEnabled(bVisible);
 
 		// 1. UMG Level: Set visibility on the UWidget
 		CrosshairWidget->SetVisibility(NewVis);
@@ -227,8 +234,9 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		CrosshairWidget->ForceLayoutPrepass();
 		CrosshairWidget->InvalidateLayoutAndVolatility();
 
-		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f"),
-			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity());
+		UE_LOG(LogTemp, Warning, TEXT("  Applied: UMG Vis=%d, Opacity=%.1f, IsEnabled=%d"),
+			static_cast<int32>(CrosshairWidget->GetVisibility()), CrosshairWidget->GetRenderOpacity(),
+			CrosshairWidget->GetIsEnabled());
 	}
 }
 

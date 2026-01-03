@@ -56,10 +56,7 @@ void USuspenseCoreAmmoCounterWidget::NativeTick(const FGeometry& MyGeometry, flo
 
 void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor* WeaponActor)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] InitializeWithWeapon: WeaponActor=%s, Frame=%llu"),
-		WeaponActor ? *WeaponActor->GetName() : TEXT("NULL"), GFrameCounter);
-
-	// Сначала отписываемся от старых подписок (если были)
+	// Teardown old subscriptions first
 	TeardownEventSubscriptions();
 
 	CachedWeaponActor = WeaponActor;
@@ -78,36 +75,28 @@ void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor*
 			if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponActor, WeaponData))
 			{
 				WeaponNameText->SetText(WeaponData.DisplayName);
-				UE_LOG(LogTemp, Log, TEXT("AmmoCounter: Weapon DisplayName set to: %s"), *WeaponData.DisplayName.ToString());
 			}
 			else
 			{
 				// Fallback to actor name
 				WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
-				UE_LOG(LogTemp, Warning, TEXT("AmmoCounter: GetWeaponItemData failed, using actor name"));
 			}
 		}
 		else
 		{
 			// Actor doesn't implement ISuspenseCoreWeapon - use actor name
 			WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
-			UE_LOG(LogTemp, Warning, TEXT("AmmoCounter: Weapon doesn't implement ISuspenseCoreWeapon"));
 		}
 	}
 
-	// ТЕПЕРЬ подписываемся на события - виджет готов слушать
+	// Subscribe to events now that widget is ready
 	SetupEventSubscriptions();
-
 	RefreshDisplay();
-
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] InitializeWithWeapon DONE - subscribed to events"));
 }
 
 void USuspenseCoreAmmoCounterWidget::ClearWeapon_Implementation()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] ClearWeapon: Frame=%llu - UNSUBSCRIBING from events"), GFrameCounter);
-
-	// СРАЗУ отписываемся от всех событий - виджет больше не должен реагировать
+	// Unsubscribe from all events immediately
 	TeardownEventSubscriptions();
 
 	CachedWeaponActor = nullptr;
@@ -116,8 +105,6 @@ void USuspenseCoreAmmoCounterWidget::ClearWeapon_Implementation()
 	// Clear display
 	CachedAmmoData = FSuspenseCoreAmmoCounterData();
 	SetNoMagazineState_Implementation(true);
-
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] ClearWeapon DONE - unsubscribed, bIsInitialized=false"));
 }
 
 void USuspenseCoreAmmoCounterWidget::UpdateAmmoCounter_Implementation(const FSuspenseCoreAmmoCounterData& AmmoData)
@@ -219,26 +206,9 @@ void USuspenseCoreAmmoCounterWidget::PlayMagazineSwapAnimation_Implementation()
 
 void USuspenseCoreAmmoCounterWidget::SetAmmoCounterVisible_Implementation(bool bVisible)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] SetAmmoCounterVisible: bVisible=%d, Frame=%llu, CurrentVis=%d"),
-		bVisible, GFrameCounter, static_cast<int32>(GetVisibility()));
-
+	// Standard UMG visibility is sufficient now that Retainer is removed
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	float NewOpacity = bVisible ? 1.0f : 0.0f;
-
-	// УРОВЕНЬ 1: Visibility
 	SetVisibility(NewVisibility);
-
-	// УРОВЕНЬ 2: Render Opacity
-	SetRenderOpacity(NewOpacity);
-
-	// УРОВЕНЬ 3: Color and Opacity (Alpha = 0 делает виджет полностью прозрачным)
-	SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity));
-
-	// Force layout refresh
-	ForceLayoutPrepass();
-
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] Applied: Visibility=%d, Opacity=%.1f, ColorAlpha=%.1f"),
-		static_cast<int32>(GetVisibility()), GetRenderOpacity(), NewOpacity);
 }
 
 bool USuspenseCoreAmmoCounterWidget::IsAmmoCounterVisible_Implementation() const
@@ -344,10 +314,8 @@ USuspenseCoreEventBus* USuspenseCoreAmmoCounterWidget::GetEventBus() const
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если виджет не инициализирован
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineInsertedEvent IGNORED - not initialized"));
 		return;
 	}
 
@@ -369,10 +337,8 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineInsertedEvent(FGameplayTag EventT
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если виджет не инициализирован
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineEjectedEvent IGNORED - not initialized"));
 		return;
 	}
 
@@ -382,10 +348,8 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineEjectedEvent(FGameplayTag EventTa
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если виджет не инициализирован
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnMagazineRoundsChangedEvent IGNORED - not initialized"));
 		return;
 	}
 
@@ -403,10 +367,8 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag E
 
 void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если виджет не инициализирован
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnWeaponAmmoChangedEvent IGNORED - not initialized"));
 		return;
 	}
 
@@ -426,10 +388,8 @@ void USuspenseCoreAmmoCounterWidget::OnWeaponAmmoChangedEvent(FGameplayTag Event
 
 void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// GUARD: Игнорируем события если виджет не инициализирован
 	if (!bIsInitialized)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] OnFireModeChangedEvent IGNORED - not initialized"));
 		return;
 	}
 

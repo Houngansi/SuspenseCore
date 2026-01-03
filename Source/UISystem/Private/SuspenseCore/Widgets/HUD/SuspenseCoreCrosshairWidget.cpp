@@ -101,15 +101,36 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 	bCrosshairVisible = bVisible;
 
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	float NewOpacity = bVisible ? 1.0f : 0.0f;
 
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, Frame=%llu"),
-		bVisible, GFrameCounter);
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] SetCrosshairVisibility: bVisible=%d, Frame=%llu, Opacity=%.1f"),
+		bVisible, GFrameCounter, NewOpacity);
 
-	if (CenterDot) CenterDot->SetVisibility(NewVisibility);
-	if (TopCrosshair) TopCrosshair->SetVisibility(NewVisibility);
-	if (BottomCrosshair) BottomCrosshair->SetVisibility(NewVisibility);
-	if (LeftCrosshair) LeftCrosshair->SetVisibility(NewVisibility);
-	if (RightCrosshair) RightCrosshair->SetVisibility(NewVisibility);
+	if (CenterDot)
+	{
+		CenterDot->SetVisibility(NewVisibility);
+		CenterDot->SetRenderOpacity(NewOpacity);
+	}
+	if (TopCrosshair)
+	{
+		TopCrosshair->SetVisibility(NewVisibility);
+		TopCrosshair->SetRenderOpacity(NewOpacity);
+	}
+	if (BottomCrosshair)
+	{
+		BottomCrosshair->SetVisibility(NewVisibility);
+		BottomCrosshair->SetRenderOpacity(NewOpacity);
+	}
+	if (LeftCrosshair)
+	{
+		LeftCrosshair->SetVisibility(NewVisibility);
+		LeftCrosshair->SetRenderOpacity(NewOpacity);
+	}
+	if (RightCrosshair)
+	{
+		RightCrosshair->SetVisibility(NewVisibility);
+		RightCrosshair->SetRenderOpacity(NewOpacity);
+	}
 }
 
 void USuspenseCoreCrosshairWidget::SetCrosshairType(const FName& CrosshairType)

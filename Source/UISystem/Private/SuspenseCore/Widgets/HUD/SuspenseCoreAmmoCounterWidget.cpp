@@ -222,16 +222,23 @@ void USuspenseCoreAmmoCounterWidget::SetAmmoCounterVisible_Implementation(bool b
 	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] SetAmmoCounterVisible: bVisible=%d, Frame=%llu, CurrentVis=%d"),
 		bVisible, GFrameCounter, static_cast<int32>(GetVisibility()));
 
-	SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+	float NewOpacity = bVisible ? 1.0f : 0.0f;
 
-	// ALSO set render opacity as backup
-	SetRenderOpacity(bVisible ? 1.0f : 0.0f);
+	// УРОВЕНЬ 1: Visibility
+	SetVisibility(NewVisibility);
+
+	// УРОВЕНЬ 2: Render Opacity
+	SetRenderOpacity(NewOpacity);
+
+	// УРОВЕНЬ 3: Color and Opacity (Alpha = 0 делает виджет полностью прозрачным)
+	SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity));
 
 	// Force layout refresh
 	ForceLayoutPrepass();
 
-	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] Applied: Visibility=%d, Opacity=%.1f"),
-		static_cast<int32>(GetVisibility()), GetRenderOpacity());
+	UE_LOG(LogTemp, Warning, TEXT("[AmmoCounter] Applied: Visibility=%d, Opacity=%.1f, ColorAlpha=%.1f"),
+		static_cast<int32>(GetVisibility()), GetRenderOpacity(), NewOpacity);
 }
 
 bool USuspenseCoreAmmoCounterWidget::IsAmmoCounterVisible_Implementation() const

@@ -1562,7 +1562,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_AK74_30"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.545x39\")",
+    "MagazineDataRowName": "Mag_AK74_30",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_AK74_45",
@@ -1631,7 +1637,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_AK74_45"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.545x39\")",
+    "MagazineDataRowName": "Mag_AK74_45",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_AK74_60_Drum",
@@ -1700,7 +1712,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_AK74_60_Drum"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.545x39\")",
+    "MagazineDataRowName": "Mag_AK74_60_Drum",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_AK103_30",
@@ -1769,7 +1787,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_AK103_30"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.762x39\")",
+    "MagazineDataRowName": "Mag_AK103_30",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_STANAG_30",
@@ -1838,7 +1862,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_STANAG_30"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.556x45\")",
+    "MagazineDataRowName": "Mag_STANAG_30",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_PMAG_30",
@@ -1907,7 +1937,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_PMAG_30"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.556x45\")",
+    "MagazineDataRowName": "Mag_PMAG_30",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_PMAG_40",
@@ -1976,7 +2012,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_PMAG_40"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.556x45\")",
+    "MagazineDataRowName": "Mag_PMAG_40",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_STANAG_60_Drum",
@@ -2045,7 +2087,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_STANAG_60_Drum"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.556x45\")",
+    "MagazineDataRowName": "Mag_STANAG_60_Drum",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_MP5_30",
@@ -2114,7 +2162,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_MP5_30"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.9x19\")",
+    "MagazineDataRowName": "Mag_MP5_30",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_MP7_40",
@@ -2183,7 +2237,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_MP7_40"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.46x30\")",
+    "MagazineDataRowName": "Mag_MP7_40",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_Glock_17",
@@ -2252,7 +2312,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_Glock_17"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.9x19\")",
+    "MagazineDataRowName": "Mag_Glock_17",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_Glock_33",
@@ -2321,7 +2387,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_Glock_33"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.9x19\")",
+    "MagazineDataRowName": "Mag_Glock_33",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_M9_17",
@@ -2390,7 +2462,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_M9_17"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.9x19\")",
+    "MagazineDataRowName": "Mag_M9_17",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_SVD_10",
@@ -2459,7 +2537,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_SVD_10"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.762x54R\")",
+    "MagazineDataRowName": "Mag_SVD_10",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Mag_SVD_20",
@@ -2528,7 +2612,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "MagazineDataRowName": "Mag_SVD_20"
+    "bIsMagazine": true,
+    "MagazineCaliber": "(TagName=\"Item.Ammo.762x54R\")",
+    "MagazineDataRowName": "Mag_SVD_20",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Ammo_545x39_BS",
@@ -3277,7 +3367,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_Bandage"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_Bandage",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_Morphine",
@@ -3346,7 +3442,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_Morphine"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_Morphine",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_Salewa",
@@ -3415,7 +3517,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_Salewa"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_Salewa",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_CarMedkit",
@@ -3484,7 +3592,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_CarMedkit"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_CarMedkit",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_Grizzly",
@@ -3553,7 +3667,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_Grizzly"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_Grizzly",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Medical_Splint",
@@ -3622,7 +3742,13 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
-    "ConsumableAttributesRowName": "Medical_Splint"
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "Medical_Splint",
+    "bIsThrowable": false,
+    "ThrowableType": "",
+    "ThrowableAttributesRowName": ""
   },
   {
     "Name": "Throwable_RGD5",
@@ -3691,6 +3817,12 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.Frag\")",
     "ThrowableAttributesRowName": "Throwable_RGD5"
   },
   {
@@ -3760,6 +3892,12 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.Frag\")",
     "ThrowableAttributesRowName": "Throwable_M67"
   },
   {
@@ -3829,6 +3967,12 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.Smoke\")",
     "ThrowableAttributesRowName": "Throwable_M18_Smoke"
   },
   {
@@ -3898,6 +4042,12 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.Flash\")",
     "ThrowableAttributesRowName": "Throwable_M84_Flashbang"
   },
   {
@@ -3967,6 +4117,12 @@
     "AmmoSpecialProperties": "(GameplayTags=())",
     "ProjectileEffects": [],
     "PickupActorClass": "",
+    "bIsMagazine": false,
+    "MagazineCaliber": "",
+    "MagazineDataRowName": "",
+    "ConsumableAttributesRowName": "",
+    "bIsThrowable": true,
+    "ThrowableType": "(TagName=\"Item.Throwable.VOG\")",
     "ThrowableAttributesRowName": "Throwable_VOG25"
   }
 ]

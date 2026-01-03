@@ -827,6 +827,46 @@ void USuspenseCoreEquipmentVisualizationService::HideVisualForSlot(AActor* Chara
 			TEXT("HideVisualForSlot: CurrentWeaponActor cleared"));
 	}
 
+	// ============================================================================
+	// CRITICAL: Broadcast Visual_Detached event BEFORE destroying actor
+	// This notifies UIManager to hide weapon HUD (AmmoCounter, Crosshair)
+	// We publish here because we KNOW the SlotIndex - ActorFactory may not!
+	// ============================================================================
+	if (EventBus)
+	{
+		using namespace SuspenseCoreEquipmentTags;
+
+		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(const_cast<USuspenseCoreEquipmentVisualizationService*>(this));
+		EventData.SetObject(TEXT("Target"), Visual);
+		EventData.SetInt(TEXT("Slot"), SlotIndex);
+
+		// Determine SlotType based on slot index for UI HUD logic
+		FString SlotType;
+		if (SlotIndex == 0)
+		{
+			SlotType = TEXT("PrimaryWeapon");
+		}
+		else if (SlotIndex == 1)
+		{
+			SlotType = TEXT("SecondaryWeapon");
+		}
+		else if (SlotIndex == 2)
+		{
+			SlotType = TEXT("Holster");
+		}
+		else if (SlotIndex == 3)
+		{
+			SlotType = TEXT("Scabbard");
+		}
+		EventData.SetString(TEXT("SlotType"), SlotType);
+
+		EventBus->Publish(Event::TAG_Equipment_Event_Visual_Detached, EventData);
+
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+			TEXT("HideVisualForSlot: Published Visual_Detached event - Slot=%d, SlotType=%s"),
+			SlotIndex, *SlotType);
+	}
+
 	// Return actor to pool/destroy via Factory
 	// NOTE: Using Internal version since we already hold VisualLock (fixes deadlock)
 	ReleaseVisualActorInternal(Character, SlotIndex, bInstant);

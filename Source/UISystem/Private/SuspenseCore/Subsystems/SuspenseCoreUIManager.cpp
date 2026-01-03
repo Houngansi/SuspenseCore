@@ -830,23 +830,24 @@ void USuspenseCoreUIManager::SubscribeToEvents()
 
 	using namespace SuspenseCoreEquipmentTags::Event;
 
-	// Subscribe to item equipped event
+	// Subscribe to Visual_Spawned event - this fires when weapon actor is spawned
+	// and contains the actual weapon actor in the event data
 	ItemEquippedHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_ItemEquipped,
+		TAG_Equipment_Event_Visual_Spawned,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemEquippedEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	// Subscribe to item unequipped event
+	// Subscribe to Visual_Detached event - weapon actor detached
 	ItemUnequippedHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_ItemUnequipped,
+		TAG_Equipment_Event_Visual_Detached,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnItemUnequippedEvent),
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to equipment events"));
+	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to Visual_Spawned/Detached events"));
 }
 
 void USuspenseCoreUIManager::UnsubscribeFromEvents()
@@ -891,37 +892,42 @@ void USuspenseCoreUIManager::OnContainerClosedEvent(const FSuspenseCoreEventData
 
 void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Get the equipped item actor from event data (Source is the item actor)
-	AActor* ItemActor = Cast<AActor>(EventData.Source.Get());
+	// Get the spawned equipment actor from event data
+	// Visual_Spawned sets actor via SetObject("Source", SpawnedActor)
+	UObject* SourceObj = EventData.GetObject(TEXT("Source"));
+	AActor* ItemActor = Cast<AActor>(SourceObj);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - ItemActor: %s"),
-		ItemActor ? *ItemActor->GetName() : TEXT("nullptr"));
+	// Fallback: try EventData.Source directly
+	if (!ItemActor)
+	{
+		ItemActor = Cast<AActor>(EventData.Source.Get());
+	}
 
-	// Check if this is a weapon
-	bool bIsWeapon = false;
+	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Tag: %s, ItemActor: %s, Slot: %d"),
+		*EventTag.ToString(),
+		ItemActor ? *ItemActor->GetName() : TEXT("nullptr"),
+		SlotIndex);
+
+	// Check if this is a weapon slot (slots 0/1 are primary/secondary weapons)
+	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
 
 	// Check if item has weapon tag in event data
-	FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
-	bIsWeapon = EventData.Tags.HasTag(ItemTypeTag);
+	if (!bIsWeaponSlot)
+	{
+		FGameplayTag ItemTypeTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Item.Type.Weapon"), false);
+		bIsWeaponSlot = EventData.Tags.HasTag(ItemTypeTag);
+	}
 
 	// Fallback: check event string data
-	if (!bIsWeapon)
+	if (!bIsWeaponSlot)
 	{
 		FString ItemType = EventData.GetString(TEXT("ItemType"));
-		bIsWeapon = ItemType.Contains(TEXT("Weapon"));
+		bIsWeaponSlot = ItemType.Contains(TEXT("Weapon"));
 	}
 
-	// Fallback: check slot index (slots 0/1 are weapon slots)
-	if (!bIsWeapon)
-	{
-		int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), -1);
-		if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
-		{
-			bIsWeapon = true;
-		}
-	}
-
-	if (bIsWeapon && ItemActor)
+	if (bIsWeaponSlot && ItemActor)
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemEquippedEvent - Initializing weapon HUD for: %s"), *ItemActor->GetName());
 		InitializeWeaponHUD(ItemActor);
@@ -930,12 +936,15 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 
 void USuspenseCoreUIManager::OnItemUnequippedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Clearing weapon HUD"));
+	int32 SlotIndex = EventData.GetInt(TEXT("Slot"), -1);
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Tag: %s, Slot: %d"),
+		*EventTag.ToString(), SlotIndex);
 
 	// Check if this was a weapon slot
-	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), -1);
 	if (SlotIndex == 0 || SlotIndex == 1) // Primary/Secondary weapon slots
 	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnItemUnequippedEvent - Clearing weapon HUD"));
 		ClearWeaponHUD();
 	}
 }

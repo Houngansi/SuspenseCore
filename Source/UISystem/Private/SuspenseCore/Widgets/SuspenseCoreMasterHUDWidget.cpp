@@ -160,15 +160,13 @@ void USuspenseCoreMasterHUDWidget::SetWeaponInfoVisible(bool bVisible)
 		UE_LOG(LogTemp, Warning, TEXT("  AmmoCounter (%p): Vis %d -> %d"),
 			AmmoCounterWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
 
+		// Set visibility on the widget container
 		AmmoCounterWidget->SetVisibility(NewVis);
 
-		// Verify visibility was set correctly
-		ESlateVisibility VerifyVis = AmmoCounterWidget->GetVisibility();
-		if (VerifyVis != NewVis)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  *** AMMO VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
-				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
-		}
+		// ALSO call interface method to set visibility
+		AmmoCounterWidget->Execute_SetAmmoCounterVisible(AmmoCounterWidget, bVisible);
+
+		UE_LOG(LogTemp, Warning, TEXT("  Called Execute_SetAmmoCounterVisible(%d)"), bVisible);
 	}
 }
 
@@ -185,15 +183,13 @@ void USuspenseCoreMasterHUDWidget::SetCrosshairVisible(bool bVisible)
 		UE_LOG(LogTemp, Warning, TEXT("  Crosshair (%p): Vis %d -> %d"),
 			CrosshairWidget.Get(), static_cast<int32>(CurrentVis), static_cast<int32>(NewVis));
 
+		// Set visibility on the widget container
 		CrosshairWidget->SetVisibility(NewVis);
 
-		// Verify visibility was set correctly
-		ESlateVisibility VerifyVis = CrosshairWidget->GetVisibility();
-		if (VerifyVis != NewVis)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  *** CROSSHAIR VISIBILITY MISMATCH! Set=%d, Got=%d ***"),
-				static_cast<int32>(NewVis), static_cast<int32>(VerifyVis));
-		}
+		// ALSO set visibility on internal crosshair elements (CenterDot, TopCrosshair, etc.)
+		CrosshairWidget->SetCrosshairVisibility(bVisible);
+
+		UE_LOG(LogTemp, Warning, TEXT("  Called SetCrosshairVisibility(%d) on internal elements"), bVisible);
 	}
 }
 

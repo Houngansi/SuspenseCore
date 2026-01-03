@@ -130,19 +130,32 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 	ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 	float NewOpacity = bVisible ? 1.0f : 0.0f;
 
-	// ГЛАВНОЕ: Скрыть корневую канву - это скроет ВСЕ дочерние элементы!
+	// ═══════════════════════════════════════════════════════════════════════════
+	// УРОВЕНЬ 1: Скрыть ВЕСЬ виджет целиком (this = USuspenseCoreCrosshairWidget)
+	// ═══════════════════════════════════════════════════════════════════════════
+	SetVisibility(NewVisibility);
+	SetRenderOpacity(NewOpacity);
+	SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, NewOpacity)); // Alpha = 0 когда скрыто
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] THIS widget: Visibility=%d, Opacity=%.1f, ColorAlpha=%.1f"),
+		static_cast<int32>(GetVisibility()), GetRenderOpacity(), NewOpacity);
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// УРОВЕНЬ 2: Скрыть корневую канву CrosshairCanvas
+	// ═══════════════════════════════════════════════════════════════════════════
 	if (CrosshairCanvas)
 	{
 		CrosshairCanvas->SetVisibility(NewVisibility);
 		CrosshairCanvas->SetRenderOpacity(NewOpacity);
-		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] CrosshairCanvas visibility set to %d"), static_cast<int32>(NewVisibility));
+		UE_LOG(LogTemp, Warning, TEXT("[Crosshair] CrosshairCanvas: Visibility=%d"), static_cast<int32>(NewVisibility));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Crosshair] CrosshairCanvas is NULL! Cannot hide crosshair properly!"));
+		UE_LOG(LogTemp, Error, TEXT("[Crosshair] !!! CrosshairCanvas is NULL !!!"));
 	}
 
-	// Дополнительно скрываем отдельные элементы (на случай если они не дети CrosshairCanvas)
+	// ═══════════════════════════════════════════════════════════════════════════
+	// УРОВЕНЬ 3: Скрыть каждый элемент отдельно
+	// ═══════════════════════════════════════════════════════════════════════════
 	if (CenterDot)
 	{
 		CenterDot->SetVisibility(NewVisibility);
@@ -169,8 +182,7 @@ void USuspenseCoreCrosshairWidget::SetCrosshairVisibility(bool bVisible)
 		RightCrosshair->SetRenderOpacity(NewOpacity);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] Applied: Visibility=%d, Opacity=%.1f"),
-		static_cast<int32>(NewVisibility), NewOpacity);
+	UE_LOG(LogTemp, Warning, TEXT("[Crosshair] === HIDE COMPLETE === bVisible=%d"), bVisible);
 }
 
 void USuspenseCoreCrosshairWidget::SetCrosshairType(const FName& CrosshairType)

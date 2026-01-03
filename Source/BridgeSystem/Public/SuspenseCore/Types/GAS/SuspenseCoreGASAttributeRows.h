@@ -410,3 +410,356 @@ struct BRIDGESYSTEM_API FSuspenseCoreArmorAttributeRow : public FTableRowBase
 		return !ArmorID.IsNone() && MaxDurability > 0.0f;
 	}
 };
+
+
+/**
+ * FSuspenseCoreConsumableAttributeRow
+ *
+ * DataTable row structure for consumable/medical item attributes.
+ * Used for Tarkov-style healing system with limb damage, bleeding, fractures.
+ *
+ * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreConsumableAttributes.json
+ * TARGET DATATABLE: DT_ConsumableAttributes
+ *
+ * USAGE:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 1. Import JSON into DataTable via Editor (File → Import)
+ * 2. Configure ConsumableAttributesDataTable in Project Settings → SuspenseCore
+ * 3. DataManager caches rows on Initialize()
+ * 4. On use: DataManager->GetConsumableAttributes(ConsumableID)
+ *
+ * TARKOV-STYLE MEDICAL SYSTEM:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * - Medical items are inventory objects with use limits
+ * - Different items heal different status effects
+ * - Healing takes time and can be interrupted
+ * - Some items have side effects (hydration/energy cost)
+ *
+ * @see USuspenseCoreSettings::ConsumableAttributesDataTable
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreConsumableAttributeRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Identity
+	//========================================================================
+
+	/** Unique consumable identifier - matches FSuspenseCoreUnifiedItemData.ItemID */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FName ConsumableID;
+
+	/** Display name for UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FText ConsumableName;
+
+	/** Consumable type classification (Medkit, Bandage, Painkiller, Stimulant, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (Categories = "Item.Consumable"))
+	FGameplayTag ConsumableType;
+
+	//========================================================================
+	// Healing Attributes
+	//========================================================================
+
+	/** Total health points restored */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Healing",
+		meta = (ClampMin = "0", ClampMax = "5000", ToolTip = "Total HP restored"))
+	float HealAmount = 0.0f;
+
+	/** Health points restored per second during use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Healing",
+		meta = (ClampMin = "0", ClampMax = "500", ToolTip = "HP per second"))
+	float HealRate = 0.0f;
+
+	/** Time to use the item in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Healing",
+		meta = (ClampMin = "0.1", ClampMax = "30", ToolTip = "Use time in seconds"))
+	float UseTime = 3.0f;
+
+	/** Number of uses before item is depleted */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Healing",
+		meta = (ClampMin = "1", ClampMax = "100", ToolTip = "Max uses"))
+	int32 MaxUses = 1;
+
+	//========================================================================
+	// Status Effect Healing
+	//========================================================================
+
+	/** Can stop heavy bleeding (requires tourniquet/surgery) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffects")
+	bool bCanHealHeavyBleed = false;
+
+	/** Can stop light bleeding */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffects")
+	bool bCanHealLightBleed = false;
+
+	/** Can fix bone fractures */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StatusEffects")
+	bool bCanHealFracture = false;
+
+	//========================================================================
+	// Special Effects
+	//========================================================================
+
+	/** Duration of painkiller effect in seconds (0 = no painkiller) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "0", ClampMax = "600", ToolTip = "Painkiller duration"))
+	float PainkillerDuration = 0.0f;
+
+	/** Stamina points restored immediately */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "-100", ClampMax = "100", ToolTip = "Stamina restored"))
+	float StaminaRestore = 0.0f;
+
+	/** Hydration cost (negative = drains hydration) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "-100", ClampMax = "100", ToolTip = "Hydration change"))
+	float HydrationCost = 0.0f;
+
+	/** Energy cost (negative = drains energy) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "-100", ClampMax = "100", ToolTip = "Energy change"))
+	float EnergyCost = 0.0f;
+
+	//========================================================================
+	// Effect Tags
+	//========================================================================
+
+	/** Gameplay effect tags applied by this consumable */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects",
+		meta = (Categories = "Consumable.Effect"))
+	FGameplayTagContainer EffectTags;
+
+	//========================================================================
+	// Helper Methods
+	//========================================================================
+
+	/** Check if row has valid data */
+	bool IsValid() const
+	{
+		return !ConsumableID.IsNone();
+	}
+
+	/** Check if this consumable provides healing */
+	bool ProvidesHealing() const
+	{
+		return HealAmount > 0.0f;
+	}
+
+	/** Check if this consumable can treat any status effects */
+	bool CanTreatStatusEffects() const
+	{
+		return bCanHealHeavyBleed || bCanHealLightBleed || bCanHealFracture;
+	}
+};
+
+
+/**
+ * FSuspenseCoreThrowableAttributeRow
+ *
+ * DataTable row structure for throwable/grenade attributes.
+ * Covers frag grenades, smoke, flashbangs, incendiaries, and VOG rounds.
+ *
+ * JSON SOURCE: Content/Data/ItemDatabase/SuspenseCoreThrowableAttributes.json
+ * TARGET DATATABLE: DT_ThrowableAttributes
+ *
+ * USAGE:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 1. Import JSON into DataTable via Editor (File → Import)
+ * 2. Configure ThrowableAttributesDataTable in Project Settings → SuspenseCore
+ * 3. DataManager caches rows on Initialize()
+ * 4. On throw: DataManager->GetThrowableAttributes(ThrowableID)
+ *
+ * GRENADE TYPES:
+ * ═══════════════════════════════════════════════════════════════════════════
+ * - Frag: ExplosionDamage + FragmentCount/Damage
+ * - Smoke: SmokeDuration + SmokeRadius
+ * - Flash: StunDuration + BlindDuration
+ * - Incendiary: IncendiaryDamage + IncendiaryDuration
+ * - VOG: Launched grenades (FuseTime = 0, ThrowForce = 0)
+ *
+ * @see USuspenseCoreSettings::ThrowableAttributesDataTable
+ */
+USTRUCT(BlueprintType)
+struct BRIDGESYSTEM_API FSuspenseCoreThrowableAttributeRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	//========================================================================
+	// Identity
+	//========================================================================
+
+	/** Unique throwable identifier - matches FSuspenseCoreUnifiedItemData.ItemID */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FName ThrowableID;
+
+	/** Display name for UI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FText ThrowableName;
+
+	/** Throwable type classification (Frag, Smoke, Flash, Incendiary, VOG) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity",
+		meta = (Categories = "Item.Throwable"))
+	FGameplayTag ThrowableType;
+
+	//========================================================================
+	// Explosion Attributes
+	//========================================================================
+
+	/** Base explosion damage at center */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion",
+		meta = (ClampMin = "0", ClampMax = "500", ToolTip = "Explosion damage"))
+	float ExplosionDamage = 0.0f;
+
+	/** Maximum explosion radius in meters */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion",
+		meta = (ClampMin = "0", ClampMax = "50", ToolTip = "Explosion radius"))
+	float ExplosionRadius = 0.0f;
+
+	/** Inner radius for full damage */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion",
+		meta = (ClampMin = "0", ClampMax = "20", ToolTip = "Full damage radius"))
+	float InnerRadius = 0.0f;
+
+	/** Damage falloff multiplier (0-1, lower = steeper falloff) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion",
+		meta = (ClampMin = "0", ClampMax = "1", ToolTip = "Damage falloff curve"))
+	float DamageFalloff = 0.8f;
+
+	//========================================================================
+	// Fragmentation Attributes
+	//========================================================================
+
+	/** Number of fragments generated on explosion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fragmentation",
+		meta = (ClampMin = "0", ClampMax = "1000", ToolTip = "Fragment count"))
+	int32 FragmentCount = 0;
+
+	/** Damage per fragment */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fragmentation",
+		meta = (ClampMin = "0", ClampMax = "100", ToolTip = "Fragment damage"))
+	float FragmentDamage = 0.0f;
+
+	/** Fragment spread angle in degrees (360 = full sphere) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fragmentation",
+		meta = (ClampMin = "0", ClampMax = "360", ToolTip = "Fragment spread"))
+	float FragmentSpread = 360.0f;
+
+	/** Armor penetration value for fragments */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fragmentation",
+		meta = (ClampMin = "0", ClampMax = "50", ToolTip = "Fragment armor pen"))
+	float ArmorPenetration = 0.0f;
+
+	//========================================================================
+	// Throw Physics
+	//========================================================================
+
+	/** Time until detonation after pin pull (0 = impact/launcher) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics",
+		meta = (ClampMin = "0", ClampMax = "10", ToolTip = "Fuse time in seconds"))
+	float FuseTime = 3.5f;
+
+	/** Initial throw velocity (0 = launcher round) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics",
+		meta = (ClampMin = "0", ClampMax = "3000", ToolTip = "Throw force"))
+	float ThrowForce = 1200.0f;
+
+	/** Default throw arc angle in degrees */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics",
+		meta = (ClampMin = "0", ClampMax = "90", ToolTip = "Throw arc angle"))
+	float ThrowArc = 45.0f;
+
+	/** Number of times grenade can bounce before stopping */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics",
+		meta = (ClampMin = "0", ClampMax = "10", ToolTip = "Bounce count"))
+	int32 BounceCount = 2;
+
+	/** Bounce energy retention (0-1, lower = more energy lost) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics",
+		meta = (ClampMin = "0", ClampMax = "1", ToolTip = "Bounce friction"))
+	float BounceFriction = 0.5f;
+
+	//========================================================================
+	// Special Effects (Stun/Flash)
+	//========================================================================
+
+	/** Duration of stun/disorientation effect in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "0", ClampMax = "30", ToolTip = "Stun duration"))
+	float StunDuration = 0.0f;
+
+	/** Duration of blindness effect in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpecialEffects",
+		meta = (ClampMin = "0", ClampMax = "30", ToolTip = "Blind duration"))
+	float BlindDuration = 0.0f;
+
+	//========================================================================
+	// Smoke Attributes
+	//========================================================================
+
+	/** Duration of smoke screen in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke",
+		meta = (ClampMin = "0", ClampMax = "120", ToolTip = "Smoke duration"))
+	float SmokeDuration = 0.0f;
+
+	/** Radius of smoke coverage in meters */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke",
+		meta = (ClampMin = "0", ClampMax = "30", ToolTip = "Smoke radius"))
+	float SmokeRadius = 0.0f;
+
+	//========================================================================
+	// Incendiary Attributes
+	//========================================================================
+
+	/** Damage per tick from fire */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Incendiary",
+		meta = (ClampMin = "0", ClampMax = "100", ToolTip = "Fire damage"))
+	float IncendiaryDamage = 0.0f;
+
+	/** Duration of fire effect in seconds */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Incendiary",
+		meta = (ClampMin = "0", ClampMax = "60", ToolTip = "Fire duration"))
+	float IncendiaryDuration = 0.0f;
+
+	//========================================================================
+	// Helper Methods
+	//========================================================================
+
+	/** Check if row has valid data */
+	bool IsValid() const
+	{
+		return !ThrowableID.IsNone();
+	}
+
+	/** Check if this is a fragmentation grenade */
+	bool IsFragGrenade() const
+	{
+		return FragmentCount > 0 && FragmentDamage > 0.0f;
+	}
+
+	/** Check if this is a smoke grenade */
+	bool IsSmokeGrenade() const
+	{
+		return SmokeDuration > 0.0f;
+	}
+
+	/** Check if this is a flashbang */
+	bool IsFlashbang() const
+	{
+		return BlindDuration > 0.0f || StunDuration > 0.0f;
+	}
+
+	/** Check if this is an incendiary */
+	bool IsIncendiary() const
+	{
+		return IncendiaryDamage > 0.0f;
+	}
+
+	/** Check if this is a launcher round (VOG) */
+	bool IsLauncherRound() const
+	{
+		return FuseTime <= 0.0f && ThrowForce <= 0.0f;
+	}
+};

@@ -18,10 +18,8 @@ class USuspenseCoreAmmoAttributeSet;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreQuickSlotComponent;
 
-// QuickSlot count constant (matches SuspenseCoreQuickSlotComponent.h)
-#ifndef SUSPENSECORE_QUICKSLOT_COUNT
-#define SUSPENSECORE_QUICKSLOT_COUNT 4
-#endif
+// QuickSlot count constant for validation (same as SuspenseCoreQuickSlotComponent.h)
+static constexpr int32 MAGAZINE_QUICKSLOT_COUNT = 4;
 
 /**
  * Delegate for magazine state changes

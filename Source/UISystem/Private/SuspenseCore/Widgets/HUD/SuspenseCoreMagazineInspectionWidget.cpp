@@ -388,7 +388,8 @@ USuspenseCoreEventBus* USuspenseCoreMagazineInspectionWidget::GetEventBus() cons
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingStartedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Check if this event is for our magazine
-	FGuid MagazineID = EventData.GetGuid(TEXT("MagazineInstanceID"));
+	FGuid MagazineID;
+	FGuid::Parse(EventData.GetString(TEXT("MagazineInstanceID")), MagazineID);
 	if (MagazineID != CachedInspectionData.MagazineInstanceID)
 	{
 		return;
@@ -403,7 +404,8 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingStartedEvent(FGameplayT
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingProgressEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Check if this event is for our magazine
-	FGuid MagazineID = EventData.GetGuid(TEXT("MagazineInstanceID"));
+	FGuid MagazineID;
+	FGuid::Parse(EventData.GetString(TEXT("MagazineInstanceID")), MagazineID);
 	if (MagazineID != CachedInspectionData.MagazineInstanceID)
 	{
 		return;
@@ -440,7 +442,8 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingProgressEvent(FGameplay
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCompletedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Check if this event is for our magazine
-	FGuid MagazineID = EventData.GetGuid(TEXT("MagazineInstanceID"));
+	FGuid MagazineID;
+	FGuid::Parse(EventData.GetString(TEXT("MagazineInstanceID")), MagazineID);
 	if (MagazineID != CachedInspectionData.MagazineInstanceID)
 	{
 		return;
@@ -454,7 +457,8 @@ void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCompletedEvent(FGamepla
 void USuspenseCoreMagazineInspectionWidget::OnAmmoLoadingCancelledEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	// Check if this event is for our magazine
-	FGuid MagazineID = EventData.GetGuid(TEXT("MagazineInstanceID"));
+	FGuid MagazineID;
+	FGuid::Parse(EventData.GetString(TEXT("MagazineInstanceID")), MagazineID);
 	if (MagazineID != CachedInspectionData.MagazineInstanceID)
 	{
 		return;

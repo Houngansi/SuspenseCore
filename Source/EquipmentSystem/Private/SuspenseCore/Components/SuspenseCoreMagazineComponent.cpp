@@ -3,8 +3,13 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
+#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 
@@ -212,9 +217,167 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInter
 
 bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIndex, bool bEmergencyDrop)
 {
-    // TODO: Implement QuickSlot integration
-    UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot not yet implemented"));
-    return false;
+    // Validate slot index
+    if (QuickSlotIndex < 0 || QuickSlotIndex >= SUSPENSECORE_QUICKSLOT_COUNT)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: Invalid slot index %d"), QuickSlotIndex);
+        return false;
+    }
+
+    // Get owner (should be weapon actor with character owner)
+    AActor* WeaponOwner = GetOwner();
+    if (!WeaponOwner)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: No weapon owner"));
+        return false;
+    }
+
+    // Get character owner (the pawn that owns this weapon)
+    AActor* CharacterOwner = WeaponOwner->GetOwner();
+    if (!CharacterOwner)
+    {
+        // Try Instigator as fallback
+        CharacterOwner = WeaponOwner->GetInstigator();
+    }
+    if (!CharacterOwner)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: Cannot find character owner"));
+        return false;
+    }
+
+    // Get QuickSlotComponent from character via interface
+    TScriptInterface<ISuspenseCoreQuickSlotProvider> QuickSlotProvider;
+    if (UActorComponent* QSComp = CharacterOwner->FindComponentByClass<USuspenseCoreQuickSlotComponent>())
+    {
+        QuickSlotProvider.SetObject(QSComp);
+        QuickSlotProvider.SetInterface(Cast<ISuspenseCoreQuickSlotProvider>(QSComp));
+    }
+
+    if (!QuickSlotProvider)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: Character has no QuickSlotComponent"));
+        return false;
+    }
+
+    // Check if slot is ready and has a magazine
+    if (!ISuspenseCoreQuickSlotProvider::Execute_IsSlotReady(QuickSlotProvider.GetObject(), QuickSlotIndex))
+    {
+        UE_LOG(LogMagazineComponent, Verbose, TEXT("SwapMagazineFromQuickSlot: Slot %d not ready"), QuickSlotIndex);
+        return false;
+    }
+
+    // Get magazine from slot
+    FSuspenseCoreMagazineInstance NewMagazine;
+    if (!ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(QuickSlotProvider.GetObject(), QuickSlotIndex, NewMagazine))
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: No magazine in slot %d"), QuickSlotIndex);
+        return false;
+    }
+
+    // Verify magazine is compatible with weapon caliber
+    if (CachedWeaponCaliber.IsValid())
+    {
+        USuspenseCoreDataManager* DataManager = GetDataManager();
+        if (DataManager)
+        {
+            FSuspenseCoreMagazineData MagData;
+            if (DataManager->GetMagazineData(NewMagazine.MagazineID, MagData))
+            {
+                if (!MagData.IsCompatibleWithCaliber(CachedWeaponCaliber))
+                {
+                    UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: Magazine %s not compatible with weapon caliber %s"),
+                        *NewMagazine.MagazineID.ToString(), *CachedWeaponCaliber.ToString());
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Server authority check - redirect to server RPC if client
+    if (WeaponOwner->HasAuthority() == false)
+    {
+        ServerSwapMagazineFromQuickSlot(QuickSlotIndex, bEmergencyDrop);
+        return true; // Assume success, server will replicate actual state
+    }
+
+    // === Server-side execution ===
+
+    // Store old magazine for returning to QuickSlot
+    FSuspenseCoreMagazineInstance OldMagazine;
+    bool bHadMagazine = WeaponAmmoState.bHasMagazine;
+    if (bHadMagazine)
+    {
+        OldMagazine = WeaponAmmoState.InsertedMagazine;
+    }
+
+    // Eject current magazine
+    if (bHadMagazine)
+    {
+        EjectMagazineInternal(bEmergencyDrop);
+    }
+
+    // Insert new magazine from QuickSlot
+    bool bInserted = InsertMagazineInternal(NewMagazine);
+    if (!bInserted)
+    {
+        UE_LOG(LogMagazineComponent, Error, TEXT("SwapMagazineFromQuickSlot: Failed to insert magazine"));
+        // Try to restore old magazine
+        if (bHadMagazine)
+        {
+            InsertMagazineInternal(OldMagazine);
+        }
+        return false;
+    }
+
+    // Clear the QuickSlot
+    ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(QuickSlotProvider.GetObject(), QuickSlotIndex);
+
+    // Store ejected magazine back to QuickSlot (if not emergency drop)
+    if (bHadMagazine && !bEmergencyDrop && OldMagazine.IsValid())
+    {
+        // Use the same slot we took the new magazine from
+        USuspenseCoreQuickSlotComponent* QuickSlotComp = Cast<USuspenseCoreQuickSlotComponent>(QuickSlotProvider.GetObject());
+        if (QuickSlotComp)
+        {
+            QuickSlotComp->AssignMagazineToSlot(QuickSlotIndex, OldMagazine);
+        }
+    }
+
+    // Chamber round if needed (empty reload)
+    if (!WeaponAmmoState.ChamberedRound.IsChambered() && !WeaponAmmoState.IsMagazineEmpty())
+    {
+        ChamberRoundInternal();
+    }
+
+    // Publish EventBus event
+    USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
+    if (EventManager)
+    {
+        if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData;
+            EventData.SetInt(TEXT("QuickSlotIndex"), QuickSlotIndex);
+            EventData.SetString(TEXT("NewMagazineID"), NewMagazine.MagazineID.ToString());
+            EventData.SetInt(TEXT("NewMagazineRounds"), NewMagazine.CurrentRoundCount);
+            EventData.SetBool(TEXT("EmergencyDrop"), bEmergencyDrop);
+            if (bHadMagazine)
+            {
+                EventData.SetString(TEXT("OldMagazineID"), OldMagazine.MagazineID.ToString());
+                EventData.SetInt(TEXT("OldMagazineRounds"), OldMagazine.CurrentRoundCount);
+            }
+            EventBus->Publish(SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Magazine_Swapped, EventData);
+        }
+    }
+
+    UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot: Swapped from slot %d - New: %s (%d/%d), Old: %s (%d)"),
+        QuickSlotIndex,
+        *NewMagazine.MagazineID.ToString(),
+        WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+        WeaponAmmoState.InsertedMagazine.MaxCapacity,
+        bHadMagazine ? *OldMagazine.MagazineID.ToString() : TEXT("None"),
+        bHadMagazine ? OldMagazine.CurrentRoundCount : 0);
+
+    return true;
 }
 
 //================================================
@@ -786,6 +949,18 @@ void USuspenseCoreMagazineComponent::ServerCancelReload_Implementation()
 bool USuspenseCoreMagazineComponent::ServerCancelReload_Validate()
 {
     return true;
+}
+
+void USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Implementation(int32 QuickSlotIndex, bool bEmergencyDrop)
+{
+    // Call the main function which will now execute on server
+    SwapMagazineFromQuickSlot(QuickSlotIndex, bEmergencyDrop);
+}
+
+bool USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Validate(int32 QuickSlotIndex, bool bEmergencyDrop)
+{
+    // Basic validation - slot index must be in range
+    return QuickSlotIndex >= 0 && QuickSlotIndex < SUSPENSECORE_QUICKSLOT_COUNT;
 }
 
 //================================================

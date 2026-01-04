@@ -1908,8 +1908,13 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     EquipmentDataProvider->SetSlotItem(TargetSlot, ConvertToInventoryItemInstance(SourceItem), true); // Notify
 
     // Sync QuickSlots for HUD updates
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("ExecuteEquipmentSlotSwap: Syncing QuickSlots - SourceSlot=%d, TargetSlot=%d"), SourceSlot, TargetSlot);
+
     if (IsQuickSlotIndex(SourceSlot))
     {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d IS QuickSlot, TargetItem.IsValid()=%s"),
+            SourceSlot, TargetItem.IsValid() ? TEXT("true") : TEXT("false"));
+
         if (TargetItem.IsValid())
         {
             SyncQuickSlotAssignment(SourceSlot, TargetItem);
@@ -1919,10 +1924,19 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
             SyncQuickSlotClear(SourceSlot);
         }
     }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d is NOT QuickSlot"), SourceSlot);
+    }
 
     if (IsQuickSlotIndex(TargetSlot))
     {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d IS QuickSlot, assigning item"), TargetSlot);
         SyncQuickSlotAssignment(TargetSlot, SourceItem);
+    }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d is NOT QuickSlot"), TargetSlot);
     }
 
     // Broadcast events for visualization
@@ -2361,8 +2375,11 @@ void USuspenseCoreEquipmentInventoryBridge::CacheQuickSlotComponent()
 
 void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotAssignment(int32 EquipmentSlotIndex, const FSuspenseCoreItemInstance& Item)
 {
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: Checking slot %d"), EquipmentSlotIndex);
+
     if (!IsQuickSlotIndex(EquipmentSlotIndex))
     {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: Slot %d is NOT a QuickSlot (range 13-16)"), EquipmentSlotIndex);
         return; // Not a QuickSlot
     }
 
@@ -2381,15 +2398,18 @@ void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotAssignment(int32 Equipm
         // which publishes the EventBus event that HUD subscribes to
         bool bAssigned = QuickSlotComponent->AssignItemToSlot(QuickSlotIndex, Item.UniqueInstanceID, Item.ItemID);
 
-        UE_LOG(LogEquipmentBridge, Log, TEXT("SyncQuickSlotAssignment: EquipSlot %d -> QuickSlot %d, Item %s, Result: %s"),
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: EquipSlot %d -> QuickSlot %d, Item %s, Result: %s"),
             EquipmentSlotIndex, QuickSlotIndex, *Item.ItemID.ToString(), bAssigned ? TEXT("SUCCESS") : TEXT("FAILED"));
     }
 }
 
 void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotClear(int32 EquipmentSlotIndex)
 {
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotClear: Checking slot %d"), EquipmentSlotIndex);
+
     if (!IsQuickSlotIndex(EquipmentSlotIndex))
     {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotClear: Slot %d is NOT a QuickSlot (range 13-16)"), EquipmentSlotIndex);
         return; // Not a QuickSlot
     }
 
@@ -2406,9 +2426,10 @@ void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotClear(int32 EquipmentSl
     {
         // Clear slot in QuickSlotComponent - this will trigger NotifySlotChanged()
         // which publishes the EventBus event that HUD subscribes to
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotClear: Calling ClearSlot on QuickSlotComponent for index %d"), QuickSlotIndex);
         ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(QuickSlotComponent.Get(), QuickSlotIndex);
 
-        UE_LOG(LogEquipmentBridge, Log, TEXT("SyncQuickSlotClear: Cleared QuickSlot %d (EquipSlot %d)"),
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotClear: Cleared QuickSlot %d (EquipSlot %d)"),
             QuickSlotIndex, EquipmentSlotIndex);
     }
 }

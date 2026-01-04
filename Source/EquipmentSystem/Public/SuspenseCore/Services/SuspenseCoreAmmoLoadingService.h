@@ -290,7 +290,6 @@ public:
      * @param OutOperation Output operation data
      * @return true if active operation exists
      */
-    UFUNCTION(BlueprintPure, Category = "AmmoLoading")
     bool GetActiveOperation(const FGuid& MagazineInstanceID, FSuspenseCoreActiveLoadOperation& OutOperation) const;
 
     //==================================================================

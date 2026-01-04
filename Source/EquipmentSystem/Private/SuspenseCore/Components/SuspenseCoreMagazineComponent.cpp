@@ -217,8 +217,8 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInter
 
 bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIndex, bool bEmergencyDrop)
 {
-    // Validate slot index
-    if (QuickSlotIndex < 0 || QuickSlotIndex >= SUSPENSECORE_QUICKSLOT_COUNT)
+    // Validate slot index (use constant from SuspenseCoreQuickSlotComponent.h)
+    if (QuickSlotIndex < 0 || QuickSlotIndex >= static_cast<int32>(SUSPENSECORE_QUICKSLOT_COUNT))
     {
         UE_LOG(LogMagazineComponent, Warning, TEXT("SwapMagazineFromQuickSlot: Invalid slot index %d"), QuickSlotIndex);
         return false;
@@ -959,8 +959,8 @@ void USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Implementat
 
 bool USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Validate(int32 QuickSlotIndex, bool bEmergencyDrop)
 {
-    // Basic validation - slot index must be in range
-    return QuickSlotIndex >= 0 && QuickSlotIndex < SUSPENSECORE_QUICKSLOT_COUNT;
+    // Basic validation - slot index must be in range (use local constant to avoid header dependency)
+    return QuickSlotIndex >= 0 && QuickSlotIndex < MAGAZINE_QUICKSLOT_COUNT;
 }
 
 //================================================

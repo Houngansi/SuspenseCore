@@ -1908,35 +1908,44 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     EquipmentDataProvider->SetSlotItem(TargetSlot, ConvertToInventoryItemInstance(SourceItem), true); // Notify
 
     // Sync QuickSlots for HUD updates
+    // Read the ACTUAL post-swap state from EquipmentDataProvider to ensure correct sync
     UE_LOG(LogEquipmentBridge, Warning, TEXT("ExecuteEquipmentSlotSwap: Syncing QuickSlots - SourceSlot=%d, TargetSlot=%d"), SourceSlot, TargetSlot);
 
     if (IsQuickSlotIndex(SourceSlot))
     {
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d IS QuickSlot, TargetItem.IsValid()=%s"),
-            SourceSlot, TargetItem.IsValid() ? TEXT("true") : TEXT("false"));
+        // Check what's ACTUALLY in the source slot now (after swap)
+        FSuspenseCoreItemInstance SourceSlotCurrentItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(SourceSlot));
 
-        if (TargetItem.IsValid())
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d IS QuickSlot, CurrentItem.IsValid()=%s (ItemID=%s)"),
+            SourceSlot,
+            SourceSlotCurrentItem.IsValid() ? TEXT("true") : TEXT("false"),
+            SourceSlotCurrentItem.IsValid() ? *SourceSlotCurrentItem.ItemID.ToString() : TEXT("None"));
+
+        if (SourceSlotCurrentItem.IsValid())
         {
-            SyncQuickSlotAssignment(SourceSlot, TargetItem);
+            // Source slot now has an item (swapped from target)
+            SyncQuickSlotAssignment(SourceSlot, SourceSlotCurrentItem);
         }
         else
         {
+            // Source slot is now empty (item was moved to target)
+            UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d is now EMPTY, calling SyncQuickSlotClear"), SourceSlot);
             SyncQuickSlotClear(SourceSlot);
         }
     }
     else
     {
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d is NOT QuickSlot"), SourceSlot);
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot %d is NOT QuickSlot (range 13-16)"), SourceSlot);
     }
 
     if (IsQuickSlotIndex(TargetSlot))
     {
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d IS QuickSlot, assigning item"), TargetSlot);
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d IS QuickSlot, assigning SourceItem %s"), TargetSlot, *SourceItem.ItemID.ToString());
         SyncQuickSlotAssignment(TargetSlot, SourceItem);
     }
     else
     {
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d is NOT QuickSlot"), TargetSlot);
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  TargetSlot %d is NOT QuickSlot (range 13-16)"), TargetSlot);
     }
 
     // Broadcast events for visualization

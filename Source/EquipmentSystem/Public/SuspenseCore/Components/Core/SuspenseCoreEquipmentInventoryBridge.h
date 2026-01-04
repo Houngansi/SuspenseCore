@@ -15,8 +15,9 @@
 #include "SuspenseCore/Types/Equipment/SuspenseCoreEquipmentTypes.h"
 #include "SuspenseCoreEquipmentInventoryBridge.generated.h"
 
-// Forward declaration
+// Forward declarations
 class USuspenseCoreEventManager;
+class USuspenseCoreQuickSlotComponent;
 
 /**
  * Transfer request for SuspenseCore inventory-equipment bridge operations
@@ -184,6 +185,27 @@ private:
 
     UPROPERTY()
     TScriptInterface<ISuspenseCoreEquipmentOperationServiceInterface> EquipmentService;
+
+    /** QuickSlotComponent for synchronizing QuickSlot assignments with HUD */
+    UPROPERTY()
+    TWeakObjectPtr<USuspenseCoreQuickSlotComponent> QuickSlotComponent;
+
+    // ===== QuickSlot Synchronization =====
+
+    /** Check if a slot index corresponds to a QuickSlot (indices 13-16) */
+    bool IsQuickSlotIndex(int32 SlotIndex) const;
+
+    /** Convert equipment slot index to QuickSlot index (0-3) */
+    int32 EquipmentSlotToQuickSlotIndex(int32 EquipmentSlotIndex) const;
+
+    /** Synchronize item assignment to QuickSlotComponent for HUD updates */
+    void SyncQuickSlotAssignment(int32 EquipmentSlotIndex, const FSuspenseCoreItemInstance& Item);
+
+    /** Synchronize item removal from QuickSlotComponent for HUD updates */
+    void SyncQuickSlotClear(int32 EquipmentSlotIndex);
+
+    /** Find and cache QuickSlotComponent from owner */
+    void CacheQuickSlotComponent();
 
     // ===== EventDelegateManager Integration =====
 

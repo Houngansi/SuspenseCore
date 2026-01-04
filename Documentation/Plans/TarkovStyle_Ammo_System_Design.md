@@ -7,8 +7,8 @@ The system treats ammo as physical inventory items with detailed ballistic prope
 magazine-based reloading, and integrates with QuickSlots for fast tactical access.
 
 **Author:** Claude Code
-**Date:** 2026-01-02
-**Status:** Phase 4 Complete (Core Implementation Done)
+**Date:** 2026-01-04
+**Status:** Phase 5 Complete (SwapMagazineFromQuickSlot + AmmoLoadingService)
 **Related:** `SSOT_AttributeSet_DataTable_Integration.md`
 
 ---
@@ -23,7 +23,7 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 | Phase 2 | DONE | MagazineComponent with full magazine operations |
 | Phase 3 | DONE | QuickSlotComponent for fast magazine access |
 | Phase 4 | DONE | GAS Reload Abilities (GA_Reload, GA_QuickSlot) |
-| Phase 5 | PARTIAL | Component integration into base classes |
+| Phase 5 | DONE | SwapMagazineFromQuickSlot + AmmoLoadingService |
 | Phase 6 | PENDING | UI Integration (HUD, Inventory) |
 
 ### Key Files Created
@@ -53,6 +53,49 @@ Source/GAS/
     ├── GA_Reload.cpp
     └── GA_QuickSlot.cpp
 ```
+
+### Git Commits (Phase 5)
+
+```
+09f8e58 fix(Magazine): Resolve SUSPENSECORE_QUICKSLOT_COUNT compile error
+20baf51 feat(Magazine): Implement SwapMagazineFromQuickSlot with full Tarkov-style logic
+```
+
+### Phase 5 New Files
+
+```
+Source/EquipmentSystem/
+├── Public/SuspenseCore/
+│   └── Services/
+│       └── SuspenseCoreAmmoLoadingService.h      # Ammo loading into magazines
+├── Private/SuspenseCore/
+│   └── Services/
+│       └── SuspenseCoreAmmoLoadingService.cpp
+└── Tags/
+    └── SuspenseCoreEquipmentNativeTags.h/.cpp    # New ammo loading tags
+```
+
+### Phase 5 Key Changes
+
+1. **SwapMagazineFromQuickSlot()** in MagazineComponent:
+   - Full implementation with QuickSlot integration
+   - Server RPC for multiplayer sync
+   - EventBus publication (`TAG_Equipment_Event_Magazine_Swapped`)
+   - Caliber compatibility check
+   - Automatic chambering after swap
+
+2. **USuspenseCoreAmmoLoadingService**:
+   - Centralized service for loading ammo into magazines
+   - Support for Drag&Drop, Quick Load (double-click)
+   - Time-based loading with interruptible operations
+   - EventBus integration for UI feedback
+
+3. **New GameplayTags** (SuspenseCoreEquipmentNativeTags):
+   - `TAG_Equipment_Event_Ammo_LoadStarted`
+   - `TAG_Equipment_Event_Ammo_LoadCompleted`
+   - `TAG_Equipment_Event_Ammo_LoadCancelled`
+   - `TAG_Equipment_Event_Ammo_UnloadStarted`
+   - `TAG_Equipment_Event_Ammo_UnloadCompleted`
 
 ### Git Commits (Phase 4)
 
@@ -1030,5 +1073,105 @@ void AMyWeapon::BeginPlay()
 
 **End of Document**
 
-**Last Updated:** 2026-01-02
-**Version:** 1.1 (Phase 4 Complete)
+---
+
+## Appendix C: Ammo Loading Methods (Tarkov-Style)
+
+### Available Loading Methods
+
+| Method | Description | Implementation |
+|--------|-------------|----------------|
+| **Drag & Drop** | Drag ammo stack onto magazine in inventory | Via UI → AmmoLoadingService |
+| **Quick Load** | Double-click ammo to auto-load into best magazine | AmmoLoadingService::QuickLoadAmmo() |
+| **Context Menu** | RKM on magazine → "Load Ammo" → select type | Via UI → AmmoLoadingService |
+| **Inspect & Load** | Magazine inspection window with load buttons | UI widget (Phase 6) |
+
+### AmmoLoadingService Usage
+
+```cpp
+// Get service (usually from GameMode or WorldSubsystem)
+USuspenseCoreAmmoLoadingService* LoadingService = GetAmmoLoadingService();
+
+// Option 1: Start loading specific ammo into magazine
+FSuspenseCoreAmmoLoadRequest Request;
+Request.MagazineInstanceID = MagazineGuid;
+Request.AmmoID = FName("556x45_M855");
+Request.RoundsToLoad = 30; // 0 = max possible
+LoadingService->StartLoading(Request, OwnerActor);
+
+// Option 2: Quick load (finds best magazine automatically)
+FGuid SelectedMagazine;
+LoadingService->QuickLoadAmmo(FName("556x45_M855"), 60, OwnerActor, SelectedMagazine);
+
+// Option 3: Unload magazine
+LoadingService->StartUnloading(MagazineGuid, 0, OwnerActor); // 0 = all rounds
+
+// Cancel ongoing operation
+LoadingService->CancelOperation(MagazineGuid);
+```
+
+### Loading Flow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                    AMMO LOADING FLOW                                 │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  UI Action                    AmmoLoadingService                     │
+│  ─────────                    ──────────────────                     │
+│                                                                      │
+│  [Drag Ammo] ──────► StartLoading(Request) ───► Validate            │
+│                                     │           ├── Caliber match   │
+│  [Dbl-Click] ──────► QuickLoadAmmo()│           ├── Space check     │
+│                                     │           └── Operation check │
+│                                     ▼                                │
+│                              ┌──────────────┐                        │
+│                              │   LOADING    │ ◄── Tick() called     │
+│                              │   STATE      │     by owner          │
+│                              └──────┬───────┘                        │
+│                                     │                                │
+│                                     ├── TimePerRound elapsed         │
+│                                     ▼                                │
+│                              ┌──────────────┐                        │
+│                              │ Process Round│ ───► Magazine.LoadRounds()
+│                              │ (repeat)     │                        │
+│                              └──────┬───────┘                        │
+│                                     │                                │
+│                                     │ All rounds processed           │
+│                                     ▼                                │
+│                              ┌──────────────┐                        │
+│  OnLoadingCompleted ◄─────── │  COMPLETED   │ ───► EventBus.Publish  │
+│  delegate                    └──────────────┘      TAG_Ammo_LoadCompleted
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Reload Priority Logic
+
+**Reload is ONLY possible when:**
+1. Character has magazines with ammo in QuickSlots OR inventory
+2. Current magazine is not full (for tactical reload)
+3. No blocking states (sprinting, firing, dead, etc.)
+
+**Priority for magazine selection (FindBestMagazine):**
+1. QuickSlots 1-4 (first with ammo wins)
+2. Inventory (future: prioritize fuller magazines)
+
+**If no magazines with ammo → Reload impossible**
+
+---
+
+## Appendix D: Key Files Reference (Phase 5)
+
+| File | Purpose |
+|------|---------|
+| `SuspenseCoreMagazineComponent.h/.cpp` | Magazine in weapon (swap, chamber, reload) |
+| `SuspenseCoreQuickSlotComponent.h/.cpp` | QuickSlot management |
+| `SuspenseCoreAmmoLoadingService.h/.cpp` | Ammo loading service |
+| `SuspenseCoreEquipmentNativeTags.h/.cpp` | Native GameplayTags |
+| `SuspenseCoreReloadAbility.h/.cpp` | GAS reload ability |
+
+---
+
+**Last Updated:** 2026-01-04
+**Version:** 1.2 (Phase 5 Complete)

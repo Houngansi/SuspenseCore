@@ -22,9 +22,9 @@ namespace EquipmentEventTags
 	// Alternative events from EquipmentComponentBase
 	static const FName ItemEquipped = TEXT("Equipment.Event.ItemEquipped");
 	static const FName ItemUnequipped = TEXT("Equipment.Event.ItemUnequipped");
-	// Slot/general updates
-	static const FName SlotUpdated = TEXT("Equipment.Slot.Updated");
-	static const FName EquipmentUpdated = TEXT("Equipment.Updated");
+	// Slot/general updates - MUST match DataStore tags!
+	static const FName SlotUpdated = TEXT("Equipment.Event.SlotUpdated");  // DataStore sends this
+	static const FName EquipmentUpdated = TEXT("Equipment.Event.Updated"); // DataStore sends this
 }
 
 //==================================================================

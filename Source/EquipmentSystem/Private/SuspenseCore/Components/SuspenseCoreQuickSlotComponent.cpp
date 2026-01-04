@@ -27,10 +27,10 @@ USuspenseCoreQuickSlotComponent::USuspenseCoreQuickSlotComponent()
     PrimaryComponentTick.bStartWithTickEnabled = true;
     SetIsReplicatedByDefault(true);
 
-    // Initialize category tags
-    MagazineCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Magazine"), false);
-    ConsumableCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Consumable"), false);
-    GrenadeCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Grenade"), false);
+    // Initialize category tags - using consistent Item.* namespace (matches SuspenseCoreGameplayTags)
+    MagazineCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Magazine"), false);
+    ConsumableCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Consumable"), false);
+    GrenadeCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Throwable"), false);
 }
 
 //==================================================================

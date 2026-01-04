@@ -353,6 +353,7 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Medical);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Throwable);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ammo);
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Magazine);
 	}
 
 	//==================================================================

@@ -331,6 +331,7 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Medical, "Item.Medical");
 		UE_DEFINE_GAMEPLAY_TAG(Throwable, "Item.Throwable");
 		UE_DEFINE_GAMEPLAY_TAG(Ammo, "Item.Ammo");
+		UE_DEFINE_GAMEPLAY_TAG(Magazine, "Item.Magazine");
 	}
 
 	//==================================================================

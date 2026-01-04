@@ -23,6 +23,7 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 
 // Namespace alias for native tags
 using namespace SuspenseCoreEquipmentTags;
@@ -997,6 +998,9 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         );
     }
 
+    // Sync with QuickSlotComponent for HUD updates
+    SyncQuickSlotClear(Request.SourceSlot);
+
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== UNEQUIP SUCCESSFUL ==="));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item %s moved from slot %d to inventory"),
         *EquippedItem.ItemID.ToString(), Request.SourceSlot);
@@ -1376,6 +1380,9 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         );
     }
 
+    // Sync with QuickSlotComponent for HUD updates
+    SyncQuickSlotAssignment(Request.TargetSlot, Item);
+
     UE_LOG(LogEquipmentBridge, Warning, TEXT("✓✓✓ TRANSFER SUCCESSFUL ✓✓✓"));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item %s equipped to slot %d"), *Item.ItemID.ToString(), Request.TargetSlot);
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromInventoryToEquip END ==="));
@@ -1713,6 +1720,9 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
             this
         );
     }
+
+    // Sync with QuickSlotComponent for HUD updates (new item going IN)
+    SyncQuickSlotAssignment(EquipmentSlot, InventoryItem);
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("✓✓✓ SWAP COMPLETED SUCCESSFULLY ✓✓✓"));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("  IN: %s → Slot %d"), *InventoryItem.ItemID.ToString(), EquipmentSlot);
@@ -2081,4 +2091,110 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastSwapEvents(
 
     // Broadcast Equipped event for new item
     BroadcastEquippedEvent(NewItem, SlotIndex);
+}
+
+// ===== QuickSlot Synchronization =====
+
+bool USuspenseCoreEquipmentInventoryBridge::IsQuickSlotIndex(int32 SlotIndex) const
+{
+    // QuickSlot indices are 13-16 (QuickSlot1-4) based on slot mapping in SuspenseCoreEquipmentComponentBase
+    return SlotIndex >= 13 && SlotIndex <= 16;
+}
+
+int32 USuspenseCoreEquipmentInventoryBridge::EquipmentSlotToQuickSlotIndex(int32 EquipmentSlotIndex) const
+{
+    // Equipment slot 13 = QuickSlot index 0, etc.
+    if (EquipmentSlotIndex >= 13 && EquipmentSlotIndex <= 16)
+    {
+        return EquipmentSlotIndex - 13;
+    }
+    return INDEX_NONE;
+}
+
+void USuspenseCoreEquipmentInventoryBridge::CacheQuickSlotComponent()
+{
+    if (QuickSlotComponent.IsValid())
+    {
+        return; // Already cached
+    }
+
+    AActor* Owner = GetOwner();
+    if (!Owner)
+    {
+        return;
+    }
+
+    // Try to find QuickSlotComponent on owner or its pawn
+    QuickSlotComponent = Owner->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+
+    if (!QuickSlotComponent.IsValid())
+    {
+        // Try on pawn if owner is a controller
+        if (APlayerController* PC = Cast<APlayerController>(Owner))
+        {
+            if (APawn* Pawn = PC->GetPawn())
+            {
+                QuickSlotComponent = Pawn->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+            }
+        }
+    }
+
+    if (QuickSlotComponent.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Log, TEXT("QuickSlotComponent cached for HUD synchronization"));
+    }
+}
+
+void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotAssignment(int32 EquipmentSlotIndex, const FSuspenseCoreItemInstance& Item)
+{
+    if (!IsQuickSlotIndex(EquipmentSlotIndex))
+    {
+        return; // Not a QuickSlot
+    }
+
+    CacheQuickSlotComponent();
+
+    if (!QuickSlotComponent.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: QuickSlotComponent not found - HUD will not update"));
+        return;
+    }
+
+    int32 QuickSlotIndex = EquipmentSlotToQuickSlotIndex(EquipmentSlotIndex);
+    if (QuickSlotIndex != INDEX_NONE && Item.IsValid())
+    {
+        // Assign item to QuickSlotComponent - this will trigger NotifySlotChanged()
+        // which publishes the EventBus event that HUD subscribes to
+        bool bAssigned = QuickSlotComponent->AssignItemToSlot(QuickSlotIndex, Item.UniqueInstanceID, Item.ItemID);
+
+        UE_LOG(LogEquipmentBridge, Log, TEXT("SyncQuickSlotAssignment: EquipSlot %d -> QuickSlot %d, Item %s, Result: %s"),
+            EquipmentSlotIndex, QuickSlotIndex, *Item.ItemID.ToString(), bAssigned ? TEXT("SUCCESS") : TEXT("FAILED"));
+    }
+}
+
+void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotClear(int32 EquipmentSlotIndex)
+{
+    if (!IsQuickSlotIndex(EquipmentSlotIndex))
+    {
+        return; // Not a QuickSlot
+    }
+
+    CacheQuickSlotComponent();
+
+    if (!QuickSlotComponent.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotClear: QuickSlotComponent not found - HUD will not update"));
+        return;
+    }
+
+    int32 QuickSlotIndex = EquipmentSlotToQuickSlotIndex(EquipmentSlotIndex);
+    if (QuickSlotIndex != INDEX_NONE)
+    {
+        // Clear slot in QuickSlotComponent - this will trigger NotifySlotChanged()
+        // which publishes the EventBus event that HUD subscribes to
+        ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(QuickSlotComponent.Get(), QuickSlotIndex);
+
+        UE_LOG(LogEquipmentBridge, Log, TEXT("SyncQuickSlotClear: Cleared QuickSlot %d (EquipSlot %d)"),
+            QuickSlotIndex, EquipmentSlotIndex);
+    }
 }

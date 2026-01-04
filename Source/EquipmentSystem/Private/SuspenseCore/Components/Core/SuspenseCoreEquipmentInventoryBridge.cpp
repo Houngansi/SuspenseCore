@@ -2124,17 +2124,27 @@ void USuspenseCoreEquipmentInventoryBridge::CacheQuickSlotComponent()
         return;
     }
 
-    // Try to find QuickSlotComponent on owner or its pawn
+    // Try to find QuickSlotComponent on owner first
     QuickSlotComponent = Owner->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
 
     if (!QuickSlotComponent.IsValid())
     {
-        // Try on pawn if owner is a controller
-        if (APlayerController* PC = Cast<APlayerController>(Owner))
+        // Try on pawn if owner is a PlayerState (most common case for this component)
+        if (APlayerState* PS = Cast<APlayerState>(Owner))
+        {
+            if (APawn* Pawn = PS->GetPawn())
+            {
+                QuickSlotComponent = Pawn->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+                UE_LOG(LogEquipmentBridge, Log, TEXT("CacheQuickSlotComponent: Found via PlayerState->GetPawn()"));
+            }
+        }
+        // Try on pawn if owner is a PlayerController
+        else if (APlayerController* PC = Cast<APlayerController>(Owner))
         {
             if (APawn* Pawn = PC->GetPawn())
             {
                 QuickSlotComponent = Pawn->FindComponentByClass<USuspenseCoreQuickSlotComponent>();
+                UE_LOG(LogEquipmentBridge, Log, TEXT("CacheQuickSlotComponent: Found via PlayerController->GetPawn()"));
             }
         }
     }
@@ -2142,6 +2152,10 @@ void USuspenseCoreEquipmentInventoryBridge::CacheQuickSlotComponent()
     if (QuickSlotComponent.IsValid())
     {
         UE_LOG(LogEquipmentBridge, Log, TEXT("QuickSlotComponent cached for HUD synchronization"));
+    }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("CacheQuickSlotComponent: Component not found on owner %s or its Pawn"), *Owner->GetClass()->GetName());
     }
 }
 

@@ -402,6 +402,7 @@ TArray<FEquipmentSlotConfig> USuspenseCoreEquipmentSlotPresets::CreateDefaultPre
 		QuickSlotAllowedTypes.AddTag(Item::Medical);
 		QuickSlotAllowedTypes.AddTag(Item::Throwable);
 		QuickSlotAllowedTypes.AddTag(Item::Ammo);
+		QuickSlotAllowedTypes.AddTag(Item::Magazine);
 
 		const float QuickSlotY = 424.0f;  // 224 + 192 + 8 = 424
 

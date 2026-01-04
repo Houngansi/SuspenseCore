@@ -15,7 +15,9 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
 #include "Components/ActorComponent.h"
@@ -86,6 +88,12 @@ void USuspenseCoreUIManager::Deinitialize()
 	{
 		TooltipWidget->RemoveFromParent();
 		TooltipWidget = nullptr;
+	}
+
+	if (MagazineTooltipWidget)
+	{
+		MagazineTooltipWidget->RemoveFromParent();
+		MagazineTooltipWidget = nullptr;
 	}
 
 	RegisteredProviders.Empty();
@@ -649,17 +657,79 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 	TooltipWidget->ShowForItem(Item, ScreenPosition);
 }
 
+void USuspenseCoreUIManager::ShowMagazineTooltip(const FSuspenseCoreMagazineTooltipData& MagazineData, const FVector2D& ScreenPosition)
+{
+	// Get player controller
+	APlayerController* PC = OwningPC.Get();
+	if (!PC)
+	{
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UWorld* World = GI->GetWorld())
+			{
+				PC = World->GetFirstPlayerController();
+			}
+		}
+	}
+
+	if (!PC)
+	{
+		return;
+	}
+
+	// Hide standard tooltip if visible
+	if (TooltipWidget && TooltipWidget->IsTooltipVisible())
+	{
+		TooltipWidget->Hide();
+	}
+
+	// Create magazine tooltip widget if needed
+	if (!MagazineTooltipWidget)
+	{
+		MagazineTooltipWidget = CreateMagazineTooltipWidget(PC);
+		if (!MagazineTooltipWidget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ShowMagazineTooltip: Failed to create magazine tooltip widget"));
+			return;
+		}
+	}
+
+	// Ensure tooltip is in viewport with very high Z-order
+	if (!MagazineTooltipWidget->IsInViewport())
+	{
+		MagazineTooltipWidget->AddToViewport(10000);
+	}
+
+	// Show magazine tooltip using interface
+	ISuspenseCoreMagazineTooltipWidgetInterface::Execute_ShowMagazineTooltip(MagazineTooltipWidget, MagazineData, ScreenPosition);
+}
+
 void USuspenseCoreUIManager::HideTooltip()
 {
+	// Hide standard tooltip
 	if (TooltipWidget)
 	{
 		TooltipWidget->Hide();
+	}
+
+	// Hide magazine tooltip
+	if (MagazineTooltipWidget)
+	{
+		ISuspenseCoreMagazineTooltipWidgetInterface::Execute_HideMagazineTooltip(MagazineTooltipWidget);
 	}
 }
 
 bool USuspenseCoreUIManager::IsTooltipVisible() const
 {
-	return TooltipWidget && TooltipWidget->IsVisible();
+	bool bStandardVisible = TooltipWidget && TooltipWidget->IsTooltipVisible();
+	bool bMagazineVisible = MagazineTooltipWidget && ISuspenseCoreMagazineTooltipWidgetInterface::Execute_IsMagazineTooltipVisible(MagazineTooltipWidget);
+
+	return bStandardVisible || bMagazineVisible;
+}
+
+bool USuspenseCoreUIManager::IsMagazineTooltipVisible() const
+{
+	return MagazineTooltipWidget && ISuspenseCoreMagazineTooltipWidgetInterface::Execute_IsMagazineTooltipVisible(MagazineTooltipWidget);
 }
 
 //==================================================================
@@ -1155,6 +1225,23 @@ USuspenseCoreTooltipWidget* USuspenseCoreUIManager::CreateTooltipWidget(APlayerC
 		return CreateWidget<USuspenseCoreTooltipWidget>(PC, TooltipWidgetClass);
 	}
 
+	return nullptr;
+}
+
+USuspenseCoreMagazineTooltipWidget* USuspenseCoreUIManager::CreateMagazineTooltipWidget(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	if (MagazineTooltipWidgetClass)
+	{
+		return CreateWidget<USuspenseCoreMagazineTooltipWidget>(PC, MagazineTooltipWidgetClass);
+	}
+
+	// Fallback to default class if not configured
+	UE_LOG(LogTemp, Warning, TEXT("CreateMagazineTooltipWidget: MagazineTooltipWidgetClass not configured"));
 	return nullptr;
 }
 

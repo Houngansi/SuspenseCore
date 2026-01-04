@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCoreMagazineTooltipWidget.generated.h"
@@ -21,8 +21,8 @@ class USizeBox;
 /**
  * USuspenseCoreMagazineTooltipWidget
  *
- * Tarkov-style magazine tooltip widget displaying detailed information:
- * - Magazine name, icon, rarity
+ * Tarkov-style magazine tooltip widget extending base tooltip with magazine-specific display:
+ * - Magazine name, icon, rarity (inherited from base)
  * - Current/Max rounds with fill bar
  * - Loaded ammo type and stats
  * - Caliber compatibility
@@ -30,15 +30,22 @@ class USizeBox;
  * - Weight
  * - Reload modifiers
  *
+ * INHERITANCE:
+ * This widget extends USuspenseCoreTooltipWidget to reuse:
+ * - AAA-quality fade animations (Cubic Ease Out)
+ * - DPI-aware positioning
+ * - Rarity color system
+ * - Comparison mode support
+ *
  * Features:
- * - Rich visual display
+ * - Rich visual display for magazine inspection
  * - Comparison mode (vs equipped magazine)
  * - Stat bars for visual representation
  * - NO programmatic color changes - ALL colors from materials in Editor!
  *
  * Layout:
  * ┌────────────────────────────────────────┐
- * │  [ICON]  STANAG 30-round              │  ← Header
+ * │  [ICON]  STANAG 30-round              │  ← Header (inherited styling)
  * │          ★★★ Rare                      │  ← Rarity
  * ├────────────────────────────────────────┤
  * │  Rounds: 28/30                         │
@@ -52,9 +59,12 @@ class USizeBox;
  * │  Durability: 95/100                   │
  * │  Reload: +5%                          │
  * └────────────────────────────────────────┘
+ *
+ * @see USuspenseCoreTooltipWidget - Base tooltip with animations
+ * @see ISuspenseCoreMagazineTooltipWidgetInterface - Magazine-specific API
  */
 UCLASS(Blueprintable, BlueprintType)
-class UISYSTEM_API USuspenseCoreMagazineTooltipWidget : public UUserWidget, public ISuspenseCoreMagazineTooltipWidgetInterface
+class UISYSTEM_API USuspenseCoreMagazineTooltipWidget : public USuspenseCoreTooltipWidget, public ISuspenseCoreMagazineTooltipWidgetInterface
 {
 	GENERATED_BODY()
 
@@ -82,65 +92,70 @@ public:
 	virtual FSuspenseCoreMagazineTooltipData GetCurrentTooltipData_Implementation() const override;
 
 	// ═══════════════════════════════════════════════════════════════════════════
+	// PUBLIC API
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Convert magazine data to base item UI data for inherited display
+	 * @param MagazineData Magazine tooltip data
+	 * @return Converted item UI data
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Tooltip|Magazine")
+	FSuspenseCoreItemUIData ConvertToItemUIData(const FSuspenseCoreMagazineTooltipData& MagazineData) const;
+
+	/**
+	 * Get cached magazine data
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Tooltip|Magazine")
+	const FSuspenseCoreMagazineTooltipData& GetMagazineData() const { return CachedMagazineData; }
+
+	// ═══════════════════════════════════════════════════════════════════════════
 	// BLUEPRINT EVENTS
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Called when tooltip is shown */
-	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Events")
-	void OnTooltipShown();
+	/** Called when magazine tooltip is shown (after animation starts) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Magazine|Events")
+	void OnMagazineTooltipShown();
 
-	/** Called when tooltip is hidden */
-	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Events")
-	void OnTooltipHidden();
+	/** Called when magazine tooltip is hidden (after animation starts) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Magazine|Events")
+	void OnMagazineTooltipHidden();
 
-	/** Called when tooltip data is updated */
-	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Events")
-	void OnTooltipUpdated();
+	/** Called when magazine tooltip data is updated */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Magazine|Events")
+	void OnMagazineTooltipUpdated();
+
+	/** Called when comparison mode changes */
+	UFUNCTION(BlueprintImplementableEvent, Category = "SuspenseCore|Tooltip|Magazine|Events")
+	void OnMagazineComparisonChanged(bool bComparing);
 
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════
-	// UI BINDINGS - ALL MANDATORY (BindWidget) - Start Collapsed!
+	// UI BINDINGS - MAGAZINE-SPECIFIC (BindWidget)
+	// These are ADDITIONAL to the base tooltip bindings
 	// ═══════════════════════════════════════════════════════════════════════════
-
-	// --- Header Section ---
-
-	/** Magazine icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UImage> MagazineIcon;
-
-	/** Magazine display name */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UTextBlock> MagazineNameText;
-
-	/** Rarity text/stars */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UTextBlock> RarityText;
-
-	/** Rarity icon */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UImage> RarityIcon;
 
 	// --- Rounds Section ---
 
-	/** Current rounds text */
+	/** Current rounds text (e.g., "28") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CurrentRoundsText;
 
-	/** Max capacity text */
+	/** Max capacity text (e.g., "/30") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> MaxCapacityText;
 
-	/** Fill bar */
+	/** Fill bar showing magazine fill percentage */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> FillBar;
 
 	// --- Ammo Section ---
 
-	/** Ammo section container */
+	/** Ammo section container - can be hidden */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> AmmoSection;
 
-	/** Loaded ammo type text */
+	/** Loaded ammo type text (e.g., "5.56x45 M855A1") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> LoadedAmmoText;
 
@@ -148,29 +163,25 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UImage> LoadedAmmoIcon;
 
-	/** Ammo damage text */
+	/** Ammo damage text (e.g., "DMG: 45") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoDamageText;
 
-	/** Ammo penetration text */
+	/** Ammo penetration text (e.g., "PEN: 40") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoPenetrationText;
 
-	/** Ammo fragmentation text */
+	/** Ammo fragmentation text (e.g., "FRAG: 20%") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> AmmoFragmentationText;
 
 	// --- Stats Section ---
 
-	/** Caliber text */
+	/** Caliber text (e.g., "5.56x45mm NATO") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CaliberText;
 
-	/** Weight text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UTextBlock> WeightText;
-
-	/** Durability text */
+	/** Durability text (e.g., "95/100") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> DurabilityText;
 
@@ -178,21 +189,21 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UProgressBar> DurabilityBar;
 
-	/** Reload modifier text */
+	/** Reload modifier text (e.g., "+5%") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReloadModifierText;
 
-	/** Ergonomics penalty text */
+	/** Ergonomics penalty text (e.g., "ERGO: -3") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ErgonomicsText;
 
-	/** Feed reliability text */
+	/** Feed reliability text (e.g., "Reliability: 98%") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReliabilityText;
 
 	// --- Compatibility Section ---
 
-	/** Compatible weapons container */
+	/** Compatible weapons container - can be hidden */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> CompatibleWeaponsSection;
 
@@ -202,81 +213,82 @@ protected:
 
 	// --- Comparison Section ---
 
-	/** Comparison container */
+	/** Comparison container - shown when comparing magazines */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UVerticalBox> ComparisonSection;
 
-	/** Comparison rounds diff text */
+	/** Comparison rounds difference text (e.g., "+5") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CompareRoundsText;
 
-	/** Comparison capacity diff text */
+	/** Comparison capacity difference text (e.g., "-10") */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UTextBlock> CompareCapacityText;
-
-	// --- Description Section ---
-
-	/** Description text */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UTextBlock> DescriptionText;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// CONFIGURATION
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	/** Show ammo stats section? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
+	/** Show ammo stats section (damage, penetration, frag)? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config")
 	bool bShowAmmoStats = true;
 
-	/** Show compatible weapons? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
+	/** Show compatible weapons section? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config")
 	bool bShowCompatibleWeapons = true;
 
-	/** Show description? */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	bool bShowDescription = true;
+	/** Show description section? */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config")
+	bool bShowMagazineDescription = true;
 
-	/** Offset from cursor position */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	FVector2D CursorOffset = FVector2D(15.0f, 15.0f);
+	/** Reload modifier format (positive value) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config")
+	FText ReloadModifierPositiveFormat = NSLOCTEXT("MagTooltip", "ReloadPos", "+{0}%");
 
-	/** Weight display format */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	FText WeightFormat = NSLOCTEXT("Tooltip", "Weight", "{0} kg");
+	/** Reload modifier format (negative value) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config")
+	FText ReloadModifierNegativeFormat = NSLOCTEXT("MagTooltip", "ReloadNeg", "{0}%");
 
-	/** Durability display format */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	FText DurabilityFormat = NSLOCTEXT("Tooltip", "Durability", "{0}/{1}");
-
-	/** Reload modifier format (positive) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	FText ReloadModifierPositiveFormat = NSLOCTEXT("Tooltip", "ReloadPos", "+{0}%");
-
-	/** Reload modifier format (negative) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Config")
-	FText ReloadModifierNegativeFormat = NSLOCTEXT("Tooltip", "ReloadNeg", "{0}%");
+	/** Max compatible weapons to display before truncating */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|Tooltip|Magazine|Config", meta = (ClampMin = "1", ClampMax = "10"))
+	int32 MaxCompatibleWeaponsDisplay = 3;
 
 private:
 	// ═══════════════════════════════════════════════════════════════════════════
 	// INTERNAL HELPERS
 	// ═══════════════════════════════════════════════════════════════════════════
 
+	/** Update header section (name, icon, rarity) */
 	void UpdateHeaderUI();
+
+	/** Update rounds section (current/max, fill bar) */
 	void UpdateRoundsUI();
+
+	/** Update ammo section (type, stats) */
 	void UpdateAmmoUI();
+
+	/** Update stats section (caliber, durability, reload, etc) */
 	void UpdateStatsUI();
+
+	/** Update compatibility section (compatible weapons list) */
 	void UpdateCompatibilityUI();
+
+	/** Update comparison section (diff values when comparing magazines) */
 	void UpdateComparisonUI();
-	void UpdateDescriptionUI();
-	void ApplyPosition(const FVector2D& ScreenPosition);
+
+	/** Refresh all magazine-specific UI sections */
+	void RefreshMagazineUI();
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATE
 	// ═══════════════════════════════════════════════════════════════════════════
 
-	FSuspenseCoreMagazineTooltipData CachedTooltipData;
-	FSuspenseCoreMagazineTooltipData ComparisonData;
+	/** Cached magazine tooltip data */
+	FSuspenseCoreMagazineTooltipData CachedMagazineData;
 
-	bool bIsVisible = false;
-	bool bComparisonMode = false;
+	/** Comparison magazine data (when comparing) */
+	FSuspenseCoreMagazineTooltipData ComparisonMagazineData;
+
+	/** Is comparison mode active? */
+	bool bMagazineComparisonMode = false;
 };

@@ -18,9 +18,11 @@ class USuspenseCoreEventBus;
 class USuspenseCoreContainerScreenWidget;
 class USuspenseCoreInventoryWidget;
 class USuspenseCoreTooltipWidget;
+class USuspenseCoreMagazineTooltipWidget;
 class USuspenseCoreMasterHUDWidget;
 class APlayerController;
 struct FSuspenseCoreEventData;
+struct FSuspenseCoreMagazineTooltipData;
 
 /**
  * Delegate for container screen visibility changes
@@ -239,17 +241,33 @@ public:
 	void ShowItemTooltip(const FSuspenseCoreItemUIData& Item, const FVector2D& ScreenPosition);
 
 	/**
-	 * Hide current tooltip
+	 * Show tooltip for magazine item (specialized Tarkov-style tooltip)
+	 * Automatically selects magazine tooltip if item has Magazine type tag
+	 * @param MagazineData Magazine tooltip data
+	 * @param ScreenPosition Screen position
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Tooltip")
+	void ShowMagazineTooltip(const FSuspenseCoreMagazineTooltipData& MagazineData, const FVector2D& ScreenPosition);
+
+	/**
+	 * Hide current tooltip (both standard and magazine)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
 	void HideTooltip();
 
 	/**
-	 * Check if tooltip is visible
+	 * Check if any tooltip is visible (standard or magazine)
 	 * @return true if tooltip showing
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI")
 	bool IsTooltipVisible() const;
+
+	/**
+	 * Check if magazine tooltip is currently visible
+	 * @return true if magazine tooltip showing
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Tooltip")
+	bool IsMagazineTooltipVisible() const;
 
 	//==================================================================
 	// Drag-Drop Support
@@ -291,9 +309,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
 	TSubclassOf<USuspenseCoreContainerScreenWidget> ContainerScreenClass;
 
-	/** Tooltip widget class */
+	/** Tooltip widget class - standard item tooltip */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
 	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
+
+	/**
+	 * Magazine tooltip widget class - specialized Tarkov-style magazine tooltip
+	 * If set, will be used for items with Item.Magazine type tag
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
+	TSubclassOf<USuspenseCoreMagazineTooltipWidget> MagazineTooltipWidgetClass;
 
 	/** Master HUD widget class - contains all in-game HUD elements */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
@@ -407,6 +432,9 @@ protected:
 	/** Create tooltip widget */
 	USuspenseCoreTooltipWidget* CreateTooltipWidget(APlayerController* PC);
 
+	/** Create magazine tooltip widget */
+	USuspenseCoreMagazineTooltipWidget* CreateMagazineTooltipWidget(APlayerController* PC);
+
 	/** Update input mode for container screen */
 	void UpdateInputMode(APlayerController* PC, bool bShowingUI);
 
@@ -425,9 +453,13 @@ private:
 	UPROPERTY(Transient)
 	USuspenseCoreContainerScreenWidget* ContainerScreen;
 
-	/** Current tooltip widget */
+	/** Current tooltip widget (standard) */
 	UPROPERTY(Transient)
 	USuspenseCoreTooltipWidget* TooltipWidget;
+
+	/** Current magazine tooltip widget (Tarkov-style) */
+	UPROPERTY(Transient)
+	USuspenseCoreMagazineTooltipWidget* MagazineTooltipWidget;
 
 	/** Current master HUD widget - use TWeakObjectPtr to auto-invalidate when widget is destroyed (e.g. level transition) */
 	UPROPERTY(Transient)

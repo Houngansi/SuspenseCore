@@ -24,7 +24,7 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 | Phase 3 | DONE | QuickSlotComponent for fast magazine access |
 | Phase 4 | DONE | GAS Reload Abilities (GA_Reload, GA_QuickSlot) |
 | Phase 5 | DONE | SwapMagazineFromQuickSlot + AmmoLoadingService |
-| Phase 6 | PENDING | UI Integration (HUD, Inventory) |
+| Phase 6 | DONE | UI Integration (HUD, Inventory) |
 
 ### Key Files Created
 
@@ -842,7 +842,7 @@ UPROPERTY() FGameplayAttributeData ChamberedRoundPenetration;
 
 ## 7. UI Requirements
 
-### 7.1 HUD Elements (PENDING - Phase 6)
+### 7.1 HUD Elements (DONE - Phase 6)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -868,7 +868,7 @@ UPROPERTY() FGameplayAttributeData ChamberedRoundPenetration;
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Inventory Magazine Inspection (PENDING - Phase 6)
+### 7.2 Inventory Magazine Inspection (DONE - Phase 6)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -946,13 +946,30 @@ Item.Category.Throwable
 - `SuspenseCoreWeaponActor.h/.cpp` - Added MagazineComponent
 - `SuspenseCoreCharacter.h/.cpp` - Added QuickSlotComponent
 
-### Phase 6: UI Integration - PENDING
+### Phase 6: UI Integration - DONE
 
-**Widgets to create:**
-- `WBP_AmmoStatus` - HUD ammo display
+**C++ Widgets created:**
+- `USuspenseCoreMagazineInspectionWidget` - Tarkov-style magazine inspection with per-round slots
+- `USuspenseCoreMagazineTooltipWidget` - Magazine tooltip (inherits from SuspenseCoreTooltipWidget)
+
+**Interfaces created (BridgeSystem):**
+- `ISuspenseCoreMagazineInspectionWidgetInterface` - Interface for magazine inspection widget
+
+**Native GameplayTags added:**
+- `TAG_Equipment_Event_Ammo_RoundLoaded` - Single round loaded (for UI animation)
+- `TAG_Equipment_Event_Ammo_RoundUnloaded` - Single round unloaded
+
+**UIManager integration:**
+- `ShowMagazineTooltip()` - Shows specialized magazine tooltip
+- `IsMagazineTooltipVisible()` - Checks magazine tooltip visibility
+- Magazine tooltip auto-selection based on item type
+
+**Blueprint widgets to create (Designer task):**
+- `WBP_AmmoStatus` - HUD ammo display (use SuspenseCoreAmmoCounterWidget)
 - `WBP_QuickSlotBar` - QuickSlot display
-- `WBP_MagazineInspector` - Inventory magazine view
-- `WBP_AmmoLoadingUI` - Magazine loading interface
+- `WBP_MagazineInspector` - Blueprint child of USuspenseCoreMagazineInspectionWidget
+- `WBP_MagazineTooltip` - Blueprint child of USuspenseCoreMagazineTooltipWidget
+- `WBP_RoundSlot` - Individual round slot for inspection grid
 
 ### Phase 7: Testing & Polish - PENDING
 
@@ -1084,7 +1101,7 @@ void AMyWeapon::BeginPlay()
 | **Drag & Drop** | Drag ammo stack onto magazine in inventory | Via UI → AmmoLoadingService |
 | **Quick Load** | Double-click ammo to auto-load into best magazine | AmmoLoadingService::QuickLoadAmmo() |
 | **Context Menu** | RKM on magazine → "Load Ammo" → select type | Via UI → AmmoLoadingService |
-| **Inspect & Load** | Magazine inspection window with load buttons | UI widget (Phase 6) |
+| **Inspect & Load** | Magazine inspection window with load buttons | USuspenseCoreMagazineInspectionWidget (Phase 6 - DONE) |
 
 ### AmmoLoadingService Usage
 

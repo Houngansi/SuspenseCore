@@ -1895,12 +1895,15 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
 
     // Execute the swap/move
     // Phase 1: Clear source slot
-    EquipmentDataProvider->ClearSlot(SourceSlot, false); // Don't notify yet
+    // For MOVE (empty target): notify=true so UI clears source slot
+    // For SWAP (occupied target): notify=false because Phase 2's SetSlotItem will notify
+    const bool bIsMove = !TargetItem.IsValid();
+    EquipmentDataProvider->ClearSlot(SourceSlot, bIsMove);
 
-    // Phase 2: If target has item, move it to source
+    // Phase 2: If target has item (SWAP), move it to source
     if (TargetItem.IsValid())
     {
-        EquipmentDataProvider->ClearSlot(TargetSlot, false); // Don't notify yet
+        EquipmentDataProvider->ClearSlot(TargetSlot, false); // Don't notify - SetSlotItem below will
         EquipmentDataProvider->SetSlotItem(SourceSlot, ConvertToInventoryItemInstance(TargetItem), true); // Notify
     }
 

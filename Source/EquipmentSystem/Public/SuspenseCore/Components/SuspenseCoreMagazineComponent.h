@@ -16,6 +16,12 @@ class USuspenseCoreDataManager;
 class USuspenseCoreWeaponAttributeSet;
 class USuspenseCoreAmmoAttributeSet;
 class USuspenseCoreEquipmentAttributeComponent;
+class USuspenseCoreQuickSlotComponent;
+
+// QuickSlot count constant (matches SuspenseCoreQuickSlotComponent.h)
+#ifndef SUSPENSECORE_QUICKSLOT_COUNT
+#define SUSPENSECORE_QUICKSLOT_COUNT 4
+#endif
 
 /**
  * Delegate for magazine state changes
@@ -306,6 +312,9 @@ protected:
 
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerCancelReload();
+
+    UFUNCTION(Server, Reliable, WithValidation)
+    void ServerSwapMagazineFromQuickSlot(int32 QuickSlotIndex, bool bEmergencyDrop);
 
     //================================================
     // Replication

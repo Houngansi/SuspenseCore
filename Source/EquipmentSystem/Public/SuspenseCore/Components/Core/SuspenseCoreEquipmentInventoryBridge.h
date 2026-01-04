@@ -305,6 +305,12 @@ private:
      */
     FSuspenseCoreInventorySimpleResult ExecuteSwap_InventoryToEquipment(const FGuid& InventoryInstanceID, int32 EquipmentSlot);
 
+    /**
+     * Execute swap/move between two equipment slots
+     * Moves item from SourceSlot to TargetSlot, swapping if target is occupied
+     */
+    FSuspenseCoreInventorySimpleResult ExecuteEquipmentSlotSwap(int32 SourceSlot, int32 TargetSlot);
+
     // ===== Transaction Management =====
 
     /**

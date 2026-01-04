@@ -23,6 +23,7 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "SuspenseCore/Components/SuspenseCoreQuickSlotComponent.h"
 
 // Namespace alias for native tags
@@ -215,7 +216,6 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
         {
             // Extract request from event data (standard UI request format)
             FEquipmentOperationRequest Request;
-            Request.OperationType = EEquipmentOperationType::Equip;
             Request.TargetSlotIndex = EventData.GetInt(FName(TEXT("TargetSlot")));
             Request.SourceSlotIndex = EventData.GetInt(FName(TEXT("SourceSlot")));
 
@@ -236,12 +236,29 @@ bool USuspenseCoreEquipmentInventoryBridge::Initialize(
             // Generate operation ID
             Request.OperationId = FGuid::NewGuid();
 
-            UE_LOG(LogEquipmentBridge, Warning, TEXT("UIRequest.EquipItem received - ItemID: %s, InstanceID: %s, TargetSlot: %d"),
-                *Request.ItemInstance.ItemID.ToString(),
-                *Request.ItemInstance.UniqueInstanceID.ToString(),
-                Request.TargetSlotIndex);
-            UE_LOG(LogTemp, Warning, TEXT("[Bridge] UIRequest.EquipItem RECEIVED! ItemID: %s, Slot: %d"),
-                *Request.ItemInstance.ItemID.ToString(), Request.TargetSlotIndex);
+            // Check source container type to determine operation type
+            int32 SourceContainerTypeInt = EventData.GetInt(FName(TEXT("SourceContainerType")), 0);
+            ESuspenseCoreContainerType SourceContainerType = static_cast<ESuspenseCoreContainerType>(SourceContainerTypeInt);
+
+            // If source is Equipment, this is a slot-to-slot transfer (swap/move)
+            if (SourceContainerType == ESuspenseCoreContainerType::Equipment)
+            {
+                Request.OperationType = EEquipmentOperationType::Swap;
+                UE_LOG(LogEquipmentBridge, Warning, TEXT("UIRequest.EquipItem received - Equipment→Equipment transfer (Swap)"));
+                UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot: %d, TargetSlot: %d, ItemID: %s"),
+                    Request.SourceSlotIndex, Request.TargetSlotIndex, *Request.ItemInstance.ItemID.ToString());
+            }
+            else
+            {
+                Request.OperationType = EEquipmentOperationType::Equip;
+                UE_LOG(LogEquipmentBridge, Warning, TEXT("UIRequest.EquipItem received - ItemID: %s, InstanceID: %s, TargetSlot: %d"),
+                    *Request.ItemInstance.ItemID.ToString(),
+                    *Request.ItemInstance.UniqueInstanceID.ToString(),
+                    Request.TargetSlotIndex);
+            }
+
+            UE_LOG(LogTemp, Warning, TEXT("[Bridge] UIRequest.EquipItem RECEIVED! ItemID: %s, Slot: %d, SourceType: %d"),
+                *Request.ItemInstance.ItemID.ToString(), Request.TargetSlotIndex, SourceContainerTypeInt);
 
             HandleEquipmentOperationRequest(Request);
         });
@@ -629,25 +646,58 @@ void USuspenseCoreEquipmentInventoryBridge::HandleEquipmentOperationRequest(
         {
             UE_LOG(LogEquipmentBridge, Log, TEXT("Processing SWAP operation"));
 
-            InventoryResult = ExecuteSwap_InventoryToEquipment(
-                Request.ItemInstance.UniqueInstanceID,
-                Request.TargetSlotIndex
-            );
+            // Check if this is Equipment→Equipment swap (SourceSlotIndex is valid equipment slot)
+            bool bIsEquipmentToEquipmentSwap = Request.SourceSlotIndex != INDEX_NONE &&
+                EquipmentDataProvider.GetInterface() &&
+                EquipmentDataProvider->IsValidSlotIndex(Request.SourceSlotIndex);
 
-            EquipmentResult.bSuccess = InventoryResult.bSuccess;
-            EquipmentResult.OperationId = Request.OperationId;
-            EquipmentResult.ErrorMessage = FText::FromString(InventoryResult.ErrorMessage);
-            EquipmentResult.AffectedSlots.Add(Request.TargetSlotIndex);
-
-            if (InventoryResult.bSuccess)
+            if (bIsEquipmentToEquipmentSwap)
             {
-                // Add affected item (the one being equipped)
-                EquipmentResult.AffectedItems.Add(Request.ItemInstance);
-                EquipmentResult.ResultMetadata.Add(TEXT("OperationType"), TEXT("Swap"));
+                UE_LOG(LogEquipmentBridge, Warning, TEXT("Equipment→Equipment slot swap: %d → %d"),
+                    Request.SourceSlotIndex, Request.TargetSlotIndex);
+
+                // Execute Equipment→Equipment slot swap
+                InventoryResult = ExecuteEquipmentSlotSwap(Request.SourceSlotIndex, Request.TargetSlotIndex);
+
+                EquipmentResult.bSuccess = InventoryResult.bSuccess;
+                EquipmentResult.OperationId = Request.OperationId;
+                EquipmentResult.ErrorMessage = FText::FromString(InventoryResult.ErrorMessage);
+                EquipmentResult.AffectedSlots.Add(Request.SourceSlotIndex);
+                EquipmentResult.AffectedSlots.Add(Request.TargetSlotIndex);
+
+                if (InventoryResult.bSuccess)
+                {
+                    EquipmentResult.AffectedItems.Add(Request.ItemInstance);
+                    EquipmentResult.ResultMetadata.Add(TEXT("OperationType"), TEXT("EquipmentSlotSwap"));
+                }
+                else
+                {
+                    EquipmentResult.FailureType = EEquipmentValidationFailure::SystemError;
+                }
             }
             else
             {
-                EquipmentResult.FailureType = EEquipmentValidationFailure::SystemError;
+                // Standard Inventory→Equipment swap
+                InventoryResult = ExecuteSwap_InventoryToEquipment(
+                    Request.ItemInstance.UniqueInstanceID,
+                    Request.TargetSlotIndex
+                );
+
+                EquipmentResult.bSuccess = InventoryResult.bSuccess;
+                EquipmentResult.OperationId = Request.OperationId;
+                EquipmentResult.ErrorMessage = FText::FromString(InventoryResult.ErrorMessage);
+                EquipmentResult.AffectedSlots.Add(Request.TargetSlotIndex);
+
+                if (InventoryResult.bSuccess)
+                {
+                    // Add affected item (the one being equipped)
+                    EquipmentResult.AffectedItems.Add(Request.ItemInstance);
+                    EquipmentResult.ResultMetadata.Add(TEXT("OperationType"), TEXT("Swap"));
+                }
+                else
+                {
+                    EquipmentResult.FailureType = EEquipmentValidationFailure::SystemError;
+                }
             }
 
             break;
@@ -1735,6 +1785,156 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     FSuspenseCoreInventorySimpleResult Result = FSuspenseCoreInventorySimpleResult::Success(EquipmentSlot, InventoryItem.Quantity, InventoryItem.UniqueInstanceID);
 
     return Result;
+}
+
+// ===== Equipment Slot Swap =====
+
+FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::ExecuteEquipmentSlotSwap(
+    int32 SourceSlot,
+    int32 TargetSlot)
+{
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteEquipmentSlotSwap START ==="));
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("  SourceSlot: %d, TargetSlot: %d"), SourceSlot, TargetSlot);
+
+    if (!EquipmentDataProvider.GetInterface())
+    {
+        UE_LOG(LogEquipmentBridge, Error, TEXT("EquipmentDataProvider not available"));
+        return FSuspenseCoreInventorySimpleResult::Failure(
+            ESuspenseCoreInventoryResult::NotInitialized,
+            TEXT("Equipment system not initialized"));
+    }
+
+    // Validate slots
+    if (!EquipmentDataProvider->IsValidSlotIndex(SourceSlot))
+    {
+        UE_LOG(LogEquipmentBridge, Error, TEXT("Invalid source slot: %d"), SourceSlot);
+        return FSuspenseCoreInventorySimpleResult::Failure(
+            ESuspenseCoreInventoryResult::InvalidSlot,
+            FString::Printf(TEXT("Invalid source slot: %d"), SourceSlot));
+    }
+
+    if (!EquipmentDataProvider->IsValidSlotIndex(TargetSlot))
+    {
+        UE_LOG(LogEquipmentBridge, Error, TEXT("Invalid target slot: %d"), TargetSlot);
+        return FSuspenseCoreInventorySimpleResult::Failure(
+            ESuspenseCoreInventoryResult::InvalidSlot,
+            FString::Printf(TEXT("Invalid target slot: %d"), TargetSlot));
+    }
+
+    // Get items from both slots
+    FSuspenseCoreItemInstance SourceItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(SourceSlot));
+    FSuspenseCoreItemInstance TargetItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(TargetSlot));
+
+    if (!SourceItem.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Error, TEXT("Source slot %d is empty"), SourceSlot);
+        return FSuspenseCoreInventorySimpleResult::Failure(
+            ESuspenseCoreInventoryResult::ItemNotFound,
+            FString::Printf(TEXT("Source slot %d is empty"), SourceSlot));
+    }
+
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("  Source item: %s"), *SourceItem.ItemID.ToString());
+    if (TargetItem.IsValid())
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target item: %s (will swap)"), *TargetItem.ItemID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target slot is empty (will move)"));
+    }
+
+    // Validate that items can go in their new slots (type compatibility)
+    if (EquipmentOperations.GetInterface())
+    {
+        if (USuspenseCoreEquipmentOperationExecutor* Executor =
+            Cast<USuspenseCoreEquipmentOperationExecutor>(EquipmentOperations.GetObject()))
+        {
+            // Check if source item can go to target slot
+            FSlotValidationResult SourceToTargetValidation = Executor->CanEquipItemToSlot(
+                ConvertToInventoryItemInstance(SourceItem), TargetSlot);
+
+            // Only check occupation error - we know we'll clear it
+            const FString ErrStr = SourceToTargetValidation.ErrorMessage.ToString();
+            const bool bOnlyOccupiedReason =
+                !SourceToTargetValidation.bIsValid &&
+                (ErrStr.Contains(TEXT("occupied"), ESearchCase::IgnoreCase) ||
+                 ErrStr.Contains(TEXT("занят"), ESearchCase::IgnoreCase));
+
+            if (!SourceToTargetValidation.bIsValid && !bOnlyOccupiedReason)
+            {
+                UE_LOG(LogEquipmentBridge, Error, TEXT("Source item %s cannot go to target slot %d: %s"),
+                    *SourceItem.ItemID.ToString(), TargetSlot, *SourceToTargetValidation.ErrorMessage.ToString());
+                return FSuspenseCoreInventorySimpleResult::Failure(
+                    ESuspenseCoreInventoryResult::InvalidItem,
+                    SourceToTargetValidation.ErrorMessage.ToString());
+            }
+
+            // If swapping, check if target item can go to source slot
+            if (TargetItem.IsValid())
+            {
+                FSlotValidationResult TargetToSourceValidation = Executor->CanEquipItemToSlot(
+                    ConvertToInventoryItemInstance(TargetItem), SourceSlot);
+
+                const FString ErrStr2 = TargetToSourceValidation.ErrorMessage.ToString();
+                const bool bOnlyOccupiedReason2 =
+                    !TargetToSourceValidation.bIsValid &&
+                    (ErrStr2.Contains(TEXT("occupied"), ESearchCase::IgnoreCase) ||
+                     ErrStr2.Contains(TEXT("занят"), ESearchCase::IgnoreCase));
+
+                if (!TargetToSourceValidation.bIsValid && !bOnlyOccupiedReason2)
+                {
+                    UE_LOG(LogEquipmentBridge, Error, TEXT("Target item %s cannot go to source slot %d: %s"),
+                        *TargetItem.ItemID.ToString(), SourceSlot, *TargetToSourceValidation.ErrorMessage.ToString());
+                    return FSuspenseCoreInventorySimpleResult::Failure(
+                        ESuspenseCoreInventoryResult::InvalidItem,
+                        TargetToSourceValidation.ErrorMessage.ToString());
+                }
+            }
+        }
+    }
+
+    // Execute the swap/move
+    // Phase 1: Clear source slot
+    EquipmentDataProvider->ClearSlot(SourceSlot, false); // Don't notify yet
+
+    // Phase 2: If target has item, move it to source
+    if (TargetItem.IsValid())
+    {
+        EquipmentDataProvider->ClearSlot(TargetSlot, false); // Don't notify yet
+        EquipmentDataProvider->SetSlotItem(SourceSlot, ConvertToInventoryItemInstance(TargetItem), true); // Notify
+    }
+
+    // Phase 3: Move source item to target
+    EquipmentDataProvider->SetSlotItem(TargetSlot, ConvertToInventoryItemInstance(SourceItem), true); // Notify
+
+    // Sync QuickSlots for HUD updates
+    if (IsQuickSlotIndex(SourceSlot))
+    {
+        if (TargetItem.IsValid())
+        {
+            SyncQuickSlotAssignment(SourceSlot, TargetItem);
+        }
+        else
+        {
+            SyncQuickSlotClear(SourceSlot);
+        }
+    }
+
+    if (IsQuickSlotIndex(TargetSlot))
+    {
+        SyncQuickSlotAssignment(TargetSlot, SourceItem);
+    }
+
+    // Broadcast events for visualization
+    if (TargetItem.IsValid())
+    {
+        BroadcastSwapEvents(TargetItem, SourceItem, SourceSlot);
+    }
+    BroadcastEquippedEvent(SourceItem, TargetSlot);
+
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteEquipmentSlotSwap SUCCESS ==="));
+
+    return FSuspenseCoreInventorySimpleResult::Success(TargetSlot, SourceItem.Quantity, SourceItem.UniqueInstanceID);
 }
 
 // ===== Transaction Management =====

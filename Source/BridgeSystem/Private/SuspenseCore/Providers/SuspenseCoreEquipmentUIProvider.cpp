@@ -1009,8 +1009,20 @@ void USuspenseCoreEquipmentUIProvider::OnSlotUpdated(FGameplayTag EventTag, cons
 	}
 	bool bOccupied = EventData.GetBool(FName(TEXT("Occupied")));
 
-	UE_LOG(LogTemp, Verbose, TEXT("EquipmentUIProvider: OnSlotUpdated - Slot %d, Occupied=%s"),
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnSlotUpdated - Slot %d, Occupied=%s"),
 		SlotIndex, bOccupied ? TEXT("true") : TEXT("false"));
+
+	// CRITICAL: Update cache based on occupied state
+	if (SlotIndex != INDEX_NONE && !bOccupied)
+	{
+		// Slot was cleared - remove from cache
+		if (CachedEquippedItems.Contains(SlotIndex))
+		{
+			CachedEquippedItems.Remove(SlotIndex);
+			UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnSlotUpdated - Removed slot %d from cache, CacheSize=%d"),
+				SlotIndex, CachedEquippedItems.Num());
+		}
+	}
 
 	// Broadcast UI update for the slot
 	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, FGuid());

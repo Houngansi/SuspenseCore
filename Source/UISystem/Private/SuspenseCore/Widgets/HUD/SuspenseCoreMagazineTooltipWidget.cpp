@@ -1,6 +1,9 @@
 // SuspenseCoreMagazineTooltipWidget.cpp
 // SuspenseCore - Clean Architecture UI Layer
 // Copyright (c) 2025. All Rights Reserved.
+//
+// Extends SuspenseCoreTooltipWidget with magazine-specific functionality.
+// Uses inherited animations, positioning, and rarity system.
 
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineTooltipWidget.h"
 #include "Components/TextBlock.h"
@@ -14,6 +17,8 @@
 USuspenseCoreMagazineTooltipWidget::USuspenseCoreMagazineTooltipWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// Magazine tooltip specific defaults
+	// Base class handles CursorOffset, FadeInDuration, FadeOutDuration, etc.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -24,8 +29,33 @@ void USuspenseCoreMagazineTooltipWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// Start hidden
-	SetVisibility(ESlateVisibility::Collapsed);
+	// Validate magazine-specific BindWidget components
+	checkf(CurrentRoundsText, TEXT("USuspenseCoreMagazineTooltipWidget: CurrentRoundsText is REQUIRED!"));
+	checkf(MaxCapacityText, TEXT("USuspenseCoreMagazineTooltipWidget: MaxCapacityText is REQUIRED!"));
+	checkf(FillBar, TEXT("USuspenseCoreMagazineTooltipWidget: FillBar is REQUIRED!"));
+	checkf(AmmoSection, TEXT("USuspenseCoreMagazineTooltipWidget: AmmoSection is REQUIRED!"));
+	checkf(CaliberText, TEXT("USuspenseCoreMagazineTooltipWidget: CaliberText is REQUIRED!"));
+	checkf(DurabilityText, TEXT("USuspenseCoreMagazineTooltipWidget: DurabilityText is REQUIRED!"));
+	checkf(DurabilityBar, TEXT("USuspenseCoreMagazineTooltipWidget: DurabilityBar is REQUIRED!"));
+	checkf(ComparisonSection, TEXT("USuspenseCoreMagazineTooltipWidget: ComparisonSection is REQUIRED!"));
+	checkf(CompatibleWeaponsSection, TEXT("USuspenseCoreMagazineTooltipWidget: CompatibleWeaponsSection is REQUIRED!"));
+
+	// Start with comparison section hidden
+	if (ComparisonSection)
+	{
+		ComparisonSection->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// Initialize section visibility based on config
+	if (AmmoSection)
+	{
+		AmmoSection->SetVisibility(bShowAmmoStats ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (CompatibleWeaponsSection)
+	{
+		CompatibleWeaponsSection->SetVisibility(bShowCompatibleWeapons ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -34,360 +64,400 @@ void USuspenseCoreMagazineTooltipWidget::NativeConstruct()
 
 void USuspenseCoreMagazineTooltipWidget::ShowMagazineTooltip_Implementation(const FSuspenseCoreMagazineTooltipData& TooltipData, const FVector2D& ScreenPosition)
 {
-	CachedTooltipData = TooltipData;
-	bIsVisible = true;
+	// Cache magazine data
+	CachedMagazineData = TooltipData;
 
-	// Update all sections
-	UpdateHeaderUI();
-	UpdateRoundsUI();
-	UpdateAmmoUI();
-	UpdateStatsUI();
-	UpdateCompatibilityUI();
-	UpdateDescriptionUI();
+	// Convert to base item UI data for inherited header display
+	FSuspenseCoreItemUIData ItemData = ConvertToItemUIData(TooltipData);
 
-	if (bComparisonMode)
-	{
-		UpdateComparisonUI();
-	}
+	// Refresh magazine-specific UI sections BEFORE showing (so size is calculated correctly)
+	RefreshMagazineUI();
 
-	// Position tooltip
-	ApplyPosition(ScreenPosition);
+	// Use base class method for fade-in animation and positioning
+	// This handles: visibility, animations, DPI-aware positioning
+	ShowForItem(ItemData, ScreenPosition);
 
-	// Show widget
-	SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	OnTooltipShown();
+	// Notify Blueprint
+	OnMagazineTooltipShown();
 }
 
 void USuspenseCoreMagazineTooltipWidget::HideMagazineTooltip_Implementation()
 {
-	bIsVisible = false;
-	SetVisibility(ESlateVisibility::Collapsed);
+	// Use base class method for fade-out animation
+	Hide();
 
-	OnTooltipHidden();
+	// Notify Blueprint
+	OnMagazineTooltipHidden();
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateMagazineTooltip_Implementation(const FSuspenseCoreMagazineTooltipData& TooltipData)
 {
-	CachedTooltipData = TooltipData;
+	CachedMagazineData = TooltipData;
 
-	// Update all sections
-	UpdateHeaderUI();
-	UpdateRoundsUI();
-	UpdateAmmoUI();
-	UpdateStatsUI();
-	UpdateCompatibilityUI();
-	UpdateDescriptionUI();
+	// Update all magazine-specific sections
+	RefreshMagazineUI();
 
-	if (bComparisonMode)
-	{
-		UpdateComparisonUI();
-	}
+	// Also update base header with converted data
+	FSuspenseCoreItemUIData ItemData = ConvertToItemUIData(TooltipData);
+	PopulateContent(ItemData);
 
-	OnTooltipUpdated();
+	// Notify Blueprint
+	OnMagazineTooltipUpdated();
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateTooltipPosition_Implementation(const FVector2D& ScreenPosition)
 {
-	ApplyPosition(ScreenPosition);
+	// Use inherited positioning method (DPI-aware, bounds-checked)
+	UpdatePosition(ScreenPosition);
 }
 
 void USuspenseCoreMagazineTooltipWidget::SetShowAmmoStats_Implementation(bool bShow)
 {
 	bShowAmmoStats = bShow;
-	AmmoSection->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (AmmoSection)
+	{
+		AmmoSection->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::SetShowCompatibleWeapons_Implementation(bool bShow)
 {
 	bShowCompatibleWeapons = bShow;
-	CompatibleWeaponsSection->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	if (CompatibleWeaponsSection)
+	{
+		CompatibleWeaponsSection->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::SetComparisonMode_Implementation(bool bCompare, const FSuspenseCoreMagazineTooltipData& CompareData)
 {
-	bComparisonMode = bCompare;
-	ComparisonData = CompareData;
-	ComparisonSection->SetVisibility(bCompare ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	bMagazineComparisonMode = bCompare;
+	ComparisonMagazineData = CompareData;
 
-	if (bCompare && bIsVisible)
+	if (ComparisonSection)
+	{
+		ComparisonSection->SetVisibility(bCompare ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (bCompare && IsTooltipVisible())
 	{
 		UpdateComparisonUI();
 	}
+
+	// Notify Blueprint
+	OnMagazineComparisonChanged(bCompare);
 }
 
 bool USuspenseCoreMagazineTooltipWidget::IsMagazineTooltipVisible_Implementation() const
 {
-	return bIsVisible;
+	// Use inherited visibility check (includes animation state)
+	return IsTooltipVisible();
 }
 
 FSuspenseCoreMagazineTooltipData USuspenseCoreMagazineTooltipWidget::GetCurrentTooltipData_Implementation() const
 {
-	return CachedTooltipData;
+	return CachedMagazineData;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+FSuspenseCoreItemUIData USuspenseCoreMagazineTooltipWidget::ConvertToItemUIData(const FSuspenseCoreMagazineTooltipData& MagazineData) const
+{
+	FSuspenseCoreItemUIData ItemData;
+
+	// Identity
+	ItemData.ItemID = MagazineData.MagazineID;
+	ItemData.DisplayName = MagazineData.DisplayName;
+	ItemData.Description = MagazineData.Description;
+	ItemData.RarityTag = MagazineData.RarityTag;
+
+	// Set item type tag for magazines
+	ItemData.ItemType = FGameplayTag::RequestGameplayTag(FName("Item.Magazine"), false);
+
+	// Icon - use TSoftObjectPtr path if available
+	if (MagazineData.Icon)
+	{
+		ItemData.IconPath = FSoftObjectPath(MagazineData.Icon);
+	}
+
+	// Weight - calculate total weight (empty + loaded ammo)
+	ItemData.TotalWeight = MagazineData.GetTotalWeight();
+
+	// Grid size - magazines are typically 1x2 or 1x3
+	ItemData.GridSize = FIntPoint(1, 2);
+
+	// No value set - magazines don't typically show price in tooltip
+
+	return ItemData;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERNAL HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+void USuspenseCoreMagazineTooltipWidget::RefreshMagazineUI()
+{
+	UpdateHeaderUI();
+	UpdateRoundsUI();
+	UpdateAmmoUI();
+	UpdateStatsUI();
+	UpdateCompatibilityUI();
+
+	if (bMagazineComparisonMode)
+	{
+		UpdateComparisonUI();
+	}
+}
+
 void USuspenseCoreMagazineTooltipWidget::UpdateHeaderUI()
 {
-	// Magazine icon
-	if (CachedTooltipData.Icon)
-	{
-		MagazineIcon->SetBrushFromTexture(CachedTooltipData.Icon);
-		MagazineIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
-	else
-	{
-		MagazineIcon->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	// Base class handles ItemNameText, ItemIcon, RarityBorder through PopulateContent
+	// Magazine-specific header updates can go here if needed
 
-	// Magazine name
-	MagazineNameText->SetText(CachedTooltipData.DisplayName);
-
-	// Rarity (from tag - Blueprint should handle actual styling)
-	FString RarityStr = CachedTooltipData.RarityTag.IsValid()
-		? CachedTooltipData.RarityTag.GetTagName().ToString()
-		: TEXT("");
-	RarityText->SetText(FText::FromString(RarityStr));
-
-	// Rarity icon visibility based on tag validity
-	RarityIcon->SetVisibility(CachedTooltipData.RarityTag.IsValid()
-		? ESlateVisibility::HitTestInvisible
-		: ESlateVisibility::Collapsed);
+	// Note: If you need magazine-specific header elements (like magazine icon separate from item icon),
+	// add BindWidget properties and update them here
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateRoundsUI()
 {
 	// Current rounds
-	CurrentRoundsText->SetText(FText::AsNumber(CachedTooltipData.CurrentRounds));
+	if (CurrentRoundsText)
+	{
+		CurrentRoundsText->SetText(FText::AsNumber(CachedMagazineData.CurrentRounds));
+	}
 
 	// Max capacity
-	MaxCapacityText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "CapFormat", "/{0}"),
-		FText::AsNumber(CachedTooltipData.MaxCapacity)
-	));
+	if (MaxCapacityText)
+	{
+		MaxCapacityText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "CapFormat", "/{0}"),
+			FText::AsNumber(CachedMagazineData.MaxCapacity)
+		));
+	}
 
 	// Fill bar
-	FillBar->SetPercent(CachedTooltipData.GetFillPercent());
+	if (FillBar)
+	{
+		FillBar->SetPercent(CachedMagazineData.GetFillPercent());
+	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateAmmoUI()
 {
-	if (!bShowAmmoStats)
+	if (!bShowAmmoStats || !AmmoSection)
 	{
-		AmmoSection->SetVisibility(ESlateVisibility::Collapsed);
+		if (AmmoSection)
+		{
+			AmmoSection->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		return;
 	}
 
 	AmmoSection->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	// Loaded ammo type
-	LoadedAmmoText->SetText(CachedTooltipData.LoadedAmmoName);
+	if (LoadedAmmoText)
+	{
+		LoadedAmmoText->SetText(CachedMagazineData.LoadedAmmoName);
+	}
 
 	// Loaded ammo icon
-	if (CachedTooltipData.LoadedAmmoIcon)
+	if (LoadedAmmoIcon)
 	{
-		LoadedAmmoIcon->SetBrushFromTexture(CachedTooltipData.LoadedAmmoIcon);
-		LoadedAmmoIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
-	else
-	{
-		LoadedAmmoIcon->SetVisibility(ESlateVisibility::Collapsed);
+		if (CachedMagazineData.LoadedAmmoIcon)
+		{
+			LoadedAmmoIcon->SetBrushFromTexture(CachedMagazineData.LoadedAmmoIcon);
+			LoadedAmmoIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else
+		{
+			LoadedAmmoIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 
 	// Damage stat
-	AmmoDamageText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "Damage", "DMG: {0}"),
-		FText::AsNumber(FMath::RoundToInt(CachedTooltipData.AmmoDamage))
-	));
+	if (AmmoDamageText)
+	{
+		AmmoDamageText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "Damage", "DMG: {0}"),
+			FText::AsNumber(FMath::RoundToInt(CachedMagazineData.AmmoDamage))
+		));
+	}
 
 	// Penetration stat
-	AmmoPenetrationText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "Penetration", "PEN: {0}"),
-		FText::AsNumber(FMath::RoundToInt(CachedTooltipData.AmmoArmorPenetration))
-	));
+	if (AmmoPenetrationText)
+	{
+		AmmoPenetrationText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "Penetration", "PEN: {0}"),
+			FText::AsNumber(FMath::RoundToInt(CachedMagazineData.AmmoArmorPenetration))
+		));
+	}
 
 	// Fragmentation stat
-	int32 FragPercent = FMath::RoundToInt(CachedTooltipData.AmmoFragmentationChance * 100.0f);
-	AmmoFragmentationText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "Frag", "FRAG: {0}%"),
-		FText::AsNumber(FragPercent)
-	));
+	if (AmmoFragmentationText)
+	{
+		int32 FragPercent = FMath::RoundToInt(CachedMagazineData.AmmoFragmentationChance * 100.0f);
+		AmmoFragmentationText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "Frag", "FRAG: {0}%"),
+			FText::AsNumber(FragPercent)
+		));
+	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateStatsUI()
 {
 	// Caliber
-	CaliberText->SetText(CachedTooltipData.CaliberDisplayName);
+	if (CaliberText)
+	{
+		CaliberText->SetText(CachedMagazineData.CaliberDisplayName);
+	}
 
-	// Weight
-	float TotalWeight = CachedTooltipData.GetTotalWeight();
-	WeightText->SetText(FText::Format(
-		WeightFormat,
-		FText::AsNumber(FMath::RoundToFloat(TotalWeight * 100.0f) / 100.0f)
-	));
+	// Weight - use inherited FormatWeight for consistency
+	// Note: WeightText is in base class, so base PopulateContent handles it
 
-	// Durability
-	DurabilityText->SetText(FText::Format(
-		DurabilityFormat,
-		FText::AsNumber(FMath::RoundToInt(CachedTooltipData.Durability)),
-		FText::AsNumber(FMath::RoundToInt(CachedTooltipData.MaxDurability))
-	));
+	// Durability text
+	if (DurabilityText)
+	{
+		DurabilityText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "DurabilityFormat", "{0}/{1}"),
+			FText::AsNumber(FMath::RoundToInt(CachedMagazineData.Durability)),
+			FText::AsNumber(FMath::RoundToInt(CachedMagazineData.MaxDurability))
+		));
+	}
 
-	DurabilityBar->SetPercent(CachedTooltipData.GetDurabilityPercent());
+	// Durability bar
+	if (DurabilityBar)
+	{
+		DurabilityBar->SetPercent(CachedMagazineData.GetDurabilityPercent());
+	}
 
 	// Reload modifier
-	float ModifierPercent = (CachedTooltipData.ReloadTimeModifier - 1.0f) * 100.0f;
-	int32 ModifierInt = FMath::RoundToInt(ModifierPercent);
-
-	if (ModifierInt >= 0)
+	if (ReloadModifierText)
 	{
-		ReloadModifierText->SetText(FText::Format(
-			ReloadModifierPositiveFormat,
-			FText::AsNumber(ModifierInt)
+		float ModifierPercent = (CachedMagazineData.ReloadTimeModifier - 1.0f) * 100.0f;
+		int32 ModifierInt = FMath::RoundToInt(ModifierPercent);
+
+		if (ModifierInt >= 0)
+		{
+			ReloadModifierText->SetText(FText::Format(
+				ReloadModifierPositiveFormat,
+				FText::AsNumber(ModifierInt)
+			));
+		}
+		else
+		{
+			ReloadModifierText->SetText(FText::Format(
+				ReloadModifierNegativeFormat,
+				FText::AsNumber(ModifierInt)
+			));
+		}
+	}
+
+	// Ergonomics penalty
+	if (ErgonomicsText)
+	{
+		int32 ErgoPenalty = FMath::RoundToInt(CachedMagazineData.ErgonomicsPenalty);
+		ErgonomicsText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "Ergo", "ERGO: -{0}"),
+			FText::AsNumber(ErgoPenalty)
 		));
 	}
-	else
-	{
-		ReloadModifierText->SetText(FText::Format(
-			ReloadModifierNegativeFormat,
-			FText::AsNumber(ModifierInt)
-		));
-	}
-
-	// Ergonomics
-	int32 ErgoPenalty = FMath::RoundToInt(CachedTooltipData.ErgonomicsPenalty);
-	ErgonomicsText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "Ergo", "ERGO: -{0}"),
-		FText::AsNumber(ErgoPenalty)
-	));
 
 	// Feed reliability
-	int32 ReliabilityPercent = FMath::RoundToInt(CachedTooltipData.FeedReliability * 100.0f);
-	ReliabilityText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "Reliability", "Reliability: {0}%"),
-		FText::AsNumber(ReliabilityPercent)
-	));
+	if (ReliabilityText)
+	{
+		int32 ReliabilityPercent = FMath::RoundToInt(CachedMagazineData.FeedReliability * 100.0f);
+		ReliabilityText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "Reliability", "Reliability: {0}%"),
+			FText::AsNumber(ReliabilityPercent)
+		));
+	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateCompatibilityUI()
 {
-	if (!bShowCompatibleWeapons)
+	if (!bShowCompatibleWeapons || !CompatibleWeaponsSection)
 	{
-		CompatibleWeaponsSection->SetVisibility(ESlateVisibility::Collapsed);
+		if (CompatibleWeaponsSection)
+		{
+			CompatibleWeaponsSection->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		return;
 	}
 
-	CompatibleWeaponsSection->SetVisibility(
-		CachedTooltipData.CompatibleWeaponNames.Num() > 0
-			? ESlateVisibility::HitTestInvisible
-			: ESlateVisibility::Collapsed
-	);
+	const bool bHasCompatibleWeapons = CachedMagazineData.CompatibleWeaponNames.Num() > 0;
+	CompatibleWeaponsSection->SetVisibility(bHasCompatibleWeapons
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed);
 
-	if (CachedTooltipData.CompatibleWeaponNames.Num() > 0)
+	if (bHasCompatibleWeapons && CompatibleWeaponsText)
 	{
-		// Build compatible weapons list
+		// Build compatible weapons list with truncation
 		FString WeaponsList;
-		for (int32 i = 0; i < CachedTooltipData.CompatibleWeaponNames.Num(); ++i)
+		const int32 NumWeapons = CachedMagazineData.CompatibleWeaponNames.Num();
+		const int32 MaxDisplay = FMath::Min(NumWeapons, MaxCompatibleWeaponsDisplay);
+
+		for (int32 i = 0; i < MaxDisplay; ++i)
 		{
 			if (i > 0)
 			{
 				WeaponsList += TEXT(", ");
 			}
-			WeaponsList += CachedTooltipData.CompatibleWeaponNames[i].ToString();
+			WeaponsList += CachedMagazineData.CompatibleWeaponNames[i].ToString();
+		}
 
-			// Limit to 3 weapons displayed
-			if (i >= 2 && CachedTooltipData.CompatibleWeaponNames.Num() > 3)
-			{
-				WeaponsList += FString::Printf(TEXT(" (+%d more)"), CachedTooltipData.CompatibleWeaponNames.Num() - 3);
-				break;
-			}
+		// Show "+X more" if truncated
+		if (NumWeapons > MaxCompatibleWeaponsDisplay)
+		{
+			WeaponsList += FString::Printf(TEXT(" (+%d more)"), NumWeapons - MaxCompatibleWeaponsDisplay);
 		}
 
 		CompatibleWeaponsText->SetText(FText::FromString(WeaponsList));
-	}
-	else
-	{
-		CompatibleWeaponsText->SetText(FText::GetEmpty());
 	}
 }
 
 void USuspenseCoreMagazineTooltipWidget::UpdateComparisonUI()
 {
-	if (!bComparisonMode)
+	if (!bMagazineComparisonMode || !ComparisonSection)
 	{
-		ComparisonSection->SetVisibility(ESlateVisibility::Collapsed);
+		if (ComparisonSection)
+		{
+			ComparisonSection->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		return;
 	}
 
 	ComparisonSection->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	// Rounds difference
-	int32 RoundsDiff = CachedTooltipData.CurrentRounds - ComparisonData.CurrentRounds;
-	FString RoundsDiffStr = RoundsDiff >= 0
-		? FString::Printf(TEXT("+%d"), RoundsDiff)
-		: FString::Printf(TEXT("%d"), RoundsDiff);
+	if (CompareRoundsText)
+	{
+		int32 RoundsDiff = CachedMagazineData.CurrentRounds - ComparisonMagazineData.CurrentRounds;
+		FString RoundsDiffStr = RoundsDiff >= 0
+			? FString::Printf(TEXT("+%d"), RoundsDiff)
+			: FString::Printf(TEXT("%d"), RoundsDiff);
 
-	CompareRoundsText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "CompareRounds", "Rounds: {0}"),
-		FText::FromString(RoundsDiffStr)
-	));
+		CompareRoundsText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "CompareRounds", "Rounds: {0}"),
+			FText::FromString(RoundsDiffStr)
+		));
+	}
 
 	// Capacity difference
-	int32 CapDiff = CachedTooltipData.MaxCapacity - ComparisonData.MaxCapacity;
-	FString CapDiffStr = CapDiff >= 0
-		? FString::Printf(TEXT("+%d"), CapDiff)
-		: FString::Printf(TEXT("%d"), CapDiff);
-
-	CompareCapacityText->SetText(FText::Format(
-		NSLOCTEXT("Tooltip", "CompareCapacity", "Capacity: {0}"),
-		FText::FromString(CapDiffStr)
-	));
-}
-
-void USuspenseCoreMagazineTooltipWidget::UpdateDescriptionUI()
-{
-	if (!bShowDescription || CachedTooltipData.Description.IsEmpty())
+	if (CompareCapacityText)
 	{
-		DescriptionText->SetVisibility(ESlateVisibility::Collapsed);
-		return;
+		int32 CapDiff = CachedMagazineData.MaxCapacity - ComparisonMagazineData.MaxCapacity;
+		FString CapDiffStr = CapDiff >= 0
+			? FString::Printf(TEXT("+%d"), CapDiff)
+			: FString::Printf(TEXT("%d"), CapDiff);
+
+		CompareCapacityText->SetText(FText::Format(
+			NSLOCTEXT("MagTooltip", "CompareCapacity", "Capacity: {0}"),
+			FText::FromString(CapDiffStr)
+		));
 	}
-
-	DescriptionText->SetText(CachedTooltipData.Description);
-	DescriptionText->SetVisibility(ESlateVisibility::HitTestInvisible);
-}
-
-void USuspenseCoreMagazineTooltipWidget::ApplyPosition(const FVector2D& ScreenPosition)
-{
-	// Apply cursor offset and clamp to viewport
-	FVector2D AdjustedPosition = ScreenPosition + CursorOffset;
-
-	// Get viewport size for clamping
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		int32 ViewportX, ViewportY;
-		PC->GetViewportSize(ViewportX, ViewportY);
-
-		// Get widget desired size
-		FVector2D WidgetSize = GetDesiredSize();
-
-		// Clamp to viewport bounds
-		if (AdjustedPosition.X + WidgetSize.X > ViewportX)
-		{
-			AdjustedPosition.X = ScreenPosition.X - CursorOffset.X - WidgetSize.X;
-		}
-
-		if (AdjustedPosition.Y + WidgetSize.Y > ViewportY)
-		{
-			AdjustedPosition.Y = ScreenPosition.Y - CursorOffset.Y - WidgetSize.Y;
-		}
-
-		// Ensure not negative
-		AdjustedPosition.X = FMath::Max(0.0f, AdjustedPosition.X);
-		AdjustedPosition.Y = FMath::Max(0.0f, AdjustedPosition.Y);
-	}
-
-	SetPositionInViewport(AdjustedPosition, false);
 }

@@ -803,6 +803,97 @@ void USuspenseCoreContainerScreenWidget::PublishScreenEvent(FGameplayTag EventTa
 
 ---
 
+## 11. Magazine System Widgets (Tarkov-Style)
+
+### Widget Hierarchy
+
+```
+UUserWidget
+├── USuspenseCoreTooltipWidget
+│   └── USuspenseCoreMagazineTooltipWidget   # Inherits base tooltip for animations
+└── USuspenseCoreMagazineInspectionWidget    # Standalone inspection panel
+```
+
+### Magazine Tooltip (USuspenseCoreMagazineTooltipWidget)
+
+Specialized tooltip for magazine items, inheriting from `USuspenseCoreTooltipWidget` for consistent animations.
+
+**Key Features:**
+- Inherits base tooltip show/hide animations
+- Displays magazine capacity, current rounds, caliber
+- Visual fill bar for quick capacity overview
+- Rounds list preview
+
+**Usage via UIManager:**
+```cpp
+// Show magazine tooltip
+FSuspenseCoreMagazineTooltipData MagData;
+MagData.DisplayName = FText::FromString("STANAG 30-Round");
+MagData.CurrentRounds = 28;
+MagData.MaxCapacity = 30;
+// ... fill other data
+
+USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+UIManager->ShowMagazineTooltip(MagData, ScreenPosition);
+```
+
+### Magazine Inspection (USuspenseCoreMagazineInspectionWidget)
+
+Tarkov-style detailed magazine view with per-round slot visualization.
+
+**BindWidget Requirements (ALL MANDATORY):**
+- `CloseButton` - Close inspection panel
+- `MagazineNameText` - Magazine display name
+- `MagazineIcon` - Magazine icon image
+- `CaliberText` - Caliber display text
+- `RoundSlotsContainer` - WrapBox for round slot grid
+- `RoundsCountText` - "27/30" format text
+- `FillProgressBar` - Fill percentage bar
+- `HintText` - "Drag ammo here to load"
+- `DropZoneBorder` - Drop zone highlight border
+- `LoadingProgressBar` - Loading operation progress
+- `LoadingStatusText` - "Loading round 15..."
+
+**EventBus Subscriptions:**
+- `TAG_Equipment_Event_Ammo_LoadStarted` - Start loading animation
+- `TAG_Equipment_Event_Ammo_RoundLoaded` - Complete slot loading
+- `TAG_Equipment_Event_Ammo_LoadCompleted` - Finish loading operation
+- `TAG_Equipment_Event_Ammo_LoadCancelled` - Cancel and reset
+
+**Blueprint Events:**
+```cpp
+// Called when inspection opens/closes
+UFUNCTION(BlueprintImplementableEvent)
+void OnInspectionOpened();
+void OnInspectionClosed();
+
+// Called during loading/unloading
+void OnRoundLoadingStarted(int32 SlotIndex);
+void OnRoundLoadingCompleted(int32 SlotIndex);
+
+// Called when user clicks a round slot
+void OnRoundClicked(int32 SlotIndex);
+```
+
+### Creating Blueprint Child Widgets
+
+1. **WBP_MagazineTooltip:**
+   - Parent: `USuspenseCoreMagazineTooltipWidget`
+   - Add visual design with BindWidget components
+   - Configure animations in Blueprint
+
+2. **WBP_MagazineInspector:**
+   - Parent: `USuspenseCoreMagazineInspectionWidget`
+   - Set `RoundSlotWidgetClass` to WBP_RoundSlot
+   - Design layout matching Tarkov-style inspection
+
+3. **WBP_RoundSlot:**
+   - Simple UUserWidget with:
+     - `RoundImage` (UImage) - Round icon
+     - `SlotBorder` (UBorder) - Slot background/highlight
+
+---
+
 ## Quick Reference
 
 ### File Locations Quick Lookup
@@ -817,10 +908,14 @@ void USuspenseCoreContainerScreenWidget::PublishScreenEvent(FGameplayTag EventTa
 | UI Events Tags | `BridgeSystem/.../Events/UI/SuspenseCoreUIEvents.h` |
 | UI Data Provider Interface | `BridgeSystem/.../Interfaces/UI/ISuspenseCoreUIDataProvider.h` |
 | UI Container Interface | `BridgeSystem/.../Interfaces/UI/ISuspenseCoreUIContainer.h` |
+| Magazine Inspection Interface | `BridgeSystem/.../Interfaces/UI/ISuspenseCoreMagazineInspectionWidget.h` |
 | UI Manager | `UISystem/.../Subsystems/SuspenseCoreUIManager.h` |
 | Base Container Widget | `UISystem/.../Widgets/Base/SuspenseCoreBaseContainerWidget.h` |
 | Inventory Widget | `UISystem/.../Widgets/Inventory/SuspenseCoreInventoryWidget.h` |
+| Magazine Tooltip Widget | `UISystem/.../Widgets/Tooltip/SuspenseCoreMagazineTooltipWidget.h` |
+| Magazine Inspection Widget | `UISystem/.../Widgets/HUD/SuspenseCoreMagazineInspectionWidget.h` |
 | DragDrop Handler | `UISystem/.../Subsystems/SuspenseCoreDragDropHandler.h` |
+| Ammo Loading Native Tags | `EquipmentSystem/.../Tags/SuspenseCoreEquipmentNativeTags.h` |
 
 ### Service Locator Access
 

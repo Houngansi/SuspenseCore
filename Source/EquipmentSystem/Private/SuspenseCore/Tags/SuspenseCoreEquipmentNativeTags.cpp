@@ -425,9 +425,11 @@ namespace SuspenseCoreEquipmentTags
 
         // Ammo loading events (Tarkov-style drag&drop / quick load)
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_LoadStarted, "SuspenseCore.Event.Equipment.Ammo.LoadStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_RoundLoaded, "SuspenseCore.Event.Equipment.Ammo.RoundLoaded");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_LoadCompleted, "SuspenseCore.Event.Equipment.Ammo.LoadCompleted");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_LoadCancelled, "SuspenseCore.Event.Equipment.Ammo.LoadCancelled");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_UnloadStarted, "SuspenseCore.Event.Equipment.Ammo.UnloadStarted");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_RoundUnloaded, "SuspenseCore.Event.Equipment.Ammo.RoundUnloaded");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ammo_UnloadCompleted, "SuspenseCore.Event.Equipment.Ammo.UnloadCompleted");
 
         // Chamber events

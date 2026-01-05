@@ -14,6 +14,7 @@
 // Forward declarations
 class USuspenseCorePanelSwitcherWidget;
 class USuspenseCoreTooltipWidget;
+class USuspenseCoreMagazineTooltipWidget;
 class USuspenseCoreContextMenuWidget;
 class USuspenseCoreUIManager;
 class USuspenseCoreEventBus;
@@ -248,6 +249,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<USuspenseCoreTooltipWidget> ItemTooltipWidget;
 
+	/** Magazine tooltip widget (created on demand) */
+	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
+	TObjectPtr<USuspenseCoreMagazineTooltipWidget> MagazineTooltipWidget;
+
 	/** Context menu widget (created on demand) */
 	UPROPERTY(BlueprintReadWrite, Category = "Widgets")
 	TObjectPtr<USuspenseCoreContextMenuWidget> ContextMenuWidget;
@@ -263,6 +268,10 @@ protected:
 	/** Widget class to use for tooltip */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
 	TSubclassOf<USuspenseCoreTooltipWidget> ItemTooltipWidgetClass;
+
+	/** Widget class to use for magazine tooltip (Tarkov-style) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
+	TSubclassOf<USuspenseCoreMagazineTooltipWidget> MagazineTooltipWidgetClass;
 
 	/** Widget class to use for context menu */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")

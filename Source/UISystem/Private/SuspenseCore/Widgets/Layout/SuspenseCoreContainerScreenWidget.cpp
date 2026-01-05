@@ -6,11 +6,13 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerScreenWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCorePanelSwitcherWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
+#include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCore/Widgets/ContextMenu/SuspenseCoreContextMenuWidget.h"
 #include "SuspenseCore/Subsystems/SuspenseCoreUIManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineTooltipWidget.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "GameFramework/PlayerController.h"
@@ -255,7 +257,55 @@ void USuspenseCoreContainerScreenWidget::RefreshScreenContent()
 
 void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIData& ItemData, const FVector2D& ScreenPosition)
 {
-	// Create tooltip widget if needed
+	// Check if this is a magazine item - use specialized tooltip
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	bool bIsMagazine = UIManager && UIManager->IsMagazineItem(ItemData);
+
+	if (bIsMagazine && MagazineTooltipWidgetClass)
+	{
+		// Hide regular tooltip if visible
+		if (ItemTooltipWidget && ItemTooltipWidget->IsVisible())
+		{
+			ItemTooltipWidget->Hide();
+		}
+
+		// Create magazine tooltip widget if needed
+		if (!MagazineTooltipWidget)
+		{
+			MagazineTooltipWidget = CreateWidget<USuspenseCoreMagazineTooltipWidget>(GetOwningPlayer(), MagazineTooltipWidgetClass);
+			if (MagazineTooltipWidget && OverlayLayer)
+			{
+				UOverlaySlot* OverlaySlotRef = OverlayLayer->AddChildToOverlay(MagazineTooltipWidget);
+				if (OverlaySlotRef)
+				{
+					OverlaySlotRef->SetHorizontalAlignment(HAlign_Left);
+					OverlaySlotRef->SetVerticalAlignment(VAlign_Top);
+				}
+			}
+		}
+
+		if (MagazineTooltipWidget)
+		{
+			// Convert item data to magazine tooltip data
+			FSuspenseCoreMagazineTooltipData MagazineData;
+			MagazineData.MagazineID = ItemData.ItemID;
+			MagazineData.DisplayName = ItemData.DisplayName;
+			MagazineData.RarityTag = ItemData.RarityTag;
+			// Note: CurrentRounds, MaxCapacity, AmmoType should come from MagazineComponent
+			// For now showing basic info
+
+			ISuspenseCoreMagazineTooltipWidgetInterface::Execute_ShowMagazineTooltip(MagazineTooltipWidget, MagazineData, ScreenPosition);
+		}
+		return;
+	}
+
+	// Hide magazine tooltip if visible
+	if (MagazineTooltipWidget && MagazineTooltipWidget->IsVisible())
+	{
+		ISuspenseCoreMagazineTooltipWidgetInterface::Execute_HideMagazineTooltip(MagazineTooltipWidget);
+	}
+
+	// Create standard tooltip widget if needed
 	if (!ItemTooltipWidget && ItemTooltipWidgetClass)
 	{
 		ItemTooltipWidget = CreateWidget<USuspenseCoreTooltipWidget>(GetOwningPlayer(), ItemTooltipWidgetClass);
@@ -281,6 +331,11 @@ void USuspenseCoreContainerScreenWidget::HideTooltip()
 	if (ItemTooltipWidget)
 	{
 		ItemTooltipWidget->Hide();
+	}
+
+	if (MagazineTooltipWidget)
+	{
+		ISuspenseCoreMagazineTooltipWidgetInterface::Execute_HideMagazineTooltip(MagazineTooltipWidget);
 	}
 }
 

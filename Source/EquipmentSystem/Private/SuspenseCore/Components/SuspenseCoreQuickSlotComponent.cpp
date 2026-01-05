@@ -389,7 +389,7 @@ bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotInde
     USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
     if (Provider)
     {
-        if (USuspenseCoreItemUseService* ItemUseService = Provider->GetService<USuspenseCoreItemUseService>())
+        if (USuspenseCoreItemUseServiceImpl* ItemUseService = Provider->GetService<USuspenseCoreItemUseServiceImpl>())
         {
             FSuspenseCoreItemUseResponse Response = ItemUseService->UseQuickSlot(SlotIndex, GetOwner());
             bSuccess = Response.IsSuccess() || Response.IsInProgress();

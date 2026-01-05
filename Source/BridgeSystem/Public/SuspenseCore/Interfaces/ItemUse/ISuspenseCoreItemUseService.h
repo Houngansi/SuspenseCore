@@ -7,7 +7,7 @@
 //
 // ARCHITECTURE:
 // - Interface defined in BridgeSystem
-// - Implementation in EquipmentSystem (USuspenseCoreItemUseService)
+// - Implementation in EquipmentSystem (USuspenseCoreItemUseServiceImpl)
 // - Accessed via ServiceProvider
 //
 // USAGE:
@@ -60,7 +60,7 @@ class USuspenseCoreItemUseService : public UInterface
  *   ISuspenseCoreItemUseService* Service = Provider->GetItemUseService();
  *
  *   // Or via static Get() on implementation
- *   USuspenseCoreItemUseService* Service = USuspenseCoreItemUseService::Get(this);
+ *   USuspenseCoreItemUseServiceImpl* Service = USuspenseCoreItemUseServiceImpl::Get(this);
  */
 class BRIDGESYSTEM_API ISuspenseCoreItemUseService
 {

@@ -25,7 +25,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogItemUseService, Log, All);
 // Constructor
 //==================================================================
 
-USuspenseCoreItemUseService::USuspenseCoreItemUseService()
+USuspenseCoreItemUseServiceImpl::USuspenseCoreItemUseServiceImpl()
 {
 }
 
@@ -33,7 +33,7 @@ USuspenseCoreItemUseService::USuspenseCoreItemUseService()
 // ISuspenseCoreEquipmentService Implementation
 //==================================================================
 
-bool USuspenseCoreItemUseService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
+bool USuspenseCoreItemUseServiceImpl::InitializeService(const FSuspenseCoreServiceInitParams& Params)
 {
 	if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
 	{
@@ -80,7 +80,7 @@ bool USuspenseCoreItemUseService::InitializeService(const FSuspenseCoreServiceIn
 	return true;
 }
 
-bool USuspenseCoreItemUseService::ShutdownService(bool bForce)
+bool USuspenseCoreItemUseServiceImpl::ShutdownService(bool bForce)
 {
 	if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
 	{
@@ -113,18 +113,18 @@ bool USuspenseCoreItemUseService::ShutdownService(bool bForce)
 	return true;
 }
 
-FGameplayTag USuspenseCoreItemUseService::GetServiceTag() const
+FGameplayTag USuspenseCoreItemUseServiceImpl::GetServiceTag() const
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Service.Equipment.ItemUse"), false);
 }
 
-FGameplayTagContainer USuspenseCoreItemUseService::GetRequiredDependencies() const
+FGameplayTagContainer USuspenseCoreItemUseServiceImpl::GetRequiredDependencies() const
 {
 	// No strict dependencies - EventBus is obtained from ServiceProvider
 	return FGameplayTagContainer();
 }
 
-bool USuspenseCoreItemUseService::ValidateService(TArray<FText>& OutErrors) const
+bool USuspenseCoreItemUseServiceImpl::ValidateService(TArray<FText>& OutErrors) const
 {
 	bool bValid = true;
 
@@ -143,7 +143,7 @@ bool USuspenseCoreItemUseService::ValidateService(TArray<FText>& OutErrors) cons
 	return bValid;
 }
 
-void USuspenseCoreItemUseService::ResetService()
+void USuspenseCoreItemUseServiceImpl::ResetService()
 {
 	// Cancel all operations
 	for (auto& Pair : ActiveOperations)
@@ -161,7 +161,7 @@ void USuspenseCoreItemUseService::ResetService()
 	ITEMUSE_LOG(Log, TEXT("ResetService: Service reset complete"));
 }
 
-FString USuspenseCoreItemUseService::GetServiceStats() const
+FString USuspenseCoreItemUseServiceImpl::GetServiceStats() const
 {
 	return FString::Printf(
 		TEXT("ItemUseService: Handlers=%d, ActiveOps=%d, Total=%d, Success=%d, Failed=%d, Cancelled=%d, State=%s"),
@@ -178,7 +178,7 @@ FString USuspenseCoreItemUseService::GetServiceStats() const
 // Legacy Initialization
 //==================================================================
 
-void USuspenseCoreItemUseService::Initialize(USuspenseCoreEventBus* InEventBus)
+void USuspenseCoreItemUseServiceImpl::Initialize(USuspenseCoreEventBus* InEventBus)
 {
 	EventBus = InEventBus;
 	ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
@@ -192,7 +192,7 @@ void USuspenseCoreItemUseService::Initialize(USuspenseCoreEventBus* InEventBus)
 // Handler Registration
 //==================================================================
 
-bool USuspenseCoreItemUseService::RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler> Handler)
+bool USuspenseCoreItemUseServiceImpl::RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler> Handler)
 {
 	if (!Handler.GetInterface())
 	{
@@ -237,7 +237,7 @@ bool USuspenseCoreItemUseService::RegisterHandler(TScriptInterface<ISuspenseCore
 	return true;
 }
 
-bool USuspenseCoreItemUseService::UnregisterHandler(FGameplayTag HandlerTag)
+bool USuspenseCoreItemUseServiceImpl::UnregisterHandler(FGameplayTag HandlerTag)
 {
 	int32* IndexPtr = HandlerIndexByTag.Find(HandlerTag);
 	if (!IndexPtr)
@@ -264,7 +264,7 @@ bool USuspenseCoreItemUseService::UnregisterHandler(FGameplayTag HandlerTag)
 	return true;
 }
 
-TArray<FGameplayTag> USuspenseCoreItemUseService::GetRegisteredHandlers() const
+TArray<FGameplayTag> USuspenseCoreItemUseServiceImpl::GetRegisteredHandlers() const
 {
 	TArray<FGameplayTag> Result;
 	Result.Reserve(Handlers.Num());
@@ -277,12 +277,12 @@ TArray<FGameplayTag> USuspenseCoreItemUseService::GetRegisteredHandlers() const
 	return Result;
 }
 
-bool USuspenseCoreItemUseService::IsHandlerRegistered(FGameplayTag HandlerTag) const
+bool USuspenseCoreItemUseServiceImpl::IsHandlerRegistered(FGameplayTag HandlerTag) const
 {
 	return HandlerIndexByTag.Contains(HandlerTag);
 }
 
-void USuspenseCoreItemUseService::SortHandlersByPriority()
+void USuspenseCoreItemUseServiceImpl::SortHandlersByPriority()
 {
 	// Sort by priority (higher values first via operator<)
 	Handlers.Sort();
@@ -299,7 +299,7 @@ void USuspenseCoreItemUseService::SortHandlersByPriority()
 // Validation
 //==================================================================
 
-bool USuspenseCoreItemUseService::CanUseItem(const FSuspenseCoreItemUseRequest& Request) const
+bool USuspenseCoreItemUseServiceImpl::CanUseItem(const FSuspenseCoreItemUseRequest& Request) const
 {
 	if (!Request.IsValid())
 	{
@@ -309,7 +309,7 @@ bool USuspenseCoreItemUseService::CanUseItem(const FSuspenseCoreItemUseRequest& 
 	return FindHandler(Request) != nullptr;
 }
 
-FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::ValidateUseRequest(
+FSuspenseCoreItemUseResponse USuspenseCoreItemUseServiceImpl::ValidateUseRequest(
 	const FSuspenseCoreItemUseRequest& Request) const
 {
 	if (!Request.IsValid())
@@ -344,7 +344,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::ValidateUseRequest(
 	return Response;
 }
 
-float USuspenseCoreItemUseService::GetUseDuration(const FSuspenseCoreItemUseRequest& Request) const
+float USuspenseCoreItemUseServiceImpl::GetUseDuration(const FSuspenseCoreItemUseRequest& Request) const
 {
 	ISuspenseCoreItemUseHandler* Handler = FindHandler(Request);
 	if (!Handler)
@@ -355,7 +355,7 @@ float USuspenseCoreItemUseService::GetUseDuration(const FSuspenseCoreItemUseRequ
 	return Handler->GetDuration(Request);
 }
 
-float USuspenseCoreItemUseService::GetUseCooldown(const FSuspenseCoreItemUseRequest& Request) const
+float USuspenseCoreItemUseServiceImpl::GetUseCooldown(const FSuspenseCoreItemUseRequest& Request) const
 {
 	ISuspenseCoreItemUseHandler* Handler = FindHandler(Request);
 	if (!Handler)
@@ -370,7 +370,7 @@ float USuspenseCoreItemUseService::GetUseCooldown(const FSuspenseCoreItemUseRequ
 // Execution
 //==================================================================
 
-FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::UseItem(
+FSuspenseCoreItemUseResponse USuspenseCoreItemUseServiceImpl::UseItem(
 	const FSuspenseCoreItemUseRequest& Request,
 	AActor* OwnerActor)
 {
@@ -450,7 +450,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::UseItem(
 	return Response;
 }
 
-bool USuspenseCoreItemUseService::CancelUse(const FGuid& RequestID)
+bool USuspenseCoreItemUseServiceImpl::CancelUse(const FGuid& RequestID)
 {
 	FSuspenseCoreActiveOperation* Operation = ActiveOperations.Find(RequestID);
 	if (!Operation)
@@ -488,12 +488,12 @@ bool USuspenseCoreItemUseService::CancelUse(const FGuid& RequestID)
 	return true;
 }
 
-bool USuspenseCoreItemUseService::IsOperationInProgress(const FGuid& RequestID) const
+bool USuspenseCoreItemUseServiceImpl::IsOperationInProgress(const FGuid& RequestID) const
 {
 	return ActiveOperations.Contains(RequestID);
 }
 
-bool USuspenseCoreItemUseService::GetOperationProgress(const FGuid& RequestID, float& OutProgress) const
+bool USuspenseCoreItemUseServiceImpl::GetOperationProgress(const FGuid& RequestID, float& OutProgress) const
 {
 	const FSuspenseCoreActiveOperation* Operation = ActiveOperations.Find(RequestID);
 	if (!Operation)
@@ -506,7 +506,7 @@ bool USuspenseCoreItemUseService::GetOperationProgress(const FGuid& RequestID, f
 	return true;
 }
 
-FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::CompleteOperation(const FGuid& RequestID)
+FSuspenseCoreItemUseResponse USuspenseCoreItemUseServiceImpl::CompleteOperation(const FGuid& RequestID)
 {
 	FSuspenseCoreActiveOperation* Operation = ActiveOperations.Find(RequestID);
 	if (!Operation)
@@ -547,7 +547,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::CompleteOperation(cons
 	return Response;
 }
 
-TArray<FGuid> USuspenseCoreItemUseService::GetActiveOperationsForActor(AActor* OwnerActor) const
+TArray<FGuid> USuspenseCoreItemUseServiceImpl::GetActiveOperationsForActor(AActor* OwnerActor) const
 {
 	TArray<FGuid> Result;
 
@@ -562,7 +562,7 @@ TArray<FGuid> USuspenseCoreItemUseService::GetActiveOperationsForActor(AActor* O
 	return Result;
 }
 
-void USuspenseCoreItemUseService::CancelAllOperationsForActor(AActor* OwnerActor, const FText& Reason)
+void USuspenseCoreItemUseServiceImpl::CancelAllOperationsForActor(AActor* OwnerActor, const FText& Reason)
 {
 	TArray<FGuid> ToCancel = GetActiveOperationsForActor(OwnerActor);
 
@@ -583,7 +583,7 @@ void USuspenseCoreItemUseService::CancelAllOperationsForActor(AActor* OwnerActor
 // QuickSlot Helpers
 //==================================================================
 
-FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::UseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor)
+FSuspenseCoreItemUseResponse USuspenseCoreItemUseServiceImpl::UseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor)
 {
 	ITEMUSE_LOG(Verbose, TEXT("UseQuickSlot: SlotIndex=%d, Actor=%s"),
 		QuickSlotIndex,
@@ -603,13 +603,13 @@ FSuspenseCoreItemUseResponse USuspenseCoreItemUseService::UseQuickSlot(int32 Qui
 	return UseItem(Request, OwnerActor);
 }
 
-bool USuspenseCoreItemUseService::CanUseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor) const
+bool USuspenseCoreItemUseServiceImpl::CanUseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor) const
 {
 	FSuspenseCoreItemUseRequest Request = BuildQuickSlotRequest(QuickSlotIndex, OwnerActor);
 	return CanUseItem(Request);
 }
 
-FSuspenseCoreItemUseRequest USuspenseCoreItemUseService::BuildQuickSlotRequest(
+FSuspenseCoreItemUseRequest USuspenseCoreItemUseServiceImpl::BuildQuickSlotRequest(
 	int32 QuickSlotIndex,
 	AActor* OwnerActor) const
 {
@@ -654,7 +654,7 @@ FSuspenseCoreItemUseRequest USuspenseCoreItemUseService::BuildQuickSlotRequest(
 // Handler Query
 //==================================================================
 
-FGameplayTag USuspenseCoreItemUseService::FindHandlerForRequest(const FSuspenseCoreItemUseRequest& Request) const
+FGameplayTag USuspenseCoreItemUseServiceImpl::FindHandlerForRequest(const FSuspenseCoreItemUseRequest& Request) const
 {
 	ISuspenseCoreItemUseHandler* Handler = FindHandler(Request);
 	if (Handler)
@@ -664,7 +664,7 @@ FGameplayTag USuspenseCoreItemUseService::FindHandlerForRequest(const FSuspenseC
 	return FGameplayTag();
 }
 
-ISuspenseCoreItemUseHandler* USuspenseCoreItemUseService::FindHandler(const FSuspenseCoreItemUseRequest& Request) const
+ISuspenseCoreItemUseHandler* USuspenseCoreItemUseServiceImpl::FindHandler(const FSuspenseCoreItemUseRequest& Request) const
 {
 	// Handlers are sorted by priority (highest first)
 	for (const FSuspenseCoreRegisteredHandler& Entry : Handlers)
@@ -682,7 +682,7 @@ ISuspenseCoreItemUseHandler* USuspenseCoreItemUseService::FindHandler(const FSus
 	return nullptr;
 }
 
-ISuspenseCoreItemUseHandler* USuspenseCoreItemUseService::GetHandlerByTag(FGameplayTag HandlerTag) const
+ISuspenseCoreItemUseHandler* USuspenseCoreItemUseServiceImpl::GetHandlerByTag(FGameplayTag HandlerTag) const
 {
 	const int32* IndexPtr = HandlerIndexByTag.Find(HandlerTag);
 	if (!IndexPtr)
@@ -702,7 +702,7 @@ ISuspenseCoreItemUseHandler* USuspenseCoreItemUseService::GetHandlerByTag(FGamep
 // Internal Helpers
 //==================================================================
 
-void USuspenseCoreItemUseService::PublishEvent(
+void USuspenseCoreItemUseServiceImpl::PublishEvent(
 	const FGameplayTag& EventTag,
 	const FSuspenseCoreItemUseRequest& Request,
 	const FSuspenseCoreItemUseResponse& Response,
@@ -756,7 +756,7 @@ void USuspenseCoreItemUseService::PublishEvent(
 		*Request.RequestID.ToString().Left(8));
 }
 
-float USuspenseCoreItemUseService::GetWorldTimeSeconds() const
+float USuspenseCoreItemUseServiceImpl::GetWorldTimeSeconds() const
 {
 	UWorld* World = GetWorld();
 	if (World)
@@ -772,7 +772,7 @@ float USuspenseCoreItemUseService::GetWorldTimeSeconds() const
 // Handler Auto-Registration
 //==================================================================
 
-void USuspenseCoreItemUseService::AutoRegisterHandlers()
+void USuspenseCoreItemUseServiceImpl::AutoRegisterHandlers()
 {
 	ITEMUSE_LOG(Log, TEXT("AutoRegisterHandlers: Registering built-in handlers..."));
 

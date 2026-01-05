@@ -1230,7 +1230,25 @@ bool USuspenseCoreEquipmentInventoryBridge::CanUnequipToInventory(int32 SourceSl
 FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::ExecuteTransfer_FromInventoryToEquip(
     const FSuspenseCoreInventoryTransferRequest& Request)
 {
-    const FSuspenseCoreItemInstance& Item = Request.Item;
+    // CRITICAL: Get FULL item from inventory by InstanceID, NOT from Request!
+    // Request.Item comes from UI and does NOT contain MagazineData.
+    // The actual item in inventory HAS the MagazineData from ammo loading.
+    // @see TarkovStyle_Ammo_System_Design.md Phase 7
+    FSuspenseCoreItemInstance Item;
+    if (!InventoryInterface->FindItemInstance(Request.Item.UniqueInstanceID, Item))
+    {
+        // Fallback to Request.Item if not found (shouldn't happen normally)
+        Item = Request.Item;
+        UE_LOG(LogEquipmentBridge, Warning,
+            TEXT("Could not find item %s in inventory by InstanceID %s, using Request.Item (MagazineData may be lost!)"),
+            *Request.Item.ItemID.ToString(), *Request.Item.UniqueInstanceID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogEquipmentBridge, Log,
+            TEXT("✓ Retrieved full item from inventory (MagazineData: Rounds=%d/%d, AmmoType=%s)"),
+            Item.MagazineData.CurrentRoundCount, Item.MagazineData.MaxCapacity, *Item.MagazineData.LoadedAmmoID.ToString());
+    }
 
     UE_LOG(LogEquipmentBridge, Warning, TEXT("=== ExecuteTransfer_FromInventoryToEquip START ==="));
     UE_LOG(LogEquipmentBridge, Warning, TEXT("ItemID: %s"), *Item.ItemID.ToString());

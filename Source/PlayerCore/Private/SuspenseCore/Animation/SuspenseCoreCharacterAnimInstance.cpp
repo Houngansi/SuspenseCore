@@ -28,11 +28,6 @@ void USuspenseCoreCharacterAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
-	UE_LOG(LogTemp, Warning, TEXT("║ [AnimInstance] NativeInitializeAnimation CALLED!            ║"));
-	UE_LOG(LogTemp, Warning, TEXT("║ Owner: %s"), TryGetPawnOwner() ? *TryGetPawnOwner()->GetName() : TEXT("NULL"));
-	UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
-
 	UpdateCachedReferences();
 	LoadWeaponAnimationsTable();
 }
@@ -59,30 +54,11 @@ void USuspenseCoreCharacterAnimInstance::NativeUpdateAnimation(float DeltaSecond
 	UpdateWeaponData(DeltaSeconds);
 	UpdateAnimationAssets();
 	UpdateIKData(DeltaSeconds);
-	UpdateLeftHandSocket(); // Simple socket tracking for left hand IK
+	UpdateLeftHandSocket();
 	UpdateADSData(DeltaSeconds);
 	UpdateAimOffsetData(DeltaSeconds);
 	UpdatePoseStates(DeltaSeconds);
 	UpdateGASAttributes();
-
-	// DEBUG: Log key variables every 3 seconds when weapon equipped
-	static float LastKeyVarLogTime = 0.0f;
-	if (bHasWeaponEquipped && (CurrentTime - LastKeyVarLogTime) > 3.0f)
-	{
-		LastKeyVarLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("═══════════════════ ANIM STATE DEBUG ═══════════════════"));
-		UE_LOG(LogTemp, Warning, TEXT("Movement: MoveForward=%.2f, MoveRight=%.2f, Speed=%.2f, Movement=%.2f"),
-			MoveForward, MoveRight, Speed, Movement);
-		UE_LOG(LogTemp, Warning, TEXT("Weapon: bHasWeapon=%d, bIsDrawn=%d, bIsHolstered=%d, WeaponType=%s"),
-			bHasWeaponEquipped, bIsWeaponDrawn, bIsHolstered, *CurrentWeaponType.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("States: bIsAiming=%d, bIsFiring=%d, bIsReloading=%d, AimingAlpha=%.2f"),
-			bIsAiming, bIsFiring, bIsReloading, AimingAlpha);
-		UE_LOG(LogTemp, Warning, TEXT("AnimData: Stance=%s, Idle=%s, AimPose=%s"),
-			CurrentAnimationData.Stance ? *CurrentAnimationData.Stance->GetName() : TEXT("NULL"),
-			CurrentAnimationData.Idle ? *CurrentAnimationData.Idle->GetName() : TEXT("NULL"),
-			CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("NULL"));
-		UE_LOG(LogTemp, Warning, TEXT("═══════════════════════════════════════════════════════"));
-	}
 }
 
 void USuspenseCoreCharacterAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
@@ -248,16 +224,11 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 	const FSuspenseCoreWeaponStanceSnapshot Snapshot = StanceComp->GetStanceSnapshot();
 
-	// [ADS DEBUG] Track aiming state changes
-	const bool bPreviousAiming = bIsAiming;
-
 	// Detect weapon type change
 	bWeaponTypeChanged = (CurrentWeaponType != Snapshot.WeaponType);
 	if (bWeaponTypeChanged)
 	{
 		PreviousWeaponType = CurrentWeaponType;
-		UE_LOG(LogTemp, Log, TEXT("[AnimInstance] WeaponType changed: %s -> %s"),
-			*PreviousWeaponType.ToString(), *Snapshot.WeaponType.ToString());
 	}
 
 	CurrentWeaponType = Snapshot.WeaponType;
@@ -276,49 +247,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 	bCreateAimPose = Snapshot.bCreateAimPose;
 	SightDistance = Snapshot.SightDistance;
 
-	// [ADS DEBUG] Log when aiming state changes
-	if (bPreviousAiming != bIsAiming)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AnimInstance::UpdateWeaponData - bIsAiming CHANGED!"));
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] bIsAiming: %s -> %s"),
-			bPreviousAiming ? TEXT("TRUE") : TEXT("FALSE"),
-			bIsAiming ? TEXT("TRUE") : TEXT("FALSE"));
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Snapshot.AimPoseAlpha=%.2f, Current AimingAlpha=%.2f"),
-			Snapshot.AimPoseAlpha, AimingAlpha);
-
-		// Log which aim animations will be used when aiming starts!
-		if (bIsAiming)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ★★★ AIM STARTED - CHECKING ANIMATIONS ★★★"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimPose:  %s"),
-				CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("❌ NULL - NO AIM POSE!"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimIn:    %s"),
-				CurrentAnimationData.AimIn ? *CurrentAnimationData.AimIn->GetName() : TEXT("❌ NULL"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimIdle:  %s"),
-				CurrentAnimationData.AimIdle ? *CurrentAnimationData.AimIdle->GetName() : TEXT("❌ NULL - USING IDLE FALLBACK"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimOut:   %s"),
-				CurrentAnimationData.AimOut ? *CurrentAnimationData.AimOut->GetName() : TEXT("❌ NULL"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] GripPoses: %s"),
-				CurrentAnimationData.GripPoses ? *CurrentAnimationData.GripPoses->GetName() : TEXT("❌ NULL"));
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AimPose index=%d, bModifyGrip=%s, bCreateAimPose=%s"),
-				Snapshot.AimPose,
-				Snapshot.bModifyGrip ? TEXT("TRUE") : TEXT("FALSE"),
-				Snapshot.bCreateAimPose ? TEXT("TRUE") : TEXT("FALSE"));
-
-			// If GripPoses exists, log what pose will be used
-			if (CurrentAnimationData.GripPoses)
-			{
-				const float ExplicitTime = FSuspenseCoreAnimationData::GetExplicitTimeFromPoseIndex(Snapshot.AimPose);
-				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Expected ExplicitTime for AimPose[%d] = %.4f"),
-					Snapshot.AimPose, ExplicitTime);
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] AIM ENDED - Transitioning back to hip fire"));
-		}
-	}
 
 	// Pose indices
 	AimPose = Snapshot.AimPose;
@@ -348,11 +276,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
-	// Debug: Log state every time weapon is equipped but no data loaded
-	static float LastDebugLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const bool bShouldLogDebug = (CurrentTime - LastDebugLogTime) > 2.0f; // Log every 2 seconds max
-
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
 	{
 		CurrentAnimationData = FSuspenseCoreAnimationData();
@@ -362,156 +285,14 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 	const FSuspenseCoreAnimationData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
 	if (!AnimData)
 	{
-		if (bWeaponTypeChanged || bShouldLogDebug)
-		{
-			LastDebugLogTime = CurrentTime;
-			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Failed to load animation data for weapon '%s'."),
-				*CurrentWeaponType.ToString());
-			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] DataTable=%s, bHasWeapon=%d, WeaponType=%s"),
-				WeaponAnimationsTable ? *WeaponAnimationsTable->GetName() : TEXT("NULL"),
-				bHasWeaponEquipped,
-				*CurrentWeaponType.ToString());
-
-			// Log the expected row name
-			const FName ExpectedRowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(CurrentWeaponType);
-			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Expected RowName: '%s'"), *ExpectedRowName.ToString());
-
-			// Log all available rows in DataTable
-			if (WeaponAnimationsTable)
-			{
-				TArray<FName> RowNames = WeaponAnimationsTable->GetRowNames();
-				FString RowNamesStr;
-				for (const FName& Name : RowNames)
-				{
-					RowNamesStr += Name.ToString() + TEXT(", ");
-				}
-				UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Available rows: [%s]"), *RowNamesStr);
-			}
-		}
 		return;
 	}
 
 	CurrentAnimationData = *AnimData;
-
-	if (bWeaponTypeChanged)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] SUCCESS! Loaded animation data for '%s'. Stance=%s"),
-			*CurrentWeaponType.ToString(),
-			CurrentAnimationData.Stance ? *CurrentAnimationData.Stance->GetName() : TEXT("NULL"));
-
-		// LOG TRANSFORMS IMMEDIATELY ON WEAPON CHANGE
-		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
-		UE_LOG(LogTemp, Warning, TEXT("║ [DataTable] TRANSFORMS ON WEAPON EQUIP                       ║"));
-		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
-		UE_LOG(LogTemp, Warning, TEXT("║ RHTransform: Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
-			CurrentAnimationData.RHTransform.GetLocation().X,
-			CurrentAnimationData.RHTransform.GetLocation().Y,
-			CurrentAnimationData.RHTransform.GetLocation().Z,
-			CurrentAnimationData.RHTransform.GetRotation().Rotator().Pitch,
-			CurrentAnimationData.RHTransform.GetRotation().Rotator().Yaw,
-			CurrentAnimationData.RHTransform.GetRotation().Rotator().Roll);
-		UE_LOG(LogTemp, Warning, TEXT("║ LHTransform: Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
-			CurrentAnimationData.LHTransform.GetLocation().X,
-			CurrentAnimationData.LHTransform.GetLocation().Y,
-			CurrentAnimationData.LHTransform.GetLocation().Z,
-			CurrentAnimationData.LHTransform.GetRotation().Rotator().Pitch,
-			CurrentAnimationData.LHTransform.GetRotation().Rotator().Yaw,
-			CurrentAnimationData.LHTransform.GetRotation().Rotator().Roll);
-		UE_LOG(LogTemp, Warning, TEXT("║ WTransform:  Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
-			CurrentAnimationData.WTransform.GetLocation().X,
-			CurrentAnimationData.WTransform.GetLocation().Y,
-			CurrentAnimationData.WTransform.GetLocation().Z,
-			CurrentAnimationData.WTransform.GetRotation().Rotator().Pitch,
-			CurrentAnimationData.WTransform.GetRotation().Rotator().Yaw,
-			CurrentAnimationData.WTransform.GetRotation().Rotator().Roll);
-		UE_LOG(LogTemp, Warning, TEXT("║ LHGripTransform count: %d"), CurrentAnimationData.LHGripTransform.Num());
-		for (int32 i = 0; i < FMath::Min(CurrentAnimationData.LHGripTransform.Num(), 3); ++i)
-		{
-			const FTransform& GT = CurrentAnimationData.LHGripTransform[i];
-			UE_LOG(LogTemp, Warning, TEXT("║   [%d] Loc(%.2f, %.2f, %.2f) Rot(%.2f, %.2f, %.2f)"),
-				i, GT.GetLocation().X, GT.GetLocation().Y, GT.GetLocation().Z,
-				GT.GetRotation().Rotator().Pitch, GT.GetRotation().Rotator().Yaw, GT.GetRotation().Rotator().Roll);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
-
-		// ═══════════════════════════════════════════════════════════════════════════════
-		// LOG AIM ANIMATIONS ON WEAPON CHANGE - CRITICAL FOR DEBUGGING AIM POSE!
-		// ═══════════════════════════════════════════════════════════════════════════════
-		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
-		UE_LOG(LogTemp, Warning, TEXT("║ [DataTable] ★★★ AIM ANIMATIONS ★★★                         ║"));
-		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
-		UE_LOG(LogTemp, Warning, TEXT("║ AimPose (AnimComposite): %s"),
-			CurrentAnimationData.AimPose ? *CurrentAnimationData.AimPose->GetName() : TEXT("❌ NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("║ AimIn (AnimSequence):    %s"),
-			CurrentAnimationData.AimIn ? *CurrentAnimationData.AimIn->GetName() : TEXT("❌ NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("║ AimIdle (AnimSequence):  %s"),
-			CurrentAnimationData.AimIdle ? *CurrentAnimationData.AimIdle->GetName() : TEXT("❌ NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("║ AimOut (AnimSequence):   %s"),
-			CurrentAnimationData.AimOut ? *CurrentAnimationData.AimOut->GetName() : TEXT("❌ NULL!"));
-		UE_LOG(LogTemp, Warning, TEXT("║ GripPoses (AnimComposite): %s"),
-			CurrentAnimationData.GripPoses ? *CurrentAnimationData.GripPoses->GetName() : TEXT("❌ NULL!"));
-
-		// Check if any aim animation is missing
-		const bool bHasAimPose = CurrentAnimationData.AimPose != nullptr;
-		const bool bHasAimIn = CurrentAnimationData.AimIn != nullptr;
-		const bool bHasAimIdle = CurrentAnimationData.AimIdle != nullptr;
-		const bool bHasAimOut = CurrentAnimationData.AimOut != nullptr;
-
-		if (!bHasAimPose || !bHasAimIn || !bHasAimIdle || !bHasAimOut)
-		{
-			UE_LOG(LogTemp, Error, TEXT("║ ⚠️ WARNING: SOME AIM ANIMATIONS ARE MISSING IN DATATABLE!"));
-			UE_LOG(LogTemp, Error, TEXT("║ Aim pose will NOT work correctly until you assign:"));
-			if (!bHasAimPose) UE_LOG(LogTemp, Error, TEXT("║   → AimPose (AnimComposite)"));
-			if (!bHasAimIn)   UE_LOG(LogTemp, Error, TEXT("║   → AimIn (AnimSequence)"));
-			if (!bHasAimIdle) UE_LOG(LogTemp, Error, TEXT("║   → AimIdle (AnimSequence)"));
-			if (!bHasAimOut)  UE_LOG(LogTemp, Error, TEXT("║   → AimOut (AnimSequence)"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("║ ✓ All aim animations are assigned!"));
-		}
-		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
-	}
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 {
-	// DEBUG: Log DataTable LHGripTransform values on weapon equip
-	static float LastDataLogTime = 0.0f;
-	const float DataCurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const bool bShouldLogData = (DataCurrentTime - LastDataLogTime) > 5.0f && bHasWeaponEquipped;
-
-	if (bShouldLogData)
-	{
-		LastDataLogTime = DataCurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("╔══════════════════════════════════════════════════════════════╗"));
-		UE_LOG(LogTemp, Warning, TEXT("║ [UpdateIKData] DataTable Transform Values                    ║"));
-		UE_LOG(LogTemp, Warning, TEXT("╠══════════════════════════════════════════════════════════════╣"));
-		UE_LOG(LogTemp, Warning, TEXT("║ RHTransform: Loc(%.1f, %.1f, %.1f)"),
-			CurrentAnimationData.RHTransform.GetLocation().X,
-			CurrentAnimationData.RHTransform.GetLocation().Y,
-			CurrentAnimationData.RHTransform.GetLocation().Z);
-		UE_LOG(LogTemp, Warning, TEXT("║ LHTransform: Loc(%.1f, %.1f, %.1f)"),
-			CurrentAnimationData.LHTransform.GetLocation().X,
-			CurrentAnimationData.LHTransform.GetLocation().Y,
-			CurrentAnimationData.LHTransform.GetLocation().Z);
-		UE_LOG(LogTemp, Warning, TEXT("║ WTransform:  Loc(%.1f, %.1f, %.1f)"),
-			CurrentAnimationData.WTransform.GetLocation().X,
-			CurrentAnimationData.WTransform.GetLocation().Y,
-			CurrentAnimationData.WTransform.GetLocation().Z);
-		UE_LOG(LogTemp, Warning, TEXT("║ LHGripTransform count: %d"), CurrentAnimationData.LHGripTransform.Num());
-		for (int32 i = 0; i < CurrentAnimationData.LHGripTransform.Num(); ++i)
-		{
-			const FTransform& GT = CurrentAnimationData.LHGripTransform[i];
-			UE_LOG(LogTemp, Warning, TEXT("║   [%d] Loc(%.1f, %.1f, %.1f) Rot(%.1f, %.1f, %.1f)"),
-				i, GT.GetLocation().X, GT.GetLocation().Y, GT.GetLocation().Z,
-				GT.GetRotation().Rotator().Pitch, GT.GetRotation().Rotator().Yaw, GT.GetRotation().Rotator().Roll);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("║ GripID=%d, bModifyGrip=%d, bIsAiming=%d"),
-			GripID, bModifyGrip, bIsAiming);
-		UE_LOG(LogTemp, Warning, TEXT("╚══════════════════════════════════════════════════════════════╝"));
-	}
-
 	// IK is active when weapon is drawn
 	const float TargetIKAlpha = (bIsWeaponDrawn && bHasWeaponEquipped) ? 1.0f : 0.0f;
 	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaSeconds, 10.0f);
@@ -556,20 +337,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 
 	// Weapon transform (direct assignment, no interpolation needed)
 	WeaponTransform = CurrentAnimationData.WTransform;
-
-	// DEBUG: Log final IK transforms
-	static float LastIKLogTime = 0.0f;
-	const float IKCurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((IKCurrentTime - LastIKLogTime) > 3.0f && bHasWeaponEquipped)
-	{
-		LastIKLogTime = IKCurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[UpdateIKData] ★ Final LeftHandIKTransform = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
-			LeftHandIKTransform.GetLocation().X, LeftHandIKTransform.GetLocation().Y, LeftHandIKTransform.GetLocation().Z,
-			LeftHandIKAlpha);
-		UE_LOG(LogTemp, Warning, TEXT("[UpdateIKData] ★ Final RightHandIKTransform = Loc(%.1f, %.1f, %.1f), Alpha=%.2f"),
-			RightHandIKTransform.GetLocation().X, RightHandIKTransform.GetLocation().Y, RightHandIKTransform.GetLocation().Z,
-			RightHandIKAlpha);
-	}
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// IK VALIDITY CHECK
@@ -621,16 +388,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
 			LeftHandSocketLocation = SocketWorldTransform.GetLocation();
 			LeftHandSocketRotation = SocketWorldTransform.GetRotation().Rotator();
 			bHasLeftHandSocket = true;
-
-			// Debug log every 2 seconds
-			static float LastLogTime = 0.0f;
-			const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-			if ((CurrentTime - LastLogTime) > 2.0f)
-			{
-				LastLogTime = CurrentTime;
-				UE_LOG(LogTemp, Warning, TEXT("[LH Socket] ★ World Pos: (%.1f, %.1f, %.1f)"),
-					LeftHandSocketLocation.X, LeftHandSocketLocation.Y, LeftHandSocketLocation.Z);
-			}
 			return;
 		}
 	}
@@ -650,16 +407,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
 
 	// Socket not found
 	bHasLeftHandSocket = false;
-
-	// Warn once per weapon
-	static FName LastWarnedWeapon = NAME_None;
-	const FName CurrentWeaponName = FName(*WeaponActor->GetName());
-	if (LastWarnedWeapon != CurrentWeaponName)
-	{
-		LastWarnedWeapon = CurrentWeaponName;
-		UE_LOG(LogTemp, Warning, TEXT("[LH Socket] ⚠️ Socket '%s' NOT FOUND on weapon '%s'! Left hand IK disabled."),
-			*LHTargetSocketName.ToString(), *WeaponActor->GetName());
-	}
 #else
 	bHasLeftHandSocket = false;
 #endif
@@ -713,36 +460,18 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		return FTransform::Identity;
 	}
 
-	// DEBUG: Log LHGripTransform usage
-	static float LastLHLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const bool bShouldLog = (CurrentTime - LastLHLogTime) > 3.0f && bHasWeaponEquipped;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
 	// PRIORITY 1: LHGripTransform from DataTable (SSOT)
-	// If DataTable has non-Identity grip transforms, USE THEM as primary source
-	// ═══════════════════════════════════════════════════════════════════════════════
 	if (CurrentAnimationData.LHGripTransform.Num() > 0)
 	{
 		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
 		FTransform BaseGrip = CurrentAnimationData.LHGripTransform[GripIndex];
 
-		// Check if this grip transform has actual data (not Identity)
 		const bool bHasValidGripData = !BaseGrip.GetLocation().IsNearlyZero(0.01f) ||
 		                               !BaseGrip.GetRotation().IsIdentity(0.001f) ||
 		                               !BaseGrip.GetScale3D().Equals(FVector::OneVector, 0.01f);
 
 		if (bHasValidGripData)
 		{
-			if (bShouldLog)
-			{
-				LastLHLogTime = CurrentTime;
-				UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] ★ Using LHGripTransform[%d] = Loc(%.1f, %.1f, %.1f) Rot(%.1f, %.1f, %.1f)"),
-					GripIndex,
-					BaseGrip.GetLocation().X, BaseGrip.GetLocation().Y, BaseGrip.GetLocation().Z,
-					BaseGrip.GetRotation().Rotator().Pitch, BaseGrip.GetRotation().Rotator().Yaw, BaseGrip.GetRotation().Rotator().Roll);
-			}
-
 			// Blend to aim grip if aiming
 			if (bIsAiming && CurrentAnimationData.LHGripTransform.Num() > 1)
 			{
@@ -753,44 +482,18 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		}
 	}
 
-	// ═══════════════════════════════════════════════════════════════════════════════
 	// PRIORITY 2: LHTransform from DataTable (single transform)
-	// ═══════════════════════════════════════════════════════════════════════════════
 	if (!CurrentAnimationData.LHTransform.GetLocation().IsNearlyZero(0.01f) ||
 	    !CurrentAnimationData.LHTransform.GetRotation().IsIdentity(0.001f))
 	{
-		if (bShouldLog)
-		{
-			LastLHLogTime = CurrentTime;
-			UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Using LHTransform = Loc(%.1f, %.1f, %.1f)"),
-				CurrentAnimationData.LHTransform.GetLocation().X,
-				CurrentAnimationData.LHTransform.GetLocation().Y,
-				CurrentAnimationData.LHTransform.GetLocation().Z);
-		}
 		return CurrentAnimationData.LHTransform;
 	}
 
-	// ═══════════════════════════════════════════════════════════════════════════════
 	// PRIORITY 3: Socket transform from weapon (LH_Target socket)
-	// Only used if DataTable transforms are empty/Identity
-	// ═══════════════════════════════════════════════════════════════════════════════
 	FTransform SocketTransform;
 	if (GetWeaponLHTargetTransform(SocketTransform))
 	{
-		if (bShouldLog)
-		{
-			LastLHLogTime = CurrentTime;
-			UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Using Socket Transform = Loc(%.1f, %.1f, %.1f)"),
-				SocketTransform.GetLocation().X, SocketTransform.GetLocation().Y, SocketTransform.GetLocation().Z);
-		}
 		return SocketTransform;
-	}
-
-	if (bShouldLog)
-	{
-		LastLHLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[ComputeLHOffset] Returning Identity! LHGripTransform.Num=%d, GripID=%d"),
-			CurrentAnimationData.LHGripTransform.Num(), GripID);
 	}
 
 	return FTransform::Identity;
@@ -830,39 +533,12 @@ void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 			ADSTargetLocation = Mesh->GetSocketLocation(ADSTargetSocketName);
 			MeshWithADSSocket = Mesh;
 			bHasADSTarget = true;
-
-			// Debug log once when found
-			static bool bLoggedOnce = false;
-			if (!bLoggedOnce)
-			{
-				bLoggedOnce = true;
-				UE_LOG(LogTemp, Warning, TEXT("[ADS] ✓ Found socket '%s' on mesh '%s'"),
-					*ADSTargetSocketName.ToString(), *Mesh->GetName());
-			}
 			break;
 		}
 	}
 
 	if (!bHasADSTarget)
 	{
-		// Warn once
-		static bool bWarnedOnce = false;
-		if (!bWarnedOnce)
-		{
-			bWarnedOnce = true;
-			UE_LOG(LogTemp, Warning, TEXT("[ADS] ⚠️ Socket '%s' NOT FOUND on any skeletal mesh!"), *ADSTargetSocketName.ToString());
-			UE_LOG(LogTemp, Warning, TEXT("[ADS] Searched %d skeletal mesh components:"), SkeletalMeshes.Num());
-			for (USkeletalMeshComponent* Mesh : SkeletalMeshes)
-			{
-				if (Mesh)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[ADS]   - %s (Skeleton: %s)"),
-						*Mesh->GetName(),
-						Mesh->GetSkeletalMeshAsset() ? *Mesh->GetSkeletalMeshAsset()->GetName() : TEXT("NULL"));
-				}
-			}
-			UE_LOG(LogTemp, Warning, TEXT("[ADS] Add socket '%s' to 'head' bone in your skeleton!"), *ADSTargetSocketName.ToString());
-		}
 		ADSHandOffset = FVector::ZeroVector;
 		ADSHandOffsetRaw = FVector::ZeroVector;
 		return;
@@ -928,27 +604,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateADSData(float DeltaSeconds)
 
 	// Final offset multiplied by AimingAlpha (0 = hip fire, 1 = full ADS)
 	ADSHandOffset = ADSHandOffsetRaw * AimingAlpha;
-
-	// ═══════════════════════════════════════════════════════════════════════════════
-	// DEBUG LOGGING
-	// ═══════════════════════════════════════════════════════════════════════════════
-	static float LastADSLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastADSLogTime) > 1.0f && bIsAiming)
-	{
-		LastADSLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] ═══════════════════════════════════════════════════════"));
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] ADS_Target (head):  (%.1f, %.1f, %.1f)"),
-			ADSTargetLocation.X, ADSTargetLocation.Y, ADSTargetLocation.Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] Sight_Socket (gun): (%.1f, %.1f, %.1f)"),
-			ADSSightLocation.X, ADSSightLocation.Y, ADSSightLocation.Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] World Delta:        (%.1f, %.1f, %.1f)"),
-			WorldDelta.X, WorldDelta.Y, WorldDelta.Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] ★ ADSHandOffset:    (%.1f, %.1f, %.1f) [Component Space]"),
-			ADSHandOffset.X, ADSHandOffset.Y, ADSHandOffset.Z);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] AimingAlpha: %.2f"), AimingAlpha);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS] ═══════════════════════════════════════════════════════"));
-	}
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
@@ -1042,33 +697,15 @@ void USuspenseCoreCharacterAnimInstance::UpdateGASAttributes()
 
 void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] LoadWeaponAnimationsTable() called"));
-
 	const USuspenseCoreSettings* Settings = GetDefault<USuspenseCoreSettings>();
 	if (!Settings)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] ERROR: USuspenseCoreSettings is NULL!"));
 		return;
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Settings found. WeaponAnimationsTable.IsNull() = %s"),
-		Settings->WeaponAnimationsTable.IsNull() ? TEXT("TRUE (not set!)") : TEXT("FALSE (set)"));
 
 	if (!Settings->WeaponAnimationsTable.IsNull())
 	{
 		WeaponAnimationsTable = Settings->WeaponAnimationsTable.LoadSynchronous();
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] ✓ Loaded WeaponAnimationsTable: %s"),
-			WeaponAnimationsTable ? *WeaponAnimationsTable->GetName() : TEXT("NULL"));
-
-		if (WeaponAnimationsTable)
-		{
-			TArray<FName> RowNames = WeaponAnimationsTable->GetRowNames();
-			UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] DataTable has %d rows"), RowNames.Num());
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] ERROR: WeaponAnimationsTable NOT SET in Project Settings!"));
 	}
 }
 
@@ -1083,14 +720,6 @@ const FSuspenseCoreAnimationData* USuspenseCoreCharacterAnimInstance::GetAnimati
 	const UScriptStruct* RowStruct = WeaponAnimationsTable->GetRowStruct();
 	if (!RowStruct || RowStruct != FSuspenseCoreAnimationData::StaticStruct())
 	{
-		static bool bLoggedOnce = false;
-		if (!bLoggedOnce)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[AnimInstance] DataTable '%s' uses wrong row struct '%s'. Expected 'FSuspenseCoreAnimationData'!"),
-				*WeaponAnimationsTable->GetName(),
-				RowStruct ? *RowStruct->GetName() : TEXT("NULL"));
-			bLoggedOnce = true;
-		}
 		return nullptr;
 	}
 
@@ -1100,36 +729,16 @@ const FSuspenseCoreAnimationData* USuspenseCoreCharacterAnimInstance::GetAnimati
 		return nullptr;
 	}
 
-	const FSuspenseCoreAnimationData* Result = WeaponAnimationsTable->FindRow<FSuspenseCoreAnimationData>(RowName, TEXT("GetAnimationDataForWeaponType"));
-	if (!Result)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Row '%s' not found for weapon '%s'"), *RowName.ToString(), *WeaponType.ToString());
-	}
-
-	return Result;
+	return WeaponAnimationsTable->FindRow<FSuspenseCoreAnimationData>(RowName, TEXT("GetAnimationDataForWeaponType"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ANIMATION ASSET GETTERS (с логированием для отладки)
+// ANIMATION ASSET GETTERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 UBlendSpace* USuspenseCoreCharacterAnimInstance::GetStance() const
 {
-	UBlendSpace* Result = CurrentAnimationData.Stance;
-
-	// Debug logging (раз в 2 секунды)
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 2.0f && bHasWeaponEquipped)
-	{
-		LastLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[GetStance] Called! Returning: %s (bHasWeapon=%d, WeaponType=%s)"),
-			Result ? *Result->GetName() : TEXT("NULL"),
-			bHasWeaponEquipped,
-			*CurrentWeaponType.ToString());
-	}
-
-	return Result;
+	return CurrentAnimationData.Stance;
 }
 
 UBlendSpace1D* USuspenseCoreCharacterAnimInstance::GetLocomotion() const
@@ -1143,100 +752,33 @@ UAnimSequence* USuspenseCoreCharacterAnimInstance::GetIdle() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AIM ANIMATION GETTERS (с логированием для отладки)
+// AIM ANIMATION GETTERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 UAnimComposite* USuspenseCoreCharacterAnimInstance::GetAimPose() const
 {
-	UAnimComposite* Result = CurrentAnimationData.AimPose;
-
-	// Debug logging (раз в 2 секунды когда целимся)
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 2.0f && bIsAiming && bHasWeaponEquipped)
-	{
-		LastLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[GetAimPose] ★ CALLED! Returning: %s (bIsAiming=%d, AimingAlpha=%.2f)"),
-			Result ? *Result->GetName() : TEXT("❌ NULL!"),
-			bIsAiming, AimingAlpha);
-	}
-
-	return Result;
+	return CurrentAnimationData.AimPose;
 }
 
 UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimIn() const
 {
-	UAnimSequence* Result = CurrentAnimationData.AimIn;
-
-	// Debug: log when this getter is called while transitioning INTO aim
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 1.0f && AimingAlpha > 0.0f && AimingAlpha < 1.0f)
-	{
-		LastLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[GetAimIn] CALLED! Returning: %s (AimingAlpha=%.2f - TRANSITIONING)"),
-			Result ? *Result->GetName() : TEXT("❌ NULL!"),
-			AimingAlpha);
-	}
-
-	return Result;
+	return CurrentAnimationData.AimIn;
 }
 
 UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimIdle() const
 {
 	// Fallback to Idle if AimIdle is NULL to prevent Sequence Evaluator crash
-	UAnimSequence* Result = CurrentAnimationData.AimIdle ? CurrentAnimationData.AimIdle : CurrentAnimationData.Idle;
-
-	// Debug logging when fully aiming
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 2.0f && bIsAiming && AimingAlpha >= 0.95f)
-	{
-		LastLogTime = CurrentTime;
-		const bool bUsingFallback = (CurrentAnimationData.AimIdle == nullptr);
-		UE_LOG(LogTemp, Warning, TEXT("[GetAimIdle] ★ CALLED! Returning: %s %s"),
-			Result ? *Result->GetName() : TEXT("❌ NULL!"),
-			bUsingFallback ? TEXT("(⚠️ FALLBACK TO IDLE!)") : TEXT(""));
-	}
-
-	return Result;
+	return CurrentAnimationData.AimIdle ? CurrentAnimationData.AimIdle : CurrentAnimationData.Idle;
 }
 
 UAnimSequence* USuspenseCoreCharacterAnimInstance::GetAimOut() const
 {
-	UAnimSequence* Result = CurrentAnimationData.AimOut;
-
-	// Debug: log when transitioning OUT of aim
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 1.0f && !bIsAiming && AimingAlpha > 0.0f)
-	{
-		LastLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[GetAimOut] CALLED! Returning: %s (AimingAlpha=%.2f - TRANSITIONING OUT)"),
-			Result ? *Result->GetName() : TEXT("❌ NULL!"),
-			AimingAlpha);
-	}
-
-	return Result;
+	return CurrentAnimationData.AimOut;
 }
 
 UAnimComposite* USuspenseCoreCharacterAnimInstance::GetGripPoses() const
 {
-	UAnimComposite* Result = CurrentAnimationData.GripPoses;
-
-	// Debug logging (раз в 3 секунды)
-	static float LastLogTime = 0.0f;
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	if ((CurrentTime - LastLogTime) > 3.0f && bHasWeaponEquipped)
-	{
-		LastLogTime = CurrentTime;
-		UE_LOG(LogTemp, Warning, TEXT("[GetGripPoses] Returning: %s, GripID=%d, ModifyGrip=%d"),
-			Result ? *Result->GetName() : TEXT("NULL"),
-			GripID,
-			bModifyGrip);
-	}
-
-	return Result;
+	return CurrentAnimationData.GripPoses;
 }
 
 UAnimSequenceBase* USuspenseCoreCharacterAnimInstance::GetGripPoseByIndex(int32 PoseIndex) const

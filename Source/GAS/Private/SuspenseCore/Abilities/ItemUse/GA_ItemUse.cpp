@@ -55,8 +55,11 @@ bool UGA_ItemUse::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
+	ITEMUSE_ABILITY_LOG(Log, TEXT("CanActivateAbility: Checking... (Class=%s)"), *GetClass()->GetName());
+
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		ITEMUSE_ABILITY_LOG(Warning, TEXT("CanActivateAbility: Super::CanActivateAbility returned FALSE"));
 		return false;
 	}
 
@@ -68,16 +71,26 @@ bool UGA_ItemUse::CanActivateAbility(
 		return false;
 	}
 
+	ITEMUSE_ABILITY_LOG(Log, TEXT("CanActivateAbility: ItemUseService found"));
+
 	// Build request to validate
 	FSuspenseCoreItemUseRequest Request = BuildItemUseRequest(ActorInfo, nullptr);
 
 	if (!Request.IsValid())
 	{
+		ITEMUSE_ABILITY_LOG(Warning, TEXT("CanActivateAbility: Request is INVALID (ItemID=%s, InstanceID=%s)"),
+			*Request.SourceItem.ItemID.ToString(),
+			Request.SourceItem.UniqueInstanceID.IsValid() ? *Request.SourceItem.UniqueInstanceID.ToString() : TEXT("INVALID"));
 		return false;
 	}
 
+	ITEMUSE_ABILITY_LOG(Log, TEXT("CanActivateAbility: Request is VALID (ItemID=%s)"), *Request.SourceItem.ItemID.ToString());
+
 	// Validate with service
-	return Service->CanUseItem(Request);
+	const bool bCanUse = Service->CanUseItem(Request);
+	ITEMUSE_ABILITY_LOG(Log, TEXT("CanActivateAbility: Service->CanUseItem returned %s"), bCanUse ? TEXT("TRUE") : TEXT("FALSE"));
+
+	return bCanUse;
 }
 
 void UGA_ItemUse::ActivateAbility(
@@ -86,6 +99,8 @@ void UGA_ItemUse::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	ITEMUSE_ABILITY_LOG(Log, TEXT("ActivateAbility: STARTED (Class=%s)"), *GetClass()->GetName());
+
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		ITEMUSE_ABILITY_LOG(Warning, TEXT("ActivateAbility: CommitAbility failed"));

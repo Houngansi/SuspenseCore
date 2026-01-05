@@ -88,9 +88,23 @@ FSuspenseCoreItemUseRequest UGA_QuickSlotUse::BuildItemUseRequest(
 				Request.SourceSlotIndex = SlotIndex;
 				Request.SourceContainerTag = SlotData.SlotTag;
 
+				// Try to get MagazineData if this is a magazine
+				// This is CRITICAL for MagazineSwapHandler::ValidateRequest which checks IsMagazine()
+				FSuspenseCoreMagazineInstance MagazineData;
+				if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(Component, SlotIndex, MagazineData))
+				{
+					Request.SourceItem.MagazineData = MagazineData;
+					UE_LOG(LogGA_QuickSlotUse, Log,
+						TEXT("BuildItemUseRequest: Got MagazineData - MagID=%s, Rounds=%d/%d"),
+						*MagazineData.MagazineID.ToString(),
+						MagazineData.CurrentRoundCount,
+						MagazineData.MaxCapacity);
+				}
+
 				UE_LOG(LogGA_QuickSlotUse, Log,
-					TEXT("BuildItemUseRequest: SUCCESS - Slot %d has item %s"),
-					SlotIndex, *SlotData.AssignedItemID.ToString());
+					TEXT("BuildItemUseRequest: SUCCESS - Slot %d has item %s (IsMagazine=%s)"),
+					SlotIndex, *SlotData.AssignedItemID.ToString(),
+					Request.SourceItem.IsMagazine() ? TEXT("YES") : TEXT("NO"));
 
 				break;
 			}

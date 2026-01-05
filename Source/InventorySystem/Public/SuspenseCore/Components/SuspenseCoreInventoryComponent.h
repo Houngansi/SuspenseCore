@@ -12,6 +12,7 @@
 #include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUITypes.h"
 #include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"  // FSuspenseCoreSubscriptionHandle, FSuspenseCoreNativeEventCallback
 #include "SuspenseCore/Base/SuspenseCoreInventoryLogs.h"
 #include "SuspenseCoreInventoryComponent.generated.h"
 
@@ -589,8 +590,8 @@ private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USuspenseCoreDataManager> CachedDataManager;
 
-	/** EventBus subscription handles */
-	TArray<FDelegateHandle> EventSubscriptions;
+	/** EventBus subscription handles for magazine loading events */
+	TArray<FSuspenseCoreSubscriptionHandle> EventSubscriptions;
 
 	//==================================================================
 	// UI Data Provider State

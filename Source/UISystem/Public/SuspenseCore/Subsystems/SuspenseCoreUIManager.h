@@ -428,6 +428,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Config")
 	void SetScreenConfig(const FSuspenseCoreScreenConfig& NewConfig);
 
+	/**
+	 * Configure widget classes manually from Blueprint
+	 * Call this from GameMode BeginPlay or HUD Blueprint if auto-detection fails
+	 * @param InMagazineTooltipClass Widget class for magazine tooltips
+	 * @param InMagazineInspectionClass Widget class for magazine inspection panel
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Config")
+	void ConfigureWidgetClasses(
+		TSubclassOf<USuspenseCoreMagazineTooltipWidget> InMagazineTooltipClass,
+		TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass);
+
 	//==================================================================
 	// Events
 	//==================================================================
@@ -441,6 +452,13 @@ public:
 	FOnUINotification OnUINotification;
 
 protected:
+	//==================================================================
+	// Initialization Helpers
+	//==================================================================
+
+	/** Load default widget classes from common Blueprint paths */
+	void LoadDefaultWidgetClasses();
+
 	//==================================================================
 	// EventBus Integration
 	//==================================================================

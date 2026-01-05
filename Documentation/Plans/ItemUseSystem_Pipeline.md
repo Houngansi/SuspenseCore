@@ -1811,10 +1811,10 @@ ISuspenseCoreItemUseService* USuspenseCoreServiceProvider::GetItemUseService() c
 - [ ] Verify EquipmentSystem compiles
 
 ### Phase 3: GAS Abilities, Effects & Input Integration
-- [ ] Create `GA_ItemUse.h/.cpp` - Base item use ability
-- [ ] Create `GA_QuickSlotUse.h/.cpp` - QuickSlot ability (keys 4-7)
-- [ ] Create `GE_ItemUse_InProgress.h/.cpp` - C++ GameplayEffect base
-- [ ] Create `GE_ItemUse_Cooldown.h/.cpp` - C++ GameplayEffect base
+- [x] Create `GA_ItemUse.h/.cpp` - Base item use ability
+- [x] Create `GA_QuickSlotUse.h/.cpp` - QuickSlot ability (keys 4-7)
+- [x] Create `GE_ItemUse_InProgress.h/.cpp` - C++ GameplayEffect base
+- [x] Create `GE_ItemUse_Cooldown.h/.cpp` - C++ GameplayEffect base
 - [ ] Create `SuspenseCoreItemUseInputConfig.h/.cpp` - Input actions
 - [ ] Modify `SuspenseCorePlayerController` - Add QuickSlot input bindings
 - [ ] Modify `SuspenseCoreInputComponent` - Bind IA_QuickSlot1-4 actions

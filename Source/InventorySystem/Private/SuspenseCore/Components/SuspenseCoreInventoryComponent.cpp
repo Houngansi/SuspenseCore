@@ -2329,6 +2329,7 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 	// Consume ammo from source inventory slot
 	// @see TarkovStyle_Ammo_System_Design.md - Ammo consumption
 	// @see SuspenseCoreItemTypes.h:603 - UniqueInstanceID, :616 - Quantity
+	// @see SuspenseCoreInventoryComponent.cpp:2076 - UpdateWeightDelta()
 	//==================================================================
 	int32 SourceSlot = EventData.GetInt(TEXT("SourceInventorySlot"));
 	if (SourceSlot >= 0)
@@ -2340,11 +2341,34 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 			FSuspenseCoreItemInstance* AmmoItem = GetItemByInstanceID(AmmoItemCopy.UniqueInstanceID);
 			if (AmmoItem)
 			{
+				// Get ammo weight for proper weight tracking
+				// @see SuspenseCoreInventoryComponent.cpp:2076 - UpdateWeightDelta()
+				float AmmoUnitWeight = 0.0f;
+				USuspenseCoreDataManager* DM = GetDataManager();
+				if (DM)
+				{
+					FSuspenseCoreItemData AmmoData;
+					if (DM->GetItemData(AmmoID, AmmoData))
+					{
+						AmmoUnitWeight = AmmoData.InventoryProps.Weight;
+					}
+				}
+
+				// Update weight BEFORE decrement (fixes weight mismatch error)
+				// RemoveItemInternal calculates weight as unitWeight * Quantity,
+				// so if Quantity is already 0, it won't remove any weight
+				if (AmmoUnitWeight > 0.0f)
+				{
+					UpdateWeightDelta(-AmmoUnitWeight);
+				}
+
 				AmmoItem->Quantity--;
 
 				if (AmmoItem->Quantity <= 0)
 				{
 					// Remove empty stack
+					// Note: RemoveItemFromSlot will calculate WeightToRemove = unitWeight * 0 = 0
+					// which is correct since we already subtracted the weight above
 					FSuspenseCoreItemInstance RemovedItem;
 					RemoveItemFromSlot(SourceSlot, RemovedItem);
 					UE_LOG(LogSuspenseCoreInventory, Verbose,

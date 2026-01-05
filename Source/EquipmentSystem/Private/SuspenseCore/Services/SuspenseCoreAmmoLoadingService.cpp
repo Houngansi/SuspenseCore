@@ -4,9 +4,10 @@
 
 #include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Events/SuspenseCoreEventData.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAmmoLoading, Log, All);
@@ -23,7 +24,111 @@ USuspenseCoreAmmoLoadingService::USuspenseCoreAmmoLoadingService()
 }
 
 //==================================================================
-// Initialization
+// ISuspenseCoreEquipmentService Implementation
+//==================================================================
+
+bool USuspenseCoreAmmoLoadingService::InitializeService(const FSuspenseCoreServiceInitParams& Params)
+{
+    if (ServiceState != ESuspenseCoreServiceLifecycleState::Uninitialized)
+    {
+        AMMO_LOG(Warning, TEXT("InitializeService: Already initialized"));
+        return false;
+    }
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
+
+    // Get EventBus from EventManager
+    if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+    {
+        EventBus = EventManager->GetEventBus();
+    }
+
+    // Get DataManager from ServiceLocator if available
+    if (Params.ServiceLocator)
+    {
+        // DataManager might be registered as a service
+        // For now, try to find it in the world
+    }
+
+    // Subscribe to events
+    SubscribeToEvents();
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
+
+    AMMO_LOG(Log, TEXT("InitializeService: Service ready (EventBus=%s)"),
+        EventBus.IsValid() ? TEXT("Valid") : TEXT("NULL"));
+
+    return true;
+}
+
+bool USuspenseCoreAmmoLoadingService::ShutdownService(bool bForce)
+{
+    if (ServiceState == ESuspenseCoreServiceLifecycleState::Shutdown)
+    {
+        return true;
+    }
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
+
+    // Cancel all active operations
+    ActiveOperations.Empty();
+
+    // Unsubscribe from events
+    UnsubscribeFromEvents();
+
+    EventBus.Reset();
+    DataManager.Reset();
+
+    ServiceState = ESuspenseCoreServiceLifecycleState::Shutdown;
+
+    AMMO_LOG(Log, TEXT("ShutdownService: Service shutdown complete"));
+
+    return true;
+}
+
+FGameplayTag USuspenseCoreAmmoLoadingService::GetServiceTag() const
+{
+    return FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Service.AmmoLoading")), false);
+}
+
+FGameplayTagContainer USuspenseCoreAmmoLoadingService::GetRequiredDependencies() const
+{
+    // No strict dependencies - EventBus is obtained from EventManager
+    return FGameplayTagContainer();
+}
+
+bool USuspenseCoreAmmoLoadingService::ValidateService(TArray<FText>& OutErrors) const
+{
+    bool bValid = true;
+
+    if (!EventBus.IsValid())
+    {
+        OutErrors.Add(FText::FromString(TEXT("AmmoLoadingService: EventBus not available")));
+        bValid = false;
+    }
+
+    return bValid;
+}
+
+void USuspenseCoreAmmoLoadingService::ResetService()
+{
+    // Cancel all operations
+    ActiveOperations.Empty();
+    ManagedMagazines.Empty();
+
+    AMMO_LOG(Log, TEXT("ResetService: Service reset"));
+}
+
+FString USuspenseCoreAmmoLoadingService::GetServiceStats() const
+{
+    return FString::Printf(TEXT("AmmoLoadingService: ActiveOperations=%d, ManagedMagazines=%d, State=%s"),
+        ActiveOperations.Num(),
+        ManagedMagazines.Num(),
+        *UEnum::GetValueAsString(ServiceState));
+}
+
+//==================================================================
+// Legacy Initialization
 //==================================================================
 
 void USuspenseCoreAmmoLoadingService::Initialize(USuspenseCoreEventBus* InEventBus, USuspenseCoreDataManager* InDataManager)
@@ -33,6 +138,9 @@ void USuspenseCoreAmmoLoadingService::Initialize(USuspenseCoreEventBus* InEventB
 
     // Subscribe to ammo loading events
     SubscribeToEvents();
+
+    // Mark as ready for legacy initialization path
+    ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
 
     AMMO_LOG(Log, TEXT("Initialized with EventBus=%s, DataManager=%s"),
         InEventBus ? TEXT("Valid") : TEXT("NULL"),

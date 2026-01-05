@@ -17,6 +17,7 @@
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreAmmoLoadingService.generated.h"
 
@@ -177,7 +178,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  * @see FSuspenseCoreMagazineData
  */
 UCLASS(BlueprintType)
-class EQUIPMENTSYSTEM_API USuspenseCoreAmmoLoadingService : public UObject
+class EQUIPMENTSYSTEM_API USuspenseCoreAmmoLoadingService : public UObject, public ISuspenseCoreEquipmentService
 {
     GENERATED_BODY()
 
@@ -185,7 +186,21 @@ public:
     USuspenseCoreAmmoLoadingService();
 
     //==================================================================
-    // Initialization
+    // ISuspenseCoreEquipmentService Implementation
+    //==================================================================
+
+    virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
+    virtual bool ShutdownService(bool bForce = false) override;
+    virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+    virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
+    virtual FGameplayTag GetServiceTag() const override;
+    virtual FGameplayTagContainer GetRequiredDependencies() const override;
+    virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+    virtual void ResetService() override;
+    virtual FString GetServiceStats() const override;
+
+    //==================================================================
+    // Legacy Initialization (kept for compatibility)
     //==================================================================
 
     /**
@@ -376,4 +391,7 @@ private:
 
     /** Event subscription handle for load requests */
     FSuspenseCoreSubscriptionHandle LoadRequestedEventHandle;
+
+    /** Service lifecycle state */
+    ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
 };

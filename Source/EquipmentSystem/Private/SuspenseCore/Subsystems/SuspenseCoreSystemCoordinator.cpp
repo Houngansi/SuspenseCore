@@ -23,6 +23,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentOperationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
+#include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
 
 // ItemManager for DataService injection
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
@@ -567,6 +568,22 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
             AbilityParams);
 
         UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AbilityService"));
+        RegisteredCount++;
+    }
+
+    // Ammo Loading Service
+    const FGameplayTag TagAmmoLoading = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Service.AmmoLoading")), false);
+    if (TagAmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TagAmmoLoading))
+    {
+        FSuspenseCoreServiceInitParams AmmoLoadingParams;
+        AmmoLoadingParams.bAutoStart = true;
+
+        ServiceLocator->RegisterServiceClass(
+            TagAmmoLoading,
+            USuspenseCoreAmmoLoadingService::StaticClass(),
+            AmmoLoadingParams);
+
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
         RegisteredCount++;
     }
 

@@ -278,6 +278,17 @@ protected:
 	/** Handle slot double clicked - opens magazine inspection for magazine items */
 	void HandleSlotDoubleClicked(int32 SlotIndex);
 
+	/**
+	 * Try to handle ammo-to-magazine drop
+	 * @param DragData Drag data with ammo item
+	 * @param TargetSlot Slot containing magazine
+	 * @return True if handled (ammo loading started), false if not applicable
+	 */
+	bool TryHandleAmmoToMagazineDrop(const FSuspenseCoreDragData& DragData, int32 TargetSlot);
+
+	/** Check if item is ammo */
+	bool IsAmmoItem(const FSuspenseCoreItemUIData& ItemData) const;
+
 	/** Handle slot hovered */
 	void HandleSlotHovered(int32 SlotIndex);
 

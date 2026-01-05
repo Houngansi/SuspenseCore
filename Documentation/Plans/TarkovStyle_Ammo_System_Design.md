@@ -7,8 +7,8 @@ The system treats ammo as physical inventory items with detailed ballistic prope
 magazine-based reloading, and integrates with QuickSlots for fast tactical access.
 
 **Author:** Claude Code
-**Date:** 2026-01-04
-**Status:** Phase 5 Complete (SwapMagazineFromQuickSlot + AmmoLoadingService)
+**Date:** 2026-01-05
+**Status:** Phase 7 Complete (MagazineData Transfer Fix)
 **Related:** `SSOT_AttributeSet_DataTable_Integration.md`
 
 ---
@@ -25,6 +25,7 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 | Phase 4 | DONE | GAS Reload Abilities (GA_Reload, GA_QuickSlot) |
 | Phase 5 | DONE | SwapMagazineFromQuickSlot + AmmoLoadingService |
 | Phase 6 | DONE | UI Integration (HUD, Inventory) |
+| Phase 7 | DONE | **MagazineData Transfer Fix** - Inventory <-> QuickSlot |
 
 ### Key Files Created
 
@@ -96,6 +97,101 @@ Source/EquipmentSystem/
    - `TAG_Equipment_Event_Ammo_LoadCancelled`
    - `TAG_Equipment_Event_Ammo_UnloadStarted`
    - `TAG_Equipment_Event_Ammo_UnloadCompleted`
+
+### Phase 7: MagazineData Transfer Fix (2026-01-05)
+
+#### Problem Statement
+
+When transferring magazines between Inventory and QuickSlot, the MagazineData was being lost:
+- `CurrentRoundCount` - number of rounds in magazine
+- `LoadedAmmoID` - type of loaded ammunition
+- `MaxCapacity` - magazine capacity
+- Dynamic magazine weight
+
+This affected:
+- Inventory → QuickSlot (drag&drop)
+- QuickSlot → Inventory (unequip)
+- QuickSlot ↔ QuickSlot (swap within equipment)
+
+#### Root Cause
+
+1. **Type mismatch**: `FSuspenseCoreItemInstance` (InventorySystem) has MagazineData,
+   but `FSuspenseCoreInventoryItemInstance` (BridgeSystem) did NOT have it.
+
+2. **Incomplete converters**: `ConvertToItemInstance()` and `ConvertToInventoryItemInstance()`
+   in `SuspenseCoreEquipmentInventoryBridge.cpp` did not copy MagazineData.
+
+3. **Wrong API used**: `SyncQuickSlotAssignment()` used `AssignItemToSlot()` instead of
+   `AssignMagazineToSlot()` which stores full magazine data in `StoredMagazines[]`.
+
+#### Solution
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `SuspenseCoreInventoryBaseTypes.h` | Added `MagazineData` field + helper methods |
+| `SuspenseCoreEquipmentInventoryBridge.cpp` | Updated converters + SyncQuickSlotAssignment |
+
+**Key Changes:**
+
+1. **Added MagazineData to FSuspenseCoreInventoryItemInstance**:
+   ```cpp
+   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine")
+   FSuspenseCoreMagazineInstance MagazineData;
+   ```
+
+2. **Updated type converters**:
+   ```cpp
+   static FSuspenseCoreItemInstance ConvertToItemInstance(...) {
+       // ... existing fields ...
+       Result.MagazineData = Source.MagazineData;  // CRITICAL FIX
+       return Result;
+   }
+   ```
+
+3. **Updated SyncQuickSlotAssignment for magazines**:
+   ```cpp
+   if (Item.IsMagazine()) {
+       FSuspenseCoreMagazineInstance MagInstance;
+       // ... copy all MagazineData fields ...
+       QuickSlotComponent->AssignMagazineToSlot(QuickSlotIndex, MagInstance);
+   }
+   ```
+
+4. **Added reverse sync (QuickSlot → Inventory)**:
+   ```cpp
+   if (IsQuickSlotIndex(SlotIndex) && EquippedItem.IsMagazine()) {
+       FSuspenseCoreMagazineInstance StoredMag;
+       if (QuickSlotComponent->GetMagazineFromSlot(QuickSlotIndex, StoredMag)) {
+           EquippedItem.MagazineData = StoredMag;  // Restore from StoredMagazines
+       }
+   }
+   ```
+
+#### Data Flow (Fixed)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FIXED DATA FLOW                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Inventory → QuickSlot:                                                 │
+│  FSuspenseCoreItemInstance.MagazineData                                 │
+│       ↓ ConvertToInventoryItemInstance (COPIES MagazineData)            │
+│  FSuspenseCoreInventoryItemInstance.MagazineData                        │
+│       ↓ SyncQuickSlotAssignment → AssignMagazineToSlot()                │
+│  StoredMagazines[SlotIndex] = MagazineData ✓                            │
+│                                                                         │
+│  QuickSlot → Inventory:                                                 │
+│  StoredMagazines[SlotIndex]                                             │
+│       ↓ GetMagazineFromSlot() (in ExecuteTransfer_FromEquipToInventory) │
+│  EquippedItem.MagazineData = StoredMag ✓                                │
+│       ↓ ConvertToItemInstance (PRESERVES MagazineData)                  │
+│  Inventory item with full MagazineData ✓                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Git Commits (Phase 4)
 

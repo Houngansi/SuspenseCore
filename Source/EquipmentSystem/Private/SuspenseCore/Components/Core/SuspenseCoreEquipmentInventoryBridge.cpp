@@ -35,21 +35,43 @@ DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBridge, Log, All);
 // Bridge between FSuspenseCoreItemInstance (ISuspenseCoreInventory) and
 // FSuspenseCoreInventoryItemInstance (ISuspenseCoreEquipmentDataProvider)
 
+/**
+ * Convert FSuspenseCoreItemInstance -> FSuspenseCoreInventoryItemInstance
+ * CRITICAL: Preserves MagazineData for Tarkov-style ammo system
+ * @see TarkovStyle_Ammo_System_Design.md
+ */
 static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const FSuspenseCoreItemInstance& Source)
 {
     FSuspenseCoreInventoryItemInstance Result;
     Result.ItemID = Source.ItemID;
     Result.InstanceID = Source.UniqueInstanceID;
     Result.Quantity = Source.Quantity;
+
+    // CRITICAL FIX: Copy MagazineData to prevent data loss during transfers
+    // This preserves CurrentRoundCount, LoadedAmmoID, MaxCapacity when
+    // moving magazines between Inventory <-> QuickSlot
+    Result.MagazineData = Source.MagazineData;
+
     return Result;
 }
 
+/**
+ * Convert FSuspenseCoreInventoryItemInstance -> FSuspenseCoreItemInstance
+ * CRITICAL: Preserves MagazineData for Tarkov-style ammo system
+ * @see TarkovStyle_Ammo_System_Design.md
+ */
 static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInventoryItemInstance& Source)
 {
     FSuspenseCoreItemInstance Result;
     Result.ItemID = Source.ItemID;
     Result.UniqueInstanceID = Source.InstanceID;
     Result.Quantity = Source.Quantity;
+
+    // CRITICAL FIX: Copy MagazineData to prevent data loss during transfers
+    // This preserves CurrentRoundCount, LoadedAmmoID, MaxCapacity when
+    // moving magazines between Inventory <-> QuickSlot
+    Result.MagazineData = Source.MagazineData;
+
     return Result;
 }
 
@@ -828,6 +850,41 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
         return FSuspenseCoreInventorySimpleResult::Success(Request.SourceSlot);
     }
 
+    // CRITICAL FIX: Restore MagazineData from StoredMagazines when moving magazine from QuickSlot to Inventory
+    // This ensures CurrentRoundCount, LoadedAmmoID, MaxCapacity are preserved
+    // @see TarkovStyle_Ammo_System_Design.md - Magazine data flow
+    if (IsQuickSlotIndex(Request.SourceSlot) && EquippedItem.IsMagazine())
+    {
+        CacheQuickSlotComponent();
+
+        if (QuickSlotComponent.IsValid())
+        {
+            int32 QuickSlotIndex = EquipmentSlotToQuickSlotIndex(Request.SourceSlot);
+            FSuspenseCoreMagazineInstance StoredMag;
+
+            // Get the actual magazine data from StoredMagazines[]
+            if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(QuickSlotComponent.Get(), QuickSlotIndex, StoredMag))
+            {
+                // Update EquippedItem's MagazineData with current values from StoredMagazines
+                EquippedItem.MagazineData.MagazineID = StoredMag.MagazineID;
+                EquippedItem.MagazineData.CurrentRoundCount = StoredMag.CurrentRoundCount;
+                EquippedItem.MagazineData.MaxCapacity = StoredMag.MaxCapacity;
+                EquippedItem.MagazineData.LoadedAmmoID = StoredMag.LoadedAmmoID;
+                EquippedItem.MagazineData.CurrentDurability = StoredMag.CurrentDurability;
+
+                UE_LOG(LogEquipmentBridge, Warning,
+                    TEXT("ExecuteTransfer_FromEquipToInventory: RESTORED MagazineData from StoredMagazines - Rounds=%d/%d, AmmoType=%s"),
+                    StoredMag.CurrentRoundCount, StoredMag.MaxCapacity, *StoredMag.LoadedAmmoID.ToString());
+            }
+            else
+            {
+                UE_LOG(LogEquipmentBridge, Warning,
+                    TEXT("ExecuteTransfer_FromEquipToInventory: Could not get MagazineData from StoredMagazines for slot %d"),
+                    QuickSlotIndex);
+            }
+        }
+    }
+
     UE_LOG(LogEquipmentBridge, Warning, TEXT("Item to transfer: %s (InstanceID: %s)"),
         *EquippedItem.ItemID.ToString(),
         *EquippedItem.UniqueInstanceID.ToString());
@@ -1544,6 +1601,34 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     if (EquipmentDataProvider->IsSlotOccupied(EquipmentSlot))
     {
         EquippedItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(EquipmentSlot));
+
+        // CRITICAL FIX: Restore MagazineData from StoredMagazines when swapping magazine from QuickSlot
+        // This ensures CurrentRoundCount, LoadedAmmoID, MaxCapacity are preserved when item goes to Inventory
+        // @see TarkovStyle_Ammo_System_Design.md - Magazine data flow
+        if (IsQuickSlotIndex(EquipmentSlot) && EquippedItem.IsMagazine())
+        {
+            CacheQuickSlotComponent();
+
+            if (QuickSlotComponent.IsValid())
+            {
+                int32 QuickSlotIndex = EquipmentSlotToQuickSlotIndex(EquipmentSlot);
+                FSuspenseCoreMagazineInstance StoredMag;
+
+                if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(QuickSlotComponent.Get(), QuickSlotIndex, StoredMag))
+                {
+                    EquippedItem.MagazineData.MagazineID = StoredMag.MagazineID;
+                    EquippedItem.MagazineData.CurrentRoundCount = StoredMag.CurrentRoundCount;
+                    EquippedItem.MagazineData.MaxCapacity = StoredMag.MaxCapacity;
+                    EquippedItem.MagazineData.LoadedAmmoID = StoredMag.LoadedAmmoID;
+                    EquippedItem.MagazineData.CurrentDurability = StoredMag.CurrentDurability;
+
+                    UE_LOG(LogEquipmentBridge, Warning,
+                        TEXT("ExecuteSwap: RESTORED MagazineData from StoredMagazines - Rounds=%d/%d, AmmoType=%s"),
+                        StoredMag.CurrentRoundCount, StoredMag.MaxCapacity, *StoredMag.LoadedAmmoID.ToString());
+                }
+            }
+        }
+
         Transaction.EquipmentBackup = EquippedItem;
         UE_LOG(LogEquipmentBridge, Log, TEXT("✓ Slot %d occupied by: %s"), EquipmentSlot, *EquippedItem.ItemID.ToString());
     }
@@ -2385,6 +2470,11 @@ void USuspenseCoreEquipmentInventoryBridge::CacheQuickSlotComponent()
     }
 }
 
+/**
+ * Synchronize QuickSlot with equipment item assignment
+ * CRITICAL: For magazines, uses AssignMagazineToSlot to preserve MagazineData
+ * @see TarkovStyle_Ammo_System_Design.md - Magazine weight and ammo tracking
+ */
 void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotAssignment(int32 EquipmentSlotIndex, const FSuspenseCoreItemInstance& Item)
 {
     UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: Checking slot %d"), EquipmentSlotIndex);
@@ -2406,12 +2496,40 @@ void USuspenseCoreEquipmentInventoryBridge::SyncQuickSlotAssignment(int32 Equipm
     int32 QuickSlotIndex = EquipmentSlotToQuickSlotIndex(EquipmentSlotIndex);
     if (QuickSlotIndex != INDEX_NONE && Item.IsValid())
     {
-        // Assign item to QuickSlotComponent - this will trigger NotifySlotChanged()
-        // which publishes the EventBus event that HUD subscribes to
-        bool bAssigned = QuickSlotComponent->AssignItemToSlot(QuickSlotIndex, Item.UniqueInstanceID, Item.ItemID);
+        bool bAssigned = false;
 
-        UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: EquipSlot %d -> QuickSlot %d, Item %s, Result: %s"),
-            EquipmentSlotIndex, QuickSlotIndex, *Item.ItemID.ToString(), bAssigned ? TEXT("SUCCESS") : TEXT("FAILED"));
+        // CRITICAL FIX: For magazines, use AssignMagazineToSlot to store full MagazineData
+        // This preserves CurrentRoundCount, LoadedAmmoID, MaxCapacity in StoredMagazines[]
+        if (Item.IsMagazine())
+        {
+            // Create magazine instance with full data from Item.MagazineData
+            FSuspenseCoreMagazineInstance MagInstance;
+            MagInstance.InstanceGuid = Item.UniqueInstanceID;
+            MagInstance.MagazineID = Item.MagazineData.MagazineID;
+            MagInstance.CurrentRoundCount = Item.MagazineData.CurrentRoundCount;
+            MagInstance.MaxCapacity = Item.MagazineData.MaxCapacity;
+            MagInstance.LoadedAmmoID = Item.MagazineData.LoadedAmmoID;
+            MagInstance.CurrentDurability = Item.MagazineData.CurrentDurability;
+
+            bAssigned = QuickSlotComponent->AssignMagazineToSlot(QuickSlotIndex, MagInstance);
+
+            UE_LOG(LogEquipmentBridge, Warning,
+                TEXT("SyncQuickSlotAssignment: MAGAZINE EquipSlot %d -> QuickSlot %d, MagID=%s, Rounds=%d/%d, AmmoType=%s, Result: %s"),
+                EquipmentSlotIndex, QuickSlotIndex,
+                *Item.MagazineData.MagazineID.ToString(),
+                Item.MagazineData.CurrentRoundCount,
+                Item.MagazineData.MaxCapacity,
+                *Item.MagazineData.LoadedAmmoID.ToString(),
+                bAssigned ? TEXT("SUCCESS") : TEXT("FAILED"));
+        }
+        else
+        {
+            // For non-magazine items, use standard assignment
+            bAssigned = QuickSlotComponent->AssignItemToSlot(QuickSlotIndex, Item.UniqueInstanceID, Item.ItemID);
+
+            UE_LOG(LogEquipmentBridge, Warning, TEXT("SyncQuickSlotAssignment: EquipSlot %d -> QuickSlot %d, Item %s, Result: %s"),
+                EquipmentSlotIndex, QuickSlotIndex, *Item.ItemID.ToString(), bAssigned ? TEXT("SUCCESS") : TEXT("FAILED"));
+        }
     }
 }
 

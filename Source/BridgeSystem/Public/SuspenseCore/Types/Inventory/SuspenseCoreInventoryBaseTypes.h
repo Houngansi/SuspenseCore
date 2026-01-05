@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCoreInventoryBaseTypes.generated.h"
 
 // Forward declarations для структур из DataTable (единый источник истины)
@@ -115,6 +116,19 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
      */
     UPROPERTY(BlueprintReadWrite, Category = "Item|Runtime")
     float LastUsedTime = 0.0f;
+
+    //==================================================================
+    // Magazine Data (for Tarkov-style ammo system)
+    // @see TarkovStyle_Ammo_System_Design.md
+    //==================================================================
+
+    /**
+     * Magazine-specific runtime data (for Item.Magazine tagged items)
+     * Contains current round count, loaded ammo type, and magazine state.
+     * This data MUST be preserved during inventory <-> equipment transfers.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine")
+    FSuspenseCoreMagazineInstance MagazineData;
 
     //==================================================================
     // Static Factory Methods (замена конструкторов)
@@ -322,6 +336,64 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
     {
         float CooldownEndTime = GetRuntimeProperty(TEXT("CooldownEnd"), 0.0f);
         return FMath::Max(0.0f, CooldownEndTime - CurrentTime);
+    }
+
+    //==================================================================
+    // Magazine Helper Methods
+    // @see TarkovStyle_Ammo_System_Design.md - Tarkov-style ammo loading
+    //==================================================================
+
+    /**
+     * Check if this item is a magazine
+     * @return true if MagazineData is valid (has MagazineID set)
+     */
+    bool IsMagazine() const
+    {
+        return MagazineData.IsValid();
+    }
+
+    /**
+     * Get current ammo count in magazine
+     * @return Number of rounds currently loaded, 0 if not a magazine
+     */
+    int32 GetMagazineRoundCount() const
+    {
+        return IsMagazine() ? MagazineData.CurrentRoundCount : 0;
+    }
+
+    /**
+     * Get magazine fill percentage
+     * @return 0.0-1.0 fill percentage, 0 if not a magazine
+     */
+    float GetMagazineFillPercent() const
+    {
+        return IsMagazine() ? MagazineData.GetFillPercentage() : 0.0f;
+    }
+
+    /**
+     * Check if magazines don't stack (they have unique ammo state)
+     */
+    bool CanStackWith(const FSuspenseCoreInventoryItemInstance& Other) const
+    {
+        // Same item type required
+        if (ItemID != Other.ItemID)
+        {
+            return false;
+        }
+
+        // Magazines never stack (they have unique ammo state)
+        if (IsMagazine() || Other.IsMagazine())
+        {
+            return false;
+        }
+
+        // Items with runtime properties don't stack
+        if (RuntimeProperties.Num() > 0 || Other.RuntimeProperties.Num() > 0)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     //==================================================================

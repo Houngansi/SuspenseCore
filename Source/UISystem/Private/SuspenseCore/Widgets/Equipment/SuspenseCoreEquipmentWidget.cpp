@@ -693,12 +693,8 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotAssignedEvent(FGameplayTag EventTa
 void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
 	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), INDEX_NONE);
-
-	UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: OnQuickSlotClearedEvent received - SlotIndex=%d"), SlotIndex);
-
 	if (SlotIndex == INDEX_NONE || SlotIndex < 0 || SlotIndex >= 4)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: Invalid SlotIndex %d"), SlotIndex);
 		return;
 	}
 
@@ -712,19 +708,8 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag
 
 	EEquipmentSlotType TargetSlotType = QuickSlotTypes[SlotIndex];
 	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotByType(TargetSlotType);
-
-	UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: Looking for SlotType %d, Found widget: %s"),
-		(int32)TargetSlotType,
-		SlotWidget ? TEXT("YES") : TEXT("NO"));
-
-	// Debug: Log all available slot types in map
 	if (!SlotWidget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget: Available slot types in map:"));
-		for (const auto& Pair : SlotWidgetsByType)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  - SlotType %d"), (int32)Pair.Key);
-		}
 		return;
 	}
 
@@ -736,8 +721,6 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag
 	FSuspenseCoreItemUIData ItemData; // Empty
 
 	SlotWidget->UpdateSlotData(SlotData, ItemData);
-
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: QuickSlot %d cleared successfully"), SlotIndex);
 }
 
 //==================================================================

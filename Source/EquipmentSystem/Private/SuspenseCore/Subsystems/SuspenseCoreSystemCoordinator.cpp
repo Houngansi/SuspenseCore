@@ -24,6 +24,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
 #include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 
 // ItemManager for DataService injection
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"

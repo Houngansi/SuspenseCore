@@ -1827,12 +1827,12 @@ ISuspenseCoreItemUseService* USuspenseCoreServiceProvider::GetItemUseService() c
 - [x] Create `SuspenseCoreMagazineSwapHandler`
 - [x] Create `SuspenseCoreMedicalUseHandler`
 - [x] Create `SuspenseCoreGrenadeHandler`
-- [ ] Verify all handlers register correctly
+- [x] Verify all handlers register correctly (auto-registration in ItemUseService)
 
 ### Phase 5: Integration
-- [ ] Modify `QuickSlotComponent` to use service
+- [x] Modify `QuickSlotComponent` to use service
 - [ ] Modify HUD input bindings
-- [ ] Remove tick from `AmmoLoadingService`
+- [ ] Remove tick from `AmmoLoadingService` (using FTSTicker, deferred)
 - [ ] Update UI to use EventBus
 - [ ] Create developer documentation
 - [ ] Full system test

@@ -7,6 +7,11 @@
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreAmmoToMagazineHandler.h"
+#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMagazineSwapHandler.h"
+#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMedicalUseHandler.h"
+#include "SuspenseCore/Handlers/ItemUse/SuspenseCoreGrenadeHandler.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
@@ -62,6 +67,9 @@ bool USuspenseCoreItemUseService::InitializeService(const FSuspenseCoreServiceIn
 			}
 		}
 	}
+
+	// Auto-register built-in handlers
+	AutoRegisterHandlers();
 
 	ServiceState = ESuspenseCoreServiceLifecycleState::Ready;
 
@@ -758,4 +766,56 @@ float USuspenseCoreItemUseService::GetWorldTimeSeconds() const
 
 	// Fallback
 	return static_cast<float>(FPlatformTime::Seconds());
+}
+
+//==================================================================
+// Handler Auto-Registration
+//==================================================================
+
+void USuspenseCoreItemUseService::AutoRegisterHandlers()
+{
+	ITEMUSE_LOG(Log, TEXT("AutoRegisterHandlers: Registering built-in handlers..."));
+
+	// Get DataManager and EventBus for handler initialization
+	USuspenseCoreDataManager* DataManager = nullptr;
+	USuspenseCoreEventBus* EventBusPtr = EventBus.Get();
+
+	if (ServiceProvider.IsValid())
+	{
+		DataManager = ServiceProvider->GetDataManager();
+	}
+
+	// Create and register AmmoToMagazine handler
+	USuspenseCoreAmmoToMagazineHandler* AmmoHandler = NewObject<USuspenseCoreAmmoToMagazineHandler>(this);
+	if (AmmoHandler)
+	{
+		AmmoHandler->Initialize(DataManager, EventBusPtr);
+		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(AmmoHandler));
+	}
+
+	// Create and register MagazineSwap handler
+	USuspenseCoreMagazineSwapHandler* MagSwapHandler = NewObject<USuspenseCoreMagazineSwapHandler>(this);
+	if (MagSwapHandler)
+	{
+		MagSwapHandler->Initialize(DataManager, EventBusPtr);
+		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(MagSwapHandler));
+	}
+
+	// Create and register Medical handler
+	USuspenseCoreMedicalUseHandler* MedicalHandler = NewObject<USuspenseCoreMedicalUseHandler>(this);
+	if (MedicalHandler)
+	{
+		MedicalHandler->Initialize(DataManager, EventBusPtr);
+		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(MedicalHandler));
+	}
+
+	// Create and register Grenade handler
+	USuspenseCoreGrenadeHandler* GrenadeHandler = NewObject<USuspenseCoreGrenadeHandler>(this);
+	if (GrenadeHandler)
+	{
+		GrenadeHandler->Initialize(DataManager, EventBusPtr);
+		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(GrenadeHandler));
+	}
+
+	ITEMUSE_LOG(Log, TEXT("AutoRegisterHandlers: Registered %d handlers"), Handlers.Num());
 }

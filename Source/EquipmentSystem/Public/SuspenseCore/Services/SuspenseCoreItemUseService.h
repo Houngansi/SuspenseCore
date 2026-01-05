@@ -317,6 +317,9 @@ protected:
 	/** Sort handlers by priority (called after registration changes) */
 	void SortHandlersByPriority();
 
+	/** Auto-register built-in handlers */
+	void AutoRegisterHandlers();
+
 	/** Build QuickSlot request from slot data */
 	FSuspenseCoreItemUseRequest BuildQuickSlotRequest(int32 QuickSlotIndex, AActor* OwnerActor) const;
 

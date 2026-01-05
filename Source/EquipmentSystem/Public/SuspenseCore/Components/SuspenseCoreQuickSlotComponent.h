@@ -292,6 +292,12 @@ protected:
     /** Execute grenade preparation */
     bool ExecuteGrenadePrepare(int32 SlotIndex);
 
+    /**
+     * Direct execution fallback when ItemUseService is not available.
+     * Delegates to appropriate Execute* method based on item type.
+     */
+    bool ExecuteQuickSlotDirect(int32 SlotIndex);
+
     /** Notify slot changed (broadcasts event) */
     void NotifySlotChanged(int32 SlotIndex, const FGuid& OldItemID, const FGuid& NewItemID);
 

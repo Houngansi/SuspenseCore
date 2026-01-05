@@ -1,0 +1,381 @@
+// SuspenseCoreItemUseService.h
+// Item Use Service - SSOT for all item use operations
+// Copyright Suspense Team. All Rights Reserved.
+//
+// ARCHITECTURE:
+// - Implements ISuspenseCoreItemUseService (BridgeSystem interface)
+// - Implements ISuspenseCoreEquipmentService (lifecycle management)
+// - Registered with USuspenseCoreServiceProvider
+// - Publishes events to EventBus
+// - Manages handler registry with priority sorting
+//
+// USAGE:
+//   USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
+//   auto* Service = Provider->GetService<USuspenseCoreItemUseService>();
+//
+//   FSuspenseCoreItemUseRequest Request;
+//   Request.SourceItem = MyItem;
+//   Request.Context = ESuspenseCoreItemUseContext::QuickSlot;
+//
+//   if (Service->CanUseItem(Request))
+//   {
+//       FSuspenseCoreItemUseResponse Response = Service->UseItem(Request, GetOwner());
+//   }
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/NoExportTypes.h"
+#include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseService.h"
+#include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseHandler.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
+#include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
+#include "GameplayTagContainer.h"
+#include "SuspenseCoreItemUseService.generated.h"
+
+// Forward declarations
+class USuspenseCoreEventBus;
+class USuspenseCoreServiceProvider;
+struct FSuspenseCoreEventData;
+
+/**
+ * Registered handler entry with cached priority
+ */
+USTRUCT()
+struct FSuspenseCoreRegisteredHandler
+{
+	GENERATED_BODY()
+
+	/** Handler instance */
+	UPROPERTY()
+	TScriptInterface<ISuspenseCoreItemUseHandler> Handler;
+
+	/** Cached handler tag */
+	UPROPERTY()
+	FGameplayTag HandlerTag;
+
+	/** Cached priority for sorting */
+	UPROPERTY()
+	uint8 Priority = 50;
+
+	/** Is handler valid */
+	bool IsValid() const
+	{
+		return Handler.GetInterface() != nullptr;
+	}
+
+	/** Comparison for priority sorting (higher first) */
+	bool operator<(const FSuspenseCoreRegisteredHandler& Other) const
+	{
+		return Priority > Other.Priority;
+	}
+};
+
+/**
+ * Active operation tracking for time-based operations
+ */
+USTRUCT()
+struct FSuspenseCoreActiveOperation
+{
+	GENERATED_BODY()
+
+	/** Original request */
+	UPROPERTY()
+	FSuspenseCoreItemUseRequest Request;
+
+	/** Handler that's processing this */
+	UPROPERTY()
+	FGameplayTag HandlerTag;
+
+	/** Start time (world time seconds) */
+	UPROPERTY()
+	float StartTime = 0.0f;
+
+	/** Expected duration */
+	UPROPERTY()
+	float Duration = 0.0f;
+
+	/** Owner actor */
+	UPROPERTY()
+	TWeakObjectPtr<AActor> OwnerActor;
+
+	/** Current progress 0.0 - 1.0 */
+	float GetProgress(float CurrentTime) const
+	{
+		if (Duration <= 0.0f) return 1.0f;
+		return FMath::Clamp((CurrentTime - StartTime) / Duration, 0.0f, 1.0f);
+	}
+
+	/** Is operation complete */
+	bool IsComplete(float CurrentTime) const
+	{
+		return GetProgress(CurrentTime) >= 1.0f;
+	}
+};
+
+/**
+ * Delegate for item use events
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnItemUseStarted,
+	const FSuspenseCoreItemUseRequest&, Request,
+	float, Duration
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnItemUseProgress,
+	const FGuid&, RequestID,
+	float, Progress,
+	float, RemainingTime
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnItemUseCompleted,
+	const FGuid&, RequestID,
+	const FSuspenseCoreItemUseResponse&, Response
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+	FOnItemUseCancelled,
+	const FGuid&, RequestID,
+	const FText&, Reason
+);
+
+/**
+ * USuspenseCoreItemUseService
+ *
+ * SSOT (Single Source of Truth) service for all item use operations.
+ *
+ * This service is the central point for:
+ * - Registering/unregistering handlers
+ * - Routing use requests to appropriate handlers
+ * - Managing active time-based operations
+ * - Publishing events to EventBus
+ * - Providing validation before execution
+ *
+ * ALL item use requests MUST go through this service.
+ *
+ * ARCHITECTURE (per SuspenseCoreArchitecture.md):
+ * - Interface defined in BridgeSystem
+ * - Implementation here in EquipmentSystem
+ * - No dependency on GAS module
+ * - EventBus for cross-module communication
+ *
+ * @see ISuspenseCoreItemUseService
+ * @see ISuspenseCoreItemUseHandler
+ */
+UCLASS(BlueprintType)
+class EQUIPMENTSYSTEM_API USuspenseCoreItemUseService : public UObject,
+	public ISuspenseCoreItemUseService,
+	public ISuspenseCoreEquipmentService
+{
+	GENERATED_BODY()
+
+public:
+	USuspenseCoreItemUseService();
+
+	//==================================================================
+	// ISuspenseCoreEquipmentService Implementation
+	//==================================================================
+
+	virtual bool InitializeService(const FSuspenseCoreServiceInitParams& Params) override;
+	virtual bool ShutdownService(bool bForce = false) override;
+	virtual ESuspenseCoreServiceLifecycleState GetServiceState() const override { return ServiceState; }
+	virtual bool IsServiceReady() const override { return ServiceState == ESuspenseCoreServiceLifecycleState::Ready; }
+	virtual FGameplayTag GetServiceTag() const override;
+	virtual FGameplayTagContainer GetRequiredDependencies() const override;
+	virtual bool ValidateService(TArray<FText>& OutErrors) const override;
+	virtual void ResetService() override;
+	virtual FString GetServiceStats() const override;
+
+	//==================================================================
+	// ISuspenseCoreItemUseService Implementation - Handler Registration
+	//==================================================================
+
+	virtual bool RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler> Handler) override;
+	virtual bool UnregisterHandler(FGameplayTag HandlerTag) override;
+	virtual TArray<FGameplayTag> GetRegisteredHandlers() const override;
+	virtual bool IsHandlerRegistered(FGameplayTag HandlerTag) const override;
+
+	//==================================================================
+	// ISuspenseCoreItemUseService Implementation - Validation
+	//==================================================================
+
+	virtual bool CanUseItem(const FSuspenseCoreItemUseRequest& Request) const override;
+	virtual FSuspenseCoreItemUseResponse ValidateUseRequest(
+		const FSuspenseCoreItemUseRequest& Request) const override;
+	virtual float GetUseDuration(const FSuspenseCoreItemUseRequest& Request) const override;
+	virtual float GetUseCooldown(const FSuspenseCoreItemUseRequest& Request) const override;
+
+	//==================================================================
+	// ISuspenseCoreItemUseService Implementation - Execution
+	//==================================================================
+
+	virtual FSuspenseCoreItemUseResponse UseItem(
+		const FSuspenseCoreItemUseRequest& Request,
+		AActor* OwnerActor) override;
+
+	virtual bool CancelUse(const FGuid& RequestID) override;
+	virtual bool IsOperationInProgress(const FGuid& RequestID) const override;
+	virtual bool GetOperationProgress(const FGuid& RequestID, float& OutProgress) const override;
+
+	//==================================================================
+	// ISuspenseCoreItemUseService Implementation - QuickSlot
+	//==================================================================
+
+	virtual FSuspenseCoreItemUseResponse UseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor) override;
+	virtual bool CanUseQuickSlot(int32 QuickSlotIndex, AActor* OwnerActor) const override;
+
+	//==================================================================
+	// ISuspenseCoreItemUseService Implementation - Handler Query
+	//==================================================================
+
+	virtual FGameplayTag FindHandlerForRequest(const FSuspenseCoreItemUseRequest& Request) const override;
+
+	//==================================================================
+	// Legacy Initialization (for compatibility)
+	//==================================================================
+
+	/**
+	 * Initialize with explicit dependencies
+	 * Prefer using InitializeService() with FSuspenseCoreServiceInitParams
+	 *
+	 * @param InEventBus EventBus for publishing events
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ItemUse")
+	void Initialize(USuspenseCoreEventBus* InEventBus);
+
+	//==================================================================
+	// Additional API
+	//==================================================================
+
+	/**
+	 * Complete a time-based operation
+	 * Called by GAS ability when duration expires
+	 *
+	 * @param RequestID The request to complete
+	 * @return Final response with modified items
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ItemUse")
+	FSuspenseCoreItemUseResponse CompleteOperation(const FGuid& RequestID);
+
+	/**
+	 * Get all active operations for an actor
+	 * @param OwnerActor Actor to check
+	 * @return Array of active request IDs
+	 */
+	UFUNCTION(BlueprintPure, Category = "ItemUse")
+	TArray<FGuid> GetActiveOperationsForActor(AActor* OwnerActor) const;
+
+	/**
+	 * Cancel all active operations for an actor
+	 * Used when actor is damaged/stunned/dies
+	 *
+	 * @param OwnerActor Actor whose operations to cancel
+	 * @param Reason Cancellation reason
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ItemUse")
+	void CancelAllOperationsForActor(AActor* OwnerActor, const FText& Reason);
+
+	//==================================================================
+	// Events
+	//==================================================================
+
+	/** Fired when an item use operation starts */
+	UPROPERTY(BlueprintAssignable, Category = "ItemUse|Events")
+	FOnItemUseStarted OnItemUseStarted;
+
+	/** Fired for progress updates on time-based operations */
+	UPROPERTY(BlueprintAssignable, Category = "ItemUse|Events")
+	FOnItemUseProgress OnItemUseProgress;
+
+	/** Fired when an item use operation completes */
+	UPROPERTY(BlueprintAssignable, Category = "ItemUse|Events")
+	FOnItemUseCompleted OnItemUseCompleted;
+
+	/** Fired when an item use operation is cancelled */
+	UPROPERTY(BlueprintAssignable, Category = "ItemUse|Events")
+	FOnItemUseCancelled OnItemUseCancelled;
+
+protected:
+	//==================================================================
+	// Internal Methods
+	//==================================================================
+
+	/** Find handler that can process the request */
+	ISuspenseCoreItemUseHandler* FindHandler(const FSuspenseCoreItemUseRequest& Request) const;
+
+	/** Get handler by tag */
+	ISuspenseCoreItemUseHandler* GetHandlerByTag(FGameplayTag HandlerTag) const;
+
+	/** Publish event to EventBus */
+	void PublishEvent(const FGameplayTag& EventTag,
+		const FSuspenseCoreItemUseRequest& Request,
+		const FSuspenseCoreItemUseResponse& Response,
+		AActor* OwnerActor);
+
+	/** Sort handlers by priority (called after registration changes) */
+	void SortHandlersByPriority();
+
+	/** Build QuickSlot request from slot data */
+	FSuspenseCoreItemUseRequest BuildQuickSlotRequest(int32 QuickSlotIndex, AActor* OwnerActor) const;
+
+	/** Get current world time */
+	float GetWorldTimeSeconds() const;
+
+private:
+	//==================================================================
+	// Dependencies
+	//==================================================================
+
+	UPROPERTY()
+	TWeakObjectPtr<USuspenseCoreEventBus> EventBus;
+
+	UPROPERTY()
+	TWeakObjectPtr<USuspenseCoreServiceProvider> ServiceProvider;
+
+	//==================================================================
+	// Handler Registry
+	//==================================================================
+
+	/** Registered handlers sorted by priority (highest first) */
+	UPROPERTY()
+	TArray<FSuspenseCoreRegisteredHandler> Handlers;
+
+	/** Quick lookup by handler tag */
+	TMap<FGameplayTag, int32> HandlerIndexByTag;
+
+	//==================================================================
+	// Active Operations
+	//==================================================================
+
+	/** Currently active time-based operations */
+	UPROPERTY()
+	TMap<FGuid, FSuspenseCoreActiveOperation> ActiveOperations;
+
+	//==================================================================
+	// Service State
+	//==================================================================
+
+	UPROPERTY()
+	ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
+
+	UPROPERTY()
+	FDateTime InitializationTime;
+
+	//==================================================================
+	// Statistics
+	//==================================================================
+
+	UPROPERTY()
+	int32 TotalRequestsProcessed = 0;
+
+	UPROPERTY()
+	int32 SuccessfulOperations = 0;
+
+	UPROPERTY()
+	int32 FailedOperations = 0;
+
+	UPROPERTY()
+	int32 CancelledOperations = 0;
+};

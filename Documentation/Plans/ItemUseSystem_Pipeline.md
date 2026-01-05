@@ -1795,19 +1795,19 @@ ISuspenseCoreItemUseService* USuspenseCoreServiceProvider::GetItemUseService() c
 ## 15. Checklist
 
 ### Phase 1: BridgeSystem Foundation
-- [ ] Create `SuspenseCoreItemUseTypes.h`
-- [ ] Create `ISuspenseCoreItemUseHandler.h`
-- [ ] Create `ISuspenseCoreItemUseService.h`
-- [ ] Create `SuspenseCoreItemUseNativeTags.h/.cpp`
-- [ ] Update `DefaultGameplayTags.ini`
-- [ ] Verify BridgeSystem compiles
+- [x] Create `SuspenseCoreItemUseTypes.h`
+- [x] Create `ISuspenseCoreItemUseHandler.h`
+- [x] Create `ISuspenseCoreItemUseService.h`
+- [x] Create `SuspenseCoreItemUseNativeTags.h/.cpp`
+- [x] Update `DefaultGameplayTags.ini`
+- [x] Verify BridgeSystem compiles
 
 ### Phase 2: Service Implementation
-- [ ] Create `SuspenseCoreItemUseService.h/.cpp`
-- [ ] Register with ServiceProvider
-- [ ] Implement handler registration
-- [ ] Implement request routing
-- [ ] Implement EventBus publishing
+- [x] Create `SuspenseCoreItemUseService.h/.cpp`
+- [x] Register with ServiceProvider (via GetService<> pattern)
+- [x] Implement handler registration
+- [x] Implement request routing
+- [x] Implement EventBus publishing
 - [ ] Verify EquipmentSystem compiles
 
 ### Phase 3: GAS Abilities, Effects & Input Integration

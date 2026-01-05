@@ -2325,14 +2325,44 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 		Item->MagazineData.MaxCapacity = MaxCapacity;
 	}
 
-	// Mark dirty and broadcast
-	MarkItemDirty(MagInstanceID);
-	InvalidateItemUICache(MagInstanceID);
-	BroadcastInventoryUpdated();
+	//==================================================================
+	// Consume ammo from source inventory slot
+	// @see TarkovStyle_Ammo_System_Design.md - Ammo consumption
+	//==================================================================
+	int32 SourceSlot = EventData.GetInt(TEXT("SourceInventorySlot"));
+	if (SourceSlot >= 0)
+	{
+		FSuspenseCoreItemInstance AmmoItemCopy;
+		if (GetItemInstanceAtSlot(SourceSlot, AmmoItemCopy) && AmmoItemCopy.ItemID == AmmoID)
+		{
+			// Find the actual item in our array to modify it
+			FSuspenseCoreItemInstance* AmmoItem = GetItemByInstanceID(AmmoItemCopy.InstanceID);
+			if (AmmoItem)
+			{
+				AmmoItem->StackCount--;
 
-	UE_LOG(LogSuspenseCoreInventory, Verbose,
-		TEXT("OnMagazineRoundLoaded: Magazine %s updated to %d/%d rounds"),
-		*MagInstanceID.ToString().Left(8), NewRoundCount, Item->MagazineData.MaxCapacity);
+				if (AmmoItem->StackCount <= 0)
+				{
+					// Remove empty stack
+					FSuspenseCoreItemInstance RemovedItem;
+					RemoveItemFromSlot(SourceSlot, RemovedItem);
+					UE_LOG(LogSuspenseCoreInventory, Verbose,
+						TEXT("OnMagazineRoundLoaded: Ammo stack %s depleted, removing from slot %d"),
+						*AmmoID.ToString(), SourceSlot);
+				}
+				else
+				{
+					MarkItemDirty(AmmoItem->InstanceID);
+				}
+			}
+		}
+	}
+
+	// Mark magazine dirty (UI will update on LoadCompleted)
+	MarkItemDirty(MagInstanceID);
+
+	// Note: Don't call BroadcastInventoryUpdated() here - called once in OnMagazineLoadCompleted
+	// to avoid 30 UI refreshes for 30 rounds
 }
 
 void USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -2402,12 +2432,21 @@ void USuspenseCoreInventoryComponent::OnMagazineLoadCompleted(FGameplayTag Event
 		TEXT("OnMagazineLoadCompleted: Magazine %s loading completed with %d rounds"),
 		*MagInstanceID.ToString().Left(8), FinalRoundCount);
 
-	// Ensure final state is correct
+	// Ensure final state is correct and broadcast single UI update
 	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(MagInstanceID);
 	if (Item && Item->IsMagazine())
 	{
 		MarkItemDirty(MagInstanceID);
+		InvalidateItemUICache(MagInstanceID);
+
+		// Single UI broadcast after all rounds processed (not per-round)
 		BroadcastInventoryUpdated();
+
+		UE_LOG(LogSuspenseCoreInventory, Verbose,
+			TEXT("OnMagazineLoadCompleted: Final state - Magazine %s now has %d/%d rounds"),
+			*MagInstanceID.ToString().Left(8),
+			Item->MagazineData.CurrentRoundCount,
+			Item->MagazineData.MaxCapacity);
 	}
 }
 

@@ -323,6 +323,8 @@ private:
 	void OnEquipmentItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnEquipmentItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnProviderDataChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnQuickSlotAssignedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnQuickSlotClearedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	/** Active EventBus subscriptions */
 	TArray<FSuspenseCoreSubscriptionHandle> SubscriptionHandles;

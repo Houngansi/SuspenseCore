@@ -676,6 +676,7 @@ void USuspenseCoreAmmoLoadingService::ProcessLoadingTick(FSuspenseCoreActiveLoad
                     RoundLoadedData.SetString(TEXT("MagazineInstanceID"), Operation.Request.MagazineInstanceID.ToString());
                     RoundLoadedData.SetString(TEXT("SourceContainerID"), Operation.Request.SourceContainerID.ToString());
                     RoundLoadedData.SetString(TEXT("AmmoID"), Operation.Request.AmmoID.ToString());
+                    RoundLoadedData.SetInt(TEXT("SourceInventorySlot"), Operation.Request.SourceInventorySlot);
                     RoundLoadedData.SetInt(TEXT("NewRoundCount"), Mag->CurrentRoundCount);
                     RoundLoadedData.SetInt(TEXT("MaxCapacity"), Mag->MaxCapacity);
                     RoundLoadedData.SetInt(TEXT("RoundsProcessed"), Operation.RoundsProcessed);

@@ -948,6 +948,23 @@ void USuspenseCoreEquipmentUIProvider::OnItemEquipped(FGameplayTag EventTag, con
 		ItemInstance.Quantity = 1;
 	}
 
+	// CRITICAL: Extract MagazineData for Tarkov-style ammo system
+	// This preserves CurrentRoundCount, LoadedAmmoID when magazines are moved to QuickSlot
+	// @see TarkovStyle_Ammo_System_Design.md
+	FString MagazineIDStr = EventData.GetString(FName(TEXT("MagazineID")));
+	FString LoadedAmmoIDStr = EventData.GetString(FName(TEXT("LoadedAmmoID")));
+	if (!MagazineIDStr.IsEmpty() && MagazineIDStr != TEXT("None"))
+	{
+		ItemInstance.MagazineData.MagazineID = FName(*MagazineIDStr);
+	}
+	if (!LoadedAmmoIDStr.IsEmpty() && LoadedAmmoIDStr != TEXT("None"))
+	{
+		ItemInstance.MagazineData.LoadedAmmoID = FName(*LoadedAmmoIDStr);
+	}
+	ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("CurrentRoundCount")), 0);
+	ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MaxCapacity")), 30);
+	ItemInstance.MagazineData.CurrentDurability = EventData.GetFloat(FName(TEXT("MagazineDurability")), 100.0f);
+
 	if (SlotIndex == INDEX_NONE)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnItemEquipped - Invalid SlotIndex, cannot cache item %s"), *ItemIDStr);
@@ -957,8 +974,8 @@ void USuspenseCoreEquipmentUIProvider::OnItemEquipped(FGameplayTag EventTag, con
 	// Add to cache
 	CachedEquippedItems.Add(SlotIndex, ItemInstance);
 
-	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnItemEquipped - Slot %d, Item %s, CacheSize=%d"),
-		SlotIndex, *ItemIDStr, CachedEquippedItems.Num());
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnItemEquipped - Slot %d, Item %s, MagRounds=%d/%d, CacheSize=%d"),
+		SlotIndex, *ItemIDStr, ItemInstance.MagazineData.CurrentRoundCount, ItemInstance.MagazineData.MaxCapacity, CachedEquippedItems.Num());
 
 	// Broadcast UI update
 	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.InstanceID);

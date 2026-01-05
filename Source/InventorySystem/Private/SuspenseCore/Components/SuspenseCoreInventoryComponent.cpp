@@ -1598,14 +1598,36 @@ bool USuspenseCoreInventoryComponent::RemoveItemInternal(const FGuid& InstanceID
 	OutRemovedInstance = ItemInstances[Index];
 
 	// Calculate weight delta BEFORE removal (incremental update)
+	// For magazines: use GetWeightWithRounds() to include loaded rounds
+	// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
 	float WeightToRemove = 0.0f;
 	USuspenseCoreDataManager* DataManager = GetDataManager();
 	if (DataManager)
 	{
-		FSuspenseCoreItemData ItemData;
-		if (DataManager->GetItemData(OutRemovedInstance.ItemID, ItemData))
+		if (OutRemovedInstance.IsMagazine())
 		{
-			WeightToRemove = ItemData.InventoryProps.Weight * OutRemovedInstance.Quantity;
+			FSuspenseCoreMagazineData MagData;
+			if (DataManager->GetMagazineData(OutRemovedInstance.MagazineData.MagazineID, MagData))
+			{
+				WeightToRemove = MagData.GetWeightWithRounds(OutRemovedInstance.MagazineData.CurrentRoundCount);
+			}
+			else
+			{
+				// Fallback to base item weight
+				FSuspenseCoreItemData ItemData;
+				if (DataManager->GetItemData(OutRemovedInstance.ItemID, ItemData))
+				{
+					WeightToRemove = ItemData.InventoryProps.Weight * OutRemovedInstance.Quantity;
+				}
+			}
+		}
+		else
+		{
+			FSuspenseCoreItemData ItemData;
+			if (DataManager->GetItemData(OutRemovedInstance.ItemID, ItemData))
+			{
+				WeightToRemove = ItemData.InventoryProps.Weight * OutRemovedInstance.Quantity;
+			}
 		}
 	}
 
@@ -3698,16 +3720,37 @@ void USuspenseCoreInventoryComponent::ValidateInventoryIntegrityInternal(const F
 	}
 
 	// 3. Check weight consistency
+	// For magazines: use GetWeightWithRounds() to include loaded rounds
+	// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
 	float CalculatedWeight = 0.0f;
 	USuspenseCoreDataManager* DataManager = GetDataManager();
 	if (DataManager)
 	{
 		for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
 		{
-			FSuspenseCoreItemData ItemData;
-			if (DataManager->GetItemData(Instance.ItemID, ItemData))
+			if (Instance.IsMagazine())
 			{
-				CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+				FSuspenseCoreMagazineData MagData;
+				if (DataManager->GetMagazineData(Instance.MagazineData.MagazineID, MagData))
+				{
+					CalculatedWeight += MagData.GetWeightWithRounds(Instance.MagazineData.CurrentRoundCount);
+				}
+				else
+				{
+					FSuspenseCoreItemData ItemData;
+					if (DataManager->GetItemData(Instance.ItemID, ItemData))
+					{
+						CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+					}
+				}
+			}
+			else
+			{
+				FSuspenseCoreItemData ItemData;
+				if (DataManager->GetItemData(Instance.ItemID, ItemData))
+				{
+					CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+				}
 			}
 		}
 	}

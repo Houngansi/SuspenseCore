@@ -253,14 +253,27 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 	}
 
 	// Cache item weight for incremental updates
+	// For magazines: use GetWeightWithRounds() to include loaded rounds
+	// @see TarkovStyle_Ammo_System_Design.md - Magazine weight system
 	const float UnitWeight = ItemData.InventoryProps.Weight;
 	const int32 MaxStackSize = ItemData.InventoryProps.MaxStackSize;
 
-	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemData loaded - GridSize=%dx%d, Weight=%.2f"),
-		ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y, UnitWeight);
+	// Calculate actual weight for this item (including magazine ammo if applicable)
+	float ActualItemWeight = UnitWeight * ItemInstance.Quantity;
+	if (ItemInstance.IsMagazine())
+	{
+		FSuspenseCoreMagazineData MagData;
+		if (DataManager->GetMagazineData(ItemInstance.MagazineData.MagazineID, MagData))
+		{
+			ActualItemWeight = MagData.GetWeightWithRounds(ItemInstance.MagazineData.CurrentRoundCount);
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreInventory, Log, TEXT("AddItemInstanceToSlot: ItemData loaded - GridSize=%dx%d, Weight=%.2f (ActualWeight=%.2f)"),
+		ItemData.InventoryProps.GridSize.X, ItemData.InventoryProps.GridSize.Y, UnitWeight, ActualItemWeight);
 
 	// Check total weight for entire quantity
-	float TotalItemWeight = UnitWeight * ItemInstance.Quantity;
+	float TotalItemWeight = ActualItemWeight;
 	if (CurrentWeight + TotalItemWeight > Config.MaxWeight)
 	{
 		UE_LOG(LogSuspenseCoreInventory, Warning, TEXT("AddItemInstanceToSlot: Weight exceeded (%.1f + %.1f > %.1f)"),
@@ -406,7 +419,17 @@ bool USuspenseCoreInventoryComponent::AddItemInstanceToSlot(const FSuspenseCoreI
 		ReplicatedInventory.AddItem(NewInstance);
 
 		// Incremental weight update
-		UpdateWeightDelta(UnitWeight * QuantityForThisStack);
+		// For magazines: use full weight with rounds (ActualItemWeight calculated above)
+		// Magazines don't stack so QuantityForThisStack will always be 1 for them
+		if (NewInstance.IsMagazine())
+		{
+			// Use the pre-calculated ActualItemWeight which includes ammo rounds
+			UpdateWeightDelta(ActualItemWeight);
+		}
+		else
+		{
+			UpdateWeightDelta(UnitWeight * QuantityForThisStack);
+		}
 
 		// Update counters
 		RemainingQuantity -= QuantityForThisStack;

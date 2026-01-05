@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAmmoToMagazineHandler, Log, All);
 
@@ -146,12 +147,8 @@ bool USuspenseCoreAmmoToMagazineHandler::ValidateRequest(
 		return false;
 	}
 
-	// Get current magazine state from target item
-	int32 CurrentRounds = 0;
-	if (const int32* RoundCount = Request.TargetItem.IntMetadata.Find(FName("CurrentRounds")))
-	{
-		CurrentRounds = *RoundCount;
-	}
+	// Get current magazine state from target item's MagazineData
+	int32 CurrentRounds = Request.TargetItem.MagazineData.CurrentRoundCount;
 
 	// Check if magazine is full
 	if (CurrentRounds >= MagData.MaxCapacity)
@@ -164,14 +161,14 @@ bool USuspenseCoreAmmoToMagazineHandler::ValidateRequest(
 	}
 
 	// Check caliber compatibility
-	// Ammo caliber tag should be in source item tags
+	// Get ammo caliber from DataManager using ItemID
 	FGameplayTag AmmoCaliber;
-	for (const FGameplayTag& Tag : Request.SourceItem.ItemTags)
+	if (DataManager.IsValid())
 	{
-		if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Item.Ammo"), false)))
+		FSuspenseCoreUnifiedItemData AmmoData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, AmmoData))
 		{
-			AmmoCaliber = Tag;
-			break;
+			AmmoCaliber = AmmoData.AmmoCaliber;
 		}
 	}
 
@@ -223,12 +220,8 @@ float USuspenseCoreAmmoToMagazineHandler::GetDuration(const FSuspenseCoreItemUse
 		return 0.0f;
 	}
 
-	// Get current rounds in magazine
-	int32 CurrentRounds = 0;
-	if (const int32* RoundCount = Request.TargetItem.IntMetadata.Find(FName("CurrentRounds")))
-	{
-		CurrentRounds = *RoundCount;
-	}
+	// Get current rounds in magazine from MagazineData
+	int32 CurrentRounds = Request.TargetItem.MagazineData.CurrentRoundCount;
 
 	// Calculate rounds to load
 	int32 RoundsToLoad = CalculateRoundsToLoad(
@@ -283,12 +276,8 @@ FSuspenseCoreItemUseResponse USuspenseCoreAmmoToMagazineHandler::OnOperationComp
 		return Response;
 	}
 
-	// Calculate rounds loaded
-	int32 CurrentRounds = 0;
-	if (const int32* RoundCount = Request.TargetItem.IntMetadata.Find(FName("CurrentRounds")))
-	{
-		CurrentRounds = *RoundCount;
-	}
+	// Calculate rounds loaded using MagazineData
+	int32 CurrentRounds = Request.TargetItem.MagazineData.CurrentRoundCount;
 
 	int32 RoundsLoaded = CalculateRoundsToLoad(
 		Request.SourceItem.Quantity,
@@ -300,9 +289,11 @@ FSuspenseCoreItemUseResponse USuspenseCoreAmmoToMagazineHandler::OnOperationComp
 	Response.ModifiedSourceItem = Request.SourceItem;
 	Response.ModifiedSourceItem.Quantity -= RoundsLoaded;
 
-	// Target (magazine): Add rounds
+	// Target (magazine): Add rounds via MagazineData
 	Response.ModifiedTargetItem = Request.TargetItem;
-	Response.ModifiedTargetItem.IntMetadata.Add(FName("CurrentRounds"), CurrentRounds + RoundsLoaded);
+	Response.ModifiedTargetItem.MagazineData.CurrentRoundCount = CurrentRounds + RoundsLoaded;
+	// Store the loaded ammo type
+	Response.ModifiedTargetItem.MagazineData.LoadedAmmoID = Request.SourceItem.ItemID;
 
 	// Add metadata for UI/logging
 	Response.Metadata.Add(TEXT("RoundsLoaded"), FString::FromInt(RoundsLoaded));

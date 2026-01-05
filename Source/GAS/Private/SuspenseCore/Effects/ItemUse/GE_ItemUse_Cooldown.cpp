@@ -14,8 +14,9 @@ UGE_ItemUse_Cooldown::UGE_ItemUse_Cooldown(const FObjectInitializer& ObjectIniti
 	DurationPolicy = EGameplayEffectDurationType::HasDuration;
 
 	// Use SetByCaller for cooldown duration
+	// Note: FSetByCallerFloat requires FGameplayTag, not FNativeGameplayTag directly
 	DurationMagnitude = FGameplayEffectModifierMagnitude(
-		FSetByCallerFloat(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Cooldown)
+		FSetByCallerFloat(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Cooldown.GetTag())
 	);
 
 	// No periodic execution

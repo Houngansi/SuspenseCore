@@ -6,6 +6,7 @@
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 
@@ -100,15 +101,26 @@ bool USuspenseCoreMedicalUseHandler::CanHandle(const FSuspenseCoreItemUseRequest
 		return false;
 	}
 
-	// Check if item has medical tag
-	FGameplayTag MedicalTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"), false);
-	FGameplayTag MedicalTag2 = FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false);
-
-	for (const FGameplayTag& Tag : Request.SourceItem.ItemTags)
+	// Check if item has medical tag by looking up in DataManager
+	if (DataManager.IsValid())
 	{
-		if (Tag.MatchesTag(MedicalTag) || Tag.MatchesTag(MedicalTag2))
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
-			return true;
+			FGameplayTag MedicalTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Medical"), false);
+			FGameplayTag MedicalTag2 = FGameplayTag::RequestGameplayTag(FName("Item.Medical"), false);
+
+			// Check ItemType tag
+			if (ItemData.ItemType.MatchesTag(MedicalTag) || ItemData.ItemType.MatchesTag(MedicalTag2))
+			{
+				return true;
+			}
+
+			// Check ItemTags container
+			if (ItemData.ItemTags.HasTag(MedicalTag) || ItemData.ItemTags.HasTag(MedicalTag2))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -152,7 +164,18 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 	const FSuspenseCoreItemUseRequest& Request,
 	AActor* OwnerActor)
 {
-	ESuspenseCoreMedicalType MedType = GetMedicalType(Request.SourceItem.ItemTags);
+	// Get item tags from DataManager
+	FGameplayTagContainer ItemTags;
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
+		{
+			ItemTags = ItemData.ItemTags;
+		}
+	}
+
+	ESuspenseCoreMedicalType MedType = GetMedicalType(ItemTags);
 
 	HANDLER_LOG(Log, TEXT("Execute: Using medical item %s (type=%d)"),
 		*Request.SourceItem.ItemID.ToString(),
@@ -174,7 +197,24 @@ FSuspenseCoreItemUseResponse USuspenseCoreMedicalUseHandler::Execute(
 
 float USuspenseCoreMedicalUseHandler::GetDuration(const FSuspenseCoreItemUseRequest& Request) const
 {
-	ESuspenseCoreMedicalType MedType = GetMedicalType(Request.SourceItem.ItemTags);
+	// Get item tags from DataManager
+	FGameplayTagContainer ItemTags;
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
+		{
+			ItemTags = ItemData.ItemTags;
+
+			// If UseTime is defined in item data, use that
+			if (ItemData.bIsConsumable && ItemData.UseTime > 0.0f)
+			{
+				return ItemData.UseTime;
+			}
+		}
+	}
+
+	ESuspenseCoreMedicalType MedType = GetMedicalType(ItemTags);
 	return GetMedicalDuration(MedType);
 }
 
@@ -289,30 +329,36 @@ float USuspenseCoreMedicalUseHandler::GetMedicalDuration(ESuspenseCoreMedicalTyp
 
 float USuspenseCoreMedicalUseHandler::GetHealAmount(FName ItemID) const
 {
-	// Get heal amount from DataManager
-	if (DataManager.IsValid())
-	{
-		// Look up item data - returns heal amount from item's FloatStats
-		float HealAmount = 0.0f;
-		if (DataManager->GetItemFloatStat(ItemID, FName("HealAmount"), HealAmount))
-		{
-			return HealAmount;
-		}
-	}
+	// Get heal amount from item data
+	// Note: FSuspenseCoreUnifiedItemData doesn't have a direct HealAmount field
+	// For medical items, we use the ConsumeEffects to apply healing via GAS
+	// Here we provide default values based on item name patterns
 
 	// Default heal amounts by item name pattern
 	FString ItemName = ItemID.ToString();
-	if (ItemName.Contains(TEXT("Bandage")))
+	if (ItemName.Contains(TEXT("Surgical")) || ItemName.Contains(TEXT("Surgery")))
 	{
-		return 25.0f;
+		return 200.0f;
 	}
-	if (ItemName.Contains(TEXT("Medkit")))
+	if (ItemName.Contains(TEXT("Medkit")) || ItemName.Contains(TEXT("AFAK")))
 	{
 		return 100.0f;
 	}
 	if (ItemName.Contains(TEXT("IFAK")))
 	{
 		return 50.0f;
+	}
+	if (ItemName.Contains(TEXT("Splint")))
+	{
+		return 0.0f; // Splints don't heal, they fix fractures
+	}
+	if (ItemName.Contains(TEXT("Bandage")))
+	{
+		return 25.0f;
+	}
+	if (ItemName.Contains(TEXT("Painkiller")) || ItemName.Contains(TEXT("Stimulant")))
+	{
+		return 0.0f; // Painkillers/stimulants don't heal directly
 	}
 
 	return 25.0f; // Default

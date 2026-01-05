@@ -656,9 +656,46 @@ bool USuspenseCoreQuickSlotComponent::ValidateSlotItem(int32 SlotIndex) const
 bool USuspenseCoreQuickSlotComponent::ExecuteMagazineSwap(int32 SlotIndex, bool bEmergencyDrop)
 {
     USuspenseCoreMagazineComponent* MagComp = MagazineComponent.Get();
+
+    // If no cached MagazineComponent, try to find one dynamically
+    // This handles cases where weapon changes or InitializeWithMagazineComponent wasn't called
     if (!MagComp)
     {
-        QUICKSLOT_LOG(Warning, TEXT("ExecuteMagazineSwap: No MagazineComponent available"));
+        AActor* Owner = GetOwner();
+        if (Owner)
+        {
+            // First try to find on owner
+            MagComp = Owner->FindComponentByClass<USuspenseCoreMagazineComponent>();
+
+            // If not found, search child actors (attached weapons)
+            if (!MagComp)
+            {
+                TArray<AActor*> AttachedActors;
+                Owner->GetAttachedActors(AttachedActors);
+                for (AActor* Attached : AttachedActors)
+                {
+                    MagComp = Attached->FindComponentByClass<USuspenseCoreMagazineComponent>();
+                    if (MagComp)
+                    {
+                        QUICKSLOT_LOG(Log, TEXT("ExecuteMagazineSwap: Found MagazineComponent on attached actor %s"),
+                            *Attached->GetName());
+                        break;
+                    }
+                }
+            }
+
+            // Cache it for future use
+            if (MagComp)
+            {
+                MagazineComponent = MagComp;
+                QUICKSLOT_LOG(Log, TEXT("ExecuteMagazineSwap: Cached MagazineComponent dynamically"));
+            }
+        }
+    }
+
+    if (!MagComp)
+    {
+        QUICKSLOT_LOG(Warning, TEXT("ExecuteMagazineSwap: No MagazineComponent available (not on owner or attached actors)"));
         return false;
     }
 

@@ -130,6 +130,15 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Magazine")
     FSuspenseCoreMagazineInstance MagazineData;
 
+    /**
+     * Weapon ammo state (for weapons with magazines)
+     * Contains inserted magazine, chambered round, and ammo state.
+     * This data MUST be preserved during inventory <-> equipment transfers.
+     * @see TarkovStyle_Ammo_System_Design.md
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Weapon")
+    FSuspenseCoreWeaponAmmoState WeaponAmmoState;
+
     //==================================================================
     // Static Factory Methods (замена конструкторов)
     //==================================================================
@@ -368,6 +377,56 @@ struct BRIDGESYSTEM_API FSuspenseCoreInventoryItemInstance
     float GetMagazineFillPercent() const
     {
         return IsMagazine() ? MagazineData.GetFillPercentage() : 0.0f;
+    }
+
+    //==================================================================
+    // Weapon Ammo Helper Methods
+    // @see TarkovStyle_Ammo_System_Design.md
+    //==================================================================
+
+    /**
+     * Check if this item has weapon ammo state (is a weapon with magazine support)
+     * @return true if WeaponAmmoState has a magazine or chambered round
+     */
+    bool HasWeaponAmmoState() const
+    {
+        return WeaponAmmoState.bHasMagazine || WeaponAmmoState.ChamberedRound.IsChambered();
+    }
+
+    /**
+     * Get the inserted magazine from weapon ammo state
+     * @return Reference to inserted magazine instance
+     */
+    const FSuspenseCoreMagazineInstance& GetInsertedMagazine() const
+    {
+        return WeaponAmmoState.InsertedMagazine;
+    }
+
+    /**
+     * Check if weapon has a chambered round
+     * @return true if there is a round in the chamber
+     */
+    bool HasChamberedRound() const
+    {
+        return WeaponAmmoState.ChamberedRound.IsChambered();
+    }
+
+    /**
+     * Get total rounds in weapon (magazine + chamber)
+     * @return Total round count
+     */
+    int32 GetWeaponTotalRounds() const
+    {
+        int32 Total = 0;
+        if (WeaponAmmoState.bHasMagazine)
+        {
+            Total += WeaponAmmoState.InsertedMagazine.CurrentRoundCount;
+        }
+        if (WeaponAmmoState.ChamberedRound.IsChambered())
+        {
+            Total += 1;
+        }
+        return Total;
     }
 
     /**

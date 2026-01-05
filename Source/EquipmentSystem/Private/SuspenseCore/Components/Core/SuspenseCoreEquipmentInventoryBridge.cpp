@@ -1924,6 +1924,15 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
             FString::Printf(TEXT("Invalid target slot: %d"), TargetSlot));
     }
 
+    // CRITICAL: Same-slot operation is a no-op (prevents race condition)
+    // When user drags item from slot and drops it back to same slot,
+    // we should NOT clear and re-set - just return success
+    if (SourceSlot == TargetSlot)
+    {
+        UE_LOG(LogEquipmentBridge, Log, TEXT("Same-slot operation detected (Slot=%d) - no-op"), SourceSlot);
+        return FSuspenseCoreInventorySimpleResult::Success(TEXT("Item already in this slot"));
+    }
+
     // Get items from both slots
     FSuspenseCoreItemInstance SourceItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(SourceSlot));
     FSuspenseCoreItemInstance TargetItem = ConvertToItemInstance(EquipmentDataProvider->GetSlotItem(TargetSlot));

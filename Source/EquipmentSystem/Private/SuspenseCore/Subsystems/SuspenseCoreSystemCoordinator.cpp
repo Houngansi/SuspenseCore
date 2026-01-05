@@ -24,10 +24,14 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentAbilityService.h"
 #include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
+#include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 
 // ItemManager for DataService injection
 #include "SuspenseCore/ItemSystem/SuspenseCoreItemManager.h"
+
+// Main ServiceProvider for cross-module service registration
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreCoordinatorSubsystem, Log, All);
 
@@ -585,6 +589,39 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
             AmmoLoadingParams);
 
         UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
+        RegisteredCount++;
+    }
+
+    // Item Use Service - CRITICAL for QuickSlot abilities (magazine swap, consumables, etc.)
+    const FGameplayTag& TagItemUse = SuspenseCoreEquipmentTags::Service::TAG_Service_ItemUse;
+    if (TagItemUse.IsValid() && !ServiceLocator->IsServiceRegistered(TagItemUse))
+    {
+        FSuspenseCoreServiceInitParams ItemUseParams;
+        ItemUseParams.bAutoStart = true;
+
+        ServiceLocator->RegisterServiceClass(
+            TagItemUse,
+            USuspenseCoreItemUseServiceImpl::StaticClass(),
+            ItemUseParams);
+
+        // ALSO register in main ServiceProvider by name for GA_ItemUse to find it
+        // GA_ItemUse::GetItemUseService() looks for "ItemUseService" by name
+        if (UObject* ItemUseServiceObj = ServiceLocator->TryGetService(TagItemUse))
+        {
+            if (USuspenseCoreServiceProvider* MainProvider = USuspenseCoreServiceProvider::Get(GetGameInstance()))
+            {
+                MainProvider->RegisterServiceByName(FName("ItemUseService"), ItemUseServiceObj);
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ItemUseService (also in main ServiceProvider)"));
+            }
+            else
+            {
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Warning, TEXT("  Registered: ItemUseService (NOT in main ServiceProvider - provider not found)"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ItemUseService (lazy init)"));
+        }
         RegisteredCount++;
     }
 

@@ -28,6 +28,7 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Rules, "SuspenseCore.Service.Equipment.Rules");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_Transaction, "SuspenseCore.Service.Equipment.Transaction");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_Equipment_AmmoLoading, "SuspenseCore.Service.Equipment.AmmoLoading");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Service_ItemUse, "SuspenseCore.Service.ItemUse");
 
         // Supporting services
         UE_DEFINE_GAMEPLAY_TAG(TAG_Service_ActorFactory, "SuspenseCore.Service.Equipment.ActorFactory");

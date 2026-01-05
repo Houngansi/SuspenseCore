@@ -1225,6 +1225,9 @@ When rounds are unloaded from a magazine:
 | `SuspenseCoreInventoryComponent.cpp` | `RecalculateWeight()` | Uses `GetWeightWithRounds()` for magazines |
 | `SuspenseCoreInventoryComponent.cpp` | `OnMagazineRoundLoaded()` | Adds WeightPerRound on load |
 | `SuspenseCoreInventoryComponent.cpp` | `OnMagazineRoundUnloaded()` | Subtracts WeightPerRound on unload |
+| `SuspenseCoreInventoryComponent.cpp` | `RemoveItemInternal()` | Uses `GetWeightWithRounds()` for magazines |
+| `SuspenseCoreInventoryComponent.cpp` | `ConvertToUIData()` | UI weight display for magazines |
+| `SuspenseCoreInventoryComponent.cpp` | `ValidateInventoryIntegrityInternal()` | Validation with magazine weights |
 | `SuspenseCoreMagazineTypes.h` | `FSuspenseCoreMagazineData` | EmptyWeight, WeightPerRound fields |
 
 ### Weight Flow Diagram

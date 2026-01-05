@@ -3553,8 +3553,29 @@ FSuspenseCoreItemUIData USuspenseCoreInventoryComponent::ConvertToUIData(const F
 			UIData.GridSize = ItemData.InventoryProps.GridSize;
 			UIData.MaxStackSize = ItemData.InventoryProps.MaxStackSize;
 			UIData.bIsStackable = ItemData.InventoryProps.IsStackable();
-			UIData.UnitWeight = ItemData.InventoryProps.Weight;
-			UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
+
+			// For magazines: use GetWeightWithRounds() to include loaded rounds
+			// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
+			if (Instance.IsMagazine())
+			{
+				FSuspenseCoreMagazineData MagData;
+				if (DataManager->GetMagazineData(Instance.MagazineData.MagazineID, MagData))
+				{
+					UIData.UnitWeight = MagData.EmptyWeight;
+					UIData.TotalWeight = MagData.GetWeightWithRounds(Instance.MagazineData.CurrentRoundCount);
+				}
+				else
+				{
+					UIData.UnitWeight = ItemData.InventoryProps.Weight;
+					UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
+				}
+			}
+			else
+			{
+				UIData.UnitWeight = ItemData.InventoryProps.Weight;
+				UIData.TotalWeight = ItemData.InventoryProps.Weight * Instance.Quantity;
+			}
+
 			UIData.BaseValue = ItemData.InventoryProps.BaseValue;
 			UIData.TotalValue = ItemData.InventoryProps.BaseValue * Instance.Quantity;
 			UIData.bIsEquippable = ItemData.Behavior.bIsEquippable;

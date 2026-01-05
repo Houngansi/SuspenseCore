@@ -671,14 +671,19 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotAssignedEvent(FGameplayTag EventTa
 
 	// Update slot with item data from event
 	FSuspenseCoreSlotUIData SlotData;
-	SlotData.bIsOccupied = true;
-	SlotData.bIsAvailable = EventData.GetBool(TEXT("IsAvailable"), true);
+	SlotData.SlotIndex = SlotIndex;
+	SlotData.State = ESuspenseCoreUISlotState::Occupied;
 
 	FSuspenseCoreItemUIData ItemData;
 	ItemData.ItemID = FName(*EventData.GetString(TEXT("ItemID")));
 	ItemData.DisplayName = FText::FromString(EventData.GetString(TEXT("DisplayName")));
-	ItemData.Icon = EventData.GetObject<UTexture2D>(TEXT("Icon"));
-	ItemData.StackCount = EventData.GetInt(TEXT("Quantity"), 1);
+	ItemData.Quantity = EventData.GetInt(TEXT("Quantity"), 1);
+
+	// Get icon from event if available
+	if (UTexture2D* IconTexture = EventData.GetObject<UTexture2D>(TEXT("Icon")))
+	{
+		ItemData.IconPath = FSoftObjectPath(IconTexture);
+	}
 
 	SlotWidget->UpdateSlotData(SlotData, ItemData);
 
@@ -709,8 +714,8 @@ void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag
 
 	// Clear the slot
 	FSuspenseCoreSlotUIData SlotData;
-	SlotData.bIsOccupied = false;
-	SlotData.bIsAvailable = true;
+	SlotData.SlotIndex = SlotIndex;
+	SlotData.State = ESuspenseCoreUISlotState::Empty;
 
 	FSuspenseCoreItemUIData ItemData; // Empty
 

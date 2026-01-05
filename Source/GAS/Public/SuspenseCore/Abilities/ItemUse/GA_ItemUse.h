@@ -129,12 +129,15 @@ protected:
 	 * Build the item use request for this ability activation.
 	 * Override in subclasses to customize request building.
 	 *
+	 * NOTE: Not exposed to Blueprint due to UHT limitations with
+	 * FGameplayAbilityActorInfo and FGameplayEventData pointers.
+	 * Use BlueprintImplementableEvent hooks instead for BP customization.
+	 *
 	 * @param ActorInfo Actor info from activation
 	 * @param TriggerEventData Optional event data from trigger
 	 * @return Built request, or invalid request to cancel activation
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "ItemUse")
-	FSuspenseCoreItemUseRequest BuildItemUseRequest(
+	virtual FSuspenseCoreItemUseRequest BuildItemUseRequest(
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayEventData* TriggerEventData) const;
 

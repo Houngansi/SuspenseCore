@@ -16,7 +16,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
-#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreAmmoLoadingService.generated.h"
 

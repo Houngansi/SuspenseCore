@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventData.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/World.h"
@@ -30,9 +31,91 @@ void USuspenseCoreAmmoLoadingService::Initialize(USuspenseCoreEventBus* InEventB
     EventBus = InEventBus;
     DataManager = InDataManager;
 
+    // Subscribe to ammo loading events
+    SubscribeToEvents();
+
     AMMO_LOG(Log, TEXT("Initialized with EventBus=%s, DataManager=%s"),
         InEventBus ? TEXT("Valid") : TEXT("NULL"),
         InDataManager ? TEXT("Valid") : TEXT("NULL"));
+}
+
+void USuspenseCoreAmmoLoadingService::SubscribeToEvents()
+{
+    if (!EventBus.IsValid())
+    {
+        AMMO_LOG(Warning, TEXT("SubscribeToEvents: EventBus not valid"));
+        return;
+    }
+
+    using namespace SuspenseCoreEquipmentTags::Magazine;
+
+    // Subscribe to ammo load requested event (from UI drag&drop)
+    LoadRequestedEventHandle = EventBus->SubscribeNative(
+        TAG_Equipment_Event_Ammo_LoadRequested,
+        this,
+        FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent),
+        ESuspenseCoreEventPriority::Normal
+    );
+
+    AMMO_LOG(Log, TEXT("Subscribed to Ammo.LoadRequested event"));
+}
+
+void USuspenseCoreAmmoLoadingService::UnsubscribeFromEvents()
+{
+    if (EventBus.IsValid() && LoadRequestedEventHandle.IsValid())
+    {
+        EventBus->Unsubscribe(LoadRequestedEventHandle);
+        LoadRequestedEventHandle = FSuspenseCoreSubscriptionHandle();
+    }
+}
+
+void USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+    // Extract data from event
+    FString MagazineIDString = EventData.GetString(TEXT("MagazineID"));
+    FString AmmoIDString = EventData.GetString(TEXT("AmmoID"));
+    int32 Quantity = EventData.GetInt(TEXT("Quantity"));
+    int32 SourceSlot = EventData.GetInt(TEXT("SourceSlot"));
+
+    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: Magazine=%s, Ammo=%s, Qty=%d, Slot=%d"),
+        *MagazineIDString, *AmmoIDString, Quantity, SourceSlot);
+
+    // Parse magazine instance ID
+    FGuid MagazineInstanceID;
+    if (!FGuid::Parse(MagazineIDString, MagazineInstanceID))
+    {
+        AMMO_LOG(Warning, TEXT("OnAmmoLoadRequestedEvent: Invalid MagazineID GUID: %s"), *MagazineIDString);
+        return;
+    }
+
+    // Create load request
+    FSuspenseCoreAmmoLoadRequest Request;
+    Request.MagazineInstanceID = MagazineInstanceID;
+    Request.AmmoID = FName(*AmmoIDString);
+    Request.RoundsToLoad = Quantity > 0 ? Quantity : 0; // 0 means load max
+    Request.SourceInventorySlot = SourceSlot;
+    Request.bIsQuickLoad = false;
+
+    // Get owner actor from event if available
+    AActor* OwnerActor = nullptr;
+    if (UObject* Instigator = EventData.GetInstigator())
+    {
+        OwnerActor = Cast<AActor>(Instigator);
+        if (!OwnerActor)
+        {
+            // Try to get from component
+            if (UActorComponent* Comp = Cast<UActorComponent>(Instigator))
+            {
+                OwnerActor = Comp->GetOwner();
+            }
+        }
+    }
+
+    // Start loading
+    bool bSuccess = StartLoading(Request, OwnerActor);
+
+    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: StartLoading result=%s"),
+        bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 }
 
 //==================================================================

@@ -103,7 +103,7 @@ bool USuspenseCoreAmmoLoadingService::ShutdownService(bool bForce)
 
 FGameplayTag USuspenseCoreAmmoLoadingService::GetServiceTag() const
 {
-    return FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Service.AmmoLoading")), false);
+    return SuspenseCoreEquipmentTags::Service::TAG_Service_Equipment_AmmoLoading;
 }
 
 FGameplayTagContainer USuspenseCoreAmmoLoadingService::GetRequiredDependencies() const

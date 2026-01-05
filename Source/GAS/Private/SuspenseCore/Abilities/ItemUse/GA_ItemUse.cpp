@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Abilities/ItemUse/GA_ItemUse.h"
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseService.h"
+#include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
 #include "AbilitySystemComponent.h"
@@ -184,11 +185,19 @@ void UGA_ItemUse::OnDurationTimerComplete()
 	ITEMUSE_ABILITY_LOG(Log, TEXT("OnDurationTimerComplete: Completing operation %s"),
 		*CurrentRequest.RequestID.ToString().Left(8));
 
-	// Get service and complete operation
-	ISuspenseCoreItemUseService* Service = GetItemUseService();
-	if (Service)
+	// Get service implementation and complete operation
+	// CompleteOperation is on the implementation class, not the interface
+	if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
 	{
-		CurrentResponse = Service->CompleteOperation(CurrentRequest.RequestID);
+		if (USuspenseCoreItemUseServiceImpl* ServiceImpl = Provider->GetService<USuspenseCoreItemUseServiceImpl>())
+		{
+			CurrentResponse = ServiceImpl->CompleteOperation(CurrentRequest.RequestID);
+		}
+		else
+		{
+			CurrentResponse.Result = ESuspenseCoreItemUseResult::Success;
+			CurrentResponse.Progress = 1.0f;
+		}
 	}
 	else
 	{
@@ -341,7 +350,8 @@ FActiveGameplayEffectHandle UGA_ItemUse::ApplyInProgressEffect(float Duration)
 	}
 
 	// Set duration via SetByCaller
-	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Duration, Duration);
+	// Note: SetSetByCallerMagnitude requires FGameplayTag, not FNativeGameplayTag directly
+	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Duration.GetTag(), Duration);
 
 	ITEMUSE_ABILITY_LOG(Verbose, TEXT("ApplyInProgressEffect: Duration=%.2f"), Duration);
 
@@ -368,7 +378,8 @@ FActiveGameplayEffectHandle UGA_ItemUse::ApplyCooldownEffect(float Cooldown)
 	}
 
 	// Set cooldown via SetByCaller
-	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Cooldown, Cooldown);
+	// Note: SetSetByCallerMagnitude requires FGameplayTag, not FNativeGameplayTag directly
+	SpecHandle.Data->SetSetByCallerMagnitude(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Cooldown.GetTag(), Cooldown);
 
 	ITEMUSE_ABILITY_LOG(Verbose, TEXT("ApplyCooldownEffect: Cooldown=%.2f"), Cooldown);
 

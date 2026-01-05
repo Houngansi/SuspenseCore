@@ -106,17 +106,9 @@ bool USuspenseCoreMagazineSwapHandler::ValidateRequest(
 		return false;
 	}
 
-	// Check that source has magazine tag
-	bool bIsMagazine = false;
-	FGameplayTag MagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Magazine"), false);
-	for (const FGameplayTag& Tag : Request.SourceItem.ItemTags)
-	{
-		if (Tag.MatchesTag(MagazineTag))
-		{
-			bIsMagazine = true;
-			break;
-		}
-	}
+	// Check that source is a magazine by checking MagazineData validity
+	// FSuspenseCoreItemInstance.IsMagazine() returns true if MagazineData is valid
+	bool bIsMagazine = Request.SourceItem.IsMagazine();
 
 	if (!bIsMagazine)
 	{

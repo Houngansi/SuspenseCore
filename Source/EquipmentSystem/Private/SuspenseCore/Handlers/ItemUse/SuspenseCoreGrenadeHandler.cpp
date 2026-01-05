@@ -6,6 +6,7 @@
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -96,13 +97,31 @@ bool USuspenseCoreGrenadeHandler::CanHandle(const FSuspenseCoreItemUseRequest& R
 		return false;
 	}
 
-	// Check if item has grenade/throwable tag
-	FGameplayTagContainer SupportedTags = GetSupportedSourceTags();
-	for (const FGameplayTag& Tag : Request.SourceItem.ItemTags)
+	// Check if item has grenade/throwable tag by looking up in DataManager
+	if (DataManager.IsValid())
 	{
-		if (SupportedTags.HasTag(Tag))
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
 		{
-			return true;
+			FGameplayTagContainer SupportedTags = GetSupportedSourceTags();
+
+			// Check ItemType tag
+			if (SupportedTags.HasTag(ItemData.ItemType))
+			{
+				return true;
+			}
+
+			// Check bIsThrowable flag
+			if (ItemData.bIsThrowable)
+			{
+				return true;
+			}
+
+			// Check ItemTags container
+			if (ItemData.ItemTags.HasAny(SupportedTags))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -144,7 +163,23 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 	const FSuspenseCoreItemUseRequest& Request,
 	AActor* OwnerActor)
 {
-	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(Request.SourceItem.ItemTags);
+	// Get item tags from DataManager
+	FGameplayTagContainer ItemTags;
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
+		{
+			ItemTags = ItemData.ItemTags;
+			// Add throwable type tag if present
+			if (ItemData.ThrowableType.IsValid())
+			{
+				ItemTags.AddTag(ItemData.ThrowableType);
+			}
+		}
+	}
+
+	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(ItemTags);
 
 	HANDLER_LOG(Log, TEXT("Execute: Preparing grenade %s (type=%d)"),
 		*Request.SourceItem.ItemID.ToString(),
@@ -169,7 +204,29 @@ FSuspenseCoreItemUseResponse USuspenseCoreGrenadeHandler::Execute(
 
 float USuspenseCoreGrenadeHandler::GetDuration(const FSuspenseCoreItemUseRequest& Request) const
 {
-	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(Request.SourceItem.ItemTags);
+	// Get item tags from DataManager
+	FGameplayTagContainer ItemTags;
+	if (DataManager.IsValid())
+	{
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
+		{
+			ItemTags = ItemData.ItemTags;
+			// Add throwable type tag if present
+			if (ItemData.ThrowableType.IsValid())
+			{
+				ItemTags.AddTag(ItemData.ThrowableType);
+			}
+
+			// If UseTime is defined in item data, use that for prepare time
+			if (ItemData.bIsConsumable && ItemData.UseTime > 0.0f)
+			{
+				return ItemData.UseTime;
+			}
+		}
+	}
+
+	ESuspenseCoreGrenadeType GrenadeType = GetGrenadeType(ItemTags);
 	return GetPrepareDuration(GrenadeType);
 }
 
@@ -286,11 +343,19 @@ bool USuspenseCoreGrenadeHandler::ThrowGrenade(
 		ThrowLocation += FVector::UpVector * 50.0f;
 	}
 
-	// Get grenade actor class from DataManager
+	// Get grenade actor class from UnifiedItemData
 	TSubclassOf<AActor> GrenadeClass = nullptr;
 	if (DataManager.IsValid())
 	{
-		GrenadeClass = DataManager->GetGrenadeActorClass(Request.SourceItem.ItemID);
+		FSuspenseCoreUnifiedItemData ItemData;
+		if (DataManager->GetUnifiedItemData(Request.SourceItem.ItemID, ItemData))
+		{
+			// Use EquipmentActorClass for throwables
+			if (!ItemData.EquipmentActorClass.IsNull())
+			{
+				GrenadeClass = ItemData.EquipmentActorClass.LoadSynchronous();
+			}
+		}
 	}
 
 	if (!GrenadeClass)

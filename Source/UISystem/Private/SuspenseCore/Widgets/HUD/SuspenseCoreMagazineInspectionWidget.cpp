@@ -3,9 +3,11 @@
 // Copyright (c) 2025. All Rights Reserved.
 
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineInspectionWidget.h"
+#include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragDropOperation.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Types/UI/SuspenseCoreUIContainerTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
@@ -90,6 +92,78 @@ FReply USuspenseCoreMagazineInspectionWidget::NativeOnMouseButtonDown(const FGeo
 {
 	// Consume mouse clicks to prevent clicking through
 	return FReply::Handled();
+}
+
+bool USuspenseCoreMagazineInspectionWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Clear drop highlight
+	SetDropHighlight_Implementation(false, false);
+
+	// Get our custom drag operation
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		return false;
+	}
+
+	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+
+	// Check if it's compatible ammo
+	if (!IsCompatibleAmmo(DragData.Item))
+	{
+		OnAmmoDropResult(ESuspenseCoreMagazineDropResult::IncompatibleCaliber);
+		return false;
+	}
+
+	// Check if magazine is full
+	if (CachedInspectionData.IsFull())
+	{
+		OnAmmoDropResult(ESuspenseCoreMagazineDropResult::MagazineFull);
+		return false;
+	}
+
+	// Check if already loading
+	if (bIsLoadingInProgress)
+	{
+		OnAmmoDropResult(ESuspenseCoreMagazineDropResult::Busy);
+		return false;
+	}
+
+	// Request ammo loading through EventBus
+	int32 AmmoQuantity = DragData.Item.Quantity > 0 ? DragData.Item.Quantity : 1;
+	RequestAmmoLoad(DragData.Item.ItemID, AmmoQuantity);
+
+	OnAmmoDropResult(ESuspenseCoreMagazineDropResult::Loaded);
+	return true;
+}
+
+bool USuspenseCoreMagazineInspectionWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Get our custom drag operation
+	USuspenseCoreDragDropOperation* DragOp = Cast<USuspenseCoreDragDropOperation>(InOperation);
+	if (!DragOp)
+	{
+		return false;
+	}
+
+	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+
+	// Check if it's compatible ammo
+	bool bIsCompatible = IsCompatibleAmmo(DragData.Item) && !CachedInspectionData.IsFull() && !bIsLoadingInProgress;
+
+	// Update drop highlight
+	SetDropHighlight_Implementation(true, bIsCompatible);
+
+	// Update drag visual validity
+	DragOp->UpdateDropValidity(bIsCompatible);
+
+	return true;
+}
+
+void USuspenseCoreMagazineInspectionWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	// Clear drop highlight when drag leaves
+	SetDropHighlight_Implementation(false, false);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -639,4 +713,53 @@ void USuspenseCoreMagazineInspectionWidget::HandleRoundSlotClicked(int32 SlotInd
 			OnRoundClicked(SlotIndex);
 		}
 	}
+}
+
+bool USuspenseCoreMagazineInspectionWidget::IsCompatibleAmmo(const FSuspenseCoreItemUIData& ItemData) const
+{
+	// Check if item has ammo type tag
+	static const FGameplayTag AmmoTag = FGameplayTag::RequestGameplayTag(FName("Item.Ammo"), false);
+	static const FGameplayTag AmmoCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Ammo"), false);
+
+	// Must be an ammo item
+	if (!ItemData.ItemType.MatchesTag(AmmoTag) && !ItemData.ItemType.MatchesTag(AmmoCategoryTag))
+	{
+		return false;
+	}
+
+	// Check caliber compatibility if we have caliber data
+	if (CachedInspectionData.CaliberTag.IsValid())
+	{
+		// Look for caliber tag in item's type tag hierarchy
+		// Item.Ammo.556x45 should match Magazine caliber Item.Caliber.556x45
+		// For now, accept all ammo - caliber validation should be done by AmmoLoadingService
+	}
+
+	return true;
+}
+
+void USuspenseCoreMagazineInspectionWidget::RequestAmmoLoad(FName AmmoID, int32 Quantity)
+{
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MagazineInspection: Cannot request ammo load - EventBus not available"));
+		return;
+	}
+
+	using namespace SuspenseCoreEquipmentTags::Magazine;
+
+	// Create event data for ammo loading request
+	FSuspenseCoreEventData EventData;
+	EventData.SetString(TEXT("MagazineInstanceID"), CachedInspectionData.MagazineInstanceID.ToString());
+	EventData.SetString(TEXT("MagazineID"), CachedInspectionData.MagazineID.ToString());
+	EventData.SetString(TEXT("AmmoID"), AmmoID.ToString());
+	EventData.SetInt(TEXT("Quantity"), Quantity);
+	EventData.SetInt(TEXT("FirstEmptySlot"), CachedInspectionData.GetFirstEmptySlot());
+
+	// Publish load request event
+	EventBus->Publish(TAG_Equipment_Event_Ammo_LoadRequested, EventData);
+
+	UE_LOG(LogTemp, Log, TEXT("MagazineInspection: Requested load of %d x %s into magazine %s"),
+		Quantity, *AmmoID.ToString(), *CachedInspectionData.MagazineInstanceID.ToString());
 }

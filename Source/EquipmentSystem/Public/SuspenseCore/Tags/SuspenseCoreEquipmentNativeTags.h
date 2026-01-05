@@ -414,10 +414,12 @@ namespace SuspenseCoreEquipmentTags
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Magazine_RoundsChanged);
 
         // Ammo loading events (Tarkov-style drag&drop / quick load)
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_LoadRequested);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_LoadStarted);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_RoundLoaded);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_LoadCompleted);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_LoadCancelled);
+        EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_UnloadRequested);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_UnloadStarted);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_RoundUnloaded);
         EQUIPMENTSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Equipment_Event_Ammo_UnloadCompleted);

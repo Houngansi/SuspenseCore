@@ -5,6 +5,7 @@
 #include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
+#include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Handlers/ItemUse/SuspenseCoreAmmoToMagazineHandler.h"
@@ -797,7 +798,7 @@ void USuspenseCoreItemUseServiceImpl::AutoRegisterHandlers()
 	USuspenseCoreMagazineSwapHandler* MagSwapHandler = NewObject<USuspenseCoreMagazineSwapHandler>(this);
 	if (MagSwapHandler)
 	{
-		MagSwapHandler->Initialize(DataManager, EventBusPtr);
+		MagSwapHandler->Initialize(EventBusPtr);
 		RegisterHandler(TScriptInterface<ISuspenseCoreItemUseHandler>(MagSwapHandler));
 	}
 

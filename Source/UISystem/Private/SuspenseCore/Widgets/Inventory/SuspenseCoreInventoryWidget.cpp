@@ -403,8 +403,16 @@ bool USuspenseCoreInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, con
 		return false;
 	}
 
-	// Handle the drop through base class
 	const FSuspenseCoreDragData& DragData = DragOp->GetDragData();
+
+	// Check for ammo-to-magazine drop
+	if (TryHandleAmmoToMagazineDrop(DragData, SlotIndex))
+	{
+		ClearHighlights();
+		return true;
+	}
+
+	// Handle the drop through base class
 	bool bSuccess = HandleDrop(DragData, SlotIndex);
 
 	// Clear highlights
@@ -1270,4 +1278,105 @@ void USuspenseCoreInventoryWidget::UpdateMultiCellSlotVisibility(int32 AnchorSlo
 			}
 		}
 	}
+}
+
+//==================================================================
+// Ammo to Magazine Drag & Drop
+//==================================================================
+
+bool USuspenseCoreInventoryWidget::TryHandleAmmoToMagazineDrop(const FSuspenseCoreDragData& DragData, int32 TargetSlot)
+{
+	// Get UIManager for checking item types
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		return false;
+	}
+
+	// Check if dragged item is ammo
+	if (!IsAmmoItem(DragData.Item))
+	{
+		return false;
+	}
+
+	// Get item at target slot
+	if (!IsBoundToProvider())
+	{
+		return false;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return false;
+	}
+
+	// Resolve anchor slot for multi-cell items
+	int32 AnchorSlot = SlotToAnchorMap.Contains(TargetSlot) ? SlotToAnchorMap[TargetSlot] : TargetSlot;
+
+	FSuspenseCoreItemUIData TargetItemData;
+	if (!ProviderInterface->GetItemUIDataAtSlot(AnchorSlot, TargetItemData))
+	{
+		return false; // No item at target slot
+	}
+
+	// Check if target item is a magazine
+	if (!UIManager->IsMagazineItem(TargetItemData))
+	{
+		return false; // Target is not a magazine
+	}
+
+	// We have ammo being dropped onto a magazine - trigger loading!
+	UE_LOG(LogTemp, Log, TEXT("TryHandleAmmoToMagazineDrop: Dropping ammo %s onto magazine %s"),
+		*DragData.Item.ItemID.ToString(), *TargetItemData.ItemID.ToString());
+
+	// Publish ammo load request event
+	USuspenseCoreEventBus* EventBus = GetEventBus();
+	if (!EventBus)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TryHandleAmmoToMagazineDrop: EventBus not available"));
+		return false;
+	}
+
+	using namespace SuspenseCoreEquipmentTags::Magazine;
+
+	FSuspenseCoreEventData EventData;
+	EventData.SetString(TEXT("MagazineInstanceID"), TargetItemData.InstanceID.ToString());
+	EventData.SetString(TEXT("MagazineID"), TargetItemData.ItemID.ToString());
+	EventData.SetString(TEXT("AmmoID"), DragData.Item.ItemID.ToString());
+	EventData.SetString(TEXT("AmmoInstanceID"), DragData.Item.InstanceID.ToString());
+	EventData.SetInt(TEXT("Quantity"), DragData.Item.Quantity > 0 ? DragData.Item.Quantity : 1);
+	EventData.SetString(TEXT("SourceContainerID"), DragData.SourceContainerID.ToString());
+	EventData.SetInt(TEXT("SourceSlot"), DragData.SourceSlot);
+
+	EventBus->Publish(TAG_Equipment_Event_Ammo_LoadRequested, EventData);
+
+	UE_LOG(LogTemp, Log, TEXT("TryHandleAmmoToMagazineDrop: Published Ammo.LoadRequested event"));
+	return true;
+}
+
+bool USuspenseCoreInventoryWidget::IsAmmoItem(const FSuspenseCoreItemUIData& ItemData) const
+{
+	// Check for ammo type tags
+	static const FGameplayTag AmmoTag = FGameplayTag::RequestGameplayTag(FName("Item.Ammo"), false);
+	static const FGameplayTag AmmoCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Ammo"), false);
+
+	if (AmmoTag.IsValid() && ItemData.ItemType.MatchesTag(AmmoTag))
+	{
+		return true;
+	}
+
+	if (AmmoCategoryTag.IsValid() && ItemData.ItemType.MatchesTag(AmmoCategoryTag))
+	{
+		return true;
+	}
+
+	// Fallback: check if tag string contains "Ammo"
+	FString TagString = ItemData.ItemType.ToString();
+	if (TagString.Contains(TEXT("Ammo"), ESearchCase::IgnoreCase))
+	{
+		return true;
+	}
+
+	return false;
 }

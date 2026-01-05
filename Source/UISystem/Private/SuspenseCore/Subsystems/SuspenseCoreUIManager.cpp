@@ -746,7 +746,13 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 	}
 
 	// Check if this is a magazine item - use specialized tooltip
-	if (IsMagazineItem(Item) && MagazineTooltipWidgetClass)
+	bool bIsMagazine = IsMagazineItem(Item);
+	UE_LOG(LogTemp, Log, TEXT("ShowItemTooltip: Item=%s, IsMagazine=%s, MagazineTooltipClass=%s"),
+		*Item.ItemID.ToString(),
+		bIsMagazine ? TEXT("YES") : TEXT("NO"),
+		MagazineTooltipWidgetClass ? TEXT("SET") : TEXT("NOT SET"));
+
+	if (bIsMagazine && MagazineTooltipWidgetClass)
 	{
 		// Convert to magazine tooltip data and show magazine tooltip
 		FSuspenseCoreMagazineTooltipData MagazineData;
@@ -757,8 +763,13 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 		// retrieved from MagazineComponent or stored in item payload
 		// For now show basic magazine tooltip
 
+		UE_LOG(LogTemp, Log, TEXT("ShowItemTooltip: Showing MAGAZINE tooltip for %s"), *Item.ItemID.ToString());
 		ShowMagazineTooltip(MagazineData, ScreenPosition);
 		return;
+	}
+	else if (bIsMagazine && !MagazineTooltipWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ShowItemTooltip: Item %s IS a magazine but MagazineTooltipWidgetClass is NOT configured!"), *Item.ItemID.ToString());
 	}
 
 	// Standard item tooltip
@@ -1481,18 +1492,47 @@ USuspenseCoreMagazineInspectionWidget* USuspenseCoreUIManager::CreateMagazineIns
 bool USuspenseCoreUIManager::IsMagazineItem(const FSuspenseCoreItemUIData& ItemData) const
 {
 	// Check if item has magazine type tag in ItemType
-	// Looking for tags like: Item.Magazine, Item.Category.Magazine, Item.Weapon.Magazine
+	// Looking for tags like: Item.Magazine, Item.Category.Magazine, Item.Weapon.Magazine, Item.Equipment.Magazine
 	static const FGameplayTag MagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Magazine"), false);
 	static const FGameplayTag MagazineCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Magazine"), false);
+	static const FGameplayTag WeaponMagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Weapon.Magazine"), false);
+	static const FGameplayTag EquipmentMagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Equipment.Magazine"), false);
+
+	// Log for debugging
+	UE_LOG(LogTemp, Verbose, TEXT("IsMagazineItem: Checking item %s with ItemType: %s"),
+		*ItemData.ItemID.ToString(),
+		*ItemData.ItemType.ToString());
 
 	// Check ItemType - it contains the item's type tag (Item.Weapon.Rifle, Item.Magazine.AR, etc.)
 	if (MagazineTag.IsValid() && ItemData.ItemType.MatchesTag(MagazineTag))
 	{
+		UE_LOG(LogTemp, Log, TEXT("IsMagazineItem: %s matched Item.Magazine tag"), *ItemData.ItemID.ToString());
 		return true;
 	}
 
 	if (MagazineCategoryTag.IsValid() && ItemData.ItemType.MatchesTag(MagazineCategoryTag))
 	{
+		UE_LOG(LogTemp, Log, TEXT("IsMagazineItem: %s matched Item.Category.Magazine tag"), *ItemData.ItemID.ToString());
+		return true;
+	}
+
+	if (WeaponMagazineTag.IsValid() && ItemData.ItemType.MatchesTag(WeaponMagazineTag))
+	{
+		UE_LOG(LogTemp, Log, TEXT("IsMagazineItem: %s matched Item.Weapon.Magazine tag"), *ItemData.ItemID.ToString());
+		return true;
+	}
+
+	if (EquipmentMagazineTag.IsValid() && ItemData.ItemType.MatchesTag(EquipmentMagazineTag))
+	{
+		UE_LOG(LogTemp, Log, TEXT("IsMagazineItem: %s matched Item.Equipment.Magazine tag"), *ItemData.ItemID.ToString());
+		return true;
+	}
+
+	// Also check if the tag string contains "Magazine" anywhere (fallback)
+	FString TagString = ItemData.ItemType.ToString();
+	if (TagString.Contains(TEXT("Magazine"), ESearchCase::IgnoreCase))
+	{
+		UE_LOG(LogTemp, Log, TEXT("IsMagazineItem: %s matched via string contains 'Magazine'"), *ItemData.ItemID.ToString());
 		return true;
 	}
 

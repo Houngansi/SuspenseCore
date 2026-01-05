@@ -14,10 +14,10 @@ UGE_ItemUse_InProgress::UGE_ItemUse_InProgress(const FObjectInitializer& ObjectI
 	DurationPolicy = EGameplayEffectDurationType::HasDuration;
 
 	// Use SetByCaller for duration
-	// Note: FSetByCallerFloat requires FGameplayTag, not FNativeGameplayTag directly
-	DurationMagnitude = FGameplayEffectModifierMagnitude(
-		FSetByCallerFloat(SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Duration.GetTag())
-	);
+	// Note: FSetByCallerFloat must be default-constructed and DataTag set
+	FSetByCallerFloat SetByCallerDuration;
+	SetByCallerDuration.DataTag = SuspenseCoreItemUseTags::Data::TAG_Data_ItemUse_Duration.GetTag();
+	DurationMagnitude = FGameplayEffectModifierMagnitude(SetByCallerDuration);
 
 	// No periodic execution needed
 	Period = 0.0f;

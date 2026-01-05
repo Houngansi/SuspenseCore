@@ -4,7 +4,6 @@
 
 #include "SuspenseCore/Abilities/ItemUse/GA_ItemUse.h"
 #include "SuspenseCore/Interfaces/ItemUse/ISuspenseCoreItemUseService.h"
-#include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreItemUseNativeTags.h"
 #include "AbilitySystemComponent.h"
@@ -185,19 +184,11 @@ void UGA_ItemUse::OnDurationTimerComplete()
 	ITEMUSE_ABILITY_LOG(Log, TEXT("OnDurationTimerComplete: Completing operation %s"),
 		*CurrentRequest.RequestID.ToString().Left(8));
 
-	// Get service implementation and complete operation
-	// CompleteOperation is on the implementation class, not the interface
-	if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
+	// Get service and complete operation via interface
+	ISuspenseCoreItemUseService* Service = GetItemUseService();
+	if (Service)
 	{
-		if (USuspenseCoreItemUseServiceImpl* ServiceImpl = Provider->GetService<USuspenseCoreItemUseServiceImpl>())
-		{
-			CurrentResponse = ServiceImpl->CompleteOperation(CurrentRequest.RequestID);
-		}
-		else
-		{
-			CurrentResponse.Result = ESuspenseCoreItemUseResult::Success;
-			CurrentResponse.Progress = 1.0f;
-		}
+		CurrentResponse = Service->CompleteOperation(CurrentRequest.RequestID);
 	}
 	else
 	{

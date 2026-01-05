@@ -186,6 +186,15 @@ public:
 	 */
 	virtual bool GetOperationProgress(const FGuid& RequestID, float& OutProgress) const = 0;
 
+	/**
+	 * Complete an in-progress operation
+	 * Called by abilities when duration timer finishes
+	 *
+	 * @param RequestID ID of the request to complete
+	 * @return Response with completion result
+	 */
+	virtual FSuspenseCoreItemUseResponse CompleteOperation(const FGuid& RequestID) = 0;
+
 	//==================================================================
 	// QuickSlot Helpers
 	//==================================================================

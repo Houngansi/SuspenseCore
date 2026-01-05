@@ -307,6 +307,16 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 			}
 		}
 
+		// CRITICAL: Copy MagazineData for UI display (QuickSlot tooltip, etc.)
+		// This enables the UI to show ammo count in magazines
+		// @see TarkovStyle_Ammo_System_Design.md
+		if (ItemInstance.MagazineData.MaxCapacity > 0)
+		{
+			ItemData.bHasAmmo = true;
+			ItemData.CurrentAmmo = ItemInstance.MagazineData.CurrentRoundCount;
+			ItemData.MagazineSize = ItemInstance.MagazineData.MaxCapacity;
+		}
+
 		Items.Add(ItemData);
 	}
 
@@ -357,6 +367,16 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 			OutItem.BaseValue = ItemTableData.InventoryProps.BaseValue;
 			OutItem.TotalValue = ItemTableData.InventoryProps.BaseValue * ItemInstance->Quantity;
 		}
+	}
+
+	// CRITICAL: Copy MagazineData for UI display (QuickSlot tooltip, etc.)
+	// This enables the UI to show ammo count in magazines
+	// @see TarkovStyle_Ammo_System_Design.md
+	if (ItemInstance->MagazineData.MaxCapacity > 0)
+	{
+		OutItem.bHasAmmo = true;
+		OutItem.CurrentAmmo = ItemInstance->MagazineData.CurrentRoundCount;
+		OutItem.MagazineSize = ItemInstance->MagazineData.MaxCapacity;
 	}
 
 	return true;

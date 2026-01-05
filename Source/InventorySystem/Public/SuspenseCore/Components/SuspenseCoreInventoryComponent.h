@@ -280,6 +280,65 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory")
 	bool IsSlotEmpty(int32 SlotIndex) const { return !IsSlotOccupied(SlotIndex); }
 
+	//==================================================================
+	// Magazine Operations
+	// @see TarkovStyle_Ammo_System_Design.md - Tarkov-style ammo loading
+	// @see SuspenseCoreArchitecture.md - EventBus integration
+	//==================================================================
+
+	/**
+	 * Get item instance by UniqueInstanceID (pointer for modification)
+	 * Use for internal operations that need to modify item state.
+	 * @param InstanceID Unique ID of the item instance
+	 * @return Pointer to item instance, nullptr if not found
+	 */
+	FSuspenseCoreItemInstance* GetItemByInstanceID(const FGuid& InstanceID);
+
+	/**
+	 * Get item instance by UniqueInstanceID (const version)
+	 * @param InstanceID Unique ID of the item instance
+	 * @return Const pointer to item instance, nullptr if not found
+	 */
+	const FSuspenseCoreItemInstance* GetItemByInstanceID(const FGuid& InstanceID) const;
+
+	/**
+	 * Update magazine data for an item
+	 * Called by EventBus handler when ammo is loaded/unloaded.
+	 * Triggers replication and UI update.
+	 * @param ItemInstanceID UniqueInstanceID of the magazine item
+	 * @param NewMagData Updated magazine data
+	 * @return true if update was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Magazine")
+	bool UpdateMagazineData(const FGuid& ItemInstanceID, const FSuspenseCoreMagazineInstance& NewMagData);
+
+	/**
+	 * Get magazine data for an item
+	 * @param ItemInstanceID UniqueInstanceID of the magazine item
+	 * @param OutMagData Output magazine data
+	 * @return true if item exists and is a magazine
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|Inventory|Magazine")
+	bool GetMagazineData(const FGuid& ItemInstanceID, FSuspenseCoreMagazineInstance& OutMagData) const;
+
+	/**
+	 * Load rounds into a magazine item
+	 * Convenience method that calls UpdateMagazineData internally.
+	 * @param MagazineInstanceID UniqueInstanceID of the magazine item
+	 * @param AmmoID Type of ammo to load
+	 * @param RoundCount Number of rounds to load
+	 * @return Actual number of rounds loaded
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Inventory|Magazine")
+	int32 LoadRoundsIntoMagazine(const FGuid& MagazineInstanceID, FName AmmoID, int32 RoundCount);
+
+	/**
+	 * Mark item as dirty for replication
+	 * Forces FastArraySerializer to replicate the item on next tick.
+	 * @param InstanceID UniqueInstanceID of the item to mark dirty
+	 */
+	void MarkItemDirty(const FGuid& InstanceID);
+
 protected:
 	//==================================================================
 	// Internal Operations
@@ -332,6 +391,34 @@ protected:
 
 	/** Handle add item request event */
 	void OnAddItemRequestEvent(const struct FSuspenseCoreEventData& EventData);
+
+	//==================================================================
+	// Magazine Event Handlers
+	// @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+	//==================================================================
+
+	/**
+	 * Handle single round loaded into magazine event
+	 * Called by EventBus when AmmoLoadingService loads a round.
+	 * Updates the magazine item data and triggers replication.
+	 * @param EventTag The event tag (TAG_Equipment_Event_Ammo_RoundLoaded)
+	 * @param EventData Event data containing MagazineInstanceID, AmmoID, NewRoundCount
+	 */
+	void OnMagazineRoundLoaded(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Handle single round unloaded from magazine event
+	 * @param EventTag The event tag (TAG_Equipment_Event_Ammo_RoundUnloaded)
+	 * @param EventData Event data containing MagazineInstanceID, NewRoundCount
+	 */
+	void OnMagazineRoundUnloaded(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
+
+	/**
+	 * Handle ammo loading completed event
+	 * @param EventTag The event tag (TAG_Equipment_Event_Ammo_LoadCompleted)
+	 * @param EventData Event data containing MagazineInstanceID, final state
+	 */
+	void OnMagazineLoadCompleted(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 
 	//==================================================================
 	// Server RPCs - Security Layer (Phase 6)

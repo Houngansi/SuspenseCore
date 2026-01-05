@@ -1943,6 +1943,55 @@ void USuspenseCoreInventoryComponent::SubscribeToEvents()
 
 	// Subscribe to add item request
 	// (Implementation would use proper subscription mechanism)
+
+	//==================================================================
+	// Magazine Loading Events Subscription
+	// @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+	// Using Native GameplayTags from SuspenseCoreEquipmentNativeTags.h
+	//==================================================================
+
+	// Subscribe to round loaded event (each round loaded triggers this)
+	// Native tag: SuspenseCore.Event.Equipment.Ammo.RoundLoaded
+	FGameplayTag RoundLoadedTag = FGameplayTag::RequestGameplayTag(
+		TEXT("SuspenseCore.Event.Equipment.Ammo.RoundLoaded"), false);
+	if (RoundLoadedTag.IsValid())
+	{
+		FDelegateHandle Handle = EventBus->Subscribe(
+			RoundLoadedTag,
+			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineRoundLoaded)
+		);
+		EventSubscriptions.Add(Handle);
+	}
+
+	// Subscribe to round unloaded event
+	// Native tag: SuspenseCore.Event.Equipment.Ammo.RoundUnloaded
+	FGameplayTag RoundUnloadedTag = FGameplayTag::RequestGameplayTag(
+		TEXT("SuspenseCore.Event.Equipment.Ammo.RoundUnloaded"), false);
+	if (RoundUnloadedTag.IsValid())
+	{
+		FDelegateHandle Handle = EventBus->Subscribe(
+			RoundUnloadedTag,
+			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded)
+		);
+		EventSubscriptions.Add(Handle);
+	}
+
+	// Subscribe to load completed event
+	// Native tag: SuspenseCore.Event.Equipment.Ammo.LoadCompleted
+	FGameplayTag LoadCompletedTag = FGameplayTag::RequestGameplayTag(
+		TEXT("SuspenseCore.Event.Equipment.Ammo.LoadCompleted"), false);
+	if (LoadCompletedTag.IsValid())
+	{
+		FDelegateHandle Handle = EventBus->Subscribe(
+			LoadCompletedTag,
+			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineLoadCompleted)
+		);
+		EventSubscriptions.Add(Handle);
+	}
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("SubscribeToEvents: Subscribed to magazine loading events (ContainerID: %s)"),
+		*ProviderID.ToString().Left(8));
 }
 
 void USuspenseCoreInventoryComponent::UnsubscribeFromEvents()
@@ -2093,6 +2142,259 @@ const FSuspenseCoreItemInstance* USuspenseCoreInventoryComponent::FindItemInstan
 	{
 		return Instance.UniqueInstanceID == InstanceID;
 	});
+}
+
+//==================================================================
+// Magazine Operations
+// @see TarkovStyle_Ammo_System_Design.md - Tarkov-style ammo loading
+//==================================================================
+
+FSuspenseCoreItemInstance* USuspenseCoreInventoryComponent::GetItemByInstanceID(const FGuid& InstanceID)
+{
+	return FindItemInstanceInternal(InstanceID);
+}
+
+const FSuspenseCoreItemInstance* USuspenseCoreInventoryComponent::GetItemByInstanceID(const FGuid& InstanceID) const
+{
+	return FindItemInstanceInternal(InstanceID);
+}
+
+bool USuspenseCoreInventoryComponent::UpdateMagazineData(const FGuid& ItemInstanceID, const FSuspenseCoreMagazineInstance& NewMagData)
+{
+	// Server authority check
+	if (!CheckInventoryAuthority(TEXT("UpdateMagazineData")))
+	{
+		UE_LOG(LogSuspenseCoreInventory, Verbose,
+			TEXT("UpdateMagazineData: No authority, skipping (client will receive via replication)"));
+		return false;
+	}
+
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(ItemInstanceID);
+	if (!Item)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("UpdateMagazineData: Item %s not found"), *ItemInstanceID.ToString());
+		return false;
+	}
+
+	// Update magazine data
+	Item->MagazineData = NewMagData;
+
+	// Ensure instance GUIDs are synced
+	Item->MagazineData.InstanceGuid = Item->UniqueInstanceID;
+
+	// Mark for replication
+	MarkItemDirty(ItemInstanceID);
+
+	// Invalidate UI cache
+	InvalidateItemUICache(ItemInstanceID);
+
+	// Broadcast update
+	BroadcastInventoryUpdated();
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("UpdateMagazineData: Updated magazine %s - %d/%d rounds of %s"),
+		*ItemInstanceID.ToString().Left(8),
+		NewMagData.CurrentRoundCount,
+		NewMagData.MaxCapacity,
+		*NewMagData.LoadedAmmoID.ToString());
+
+	return true;
+}
+
+bool USuspenseCoreInventoryComponent::GetMagazineData(const FGuid& ItemInstanceID, FSuspenseCoreMagazineInstance& OutMagData) const
+{
+	const FSuspenseCoreItemInstance* Item = GetItemByInstanceID(ItemInstanceID);
+	if (!Item)
+	{
+		return false;
+	}
+
+	if (!Item->IsMagazine())
+	{
+		return false;
+	}
+
+	OutMagData = Item->MagazineData;
+	return true;
+}
+
+int32 USuspenseCoreInventoryComponent::LoadRoundsIntoMagazine(const FGuid& MagazineInstanceID, FName AmmoID, int32 RoundCount)
+{
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(MagazineInstanceID);
+	if (!Item || !Item->IsMagazine())
+	{
+		return 0;
+	}
+
+	// Use magazine's LoadRounds method
+	int32 ActualLoaded = Item->MagazineData.LoadRounds(AmmoID, RoundCount);
+
+	if (ActualLoaded > 0)
+	{
+		// Update magazine data triggers replication
+		UpdateMagazineData(MagazineInstanceID, Item->MagazineData);
+	}
+
+	return ActualLoaded;
+}
+
+void USuspenseCoreInventoryComponent::MarkItemDirty(const FGuid& InstanceID)
+{
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(InstanceID);
+	if (Item)
+	{
+		// Use ReplicatedInventory's UpdateItem to mark for replication
+		ReplicatedInventory.UpdateItem(*Item);
+	}
+}
+
+//==================================================================
+// Magazine Event Handlers
+// @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+//==================================================================
+
+void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Check if this event is for our container
+	FString ContainerIDStr = EventData.GetString(TEXT("SourceContainerID"));
+	FGuid EventContainerID;
+	if (!FGuid::Parse(ContainerIDStr, EventContainerID))
+	{
+		return;
+	}
+
+	// Only process if this is our container
+	if (EventContainerID != ProviderID)
+	{
+		return;
+	}
+
+	// Parse magazine instance ID
+	FString MagInstanceIDStr = EventData.GetString(TEXT("MagazineInstanceID"));
+	FGuid MagInstanceID;
+	if (!FGuid::Parse(MagInstanceIDStr, MagInstanceID))
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("OnMagazineRoundLoaded: Invalid MagazineInstanceID: %s"), *MagInstanceIDStr);
+		return;
+	}
+
+	// Get round data
+	FName AmmoID = FName(*EventData.GetString(TEXT("AmmoID")));
+	int32 NewRoundCount = EventData.GetInt(TEXT("NewRoundCount"));
+	int32 MaxCapacity = EventData.GetInt(TEXT("MaxCapacity"));
+
+	// Find and update the magazine item
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(MagInstanceID);
+	if (!Item)
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("OnMagazineRoundLoaded: Magazine item %s not found in inventory"),
+			*MagInstanceID.ToString().Left(8));
+		return;
+	}
+
+	if (!Item->IsMagazine())
+	{
+		UE_LOG(LogSuspenseCoreInventory, Warning,
+			TEXT("OnMagazineRoundLoaded: Item %s is not a magazine"),
+			*MagInstanceID.ToString().Left(8));
+		return;
+	}
+
+	// Update magazine state
+	Item->MagazineData.CurrentRoundCount = NewRoundCount;
+	Item->MagazineData.LoadedAmmoID = AmmoID;
+	if (MaxCapacity > 0)
+	{
+		Item->MagazineData.MaxCapacity = MaxCapacity;
+	}
+
+	// Mark dirty and broadcast
+	MarkItemDirty(MagInstanceID);
+	InvalidateItemUICache(MagInstanceID);
+	BroadcastInventoryUpdated();
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("OnMagazineRoundLoaded: Magazine %s updated to %d/%d rounds"),
+		*MagInstanceID.ToString().Left(8), NewRoundCount, Item->MagazineData.MaxCapacity);
+}
+
+void USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Check container ID
+	FString ContainerIDStr = EventData.GetString(TEXT("SourceContainerID"));
+	FGuid EventContainerID;
+	if (!FGuid::Parse(ContainerIDStr, EventContainerID) || EventContainerID != ProviderID)
+	{
+		return;
+	}
+
+	// Parse magazine instance ID
+	FString MagInstanceIDStr = EventData.GetString(TEXT("MagazineInstanceID"));
+	FGuid MagInstanceID;
+	if (!FGuid::Parse(MagInstanceIDStr, MagInstanceID))
+	{
+		return;
+	}
+
+	int32 NewRoundCount = EventData.GetInt(TEXT("NewRoundCount"));
+
+	// Find and update the magazine item
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(MagInstanceID);
+	if (!Item || !Item->IsMagazine())
+	{
+		return;
+	}
+
+	// Update magazine state
+	Item->MagazineData.CurrentRoundCount = NewRoundCount;
+	if (NewRoundCount <= 0)
+	{
+		Item->MagazineData.LoadedAmmoID = NAME_None;
+	}
+
+	// Mark dirty and broadcast
+	MarkItemDirty(MagInstanceID);
+	InvalidateItemUICache(MagInstanceID);
+	BroadcastInventoryUpdated();
+}
+
+void USuspenseCoreInventoryComponent::OnMagazineLoadCompleted(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Check container ID
+	FString ContainerIDStr = EventData.GetString(TEXT("SourceContainerID"));
+	FGuid EventContainerID;
+	if (!FGuid::Parse(ContainerIDStr, EventContainerID) || EventContainerID != ProviderID)
+	{
+		return;
+	}
+
+	// This is a completion event - final sync of magazine state
+	// The individual RoundLoaded events should have already updated the state
+	// This serves as a final confirmation and can trigger any completion-specific logic
+
+	FString MagInstanceIDStr = EventData.GetString(TEXT("MagazineInstanceID"));
+	FGuid MagInstanceID;
+	if (!FGuid::Parse(MagInstanceIDStr, MagInstanceID))
+	{
+		return;
+	}
+
+	int32 FinalRoundCount = EventData.GetInt(TEXT("RoundsProcessed"));
+
+	UE_LOG(LogSuspenseCoreInventory, Log,
+		TEXT("OnMagazineLoadCompleted: Magazine %s loading completed with %d rounds"),
+		*MagInstanceID.ToString().Left(8), FinalRoundCount);
+
+	// Ensure final state is correct
+	FSuspenseCoreItemInstance* Item = GetItemByInstanceID(MagInstanceID);
+	if (Item && Item->IsMagazine())
+	{
+		MarkItemDirty(MagInstanceID);
+		BroadcastInventoryUpdated();
+	}
 }
 
 //==================================================================

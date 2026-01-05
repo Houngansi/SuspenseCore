@@ -8,6 +8,7 @@
 #include "SuspenseCore/Services/SuspenseCoreLoadoutManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Events/UI/SuspenseCoreUIEvents.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
@@ -301,9 +302,27 @@ TArray<FSuspenseCoreItemUIData> USuspenseCoreEquipmentUIProvider::GetAllItemUIDa
 				ItemData.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 				ItemData.GridSize = ItemTableData.InventoryProps.GridSize;
 				ItemData.UnitWeight = ItemTableData.InventoryProps.Weight;
-				ItemData.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance.Quantity;
 				ItemData.BaseValue = ItemTableData.InventoryProps.BaseValue;
 				ItemData.TotalValue = ItemTableData.InventoryProps.BaseValue * ItemInstance.Quantity;
+
+				// CRITICAL: For magazines, calculate weight with loaded rounds
+				// @see TarkovStyle_Ammo_System_Design.md - Magazine weight system
+				if (ItemInstance.MagazineData.MaxCapacity > 0)
+				{
+					FSuspenseCoreMagazineData MagData;
+					if (DataManager->GetMagazineData(ItemInstance.ItemID, MagData))
+					{
+						ItemData.TotalWeight = MagData.GetWeightWithRounds(ItemInstance.MagazineData.CurrentRoundCount);
+					}
+					else
+					{
+						ItemData.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance.Quantity;
+					}
+				}
+				else
+				{
+					ItemData.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance.Quantity;
+				}
 			}
 		}
 
@@ -363,9 +382,27 @@ bool USuspenseCoreEquipmentUIProvider::GetItemUIDataAtSlot(int32 SlotIndex, FSus
 			OutItem.MaxStackSize = ItemTableData.InventoryProps.MaxStackSize;
 			OutItem.GridSize = ItemTableData.InventoryProps.GridSize;
 			OutItem.UnitWeight = ItemTableData.InventoryProps.Weight;
-			OutItem.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance->Quantity;
 			OutItem.BaseValue = ItemTableData.InventoryProps.BaseValue;
 			OutItem.TotalValue = ItemTableData.InventoryProps.BaseValue * ItemInstance->Quantity;
+
+			// CRITICAL: For magazines, calculate weight with loaded rounds
+			// @see TarkovStyle_Ammo_System_Design.md - Magazine weight system
+			if (ItemInstance->MagazineData.MaxCapacity > 0)
+			{
+				FSuspenseCoreMagazineData MagData;
+				if (DataManager->GetMagazineData(ItemInstance->ItemID, MagData))
+				{
+					OutItem.TotalWeight = MagData.GetWeightWithRounds(ItemInstance->MagazineData.CurrentRoundCount);
+				}
+				else
+				{
+					OutItem.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance->Quantity;
+				}
+			}
+			else
+			{
+				OutItem.TotalWeight = ItemTableData.InventoryProps.Weight * ItemInstance->Quantity;
+			}
 		}
 	}
 

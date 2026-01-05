@@ -275,6 +275,9 @@ protected:
 	/** Handle slot clicked */
 	void HandleSlotClicked(int32 SlotIndex, bool bRightClick);
 
+	/** Handle slot double clicked - opens magazine inspection for magazine items */
+	void HandleSlotDoubleClicked(int32 SlotIndex);
+
 	/** Handle slot hovered */
 	void HandleSlotHovered(int32 SlotIndex);
 

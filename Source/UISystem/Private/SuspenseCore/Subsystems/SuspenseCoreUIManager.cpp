@@ -16,8 +16,10 @@
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineTooltipWidget.h"
+#include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineInspectionWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineTooltipWidget.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineInspectionWidget.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
 #include "Components/ActorComponent.h"
@@ -94,6 +96,12 @@ void USuspenseCoreUIManager::Deinitialize()
 	{
 		MagazineTooltipWidget->RemoveFromParent();
 		MagazineTooltipWidget = nullptr;
+	}
+
+	if (MagazineInspectionWidget)
+	{
+		MagazineInspectionWidget->RemoveFromParent();
+		MagazineInspectionWidget = nullptr;
 	}
 
 	RegisteredProviders.Empty();
@@ -637,7 +645,24 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 		return;
 	}
 
-	// Create tooltip widget if needed
+	// Check if this is a magazine item - use specialized tooltip
+	if (IsMagazineItem(Item) && MagazineTooltipWidgetClass)
+	{
+		// Convert to magazine tooltip data and show magazine tooltip
+		FSuspenseCoreMagazineTooltipData MagazineData;
+		MagazineData.MagazineInstanceID = Item.InstanceID;
+		MagazineData.DisplayName = Item.DisplayName;
+		MagazineData.ItemIcon = Item.Icon;
+		MagazineData.ItemRarity = Item.Rarity;
+		// Note: Additional magazine data (CurrentRounds, MaxCapacity, etc.) should be
+		// retrieved from MagazineComponent or stored in item payload
+		// For now show basic magazine tooltip
+
+		ShowMagazineTooltip(MagazineData, ScreenPosition);
+		return;
+	}
+
+	// Standard item tooltip
 	if (!TooltipWidget)
 	{
 		TooltipWidget = CreateTooltipWidget(PC);
@@ -1268,4 +1293,111 @@ void USuspenseCoreUIManager::UpdateInputMode(APlayerController* PC, bool bShowin
 		PC->SetInputMode(InputMode);
 		PC->SetShowMouseCursor(false);
 	}
+}
+
+//==================================================================
+// Magazine Inspection (Tarkov-style)
+//==================================================================
+
+bool USuspenseCoreUIManager::OpenMagazineInspection(const FSuspenseCoreMagazineInspectionData& InspectionData)
+{
+	// Get player controller
+	APlayerController* PC = OwningPC.Get();
+	if (!PC)
+	{
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UWorld* World = GI->GetWorld())
+			{
+				PC = World->GetFirstPlayerController();
+			}
+		}
+	}
+
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OpenMagazineInspection: No player controller available"));
+		return false;
+	}
+
+	// Create inspection widget if needed
+	if (!MagazineInspectionWidget)
+	{
+		MagazineInspectionWidget = CreateMagazineInspectionWidget(PC);
+		if (!MagazineInspectionWidget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("OpenMagazineInspection: Failed to create widget"));
+			return false;
+		}
+	}
+
+	// Ensure widget is in viewport
+	if (!MagazineInspectionWidget->IsInViewport())
+	{
+		MagazineInspectionWidget->AddToViewport(5000); // High Z-order but below tooltips
+	}
+
+	// Open inspection using interface
+	ISuspenseCoreMagazineInspectionWidgetInterface::Execute_OpenInspection(MagazineInspectionWidget, InspectionData);
+
+	UE_LOG(LogTemp, Log, TEXT("OpenMagazineInspection: Opened for magazine %s"), *InspectionData.DisplayName.ToString());
+	return true;
+}
+
+void USuspenseCoreUIManager::CloseMagazineInspection()
+{
+	if (MagazineInspectionWidget)
+	{
+		ISuspenseCoreMagazineInspectionWidgetInterface::Execute_CloseInspection(MagazineInspectionWidget);
+	}
+}
+
+bool USuspenseCoreUIManager::IsMagazineInspectionOpen() const
+{
+	if (!MagazineInspectionWidget)
+	{
+		return false;
+	}
+
+	return ISuspenseCoreMagazineInspectionWidgetInterface::Execute_IsInspectionOpen(MagazineInspectionWidget);
+}
+
+USuspenseCoreMagazineInspectionWidget* USuspenseCoreUIManager::CreateMagazineInspectionWidget(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	if (MagazineInspectionWidgetClass)
+	{
+		return CreateWidget<USuspenseCoreMagazineInspectionWidget>(PC, MagazineInspectionWidgetClass);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("CreateMagazineInspectionWidget: MagazineInspectionWidgetClass not configured"));
+	return nullptr;
+}
+
+bool USuspenseCoreUIManager::IsMagazineItem(const FSuspenseCoreItemUIData& ItemData) const
+{
+	// Check if item has magazine tag
+	// Using the Magazine tag from SuspenseCoreEquipmentTags
+	using namespace SuspenseCoreEquipmentTags;
+
+	// Check for Item.Magazine or Item.Category.Magazine tags
+	static const FGameplayTag MagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Magazine"), false);
+	static const FGameplayTag MagazineCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Magazine"), false);
+
+	if (ItemData.ItemTags.HasTag(MagazineTag) || ItemData.ItemTags.HasTag(MagazineCategoryTag))
+	{
+		return true;
+	}
+
+	// Also check TypeTag for backwards compatibility
+	if (ItemData.TypeTag.MatchesTag(MagazineTag) || ItemData.TypeTag.MatchesTag(MagazineCategoryTag))
+	{
+		return true;
+	}
+
+	return false;
 }

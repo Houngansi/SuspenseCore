@@ -80,6 +80,11 @@ public:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
+	// Drag & Drop support
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 	// ═══════════════════════════════════════════════════════════════════════════
 	// ISuspenseCoreMagazineInspectionWidget Implementation
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -246,6 +251,12 @@ private:
 	void OnCloseButtonClicked();
 
 	void HandleRoundSlotClicked(int32 SlotIndex);
+
+	/** Check if item is compatible ammo for this magazine */
+	bool IsCompatibleAmmo(const struct FSuspenseCoreItemUIData& ItemData) const;
+
+	/** Publish ammo load request to EventBus */
+	void RequestAmmoLoad(FName AmmoID, int32 Quantity);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// STATE

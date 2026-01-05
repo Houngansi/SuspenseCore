@@ -27,7 +27,7 @@ UGA_QuickSlotUse::UGA_QuickSlotUse()
 // Request Building
 //==================================================================
 
-FSuspenseCoreItemUseRequest UGA_QuickSlotUse::BuildItemUseRequest_Implementation(
+FSuspenseCoreItemUseRequest UGA_QuickSlotUse::BuildItemUseRequest(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayEventData* TriggerEventData) const
 {

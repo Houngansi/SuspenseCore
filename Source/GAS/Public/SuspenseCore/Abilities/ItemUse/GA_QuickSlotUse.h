@@ -54,7 +54,7 @@ protected:
 	// GA_ItemUse Overrides
 	//==================================================================
 
-	virtual FSuspenseCoreItemUseRequest BuildItemUseRequest_Implementation(
+	virtual FSuspenseCoreItemUseRequest BuildItemUseRequest(
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayEventData* TriggerEventData) const override;
 };

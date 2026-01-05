@@ -69,8 +69,7 @@ bool UGA_ItemUse::CanActivateAbility(
 	}
 
 	// Build request to validate
-	FSuspenseCoreItemUseRequest Request = const_cast<UGA_ItemUse*>(this)->BuildItemUseRequest_Implementation(
-		ActorInfo, nullptr);
+	FSuspenseCoreItemUseRequest Request = BuildItemUseRequest(ActorInfo, nullptr);
 
 	if (!Request.IsValid())
 	{
@@ -280,7 +279,7 @@ void UGA_ItemUse::CancelAbility(
 // Request Building
 //==================================================================
 
-FSuspenseCoreItemUseRequest UGA_ItemUse::BuildItemUseRequest_Implementation(
+FSuspenseCoreItemUseRequest UGA_ItemUse::BuildItemUseRequest(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayEventData* TriggerEventData) const
 {

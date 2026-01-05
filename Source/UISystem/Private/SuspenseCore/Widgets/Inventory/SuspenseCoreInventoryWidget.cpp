@@ -883,11 +883,16 @@ void USuspenseCoreInventoryWidget::HandleSlotDoubleClicked(int32 SlotIndex)
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	if (!UIManager)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("HandleSlotDoubleClicked: UIManager not available"));
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("HandleSlotDoubleClicked: Slot=%d, Item=%s, ItemType=%s"),
+		SlotIndex, *ItemData.ItemID.ToString(), *ItemData.ItemType.ToString());
+
 	if (UIManager->IsMagazineItem(ItemData))
 	{
+		UE_LOG(LogTemp, Log, TEXT("HandleSlotDoubleClicked: Item IS a magazine, opening inspection"));
 		// Build inspection data from item
 		FSuspenseCoreMagazineInspectionData InspectionData;
 		InspectionData.MagazineInstanceID = ItemData.InstanceID;

@@ -4,11 +4,12 @@
 
 #include "SuspenseCore/Services/SuspenseCoreAmmoLoadingService.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
-#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAmmoLoading, Log, All);
 
@@ -37,17 +38,31 @@ bool USuspenseCoreAmmoLoadingService::InitializeService(const FSuspenseCoreServi
 
     ServiceState = ESuspenseCoreServiceLifecycleState::Initializing;
 
-    // Get EventBus from EventManager
-    if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
-    {
-        EventBus = EventManager->GetEventBus();
-    }
+    AMMO_LOG(Log, TEXT("InitializeService: Starting initialization..."));
 
-    // Get DataManager from ServiceLocator if available
-    if (Params.ServiceLocator)
+    // Get EventBus from ServiceProvider (following SuspenseCore architecture)
+    if (USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this))
     {
-        // DataManager might be registered as a service
-        // For now, try to find it in the world
+        EventBus = Provider->GetEventBus();
+        AMMO_LOG(Log, TEXT("InitializeService: Got EventBus from ServiceProvider (%s)"),
+            EventBus.IsValid() ? TEXT("Valid") : TEXT("NULL"));
+    }
+    else
+    {
+        AMMO_LOG(Warning, TEXT("InitializeService: ServiceProvider not found, trying GameInstance..."));
+
+        // Fallback: try to get from GameInstance directly
+        if (Params.ServiceLocator)
+        {
+            if (UGameInstance* GI = Params.ServiceLocator->GetGameInstance())
+            {
+                if (USuspenseCoreServiceProvider* GIProvider = GI->GetSubsystem<USuspenseCoreServiceProvider>())
+                {
+                    EventBus = GIProvider->GetEventBus();
+                    AMMO_LOG(Log, TEXT("InitializeService: Got EventBus from GameInstance->ServiceProvider"));
+                }
+            }
+        }
     }
 
     // Subscribe to events
@@ -179,20 +194,23 @@ void USuspenseCoreAmmoLoadingService::UnsubscribeFromEvents()
 
 void USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-    // Extract data from event
-    FString MagazineIDString = EventData.GetString(TEXT("MagazineID"));
+    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: Received event!"));
+
+    // Extract data from event - UI uses MagazineInstanceID for the GUID
+    FString MagazineInstanceIDString = EventData.GetString(TEXT("MagazineInstanceID"));
+    FString MagazineIDString = EventData.GetString(TEXT("MagazineID")); // ItemID (not GUID)
     FString AmmoIDString = EventData.GetString(TEXT("AmmoID"));
     int32 Quantity = EventData.GetInt(TEXT("Quantity"));
     int32 SourceSlot = EventData.GetInt(TEXT("SourceSlot"));
 
-    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: Magazine=%s, Ammo=%s, Qty=%d, Slot=%d"),
-        *MagazineIDString, *AmmoIDString, Quantity, SourceSlot);
+    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: MagInstanceID=%s, MagID=%s, Ammo=%s, Qty=%d, Slot=%d"),
+        *MagazineInstanceIDString, *MagazineIDString, *AmmoIDString, Quantity, SourceSlot);
 
-    // Parse magazine instance ID
+    // Parse magazine instance ID (GUID)
     FGuid MagazineInstanceID;
-    if (!FGuid::Parse(MagazineIDString, MagazineInstanceID))
+    if (!FGuid::Parse(MagazineInstanceIDString, MagazineInstanceID))
     {
-        AMMO_LOG(Warning, TEXT("OnAmmoLoadRequestedEvent: Invalid MagazineID GUID: %s"), *MagazineIDString);
+        AMMO_LOG(Warning, TEXT("OnAmmoLoadRequestedEvent: Invalid MagazineInstanceID GUID: %s"), *MagazineInstanceIDString);
         return;
     }
 

@@ -261,6 +261,11 @@ void USuspenseCoreContainerScreenWidget::ShowTooltip(const FSuspenseCoreItemUIDa
 	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
 	bool bIsMagazine = UIManager && UIManager->IsMagazineItem(ItemData);
 
+	UE_LOG(LogTemp, Log, TEXT("ContainerScreen::ShowTooltip: Item=%s, IsMagazine=%s, MagazineTooltipClass=%s"),
+		*ItemData.ItemID.ToString(),
+		bIsMagazine ? TEXT("YES") : TEXT("NO"),
+		MagazineTooltipWidgetClass ? TEXT("SET") : TEXT("NOT SET"));
+
 	if (bIsMagazine && MagazineTooltipWidgetClass)
 	{
 		// Hide regular tooltip if visible

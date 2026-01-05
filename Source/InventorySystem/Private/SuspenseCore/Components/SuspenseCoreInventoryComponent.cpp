@@ -2328,6 +2328,7 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 	//==================================================================
 	// Consume ammo from source inventory slot
 	// @see TarkovStyle_Ammo_System_Design.md - Ammo consumption
+	// @see SuspenseCoreItemTypes.h:603 - UniqueInstanceID, :616 - Quantity
 	//==================================================================
 	int32 SourceSlot = EventData.GetInt(TEXT("SourceInventorySlot"));
 	if (SourceSlot >= 0)
@@ -2336,12 +2337,12 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 		if (GetItemInstanceAtSlot(SourceSlot, AmmoItemCopy) && AmmoItemCopy.ItemID == AmmoID)
 		{
 			// Find the actual item in our array to modify it
-			FSuspenseCoreItemInstance* AmmoItem = GetItemByInstanceID(AmmoItemCopy.InstanceID);
+			FSuspenseCoreItemInstance* AmmoItem = GetItemByInstanceID(AmmoItemCopy.UniqueInstanceID);
 			if (AmmoItem)
 			{
-				AmmoItem->StackCount--;
+				AmmoItem->Quantity--;
 
-				if (AmmoItem->StackCount <= 0)
+				if (AmmoItem->Quantity <= 0)
 				{
 					// Remove empty stack
 					FSuspenseCoreItemInstance RemovedItem;
@@ -2352,7 +2353,7 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 				}
 				else
 				{
-					MarkItemDirty(AmmoItem->InstanceID);
+					MarkItemDirty(AmmoItem->UniqueInstanceID);
 				}
 			}
 		}

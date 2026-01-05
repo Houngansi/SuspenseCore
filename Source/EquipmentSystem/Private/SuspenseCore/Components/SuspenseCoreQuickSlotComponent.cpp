@@ -707,13 +707,9 @@ bool USuspenseCoreQuickSlotComponent::ExecuteMagazineSwap(int32 SlotIndex, bool 
     }
 
     // Use MagazineComponent's swap function
+    // NOTE: MagazineComponent handles slot clearing AND returns ejected magazine to the same slot
+    // Do NOT clear slot here - that would delete the swapped-back magazine!
     bool bSuccess = MagComp->SwapMagazineFromQuickSlot(SlotIndex, bEmergencyDrop);
-
-    if (bSuccess)
-    {
-        // Clear the slot (magazine is now in weapon)
-        ClearSlotInternal(SlotIndex);
-    }
 
     return bSuccess;
 }

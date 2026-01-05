@@ -573,19 +573,21 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
     }
 
     // Ammo Loading Service - use native tag
-    using namespace SuspenseCoreEquipmentTags::Service;
-    if (TAG_Service_Equipment_AmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TAG_Service_Equipment_AmmoLoading))
     {
-        FSuspenseCoreServiceInitParams AmmoLoadingParams;
-        AmmoLoadingParams.bAutoStart = true;
+        const FGameplayTag TagAmmoLoading = SuspenseCoreEquipmentTags::Service::TAG_Service_Equipment_AmmoLoading.Get();
+        if (TagAmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TagAmmoLoading))
+        {
+            FSuspenseCoreServiceInitParams AmmoLoadingParams;
+            AmmoLoadingParams.bAutoStart = true;
 
-        ServiceLocator->RegisterServiceClass(
-            TAG_Service_Equipment_AmmoLoading,
-            USuspenseCoreAmmoLoadingService::StaticClass(),
-            AmmoLoadingParams);
+            ServiceLocator->RegisterServiceClass(
+                TagAmmoLoading,
+                USuspenseCoreAmmoLoadingService::StaticClass(),
+                AmmoLoadingParams);
 
-        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
-        RegisteredCount++;
+            UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
+            RegisteredCount++;
+        }
     }
 
     UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete (%d services registered)"), RegisteredCount);

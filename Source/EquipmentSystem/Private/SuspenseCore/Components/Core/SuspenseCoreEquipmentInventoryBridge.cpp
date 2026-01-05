@@ -2352,9 +2352,20 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         EventData.SetString(FName(TEXT("InstanceID")), Item.UniqueInstanceID.ToString());
         EventData.SetInt(FName(TEXT("Quantity")), Item.Quantity);
 
+        // CRITICAL: Include MagazineData for Tarkov-style ammo system
+        // This preserves CurrentRoundCount, LoadedAmmoID when moving magazines to QuickSlot
+        // @see TarkovStyle_Ammo_System_Design.md
+        EventData.SetString(FName(TEXT("MagazineID")), Item.MagazineData.MagazineID.ToString());
+        EventData.SetString(FName(TEXT("LoadedAmmoID")), Item.MagazineData.LoadedAmmoID.ToString());
+        EventData.SetInt(FName(TEXT("CurrentRoundCount")), Item.MagazineData.CurrentRoundCount);
+        EventData.SetInt(FName(TEXT("MaxCapacity")), Item.MagazineData.MaxCapacity);
+        EventData.SetFloat(FName(TEXT("MagazineDurability")), Item.MagazineData.CurrentDurability);
+
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting %s"), *EquippedTag.ToString());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s"), *TargetActor->GetName());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  MagazineData: Rounds=%d/%d, AmmoType=%s"),
+            Item.MagazineData.CurrentRoundCount, Item.MagazineData.MaxCapacity, *Item.MagazineData.LoadedAmmoID.ToString());
 
         EventDelegateManager->PublishEventWithData(EquippedTag, EventData);
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Event broadcast successful"));

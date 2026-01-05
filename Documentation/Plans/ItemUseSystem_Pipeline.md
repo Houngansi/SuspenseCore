@@ -1823,10 +1823,10 @@ ISuspenseCoreItemUseService* USuspenseCoreServiceProvider::GetItemUseService() c
 - [ ] Verify PlayerCore input integration works
 
 ### Phase 4: Handlers
-- [ ] Create `SuspenseCoreAmmoToMagazineHandler`
-- [ ] Create `SuspenseCoreMagazineSwapHandler`
-- [ ] Create `SuspenseCoreMedicalUseHandler`
-- [ ] Create `SuspenseCoreGrenadeHandler`
+- [x] Create `SuspenseCoreAmmoToMagazineHandler`
+- [x] Create `SuspenseCoreMagazineSwapHandler`
+- [x] Create `SuspenseCoreMedicalUseHandler`
+- [x] Create `SuspenseCoreGrenadeHandler`
 - [ ] Verify all handlers register correctly
 
 ### Phase 5: Integration

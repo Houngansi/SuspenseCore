@@ -1952,13 +1952,17 @@ void USuspenseCoreInventoryComponent::SubscribeToEvents()
 
 	// Subscribe to round loaded event (each round loaded triggers this)
 	// Native tag: SuspenseCore.Event.Equipment.Ammo.RoundLoaded
+	// @see SuspenseCoreEventBus.h lines 82-84 for subscription pattern
 	FGameplayTag RoundLoadedTag = FGameplayTag::RequestGameplayTag(
 		TEXT("SuspenseCore.Event.Equipment.Ammo.RoundLoaded"), false);
 	if (RoundLoadedTag.IsValid())
 	{
-		FDelegateHandle Handle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle Handle = EventBus->SubscribeNative(
 			RoundLoadedTag,
-			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineRoundLoaded)
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(
+				this, &USuspenseCoreInventoryComponent::OnMagazineRoundLoaded),
+			ESuspenseCoreEventPriority::Normal
 		);
 		EventSubscriptions.Add(Handle);
 	}
@@ -1969,9 +1973,12 @@ void USuspenseCoreInventoryComponent::SubscribeToEvents()
 		TEXT("SuspenseCore.Event.Equipment.Ammo.RoundUnloaded"), false);
 	if (RoundUnloadedTag.IsValid())
 	{
-		FDelegateHandle Handle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle Handle = EventBus->SubscribeNative(
 			RoundUnloadedTag,
-			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded)
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(
+				this, &USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded),
+			ESuspenseCoreEventPriority::Normal
 		);
 		EventSubscriptions.Add(Handle);
 	}
@@ -1982,9 +1989,12 @@ void USuspenseCoreInventoryComponent::SubscribeToEvents()
 		TEXT("SuspenseCore.Event.Equipment.Ammo.LoadCompleted"), false);
 	if (LoadCompletedTag.IsValid())
 	{
-		FDelegateHandle Handle = EventBus->Subscribe(
+		FSuspenseCoreSubscriptionHandle Handle = EventBus->SubscribeNative(
 			LoadCompletedTag,
-			FOnSuspenseCoreEvent::CreateUObject(this, &USuspenseCoreInventoryComponent::OnMagazineLoadCompleted)
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(
+				this, &USuspenseCoreInventoryComponent::OnMagazineLoadCompleted),
+			ESuspenseCoreEventPriority::Normal
 		);
 		EventSubscriptions.Add(Handle);
 	}
@@ -2002,11 +2012,15 @@ void USuspenseCoreInventoryComponent::UnsubscribeFromEvents()
 		return;
 	}
 
-	for (FDelegateHandle& Handle : EventSubscriptions)
+	for (FSuspenseCoreSubscriptionHandle& Handle : EventSubscriptions)
 	{
-		// Unsubscribe logic
+		EventBus->Unsubscribe(Handle);
 	}
 	EventSubscriptions.Empty();
+
+	UE_LOG(LogSuspenseCoreInventory, Verbose,
+		TEXT("UnsubscribeFromEvents: Unsubscribed from magazine loading events (ContainerID: %s)"),
+		*ProviderID.ToString().Left(8));
 }
 
 void USuspenseCoreInventoryComponent::OnAddItemRequestEvent(const FSuspenseCoreEventData& EventData)

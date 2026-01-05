@@ -62,6 +62,14 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreAmmoLoadRequest
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoLoading")
     int32 SourceInventorySlot = -1;
 
+    /**
+     * Source container ID (InventoryComponent ProviderID)
+     * Used to identify which inventory to update when loading completes.
+     * @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoLoading")
+    FGuid SourceContainerID;
+
     /** Is this a quick load (double-click) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoLoading")
     bool bIsQuickLoad = false;

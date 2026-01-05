@@ -203,8 +203,13 @@ void USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent(FGameplayTag Even
     int32 Quantity = EventData.GetInt(TEXT("Quantity"));
     int32 SourceSlot = EventData.GetInt(TEXT("SourceSlot"));
 
-    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: MagInstanceID=%s, MagID=%s, Ammo=%s, Qty=%d, Slot=%d"),
-        *MagazineInstanceIDString, *MagazineIDString, *AmmoIDString, Quantity, SourceSlot);
+    // Parse SourceContainerID for InventoryComponent integration
+    // @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+    FString SourceContainerIDString = EventData.GetString(TEXT("SourceContainerID"));
+
+    AMMO_LOG(Log, TEXT("OnAmmoLoadRequestedEvent: MagInstanceID=%s, MagID=%s, Ammo=%s, Qty=%d, Slot=%d, Container=%s"),
+        *MagazineInstanceIDString, *MagazineIDString, *AmmoIDString, Quantity, SourceSlot,
+        *SourceContainerIDString.Left(8));
 
     // Parse magazine instance ID (GUID)
     FGuid MagazineInstanceID;
@@ -214,12 +219,20 @@ void USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent(FGameplayTag Even
         return;
     }
 
+    // Parse source container ID (InventoryComponent ProviderID)
+    FGuid SourceContainerID;
+    if (!SourceContainerIDString.IsEmpty())
+    {
+        FGuid::Parse(SourceContainerIDString, SourceContainerID);
+    }
+
     // Create load request
     FSuspenseCoreAmmoLoadRequest Request;
     Request.MagazineInstanceID = MagazineInstanceID;
     Request.AmmoID = FName(*AmmoIDString);
     Request.RoundsToLoad = Quantity > 0 ? Quantity : 0; // 0 means load max
     Request.SourceInventorySlot = SourceSlot;
+    Request.SourceContainerID = SourceContainerID;
     Request.bIsQuickLoad = false;
 
     // Get owner actor from event Source
@@ -646,10 +659,53 @@ void USuspenseCoreAmmoLoadingService::ProcessLoadingTick(FSuspenseCoreActiveLoad
             if (Operation.State == ESuspenseCoreAmmoLoadingState::Loading)
             {
                 Mag->LoadRounds(Operation.Request.AmmoID, 1);
+
+                //==================================================================
+                // Publish RoundLoaded event for InventoryComponent integration
+                // @see TarkovStyle_Ammo_System_Design.md - EventBus integration
+                //==================================================================
+                if (USuspenseCoreEventBus* Bus = EventBus.Get())
+                {
+                    FSuspenseCoreEventData RoundLoadedData;
+                    RoundLoadedData.SetString(TEXT("MagazineInstanceID"), Operation.Request.MagazineInstanceID.ToString());
+                    RoundLoadedData.SetString(TEXT("SourceContainerID"), Operation.Request.SourceContainerID.ToString());
+                    RoundLoadedData.SetString(TEXT("AmmoID"), Operation.Request.AmmoID.ToString());
+                    RoundLoadedData.SetInt(TEXT("NewRoundCount"), Mag->CurrentRoundCount);
+                    RoundLoadedData.SetInt(TEXT("MaxCapacity"), Mag->MaxCapacity);
+                    RoundLoadedData.SetInt(TEXT("RoundsProcessed"), Operation.RoundsProcessed);
+                    RoundLoadedData.SetFloat(TEXT("Progress"), GetLoadingProgress(Operation.Request.MagazineInstanceID));
+
+                    Bus->Publish(
+                        SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Ammo_RoundLoaded,
+                        RoundLoadedData
+                    );
+
+                    AMMO_LOG(Verbose, TEXT("ProcessLoadingTick: Published RoundLoaded event - Mag %s, Round %d/%d"),
+                        *Operation.Request.MagazineInstanceID.ToString().Left(8),
+                        Mag->CurrentRoundCount, Mag->MaxCapacity);
+                }
             }
             else if (Operation.State == ESuspenseCoreAmmoLoadingState::Unloading)
             {
                 Mag->UnloadRounds(1);
+
+                //==================================================================
+                // Publish RoundUnloaded event for InventoryComponent integration
+                //==================================================================
+                if (USuspenseCoreEventBus* Bus = EventBus.Get())
+                {
+                    FSuspenseCoreEventData RoundUnloadedData;
+                    RoundUnloadedData.SetString(TEXT("MagazineInstanceID"), Operation.Request.MagazineInstanceID.ToString());
+                    RoundUnloadedData.SetString(TEXT("SourceContainerID"), Operation.Request.SourceContainerID.ToString());
+                    RoundUnloadedData.SetString(TEXT("AmmoID"), Operation.Request.AmmoID.ToString());
+                    RoundUnloadedData.SetInt(TEXT("NewRoundCount"), Mag->CurrentRoundCount);
+                    RoundUnloadedData.SetInt(TEXT("RoundsProcessed"), Operation.RoundsProcessed);
+
+                    Bus->Publish(
+                        SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Ammo_RoundUnloaded,
+                        RoundUnloadedData
+                    );
+                }
             }
         }
     }
@@ -705,12 +761,21 @@ void USuspenseCoreAmmoLoadingService::PublishLoadingEvent(const FGameplayTag& Ev
 
     FSuspenseCoreEventData EventData;
     EventData.SetString(TEXT("MagazineInstanceID"), MagazineInstanceID.ToString());
+    EventData.SetString(TEXT("SourceContainerID"), Operation.Request.SourceContainerID.ToString());
     EventData.SetString(TEXT("AmmoID"), Operation.Request.AmmoID.ToString());
     EventData.SetInt(TEXT("RoundsProcessed"), Operation.RoundsProcessed);
     EventData.SetInt(TEXT("RoundsRemaining"), Operation.RoundsRemaining);
     EventData.SetFloat(TEXT("Progress"), GetLoadingProgress(MagazineInstanceID));
     EventData.SetFloat(TEXT("TotalDuration"), Operation.TotalDuration);
     EventData.SetBool(TEXT("IsQuickLoad"), Operation.Request.bIsQuickLoad);
+
+    // Include magazine state for completion events
+    FSuspenseCoreMagazineInstance* Mag = ManagedMagazines.Find(MagazineInstanceID);
+    if (Mag)
+    {
+        EventData.SetInt(TEXT("NewRoundCount"), Mag->CurrentRoundCount);
+        EventData.SetInt(TEXT("MaxCapacity"), Mag->MaxCapacity);
+    }
 
     Bus->Publish(EventTag, EventData);
 }

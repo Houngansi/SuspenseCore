@@ -8,6 +8,7 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "AttributeSet.h"
+#include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCoreItemTypes.generated.h"
 
 // Forward declarations
@@ -628,6 +629,19 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
 	FSuspenseCoreWeaponState WeaponState;
 
 	//==================================================================
+	// Magazine Data (for magazine items)
+	// @see TarkovStyle_Ammo_System_Design.md - FSuspenseCoreMagazineInstance
+	//==================================================================
+
+	/**
+	 * Magazine runtime data (if this item is a magazine)
+	 * Used for Tarkov-style ammo loading system.
+	 * Contains current round count, loaded ammo type, and magazine state.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Magazine")
+	FSuspenseCoreMagazineInstance MagazineData;
+
+	//==================================================================
 	// Inventory Position (Optional)
 	//==================================================================
 
@@ -748,6 +762,52 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
 	}
 
 	//==================================================================
+	// Magazine Helpers
+	// @see TarkovStyle_Ammo_System_Design.md - Tarkov-style ammo loading
+	//==================================================================
+
+	/**
+	 * Check if this item is a magazine
+	 * @return true if MagazineData is valid (has MagazineID set)
+	 */
+	bool IsMagazine() const
+	{
+		return MagazineData.IsValid();
+	}
+
+	/**
+	 * Initialize magazine data from DataTable row
+	 * @param MagazineID DataTable row name for magazine
+	 * @param MaxCapacity Maximum rounds magazine can hold
+	 */
+	void InitializeMagazineData(const FName& MagazineID, int32 MaxCapacity)
+	{
+		MagazineData.MagazineID = MagazineID;
+		MagazineData.MaxCapacity = MaxCapacity;
+		MagazineData.InstanceGuid = UniqueInstanceID; // Sync with item instance ID
+		MagazineData.CurrentRoundCount = 0;
+		MagazineData.LoadedAmmoID = NAME_None;
+	}
+
+	/**
+	 * Get current ammo count in magazine
+	 * @return Number of rounds currently loaded, 0 if not a magazine
+	 */
+	int32 GetMagazineRoundCount() const
+	{
+		return IsMagazine() ? MagazineData.CurrentRoundCount : 0;
+	}
+
+	/**
+	 * Get magazine fill percentage
+	 * @return 0.0-1.0 fill percentage, 0 if not a magazine
+	 */
+	float GetMagazineFillPercent() const
+	{
+		return IsMagazine() ? MagazineData.GetFillPercentage() : 0.0f;
+	}
+
+	//==================================================================
 	// Comparison
 	//==================================================================
 
@@ -772,6 +832,12 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
 
 		// Weapons don't stack (they have unique state)
 		if (WeaponState.bHasState || Other.WeaponState.bHasState)
+		{
+			return false;
+		}
+
+		// Magazines don't stack (they have unique ammo state)
+		if (IsMagazine() || Other.IsMagazine())
 		{
 			return false;
 		}

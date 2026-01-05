@@ -262,6 +262,13 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
+	MagazineSwappedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Magazine_Swapped,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnMagazineSwappedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
 	MagazineRoundsChangedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Magazine_RoundsChanged,
 		this,
@@ -290,6 +297,7 @@ void USuspenseCoreAmmoCounterWidget::TeardownEventSubscriptions()
 
 	EventBus->Unsubscribe(MagazineInsertedHandle);
 	EventBus->Unsubscribe(MagazineEjectedHandle);
+	EventBus->Unsubscribe(MagazineSwappedHandle);
 	EventBus->Unsubscribe(MagazineRoundsChangedHandle);
 	EventBus->Unsubscribe(WeaponAmmoChangedHandle);
 	EventBus->Unsubscribe(FireModeChangedHandle);
@@ -344,6 +352,30 @@ void USuspenseCoreAmmoCounterWidget::OnMagazineEjectedEvent(FGameplayTag EventTa
 
 	CachedAmmoData.bHasMagazine = false;
 	SetNoMagazineState_Implementation(true);
+}
+
+void USuspenseCoreAmmoCounterWidget::OnMagazineSwappedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	if (!bIsInitialized)
+	{
+		return;
+	}
+
+	// Magazine swap event contains full data for UI update
+	int32 Rounds = EventData.GetInt(TEXT("CurrentRounds"), 0);
+	int32 Capacity = EventData.GetInt(TEXT("MaxCapacity"), 30);
+	bool bChambered = EventData.GetBool(TEXT("HasChamberedRound"));
+
+	CachedAmmoData.MagazineRounds = Rounds;
+	CachedAmmoData.MagazineCapacity = Capacity;
+	CachedAmmoData.bHasChamberedRound = bChambered;
+	CachedAmmoData.bHasMagazine = true;
+
+	TargetFillPercent = CachedAmmoData.GetMagazineFillPercent();
+
+	SetNoMagazineState_Implementation(false);
+	UpdateMagazineUI();
+	PlayMagazineSwapAnimation_Implementation();
 }
 
 void USuspenseCoreAmmoCounterWidget::OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)

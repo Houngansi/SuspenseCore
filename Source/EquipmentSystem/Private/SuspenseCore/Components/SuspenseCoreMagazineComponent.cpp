@@ -163,6 +163,21 @@ bool USuspenseCoreMagazineComponent::InsertMagazineInternal(const FSuspenseCoreM
         BroadcastStateChanged();
         OnMagazineChanged.Broadcast(OldMag, NewMag);
 
+        // Publish EventBus event for UI widgets
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+        {
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                FSuspenseCoreEventData EventData;
+                EventData.SetInt(TEXT("CurrentRounds"), WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+                EventData.SetInt(TEXT("MaxCapacity"), WeaponAmmoState.InsertedMagazine.MaxCapacity);
+                EventData.SetString(TEXT("LoadedAmmoType"), WeaponAmmoState.InsertedMagazine.LoadedAmmoID.ToString());
+                EventData.SetString(TEXT("MagazineID"), WeaponAmmoState.InsertedMagazine.MagazineID.ToString());
+                EventData.SetBool(TEXT("HasChamberedRound"), WeaponAmmoState.ChamberedRound.IsChambered());
+                EventBus->Publish(SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Magazine_Inserted, EventData);
+            }
+        }
+
         UE_LOG(LogMagazineComponent, Log, TEXT("Inserted magazine: %s (%d/%d rounds)"),
             *Magazine.MagazineID.ToString(),
             Magazine.CurrentRoundCount,
@@ -211,6 +226,19 @@ FSuspenseCoreMagazineInstance USuspenseCoreMagazineComponent::EjectMagazineInter
 
     BroadcastStateChanged();
     OnMagazineChanged.Broadcast(OldMag, FSuspenseCoreMagazineInstance());
+
+    // Publish EventBus event for UI widgets
+    if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+    {
+        if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+        {
+            FSuspenseCoreEventData EventData;
+            EventData.SetString(TEXT("EjectedMagazineID"), EjectedMag.MagazineID.ToString());
+            EventData.SetInt(TEXT("EjectedRounds"), EjectedMag.CurrentRoundCount);
+            EventData.SetBool(TEXT("DroppedToGround"), bDropToGround);
+            EventBus->Publish(SuspenseCoreEquipmentTags::Magazine::TAG_Equipment_Event_Magazine_Ejected, EventData);
+        }
+    }
 
     return EjectedMag;
 }
@@ -349,7 +377,7 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
         ChamberRoundInternal();
     }
 
-    // Publish EventBus event
+    // Publish EventBus event (Magazine_Swapped with full data for UI)
     USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this);
     if (EventManager)
     {
@@ -359,6 +387,10 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
             EventData.SetInt(TEXT("QuickSlotIndex"), QuickSlotIndex);
             EventData.SetString(TEXT("NewMagazineID"), NewMagazine.MagazineID.ToString());
             EventData.SetInt(TEXT("NewMagazineRounds"), NewMagazine.CurrentRoundCount);
+            // Include fields for UI widgets compatibility
+            EventData.SetInt(TEXT("CurrentRounds"), WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+            EventData.SetInt(TEXT("MaxCapacity"), WeaponAmmoState.InsertedMagazine.MaxCapacity);
+            EventData.SetBool(TEXT("HasChamberedRound"), WeaponAmmoState.ChamberedRound.IsChambered());
             EventData.SetBool(TEXT("EmergencyDrop"), bEmergencyDrop);
             if (bHadMagazine)
             {

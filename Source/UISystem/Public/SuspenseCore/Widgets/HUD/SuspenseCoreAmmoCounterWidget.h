@@ -252,6 +252,7 @@ private:
 	// EventBus handlers
 	void OnMagazineInsertedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnMagazineEjectedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnMagazineSwappedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnMagazineRoundsChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnWeaponAmmoChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnFireModeChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
@@ -281,6 +282,7 @@ private:
 
 	FSuspenseCoreSubscriptionHandle MagazineInsertedHandle;
 	FSuspenseCoreSubscriptionHandle MagazineEjectedHandle;
+	FSuspenseCoreSubscriptionHandle MagazineSwappedHandle;
 	FSuspenseCoreSubscriptionHandle MagazineRoundsChangedHandle;
 	FSuspenseCoreSubscriptionHandle WeaponAmmoChangedHandle;
 	FSuspenseCoreSubscriptionHandle FireModeChangedHandle;

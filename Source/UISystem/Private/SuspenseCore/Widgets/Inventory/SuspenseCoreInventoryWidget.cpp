@@ -10,6 +10,8 @@
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineInspectionWidget.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Components/GridPanel.h"
 #include "Components/GridSlot.h"
 #include "Components/UniformGridPanel.h"

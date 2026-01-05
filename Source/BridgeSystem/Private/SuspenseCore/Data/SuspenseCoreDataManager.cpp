@@ -661,6 +661,44 @@ bool USuspenseCoreDataManager::CreateItemInstance(FName ItemID, int32 Quantity, 
 		OutInstance.SetProperty(FName("MaxDurability"), ItemData.ArmorConfig.MaxDurability);
 	}
 
+	//==================================================================
+	// Magazine Initialization
+	// @see TarkovStyle_Ammo_System_Design.md - FSuspenseCoreItemInstance.MagazineData
+	// Check if item type is a magazine and initialize MagazineData
+	//==================================================================
+	static const FGameplayTag MagazineTag = FGameplayTag::RequestGameplayTag(TEXT("Item.Magazine"), false);
+	if (MagazineTag.IsValid() && ItemData.Classification.ItemType.MatchesTag(MagazineTag))
+	{
+		// Try to get magazine data from MagazineDataTable
+		FSuspenseCoreMagazineData MagData;
+		if (GetMagazineData(ItemID, MagData))
+		{
+			// Initialize MagazineData with data from DataTable
+			OutInstance.MagazineData.MagazineID = ItemID;
+			OutInstance.MagazineData.MaxCapacity = MagData.MaxCapacity;
+			OutInstance.MagazineData.InstanceGuid = OutInstance.UniqueInstanceID;
+			OutInstance.MagazineData.CurrentRoundCount = 0;
+			OutInstance.MagazineData.LoadedAmmoID = NAME_None;
+
+			UE_LOG(LogSuspenseCoreData, Verbose,
+				TEXT("CreateItemInstance: Initialized MagazineData for %s (Capacity: %d)"),
+				*ItemID.ToString(), MagData.MaxCapacity);
+		}
+		else
+		{
+			// Fallback: use default capacity if magazine data not found
+			OutInstance.MagazineData.MagazineID = ItemID;
+			OutInstance.MagazineData.MaxCapacity = 30; // Default capacity
+			OutInstance.MagazineData.InstanceGuid = OutInstance.UniqueInstanceID;
+			OutInstance.MagazineData.CurrentRoundCount = 0;
+			OutInstance.MagazineData.LoadedAmmoID = NAME_None;
+
+			UE_LOG(LogSuspenseCoreData, Warning,
+				TEXT("CreateItemInstance: Magazine %s not found in MagazineDataTable, using default capacity 30"),
+				*ItemID.ToString());
+		}
+	}
+
 	// Broadcast event
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (EventBus)

@@ -881,8 +881,10 @@ void USuspenseCoreInventoryWidget::HandleSlotDoubleClicked(int32 SlotIndex)
 		// Build inspection data from item
 		FSuspenseCoreMagazineInspectionData InspectionData;
 		InspectionData.MagazineInstanceID = ItemData.InstanceID;
+		InspectionData.MagazineID = ItemData.ItemID;
 		InspectionData.DisplayName = ItemData.DisplayName;
-		InspectionData.MagazineIcon = ItemData.Icon;
+		InspectionData.RarityTag = ItemData.RarityTag;
+		// Note: Icon should be loaded from IconPath if needed
 
 		// Try to get magazine-specific data from item payload or MagazineComponent
 		// For now use placeholder values - real implementation should get from MagazineComponent
@@ -893,11 +895,11 @@ void USuspenseCoreInventoryWidget::HandleSlotDoubleClicked(int32 SlotIndex)
 		// Build round slots
 		for (int32 i = 0; i < InspectionData.MaxCapacity; ++i)
 		{
-			FSuspenseCoreRoundSlotData Slot;
-			Slot.SlotIndex = i;
-			Slot.bIsOccupied = false;
-			Slot.bCanUnload = false;
-			InspectionData.RoundSlots.Add(Slot);
+			FSuspenseCoreRoundSlotData RoundSlot;
+			RoundSlot.SlotIndex = i;
+			RoundSlot.bIsOccupied = false;
+			RoundSlot.bCanUnload = false;
+			InspectionData.RoundSlots.Add(RoundSlot);
 		}
 
 		// Open inspection

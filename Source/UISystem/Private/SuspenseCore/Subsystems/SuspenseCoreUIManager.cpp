@@ -650,11 +650,10 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 	{
 		// Convert to magazine tooltip data and show magazine tooltip
 		FSuspenseCoreMagazineTooltipData MagazineData;
-		MagazineData.MagazineInstanceID = Item.InstanceID;
+		MagazineData.MagazineID = Item.ItemID;
 		MagazineData.DisplayName = Item.DisplayName;
-		MagazineData.ItemIcon = Item.Icon;
-		MagazineData.ItemRarity = Item.Rarity;
-		// Note: Additional magazine data (CurrentRounds, MaxCapacity, etc.) should be
+		MagazineData.RarityTag = Item.RarityTag;
+		// Note: Additional magazine data (CurrentRounds, MaxCapacity, Icon, etc.) should be
 		// retrieved from MagazineComponent or stored in item payload
 		// For now show basic magazine tooltip
 
@@ -1359,7 +1358,8 @@ bool USuspenseCoreUIManager::IsMagazineInspectionOpen() const
 		return false;
 	}
 
-	return ISuspenseCoreMagazineInspectionWidgetInterface::Execute_IsInspectionOpen(MagazineInspectionWidget);
+	// Check if widget is in viewport and visible
+	return MagazineInspectionWidget->IsInViewport() && MagazineInspectionWidget->IsVisible();
 }
 
 USuspenseCoreMagazineInspectionWidget* USuspenseCoreUIManager::CreateMagazineInspectionWidget(APlayerController* PC)
@@ -1380,21 +1380,18 @@ USuspenseCoreMagazineInspectionWidget* USuspenseCoreUIManager::CreateMagazineIns
 
 bool USuspenseCoreUIManager::IsMagazineItem(const FSuspenseCoreItemUIData& ItemData) const
 {
-	// Check if item has magazine tag
-	// Using the Magazine tag from SuspenseCoreEquipmentTags
-	using namespace SuspenseCoreEquipmentTags;
-
-	// Check for Item.Magazine or Item.Category.Magazine tags
+	// Check if item has magazine type tag in ItemType
+	// Looking for tags like: Item.Magazine, Item.Category.Magazine, Item.Weapon.Magazine
 	static const FGameplayTag MagazineTag = FGameplayTag::RequestGameplayTag(FName("Item.Magazine"), false);
 	static const FGameplayTag MagazineCategoryTag = FGameplayTag::RequestGameplayTag(FName("Item.Category.Magazine"), false);
 
-	if (ItemData.ItemTags.HasTag(MagazineTag) || ItemData.ItemTags.HasTag(MagazineCategoryTag))
+	// Check ItemType - it contains the item's type tag (Item.Weapon.Rifle, Item.Magazine.AR, etc.)
+	if (MagazineTag.IsValid() && ItemData.ItemType.MatchesTag(MagazineTag))
 	{
 		return true;
 	}
 
-	// Also check TypeTag for backwards compatibility
-	if (ItemData.TypeTag.MatchesTag(MagazineTag) || ItemData.TypeTag.MatchesTag(MagazineCategoryTag))
+	if (MagazineCategoryTag.IsValid() && ItemData.ItemType.MatchesTag(MagazineCategoryTag))
 	{
 		return true;
 	}

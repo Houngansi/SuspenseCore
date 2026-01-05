@@ -282,4 +282,10 @@ private:
 
 	/** Handle slot updated event - update slot state */
 	void OnSlotUpdated(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle QuickSlot assigned event - add item to cache */
+	void OnQuickSlotAssigned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+	/** Handle QuickSlot cleared event - remove item from cache */
+	void OnQuickSlotCleared(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 };

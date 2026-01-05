@@ -26,6 +26,9 @@ namespace EquipmentEventTags
 	// Slot/general updates - MUST match DataStore tags!
 	static const FName SlotUpdated = TEXT("Equipment.Event.SlotUpdated");  // DataStore sends this
 	static const FName EquipmentUpdated = TEXT("Equipment.Event.Updated"); // DataStore sends this
+	// QuickSlot events - MUST match EquipmentNativeTags
+	static const FName QuickSlotAssigned = TEXT("SuspenseCore.Event.Equipment.QuickSlot.Assigned");
+	static const FName QuickSlotCleared = TEXT("SuspenseCore.Event.Equipment.QuickSlot.Cleared");
 }
 
 //==================================================================
@@ -966,6 +969,29 @@ void USuspenseCoreEquipmentUIProvider::SetupEventSubscriptions()
 		EventSubscriptions.Add(SlotHandle);
 	}
 
+	// Subscribe to QuickSlot events for syncing QuickSlot items in equipment cache
+	FGameplayTag QuickSlotAssignedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::QuickSlotAssigned);
+	if (QuickSlotAssignedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle QuickSlotAssignedHandle = EventBus->SubscribeNative(
+			QuickSlotAssignedTag,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned)
+		);
+		EventSubscriptions.Add(QuickSlotAssignedHandle);
+	}
+
+	FGameplayTag QuickSlotClearedTag = FGameplayTag::RequestGameplayTag(EquipmentEventTags::QuickSlotCleared);
+	if (QuickSlotClearedTag.IsValid())
+	{
+		FSuspenseCoreSubscriptionHandle QuickSlotClearedHandle = EventBus->SubscribeNative(
+			QuickSlotClearedTag,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentUIProvider::OnQuickSlotCleared)
+		);
+		EventSubscriptions.Add(QuickSlotClearedHandle);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: Subscribed to %d equipment events"), EventSubscriptions.Num());
 }
 
@@ -1124,4 +1150,102 @@ USuspenseCoreDataManager* USuspenseCoreEquipmentUIProvider::GetDataManager() con
 	}
 
 	return nullptr;
+}
+
+void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get QuickSlot index (0-3) from event
+	int32 QuickSlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+	if (QuickSlotIndex < 0 || QuickSlotIndex >= 4)
+	{
+		return;
+	}
+
+	// Map QuickSlot index to EEquipmentSlotType
+	static const EEquipmentSlotType QuickSlotTypes[4] = {
+		EEquipmentSlotType::QuickSlot1,
+		EEquipmentSlotType::QuickSlot2,
+		EEquipmentSlotType::QuickSlot3,
+		EEquipmentSlotType::QuickSlot4
+	};
+
+	EEquipmentSlotType SlotType = QuickSlotTypes[QuickSlotIndex];
+	int32 EquipmentSlotIndex = GetSlotIndexForType(SlotType);
+
+	if (EquipmentSlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - No slot index for QuickSlot%d"), QuickSlotIndex + 1);
+		return;
+	}
+
+	// Extract item data from event
+	FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
+	FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
+
+	FSuspenseCoreInventoryItemInstance ItemInstance;
+	ItemInstance.ItemID = FName(*ItemIDStr);
+	FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
+	ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
+	if (ItemInstance.Quantity <= 0)
+	{
+		ItemInstance.Quantity = 1;
+	}
+
+	// Extract MagazineData for Tarkov-style ammo system
+	ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
+	ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
+
+	// Add to cache
+	CachedEquippedItems.Add(EquipmentSlotIndex, ItemInstance);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d (EquipSlot=%d), Item=%s, MagRounds=%d/%d"),
+		QuickSlotIndex + 1, EquipmentSlotIndex, *ItemIDStr,
+		ItemInstance.MagazineData.CurrentRoundCount, ItemInstance.MagazineData.MaxCapacity);
+
+	// Broadcast UI update
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.InstanceID);
+}
+
+void USuspenseCoreEquipmentUIProvider::OnQuickSlotCleared(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// Get QuickSlot index (0-3) from event
+	int32 QuickSlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+	if (QuickSlotIndex < 0 || QuickSlotIndex >= 4)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotCleared - Invalid QuickSlotIndex=%d"), QuickSlotIndex);
+		return;
+	}
+
+	// Map QuickSlot index to EEquipmentSlotType
+	static const EEquipmentSlotType QuickSlotTypes[4] = {
+		EEquipmentSlotType::QuickSlot1,
+		EEquipmentSlotType::QuickSlot2,
+		EEquipmentSlotType::QuickSlot3,
+		EEquipmentSlotType::QuickSlot4
+	};
+
+	EEquipmentSlotType SlotType = QuickSlotTypes[QuickSlotIndex];
+	int32 EquipmentSlotIndex = GetSlotIndexForType(SlotType);
+
+	if (EquipmentSlotIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotCleared - No slot index for QuickSlot%d"), QuickSlotIndex + 1);
+		return;
+	}
+
+	// Get instance ID before removing for delegate
+	FGuid RemovedInstanceID;
+	if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(EquipmentSlotIndex))
+	{
+		RemovedInstanceID = ExistingItem->InstanceID;
+	}
+
+	// Remove from cache
+	CachedEquippedItems.Remove(EquipmentSlotIndex);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotCleared - QuickSlot%d (EquipSlot=%d), CacheSize=%d"),
+		QuickSlotIndex + 1, EquipmentSlotIndex, CachedEquippedItems.Num());
+
+	// Broadcast UI update
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, RemovedInstanceID);
 }

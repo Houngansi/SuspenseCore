@@ -513,7 +513,28 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	);
 	SubscriptionHandles.Add(EquipmentUpdatedHandle);
 
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions (SlotUpdated + EquipmentUpdated)"), SubscriptionHandles.Num());
+	// Subscribe to QuickSlot events (for syncing inventory QuickSlot display)
+	using namespace SuspenseCoreEquipmentTags::QuickSlot;
+
+	FSuspenseCoreSubscriptionHandle QuickSlotAssignedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_QuickSlot_Assigned,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnQuickSlotAssignedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(QuickSlotAssignedHandle);
+
+	FSuspenseCoreSubscriptionHandle QuickSlotClearedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_QuickSlot_Cleared,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(
+			this, &USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+	SubscriptionHandles.Add(QuickSlotClearedHandle);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Setup %d EventBus subscriptions"), SubscriptionHandles.Num());
 }
 
 void USuspenseCoreEquipmentWidget::TeardownEventSubscriptions()
@@ -624,6 +645,78 @@ void USuspenseCoreEquipmentWidget::OnProviderDataChanged(FGameplayTag EventTag, 
 	RefreshCharacterPreview();
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Provider data changed, refreshed from provider"));
+}
+
+void USuspenseCoreEquipmentWidget::OnQuickSlotAssignedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), INDEX_NONE);
+	if (SlotIndex == INDEX_NONE || SlotIndex < 0 || SlotIndex >= 4)
+	{
+		return;
+	}
+
+	// Map QuickSlot index (0-3) to equipment slot type
+	static const EEquipmentSlotType QuickSlotTypes[4] = {
+		EEquipmentSlotType::QuickSlot1,
+		EEquipmentSlotType::QuickSlot2,
+		EEquipmentSlotType::QuickSlot3,
+		EEquipmentSlotType::QuickSlot4
+	};
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotByType(QuickSlotTypes[SlotIndex]);
+	if (!SlotWidget)
+	{
+		return;
+	}
+
+	// Update slot with item data from event
+	FSuspenseCoreSlotUIData SlotData;
+	SlotData.bIsOccupied = true;
+	SlotData.bIsAvailable = EventData.GetBool(TEXT("IsAvailable"), true);
+
+	FSuspenseCoreItemUIData ItemData;
+	ItemData.ItemID = FName(*EventData.GetString(TEXT("ItemID")));
+	ItemData.DisplayName = FText::FromString(EventData.GetString(TEXT("DisplayName")));
+	ItemData.Icon = EventData.GetObject<UTexture2D>(TEXT("Icon"));
+	ItemData.StackCount = EventData.GetInt(TEXT("Quantity"), 1);
+
+	SlotWidget->UpdateSlotData(SlotData, ItemData);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: QuickSlot %d assigned - %s"), SlotIndex, *ItemData.ItemID.ToString());
+}
+
+void USuspenseCoreEquipmentWidget::OnQuickSlotClearedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	int32 SlotIndex = EventData.GetInt(TEXT("SlotIndex"), INDEX_NONE);
+	if (SlotIndex == INDEX_NONE || SlotIndex < 0 || SlotIndex >= 4)
+	{
+		return;
+	}
+
+	// Map QuickSlot index (0-3) to equipment slot type
+	static const EEquipmentSlotType QuickSlotTypes[4] = {
+		EEquipmentSlotType::QuickSlot1,
+		EEquipmentSlotType::QuickSlot2,
+		EEquipmentSlotType::QuickSlot3,
+		EEquipmentSlotType::QuickSlot4
+	};
+
+	USuspenseCoreEquipmentSlotWidget* SlotWidget = GetSlotByType(QuickSlotTypes[SlotIndex]);
+	if (!SlotWidget)
+	{
+		return;
+	}
+
+	// Clear the slot
+	FSuspenseCoreSlotUIData SlotData;
+	SlotData.bIsOccupied = false;
+	SlotData.bIsAvailable = true;
+
+	FSuspenseCoreItemUIData ItemData; // Empty
+
+	SlotWidget->UpdateSlotData(SlotData, ItemData);
+
+	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: QuickSlot %d cleared"), SlotIndex);
 }
 
 //==================================================================

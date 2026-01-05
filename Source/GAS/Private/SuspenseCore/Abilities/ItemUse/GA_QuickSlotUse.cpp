@@ -53,17 +53,33 @@ FSuspenseCoreItemUseRequest UGA_QuickSlotUse::BuildItemUseRequest(
 		return Request;
 	}
 
-	// Find QuickSlotProvider component
-	TArray<UActorComponent*> Components;
-	AvatarActor->GetComponents(USuspenseCoreQuickSlotProvider::StaticClass(), Components);
+	UE_LOG(LogGA_QuickSlotUse, Log, TEXT("BuildItemUseRequest: AvatarActor=%s, SlotIndex=%d"),
+		*AvatarActor->GetName(), SlotIndex);
 
+	// Find QuickSlotProvider component - iterate ALL components and check interface
+	// Note: GetComponents(UInterface::StaticClass()) doesn't work for UInterfaces
+	TArray<UActorComponent*> Components;
+	AvatarActor->GetComponents(Components);
+
+	UE_LOG(LogGA_QuickSlotUse, Log, TEXT("BuildItemUseRequest: Found %d components on actor"), Components.Num());
+
+	bool bFoundProvider = false;
 	for (UActorComponent* Component : Components)
 	{
 		if (Component && Component->Implements<USuspenseCoreQuickSlotProvider>())
 		{
+			bFoundProvider = true;
+			UE_LOG(LogGA_QuickSlotUse, Log, TEXT("BuildItemUseRequest: Found QuickSlotProvider: %s"),
+				*Component->GetName());
+
 			// Get slot data via interface
 			FSuspenseCoreQuickSlot SlotData =
 				ISuspenseCoreQuickSlotProvider::Execute_GetQuickSlot(Component, SlotIndex);
+
+			UE_LOG(LogGA_QuickSlotUse, Log, TEXT("BuildItemUseRequest: Slot %d - ItemID=%s, InstanceID=%s"),
+				SlotIndex,
+				*SlotData.AssignedItemID.ToString(),
+				SlotData.AssignedItemInstanceID.IsValid() ? *SlotData.AssignedItemInstanceID.ToString() : TEXT("INVALID"));
 
 			if (SlotData.AssignedItemInstanceID.IsValid())
 			{
@@ -72,13 +88,18 @@ FSuspenseCoreItemUseRequest UGA_QuickSlotUse::BuildItemUseRequest(
 				Request.SourceSlotIndex = SlotIndex;
 				Request.SourceContainerTag = SlotData.SlotTag;
 
-				UE_LOG(LogGA_QuickSlotUse, Verbose,
-					TEXT("BuildItemUseRequest: Slot %d has item %s"),
+				UE_LOG(LogGA_QuickSlotUse, Log,
+					TEXT("BuildItemUseRequest: SUCCESS - Slot %d has item %s"),
 					SlotIndex, *SlotData.AssignedItemID.ToString());
 
 				break;
 			}
 		}
+	}
+
+	if (!bFoundProvider)
+	{
+		UE_LOG(LogGA_QuickSlotUse, Warning, TEXT("BuildItemUseRequest: No component implements ISuspenseCoreQuickSlotProvider!"));
 	}
 
 	if (!Request.IsValid())

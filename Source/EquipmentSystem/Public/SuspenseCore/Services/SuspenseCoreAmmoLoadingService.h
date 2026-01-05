@@ -16,12 +16,14 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "SuspenseCore/Events/SuspenseCoreEventTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreAmmoLoadingService.generated.h"
 
 // Forward declarations
 class USuspenseCoreEventBus;
 class USuspenseCoreDataManager;
+struct FSuspenseCoreEventData;
 
 /**
  * Ammo loading operation state
@@ -314,10 +316,24 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "AmmoLoading|Events")
     FOnAmmoLoadingCompleted OnLoadingCompleted;
 
+    /**
+     * Subscribe to EventBus events for ammo loading requests
+     * Called automatically during Initialize if EventBus is valid
+     */
+    void SubscribeToEvents();
+
+    /**
+     * Unsubscribe from EventBus events
+     */
+    void UnsubscribeFromEvents();
+
 protected:
     //==================================================================
     // Internal Methods
     //==================================================================
+
+    /** Handle ammo load request event from UI (drag&drop, etc.) */
+    void OnAmmoLoadRequestedEvent(FGameplayTag EventTag, const struct FSuspenseCoreEventData& EventData);
 
     /** Process a single tick of loading operation */
     void ProcessLoadingTick(FSuspenseCoreActiveLoadOperation& Operation, float DeltaTime);
@@ -357,4 +373,7 @@ private:
     /** Map of magazine instances being managed (cached) */
     UPROPERTY()
     TMap<FGuid, FSuspenseCoreMagazineInstance> ManagedMagazines;
+
+    /** Event subscription handle for load requests */
+    FSuspenseCoreSubscriptionHandle LoadRequestedEventHandle;
 };

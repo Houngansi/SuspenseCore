@@ -18,12 +18,10 @@ class USuspenseCoreEventBus;
 class USuspenseCoreContainerScreenWidget;
 class USuspenseCoreInventoryWidget;
 class USuspenseCoreTooltipWidget;
-class USuspenseCoreMagazineTooltipWidget;
 class USuspenseCoreMagazineInspectionWidget;
 class USuspenseCoreMasterHUDWidget;
 class APlayerController;
 struct FSuspenseCoreEventData;
-struct FSuspenseCoreMagazineTooltipData;
 struct FSuspenseCoreMagazineInspectionData;
 
 /**
@@ -243,33 +241,17 @@ public:
 	void ShowItemTooltip(const FSuspenseCoreItemUIData& Item, const FVector2D& ScreenPosition);
 
 	/**
-	 * Show tooltip for magazine item (specialized Tarkov-style tooltip)
-	 * Automatically selects magazine tooltip if item has Magazine type tag
-	 * @param MagazineData Magazine tooltip data
-	 * @param ScreenPosition Screen position
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Tooltip")
-	void ShowMagazineTooltip(const FSuspenseCoreMagazineTooltipData& MagazineData, const FVector2D& ScreenPosition);
-
-	/**
-	 * Hide current tooltip (both standard and magazine)
+	 * Hide current tooltip
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI")
 	void HideTooltip();
 
 	/**
-	 * Check if any tooltip is visible (standard or magazine)
+	 * Check if tooltip is visible
 	 * @return true if tooltip showing
 	 */
 	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI")
 	bool IsTooltipVisible() const;
-
-	/**
-	 * Check if magazine tooltip is currently visible
-	 * @return true if magazine tooltip showing
-	 */
-	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Tooltip")
-	bool IsMagazineTooltipVisible() const;
 
 	//==================================================================
 	// Magazine Inspection (Tarkov-style)
@@ -357,13 +339,6 @@ public:
 	TSubclassOf<USuspenseCoreTooltipWidget> TooltipWidgetClass;
 
 	/**
-	 * Magazine tooltip widget class - specialized Tarkov-style magazine tooltip
-	 * If set, will be used for items with Item.Magazine type tag
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
-	TSubclassOf<USuspenseCoreMagazineTooltipWidget> MagazineTooltipWidgetClass;
-
-	/**
 	 * Magazine inspection widget class - Tarkov-style detailed magazine view
 	 * Shows per-round slot visualization with loading/unloading
 	 */
@@ -431,13 +406,10 @@ public:
 	/**
 	 * Configure widget classes manually from Blueprint
 	 * Call this from GameMode BeginPlay or HUD Blueprint if auto-detection fails
-	 * @param InMagazineTooltipClass Widget class for magazine tooltips
 	 * @param InMagazineInspectionClass Widget class for magazine inspection panel
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Config")
-	void ConfigureWidgetClasses(
-		TSubclassOf<USuspenseCoreMagazineTooltipWidget> InMagazineTooltipClass,
-		TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass);
+	void ConfigureWidgetClasses(TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass);
 
 	//==================================================================
 	// Events
@@ -500,9 +472,6 @@ protected:
 	/** Create tooltip widget */
 	USuspenseCoreTooltipWidget* CreateTooltipWidget(APlayerController* PC);
 
-	/** Create magazine tooltip widget */
-	USuspenseCoreMagazineTooltipWidget* CreateMagazineTooltipWidget(APlayerController* PC);
-
 	/** Create magazine inspection widget */
 	USuspenseCoreMagazineInspectionWidget* CreateMagazineInspectionWidget(APlayerController* PC);
 
@@ -527,10 +496,6 @@ private:
 	/** Current tooltip widget (standard) */
 	UPROPERTY(Transient)
 	USuspenseCoreTooltipWidget* TooltipWidget;
-
-	/** Current magazine tooltip widget (Tarkov-style) */
-	UPROPERTY(Transient)
-	USuspenseCoreMagazineTooltipWidget* MagazineTooltipWidget;
 
 	/** Current magazine inspection widget (Tarkov-style) */
 	UPROPERTY(Transient)

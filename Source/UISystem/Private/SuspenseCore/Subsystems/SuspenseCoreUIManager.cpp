@@ -15,10 +15,8 @@
 #include "SuspenseCore/Widgets/Base/SuspenseCoreBaseContainerWidget.h"
 #include "SuspenseCore/Widgets/Layout/SuspenseCoreContainerPairLayoutWidget.h"
 #include "SuspenseCore/Widgets/Tooltip/SuspenseCoreTooltipWidget.h"
-#include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreMagazineInspectionWidget.h"
 #include "SuspenseCore/Widgets/SuspenseCoreMasterHUDWidget.h"
-#include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineTooltipWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineInspectionWidget.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Components/Presentation/SuspenseCoreEquipmentActorFactory.h"
@@ -80,29 +78,6 @@ void USuspenseCoreUIManager::Initialize(FSubsystemCollectionBase& Collection)
 
 void USuspenseCoreUIManager::LoadDefaultWidgetClasses()
 {
-	// Try to load Magazine Tooltip Widget Blueprint
-	if (!MagazineTooltipWidgetClass)
-	{
-		// Common paths where the Blueprint might be located
-		static const TCHAR* MagazineTooltipPaths[] = {
-			TEXT("/Game/UI/Widgets/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
-			TEXT("/Game/UI/HUD/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
-			TEXT("/Game/Blueprints/UI/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
-			TEXT("/Game/SuspenseCore/UI/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
-		};
-
-		for (const TCHAR* Path : MagazineTooltipPaths)
-		{
-			UClass* FoundClass = LoadClass<USuspenseCoreMagazineTooltipWidget>(nullptr, Path);
-			if (FoundClass)
-			{
-				MagazineTooltipWidgetClass = FoundClass;
-				UE_LOG(LogTemp, Log, TEXT("UIManager: Auto-loaded MagazineTooltipWidgetClass from %s"), Path);
-				break;
-			}
-		}
-	}
-
 	// Try to load Magazine Inspection Widget Blueprint
 	if (!MagazineInspectionWidgetClass)
 	{
@@ -148,26 +123,14 @@ void USuspenseCoreUIManager::LoadDefaultWidgetClasses()
 	}
 
 	// Log warnings for missing widget classes
-	if (!MagazineTooltipWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UIManager: MagazineTooltipWidgetClass not configured. Create WBP_MagazineTooltip Blueprint or call ConfigureWidgetClasses()."));
-	}
 	if (!MagazineInspectionWidgetClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("UIManager: MagazineInspectionWidgetClass not configured. Create WBP_MagazineInspector Blueprint or call ConfigureWidgetClasses()."));
 	}
 }
 
-void USuspenseCoreUIManager::ConfigureWidgetClasses(
-	TSubclassOf<USuspenseCoreMagazineTooltipWidget> InMagazineTooltipClass,
-	TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass)
+void USuspenseCoreUIManager::ConfigureWidgetClasses(TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass)
 {
-	if (InMagazineTooltipClass)
-	{
-		MagazineTooltipWidgetClass = InMagazineTooltipClass;
-		UE_LOG(LogTemp, Log, TEXT("UIManager: MagazineTooltipWidgetClass configured to %s"), *InMagazineTooltipClass->GetName());
-	}
-
 	if (InMagazineInspectionClass)
 	{
 		MagazineInspectionWidgetClass = InMagazineInspectionClass;
@@ -190,12 +153,6 @@ void USuspenseCoreUIManager::Deinitialize()
 	{
 		TooltipWidget->RemoveFromParent();
 		TooltipWidget = nullptr;
-	}
-
-	if (MagazineTooltipWidget)
-	{
-		MagazineTooltipWidget->RemoveFromParent();
-		MagazineTooltipWidget = nullptr;
 	}
 
 	if (MagazineInspectionWidget)
@@ -745,32 +702,8 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 		return;
 	}
 
-	// Check if this is a magazine item - use specialized tooltip
-	bool bIsMagazine = IsMagazineItem(Item);
-	UE_LOG(LogTemp, Log, TEXT("ShowItemTooltip: Item=%s, IsMagazine=%s, MagazineTooltipClass=%s"),
-		*Item.ItemID.ToString(),
-		bIsMagazine ? TEXT("YES") : TEXT("NO"),
-		MagazineTooltipWidgetClass ? TEXT("SET") : TEXT("NOT SET"));
-
-	if (bIsMagazine && MagazineTooltipWidgetClass)
-	{
-		// Convert to magazine tooltip data and show magazine tooltip
-		FSuspenseCoreMagazineTooltipData MagazineData;
-		MagazineData.MagazineID = Item.ItemID;
-		MagazineData.DisplayName = Item.DisplayName;
-		MagazineData.RarityTag = Item.RarityTag;
-		// Note: Additional magazine data (CurrentRounds, MaxCapacity, Icon, etc.) should be
-		// retrieved from MagazineComponent or stored in item payload
-		// For now show basic magazine tooltip
-
-		UE_LOG(LogTemp, Log, TEXT("ShowItemTooltip: Showing MAGAZINE tooltip for %s"), *Item.ItemID.ToString());
-		ShowMagazineTooltip(MagazineData, ScreenPosition);
-		return;
-	}
-	else if (bIsMagazine && !MagazineTooltipWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowItemTooltip: Item %s IS a magazine but MagazineTooltipWidgetClass is NOT configured!"), *Item.ItemID.ToString());
-	}
+	// Note: Magazine tooltip handling is now in ContainerScreenWidget.ShowTooltip()
+	// UIManager.ShowItemTooltip() shows standard tooltip for all items
 
 	// Standard item tooltip
 	if (!TooltipWidget)
@@ -792,79 +725,17 @@ void USuspenseCoreUIManager::ShowItemTooltip(const FSuspenseCoreItemUIData& Item
 	TooltipWidget->ShowForItem(Item, ScreenPosition);
 }
 
-void USuspenseCoreUIManager::ShowMagazineTooltip(const FSuspenseCoreMagazineTooltipData& MagazineData, const FVector2D& ScreenPosition)
-{
-	// Get player controller
-	APlayerController* PC = OwningPC.Get();
-	if (!PC)
-	{
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UWorld* World = GI->GetWorld())
-			{
-				PC = World->GetFirstPlayerController();
-			}
-		}
-	}
-
-	if (!PC)
-	{
-		return;
-	}
-
-	// Hide standard tooltip if visible
-	if (TooltipWidget && TooltipWidget->IsTooltipVisible())
-	{
-		TooltipWidget->Hide();
-	}
-
-	// Create magazine tooltip widget if needed
-	if (!MagazineTooltipWidget)
-	{
-		MagazineTooltipWidget = CreateMagazineTooltipWidget(PC);
-		if (!MagazineTooltipWidget)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ShowMagazineTooltip: Failed to create magazine tooltip widget"));
-			return;
-		}
-	}
-
-	// Ensure tooltip is in viewport with very high Z-order
-	if (!MagazineTooltipWidget->IsInViewport())
-	{
-		MagazineTooltipWidget->AddToViewport(10000);
-	}
-
-	// Show magazine tooltip using interface
-	ISuspenseCoreMagazineTooltipWidgetInterface::Execute_ShowMagazineTooltip(MagazineTooltipWidget, MagazineData, ScreenPosition);
-}
-
 void USuspenseCoreUIManager::HideTooltip()
 {
-	// Hide standard tooltip
 	if (TooltipWidget)
 	{
 		TooltipWidget->Hide();
-	}
-
-	// Hide magazine tooltip
-	if (MagazineTooltipWidget)
-	{
-		ISuspenseCoreMagazineTooltipWidgetInterface::Execute_HideMagazineTooltip(MagazineTooltipWidget);
 	}
 }
 
 bool USuspenseCoreUIManager::IsTooltipVisible() const
 {
-	bool bStandardVisible = TooltipWidget && TooltipWidget->IsTooltipVisible();
-	bool bMagazineVisible = MagazineTooltipWidget && ISuspenseCoreMagazineTooltipWidgetInterface::Execute_IsMagazineTooltipVisible(MagazineTooltipWidget);
-
-	return bStandardVisible || bMagazineVisible;
-}
-
-bool USuspenseCoreUIManager::IsMagazineTooltipVisible() const
-{
-	return MagazineTooltipWidget && ISuspenseCoreMagazineTooltipWidgetInterface::Execute_IsMagazineTooltipVisible(MagazineTooltipWidget);
+	return TooltipWidget && TooltipWidget->IsTooltipVisible();
 }
 
 //==================================================================
@@ -1360,23 +1231,6 @@ USuspenseCoreTooltipWidget* USuspenseCoreUIManager::CreateTooltipWidget(APlayerC
 		return CreateWidget<USuspenseCoreTooltipWidget>(PC, TooltipWidgetClass);
 	}
 
-	return nullptr;
-}
-
-USuspenseCoreMagazineTooltipWidget* USuspenseCoreUIManager::CreateMagazineTooltipWidget(APlayerController* PC)
-{
-	if (!PC)
-	{
-		return nullptr;
-	}
-
-	if (MagazineTooltipWidgetClass)
-	{
-		return CreateWidget<USuspenseCoreMagazineTooltipWidget>(PC, MagazineTooltipWidgetClass);
-	}
-
-	// Fallback to default class if not configured
-	UE_LOG(LogTemp, Warning, TEXT("CreateMagazineTooltipWidget: MagazineTooltipWidgetClass not configured"));
 	return nullptr;
 }
 

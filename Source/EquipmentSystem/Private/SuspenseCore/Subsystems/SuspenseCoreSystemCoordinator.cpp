@@ -604,23 +604,25 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
             USuspenseCoreItemUseServiceImpl::StaticClass(),
             ItemUseParams);
 
-        // ALSO register in main ServiceProvider by name for GA_ItemUse to find it
+        // Force-create the service immediately (GetService creates lazy services)
+        // Then register in main ServiceProvider by name for GA_ItemUse to find it
         // GA_ItemUse::GetItemUseService() looks for "ItemUseService" by name
-        if (UObject* ItemUseServiceObj = ServiceLocator->TryGetService(TagItemUse))
+        UObject* ItemUseServiceObj = ServiceLocator->GetService(TagItemUse);
+        if (ItemUseServiceObj)
         {
             if (USuspenseCoreServiceProvider* MainProvider = USuspenseCoreServiceProvider::Get(GetGameInstance()))
             {
                 MainProvider->RegisterServiceByName(FName("ItemUseService"), ItemUseServiceObj);
-                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ItemUseService (also in main ServiceProvider)"));
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ItemUseService (in ServiceLocator AND main ServiceProvider)"));
             }
             else
             {
-                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Warning, TEXT("  Registered: ItemUseService (NOT in main ServiceProvider - provider not found)"));
+                UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Warning, TEXT("  Registered: ItemUseService (ServiceLocator only - main ServiceProvider not found)"));
             }
         }
         else
         {
-            UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: ItemUseService (lazy init)"));
+            UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Error, TEXT("  FAILED to create ItemUseService!"));
         }
         RegisteredCount++;
     }

@@ -2065,10 +2065,34 @@ void USuspenseCoreInventoryComponent::RecalculateWeight()
 
 	for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
 	{
-		FSuspenseCoreItemData ItemData;
-		if (DataManager->GetItemData(Instance.ItemID, ItemData))
+		// For magazines: use EmptyWeight + (WeightPerRound * CurrentRoundCount)
+		// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
+		// @see SuspenseCoreMagazineTypes.h:127 - GetWeightWithRounds()
+		if (Instance.IsMagazine())
 		{
-			CurrentWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+			FSuspenseCoreMagazineData MagData;
+			if (DataManager->GetMagazineData(Instance.MagazineData.MagazineID, MagData))
+			{
+				CurrentWeight += MagData.GetWeightWithRounds(Instance.MagazineData.CurrentRoundCount);
+			}
+			else
+			{
+				// Fallback: use base item weight if magazine data not found
+				FSuspenseCoreItemData ItemData;
+				if (DataManager->GetItemData(Instance.ItemID, ItemData))
+				{
+					CurrentWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+				}
+			}
+		}
+		else
+		{
+			// Regular items: weight * quantity
+			FSuspenseCoreItemData ItemData;
+			if (DataManager->GetItemData(Instance.ItemID, ItemData))
+			{
+				CurrentWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+			}
 		}
 	}
 }
@@ -2089,10 +2113,31 @@ void USuspenseCoreInventoryComponent::UpdateWeightDelta(float WeightDelta)
 		{
 			for (const FSuspenseCoreItemInstance& Instance : ItemInstances)
 			{
-				FSuspenseCoreItemData ItemData;
-				if (DataManager->GetItemData(Instance.ItemID, ItemData))
+				// For magazines: use GetWeightWithRounds() to include loaded rounds
+				// @see TarkovStyle_Ammo_System_Design.md:112-130
+				if (Instance.IsMagazine())
 				{
-					CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+					FSuspenseCoreMagazineData MagData;
+					if (DataManager->GetMagazineData(Instance.MagazineData.MagazineID, MagData))
+					{
+						CalculatedWeight += MagData.GetWeightWithRounds(Instance.MagazineData.CurrentRoundCount);
+					}
+					else
+					{
+						FSuspenseCoreItemData ItemData;
+						if (DataManager->GetItemData(Instance.ItemID, ItemData))
+						{
+							CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+						}
+					}
+				}
+				else
+				{
+					FSuspenseCoreItemData ItemData;
+					if (DataManager->GetItemData(Instance.ItemID, ItemData))
+					{
+						CalculatedWeight += ItemData.InventoryProps.Weight * Instance.Quantity;
+					}
 				}
 			}
 		}
@@ -2326,11 +2371,31 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 	}
 
 	//==================================================================
-	// Consume ammo from source inventory slot
-	// @see TarkovStyle_Ammo_System_Design.md - Ammo consumption
+	// Update magazine weight and consume ammo from source inventory slot
+	// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
+	// @see SuspenseCoreMagazineTypes.h:127 - GetWeightWithRounds()
 	// @see SuspenseCoreItemTypes.h:603 - UniqueInstanceID, :616 - Quantity
-	// @see SuspenseCoreInventoryComponent.cpp:2076 - UpdateWeightDelta()
 	//==================================================================
+
+	// Get magazine's WeightPerRound to update inventory weight
+	USuspenseCoreDataManager* DM = GetDataManager();
+	float MagazineWeightPerRound = 0.0f;
+	if (DM)
+	{
+		FSuspenseCoreMagazineData MagData;
+		if (DM->GetMagazineData(Item->MagazineData.MagazineID, MagData))
+		{
+			MagazineWeightPerRound = MagData.WeightPerRound;
+		}
+	}
+
+	// Add WeightPerRound to magazine (round is now inside magazine)
+	// This compensates for the ammo weight we're about to subtract
+	if (MagazineWeightPerRound > 0.0f)
+	{
+		UpdateWeightDelta(MagazineWeightPerRound);
+	}
+
 	int32 SourceSlot = EventData.GetInt(TEXT("SourceInventorySlot"));
 	if (SourceSlot >= 0)
 	{
@@ -2342,9 +2407,7 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundLoaded(FGameplayTag EventTa
 			if (AmmoItem)
 			{
 				// Get ammo weight for proper weight tracking
-				// @see SuspenseCoreInventoryComponent.cpp:2076 - UpdateWeightDelta()
 				float AmmoUnitWeight = 0.0f;
-				USuspenseCoreDataManager* DM = GetDataManager();
 				if (DM)
 				{
 					FSuspenseCoreItemData AmmoData;
@@ -2415,6 +2478,25 @@ void USuspenseCoreInventoryComponent::OnMagazineRoundUnloaded(FGameplayTag Event
 	if (!Item || !Item->IsMagazine())
 	{
 		return;
+	}
+
+	//==================================================================
+	// Update magazine weight when round is unloaded
+	// @see TarkovStyle_Ammo_System_Design.md:112-130 - Magazine weight system
+	// @see SuspenseCoreMagazineTypes.h:127 - GetWeightWithRounds()
+	//==================================================================
+	USuspenseCoreDataManager* DM = GetDataManager();
+	if (DM)
+	{
+		FSuspenseCoreMagazineData MagData;
+		if (DM->GetMagazineData(Item->MagazineData.MagazineID, MagData))
+		{
+			// Subtract WeightPerRound from magazine (round is being removed)
+			if (MagData.WeightPerRound > 0.0f)
+			{
+				UpdateWeightDelta(-MagData.WeightPerRound);
+			}
+		}
 	}
 
 	// Update magazine state

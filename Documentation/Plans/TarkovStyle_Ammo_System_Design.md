@@ -1190,5 +1190,81 @@ LoadingService->CancelOperation(MagazineGuid);
 
 ---
 
-**Last Updated:** 2026-01-04
-**Version:** 1.2 (Phase 5 Complete)
+## Appendix E: Magazine Weight System
+
+Magazines have dynamic weight that changes based on loaded rounds.
+
+### Weight Calculation
+
+```cpp
+// FSuspenseCoreMagazineData (from DataTable)
+float EmptyWeight = 0.1f;        // Base magazine weight (kg)
+float WeightPerRound = 0.012f;   // Weight added per round (kg)
+
+// Total weight calculation
+float GetWeightWithRounds(int32 RoundCount) const
+{
+    return EmptyWeight + (WeightPerRound * FMath::Clamp(RoundCount, 0, MaxCapacity));
+}
+```
+
+### Inventory Weight Integration
+
+When rounds are loaded into a magazine:
+1. **Remove ammo weight** from inventory (ammo stack decreases)
+2. **Add WeightPerRound** to magazine (magazine becomes heavier)
+
+When rounds are unloaded from a magazine:
+1. **Subtract WeightPerRound** from magazine (magazine becomes lighter)
+2. **Add ammo weight** back to inventory (if ammo stack is created)
+
+### Implementation Files
+
+| File | Function | Description |
+|------|----------|-------------|
+| `SuspenseCoreInventoryComponent.cpp` | `RecalculateWeight()` | Uses `GetWeightWithRounds()` for magazines |
+| `SuspenseCoreInventoryComponent.cpp` | `OnMagazineRoundLoaded()` | Adds WeightPerRound on load |
+| `SuspenseCoreInventoryComponent.cpp` | `OnMagazineRoundUnloaded()` | Subtracts WeightPerRound on unload |
+| `SuspenseCoreMagazineTypes.h` | `FSuspenseCoreMagazineData` | EmptyWeight, WeightPerRound fields |
+
+### Weight Flow Diagram
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    MAGAZINE LOADING WEIGHT FLOW                     │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  Before Loading:                                                   │
+│  ┌─────────────┐     ┌─────────────┐                              │
+│  │ Ammo Stack  │     │  Magazine   │                              │
+│  │ 50 rounds   │     │  0/30       │                              │
+│  │ 1.25 kg     │     │  0.10 kg    │   Total: 1.35 kg             │
+│  └─────────────┘     └─────────────┘                              │
+│                                                                    │
+│  After Loading 30 rounds:                                          │
+│  ┌─────────────┐     ┌─────────────┐                              │
+│  │ Ammo Stack  │     │  Magazine   │                              │
+│  │ 20 rounds   │     │  30/30      │                              │
+│  │ 0.50 kg     │     │  0.46 kg    │   Total: 0.96 kg             │
+│  └─────────────┘     └─────────────┘   (EmptyWeight + 30*WeightPerRound)
+│                                                                    │
+│  Weight change per round:                                          │
+│  - Ammo removed: -0.025 kg (ammo unit weight)                     │
+│  - Magazine added: +0.012 kg (WeightPerRound)                     │
+│  - Net change: -0.013 kg per round loaded                         │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Example DataTable Values
+
+| Magazine | EmptyWeight | WeightPerRound | MaxCapacity |
+|----------|-------------|----------------|-------------|
+| Mag_STANAG_30 | 0.10 kg | 0.012 kg | 30 |
+| Mag_STANAG_60 | 0.18 kg | 0.012 kg | 60 |
+| Mag_Glock_17 | 0.07 kg | 0.008 kg | 17 |
+
+---
+
+**Last Updated:** 2026-01-05
+**Version:** 1.3 (Magazine Weight System)

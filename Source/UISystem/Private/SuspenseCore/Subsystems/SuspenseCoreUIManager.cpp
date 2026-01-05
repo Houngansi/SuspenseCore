@@ -69,10 +69,110 @@ void USuspenseCoreUIManager::Initialize(FSubsystemCollectionBase& Collection)
 	// Setup default screen config
 	SetupDefaultScreenConfig();
 
+	// Try to auto-load widget classes from common Blueprint paths
+	LoadDefaultWidgetClasses();
+
 	// Subscribe to EventBus
 	SubscribeToEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("SuspenseCoreUIManager initialized"));
+}
+
+void USuspenseCoreUIManager::LoadDefaultWidgetClasses()
+{
+	// Try to load Magazine Tooltip Widget Blueprint
+	if (!MagazineTooltipWidgetClass)
+	{
+		// Common paths where the Blueprint might be located
+		static const TCHAR* MagazineTooltipPaths[] = {
+			TEXT("/Game/UI/Widgets/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
+			TEXT("/Game/UI/HUD/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
+			TEXT("/Game/Blueprints/UI/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
+			TEXT("/Game/SuspenseCore/UI/WBP_MagazineTooltip.WBP_MagazineTooltip_C"),
+		};
+
+		for (const TCHAR* Path : MagazineTooltipPaths)
+		{
+			UClass* FoundClass = LoadClass<USuspenseCoreMagazineTooltipWidget>(nullptr, Path);
+			if (FoundClass)
+			{
+				MagazineTooltipWidgetClass = FoundClass;
+				UE_LOG(LogTemp, Log, TEXT("UIManager: Auto-loaded MagazineTooltipWidgetClass from %s"), Path);
+				break;
+			}
+		}
+	}
+
+	// Try to load Magazine Inspection Widget Blueprint
+	if (!MagazineInspectionWidgetClass)
+	{
+		static const TCHAR* MagazineInspectionPaths[] = {
+			TEXT("/Game/UI/Widgets/WBP_MagazineInspector.WBP_MagazineInspector_C"),
+			TEXT("/Game/UI/HUD/WBP_MagazineInspector.WBP_MagazineInspector_C"),
+			TEXT("/Game/Blueprints/UI/WBP_MagazineInspector.WBP_MagazineInspector_C"),
+			TEXT("/Game/SuspenseCore/UI/WBP_MagazineInspector.WBP_MagazineInspector_C"),
+		};
+
+		for (const TCHAR* Path : MagazineInspectionPaths)
+		{
+			UClass* FoundClass = LoadClass<USuspenseCoreMagazineInspectionWidget>(nullptr, Path);
+			if (FoundClass)
+			{
+				MagazineInspectionWidgetClass = FoundClass;
+				UE_LOG(LogTemp, Log, TEXT("UIManager: Auto-loaded MagazineInspectionWidgetClass from %s"), Path);
+				break;
+			}
+		}
+	}
+
+	// Try to load standard Tooltip Widget Blueprint
+	if (!TooltipWidgetClass)
+	{
+		static const TCHAR* TooltipPaths[] = {
+			TEXT("/Game/UI/Widgets/WBP_Tooltip.WBP_Tooltip_C"),
+			TEXT("/Game/UI/HUD/WBP_Tooltip.WBP_Tooltip_C"),
+			TEXT("/Game/Blueprints/UI/WBP_Tooltip.WBP_Tooltip_C"),
+			TEXT("/Game/SuspenseCore/UI/WBP_Tooltip.WBP_Tooltip_C"),
+		};
+
+		for (const TCHAR* Path : TooltipPaths)
+		{
+			UClass* FoundClass = LoadClass<USuspenseCoreTooltipWidget>(nullptr, Path);
+			if (FoundClass)
+			{
+				TooltipWidgetClass = FoundClass;
+				UE_LOG(LogTemp, Log, TEXT("UIManager: Auto-loaded TooltipWidgetClass from %s"), Path);
+				break;
+			}
+		}
+	}
+
+	// Log warnings for missing widget classes
+	if (!MagazineTooltipWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager: MagazineTooltipWidgetClass not configured. Create WBP_MagazineTooltip Blueprint or call ConfigureWidgetClasses()."));
+	}
+	if (!MagazineInspectionWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager: MagazineInspectionWidgetClass not configured. Create WBP_MagazineInspector Blueprint or call ConfigureWidgetClasses()."));
+	}
+}
+
+void USuspenseCoreUIManager::ConfigureWidgetClasses(
+	TSubclassOf<USuspenseCoreMagazineTooltipWidget> InMagazineTooltipClass,
+	TSubclassOf<USuspenseCoreMagazineInspectionWidget> InMagazineInspectionClass)
+{
+	if (InMagazineTooltipClass)
+	{
+		MagazineTooltipWidgetClass = InMagazineTooltipClass;
+		UE_LOG(LogTemp, Log, TEXT("UIManager: MagazineTooltipWidgetClass configured to %s"), *InMagazineTooltipClass->GetName());
+	}
+
+	if (InMagazineInspectionClass)
+	{
+		MagazineInspectionWidgetClass = InMagazineInspectionClass;
+		UE_LOG(LogTemp, Log, TEXT("UIManager: MagazineInspectionWidgetClass configured to %s"), *InMagazineInspectionClass->GetName());
+	}
 }
 
 void USuspenseCoreUIManager::Deinitialize()

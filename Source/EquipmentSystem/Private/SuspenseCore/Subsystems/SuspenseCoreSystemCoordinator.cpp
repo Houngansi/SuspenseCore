@@ -571,15 +571,15 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
         RegisteredCount++;
     }
 
-    // Ammo Loading Service
-    const FGameplayTag TagAmmoLoading = FGameplayTag::RequestGameplayTag(FName(TEXT("SuspenseCore.Service.AmmoLoading")), false);
-    if (TagAmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TagAmmoLoading))
+    // Ammo Loading Service - use native tag
+    using namespace SuspenseCoreEquipmentTags::Service;
+    if (TAG_Service_Equipment_AmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TAG_Service_Equipment_AmmoLoading))
     {
         FSuspenseCoreServiceInitParams AmmoLoadingParams;
         AmmoLoadingParams.bAutoStart = true;
 
         ServiceLocator->RegisterServiceClass(
-            TagAmmoLoading,
+            TAG_Service_Equipment_AmmoLoading,
             USuspenseCoreAmmoLoadingService::StaticClass(),
             AmmoLoadingParams);
 

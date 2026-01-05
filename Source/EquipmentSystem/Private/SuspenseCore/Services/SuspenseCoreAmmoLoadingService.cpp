@@ -204,15 +204,15 @@ void USuspenseCoreAmmoLoadingService::OnAmmoLoadRequestedEvent(FGameplayTag Even
     Request.SourceInventorySlot = SourceSlot;
     Request.bIsQuickLoad = false;
 
-    // Get owner actor from event if available
+    // Get owner actor from event Source
     AActor* OwnerActor = nullptr;
-    if (UObject* Instigator = EventData.GetInstigator())
+    if (EventData.Source)
     {
-        OwnerActor = Cast<AActor>(Instigator);
+        OwnerActor = Cast<AActor>(EventData.Source);
         if (!OwnerActor)
         {
             // Try to get from component
-            if (UActorComponent* Comp = Cast<UActorComponent>(Instigator))
+            if (UActorComponent* Comp = Cast<UActorComponent>(EventData.Source))
             {
                 OwnerActor = Comp->GetOwner();
             }

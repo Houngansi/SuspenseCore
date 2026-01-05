@@ -9,6 +9,7 @@
 #include "SuspenseCore/Widgets/DragDrop/SuspenseCoreDragVisualWidget.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIDataProvider.h"
 #include "SuspenseCore/Interfaces/UI/ISuspenseCoreUIContainer.h"
+#include "SuspenseCore/Interfaces/UI/ISuspenseCoreMagazineInspectionWidget.h"
 #include "Components/GridPanel.h"
 #include "Components/GridSlot.h"
 #include "Components/UniformGridPanel.h"
@@ -98,6 +99,8 @@ FReply USuspenseCoreInventoryWidget::NativeOnMouseButtonDown(const FGeometry& In
 		double CurrentTime = FPlatformTime::Seconds();
 		if (SlotIndex == LastClickedSlot && (CurrentTime - LastClickTime) < DoubleClickThreshold)
 		{
+			// Handle double click - check if this is a magazine for inspection
+			HandleSlotDoubleClicked(SlotIndex);
 			K2_OnSlotDoubleClicked(SlotIndex);
 			LastClickedSlot = INDEX_NONE;
 			DragSourceSlot = INDEX_NONE;
@@ -838,6 +841,67 @@ void USuspenseCoreInventoryWidget::HandleSlotClicked(int32 SlotIndex, bool bRigh
 	if (bRightClick)
 	{
 		ShowContextMenu(AnchorSlot, FVector2D::ZeroVector); // Screen position would need to be passed
+	}
+}
+
+void USuspenseCoreInventoryWidget::HandleSlotDoubleClicked(int32 SlotIndex)
+{
+	// Resolve to anchor slot for multi-cell items
+	int32 AnchorSlot = SlotToAnchorMap.Contains(SlotIndex)
+		? SlotToAnchorMap[SlotIndex]
+		: SlotIndex;
+
+	if (!IsBoundToProvider())
+	{
+		return;
+	}
+
+	ISuspenseCoreUIDataProvider* ProviderInterface = GetBoundProvider().GetInterface();
+	if (!ProviderInterface)
+	{
+		return;
+	}
+
+	// Get item data at slot
+	FSuspenseCoreItemUIData ItemData;
+	if (!ProviderInterface->GetItemUIDataAtSlot(AnchorSlot, ItemData))
+	{
+		return;
+	}
+
+	// Check if item is a magazine - open inspection
+	USuspenseCoreUIManager* UIManager = USuspenseCoreUIManager::Get(this);
+	if (!UIManager)
+	{
+		return;
+	}
+
+	if (UIManager->IsMagazineItem(ItemData))
+	{
+		// Build inspection data from item
+		FSuspenseCoreMagazineInspectionData InspectionData;
+		InspectionData.MagazineInstanceID = ItemData.InstanceID;
+		InspectionData.DisplayName = ItemData.DisplayName;
+		InspectionData.MagazineIcon = ItemData.Icon;
+
+		// Try to get magazine-specific data from item payload or MagazineComponent
+		// For now use placeholder values - real implementation should get from MagazineComponent
+		InspectionData.MaxCapacity = 30; // Default, should come from item data
+		InspectionData.CurrentRounds = 0;
+		InspectionData.CaliberDisplayName = FText::FromString(TEXT("Unknown"));
+
+		// Build round slots
+		for (int32 i = 0; i < InspectionData.MaxCapacity; ++i)
+		{
+			FSuspenseCoreRoundSlotData Slot;
+			Slot.SlotIndex = i;
+			Slot.bIsOccupied = false;
+			Slot.bCanUnload = false;
+			InspectionData.RoundSlots.Add(Slot);
+		}
+
+		// Open inspection
+		UIManager->OpenMagazineInspection(InspectionData);
 	}
 }
 

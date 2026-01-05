@@ -19,10 +19,12 @@ class USuspenseCoreContainerScreenWidget;
 class USuspenseCoreInventoryWidget;
 class USuspenseCoreTooltipWidget;
 class USuspenseCoreMagazineTooltipWidget;
+class USuspenseCoreMagazineInspectionWidget;
 class USuspenseCoreMasterHUDWidget;
 class APlayerController;
 struct FSuspenseCoreEventData;
 struct FSuspenseCoreMagazineTooltipData;
+struct FSuspenseCoreMagazineInspectionData;
 
 /**
  * Delegate for container screen visibility changes
@@ -270,6 +272,47 @@ public:
 	bool IsMagazineTooltipVisible() const;
 
 	//==================================================================
+	// Magazine Inspection (Tarkov-style)
+	//==================================================================
+
+	/**
+	 * Open magazine inspection widget for detailed magazine view
+	 * Shows per-round visualization with loading/unloading support
+	 * @param InspectionData Magazine inspection data
+	 * @return true if inspection opened
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Magazine")
+	bool OpenMagazineInspection(const FSuspenseCoreMagazineInspectionData& InspectionData);
+
+	/**
+	 * Close magazine inspection widget
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|UI|Magazine")
+	void CloseMagazineInspection();
+
+	/**
+	 * Check if magazine inspection is currently open
+	 * @return true if inspection is open
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Magazine")
+	bool IsMagazineInspectionOpen() const;
+
+	/**
+	 * Get magazine inspection widget
+	 * @return Magazine inspection widget or nullptr
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Magazine")
+	USuspenseCoreMagazineInspectionWidget* GetMagazineInspectionWidget() const { return MagazineInspectionWidget; }
+
+	/**
+	 * Check if item is a magazine by its tags
+	 * @param ItemData Item to check
+	 * @return true if item has Magazine tag
+	 */
+	UFUNCTION(BlueprintPure, Category = "SuspenseCore|UI|Magazine")
+	bool IsMagazineItem(const FSuspenseCoreItemUIData& ItemData) const;
+
+	//==================================================================
 	// Drag-Drop Support
 	//==================================================================
 
@@ -319,6 +362,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
 	TSubclassOf<USuspenseCoreMagazineTooltipWidget> MagazineTooltipWidgetClass;
+
+	/**
+	 * Magazine inspection widget class - Tarkov-style detailed magazine view
+	 * Shows per-round slot visualization with loading/unloading
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
+	TSubclassOf<USuspenseCoreMagazineInspectionWidget> MagazineInspectionWidgetClass;
 
 	/** Master HUD widget class - contains all in-game HUD elements */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SuspenseCore|UI|Config")
@@ -435,6 +485,9 @@ protected:
 	/** Create magazine tooltip widget */
 	USuspenseCoreMagazineTooltipWidget* CreateMagazineTooltipWidget(APlayerController* PC);
 
+	/** Create magazine inspection widget */
+	USuspenseCoreMagazineInspectionWidget* CreateMagazineInspectionWidget(APlayerController* PC);
+
 	/** Update input mode for container screen */
 	void UpdateInputMode(APlayerController* PC, bool bShowingUI);
 
@@ -460,6 +513,10 @@ private:
 	/** Current magazine tooltip widget (Tarkov-style) */
 	UPROPERTY(Transient)
 	USuspenseCoreMagazineTooltipWidget* MagazineTooltipWidget;
+
+	/** Current magazine inspection widget (Tarkov-style) */
+	UPROPERTY(Transient)
+	USuspenseCoreMagazineInspectionWidget* MagazineInspectionWidget;
 
 	/** Current master HUD widget - use TWeakObjectPtr to auto-invalidate when widget is destroyed (e.g. level transition) */
 	UPROPERTY(Transient)

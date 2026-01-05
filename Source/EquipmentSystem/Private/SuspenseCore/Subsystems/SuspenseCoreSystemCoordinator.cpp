@@ -449,6 +449,7 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
     const FGameplayTag TagOperations    = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Operations"), false);
     const FGameplayTag TagVisualization = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Visualization"), false);
     const FGameplayTag TagAbility       = FGameplayTag::RequestGameplayTag(TEXT("Service.Equipment.Ability"), false);
+    const FGameplayTag TagAmmoLoading   = FGameplayTag::RequestGameplayTag(TEXT("SuspenseCore.Service.Equipment.AmmoLoading"), false);
 
     int32 RegisteredCount = 0;
 
@@ -572,22 +573,19 @@ void USuspenseCoreSystemCoordinator::RegisterCoreServices()
         RegisteredCount++;
     }
 
-    // Ammo Loading Service - use native tag
+    // Ammo Loading Service
+    if (TagAmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TagAmmoLoading))
     {
-        const FGameplayTag TagAmmoLoading = SuspenseCoreEquipmentTags::Service::TAG_Service_Equipment_AmmoLoading.Get();
-        if (TagAmmoLoading.IsValid() && !ServiceLocator->IsServiceRegistered(TagAmmoLoading))
-        {
-            FSuspenseCoreServiceInitParams AmmoLoadingParams;
-            AmmoLoadingParams.bAutoStart = true;
+        FSuspenseCoreServiceInitParams AmmoLoadingParams;
+        AmmoLoadingParams.bAutoStart = true;
 
-            ServiceLocator->RegisterServiceClass(
-                TagAmmoLoading,
-                USuspenseCoreAmmoLoadingService::StaticClass(),
-                AmmoLoadingParams);
+        ServiceLocator->RegisterServiceClass(
+            TagAmmoLoading,
+            USuspenseCoreAmmoLoadingService::StaticClass(),
+            AmmoLoadingParams);
 
-            UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
-            RegisteredCount++;
-        }
+        UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("  Registered: AmmoLoadingService"));
+        RegisteredCount++;
     }
 
     UE_LOG(LogSuspenseCoreCoordinatorSubsystem, Log, TEXT("RegisterCoreServices: complete (%d services registered)"), RegisteredCount);

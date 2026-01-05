@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCoreQuickSlotAbility.generated.h"
 
 // Forward declaration - use interface instead of concrete type
@@ -84,6 +85,10 @@ public:
     {
         SlotIndex = 0;
         AbilityInputID = ESuspenseCoreAbilityInputID::QuickSlot1;
+        // Set AbilityTags for TryActivateAbilitiesByTag() lookup
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::QuickSlot::Slot1);
+        SetAssetTags(Tags);
     }
 };
 
@@ -96,6 +101,10 @@ public:
     {
         SlotIndex = 1;
         AbilityInputID = ESuspenseCoreAbilityInputID::QuickSlot2;
+        // Set AbilityTags for TryActivateAbilitiesByTag() lookup
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::QuickSlot::Slot2);
+        SetAssetTags(Tags);
     }
 };
 
@@ -108,6 +117,10 @@ public:
     {
         SlotIndex = 2;
         AbilityInputID = ESuspenseCoreAbilityInputID::QuickSlot3;
+        // Set AbilityTags for TryActivateAbilitiesByTag() lookup
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::QuickSlot::Slot3);
+        SetAssetTags(Tags);
     }
 };
 
@@ -120,5 +133,9 @@ public:
     {
         SlotIndex = 3;
         AbilityInputID = ESuspenseCoreAbilityInputID::QuickSlot4;
+        // Set AbilityTags for TryActivateAbilitiesByTag() lookup
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::QuickSlot::Slot4);
+        SetAssetTags(Tags);
     }
 };

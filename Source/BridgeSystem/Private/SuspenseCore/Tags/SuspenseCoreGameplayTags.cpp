@@ -258,6 +258,15 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(HoldBreath, "SuspenseCore.Ability.Weapon.HoldBreath");
 		}
 
+		// QuickSlot abilities (Tarkov-style magazine/item access via keys 4-7)
+		namespace QuickSlot
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Slot1, "SuspenseCore.Ability.QuickSlot.1");
+			UE_DEFINE_GAMEPLAY_TAG(Slot2, "SuspenseCore.Ability.QuickSlot.2");
+			UE_DEFINE_GAMEPLAY_TAG(Slot3, "SuspenseCore.Ability.QuickSlot.3");
+			UE_DEFINE_GAMEPLAY_TAG(Slot4, "SuspenseCore.Ability.QuickSlot.4");
+		}
+
 		namespace Input
 		{
 			UE_DEFINE_GAMEPLAY_TAG(Interact, "Ability.Input.Interact");

@@ -270,6 +270,26 @@ protected:
 	UInputAction* IA_Reload;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// QUICKSLOT INPUT ACTIONS (Tarkov-style magazine/item access)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** QuickSlot 1 (Key 4) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|QuickSlot")
+	UInputAction* IA_QuickSlot1;
+
+	/** QuickSlot 2 (Key 5) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|QuickSlot")
+	UInputAction* IA_QuickSlot2;
+
+	/** QuickSlot 3 (Key 6) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|QuickSlot")
+	UInputAction* IA_QuickSlot3;
+
+	/** QuickSlot 4 (Key 7) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|QuickSlot")
+	UInputAction* IA_QuickSlot4;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY INPUT BINDINGS
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -334,6 +354,12 @@ protected:
 	void HandleFirePressed(const FInputActionValue& Value);
 	void HandleFireReleased(const FInputActionValue& Value);
 	void HandleReload(const FInputActionValue& Value);
+
+	// QuickSlot Input Handlers (Tarkov-style magazine/item access)
+	void HandleQuickSlot1(const FInputActionValue& Value);
+	void HandleQuickSlot2(const FInputActionValue& Value);
+	void HandleQuickSlot3(const FInputActionValue& Value);
+	void HandleQuickSlot4(const FInputActionValue& Value);
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ABILITY ACTIVATION

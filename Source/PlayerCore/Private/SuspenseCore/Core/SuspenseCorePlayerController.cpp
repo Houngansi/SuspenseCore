@@ -173,6 +173,24 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 			EnhancedInput->BindAction(IA_Reload, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleReload);
 		}
 
+		// QuickSlot Inputs (Tarkov-style magazine/item access - keys 4-7)
+		if (IA_QuickSlot1)
+		{
+			EnhancedInput->BindAction(IA_QuickSlot1, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSlot1);
+		}
+		if (IA_QuickSlot2)
+		{
+			EnhancedInput->BindAction(IA_QuickSlot2, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSlot2);
+		}
+		if (IA_QuickSlot3)
+		{
+			EnhancedInput->BindAction(IA_QuickSlot3, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSlot3);
+		}
+		if (IA_QuickSlot4)
+		{
+			EnhancedInput->BindAction(IA_QuickSlot4, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleQuickSlot4);
+		}
+
 		// Bind additional ability inputs
 		BindAbilityInputs();
 	}
@@ -368,6 +386,34 @@ void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 {
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")), true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUICKSLOT INPUT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::HandleQuickSlot1(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot1 triggered"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.1")), true);
+}
+
+void ASuspenseCorePlayerController::HandleQuickSlot2(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot2 triggered"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.2")), true);
+}
+
+void ASuspenseCorePlayerController::HandleQuickSlot3(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot3 triggered"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.3")), true);
+}
+
+void ASuspenseCorePlayerController::HandleQuickSlot4(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot4 triggered"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.4")), true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

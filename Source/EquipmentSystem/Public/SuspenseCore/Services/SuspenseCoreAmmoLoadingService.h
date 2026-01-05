@@ -15,6 +15,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Containers/Ticker.h"  // FTSTicker for service ticking
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentService.h"
@@ -400,6 +401,23 @@ private:
     /** Event subscription handle for load requests */
     FSuspenseCoreSubscriptionHandle LoadRequestedEventHandle;
 
+    /** Ticker handle for processing loading operations */
+    FTSTicker::FDelegateHandle TickerHandle;
+
     /** Service lifecycle state */
     ESuspenseCoreServiceLifecycleState ServiceState = ESuspenseCoreServiceLifecycleState::Uninitialized;
+
+private:
+    //==================================================================
+    // Ticker Management
+    //==================================================================
+
+    /** Start ticking if we have active operations */
+    void StartTicking();
+
+    /** Stop ticking when no active operations */
+    void StopTicking();
+
+    /** Ticker callback - returns true to continue ticking */
+    bool TickerCallback(float DeltaTime);
 };

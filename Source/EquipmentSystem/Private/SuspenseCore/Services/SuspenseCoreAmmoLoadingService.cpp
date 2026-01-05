@@ -85,6 +85,9 @@ bool USuspenseCoreAmmoLoadingService::ShutdownService(bool bForce)
 
     ServiceState = ESuspenseCoreServiceLifecycleState::Shutting;
 
+    // Stop ticker first
+    StopTicking();
+
     // Cancel all active operations
     ActiveOperations.Empty();
 
@@ -352,6 +355,9 @@ bool USuspenseCoreAmmoLoadingService::StartLoading(const FSuspenseCoreAmmoLoadRe
     AMMO_LOG(Log, TEXT("StartLoading: Started loading %d rounds of %s into magazine %s (%.2fs total)"),
         RoundsToLoad, *Request.AmmoID.ToString(), *Request.MagazineInstanceID.ToString().Left(8),
         Operation.TotalDuration);
+
+    // Start ticker to process loading operations
+    StartTicking();
 
     return true;
 }
@@ -816,6 +822,57 @@ bool USuspenseCoreAmmoLoadingService::ValidateAmmoCompatibility(const FSuspenseC
     }
 
     return true; // Permissive if caliber parsing fails
+}
+
+//==================================================================
+// Ticker Management
+// @see SuspenseCoreEquipmentOperationService.cpp for pattern reference
+//==================================================================
+
+void USuspenseCoreAmmoLoadingService::StartTicking()
+{
+    // Already ticking
+    if (TickerHandle.IsValid())
+    {
+        return;
+    }
+
+    // Register with core ticker for per-frame updates
+    // Tick interval of 0 means every frame
+    TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+        FTickerDelegate::CreateUObject(this, &USuspenseCoreAmmoLoadingService::TickerCallback),
+        0.0f  // Every frame
+    );
+
+    AMMO_LOG(Verbose, TEXT("StartTicking: Registered with FTSTicker"));
+}
+
+void USuspenseCoreAmmoLoadingService::StopTicking()
+{
+    if (TickerHandle.IsValid())
+    {
+        FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+        TickerHandle.Reset();
+        AMMO_LOG(Verbose, TEXT("StopTicking: Unregistered from FTSTicker"));
+    }
+}
+
+bool USuspenseCoreAmmoLoadingService::TickerCallback(float DeltaTime)
+{
+    // Call main tick logic
+    Tick(DeltaTime);
+
+    // If no more active operations, stop ticking
+    if (ActiveOperations.Num() == 0)
+    {
+        AMMO_LOG(Verbose, TEXT("TickerCallback: No active operations, stopping ticker"));
+        // Return false to unregister this ticker
+        TickerHandle.Reset();  // Clear handle since ticker is auto-removed when returning false
+        return false;
+    }
+
+    // Continue ticking
+    return true;
 }
 
 #undef AMMO_LOG

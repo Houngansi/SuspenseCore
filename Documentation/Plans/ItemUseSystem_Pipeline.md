@@ -1,9 +1,9 @@
 # Item Use System Pipeline
 
-> **Version:** 1.0
+> **Version:** 1.1
 > **Author:** Claude Code
 > **Date:** 2026-01-05
-> **Status:** PENDING APPROVAL
+> **Status:** APPROVED
 > **Related Docs:**
 > - `SuspenseCoreArchitecture.md` (BridgeSystem architecture)
 > - `TarkovStyle_Ammo_System_Design.md` (existing ammo/magazine system)
@@ -280,19 +280,40 @@ Source/EquipmentSystem/
 │       └── SuspenseCoreItemUseService.cpp       [NEW] Service impl
 
 ═══════════════════════════════════════════════════════════════════════════════
-PHASE 3: GAS (Abilities)
+PHASE 3: GAS (Abilities, Effects, Input Integration)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Source/GAS/
 ├── Public/SuspenseCore/
-│   └── Abilities/ItemUse/
-│       ├── GA_ItemUse.h                         [NEW] Base ability
-│       └── GA_QuickSlotUse.h                    [NEW] QuickSlot ability
+│   ├── Abilities/ItemUse/
+│   │   ├── GA_ItemUse.h                         [NEW] Base ability
+│   │   └── GA_QuickSlotUse.h                    [NEW] QuickSlot ability
+│   │
+│   └── Effects/ItemUse/
+│       ├── GE_ItemUse_InProgress.h              [NEW] C++ base for in-progress
+│       └── GE_ItemUse_Cooldown.h                [NEW] C++ base for cooldown
 │
 ├── Private/SuspenseCore/
-│   └── Abilities/ItemUse/
-│       ├── GA_ItemUse.cpp                       [NEW]
-│       └── GA_QuickSlotUse.cpp                  [NEW]
+│   ├── Abilities/ItemUse/
+│   │   ├── GA_ItemUse.cpp                       [NEW]
+│   │   └── GA_QuickSlotUse.cpp                  [NEW]
+│   │
+│   └── Effects/ItemUse/
+│       ├── GE_ItemUse_InProgress.cpp            [NEW]
+│       └── GE_ItemUse_Cooldown.cpp              [NEW]
+
+Source/PlayerCore/
+├── Public/SuspenseCore/
+│   └── Input/
+│       └── SuspenseCoreItemUseInputConfig.h     [NEW] Input actions config
+│
+├── Private/SuspenseCore/
+│   └── Input/
+│       └── SuspenseCoreItemUseInputConfig.cpp   [NEW]
+
+[MODIFY] Existing files:
+├── SuspenseCorePlayerController.h/cpp           [MODIFY] Add QuickSlot input bindings
+└── SuspenseCoreInputComponent.h/cpp             [MODIFY] Bind IA_QuickSlot1-4
 
 ═══════════════════════════════════════════════════════════════════════════════
 PHASE 4: HANDLERS (Extensible Item Type Support)
@@ -373,24 +394,51 @@ Documentation/
 
 ---
 
-### Phase 3: GAS Abilities (P0 - Critical)
+### Phase 3: GAS Abilities, Effects & Input Integration (P0 - Critical)
 
-**Goal:** Create GAS abilities for item usage.
+**Goal:** Create GAS abilities, C++ GameplayEffects, and integrate input bindings.
 
-**Files:**
-1. `GA_ItemUse.h/.cpp` - Base ability
-2. `GA_QuickSlotUse.h/.cpp` - QuickSlot specialization
+**Files (Abilities):**
+1. `GA_ItemUse.h/.cpp` - Base item use ability
+2. `GA_QuickSlotUse.h/.cpp` - QuickSlot specialization (keys 4-7)
+
+**Files (GameplayEffects - C++ Base Classes):**
+3. `GE_ItemUse_InProgress.h/.cpp` - In-progress state effect
+   - Adds `State.ItemUse.InProgress` tag
+   - Duration modifier via SetByCaller
+   - Blueprint child: `BP_GE_ItemUse_InProgress`
+4. `GE_ItemUse_Cooldown.h/.cpp` - Cooldown effect
+   - Adds `State.ItemUse.Cooldown` tag
+   - Duration modifier via SetByCaller
+   - Blueprint child: `BP_GE_ItemUse_Cooldown`
+
+**Files (Input Integration):**
+5. `SuspenseCoreItemUseInputConfig.h/.cpp` - Input action definitions
+6. Modify `SuspenseCorePlayerController` - Add QuickSlot input bindings
+7. Modify `SuspenseCoreInputComponent` - Bind IA_QuickSlot1-4 actions
 
 **Key Features:**
-- Event-triggered activation (not input-bound)
-- Cooldown via GameplayEffects
+- Event-triggered activation via AbilitySystemComponent
+- Cooldown via C++ GameplayEffects (BP children for configuration)
 - Cancellation via damage/movement tags
-- Progress reporting for UI
+- Progress reporting for UI via EventBus
+- Input bindings: Keys 4-5-6-7 → GA_QuickSlotUse with slot index
+
+**Input Mapping:**
+```
+IA_QuickSlot1 (Key 4) → GA_QuickSlotUse (SlotIndex=0)
+IA_QuickSlot2 (Key 5) → GA_QuickSlotUse (SlotIndex=1)
+IA_QuickSlot3 (Key 6) → GA_QuickSlotUse (SlotIndex=2)
+IA_QuickSlot4 (Key 7) → GA_QuickSlotUse (SlotIndex=3)
+```
 
 **Validation:**
-- [ ] Ability activates correctly
-- [ ] Cooldown displays in UI
-- [ ] Cancellation works
+- [ ] GA_ItemUse activates correctly via event
+- [ ] GA_QuickSlotUse activates via hotkeys 4-5-6-7
+- [ ] GE_ItemUse_InProgress applies State tag correctly
+- [ ] GE_ItemUse_Cooldown applies and displays in UI
+- [ ] Cancellation works (damage interrupts)
+- [ ] Input bindings work in PlayerController
 
 ---
 
@@ -1747,39 +1795,44 @@ ISuspenseCoreItemUseService* USuspenseCoreServiceProvider::GetItemUseService() c
 ## 15. Checklist
 
 ### Phase 1: BridgeSystem Foundation
-- [ ] Create `SuspenseCoreItemUseTypes.h`
-- [ ] Create `ISuspenseCoreItemUseHandler.h`
-- [ ] Create `ISuspenseCoreItemUseService.h`
-- [ ] Create `SuspenseCoreItemUseNativeTags.h/.cpp`
-- [ ] Update `DefaultGameplayTags.ini`
-- [ ] Verify BridgeSystem compiles
+- [x] Create `SuspenseCoreItemUseTypes.h`
+- [x] Create `ISuspenseCoreItemUseHandler.h`
+- [x] Create `ISuspenseCoreItemUseService.h`
+- [x] Create `SuspenseCoreItemUseNativeTags.h/.cpp`
+- [x] Update `DefaultGameplayTags.ini`
+- [x] Verify BridgeSystem compiles
 
 ### Phase 2: Service Implementation
-- [ ] Create `SuspenseCoreItemUseService.h/.cpp`
-- [ ] Register with ServiceProvider
-- [ ] Implement handler registration
-- [ ] Implement request routing
-- [ ] Implement EventBus publishing
+- [x] Create `SuspenseCoreItemUseService.h/.cpp`
+- [x] Register with ServiceProvider (via GetService<> pattern)
+- [x] Implement handler registration
+- [x] Implement request routing
+- [x] Implement EventBus publishing
 - [ ] Verify EquipmentSystem compiles
 
-### Phase 3: GAS Abilities
-- [ ] Create `GA_ItemUse.h/.cpp`
-- [ ] Create `GA_QuickSlotUse.h/.cpp`
-- [ ] Create `GE_ItemUse_InProgress.uasset`
-- [ ] Create `GE_ItemUse_Cooldown.uasset`
+### Phase 3: GAS Abilities, Effects & Input Integration
+- [x] Create `GA_ItemUse.h/.cpp` - Base item use ability
+- [x] Create `GA_QuickSlotUse.h/.cpp` - QuickSlot ability (keys 4-7)
+- [x] Create `GE_ItemUse_InProgress.h/.cpp` - C++ GameplayEffect base
+- [x] Create `GE_ItemUse_Cooldown.h/.cpp` - C++ GameplayEffect base
+- [ ] Create `SuspenseCoreItemUseInputConfig.h/.cpp` - Input actions
+- [ ] Modify `SuspenseCorePlayerController` - Add QuickSlot input bindings
+- [ ] Modify `SuspenseCoreInputComponent` - Bind IA_QuickSlot1-4 actions
+- [ ] Test input: Keys 4-5-6-7 trigger GA_QuickSlotUse
 - [ ] Verify GAS module compiles
+- [ ] Verify PlayerCore input integration works
 
 ### Phase 4: Handlers
-- [ ] Create `SuspenseCoreAmmoToMagazineHandler`
-- [ ] Create `SuspenseCoreMagazineSwapHandler`
-- [ ] Create `SuspenseCoreMedicalUseHandler`
-- [ ] Create `SuspenseCoreGrenadeHandler`
-- [ ] Verify all handlers register correctly
+- [x] Create `SuspenseCoreAmmoToMagazineHandler`
+- [x] Create `SuspenseCoreMagazineSwapHandler`
+- [x] Create `SuspenseCoreMedicalUseHandler`
+- [x] Create `SuspenseCoreGrenadeHandler`
+- [x] Verify all handlers register correctly (auto-registration in ItemUseService)
 
 ### Phase 5: Integration
-- [ ] Modify `QuickSlotComponent` to use service
+- [x] Modify `QuickSlotComponent` to use service
 - [ ] Modify HUD input bindings
-- [ ] Remove tick from `AmmoLoadingService`
+- [ ] Remove tick from `AmmoLoadingService` (using FTSTicker, deferred)
 - [ ] Update UI to use EventBus
 - [ ] Create developer documentation
 - [ ] Full system test

@@ -7,6 +7,8 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
+#include "SuspenseCore/Services/SuspenseCoreItemUseService.h"
+#include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "Engine/Texture2D.h"
 #include "Net/UnrealNetwork.h"
@@ -381,28 +383,49 @@ bool USuspenseCoreQuickSlotComponent::UseQuickSlot_Implementation(int32 SlotInde
         Server_UseQuickSlot(SlotIndex);
     }
 
-    // Determine item type and execute appropriate action
+    // Route through ItemUseService for unified handling
     bool bSuccess = false;
 
-    if (StoredMagazines[SlotIndex].IsValid())
+    USuspenseCoreServiceProvider* Provider = USuspenseCoreServiceProvider::Get(this);
+    if (Provider)
     {
-        // It's a magazine - do quick reload
-        bSuccess = ExecuteMagazineSwap(SlotIndex, false);
-    }
-    else
-    {
-        // Check item category
-        FName ItemID = QuickSlots[SlotIndex].AssignedItemID;
-        if (IsItemMagazine(ItemID))
+        if (USuspenseCoreItemUseService* ItemUseService = Provider->GetService<USuspenseCoreItemUseService>())
         {
-            bSuccess = ExecuteMagazineSwap(SlotIndex, false);
+            FSuspenseCoreItemUseResponse Response = ItemUseService->UseQuickSlot(SlotIndex, GetOwner());
+            bSuccess = Response.IsSuccess() || Response.IsInProgress();
+
+            if (bSuccess)
+            {
+                // Apply cooldown from handler response
+                if (Response.Cooldown > 0.0f)
+                {
+                    StartSlotCooldown(SlotIndex, Response.Cooldown);
+                }
+
+                QUICKSLOT_LOG(Log, TEXT("UseQuickSlot: Routed slot %d through ItemUseService (Handler=%s, Duration=%.2fs)"),
+                    SlotIndex,
+                    *Response.HandlerTag.ToString(),
+                    Response.Duration);
+            }
+            else
+            {
+                QUICKSLOT_LOG(Verbose, TEXT("UseQuickSlot: ItemUseService failed for slot %d: %s"),
+                    SlotIndex,
+                    *Response.Message.ToString());
+            }
         }
         else
         {
-            // TODO: Check for consumable or grenade
-            // For now, treat as consumable
-            bSuccess = ExecuteConsumableUse(SlotIndex);
+            QUICKSLOT_LOG(Warning, TEXT("UseQuickSlot: ItemUseService not available, falling back to direct execution"));
+            // Fallback to direct execution if service not available
+            bSuccess = ExecuteQuickSlotDirect(SlotIndex);
         }
+    }
+    else
+    {
+        QUICKSLOT_LOG(Warning, TEXT("UseQuickSlot: ServiceProvider not available, falling back to direct execution"));
+        // Fallback to direct execution if service provider not available
+        bSuccess = ExecuteQuickSlotDirect(SlotIndex);
     }
 
     OnQuickSlotUsed.Broadcast(SlotIndex, bSuccess);
@@ -670,6 +693,33 @@ bool USuspenseCoreQuickSlotComponent::ExecuteGrenadePrepare(int32 SlotIndex)
     // TODO: Implement grenade preparation through ability system
     QUICKSLOT_LOG(Log, TEXT("ExecuteGrenadePrepare: Slot %d (not implemented)"), SlotIndex);
     return false;
+}
+
+bool USuspenseCoreQuickSlotComponent::ExecuteQuickSlotDirect(int32 SlotIndex)
+{
+    // Direct execution fallback - used when ItemUseService is not available
+    // This preserves the original behavior for backwards compatibility
+
+    if (!IsValidSlotIndex(SlotIndex))
+    {
+        return false;
+    }
+
+    if (StoredMagazines[SlotIndex].IsValid())
+    {
+        // It's a magazine - do quick reload
+        return ExecuteMagazineSwap(SlotIndex, false);
+    }
+
+    // Check item category
+    FName ItemID = QuickSlots[SlotIndex].AssignedItemID;
+    if (IsItemMagazine(ItemID))
+    {
+        return ExecuteMagazineSwap(SlotIndex, false);
+    }
+
+    // Default: treat as consumable
+    return ExecuteConsumableUse(SlotIndex);
 }
 
 void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const FGuid& OldItemID, const FGuid& NewItemID)

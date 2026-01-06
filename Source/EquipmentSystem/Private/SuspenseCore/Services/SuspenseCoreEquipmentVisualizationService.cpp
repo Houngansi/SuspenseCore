@@ -1097,28 +1097,67 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 			bool bGotRealItemInstance = false;
 			if (CachedServiceLocator)
 			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+					TEXT("  DataProvider lookup: ServiceLocator valid, Tag=%s"), *Tag_EquipmentData.ToString());
+
 				// Use Tag_EquipmentData (SuspenseCore.Service.Equipment.Data) and get DataProvider via interface
 				if (UObject* DataServiceObj = CachedServiceLocator->TryGetService(Tag_EquipmentData))
 				{
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+						TEXT("  DataProvider lookup: Got DataServiceObj=%s"), *DataServiceObj->GetName());
+
 					// Cast to DataService interface which has GetDataProvider()
 					if (ISuspenseCoreEquipmentDataServiceInterface* DataService =
 						Cast<ISuspenseCoreEquipmentDataServiceInterface>(DataServiceObj))
 					{
+						UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+							TEXT("  DataProvider lookup: Cast to ISuspenseCoreEquipmentDataServiceInterface succeeded"));
+
 						if (ISuspenseCoreEquipmentDataProvider* DataProvider = DataService->GetDataProvider())
 						{
+							UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+								TEXT("  DataProvider lookup: GetDataProvider() returned valid provider"));
+
 							ItemInstance = DataProvider->GetSlotItem(SlotIndex);
 							if (ItemInstance.IsValid())
 							{
 								bGotRealItemInstance = true;
 								UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
-									TEXT("  ✓ Got REAL ItemInstance from DataProvider - ID=%s, WeaponAmmoState HasMag=%s, Rounds=%d"),
+									TEXT("  ✓ Got REAL ItemInstance from DataProvider - ID=%s, InstanceID=%s, WeaponAmmoState HasMag=%s, Rounds=%d"),
 									*ItemInstance.ItemID.ToString(),
+									*ItemInstance.InstanceID.ToString(),
 									ItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
 									ItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
 							}
+							else
+							{
+								UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+									TEXT("  DataProvider lookup: GetSlotItem(%d) returned invalid ItemInstance"), SlotIndex);
+							}
+						}
+						else
+						{
+							UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+								TEXT("  DataProvider lookup: GetDataProvider() returned NULL"));
 						}
 					}
+					else
+					{
+						UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+							TEXT("  DataProvider lookup: Cast to ISuspenseCoreEquipmentDataServiceInterface FAILED (obj class: %s)"),
+							*DataServiceObj->GetClass()->GetName());
+					}
 				}
+				else
+				{
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+						TEXT("  DataProvider lookup: TryGetService(%s) returned NULL"), *Tag_EquipmentData.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  DataProvider lookup: CachedServiceLocator is NULL!"));
 			}
 
 			// Fallback: create minimal ItemInstance (but lose WeaponAmmoState)

@@ -592,7 +592,7 @@ float USuspenseCoreMagazineComponent::CalculateReloadDurationWithData(ESuspenseC
     float FullTime = 2.8f;
 
     // Get from weapon AttributeSet if available
-    if (USuspenseCoreWeaponAttributeSet* WeaponAttributeSet = GetCachedWeaponAttributeSet())
+    if (const USuspenseCoreWeaponAttributeSet* WeaponAttributeSet = GetCachedWeaponAttributeSet())
     {
         TacticalTime = WeaponAttributeSet->GetTacticalReloadTime();
         FullTime = WeaponAttributeSet->GetFullReloadTime();
@@ -1103,7 +1103,7 @@ UAbilitySystemComponent* USuspenseCoreMagazineComponent::GetOwnerASC() const
     return nullptr;
 }
 
-USuspenseCoreWeaponAttributeSet* USuspenseCoreMagazineComponent::GetCachedWeaponAttributeSet() const
+const USuspenseCoreWeaponAttributeSet* USuspenseCoreMagazineComponent::GetCachedWeaponAttributeSet() const
 {
     // Return cached if still valid
     if (CachedWeaponAttributeSet.IsValid())
@@ -1122,7 +1122,7 @@ USuspenseCoreWeaponAttributeSet* USuspenseCoreMagazineComponent::GetCachedWeapon
     // Get ASC and find AttributeSet
     if (UAbilitySystemComponent* ASC = GetOwnerASC())
     {
-        USuspenseCoreWeaponAttributeSet* AttributeSet = ASC->GetSet<USuspenseCoreWeaponAttributeSet>();
+        const USuspenseCoreWeaponAttributeSet* AttributeSet = ASC->GetSet<USuspenseCoreWeaponAttributeSet>();
         if (AttributeSet)
         {
             CachedWeaponAttributeSet = AttributeSet;

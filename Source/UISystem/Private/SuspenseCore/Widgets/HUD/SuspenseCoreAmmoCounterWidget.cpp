@@ -8,6 +8,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
@@ -86,6 +87,31 @@ void USuspenseCoreAmmoCounterWidget::InitializeWithWeapon_Implementation(AActor*
 		{
 			// Actor doesn't implement ISuspenseCoreWeapon - use actor name
 			WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
+		}
+	}
+
+	// CRITICAL FIX: Read initial ammo state from MagazineComponent
+	// Without this, CachedAmmoData stays at 0/0 until an EventBus event arrives
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+	if (WeaponActor)
+	{
+		if (USuspenseCoreMagazineComponent* MagComp = WeaponActor->FindComponentByClass<USuspenseCoreMagazineComponent>())
+		{
+			const FSuspenseCoreWeaponAmmoState& AmmoState = MagComp->GetWeaponAmmoState();
+
+			CachedAmmoData.bHasMagazine = AmmoState.bHasMagazine;
+			CachedAmmoData.MagazineRounds = AmmoState.InsertedMagazine.CurrentRoundCount;
+			CachedAmmoData.MagazineCapacity = AmmoState.InsertedMagazine.MaxCapacity;
+			CachedAmmoData.bHasChamberedRound = AmmoState.ChamberedRound.IsChambered();
+			CachedAmmoData.LoadedAmmoType = AmmoState.InsertedMagazine.LoadedAmmoID;
+
+			bHasMagazine = AmmoState.bHasMagazine;
+			TargetFillPercent = CachedAmmoData.GetMagazineFillPercent();
+
+			UE_LOG(LogTemp, Log, TEXT("AmmoCounterWidget: Initialized from MagazineComponent - Rounds=%d/%d, Chambered=%s"),
+				CachedAmmoData.MagazineRounds,
+				CachedAmmoData.MagazineCapacity,
+				CachedAmmoData.bHasChamberedRound ? TEXT("Yes") : TEXT("No"));
 		}
 	}
 

@@ -1930,7 +1930,7 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     if (SourceSlot == TargetSlot)
     {
         UE_LOG(LogEquipmentBridge, Log, TEXT("Same-slot operation detected (Slot=%d) - no-op"), SourceSlot);
-        return FSuspenseCoreInventorySimpleResult::Success(TEXT("Item already in this slot"));
+        return FSuspenseCoreInventorySimpleResult::Success(SourceSlot);
     }
 
     // Get items from both slots

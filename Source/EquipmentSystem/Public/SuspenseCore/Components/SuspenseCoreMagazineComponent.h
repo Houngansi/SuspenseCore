@@ -1,12 +1,27 @@
 // SuspenseCoreMagazineComponent.h
 // Tarkov-style magazine management component
 // Copyright Suspense Team. All Rights Reserved.
+//
+// ARCHITECTURE NOTE:
+// This component implements the Tarkov-style physical magazine system with:
+// - Unique magazine instances (FGuid-based tracking)
+// - Chamber state management
+// - Multiple reload types (tactical, empty, emergency, chamber-only)
+//
+// RELATIONSHIP WITH WeaponAmmoComponent:
+// - MagazineComponent (THIS): Full Tarkov-style system with physical magazines,
+//   durability, caliber compatibility - used for realistic MMO FPS games
+// - WeaponAmmoComponent: Simplified arcade-style counter system with GAS integration -
+//   can be used for casual shooters or as fallback
+// Both implement different strategies but can coexist on WeaponActor.
+// Currently, only MagazineComponent is used for persistence in SaveWeaponState/RestoreWeaponState.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "SuspenseCore/Components/SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h" // SUSPENSECORE_QUICKSLOT_COUNT
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCoreMagazineComponent.generated.h"
@@ -17,9 +32,7 @@ class USuspenseCoreWeaponAttributeSet;
 class USuspenseCoreAmmoAttributeSet;
 class USuspenseCoreEquipmentAttributeComponent;
 class USuspenseCoreQuickSlotComponent;
-
-// QuickSlot count constant for validation (same as SuspenseCoreQuickSlotComponent.h)
-static constexpr int32 MAGAZINE_QUICKSLOT_COUNT = 4;
+class UAbilitySystemComponent;
 
 /**
  * Delegate for magazine state changes
@@ -28,6 +41,49 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMagazineStateChanged, const FSusp
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMagazineChanged, const FSuspenseCoreMagazineInstance&, OldMagazine, const FSuspenseCoreMagazineInstance&, NewMagazine);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChamberStateChanged, bool, bHasChamberedRound);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReloadStateChanged, bool, bIsReloading, ESuspenseCoreReloadType, ReloadType);
+
+/**
+ * Client prediction data for reload operations
+ * Used for optimistic UI updates with rollback capability
+ */
+USTRUCT()
+struct FSuspenseCoreMagazinePredictionData
+{
+    GENERATED_BODY()
+
+    /** Unique prediction key for this operation */
+    UPROPERTY()
+    int32 PredictionKey = 0;
+
+    /** Predicted reload type */
+    UPROPERTY()
+    ESuspenseCoreReloadType PredictedReloadType = ESuspenseCoreReloadType::None;
+
+    /** Predicted reload duration */
+    UPROPERTY()
+    float PredictedDuration = 0.0f;
+
+    /** Predicted pending magazine */
+    UPROPERTY()
+    FSuspenseCoreMagazineInstance PredictedMagazine;
+
+    /** State snapshot before prediction (for rollback) */
+    UPROPERTY()
+    FSuspenseCoreWeaponAmmoState StateBeforePrediction;
+
+    /** Time when prediction was made */
+    UPROPERTY()
+    float PredictionTimestamp = 0.0f;
+
+    /** Whether this prediction is still active (not confirmed/rejected) */
+    UPROPERTY()
+    bool bIsActive = false;
+
+    FSuspenseCoreMagazinePredictionData() = default;
+
+    bool IsValid() const { return PredictionKey != 0 && bIsActive; }
+    void Invalidate() { bIsActive = false; }
+};
 
 /**
  * Component that manages Tarkov-style magazine system
@@ -218,6 +274,48 @@ public:
     void RestoreState(const FSuspenseCoreWeaponAmmoState& SavedState);
 
     //================================================
+    // Client Prediction (Optimistic UI)
+    //================================================
+
+    /**
+     * Start predicted reload on client (optimistic UI update)
+     * Creates local prediction that will be confirmed/rejected by server
+     * @param Request Reload request parameters
+     * @return Prediction key (0 if prediction failed to start)
+     */
+    UFUNCTION(BlueprintCallable, Category = "Magazine|Prediction")
+    int32 PredictStartReload(const FSuspenseCoreReloadRequest& Request);
+
+    /**
+     * Confirm client prediction (called when server confirms)
+     * @param PredictionKey Key returned from PredictStartReload
+     */
+    UFUNCTION(BlueprintCallable, Category = "Magazine|Prediction")
+    void ConfirmPrediction(int32 PredictionKey);
+
+    /**
+     * Rollback client prediction (called when server rejects)
+     * Restores state to pre-prediction snapshot
+     * @param PredictionKey Key returned from PredictStartReload
+     */
+    UFUNCTION(BlueprintCallable, Category = "Magazine|Prediction")
+    void RollbackPrediction(int32 PredictionKey);
+
+    /**
+     * Check if there's an active prediction
+     * @return true if client has unconfirmed prediction
+     */
+    UFUNCTION(BlueprintPure, Category = "Magazine|Prediction")
+    bool HasActivePrediction() const { return CurrentPrediction.IsValid(); }
+
+    /**
+     * Get current prediction key
+     * @return Active prediction key, or 0 if none
+     */
+    UFUNCTION(BlueprintPure, Category = "Magazine|Prediction")
+    int32 GetActivePredictionKey() const { return CurrentPrediction.PredictionKey; }
+
+    //================================================
     // Events
     //================================================
 
@@ -265,6 +363,19 @@ protected:
     /** Get DataManager for magazine data */
     USuspenseCoreDataManager* GetDataManager() const;
 
+    /**
+     * Get cached WeaponAttributeSet from owner's ASC
+     * Caches the result for performance
+     * @return WeaponAttributeSet or nullptr if not available
+     */
+    USuspenseCoreWeaponAttributeSet* GetCachedWeaponAttributeSet() const;
+
+    /**
+     * Get AbilitySystemComponent from owner
+     * @return ASC or nullptr
+     */
+    UAbilitySystemComponent* GetOwnerASC() const;
+
     /** Broadcast state change events */
     void BroadcastStateChanged();
 
@@ -290,6 +401,19 @@ protected:
     FSuspenseCoreChamberedRound EjectChamberedRoundInternal();
 
     //================================================
+    // Client Prediction Internal
+    //================================================
+
+    /** Generate next prediction key */
+    int32 GeneratePredictionKey();
+
+    /** Apply prediction locally (optimistic update) */
+    void ApplyPredictionLocally(const FSuspenseCoreMagazinePredictionData& Prediction);
+
+    /** Clean up expired predictions */
+    void CleanupExpiredPredictions();
+
+    //================================================
     // Server RPCs
     //================================================
 
@@ -313,6 +437,18 @@ protected:
 
     UFUNCTION(Server, Reliable, WithValidation)
     void ServerSwapMagazineFromQuickSlot(int32 QuickSlotIndex, bool bEmergencyDrop);
+
+    //================================================
+    // Client RPCs (Prediction Confirmation)
+    //================================================
+
+    /**
+     * Server confirms client prediction
+     * @param PredictionKey Key to confirm
+     * @param bSuccess Whether prediction was correct
+     */
+    UFUNCTION(Client, Reliable)
+    void ClientConfirmReloadPrediction(int32 PredictionKey, bool bSuccess);
 
     //================================================
     // Replication
@@ -374,4 +510,27 @@ private:
 
     /** Is magazine data cached */
     bool bMagazineDataCached = false;
+
+    //================================================
+    // Cached GAS References
+    //================================================
+
+    /** Cached WeaponAttributeSet for reload time calculations */
+    mutable TWeakObjectPtr<USuspenseCoreWeaponAttributeSet> CachedWeaponAttributeSet;
+
+    /** Whether we've attempted to cache the AttributeSet */
+    mutable bool bAttributeSetCacheAttempted = false;
+
+    //================================================
+    // Client Prediction State
+    //================================================
+
+    /** Current active prediction (only one at a time) */
+    FSuspenseCoreMagazinePredictionData CurrentPrediction;
+
+    /** Next prediction key to assign */
+    int32 NextPredictionKey = 1;
+
+    /** Maximum time to wait for server confirmation before auto-rollback (seconds) */
+    static constexpr float PredictionTimeoutSeconds = 3.0f;
 };

@@ -9,6 +9,16 @@
 #include "SuspenseCoreTypes.generated.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COMMON CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Number of quick slots available for items/magazines (Tarkov-style) */
+inline constexpr int32 SUSPENSECORE_QUICKSLOT_COUNT = 4;
+
+/** Maximum number of weapon slots on character */
+inline constexpr int32 SUSPENSECORE_MAX_WEAPON_SLOTS = 4;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // FORWARD DECLARATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 

@@ -472,18 +472,62 @@ void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTa
 
 void USuspenseCoreAmmoCounterWidget::UpdateMagazineUI()
 {
+	// 1. Обработка случая, когда МАГАЗИНА НЕТ
 	if (!bHasMagazine)
 	{
+		// FIX: Явно убираем "999", ставим текст для отсутствующего магазина (например "--" или "0")
+		if (MagazineRoundsText)
+		{
+			MagazineRoundsText->SetText(NoMagazineText);
+		}
+
+		// Скрываем вместимость (чтобы не было видно "/999")
+		if (MagazineCapacityText)
+		{
+			MagazineCapacityText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+
+		// Скрываем индикатор патрона в патроннике
+		if (ChamberIndicatorText)
+		{
+			ChamberIndicatorText->SetVisibility(ESlateVisibility::Collapsed);
+		}
+
+		// Обнуляем и скрываем прогресс бар
+		if (MagazineFillBar)
+		{
+			MagazineFillBar->SetPercent(0.0f);
+			MagazineFillBar->SetVisibility(ESlateVisibility::Collapsed);
+		}
+
+		// На этом всё, выходим, так как отображать цифры нечего
 		return;
 	}
 
-	// Update magazine rounds
+	// 2. Обработка случая, когда МАГАЗИН ЕСТЬ
+	// Возвращаем видимость элементам, которые могли быть скрыты
+	if (MagazineCapacityText)
+	{
+		MagazineCapacityText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		MagazineCapacityText->SetText(FText::Format(
+			NSLOCTEXT("AmmoCounter", "CapacityFormat", "/{0}"),
+			FText::AsNumber(CachedAmmoData.MagazineCapacity)
+		));
+	}
+
+	if (MagazineFillBar)
+	{
+		MagazineFillBar->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	// Обновляем текущее количество патронов
 	if (MagazineRoundsText)
 	{
 		MagazineRoundsText->SetText(FText::AsNumber(CachedAmmoData.MagazineRounds));
 	}
 
-	// Update chamber indicator
+	// Обновляем индикатор патрона в патроннике
 	if (ChamberIndicatorText && bShowChamberIndicator)
 	{
 		if (CachedAmmoData.bHasChamberedRound)
@@ -493,20 +537,12 @@ void USuspenseCoreAmmoCounterWidget::UpdateMagazineUI()
 		}
 		else
 		{
+			// Если патронник пуст, скрываем индикатор (или делаем серым, в зависимости от дизайна)
 			ChamberIndicatorText->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 
-	// Update capacity
-	if (MagazineCapacityText)
-	{
-		MagazineCapacityText->SetText(FText::Format(
-			NSLOCTEXT("AmmoCounter", "CapacityFormat", "/{0}"),
-			FText::AsNumber(CachedAmmoData.MagazineCapacity)
-		));
-	}
-
-	// Update fill bar (if not using smooth interpolation)
+	// Обновляем полоску (если не используется плавная интерполяция в Tick)
 	if (MagazineFillBar && !bSmoothFillBar)
 	{
 		MagazineFillBar->SetPercent(CachedAmmoData.GetMagazineFillPercent());

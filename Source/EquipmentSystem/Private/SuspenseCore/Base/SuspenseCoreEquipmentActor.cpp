@@ -298,6 +298,16 @@ void ASuspenseCoreEquipmentActor::OnItemInstanceUnequipped_Implementation(const 
         {
             const_cast<FSuspenseCoreInventoryItemInstance&>(ItemInstance).SetRuntimeProperty(KV.Key, KV.Value);
         }
+
+        // CRITICAL: Copy WeaponAmmoState for Tarkov-style magazine persistence
+        // This ensures InsertedMagazine and ChamberedRound survive unequip -> inventory -> re-equip
+        // @see TarkovStyle_Ammo_System_Design.md
+        const_cast<FSuspenseCoreInventoryItemInstance&>(ItemInstance).WeaponAmmoState = EquippedItemInstance.WeaponAmmoState;
+
+        UE_LOG(LogTemp, Log, TEXT("[%s] OnItemInstanceUnequipped: Copied WeaponAmmoState - HasMag=%s, Rounds=%d"),
+            *GetName(),
+            EquippedItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+            EquippedItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
     }
 
     // CRITICAL: Clean up components to remove AttributeSets from CHARACTER's ASC

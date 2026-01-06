@@ -231,6 +231,17 @@ void ASuspenseCoreWeaponActor::OnItemInstanceEquipped_Implementation(const FSusp
     UE_LOG(LogSuspenseCoreWeaponActor, Error, TEXT("OnItemInstanceEquipped: failed to read SSOT for ItemID=%s"), *ItemInstance.ItemID.ToString());
 }
 
+void ASuspenseCoreWeaponActor::OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance)
+{
+    // CRITICAL: Save ammo state BEFORE base class copies data to outgoing ItemInstance
+    // This ensures InsertedMagazine and ChamberedRound are persisted to inventory
+    // @see TarkovStyle_Ammo_System_Design.md
+    SaveWeaponState();
+
+    // Base class will copy RuntimeProperties and WeaponAmmoState to ItemInstance
+    Super::OnItemInstanceUnequipped_Implementation(ItemInstance);
+}
+
 //================================================
 // ISuspenseCoreWeapon (facade)
 //================================================
@@ -630,7 +641,22 @@ void ASuspenseCoreWeaponActor::SaveWeaponState()
         return;
     }
 
-    // Persist ammo via interface contract (component already calls this on changes)
+    // CRITICAL: Save MagazineComponent state to WeaponAmmoState for persistence
+    // This ensures InsertedMagazine and ChamberedRound survive inventory transfers
+    // @see TarkovStyle_Ammo_System_Design.md
+    if (MagazineComponent)
+    {
+        EquippedItemInstance.WeaponAmmoState = MagazineComponent->GetSerializableState();
+
+        UE_LOG(LogSuspenseCoreWeaponActor, Log,
+            TEXT("SaveWeaponState: Saved MagazineComponent - HasMag=%s, Rounds=%d/%d, Chambered=%s"),
+            EquippedItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+            EquippedItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+            EquippedItemInstance.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+            EquippedItemInstance.WeaponAmmoState.ChamberedRound.IsChambered() ? TEXT("true") : TEXT("false"));
+    }
+
+    // Legacy: Persist ammo via interface contract (for backwards compatibility)
     if (AmmoComponent)
     {
         const FSuspenseCoreInventoryAmmoState AS = AmmoComponent->GetAmmoState();
@@ -658,7 +684,22 @@ void ASuspenseCoreWeaponActor::RestoreWeaponState()
         return;
     }
 
-    // Restore ammo
+    // CRITICAL: Restore MagazineComponent state from persisted WeaponAmmoState
+    // This ensures InsertedMagazine and ChamberedRound are restored when weapon is re-equipped
+    // @see TarkovStyle_Ammo_System_Design.md
+    if (MagazineComponent && EquippedItemInstance.HasWeaponAmmoState())
+    {
+        UE_LOG(LogSuspenseCoreWeaponActor, Log,
+            TEXT("RestoreWeaponState: Restoring MagazineComponent - HasMag=%s, Rounds=%d/%d, Chambered=%s"),
+            EquippedItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+            EquippedItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+            EquippedItemInstance.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+            EquippedItemInstance.WeaponAmmoState.ChamberedRound.IsChambered() ? TEXT("true") : TEXT("false"));
+
+        MagazineComponent->RestoreState(EquippedItemInstance.WeaponAmmoState);
+    }
+
+    // Legacy: Restore old-style ammo (for backwards compatibility)
     if (AmmoComponent)
     {
         const float Curr  = EquippedItemInstance.GetRuntimeProperty(WeaponDefaults::Prop_CurrentAmmo,   -1.0f);

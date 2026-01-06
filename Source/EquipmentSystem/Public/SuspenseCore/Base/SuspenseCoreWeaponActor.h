@@ -57,6 +57,9 @@ public:
     /** Weapon-specific init: extend base item-equip path with weapon setup */
     virtual void OnItemInstanceEquipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
 
+    /** Weapon-specific cleanup: save ammo state before base class copies data */
+    virtual void OnItemInstanceUnequipped_Implementation(const FSuspenseCoreInventoryItemInstance& ItemInstance) override;
+
     //================================================
     // ISuspenseCoreWeapon (facade -> components)
     //================================================

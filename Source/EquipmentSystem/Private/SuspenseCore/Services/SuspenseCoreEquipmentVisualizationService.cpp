@@ -5,6 +5,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCore/Services/SuspenseCoreServiceProvider.h"
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
@@ -956,10 +957,41 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 				FactoryObj->GetInterfaceAddress(USuspenseCoreActorFactory::StaticClass())))
 			{
 				FEquipmentActorSpawnParams Params;
-				Params.ItemInstance.ItemID = ItemID;
 				Params.SpawnTransform      = Character->GetActorTransform();
 				Params.Owner               = Character;
 				Params.SlotIndex           = SlotIndex;
+
+				// CRITICAL: Get ACTUAL ItemInstance from EquipmentDataProvider (with WeaponAmmoState!)
+				// NOT creating new ItemInstance - that loses saved ammo data!
+				bool bGotRealItemInstance = false;
+				static const FGameplayTag Tag_DataProvider = FGameplayTag::RequestGameplayTag(
+					TEXT("SuspenseCore.Service.Equipment.DataProvider"), false);
+
+				if (UObject* DataProviderObj = CachedServiceLocator->GetService(Tag_DataProvider))
+				{
+					if (ISuspenseCoreEquipmentDataProvider* DataProvider =
+						Cast<ISuspenseCoreEquipmentDataProvider>(DataProviderObj))
+					{
+						Params.ItemInstance = DataProvider->GetSlotItem(SlotIndex);
+						if (Params.ItemInstance.IsValid())
+						{
+							bGotRealItemInstance = true;
+							UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+								TEXT("  ✓ ActorFactory: Got REAL ItemInstance - ID=%s, WeaponAmmoState HasMag=%s, Rounds=%d"),
+								*Params.ItemInstance.ItemID.ToString(),
+								Params.ItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+								Params.ItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+						}
+					}
+				}
+
+				// Fallback: just set ItemID
+				if (!bGotRealItemInstance)
+				{
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+						TEXT("  ⚠ ActorFactory: Could not get ItemInstance from DataProvider - using ItemID only"));
+					Params.ItemInstance.ItemID = ItemID;
+				}
 
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 					TEXT("  Calling Factory->SpawnEquipmentActor..."));
@@ -1053,11 +1085,45 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 				TEXT("  ✓ OnEquipped called with owner: %s"), *Character->GetName());
 
 			// 2) Call OnItemInstanceEquipped with VALID ItemInstance
-			// ItemInstance.IsValid() requires: !ItemID.IsNone() && Quantity > 0 && InstanceID.IsValid()
+			// CRITICAL: Get ACTUAL ItemInstance from EquipmentDataProvider (with WeaponAmmoState!)
+			// NOT creating new ItemInstance - that loses saved ammo data!
 			FSuspenseCoreInventoryItemInstance ItemInstance;
-			ItemInstance.ItemID = ItemID;
-			ItemInstance.Quantity = 1;
-			ItemInstance.InstanceID = FGuid::NewGuid();  // Generate unique ID for validation
+
+			// Try to get the real ItemInstance from EquipmentDataProvider
+			bool bGotRealItemInstance = false;
+			if (CachedServiceLocator)
+			{
+				static const FGameplayTag Tag_DataProvider = FGameplayTag::RequestGameplayTag(
+					TEXT("SuspenseCore.Service.Equipment.DataProvider"), false);
+
+				if (UObject* DataProviderObj = CachedServiceLocator->GetService(Tag_DataProvider))
+				{
+					if (ISuspenseCoreEquipmentDataProvider* DataProvider =
+						Cast<ISuspenseCoreEquipmentDataProvider>(DataProviderObj))
+					{
+						ItemInstance = DataProvider->GetSlotItem(SlotIndex);
+						if (ItemInstance.IsValid())
+						{
+							bGotRealItemInstance = true;
+							UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+								TEXT("  ✓ Got REAL ItemInstance from DataProvider - ID=%s, WeaponAmmoState HasMag=%s, Rounds=%d"),
+								*ItemInstance.ItemID.ToString(),
+								ItemInstance.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+								ItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+						}
+					}
+				}
+			}
+
+			// Fallback: create minimal ItemInstance (but lose WeaponAmmoState)
+			if (!bGotRealItemInstance)
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  ⚠ Could not get ItemInstance from DataProvider - creating minimal (ammo state will be lost!)"));
+				ItemInstance.ItemID = ItemID;
+				ItemInstance.Quantity = 1;
+				ItemInstance.InstanceID = FGuid::NewGuid();
+			}
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 				TEXT("  Created ItemInstance: ID=%s, Qty=%d, InstanceID=%s, IsValid=%s"),

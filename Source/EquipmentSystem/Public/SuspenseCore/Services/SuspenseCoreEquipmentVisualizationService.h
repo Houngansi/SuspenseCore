@@ -115,7 +115,9 @@ private:
 	void OnRefreshAll(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// High-level operations
-	void UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant);
+	// NOTE: WeaponAmmoState is optional and used to preserve ammo state during inventory transfers
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+	void UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant, const FSuspenseCoreWeaponAmmoState* InWeaponAmmoState = nullptr);
 	void HideVisualForSlot(AActor* Character, int32 SlotIndex, bool bInstant);
 	void RefreshAllVisuals(AActor* Character, bool bForce);
 
@@ -123,7 +125,8 @@ private:
 	bool RateLimit() const;
 
 	// Integration with presentation subsystems via ServiceLocator
-	AActor* AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex);
+	// NOTE: WeaponAmmoState is optional and used to preserve ammo state during inventory transfers
+	AActor* AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex, const FSuspenseCoreWeaponAmmoState* InWeaponAmmoState = nullptr);
 	void   ReleaseVisualActor(AActor* Character, int32 SlotIndex, bool bInstant);
 
 	// Internal helper - MUST be called with VisualLock already held (fixes deadlock)

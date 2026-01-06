@@ -439,15 +439,43 @@ void USuspenseCoreEquipmentVisualizationService::OnEquipped(FGameplayTag EventTa
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  InstanceID = %s"), *EventData.GetString(FName("InstanceID")));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Verbose, TEXT("  Quantity   = %s"), *EventData.GetString(FName("Quantity")));
 
-	// Step 6: Final validation before calling UpdateVisualForSlot
+	// Step 6: Extract WeaponAmmoState from EventData (if present)
+	// CRITICAL FIX: WeaponAmmoState was being lost during inventory transfers
+	// because it was not being extracted from EventData and passed to AcquireVisualActor
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+	FSuspenseCoreWeaponAmmoState WeaponAmmoState;
+	const FSuspenseCoreWeaponAmmoState* WeaponAmmoStatePtr = nullptr;
+
+	// Check if WeaponAmmoState was transmitted in the event
+	const bool bHasWeaponAmmoState = EventData.GetBool(FName(TEXT("WeaponAmmoState_HasMag")));
+	if (bHasWeaponAmmoState || EventData.HasKey(FName(TEXT("WeaponAmmoState_MagRounds"))))
+	{
+		WeaponAmmoState.bHasMagazine = bHasWeaponAmmoState;
+		WeaponAmmoState.InsertedMagazine.MagazineID = FName(*EventData.GetString(FName(TEXT("WeaponAmmoState_MagID"))));
+		WeaponAmmoState.InsertedMagazine.CurrentRoundCount = EventData.GetInt(FName(TEXT("WeaponAmmoState_MagRounds")));
+		WeaponAmmoState.InsertedMagazine.MaxCapacity = EventData.GetInt(FName(TEXT("WeaponAmmoState_MagCapacity")));
+		WeaponAmmoState.InsertedMagazine.LoadedAmmoID = FName(*EventData.GetString(FName(TEXT("WeaponAmmoState_MagAmmoID"))));
+		WeaponAmmoState.ChamberedRound.AmmoID = FName(*EventData.GetString(FName(TEXT("WeaponAmmoState_ChamberedAmmoID"))));
+		WeaponAmmoStatePtr = &WeaponAmmoState;
+
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+			TEXT("OnEquipped: Extracted WeaponAmmoState from event - HasMag=%s, Rounds=%d/%d, Chambered=%s"),
+			WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+			WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+			WeaponAmmoState.InsertedMagazine.MaxCapacity,
+			WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"));
+	}
+
+	// Step 7: Final validation before calling UpdateVisualForSlot
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("OnEquipped: All validation passed - calling UpdateVisualForSlot"));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-		TEXT("  Character: %s, Slot: %d, ItemID: %s"),
-		*Character->GetName(), Slot, *ItemID.ToString());
+		TEXT("  Character: %s, Slot: %d, ItemID: %s, HasWeaponAmmoState: %s"),
+		*Character->GetName(), Slot, *ItemID.ToString(),
+		WeaponAmmoStatePtr ? TEXT("YES") : TEXT("NO"));
 
-	// Step 7: Execute visual update
-	UpdateVisualForSlot(Character, Slot, ItemID, /*bInstant=*/false);
+	// Step 8: Execute visual update with WeaponAmmoState
+	UpdateVisualForSlot(Character, Slot, ItemID, /*bInstant=*/false, WeaponAmmoStatePtr);
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("OnEquipped: UpdateVisualForSlot call completed"));
 }
@@ -529,7 +557,7 @@ void USuspenseCoreEquipmentVisualizationService::RequestRefresh(AActor* Characte
 
 // ===== High-level operations ==============================================
 
-void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant)
+void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Character, int32 SlotIndex, const FName ItemID, bool bInstant, const FSuspenseCoreWeaponAmmoState* InWeaponAmmoState)
 {
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("=== UpdateVisualForSlot START ==="));
@@ -541,6 +569,8 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 		TEXT("  ItemID: %s"), *ItemID.ToString());
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("  bInstant: %s"), bInstant ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+		TEXT("  InWeaponAmmoState: %s"), InWeaponAmmoState ? TEXT("PROVIDED") : TEXT("NULL"));
 
 	if (!Character || ItemID.IsNone())
 	{
@@ -552,11 +582,12 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 
 	// 1) Acquire/create visual actor
+	// CRITICAL: Pass WeaponAmmoState to preserve ammo during inventory transfers
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 		TEXT("Step 1: Acquiring visual actor for ItemID=%s, Slot=%d"),
 		*ItemID.ToString(), SlotIndex);
 
-	AActor* Visual = AcquireVisualActor(Character, ItemID, SlotIndex);
+	AActor* Visual = AcquireVisualActor(Character, ItemID, SlotIndex, InWeaponAmmoState);
 	if (!Visual)
 	{
 		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error,
@@ -906,13 +937,15 @@ void USuspenseCoreEquipmentVisualizationService::RefreshAllVisuals(AActor* Chara
 
 // ===== Integration with presentation via ServiceLocator =========================
 
-AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex)
+AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* Character, const FName ItemID, int32 SlotIndex, const FSuspenseCoreWeaponAmmoState* InWeaponAmmoState)
 {
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("=== AcquireVisualActor START ==="));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 		TEXT("  Character: %s"), Character ? *Character->GetName() : TEXT("NULL"));
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  ItemID: %s"), *ItemID.ToString());
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  SlotIndex: %d"), SlotIndex);
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  InWeaponAmmoState: %s"),
+		InWeaponAmmoState ? TEXT("PROVIDED") : TEXT("NULL"));
 
 	if (!Character || ItemID.IsNone())
 	{
@@ -989,12 +1022,27 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 					}
 				}
 
-				// Fallback: just set ItemID
+				// Fallback: use provided WeaponAmmoState or just set ItemID
 				if (!bGotRealItemInstance)
 				{
-					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-						TEXT("  ⚠ ActorFactory: Could not get ItemInstance from DataProvider - using ItemID only"));
 					Params.ItemInstance.ItemID = ItemID;
+
+					// CRITICAL FIX: Use WeaponAmmoState from event if provided
+					// This preserves ammo state during inventory->equipment transfers
+					if (InWeaponAmmoState)
+					{
+						Params.ItemInstance.WeaponAmmoState = *InWeaponAmmoState;
+						UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+							TEXT("  ✓ ActorFactory: Using WeaponAmmoState from event - HasMag=%s, Rounds=%d/%d"),
+							InWeaponAmmoState->bHasMagazine ? TEXT("true") : TEXT("false"),
+							InWeaponAmmoState->InsertedMagazine.CurrentRoundCount,
+							InWeaponAmmoState->InsertedMagazine.MaxCapacity);
+					}
+					else
+					{
+						UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+							TEXT("  ⚠ ActorFactory: Could not get ItemInstance from DataProvider AND no WeaponAmmoState provided - using ItemID only"));
+					}
 				}
 
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
@@ -1160,14 +1208,29 @@ AActor* USuspenseCoreEquipmentVisualizationService::AcquireVisualActor(AActor* C
 					TEXT("  DataProvider lookup: CachedServiceLocator is NULL!"));
 			}
 
-			// Fallback: create minimal ItemInstance (but lose WeaponAmmoState)
+			// Fallback: create ItemInstance with WeaponAmmoState from event if provided
 			if (!bGotRealItemInstance)
 			{
-				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-					TEXT("  ⚠ Could not get ItemInstance from DataProvider - creating minimal (ammo state will be lost!)"));
 				ItemInstance.ItemID = ItemID;
 				ItemInstance.Quantity = 1;
 				ItemInstance.InstanceID = FGuid::NewGuid();
+
+				// CRITICAL FIX: Use WeaponAmmoState from event if provided
+				// This preserves ammo state during inventory->equipment transfers
+				if (InWeaponAmmoState)
+				{
+					ItemInstance.WeaponAmmoState = *InWeaponAmmoState;
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
+						TEXT("  ✓ Using WeaponAmmoState from event - HasMag=%s, Rounds=%d/%d"),
+						InWeaponAmmoState->bHasMagazine ? TEXT("true") : TEXT("false"),
+						InWeaponAmmoState->InsertedMagazine.CurrentRoundCount,
+						InWeaponAmmoState->InsertedMagazine.MaxCapacity);
+				}
+				else
+				{
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+						TEXT("  ⚠ Could not get ItemInstance from DataProvider AND no WeaponAmmoState provided - creating minimal (ammo state will be lost!)"));
+				}
 			}
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,

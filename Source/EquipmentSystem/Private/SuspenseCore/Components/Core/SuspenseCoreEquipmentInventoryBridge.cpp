@@ -2513,6 +2513,17 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         EventData.SetInt(FName(TEXT("MaxCapacity")), Item.MagazineData.MaxCapacity);
         EventData.SetFloat(FName(TEXT("MagazineDurability")), Item.MagazineData.CurrentDurability);
 
+        // CRITICAL: Include WeaponAmmoState for weapons (not just magazines!)
+        // This preserves inserted magazine and chambered round state during inventory transfers
+        // FIX: WeaponAmmoState was being lost because only MagazineData was transmitted
+        // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+        EventData.SetBool(FName(TEXT("WeaponAmmoState_HasMag")), Item.WeaponAmmoState.bHasMagazine);
+        EventData.SetString(FName(TEXT("WeaponAmmoState_MagID")), Item.WeaponAmmoState.InsertedMagazine.MagazineID.ToString());
+        EventData.SetInt(FName(TEXT("WeaponAmmoState_MagRounds")), Item.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+        EventData.SetInt(FName(TEXT("WeaponAmmoState_MagCapacity")), Item.WeaponAmmoState.InsertedMagazine.MaxCapacity);
+        EventData.SetString(FName(TEXT("WeaponAmmoState_MagAmmoID")), Item.WeaponAmmoState.InsertedMagazine.LoadedAmmoID.ToString());
+        EventData.SetString(FName(TEXT("WeaponAmmoState_ChamberedAmmoID")), Item.WeaponAmmoState.ChamberedRound.AmmoID.ToString());
+
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Broadcasting %s"), *EquippedTag.ToString());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Target: %s"), *TargetActor->GetName());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());

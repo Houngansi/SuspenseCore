@@ -53,11 +53,10 @@ void USuspenseCoreMasterHUDWidget::InitializeHUD(APawn* OwningPawn)
 
 void USuspenseCoreMasterHUDWidget::InitializeWeaponHUD(AActor* WeaponActor)
 {
-	// Guard against duplicate initialization for same weapon
-	if (CachedWeaponActor.Get() == WeaponActor && bHasWeaponEquipped)
-	{
-		return;
-	}
+	// NOTE: Removed guard that prevented re-initialization for same weapon.
+	// UI.Equipment.DataReady event needs to trigger re-initialization after
+	// RestoreWeaponState completes to refresh ammo display with correct values.
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState HUD synchronization
 
 	CachedWeaponActor = WeaponActor;
 	bHasWeaponEquipped = WeaponActor != nullptr;

@@ -942,15 +942,23 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                     FSuspenseCoreInventoryItemInstance ActorItemInstance =
                         ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Attached);
 
+                    const bool bInstanceIDMatches = ActorItemInstance.InstanceID == EquippedItem.UniqueInstanceID;
+                    const bool bItemIDMatches = ActorItemInstance.ItemID == EquippedItem.ItemID;
+
                     UE_LOG(LogEquipmentBridge, Warning,
-                        TEXT("WeaponAmmoState Fix: Checking actor %s - ActorItemID=%s, ActorInstanceID=%s, EquippedInstanceID=%s"),
+                        TEXT("WeaponAmmoState Fix: Checking actor %s - ActorItemID=%s, ActorInstanceID=%s, EquippedItemID=%s, EquippedInstanceID=%s, bInstanceIDMatches=%s, bItemIDMatches=%s"),
                         *Attached->GetName(),
                         *ActorItemInstance.ItemID.ToString(),
                         *ActorItemInstance.InstanceID.ToString(),
-                        *EquippedItem.UniqueInstanceID.ToString());
+                        *EquippedItem.ItemID.ToString(),
+                        *EquippedItem.UniqueInstanceID.ToString(),
+                        bInstanceIDMatches ? TEXT("true") : TEXT("false"),
+                        bItemIDMatches ? TEXT("true") : TEXT("false"));
 
-                    // Check if this actor matches our item by InstanceID
-                    if (ActorItemInstance.InstanceID == EquippedItem.UniqueInstanceID)
+                    // Check if this actor matches our item by InstanceID OR ItemID
+                    // Note: InstanceID may not match due to VisualizationService creating new ItemInstance
+                    // when DataProvider lookup fails. Fall back to ItemID matching.
+                    if (bInstanceIDMatches || bItemIDMatches)
                     {
                         // Found the matching visual actor - call SaveWeaponState if it's a weapon
                         if (UFunction* SaveFunc = Attached->FindFunction(FName(TEXT("SaveWeaponState"))))
@@ -966,19 +974,25 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                         FSuspenseCoreInventoryItemInstance UpdatedActorItem =
                             ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Attached);
 
-                        if (UpdatedActorItem.WeaponAmmoState.bHasMagazine ||
-                            UpdatedActorItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None)
-                        {
-                            EquippedItem.WeaponAmmoState = UpdatedActorItem.WeaponAmmoState;
+                        UE_LOG(LogEquipmentBridge, Warning,
+                            TEXT("WeaponAmmoState Fix: Actor's WeaponAmmoState BEFORE copy - HasMag=%s, Rounds=%d/%d, Chambered=%s, MagID=%s"),
+                            UpdatedActorItem.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+                            UpdatedActorItem.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+                            UpdatedActorItem.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+                            UpdatedActorItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"),
+                            *UpdatedActorItem.WeaponAmmoState.InsertedMagazine.MagazineID.ToString());
 
-                            UE_LOG(LogEquipmentBridge, Warning,
-                                TEXT("ExecuteTransfer_FromEquipToInventory: RESTORED WeaponAmmoState from visual actor - ")
-                                TEXT("HasMag=%s, Rounds=%d/%d, Chambered=%s"),
-                                EquippedItem.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
-                                EquippedItem.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
-                                EquippedItem.WeaponAmmoState.InsertedMagazine.MaxCapacity,
-                                EquippedItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"));
-                        }
+                        // ALWAYS copy WeaponAmmoState from actor, even if it appears "empty"
+                        // The MagazineComponent state is authoritative
+                        EquippedItem.WeaponAmmoState = UpdatedActorItem.WeaponAmmoState;
+
+                        UE_LOG(LogEquipmentBridge, Warning,
+                            TEXT("WeaponAmmoState Fix: COPIED to EquippedItem - HasMag=%s, Rounds=%d/%d, Chambered=%s, MagID=%s"),
+                            EquippedItem.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+                            EquippedItem.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+                            EquippedItem.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+                            EquippedItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"),
+                            *EquippedItem.WeaponAmmoState.InsertedMagazine.MagazineID.ToString());
 
                         break; // Found the actor, done
                     }

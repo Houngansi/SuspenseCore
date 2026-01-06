@@ -37,7 +37,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBridge, Log, All);
 
 /**
  * Convert FSuspenseCoreItemInstance -> FSuspenseCoreInventoryItemInstance
- * CRITICAL: Preserves MagazineData for Tarkov-style ammo system
+ * CRITICAL: Preserves MagazineData and WeaponAmmoState for Tarkov-style ammo system
  * @see TarkovStyle_Ammo_System_Design.md
  */
 static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const FSuspenseCoreItemInstance& Source)
@@ -52,12 +52,17 @@ static FSuspenseCoreInventoryItemInstance ConvertToInventoryItemInstance(const F
     // moving magazines between Inventory <-> QuickSlot
     Result.MagazineData = Source.MagazineData;
 
+    // CRITICAL FIX: Copy WeaponAmmoState for weapon magazine persistence
+    // This preserves InsertedMagazine and ChamberedRound during transfers
+    // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+    Result.WeaponAmmoState = Source.WeaponAmmoState;
+
     return Result;
 }
 
 /**
  * Convert FSuspenseCoreInventoryItemInstance -> FSuspenseCoreItemInstance
- * CRITICAL: Preserves MagazineData for Tarkov-style ammo system
+ * CRITICAL: Preserves MagazineData and WeaponAmmoState for Tarkov-style ammo system
  * @see TarkovStyle_Ammo_System_Design.md
  */
 static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInventoryItemInstance& Source)
@@ -71,6 +76,11 @@ static FSuspenseCoreItemInstance ConvertToItemInstance(const FSuspenseCoreInvent
     // This preserves CurrentRoundCount, LoadedAmmoID, MaxCapacity when
     // moving magazines between Inventory <-> QuickSlot
     Result.MagazineData = Source.MagazineData;
+
+    // CRITICAL FIX: Copy WeaponAmmoState for weapon magazine persistence
+    // This preserves InsertedMagazine and ChamberedRound during transfers
+    // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+    Result.WeaponAmmoState = Source.WeaponAmmoState;
 
     return Result;
 }

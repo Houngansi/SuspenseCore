@@ -642,6 +642,19 @@ struct BRIDGESYSTEM_API FSuspenseCoreItemInstance
 	FSuspenseCoreMagazineInstance MagazineData;
 
 	//==================================================================
+	// Weapon Ammo State (for weapon items)
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+	//==================================================================
+
+	/**
+	 * Weapon ammo state (if this item is a weapon with magazine)
+	 * Contains inserted magazine, chambered round, and ammo state.
+	 * This data MUST be preserved during inventory <-> equipment transfers.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	FSuspenseCoreWeaponAmmoState WeaponAmmoState;
+
+	//==================================================================
 	// Inventory Position (Optional)
 	//==================================================================
 

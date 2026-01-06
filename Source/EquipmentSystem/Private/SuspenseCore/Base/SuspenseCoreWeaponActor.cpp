@@ -17,6 +17,8 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreInventoryAmmoState.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 
 // Logging
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreWeaponActor, Log, All);
@@ -723,6 +725,49 @@ void ASuspenseCoreWeaponActor::RestoreWeaponState()
         if (SavedIndexF >= 0.0f)
         {
             ISuspenseCoreFireModeProvider::Execute_SetFireModeByIndex(FireModeComponent, FMath::RoundToInt(SavedIndexF));
+        }
+    }
+
+    // CRITICAL FIX: Broadcast UI_DataReady event AFTER state restoration
+    // This ensures HUD refreshes with correct ammo values (fixes timing issue where
+    // HUD initialized before RestoreWeaponState was called)
+    // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState HUD synchronization
+    //
+    // NOTE: NotifyEquipmentEvent calls BroadcastOperationEvent which has an empty default
+    // implementation in ISuspenseCoreEquipment. We must publish directly to EventBus.
+    if (EquippedItemInstance.HasWeaponAmmoState())
+    {
+        if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(this))
+        {
+            if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+            {
+                const FGameplayTag TAG_UI_DataReady = FGameplayTag::RequestGameplayTag(
+                    FName(TEXT("UI.Equipment.DataReady")), false);
+
+                if (TAG_UI_DataReady.IsValid())
+                {
+                    FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(this);
+                    // Include weapon actor reference so UIManager can call InitializeWeaponHUD
+                    EventData.SetObject(FName("Target"), this);
+                    // Include ammo data for debugging/logging
+                    EventData.SetInt(TEXT("CurrentRounds"), EquippedItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount);
+                    EventData.SetInt(TEXT("MaxCapacity"), EquippedItemInstance.WeaponAmmoState.InsertedMagazine.MaxCapacity);
+                    EventData.SetBool(TEXT("HasChamberedRound"), EquippedItemInstance.WeaponAmmoState.ChamberedRound.IsChambered());
+
+                    UE_LOG(LogSuspenseCoreWeaponActor, Log,
+                        TEXT("RestoreWeaponState: Publishing UI.Equipment.DataReady - Rounds=%d/%d, Chambered=%s"),
+                        EquippedItemInstance.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+                        EquippedItemInstance.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+                        EquippedItemInstance.WeaponAmmoState.ChamberedRound.IsChambered() ? TEXT("Yes") : TEXT("No"));
+
+                    EventBus->Publish(TAG_UI_DataReady, EventData);
+                }
+                else
+                {
+                    UE_LOG(LogSuspenseCoreWeaponActor, Warning,
+                        TEXT("RestoreWeaponState: UI.Equipment.DataReady tag not registered!"));
+                }
+            }
         }
     }
 }

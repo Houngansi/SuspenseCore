@@ -29,6 +29,10 @@ struct FSuspenseCoreEventData;
 
 /**
  * Ammo loading operation state
+ * Supports full state machine with pause/resume for edge cases:
+ * - Magazine moved during loading
+ * - Ammo dragged away during loading
+ * - Player takes damage (cancellation via GAS)
  */
 UENUM(BlueprintType)
 enum class ESuspenseCoreAmmoLoadingState : uint8
@@ -36,7 +40,28 @@ enum class ESuspenseCoreAmmoLoadingState : uint8
     Idle            UMETA(DisplayName = "Idle"),
     Loading         UMETA(DisplayName = "Loading Ammo"),
     Unloading       UMETA(DisplayName = "Unloading Ammo"),
-    Cancelled       UMETA(DisplayName = "Cancelled")
+    Paused          UMETA(DisplayName = "Paused"),
+    Cancelled       UMETA(DisplayName = "Cancelled"),
+    Completed       UMETA(DisplayName = "Completed")
+};
+
+/**
+ * Reason for ammo loading cancellation
+ * @see TarkovStyle_Ammo_System_Design.md - Edge case handling
+ */
+UENUM(BlueprintType)
+enum class ESuspenseCoreLoadCancelReason : uint8
+{
+    None                UMETA(DisplayName = "None"),
+    UserCancelled       UMETA(DisplayName = "User Cancelled"),
+    MagazineMoved       UMETA(DisplayName = "Magazine Moved"),
+    MagazineRemoved     UMETA(DisplayName = "Magazine Removed"),
+    AmmoDragged         UMETA(DisplayName = "Ammo Dragged Away"),
+    AmmoInsufficient    UMETA(DisplayName = "Ammo Insufficient"),
+    PlayerDamaged       UMETA(DisplayName = "Player Took Damage"),
+    PlayerMoved         UMETA(DisplayName = "Player Moved"),
+    InventoryClosed     UMETA(DisplayName = "Inventory Closed"),
+    SystemError         UMETA(DisplayName = "System Error")
 };
 
 /**
@@ -108,6 +133,8 @@ struct EQUIPMENTSYSTEM_API FSuspenseCoreAmmoLoadResult
 
 /**
  * Active loading operation tracking
+ * Extended with source validation for edge case handling.
+ * @see TarkovStyle_Ammo_System_Design.md - Edge case handling
  */
 USTRUCT()
 struct FSuspenseCoreActiveLoadOperation
@@ -122,6 +149,10 @@ struct FSuspenseCoreActiveLoadOperation
 
     UPROPERTY()
     ESuspenseCoreAmmoLoadingState State = ESuspenseCoreAmmoLoadingState::Idle;
+
+    /** Reason for cancellation (if State == Cancelled) */
+    UPROPERTY()
+    ESuspenseCoreLoadCancelReason CancelReason = ESuspenseCoreLoadCancelReason::None;
 
     UPROPERTY()
     float StartTime = 0.0f;
@@ -138,10 +169,49 @@ struct FSuspenseCoreActiveLoadOperation
     UPROPERTY()
     float TimePerRound = 0.5f;
 
+    /** Accumulated time for per-round processing */
+    UPROPERTY()
+    float AccumulatedTime = 0.0f;
+
+    //==================================================================
+    // Source validation tracking (for edge case detection)
+    //==================================================================
+
+    /** Last validated source ammo quantity */
+    UPROPERTY()
+    int32 LastValidatedAmmoQuantity = 0;
+
+    /** Last validated magazine slot index (-1 for inventory) */
+    UPROPERTY()
+    int32 LastValidatedMagazineSlot = -1;
+
+    /** Was source validated this tick */
+    UPROPERTY()
+    bool bSourceValidatedThisTick = false;
+
+    /** Owner actor for validation callbacks */
+    UPROPERTY()
+    TWeakObjectPtr<AActor> OwnerActor;
+
     bool IsActive() const
     {
         return State == ESuspenseCoreAmmoLoadingState::Loading ||
                State == ESuspenseCoreAmmoLoadingState::Unloading;
+    }
+
+    bool IsPaused() const
+    {
+        return State == ESuspenseCoreAmmoLoadingState::Paused;
+    }
+
+    bool IsCompleted() const
+    {
+        return State == ESuspenseCoreAmmoLoadingState::Completed;
+    }
+
+    bool IsCancelled() const
+    {
+        return State == ESuspenseCoreAmmoLoadingState::Cancelled;
     }
 };
 
@@ -251,11 +321,48 @@ public:
     void CancelOperation(const FGuid& MagazineInstanceID);
 
     /**
+     * Cancel ongoing operation with specific reason
+     * @param MagazineInstanceID Magazine operation to cancel
+     * @param Reason Reason for cancellation (included in event)
+     */
+    UFUNCTION(BlueprintCallable, Category = "AmmoLoading")
+    void CancelOperationWithReason(const FGuid& MagazineInstanceID, ESuspenseCoreLoadCancelReason Reason);
+
+    /**
      * Cancel all active operations for an actor
      * @param OwnerActor Actor whose operations to cancel
      */
     UFUNCTION(BlueprintCallable, Category = "AmmoLoading")
     void CancelAllOperations(AActor* OwnerActor);
+
+    //==================================================================
+    // Pause/Resume Operations (for edge case handling)
+    //==================================================================
+
+    /**
+     * Pause an active loading operation
+     * Called when source validation fails but may recover (e.g., inventory refresh)
+     * @param MagazineInstanceID Magazine operation to pause
+     * @return true if paused
+     */
+    UFUNCTION(BlueprintCallable, Category = "AmmoLoading")
+    bool PauseOperation(const FGuid& MagazineInstanceID);
+
+    /**
+     * Resume a paused loading operation
+     * @param MagazineInstanceID Magazine operation to resume
+     * @return true if resumed
+     */
+    UFUNCTION(BlueprintCallable, Category = "AmmoLoading")
+    bool ResumeOperation(const FGuid& MagazineInstanceID);
+
+    /**
+     * Check if operation is paused
+     * @param MagazineInstanceID Magazine instance to check
+     * @return true if paused
+     */
+    UFUNCTION(BlueprintPure, Category = "AmmoLoading")
+    bool IsPaused(const FGuid& MagazineInstanceID) const;
 
     //==================================================================
     // Quick Load (Double-click)
@@ -375,6 +482,47 @@ protected:
     /** Validate ammo compatibility with magazine */
     bool ValidateAmmoCompatibility(const FSuspenseCoreMagazineData& MagData, FName AmmoID) const;
 
+    //==================================================================
+    // Per-Round Source Validation (Edge Case Detection)
+    // @see TarkovStyle_Ammo_System_Design.md - Edge case handling
+    //==================================================================
+
+    /**
+     * Validate source items before processing next round
+     * Checks:
+     * - Magazine still exists in original location
+     * - Ammo still exists at source slot with sufficient quantity
+     *
+     * @param Operation Active operation to validate
+     * @param OutCancelReason Set if validation fails
+     * @return true if valid, false if loading should cancel
+     */
+    bool ValidateSourceBeforeRound(
+        FSuspenseCoreActiveLoadOperation& Operation,
+        ESuspenseCoreLoadCancelReason& OutCancelReason);
+
+    /**
+     * Called when inventory item is moved
+     * Checks if any active loading operations are affected
+     */
+    void OnInventoryItemMoved(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /**
+     * Called when inventory item is removed
+     * Cancels affected loading operations
+     */
+    void OnInventoryItemRemoved(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
+    /**
+     * Subscribe to inventory events for edge case detection
+     */
+    void SubscribeToInventoryEvents();
+
+    /**
+     * Unsubscribe from inventory events
+     */
+    void UnsubscribeFromInventoryEvents();
+
 private:
     //==================================================================
     // Dependencies
@@ -400,6 +548,12 @@ private:
 
     /** Event subscription handle for load requests */
     FSuspenseCoreSubscriptionHandle LoadRequestedEventHandle;
+
+    /** Event subscription handle for inventory item moved (edge case detection) */
+    FSuspenseCoreSubscriptionHandle ItemMovedEventHandle;
+
+    /** Event subscription handle for inventory item removed (edge case detection) */
+    FSuspenseCoreSubscriptionHandle ItemRemovedEventHandle;
 
     /** Ticker handle for processing loading operations */
     FTSTicker::FDelegateHandle TickerHandle;

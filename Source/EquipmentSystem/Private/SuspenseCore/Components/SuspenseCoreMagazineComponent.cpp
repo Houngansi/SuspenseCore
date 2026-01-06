@@ -10,10 +10,19 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagazineComponent, Log, All);
+
+// Stats for profiling hot paths
+DECLARE_STATS_GROUP(TEXT("SuspenseCoreMagazine"), STATGROUP_SuspenseCoreMagazine, STATCAT_Advanced);
+DECLARE_CYCLE_STAT(TEXT("Magazine Fire"), STAT_MagazineFire, STATGROUP_SuspenseCoreMagazine);
+DECLARE_CYCLE_STAT(TEXT("Magazine ChamberRound"), STAT_MagazineChamberRound, STATGROUP_SuspenseCoreMagazine);
+DECLARE_CYCLE_STAT(TEXT("Magazine InsertMagazine"), STAT_MagazineInsert, STATGROUP_SuspenseCoreMagazine);
 
 USuspenseCoreMagazineComponent::USuspenseCoreMagazineComponent()
 {
@@ -40,6 +49,12 @@ void USuspenseCoreMagazineComponent::TickComponent(float DeltaTime, ELevelTick T
             CompleteReload();
         }
     }
+
+    // Cleanup expired predictions on client
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        CleanupExpiredPredictions();
+    }
 }
 
 void USuspenseCoreMagazineComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -61,6 +76,13 @@ void USuspenseCoreMagazineComponent::Cleanup()
     CurrentReloadType = ESuspenseCoreReloadType::None;
     CachedWeaponInterface = nullptr;
     bMagazineDataCached = false;
+
+    // Clear prediction state
+    CurrentPrediction.Invalidate();
+
+    // Clear cached AttributeSet reference
+    CachedWeaponAttributeSet.Reset();
+    bAttributeSetCacheAttempted = false;
 
     SetComponentTickEnabled(false);
 
@@ -128,6 +150,8 @@ bool USuspenseCoreMagazineComponent::InitializeFromWeapon(
 
 bool USuspenseCoreMagazineComponent::InsertMagazineInternal(const FSuspenseCoreMagazineInstance& Magazine)
 {
+    SCOPE_CYCLE_COUNTER(STAT_MagazineInsert);
+
     if (!Magazine.IsValid())
     {
         UE_LOG(LogMagazineComponent, Warning, TEXT("InsertMagazine: Invalid magazine"));
@@ -418,6 +442,8 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
 
 bool USuspenseCoreMagazineComponent::ChamberRoundInternal()
 {
+    SCOPE_CYCLE_COUNTER(STAT_MagazineChamberRound);
+
     if (WeaponAmmoState.ChamberedRound.IsChambered())
     {
         return false; // Already chambered
@@ -461,6 +487,8 @@ FSuspenseCoreChamberedRound USuspenseCoreMagazineComponent::EjectChamberedRoundI
 
 FName USuspenseCoreMagazineComponent::Fire(bool bAutoChamber)
 {
+    SCOPE_CYCLE_COUNTER(STAT_MagazineFire);
+
     if (!WeaponAmmoState.IsReadyToFire())
     {
         return NAME_None;
@@ -563,12 +591,13 @@ float USuspenseCoreMagazineComponent::CalculateReloadDurationWithData(ESuspenseC
     float TacticalTime = 2.1f;
     float FullTime = 2.8f;
 
-    // TODO: Get from weapon AttributeSet
-    // if (WeaponAttributeSet)
-    // {
-    //     TacticalTime = WeaponAttributeSet->GetTacticalReloadTime();
-    //     FullTime = WeaponAttributeSet->GetFullReloadTime();
-    // }
+    // Get from weapon AttributeSet if available
+    if (USuspenseCoreWeaponAttributeSet* WeaponAttributeSet = GetCachedWeaponAttributeSet())
+    {
+        TacticalTime = WeaponAttributeSet->GetTacticalReloadTime();
+        FullTime = WeaponAttributeSet->GetFullReloadTime();
+        UE_LOG(LogMagazineComponent, Verbose, TEXT("Using AttributeSet reload times: Tactical=%.2f, Full=%.2f"), TacticalTime, FullTime);
+    }
 
     float BaseDuration = 0.0f;
 
@@ -991,8 +1020,8 @@ void USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Implementat
 
 bool USuspenseCoreMagazineComponent::ServerSwapMagazineFromQuickSlot_Validate(int32 QuickSlotIndex, bool bEmergencyDrop)
 {
-    // Basic validation - slot index must be in range (use local constant to avoid header dependency)
-    return QuickSlotIndex >= 0 && QuickSlotIndex < MAGAZINE_QUICKSLOT_COUNT;
+    // Basic validation - slot index must be in range
+    return QuickSlotIndex >= 0 && QuickSlotIndex < SUSPENSECORE_QUICKSLOT_COUNT;
 }
 
 //================================================
@@ -1024,4 +1053,220 @@ void USuspenseCoreMagazineComponent::OnRep_ReloadState()
 
     // Enable/disable tick based on reload state
     SetComponentTickEnabled(bIsReloading);
+
+    // If server confirmed reload and we had a prediction, confirm it
+    if (CurrentPrediction.IsValid())
+    {
+        if (bIsReloading && CurrentPrediction.PredictedReloadType == CurrentReloadType)
+        {
+            // Server confirmed our prediction
+            ConfirmPrediction(CurrentPrediction.PredictionKey);
+        }
+        else if (!bIsReloading && CurrentPrediction.bIsActive)
+        {
+            // Server rejected or reload completed - check if we need rollback
+            // This is handled by ClientConfirmReloadPrediction
+        }
+    }
+}
+
+//================================================
+// GAS Integration
+//================================================
+
+UAbilitySystemComponent* USuspenseCoreMagazineComponent::GetOwnerASC() const
+{
+    AActor* Owner = GetOwner();
+    if (!Owner)
+    {
+        return nullptr;
+    }
+
+    // First check if owner has ASC directly
+    if (UAbilitySystemComponent* ASC = Owner->FindComponentByClass<UAbilitySystemComponent>())
+    {
+        return ASC;
+    }
+
+    // Check owner of owner (weapon -> character)
+    if (AActor* CharacterOwner = Owner->GetOwner())
+    {
+        return CharacterOwner->FindComponentByClass<UAbilitySystemComponent>();
+    }
+
+    // Try Instigator
+    if (APawn* Instigator = Owner->GetInstigator())
+    {
+        return Instigator->FindComponentByClass<UAbilitySystemComponent>();
+    }
+
+    return nullptr;
+}
+
+USuspenseCoreWeaponAttributeSet* USuspenseCoreMagazineComponent::GetCachedWeaponAttributeSet() const
+{
+    // Return cached if still valid
+    if (CachedWeaponAttributeSet.IsValid())
+    {
+        return CachedWeaponAttributeSet.Get();
+    }
+
+    // Only try to cache once per component lifetime (avoid repeated lookups if not found)
+    if (bAttributeSetCacheAttempted)
+    {
+        return nullptr;
+    }
+
+    bAttributeSetCacheAttempted = true;
+
+    // Get ASC and find AttributeSet
+    if (UAbilitySystemComponent* ASC = GetOwnerASC())
+    {
+        USuspenseCoreWeaponAttributeSet* AttributeSet = ASC->GetSet<USuspenseCoreWeaponAttributeSet>();
+        if (AttributeSet)
+        {
+            CachedWeaponAttributeSet = AttributeSet;
+            UE_LOG(LogMagazineComponent, Verbose, TEXT("Cached WeaponAttributeSet from ASC"));
+            return AttributeSet;
+        }
+    }
+
+    UE_LOG(LogMagazineComponent, Verbose, TEXT("WeaponAttributeSet not found, using default reload times"));
+    return nullptr;
+}
+
+//================================================
+// Client Prediction
+//================================================
+
+int32 USuspenseCoreMagazineComponent::PredictStartReload(const FSuspenseCoreReloadRequest& Request)
+{
+    // Only clients predict
+    if (!GetOwner() || GetOwner()->HasAuthority())
+    {
+        return 0;
+    }
+
+    // Can't start new prediction if one is already active
+    if (CurrentPrediction.IsValid())
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("PredictStartReload: Already have active prediction"));
+        return 0;
+    }
+
+    // Validate request
+    if (!Request.IsValid())
+    {
+        return 0;
+    }
+
+    // Generate prediction key
+    int32 PredictionKey = GeneratePredictionKey();
+
+    // Store prediction data
+    CurrentPrediction.PredictionKey = PredictionKey;
+    CurrentPrediction.PredictedReloadType = Request.ReloadType;
+    CurrentPrediction.PredictedDuration = Request.ReloadDuration;
+    CurrentPrediction.PredictedMagazine = Request.NewMagazine;
+    CurrentPrediction.StateBeforePrediction = WeaponAmmoState;
+    CurrentPrediction.PredictionTimestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    CurrentPrediction.bIsActive = true;
+
+    // Apply prediction locally (optimistic update)
+    ApplyPredictionLocally(CurrentPrediction);
+
+    UE_LOG(LogMagazineComponent, Log, TEXT("Started reload prediction: Key=%d, Type=%d"),
+        PredictionKey, static_cast<int32>(Request.ReloadType));
+
+    return PredictionKey;
+}
+
+void USuspenseCoreMagazineComponent::ConfirmPrediction(int32 PredictionKey)
+{
+    if (!CurrentPrediction.IsValid() || CurrentPrediction.PredictionKey != PredictionKey)
+    {
+        return;
+    }
+
+    UE_LOG(LogMagazineComponent, Log, TEXT("Confirmed reload prediction: Key=%d"), PredictionKey);
+
+    // Clear prediction - server state is now authoritative
+    CurrentPrediction.Invalidate();
+}
+
+void USuspenseCoreMagazineComponent::RollbackPrediction(int32 PredictionKey)
+{
+    if (!CurrentPrediction.IsValid() || CurrentPrediction.PredictionKey != PredictionKey)
+    {
+        return;
+    }
+
+    UE_LOG(LogMagazineComponent, Warning, TEXT("Rolling back reload prediction: Key=%d"), PredictionKey);
+
+    // Restore state from before prediction
+    WeaponAmmoState = CurrentPrediction.StateBeforePrediction;
+    bIsReloading = false;
+    CurrentReloadType = ESuspenseCoreReloadType::None;
+    SetComponentTickEnabled(false);
+
+    // Broadcast state changes
+    BroadcastStateChanged();
+    OnReloadStateChanged.Broadcast(false, ESuspenseCoreReloadType::None);
+
+    // Clear prediction
+    CurrentPrediction.Invalidate();
+}
+
+int32 USuspenseCoreMagazineComponent::GeneratePredictionKey()
+{
+    return NextPredictionKey++;
+}
+
+void USuspenseCoreMagazineComponent::ApplyPredictionLocally(const FSuspenseCoreMagazinePredictionData& Prediction)
+{
+    // Apply optimistic UI update
+    bIsReloading = true;
+    CurrentReloadType = Prediction.PredictedReloadType;
+    ReloadDuration = Prediction.PredictedDuration;
+    ReloadStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    PendingMagazine = Prediction.PredictedMagazine;
+
+    // Enable tick for progress tracking
+    SetComponentTickEnabled(true);
+
+    // Broadcast state change for UI
+    OnReloadStateChanged.Broadcast(true, CurrentReloadType);
+}
+
+void USuspenseCoreMagazineComponent::CleanupExpiredPredictions()
+{
+    if (!CurrentPrediction.IsValid())
+    {
+        return;
+    }
+
+    float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    float ElapsedTime = CurrentTime - CurrentPrediction.PredictionTimestamp;
+
+    if (ElapsedTime > PredictionTimeoutSeconds)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("Prediction timeout - rolling back: Key=%d"), CurrentPrediction.PredictionKey);
+        RollbackPrediction(CurrentPrediction.PredictionKey);
+    }
+}
+
+//================================================
+// Client RPCs
+//================================================
+
+void USuspenseCoreMagazineComponent::ClientConfirmReloadPrediction_Implementation(int32 PredictionKey, bool bSuccess)
+{
+    if (bSuccess)
+    {
+        ConfirmPrediction(PredictionKey);
+    }
+    else
+    {
+        RollbackPrediction(PredictionKey);
+    }
 }

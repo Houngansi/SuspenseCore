@@ -7,14 +7,14 @@
 #include "CoreMinimal.h"
 #include "SuspenseCoreEquipmentComponentBase.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h" // SUSPENSECORE_QUICKSLOT_COUNT
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCoreQuickSlotComponent.generated.h"
 
 // Forward declarations
 class USuspenseCoreMagazineComponent;
 
-/** Number of quick slots available */
-static constexpr int32 SUSPENSECORE_QUICKSLOT_COUNT = 4;
+// SUSPENSECORE_QUICKSLOT_COUNT is now defined in SuspenseCoreTypes.h
 
 //==================================================================
 // Delegates

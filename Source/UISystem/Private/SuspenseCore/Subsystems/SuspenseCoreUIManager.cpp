@@ -992,7 +992,21 @@ void USuspenseCoreUIManager::SubscribeToEvents()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to ItemEquipped/Unequipped/VisualDetached events"));
+	// CRITICAL FIX: Subscribe to UI.Equipment.DataReady event
+	// This fires AFTER RestoreWeaponState completes, allowing HUD to refresh with correct ammo values
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState HUD synchronization
+	const FGameplayTag TAG_UI_DataReady = FGameplayTag::RequestGameplayTag(FName(TEXT("UI.Equipment.DataReady")), false);
+	if (TAG_UI_DataReady.IsValid())
+	{
+		UIDataReadyHandle = EventBus->SubscribeNative(
+			TAG_UI_DataReady,
+			this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreUIManager::OnUIDataReadyEvent),
+			ESuspenseCoreEventPriority::Normal
+		);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UIManager::SubscribeToEvents - Subscribed to ItemEquipped/Unequipped/VisualDetached/UIDataReady events"));
 }
 
 void USuspenseCoreUIManager::UnsubscribeFromEvents()
@@ -1007,6 +1021,7 @@ void USuspenseCoreUIManager::UnsubscribeFromEvents()
 	EventBus->Unsubscribe(ItemEquippedHandle);
 	EventBus->Unsubscribe(ItemUnequippedHandle);
 	EventBus->Unsubscribe(VisualDetachedHandle);
+	EventBus->Unsubscribe(UIDataReadyHandle);
 
 	for (FDelegateHandle& Handle : EventSubscriptions)
 	{
@@ -1169,6 +1184,33 @@ void USuspenseCoreUIManager::OnVisualDetachedEvent(FGameplayTag EventTag, const 
 	{
 		UE_LOG(LogTemp, Log, TEXT("UIManager::OnVisualDetachedEvent - Clearing weapon HUD (visual detached)"));
 		ClearWeaponHUD();
+	}
+}
+
+void USuspenseCoreUIManager::OnUIDataReadyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// CRITICAL FIX: This event fires AFTER RestoreWeaponState completes
+	// The HUD may have been initialized with empty ammo data (timing issue)
+	// Now we refresh with the correct ammo values
+	// @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState HUD synchronization
+
+	UE_LOG(LogTemp, Log, TEXT("▶▶▶ OnUIDataReadyEvent - Frame: %llu (HUD refresh after RestoreWeaponState)"), GFrameCounter);
+
+	// Get the weapon actor from event source
+	AActor* WeaponActor = Cast<AActor>(EventData.Source.Get());
+	if (!WeaponActor)
+	{
+		WeaponActor = EventData.GetObject<AActor>(FName("Target"));
+	}
+
+	if (WeaponActor)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UIManager::OnUIDataReadyEvent - Refreshing HUD with weapon: %s"), *WeaponActor->GetName());
+		InitializeWeaponHUD(WeaponActor);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UIManager::OnUIDataReadyEvent - No weapon actor in event data, cannot refresh HUD"));
 	}
 }
 

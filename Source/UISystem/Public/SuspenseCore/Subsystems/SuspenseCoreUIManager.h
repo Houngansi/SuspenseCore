@@ -459,6 +459,9 @@ protected:
 	/** Handle visual detached event - clear weapon HUD when weapon actor is hidden */
 	void OnVisualDetachedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
+	/** Handle UI.Equipment.DataReady event - refresh HUD after RestoreWeaponState completes */
+	void OnUIDataReadyEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+
 	/** Get EventBus */
 	USuspenseCoreEventBus* GetEventBus() const;
 
@@ -542,6 +545,9 @@ private:
 
 	/** Visual detached event handle (for weapon unequip) */
 	FSuspenseCoreSubscriptionHandle VisualDetachedHandle;
+
+	/** UI.Equipment.DataReady event handle (for HUD refresh after RestoreWeaponState) */
+	FSuspenseCoreSubscriptionHandle UIDataReadyHandle;
 
 	/** Is container screen currently visible */
 	bool bIsContainerScreenVisible;

@@ -902,15 +902,37 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
     // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
     // Check for weapon slots (Primary=0, Secondary=1, Sidearm=2)
     const bool bIsWeaponSlot = (Request.SourceSlot >= 0 && Request.SourceSlot <= 2);
+
+    UE_LOG(LogEquipmentBridge, Warning, TEXT("WeaponAmmoState Fix: SourceSlot=%d, bIsWeaponSlot=%s"),
+        Request.SourceSlot, bIsWeaponSlot ? TEXT("true") : TEXT("false"));
+
     if (bIsWeaponSlot)
     {
         // Find the visual actor for this equipment slot
         AActor* OwnerActor = GetOwner();
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("WeaponAmmoState Fix: OwnerActor=%s"),
+            OwnerActor ? *OwnerActor->GetName() : TEXT("NULL"));
+
         if (OwnerActor)
         {
+            // For PlayerState owners, get the Pawn
+            AActor* ActorToSearch = OwnerActor;
+            if (APlayerState* PS = Cast<APlayerState>(OwnerActor))
+            {
+                if (APawn* Pawn = PS->GetPawn())
+                {
+                    ActorToSearch = Pawn;
+                    UE_LOG(LogEquipmentBridge, Warning, TEXT("WeaponAmmoState Fix: Owner is PlayerState, using Pawn=%s"),
+                        *Pawn->GetName());
+                }
+            }
+
             // Search for equipment actor attached to owner that matches this slot
             TArray<AActor*> AttachedActors;
-            OwnerActor->GetAttachedActors(AttachedActors, true);
+            ActorToSearch->GetAttachedActors(AttachedActors, true);
+
+            UE_LOG(LogEquipmentBridge, Warning, TEXT("WeaponAmmoState Fix: Found %d attached actors"),
+                AttachedActors.Num());
 
             for (AActor* Attached : AttachedActors)
             {
@@ -919,6 +941,13 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                     // Get the equipped item from this actor
                     FSuspenseCoreInventoryItemInstance ActorItemInstance =
                         ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Attached);
+
+                    UE_LOG(LogEquipmentBridge, Warning,
+                        TEXT("WeaponAmmoState Fix: Checking actor %s - ActorItemID=%s, ActorInstanceID=%s, EquippedInstanceID=%s"),
+                        *Attached->GetName(),
+                        *ActorItemInstance.ItemID.ToString(),
+                        *ActorItemInstance.InstanceID.ToString(),
+                        *EquippedItem.UniqueInstanceID.ToString());
 
                     // Check if this actor matches our item by InstanceID
                     if (ActorItemInstance.InstanceID == EquippedItem.UniqueInstanceID)
@@ -2475,6 +2504,11 @@ void USuspenseCoreEquipmentInventoryBridge::BroadcastEquippedEvent(const FSuspen
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  Slot: %d, ItemID: %s"), SlotIndex, *Item.ItemID.ToString());
         UE_LOG(LogEquipmentBridge, Warning, TEXT("  MagazineData: Rounds=%d/%d, AmmoType=%s"),
             Item.MagazineData.CurrentRoundCount, Item.MagazineData.MaxCapacity, *Item.MagazineData.LoadedAmmoID.ToString());
+        UE_LOG(LogEquipmentBridge, Warning, TEXT("  WeaponAmmoState: HasMag=%s, InsertedMag Rounds=%d/%d, Chambered=%s"),
+            Item.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+            Item.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+            Item.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+            Item.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"));
 
         EventDelegateManager->PublishEventWithData(EquippedTag, EventData);
         UE_LOG(LogEquipmentBridge, Warning, TEXT("Event broadcast successful"));

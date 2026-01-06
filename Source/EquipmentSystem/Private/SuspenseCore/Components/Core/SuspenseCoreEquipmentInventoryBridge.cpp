@@ -5,6 +5,7 @@
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceLocator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentOperations.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreTransactionManager.h"
 #include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
@@ -891,6 +892,77 @@ FSuspenseCoreInventorySimpleResult USuspenseCoreEquipmentInventoryBridge::Execut
                 UE_LOG(LogEquipmentBridge, Warning,
                     TEXT("ExecuteTransfer_FromEquipToInventory: Could not get MagazineData from StoredMagazines for slot %d"),
                     QuickSlotIndex);
+            }
+        }
+    }
+
+    // CRITICAL FIX: Get WeaponAmmoState from visual actor BEFORE clearing slot
+    // The visual actor has the live InsertedMagazine/ChamberedRound state via MagazineComponent
+    // This ensures weapon ammo is preserved during unequip -> inventory -> re-equip cycle
+    // @see TarkovStyle_Ammo_System_Design.md - WeaponAmmoState persistence
+    // Check for weapon slots (Primary=0, Secondary=1, Sidearm=2)
+    const bool bIsWeaponSlot = (Request.SourceSlot >= 0 && Request.SourceSlot <= 2);
+    if (bIsWeaponSlot)
+    {
+        // Find the visual actor for this equipment slot
+        AActor* OwnerActor = GetOwner();
+        if (OwnerActor)
+        {
+            // Search for equipment actor attached to owner that matches this slot
+            TArray<AActor*> AttachedActors;
+            OwnerActor->GetAttachedActors(AttachedActors, true);
+
+            for (AActor* Attached : AttachedActors)
+            {
+                if (Attached && Attached->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
+                {
+                    // Get the equipped item from this actor
+                    FSuspenseCoreInventoryItemInstance ActorItemInstance =
+                        ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Attached);
+
+                    // Check if this actor matches our item by InstanceID
+                    if (ActorItemInstance.InstanceID == EquippedItem.UniqueInstanceID)
+                    {
+                        // Found the matching visual actor - call SaveWeaponState if it's a weapon
+                        if (UFunction* SaveFunc = Attached->FindFunction(FName(TEXT("SaveWeaponState"))))
+                        {
+                            Attached->ProcessEvent(SaveFunc, nullptr);
+
+                            UE_LOG(LogEquipmentBridge, Log,
+                                TEXT("ExecuteTransfer_FromEquipToInventory: Called SaveWeaponState on visual actor %s"),
+                                *Attached->GetName());
+                        }
+
+                        // Get the updated WeaponAmmoState from the actor's EquippedItemInstance
+                        FSuspenseCoreInventoryItemInstance UpdatedActorItem =
+                            ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(Attached);
+
+                        if (UpdatedActorItem.WeaponAmmoState.bHasMagazine ||
+                            UpdatedActorItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None)
+                        {
+                            EquippedItem.WeaponAmmoState = UpdatedActorItem.WeaponAmmoState;
+
+                            UE_LOG(LogEquipmentBridge, Warning,
+                                TEXT("ExecuteTransfer_FromEquipToInventory: RESTORED WeaponAmmoState from visual actor - ")
+                                TEXT("HasMag=%s, Rounds=%d/%d, Chambered=%s"),
+                                EquippedItem.WeaponAmmoState.bHasMagazine ? TEXT("true") : TEXT("false"),
+                                EquippedItem.WeaponAmmoState.InsertedMagazine.CurrentRoundCount,
+                                EquippedItem.WeaponAmmoState.InsertedMagazine.MaxCapacity,
+                                EquippedItem.WeaponAmmoState.ChamberedRound.AmmoID != NAME_None ? TEXT("true") : TEXT("false"));
+                        }
+
+                        break; // Found the actor, done
+                    }
+                }
+            }
+
+            // Log if no matching visual actor was found
+            if (!EquippedItem.WeaponAmmoState.bHasMagazine &&
+                EquippedItem.WeaponAmmoState.ChamberedRound.AmmoID == NAME_None)
+            {
+                UE_LOG(LogEquipmentBridge, Warning,
+                    TEXT("ExecuteTransfer_FromEquipToInventory: Could not find visual actor for weapon slot %d"),
+                    Request.SourceSlot);
             }
         }
     }

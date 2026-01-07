@@ -15,6 +15,7 @@ UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider, "SuspenseCore.Event.UI
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider_Registered, "SuspenseCore.Event.UIProvider.Registered");
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider_Unregistered, "SuspenseCore.Event.UIProvider.Unregistered");
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider_DataChanged, "SuspenseCore.Event.UIProvider.DataChanged");
+UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, "SuspenseCore.Event.UIProvider.DataChanged.Slot");
 UE_DEFINE_GAMEPLAY_TAG(TAG_SuspenseCore_Event_UIProvider_BindRequested, "SuspenseCore.Event.UIProvider.BindRequested");
 
 // UI Provider Types

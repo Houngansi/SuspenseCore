@@ -1202,8 +1202,9 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 		QuickSlotIndex + 1, EquipmentSlotIndex, *ItemIDStr,
 		ItemInstance.MagazineData.CurrentRoundCount, ItemInstance.MagazineData.MaxCapacity);
 
-	// Broadcast UI update
-	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, ItemInstance.InstanceID);
+	// Broadcast UI update - use Slot tag for selective refresh (prevents visual flickering)
+	// Per UISystem_DeveloperGuide.md: DataChanged.Slot triggers RefreshItem() instead of full RefreshFromProvider()
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, ItemInstance.InstanceID);
 }
 
 void USuspenseCoreEquipmentUIProvider::OnQuickSlotCleared(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -1246,6 +1247,6 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotCleared(FGameplayTag EventTag,
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotCleared - QuickSlot%d (EquipSlot=%d), CacheSize=%d"),
 		QuickSlotIndex + 1, EquipmentSlotIndex, CachedEquippedItems.Num());
 
-	// Broadcast UI update
-	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, RemovedInstanceID);
+	// Broadcast UI update - use Slot tag for selective refresh (prevents visual flickering)
+	UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, RemovedInstanceID);
 }

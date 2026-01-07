@@ -430,6 +430,7 @@ int32 USuspenseCoreLoadoutManager::CacheConfigurationsFromTable()
     if (!LoadedDataTable) return 0;
 
     int32 LoadedCount = 0;
+    int32 MigratedCount = 0;
     const TMap<FName, uint8*>& RowMap = LoadedDataTable->GetRowMap();
 
     for (const auto& Row : RowMap)
@@ -437,10 +438,28 @@ int32 USuspenseCoreLoadoutManager::CacheConfigurationsFromTable()
         const FLoadoutConfiguration* LoadoutConfig = reinterpret_cast<const FLoadoutConfiguration*>(Row.Value);
         if (LoadoutConfig && LoadoutConfig->IsValid())
         {
-            CachedConfigurations.Add(Row.Key, *LoadoutConfig);
+            // Make a copy to allow migration
+            FLoadoutConfiguration ConfigCopy = *LoadoutConfig;
+
+            // CRITICAL: Migrate slot order to ensure Armband at 12, QuickSlots at 13-16
+            // This fixes saved DataTables with old slot order (QuickSlots at 12-15)
+            if (ConfigCopy.EnsureCorrectSlotOrder())
+            {
+                MigratedCount++;
+                UE_LOG(LogSuspenseCoreLoadout, Warning, TEXT("CacheConfigurationsFromTable: Migrated slot order for loadout '%s'"), *Row.Key.ToString());
+            }
+
+            CachedConfigurations.Add(Row.Key, ConfigCopy);
             LoadedCount++;
         }
     }
+
+    if (MigratedCount > 0)
+    {
+        UE_LOG(LogSuspenseCoreLoadout, Warning, TEXT("CacheConfigurationsFromTable: Migrated %d/%d loadouts to fix slot order. Consider re-saving LoadoutDataTable to apply fix permanently."),
+            MigratedCount, LoadedCount);
+    }
+
     return LoadedCount;
 }
 

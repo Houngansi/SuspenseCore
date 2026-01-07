@@ -416,7 +416,7 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
                 MagItem.MagazineData.CurrentRoundCount = OldMagazine.CurrentRoundCount;
                 MagItem.MagazineData.MaxCapacity = OldMagazine.MaxCapacity;
                 MagItem.MagazineData.LoadedAmmoID = OldMagazine.LoadedAmmoID;
-                MagItem.MagazineData.CurrentDurability = OldMagazine.Durability;
+                MagItem.MagazineData.CurrentDurability = OldMagazine.CurrentDurability;
 
                 DataStore->SetSlotItem(EquipmentSlotIndex, MagItem, true);
                 UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot: Stored ejected magazine to DataStore slot %d (%d rounds)"),

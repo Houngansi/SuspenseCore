@@ -560,9 +560,20 @@ private:
         SecureContainerSlot.AllowedItemTypes.AddTag(Item::Gear::SecureContainer);
         EquipmentSlots.Add(SecureContainerSlot);
 
-        // ===== QUICK SLOTS =====
+        // ===== SPECIAL =====
+        // NOTE: Armband MUST be at index 12, before QuickSlots (indices 13-16)
+        // This matches SuspenseCoreEquipmentComponentBase slot mapping
 
-        // Quick Slot 1
+        // Armband (index 12)
+        FEquipmentSlotConfig ArmbandSlot(EEquipmentSlotType::Armband, EquipmentSlot::Armband);
+        ArmbandSlot.AttachmentSocket = TEXT("upperarm_l");
+        ArmbandSlot.AllowedItemTypes.AddTag(Item::Gear::Armband);
+        EquipmentSlots.Add(ArmbandSlot);
+
+        // ===== QUICK SLOTS =====
+        // QuickSlots at indices 13-16 (matching EquipmentComponentBase)
+
+        // Quick Slot 1 (index 13)
         FEquipmentSlotConfig QuickSlot1(EEquipmentSlotType::QuickSlot1, EquipmentSlot::QuickSlot1);
         QuickSlot1.AllowedItemTypes.AddTag(Item::Consumable);
         QuickSlot1.AllowedItemTypes.AddTag(Item::Medical);
@@ -570,7 +581,7 @@ private:
         QuickSlot1.AllowedItemTypes.AddTag(Item::Ammo);
         EquipmentSlots.Add(QuickSlot1);
 
-        // Quick Slot 2
+        // Quick Slot 2 (index 14)
         FEquipmentSlotConfig QuickSlot2(EEquipmentSlotType::QuickSlot2, EquipmentSlot::QuickSlot2);
         QuickSlot2.AllowedItemTypes.AddTag(Item::Consumable);
         QuickSlot2.AllowedItemTypes.AddTag(Item::Medical);
@@ -578,7 +589,7 @@ private:
         QuickSlot2.AllowedItemTypes.AddTag(Item::Ammo);
         EquipmentSlots.Add(QuickSlot2);
 
-        // Quick Slot 3
+        // Quick Slot 3 (index 15)
         FEquipmentSlotConfig QuickSlot3(EEquipmentSlotType::QuickSlot3, EquipmentSlot::QuickSlot3);
         QuickSlot3.AllowedItemTypes.AddTag(Item::Consumable);
         QuickSlot3.AllowedItemTypes.AddTag(Item::Medical);
@@ -586,21 +597,13 @@ private:
         QuickSlot3.AllowedItemTypes.AddTag(Item::Ammo);
         EquipmentSlots.Add(QuickSlot3);
 
-        // Quick Slot 4
+        // Quick Slot 4 (index 16)
         FEquipmentSlotConfig QuickSlot4(EEquipmentSlotType::QuickSlot4, EquipmentSlot::QuickSlot4);
         QuickSlot4.AllowedItemTypes.AddTag(Item::Consumable);
         QuickSlot4.AllowedItemTypes.AddTag(Item::Medical);
         QuickSlot4.AllowedItemTypes.AddTag(Item::Throwable);
         QuickSlot4.AllowedItemTypes.AddTag(Item::Ammo);
         EquipmentSlots.Add(QuickSlot4);
-
-        // ===== SPECIAL =====
-
-        // Armband
-        FEquipmentSlotConfig ArmbandSlot(EEquipmentSlotType::Armband, EquipmentSlot::Armband);
-        ArmbandSlot.AttachmentSocket = TEXT("upperarm_l");
-        ArmbandSlot.AllowedItemTypes.AddTag(Item::Gear::Armband);
-        EquipmentSlots.Add(ArmbandSlot);
     }
 
 #if WITH_EDITOR

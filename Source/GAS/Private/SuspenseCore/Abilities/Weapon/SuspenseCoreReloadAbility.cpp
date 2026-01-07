@@ -352,16 +352,14 @@ void USuspenseCoreReloadAbility::OnMagOutNotify()
     bool bDropToGround = (CurrentReloadType == ESuspenseCoreReloadType::Emergency);
     EjectedMagazine = ISuspenseCoreMagazineProvider::Execute_EjectMagazine(ProviderObj, bDropToGround);
 
-    // If not emergency, store in quickslot
-    if (!bDropToGround && EjectedMagazine.IsValid())
+    // CRITICAL FIX: Don't store ejected magazine here!
+    // Store it in OnMagInNotify AFTER ClearSlot() so it goes into the same slot
+    // where the new magazine came from. This prevents magazine duplication.
+    // See TarkovStyle_Ammo_System_Design.md Phase 7.
+    if (bDropToGround)
     {
-        ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
-        if (QuickSlotProvider)
-        {
-            int32 StoredSlotIndex;
-            ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
-                Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
-        }
+        // Emergency drop - magazine falls to ground, don't store
+        EjectedMagazine = FSuspenseCoreMagazineInstance();
     }
 }
 
@@ -376,6 +374,7 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
     }
 
     UObject* ProviderObj = Cast<UObject>(MagProvider);
+    ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
 
     // Insert new magazine
     if (NewMagazine.IsValid())
@@ -383,15 +382,27 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
         ISuspenseCoreMagazineProvider::Execute_InsertMagazine(ProviderObj, NewMagazine);
 
         // Clear from quickslot if it came from there
-        if (NewMagazineQuickSlotIndex >= 0)
+        if (NewMagazineQuickSlotIndex >= 0 && QuickSlotProvider)
         {
-            ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
-            if (QuickSlotProvider)
-            {
-                ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(
-                    Cast<UObject>(QuickSlotProvider), NewMagazineQuickSlotIndex);
-            }
+            ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(
+                Cast<UObject>(QuickSlotProvider), NewMagazineQuickSlotIndex);
         }
+    }
+
+    // CRITICAL FIX: Store ejected magazine AFTER ClearSlot()
+    // This ensures the ejected magazine goes into the same slot where new magazine came from
+    // Prevents magazine duplication bug. See TarkovStyle_Ammo_System_Design.md Phase 7.
+    if (EjectedMagazine.IsValid() && QuickSlotProvider)
+    {
+        int32 StoredSlotIndex;
+        ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
+            Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
+
+        RELOAD_LOG(Log, TEXT("Stored ejected magazine (%d rounds) in slot %d"),
+            EjectedMagazine.CurrentRoundCount, StoredSlotIndex);
+
+        // Clear reference
+        EjectedMagazine = FSuspenseCoreMagazineInstance();
     }
 }
 

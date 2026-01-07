@@ -368,7 +368,7 @@ protected:
      * Caches the result for performance
      * @return WeaponAttributeSet or nullptr if not available
      */
-    USuspenseCoreWeaponAttributeSet* GetCachedWeaponAttributeSet() const;
+    const USuspenseCoreWeaponAttributeSet* GetCachedWeaponAttributeSet() const;
 
     /**
      * Get AbilitySystemComponent from owner
@@ -516,7 +516,7 @@ private:
     //================================================
 
     /** Cached WeaponAttributeSet for reload time calculations */
-    mutable TWeakObjectPtr<USuspenseCoreWeaponAttributeSet> CachedWeaponAttributeSet;
+    mutable TWeakObjectPtr<const USuspenseCoreWeaponAttributeSet> CachedWeaponAttributeSet;
 
     /** Whether we've attempted to cache the AttributeSet */
     mutable bool bAttributeSetCacheAttempted = false;

@@ -458,6 +458,132 @@ struct BRIDGESYSTEM_API FLoadoutConfiguration : public FTableRowBase
         return CompatibleClasses.HasTag(CharacterClass);
     }
 
+    /**
+     * Ensure correct slot order after loading from DataTable.
+     * CRITICAL: This migration ensures Armband is at index 12 and QuickSlots at 13-16.
+     * Required because saved DataTables may have old slot order (QuickSlots at 12-15).
+     *
+     * Correct order (matching SuspenseCoreEquipmentComponentBase):
+     * - Index 0-11: Standard equipment slots
+     * - Index 12: Armband
+     * - Index 13: QuickSlot1
+     * - Index 14: QuickSlot2
+     * - Index 15: QuickSlot3
+     * - Index 16: QuickSlot4
+     *
+     * @return true if migration was applied, false if order was already correct
+     */
+    bool EnsureCorrectSlotOrder()
+    {
+        if (EquipmentSlots.Num() < 17)
+        {
+            return false; // Invalid config
+        }
+
+        // Find current positions of Armband and QuickSlot1
+        int32 ArmbandIndex = INDEX_NONE;
+        int32 QuickSlot1Index = INDEX_NONE;
+
+        for (int32 i = 0; i < EquipmentSlots.Num(); ++i)
+        {
+            if (EquipmentSlots[i].SlotType == EEquipmentSlotType::Armband)
+            {
+                ArmbandIndex = i;
+            }
+            else if (EquipmentSlots[i].SlotType == EEquipmentSlotType::QuickSlot1)
+            {
+                QuickSlot1Index = i;
+            }
+        }
+
+        // Check if already correct: Armband at 12, QuickSlot1 at 13
+        if (ArmbandIndex == 12 && QuickSlot1Index == 13)
+        {
+            return false; // Already correct
+        }
+
+        // Need to migrate - rebuild the slot array in correct order
+        TArray<FEquipmentSlotConfig> NewSlots;
+        NewSlots.Reserve(EquipmentSlots.Num());
+
+        // Add slots 0-11 (standard equipment)
+        for (int32 i = 0; i < 12 && i < EquipmentSlots.Num(); ++i)
+        {
+            EEquipmentSlotType SlotType = EquipmentSlots[i].SlotType;
+            // Skip if this is Armband or QuickSlot (they go later)
+            if (SlotType != EEquipmentSlotType::Armband &&
+                SlotType != EEquipmentSlotType::QuickSlot1 &&
+                SlotType != EEquipmentSlotType::QuickSlot2 &&
+                SlotType != EEquipmentSlotType::QuickSlot3 &&
+                SlotType != EEquipmentSlotType::QuickSlot4)
+            {
+                NewSlots.Add(EquipmentSlots[i]);
+            }
+        }
+
+        // Ensure we have exactly 12 standard slots (pad if needed)
+        while (NewSlots.Num() < 12)
+        {
+            // Find a slot we missed and add it
+            for (int32 i = 0; i < EquipmentSlots.Num(); ++i)
+            {
+                EEquipmentSlotType SlotType = EquipmentSlots[i].SlotType;
+                if (SlotType != EEquipmentSlotType::Armband &&
+                    SlotType != EEquipmentSlotType::QuickSlot1 &&
+                    SlotType != EEquipmentSlotType::QuickSlot2 &&
+                    SlotType != EEquipmentSlotType::QuickSlot3 &&
+                    SlotType != EEquipmentSlotType::QuickSlot4)
+                {
+                    // Check if already added
+                    bool bAlreadyAdded = false;
+                    for (const FEquipmentSlotConfig& Added : NewSlots)
+                    {
+                        if (Added.SlotType == SlotType)
+                        {
+                            bAlreadyAdded = true;
+                            break;
+                        }
+                    }
+                    if (!bAlreadyAdded)
+                    {
+                        NewSlots.Add(EquipmentSlots[i]);
+                        if (NewSlots.Num() >= 12) break;
+                    }
+                }
+            }
+            // If still not enough, break to avoid infinite loop
+            if (NewSlots.Num() < 12) break;
+        }
+
+        // Index 12: Armband
+        if (ArmbandIndex != INDEX_NONE)
+        {
+            NewSlots.Add(EquipmentSlots[ArmbandIndex]);
+        }
+
+        // Index 13-16: QuickSlots in order
+        for (EEquipmentSlotType QS : {EEquipmentSlotType::QuickSlot1,
+                                       EEquipmentSlotType::QuickSlot2,
+                                       EEquipmentSlotType::QuickSlot3,
+                                       EEquipmentSlotType::QuickSlot4})
+        {
+            for (int32 i = 0; i < EquipmentSlots.Num(); ++i)
+            {
+                if (EquipmentSlots[i].SlotType == QS)
+                {
+                    NewSlots.Add(EquipmentSlots[i]);
+                    break;
+                }
+            }
+        }
+
+        // Apply new order
+        EquipmentSlots = MoveTemp(NewSlots);
+
+        UE_LOG(LogTemp, Warning, TEXT("FLoadoutConfiguration: Migrated slot order - Armband now at 12, QuickSlots at 13-16"));
+        return true;
+    }
+
 private:
     /**
      * Setup default equipment slots using Native Tags.

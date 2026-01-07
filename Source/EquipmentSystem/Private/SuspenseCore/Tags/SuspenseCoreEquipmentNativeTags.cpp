@@ -350,6 +350,7 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_RequirementNotMet, "Validation.Error.RequirementNotMet");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_InvalidItem, "Validation.Error.InvalidItem");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_InvalidSlotIndex, "Validation.Error.InvalidSlotIndex");
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_SlotOccupied, "Validation.Error.SlotOccupied");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_Conflict, "Validation.Error.Conflict");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_NoItemData, "Validation.Error.NoItemData");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Validation_Error_TypeDisallowed, "Validation.Error.TypeDisallowed");

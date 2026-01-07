@@ -6,6 +6,7 @@
 #include "SuspenseCore/Components/Validation/SuspenseCoreEquipmentSlotValidator.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreSlotValidator.h"
 #include "SuspenseCore/Services/SuspenseCoreEquipmentServiceMacros.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"  // Для ESuspenseCoreEquipmentSlotType
 
@@ -745,7 +746,7 @@ FSlotValidationResult USuspenseCoreEquipmentOperationExecutor::ValidateEquip(
                 FText::FromName(ExistingItem.ItemID)
             ),
             EEquipmentValidationFailure::SlotOccupied,
-            FGameplayTag::RequestGameplayTag(TEXT("Validation.Error.SlotOccupied"))
+            SuspenseCoreEquipmentTags::Validation::TAG_Validation_Error_SlotOccupied
         );
 
         // Add diagnostic context

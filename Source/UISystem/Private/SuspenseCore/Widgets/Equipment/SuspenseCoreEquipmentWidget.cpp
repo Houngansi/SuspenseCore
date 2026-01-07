@@ -1045,12 +1045,6 @@ bool USuspenseCoreEquipmentWidget::NativeOnDragOver(const FGeometry& MyGeometry,
 		// Check if this slot can accept the item
 		bool bCanAccept = SlotWidget->CanAcceptItemType(DragData.Item.ItemType);
 
-		UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: DragOver slot %d (%s), ItemType=%s, CanAccept=%d"),
-			SlotIndex,
-			*SlotWidget->GetSlotTypeTag().ToString(),
-			*DragData.Item.ItemType.ToString(),
-			bCanAccept ? 1 : 0);
-
 		// Highlight the slot
 		if (bCanAccept)
 		{
@@ -1152,22 +1146,13 @@ USuspenseCoreEquipmentSlotWidget* USuspenseCoreEquipmentWidget::GetSlotWidgetAtS
 		FVector2D SlotLocalPos = SlotGeometry.AbsoluteToLocal(ScreenSpacePos);
 		FVector2D SlotSize = SlotGeometry.GetLocalSize();
 
-		UE_LOG(LogTemp, Verbose, TEXT("GetSlotWidgetAtScreenPosition: Slot[%d] %s - LocalPos=(%.1f, %.1f), Size=(%.1f, %.1f)"),
-			Index, *SlotWidget->GetSlotTypeTag().ToString(),
-			SlotLocalPos.X, SlotLocalPos.Y, SlotSize.X, SlotSize.Y);
-
 		// Check if position is within this slot's bounds (0,0 to SlotSize)
 		if (SlotLocalPos.X >= 0.0f && SlotLocalPos.X <= SlotSize.X &&
 			SlotLocalPos.Y >= 0.0f && SlotLocalPos.Y <= SlotSize.Y)
 		{
-			UE_LOG(LogTemp, Log, TEXT("GetSlotWidgetAtScreenPosition: HIT slot[%d] %s at local (%.1f, %.1f)"),
-				Index, *SlotWidget->GetSlotTypeTag().ToString(), SlotLocalPos.X, SlotLocalPos.Y);
 			return SlotWidget;
 		}
 	}
-
-	UE_LOG(LogTemp, Verbose, TEXT("GetSlotWidgetAtScreenPosition: No slot found at screen position (%.1f, %.1f)"),
-		ScreenSpacePos.X, ScreenSpacePos.Y);
 	return nullptr;
 }
 

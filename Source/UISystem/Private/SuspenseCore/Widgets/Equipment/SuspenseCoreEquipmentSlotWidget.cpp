@@ -243,16 +243,6 @@ void USuspenseCoreEquipmentSlotWidget::InitializeFromConfig(const FEquipmentSlot
 	DisplayName = InSlotConfig.DisplayName;
 	AllowedItemTypes = InSlotConfig.AllowedItemTypes;
 
-	// Debug: Log the AllowedItemTypes for this slot
-	FString AllowedTypesStr;
-	for (const FGameplayTag& Tag : AllowedItemTypes)
-	{
-		if (!AllowedTypesStr.IsEmpty()) AllowedTypesStr += TEXT(", ");
-		AllowedTypesStr += Tag.ToString();
-	}
-	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: InitializeFromConfig - AllowedItemTypes = [%s] (%d types)"),
-		*SlotTypeTag.ToString(), *AllowedTypesStr, AllowedItemTypes.Num());
-
 	// Update slot data with slot type info
 	CachedSlotData.SlotTypeTag = SlotTypeTag;
 
@@ -285,31 +275,14 @@ void USuspenseCoreEquipmentSlotWidget::SetSlotType(EEquipmentSlotType InSlotType
 
 bool USuspenseCoreEquipmentSlotWidget::CanAcceptItemType(const FGameplayTag& ItemTypeTag) const
 {
-	// Debug logging to trace validation
-	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: CanAcceptItemType checking ItemType=%s"),
-		*SlotTypeTag.ToString(), *ItemTypeTag.ToString());
-
 	// If no restrictions, accept all
 	if (AllowedItemTypes.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: AllowedItemTypes is empty, accepting all"), *SlotTypeTag.ToString());
 		return true;
 	}
 
-	// Log all allowed types for debugging
-	FString AllowedTypesStr;
-	for (const FGameplayTag& Tag : AllowedItemTypes)
-	{
-		if (!AllowedTypesStr.IsEmpty()) AllowedTypesStr += TEXT(", ");
-		AllowedTypesStr += Tag.ToString();
-	}
-	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: AllowedItemTypes = [%s]"), *SlotTypeTag.ToString(), *AllowedTypesStr);
-
 	// Check if item type matches any allowed type (using hierarchical matching)
-	bool bMatches = AllowedItemTypes.HasTag(ItemTypeTag);
-	UE_LOG(LogTemp, Log, TEXT("EquipmentSlot[%s]: HasTag result = %s"), *SlotTypeTag.ToString(), bMatches ? TEXT("TRUE") : TEXT("FALSE"));
-
-	return bMatches;
+	return AllowedItemTypes.HasTag(ItemTypeTag);
 }
 
 //==================================================================

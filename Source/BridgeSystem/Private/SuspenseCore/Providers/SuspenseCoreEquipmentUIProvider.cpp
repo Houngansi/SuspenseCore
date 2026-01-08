@@ -1231,26 +1231,38 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 	FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
 	FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
 
-	// FIX: Check if we already have a valid item cached at this slot
-	// QuickSlot events often don't include InstanceID, but OnSlotUpdated (which fires first)
-	// already cached the item with valid InstanceID. Don't overwrite valid data with invalid!
-	if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(EquipmentSlotIndex))
-	{
-		// If existing item has valid InstanceID and same ItemID, preserve it
-		if (ExistingItem->InstanceID.IsValid() && ExistingItem->ItemID == FName(*ItemIDStr))
-		{
-			UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d already has valid cached item '%s', skipping overwrite"),
-				QuickSlotIndex + 1, *ItemIDStr);
+	// Parse new InstanceID first to check if event has valid data
+	FGuid NewInstanceID;
+	bool bNewInstanceIDValid = !InstanceIDStr.IsEmpty() && FGuid::Parse(InstanceIDStr, NewInstanceID) && NewInstanceID.IsValid();
 
-			// Still broadcast the update in case UI needs refresh
-			UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, ExistingItem->InstanceID);
-			return;
+	// FIX: Only preserve existing cache if NEW event has INVALID InstanceID
+	// If new event HAS valid InstanceID, always update (could be different magazine of same type!)
+	if (!bNewInstanceIDValid)
+	{
+		if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(EquipmentSlotIndex))
+		{
+			// New event has no InstanceID but cache has valid item - preserve it
+			if (ExistingItem->InstanceID.IsValid() && ExistingItem->ItemID == FName(*ItemIDStr))
+			{
+				UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d: new event has no InstanceID, preserving cached '%s' (ID=%s)"),
+					QuickSlotIndex + 1, *ItemIDStr, *ExistingItem->InstanceID.ToString());
+
+				// Still broadcast the update in case UI needs refresh
+				UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, ExistingItem->InstanceID);
+				return;
+			}
 		}
+
+		// No valid InstanceID in event AND no valid cache - can't proceed
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d item '%s' has invalid InstanceID, not caching"),
+			QuickSlotIndex + 1, *ItemIDStr);
+		return;
 	}
 
+	// Create item instance with valid InstanceID from event
 	FSuspenseCoreInventoryItemInstance ItemInstance;
 	ItemInstance.ItemID = FName(*ItemIDStr);
-	FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
+	ItemInstance.InstanceID = NewInstanceID;
 	ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
 	if (ItemInstance.Quantity <= 0)
 	{
@@ -1261,15 +1273,7 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 	ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
 	ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
 
-	// Only add to cache if we have valid InstanceID, or if slot was empty
-	if (!ItemInstance.InstanceID.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d item '%s' has invalid InstanceID, not caching"),
-			QuickSlotIndex + 1, *ItemIDStr);
-		return;
-	}
-
-	// Add to cache
+	// Add to cache - item has valid InstanceID
 	CachedEquippedItems.Add(EquipmentSlotIndex, ItemInstance);
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d (EquipSlot=%d), Item=%s, MagRounds=%d/%d"),

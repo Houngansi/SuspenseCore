@@ -289,6 +289,15 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Slot4);  // Key 7
 		}
 
+		// WeaponSlot abilities (direct weapon slot switching via keys 1-3, V)
+		namespace WeaponSlot
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Primary);    // Key 1 → Slot 0
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Secondary);  // Key 2 → Slot 1
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sidearm);    // Key 3 → Slot 2
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Melee);      // Key V → Slot 3
+		}
+
 		namespace Input
 		{
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Interact);

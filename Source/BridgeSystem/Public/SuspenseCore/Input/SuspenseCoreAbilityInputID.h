@@ -30,6 +30,7 @@ enum class ESuspenseCoreAbilityInputID : uint8
 	WeaponSlot3   UMETA(DisplayName="Weapon Slot 3"),
 	WeaponSlot4   UMETA(DisplayName="Weapon Slot 4"),
 	WeaponSlot5   UMETA(DisplayName="Weapon Slot 5"),
+	MeleeWeapon   UMETA(DisplayName="Melee Weapon"),  // Key V → Slot 3
 
 	// боевые действия с оружием
 	Aim              UMETA(DisplayName="Aim"),

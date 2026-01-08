@@ -650,7 +650,8 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 				if (WeaponType.IsValid())
 				{
 					StanceComp->SetWeaponStance(WeaponType);
-					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Updated stance: %s"), *WeaponType.ToString());
+					StanceComp->SetWeaponDrawnState(true);  // Weapon is now active/drawn
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Updated stance: %s, DrawnState: true"), *WeaponType.ToString());
 				}
 			}
 		}
@@ -846,25 +847,25 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 				}
 			}
 
-			// Update stance component with weapon type
-			if (WeaponArchetype.IsValid())
+			// Only update stance if this slot is the ACTIVE slot
+			// Don't overwrite active weapon's stance when equipping to storage
+			const bool bIsActiveSlot = (SlotIndex == CurrentActiveSlot);
+			if (bIsActiveSlot && WeaponArchetype.IsValid())
 			{
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-					TEXT("  Setting WeaponStance: %s"), *WeaponArchetype.ToString());
+					TEXT("  Setting WeaponStance: %s (ActiveSlot: %d)"), *WeaponArchetype.ToString(), CurrentActiveSlot);
 				StanceComp->SetWeaponStance(WeaponArchetype, true);
+				StanceComp->SetWeaponDrawnState(true);
+			}
+			else if (!bIsActiveSlot)
+			{
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
+					TEXT("  Slot %d is not active (ActiveSlot: %d) - not updating stance"), SlotIndex, CurrentActiveSlot);
 			}
 			else
 			{
 				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
 					TEXT("  WeaponArchetype is invalid for ItemID: %s"), *ItemID.ToString());
-			}
-
-			// Mark weapon as drawn for active slot (slot 0)
-			if (SlotIndex == 0)
-			{
-				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning,
-					TEXT("  Setting WeaponDrawnState: true (active slot)"));
-				StanceComp->SetWeaponDrawnState(true);
 			}
 
 			// Notify stance of equipment actor

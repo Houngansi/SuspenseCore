@@ -6,7 +6,7 @@
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
-#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/Pawn.h"
 
@@ -104,7 +104,7 @@ void UGA_WeaponSwitch::ActivateAbility(
 					EventData.SetInt(FName("NewSlot"), TargetSlotIndex);
 
 					EventBus->Publish(
-						SuspenseCoreEquipment::Event::TAG_Equipment_Event_WeaponSlot_Switched,
+						SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched,
 						EventData);
 				}
 			}

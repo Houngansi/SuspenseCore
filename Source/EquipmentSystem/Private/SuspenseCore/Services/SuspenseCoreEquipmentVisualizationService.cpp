@@ -3,6 +3,7 @@
 
 #include "SuspenseCore/Services/SuspenseCoreEquipmentVisualizationService.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreActorFactory.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipment.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
@@ -130,6 +131,7 @@ bool USuspenseCoreEquipmentVisualizationService::InitializeService(const FSuspen
 	Tag_OnEquipped     = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Equipped"), false);
 	Tag_OnUnequipped   = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Unequipped"), false);
 	Tag_OnSlotSwitched = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SlotSwitched"), false);
+	Tag_OnWeaponSlotSwitched = SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched;
 	Tag_VisRefreshAll  = FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.Visual.RefreshAll"), false);
 
 	// Initialize dependency service tags using native tags
@@ -341,6 +343,16 @@ void USuspenseCoreEquipmentVisualizationService::SetupEventHandlers()
 			ESuspenseCoreEventPriority::Normal));
 	}
 
+	// WeaponSlotSwitched - triggered by GA_WeaponSwitch ability
+	if (Tag_OnWeaponSlotSwitched.IsValid())
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  -> Subscribing to WeaponSlotSwitched: %s"), *Tag_OnWeaponSlotSwitched.ToString());
+		Subscriptions.Add(EventBus->SubscribeNative(
+			Tag_OnWeaponSlotSwitched, this,
+			FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched),
+			ESuspenseCoreEventPriority::Normal));
+	}
+
 	if (Tag_VisRefreshAll.IsValid())
 	{
 		Subscriptions.Add(EventBus->SubscribeNative(
@@ -536,6 +548,122 @@ void USuspenseCoreEquipmentVisualizationService::OnSlotSwitched(FGameplayTag Eve
 	EQUIPMENT_RW_WRITE_LOCK(VisualLock);
 	FSuspenseCoreVisCharState& S = Characters.FindOrAdd(Character);
 	S.ActiveSlot = ActiveSlot;
+}
+
+void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> OnWeaponSlotSwitched event received"));
+
+	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
+	if (!Character)
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  No Target in event, trying Instigator..."));
+		Character = EventData.GetInstigator();
+	}
+
+	if (!Character)
+	{
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("  FAILED: No Character found in event!"));
+		return;
+	}
+
+	int32 PreviousSlot = INDEX_NONE;
+	int32 NewSlot = INDEX_NONE;
+	TryParseInt(EventData, TEXT("PreviousSlot"), PreviousSlot);
+	TryParseInt(EventData, TEXT("NewSlot"), NewSlot);
+
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Character: %s, PreviousSlot: %d, NewSlot: %d"),
+		*Character->GetName(), PreviousSlot, NewSlot);
+
+	// Update active slot tracking
+	{
+		EQUIPMENT_RW_WRITE_LOCK(VisualLock);
+		FSuspenseCoreVisCharState& S = Characters.FindOrAdd(Character);
+		S.ActiveSlot = NewSlot;
+	}
+
+	// If there was a previous active weapon, re-attach it to storage socket
+	if (PreviousSlot != INDEX_NONE)
+	{
+		AActor* PrevWeaponActor = nullptr;
+		{
+			EQUIPMENT_RW_READ_LOCK(VisualLock);
+			if (const FSuspenseCoreVisCharState* S = Characters.Find(Character))
+			{
+				if (const TWeakObjectPtr<AActor>* ActorPtr = S->SlotActors.Find(PreviousSlot))
+				{
+					PrevWeaponActor = ActorPtr->Get();
+				}
+			}
+		}
+
+		if (PrevWeaponActor)
+		{
+			// Get ItemID from the weapon actor
+			FName PrevItemID = NAME_None;
+			if (PrevWeaponActor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
+			{
+				PrevItemID = ISuspenseCoreEquipment::Execute_GetItemID(PrevWeaponActor);
+			}
+
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Re-attaching previous weapon (slot %d, ItemID: %s) to storage socket"),
+				PreviousSlot, *PrevItemID.ToString());
+			// Get storage socket for previous slot (now inactive)
+			FName Socket = ResolveAttachSocket(Character, PrevItemID, PreviousSlot);
+			FTransform Offset = ResolveAttachOffset(Character, PrevItemID, PreviousSlot);
+			AttachActorToCharacter(Character, PrevWeaponActor, Socket, Offset);
+		}
+	}
+
+	// Attach new active weapon to hands
+	if (NewSlot != INDEX_NONE)
+	{
+		AActor* NewWeaponActor = nullptr;
+		{
+			EQUIPMENT_RW_READ_LOCK(VisualLock);
+			if (const FSuspenseCoreVisCharState* S = Characters.Find(Character))
+			{
+				if (const TWeakObjectPtr<AActor>* ActorPtr = S->SlotActors.Find(NewSlot))
+				{
+					NewWeaponActor = ActorPtr->Get();
+				}
+			}
+		}
+
+		if (NewWeaponActor)
+		{
+			// Get ItemID from the weapon actor
+			FName NewItemID = NAME_None;
+			if (NewWeaponActor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
+			{
+				NewItemID = ISuspenseCoreEquipment::Execute_GetItemID(NewWeaponActor);
+			}
+
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Attaching new weapon (slot %d, ItemID: %s) to hands"),
+				NewSlot, *NewItemID.ToString());
+			// Get active socket (hands) - ResolveAttachSocket knows to use active socket when ActiveSlot matches
+			FName Socket = ResolveAttachSocket(Character, NewItemID, NewSlot);
+			FTransform Offset = ResolveAttachOffset(Character, NewItemID, NewSlot);
+			AttachActorToCharacter(Character, NewWeaponActor, Socket, Offset);
+
+			// Update stance component
+			if (USuspenseCoreWeaponStanceComponent* StanceComp = Character->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
+			{
+				FGameplayTag WeaponType = ISuspenseCoreEquipment::Execute_GetEquipmentType(NewWeaponActor);
+				if (WeaponType.IsValid())
+				{
+					StanceComp->SetWeaponStance(WeaponType);
+					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Updated stance: %s"), *WeaponType.ToString());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  No weapon actor found for slot %d"), NewSlot);
+		}
+	}
+
+	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("<<< OnWeaponSlotSwitched complete"));
 }
 
 void USuspenseCoreEquipmentVisualizationService::OnRefreshAll(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
@@ -1657,9 +1785,15 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
         return FName(TEXT("GripPoint"));
     }
 
-    // Step 3: Determine if slot is active
-    // SlotIndex 0 is typically the active weapon slot
-    const bool bIsActiveSlot = (SlotIndex == 0);
+    // Step 3: Determine if slot is active (check against tracked ActiveSlot)
+    bool bIsActiveSlot = false;
+    {
+        EQUIPMENT_RW_READ_LOCK(VisualLock);
+        if (const FSuspenseCoreVisCharState* S = Characters.Find(Character))
+        {
+            bIsActiveSlot = (SlotIndex == S->ActiveSlot);
+        }
+    }
 
     // Step 4: Get correct socket from DataTable based on state
     const FName ResolvedSocket = ItemData.GetSocketForState(bIsActiveSlot);
@@ -1728,8 +1862,15 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
         return FTransform::Identity;
     }
 
-    // Step 3: Determine if slot is active
-    const bool bIsActiveSlot = (SlotIndex == 0);
+    // Step 3: Determine if slot is active (check against tracked ActiveSlot)
+    bool bIsActiveSlot = false;
+    {
+        EQUIPMENT_RW_READ_LOCK(VisualLock);
+        if (const FSuspenseCoreVisCharState* S = Characters.Find(Character))
+        {
+            bIsActiveSlot = (SlotIndex == S->ActiveSlot);
+        }
+    }
 
     // Step 4: Get correct offset from DataTable based on state
     const FTransform ResolvedOffset = ItemData.GetOffsetForState(bIsActiveSlot);

@@ -9,6 +9,7 @@
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreLoadoutSettings.h"
 #include "SuspenseCore/Types/Transaction/SuspenseCoreTransactionTypes.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreEquipmentDataStore.generated.h"
 
@@ -307,6 +308,13 @@ private:
 
     /** Delegate fired for equipment deltas */
     FOnEquipmentDelta OnEquipmentDeltaDelegate;
+
+    //========================================
+    // EventBus Subscriptions
+    //========================================
+
+    /** Handle for QuickSlot.Cleared event subscription */
+    FSuspenseCoreSubscriptionHandle QuickSlotClearedHandle;
 
     //========================================
     // Statistics

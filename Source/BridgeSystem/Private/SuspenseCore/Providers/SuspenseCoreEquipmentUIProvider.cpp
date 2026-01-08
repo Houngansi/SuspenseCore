@@ -1231,6 +1231,23 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 	FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
 	FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
 
+	// FIX: Check if we already have a valid item cached at this slot
+	// QuickSlot events often don't include InstanceID, but OnSlotUpdated (which fires first)
+	// already cached the item with valid InstanceID. Don't overwrite valid data with invalid!
+	if (const FSuspenseCoreInventoryItemInstance* ExistingItem = CachedEquippedItems.Find(EquipmentSlotIndex))
+	{
+		// If existing item has valid InstanceID and same ItemID, preserve it
+		if (ExistingItem->InstanceID.IsValid() && ExistingItem->ItemID == FName(*ItemIDStr))
+		{
+			UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d already has valid cached item '%s', skipping overwrite"),
+				QuickSlotIndex + 1, *ItemIDStr);
+
+			// Still broadcast the update in case UI needs refresh
+			UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, ExistingItem->InstanceID);
+			return;
+		}
+	}
+
 	FSuspenseCoreInventoryItemInstance ItemInstance;
 	ItemInstance.ItemID = FName(*ItemIDStr);
 	FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
@@ -1243,6 +1260,14 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 	// Extract MagazineData for Tarkov-style ammo system
 	ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
 	ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
+
+	// Only add to cache if we have valid InstanceID, or if slot was empty
+	if (!ItemInstance.InstanceID.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d item '%s' has invalid InstanceID, not caching"),
+			QuickSlotIndex + 1, *ItemIDStr);
+		return;
+	}
 
 	// Add to cache
 	CachedEquippedItems.Add(EquipmentSlotIndex, ItemInstance);

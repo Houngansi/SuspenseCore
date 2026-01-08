@@ -1210,6 +1210,23 @@ void USuspenseCoreEquipmentDataStore::BroadcastPendingEvents(const TArray<FSuspe
                                     .SetString(TEXT("SlotType"), SlotType.ToString())
                                     .SetBool(TEXT("Occupied"), bOccupied);
 
+                                // CRITICAL FIX: Include item data when slot is occupied
+                                // This enables UIProvider to cache items correctly on SlotUpdated events
+                                // Fixes visual bug where QuickSlot items disappear on widget refresh
+                                if (bOccupied && Event.ItemData.IsValid())
+                                {
+                                    SlotEventData.SetString(TEXT("ItemID"), Event.ItemData.ItemID.ToString());
+                                    SlotEventData.SetString(TEXT("InstanceID"), Event.ItemData.InstanceID.ToString());
+                                    SlotEventData.SetInt(TEXT("Quantity"), Event.ItemData.Quantity);
+
+                                    // Include MagazineData for QuickSlot magazines (Tarkov-style ammo system)
+                                    if (Event.ItemData.MagazineData.MaxCapacity > 0)
+                                    {
+                                        SlotEventData.SetInt(TEXT("MagazineRounds"), Event.ItemData.MagazineData.CurrentRoundCount);
+                                        SlotEventData.SetInt(TEXT("MagazineCapacity"), Event.ItemData.MagazineData.MaxCapacity);
+                                    }
+                                }
+
                                 EventBus->Publish(
                                     FGameplayTag::RequestGameplayTag(TEXT("Equipment.Event.SlotUpdated")),
                                     SlotEventData

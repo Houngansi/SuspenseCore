@@ -1112,8 +1112,57 @@ void USuspenseCoreEquipmentUIProvider::OnSlotUpdated(FGameplayTag EventTag, cons
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnSlotUpdated - Slot %d, Occupied=%s"),
 		SlotIndex, bOccupied ? TEXT("true") : TEXT("false"));
 
-	// CRITICAL: Update cache based on occupied state
-	if (SlotIndex != INDEX_NONE && !bOccupied)
+	if (SlotIndex == INDEX_NONE)
+	{
+		// Broadcast UI update anyway for general refresh
+		UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged, FGuid());
+		return;
+	}
+
+	// CRITICAL FIX: Update cache based on occupied state
+	// Now handles BOTH occupied (cache item) AND cleared (remove from cache)
+	if (bOccupied)
+	{
+		// Slot has item - extract item data from event and cache it
+		// DataStore now includes item data in SlotUpdated events (see SuspenseCoreEquipmentDataStore.cpp)
+		FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
+		FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
+
+		// Only cache if we have valid item data
+		if (!ItemIDStr.IsEmpty() && !InstanceIDStr.IsEmpty())
+		{
+			FSuspenseCoreInventoryItemInstance ItemInstance;
+			ItemInstance.ItemID = FName(*ItemIDStr);
+			FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
+			ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
+			if (ItemInstance.Quantity <= 0)
+			{
+				ItemInstance.Quantity = 1;
+			}
+
+			// Extract MagazineData for Tarkov-style ammo system (QuickSlot magazines)
+			ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
+			ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
+
+			// Add/Update cache at this slot index
+			CachedEquippedItems.Add(SlotIndex, ItemInstance);
+
+			UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnSlotUpdated - Cached item at slot %d: %s (MagRounds=%d/%d), CacheSize=%d"),
+				SlotIndex, *ItemIDStr,
+				ItemInstance.MagazineData.CurrentRoundCount, ItemInstance.MagazineData.MaxCapacity,
+				CachedEquippedItems.Num());
+
+			// Broadcast with instance ID for selective refresh
+			UIDataChangedDelegate.Broadcast(TAG_SuspenseCore_Event_UIProvider_DataChanged_Slot, ItemInstance.InstanceID);
+			return;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnSlotUpdated - Slot %d occupied but no item data in event (ItemID='%s', InstanceID='%s')"),
+				SlotIndex, *ItemIDStr, *InstanceIDStr);
+		}
+	}
+	else
 	{
 		// Slot was cleared - remove from cache
 		if (CachedEquippedItems.Contains(SlotIndex))

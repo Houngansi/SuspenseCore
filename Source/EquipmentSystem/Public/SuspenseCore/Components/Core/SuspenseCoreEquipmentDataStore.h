@@ -316,6 +316,9 @@ private:
     /** Handle for QuickSlot.Cleared event subscription */
     FSuspenseCoreSubscriptionHandle QuickSlotClearedHandle;
 
+    /** Handle for QuickSlot.Assigned event subscription */
+    FSuspenseCoreSubscriptionHandle QuickSlotAssignedHandle;
+
     //========================================
     // Statistics
     //========================================

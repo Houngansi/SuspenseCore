@@ -554,16 +554,11 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 {
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT(">>> OnWeaponSlotSwitched event received"));
 
+	// Get character from event Target
 	AActor* Character = EventData.GetObject<AActor>(FName("Target"));
 	if (!Character)
 	{
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  No Target in event, trying Instigator..."));
-		Character = EventData.GetInstigator();
-	}
-
-	if (!Character)
-	{
-		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("  FAILED: No Character found in event!"));
+		UE_LOG(LogSuspenseCoreEquipmentVisualization, Error, TEXT("  FAILED: No Target character found in event!"));
 		return;
 	}
 
@@ -599,11 +594,12 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 
 		if (PrevWeaponActor)
 		{
-			// Get ItemID from the weapon actor
+			// Get ItemID from the weapon actor via ISuspenseCoreEquipment interface
 			FName PrevItemID = NAME_None;
 			if (PrevWeaponActor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
 			{
-				PrevItemID = ISuspenseCoreEquipment::Execute_GetItemID(PrevWeaponActor);
+				FSuspenseCoreInventoryItemInstance ItemInstance = ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(PrevWeaponActor);
+				PrevItemID = ItemInstance.ItemID;
 			}
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Re-attaching previous weapon (slot %d, ItemID: %s) to storage socket"),
@@ -632,11 +628,12 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 
 		if (NewWeaponActor)
 		{
-			// Get ItemID from the weapon actor
+			// Get ItemID from the weapon actor via ISuspenseCoreEquipment interface
 			FName NewItemID = NAME_None;
 			if (NewWeaponActor->GetClass()->ImplementsInterface(USuspenseCoreEquipment::StaticClass()))
 			{
-				NewItemID = ISuspenseCoreEquipment::Execute_GetItemID(NewWeaponActor);
+				FSuspenseCoreInventoryItemInstance ItemInstance = ISuspenseCoreEquipment::Execute_GetEquippedItemInstance(NewWeaponActor);
+				NewItemID = ItemInstance.ItemID;
 			}
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Attaching new weapon (slot %d, ItemID: %s) to hands"),
@@ -646,10 +643,10 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 			FTransform Offset = ResolveAttachOffset(Character, NewItemID, NewSlot);
 			AttachActorToCharacter(Character, NewWeaponActor, Socket, Offset);
 
-			// Update stance component
+			// Update stance component using weapon archetype tag
 			if (USuspenseCoreWeaponStanceComponent* StanceComp = Character->FindComponentByClass<USuspenseCoreWeaponStanceComponent>())
 			{
-				FGameplayTag WeaponType = ISuspenseCoreEquipment::Execute_GetEquipmentType(NewWeaponActor);
+				FGameplayTag WeaponType = ISuspenseCoreEquipment::Execute_GetWeaponArchetype(NewWeaponActor);
 				if (WeaponType.IsValid())
 				{
 					StanceComp->SetWeaponStance(WeaponType);

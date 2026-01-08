@@ -1248,9 +1248,27 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 		}
 	}
 
+	// Skip if no ItemID provided
+	if (ItemIDStr.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d has empty ItemID, ignoring"),
+			QuickSlotIndex + 1);
+		return;
+	}
+
 	FSuspenseCoreInventoryItemInstance ItemInstance;
 	ItemInstance.ItemID = FName(*ItemIDStr);
-	FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID);
+
+	// FIX: If InstanceID is not provided in event, generate a temporary one
+	// This matches HUD behavior which works without InstanceID
+	// QuickSlot swap events don't always include InstanceID, but we still need valid item for display
+	if (InstanceIDStr.IsEmpty() || !FGuid::Parse(InstanceIDStr, ItemInstance.InstanceID))
+	{
+		ItemInstance.InstanceID = FGuid::NewGuid();
+		UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - Generated temporary InstanceID for QuickSlot%d item '%s'"),
+			QuickSlotIndex + 1, *ItemIDStr);
+	}
+
 	ItemInstance.Quantity = EventData.GetInt(FName(TEXT("Quantity")), 1);
 	if (ItemInstance.Quantity <= 0)
 	{
@@ -1261,15 +1279,7 @@ void USuspenseCoreEquipmentUIProvider::OnQuickSlotAssigned(FGameplayTag EventTag
 	ItemInstance.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
 	ItemInstance.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
 
-	// Only add to cache if we have valid InstanceID, or if slot was empty
-	if (!ItemInstance.InstanceID.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d item '%s' has invalid InstanceID, not caching"),
-			QuickSlotIndex + 1, *ItemIDStr);
-		return;
-	}
-
-	// Add to cache
+	// Add to cache - item is now guaranteed to have valid InstanceID
 	CachedEquippedItems.Add(EquipmentSlotIndex, ItemInstance);
 
 	UE_LOG(LogTemp, Log, TEXT("EquipmentUIProvider: OnQuickSlotAssigned - QuickSlot%d (EquipSlot=%d), Item=%s, MagRounds=%d/%d"),

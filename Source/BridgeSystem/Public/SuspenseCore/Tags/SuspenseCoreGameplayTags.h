@@ -124,6 +124,7 @@ namespace SuspenseCoreTags
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Initialized);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SlotChanged);
 			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(LoadoutChanged);
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponSlotSwitched);
 		}
 
 		//--------------------------------------------------------------

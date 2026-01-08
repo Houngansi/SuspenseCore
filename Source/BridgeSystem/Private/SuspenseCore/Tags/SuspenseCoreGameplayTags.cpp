@@ -102,6 +102,7 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Initialized, "SuspenseCore.Event.Equipment.Initialized");
 			UE_DEFINE_GAMEPLAY_TAG(SlotChanged, "SuspenseCore.Event.Equipment.SlotChanged");
 			UE_DEFINE_GAMEPLAY_TAG(LoadoutChanged, "SuspenseCore.Event.Equipment.LoadoutChanged");
+			UE_DEFINE_GAMEPLAY_TAG(WeaponSlotSwitched, "SuspenseCore.Event.Equipment.WeaponSlotSwitched");
 		}
 
 		//--------------------------------------------------------------

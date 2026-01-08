@@ -8,7 +8,7 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 
 **Author:** Claude Code
 **Date:** 2026-01-05
-**Status:** Phase 7 Complete (MagazineData Transfer Fix)
+**Status:** Phase 8 Complete (DataStore EventBus Sync)
 **Related:** `SSOT_AttributeSet_DataTable_Integration.md`
 
 ---
@@ -25,7 +25,8 @@ magazine-based reloading, and integrates with QuickSlots for fast tactical acces
 | Phase 4 | DONE | GAS Reload Abilities (GA_Reload, GA_QuickSlot) |
 | Phase 5 | DONE | SwapMagazineFromQuickSlot + AmmoLoadingService |
 | Phase 6 | DONE | UI Integration (HUD, Inventory) |
-| Phase 7 | DONE | **MagazineData Transfer Fix** - Inventory <-> QuickSlot |
+| Phase 7 | DONE | MagazineData Transfer Fix - Inventory <-> QuickSlot |
+| Phase 8 | DONE | **DataStore EventBus Sync** - QuickSlot/DataStore sync via EventBus |
 
 ### Key Files Created
 
@@ -192,6 +193,89 @@ This affected:
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Phase 8: DataStore EventBus Sync (2026-01-08)
+
+#### Problem Statement
+
+When using QuickSlot ability to swap magazine into weapon:
+1. Magazine leaves QuickSlot → goes into weapon
+2. QuickSlotComponent is cleared via `Execute_ClearSlot()`
+3. **BUG**: DataStore (Equipment slots 13-16) was NOT cleared
+4. When placing new item, DataStore thinks slot is occupied → SWAP instead of equip → duplicate items
+
+#### Root Cause
+
+`MagazineComponent::SwapMagazineFromQuickSlot()` was trying to access DataStore directly via:
+```cpp
+// BROKEN - DataStore is on PlayerState, not Character!
+if (USuspenseCoreEquipmentDataStore* DataStore = CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+```
+
+This violated project architecture (SOLID/SRP) and DataStore was never found because it's on PlayerState.
+
+#### Solution: EventBus Pattern
+
+Instead of direct access, DataStore now subscribes to QuickSlot events:
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `SuspenseCoreEquipmentDataStore.h` | Added `QuickSlotClearedHandle`, `QuickSlotAssignedHandle` |
+| `SuspenseCoreEquipmentDataStore.cpp` | Subscribe to QuickSlot events in BeginPlay |
+| `SuspenseCoreMagazineComponent.cpp` | **Removed** ~70 lines of direct DataStore access |
+
+**DataStore BeginPlay Subscriptions:**
+
+```cpp
+// Subscribe to QuickSlot.Cleared
+QuickSlotClearedHandle = EventBus->SubscribeNative(
+    QuickSlotClearedTag, this,
+    FSuspenseCoreNativeEventCallback::CreateLambda([this](...) {
+        int32 QuickSlotIndex = EventData.GetInt("SlotIndex");
+        ClearSlot(QuickSlotIndex + 13, true); // QuickSlot 0-3 → Slot 13-16
+    })
+);
+
+// Subscribe to QuickSlot.Assigned
+QuickSlotAssignedHandle = EventBus->SubscribeNative(
+    QuickSlotAssignedTag, this,
+    FSuspenseCoreNativeEventCallback::CreateLambda([this](...) {
+        // Build item from event data and SetSlotItem()
+    })
+);
+```
+
+#### Data Flow (Fixed)
+
+```
+MagazineComponent::SwapMagazineFromQuickSlot()
+    ↓
+QuickSlotComponent::Execute_ClearSlot()
+    → publishes QuickSlot.Cleared via EventBus
+    ↓
+DataStore receives event → ClearSlot(13-16)
+    → publishes SlotUpdated via EventBus
+    ↓
+UIProvider receives → updates cache → UI updates
+```
+
+#### Architecture Benefits
+
+- **SOLID/SRP**: Each component has single responsibility
+- **No coupling**: MagazineComponent doesn't know about DataStore/PlayerState
+- **EventBus pattern**: Consistent with project architecture
+- **Removed 70+ lines**: Less duplicate code
+
+#### Git Commits (Phase 8)
+
+```
+8dcb2a8 fix(DataStore): Subscribe to QuickSlot.Cleared events for proper sync
+11cbfc1 refactor(MagazineComponent): Remove direct DataStore access, use EventBus
+```
+
+---
 
 ### Git Commits (Phase 4)
 
@@ -1117,6 +1201,27 @@ void AMyWeapon::BeginPlay()
         MagazineComponent->InitializeFromWeapon(this);
     }
 }
+```
+
+#### 6. QuickSlot items duplicate when using ability (Phase 8 Fix)
+
+**Symptoms:**
+- Magazine in slot 13 disappears when placing item in slot 14
+- Items "ghost" back to inventory after using QuickSlot ability
+- DataStore shows slot occupied when UI shows empty
+
+**Root Cause:** DataStore and QuickSlotComponent were out of sync.
+
+**Solution:** DataStore subscribes to `QuickSlot.Cleared` and `QuickSlot.Assigned` events via EventBus. See Phase 8 documentation above.
+
+**Architecture Rule:** NEVER access DataStore directly from MagazineComponent or other components. Use EventBus pattern:
+```cpp
+// WRONG - violates SRP, may not find component
+CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>()
+
+// CORRECT - publish event, let DataStore handle it
+QuickSlotComponent->Execute_ClearSlot(SlotIndex); // publishes QuickSlot.Cleared
+// DataStore subscribes and reacts automatically
 ```
 
 ---

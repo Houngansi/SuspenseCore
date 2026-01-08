@@ -353,10 +353,21 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
         // Without this, client's DataStore still shows slot as occupied,
         // causing "SlotOccupied" errors when trying to equip new items
         const int32 EquipmentSlotIndex = QuickSlotIndex + 13;
-        if (USuspenseCoreEquipmentDataStore* DataStore = CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+
+        // DataStore is on PlayerState, NOT on Character!
+        // Must get PlayerState from the Pawn to find DataStore
+        APlayerState* PS = nullptr;
+        if (APawn* Pawn = Cast<APawn>(CharacterOwner))
         {
-            DataStore->ClearSlot(EquipmentSlotIndex, true);
-            UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot [Client]: Cleared local DataStore slot %d"), EquipmentSlotIndex);
+            PS = Pawn->GetPlayerState();
+        }
+        if (PS)
+        {
+            if (USuspenseCoreEquipmentDataStore* DataStore = PS->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+            {
+                DataStore->ClearSlot(EquipmentSlotIndex, true);
+                UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot [Client]: Cleared DataStore slot %d on PlayerState"), EquipmentSlotIndex);
+            }
         }
 
         // Also clear QuickSlotComponent locally for immediate UI feedback
@@ -402,10 +413,20 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
     // QuickSlots are at equipment indices 13-16 (QuickSlotIndex 0-3)
     // This fixes the "SlotOccupied" error when trying to re-equip to the same slot
     const int32 EquipmentSlotIndex = QuickSlotIndex + 13; // QuickSlot mapping: 0->13, 1->14, 2->15, 3->16
-    if (USuspenseCoreEquipmentDataStore* DataStore = CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+
+    // DataStore is on PlayerState, NOT on Character!
+    APlayerState* ServerPS = nullptr;
+    if (APawn* ServerPawn = Cast<APawn>(CharacterOwner))
     {
-        DataStore->ClearSlot(EquipmentSlotIndex, true);
-        UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot: Cleared DataStore slot %d"), EquipmentSlotIndex);
+        ServerPS = ServerPawn->GetPlayerState();
+    }
+    if (ServerPS)
+    {
+        if (USuspenseCoreEquipmentDataStore* DataStore = ServerPS->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+        {
+            DataStore->ClearSlot(EquipmentSlotIndex, true);
+            UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot [Server]: Cleared DataStore slot %d on PlayerState"), EquipmentSlotIndex);
+        }
     }
 
     // Store ejected magazine back to QuickSlot (if not emergency drop)
@@ -419,21 +440,25 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
 
             // CRITICAL: Also update EquipmentDataStore with the ejected magazine
             // This keeps DataStore in sync with QuickSlotComponent
-            if (USuspenseCoreEquipmentDataStore* DataStore = CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+            // DataStore is on PlayerState, NOT on Character! (reuse ServerPS from earlier)
+            if (ServerPS)
             {
-                FSuspenseCoreInventoryItemInstance MagItem;
-                MagItem.InstanceID = OldMagazine.InstanceGuid;
-                MagItem.ItemID = OldMagazine.MagazineID;
-                MagItem.Quantity = 1;
-                MagItem.MagazineData.MagazineID = OldMagazine.MagazineID;
-                MagItem.MagazineData.CurrentRoundCount = OldMagazine.CurrentRoundCount;
-                MagItem.MagazineData.MaxCapacity = OldMagazine.MaxCapacity;
-                MagItem.MagazineData.LoadedAmmoID = OldMagazine.LoadedAmmoID;
-                MagItem.MagazineData.CurrentDurability = OldMagazine.CurrentDurability;
+                if (USuspenseCoreEquipmentDataStore* DataStore = ServerPS->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+                {
+                    FSuspenseCoreInventoryItemInstance MagItem;
+                    MagItem.InstanceID = OldMagazine.InstanceGuid;
+                    MagItem.ItemID = OldMagazine.MagazineID;
+                    MagItem.Quantity = 1;
+                    MagItem.MagazineData.MagazineID = OldMagazine.MagazineID;
+                    MagItem.MagazineData.CurrentRoundCount = OldMagazine.CurrentRoundCount;
+                    MagItem.MagazineData.MaxCapacity = OldMagazine.MaxCapacity;
+                    MagItem.MagazineData.LoadedAmmoID = OldMagazine.LoadedAmmoID;
+                    MagItem.MagazineData.CurrentDurability = OldMagazine.CurrentDurability;
 
-                DataStore->SetSlotItem(EquipmentSlotIndex, MagItem, true);
-                UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot: Stored ejected magazine to DataStore slot %d (%d rounds)"),
-                    EquipmentSlotIndex, OldMagazine.CurrentRoundCount);
+                    DataStore->SetSlotItem(EquipmentSlotIndex, MagItem, true);
+                    UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot [Server]: Stored ejected magazine to DataStore slot %d on PlayerState (%d rounds)"),
+                        EquipmentSlotIndex, OldMagazine.CurrentRoundCount);
+                }
             }
         }
     }

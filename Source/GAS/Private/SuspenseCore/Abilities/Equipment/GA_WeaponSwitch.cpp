@@ -40,8 +40,11 @@ bool UGA_WeaponSwitch::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("=== CanActivateAbility START: TargetSlot=%d ==="), TargetSlotIndex);
+
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("  FAIL: Super::CanActivateAbility returned false (blocking tags?)"));
 		return false;
 	}
 
@@ -50,24 +53,33 @@ bool UGA_WeaponSwitch::CanActivateAbility(
 
 	if (!Provider)
 	{
-		UE_LOG(LogWeaponSwitch, Warning, TEXT("CanActivateAbility: No EquipmentDataProvider found"));
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("  FAIL: No EquipmentDataProvider found on PlayerState!"));
 		return false;
 	}
 
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("  Provider found. Checking slot %d..."), TargetSlotIndex);
+
 	// Check slot has weapon
-	if (!Provider->IsSlotOccupied(TargetSlotIndex))
+	const bool bSlotOccupied = Provider->IsSlotOccupied(TargetSlotIndex);
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("  IsSlotOccupied(%d) = %s"), TargetSlotIndex, bSlotOccupied ? TEXT("YES") : TEXT("NO"));
+
+	if (!bSlotOccupied)
 	{
-		UE_LOG(LogWeaponSwitch, Verbose, TEXT("CanActivateAbility: Slot %d is empty"), TargetSlotIndex);
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("  FAIL: Slot %d is empty"), TargetSlotIndex);
 		return false;
 	}
 
 	// Check not already active
-	if (Provider->GetActiveWeaponSlot() == TargetSlotIndex)
+	const int32 ActiveSlot = Provider->GetActiveWeaponSlot();
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("  GetActiveWeaponSlot() = %d"), ActiveSlot);
+
+	if (ActiveSlot == TargetSlotIndex)
 	{
-		UE_LOG(LogWeaponSwitch, Verbose, TEXT("CanActivateAbility: Slot %d already active"), TargetSlotIndex);
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("  FAIL: Slot %d already active"), TargetSlotIndex);
 		return false;
 	}
 
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("  SUCCESS: Can activate for slot %d"), TargetSlotIndex);
 	return true;
 }
 
@@ -125,6 +137,7 @@ ISuspenseCoreEquipmentDataProvider* UGA_WeaponSwitch::GetEquipmentDataProvider()
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!AvatarActor)
 	{
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("GetEquipmentDataProvider: No AvatarActor!"));
 		return nullptr;
 	}
 
@@ -136,14 +149,30 @@ ISuspenseCoreEquipmentDataProvider* UGA_WeaponSwitch::GetEquipmentDataProvider()
 			TArray<UActorComponent*> Components;
 			PS->GetComponents(Components);
 
+			UE_LOG(LogWeaponSwitch, Verbose, TEXT("GetEquipmentDataProvider: Checking %d components on PlayerState %s"),
+				Components.Num(), *PS->GetName());
+
 			for (UActorComponent* Comp : Components)
 			{
 				if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataProvider::StaticClass()))
 				{
+					UE_LOG(LogWeaponSwitch, Verbose, TEXT("GetEquipmentDataProvider: Found provider component: %s"),
+						*Comp->GetName());
 					return Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
 				}
 			}
+
+			UE_LOG(LogWeaponSwitch, Warning, TEXT("GetEquipmentDataProvider: No ISuspenseCoreEquipmentDataProvider on PlayerState %s (%d components checked)"),
+				*PS->GetName(), Components.Num());
 		}
+		else
+		{
+			UE_LOG(LogWeaponSwitch, Warning, TEXT("GetEquipmentDataProvider: Pawn has no PlayerState!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogWeaponSwitch, Warning, TEXT("GetEquipmentDataProvider: AvatarActor %s is not a Pawn!"), *AvatarActor->GetName());
 	}
 
 	// Fallback: check AvatarActor components directly
@@ -154,10 +183,12 @@ ISuspenseCoreEquipmentDataProvider* UGA_WeaponSwitch::GetEquipmentDataProvider()
 	{
 		if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataProvider::StaticClass()))
 		{
+			UE_LOG(LogWeaponSwitch, Verbose, TEXT("GetEquipmentDataProvider: Found provider on AvatarActor: %s"), *Comp->GetName());
 			return Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
 		}
 	}
 
+	UE_LOG(LogWeaponSwitch, Warning, TEXT("GetEquipmentDataProvider: No provider found anywhere!"));
 	return nullptr;
 }
 

@@ -20,8 +20,8 @@ UGA_WeaponSwitch::UGA_WeaponSwitch()
 {
 	TargetSlotIndex = 0;
 
-	// Instant activation - no animation for now
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::NonInstanced;
+	// Instanced per actor - required for UE5.5+
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
 	// Blocking tags - cannot switch while in these states
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));

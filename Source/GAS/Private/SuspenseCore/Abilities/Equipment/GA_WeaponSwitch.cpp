@@ -111,7 +111,9 @@ void UGA_WeaponSwitch::ActivateAbility(
 			{
 				if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
 				{
-					FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
+					AActor* AvatarActor = GetAvatarActorFromActorInfo();
+					FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(AvatarActor);
+					EventData.SetObject(FName("Target"), AvatarActor);
 					EventData.SetInt(FName("PreviousSlot"), PreviousSlot);
 					EventData.SetInt(FName("NewSlot"), TargetSlotIndex);
 

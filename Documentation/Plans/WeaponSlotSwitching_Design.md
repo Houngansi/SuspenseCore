@@ -3,381 +3,543 @@
 ## Overview
 
 Design document for implementing weapon slot switching ability in SuspenseCore.
-Inspired by Escape from Tarkov and modern AAA shooters.
+Based on existing QuickSlot ability architecture.
 
 **Author:** Claude Code
 **Date:** 2026-01-08
-**Status:** PLANNING
+**Status:** PLANNING (Ready for implementation)
 **Related:** `TarkovStyle_Ammo_System_Design.md`
 
 ---
 
-## 1. Reference: How Major Studios & Tarkov Do It
+## 1. Key Bindings (CORRECTED)
 
-### 1.1 Escape from Tarkov Mechanics
+### Current Layout
 
-**Sources:**
-- [Tarkov Keybindings](https://gist.github.com/TheDonDope/8327101ead7758b9bfc6e86b9a776f80)
-- [GINX Quick Swap Guide](https://www.ginx.tv/en/tarkov/how-to-quick-swap)
-- [GameSpot Controls Guide](https://www.gamespot.com/articles/escape-from-tarkov-controls-guide-hotkeys-and-keybindings/1100-6472601/)
+| Key | Current Use | New Use |
+|-----|-------------|---------|
+| `1` | FREE | **Primary Weapon** (Slot 0) |
+| `2` | FREE | **Secondary Weapon** (Slot 1) |
+| `3` | FREE | **Sidearm/Holster** (Slot 2) |
+| `4` | QuickSlot 1 | QuickSlot 1 (magazines) |
+| `5` | QuickSlot 2 | QuickSlot 2 (medkits) |
+| `6` | QuickSlot 3 | QuickSlot 3 (grenades) |
+| `7` | QuickSlot 4 | QuickSlot 4 (misc) |
+| `V` | FREE | **Melee/Knife** (Slot 3) |
 
-| Input | Action | Notes |
-|-------|--------|-------|
-| `1` | Primary Weapon | Assault rifle, DMR, sniper |
-| `2` | Secondary Weapon | SMG, shotgun on back |
-| `3` | Sidearm (Pistol) | Quick draw from holster |
-| `V` (double tap) | Quick Knife | Stab + return to previous weapon |
-| `Mouse4` | Shoulder Swap | Switch weapon to left/right shoulder |
-| `Tab + number` | Quick Slot Item | Use consumable/grenade |
+### Weapon Slots Summary
 
-**Tarkov's Quick Swap Feature (Patch 13.5):**
-- Reduced time switching Primary → Sidearm (pistol only)
-- Requires chambered round in pistol
-- Critical for snipers needing CQB backup
-- NOT instant - has animation time
-
-**Key Tarkov Design Decisions:**
-1. Weapon must be chambered to fire immediately after switch
-2. Holster animations are realistic (not instant)
-3. Weight/ergonomics affect switch speed
-4. Sling attachment affects carry position
-
-### 1.2 AAA Shooter Patterns
-
-**Sources:**
-- [80.lv UE5 Weapon Switching](https://80.lv/articles/smooth-weapon-switching-holster-system-made-for-a-ue5-shooter)
-- [Advanced Dual Weapon System](https://github.com/unrealroshan/Advanced-Dual-Weapon-System-UE5)
-- [GASShooter Sample](https://github.com/tranek/GASShooter)
-
-**Common Patterns:**
-
-| Game Style | Switching Method | Animation Time |
-|------------|------------------|----------------|
-| **Call of Duty** | Instant (Y/Triangle) | ~0.3-0.5s |
-| **Battlefield** | Cycle (scroll) or direct (1-4) | ~0.5-0.8s |
-| **Tarkov/ARMA** | Realistic animations | ~1.0-2.0s |
-| **Counter-Strike** | Number keys + scroll | ~0.5s |
-
-**Best Practices from AAA:**
-1. **State Machine** for weapon states (Holstered → Drawing → Ready → Firing)
-2. **Animation Notify Events** for equip/unequip timing
-3. **GAS Integration** for ability-based switching with cooldowns/costs
-4. **Prediction** for responsive feel in multiplayer
-5. **Socket-based attachment** for visual positioning
+| Slot Index | Type | Key | Socket |
+|------------|------|-----|--------|
+| 0 | PrimaryWeapon | `1` | weapon_r |
+| 1 | SecondaryWeapon | `2` | spine_03 |
+| 2 | Holster (Sidearm) | `3` | spine_03 |
+| 3 | Scabbard (Melee) | `V` | spine_03 |
 
 ---
 
-## 2. Current SuspenseCore Architecture
+## 2. Architecture: Following QuickSlot Pattern
 
-### 2.1 Equipment Slot Configuration
+### 2.1 QuickSlot Ability Pipeline (Reference)
 
 ```
-Slot 0:  PrimaryWeapon    (AR, DMR, SR, Shotgun, LMG)  - socket "weapon_r"
-Slot 1:  SecondaryWeapon  (SMG, Shotgun, LMG)          - socket "spine_03"
-Slot 2:  Holster          (Pistols)                     - socket "spine_03"
-Slot 3:  Scabbard         (Melee, Knives)               - socket "spine_03"
-Slot 4-11: Gear/Armor
-Slot 12-15: QuickSlots (consumables, magazines)
-Slot 16: Armband
+┌─────────────────────────────────────────────────────────────────────┐
+│                    QUICKSLOT ABILITY PIPELINE                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. INPUT                                                           │
+│     Key 4 pressed → ESuspenseCoreAbilityInputID::QuickSlot1         │
+│                                                                     │
+│  2. GAS ACTIVATION                                                  │
+│     ASC->TryActivateAbility(UGA_QuickSlot1Use)                     │
+│     - AbilityInputID = QuickSlot1                                   │
+│     - AbilityTags = SuspenseCoreTags::Ability::QuickSlot::Slot1     │
+│                                                                     │
+│  3. INTERFACE LOOKUP                                                │
+│     GetQuickSlotProvider() → ISuspenseCoreQuickSlotProvider*        │
+│     - Check AvatarActor implements interface                        │
+│     - Check components implement interface                          │
+│                                                                     │
+│  4. CAN ACTIVATE                                                    │
+│     ISuspenseCoreQuickSlotProvider::Execute_IsSlotReady(SlotIndex)  │
+│                                                                     │
+│  5. ACTIVATE                                                        │
+│     ISuspenseCoreQuickSlotProvider::Execute_UseQuickSlot(SlotIndex) │
+│                                                                     │
+│  6. END ABILITY (instant)                                           │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Key Files
+### 2.2 Weapon Switch Pipeline (NEW - Same Pattern)
 
-| File | Purpose |
-|------|---------|
-| `SuspenseCoreEquipmentDataStore.h` | `ActiveWeaponSlot` storage, `SetActiveWeaponSlot()` |
-| `SuspenseCoreWeaponStateManager.h` | Per-slot state machines |
-| `SuspenseCoreEquipmentOperationExecutor.h` | `QuickSwitch` operation type |
-| `SuspenseCoreAbilityInputID.h` | `WeaponSlot1-5`, `NextWeapon`, `PrevWeapon`, `QuickSwitch` |
-| `SuspenseCoreQuickSlotAbility.h` | Template for slot-based abilities |
-| `SuspenseCoreEquipmentNativeTags.h` | `Equipment.Event.SlotSwitched` |
-
-### 2.3 Existing Input IDs (Ready to Use)
-
-```cpp
-// ESuspenseCoreAbilityInputID (SuspenseCoreAbilityInputID.h)
-WeaponSlot1,    // Key 1 → Primary
-WeaponSlot2,    // Key 2 → Secondary
-WeaponSlot3,    // Key 3 → Sidearm
-WeaponSlot4,    // Key 4 → Melee
-WeaponSlot5,    // Key 5 → (reserved)
-NextWeapon,     // Scroll Up / MouseWheel
-PrevWeapon,     // Scroll Down
-QuickSwitch,    // Q or similar - toggle last two weapons
 ```
-
-### 2.4 Missing Components
-
-- [ ] `GA_WeaponSwitch` ability (does NOT exist yet)
-- [ ] Animation montages for draw/holster
-- [ ] WeaponStateManager integration with abilities
-- [ ] UI feedback for weapon switching
+┌─────────────────────────────────────────────────────────────────────┐
+│                    WEAPON SWITCH ABILITY PIPELINE                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. INPUT                                                           │
+│     Key 1 pressed → ESuspenseCoreAbilityInputID::WeaponSlot1        │
+│     Key V pressed → ESuspenseCoreAbilityInputID::MeleeWeapon        │
+│                                                                     │
+│  2. GAS ACTIVATION                                                  │
+│     ASC->TryActivateAbility(UGA_WeaponSwitch_Primary)               │
+│     - AbilityInputID = WeaponSlot1                                  │
+│     - AbilityTags = SuspenseCoreTags::Ability::WeaponSlot::Primary  │
+│                                                                     │
+│  3. INTERFACE LOOKUP                                                │
+│     GetEquipmentDataProvider() → ISuspenseCoreEquipmentDataProvider*│
+│     - Check PlayerState for DataStore                               │
+│     - Or check AvatarActor components                               │
+│                                                                     │
+│  4. CAN ACTIVATE                                                    │
+│     - Check slot has weapon: IsSlotOccupied(TargetSlot)             │
+│     - Check not already active: GetActiveWeaponSlot() != TargetSlot │
+│     - Check not blocked: !HasMatchingGameplayTag(State.Reloading)   │
+│                                                                     │
+│  5. ACTIVATE                                                        │
+│     ISuspenseCoreEquipmentDataProvider::SetActiveWeaponSlot(Target) │
+│     EventBus->Publish(TAG_Equipment_Event_WeaponSlotSwitched)       │
+│                                                                     │
+│  6. END ABILITY (instant for now, animation later)                  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 3. Proposed Implementation
+## 3. Files to Create
 
-### 3.1 GA_WeaponSwitch Ability
+### 3.1 New Ability Header
+
+**File:** `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h`
 
 ```cpp
-// Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h
+// GA_WeaponSwitch.h
+// Weapon slot switching ability
+// Copyright Suspense Team. All Rights Reserved.
+//
+// ARCHITECTURE:
+// - Uses ISuspenseCoreEquipmentDataProvider interface (BridgeSystem)
+// - No direct dependency on EquipmentSystem
+// - Follows same pattern as SuspenseCoreQuickSlotAbility
+//
+// USAGE:
+// Create concrete subclasses for each weapon slot:
+// - GA_WeaponSwitch_Primary (Key 1 → Slot 0)
+// - GA_WeaponSwitch_Secondary (Key 2 → Slot 1)
+// - GA_WeaponSwitch_Sidearm (Key 3 → Slot 2)
+// - GA_WeaponSwitch_Melee (Key V → Slot 3)
 
+#pragma once
+
+#include "CoreMinimal.h"
+#include "SuspenseCore/Abilities/Base/SuspenseCoreAbility.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "GA_WeaponSwitch.generated.h"
+
+class ISuspenseCoreEquipmentDataProvider;
+
+/**
+ * UGA_WeaponSwitch
+ *
+ * Base class for weapon slot switching abilities.
+ * Triggers switch to assigned weapon slot.
+ *
+ * @see ISuspenseCoreEquipmentDataProvider
+ */
 UCLASS()
-class GAS_API UGA_WeaponSwitch : public USuspenseCoreGameplayAbility
+class GAS_API UGA_WeaponSwitch : public USuspenseCoreAbility
 {
     GENERATED_BODY()
 
 public:
     UGA_WeaponSwitch();
 
-    // Target slot to switch to (set via InputID mapping)
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    int32 TargetSlotIndex = INDEX_NONE;
-
-    // If true, toggle between last two weapons
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    bool bIsQuickSwitch = false;
+    /** Target weapon slot index (0-3) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SuspenseCore|WeaponSwitch",
+        meta = (ClampMin = "0", ClampMax = "3"))
+    int32 TargetSlotIndex;
 
 protected:
     virtual bool CanActivateAbility(...) const override;
     virtual void ActivateAbility(...) override;
-    virtual void EndAbility(...) override;
-
-    // Animation support
-    UPROPERTY(EditDefaultsOnly, Category = "Animation")
-    UAnimMontage* HolsterMontage;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Animation")
-    UAnimMontage* DrawMontage;
 
 private:
-    void OnHolsterComplete();
-    void OnDrawComplete();
+    ISuspenseCoreEquipmentDataProvider* GetEquipmentDataProvider() const;
+};
 
-    int32 PreviousSlotIndex = INDEX_NONE;
+//==================================================================
+// Concrete Weapon Slot Abilities
+//==================================================================
+
+/** Primary Weapon (Key 1 → Slot 0) */
+UCLASS()
+class GAS_API UGA_WeaponSwitch_Primary : public UGA_WeaponSwitch
+{
+    GENERATED_BODY()
+public:
+    UGA_WeaponSwitch_Primary()
+    {
+        TargetSlotIndex = 0;
+        AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot1;
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Primary);
+        SetAssetTags(Tags);
+    }
+};
+
+/** Secondary Weapon (Key 2 → Slot 1) */
+UCLASS()
+class GAS_API UGA_WeaponSwitch_Secondary : public UGA_WeaponSwitch
+{
+    GENERATED_BODY()
+public:
+    UGA_WeaponSwitch_Secondary()
+    {
+        TargetSlotIndex = 1;
+        AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot2;
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Secondary);
+        SetAssetTags(Tags);
+    }
+};
+
+/** Sidearm (Key 3 → Slot 2) */
+UCLASS()
+class GAS_API UGA_WeaponSwitch_Sidearm : public UGA_WeaponSwitch
+{
+    GENERATED_BODY()
+public:
+    UGA_WeaponSwitch_Sidearm()
+    {
+        TargetSlotIndex = 2;
+        AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot3;
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
+        SetAssetTags(Tags);
+    }
+};
+
+/** Melee/Knife (Key V → Slot 3) */
+UCLASS()
+class GAS_API UGA_WeaponSwitch_Melee : public UGA_WeaponSwitch
+{
+    GENERATED_BODY()
+public:
+    UGA_WeaponSwitch_Melee()
+    {
+        TargetSlotIndex = 3;
+        AbilityInputID = ESuspenseCoreAbilityInputID::MeleeWeapon; // NEW - need to add
+        FGameplayTagContainer Tags;
+        Tags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Melee);
+        SetAssetTags(Tags);
+    }
 };
 ```
 
-### 3.2 Concrete Ability Classes
+### 3.2 New Ability Implementation
+
+**File:** `Source/GAS/Private/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.cpp`
 
 ```cpp
-// GA_WeaponSwitch_Primary.h
-UCLASS()
-class UGA_WeaponSwitch_Primary : public UGA_WeaponSwitch
-{
-    UGA_WeaponSwitch_Primary() { TargetSlotIndex = 0; }
-};
+// GA_WeaponSwitch.cpp
+#include "SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Events/SuspenseCoreEventManager.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "GameFramework/PlayerState.h"
 
-// GA_WeaponSwitch_Secondary.h
-UCLASS()
-class UGA_WeaponSwitch_Secondary : public UGA_WeaponSwitch
-{
-    UGA_WeaponSwitch_Secondary() { TargetSlotIndex = 1; }
-};
+DEFINE_LOG_CATEGORY_STATIC(LogWeaponSwitch, Log, All);
 
-// GA_WeaponSwitch_Sidearm.h
-UCLASS()
-class UGA_WeaponSwitch_Sidearm : public UGA_WeaponSwitch
+UGA_WeaponSwitch::UGA_WeaponSwitch()
 {
-    UGA_WeaponSwitch_Sidearm() { TargetSlotIndex = 2; }
-};
+    TargetSlotIndex = 0;
+    InstancingPolicy = EGameplayAbilityInstancingPolicy::NonInstanced;
 
-// GA_WeaponSwitch_Melee.h
-UCLASS()
-class UGA_WeaponSwitch_Melee : public UGA_WeaponSwitch
-{
-    UGA_WeaponSwitch_Melee() { TargetSlotIndex = 3; }
-};
+    // Blocking tags
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Reloading")));
 
-// GA_WeaponSwitch_Quick.h (toggle last two)
-UCLASS()
-class UGA_WeaponSwitch_Quick : public UGA_WeaponSwitch
+    bPublishAbilityEvents = true;
+}
+
+bool UGA_WeaponSwitch::CanActivateAbility(...) const
 {
-    UGA_WeaponSwitch_Quick() { bIsQuickSwitch = true; }
-};
+    if (!Super::CanActivateAbility(...))
+    {
+        return false;
+    }
+
+    ISuspenseCoreEquipmentDataProvider* Provider =
+        const_cast<UGA_WeaponSwitch*>(this)->GetEquipmentDataProvider();
+
+    if (!Provider)
+    {
+        return false;
+    }
+
+    // Check slot has weapon
+    if (!Provider->IsSlotOccupied(TargetSlotIndex))
+    {
+        return false;
+    }
+
+    // Check not already active
+    if (Provider->GetActiveWeaponSlot() == TargetSlotIndex)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void UGA_WeaponSwitch::ActivateAbility(...)
+{
+    if (!CommitAbility(...))
+    {
+        EndAbility(..., true, true);
+        return;
+    }
+
+    ISuspenseCoreEquipmentDataProvider* Provider = GetEquipmentDataProvider();
+    if (Provider)
+    {
+        int32 PreviousSlot = Provider->GetActiveWeaponSlot();
+        bool bSuccess = Provider->SetActiveWeaponSlot(TargetSlotIndex);
+
+        if (bSuccess)
+        {
+            // Publish EventBus event
+            if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(GetAvatarActorFromActorInfo()))
+            {
+                if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
+                {
+                    FSuspenseCoreEventData EventData;
+                    EventData.SetInt(TEXT("PreviousSlot"), PreviousSlot);
+                    EventData.SetInt(TEXT("NewSlot"), TargetSlotIndex);
+                    EventBus->Publish(TAG_Equipment_Event_WeaponSlot_Switched, EventData);
+                }
+            }
+        }
+
+        UE_LOG(LogWeaponSwitch, Log, TEXT("Weapon switch to slot %d: %s"),
+            TargetSlotIndex, bSuccess ? TEXT("Success") : TEXT("Failed"));
+    }
+
+    EndAbility(..., true, false);
+}
+
+ISuspenseCoreEquipmentDataProvider* UGA_WeaponSwitch::GetEquipmentDataProvider() const
+{
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    if (!AvatarActor)
+    {
+        return nullptr;
+    }
+
+    // DataStore is on PlayerState
+    if (APawn* Pawn = Cast<APawn>(AvatarActor))
+    {
+        if (APlayerState* PS = Pawn->GetPlayerState())
+        {
+            TArray<UActorComponent*> Components;
+            PS->GetComponents(Components);
+            for (UActorComponent* Comp : Components)
+            {
+                if (Comp && Comp->GetClass()->ImplementsInterface(
+                    USuspenseCoreEquipmentDataProvider::StaticClass()))
+                {
+                    return Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
+                }
+            }
+        }
+    }
+
+    // Fallback: check AvatarActor components
+    TArray<UActorComponent*> Components;
+    AvatarActor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (Comp && Comp->GetClass()->ImplementsInterface(
+            USuspenseCoreEquipmentDataProvider::StaticClass()))
+        {
+            return Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
+        }
+    }
+
+    return nullptr;
+}
 ```
-
-### 3.3 Activation Flow
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    WEAPON SWITCH FLOW                             │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Input (Key 1-4)                                                 │
-│       ↓                                                          │
-│  GAS: TryActivateAbility(GA_WeaponSwitch_Primary)               │
-│       ↓                                                          │
-│  CanActivateAbility():                                           │
-│    - Check not already switching                                 │
-│    - Check target slot has weapon                                │
-│    - Check not in blocking state (reloading, firing)             │
-│       ↓                                                          │
-│  ActivateAbility():                                              │
-│    1. WeaponStateManager->RequestStateTransition(Holstering)     │
-│    2. Play HolsterMontage                                        │
-│    3. Wait for AnimNotify "HolsterComplete"                      │
-│       ↓                                                          │
-│  OnHolsterComplete():                                            │
-│    1. DataStore->SetActiveWeaponSlot(TargetSlotIndex)            │
-│    2. EventBus->Publish(SlotSwitched)                            │
-│    3. Update weapon attachment (detach old, attach new)          │
-│    4. Play DrawMontage                                           │
-│    5. Wait for AnimNotify "DrawComplete"                         │
-│       ↓                                                          │
-│  OnDrawComplete():                                               │
-│    1. WeaponStateManager->TransitionTo(Ready)                    │
-│    2. EndAbility()                                               │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### 3.4 EventBus Integration
-
-```cpp
-// New event for weapon switch
-TAG_Equipment_Event_WeaponSwitchStarted   // When holster begins
-TAG_Equipment_Event_WeaponSwitchCompleted // When draw completes
-TAG_Equipment_Event_SlotSwitched          // Already exists - DataStore change
-
-// Event data
-EventData.SetInt("PreviousSlot", OldSlot);
-EventData.SetInt("NewSlot", NewSlot);
-EventData.SetString("WeaponID", NewWeaponItemID);
-```
-
-### 3.5 Animation Montage Requirements
-
-| Montage | Duration | Notify Events |
-|---------|----------|---------------|
-| `AM_Holster_Rifle` | ~0.5s | `HolsterComplete` at end |
-| `AM_Holster_Pistol` | ~0.3s | `HolsterComplete` at end |
-| `AM_Draw_Rifle` | ~0.6s | `DrawComplete` at end, `WeaponReady` when usable |
-| `AM_Draw_Pistol` | ~0.4s | `DrawComplete` at end |
-| `AM_QuickSwitch_ToPistol` | ~0.8s | Combined holster+draw |
 
 ---
 
-## 4. Input Binding Setup
+## 4. Native Tags to Add
 
-### 4.1 Enhanced Input Actions
+### 4.1 SuspenseCoreGameplayTags.h
+
+**File:** `Source/BridgeSystem/Public/SuspenseCore/Tags/SuspenseCoreGameplayTags.h`
+
+Add in `namespace Ability`:
 
 ```cpp
-// IA_WeaponSlot1 (Primary)
-// IA_WeaponSlot2 (Secondary)
-// IA_WeaponSlot3 (Sidearm)
-// IA_WeaponSlot4 (Melee)
-// IA_QuickSwitch (Toggle)
-// IA_NextWeapon (Scroll up)
-// IA_PrevWeapon (Scroll down)
+// Weapon slot switching abilities (Keys 1-3, V)
+namespace WeaponSlot
+{
+    BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Primary);    // Key 1
+    BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Secondary);  // Key 2
+    BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sidearm);    // Key 3
+    BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Melee);      // Key V
+}
 ```
 
-### 4.2 Default Key Mappings
+### 4.2 SuspenseCoreGameplayTags.cpp
 
-| Key | Action | Slot |
-|-----|--------|------|
-| `1` | Primary | 0 |
-| `2` | Secondary | 1 |
-| `3` | Sidearm | 2 |
-| `4` | Melee | 3 |
-| `Q` | QuickSwitch | Last used |
-| `Scroll Up` | NextWeapon | +1 |
-| `Scroll Down` | PrevWeapon | -1 |
+**File:** `Source/BridgeSystem/Private/SuspenseCore/Tags/SuspenseCoreGameplayTags.cpp`
+
+```cpp
+// Weapon slot abilities
+UE_DEFINE_GAMEPLAY_TAG(SuspenseCoreTags::Ability::WeaponSlot::Primary,
+    "Ability.WeaponSlot.Primary");
+UE_DEFINE_GAMEPLAY_TAG(SuspenseCoreTags::Ability::WeaponSlot::Secondary,
+    "Ability.WeaponSlot.Secondary");
+UE_DEFINE_GAMEPLAY_TAG(SuspenseCoreTags::Ability::WeaponSlot::Sidearm,
+    "Ability.WeaponSlot.Sidearm");
+UE_DEFINE_GAMEPLAY_TAG(SuspenseCoreTags::Ability::WeaponSlot::Melee,
+    "Ability.WeaponSlot.Melee");
+```
+
+### 4.3 SuspenseCoreEquipmentNativeTags.h
+
+**File:** `Source/EquipmentSystem/Public/SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h`
+
+Add new event tag:
+
+```cpp
+// Weapon slot switched event
+EQUIPMENTSYSTEM_API extern FGameplayTag TAG_Equipment_Event_WeaponSlot_Switched;
+```
+
+### 4.4 SuspenseCoreEquipmentNativeTags.cpp
+
+```cpp
+FGameplayTag TAG_Equipment_Event_WeaponSlot_Switched = FGameplayTag::RequestGameplayTag(
+    FName(TEXT("SuspenseCore.Event.Equipment.WeaponSlot.Switched")));
+```
 
 ---
 
-## 5. Files to Create/Modify
+## 5. Input ID to Add
 
-### 5.1 New Files
+### 5.1 SuspenseCoreAbilityInputID.h
+
+**File:** `Source/BridgeSystem/Public/SuspenseCore/Input/SuspenseCoreAbilityInputID.h`
+
+Add new enum value:
+
+```cpp
+// Already exists:
+WeaponSlot1   UMETA(DisplayName="Weapon Slot 1"),  // Key 1
+WeaponSlot2   UMETA(DisplayName="Weapon Slot 2"),  // Key 2
+WeaponSlot3   UMETA(DisplayName="Weapon Slot 3"),  // Key 3
+
+// ADD NEW:
+MeleeWeapon   UMETA(DisplayName="Melee Weapon"),   // Key V
+```
+
+---
+
+## 6. Grant Abilities to Character
+
+### 6.1 Where to Grant
+
+Check existing pattern in `SuspenseCoreCharacter.cpp` or `SuspenseCorePlayerState.cpp`:
+
+```cpp
+// Grant weapon switch abilities
+if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+{
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_WeaponSwitch_Primary::StaticClass(), 1));
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_WeaponSwitch_Secondary::StaticClass(), 1));
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_WeaponSwitch_Sidearm::StaticClass(), 1));
+    ASC->GiveAbility(FGameplayAbilitySpec(UGA_WeaponSwitch_Melee::StaticClass(), 1));
+}
+```
+
+---
+
+## 7. Implementation Checklist
+
+### Phase 1: Tags & Input
+- [ ] Add `WeaponSlot` namespace to `SuspenseCoreGameplayTags.h/.cpp`
+- [ ] Add `TAG_Equipment_Event_WeaponSlot_Switched` to native tags
+- [ ] Add `MeleeWeapon` to `ESuspenseCoreAbilityInputID`
+
+### Phase 2: Ability Class
+- [ ] Create `GA_WeaponSwitch.h` with base class + 4 concrete classes
+- [ ] Create `GA_WeaponSwitch.cpp` with implementation
+
+### Phase 3: Integration
+- [ ] Grant abilities in Character/PlayerState
+- [ ] Setup input bindings (1, 2, 3, V)
+
+### Phase 4: Testing
+- [ ] Press 1 → switches to Primary (slot 0)
+- [ ] Press 2 → switches to Secondary (slot 1)
+- [ ] Press 3 → switches to Sidearm (slot 2)
+- [ ] Press V → switches to Melee (slot 3)
+- [ ] Cannot switch while reloading
+- [ ] EventBus publishes WeaponSlot.Switched
+
+---
+
+## 8. Key Differences from QuickSlot
+
+| Aspect | QuickSlot | WeaponSwitch |
+|--------|-----------|--------------|
+| Interface | `ISuspenseCoreQuickSlotProvider` | `ISuspenseCoreEquipmentDataProvider` |
+| Location | Character component | PlayerState (DataStore) |
+| Keys | 4-7 | 1-3, V |
+| Action | UseQuickSlot() | SetActiveWeaponSlot() |
+| Slots | 12-15 (DataStore) | 0-3 (DataStore) |
+
+---
+
+## 9. Files Summary
+
+### Files to CREATE
 
 | File | Description |
 |------|-------------|
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h` | Base weapon switch ability |
+| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h` | Base + concrete abilities |
 | `Source/GAS/Private/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.cpp` | Implementation |
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch_Primary.h` | Slot 0 |
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch_Secondary.h` | Slot 1 |
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch_Sidearm.h` | Slot 2 |
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch_Melee.h` | Slot 3 |
-| `Source/GAS/Public/SuspenseCore/Abilities/Equipment/GA_WeaponSwitch_Quick.h` | Toggle |
 
-### 5.2 Files to Modify
+### Files to MODIFY
 
 | File | Changes |
 |------|---------|
-| `SuspenseCoreEquipmentNativeTags.h/.cpp` | Add WeaponSwitch event tags |
-| `SuspenseCorePlayerController.cpp` | Bind WeaponSlot inputs to abilities |
-| `SuspenseCoreCharacter.cpp` | Grant weapon switch abilities on spawn |
-
-### 5.3 DataTable/Config Files
-
-| Asset | Purpose |
-|-------|---------|
-| `DT_WeaponSwitchTimes` | Per-weapon holster/draw times |
-| `IMC_DefaultPlayer` | Input mapping context |
+| `SuspenseCoreGameplayTags.h` | Add `Ability::WeaponSlot` namespace |
+| `SuspenseCoreGameplayTags.cpp` | Define weapon slot tags |
+| `SuspenseCoreEquipmentNativeTags.h` | Add `TAG_Equipment_Event_WeaponSlot_Switched` |
+| `SuspenseCoreEquipmentNativeTags.cpp` | Define the tag |
+| `SuspenseCoreAbilityInputID.h` | Add `MeleeWeapon` enum value |
+| `SuspenseCoreCharacter.cpp` (or PlayerState) | Grant abilities |
 
 ---
 
-## 6. Implementation Phases
+## 10. Architecture Compliance
 
-### Phase 1: Core Ability
-- [ ] Create `GA_WeaponSwitch` base class
-- [ ] Implement `CanActivateAbility` checks
-- [ ] Implement `ActivateAbility` with DataStore update
-- [ ] Add EventBus publication
-
-### Phase 2: Animation Integration
-- [ ] Add montage support
-- [ ] Implement notify handlers
-- [ ] Create placeholder montages
-
-### Phase 3: Input Binding
-- [ ] Setup Enhanced Input actions
-- [ ] Bind in PlayerController
-- [ ] Grant abilities to character
-
-### Phase 4: WeaponStateManager Integration
-- [ ] Hook into state transitions
-- [ ] Add blocking during switch
-- [ ] Handle interruptions
-
-### Phase 5: Polish
-- [ ] QuickSwitch (toggle) logic
-- [ ] NextWeapon/PrevWeapon cycling
-- [ ] UI weapon indicator updates
-- [ ] Sound effects
-
----
-
-## 7. Testing Checklist
-
-- [ ] Press 1 → equips Primary weapon
-- [ ] Press 2 → equips Secondary weapon
-- [ ] Press 3 → equips Sidearm
-- [ ] Press 4 → equips Melee
-- [ ] Press Q → toggles between last two
-- [ ] Cannot switch while reloading
-- [ ] Cannot switch while firing
-- [ ] Multiplayer replication works
-- [ ] Animation plays correctly
-- [ ] HUD updates weapon indicator
-
----
-
-## 8. Architecture Notes
-
-### SOLID Compliance
-
-- **SRP**: GA_WeaponSwitch only handles switching, delegates to DataStore/StateManager
-- **OCP**: Base class + concrete slots allows extension without modification
-- **DI**: Uses interfaces (ISuspenseCoreEquipmentDataProvider) not concrete classes
-- **EventBus**: All state changes published for loose coupling
-
-### Threading
-
-- DataStore access is thread-safe (critical section)
-- Ability activation is on game thread
-- Animation notifies are on game thread
+| Pattern | Implementation |
+|---------|----------------|
+| **SOLID/SRP** | Ability only handles switching, DataStore handles state |
+| **Interface-based** | Uses `ISuspenseCoreEquipmentDataProvider`, not concrete `DataStore` |
+| **EventBus** | Publishes `WeaponSlot.Switched` for UI/systems |
+| **Native Tags** | All tags defined in central locations |
+| **Same pattern as QuickSlot** | Easy to understand and maintain |
 
 ---
 
 **Last Updated:** 2026-01-08
+**Version:** 2.0 (Corrected bindings, full pipeline)

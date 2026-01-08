@@ -93,6 +93,7 @@ private:
 	FGameplayTag Tag_OnEquipped;
 	FGameplayTag Tag_OnUnequipped;
 	FGameplayTag Tag_OnSlotSwitched;
+	FGameplayTag Tag_OnWeaponSlotSwitched;  // SuspenseCore.Event.Equipment.WeaponSlotSwitched
 	FGameplayTag Tag_VisRefreshAll;
 
 	// Service dependency tags (via Locator)
@@ -112,6 +113,7 @@ private:
 	void OnEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnSlotSwitched(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
+	void OnWeaponSlotSwitched(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 	void OnRefreshAll(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData);
 
 	// High-level operations

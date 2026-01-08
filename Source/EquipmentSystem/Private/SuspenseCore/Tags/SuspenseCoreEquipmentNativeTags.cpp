@@ -51,6 +51,9 @@ namespace SuspenseCoreEquipmentTags
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_SlotSwitched, "SuspenseCore.Event.Equipment.SlotSwitched");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Commit, "SuspenseCore.Event.Equipment.Commit");
 
+        // WeaponSlot Events
+        UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_WeaponSlot_Switched, "SuspenseCore.Event.Equipment.WeaponSlot.Switched");
+
         // Ability Events
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability, "SuspenseCore.Event.Equipment.Ability");
         UE_DEFINE_GAMEPLAY_TAG(TAG_Equipment_Event_Ability_Refresh, "SuspenseCore.Event.Equipment.Ability.Refresh");

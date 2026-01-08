@@ -173,6 +173,24 @@ void ASuspenseCorePlayerController::SetupInputComponent()
 			EnhancedInput->BindAction(IA_Reload, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleReload);
 		}
 
+		// WeaponSlot Inputs (Direct weapon slot switching - keys 1-3, V)
+		if (IA_WeaponSlot1)
+		{
+			EnhancedInput->BindAction(IA_WeaponSlot1, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleWeaponSlot1);
+		}
+		if (IA_WeaponSlot2)
+		{
+			EnhancedInput->BindAction(IA_WeaponSlot2, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleWeaponSlot2);
+		}
+		if (IA_WeaponSlot3)
+		{
+			EnhancedInput->BindAction(IA_WeaponSlot3, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleWeaponSlot3);
+		}
+		if (IA_MeleeWeapon)
+		{
+			EnhancedInput->BindAction(IA_MeleeWeapon, ETriggerEvent::Started, this, &ASuspenseCorePlayerController::HandleMeleeWeapon);
+		}
+
 		// QuickSlot Inputs (Tarkov-style magazine/item access - keys 4-7)
 		if (IA_QuickSlot1)
 		{
@@ -386,6 +404,34 @@ void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 {
 	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")), true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEAPONSLOT INPUT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void ASuspenseCorePlayerController::HandleWeaponSlot1(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot1 triggered (Key 1 → Primary)"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Primary")), true);
+}
+
+void ASuspenseCorePlayerController::HandleWeaponSlot2(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot2 triggered (Key 2 → Secondary)"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Secondary")), true);
+}
+
+void ASuspenseCorePlayerController::HandleWeaponSlot3(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot3 triggered (Key 3 → Sidearm)"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Sidearm")), true);
+}
+
+void ASuspenseCorePlayerController::HandleMeleeWeapon(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleMeleeWeapon triggered (Key V → Melee)"));
+	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Melee")), true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

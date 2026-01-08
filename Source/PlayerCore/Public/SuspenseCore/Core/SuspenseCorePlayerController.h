@@ -270,6 +270,26 @@ protected:
 	UInputAction* IA_Reload;
 
 	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON SLOT INPUT ACTIONS (Direct weapon slot switching via keys 1-3, V)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Primary Weapon (Key 1 → Slot 0) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|WeaponSlot")
+	UInputAction* IA_WeaponSlot1;
+
+	/** Secondary Weapon (Key 2 → Slot 1) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|WeaponSlot")
+	UInputAction* IA_WeaponSlot2;
+
+	/** Sidearm/Holster (Key 3 → Slot 2) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|WeaponSlot")
+	UInputAction* IA_WeaponSlot3;
+
+	/** Melee/Knife (Key V → Slot 3) */
+	UPROPERTY(EditDefaultsOnly, Category = "SuspenseCore|Input|WeaponSlot")
+	UInputAction* IA_MeleeWeapon;
+
+	// ═══════════════════════════════════════════════════════════════════════════════
 	// QUICKSLOT INPUT ACTIONS (Tarkov-style magazine/item access)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
@@ -354,6 +374,12 @@ protected:
 	void HandleFirePressed(const FInputActionValue& Value);
 	void HandleFireReleased(const FInputActionValue& Value);
 	void HandleReload(const FInputActionValue& Value);
+
+	// WeaponSlot Input Handlers (Direct weapon slot switching)
+	void HandleWeaponSlot1(const FInputActionValue& Value);
+	void HandleWeaponSlot2(const FInputActionValue& Value);
+	void HandleWeaponSlot3(const FInputActionValue& Value);
+	void HandleMeleeWeapon(const FInputActionValue& Value);
 
 	// QuickSlot Input Handlers (Tarkov-style magazine/item access)
 	void HandleQuickSlot1(const FInputActionValue& Value);

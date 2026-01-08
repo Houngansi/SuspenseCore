@@ -267,6 +267,15 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Slot4, "SuspenseCore.Ability.QuickSlot.4");
 		}
 
+		// WeaponSlot abilities (direct weapon slot switching via keys 1-3, V)
+		namespace WeaponSlot
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Primary, "SuspenseCore.Ability.WeaponSlot.Primary");
+			UE_DEFINE_GAMEPLAY_TAG(Secondary, "SuspenseCore.Ability.WeaponSlot.Secondary");
+			UE_DEFINE_GAMEPLAY_TAG(Sidearm, "SuspenseCore.Ability.WeaponSlot.Sidearm");
+			UE_DEFINE_GAMEPLAY_TAG(Melee, "SuspenseCore.Ability.WeaponSlot.Melee");
+		}
+
 		namespace Input
 		{
 			UE_DEFINE_GAMEPLAY_TAG(Interact, "Ability.Input.Interact");

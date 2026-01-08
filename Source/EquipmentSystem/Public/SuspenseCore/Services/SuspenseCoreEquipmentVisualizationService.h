@@ -139,8 +139,9 @@ private:
 
 	// Reflection to data/presentation services (minimal dependencies)
 	TSubclassOf<AActor> ResolveActorClass(const FName ItemID) const;
-	FName               ResolveAttachSocket(AActor* Character, const FName ItemID, int32 SlotIndex) const;
-	FTransform          ResolveAttachOffset(AActor* Character, const FName ItemID, int32 SlotIndex) const;
+	// bCallerHoldsLock: set true when caller already holds VisualLock (pass KnownActiveSlot to avoid re-reading state)
+	FName               ResolveAttachSocket(AActor* Character, const FName ItemID, int32 SlotIndex, bool bCallerHoldsLock = false, int32 KnownActiveSlot = INDEX_NONE) const;
+	FTransform          ResolveAttachOffset(AActor* Character, const FName ItemID, int32 SlotIndex, bool bCallerHoldsLock = false, int32 KnownActiveSlot = INDEX_NONE) const;
 
 	// Event metadata parsing (SuspenseCore types)
 	static bool  TryParseInt(const FSuspenseCoreEventData& EventData, const TCHAR* Key, int32& OutValue);

@@ -467,12 +467,6 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	static const FGameplayTag EquipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.EquipItem"));
 	static const FGameplayTag UnequipItemTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.UIRequest.UnequipItem"));
 
-	// CRITICAL FIX: Subscribe to actual equipment change events published by DataStore
-	// DataStore publishes Equipment.Event.SlotUpdated and Equipment.Event.Updated
-	// NOT SuspenseCore.Event.UIProvider.DataChanged!
-	static const FGameplayTag SlotUpdatedTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Event.SlotUpdated"));
-	static const FGameplayTag EquipmentUpdatedTag = FGameplayTag::RequestGameplayTag(FName("Equipment.Event.Updated"));
-
 	// Subscribe to equipment item equipped events (UI Request)
 	FSuspenseCoreSubscriptionHandle EquipHandle = EventBus->SubscribeNative(
 		EquipItemTag,
@@ -493,25 +487,11 @@ void USuspenseCoreEquipmentWidget::SetupEventSubscriptions()
 	);
 	SubscriptionHandles.Add(UnequipHandle);
 
-	// Subscribe to slot updated events (actual data changes from DataStore)
-	FSuspenseCoreSubscriptionHandle SlotUpdatedHandle = EventBus->SubscribeNative(
-		SlotUpdatedTag,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(
-			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),
-		ESuspenseCoreEventPriority::Normal
-	);
-	SubscriptionHandles.Add(SlotUpdatedHandle);
-
-	// Subscribe to equipment updated events (general equipment state changes)
-	FSuspenseCoreSubscriptionHandle EquipmentUpdatedHandle = EventBus->SubscribeNative(
-		EquipmentUpdatedTag,
-		this,
-		FSuspenseCoreNativeEventCallback::CreateUObject(
-			this, &USuspenseCoreEquipmentWidget::OnProviderDataChanged),
-		ESuspenseCoreEventPriority::Normal
-	);
-	SubscriptionHandles.Add(EquipmentUpdatedHandle);
+	// NOTE: We do NOT subscribe to Equipment.Event.SlotUpdated or Equipment.Event.Updated directly!
+	// The widget receives data updates through UIDataChangedDelegate from the bound UIProvider.
+	// Direct EventBus subscription caused a race condition where widget refreshed BEFORE
+	// UIProvider updated its cache, resulting in stale data and visual bugs (items disappearing).
+	// @see BaseContainerWidget::BindToProvider() - subscribes to provider's OnUIDataChanged delegate
 
 	// Subscribe to QuickSlot events (for syncing inventory QuickSlot display)
 	using namespace SuspenseCoreEquipmentTags::QuickSlot;
@@ -582,6 +562,11 @@ USuspenseCoreEventBus* USuspenseCoreEquipmentWidget::GetEventBus() const
 
 void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// NOTE: This is a UI REQUEST event, not a result event!
+	// The actual data update will come through UIDataChangedDelegate from UIProvider
+	// after Bridge processes the request and DataStore updates.
+	// Do NOT call RefreshFromProvider() here - it would show stale data.
+
 	// Extract slot index from event data if available
 	int32 TargetSlot = INDEX_NONE;
 	if (const int32* SlotPtr = EventData.IntPayload.Find(FName("TargetSlot")))
@@ -589,10 +574,7 @@ void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(FGameplayTag EventTag
 		TargetSlot = *SlotPtr;
 	}
 
-	// Refresh from provider to update all slots
-	RefreshFromProvider();
-
-	// Notify Blueprint if we have a valid slot
+	// Notify Blueprint if we have a valid slot (for UI feedback like sound/animation)
 	if (TargetSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(TargetSlot))
 	{
 		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[TargetSlot];
@@ -613,6 +595,11 @@ void USuspenseCoreEquipmentWidget::OnEquipmentItemEquipped(FGameplayTag EventTag
 
 void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
+	// NOTE: This is a UI REQUEST event, not a result event!
+	// The actual data update will come through UIDataChangedDelegate from UIProvider
+	// after Bridge processes the request and DataStore updates.
+	// Do NOT call RefreshFromProvider() here - it would show stale data.
+
 	// Extract slot index from event data if available
 	int32 SourceSlot = INDEX_NONE;
 	if (const int32* SlotPtr = EventData.IntPayload.Find(FName("SourceSlot")))
@@ -620,10 +607,7 @@ void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(FGameplayTag EventT
 		SourceSlot = *SlotPtr;
 	}
 
-	// Refresh from provider to update all slots
-	RefreshFromProvider();
-
-	// Notify Blueprint if we have a valid slot
+	// Notify Blueprint if we have a valid slot (for UI feedback like sound/animation)
 	if (SourceSlot != INDEX_NONE && SlotWidgetsArray.IsValidIndex(SourceSlot))
 	{
 		USuspenseCoreEquipmentSlotWidget* SlotWidget = SlotWidgetsArray[SourceSlot];
@@ -638,13 +622,13 @@ void USuspenseCoreEquipmentWidget::OnEquipmentItemUnequipped(FGameplayTag EventT
 
 void USuspenseCoreEquipmentWidget::OnProviderDataChanged(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
 {
-	// Refresh all slots from provider when data changes
-	RefreshFromProvider();
+	// DEPRECATED: This method is no longer used for EventBus subscriptions.
+	// The widget now receives data updates ONLY through UIDataChangedDelegate from the bound UIProvider.
+	// This prevents race conditions where widget refreshed before UIProvider cached the data.
+	// @see BaseContainerWidget::BindToProvider() -> OnUIDataChanged() -> BaseContainerWidget::OnProviderDataChanged()
 
-	// Also refresh character preview if available
-	RefreshCharacterPreview();
-
-	UE_LOG(LogTemp, Log, TEXT("EquipmentWidget: Provider data changed, refreshed from provider"));
+	// Left as no-op for backward compatibility in case something still calls this.
+	UE_LOG(LogTemp, Warning, TEXT("EquipmentWidget::OnProviderDataChanged(EventTag) called - this path is deprecated!"));
 }
 
 void USuspenseCoreEquipmentWidget::OnQuickSlotAssignedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)

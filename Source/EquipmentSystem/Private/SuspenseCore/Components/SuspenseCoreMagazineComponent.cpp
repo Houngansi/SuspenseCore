@@ -349,8 +349,21 @@ bool USuspenseCoreMagazineComponent::SwapMagazineFromQuickSlot(int32 QuickSlotIn
     // Server authority check - redirect to server RPC if client
     if (WeaponOwner->HasAuthority() == false)
     {
+        // CRITICAL FIX: Clear local DataStore BEFORE sending RPC
+        // Without this, client's DataStore still shows slot as occupied,
+        // causing "SlotOccupied" errors when trying to equip new items
+        const int32 EquipmentSlotIndex = QuickSlotIndex + 13;
+        if (USuspenseCoreEquipmentDataStore* DataStore = CharacterOwner->FindComponentByClass<USuspenseCoreEquipmentDataStore>())
+        {
+            DataStore->ClearSlot(EquipmentSlotIndex, true);
+            UE_LOG(LogMagazineComponent, Log, TEXT("SwapMagazineFromQuickSlot [Client]: Cleared local DataStore slot %d"), EquipmentSlotIndex);
+        }
+
+        // Also clear QuickSlotComponent locally for immediate UI feedback
+        ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(QuickSlotProvider.GetObject(), QuickSlotIndex);
+
         ServerSwapMagazineFromQuickSlot(QuickSlotIndex, bEmergencyDrop);
-        return true; // Assume success, server will replicate actual state
+        return true; // Server will handle the actual swap and replication
     }
 
     // === Server-side execution ===

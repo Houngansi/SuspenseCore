@@ -90,13 +90,13 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
         DataStorage.SlotConfigurations.Num(),
         GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 
-    // Subscribe to QuickSlot_Cleared events to keep DataStore in sync
-    // When a QuickSlot is cleared (e.g., magazine used via ability), DataStore must be updated
+    // Subscribe to QuickSlot events to keep DataStore in sync
     // QuickSlots map to Equipment slots 13-16 (QuickSlot 0-3 -> Slot 13-16)
     if (USuspenseCoreEventManager* EDM = USuspenseCoreEventManager::Get(this))
     {
         if (USuspenseCoreEventBus* EventBus = EDM->GetEventBus())
         {
+            // Subscribe to QuickSlot.Cleared - clear DataStore slot when QuickSlot is cleared
             FGameplayTag QuickSlotClearedTag = FGameplayTag::RequestGameplayTag(
                 FName(TEXT("SuspenseCore.Event.Equipment.QuickSlot.Cleared")), false);
 
@@ -107,7 +107,6 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
                     this,
                     FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
                     {
-                        // Get QuickSlot index (0-3) and map to Equipment slot (13-16)
                         int32 QuickSlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
                         if (QuickSlotIndex >= 0 && QuickSlotIndex < 4)
                         {
@@ -119,9 +118,53 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
                         }
                     })
                 );
-
-                UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Subscribed to QuickSlot.Cleared events"));
             }
+
+            // Subscribe to QuickSlot.Assigned - update DataStore slot when item is assigned to QuickSlot
+            FGameplayTag QuickSlotAssignedTag = FGameplayTag::RequestGameplayTag(
+                FName(TEXT("SuspenseCore.Event.Equipment.QuickSlot.Assigned")), false);
+
+            if (QuickSlotAssignedTag.IsValid())
+            {
+                QuickSlotAssignedHandle = EventBus->SubscribeNative(
+                    QuickSlotAssignedTag,
+                    this,
+                    FSuspenseCoreNativeEventCallback::CreateLambda([this](FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+                    {
+                        int32 QuickSlotIndex = EventData.GetInt(FName(TEXT("SlotIndex")), INDEX_NONE);
+                        if (QuickSlotIndex >= 0 && QuickSlotIndex < 4)
+                        {
+                            const int32 EquipmentSlotIndex = QuickSlotIndex + 13;
+
+                            // Build item instance from event data
+                            FSuspenseCoreInventoryItemInstance Item;
+
+                            FString InstanceIDStr = EventData.GetString(FName(TEXT("InstanceID")));
+                            FGuid::Parse(InstanceIDStr, Item.InstanceID);
+
+                            FString ItemIDStr = EventData.GetString(FName(TEXT("ItemID")));
+                            Item.ItemID = FName(*ItemIDStr);
+                            Item.Quantity = 1;
+
+                            // Check if it's a magazine and populate MagazineData
+                            bool bIsMagazine = EventData.GetBool(FName(TEXT("IsMagazine")));
+                            if (bIsMagazine)
+                            {
+                                Item.MagazineData.MagazineID = Item.ItemID;
+                                Item.MagazineData.CurrentRoundCount = EventData.GetInt(FName(TEXT("MagazineRounds")), 0);
+                                Item.MagazineData.MaxCapacity = EventData.GetInt(FName(TEXT("MagazineCapacity")), 0);
+                            }
+
+                            SetSlotItem(EquipmentSlotIndex, Item, true);
+                            UE_LOG(LogEquipmentDataStore, Log,
+                                TEXT("DataStore: Set slot %d item from QuickSlot %d assigned event (ItemID=%s, IsMag=%s)"),
+                                EquipmentSlotIndex, QuickSlotIndex, *Item.ItemID.ToString(), bIsMagazine ? TEXT("Yes") : TEXT("No"));
+                        }
+                    })
+                );
+            }
+
+            UE_LOG(LogEquipmentDataStore, Log, TEXT("DataStore: Subscribed to QuickSlot events"));
         }
     }
 }
@@ -129,16 +172,21 @@ void USuspenseCoreEquipmentDataStore::BeginPlay()
 void USuspenseCoreEquipmentDataStore::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     // Unsubscribe from EventBus
-    if (QuickSlotClearedHandle.IsValid())
+    if (USuspenseCoreEventManager* EDM = USuspenseCoreEventManager::Get(this))
     {
-        if (USuspenseCoreEventManager* EDM = USuspenseCoreEventManager::Get(this))
+        if (USuspenseCoreEventBus* EventBus = EDM->GetEventBus())
         {
-            if (USuspenseCoreEventBus* EventBus = EDM->GetEventBus())
+            if (QuickSlotClearedHandle.IsValid())
             {
                 EventBus->Unsubscribe(QuickSlotClearedHandle);
+                QuickSlotClearedHandle = FSuspenseCoreSubscriptionHandle();
+            }
+            if (QuickSlotAssignedHandle.IsValid())
+            {
+                EventBus->Unsubscribe(QuickSlotAssignedHandle);
+                QuickSlotAssignedHandle = FSuspenseCoreSubscriptionHandle();
             }
         }
-        QuickSlotClearedHandle = FSuspenseCoreSubscriptionHandle();
     }
 
     // Clear all delegates

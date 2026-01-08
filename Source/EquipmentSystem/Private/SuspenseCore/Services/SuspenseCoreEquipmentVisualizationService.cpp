@@ -604,9 +604,9 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Re-attaching previous weapon (slot %d, ItemID: %s) to storage socket"),
 				PreviousSlot, *PrevItemID.ToString());
-			// Get storage socket for previous slot (now inactive) - NewSlot is active
-			FName Socket = ResolveAttachSocket(Character, PrevItemID, PreviousSlot, NewSlot);
-			FTransform Offset = ResolveAttachOffset(Character, PrevItemID, PreviousSlot, NewSlot);
+			// Get storage socket for previous slot (now inactive) - NewSlot is active, no lock held
+			FName Socket = ResolveAttachSocket(Character, PrevItemID, PreviousSlot, /*bCallerHoldsLock=*/false, /*KnownActiveSlot=*/NewSlot);
+			FTransform Offset = ResolveAttachOffset(Character, PrevItemID, PreviousSlot, /*bCallerHoldsLock=*/false, /*KnownActiveSlot=*/NewSlot);
 			AttachActorToCharacter(Character, PrevWeaponActor, Socket, Offset);
 		}
 	}
@@ -638,9 +638,9 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 
 			UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Attaching new weapon (slot %d, ItemID: %s) to hands"),
 				NewSlot, *NewItemID.ToString());
-			// Get active socket (hands) - NewSlot is now active
-			FName Socket = ResolveAttachSocket(Character, NewItemID, NewSlot, NewSlot);
-			FTransform Offset = ResolveAttachOffset(Character, NewItemID, NewSlot, NewSlot);
+			// Get active socket (hands) - NewSlot is now active, no lock held
+			FName Socket = ResolveAttachSocket(Character, NewItemID, NewSlot, /*bCallerHoldsLock=*/false, /*KnownActiveSlot=*/NewSlot);
+			FTransform Offset = ResolveAttachOffset(Character, NewItemID, NewSlot, /*bCallerHoldsLock=*/false, /*KnownActiveSlot=*/NewSlot);
 			AttachActorToCharacter(Character, NewWeaponActor, Socket, Offset);
 
 			// Update stance component using weapon archetype tag
@@ -740,8 +740,9 @@ void USuspenseCoreEquipmentVisualizationService::UpdateVisualForSlot(AActor* Cha
 
 	const FSuspenseCoreVisCharState& CharState = Characters.FindOrAdd(Character);
 	const int32 CurrentActiveSlot = CharState.ActiveSlot;
-	const FName Socket      = ResolveAttachSocket(Character, ItemID, SlotIndex, CurrentActiveSlot);
-	const FTransform Offset = ResolveAttachOffset(Character, ItemID, SlotIndex, CurrentActiveSlot);
+	// NOTE: We already hold VisualLock, pass bCallerHoldsLock=true to avoid deadlock
+	const FName Socket      = ResolveAttachSocket(Character, ItemID, SlotIndex, /*bCallerHoldsLock=*/true, /*KnownActiveSlot=*/CurrentActiveSlot);
+	const FTransform Offset = ResolveAttachOffset(Character, ItemID, SlotIndex, /*bCallerHoldsLock=*/true, /*KnownActiveSlot=*/CurrentActiveSlot);
 
 	UE_LOG(LogSuspenseCoreEquipmentVisualization, Log,
 		TEXT("  Socket: %s, Offset: Loc(%s) Rot(%s)"),
@@ -1746,7 +1747,8 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
     AActor* Character,
     const FName ItemID,
     int32 SlotIndex,
-    int32 ActiveSlotOverride) const
+    bool bCallerHoldsLock,
+    int32 KnownActiveSlot) const
 {
     // ============================================================================
     // Читаем сокет из DataTable через DataManager (SSOT)
@@ -1787,12 +1789,13 @@ FName USuspenseCoreEquipmentVisualizationService::ResolveAttachSocket(
     }
 
     // Step 3: Determine if slot is active
-    // If ActiveSlotOverride provided (caller holds lock), use it to avoid deadlock
-    // Otherwise acquire lock and read from state
+    // bCallerHoldsLock=true means caller already holds VisualLock, use KnownActiveSlot directly
+    // bCallerHoldsLock=false means we need to acquire lock and read from state
     bool bIsActiveSlot = false;
-    if (ActiveSlotOverride != INDEX_NONE)
+    if (bCallerHoldsLock)
     {
-        bIsActiveSlot = (SlotIndex == ActiveSlotOverride);
+        // Caller holds lock, use provided KnownActiveSlot (can be INDEX_NONE if no weapon active)
+        bIsActiveSlot = (SlotIndex == KnownActiveSlot);
     }
     else
     {
@@ -1831,7 +1834,8 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
     AActor* Character,
     const FName ItemID,
     int32 SlotIndex,
-    int32 ActiveSlotOverride) const
+    bool bCallerHoldsLock,
+    int32 KnownActiveSlot) const
 {
     // ============================================================================
     // Читаем оффсет из DataTable через DataManager (SSOT)
@@ -1872,12 +1876,13 @@ FTransform USuspenseCoreEquipmentVisualizationService::ResolveAttachOffset(
     }
 
     // Step 3: Determine if slot is active
-    // If ActiveSlotOverride provided (caller holds lock), use it to avoid deadlock
-    // Otherwise acquire lock and read from state
+    // bCallerHoldsLock=true means caller already holds VisualLock, use KnownActiveSlot directly
+    // bCallerHoldsLock=false means we need to acquire lock and read from state
     bool bIsActiveSlot = false;
-    if (ActiveSlotOverride != INDEX_NONE)
+    if (bCallerHoldsLock)
     {
-        bIsActiveSlot = (SlotIndex == ActiveSlotOverride);
+        // Caller holds lock, use provided KnownActiveSlot (can be INDEX_NONE if no weapon active)
+        bIsActiveSlot = (SlotIndex == KnownActiveSlot);
     }
     else
     {

@@ -784,6 +784,9 @@ void USuspenseCoreQuickSlotComponent::NotifySlotChanged(int32 SlotIndex, const F
         FSuspenseCoreEventData EventData;
         EventData.SetInt(TEXT("SlotIndex"), SlotIndex);
         EventData.SetString(TEXT("ItemID"), QuickSlots[SlotIndex].AssignedItemID.ToString());
+        // CRITICAL: Include InstanceID so UIProvider can properly cache the item
+        // Without this, OnQuickSlotAssigned in UIProvider cannot create a valid cache entry
+        EventData.SetString(TEXT("InstanceID"), QuickSlots[SlotIndex].AssignedItemInstanceID.ToString());
 
         // Check if it's a magazine
         bool bIsMagazine = StoredMagazines.IsValidIndex(SlotIndex) && StoredMagazines[SlotIndex].IsValid();

@@ -376,33 +376,81 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds)
 {
 	// ═══════════════════════════════════════════════════════════════════════════════
-	// LEFT HAND SOCKET TRACKING WITH INTERPOLATION
-	// Берём world позицию сокета LH_Target и плавно интерполируем для стабильности
-	// В AnimBP: Two Bone IK → Effector Location = LeftHandSocketLocation (World Space)
+	// LEFT HAND TARGET TRACKING (LeftHandTarget SceneComponent on weapon)
+	// Вычисляет LeftHandTargetTransform в Component Space для FABRIK
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	// Reset if no weapon
 	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
 	{
 		bHasLeftHandSocket = false;
+		bHasLeftHandTarget = false;
 		LeftHandSocketLocation = FVector::ZeroVector;
 		LeftHandSocketRotation = FRotator::ZeroRotator;
+		LeftHandTargetTransform = FTransform::Identity;
 		return;
 	}
 
 #if WITH_EQUIPMENT_SYSTEM
-	if (!CachedWeaponActor.IsValid())
+	if (!CachedWeaponActor.IsValid() || !CachedCharacter.IsValid())
 	{
 		bHasLeftHandSocket = false;
+		bHasLeftHandTarget = false;
+		return;
+	}
+
+	// Get character mesh for component space conversion
+	USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
+	if (!CharacterMesh)
+	{
+		bHasLeftHandSocket = false;
+		bHasLeftHandTarget = false;
 		return;
 	}
 
 	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// PRIORITY 1: LeftHandTarget SceneComponent (новый подход)
+	// ═══════════════════════════════════════════════════════════════════════════════
+	if (ASuspenseCoreWeaponActor* Weapon = Cast<ASuspenseCoreWeaponActor>(WeaponActor))
+	{
+		if (USceneComponent* LHTarget = Weapon->GetLeftHandTarget())
+		{
+			// Get world transform of LeftHandTarget component
+			const FTransform WorldTransform = LHTarget->GetComponentTransform();
+
+			// Convert to Component Space (relative to character mesh)
+			const FTransform ComponentSpaceTransform = WorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
+
+			// Interpolate for smooth tracking
+			LeftHandTargetTransform = UKismetMathLibrary::TInterpTo(
+				LeftHandTargetTransform,
+				ComponentSpaceTransform,
+				DeltaSeconds,
+				LeftHandSocketInterpSpeed
+			);
+
+			bHasLeftHandTarget = true;
+		}
+		else
+		{
+			bHasLeftHandTarget = false;
+			LeftHandTargetTransform = FTransform::Identity;
+		}
+	}
+	else
+	{
+		bHasLeftHandTarget = false;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// FALLBACK: LH_Target socket (старый подход для совместимости)
+	// ═══════════════════════════════════════════════════════════════════════════════
 	FVector TargetLocation = FVector::ZeroVector;
 	FRotator TargetRotation = FRotator::ZeroRotator;
 	bool bFoundSocket = false;
 
-	// Try skeletal mesh first
 	if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
 	{
 		if (WeaponMesh->DoesSocketExist(LHTargetSocketName))
@@ -414,7 +462,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 		}
 	}
 
-	// Fallback to static mesh
 	if (!bFoundSocket)
 	{
 		if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
@@ -431,7 +478,6 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 
 	if (bFoundSocket)
 	{
-		// Interpolate for smooth, stable tracking (no jitter)
 		LeftHandSocketLocation = FMath::VInterpTo(LeftHandSocketLocation, TargetLocation, DeltaSeconds, LeftHandSocketInterpSpeed);
 		LeftHandSocketRotation = FMath::RInterpTo(LeftHandSocketRotation, TargetRotation, DeltaSeconds, LeftHandSocketInterpSpeed);
 		bHasLeftHandSocket = true;
@@ -442,6 +488,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 	}
 #else
 	bHasLeftHandSocket = false;
+	bHasLeftHandTarget = false;
 #endif
 }
 

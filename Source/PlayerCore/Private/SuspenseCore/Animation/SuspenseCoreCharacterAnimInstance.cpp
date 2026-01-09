@@ -276,6 +276,17 @@ void USuspenseCoreCharacterAnimInstance::UpdateWeaponData(float DeltaSeconds)
 
 void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 {
+	// Debug: Log every frame when weapon type changes
+	static FGameplayTag LastLoggedType;
+	if (CurrentWeaponType != LastLoggedType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] UpdateAnimationAssets: WeaponType=%s, HasWeapon=%s, IsDrawn=%s"),
+			*CurrentWeaponType.ToString(),
+			bHasWeaponEquipped ? TEXT("YES") : TEXT("NO"),
+			bIsWeaponDrawn ? TEXT("YES") : TEXT("NO"));
+		LastLoggedType = CurrentWeaponType;
+	}
+
 	if (!bHasWeaponEquipped || !CurrentWeaponType.IsValid())
 	{
 		CurrentAnimationData = FSuspenseCoreAnimationData();
@@ -285,7 +296,18 @@ void USuspenseCoreCharacterAnimInstance::UpdateAnimationAssets()
 	const FSuspenseCoreAnimationData* AnimData = GetAnimationDataForWeaponType(CurrentWeaponType);
 	if (!AnimData)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationDataForWeaponType returned NULL for: %s"), *CurrentWeaponType.ToString());
 		return;
+	}
+
+	// Log when animation data is loaded
+	static FGameplayTag LastLoadedType;
+	if (CurrentWeaponType != LastLoadedType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AnimInstance] Animation data loaded: Stance=%s, Locomotion=%s"),
+			AnimData->Stance ? TEXT("VALID") : TEXT("NULL"),
+			AnimData->Locomotion ? TEXT("VALID") : TEXT("NULL"));
+		LastLoadedType = CurrentWeaponType;
 	}
 
 	CurrentAnimationData = *AnimData;
@@ -711,7 +733,13 @@ void USuspenseCoreCharacterAnimInstance::LoadWeaponAnimationsTable()
 
 const FSuspenseCoreAnimationData* USuspenseCoreCharacterAnimInstance::GetAnimationDataForWeaponType(const FGameplayTag& WeaponType) const
 {
-	if (!WeaponAnimationsTable || !WeaponType.IsValid())
+	if (!WeaponAnimationsTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationData FAIL: WeaponAnimationsTable is NULL! Check Project Settings -> SuspenseCore -> WeaponAnimationsTable"));
+		return nullptr;
+	}
+
+	if (!WeaponType.IsValid())
 	{
 		return nullptr;
 	}
@@ -720,16 +748,25 @@ const FSuspenseCoreAnimationData* USuspenseCoreCharacterAnimInstance::GetAnimati
 	const UScriptStruct* RowStruct = WeaponAnimationsTable->GetRowStruct();
 	if (!RowStruct || RowStruct != FSuspenseCoreAnimationData::StaticStruct())
 	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationData FAIL: DataTable row struct mismatch! Expected FSuspenseCoreAnimationData"));
 		return nullptr;
 	}
 
 	const FName RowName = FSuspenseCoreAnimationHelpers::GetRowNameFromWeaponArchetype(WeaponType);
 	if (RowName == NAME_None)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationData FAIL: GetRowNameFromWeaponArchetype returned None for: %s"), *WeaponType.ToString());
 		return nullptr;
 	}
 
-	return WeaponAnimationsTable->FindRow<FSuspenseCoreAnimationData>(RowName, TEXT("GetAnimationDataForWeaponType"));
+	const FSuspenseCoreAnimationData* Result = WeaponAnimationsTable->FindRow<FSuspenseCoreAnimationData>(RowName, TEXT("GetAnimationDataForWeaponType"));
+	if (!Result)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AnimInstance] GetAnimationData FAIL: Row '%s' not found in DataTable for WeaponType: %s"),
+			*RowName.ToString(), *WeaponType.ToString());
+	}
+
+	return Result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

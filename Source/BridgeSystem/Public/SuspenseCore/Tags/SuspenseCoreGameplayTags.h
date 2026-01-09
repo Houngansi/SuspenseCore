@@ -376,6 +376,24 @@ namespace SuspenseCoreTags
 	}
 
 	//==================================================================
+	// WEAPON FIRE MODE TAGS
+	// Used for fire mode selection (Auto, Semi, Burst, etc.)
+	//==================================================================
+	namespace Weapon
+	{
+		namespace FireMode
+		{
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Auto);      // Fully automatic
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Semi);      // Semi-automatic (single shot)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Single);    // Alias for Semi (Tarkov-style)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burst);     // Burst fire (3-round, etc.)
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burst2);    // 2-round burst
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Burst3);    // 3-round burst
+			BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Safe);      // Safety on
+		}
+	}
+
+	//==================================================================
 	// DATA TAGS (SetByCaller)
 	//==================================================================
 	namespace Data

@@ -32,6 +32,58 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAmmoCounterWidget, Log, All);
 
+//==================================================================
+// Helper: Convert fire mode string to native GameplayTag
+// CRITICAL: Always use native tags, never RequestGameplayTag for known tags
+//==================================================================
+namespace
+{
+	FGameplayTag GetFireModeTagFromString(const FString& FireModeStr)
+	{
+		// Map common fire mode strings to native tags
+		// This avoids RequestGameplayTag() runtime lookup
+		if (FireModeStr.Equals(TEXT("Auto"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Auto"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Auto;
+		}
+		if (FireModeStr.Equals(TEXT("Semi"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Semi"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Semi;
+		}
+		if (FireModeStr.Equals(TEXT("Single"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Single"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Single;
+		}
+		if (FireModeStr.Equals(TEXT("Burst"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Burst"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Burst;
+		}
+		if (FireModeStr.Equals(TEXT("Burst2"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Burst2"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Burst2;
+		}
+		if (FireModeStr.Equals(TEXT("Burst3"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Burst3"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Burst3;
+		}
+		if (FireModeStr.Equals(TEXT("Safe"), ESearchCase::IgnoreCase) ||
+			FireModeStr.Equals(TEXT("Weapon.FireMode.Safe"), ESearchCase::IgnoreCase))
+		{
+			return SuspenseCoreTags::Weapon::FireMode::Safe;
+		}
+
+		// Unknown fire mode - return invalid tag
+		UE_LOG(LogAmmoCounterWidget, Warning, TEXT("Unknown fire mode string: %s"), *FireModeStr);
+		return FGameplayTag();
+	}
+}
+
 USuspenseCoreAmmoCounterWidget::USuspenseCoreAmmoCounterWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -507,11 +559,12 @@ void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTa
 
 	FString FireModeStr = EventData.GetString(TEXT("FireMode"));
 
-	// Get fire mode tag from string (GetTag doesn't exist, use FGameplayTag::RequestGameplayTag)
+	// Get fire mode tag using native tag mapping
+	// CRITICAL: Use helper function instead of RequestGameplayTag() per project architecture
 	FString FireModeTagStr = EventData.GetString(TEXT("FireModeTag"));
 	FGameplayTag FireModeTag = FireModeTagStr.IsEmpty()
-		? FGameplayTag()
-		: FGameplayTag::RequestGameplayTag(FName(*FireModeTagStr), false);
+		? GetFireModeTagFromString(FireModeStr)   // Fallback to display name if tag string not provided
+		: GetFireModeTagFromString(FireModeTagStr);
 
 	CachedAmmoData.FireModeTag = FireModeTag;
 	CachedAmmoData.FireModeText = FText::FromString(FireModeStr);

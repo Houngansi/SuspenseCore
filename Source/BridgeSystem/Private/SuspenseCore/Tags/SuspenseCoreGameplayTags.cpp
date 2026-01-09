@@ -354,6 +354,24 @@ namespace SuspenseCoreTags
 	}
 
 	//==================================================================
+	//==================================================================
+	// WEAPON FIRE MODE TAGS
+	//==================================================================
+	namespace Weapon
+	{
+		namespace FireMode
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Auto, "Weapon.FireMode.Auto");
+			UE_DEFINE_GAMEPLAY_TAG(Semi, "Weapon.FireMode.Semi");
+			UE_DEFINE_GAMEPLAY_TAG(Single, "Weapon.FireMode.Single");
+			UE_DEFINE_GAMEPLAY_TAG(Burst, "Weapon.FireMode.Burst");
+			UE_DEFINE_GAMEPLAY_TAG(Burst2, "Weapon.FireMode.Burst2");
+			UE_DEFINE_GAMEPLAY_TAG(Burst3, "Weapon.FireMode.Burst3");
+			UE_DEFINE_GAMEPLAY_TAG(Safe, "Weapon.FireMode.Safe");
+		}
+	}
+
+	//==================================================================
 	// DATA TAGS
 	//==================================================================
 	namespace Data

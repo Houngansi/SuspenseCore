@@ -11,6 +11,7 @@
 #include "GameplayEffect.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCoreItemDataTable.generated.h"
 
 // Forward declarations
@@ -233,7 +234,8 @@ struct BRIDGESYSTEM_API FWeaponFireModeData
     
     FWeaponFireModeData()
     {
-        FireModeTag = FGameplayTag::RequestGameplayTag(FName("Weapon.FireMode.Single"));
+        // CRITICAL: Use native tags, never RequestGameplayTag()
+        FireModeTag = SuspenseCoreTags::Weapon::FireMode::Single;
         DisplayName = FText::FromString(TEXT("Single"));
     }
 };

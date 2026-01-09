@@ -380,19 +380,19 @@ void USuspenseCoreCharacterAnimInstance::UpdateIKData(float DeltaSeconds)
 	if (bRHIsIdentity) RightHandIKAlpha = 0.0f;
 	if (bLHIsIdentity) LeftHandIKAlpha = 0.0f;
 
-	// Debug logging
-	if (bShouldLogIK && bHasWeaponEquipped)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LH_IK] UpdateIKData: TargetAlpha=%.2f, LH_Alpha=%.2f, bLHIsIdentity=%s"),
-			TargetIKAlpha, LeftHandIKAlpha, bLHIsIdentity ? TEXT("YES") : TEXT("NO"));
-		UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   LeftHandIKTransform: Loc=%s, Rot=%s"),
-			*LeftHandIKTransform.GetLocation().ToString(),
-			*LeftHandIKTransform.GetRotation().Rotator().ToString());
-		UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   bHasLeftHandSocket=%s, LeftHandSocketLocation=%s"),
-			bHasLeftHandSocket ? TEXT("YES") : TEXT("NO"),
-			*LeftHandSocketLocation.ToString());
-		LastIKLogTime = CurrentTime;
-	}
+	// Debug logging disabled - uncomment for IK debugging
+	// if (bShouldLogIK && bHasWeaponEquipped)
+	// {
+	// 	UE_LOG(LogTemp, Warning, TEXT("[LH_IK] UpdateIKData: TargetAlpha=%.2f, LH_Alpha=%.2f, bLHIsIdentity=%s"),
+	// 		TargetIKAlpha, LeftHandIKAlpha, bLHIsIdentity ? TEXT("YES") : TEXT("NO"));
+	// 	UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   LeftHandIKTransform: Loc=%s, Rot=%s"),
+	// 		*LeftHandIKTransform.GetLocation().ToString(),
+	// 		*LeftHandIKTransform.GetRotation().Rotator().ToString());
+	// 	UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   bHasLeftHandSocket=%s, LeftHandSocketLocation=%s"),
+	// 		bHasLeftHandSocket ? TEXT("YES") : TEXT("NO"),
+	// 		*LeftHandSocketLocation.ToString());
+	// 	LastIKLogTime = CurrentTime;
+	// }
 }
 
 void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds)
@@ -511,30 +511,14 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& OutTransform) const
 {
 	// Debug logging (throttled)
-	static double LastTransformLogTime = 0.0;
-	const double CurrentTime = FPlatformTime::Seconds();
-	const bool bShouldLog = (CurrentTime - LastTransformLogTime) > 1.0;
-
 	if (!CachedWeaponActor.IsValid() || !CachedCharacter.IsValid())
 	{
-		if (bShouldLog)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[LH_IK] GetWeaponLHTargetTransform: FAILED - CachedWeapon=%s, CachedChar=%s"),
-				CachedWeaponActor.IsValid() ? TEXT("Valid") : TEXT("INVALID"),
-				CachedCharacter.IsValid() ? TEXT("Valid") : TEXT("INVALID"));
-			LastTransformLogTime = CurrentTime;
-		}
 		return false;
 	}
 
 	USkeletalMeshComponent* CharacterMesh = CachedCharacter->GetMesh();
 	if (!CharacterMesh)
 	{
-		if (bShouldLog)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[LH_IK] GetWeaponLHTargetTransform: FAILED - CharacterMesh is NULL"));
-			LastTransformLogTime = CurrentTime;
-		}
 		return false;
 	}
 
@@ -547,13 +531,6 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		{
 			const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
 			OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
-
-			if (bShouldLog)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[LH_IK] GetWeaponLHTargetTransform: SUCCESS! RelativeTransform: Loc=%s"),
-					*OutTransform.GetLocation().ToString());
-				LastTransformLogTime = CurrentTime;
-			}
 			return true;
 		}
 	}
@@ -565,22 +542,8 @@ bool USuspenseCoreCharacterAnimInstance::GetWeaponLHTargetTransform(FTransform& 
 		{
 			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
 			OutTransform = SocketWorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
-
-			if (bShouldLog)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[LH_IK] GetWeaponLHTargetTransform: SUCCESS (StaticMesh)! RelativeTransform: Loc=%s"),
-					*OutTransform.GetLocation().ToString());
-				LastTransformLogTime = CurrentTime;
-			}
 			return true;
 		}
-	}
-
-	if (bShouldLog)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LH_IK] GetWeaponLHTargetTransform: FAILED - Socket '%s' not found"),
-			*LHTargetSocketName.ToString());
-		LastTransformLogTime = CurrentTime;
 	}
 	return false;
 }

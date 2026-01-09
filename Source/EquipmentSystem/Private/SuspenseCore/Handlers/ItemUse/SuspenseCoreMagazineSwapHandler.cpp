@@ -5,8 +5,10 @@
 #include "SuspenseCore/Handlers/ItemUse/SuspenseCoreMagazineSwapHandler.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagazineSwapHandler, Log, All);
 
@@ -119,8 +121,9 @@ bool USuspenseCoreMagazineSwapHandler::ValidateRequest(
 		return false;
 	}
 
-	// Actor validation would check weapon compatibility here
-	// For now, we accept all valid magazines
+	// NOTE: Full caliber validation happens in MagazineComponent::SwapMagazineFromQuickSlot
+	// Here we do early validation only if we have the owner actor in the request
+	// This prevents unnecessary ability activation for incompatible magazines
 
 	return true;
 }
@@ -147,6 +150,43 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 	}
 
 	UObject* ProviderObject = Cast<UObject>(Provider);
+
+	// CRITICAL: Check magazine caliber compatibility BEFORE swap
+	// @see TarkovStyle_Ammo_System_Design.md - Caliber validation
+	FSuspenseCoreMagazineInstance NewMag;
+	if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(ProviderObject, Request.QuickSlotIndex, NewMag))
+	{
+		// Find MagazineProvider on weapon for compatibility check
+		if (OwnerActor)
+		{
+			TArray<UActorComponent*> Components;
+			OwnerActor->GetComponents(Components);
+
+			for (UActorComponent* Comp : Components)
+			{
+				if (Comp && Comp->Implements<USuspenseCoreMagazineProvider>())
+				{
+					const bool bCompatible = ISuspenseCoreMagazineProvider::Execute_IsMagazineCompatible(Comp, NewMag);
+					if (!bCompatible)
+					{
+						FGameplayTag WeaponCaliber = ISuspenseCoreMagazineProvider::Execute_GetWeaponCaliber(Comp);
+
+						HANDLER_LOG(Warning, TEXT("Execute: Magazine %s NOT compatible with weapon caliber %s"),
+							*NewMag.MagazineID.ToString(),
+							*WeaponCaliber.ToString());
+
+						return FSuspenseCoreItemUseResponse::Failure(
+							Request.RequestID,
+							ESuspenseCoreItemUseResult::Failed_IncompatibleItems,
+							FText::Format(
+								NSLOCTEXT("MagazineSwap", "IncompatibleCaliber", "Magazine caliber does not match weapon ({0})"),
+								FText::FromString(WeaponCaliber.ToString())));
+					}
+					break;
+				}
+			}
+		}
+	}
 
 	// Execute swap via QuickSlotProvider interface
 	bool bSuccess = ISuspenseCoreQuickSlotProvider::Execute_QuickSwapMagazine(

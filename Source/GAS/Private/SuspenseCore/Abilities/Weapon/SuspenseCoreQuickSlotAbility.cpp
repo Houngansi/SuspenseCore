@@ -4,6 +4,7 @@
 
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreQuickSlotAbility.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSuspenseCoreQuickSlotAbility, Log, All);
 
@@ -18,10 +19,11 @@ USuspenseCoreQuickSlotAbility::USuspenseCoreQuickSlotAbility()
     // Instant activation
     InstancingPolicy = EGameplayAbilityInstancingPolicy::NonInstanced;
 
-    // Blocking tags
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Disabled")));
+    // Blocking tags - use native tags per project architecture
+    // @see SuspenseCoreGameplayTags.h
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+    ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 
     // EventBus
     bPublishAbilityEvents = true;

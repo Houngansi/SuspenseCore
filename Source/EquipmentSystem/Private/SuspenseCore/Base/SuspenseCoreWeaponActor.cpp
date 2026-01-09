@@ -52,6 +52,11 @@ ASuspenseCoreWeaponActor::ASuspenseCoreWeaponActor()
     ScopeCam->bAutoActivate = false;  // Not active by default
     ScopeCam->SetFieldOfView(AimFOV);
 
+    // Left Hand Target - позиционируется в Blueprint для каждого оружия
+    // AnimBP использует для Two Bone IK левой руки
+    LeftHandTarget = CreateDefaultSubobject<USceneComponent>(TEXT("LeftHandTarget"));
+    LeftHandTarget->SetupAttachment(RootComponent);
+
     bReplicates = true;
     bNetUseOwnerRelevancy = true;
 }

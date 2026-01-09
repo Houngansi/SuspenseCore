@@ -599,6 +599,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Transforms", meta = (BlueprintThreadSafe))
 	TArray<FTransform> GetAllLHGripTransforms() const { return CurrentAnimationData.LHGripTransform; }
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// WEAPON ACTOR ACCESS (для AnimBP)
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	/** Получить текущий weapon actor (если экипирован) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Weapon")
+	AActor* GetCurrentWeaponActor() const { return CachedWeaponActor.Get(); }
+
+	/** Получить LeftHandTarget компонент с текущего оружия (если есть) */
+	UFUNCTION(BlueprintPure, Category = "Animation|Weapon")
+	USceneComponent* GetWeaponLeftHandTarget() const;
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CACHED REFERENCES

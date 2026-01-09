@@ -16,6 +16,7 @@
 #include "SuspenseCore/Components/SuspenseCoreWeaponStanceComponent.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponAnimation.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Base/SuspenseCoreWeaponActor.h"
 #endif
 
 const FName USuspenseCoreCharacterAnimInstance::LHTargetSocketName = TEXT("LH_Target");
@@ -903,4 +904,21 @@ UAnimMontage* USuspenseCoreCharacterAnimInstance::GetFireMontage(bool bAiming) c
 		return CurrentAnimationData.AimShoot;
 	}
 	return CurrentAnimationData.Shoot;
+}
+
+USceneComponent* USuspenseCoreCharacterAnimInstance::GetWeaponLeftHandTarget() const
+{
+#if WITH_EQUIPMENT_SYSTEM
+	if (!CachedWeaponActor.IsValid())
+	{
+		return nullptr;
+	}
+
+	// Cast to weapon actor and get LeftHandTarget component via getter
+	if (ASuspenseCoreWeaponActor* WeaponActor = Cast<ASuspenseCoreWeaponActor>(CachedWeaponActor.Get()))
+	{
+		return WeaponActor->GetLeftHandTarget();
+	}
+#endif
+	return nullptr;
 }

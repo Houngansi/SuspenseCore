@@ -290,18 +290,22 @@ public:
 	// ═══════════════════════════════════════════════════════════════════════════════
 
 	/**
-	 * World-space позиция сокета LH_Target на оружии.
+	 * World-space позиция сокета LH_Target на оружии (интерполированная).
 	 * Используй в AnimBP → Two Bone IK → Effector Location (World Space)
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
 	FVector LeftHandSocketLocation = FVector::ZeroVector;
 
 	/**
-	 * World-space rotation сокета LH_Target.
+	 * World-space rotation сокета LH_Target (интерполированный).
 	 * Используй для Joint Target Location если нужно контролировать локоть.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
 	FRotator LeftHandSocketRotation = FRotator::ZeroRotator;
+
+	/** Скорость интерполяции для Left Hand Socket (выше = быстрее, жёстче) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	float LeftHandSocketInterpSpeed = 25.0f;
 
 	/**
 	 * Есть ли валидный сокет LH_Target на текущем оружии?
@@ -628,7 +632,7 @@ protected:
 	void UpdateWeaponData(float DeltaSeconds);
 	void UpdateAnimationAssets();
 	void UpdateIKData(float DeltaSeconds);
-	void UpdateLeftHandSocket();
+	void UpdateLeftHandSocket(float DeltaSeconds);
 	void UpdateADSData(float DeltaSeconds);
 	void UpdateAimOffsetData(float DeltaSeconds);
 	void UpdatePoseStates(float DeltaSeconds);

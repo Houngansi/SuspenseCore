@@ -314,6 +314,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
 	bool bHasLeftHandSocket = false;
 
+	/**
+	 * Transform для левой руки в COMPONENT SPACE (готов для FABRIK).
+	 * Используй в AnimBP → FABRIK → Effector Transform
+	 * Настройки FABRIK: Effector Transform Space = Component Space
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	FTransform LeftHandTargetTransform = FTransform::Identity;
+
+	/**
+	 * Есть ли валидный LeftHandTarget компонент на оружии?
+	 * Используй для Alpha в FABRIK.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|IK|LeftHand")
+	bool bHasLeftHandTarget = false;
+
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// ADS (AIM DOWN SIGHT) - PROCEDURAL WEAPON TO HEAD
 	// Подтягивает Sight_Socket оружия к ADS_Target сокету на голове персонажа

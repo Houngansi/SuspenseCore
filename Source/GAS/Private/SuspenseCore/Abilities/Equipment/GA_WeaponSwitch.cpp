@@ -1,6 +1,18 @@
 // GA_WeaponSwitch.cpp
 // Weapon slot switching ability implementation
 // Copyright Suspense Team. All Rights Reserved.
+//
+// ARCHITECTURE:
+// - Uses ISuspenseCoreEquipmentDataProvider interface (BridgeSystem)
+// - No direct dependency on EquipmentSystem module
+// - EventBus integration for UI/Animation notifications
+// - Native tags for all blocking/ability tags (no RequestGameplayTag)
+//
+// PIPELINE:
+// 1. Input Key → GAS Activation via TryActivateAbilitiesByTag
+// 2. CanActivate: Check slot occupied && not already active && no blocking tags
+// 3. Activate: SetActiveWeaponSlot() → EventBus publish
+// 4. End (instant, future: montage wait)
 
 #include "SuspenseCore/Abilities/Equipment/GA_WeaponSwitch.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
@@ -11,6 +23,24 @@
 #include "GameFramework/Pawn.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWeaponSwitch, Log, All);
+
+//==================================================================
+// Helper: Add ability tag with deprecation pragma suppression
+// UE5.5+ deprecated direct AbilityTags access, but this is still
+// the correct way to set tags in constructor for C++ abilities.
+//==================================================================
+namespace
+{
+	void AddAbilityTagSafe(UGameplayAbility* Ability, const FGameplayTag& Tag)
+	{
+		if (Ability && Tag.IsValid())
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Ability->AbilityTags.AddTag(Tag);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+}
 
 //==================================================================
 // UGA_WeaponSwitch - Base Class
@@ -24,10 +54,12 @@ UGA_WeaponSwitch::UGA_WeaponSwitch()
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
 	// Blocking tags - cannot switch while in these states
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dead")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Stunned")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Disabled")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Reloading")));
+	// CRITICAL: Use native tags from SuspenseCoreTags::State namespace
+	// Never use RequestGameplayTag() for frequently-used tags
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
+	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Reloading);
 
 	// Enable EventBus integration
 	bPublishAbilityEvents = true;
@@ -196,6 +228,14 @@ ISuspenseCoreEquipmentDataProvider* UGA_WeaponSwitch::GetEquipmentDataProvider()
 
 //==================================================================
 // Concrete Weapon Slot Abilities
+//
+// Each ability targets a specific weapon slot (0-3):
+// - Primary (Key 1)   → Slot 0 (PrimaryWeapon)
+// - Secondary (Key 2) → Slot 1 (SecondaryWeapon)
+// - Sidearm (Key 3)   → Slot 2 (Holster/Pistol)
+// - Melee (Key V)     → Slot 3 (Scabbard/Knife)
+//
+// Ability tags enable activation via TryActivateAbilitiesByTag
 //==================================================================
 
 UGA_WeaponSwitch_Primary::UGA_WeaponSwitch_Primary()
@@ -204,9 +244,8 @@ UGA_WeaponSwitch_Primary::UGA_WeaponSwitch_Primary()
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot1;
 
 	// Set ability tag for input binding via TryActivateAbilitiesByTag
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Primary);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	// Using helper to suppress UE5.5+ deprecation warnings cleanly
+	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Primary);
 }
 
 UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
@@ -214,9 +253,7 @@ UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
 	TargetSlotIndex = 1;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot2;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Secondary);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Secondary);
 }
 
 UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
@@ -224,9 +261,7 @@ UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
 	TargetSlotIndex = 2;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot3;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
 }
 
 UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
@@ -234,7 +269,5 @@ UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
 	TargetSlotIndex = 3;
 	AbilityInputID = ESuspenseCoreAbilityInputID::MeleeWeapon;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Melee);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	AddAbilityTagSafe(this, SuspenseCoreTags::Ability::WeaponSlot::Melee);
 }

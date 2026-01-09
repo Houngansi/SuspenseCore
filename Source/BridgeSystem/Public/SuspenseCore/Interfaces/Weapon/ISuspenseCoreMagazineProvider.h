@@ -91,4 +91,28 @@ public:
     /** Notify reload state changed (for events) */
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Magazine|Reload")
     void NotifyReloadStateChanged(bool bIsReloading, ESuspenseCoreReloadType ReloadType, float Duration);
+
+    //==================================================================
+    // Compatibility Checks
+    //==================================================================
+
+    /**
+     * Check if a magazine is compatible with the current weapon's caliber
+     * Uses SSOT DataManager to lookup magazine caliber and compare with weapon's AmmoType
+     *
+     * @param Magazine Magazine instance to check
+     * @return true if magazine caliber matches weapon caliber
+     * @see TarkovStyle_Ammo_System_Design.md - Caliber validation
+     */
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Magazine|Compatibility")
+    bool IsMagazineCompatible(const FSuspenseCoreMagazineInstance& Magazine) const;
+
+    /**
+     * Get the weapon's caliber/ammo type tag
+     * Used for UI display and external compatibility checks
+     *
+     * @return Weapon's AmmoType tag (e.g., Item.Ammo.556x45)
+     */
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Magazine|Compatibility")
+    FGameplayTag GetWeaponCaliber() const;
 };

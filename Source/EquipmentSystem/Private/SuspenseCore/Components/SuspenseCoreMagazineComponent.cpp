@@ -876,6 +876,55 @@ void USuspenseCoreMagazineComponent::NotifyReloadStateChanged_Implementation(boo
     OnReloadStateChanged.Broadcast(bInIsReloading, ReloadType);
 }
 
+bool USuspenseCoreMagazineComponent::IsMagazineCompatible_Implementation(const FSuspenseCoreMagazineInstance& Magazine) const
+{
+    // If no weapon caliber cached, allow (permissive fallback)
+    if (!CachedWeaponCaliber.IsValid())
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("IsMagazineCompatible: No weapon caliber cached, allowing by default"));
+        return true;
+    }
+
+    // If magazine ID is none, not valid
+    if (Magazine.MagazineID.IsNone())
+    {
+        return false;
+    }
+
+    // Query DataManager for magazine data
+    USuspenseCoreDataManager* DataManager = GetDataManager();
+    if (!DataManager)
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("IsMagazineCompatible: No DataManager, allowing by default"));
+        return true;
+    }
+
+    FSuspenseCoreMagazineData MagData;
+    if (!DataManager->GetMagazineData(Magazine.MagazineID, MagData))
+    {
+        UE_LOG(LogMagazineComponent, Warning, TEXT("IsMagazineCompatible: No data for magazine %s"), *Magazine.MagazineID.ToString());
+        return false;
+    }
+
+    // Check caliber compatibility using SSOT magazine data
+    const bool bCompatible = MagData.IsCompatibleWithCaliber(CachedWeaponCaliber);
+
+    if (!bCompatible)
+    {
+        UE_LOG(LogMagazineComponent, Log, TEXT("IsMagazineCompatible: Magazine %s (caliber: %s) NOT compatible with weapon caliber %s"),
+            *Magazine.MagazineID.ToString(),
+            *MagData.Caliber.ToString(),
+            *CachedWeaponCaliber.ToString());
+    }
+
+    return bCompatible;
+}
+
+FGameplayTag USuspenseCoreMagazineComponent::GetWeaponCaliber_Implementation() const
+{
+    return CachedWeaponCaliber;
+}
+
 //================================================
 // Internal Operations
 //================================================

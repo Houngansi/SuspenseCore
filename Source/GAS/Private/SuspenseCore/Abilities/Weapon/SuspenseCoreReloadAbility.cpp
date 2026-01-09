@@ -305,30 +305,48 @@ UAnimMontage* USuspenseCoreReloadAbility::GetMontageForReloadType(ESuspenseCoreR
 
 bool USuspenseCoreReloadAbility::FindBestMagazine(int32& OutQuickSlotIndex, FSuspenseCoreMagazineInstance& OutMagazine) const
 {
+    // Get MagazineProvider for compatibility checking
+    ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
+    UObject* MagProviderObj = MagProvider ? Cast<UObject>(MagProvider) : nullptr;
+
     // First, try QuickSlots via interface
     ISuspenseCoreQuickSlotProvider* QuickSlotProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetQuickSlotProvider();
     if (QuickSlotProvider)
     {
         UObject* ProviderObj = Cast<UObject>(QuickSlotProvider);
 
-        // Look for first available magazine with ammo
+        // Look for first available COMPATIBLE magazine with ammo
+        // CRITICAL: Check caliber compatibility per TarkovStyle_Ammo_System_Design.md
         for (int32 i = 0; i < 4; ++i)
         {
             FSuspenseCoreMagazineInstance Mag;
             if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(ProviderObj, i, Mag) && Mag.HasAmmo())
             {
+                // Check if magazine is compatible with weapon caliber
+                if (MagProviderObj)
+                {
+                    const bool bCompatible = ISuspenseCoreMagazineProvider::Execute_IsMagazineCompatible(MagProviderObj, Mag);
+                    if (!bCompatible)
+                    {
+                        RELOAD_LOG(Verbose, TEXT("Magazine in QuickSlot %d (%s) not compatible with weapon caliber, skipping"),
+                            i, *Mag.MagazineID.ToString());
+                        continue;  // Skip incompatible magazines
+                    }
+                }
+
                 OutQuickSlotIndex = i;
                 OutMagazine = Mag;
-                RELOAD_LOG(Verbose, TEXT("Found magazine in QuickSlot %d: %d rounds"), i, Mag.CurrentRoundCount);
+                RELOAD_LOG(Verbose, TEXT("Found compatible magazine in QuickSlot %d: %s, %d rounds"),
+                    i, *Mag.MagazineID.ToString(), Mag.CurrentRoundCount);
                 return true;
             }
         }
     }
 
-    // TODO: Fall back to inventory search
+    // TODO: Fall back to inventory search (with same compatibility check)
     OutQuickSlotIndex = -1;
 
-    RELOAD_LOG(Verbose, TEXT("No suitable magazine found"));
+    RELOAD_LOG(Verbose, TEXT("No suitable compatible magazine found"));
     return false;
 }
 

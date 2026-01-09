@@ -626,6 +626,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Weapon")
 	USceneComponent* GetWeaponLeftHandTarget() const;
 
+	/**
+	 * Получить Transform левой руки в Component Space ПРЯМО СЕЙЧАС.
+	 * Вызывай из AnimGraph для актуальных данных текущего кадра!
+	 * BlueprintThreadSafe - можно вызывать из AnimGraph.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Animation|Weapon", meta = (BlueprintThreadSafe))
+	FTransform GetLeftHandTargetTransformNow() const;
+
+	/**
+	 * Проверить есть ли валидный LeftHandTarget ПРЯМО СЕЙЧАС.
+	 * BlueprintThreadSafe - можно вызывать из AnimGraph.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Animation|Weapon", meta = (BlueprintThreadSafe))
+	bool HasLeftHandTargetNow() const;
+
 protected:
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// CACHED REFERENCES

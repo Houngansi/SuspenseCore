@@ -1000,3 +1000,45 @@ USceneComponent* USuspenseCoreCharacterAnimInstance::GetWeaponLeftHandTarget() c
 #endif
 	return nullptr;
 }
+
+FTransform USuspenseCoreCharacterAnimInstance::GetLeftHandTargetTransformNow() const
+{
+#if WITH_EQUIPMENT_SYSTEM
+	// Get owning skeletal mesh component (character's mesh)
+	USkeletalMeshComponent* OwningMesh = GetOwningComponent();
+	if (!OwningMesh)
+	{
+		return FTransform::Identity;
+	}
+
+	// Get LeftHandTarget component from weapon
+	USceneComponent* LHTarget = GetWeaponLeftHandTarget();
+	if (!LHTarget)
+	{
+		return FTransform::Identity;
+	}
+
+	// Get CURRENT world transform of LeftHandTarget (актуальные данные этого кадра!)
+	const FTransform WorldTransform = LHTarget->GetComponentTransform();
+
+	// Convert to Component Space (relative to character mesh)
+	return WorldTransform.GetRelativeTransform(OwningMesh->GetComponentTransform());
+#else
+	return FTransform::Identity;
+#endif
+}
+
+bool USuspenseCoreCharacterAnimInstance::HasLeftHandTargetNow() const
+{
+#if WITH_EQUIPMENT_SYSTEM
+	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
+	{
+		return false;
+	}
+
+	USceneComponent* LHTarget = GetWeaponLeftHandTarget();
+	return LHTarget != nullptr;
+#else
+	return false;
+#endif
+}

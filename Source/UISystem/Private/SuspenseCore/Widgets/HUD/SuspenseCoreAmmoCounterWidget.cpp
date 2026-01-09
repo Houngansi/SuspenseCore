@@ -23,6 +23,7 @@
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
+#include "SuspenseCore/Data/SuspenseCoreDataManager.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
@@ -685,49 +686,82 @@ void USuspenseCoreAmmoCounterWidget::UpdateWeaponUI()
 		return;
 	}
 
-	// Get weapon data from ISuspenseCoreWeapon interface
+	FSuspenseCoreUnifiedItemData WeaponData;
+	bool bDataFound = false;
+
+	// Strategy 1: Try to get cached data from weapon actor interface
 	if (WeaponActor->Implements<USuspenseCoreWeapon>())
 	{
-		FSuspenseCoreUnifiedItemData WeaponData;
-		if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponActor, WeaponData))
+		bDataFound = ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponActor, WeaponData);
+
+		if (!bDataFound)
 		{
-			// Update weapon name
-			if (WeaponNameText)
-			{
-				WeaponNameText->SetText(WeaponData.DisplayName);
-			}
+			// Strategy 2: Weapon cache not ready yet - query DataManager directly (SSOT)
+			// This happens when UI initializes before weapon's OnItemInstanceEquipped completes
+			FSuspenseCoreInventoryItemInstance ItemInstance = ISuspenseCoreWeapon::Execute_GetItemInstance(WeaponActor);
 
-			// Update weapon icon
-			if (WeaponIcon)
+			if (!ItemInstance.ItemID.IsNone())
 			{
-				WeaponIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-				// Load icon texture if path is valid
-				// CRITICAL: Field is 'Icon' (TSoftObjectPtr<UTexture2D>), not 'IconTexturePath'
-				if (!WeaponData.Icon.IsNull())
+				if (USuspenseCoreDataManager* DataManager = USuspenseCoreDataManager::Get(this))
 				{
-					UTexture2D* IconTexture = WeaponData.Icon.LoadSynchronous();
-					if (IconTexture)
-					{
-						WeaponIcon->SetBrushFromTexture(IconTexture);
+					bDataFound = DataManager->GetUnifiedItemData(ItemInstance.ItemID, WeaponData);
 
-						UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Updated weapon icon: %s"),
-							*WeaponData.Icon.ToString());
+					if (bDataFound)
+					{
+						UE_LOG(LogAmmoCounterWidget, Log, TEXT("UpdateWeaponUI: Using DataManager fallback for %s"),
+							*ItemInstance.ItemID.ToString());
 					}
 				}
 			}
-
-			UE_LOG(LogAmmoCounterWidget, Log, TEXT("Updated weapon UI: %s"),
-				*WeaponData.DisplayName.ToString());
 		}
+	}
+
+	if (bDataFound)
+	{
+		// Update weapon name
+		if (WeaponNameText)
+		{
+			WeaponNameText->SetText(WeaponData.DisplayName);
+		}
+
+		// Update weapon icon
+		if (WeaponIcon)
+		{
+			WeaponIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+			// Load icon texture if path is valid
+			// CRITICAL: Field is 'Icon' (TSoftObjectPtr<UTexture2D>), not 'IconTexturePath'
+			if (!WeaponData.Icon.IsNull())
+			{
+				UTexture2D* IconTexture = WeaponData.Icon.LoadSynchronous();
+				if (IconTexture)
+				{
+					WeaponIcon->SetBrushFromTexture(IconTexture);
+
+					UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Updated weapon icon: %s"),
+						*WeaponData.Icon.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogAmmoCounterWidget, Warning, TEXT("UpdateWeaponUI: No icon for weapon %s"),
+					*WeaponData.ItemID.ToString());
+			}
+		}
+
+		UE_LOG(LogAmmoCounterWidget, Log, TEXT("Updated weapon UI: %s"),
+			*WeaponData.DisplayName.ToString());
 	}
 	else
 	{
-		// Weapon doesn't implement interface - use actor name as fallback
+		// No data found - use actor name as fallback
 		if (WeaponNameText)
 		{
 			WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
 		}
+
+		UE_LOG(LogAmmoCounterWidget, Warning, TEXT("UpdateWeaponUI: No weapon data found for actor %s"),
+			*WeaponActor->GetName());
 	}
 }
 

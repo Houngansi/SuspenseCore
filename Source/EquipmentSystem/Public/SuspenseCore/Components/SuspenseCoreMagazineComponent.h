@@ -352,6 +352,8 @@ protected:
     virtual ESuspenseCoreReloadType DetermineReloadType_Implementation() const override;
     virtual float CalculateReloadDuration_Implementation(ESuspenseCoreReloadType ReloadType, const FSuspenseCoreMagazineInstance& NewMagazine) const override;
     virtual void NotifyReloadStateChanged_Implementation(bool bInIsReloading, ESuspenseCoreReloadType ReloadType, float Duration) override;
+    virtual bool IsMagazineCompatible_Implementation(const FSuspenseCoreMagazineInstance& Magazine) const override;
+    virtual FGameplayTag GetWeaponCaliber_Implementation() const override;
 
     //================================================
     // Internal Operations

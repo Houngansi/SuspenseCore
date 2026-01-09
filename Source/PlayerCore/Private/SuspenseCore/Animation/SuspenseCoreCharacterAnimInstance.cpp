@@ -361,9 +361,21 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
 	// В AnimBP: Two Bone IK → Effector Location = LeftHandSocketLocation (World Space)
 	// ═══════════════════════════════════════════════════════════════════════════════
 
+	// Debug logging (throttled - once per second)
+	static double LastLogTime = 0.0;
+	const double CurrentTime = FPlatformTime::Seconds();
+	const bool bShouldLog = (CurrentTime - LastLogTime) > 1.0;
+
 	// Reset if no weapon
 	if (!bHasWeaponEquipped || !bIsWeaponDrawn)
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[LH_IK] UpdateLeftHandSocket: No weapon equipped/drawn. bHasWeapon=%s, bIsDrawn=%s"),
+				bHasWeaponEquipped ? TEXT("YES") : TEXT("NO"),
+				bIsWeaponDrawn ? TEXT("YES") : TEXT("NO"));
+			LastLogTime = CurrentTime;
+		}
 		bHasLeftHandSocket = false;
 		LeftHandSocketLocation = FVector::ZeroVector;
 		LeftHandSocketRotation = FRotator::ZeroRotator;
@@ -373,21 +385,45 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
 #if WITH_EQUIPMENT_SYSTEM
 	if (!CachedWeaponActor.IsValid())
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[LH_IK] UpdateLeftHandSocket: CachedWeaponActor is INVALID!"));
+			LastLogTime = CurrentTime;
+		}
 		bHasLeftHandSocket = false;
 		return;
 	}
 
 	AActor* WeaponActor = CachedWeaponActor.Get();
+	if (bShouldLog)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LH_IK] UpdateLeftHandSocket: WeaponActor=%s, Looking for socket '%s'"),
+			*GetNameSafe(WeaponActor), *LHTargetSocketName.ToString());
+	}
 
 	// Try skeletal mesh first
 	if (USkeletalMeshComponent* WeaponMesh = WeaponActor->FindComponentByClass<USkeletalMeshComponent>())
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   Found SkeletalMeshComponent, DoesSocketExist('%s') = %s"),
+				*LHTargetSocketName.ToString(),
+				WeaponMesh->DoesSocketExist(LHTargetSocketName) ? TEXT("YES") : TEXT("NO"));
+		}
+
 		if (WeaponMesh->DoesSocketExist(LHTargetSocketName))
 		{
 			const FTransform SocketWorldTransform = WeaponMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
 			LeftHandSocketLocation = SocketWorldTransform.GetLocation();
 			LeftHandSocketRotation = SocketWorldTransform.GetRotation().Rotator();
 			bHasLeftHandSocket = true;
+
+			if (bShouldLog)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   SUCCESS! Socket Location: %s, Rotation: %s"),
+					*LeftHandSocketLocation.ToString(), *LeftHandSocketRotation.ToString());
+				LastLogTime = CurrentTime;
+			}
 			return;
 		}
 	}
@@ -395,17 +431,37 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket()
 	// Fallback to static mesh
 	if (UStaticMeshComponent* StaticMesh = WeaponActor->FindComponentByClass<UStaticMeshComponent>())
 	{
+		if (bShouldLog)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   Found StaticMeshComponent, DoesSocketExist('%s') = %s"),
+				*LHTargetSocketName.ToString(),
+				StaticMesh->DoesSocketExist(LHTargetSocketName) ? TEXT("YES") : TEXT("NO"));
+		}
+
 		if (StaticMesh->DoesSocketExist(LHTargetSocketName))
 		{
 			const FTransform SocketWorldTransform = StaticMesh->GetSocketTransform(LHTargetSocketName, RTS_World);
 			LeftHandSocketLocation = SocketWorldTransform.GetLocation();
 			LeftHandSocketRotation = SocketWorldTransform.GetRotation().Rotator();
 			bHasLeftHandSocket = true;
+
+			if (bShouldLog)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[LH_IK]   SUCCESS! Socket Location: %s, Rotation: %s"),
+					*LeftHandSocketLocation.ToString(), *LeftHandSocketRotation.ToString());
+				LastLogTime = CurrentTime;
+			}
 			return;
 		}
 	}
 
 	// Socket not found
+	if (bShouldLog)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[LH_IK] UpdateLeftHandSocket: Socket '%s' NOT FOUND on weapon '%s'!"),
+			*LHTargetSocketName.ToString(), *GetNameSafe(WeaponActor));
+		LastLogTime = CurrentTime;
+	}
 	bHasLeftHandSocket = false;
 #else
 	bHasLeftHandSocket = false;
@@ -460,36 +516,7 @@ FTransform USuspenseCoreCharacterAnimInstance::ComputeLHOffsetTransform() const
 		return FTransform::Identity;
 	}
 
-	// PRIORITY 1: LHGripTransform from DataTable (SSOT)
-	if (CurrentAnimationData.LHGripTransform.Num() > 0)
-	{
-		const int32 GripIndex = FMath::Clamp(GripID, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-		FTransform BaseGrip = CurrentAnimationData.LHGripTransform[GripIndex];
-
-		const bool bHasValidGripData = !BaseGrip.GetLocation().IsNearlyZero(0.01f) ||
-		                               !BaseGrip.GetRotation().IsIdentity(0.001f) ||
-		                               !BaseGrip.GetScale3D().Equals(FVector::OneVector, 0.01f);
-
-		if (bHasValidGripData)
-		{
-			// Blend to aim grip if aiming
-			if (bIsAiming && CurrentAnimationData.LHGripTransform.Num() > 1)
-			{
-				const int32 AimGripIndex = FMath::Clamp((AimPose > 0) ? AimPose : 1, 0, CurrentAnimationData.LHGripTransform.Num() - 1);
-				BaseGrip = UKismetMathLibrary::TLerp(BaseGrip, CurrentAnimationData.LHGripTransform[AimGripIndex], AimingAlpha);
-			}
-			return BaseGrip;
-		}
-	}
-
-	// PRIORITY 2: LHTransform from DataTable (single transform)
-	if (!CurrentAnimationData.LHTransform.GetLocation().IsNearlyZero(0.01f) ||
-	    !CurrentAnimationData.LHTransform.GetRotation().IsIdentity(0.001f))
-	{
-		return CurrentAnimationData.LHTransform;
-	}
-
-	// PRIORITY 3: Socket transform from weapon (LH_Target socket)
+	// Socket transform from weapon (LH_Target socket) - единственный источник данных
 	FTransform SocketTransform;
 	if (GetWeaponLHTargetTransform(SocketTransform))
 	{

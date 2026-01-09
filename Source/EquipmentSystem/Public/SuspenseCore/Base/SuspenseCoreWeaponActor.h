@@ -197,6 +197,14 @@ public:
     UFUNCTION(BlueprintPure, Category="Weapon|ADS")
     float GetCameraTransitionDuration() const { return CameraTransitionDuration; }
 
+    //================================================
+    // Left Hand IK Target
+    //================================================
+
+    /** Get the LeftHandTarget component for IK attachment */
+    UFUNCTION(BlueprintPure, Category="Weapon|IK")
+    USceneComponent* GetLeftHandTarget() const { return LeftHandTarget; }
+
 protected:
     /** Setup components from SSOT (ASC is cached by base during equip) */
     void SetupComponentsFromItemData(const FSuspenseCoreUnifiedItemData& ItemData);
@@ -303,6 +311,14 @@ protected:
     /** Tarkov-style magazine system component */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
     USuspenseCoreMagazineComponent* MagazineComponent;
+
+    /**
+     * Left Hand Target - точка крепления левой руки на оружии.
+     * Позиционируй в Blueprint для каждого оружия.
+     * AnimBP читает этот компонент для Two Bone IK.
+     */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components|IK", meta=(AllowPrivateAccess="true"))
+    USceneComponent* LeftHandTarget;
 
     //================================================
     // Wall Detection (Weapon Blocking)

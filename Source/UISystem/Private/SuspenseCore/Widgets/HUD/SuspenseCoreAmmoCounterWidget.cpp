@@ -588,13 +588,14 @@ void USuspenseCoreAmmoCounterWidget::OnActiveWeaponChangedEvent(FGameplayTag Eve
 	AActor* NewWeaponActor = nullptr;
 
 	// Try to get weapon actor from event data first (if provided)
-	NewWeaponActor = Cast<AActor>(EventData.GetObject(TEXT("WeaponActor")));
+	// CRITICAL: GetObject is a template method - GetObject<T>(FName)
+	NewWeaponActor = EventData.GetObject<AActor>(FName(TEXT("WeaponActor")));
 
 	if (!NewWeaponActor)
 	{
 		// Fallback: Get weapon from DataProvider
 		// The Target should be the owning pawn
-		AActor* TargetActor = Cast<AActor>(EventData.GetObject(TEXT("Target")));
+		AActor* TargetActor = EventData.GetObject<AActor>(FName(TEXT("Target")));
 		if (APawn* Pawn = Cast<APawn>(TargetActor))
 		{
 			if (APlayerState* PS = Pawn->GetPlayerState())
@@ -702,15 +703,16 @@ void USuspenseCoreAmmoCounterWidget::UpdateWeaponUI()
 				WeaponIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 				// Load icon texture if path is valid
-				if (!WeaponData.IconTexturePath.IsNull())
+				// CRITICAL: Field is 'Icon' (TSoftObjectPtr<UTexture2D>), not 'IconTexturePath'
+				if (!WeaponData.Icon.IsNull())
 				{
-					UTexture2D* IconTexture = Cast<UTexture2D>(WeaponData.IconTexturePath.TryLoad());
+					UTexture2D* IconTexture = WeaponData.Icon.LoadSynchronous();
 					if (IconTexture)
 					{
 						WeaponIcon->SetBrushFromTexture(IconTexture);
 
 						UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Updated weapon icon: %s"),
-							*WeaponData.IconTexturePath.ToString());
+							*WeaponData.Icon.ToString());
 					}
 				}
 			}

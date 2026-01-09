@@ -1,17 +1,36 @@
 // SuspenseCoreAmmoCounterWidget.cpp
 // SuspenseCore - Clean Architecture UI Layer
 // Copyright (c) 2025. All Rights Reserved.
+//
+// ARCHITECTURE:
+// - EventBus-driven UI updates (push model, NO polling!)
+// - Subscribes to weapon switch, magazine, and ammo events
+// - Uses native tags from SuspenseCoreEquipmentTags namespace
+// - Tarkov-style ammo display with magazine fill bar
+//
+// KEY EVENTS:
+// - TAG_Equipment_Event_WeaponSlot_Switched: Active weapon changed
+// - TAG_Equipment_Event_Magazine_*: Magazine operations
+// - TAG_Equipment_Event_Weapon_*: Weapon state changes
 
 #include "SuspenseCore/Widgets/HUD/SuspenseCoreAmmoCounterWidget.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
+#include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
+#include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "GameFramework/PlayerState.h"
+#include "GameFramework/Pawn.h"
+#include "Engine/Texture2D.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogAmmoCounterWidget, Log, All);
 
 USuspenseCoreAmmoCounterWidget::USuspenseCoreAmmoCounterWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -248,10 +267,11 @@ bool USuspenseCoreAmmoCounterWidget::IsAmmoCounterVisible_Implementation() const
 
 void USuspenseCoreAmmoCounterWidget::RefreshDisplay()
 {
-	UpdateMagazineUI();
-	UpdateReserveUI();
-	UpdateFireModeUI();
-	UpdateAmmoTypeUI();
+	UpdateWeaponUI();      // Weapon name and icon
+	UpdateMagazineUI();    // Magazine rounds, capacity, fill bar
+	UpdateReserveUI();     // Reserve ammo and available magazines
+	UpdateFireModeUI();    // Fire mode (AUTO/SEMI/BURST)
+	UpdateAmmoTypeUI();    // Loaded ammo type
 }
 
 float USuspenseCoreAmmoCounterWidget::GetAmmoPercentage() const
@@ -268,12 +288,29 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 	USuspenseCoreEventBus* EventBus = GetEventBus();
 	if (!EventBus)
 	{
+		UE_LOG(LogAmmoCounterWidget, Warning, TEXT("SetupEventSubscriptions: No EventBus available!"));
 		return;
 	}
 
 	using namespace SuspenseCoreEquipmentTags::Event;
 	using namespace SuspenseCoreEquipmentTags::Magazine;
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// WEAPON SWITCH EVENT - Critical for UI update when active weapon changes
+	// This is published by GA_WeaponSwitch ability via EventBus
+	// ═══════════════════════════════════════════════════════════════════════════
+	ActiveWeaponChangedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_WeaponSlot_Switched,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnActiveWeaponChangedEvent),
+		ESuspenseCoreEventPriority::High  // High priority - UI should update immediately
+	);
+
+	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Subscribed to TAG_Equipment_Event_WeaponSlot_Switched"));
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// MAGAZINE EVENTS - Tarkov-style magazine operations
+	// ═══════════════════════════════════════════════════════════════════════════
 	MagazineInsertedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Magazine_Inserted,
 		this,
@@ -302,6 +339,9 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// WEAPON STATE EVENTS
+	// ═══════════════════════════════════════════════════════════════════════════
 	WeaponAmmoChangedHandle = EventBus->SubscribeNative(
 		TAG_Equipment_Event_Weapon_AmmoChanged,
 		this,
@@ -309,8 +349,14 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 		ESuspenseCoreEventPriority::Normal
 	);
 
-	// Note: FireModeChanged tag would need to be added to native tags
-	// For now, fire mode updates come through UpdateFireMode_Implementation
+	FireModeChangedHandle = EventBus->SubscribeNative(
+		TAG_Equipment_Event_Weapon_FireModeChanged,
+		this,
+		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent),
+		ESuspenseCoreEventPriority::Normal
+	);
+
+	UE_LOG(LogAmmoCounterWidget, Log, TEXT("Event subscriptions setup complete"));
 }
 
 void USuspenseCoreAmmoCounterWidget::TeardownEventSubscriptions()
@@ -321,12 +367,20 @@ void USuspenseCoreAmmoCounterWidget::TeardownEventSubscriptions()
 		return;
 	}
 
+	// Weapon switch event
+	EventBus->Unsubscribe(ActiveWeaponChangedHandle);
+
+	// Magazine events
 	EventBus->Unsubscribe(MagazineInsertedHandle);
 	EventBus->Unsubscribe(MagazineEjectedHandle);
 	EventBus->Unsubscribe(MagazineSwappedHandle);
 	EventBus->Unsubscribe(MagazineRoundsChangedHandle);
+
+	// Weapon state events
 	EventBus->Unsubscribe(WeaponAmmoChangedHandle);
 	EventBus->Unsubscribe(FireModeChangedHandle);
+
+	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Event subscriptions torn down"));
 }
 
 USuspenseCoreEventBus* USuspenseCoreAmmoCounterWidget::GetEventBus() const
@@ -466,9 +520,161 @@ void USuspenseCoreAmmoCounterWidget::OnFireModeChangedEvent(FGameplayTag EventTa
 	OnFireModeChanged(CachedAmmoData.FireModeText);
 }
 
+void USuspenseCoreAmmoCounterWidget::OnActiveWeaponChangedEvent(FGameplayTag EventTag, const FSuspenseCoreEventData& EventData)
+{
+	// This event is fired when player switches active weapon slot via GA_WeaponSwitch
+	// We need to update the entire UI with the new weapon's data
+
+	const int32 PreviousSlot = EventData.GetInt(TEXT("PreviousSlot"), INDEX_NONE);
+	const int32 NewSlot = EventData.GetInt(TEXT("NewSlot"), INDEX_NONE);
+
+	UE_LOG(LogAmmoCounterWidget, Log, TEXT("OnActiveWeaponChangedEvent: Slot %d → %d"), PreviousSlot, NewSlot);
+
+	// Get the weapon actor from the new slot
+	// We need to find the Equipment DataProvider to get the weapon actor
+	AActor* NewWeaponActor = nullptr;
+
+	// Try to get weapon actor from event data first (if provided)
+	NewWeaponActor = Cast<AActor>(EventData.GetObject(TEXT("WeaponActor")));
+
+	if (!NewWeaponActor)
+	{
+		// Fallback: Get weapon from DataProvider
+		// The Target should be the owning pawn
+		AActor* TargetActor = Cast<AActor>(EventData.GetObject(TEXT("Target")));
+		if (APawn* Pawn = Cast<APawn>(TargetActor))
+		{
+			if (APlayerState* PS = Pawn->GetPlayerState())
+			{
+				// Find DataProvider on PlayerState
+				TArray<UActorComponent*> Components;
+				PS->GetComponents(Components);
+
+				for (UActorComponent* Comp : Components)
+				{
+					if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataProvider::StaticClass()))
+					{
+						ISuspenseCoreEquipmentDataProvider* Provider = Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
+						if (Provider && NewSlot != INDEX_NONE)
+						{
+							FSuspenseCoreInventoryItemInstance ItemInstance = Provider->GetSlotItem(NewSlot);
+							// WeaponActor would be spawned by VisualizationService
+							// For now, we get the weapon data from the item instance
+							// The actual weapon actor reference needs to come from another source
+
+							UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Got item from slot %d: %s"),
+								NewSlot, *ItemInstance.ItemID.ToString());
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// If we have a new weapon actor, reinitialize the widget with it
+	if (NewWeaponActor)
+	{
+		// This will teardown old subscriptions and set up new ones for the new weapon
+		InitializeWithWeapon_Implementation(NewWeaponActor);
+	}
+	else
+	{
+		// No weapon actor available - update UI based on event data
+		// This happens when VisualizationService hasn't spawned the weapon yet
+
+		// Reset cached data
+		CachedAmmoData = FSuspenseCoreAmmoCounterData();
+		bIsInitialized = true;
+
+		// Try to get weapon name from event data
+		FString WeaponName = EventData.GetString(TEXT("WeaponName"));
+		if (!WeaponName.IsEmpty() && WeaponNameText)
+		{
+			WeaponNameText->SetText(FText::FromString(WeaponName));
+		}
+
+		// Update weapon icon if provided
+		UpdateWeaponUI();
+
+		// Refresh all displays
+		RefreshDisplay();
+
+		// Fire Blueprint event for custom handling
+		OnWeaponChanged(nullptr);
+	}
+
+	UE_LOG(LogAmmoCounterWidget, Log, TEXT("Weapon switch UI update complete for slot %d"), NewSlot);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERNAL HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+void USuspenseCoreAmmoCounterWidget::UpdateWeaponUI()
+{
+	// Update weapon icon and name based on cached weapon actor
+	AActor* WeaponActor = CachedWeaponActor.Get();
+
+	if (!WeaponActor)
+	{
+		// No weapon - show placeholder or hide
+		if (WeaponNameText)
+		{
+			WeaponNameText->SetText(NSLOCTEXT("AmmoCounter", "NoWeapon", "---"));
+		}
+
+		if (WeaponIcon)
+		{
+			WeaponIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
+	// Get weapon data from ISuspenseCoreWeapon interface
+	if (WeaponActor->Implements<USuspenseCoreWeapon>())
+	{
+		FSuspenseCoreUnifiedItemData WeaponData;
+		if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponActor, WeaponData))
+		{
+			// Update weapon name
+			if (WeaponNameText)
+			{
+				WeaponNameText->SetText(WeaponData.DisplayName);
+			}
+
+			// Update weapon icon
+			if (WeaponIcon)
+			{
+				WeaponIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+				// Load icon texture if path is valid
+				if (!WeaponData.IconTexturePath.IsNull())
+				{
+					UTexture2D* IconTexture = Cast<UTexture2D>(WeaponData.IconTexturePath.TryLoad());
+					if (IconTexture)
+					{
+						WeaponIcon->SetBrushFromTexture(IconTexture);
+
+						UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Updated weapon icon: %s"),
+							*WeaponData.IconTexturePath.ToString());
+					}
+				}
+			}
+
+			UE_LOG(LogAmmoCounterWidget, Log, TEXT("Updated weapon UI: %s"),
+				*WeaponData.DisplayName.ToString());
+		}
+	}
+	else
+	{
+		// Weapon doesn't implement interface - use actor name as fallback
+		if (WeaponNameText)
+		{
+			WeaponNameText->SetText(FText::FromString(WeaponActor->GetName()));
+		}
+	}
+}
 
 void USuspenseCoreAmmoCounterWidget::UpdateMagazineUI()
 {

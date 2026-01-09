@@ -434,6 +434,7 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 
 	// ═══════════════════════════════════════════════════════════════════════════════
 	// PRIORITY 1: LeftHandTarget SceneComponent (новый подход)
+	// ЖЁСТКОЕ крепление - без интерполяции!
 	// ═══════════════════════════════════════════════════════════════════════════════
 	if (ASuspenseCoreWeaponActor* Weapon = Cast<ASuspenseCoreWeaponActor>(WeaponActor))
 	{
@@ -443,15 +444,8 @@ void USuspenseCoreCharacterAnimInstance::UpdateLeftHandSocket(float DeltaSeconds
 			const FTransform WorldTransform = LHTarget->GetComponentTransform();
 
 			// Convert to Component Space (relative to character mesh)
-			const FTransform ComponentSpaceTransform = WorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
-
-			// Interpolate for smooth tracking
-			LeftHandTargetTransform = UKismetMathLibrary::TInterpTo(
-				LeftHandTargetTransform,
-				ComponentSpaceTransform,
-				DeltaSeconds,
-				LeftHandSocketInterpSpeed
-			);
+			// БЕЗ ИНТЕРПОЛЯЦИИ - рука намертво следует за таргетом!
+			LeftHandTargetTransform = WorldTransform.GetRelativeTransform(CharacterMesh->GetComponentTransform());
 
 			bHasLeftHandTarget = true;
 		}

@@ -6,6 +6,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "SuspenseCore/Types/Weapon/SuspenseCoreMagazineTypes.h"
 #include "SuspenseCore/Data/SuspenseCoreDataManager.h"
@@ -156,11 +157,19 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 	FSuspenseCoreMagazineInstance NewMag;
 	if (ISuspenseCoreQuickSlotProvider::Execute_GetMagazineFromSlot(ProviderObject, Request.QuickSlotIndex, NewMag))
 	{
-		// Find MagazineProvider on weapon for compatibility check
-		if (OwnerActor)
+		// Get the current weapon actor from character (NOT OwnerActor directly!)
+		// MagazineComponent is on the WEAPON actor, not the character
+		AActor* WeaponActor = nullptr;
+		if (OwnerActor && OwnerActor->Implements<USuspenseCoreCharacterInterface>())
 		{
+			WeaponActor = ISuspenseCoreCharacterInterface::Execute_GetCurrentWeaponActor(OwnerActor);
+		}
+
+		if (WeaponActor)
+		{
+			// Find MagazineProvider on WEAPON for compatibility check
 			TArray<UActorComponent*> Components;
-			OwnerActor->GetComponents(Components);
+			WeaponActor->GetComponents(Components);
 
 			for (UActorComponent* Comp : Components)
 			{
@@ -171,8 +180,9 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 					{
 						FGameplayTag WeaponCaliber = ISuspenseCoreMagazineProvider::Execute_GetWeaponCaliber(Comp);
 
-						HANDLER_LOG(Warning, TEXT("Execute: Magazine %s NOT compatible with weapon caliber %s"),
+						HANDLER_LOG(Warning, TEXT("Execute: Magazine %s (AmmoType=%s) NOT compatible with weapon caliber %s"),
 							*NewMag.MagazineID.ToString(),
+							*NewMag.AmmoType.ToString(),
 							*WeaponCaliber.ToString());
 
 						return FSuspenseCoreItemUseResponse::Failure(
@@ -185,6 +195,14 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 					break;
 				}
 			}
+		}
+		else
+		{
+			HANDLER_LOG(Warning, TEXT("Execute: No weapon equipped, cannot validate caliber"));
+			return FSuspenseCoreItemUseResponse::Failure(
+				Request.RequestID,
+				ESuspenseCoreItemUseResult::Failed_NoTarget,
+				FText::FromString(TEXT("No weapon equipped")));
 		}
 	}
 

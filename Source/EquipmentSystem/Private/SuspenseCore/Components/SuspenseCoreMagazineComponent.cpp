@@ -108,12 +108,32 @@ bool USuspenseCoreMagazineComponent::InitializeFromWeapon(
 
     CachedWeaponInterface = WeaponInterface;
 
-    // Cache weapon data
+    // Cache weapon data - CRITICAL for caliber validation
     FSuspenseCoreUnifiedItemData WeaponData;
     if (ISuspenseCoreWeapon::Execute_GetWeaponItemData(WeaponInterface.GetObject(), WeaponData))
     {
         CachedWeaponCaliber = WeaponData.AmmoType;
         CachedWeaponType = WeaponData.WeaponArchetype;
+
+        // Log caliber for debugging
+        if (CachedWeaponCaliber.IsValid())
+        {
+            UE_LOG(LogMagazineComponent, Log,
+                TEXT("InitializeFromWeapon: Cached caliber = %s for weapon %s"),
+                *CachedWeaponCaliber.ToString(),
+                *WeaponData.DisplayName.ToString());
+        }
+        else
+        {
+            UE_LOG(LogMagazineComponent, Warning,
+                TEXT("InitializeFromWeapon: AmmoType is INVALID for weapon %s - caliber validation will be DISABLED!"),
+                *WeaponData.DisplayName.ToString());
+        }
+    }
+    else
+    {
+        UE_LOG(LogMagazineComponent, Error,
+            TEXT("InitializeFromWeapon: Failed to get WeaponItemData - caliber validation DISABLED!"));
     }
 
     // Create and insert initial magazine if specified

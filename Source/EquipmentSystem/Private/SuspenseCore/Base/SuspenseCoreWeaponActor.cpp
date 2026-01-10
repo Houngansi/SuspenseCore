@@ -903,6 +903,18 @@ void ASuspenseCoreWeaponActor::SetupComponentsFromItemData(const FSuspenseCoreUn
         FireModeComponent->Initialize(GetOwner(), CachedASC);
         (void)FireModeComponent->InitializeFromWeapon(SelfIface);
     }
+
+    // CRITICAL: Initialize MagazineComponent with weapon data for caliber validation
+    // This sets CachedWeaponCaliber from WeaponData.AmmoType
+    // Without this, IsMagazineCompatible() allows any magazine!
+    if (MagazineComponent)
+    {
+        MagazineComponent->Initialize(GetOwner(), CachedASC);
+        (void)MagazineComponent->InitializeFromWeapon(SelfIface);
+
+        UE_LOG(LogSuspenseCoreWeaponActor, Log,
+            TEXT("MagazineComponent initialized for weapon caliber validation"));
+    }
 }
 
 float ASuspenseCoreWeaponActor::GetWeaponAttributeValue(const FName& AttributeName, float DefaultValue) const

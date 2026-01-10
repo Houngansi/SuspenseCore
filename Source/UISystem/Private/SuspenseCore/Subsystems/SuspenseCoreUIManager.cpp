@@ -1058,14 +1058,20 @@ void USuspenseCoreUIManager::OnItemEquippedEvent(FGameplayTag EventTag, const FS
 	UE_LOG(LogTemp, Warning, TEXT("▶▶▶ OnItemEquippedEvent - Frame: %llu, Slot: %d"),
 		GFrameCounter, SlotIndex);
 
-	// Check if this is a weapon slot (slots 0/1 are primary/secondary weapons)
-	bool bIsWeaponSlot = (SlotIndex == 0 || SlotIndex == 1);
+	// Check if this is a weapon slot (slots 0-3 are weapon slots)
+	// 0: PrimaryWeapon, 1: SecondaryWeapon, 2: Sidearm/Holster, 3: Melee
+	bool bIsWeaponSlot = (SlotIndex >= 0 && SlotIndex <= 3);
 
 	// Check if item has weapon tag in event data
 	if (!bIsWeaponSlot)
 	{
 		FString SlotType = EventData.GetString(TEXT("SlotType"));
-		bIsWeaponSlot = SlotType.Contains(TEXT("Weapon")) || SlotType.Contains(TEXT("Primary")) || SlotType.Contains(TEXT("Secondary"));
+		bIsWeaponSlot = SlotType.Contains(TEXT("Weapon")) ||
+		                SlotType.Contains(TEXT("Primary")) ||
+		                SlotType.Contains(TEXT("Secondary")) ||
+		                SlotType.Contains(TEXT("Holster")) ||
+		                SlotType.Contains(TEXT("Sidearm")) ||
+		                SlotType.Contains(TEXT("Melee"));
 	}
 
 	if (!bIsWeaponSlot)

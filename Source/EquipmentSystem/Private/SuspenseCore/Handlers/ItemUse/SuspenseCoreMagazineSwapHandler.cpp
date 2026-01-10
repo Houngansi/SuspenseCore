@@ -180,9 +180,8 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 					{
 						FGameplayTag WeaponCaliber = ISuspenseCoreMagazineProvider::Execute_GetWeaponCaliber(Comp);
 
-						HANDLER_LOG(Warning, TEXT("Execute: Magazine %s (AmmoType=%s) NOT compatible with weapon caliber %s"),
+						HANDLER_LOG(Warning, TEXT("Execute: Magazine %s NOT compatible with weapon caliber %s"),
 							*NewMag.MagazineID.ToString(),
-							*NewMag.AmmoType.ToString(),
 							*WeaponCaliber.ToString());
 
 						return FSuspenseCoreItemUseResponse::Failure(

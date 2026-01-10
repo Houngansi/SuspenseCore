@@ -201,7 +201,7 @@ FSuspenseCoreItemUseResponse USuspenseCoreMagazineSwapHandler::Execute(
 			HANDLER_LOG(Warning, TEXT("Execute: No weapon equipped, cannot validate caliber"));
 			return FSuspenseCoreItemUseResponse::Failure(
 				Request.RequestID,
-				ESuspenseCoreItemUseResult::Failed_NoTarget,
+				ESuspenseCoreItemUseResult::Failed_MissingRequirement,
 				FText::FromString(TEXT("No weapon equipped")));
 		}
 	}

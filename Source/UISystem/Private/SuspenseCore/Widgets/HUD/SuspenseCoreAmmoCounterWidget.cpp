@@ -5,11 +5,12 @@
 // ARCHITECTURE:
 // - EventBus-driven UI updates (push model, NO polling!)
 // - Subscribes to weapon switch, magazine, and ammo events
-// - Uses native tags from SuspenseCoreEquipmentTags namespace
+// - WeaponSlotSwitched from BridgeSystem (DI: GAS cannot depend on EquipmentSystem)
+// - Magazine events from EquipmentSystem (UISystem can depend on EquipmentSystem)
 // - Tarkov-style ammo display with magazine fill bar
 //
 // KEY EVENTS:
-// - TAG_Equipment_Event_WeaponSlot_Switched: Active weapon changed
+// - SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched: Active weapon changed
 // - TAG_Equipment_Event_Magazine_*: Magazine operations
 // - TAG_Equipment_Event_Weapon_*: Weapon state changes
 
@@ -351,16 +352,17 @@ void USuspenseCoreAmmoCounterWidget::SetupEventSubscriptions()
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// WEAPON SWITCH EVENT - Critical for UI update when active weapon changes
-	// This is published by GA_WeaponSwitch ability via EventBus
+	// Published by GA_WeaponSwitch ability (GAS module) via EventBus
+	// CRITICAL: Use BridgeSystem tag - GAS cannot depend on EquipmentSystem (DI)
 	// ═══════════════════════════════════════════════════════════════════════════
 	ActiveWeaponChangedHandle = EventBus->SubscribeNative(
-		TAG_Equipment_Event_WeaponSlot_Switched,
+		SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched,
 		this,
 		FSuspenseCoreNativeEventCallback::CreateUObject(this, &USuspenseCoreAmmoCounterWidget::OnActiveWeaponChangedEvent),
 		ESuspenseCoreEventPriority::High  // High priority - UI should update immediately
 	);
 
-	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Subscribed to TAG_Equipment_Event_WeaponSlot_Switched"));
+	UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Subscribed to SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched"));
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// MAGAZINE EVENTS - Tarkov-style magazine operations

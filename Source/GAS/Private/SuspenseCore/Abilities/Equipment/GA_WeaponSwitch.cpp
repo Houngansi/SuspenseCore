@@ -19,6 +19,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
+#include "SuspenseCore/Tags/SuspenseCoreEquipmentNativeTags.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/Pawn.h"
 
@@ -139,6 +140,8 @@ void UGA_WeaponSwitch::ActivateAbility(
 				PreviousSlot, TargetSlotIndex);
 
 			// Publish EventBus event for UI/animation systems
+			// CRITICAL: Use TAG_Equipment_Event_WeaponSlot_Switched from EquipmentNativeTags
+			// This is the tag that AmmoCounterWidget subscribes to
 			if (USuspenseCoreEventManager* EventManager = USuspenseCoreEventManager::Get(GetAvatarActorFromActorInfo()))
 			{
 				if (USuspenseCoreEventBus* EventBus = EventManager->GetEventBus())
@@ -149,9 +152,16 @@ void UGA_WeaponSwitch::ActivateAbility(
 					EventData.SetInt(FName("PreviousSlot"), PreviousSlot);
 					EventData.SetInt(FName("NewSlot"), TargetSlotIndex);
 
+					// NOTE: WeaponActor is not included here because DataProvider interface
+					// doesn't expose weapon actors (it manages item data, not visual actors).
+					// AmmoCounterWidget has fallback to query DataProvider directly.
+
+					// Use the correct tag from EquipmentNativeTags that UI widgets subscribe to
 					EventBus->Publish(
-						SuspenseCoreTags::Event::Equipment::WeaponSlotSwitched,
+						SuspenseCoreEquipmentTags::Event::TAG_Equipment_Event_WeaponSlot_Switched,
 						EventData);
+
+					UE_LOG(LogWeaponSwitch, Log, TEXT("  Published WeaponSlotSwitched event to EventBus"));
 				}
 			}
 		}

@@ -20,6 +20,7 @@
 #include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Equipment/ISuspenseCoreEquipmentDataProvider.h"
+#include "SuspenseCore/Interfaces/Core/ISuspenseCoreCharacter.h"
 #include "SuspenseCore/Types/Loadout/SuspenseCoreItemDataTable.h"
 #include "SuspenseCore/Types/Inventory/SuspenseCoreInventoryTypes.h"
 #include "SuspenseCore/Components/SuspenseCoreMagazineComponent.h"
@@ -594,35 +595,26 @@ void USuspenseCoreAmmoCounterWidget::OnActiveWeaponChangedEvent(FGameplayTag Eve
 
 	if (!NewWeaponActor)
 	{
-		// Fallback: Get weapon from DataProvider
-		// The Target should be the owning pawn
+		// Fallback: Get weapon actor from character via ISuspenseCoreCharacterInterface
+		// The VisualizationService sets CurrentWeaponActor on the character when equipping
 		AActor* TargetActor = EventData.GetObject<AActor>(FName(TEXT("Target")));
 		if (APawn* Pawn = Cast<APawn>(TargetActor))
 		{
-			if (APlayerState* PS = Pawn->GetPlayerState())
+			// Check if pawn implements ISuspenseCoreCharacterInterface
+			if (Pawn->Implements<USuspenseCoreCharacterInterface>())
 			{
-				// Find DataProvider on PlayerState
-				TArray<UActorComponent*> Components;
-				PS->GetComponents(Components);
+				NewWeaponActor = ISuspenseCoreCharacterInterface::Execute_GetCurrentWeaponActor(Pawn);
 
-				for (UActorComponent* Comp : Components)
+				if (NewWeaponActor)
 				{
-					if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreEquipmentDataProvider::StaticClass()))
-					{
-						ISuspenseCoreEquipmentDataProvider* Provider = Cast<ISuspenseCoreEquipmentDataProvider>(Comp);
-						if (Provider && NewSlot != INDEX_NONE)
-						{
-							FSuspenseCoreInventoryItemInstance ItemInstance = Provider->GetSlotItem(NewSlot);
-							// WeaponActor would be spawned by VisualizationService
-							// For now, we get the weapon data from the item instance
-							// The actual weapon actor reference needs to come from another source
-
-							UE_LOG(LogAmmoCounterWidget, Verbose, TEXT("Got item from slot %d: %s"),
-								NewSlot, *ItemInstance.ItemID.ToString());
-						}
-						break;
-					}
+					UE_LOG(LogAmmoCounterWidget, Log, TEXT("Got CurrentWeaponActor from character: %s"),
+						*NewWeaponActor->GetName());
 				}
+			}
+			else
+			{
+				UE_LOG(LogAmmoCounterWidget, Warning, TEXT("Pawn %s doesn't implement ISuspenseCoreCharacterInterface"),
+					*Pawn->GetName());
 			}
 		}
 	}

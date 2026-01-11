@@ -495,10 +495,9 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 		AbilityCount++;
 		if (Spec.Ability)
 		{
+			// Get ability tags (using deprecated but accessible AbilityTags)
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			const FGameplayTagContainer& AbilityTags = Spec.Ability->AbilityTags;
-			const FGameplayTagContainer& BlockedTags = Spec.Ability->ActivationBlockedTags;
-			const FGameplayTagContainer& RequiredTags = Spec.Ability->ActivationRequiredTags;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			bool bTagMatch = AbilityTags.HasTag(AbilityTag);
@@ -506,8 +505,6 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 
 			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   [%d] %s"), AbilityCount, *Spec.Ability->GetClass()->GetName());
 			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       AbilityTags: %s"), *AbilityTags.ToStringSimple());
-			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       BlockedTags: %s"),
-				BlockedTags.Num() > 0 ? *BlockedTags.ToStringSimple() : TEXT("(none)"));
 			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       IsActive: %s, TagMatch: %s"),
 				bIsActive ? TEXT("YES") : TEXT("NO"), bTagMatch ? TEXT("YES") : TEXT("NO"));
 
@@ -515,24 +512,6 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 			{
 				bFoundMatchingAbility = true;
 				UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   ^^^ THIS MATCHES the requested tag!"));
-
-				// Check if any blocked tags are present on ASC
-				bool bHasBlockingTag = OwnedTags.HasAny(BlockedTags);
-				UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       HasBlockingTag on ASC: %s"),
-					bHasBlockingTag ? TEXT("YES - WILL BLOCK!") : TEXT("NO"));
-
-				if (bHasBlockingTag)
-				{
-					// Find which specific tag is blocking
-					for (const FGameplayTag& BlockTag : BlockedTags)
-					{
-						if (OwnedTags.HasTag(BlockTag))
-						{
-							UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG]       !!! BLOCKING TAG FOUND: %s !!!"),
-								*BlockTag.ToString());
-						}
-					}
-				}
 
 				// Check if ability is already active
 				if (bIsActive)
@@ -555,7 +534,7 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 
 		if (!bSuccess)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ACTIVATION FAILED! Check above for blocking tags or active state."));
+			UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ACTIVATION FAILED! Check [FIRE CANACTIVATE] logs for details."));
 		}
 	}
 	else

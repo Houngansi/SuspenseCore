@@ -5,7 +5,7 @@ Migration of legacy MedCom weapon GAS system to SuspenseCore architecture.
 
 **Branch:** `claude/add-weapon-docs-nl4wW`
 **Started:** 2026-01-11
-**Status:** IN PROGRESS
+**Status:** COMPLETE (with compilation fixes applied)
 
 ---
 
@@ -212,6 +212,39 @@ MaxAngleDifference = 45.0f     // Direction validation
 
 ---
 
+## Attribute Data Flow (SSOT)
+
+### Damage Formula
+```
+FinalDamage = AmmoDamage * (1 + CharacterBonus)
+```
+- **AmmoDamage**: From `USuspenseCoreAmmoAttributeSet::BaseDamage`
+- **StoppingPower**: Added as 10% bonus damage
+- **CharacterBonus**: Skills/perks (future expansion)
+
+### Spread Formula
+```
+FinalSpread = WeaponSpread * AmmoAccuracyMod * StateMods
+```
+- **WeaponSpread**: `HipFireSpread` or `AimSpread` from weapon attributes
+- **AmmoAccuracyMod**: `AccuracyModifier` from ammo attributes (1.0 = no change)
+- **StateMods**: Movement, crouching, aiming, fire mode, recoil
+
+### Recoil Formula
+```
+FinalRecoil = WeaponRecoil * AmmoRecoilMod * ADSMod * ProgressiveMult
+```
+- **WeaponRecoil**: `VerticalRecoil` from weapon attributes
+- **AmmoRecoilMod**: `RecoilModifier` from ammo attributes
+- **ADSMod**: 0.5x when aiming
+- **ProgressiveMult**: Increases with consecutive shots
+
+### Key Classes
+- `USuspenseCoreSpreadCalculator` (GAS module) - Full attribute calculations
+- `USuspenseCoreSpreadProcessor` (BridgeSystem) - State-based modifiers only
+
+---
+
 ## Completed Tasks Log
 
 ### 2026-01-11 - Full Weapon GAS System Migration
@@ -231,13 +264,27 @@ MaxAngleDifference = 45.0f     // Direction validation
 All files follow DI architecture (interfaces from BridgeSystem), SSOT pattern,
 EventBus integration, and native tags for compile-time safety.
 
+### 2026-01-11 - Compilation Fixes & Attribute Flow
+- Fixed CameraShake UE5 API types (FCameraShakePatternStartParams, etc.)
+- Fixed MontageTask delegate signatures (OnAbilityCancelled, OnGameplayEvent)
+- Fixed DamageEffect SetByCaller and deprecated asset tags API
+- Fixed SpreadProcessor circular dependency (GAS module can't be in BridgeSystem)
+- Added EventBus/EventData includes to fire abilities
+- Fixed TryActivateAbility call (use ASC->TryActivateAbility)
+- Created SuspenseCoreSpreadCalculator in GAS module
+- Implemented full Weapon + Ammo + Character attribute data flow
+- Updated GenerateShotRequest to use attribute-based calculations
+- Updated ApplyRecoil to use attribute-based recoil
+
 ---
 
 ## Known Issues / TODOs
 
-1. Need to verify ISuspenseCoreWeapon interface has muzzle location getter
-2. Need to check if ammo consumption goes through MagazineProvider
-3. Camera shake may need PlayerCore module dependency setup
+1. ~~Need to verify ISuspenseCoreWeapon interface has muzzle location getter~~ DONE
+2. ~~Need to check if ammo consumption goes through MagazineProvider~~ Uses ISuspenseCoreWeapon
+3. Camera shake pattern needs to be set in Blueprint (C++ can't access RootShakePattern)
+4. AbilityTags usage shows deprecation warning (cosmetic, still functional)
+5. SuspenseCoreAmmoAttributeSet must be added to ASC for full attribute flow
 
 ---
 

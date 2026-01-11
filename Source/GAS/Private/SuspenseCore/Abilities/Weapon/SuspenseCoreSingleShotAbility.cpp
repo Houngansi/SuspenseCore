@@ -20,18 +20,13 @@ USuspenseCoreSingleShotAbility::USuspenseCoreSingleShotAbility()
 
 void USuspenseCoreSingleShotAbility::FireNextShot_Implementation()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[SINGLESHOT] FireNextShot_Implementation called!"));
-
 	// Execute single shot
 	ExecuteSingleShot();
-	UE_LOG(LogTemp, Warning, TEXT("[SINGLESHOT] ExecuteSingleShot completed"));
 
-	// Apply cooldown based on fire rate
+	// Apply cooldown based on fire rate (from weapon attributes)
 	CommitAbilityCooldown(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, nullptr);
-	UE_LOG(LogTemp, Warning, TEXT("[SINGLESHOT] Cooldown committed"));
 
-	// End ability immediately
-	UE_LOG(LogTemp, Warning, TEXT("[SINGLESHOT] Calling EndAbility..."));
+	// Single shot ends immediately after firing
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

@@ -55,66 +55,40 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] ════════════════════════════════════════════════════"));
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] Called for %s (this=%p)"), *GetClass()->GetName(), this);
-
-	// Check if ability is already active
+	// Check if ability is already active (prevents double-fire)
 	if (IsActive())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SKIP: Ability is already active"));
 		return false;
 	}
 
-	// Call base class check (handles tags, cooldowns, costs)
+	// Base class check: tags, cooldowns, costs
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Super::CanActivateAbility returned false"));
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE]   This usually means: cooldown, cost, or tag requirement failed"));
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] Super check PASSED"));
-
-	// DEBUG: Skip combat state checks for now - just let it activate
-	// Once activation works, we can re-enable these checks
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SUCCESS: Allowing activation (combat checks disabled for debug)"));
-	return true;
-
-	/*
-	// === COMBAT STATE CHECKS (disabled for debugging) ===
-
-	// Check weapon combat state via interface (DI compliant)
+	// Get combat state interface from character
 	ISuspenseCoreWeaponCombatState* CombatState = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponCombatState();
+
+	// If no combat state interface, allow fire (weapon component may not be equipped yet)
 	if (!CombatState)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: No WeaponCombatState interface"));
-		return false;
+		return true;
 	}
 
-	// Must have weapon drawn
+	// Must have weapon drawn to fire
 	if (!CombatState->IsWeaponDrawn())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Weapon not drawn"));
 		return false;
 	}
 
-	// Cannot fire while reloading
+	// Cannot fire while reloading (also handled by blocking tags, but explicit check is clearer)
 	if (CombatState->IsReloading())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Currently reloading"));
 		return false;
 	}
 
-	// Check ammo
-	if (!const_cast<USuspenseCoreBaseFireAbility*>(this)->HasAmmo())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: No ammo"));
-		return false;
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SUCCESS: All checks passed"));
 	return true;
-	*/
 }
 
 void USuspenseCoreBaseFireAbility::ActivateAbility(
@@ -123,24 +97,15 @@ void USuspenseCoreBaseFireAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] ════════════════════════════════════════════════════"));
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] ActivateAbility called for %s"), *GetClass()->GetName());
-
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	// Set firing state via interface
+	// Set firing state via interface (for blocking other abilities)
 	if (ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState())
 	{
 		CombatState->SetFiring(true);
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] Set CombatState->SetFiring(true)"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] No CombatState interface found (continuing anyway)"));
 	}
 
 	// Fire first shot - children implement FireNextShot()
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] Calling FireNextShot()..."));
 	FireNextShot();
 }
 
@@ -434,11 +399,13 @@ void USuspenseCoreBaseFireAbility::ServerProcessShotTrace(const FWeaponShotParam
 	);
 
 	// Perform trace
+	// TODO: Create custom "Weapon" collision profile in Project Settings -> Collision
+	// Using "BlockAllDynamic" as fallback until "Weapon" profile is created
 	USuspenseCoreTraceUtils::PerformLineTrace(
 		GetAvatarActorFromActorInfo(),
 		ShotRequest.StartLocation,
 		TraceEnd,
-		FName("Weapon"),
+		FName("BlockAllDynamic"),
 		IgnoreActors,
 		bDebugTraces,
 		2.0f,
@@ -487,7 +454,7 @@ void USuspenseCoreBaseFireAbility::PlayLocalFireEffects()
 
 	ACharacter* Character = Cast<ACharacter>(Avatar);
 
-	// Play montage
+	// Play fire animation montage
 	if (FireMontage && Character)
 	{
 		if (UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance())
@@ -611,6 +578,7 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	const bool bIsAiming = CombatState ? CombatState->IsAiming() : false;
 
 	// Calculate base recoil from weapon and ammo attributes
+	// Returns 1.0 as default if no attributes (minimal recoil)
 	float BaseRecoil = USuspenseCoreSpreadCalculator::CalculateRecoil(
 		WeaponAttrs,
 		AmmoAttrs,
@@ -618,19 +586,24 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 		RecoilConfig.ADSMultiplier
 	);
 
-	// Apply progressive recoil multiplier
+	// Apply progressive recoil multiplier (increases with consecutive shots)
 	float RecoilMult = GetCurrentRecoilMultiplier();
 
-	// Apply random recoil to view
+	// Calculate vertical recoil (pitch up)
+	// Range: BaseRecoil * 0.8 to BaseRecoil * 1.2 for natural variance
 	const float PitchRecoil = FMath::RandRange(BaseRecoil * 0.8f, BaseRecoil * 1.2f) * RecoilMult;
-	const float YawRecoil = FMath::RandRange(-BaseRecoil * 0.3f, BaseRecoil * 0.3f) * RecoilMult;
 
+	// Horizontal recoil is minimal - only 10% of vertical
+	// This prevents the "jerk" feeling while maintaining some randomness
+	const float YawRecoil = FMath::RandRange(-BaseRecoil * 0.1f, BaseRecoil * 0.1f) * RecoilMult;
+
+	// Apply recoil to camera
 	FRotator NewRotation = PC->GetControlRotation();
 	NewRotation.Pitch += PitchRecoil;
 	NewRotation.Yaw += YawRecoil;
 	PC->SetControlRotation(NewRotation);
 
-	// Play camera shake
+	// Play camera shake if configured
 	if (RecoilCameraShake)
 	{
 		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMult);

@@ -55,8 +55,11 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] CanActivateAbility called for %s"), *GetClass()->GetName());
+
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Super::CanActivateAbility returned false (check tags/cooldowns)"));
 		return false;
 	}
 
@@ -64,27 +67,32 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 	ISuspenseCoreWeaponCombatState* CombatState = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponCombatState();
 	if (!CombatState)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: No WeaponCombatState interface found on character"));
 		return false;
 	}
 
 	// Must have weapon drawn
 	if (!CombatState->IsWeaponDrawn())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Weapon is not drawn"));
 		return false;
 	}
 
 	// Cannot fire while reloading
 	if (CombatState->IsReloading())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Currently reloading"));
 		return false;
 	}
 
 	// Check ammo
 	if (!const_cast<USuspenseCoreBaseFireAbility*>(this)->HasAmmo())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: No ammo"));
 		return false;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] SUCCESS: All checks passed"));
 	return true;
 }
 

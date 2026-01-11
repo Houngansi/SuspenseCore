@@ -8,18 +8,11 @@
 // USuspenseCoreWeaponCameraShakePattern
 //========================================================================
 
-USuspenseCoreWeaponCameraShakePattern::USuspenseCoreWeaponCameraShakePattern()
-	: ElapsedTime(0.0f)
-	, CurrentScale(1.0f)
-	, bIsFinished(false)
-{
-}
-
 void USuspenseCoreWeaponCameraShakePattern::StartShakePatternImpl(const FCameraShakePatternStartParams& Params)
 {
 	// Reset state
 	ElapsedTime = 0.0f;
-	CurrentScale = Params.Scale;
+	CurrentScale = 1.0f;  // Default scale - can be modified via ShakeParams
 	bIsFinished = false;
 
 	// Initialize working oscillators from params
@@ -124,14 +117,9 @@ float USuspenseCoreWeaponCameraShakePattern::CalculateBlendAmount() const
 // USuspenseCoreWeaponCameraShake
 //========================================================================
 
-USuspenseCoreWeaponCameraShake::USuspenseCoreWeaponCameraShake()
-{
-	// Configure default settings
-	bSingleInstance = false; // Allow multiple overlapping shakes
-
-	// Note: RootShakePattern should be set in Blueprint using
-	// USuspenseCoreWeaponCameraShakePattern as the pattern class
-}
+// NOTE: No explicit constructor - UCameraShakeBase manages initialization.
+// Configure shake pattern in Blueprint by setting RootShakePattern to
+// USuspenseCoreWeaponCameraShakePattern and adjusting ShakeParams.
 
 void USuspenseCoreWeaponCameraShake::SetShakeParams(const FSuspenseCoreWeaponShakeParams& NewParams)
 {

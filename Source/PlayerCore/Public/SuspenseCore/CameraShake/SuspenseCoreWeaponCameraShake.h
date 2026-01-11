@@ -204,8 +204,6 @@ class PLAYERCORE_API USuspenseCoreWeaponCameraShakePattern : public UCameraShake
 	GENERATED_BODY()
 
 public:
-	USuspenseCoreWeaponCameraShakePattern();
-
 	/** Shake parameters */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pattern")
 	FSuspenseCoreWeaponShakeParams ShakeParams;
@@ -220,13 +218,13 @@ protected:
 
 private:
 	/** Current elapsed time */
-	float ElapsedTime;
+	float ElapsedTime = 0.0f;
 
 	/** Current scale (for blending) */
-	float CurrentScale;
+	float CurrentScale = 1.0f;
 
 	/** Is shake finished */
-	bool bIsFinished;
+	bool bIsFinished = false;
 
 	/** Working copies of oscillators */
 	FSuspenseCoreOscillator PitchOsc;
@@ -260,8 +258,6 @@ class PLAYERCORE_API USuspenseCoreWeaponCameraShake : public UCameraShakeBase
 	GENERATED_BODY()
 
 public:
-	USuspenseCoreWeaponCameraShake();
-
 	/**
 	 * Set shake parameters before starting.
 	 * Call this before ClientStartCameraShake if custom params needed.

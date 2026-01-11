@@ -100,25 +100,8 @@ float USuspenseCoreSpreadProcessor::CalculateCurrentSpread(
 	return FMath::Clamp(CurrentSpread, MinSpread, MaxSpread);
 }
 
-float USuspenseCoreSpreadProcessor::CalculateSpreadFromAttributes(
-	const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
-	bool bIsAiming,
-	float MovementSpeed,
-	float RecoilModifier)
-{
-	// This function is a stub in BridgeSystem to avoid circular dependencies.
-	// The full implementation that accesses WeaponAttributeSet is in GAS module.
-	// If you need attribute-based spread, use the extension in GAS or pass extracted values
-	// directly to CalculateCurrentSpread.
-
-	// Fallback: use default base spread
-	const float DefaultHipSpread = 3.0f;
-	const float DefaultAimSpread = 1.0f;
-	float BaseSpread = bIsAiming ? DefaultAimSpread : DefaultHipSpread;
-
-	// Use the simplified calculation
-	return CalculateCurrentSpread(BaseSpread, bIsAiming, MovementSpeed, RecoilModifier);
-}
+// NOTE: CalculateSpreadFromAttributes has been moved to GAS module
+// See USuspenseCoreSpreadCalculator::CalculateSpreadWithAttributes
 
 //========================================================================
 // Individual Modifier Calculations

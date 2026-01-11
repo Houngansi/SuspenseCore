@@ -482,6 +482,7 @@ void USuspenseCoreBaseFireAbility::PlayLocalFireEffects()
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE EFFECTS] No Avatar - skipping effects"));
 		return;
 	}
 
@@ -492,8 +493,16 @@ void USuspenseCoreBaseFireAbility::PlayLocalFireEffects()
 	{
 		if (UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance())
 		{
+			UE_LOG(LogTemp, Warning, TEXT("[FIRE EFFECTS] Playing FireMontage: %s (RootMotion=%s)"),
+				*FireMontage->GetName(),
+				FireMontage->bEnableRootMotionTranslation ? TEXT("YES - MAY CAUSE MOVEMENT!") : TEXT("No"));
 			AnimInstance->Montage_Play(FireMontage);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE EFFECTS] No FireMontage set (Character=%s)"),
+			Character ? TEXT("Valid") : TEXT("NULL"));
 	}
 
 	// Play sound
@@ -586,12 +595,14 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	if (!AvatarPawn)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[RECOIL] No AvatarPawn - skipping recoil"));
 		return;
 	}
 
 	APlayerController* PC = Cast<APlayerController>(AvatarPawn->GetController());
 	if (!PC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[RECOIL] No PlayerController - skipping recoil"));
 		return;
 	}
 
@@ -621,9 +632,16 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	// Apply progressive recoil multiplier
 	float RecoilMult = GetCurrentRecoilMultiplier();
 
+	UE_LOG(LogTemp, Warning, TEXT("[RECOIL] BaseRecoil=%.2f, RecoilMult=%.2f, WeaponAttrs=%s, IsAiming=%s"),
+		BaseRecoil, RecoilMult,
+		WeaponAttrs ? TEXT("Valid") : TEXT("NULL"),
+		bIsAiming ? TEXT("Yes") : TEXT("No"));
+
 	// Apply random recoil to view
 	const float PitchRecoil = FMath::RandRange(BaseRecoil * 0.8f, BaseRecoil * 1.2f) * RecoilMult;
 	const float YawRecoil = FMath::RandRange(-BaseRecoil * 0.3f, BaseRecoil * 0.3f) * RecoilMult;
+
+	UE_LOG(LogTemp, Warning, TEXT("[RECOIL] Applying: Pitch=%.2f, Yaw=%.2f"), PitchRecoil, YawRecoil);
 
 	FRotator NewRotation = PC->GetControlRotation();
 	NewRotation.Pitch += PitchRecoil;
@@ -634,6 +652,7 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 	if (RecoilCameraShake)
 	{
 		PC->ClientStartCameraShake(RecoilCameraShake, RecoilMult);
+		UE_LOG(LogTemp, Warning, TEXT("[RECOIL] Camera shake played"));
 	}
 
 	// Start recovery timer

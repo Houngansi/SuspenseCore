@@ -653,6 +653,19 @@ void USuspenseCoreEquipmentVisualizationService::OnWeaponSlotSwitched(FGameplayT
 					StanceComp->SetWeaponDrawnState(true);  // Weapon is now active/drawn
 					UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  Updated stance: %s, DrawnState: true"), *WeaponType.ToString());
 				}
+
+				// CRITICAL FIX: Update pose indices (GripID, AimPose, StoredPose, etc.) from weapon actor
+				// Without this, the animation will use previous weapon's pose settings
+				StanceComp->OnEquipmentChanged(NewWeaponActor);
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  OnEquipmentChanged called for pose indices update"));
+			}
+
+			// CRITICAL FIX: Set CurrentWeaponActor on character for ADS camera
+			// Without this, ADS will use previous weapon's camera settings (FOV, transition)
+			if (Character->GetClass()->ImplementsInterface(USuspenseCoreCharacterInterface::StaticClass()))
+			{
+				ISuspenseCoreCharacterInterface::Execute_SetCurrentWeaponActor(Character, NewWeaponActor);
+				UE_LOG(LogSuspenseCoreEquipmentVisualization, Warning, TEXT("  CurrentWeaponActor SET to: %s"), *NewWeaponActor->GetName());
 			}
 		}
 		else

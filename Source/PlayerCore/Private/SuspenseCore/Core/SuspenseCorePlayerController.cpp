@@ -471,78 +471,22 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ActivateAbilityByTag: ASC is NULL! Cannot activate ability."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] ═══════════════════════════════════════════════════════"));
-	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] ActivateAbilityByTag: Tag=%s, bPressed=%s"),
-		*AbilityTag.ToString(), bPressed ? TEXT("TRUE") : TEXT("FALSE"));
-
-	// DEBUG: Show current ASC owned tags (blocking condition check)
-	FGameplayTagContainer OwnedTags;
-	ASC->GetOwnedGameplayTags(OwnedTags);
-	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] Current ASC OwnedTags: %s"),
-		OwnedTags.Num() > 0 ? *OwnedTags.ToStringSimple() : TEXT("(none)"));
-
-	// DEBUG: List all granted abilities on ASC
-	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] === Checking granted abilities ==="));
-	int32 AbilityCount = 0;
-	bool bFoundMatchingAbility = false;
-
-	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-	{
-		AbilityCount++;
-		if (Spec.Ability)
-		{
-			// Get ability tags (using deprecated but accessible AbilityTags)
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			const FGameplayTagContainer& AbilityTags = Spec.Ability->AbilityTags;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-			bool bTagMatch = AbilityTags.HasTag(AbilityTag);
-			bool bIsActive = Spec.IsActive();
-
-			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   [%d] %s"), AbilityCount, *Spec.Ability->GetClass()->GetName());
-			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       AbilityTags: %s"), *AbilityTags.ToStringSimple());
-			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       IsActive: %s, TagMatch: %s"),
-				bIsActive ? TEXT("YES") : TEXT("NO"), bTagMatch ? TEXT("YES") : TEXT("NO"));
-
-			if (bTagMatch)
-			{
-				bFoundMatchingAbility = true;
-				UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   ^^^ THIS MATCHES the requested tag!"));
-
-				// Check if ability is already active
-				if (bIsActive)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       Ability is already ACTIVE - may block re-trigger"));
-				}
-			}
-		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] Total abilities: %d, Found matching: %s"),
-		AbilityCount, bFoundMatchingAbility ? TEXT("YES") : TEXT("NO"));
-
 	if (bPressed)
 	{
+		// Try to activate ability with matching tag
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-		bool bSuccess = ASC->TryActivateAbilitiesByTag(TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] >>> TryActivateAbilitiesByTag result: %s <<<"),
-			bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
-
-		if (!bSuccess)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ACTIVATION FAILED! Check [FIRE CANACTIVATE] logs for details."));
-		}
+		ASC->TryActivateAbilitiesByTag(TagContainer);
 	}
 	else
 	{
+		// Cancel ability on release (for abilities that need release handling)
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
 		ASC->CancelAbilities(&TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] CancelAbilities called for tag: %s"), *AbilityTag.ToString());
 	}
 
 	// Publish input event for UI/other systems

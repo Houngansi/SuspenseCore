@@ -34,9 +34,12 @@ USuspenseCoreDamageEffect::USuspenseCoreDamageEffect()
 
 	Modifiers.Add(DamageModifier);
 
-	// Add asset tag for GameplayCue identification using the new component API
-	UAssetTagsGameplayEffectComponent& AssetTagsComponent = FindOrAddComponent<UAssetTagsGameplayEffectComponent>();
-	AssetTagsComponent.InheritableAssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+	// Asset tags for GameplayCue identification
+	// NOTE: Configure in Blueprint by adding Effect.Damage tag to Asset Tags
+	// The deprecated InheritableGameplayEffectTags API is used for C++ initialization
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //========================================================================
@@ -61,8 +64,9 @@ USuspenseCoreDamageEffect_WithHitInfo::USuspenseCoreDamageEffect_WithHitInfo()
 	Modifiers.Add(DamageModifier);
 
 	// Different tag to indicate hit info is available
-	UAssetTagsGameplayEffectComponent& AssetTagsComponent = FindOrAddComponent<UAssetTagsGameplayEffectComponent>();
-	AssetTagsComponent.InheritableAssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.WithHitInfo")));
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.WithHitInfo")));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //========================================================================

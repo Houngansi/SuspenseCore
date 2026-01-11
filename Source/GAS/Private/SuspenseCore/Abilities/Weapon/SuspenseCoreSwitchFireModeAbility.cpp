@@ -149,9 +149,12 @@ void USuspenseCoreSwitchFireModeAbility::PublishFireModeChangedEvent(const FGame
 	if (USuspenseCoreEventBus* EventBus = GetEventBus())
 	{
 		FSuspenseCoreEventData EventData = FSuspenseCoreEventData::Create(GetAvatarActorFromActorInfo());
-		EventData.SetTag(FName("FireMode"), NewFireMode);
 
-		// Get fire mode name for display
+		// Store fire mode tag as string and add to tags container
+		EventData.SetString(FName("FireModeTag"), NewFireMode.GetTagName().ToString());
+		EventData.AddTag(NewFireMode);
+
+		// Get fire mode name for display (last part of tag)
 		FString ModeName = NewFireMode.GetTagName().ToString();
 		ModeName = ModeName.RightChop(ModeName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd) + 1);
 		EventData.SetString(FName("FireModeName"), ModeName);

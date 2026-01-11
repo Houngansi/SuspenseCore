@@ -15,7 +15,8 @@
 #include "UObject/NoExportTypes.h"
 #include "SuspenseCoreSpreadProcessor.generated.h"
 
-class USuspenseCoreWeaponAttributeSet;
+// NOTE: Attribute-based spread calculation has moved to GAS module
+// See USuspenseCoreSpreadCalculator in SuspenseCore/Utils/SuspenseCoreSpreadCalculator.h
 
 /**
  * Spread modifier configuration for different player states.
@@ -188,23 +189,8 @@ public:
 		float RecoilModifier = 1.0f
 	);
 
-	/**
-	 * Calculate spread with attribute set.
-	 * Extracts base spread from weapon attributes.
-	 *
-	 * @param WeaponAttributes Weapon attribute set (provides base spread)
-	 * @param bIsAiming Is player aiming down sights
-	 * @param MovementSpeed Current movement speed
-	 * @param RecoilModifier Current recoil multiplier
-	 * @return Final spread value in degrees
-	 */
-	UFUNCTION(BlueprintCallable, Category = "SuspenseCore|Spread")
-	static float CalculateSpreadFromAttributes(
-		const USuspenseCoreWeaponAttributeSet* WeaponAttributes,
-		bool bIsAiming,
-		float MovementSpeed,
-		float RecoilModifier = 1.0f
-	);
+	// NOTE: CalculateSpreadFromAttributes has been moved to GAS module
+	// See USuspenseCoreSpreadCalculator::CalculateSpreadWithAttributes
 
 	//========================================================================
 	// Individual Modifier Calculations

@@ -236,15 +236,19 @@ void USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::OnMontageEnded(UAnimMo
 	EndTask();
 }
 
-void USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::OnAbilityCancelled()
+void USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::OnAbilityCancelled(const FAbilityEndedData& AbilityEndedData)
 {
-	if (StopPlayingMontage())
+	// Only cancel if this is our ability that ended
+	if (Ability && AbilityEndedData.AbilitySpecHandle == Ability->GetCurrentAbilitySpecHandle())
 	{
-		OnCancelled.Broadcast();
+		if (StopPlayingMontage())
+		{
+			OnCancelled.Broadcast();
+		}
 	}
 }
 
-void USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::OnGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload)
+void USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::OnGameplayEvent(const FGameplayEventData* Payload, FGameplayTag EventTag)
 {
 	if (!bIsPlayingMontage)
 	{
@@ -280,9 +284,9 @@ bool USuspenseCoreAbilityTask_PlayMontageAndWaitForEvent::StopPlayingMontage()
 	// Check if this montage is still playing
 	if (AnimInstance->Montage_IsPlaying(MontageToPlay))
 	{
-		// Unbind delegates before stopping
-		AnimInstance->Montage_SetBlendingOutDelegate(FOnMontageBlendingOutStarted(), MontageToPlay);
-		AnimInstance->Montage_SetEndDelegate(FOnMontageEnded(), MontageToPlay);
+		// Unbind delegates before stopping by unbinding our callbacks
+		BlendingOutDelegate.Unbind();
+		MontageEndedDelegate.Unbind();
 
 		// Stop with blend out
 		AnimInstance->Montage_Stop(0.2f, MontageToPlay);

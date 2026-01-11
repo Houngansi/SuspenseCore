@@ -7,10 +7,14 @@
 #include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
 #include "SuspenseCore/Utils/SuspenseCoreTraceUtils.h"
 #include "SuspenseCore/Utils/SuspenseCoreSpreadProcessor.h"
+#include "SuspenseCore/Utils/SuspenseCoreSpreadCalculator.h"
+#include "SuspenseCore/Attributes/SuspenseCoreAmmoAttributeSet.h"
 #include "SuspenseCore/Effects/Weapon/SuspenseCoreDamageEffect.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -142,10 +146,10 @@ void USuspenseCoreBaseFireAbility::InputPressed(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	// Default: try to activate on press
-	if (!IsActive())
+	// Default: try to activate on press via ASC
+	if (!IsActive() && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		TryActivateAbility(Handle, false);
+		ActorInfo->AbilitySystemComponent->TryActivateAbility(Handle, false);
 	}
 }
 
@@ -172,28 +176,50 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 	// Get aim direction
 	Params.Direction = GetAimDirection();
 
-	// Get weapon attributes for spread/range
-	if (const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes())
+	// Get weapon and ammo attributes for proper damage/spread calculation
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
+	const USuspenseCoreAmmoAttributeSet* AmmoAttrs = nullptr;
+
+	// Try to get ammo attributes from ASC
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		// Get base damage
-		Params.BaseDamage = WeaponAttrs->GetBaseDamage();
-		Params.Range = WeaponAttrs->GetMaxRange();
+		AmmoAttrs = ActorInfo->AbilitySystemComponent->GetSet<USuspenseCoreAmmoAttributeSet>();
+	}
 
-		// Calculate spread
-		ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
-		const bool bIsAiming = CombatState ? CombatState->IsAiming() : false;
+	// Get combat state for aiming
+	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
+	const bool bIsAiming = CombatState ? CombatState->IsAiming() : false;
 
-		float MovementSpeed = 0.0f;
-		if (ACharacter* Char = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	// Get movement speed
+	float MovementSpeed = 0.0f;
+	if (ACharacter* Char = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (UCharacterMovementComponent* Movement = Char->GetCharacterMovement())
 		{
-			if (UCharacterMovementComponent* Movement = Char->GetCharacterMovement())
-			{
-				MovementSpeed = Movement->Velocity.Size2D();
-			}
+			MovementSpeed = Movement->Velocity.Size2D();
 		}
+	}
 
-		Params.SpreadAngle = USuspenseCoreSpreadProcessor::CalculateSpreadFromAttributes(
+	if (WeaponAttrs)
+	{
+		// Use full attribute-based calculation (Weapon + Ammo + Character)
+		// This follows SSOT principle - data comes from DataTables through attributes
+		Params.BaseDamage = USuspenseCoreSpreadCalculator::CalculateFinalDamage(
 			WeaponAttrs,
+			AmmoAttrs,
+			0.0f  // Character damage bonus (could be fetched from character attribute set)
+		);
+
+		Params.Range = USuspenseCoreSpreadCalculator::CalculateEffectiveRange(
+			WeaponAttrs,
+			AmmoAttrs
+		);
+
+		// Calculate spread using full attribute chain
+		Params.SpreadAngle = USuspenseCoreSpreadCalculator::CalculateSpreadWithAttributes(
+			WeaponAttrs,
+			AmmoAttrs,
 			bIsAiming,
 			MovementSpeed,
 			GetCurrentRecoilMultiplier()
@@ -201,10 +227,15 @@ FWeaponShotParams USuspenseCoreBaseFireAbility::GenerateShotRequest()
 	}
 	else
 	{
-		// Defaults if no attributes
+		// Fallback defaults if no attributes
 		Params.BaseDamage = 25.0f;
 		Params.Range = 10000.0f;
-		Params.SpreadAngle = 2.0f;
+		Params.SpreadAngle = USuspenseCoreSpreadProcessor::CalculateCurrentSpread(
+			bIsAiming ? 1.0f : 3.0f,
+			bIsAiming,
+			MovementSpeed,
+			GetCurrentRecoilMultiplier()
+		);
 	}
 
 	// Set metadata
@@ -514,33 +545,43 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 
 void USuspenseCoreBaseFireAbility::ApplyRecoil()
 {
-	APlayerController* PC = Cast<APlayerController>(
-		Cast<APawn>(GetAvatarActorFromActorInfo())->GetController()
-	);
+	APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	if (!AvatarPawn)
+	{
+		return;
+	}
 
+	APlayerController* PC = Cast<APlayerController>(AvatarPawn->GetController());
 	if (!PC)
 	{
 		return;
 	}
 
-	// Get weapon attributes for base recoil
-	float BaseRecoil = 1.0f;
-	if (const USuspenseCoreWeaponAttributeSet* Attrs = GetWeaponAttributes())
-	{
-		BaseRecoil = Attrs->GetVerticalRecoil();
-	}
+	// Get weapon and ammo attributes for full recoil calculation
+	const USuspenseCoreWeaponAttributeSet* WeaponAttrs = GetWeaponAttributes();
+	const USuspenseCoreAmmoAttributeSet* AmmoAttrs = nullptr;
 
-	// Calculate recoil multiplier
-	float RecoilMult = GetCurrentRecoilMultiplier();
+	// Try to get ammo attributes from ASC
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+	{
+		AmmoAttrs = ActorInfo->AbilitySystemComponent->GetSet<USuspenseCoreAmmoAttributeSet>();
+	}
 
 	// Check ADS for reduction
-	if (ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState())
-	{
-		if (CombatState->IsAiming())
-		{
-			RecoilMult *= RecoilConfig.ADSMultiplier;
-		}
-	}
+	ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState();
+	const bool bIsAiming = CombatState ? CombatState->IsAiming() : false;
+
+	// Calculate base recoil from weapon and ammo attributes
+	float BaseRecoil = USuspenseCoreSpreadCalculator::CalculateRecoil(
+		WeaponAttrs,
+		AmmoAttrs,
+		bIsAiming,
+		RecoilConfig.ADSMultiplier
+	);
+
+	// Apply progressive recoil multiplier
+	float RecoilMult = GetCurrentRecoilMultiplier();
 
 	// Apply random recoil to view
 	const float PitchRecoil = FMath::RandRange(BaseRecoil * 0.8f, BaseRecoil * 1.2f) * RecoilMult;

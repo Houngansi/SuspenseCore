@@ -15,7 +15,7 @@ USuspenseCoreWeaponCameraShakePattern::USuspenseCoreWeaponCameraShakePattern()
 {
 }
 
-void USuspenseCoreWeaponCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
+void USuspenseCoreWeaponCameraShakePattern::StartShakePatternImpl(const FCameraShakePatternStartParams& Params)
 {
 	// Reset state
 	ElapsedTime = 0.0f;
@@ -42,8 +42,8 @@ void USuspenseCoreWeaponCameraShakePattern::StartShakePatternImpl(const FCameraS
 }
 
 void USuspenseCoreWeaponCameraShakePattern::UpdateShakePatternImpl(
-	const FCameraShakeUpdateParams& Params,
-	FCameraShakeUpdateResult& OutResult)
+	const FCameraShakePatternUpdateParams& Params,
+	FCameraShakePatternUpdateResult& OutResult)
 {
 	if (bIsFinished)
 	{
@@ -83,7 +83,7 @@ void USuspenseCoreWeaponCameraShakePattern::UpdateShakePatternImpl(
 	OutResult.FOV = FOVDelta;
 }
 
-void USuspenseCoreWeaponCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
+void USuspenseCoreWeaponCameraShakePattern::StopShakePatternImpl(const FCameraShakePatternStopParams& Params)
 {
 	if (Params.bImmediately)
 	{
@@ -126,18 +126,22 @@ float USuspenseCoreWeaponCameraShakePattern::CalculateBlendAmount() const
 
 USuspenseCoreWeaponCameraShake::USuspenseCoreWeaponCameraShake()
 {
-	// Set default root shake pattern
-	RootShakePattern = CreateDefaultSubobject<USuspenseCoreWeaponCameraShakePattern>(TEXT("DefaultShakePattern"));
-
 	// Configure default settings
 	bSingleInstance = false; // Allow multiple overlapping shakes
+
+	// Note: RootShakePattern should be set in Blueprint using
+	// USuspenseCoreWeaponCameraShakePattern as the pattern class
 }
 
 void USuspenseCoreWeaponCameraShake::SetShakeParams(const FSuspenseCoreWeaponShakeParams& NewParams)
 {
-	if (USuspenseCoreWeaponCameraShakePattern* Pattern = Cast<USuspenseCoreWeaponCameraShakePattern>(RootShakePattern))
+	// Get pattern through the public GetRootShakePattern method
+	if (UCameraShakePattern* Pattern = GetRootShakePattern())
 	{
-		Pattern->ShakeParams = NewParams;
+		if (USuspenseCoreWeaponCameraShakePattern* WeaponPattern = Cast<USuspenseCoreWeaponCameraShakePattern>(Pattern))
+		{
+			WeaponPattern->ShakeParams = NewParams;
+		}
 	}
 }
 

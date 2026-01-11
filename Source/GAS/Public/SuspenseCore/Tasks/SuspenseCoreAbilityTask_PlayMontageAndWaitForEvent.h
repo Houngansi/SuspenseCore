@@ -14,11 +14,13 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "GameplayTagContainer.h"
 #include "SuspenseCoreAbilityTask_PlayMontageAndWaitForEvent.generated.h"
 
 class UAnimInstance;
+struct FAbilityEndedData;
 
 /**
  * Delegate for montage events.
@@ -165,11 +167,10 @@ protected:
 	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	/** Called when ability is cancelled */
-	UFUNCTION()
-	void OnAbilityCancelled();
+	void OnAbilityCancelled(const FAbilityEndedData& AbilityEndedData);
 
 	/** Called when gameplay event is received */
-	void OnGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload);
+	void OnGameplayEvent(const FGameplayEventData* Payload, FGameplayTag EventTag);
 
 	//========================================================================
 	// Internal State

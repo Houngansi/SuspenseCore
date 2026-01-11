@@ -9,6 +9,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffectTypes.h"
+#include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 
 //========================================================================
 // USuspenseCoreDamageEffect
@@ -28,14 +29,14 @@ USuspenseCoreDamageEffect::USuspenseCoreDamageEffect()
 	FSetByCallerFloat SetByCaller;
 	SetByCaller.DataTag = SuspenseCoreTags::Data::Damage;
 
-	FGameplayEffectModifierMagnitude Magnitude;
-	Magnitude.SetSetByCallerMagnitude(SetByCaller);
-	DamageModifier.ModifierMagnitude = Magnitude;
+	// Construct magnitude with SetByCaller
+	DamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
 
 	Modifiers.Add(DamageModifier);
 
-	// Add asset tag for GameplayCue identification
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
+	// Add asset tag for GameplayCue identification using the new component API
+	UAssetTagsGameplayEffectComponent& AssetTagsComponent = FindOrAddComponent<UAssetTagsGameplayEffectComponent>();
+	AssetTagsComponent.InheritableAssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage")));
 }
 
 //========================================================================
@@ -54,14 +55,14 @@ USuspenseCoreDamageEffect_WithHitInfo::USuspenseCoreDamageEffect_WithHitInfo()
 	FSetByCallerFloat SetByCaller;
 	SetByCaller.DataTag = SuspenseCoreTags::Data::Damage;
 
-	FGameplayEffectModifierMagnitude Magnitude;
-	Magnitude.SetSetByCallerMagnitude(SetByCaller);
-	DamageModifier.ModifierMagnitude = Magnitude;
+	// Construct magnitude with SetByCaller
+	DamageModifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
 
 	Modifiers.Add(DamageModifier);
 
 	// Different tag to indicate hit info is available
-	InheritableGameplayEffectTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.WithHitInfo")));
+	UAssetTagsGameplayEffectComponent& AssetTagsComponent = FindOrAddComponent<UAssetTagsGameplayEffectComponent>();
+	AssetTagsComponent.InheritableAssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.WithHitInfo")));
 }
 
 //========================================================================

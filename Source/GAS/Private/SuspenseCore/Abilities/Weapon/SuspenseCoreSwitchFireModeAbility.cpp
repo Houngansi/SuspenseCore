@@ -7,6 +7,8 @@
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeapon.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreFireModeProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreWeaponCombatState.h"
+#include "SuspenseCore/Events/SuspenseCoreEventBus.h"
+#include "SuspenseCore/Types/SuspenseCoreTypes.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"

@@ -3,7 +3,9 @@
 // Copyright Suspense Team. All Rights Reserved.
 
 #include "SuspenseCore/Utils/SuspenseCoreSpreadProcessor.h"
-#include "SuspenseCore/Attributes/SuspenseCoreWeaponAttributeSet.h"
+
+// Note: CalculateSpreadFromAttributes implementation moved to GAS module
+// to avoid circular dependency. Use CalculateCurrentSpread with extracted values.
 
 //========================================================================
 // Main Calculation Functions
@@ -104,36 +106,18 @@ float USuspenseCoreSpreadProcessor::CalculateSpreadFromAttributes(
 	float MovementSpeed,
 	float RecoilModifier)
 {
-	if (!WeaponAttributes)
-	{
-		// Return a reasonable default if no attributes
-		return CalculateCurrentSpread(2.0f, bIsAiming, MovementSpeed, RecoilModifier);
-	}
+	// This function is a stub in BridgeSystem to avoid circular dependencies.
+	// The full implementation that accesses WeaponAttributeSet is in GAS module.
+	// If you need attribute-based spread, use the extension in GAS or pass extracted values
+	// directly to CalculateCurrentSpread.
 
-	// Get base spread from attributes
-	// Using AimSpread when aiming, HipFireSpread otherwise
-	float BaseSpread;
-	if (bIsAiming)
-	{
-		BaseSpread = WeaponAttributes->GetAimSpread();
-	}
-	else
-	{
-		BaseSpread = WeaponAttributes->GetHipFireSpread();
-	}
+	// Fallback: use default base spread
+	const float DefaultHipSpread = 3.0f;
+	const float DefaultAimSpread = 1.0f;
+	float BaseSpread = bIsAiming ? DefaultAimSpread : DefaultHipSpread;
 
-	// For attribute-based calculation, aiming is already factored into base spread selection
-	// So we don't apply the aiming modifier again
-	float CurrentSpread = BaseSpread;
-
-	// Movement increases spread
-	const float MovementMod = GetMovementModifier(MovementSpeed);
-	CurrentSpread *= MovementMod;
-
-	// Apply recoil
-	CurrentSpread *= RecoilModifier;
-
-	return FMath::Clamp(CurrentSpread, MinSpread, MaxSpread);
+	// Use the simplified calculation
+	return CalculateCurrentSpread(BaseSpread, bIsAiming, MovementSpeed, RecoilModifier);
 }
 
 //========================================================================

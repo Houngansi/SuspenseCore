@@ -55,45 +55,66 @@ bool USuspenseCoreBaseFireAbility::CanActivateAbility(
 	const FGameplayTagContainer* TargetTags,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] CanActivateAbility called for %s"), *GetClass()->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] ════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] Called for %s (this=%p)"), *GetClass()->GetName(), this);
 
-	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	// Check if ability is already active
+	if (IsActive())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Super::CanActivateAbility returned false (check tags/cooldowns)"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SKIP: Ability is already active"));
 		return false;
 	}
+
+	// Call base class check (handles tags, cooldowns, costs)
+	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Super::CanActivateAbility returned false"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE]   This usually means: cooldown, cost, or tag requirement failed"));
+		return false;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] Super check PASSED"));
+
+	// DEBUG: Skip combat state checks for now - just let it activate
+	// Once activation works, we can re-enable these checks
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SUCCESS: Allowing activation (combat checks disabled for debug)"));
+	return true;
+
+	/*
+	// === COMBAT STATE CHECKS (disabled for debugging) ===
 
 	// Check weapon combat state via interface (DI compliant)
 	ISuspenseCoreWeaponCombatState* CombatState = const_cast<USuspenseCoreBaseFireAbility*>(this)->GetWeaponCombatState();
 	if (!CombatState)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: No WeaponCombatState interface found on character"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: No WeaponCombatState interface"));
 		return false;
 	}
 
 	// Must have weapon drawn
 	if (!CombatState->IsWeaponDrawn())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Weapon is not drawn"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Weapon not drawn"));
 		return false;
 	}
 
 	// Cannot fire while reloading
 	if (CombatState->IsReloading())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: Currently reloading"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: Currently reloading"));
 		return false;
 	}
 
 	// Check ammo
 	if (!const_cast<USuspenseCoreBaseFireAbility*>(this)->HasAmmo())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] FAILED: No ammo"));
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] BLOCKED: No ammo"));
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[FIRE DEBUG] SUCCESS: All checks passed"));
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE CANACTIVATE] SUCCESS: All checks passed"));
 	return true;
+	*/
 }
 
 void USuspenseCoreBaseFireAbility::ActivateAbility(
@@ -102,15 +123,24 @@ void USuspenseCoreBaseFireAbility::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] ════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] ActivateAbility called for %s"), *GetClass()->GetName());
+
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	// Set firing state via interface
 	if (ISuspenseCoreWeaponCombatState* CombatState = GetWeaponCombatState())
 	{
 		CombatState->SetFiring(true);
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] Set CombatState->SetFiring(true)"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] No CombatState interface found (continuing anyway)"));
 	}
 
 	// Fire first shot - children implement FireNextShot()
+	UE_LOG(LogTemp, Warning, TEXT("[FIRE ACTIVATE] Calling FireNextShot()..."));
 	FireNextShot();
 }
 

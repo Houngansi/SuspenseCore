@@ -471,54 +471,99 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[ADS DEBUG] ActivateAbilityByTag: ASC is NULL! Cannot activate ability."));
+		UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ActivateAbilityByTag: ASC is NULL! Cannot activate ability."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ActivateAbilityByTag: Tag=%s, bPressed=%s, ASC=%s"),
-		*AbilityTag.ToString(), bPressed ? TEXT("TRUE") : TEXT("FALSE"), *ASC->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] ActivateAbilityByTag: Tag=%s, bPressed=%s"),
+		*AbilityTag.ToString(), bPressed ? TEXT("TRUE") : TEXT("FALSE"));
+
+	// DEBUG: Show current ASC owned tags (blocking condition check)
+	FGameplayTagContainer OwnedTags;
+	ASC->GetOwnedGameplayTags(OwnedTags);
+	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] Current ASC OwnedTags: %s"),
+		OwnedTags.Num() > 0 ? *OwnedTags.ToStringSimple() : TEXT("(none)"));
 
 	// DEBUG: List all granted abilities on ASC
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] === Checking granted abilities on ASC ==="));
+	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] === Checking granted abilities ==="));
 	int32 AbilityCount = 0;
-	bool bFoundADSAbility = false;
+	bool bFoundMatchingAbility = false;
+
 	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
 		AbilityCount++;
 		if (Spec.Ability)
 		{
-			// Get ability tags directly from the CDO
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			const FGameplayTagContainer& AbilityTags = Spec.Ability->AbilityTags;
+			const FGameplayTagContainer& BlockedTags = Spec.Ability->ActivationBlockedTags;
+			const FGameplayTagContainer& RequiredTags = Spec.Ability->ActivationRequiredTags;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-			UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   [%d] %s - Tags: %s"),
-				AbilityCount, *Spec.Ability->GetClass()->GetName(), *AbilityTags.ToStringSimple());
+			bool bTagMatch = AbilityTags.HasTag(AbilityTag);
+			bool bIsActive = Spec.IsActive();
 
-			if (AbilityTags.HasTag(AbilityTag))
+			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   [%d] %s"), AbilityCount, *Spec.Ability->GetClass()->GetName());
+			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       AbilityTags: %s"), *AbilityTags.ToStringSimple());
+			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       BlockedTags: %s"),
+				BlockedTags.Num() > 0 ? *BlockedTags.ToStringSimple() : TEXT("(none)"));
+			UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       IsActive: %s, TagMatch: %s"),
+				bIsActive ? TEXT("YES") : TEXT("NO"), bTagMatch ? TEXT("YES") : TEXT("NO"));
+
+			if (bTagMatch)
 			{
-				bFoundADSAbility = true;
-				UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG]   ^^^ THIS MATCHES the requested tag!"));
+				bFoundMatchingAbility = true;
+				UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]   ^^^ THIS MATCHES the requested tag!"));
+
+				// Check if any blocked tags are present on ASC
+				bool bHasBlockingTag = OwnedTags.HasAny(BlockedTags);
+				UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       HasBlockingTag on ASC: %s"),
+					bHasBlockingTag ? TEXT("YES - WILL BLOCK!") : TEXT("NO"));
+
+				if (bHasBlockingTag)
+				{
+					// Find which specific tag is blocking
+					for (const FGameplayTag& BlockTag : BlockedTags)
+					{
+						if (OwnedTags.HasTag(BlockTag))
+						{
+							UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG]       !!! BLOCKING TAG FOUND: %s !!!"),
+								*BlockTag.ToString());
+						}
+					}
+				}
+
+				// Check if ability is already active
+				if (bIsActive)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG]       Ability is already ACTIVE - may block re-trigger"));
+				}
 			}
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Total abilities on ASC: %d, Found matching: %s"),
-		AbilityCount, bFoundADSAbility ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] Total abilities: %d, Found matching: %s"),
+		AbilityCount, bFoundMatchingAbility ? TEXT("YES") : TEXT("NO"));
 
 	if (bPressed)
 	{
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
 		bool bSuccess = ASC->TryActivateAbilitiesByTag(TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] TryActivateAbilitiesByTag result: %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] >>> TryActivateAbilitiesByTag result: %s <<<"),
 			bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+
+		if (!bSuccess)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[ABILITY DEBUG] ACTIVATION FAILED! Check above for blocking tags or active state."));
+		}
 	}
 	else
 	{
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
 		ASC->CancelAbilities(&TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] CancelAbilities called for tag: %s"), *AbilityTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[ABILITY DEBUG] CancelAbilities called for tag: %s"), *AbilityTag.ToString());
 	}
 
 	// Publish input event for UI/other systems

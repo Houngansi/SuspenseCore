@@ -230,6 +230,8 @@ namespace SuspenseCoreTags
 		UE_DEFINE_GAMEPLAY_TAG(Reloading, "State.Reloading");
 		UE_DEFINE_GAMEPLAY_TAG(HoldingBreath, "State.HoldingBreath");
 		UE_DEFINE_GAMEPLAY_TAG(WeaponBlocked, "State.WeaponBlocked");
+		UE_DEFINE_GAMEPLAY_TAG(BurstActive, "State.BurstActive");
+		UE_DEFINE_GAMEPLAY_TAG(AutoFireActive, "State.AutoFireActive");
 	}
 
 	//==================================================================
@@ -377,6 +379,7 @@ namespace SuspenseCoreTags
 	namespace Data
 	{
 		UE_DEFINE_GAMEPLAY_TAG(ItemID, "Data.ItemID");
+		UE_DEFINE_GAMEPLAY_TAG(Damage, "Data.Damage");
 
 		// Cost tags for SetByCaller in GameplayEffects
 		namespace Cost

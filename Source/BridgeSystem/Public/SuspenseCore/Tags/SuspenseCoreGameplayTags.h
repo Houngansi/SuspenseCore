@@ -252,6 +252,8 @@ namespace SuspenseCoreTags
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Reloading);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HoldingBreath);
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(WeaponBlocked);  // Weapon blocked by obstacle/wall
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BurstActive);    // Burst fire in progress
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AutoFireActive); // Auto fire active
 	}
 
 	//==================================================================
@@ -399,6 +401,7 @@ namespace SuspenseCoreTags
 	namespace Data
 	{
 		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ItemID);
+		BRIDGESYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage);  // SetByCaller damage value
 
 		// Cost tags for SetByCaller in GameplayEffects
 		namespace Cost

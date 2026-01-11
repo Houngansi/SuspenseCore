@@ -434,11 +434,13 @@ void USuspenseCoreBaseFireAbility::ServerProcessShotTrace(const FWeaponShotParam
 	);
 
 	// Perform trace
+	// TODO: Create custom "Weapon" collision profile in Project Settings -> Collision
+	// Using "BlockAllDynamic" as fallback until "Weapon" profile is created
 	USuspenseCoreTraceUtils::PerformLineTrace(
 		GetAvatarActorFromActorInfo(),
 		ShotRequest.StartLocation,
 		TraceEnd,
-		FName("Weapon"),
+		FName("BlockAllDynamic"),
 		IgnoreActors,
 		bDebugTraces,
 		2.0f,

@@ -404,6 +404,37 @@ void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& 
 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] ═══════════════════════════════════════════════════════"));
+	UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] HandleReload CALLED - R key pressed"));
+	UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] Calling ActivateAbilityByTag(Reload, true)"));
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] ASC found: %s"), *ASC->GetName());
+
+		// Check if ability is granted
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(SuspenseCoreTags::Ability::Weapon::Reload);
+		TArray<FGameplayAbilitySpec*> MatchingSpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(TagContainer, MatchingSpecs);
+		UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] Found %d abilities matching Reload tag"), MatchingSpecs.Num());
+
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && Spec->Ability)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG]   Ability: %s (Active: %s)"),
+					*Spec->Ability->GetName(),
+					Spec->IsActive() ? TEXT("YES") : TEXT("NO"));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RELOAD DEBUG] ❌ ASC NOT FOUND!"));
+	}
+
 	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Reload, true);
 }
 

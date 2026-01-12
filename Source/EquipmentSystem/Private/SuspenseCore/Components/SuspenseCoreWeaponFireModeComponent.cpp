@@ -36,6 +36,12 @@ void USuspenseCoreWeaponFireModeComponent::GetLifetimeReplicatedProps(TArray<FLi
 
 void USuspenseCoreWeaponFireModeComponent::Cleanup()
 {
+    // Remove fire mode tag from ASC before cleanup
+    if (FireModes.IsValidIndex(CurrentFireModeIndex))
+    {
+        UpdateFireModeTagOnASC(FireModes[CurrentFireModeIndex].FireModeTag, FGameplayTag::EmptyTag);
+    }
+
     // Remove granted abilities
     RemoveFireModeAbilities();
 
@@ -126,6 +132,10 @@ bool USuspenseCoreWeaponFireModeComponent::InitializeFromWeaponData_Implementati
 
     // Grant abilities
     GrantFireModeAbilities();
+
+    // Add initial fire mode tag to owner's ASC
+    // This enables ActivationRequiredTags for fire mode abilities (Single/Burst/Auto)
+    UpdateFireModeTagOnASC(FGameplayTag::EmptyTag, FireModes[CurrentFireModeIndex].FireModeTag);
 
     // Initial broadcast
     BroadcastFireModeChanged();
@@ -237,6 +247,11 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int
 
     TGuardValue<bool> SwitchGuard(bIsSwitching, true);
 
+    // Cache old fire mode tag for ASC update
+    FGameplayTag OldModeTag = FireModes.IsValidIndex(CurrentFireModeIndex)
+        ? FireModes[CurrentFireModeIndex].FireModeTag
+        : FGameplayTag::EmptyTag;
+
     // Update state
     if (FireModes.IsValidIndex(CurrentFireModeIndex))
     {
@@ -245,6 +260,9 @@ bool USuspenseCoreWeaponFireModeComponent::SetFireModeByIndex_Implementation(int
 
     CurrentFireModeIndex = Index;
     FireModes[CurrentFireModeIndex].bIsActive = true;
+
+    // Update ASC tags - enables ActivationRequiredTags for fire mode abilities
+    UpdateFireModeTagOnASC(OldModeTag, NewMode.FireModeTag);
 
     // Broadcast change
     BroadcastFireModeChanged();
@@ -563,6 +581,45 @@ void USuspenseCoreWeaponFireModeComponent::BroadcastFireModeChanged()
         CurrentMode.FireModeTag,
         CurrentSpread
     );
+}
+
+void USuspenseCoreWeaponFireModeComponent::UpdateFireModeTagOnASC(const FGameplayTag& OldMode, const FGameplayTag& NewMode)
+{
+    // Get ASC from owner character (CachedASC is inherited from base component)
+    UAbilitySystemComponent* ASC = CachedASC;
+    if (!ASC)
+    {
+        // Try to get from owner if not cached
+        AActor* Owner = GetOwner();
+        if (Owner)
+        {
+            // Check if owner's owner has ASC (weapon -> character)
+            if (AActor* CharacterActor = Owner->GetOwner())
+            {
+                ASC = CharacterActor->FindComponentByClass<UAbilitySystemComponent>();
+            }
+        }
+    }
+
+    if (!ASC)
+    {
+        EQUIPMENT_LOG(Warning, TEXT("UpdateFireModeTagOnASC: No ASC found, fire mode tags not updated"));
+        return;
+    }
+
+    // Remove old fire mode tag
+    if (OldMode.IsValid())
+    {
+        ASC->RemoveLooseGameplayTag(OldMode);
+        EQUIPMENT_LOG(Verbose, TEXT("UpdateFireModeTagOnASC: Removed tag %s"), *OldMode.ToString());
+    }
+
+    // Add new fire mode tag - this enables ActivationRequiredTags for fire mode abilities
+    if (NewMode.IsValid())
+    {
+        ASC->AddLooseGameplayTag(NewMode);
+        EQUIPMENT_LOG(Log, TEXT("UpdateFireModeTagOnASC: Added tag %s"), *NewMode.ToString());
+    }
 }
 
 void USuspenseCoreWeaponFireModeComponent::OnRep_CurrentFireModeIndex()

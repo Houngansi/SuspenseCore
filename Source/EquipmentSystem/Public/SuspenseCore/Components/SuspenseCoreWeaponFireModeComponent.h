@@ -114,6 +114,14 @@ protected:
     void BroadcastFireModeChanged();
 
     /**
+     * Update fire mode tag on owner's ASC.
+     * This enables ActivationRequiredTags on fire mode abilities (Single/Burst/Auto).
+     * @param OldMode Previous fire mode tag to remove (can be invalid)
+     * @param NewMode New fire mode tag to add
+     */
+    void UpdateFireModeTagOnASC(const FGameplayTag& OldMode, const FGameplayTag& NewMode);
+
+    /**
      * Network replication handler
      */
     UFUNCTION()

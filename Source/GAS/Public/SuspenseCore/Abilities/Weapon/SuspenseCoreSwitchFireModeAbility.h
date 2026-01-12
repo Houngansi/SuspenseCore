@@ -86,6 +86,13 @@ protected:
 	void PublishFireModeChangedEvent(const FGameplayTag& NewFireMode);
 
 	/**
+	 * Update fire mode tags on ASC.
+	 * Removes old fire mode tag and adds new one.
+	 * This enables ActivationRequiredTags on fire mode abilities.
+	 */
+	void UpdateFireModeTagsOnASC(const FGameplayTag& OldMode, const FGameplayTag& NewMode);
+
+	/**
 	 * Play switch effects (sound, animation).
 	 */
 	void PlaySwitchEffects();

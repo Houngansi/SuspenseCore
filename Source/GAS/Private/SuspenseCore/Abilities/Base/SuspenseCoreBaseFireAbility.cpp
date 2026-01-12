@@ -25,6 +25,49 @@
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraShakeBase.h"
 #include "TimerManager.h"
+#include "Engine/CollisionProfile.h"
+
+//==================================================================
+// Collision Profile Configuration
+// To create the "Weapon" profile in your game project:
+// Project Settings -> Collision -> New Profile -> Name: "Weapon"
+// Set it to block Pawn, WorldStatic, WorldDynamic, PhysicsBody
+// Ignore Visibility, Camera, Vehicle traces
+//==================================================================
+namespace SuspenseCoreCollision
+{
+	// Primary weapon trace profile - create this in Project Settings -> Collision
+	static const FName WeaponTraceProfile = FName("Weapon");
+
+	// Fallback profile if Weapon not configured
+	static const FName FallbackProfile = FName("BlockAllDynamic");
+
+	// Check if collision profile exists
+	inline bool DoesProfileExist(const FName& ProfileName)
+	{
+		return UCollisionProfile::Get()->GetProfileIndex(ProfileName) != INDEX_NONE;
+	}
+
+	// Get weapon trace profile with fallback
+	inline FName GetWeaponTraceProfile()
+	{
+		if (DoesProfileExist(WeaponTraceProfile))
+		{
+			return WeaponTraceProfile;
+		}
+
+		// Log warning only once per session
+		static bool bWarnedOnce = false;
+		if (!bWarnedOnce)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SuspenseCore: 'Weapon' collision profile not found. Using 'BlockAllDynamic' as fallback. "
+				"Create 'Weapon' profile in Project Settings -> Collision for optimal weapon tracing."));
+			bWarnedOnce = true;
+		}
+
+		return FallbackProfile;
+	}
+}
 
 USuspenseCoreBaseFireAbility::USuspenseCoreBaseFireAbility()
 	: bDebugTraces(false)
@@ -401,14 +444,12 @@ void USuspenseCoreBaseFireAbility::ServerProcessShotTrace(const FWeaponShotParam
 		ShotRequest.Range
 	);
 
-	// Perform trace
-	// TODO: Create custom "Weapon" collision profile in Project Settings -> Collision
-	// Using "BlockAllDynamic" as fallback until "Weapon" profile is created
+	// Perform trace using weapon collision profile with automatic fallback
 	USuspenseCoreTraceUtils::PerformLineTrace(
 		GetAvatarActorFromActorInfo(),
 		ShotRequest.StartLocation,
 		TraceEnd,
-		FName("BlockAllDynamic"),
+		SuspenseCoreCollision::GetWeaponTraceProfile(),
 		IgnoreActors,
 		bDebugTraces,
 		2.0f,

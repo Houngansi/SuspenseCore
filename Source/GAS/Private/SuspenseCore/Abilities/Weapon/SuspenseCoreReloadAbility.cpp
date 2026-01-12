@@ -251,7 +251,7 @@ ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
 
     RELOAD_LOG(Warning, TEXT("    AmmoState:"));
     RELOAD_LOG(Warning, TEXT("      bHasMagazine: %s"), AmmoState.bHasMagazine ? TEXT("YES") : TEXT("NO"));
-    RELOAD_LOG(Warning, TEXT("      bChambered: %s"), AmmoState.bChambered ? TEXT("YES") : TEXT("NO"));
+    RELOAD_LOG(Warning, TEXT("      IsChambered: %s"), AmmoState.ChamberedRound.IsChambered() ? TEXT("YES") : TEXT("NO"));
     RELOAD_LOG(Warning, TEXT("      IsReadyToFire: %s"), AmmoState.IsReadyToFire() ? TEXT("YES") : TEXT("NO"));
     RELOAD_LOG(Warning, TEXT("      IsMagazineEmpty: %s"), AmmoState.IsMagazineEmpty() ? TEXT("YES") : TEXT("NO"));
     RELOAD_LOG(Warning, TEXT("      Magazine Ammo: %d / %d"), AmmoState.InsertedMagazine.CurrentRoundCount, AmmoState.InsertedMagazine.MaxCapacity);

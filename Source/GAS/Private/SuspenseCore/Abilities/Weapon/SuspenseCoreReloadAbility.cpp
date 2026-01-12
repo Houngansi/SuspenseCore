@@ -28,7 +28,10 @@ USuspenseCoreReloadAbility::USuspenseCoreReloadAbility()
     AbilityInputID = ESuspenseCoreAbilityInputID::Reload;
 
     // CRITICAL: AbilityTags for activation via TryActivateAbilitiesByTag()
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")));
+    // Use SetAssetTags() instead of deprecated AbilityTags.AddTag()
+    FGameplayTagContainer AssetTags;
+    AssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")));
+    SetAssetTags(AssetTags);
 
     // Default timing
     BaseTacticalReloadTime = 2.0f;

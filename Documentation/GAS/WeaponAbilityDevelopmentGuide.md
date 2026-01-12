@@ -388,15 +388,16 @@ USuspenseCoreFireAbility::USuspenseCoreFireAbility()
     // Input binding
     AbilityInputID = ESuspenseCoreAbilityInputID::Fire;
 
-    // Ability identification
-    PRAGMA_DISABLE_DEPRECATION_WARNINGS
-    AbilityTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
-    PRAGMA_ENABLE_DEPRECATION_WARNINGS
+    // Ability identification - use SetAssetTags() (UE5.5+ compliant)
+    // NEVER use deprecated AbilityTags.AddTag()
+    FGameplayTagContainer AssetTags;
+    AssetTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
+    SetAssetTags(AssetTags);
 
     // Tags added when ability is active
     ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Firing);
 
-    // Tags that block this ability
+    // Tags that block this ability (use native tags from SuspenseCoreTags)
     ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Reloading);
     ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
     ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
@@ -408,6 +409,9 @@ USuspenseCoreFireAbility::USuspenseCoreFireAbility()
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 ```
+
+> **⚠️ ВАЖНО**: Никогда не используйте `FGameplayTag::RequestGameplayTag()` в конструкторах!
+> Вместо этого используйте нативные теги из `SuspenseCoreTags::` namespace для лучшей производительности.
 
 ---
 
@@ -424,7 +428,7 @@ USuspenseCoreFireAbility::USuspenseCoreFireAbility()
 
 - [ ] Наследоваться от `USuspenseCoreWeaponAbilityBase` или `UGameplayAbility`
 - [ ] Настроить `AbilityInputID` для привязки к input
-- [ ] Настроить `AbilityTags` для идентификации
+- [ ] Настроить `AssetTags` через `SetAssetTags()` (НЕ используйте deprecated `AbilityTags.AddTag()`)
 - [ ] Настроить `ActivationOwnedTags` (теги при активной ability)
 - [ ] Настроить `ActivationBlockedTags` (блокирующие теги)
 - [ ] Настроить `CancelAbilitiesWithTag` (отмена других abilities)

@@ -141,13 +141,17 @@ EventData.SetObject(FName("Target"), AvatarActor);
 ## Теги для конфигурации
 
 ```cpp
-// Ability Tags
-AbilityTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
+// Ability Tags - используем SetAssetTags() (UE5.5+ compliant)
+FGameplayTagContainer AssetTags;
+AssetTags.AddTag(SuspenseCoreTags::Ability::Weapon::Fire);
+SetAssetTags(AssetTags);
 
 // Activation Owned Tags (добавляются при активации)
 ActivationOwnedTags.AddTag(SuspenseCoreTags::State::Firing);
 
 // Blocking Tags (блокируют активацию)
+// ВАЖНО: Используем native tags из SuspenseCoreTags::State namespace
+// НИКОГДА не используем FGameplayTag::RequestGameplayTag() в конструкторах!
 ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Reloading);
 ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Dead);
 ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Stunned);
@@ -155,6 +159,8 @@ ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Disabled);
 ActivationBlockedTags.AddTag(SuspenseCoreTags::State::WeaponBlocked);
 ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Sprinting);  // Опционально
 ```
+
+> **⚠️ Deprecated API**: `AbilityTags.AddTag()` deprecated в UE5.5+. Используйте `SetAssetTags()`.
 
 ---
 

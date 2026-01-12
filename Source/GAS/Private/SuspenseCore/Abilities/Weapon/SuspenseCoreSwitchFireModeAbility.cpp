@@ -19,8 +19,10 @@ USuspenseCoreSwitchFireModeAbility::USuspenseCoreSwitchFireModeAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 
-	// Tag configuration
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::Weapon::FireModeSwitch);
+	// Tag configuration - use SetAssetTags() instead of deprecated AbilityTags.AddTag()
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::Weapon::FireModeSwitch);
+	SetAssetTags(AssetTags);
 
 	// Block during firing/reloading
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::Firing);

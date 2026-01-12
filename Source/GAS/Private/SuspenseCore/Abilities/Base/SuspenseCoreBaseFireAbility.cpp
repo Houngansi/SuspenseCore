@@ -550,6 +550,11 @@ void USuspenseCoreBaseFireAbility::SpawnTracer(const FVector& Start, const FVect
 
 void USuspenseCoreBaseFireAbility::ApplyRecoil()
 {
+	// TEMPORARILY DISABLED - debugging character jerk issue
+	// If character still jerks with this disabled, problem is elsewhere
+	return;
+
+	/*
 	APawn* AvatarPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	if (!AvatarPawn)
 	{
@@ -611,6 +616,7 @@ void USuspenseCoreBaseFireAbility::ApplyRecoil()
 
 	// Start recovery timer
 	StartRecoilRecovery();
+	*/
 }
 
 float USuspenseCoreBaseFireAbility::GetCurrentRecoilMultiplier() const

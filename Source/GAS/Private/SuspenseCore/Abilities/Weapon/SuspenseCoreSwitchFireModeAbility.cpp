@@ -84,14 +84,45 @@ void USuspenseCoreSwitchFireModeAbility::SwitchFireMode()
 		return;
 	}
 
+	UObject* WeaponObj = Cast<UObject>(Weapon);
+
+	// Get current fire mode BEFORE switching (to remove its tag)
+	FGameplayTag OldMode = Weapon->Execute_GetCurrentFireMode(WeaponObj);
+
 	// Cycle to next fire mode
-	bool bSuccess = Weapon->Execute_CycleFireMode(Cast<UObject>(Weapon));
+	bool bSuccess = Weapon->Execute_CycleFireMode(WeaponObj);
 
 	if (bSuccess)
 	{
 		// Get new fire mode and publish event
-		FGameplayTag NewMode = Weapon->Execute_GetCurrentFireMode(Cast<UObject>(Weapon));
+		FGameplayTag NewMode = Weapon->Execute_GetCurrentFireMode(WeaponObj);
+
+		// Update ASC tags for fire mode activation requirements
+		// This allows fire mode abilities (Single/Burst/Auto) to use ActivationRequiredTags
+		UpdateFireModeTagsOnASC(OldMode, NewMode);
+
 		PublishFireModeChangedEvent(NewMode);
+	}
+}
+
+void USuspenseCoreSwitchFireModeAbility::UpdateFireModeTagsOnASC(const FGameplayTag& OldMode, const FGameplayTag& NewMode)
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return;
+	}
+
+	// Remove old fire mode tag
+	if (OldMode.IsValid())
+	{
+		ASC->RemoveLooseGameplayTag(OldMode);
+	}
+
+	// Add new fire mode tag
+	if (NewMode.IsValid())
+	{
+		ASC->AddLooseGameplayTag(NewMode);
 	}
 }
 

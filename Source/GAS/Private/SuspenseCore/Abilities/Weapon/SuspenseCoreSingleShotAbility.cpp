@@ -7,11 +7,11 @@
 
 USuspenseCoreSingleShotAbility::USuspenseCoreSingleShotAbility()
 {
-	// TODO: Re-enable once weapon properly adds fire mode tags to ASC on equip
-	// For now, commented out to allow testing activation
-	//
-	// Require single/semi fire mode
-	// ActivationRequiredTags.AddTag(SuspenseCoreTags::Weapon::FireMode::Single);
+	// Require single/semi fire mode tag on ASC
+	// Fire mode tags are added by:
+	// 1. SuspenseCoreSwitchFireModeAbility::UpdateFireModeTagsOnASC() on mode switch
+	// 2. Weapon initialization when equipped
+	ActivationRequiredTags.AddTag(SuspenseCoreTags::Weapon::FireMode::Single);
 
 	// Block if in burst or auto mode
 	ActivationBlockedTags.AddTag(SuspenseCoreTags::State::BurstActive);

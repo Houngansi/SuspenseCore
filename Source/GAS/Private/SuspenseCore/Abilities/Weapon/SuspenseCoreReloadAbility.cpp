@@ -261,6 +261,29 @@ ESuspenseCoreReloadType USuspenseCoreReloadAbility::DetermineReloadType() const
 
 float USuspenseCoreReloadAbility::CalculateReloadDuration(ESuspenseCoreReloadType ReloadType) const
 {
+    // Get MagazineProvider to calculate duration with proper modifiers from SSOT
+    ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
+    if (MagProvider)
+    {
+        UObject* ProviderObj = Cast<UObject>(MagProvider);
+        if (ProviderObj)
+        {
+            // Use MagazineProvider to get reload duration with:
+            // - WeaponAttributeSet.TacticalReloadTime / FullReloadTime (from SSOT DataTable)
+            // - MagazineData.ReloadTimeModifier (from magazine DataTable)
+            float Duration = ISuspenseCoreMagazineProvider::Execute_CalculateReloadDuration(
+                ProviderObj, ReloadType, NewMagazine);
+
+            if (Duration > 0.0f)
+            {
+                RELOAD_LOG(Verbose, TEXT("CalculateReloadDuration via Provider: Type=%d, Duration=%.2f"),
+                    static_cast<int32>(ReloadType), Duration);
+                return Duration;
+            }
+        }
+    }
+
+    // Fallback to hardcoded defaults if MagazineProvider unavailable
     float BaseTime = 0.0f;
 
     switch (ReloadType)
@@ -285,8 +308,8 @@ float USuspenseCoreReloadAbility::CalculateReloadDuration(ESuspenseCoreReloadTyp
             return 0.0f;
     }
 
-    // TODO: Apply modifiers via MagazineProvider interface
-    // ISuspenseCoreMagazineProvider::Execute_CalculateReloadDuration(...)
+    RELOAD_LOG(Warning, TEXT("CalculateReloadDuration: Using fallback defaults (no MagazineProvider), Type=%d, Duration=%.2f"),
+        static_cast<int32>(ReloadType), BaseTime);
 
     return BaseTime;
 }

@@ -42,10 +42,12 @@ namespace SuspenseCoreCollision
 	// Fallback profile if Weapon not configured
 	static const FName FallbackProfile = FName("BlockAllDynamic");
 
-	// Check if collision profile exists
+	// Check if collision profile exists in UE5
 	inline bool DoesProfileExist(const FName& ProfileName)
 	{
-		return UCollisionProfile::Get()->GetProfileIndex(ProfileName) != INDEX_NONE;
+		// Get collision response params for the profile - returns false if not found
+		FCollisionResponseParams ResponseParams;
+		return UCollisionProfile::Get()->GetProfileTemplate(ProfileName, ResponseParams);
 	}
 
 	// Get weapon trace profile with fallback

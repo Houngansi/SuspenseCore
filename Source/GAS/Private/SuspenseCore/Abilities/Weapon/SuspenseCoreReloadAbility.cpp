@@ -5,6 +5,8 @@
 #include "SuspenseCore/Abilities/Weapon/SuspenseCoreReloadAbility.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreMagazineProvider.h"
 #include "SuspenseCore/Interfaces/Weapon/ISuspenseCoreQuickSlotProvider.h"
+#include "SuspenseCore/Interfaces/Inventory/ISuspenseCoreInventory.h"
+#include "SuspenseCore/Types/Items/SuspenseCoreItemTypes.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Animation/AnimInstance.h"
@@ -312,7 +314,71 @@ bool USuspenseCoreReloadAbility::FindBestMagazine(int32& OutQuickSlotIndex, FSus
     ISuspenseCoreMagazineProvider* MagProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetMagazineProvider();
     UObject* MagProviderObj = MagProvider ? Cast<UObject>(MagProvider) : nullptr;
 
-    // First, try QuickSlots via interface
+    // Reset inventory instance ID
+    const_cast<USuspenseCoreReloadAbility*>(this)->NewMagazineInventoryInstanceID = FGuid();
+
+    //========================================================================
+    // STEP 1: Search INVENTORY FIRST for compatible magazines with ammo
+    // Per user request: "СПЕРВА ПРОВЕРЯЕТ ЧТО ЕСТЬ МАГАЗИНЫ НУЖНОГО ТИПА С ПАТРОНАМИ В ИНВЕНТАРЕ"
+    //========================================================================
+    ISuspenseCoreInventory* InventoryProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetInventoryProvider();
+    if (InventoryProvider)
+    {
+        // Get all item instances from inventory
+        TArray<FSuspenseCoreItemInstance> AllItems = InventoryProvider->GetAllItemInstances();
+
+        // Find best magazine in inventory (most ammo first)
+        FSuspenseCoreItemInstance BestMagazineItem;
+        int32 BestAmmoCount = 0;
+
+        for (const FSuspenseCoreItemInstance& Item : AllItems)
+        {
+            // Check if this item is a magazine with ammo
+            if (!Item.IsMagazine() || Item.MagazineData.CurrentRoundCount <= 0)
+            {
+                continue;
+            }
+
+            // Check if magazine is compatible with weapon caliber
+            if (MagProviderObj)
+            {
+                const bool bCompatible = ISuspenseCoreMagazineProvider::Execute_IsMagazineCompatible(
+                    MagProviderObj, Item.MagazineData);
+                if (!bCompatible)
+                {
+                    RELOAD_LOG(Verbose, TEXT("Magazine in inventory (%s) not compatible with weapon caliber, skipping"),
+                        *Item.MagazineData.MagazineID.ToString());
+                    continue;
+                }
+            }
+
+            // Prefer magazine with most ammo
+            if (Item.MagazineData.CurrentRoundCount > BestAmmoCount)
+            {
+                BestAmmoCount = Item.MagazineData.CurrentRoundCount;
+                BestMagazineItem = Item;
+            }
+        }
+
+        // If found a compatible magazine in inventory, use it
+        if (BestMagazineItem.IsValid() && BestMagazineItem.IsMagazine())
+        {
+            OutQuickSlotIndex = -1;  // -1 indicates from inventory, not QuickSlot
+            OutMagazine = BestMagazineItem.MagazineData;
+            const_cast<USuspenseCoreReloadAbility*>(this)->NewMagazineInventoryInstanceID = BestMagazineItem.UniqueInstanceID;
+
+            RELOAD_LOG(Log, TEXT("Found compatible magazine in INVENTORY: %s, %d rounds, InstanceID=%s"),
+                *OutMagazine.MagazineID.ToString(),
+                OutMagazine.CurrentRoundCount,
+                *BestMagazineItem.UniqueInstanceID.ToString());
+            return true;
+        }
+    }
+
+    //========================================================================
+    // STEP 2: If no magazine in inventory, fall back to QuickSlots
+    // Per user request: "ЕСЛИ НЕТ ТАКИХ МАГАЗИНОВ ТАМ ТО ДЕЛАЕТ ПЕРЕЗАРЯДКУ ИЗ КВИК СЛОТОВ"
+    //========================================================================
     ISuspenseCoreQuickSlotProvider* QuickSlotProvider = const_cast<USuspenseCoreReloadAbility*>(this)->GetQuickSlotProvider();
     if (QuickSlotProvider)
     {
@@ -339,17 +405,15 @@ bool USuspenseCoreReloadAbility::FindBestMagazine(int32& OutQuickSlotIndex, FSus
 
                 OutQuickSlotIndex = i;
                 OutMagazine = Mag;
-                RELOAD_LOG(Verbose, TEXT("Found compatible magazine in QuickSlot %d: %s, %d rounds"),
+                RELOAD_LOG(Log, TEXT("Found compatible magazine in QuickSlot %d: %s, %d rounds"),
                     i, *Mag.MagazineID.ToString(), Mag.CurrentRoundCount);
                 return true;
             }
         }
     }
 
-    // TODO: Fall back to inventory search (with same compatibility check)
     OutQuickSlotIndex = -1;
-
-    RELOAD_LOG(Verbose, TEXT("No suitable compatible magazine found"));
+    RELOAD_LOG(Verbose, TEXT("No suitable compatible magazine found in inventory or QuickSlots"));
     return false;
 }
 
@@ -396,31 +460,66 @@ void USuspenseCoreReloadAbility::OnMagInNotify()
 
     UObject* ProviderObj = Cast<UObject>(MagProvider);
     ISuspenseCoreQuickSlotProvider* QuickSlotProvider = GetQuickSlotProvider();
+    ISuspenseCoreInventory* InventoryProvider = GetInventoryProvider();
 
     // Insert new magazine
     if (NewMagazine.IsValid())
     {
         ISuspenseCoreMagazineProvider::Execute_InsertMagazine(ProviderObj, NewMagazine);
 
-        // Clear from quickslot if it came from there
+        // Remove from source: QuickSlot or Inventory
         if (NewMagazineQuickSlotIndex >= 0 && QuickSlotProvider)
         {
+            // Magazine came from QuickSlot - clear that slot
             ISuspenseCoreQuickSlotProvider::Execute_ClearSlot(
                 Cast<UObject>(QuickSlotProvider), NewMagazineQuickSlotIndex);
+            RELOAD_LOG(Verbose, TEXT("Cleared magazine from QuickSlot %d"), NewMagazineQuickSlotIndex);
+        }
+        else if (NewMagazineInventoryInstanceID.IsValid() && InventoryProvider)
+        {
+            // Magazine came from Inventory - remove by instance ID
+            bool bRemoved = InventoryProvider->RemoveItemInstance(NewMagazineInventoryInstanceID);
+            RELOAD_LOG(Log, TEXT("Removed magazine from inventory (InstanceID=%s): %s"),
+                *NewMagazineInventoryInstanceID.ToString(),
+                bRemoved ? TEXT("SUCCESS") : TEXT("FAILED"));
+
+            // Clear the inventory instance ID
+            NewMagazineInventoryInstanceID = FGuid();
         }
     }
 
-    // CRITICAL FIX: Store ejected magazine AFTER ClearSlot()
+    // CRITICAL FIX: Store ejected magazine AFTER removing the source magazine
     // This ensures the ejected magazine goes into the same slot where new magazine came from
     // Prevents magazine duplication bug. See TarkovStyle_Ammo_System_Design.md Phase 7.
-    if (EjectedMagazine.IsValid() && QuickSlotProvider)
+    if (EjectedMagazine.IsValid())
     {
-        int32 StoredSlotIndex;
-        ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
-            Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
+        // Try to store in QuickSlot first (if came from QuickSlot)
+        if (NewMagazineQuickSlotIndex >= 0 && QuickSlotProvider)
+        {
+            int32 StoredSlotIndex;
+            ISuspenseCoreQuickSlotProvider::Execute_StoreEjectedMagazine(
+                Cast<UObject>(QuickSlotProvider), EjectedMagazine, StoredSlotIndex);
 
-        RELOAD_LOG(Log, TEXT("Stored ejected magazine (%d rounds) in slot %d"),
-            EjectedMagazine.CurrentRoundCount, StoredSlotIndex);
+            RELOAD_LOG(Log, TEXT("Stored ejected magazine (%d rounds) in QuickSlot %d"),
+                EjectedMagazine.CurrentRoundCount, StoredSlotIndex);
+        }
+        // If came from inventory, try to add ejected magazine back to inventory
+        else if (InventoryProvider)
+        {
+            // Create an item instance for the ejected magazine
+            FSuspenseCoreItemInstance EjectedMagItem;
+            EjectedMagItem.UniqueInstanceID = FGuid::NewGuid();
+            EjectedMagItem.ItemID = EjectedMagazine.MagazineID;
+            EjectedMagItem.Quantity = 1;
+            EjectedMagItem.MagazineData = EjectedMagazine;
+
+            bool bAdded = ISuspenseCoreInventory::Execute_AddItemInstance(
+                Cast<UObject>(InventoryProvider), EjectedMagItem);
+
+            RELOAD_LOG(Log, TEXT("Added ejected magazine (%d rounds) to inventory: %s"),
+                EjectedMagazine.CurrentRoundCount,
+                bAdded ? TEXT("SUCCESS") : TEXT("FAILED - inventory might be full"));
+        }
 
         // Clear reference
         EjectedMagazine = FSuspenseCoreMagazineInstance();
@@ -535,6 +634,34 @@ ISuspenseCoreQuickSlotProvider* USuspenseCoreReloadAbility::GetQuickSlotProvider
         if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreQuickSlotProvider::StaticClass()))
         {
             return Cast<ISuspenseCoreQuickSlotProvider>(Comp);
+        }
+    }
+
+    return nullptr;
+}
+
+ISuspenseCoreInventory* USuspenseCoreReloadAbility::GetInventoryProvider() const
+{
+    AActor* OwnerActor = GetOwningActorFromActorInfo();
+    if (!OwnerActor)
+    {
+        return nullptr;
+    }
+
+    // Check if owner implements interface
+    if (OwnerActor->GetClass()->ImplementsInterface(USuspenseCoreInventory::StaticClass()))
+    {
+        return Cast<ISuspenseCoreInventory>(OwnerActor);
+    }
+
+    // Check components
+    TArray<UActorComponent*> Components;
+    OwnerActor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (Comp && Comp->GetClass()->ImplementsInterface(USuspenseCoreInventory::StaticClass()))
+        {
+            return Cast<ISuspenseCoreInventory>(Comp);
         }
     }
 

@@ -414,6 +414,11 @@ namespace SuspenseCoreTags
 			UE_DEFINE_GAMEPLAY_TAG(Character, "UI.Screen.Character");
 		}
 
+		namespace Panel
+		{
+			UE_DEFINE_GAMEPLAY_TAG(Equipment, "SuspenseCore.UI.Panel.Equipment");
+		}
+
 		namespace Tab
 		{
 			UE_DEFINE_GAMEPLAY_TAG(Inventory, "UI.Tab.Inventory");

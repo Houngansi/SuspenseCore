@@ -7,6 +7,7 @@
 #include "SuspenseCore/Events/SuspenseCoreEventManager.h"
 #include "SuspenseCore/Events/SuspenseCoreEventBus.h"
 #include "SuspenseCore/Types/SuspenseCoreTypes.h"
+#include "SuspenseCore/Tags/SuspenseCoreGameplayTags.h"
 #include "SuspenseCore/Save/SuspenseCoreSaveManager.h"
 #include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
@@ -75,7 +76,7 @@ void ASuspenseCorePlayerController::BeginPlay()
 
 	// Publish controller ready event
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerReady")),
+		SuspenseCoreTags::Event::Player::ControllerReady,
 		FString::Printf(TEXT("{\"isLocal\":%s}"), IsLocalController() ? TEXT("true") : TEXT("false"))
 	);
 }
@@ -227,7 +228,7 @@ void ASuspenseCorePlayerController::OnPossess(APawn* InPawn)
 	}
 
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerPossessed")),
+		SuspenseCoreTags::Event::Player::ControllerPossessed,
 		FString::Printf(TEXT("{\"pawnClass\":\"%s\"}"), *InPawn->GetClass()->GetName())
 	);
 }
@@ -235,7 +236,7 @@ void ASuspenseCorePlayerController::OnPossess(APawn* InPawn)
 void ASuspenseCorePlayerController::OnUnPossess()
 {
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Player.ControllerUnPossessed")),
+		SuspenseCoreTags::Event::Player::ControllerUnPossessed,
 		TEXT("{}")
 	);
 
@@ -339,37 +340,37 @@ void ASuspenseCorePlayerController::HandleLook(const FInputActionValue& Value)
 
 void ASuspenseCorePlayerController::HandleJumpPressed(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Jump")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Jump, true);
 }
 
 void ASuspenseCorePlayerController::HandleJumpReleased(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Jump")), false);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Jump, false);
 }
 
 void ASuspenseCorePlayerController::HandleSprintPressed(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Sprint, true);
 }
 
 void ASuspenseCorePlayerController::HandleSprintReleased(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Sprint")), false);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Sprint, false);
 }
 
 void ASuspenseCorePlayerController::HandleCrouchPressed(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Crouch")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Crouch, true);
 }
 
 void ASuspenseCorePlayerController::HandleCrouchReleased(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Crouch")), false);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Crouch, false);
 }
 
 void ASuspenseCorePlayerController::HandleInteract(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Interact")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Interact, true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -381,29 +382,29 @@ void ASuspenseCorePlayerController::HandleAimPressed(const FInputActionValue& Va
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] ═══════════════════════════════════════════════════════"));
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] HandleAimPressed CALLED - RMB Pressed"));
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling ActivateAbilityByTag(AimDownSight, true)"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::AimDownSight, true);
 }
 
 void ASuspenseCorePlayerController::HandleAimReleased(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] HandleAimReleased CALLED - RMB Released"));
 	UE_LOG(LogTemp, Warning, TEXT("[ADS DEBUG] Calling ActivateAbilityByTag(AimDownSight, false) to CANCEL"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.AimDownSight")), false);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::AimDownSight, false);
 }
 
 void ASuspenseCorePlayerController::HandleFirePressed(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, true);
 }
 
 void ASuspenseCorePlayerController::HandleFireReleased(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Fire")), false);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Fire, false);
 }
 
 void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 {
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.Weapon.Reload")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::Weapon::Reload, true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -413,25 +414,25 @@ void ASuspenseCorePlayerController::HandleReload(const FInputActionValue& Value)
 void ASuspenseCorePlayerController::HandleWeaponSlot1(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot1 triggered (Key 1 → Primary)"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Primary")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::WeaponSlot::Primary, true);
 }
 
 void ASuspenseCorePlayerController::HandleWeaponSlot2(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot2 triggered (Key 2 → Secondary)"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Secondary")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::WeaponSlot::Secondary, true);
 }
 
 void ASuspenseCorePlayerController::HandleWeaponSlot3(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleWeaponSlot3 triggered (Key 3 → Sidearm)"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Sidearm")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::WeaponSlot::Sidearm, true);
 }
 
 void ASuspenseCorePlayerController::HandleMeleeWeapon(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[WeaponSlot] HandleMeleeWeapon triggered (Key V → Melee)"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.WeaponSlot.Melee")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::WeaponSlot::Melee, true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -441,25 +442,25 @@ void ASuspenseCorePlayerController::HandleMeleeWeapon(const FInputActionValue& V
 void ASuspenseCorePlayerController::HandleQuickSlot1(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot1 triggered"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.1")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::QuickSlot::Slot1, true);
 }
 
 void ASuspenseCorePlayerController::HandleQuickSlot2(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot2 triggered"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.2")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::QuickSlot::Slot2, true);
 }
 
 void ASuspenseCorePlayerController::HandleQuickSlot3(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot3 triggered"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.3")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::QuickSlot::Slot3, true);
 }
 
 void ASuspenseCorePlayerController::HandleQuickSlot4(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("[QuickSlot] HandleQuickSlot4 triggered"));
-	ActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Ability.QuickSlot.4")), true);
+	ActivateAbilityByTag(SuspenseCoreTags::Ability::QuickSlot::Slot4, true);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -491,7 +492,7 @@ void ASuspenseCorePlayerController::ActivateAbilityByTag(const FGameplayTag& Abi
 
 	// Publish input event for UI/other systems
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Input.AbilityActivated")),
+		SuspenseCoreTags::Event::Input::AbilityActivated,
 		FString::Printf(TEXT("{\"ability\":\"%s\",\"pressed\":%s}"),
 			*AbilityTag.ToString(),
 			bPressed ? TEXT("true") : TEXT("false"))
@@ -740,7 +741,7 @@ void ASuspenseCorePlayerController::HandleQuickSave(const FInputActionValue& Val
 	QuickSave();
 
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickSave")),
+		SuspenseCoreTags::Event::Save::QuickSave,
 		TEXT("{}")
 	);
 }
@@ -750,7 +751,7 @@ void ASuspenseCorePlayerController::HandleQuickLoad(const FInputActionValue& Val
 	QuickLoad();
 
 	PublishEvent(
-		FGameplayTag::RequestGameplayTag(FName("SuspenseCore.Event.Save.QuickLoad")),
+		SuspenseCoreTags::Event::Save::QuickLoad,
 		TEXT("{}")
 	);
 }
@@ -850,7 +851,7 @@ void ASuspenseCorePlayerController::ShowInventory()
 		return;
 	}
 
-	static const FGameplayTag EquipmentPanelTag = FGameplayTag::RequestGameplayTag(FName("SuspenseCore.UI.Panel.Equipment"));
+	static const FGameplayTag EquipmentPanelTag = SuspenseCoreTags::UI::Panel::Equipment;
 
 	if (UIManager->ShowContainerScreen(this, EquipmentPanelTag))
 	{

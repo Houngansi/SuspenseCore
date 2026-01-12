@@ -240,8 +240,10 @@ UGA_WeaponSwitch_Primary::UGA_WeaponSwitch_Primary()
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot1;
 
 	// Set ability tag for input binding via TryActivateAbilitiesByTag
-	// AbilityTags in constructor is the correct UE5.5+ approach
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Primary);
+	// UE5.5+: Use SetAssetTags() in constructor instead of deprecated AbilityTags
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Primary);
+	SetAssetTags(AssetTags);
 }
 
 UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
@@ -249,7 +251,9 @@ UGA_WeaponSwitch_Secondary::UGA_WeaponSwitch_Secondary()
 	TargetSlotIndex = 1;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot2;
 
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Secondary);
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Secondary);
+	SetAssetTags(AssetTags);
 }
 
 UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
@@ -257,7 +261,9 @@ UGA_WeaponSwitch_Sidearm::UGA_WeaponSwitch_Sidearm()
 	TargetSlotIndex = 2;
 	AbilityInputID = ESuspenseCoreAbilityInputID::WeaponSlot3;
 
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Sidearm);
+	SetAssetTags(AssetTags);
 }
 
 UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
@@ -265,5 +271,7 @@ UGA_WeaponSwitch_Melee::UGA_WeaponSwitch_Melee()
 	TargetSlotIndex = 3;
 	AbilityInputID = ESuspenseCoreAbilityInputID::MeleeWeapon;
 
-	AbilityTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Melee);
+	FGameplayTagContainer AssetTags;
+	AssetTags.AddTag(SuspenseCoreTags::Ability::WeaponSlot::Melee);
+	SetAssetTags(AssetTags);
 }
